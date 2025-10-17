@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_image.h"
 #include "ash/public/cpp/holding_space/holding_space_prefs.h"
 #include "ash/public/cpp/holding_space/holding_space_util.h"
@@ -33,8 +34,10 @@ HoldingSpaceItem* HoldingSpaceAshTestBase::AddItem(
     const base::FilePath& file_path) {
   std::unique_ptr<HoldingSpaceItem> item =
       HoldingSpaceItem::CreateFileBackedItem(
-          type, file_path,
-          GURL(base::StrCat({"filesystem:", file_path.BaseName().value()})),
+          type,
+          HoldingSpaceFile(file_path, HoldingSpaceFile::FileSystemType::kTest,
+                           GURL(base::StrCat(
+                               {"filesystem:", file_path.BaseName().value()}))),
           base::BindOnce(&CreateStubHoldingSpaceImage));
   auto* item_ptr = item.get();
   DCHECK(model());
@@ -51,7 +54,9 @@ HoldingSpaceItem* HoldingSpaceAshTestBase::AddPartiallyInitializedItem(
   // backing file.
   std::unique_ptr<HoldingSpaceItem> item =
       HoldingSpaceItem::CreateFileBackedItem(
-          type, path, GURL("filesystem:ignored"),
+          type,
+          HoldingSpaceFile(path, HoldingSpaceFile::FileSystemType::kTest,
+                           GURL("filesystem:ignored")),
           base::BindOnce(&CreateStubHoldingSpaceImage));
   const base::Value::Dict serialized_holding_space_item = item->Serialize();
   std::unique_ptr<HoldingSpaceItem> deserialized_item =
@@ -82,9 +87,7 @@ void HoldingSpaceAshTestBase::SetUp() {
   AshTestBase::SetUp();
 
   // Add and activate a new user.
-  AccountId account_id = AccountId::FromUserEmail(kTestUser);
-  GetSessionControllerClient()->AddUserSession(kTestUser);
-  GetSessionControllerClient()->SwitchActiveUser(account_id);
+  AccountId account_id = SimulateUserLogin({kTestUser});
 
   // Mark the holding space feature as being available to the user.
   holding_space_prefs::MarkTimeOfFirstAvailability(

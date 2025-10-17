@@ -5,6 +5,7 @@
 #include "chrome/browser/content_index/content_index_provider_impl.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/barrier_closure.h"
 #include "base/strings/string_number_conversions.h"
@@ -74,7 +75,7 @@ EntryKeyComponents GetEntryKeyComponents(const std::string& key) {
   DCHECK_NE(pos2, std::string::npos);
 
   int64_t service_worker_registration_id = -1;
-  base::StringToInt64(base::StringPiece(key.data(), pos1),
+  base::StringToInt64(std::string_view(key.data(), pos1),
                       &service_worker_registration_id);
 
   GURL origin(key.substr(pos1 + 1, pos2 - pos1 - 1));
@@ -187,7 +188,7 @@ void ContentIndexProviderImpl::OpenItem(
 }
 
 void ContentIndexProviderImpl::DidGetEntryToOpen(
-    absl::optional<content::ContentIndexEntry> entry) {
+    std::optional<content::ContentIndexEntry> entry) {
   if (!entry)
     return;
 
@@ -237,8 +238,7 @@ void ContentIndexProviderImpl::PauseDownload(const ContentId& id) {
   NOTREACHED();
 }
 
-void ContentIndexProviderImpl::ResumeDownload(const ContentId& id,
-                                              bool has_user_gesture) {
+void ContentIndexProviderImpl::ResumeDownload(const ContentId& id) {
   NOTREACHED();
 }
 
@@ -251,7 +251,7 @@ void ContentIndexProviderImpl::GetItemById(const ContentId& id,
 
   if (!storage_partition || !storage_partition->GetContentIndexContext()) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
 
@@ -263,36 +263,34 @@ void ContentIndexProviderImpl::GetItemById(const ContentId& id,
 
 void ContentIndexProviderImpl::DidGetItem(
     SingleItemCallback callback,
-    absl::optional<content::ContentIndexEntry> entry) {
+    std::optional<content::ContentIndexEntry> entry) {
   if (!entry)
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
   else
     std::move(callback).Run(EntryToOfflineItem(*entry));
 }
 
 void ContentIndexProviderImpl::GetAllItems(MultipleItemCallback callback) {
   // Get the number of Storage Paritions.
-  std::vector<content::StoragePartition*> storage_paritions;
-  profile_->ForEachLoadedStoragePartition(base::BindRepeating(
-      [](std::vector<content::StoragePartition*>* storage_paritions,
-         content::StoragePartition* storage_partition) {
-        storage_paritions->push_back(storage_partition);
-      },
-      &storage_paritions));
-  DCHECK(!storage_paritions.empty());
+  std::vector<content::StoragePartition*> storage_partitions;
+  profile_->ForEachLoadedStoragePartition(
+      [&](content::StoragePartition* partition) {
+        storage_partitions.push_back(partition);
+      });
+  DCHECK(!storage_partitions.empty());
 
   auto item_list = std::make_unique<OfflineItemList>();
   OfflineItemList* item_list_ptr = item_list.get();
 
   // Get the all entries from every partition.
   auto barrier_closure = base::BarrierClosure(
-      storage_paritions.size(),
+      storage_partitions.size(),
       base::BindOnce(
           &ContentIndexProviderImpl::DidGetAllEntriesAcrossStorageParitions,
           weak_ptr_factory_.GetWeakPtr(), std::move(item_list),
           std::move(callback)));
 
-  for (auto* storage_partition : storage_paritions) {
+  for (auto* storage_partition : storage_partitions) {
     if (!storage_partition || !storage_partition->GetContentIndexContext()) {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, barrier_closure);

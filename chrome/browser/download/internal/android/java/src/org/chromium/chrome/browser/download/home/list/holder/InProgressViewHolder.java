@@ -10,6 +10,7 @@ import android.widget.TextView;
 
 import androidx.annotation.CallSuper;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.chrome.browser.download.home.list.ListProperties;
 import org.chromium.chrome.browser.download.home.list.UiUtils;
@@ -23,6 +24,7 @@ import org.chromium.ui.modelutil.PropertyModel;
  * A {@link RecyclerView.ViewHolder} specifically meant to display an in-progress {@code
  * OfflineItem}.
  */
+@NullMarked
 public abstract class InProgressViewHolder extends ListItemViewHolder {
     private final boolean mConstrainCaption;
 
@@ -52,23 +54,24 @@ public abstract class InProgressViewHolder extends ListItemViewHolder {
                 v -> properties.get(ListProperties.CALLBACK_CANCEL).onResult(offlineItem));
         mCancelButton.setVisibility(
                 offlineItem.state == OfflineItemState.CANCELLED ? View.INVISIBLE : View.VISIBLE);
-        mActionButton.setOnClickListener(view -> {
-            switch (offlineItem.state) {
-                case OfflineItemState.IN_PROGRESS: // Intentional fallthrough.
-                case OfflineItemState.PENDING:
-                    properties.get(ListProperties.CALLBACK_PAUSE).onResult(offlineItem);
-                    break;
-                case OfflineItemState.PAUSED: // Intentional fallthrough.
-                case OfflineItemState.FAILED: // Intentional fallthrough.
-                case OfflineItemState.INTERRUPTED: // Intentional fallthrough.
-                case OfflineItemState.CANCELLED: // Intentional fallthrough.
-                    properties.get(ListProperties.CALLBACK_RESUME).onResult(offlineItem);
-                    break;
-                case OfflineItemState.COMPLETE: // Intentional fallthrough.
-                default:
-                    assert false : "Unexpected state for progress bar.";
-                    break;
-            }
-        });
+        mActionButton.setOnClickListener(
+                view -> {
+                    switch (offlineItem.state) {
+                        case OfflineItemState.IN_PROGRESS: // Intentional fallthrough.
+                        case OfflineItemState.PENDING:
+                            properties.get(ListProperties.CALLBACK_PAUSE).onResult(offlineItem);
+                            break;
+                        case OfflineItemState.PAUSED: // Intentional fallthrough.
+                        case OfflineItemState.FAILED: // Intentional fallthrough.
+                        case OfflineItemState.INTERRUPTED: // Intentional fallthrough.
+                        case OfflineItemState.CANCELLED: // Intentional fallthrough.
+                            properties.get(ListProperties.CALLBACK_RESUME).onResult(offlineItem);
+                            break;
+                        case OfflineItemState.COMPLETE: // Intentional fallthrough.
+                        default:
+                            assert false : "Unexpected state for progress bar.";
+                            break;
+                    }
+                });
     }
 }

@@ -42,7 +42,6 @@ AXTreeManagerBase::AXTreeManagerBase(std::unique_ptr<AXTree> tree) {
   const AXTreeID& tree_id = tree->GetAXTreeID();
   if (tree_id.type() == ax::mojom::AXTreeIDType::kUnknown) {
     NOTREACHED() << "Invalid tree ID.\n" << tree->ToString();
-    return;
   }
 
   tree_ = std::move(tree);
@@ -96,12 +95,10 @@ std::unique_ptr<AXTree> AXTreeManagerBase::SetTree(
   if (!tree) {
     NOTREACHED()
         << "Attempting to set a new tree, but no tree has been provided.";
-    return {};
   }
 
   if (tree->GetAXTreeID().type() == ax::mojom::AXTreeIDType::kUnknown) {
     NOTREACHED() << "Invalid tree ID.\n" << tree->ToString();
-    return {};
   }
 
   if (tree_) {
@@ -256,15 +253,14 @@ bool AXTreeManagerBase::AttachChildTree(AXNode& host_node,
   }
 
   {
-    AXNodeData host_node_data = host_node.data();
+    AXTreeUpdate update;
+    update.nodes.emplace_back(AXNodeData(host_node.data()));
     DCHECK(
         !host_node.HasStringAttribute(ax::mojom::StringAttribute::kChildTreeId))
         << "`AXNode::IsLeaf()` should mark all nodes with child tree IDs as "
            "leaves.\n"
         << host_node;
-    host_node_data.AddChildTreeId(child_manager.GetTreeID());
-    AXTreeUpdate update;
-    update.nodes = {host_node_data};
+    update.nodes[0].AddChildTreeId(child_manager.GetTreeID());
     CHECK(ApplyTreeUpdate(update)) << GetTree()->error();
   }
 
@@ -281,22 +277,22 @@ bool AXTreeManagerBase::AttachChildTree(AXNode& host_node,
   return true;
 }
 
-absl::optional<AXTreeManagerBase> AXTreeManagerBase::AttachChildTree(
+std::optional<AXTreeManagerBase> AXTreeManagerBase::AttachChildTree(
     const AXNodeID& host_node_id,
     const AXTreeUpdate& initial_state) {
   AXNode* host_node = GetNode(host_node_id);
   if (host_node)
     return AttachChildTree(*host_node, initial_state);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<AXTreeManagerBase> AXTreeManagerBase::AttachChildTree(
+std::optional<AXTreeManagerBase> AXTreeManagerBase::AttachChildTree(
     AXNode& host_node,
     const AXTreeUpdate& initial_state) {
   AXTreeManagerBase child_manager(initial_state);
   if (AttachChildTree(host_node, child_manager))
     return child_manager;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 AXTreeManagerBase* AXTreeManagerBase::DetachChildTree(
@@ -332,15 +328,14 @@ AXTreeManagerBase* AXTreeManagerBase::DetachChildTree(AXNode& host_node) {
             ax::mojom::AXTreeIDType::kUnknown);
 
   {
-    AXNodeData host_node_data = host_node.data();
+    AXTreeUpdate update;
+    update.nodes.emplace_back(AXNodeData(host_node.data()));
     DCHECK_NE(child_manager->GetTreeData().parent_tree_id.type(),
               ax::mojom::AXTreeIDType::kUnknown)
         << "Child tree should be attached to its host node.\n"
         << host_node;
-    host_node_data.RemoveStringAttribute(
+    update.nodes[0].RemoveStringAttribute(
         ax::mojom::StringAttribute::kChildTreeId);
-    AXTreeUpdate update;
-    update.nodes = {host_node_data};
     CHECK(ApplyTreeUpdate(update)) << GetTree()->error();
   }
 

@@ -9,26 +9,22 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/paint/clear_for_opaque_raster.h"
+#include "cc/paint/display_item_list.h"
+#include "cc/paint/paint_op.h"
 #include "cc/paint/paint_op_buffer_iterator.h"
 #include "cc/paint/paint_op_writer.h"
 #include "cc/paint/scoped_raster_flags.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
+#include "third_party/skia/include/utils/SkNoDrawCanvas.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
 namespace cc {
 namespace {
-
-PlaybackParams MakeParams(const SkCanvas* canvas) {
-  // We don't use an ImageProvider here since the ops are played onto a no-draw
-  // canvas for state tracking and don't need decoded images.
-  PlaybackParams params(nullptr, canvas->getLocalToDevice());
-  params.is_analyzing = true;
-  return params;
-}
 
 std::unique_ptr<SkCanvas> MakeAnalysisCanvas(
     const PaintOp::SerializeOptions& options) {
@@ -60,11 +56,20 @@ PaintOpBufferSerializer::PaintOpBufferSerializer(
 
 PaintOpBufferSerializer::~PaintOpBufferSerializer() = default;
 
+PlaybackParams PaintOpBufferSerializer::MakeParams(
+    const SkCanvas* canvas) const {
+  // We don't use an ImageProvider here since the ops are played onto a no-draw
+  // canvas for state tracking and don't need decoded images.
+  PlaybackParams params(nullptr, canvas->getLocalToDevice());
+  params.raster_inducing_scroll_offsets =
+      options_.raster_inducing_scroll_offsets;
+  params.is_analyzing = true;
+  return params;
+}
+
 void PaintOpBufferSerializer::Serialize(const PaintOpBuffer& buffer,
                                         const std::vector<size_t>* offsets,
                                         const Preamble& preamble) {
-  TRACE_EVENT_BEGIN1("cc", "PaintOpBufferSerializer::Serialize",
-                     "total_op_count", buffer.total_op_count());
   DCHECK_EQ(serialized_op_count_, 0u);
 
   std::unique_ptr<SkCanvas> canvas = MakeAnalysisCanvas(options_);
@@ -80,8 +85,6 @@ void PaintOpBufferSerializer::Serialize(const PaintOpBuffer& buffer,
   SerializePreamble(canvas.get(), preamble, params);
   SerializeBuffer(canvas.get(), buffer, offsets);
   RestoreToCount(canvas.get(), save_count, params);
-  TRACE_EVENT_END1("cc", "PaintOpBufferSerializer::Serialize",
-                   "serialized_op_count", serialized_op_count_);
 }
 
 void PaintOpBufferSerializer::Serialize(const PaintOpBuffer& buffer) {
@@ -193,35 +196,132 @@ void PaintOpBufferSerializer::SerializePreamble(SkCanvas* canvas,
   }
 }
 
-bool PaintOpBufferSerializer::WillSerializeNextOp(const PaintOp& op,
-                                                  SkCanvas* canvas,
-                                                  const PlaybackParams& params,
-                                                  float alpha) {
+template<>
+bool PaintOpBufferSerializer::SerializeOpWithFlags<float>(
+    SkCanvas* canvas,
+    const PaintOpWithFlags& flags_op,
+    const PlaybackParams& params,
+    float alpha) {
+  if (alpha == 1.0f && flags_op.flags.isAntiAlias()) {
+    // There's no need to spend CPU time on copying and restoring the flags
+    // struct below (verified by the DCHECK). Note that this if test depends
+    // on the internal logic of ScopedRasterFlags not calling MutableFlags().
+    DCHECK_EQ(
+        &flags_op.flags,
+        ScopedRasterFlags(&flags_op.flags, nullptr, canvas->getTotalMatrix(),
+                          options_.max_texture_size, alpha)
+            .flags());
+    return SerializeOp(canvas, flags_op, &flags_op.flags, params);
+  }
+  // We use a null |image_provider| here because images are decoded during
+  // serialization.
+  const ScopedRasterFlags scoped_flags(&flags_op.flags, nullptr,
+                                       canvas->getTotalMatrix(),
+                                       options_.max_texture_size, alpha);
+  const PaintFlags* flags_to_serialize = scoped_flags.flags();
+  if (!flags_to_serialize) {
+    return true;
+  }
+
+  return SerializeOp(canvas, flags_op, flags_to_serialize, params);
+}
+
+namespace {
+bool IsDeferredPaintRecordImage(const PaintOp& op) {
+  PaintImage image;
+  if (op.GetType() == PaintOpType::kDrawImage) {
+    image = static_cast<const DrawImageOp&>(op).image;
+  } else if (op.GetType() == PaintOpType::kDrawImageRect) {
+    image = static_cast<const DrawImageRectOp&>(op).image;
+  }
+
+  return image.IsDeferredPaintRecord();
+}
+}  // namespace
+
+template <>
+bool PaintOpBufferSerializer::WillSerializeNextOp<float>(
+    const PaintOp& op,
+    SkCanvas* canvas,
+    const PlaybackParams& params,
+    float alpha) {
   // Skip ops outside the current clip if they have images. This saves
   // performing an unnecessary expensive decode.
   bool skip_op = PaintOp::OpHasDiscardableImages(op) &&
                  PaintOp::QuickRejectDraw(op, canvas);
+
   // Skip text ops if there is no SkStrikeServer.
   skip_op |=
-      op.GetType() == PaintOpType::DrawTextBlob && !options_.strike_server;
+      op.GetType() == PaintOpType::kDrawTextBlob && !options_.strike_server;
   if (skip_op)
     return true;
 
-  if (op.GetType() == PaintOpType::DrawRecord) {
+  if (op.GetType() == PaintOpType::kDrawRecord) {
+    const auto& draw_record_op = static_cast<const DrawRecordOp&>(op);
     int save_count = canvas->getSaveCount();
-    Save(canvas, params);
-    SerializeBuffer(
-        canvas, static_cast<const DrawRecordOp&>(op).record.buffer(), nullptr);
+    const PaintOpBuffer& buffer = draw_record_op.record.buffer();
+    if (draw_record_op.local_ctm) [[likely]] {
+      // This record has a local CTM, meaning that any transforms in `buffer`
+      // must be isolated from the parent record. Saving ensures that transforms
+      // won't leak out. Then, `SerializeBuffer` will set `original_ctm` to the
+      // current transform so that any `SetMatrixOp` in `buffer` will be
+      // transformed consistently with other multiplicative matrix ops
+      // (e.g. ScaleOp).
+      Save(canvas, params);
+      SerializeBuffer(canvas, buffer, nullptr);
+    } else {
+      // The record has a non-local CTM, meaning that any matrix transforms in
+      // `buffer` should behave as if part of the parent record.
+      SerializeBufferWithParams(canvas, params, buffer, nullptr);
+    }
     RestoreToCount(canvas, save_count, params);
     return true;
   }
 
-  if (op.GetType() == PaintOpType::DrawImageRect &&
-      static_cast<const DrawImageRectOp&>(op).image.IsPaintWorklet()) {
+  if (op.GetType() == PaintOpType::kDrawScrollingContents) {
+    auto& scrolling_contents_op =
+        static_cast<const DrawScrollingContentsOp&>(op);
+    CHECK(params.raster_inducing_scroll_offsets);
+    gfx::PointF scroll_offset = params.raster_inducing_scroll_offsets->at(
+        scrolling_contents_op.scroll_element_id);
+    int save_count = canvas->getSaveCount();
+    if (!scroll_offset.IsOrigin()) {
+      Save(canvas, params);
+      TranslateOp translate_op(-scroll_offset.x(), -scroll_offset.y());
+      SerializeOp(canvas, translate_op, nullptr, params);
+    }
+    std::vector<size_t> offsets =
+        scrolling_contents_op.display_item_list->OffsetsOfOpsToRaster(canvas);
+    SerializeBuffer(canvas,
+                    scrolling_contents_op.display_item_list->paint_op_buffer(),
+                    &offsets);
+    RestoreToCount(canvas, save_count, params);
+    return true;
+  }
+
+  if (IsDeferredPaintRecordImage(op)) {
+    // Note: This check must be kept in sync with the check in
+    // DrawImageRectOp::RasterWithFlags.
     DCHECK(options_.image_provider);
-    const DrawImageRectOp& draw_op = static_cast<const DrawImageRectOp&>(op);
+    SkRect src;
+    SkRect dst;
+    PaintImage paint_image;
+
+    if (op.GetType() == PaintOpType::kDrawImageRect) {
+      const DrawImageRectOp& draw_op = static_cast<const DrawImageRectOp&>(op);
+      src = draw_op.src;
+      dst = draw_op.dst;
+      paint_image = draw_op.image;
+    } else {
+      const DrawImageOp& draw_op = static_cast<const DrawImageOp&>(op);
+      paint_image = draw_op.image;
+      src = SkRect::MakeWH(paint_image.width(), paint_image.height());
+      dst = SkRect::MakeXYWH(draw_op.left, draw_op.top, paint_image.width(),
+                             paint_image.height());
+    }
+
     ImageProvider::ScopedResult result =
-        options_.image_provider->GetRasterContent(DrawImage(draw_op.image));
+        options_.image_provider->GetRasterContent(DrawImage(paint_image));
     if (!result || !result.has_paint_record()) {
       return true;
     }
@@ -230,25 +330,30 @@ bool PaintOpBufferSerializer::WillSerializeNextOp(const PaintOp& op,
     Save(canvas, params);
     // The following ops are copying the canvas's ops from
     // DrawImageRectOp::RasterWithFlags.
-    SkM44 trans = SkM44(SkMatrix::RectToRect(draw_op.src, draw_op.dst));
+    SkM44 trans = SkM44(SkMatrix::RectToRect(src, dst));
     ConcatOp concat_op(trans);
     bool success = SerializeOp(canvas, concat_op, nullptr, params);
 
     if (!success)
       return false;
 
-    ClipRectOp clip_rect_op(draw_op.src, SkClipOp::kIntersect, false);
+    ClipRectOp clip_rect_op(src, SkClipOp::kIntersect, false);
     success = SerializeOp(canvas, clip_rect_op, nullptr, params);
     if (!success)
       return false;
 
-    // In DrawImageRectOp::RasterWithFlags, the save layer uses the
-    // flags_to_serialize or default (PaintFlags()) flags. At this point in the
-    // serialization, flags_to_serialize is always null as well.
-    SaveLayerOp save_layer_op(draw_op.src, PaintFlags());
-    success = SerializeOpWithFlags(canvas, save_layer_op, params, 255);
-    if (!success)
-      return false;
+    if (paint_image.NeedsLayer()) {
+      // In DrawImageRectOp::RasterWithFlags, the save layer uses the
+      // flags_to_serialize or default (PaintFlags()) flags. At this point in
+      // the serialization, flags_to_serialize is always null as well.
+      // TODO(crbug.com/343439032): See if we can be less aggressive about use
+      // of a save layer operation for CSS paint worklets since expensive.
+      SaveLayerOp save_layer_op(src, PaintFlags());
+      success = SerializeOpWithFlags(canvas, save_layer_op, params, 1.0f);
+      if (!success) {
+        return false;
+      }
+    }
 
     SerializeBuffer(canvas, result.ReleaseAsRecord().buffer(), nullptr);
     RestoreToCount(canvas, save_count, params);
@@ -270,7 +375,14 @@ void PaintOpBufferSerializer::SerializeBuffer(
   // This updates the original_ctm to reflect the canvas transformation at
   // start of this call to SerializeBuffer.
   PlaybackParams params = MakeParams(canvas);
+  SerializeBufferWithParams(canvas, params, buffer, offsets);
+}
 
+void PaintOpBufferSerializer::SerializeBufferWithParams(
+    SkCanvas* canvas,
+    const PlaybackParams& params,
+    const PaintOpBuffer& buffer,
+    const std::vector<size_t>* offsets) {
   for (PaintOpBuffer::PlaybackFoldingIterator iter(buffer, offsets); iter;
        ++iter) {
     const PaintOp& op = *iter;
@@ -280,30 +392,10 @@ void PaintOpBufferSerializer::SerializeBuffer(
   }
 }
 
-bool PaintOpBufferSerializer::SerializeOpWithFlags(
-    SkCanvas* canvas,
-    const PaintOpWithFlags& flags_op,
-    const PlaybackParams& params,
-    float alpha) {
-  // We use a null |image_provider| here because images are decoded during
-  // serialization.
-  const ScopedRasterFlags scoped_flags(&flags_op.flags, nullptr,
-                                       canvas->getTotalMatrix(),
-                                       options_.max_texture_size, alpha);
-  const PaintFlags* flags_to_serialize = scoped_flags.flags();
-  if (!flags_to_serialize)
-    return true;
-
-  return SerializeOp(canvas, flags_op, flags_to_serialize, params);
-}
-
 bool PaintOpBufferSerializer::SerializeOp(SkCanvas* canvas,
                                           const PaintOp& op,
                                           const PaintFlags* flags_to_serialize,
                                           const PlaybackParams& params) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
-               "PaintOpBufferSerializer::SerializeOp", "op",
-               PaintOpTypeToString(op.GetType()));
   if (!valid_)
     return false;
 
@@ -333,10 +425,12 @@ void PaintOpBufferSerializer::PlaybackOnAnalysisCanvas(
   //    we need the correct ctm at which text and images will be rasterized, and
   //    the clip rect so we can skip sending data for ops which will not be
   //    rasterized.
-  // 2) DrawTextBlob ops since they need to be analyzed by the cache diff canvas
+  // 2) kDrawtextblob ops since they need to be analyzed by the cache diff
+  // canvas
   //    to serialize/lock the requisite glyphs for this op.
-  if (op.IsDrawOp() && op.GetType() != PaintOpType::DrawTextBlob)
+  if (op.IsDrawOp() && op.GetType() != PaintOpType::kDrawTextBlob) {
     return;
+  }
 
   if (op.IsPaintOpWithFlags() && flags_to_serialize) {
     static_cast<const PaintOpWithFlags&>(op).RasterWithFlags(
@@ -383,9 +477,9 @@ size_t SimpleBufferSerializer::SerializeToMemoryImpl(
   if (written_ == total_)
     return 0u;
 
-  size_t bytes =
-      op.Serialize(static_cast<char*>(memory_) + written_, total_ - written_,
-                   options, flags_to_serialize, current_ctm, original_ctm);
+  size_t bytes = op.Serialize(
+      UNSAFE_TODO(static_cast<char*>(memory_) + written_), total_ - written_,
+      options, flags_to_serialize, current_ctm, original_ctm);
   if (!bytes)
     return 0u;
 

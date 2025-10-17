@@ -19,7 +19,6 @@ std::ostream& operator<<(std::ostream& out, WindowPinType pin_type) {
   }
 
   NOTREACHED();
-  return out;
 }
 
 }  // namespace chromeos

@@ -1583,7 +1583,7 @@ TEST(seleqz_selnez) {
       18446744073709551621.0, -18446744073709551621.0};
     float tests_S[test_size*2] = {2.9, 2.8, -2.9, -2.8,
       18446744073709551616.0, 18446746272732807168.0};
-    for (int j=0; j < test_size; j+=2) {
+    for (int j = 0; j < test_size; j += 2) {
       for (int i=0; i < input_size; i++) {
         test.e = inputs_D[i];
         test.f = tests_D[j];
@@ -1846,7 +1846,7 @@ TEST(sel) {
       18446744073709551616.0, 18446744073709555712.0};
     float tests_S[test_size*2] = {2.9, 2.8, -2.9, -2.8,
       18446744073709551616.0, 18446746272732807168.0};
-    for (int j=0; j < test_size; j+=2) {
+    for (int j = 0; j < test_size; j += 2) {
       for (int i=0; i < input_size; i++) {
         test.dt = inputs_dt[i];
         test.dd = tests_D[j];
@@ -3280,7 +3280,7 @@ TEST(jump_tables1) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -3345,7 +3345,7 @@ TEST(jump_tables2) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -3370,7 +3370,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases];
-  Object obj;
+  Tagged<Object> obj;
   int64_t imm64;
 
   __ daddiu(sp, sp, -8);
@@ -3420,15 +3420,16 @@ TEST(jump_tables3) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
-        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
+        Tagged<Object>(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))),
+        isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
-    result->Print(std::cout);
+    Print(*result);
     ::printf("\n");
 #endif
     CHECK(values[i].is_identical_to(result));
@@ -5012,7 +5013,7 @@ uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
@@ -5558,7 +5559,7 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -6286,12 +6287,12 @@ void helper_madd_msub_maddf_msubf(F func) {
       {-x2, -y2, -z2, 0.0, 0.0},
   };
 
-  if (std::is_same<T, float>::value) {
+  if (std::is_same_v<T, float>) {
     __ Lwc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
     __ Lwc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
     __ Lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
     __ Lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
-  } else if (std::is_same<T, double>::value) {
+  } else if (std::is_same_v<T, double>) {
     __ Ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
     __ Ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
     __ Ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
@@ -6393,7 +6394,7 @@ uint64_t run_Subu(uint64_t imm, int32_t num_instr) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
@@ -6476,7 +6477,7 @@ uint64_t run_Dsubu(uint64_t imm, int32_t num_instr) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
@@ -6783,7 +6784,7 @@ TEST(MSA_fill_copy) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -6846,7 +6847,7 @@ TEST(MSA_fill_copy_2) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F5>::FromCode(isolate, *code);
 
@@ -6899,7 +6900,7 @@ TEST(MSA_fill_copy_3) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F5>::FromCode(isolate, *code);
 
@@ -6922,16 +6923,16 @@ void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
   __ li(t1, rs_value);
   __ fill_w(w0, t0);
 
-  if (std::is_same<T, int8_t>::value) {
+  if (std::is_same_v<T, int8_t>) {
     DCHECK_LT(n, 16);
     __ insert_b(w0, n, t1);
-  } else if (std::is_same<T, int16_t>::value) {
+  } else if (std::is_same_v<T, int16_t>) {
     DCHECK_LT(n, 8);
     __ insert_h(w0, n, t1);
-  } else if (std::is_same<T, int32_t>::value) {
+  } else if (std::is_same_v<T, int32_t>) {
     DCHECK_LT(n, 4);
     __ insert_w(w0, n, t1);
-  } else if (std::is_same<T, int64_t>::value) {
+  } else if (std::is_same_v<T, int64_t>) {
     DCHECK_LT(n, 2);
     __ insert_d(w0, n, t1);
   } else {
@@ -6948,7 +6949,7 @@ void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -7058,7 +7059,7 @@ void run_msa_ctc_cfc(uint64_t value) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -7108,7 +7109,7 @@ TEST(MSA_move_v) {
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-    code->Print(std::cout);
+    Print(*code);
 #endif
     auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     f.Call(&t[i].wd_lo, 0, 0, 0, 0);
@@ -7153,7 +7154,7 @@ void run_msa_sldi(OperFunc GenerateOperation,
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-    code->Print(std::cout);
+    Print(*code);
 #endif
     auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     f.Call(&res[0], 0, 0, 0, 0);
@@ -7313,7 +7314,7 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -7517,7 +7518,7 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -7943,7 +7944,7 @@ void run_msa_2r(const struct TestCaseMsa2R* input,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -8993,7 +8994,7 @@ void run_msa_vector(struct TestCaseMsaVector* input,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -9081,7 +9082,7 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -9554,7 +9555,7 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -9632,7 +9633,7 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F5>::FromCode(isolate, *code);
 
@@ -9711,7 +9712,7 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
@@ -10112,7 +10113,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUS_U_DF(T, lanes, mask)                           \
-  using uT = typename std::make_unsigned<T>::type;            \
+  using uT = std::make_unsigned_t<T>;                         \
   int size_in_bits = kMSARegSize / lanes;                     \
   for (int i = 0; i < 2; i++) {                               \
     uint64_t res = 0;                                         \
@@ -10141,7 +10142,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUU_S_DF(T, lanes, mask)                        \
-  using uT = typename std::make_unsigned<T>::type;         \
+  using uT = std::make_unsigned_t<T>;                      \
   int size_in_bits = kMSARegSize / lanes;                  \
   for (int i = 0; i < 2; i++) {                            \
     uint64_t res = 0;                                      \
@@ -10718,7 +10719,7 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 

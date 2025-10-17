@@ -6,6 +6,8 @@ package org.chromium.webapk.shell_apk;
 
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -17,7 +19,6 @@ import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -25,8 +26,8 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import androidx.annotation.RequiresApi;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.webapk.lib.common.WebApkMetaDataKeys;
 import org.chromium.webapk.lib.common.WebApkConstants;
 
@@ -34,9 +35,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Handles site settings shortcuts for WebApks. The shortcut opens the web
- * browser's site settings for the start url associated with the WebApk.
+ * Handles site settings shortcuts for WebApks. The shortcut opens the web browser's site settings
+ * for the start url associated with the WebApk.
  */
+@NullMarked
 public class ManageDataLauncherActivity extends Activity {
     public static final String ACTION_SITE_SETTINGS =
             "android.support.customtabs.action.ACTION_MANAGE_TRUSTED_WEB_ACTIVITY_DATA";
@@ -56,15 +58,15 @@ public class ManageDataLauncherActivity extends Activity {
     private String mProviderPackage;
 
     /**
-     * The url of the page for which the settings will be shown. Must be provided as an intent
-     * extra to {@link ManageDataLauncherActivity}.
+     * The url of the page for which the settings will be shown. Must be provided as an intent extra
+     * to {@link ManageDataLauncherActivity}.
      */
     private Uri mUrl;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mProviderPackage = getIntent().getStringExtra(EXTRA_PROVIDER_PACKAGE);
+        mProviderPackage = assertNonNull(getIntent().getStringExtra(EXTRA_PROVIDER_PACKAGE));
         mUrl = Uri.parse(getIntent().getStringExtra(EXTRA_SITE_SETTINGS_URL));
 
         if (!siteSettingsShortcutEnabled(this, mProviderPackage)) {
@@ -75,9 +77,7 @@ public class ManageDataLauncherActivity extends Activity {
         launchSettings();
     }
 
-    /**
-     * Returns a view with a loading spinner.
-     */
+    /** Returns a view with a loading spinner. */
     private View createLoadingView() {
         ProgressBar progressBar = new ProgressBar(this);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
@@ -101,8 +101,10 @@ public class ManageDataLauncherActivity extends Activity {
             appName = mProviderPackage;
         }
 
-        Toast.makeText(this, getString(R.string.no_support_for_launch_settings, appName),
-                     Toast.LENGTH_LONG)
+        Toast.makeText(
+                        this,
+                        getString(R.string.no_support_for_launch_settings, appName),
+                        Toast.LENGTH_LONG)
                 .show();
         finish();
     }
@@ -121,7 +123,7 @@ public class ManageDataLauncherActivity extends Activity {
         intent.putExtra(WebApkConstants.EXTRA_IS_WEBAPK, true);
 
         try {
-            startActivityForResult(intent, 0 /* requestCode */);
+            startActivityForResult(intent, /* requestCode= */ 0);
             finish();
         } catch (ActivityNotFoundException e) {
             handleNoSupportForLaunchSettings();
@@ -138,24 +140,24 @@ public class ManageDataLauncherActivity extends Activity {
         Intent intent = new Intent(ACTION_CUSTOM_TABS_CONNECTION);
         intent.addCategory(CATEGORY_LAUNCH_WEBAPK_SITE_SETTINGS);
         intent.setPackage(providerPackage);
-        List<ResolveInfo> services = context.getPackageManager().queryIntentServices(
-                intent, PackageManager.GET_RESOLVED_FILTER);
+        List<ResolveInfo> services =
+                context.getPackageManager()
+                        .queryIntentServices(intent, PackageManager.GET_RESOLVED_FILTER);
         return services.size() > 0;
     }
 
     /**
-     * Returns the {@link ShortcutInfo} for a dynamic shortcut into site settings,
-     * provided that {@link ManageDataLauncherActivity} is present in the manifest
-     * and an Intent for managing site settings is available.
+     * Returns the {@link ShortcutInfo} for a dynamic shortcut into site settings, provided that
+     * {@link ManageDataLauncherActivity} is present in the manifest and an Intent for managing site
+     * settings is available.
      *
-     * Otherwise returns null if {@link ManageDataLauncherActivity} is not launchable
-     * or if shortcuts are not supported by the Android SDK version.
+     * <p>Otherwise returns null if {@link ManageDataLauncherActivity} is not launchable or if
+     * shortcuts are not supported by the Android SDK version.
      *
-     * The shortcut returned does not specify an activity. Thus when the shortcut is added,
-     * the app's main activity will be used by default. This activity needs to define the
-     * MAIN action and LAUNCHER category in order to attach the shortcut.
+     * <p>The shortcut returned does not specify an activity. Thus when the shortcut is added, the
+     * app's main activity will be used by default. This activity needs to define the MAIN action
+     * and LAUNCHER category in order to attach the shortcut.
      */
-    @RequiresApi(Build.VERSION_CODES.N_MR1)
     private static ShortcutInfo createSiteSettingsShortcutInfo(
             Context context, String url, String providerPackage) {
         Intent siteSettingsIntent = new Intent(context, ManageDataLauncherActivity.class);
@@ -175,24 +177,24 @@ public class ManageDataLauncherActivity extends Activity {
     /**
      * Adds dynamic shortcut to site settings if the provider and android version support it.
      *
-     * Removes previously added site settings shortcut if it is no longer supported, e.g. the user
-     * changed their default browser.
+     * <p>Removes previously added site settings shortcut if it is no longer supported, e.g. the
+     * user changed their default browser.
      */
     public static void updateSiteSettingsShortcut(
             Context context, HostBrowserLauncherParams params) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return;
-
         ShortcutManager shortcutManager = context.getSystemService(ShortcutManager.class);
 
         // Remove potentially existing shortcut if package does not support shortcuts.
         if (!siteSettingsShortcutEnabled(context, params.getHostBrowserPackageName())) {
-            shortcutManager.removeDynamicShortcuts(Collections.singletonList(
-                    ManageDataLauncherActivity.SITE_SETTINGS_SHORTCUT_ID));
+            shortcutManager.removeDynamicShortcuts(
+                    Collections.singletonList(
+                            ManageDataLauncherActivity.SITE_SETTINGS_SHORTCUT_ID));
             return;
         }
 
-        ShortcutInfo shortcut = createSiteSettingsShortcutInfo(
-                context, params.getStartUrl(), params.getHostBrowserPackageName());
+        ShortcutInfo shortcut =
+                createSiteSettingsShortcutInfo(
+                        context, params.getStartUrl(), params.getHostBrowserPackageName());
         shortcutManager.addDynamicShortcuts(Collections.singletonList(shortcut));
     }
 }

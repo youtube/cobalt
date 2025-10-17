@@ -13,6 +13,8 @@
 #include "ui/base/dragdrop/drop_target_event.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/views/test/views_test_base.h"
@@ -24,6 +26,8 @@ namespace {
 
 // A view implementation for validating drop location.
 class TestDropTargetView : public views::View {
+  METADATA_HEADER(TestDropTargetView, View)
+
  public:
   TestDropTargetView() : drop_location_(-1, -1) {}
 
@@ -58,6 +62,9 @@ class TestDropTargetView : public views::View {
   }
 };
 
+BEGIN_METADATA(TestDropTargetView)
+END_METADATA
+
 class DropHelperTest : public ViewsTestBase {
  public:
   DropHelperTest() = default;
@@ -70,7 +77,7 @@ TEST_F(DropHelperTest, DropCoordinates) {
   Widget widget;
   Widget::InitParams init_params(
       CreateParams(Widget::InitParams::TYPE_WINDOW_FRAMELESS));
-  init_params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+  init_params.ownership = Widget::InitParams::CLIENT_OWNS_WIDGET;
   widget.Init(std::move(init_params));
 
   // Setup a widget with a view that isn't aligned with the corner. In screen

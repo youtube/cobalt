@@ -38,7 +38,16 @@ class WithProfilePickerTestHelpers {
   // provided, it checks for the current `web_contents()` to stop loading `url`.
   // This also works if `web_contents()` changes throughout the waiting as it is
   // technically observing all web contents.
-  void WaitForLoadStop(const GURL& url, content::WebContents* target = nullptr);
+  //
+  // DEPRECATED: Ambiguous call, prefer `content::WaitForLoadStop()` when
+  // waiting for a specific WebContents instance to finish loading or
+  // `profiles::testing::WaitForPickerUrl()` when waiting for a specific URL to
+  // be loaded by the profile picker.
+  void WaitForLoadStop(const GURL& url, content::WebContents* target);
+
+  // DEPRECATED: Ambiguous call, prefer `profiles::testing::WaitForPickerUrl()`
+  // instead.
+  void WaitForLoadStop(const GURL& url);
 
   // Waits until the picker gets closed.
   void WaitForPickerClosed();
@@ -52,6 +61,8 @@ class WithProfilePickerTestHelpers {
   // Gets signin_chrome_sync_dice with appropriate parameters appended:
   // if in dark mode, "color_scheme=dark", and always "flow=promo".
   GURL GetSigninChromeSyncDiceUrl();
+
+  GURL GetChromeReauthURL(const std::string& email);
 };
 
 class ProfilePickerTestBase : public InProcessBrowserTest,

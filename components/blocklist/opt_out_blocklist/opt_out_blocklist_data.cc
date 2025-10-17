@@ -69,8 +69,9 @@ void BlocklistData::AddEntry(const std::string& host_name,
       item = value.first;
     }
     item->second.AddEntry(opt_out, time);
-    if (max_hosts_ > 0 && block_list_item_host_map_.size() > max_hosts_)
+    if (max_hosts_ > 0 && block_list_item_host_map_.size() > max_hosts_) {
       EvictOldestHost();
+    }
   }
 
   if (type_policy_) {
@@ -116,8 +117,9 @@ BlocklistReason BlocklistData::IsAllowed(
 
   // Check the host rule.
   if (host_policy_) {
-    if (IsHostBlocklisted(host_name, time))
+    if (IsHostBlocklisted(host_name, time)) {
       return BlocklistReason::kUserOptedOutOfHost;
+    }
     passed_reasons->push_back(BlocklistReason::kUserOptedOutOfHost);
   }
 
@@ -139,10 +141,10 @@ BlocklistReason BlocklistData::IsAllowed(
 
 void BlocklistData::EvictOldestHost() {
   DCHECK_LT(max_hosts_, block_list_item_host_map_.size());
-  absl::optional<base::Time> oldest_opt_out;
+  std::optional<base::Time> oldest_opt_out;
   std::string key_to_delete;
   for (auto& item : block_list_item_host_map_) {
-    absl::optional<base::Time> most_recent_opt_out =
+    std::optional<base::Time> most_recent_opt_out =
         item.second.most_recent_opt_out_time();
     if (!most_recent_opt_out) {
       // If there is no opt out time, this is a good choice to evict.

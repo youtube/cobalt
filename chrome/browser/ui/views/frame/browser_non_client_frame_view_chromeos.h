@@ -17,6 +17,8 @@
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/tab_icon_view_model.h"
 #include "chromeos/ui/frame/highlight_border_overlay.h"
+#include "components/services/app_service/public/cpp/app_registry_cache.h"
+#include "components/services/app_service/public/cpp/app_update.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -38,9 +40,11 @@ class BrowserNonClientFrameViewChromeOS
       public display::DisplayObserver,
       public TabIconViewModel,
       public aura::WindowObserver,
-      public ImmersiveModeController::Observer {
+      public ImmersiveModeController::Observer,
+      public apps::AppRegistryCache::Observer {
+  METADATA_HEADER(BrowserNonClientFrameViewChromeOS, BrowserNonClientFrameView)
+
  public:
-  METADATA_HEADER(BrowserNonClientFrameViewChromeOS);
   BrowserNonClientFrameViewChromeOS(BrowserFrame* frame,
                                     BrowserView* browser_view);
   BrowserNonClientFrameViewChromeOS(const BrowserNonClientFrameViewChromeOS&) =
@@ -48,6 +52,8 @@ class BrowserNonClientFrameViewChromeOS
   BrowserNonClientFrameViewChromeOS& operator=(
       const BrowserNonClientFrameViewChromeOS&) = delete;
   ~BrowserNonClientFrameViewChromeOS() override;
+
+  static BrowserNonClientFrameViewChromeOS* Get(aura::Window* window);
 
   void Init();
 
@@ -59,12 +65,10 @@ class BrowserNonClientFrameViewChromeOS
   void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
                                views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
-  int GetThemeBackgroundXInset() const override;
   void UpdateThrobber(bool running) override;
   bool CanUserExitFullscreen() const override;
   SkColor GetCaptionColor(BrowserFrameActiveState active_state) const override;
   SkColor GetFrameColor(BrowserFrameActiveState active_state) const override;
-  TabSearchBubbleHost* GetTabSearchBubbleHost() override;
   void UpdateMinimumSize() override;
 
   // views::NonClientFrameView:
@@ -72,17 +76,16 @@ class BrowserNonClientFrameViewChromeOS
   gfx::Rect GetWindowBoundsForClientBounds(
       const gfx::Rect& client_bounds) const override;
   int NonClientHitTest(const gfx::Point& point) override;
-  void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override;
   void ResetWindowControls() override;
   void WindowControlsOverlayEnabledChanged() override;
   void UpdateWindowIcon() override;
   void UpdateWindowTitle() override;
   void SizeConstraintsChanged() override;
+  void UpdateWindowRoundedCorners() override;
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
-  void Layout() override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
+  void Layout(PassKey) override;
   gfx::Size GetMinimumSize() const override;
   void OnThemeChanged() override;
   void ChildPreferredSizeChanged(views::View* child) override;
@@ -119,6 +122,11 @@ class BrowserNonClientFrameViewChromeOS
   void OnImmersiveRevealEnded() override;
   void OnImmersiveFullscreenExited() override;
 
+  // apps::AppRegistryCache::Observer:
+  void OnAppUpdate(const apps::AppUpdate& update) override;
+  void OnAppRegistryCacheWillBeDestroyed(
+      apps::AppRegistryCache* cache) override;
+
   chromeos::FrameCaptionButtonContainerView* caption_button_container() {
     return caption_button_container_;
   }
@@ -134,7 +142,10 @@ class BrowserNonClientFrameViewChromeOS
   FRIEND_TEST_ALL_PREFIXES(ImmersiveModeBrowserViewTestNoWebUiTabStrip,
                            ImmersiveFullscreen);
 
-  bool AppIsBorderlessPwa() const;
+  // App is a PWA and has borderless in its manifest. This doesn't yet mean
+  // that the `window-management` permission has been granted and borderless
+  // mode would be activated.
+  bool AppIsPwaWithBorderlessDisplayMode() const;
 
   // Returns true if `GetShowCaptionButtonsWhenNotInOverview()` returns true
   // and this browser window is not showing in overview.
@@ -199,8 +210,15 @@ class BrowserNonClientFrameViewChromeOS
   // Returns whether the associated window is currently floated or not.
   bool IsFloated() const;
 
-  // Helper to check whether we should enable immersive mode.
-  bool ShouldEnableImmersiveModeController() const;
+  // Helper to check whether we should enable immersive mode.`on_tablet_enabled`
+  // is set to true only when it is called when tablet mode is just toggled on
+  // notified from OnTabletModeToggled.
+  bool ShouldEnableImmersiveModeController(bool on_tablet_enabled) const;
+
+  // Helper to check whether we should enable fullscreen mode.
+  // `on_tablet_enabled` is set to true only when tablet mode is just toggled
+  // on notified from OnTabletModeToggled.
+  bool ShouldEnableFullscreenMode(bool on_tablet_enabled) const;
 
   // True if the the associated browser window should be using the WebUI tab
   // strip.
@@ -217,14 +235,11 @@ class BrowserNonClientFrameViewChromeOS
   raw_ptr<chromeos::FrameCaptionButtonContainerView> caption_button_container_ =
       nullptr;
 
-  raw_ptr<TabSearchBubbleHost> tab_search_bubble_host_ = nullptr;
-
   // For popups, the window icon.
-  TabIconView* window_icon_ = nullptr;
+  raw_ptr<TabIconView> window_icon_ = nullptr;
 
   // This is used for teleported windows (in multi-profile mode).
-  raw_ptr<ProfileIndicatorIcon, DanglingUntriaged> profile_indicator_icon_ =
-      nullptr;
+  raw_ptr<ProfileIndicatorIcon> profile_indicator_icon_ = nullptr;
 
   // Helper class for painting the header.
   std::unique_ptr<chromeos::FrameHeader> frame_header_;
@@ -232,7 +247,11 @@ class BrowserNonClientFrameViewChromeOS
   base::ScopedObservation<aura::Window, aura::WindowObserver>
       window_observation_{this};
 
-  absl::optional<display::ScopedDisplayObserver> display_observer_;
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observation_{this};
+
+  std::optional<display::ScopedDisplayObserver> display_observer_;
 
   gfx::Size last_minimum_size_;
 

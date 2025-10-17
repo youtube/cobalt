@@ -6,11 +6,14 @@
 
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_provider.h"
+#include "ash/style/typography.h"
 #include "ash/system/phonehub/continue_browsing_chip.h"
 #include "ash/system/phonehub/phone_hub_view_ids.h"
 #include "ash/system/phonehub/ui_constants.h"
 #include "ash/system/tray/tray_constants.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/controls/label.h"
@@ -28,9 +31,6 @@ constexpr int kTaskContinuationChipHorizontalSidePadding = 4;
 constexpr int kTaskContinuationChipVerticalPadding = 4;
 constexpr int kHeaderLabelLineHeight = 48;
 
-// Typography.
-constexpr int kHeaderTextFontSizeDip = 15;
-
 gfx::Size GetTaskContinuationChipSize() {
   int width =
       (kTrayMenuWidth - kBubbleHorizontalSidePaddingDip * 2 -
@@ -41,30 +41,32 @@ gfx::Size GetTaskContinuationChipSize() {
 }
 
 class HeaderView : public views::Label {
+  METADATA_HEADER(HeaderView, views::Label)
+
  public:
   HeaderView() {
     SetText(
         l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_TASK_CONTINUATION_TITLE));
-    SetLineHeight(kHeaderLabelLineHeight);
-    SetFontList(font_list()
-                    .DeriveWithSizeDelta(kHeaderTextFontSizeDip -
-                                         font_list().GetFontSize())
-                    .DeriveWithWeight(gfx::Font::Weight::MEDIUM));
     SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
     SetVerticalAlignment(gfx::VerticalAlignment::ALIGN_MIDDLE);
     SetAutoColorReadabilityEnabled(false);
     SetSubpixelRenderingEnabled(false);
+    // TODO(b/322067753): Replace usage of |AshColorProvider| with
+    // |cros_tokens|.
     SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
         AshColorProvider::ContentLayerType::kTextColorPrimary));
+    TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosButton1,
+                                          *this);
+    SetLineHeight(kHeaderLabelLineHeight);
   }
 
   ~HeaderView() override = default;
   HeaderView(HeaderView&) = delete;
   HeaderView operator=(HeaderView&) = delete;
-
-  // views::View:
-  const char* GetClassName() const override { return "HeaderView"; }
 };
+
+BEGIN_METADATA(HeaderView)
+END_METADATA
 
 }  // namespace
 
@@ -95,10 +97,6 @@ void TaskContinuationView::OnModelChanged() {
   Update();
 }
 
-const char* TaskContinuationView::GetClassName() const {
-  return "TaskContinuationView";
-}
-
 TaskContinuationView::TaskChipsView::TaskChipsView() = default;
 
 TaskContinuationView::TaskChipsView::~TaskChipsView() = default;
@@ -106,11 +104,12 @@ TaskContinuationView::TaskChipsView::~TaskChipsView() = default;
 void TaskContinuationView::TaskChipsView::AddTaskChip(views::View* task_chip) {
   size_t view_size = task_chips_.view_size();
   task_chips_.Add(task_chip, view_size);
-  AddChildView(task_chip);
+  AddChildViewRaw(task_chip);
 }
 
 // views::View:
-gfx::Size TaskContinuationView::TaskChipsView::CalculatePreferredSize() const {
+gfx::Size TaskContinuationView::TaskChipsView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   auto chip_size = GetTaskContinuationChipSize();
   int width = chip_size.width() * kTaskContinuationChipsInRow +
               kTaskContinuationChipSpacing +
@@ -124,17 +123,13 @@ gfx::Size TaskContinuationView::TaskChipsView::CalculatePreferredSize() const {
   return gfx::Size(width, height);
 }
 
-void TaskContinuationView::TaskChipsView::Layout() {
-  views::View::Layout();
+void TaskContinuationView::TaskChipsView::Layout(PassKey) {
+  LayoutSuperclass<views::View>(this);
   CalculateIdealBounds();
   for (size_t i = 0; i < task_chips_.view_size(); ++i) {
     auto* button = task_chips_.view_at(i);
     button->SetBoundsRect(task_chips_.ideal_bounds(i));
   }
-}
-
-const char* TaskContinuationView::TaskChipsView::GetClassName() const {
-  return "TaskChipsView";
 }
 
 void TaskContinuationView::TaskChipsView::Reset() {
@@ -160,6 +155,9 @@ void TaskContinuationView::TaskChipsView::CalculateIdealBounds() {
     task_chips_.set_ideal_bounds(i, tile_bounds);
   }
 }
+
+BEGIN_METADATA(TaskContinuationView, TaskChipsView)
+END_METADATA
 
 void TaskContinuationView::Update() {
   chips_view_->Reset();
@@ -190,5 +188,8 @@ void TaskContinuationView::Update() {
   PreferredSizeChanged();
   SetVisible(true);
 }
+
+BEGIN_METADATA(TaskContinuationView)
+END_METADATA
 
 }  // namespace ash

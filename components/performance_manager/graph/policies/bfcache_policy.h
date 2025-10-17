@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_PERFORMANCE_MANAGER_GRAPH_POLICIES_BFCACHE_POLICY_H_
 #define COMPONENTS_PERFORMANCE_MANAGER_GRAPH_POLICIES_BFCACHE_POLICY_H_
 
-#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "components/performance_manager/public/graph/graph.h"
@@ -15,8 +14,7 @@ namespace performance_manager::policies {
 
 // Policies that automatically flush the BFCache of pages when the system is
 // under memory pressure.
-class BFCachePolicy : public GraphOwned,
-                      public SystemNode::ObserverDefaultImpl {
+class BFCachePolicy : public GraphOwned, public SystemNodeObserver {
  public:
   BFCachePolicy() = default;
   BFCachePolicy(const BFCachePolicy&) = delete;
@@ -40,8 +38,6 @@ class BFCachePolicy : public GraphOwned,
 
   // SystemNodeObserver:
   void OnMemoryPressure(MemoryPressureLevel new_level) override;
-
-  raw_ptr<Graph> graph_;
 };
 
 }  // namespace performance_manager::policies

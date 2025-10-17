@@ -67,10 +67,9 @@ bool FontFaceSetDocument::InActiveContext() const {
   return context && To<LocalDOMWindow>(context)->document()->IsActive();
 }
 
-AtomicString FontFaceSetDocument::status() const {
-  DEFINE_STATIC_LOCAL(AtomicString, loading, ("loading"));
-  DEFINE_STATIC_LOCAL(AtomicString, loaded, ("loaded"));
-  return is_loading_ ? loading : loaded;
+FontSelector* FontFaceSetDocument::GetFontSelector() const {
+  DCHECK(IsMainThread());
+  return GetDocument()->GetStyleEngine().GetFontSelector();
 }
 
 void FontFaceSetDocument::DidLayout() {
@@ -87,11 +86,8 @@ void FontFaceSetDocument::DidLayout() {
 }
 
 void FontFaceSetDocument::StartLCPLimitTimerIfNeeded() {
-  // Make sure the timer is started at most once for each document, and only
-  // when the feature is enabled
-  if (!base::FeatureList::IsEnabled(
-          features::kAlignFontDisplayAutoTimeoutWithLCPGoal) ||
-      has_reached_lcp_limit_ || lcp_limit_timer_.IsActive() ||
+  // Make sure the timer is started at most once for each document.
+  if (has_reached_lcp_limit_ || lcp_limit_timer_.IsActive() ||
       !GetDocument()->Loader()) {
     return;
   }
@@ -125,7 +121,8 @@ size_t FontFaceSetDocument::ApproximateBlankCharacterCount() const {
   return count;
 }
 
-ScriptPromise FontFaceSetDocument::ready(ScriptState* script_state) {
+ScriptPromise<FontFaceSet> FontFaceSetDocument::ready(
+    ScriptState* script_state) {
   if (ready_->GetState() != ReadyProperty::kPending && InActiveContext()) {
     // |ready_| is already resolved, but there may be pending stylesheet
     // changes and/or layout operations that may cause another font loads.
@@ -165,51 +162,46 @@ void FontFaceSetDocument::FireDoneEventIfPossible() {
   FireDoneEvent();
 }
 
-bool FontFaceSetDocument::ResolveFontStyle(const String& font_string,
-                                           Font& font) {
+const Font* FontFaceSetDocument::ResolveFontStyle(const String& font_string) {
   if (font_string.empty()) {
-    return false;
+    return nullptr;
   }
 
   // Interpret fontString in the same way as the 'font' attribute of
   // CanvasRenderingContext2D.
   auto* parsed_style = CSSParser::ParseFont(font_string, GetExecutionContext());
   if (!parsed_style) {
-    return false;
+    return nullptr;
   }
 
   if (!GetDocument()->documentElement()) {
     auto* font_selector = GetDocument()->GetStyleEngine().GetFontSelector();
     FontDescription description =
         FontStyleResolver::ComputeFont(*parsed_style, font_selector);
-    font = Font(description, font_selector);
-    return true;
+    return MakeGarbageCollected<Font>(description, font_selector);
   }
 
   ComputedStyleBuilder builder =
       GetDocument()->GetStyleResolver().CreateComputedStyleBuilder();
 
-  FontFamily font_family;
-  font_family.SetFamily(
-      FontFaceSet::kDefaultFontFamily,
-      FontFamily::InferredTypeFor(FontFaceSet::kDefaultFontFamily));
-
   FontDescription default_font_description;
-  default_font_description.SetFamily(font_family);
+  default_font_description.SetFamily(FontFamily(
+      FontFaceSet::DefaultFontFamily(),
+      FontFamily::InferredTypeFor(FontFaceSet::DefaultFontFamily())));
   default_font_description.SetSpecifiedSize(FontFaceSet::kDefaultFontSize);
   default_font_description.SetComputedSize(FontFaceSet::kDefaultFontSize);
 
   builder.SetFontDescription(default_font_description);
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
 
-  font = GetDocument()->GetStyleEngine().ComputeFont(
+  const Font* font = GetDocument()->GetStyleEngine().ComputeFont(
       *GetDocument()->documentElement(), *style, *parsed_style);
 
   // StyleResolver::ComputeFont() should have set the document's FontSelector
   // to |style|.
-  DCHECK_EQ(font.GetFontSelector(), GetFontSelector());
+  DCHECK_EQ(font->GetFontSelector(), GetFontSelector());
 
-  return true;
+  return font;
 }
 
 Document* FontFaceSetDocument::GetDocument() const {
@@ -256,8 +248,6 @@ void FontFaceSetDocument::AlignTimeoutWithLCPGoal(FontFace* font_face) {
 }
 
 void FontFaceSetDocument::LCPLimitReached(TimerBase*) {
-  DCHECK(base::FeatureList::IsEnabled(
-      features::kAlignFontDisplayAutoTimeoutWithLCPGoal));
   if (!GetDocument() || !GetDocument()->IsActive()) {
     return;
   }

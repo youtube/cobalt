@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 
+#include <numeric>
+
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
@@ -123,7 +125,6 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
     EXPECT_EQ(source_cookies[i]->http_only(), cookies[i]->IsHttpOnly());
     EXPECT_EQ(net::CookieSameSite::NO_RESTRICTION, cookies[i]->SameSite());
     EXPECT_TRUE(cookies[i]->Priority());
-    EXPECT_FALSE(cookies[i]->IsSameParty());
     EXPECT_FALSE(cookies[i]->IsPartitioned());
     EXPECT_FALSE(cookies[i]->PartitionKey().has_value());
     EXPECT_EQ(net::CookieSourceScheme::kUnset, cookies[i]->SourceScheme());

@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_UTF8_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_UTF8_H_
 
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
 
@@ -37,12 +38,19 @@ typedef enum {
   kSourceExhausted,  // partial character in source, but hit end
   kTargetExhausted,  // insuff. room in target for conversion
   kSourceIllegal     // source sequence is illegal/malformed
-} ConversionResult;
+} ConversionStatus;
+
+template <typename CharType>
+struct ConversionResult {
+  base::span<const CharType> converted;
+  size_t consumed;
+  ConversionStatus status;
+};
 
 // These conversion functions take a "strict" argument. When this flag is set to
-// strict, both irregular sequences and isolated surrogates will cause an error.
-// When the flag is set to lenient, both irregular sequences and isolated
-// surrogates are converted.
+// true (i.e. strict), both irregular sequences and isolated surrogates will
+// cause an error.  When the flag is set to false (i.e. lenient), both irregular
+// sequences and isolated surrogates are converted.
 //
 // Whether the flag is strict or lenient, all illegal sequences will cause an
 // error return. This includes sequences such as: <F4 90 80 80>, <C0 80>, or
@@ -52,40 +60,31 @@ typedef enum {
 // When the flag is set to lenient, characters over 0x10FFFF are converted to
 // the replacement character; otherwise (when the flag is set to strict) they
 // constitute an error.
+// TODO(crbug.com/329702346): It is not clear how characters over 0x10FFFF can
+// be represented in the encodings that these functions claim to handle. In
+// UTF-16, surrogate pairs should not be able to encode codepoints higher than
+// 0x10FFFF; in UTF-8, the 4-byte form is similarly unable to encode codepoints
+// higher than 0x10FFFF.
 
-WTF_EXPORT ConversionResult
-ConvertUTF8ToUTF16(const char** source_start,
-                   const char* source_end,
-                   UChar** target_start,
-                   UChar* target_end,
-                   bool* is_source_all_ascii = nullptr,
-                   bool strict = true);
+WTF_EXPORT ConversionResult<UChar> ConvertUTF8ToUTF16(
+    base::span<const uint8_t> source,
+    base::span<UChar> target,
+    bool strict = true);
 
-WTF_EXPORT ConversionResult ConvertLatin1ToUTF8(const LChar** source_start,
-                                                const LChar* source_end,
-                                                char** target_start,
-                                                char* target_end);
+WTF_EXPORT ConversionResult<uint8_t> ConvertLatin1ToUTF8(
+    base::span<const LChar> source,
+    base::span<uint8_t> target);
 
-WTF_EXPORT ConversionResult ConvertUTF16ToUTF8(const UChar** source_start,
-                                               const UChar* source_end,
-                                               char** target_start,
-                                               char* target_end,
-                                               bool strict = true);
+WTF_EXPORT ConversionResult<uint8_t> ConvertUTF16ToUTF8(
+    base::span<const UChar> source,
+    base::span<uint8_t> target,
+    bool strict = true);
 
-WTF_EXPORT unsigned CalculateStringHashAndLengthFromUTF8MaskingTop8Bits(
-    const char* data,
-    const char* data_end,
-    unsigned& data_length,
-    unsigned& utf16_length);
-
-WTF_EXPORT bool EqualUTF16WithUTF8(const UChar* a,
-                                   const UChar* a_end,
-                                   const char* b,
-                                   const char* b_end);
-WTF_EXPORT bool EqualLatin1WithUTF8(const LChar* a,
-                                    const LChar* a_end,
-                                    const char* b,
-                                    const char* b_end);
+// Returns the number of UTF-16 code points.
+WTF_EXPORT unsigned CalculateStringLengthFromUTF8(const uint8_t* data,
+                                                  const uint8_t*& data_end,
+                                                  bool& seen_non_ascii,
+                                                  bool& seen_non_latin1);
 
 }  // namespace unicode
 }  // namespace WTF

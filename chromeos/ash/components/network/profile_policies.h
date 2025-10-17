@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_NETWORK_PROFILE_POLICIES_H_
 #define CHROMEOS_ASH_COMPONENTS_NETWORK_PROFILE_POLICIES_H_
 
+#include <optional>
 #include <string>
 
 #include "base/component_export.h"
@@ -14,7 +15,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "chromeos/ash/components/network/client_cert_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -66,24 +66,35 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ProfilePolicies {
     // Returns the original ONC policy without runtime values.
     const base::Value::Dict& GetOriginalPolicy() const;
 
+    // Returns the original ONC policy with the placeholders
+    const base::Value::Dict& GetPolicyWithVariablesExpanded() const;
+
     // Returns the effective ONC policy with runtime values set.
     const base::Value::Dict& GetPolicyWithRuntimeValues() const;
 
    private:
+    // Replaces placeholders in the |original_policy_|.
+    ChangeEffect ReapplyVariableExpansions();
+
     // Applies the runtime values.
     ChangeEffect ReapplyRuntimeValues();
 
-    raw_ptr<const ProfilePolicies, ExperimentalAsh> parent_;
+    raw_ptr<const ProfilePolicies> parent_;
 
     client_cert::ResolvedCert resolved_cert_ =
         client_cert::ResolvedCert::NotKnownYet();
 
     base::Value::Dict original_policy_;
 
-    // The ONC NetworkConfiguration with runtime values set.  If this is absent,
+    // The ONC NetworkConfiguration with variables expanded. If this is absent,
+    // it means that expanding variables didn't change anything compared to
+    // |original_onc_policy_|.
+    std::optional<base::Value::Dict> policy_with_placeholders_replaced_;
+
+    // The ONC NetworkConfiguration with runtime values set. If this is absent,
     // it means that setting runtime values didn't change anything compared to
     // |original_onc_policy_|.
-    absl::optional<base::Value::Dict> policy_with_runtime_values_;
+    std::optional<base::Value::Dict> policy_with_runtime_values_;
   };
 
   // Used to check whether an ONC NetworkConfiguration passed in
@@ -131,10 +142,18 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ProfilePolicies {
 
   // Returns the policy for |guid| or nullptr if no such policy exists.
   // If the policy value contained ONC variable expansions, they will be
+  // expanded in the returned value and the certificates resolved (when
+  // possible). The returned pointer remains valid as long as this instance is
+  // valid and is not modified (e.g. by calls to SetProfileWideExpansions).
+  const base::Value::Dict* GetPolicyByGuid(const std::string& guid) const;
+
+  // Returns the policy for |guid| or nullptr if no such policy exists.
+  // If the policy value contained ONC variable expansions, they will be
   // expanded in the returned value. The returned pointer remains valid as long
   // as this instance is valid and is not modified (e.g. by calls to
   // SetProfileWideExpansions).
-  const base::Value::Dict* GetPolicyByGuid(const std::string& guid) const;
+  const base::Value::Dict* GetPolicyWithVariablesExpandedByGuid(
+      const std::string& guid) const;
 
   // Returns the policy for |guid| without runtime values set (i.e. the
   // variable placeholders such as ${LOGIN_EMAIL} will still be present), or

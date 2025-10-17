@@ -4,6 +4,8 @@
 
 package org.chromium.components.media_router;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
@@ -19,9 +21,11 @@ import androidx.mediarouter.app.MediaRouteChooserDialogFragment;
 import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter;
 
-/**
- * Manages the dialog responsible for selecting a {@link MediaSink}.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Manages the dialog responsible for selecting a {@link MediaSink}. */
+@NullMarked
 public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager {
     private static final String DIALOG_FRAGMENT_TAG =
             "android.support.v7.mediarouter:MediaRouteChooserDialogFragment";
@@ -31,22 +35,21 @@ public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager 
         super(sourceId, routeSelector, delegate);
     }
 
-    /**
-     * Fragment implementation for MediaRouteChooserDialogManager.
-     */
+    /** Fragment implementation for MediaRouteChooserDialogManager. */
     public static class Fragment extends MediaRouteChooserDialogFragment {
         private final Handler mHandler = new Handler();
         private final SystemVisibilitySaver mVisibilitySaver = new SystemVisibilitySaver();
-        private BaseMediaRouteDialogManager mManager;
+        private @Nullable BaseMediaRouteDialogManager mManager;
         private boolean mIsSinkSelected;
 
         public Fragment() {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    Fragment.this.dismiss();
-                }
-            });
+            mHandler.post(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            Fragment.this.dismiss();
+                        }
+                    });
         }
 
         public Fragment(BaseMediaRouteDialogManager manager) {
@@ -55,7 +58,7 @@ public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager 
 
         @Override
         public MediaRouteChooserDialog onCreateChooserDialog(
-                Context context, Bundle savedInstanceState) {
+                Context context, @Nullable Bundle savedInstanceState) {
             MediaRouteChooserDialog dialog = new DelayedSelectionDialog(context, getTheme());
             dialog.setCanceledOnTouchOutside(true);
             return dialog;
@@ -77,20 +80,17 @@ public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager 
         public void onDismiss(DialogInterface dialog) {
             super.onDismiss(dialog);
 
-            if (!mIsSinkSelected) mManager.delegate().onDialogCancelled();
+            if (!mIsSinkSelected && mManager != null) mManager.delegate().onDialogCancelled();
         }
 
         private class DelayedSelectionDialog extends MediaRouteChooserDialog {
-            public DelayedSelectionDialog(Context context) {
-                super(context);
-            }
 
             public DelayedSelectionDialog(Context context, int theme) {
                 super(context, theme);
             }
 
             @Override
-            public void onCreate(Bundle savedInstanceState) {
+            public void onCreate(@Nullable Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
 
                 ListView listView = (ListView) findViewById(R.id.mr_chooser_list);
@@ -105,15 +105,18 @@ public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager 
             // Chrome desktop.
             private void recordSinkCountWithDelay() {
                 Handler handler = new Handler();
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        ListView listView = (ListView) findViewById(R.id.mr_chooser_list);
-                        if (listView != null) {
-                            MediaRouteUmaRecorder.recordDeviceCountWithDelay(listView.getCount());
-                        }
-                    }
-                }, 3000);
+                handler.postDelayed(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                ListView listView = (ListView) findViewById(R.id.mr_chooser_list);
+                                if (listView != null) {
+                                    MediaRouteUmaRecorder.recordDeviceCountWithDelay(
+                                            listView.getCount());
+                                }
+                            }
+                        },
+                        3000);
             }
         }
 
@@ -125,6 +128,7 @@ public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager 
 
                 // When a item is clicked, the route is not selected right away. Instead, the route
                 // selection is postponed to the actual session launch.
+                assumeNonNull(mManager);
                 mManager.delegate().onSinkSelected(mManager.sourceId(), newSink);
                 mIsSinkSelected = true;
 
@@ -134,7 +138,7 @@ public class MediaRouteChooserDialogManager extends BaseMediaRouteDialogManager 
     }
 
     @Override
-    protected DialogFragment openDialogInternal(FragmentManager fm) {
+    protected @Nullable DialogFragment openDialogInternal(FragmentManager fm) {
         if (fm.findFragmentByTag(DIALOG_FRAGMENT_TAG) != null) return null;
 
         Fragment fragment = new Fragment(this);

@@ -19,19 +19,21 @@
 #include "chrome/browser/ash/nearby/bluetooth_adapter_manager.h"
 #include "chrome/browser/ash/nearby/nearby_dependencies_provider.h"
 #include "chrome/browser/ash/nearby/nearby_process_manager_factory.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/services/sharing/nearby/test_support/fake_adapter.h"
+#include "chrome/services/sharing/nearby/test_support/fake_nearby_presence_credential_storage.h"
 #include "chrome/services/sharing/nearby/test_support/mock_webrtc_dependencies.h"
 #include "chromeos/ash/services/nearby/public/cpp/fake_firewall_hole_factory.h"
+#include "chromeos/ash/services/nearby/public/cpp/fake_mdns_manager.h"
 #include "chromeos/ash/services/nearby/public/cpp/fake_nearby_presence.h"
 #include "chromeos/ash/services/nearby/public/cpp/fake_tcp_socket_factory.h"
 #include "chromeos/ash/services/nearby/public/cpp/mock_nearby_connections.h"
 #include "chromeos/ash/services/nearby/public/cpp/mock_nearby_sharing_decoder.h"
 #include "chromeos/ash/services/nearby/public/cpp/mock_quick_start_decoder.h"
 #include "chromeos/ash/services/nearby/public/mojom/firewall_hole.mojom.h"
+#include "chromeos/ash/services/nearby/public/mojom/mdns.mojom.h"
 #include "chromeos/ash/services/nearby/public/mojom/nearby_connections.mojom.h"
 #include "chromeos/ash/services/nearby/public/mojom/nearby_decoder.mojom.h"
 #include "chromeos/ash/services/nearby/public/mojom/nearby_presence.mojom.h"
@@ -50,6 +52,31 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace {
+
+// Noop implementation for tests.
+class FakeWifiDirectManager
+    : public ash::wifi_direct::mojom::WifiDirectManager {
+  // ash::wifi_direct::mojom::WifiDirectManager
+  void CreateWifiDirectGroup(
+      ash::wifi_direct::mojom::WifiCredentialsPtr credentials,
+      CreateWifiDirectGroupCallback callback) override {
+    // Noop
+  }
+  void ConnectToWifiDirectGroup(
+      ash::wifi_direct::mojom::WifiCredentialsPtr credentials,
+      std::optional<uint32_t> frequency,
+      ConnectToWifiDirectGroupCallback callback) override {
+    // Noop
+  }
+  void GetWifiP2PCapabilities(
+      GetWifiP2PCapabilitiesCallback callback) override {
+    // Noop
+  }
+};
+
+}  // namespace
 
 namespace ash {
 namespace nearby {
@@ -129,6 +156,8 @@ class NearbyProcessManagerImplTest : public testing::Test {
     // NearbyDependenciesProvider:
     sharing::mojom::NearbyDependenciesPtr GetDependencies() override {
       fake_adapter_ = std::make_unique<bluetooth::FakeAdapter>();
+      fake_nearby_presence_credential_storage_ =
+          std::make_unique<presence::FakeNearbyPresenceCredentialStorage>();
       webrtc_dependencies_ =
           std::make_unique<sharing::MockWebRtcDependencies>();
 
@@ -154,6 +183,25 @@ class NearbyProcessManagerImplTest : public testing::Test {
                   net::IPAddress(192, 168, 86, 75), 44444)),
           tcp_socket_factory_remote.InitWithNewPipeAndPassReceiver());
 
+      // Set up Mdns Manager mojo service.
+      mojo::PendingRemote<sharing::mojom::MdnsManager> mdns_manager_remote;
+      mojo::MakeSelfOwnedReceiver(
+          std::make_unique<ash::nearby::FakeMdnsManager>(),
+          mdns_manager_remote.InitWithNewPipeAndPassReceiver());
+
+      // Set up fake WiFiDirect mojo services.
+      mojo::PendingRemote<ash::wifi_direct::mojom::WifiDirectManager>
+          wifi_direct_manager_remote;
+      mojo::MakeSelfOwnedReceiver(
+          std::make_unique<FakeWifiDirectManager>(),
+          wifi_direct_manager_remote.InitWithNewPipeAndPassReceiver());
+      mojo::PendingRemote<::sharing::mojom::FirewallHoleFactory>
+          wifi_direct_firewall_hole_factory_remote;
+      mojo::MakeSelfOwnedReceiver(
+          std::make_unique<ash::nearby::FakeFirewallHoleFactory>(),
+          wifi_direct_firewall_hole_factory_remote
+              .InitWithNewPipeAndPassReceiver());
+
       return sharing::mojom::NearbyDependencies::New(
           fake_adapter_->adapter_.BindNewPipeAndPassRemote(),
           sharing::mojom::WebRtcDependencies::New(
@@ -166,7 +214,13 @@ class NearbyProcessManagerImplTest : public testing::Test {
           sharing::mojom::WifiLanDependencies::New(
               std::move(cros_network_config_remote),
               std::move(firewall_hole_factory_remote),
-              std::move(tcp_socket_factory_remote)),
+              std::move(tcp_socket_factory_remote),
+              std::move(mdns_manager_remote)),
+          ::sharing::mojom::WifiDirectDependencies::New(
+              std::move(wifi_direct_manager_remote),
+              std::move(wifi_direct_firewall_hole_factory_remote)),
+          fake_nearby_presence_credential_storage_->receiver()
+              .BindNewPipeAndPassRemote(),
           ::nearby::api::LogMessage::Severity::kInfo);
     }
 
@@ -178,6 +232,8 @@ class NearbyProcessManagerImplTest : public testing::Test {
     network_config::CrosNetworkConfigTestHelper
         cros_network_config_test_helper_;
     std::unique_ptr<bluetooth::FakeAdapter> fake_adapter_;
+    std::unique_ptr<presence::FakeNearbyPresenceCredentialStorage>
+        fake_nearby_presence_credential_storage_;
     std::unique_ptr<sharing::MockWebRtcDependencies> webrtc_dependencies_;
     int prepare_for_shutdown_count_ = 0;
   };
@@ -254,7 +310,7 @@ class NearbyProcessManagerImplTest : public testing::Test {
 
   std::unique_ptr<NearbyProcessManager> nearby_process_manager_;
 
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> mock_timer_ = nullptr;
+  raw_ptr<base::MockOneShotTimer> mock_timer_ = nullptr;
 };
 
 TEST_F(NearbyProcessManagerImplTest, StartAndStop) {

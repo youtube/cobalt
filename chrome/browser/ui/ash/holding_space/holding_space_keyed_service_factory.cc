@@ -19,8 +19,9 @@
 namespace ash {
 namespace {
 
-BrowserContextKeyedServiceFactory::TestingFactory* GetTestingFactory() {
-  static base::NoDestructor<BrowserContextKeyedServiceFactory::TestingFactory>
+HoldingSpaceKeyedServiceFactory::GlobalTestingFactory* GetTestingFactory() {
+  static base::NoDestructor<
+      HoldingSpaceKeyedServiceFactory::GlobalTestingFactory>
       testing_factory_;
   return testing_factory_.get();
 }
@@ -38,13 +39,13 @@ HoldingSpaceKeyedServiceFactory::GetInstance() {
 BrowserContextKeyedServiceFactory::TestingFactory
 HoldingSpaceKeyedServiceFactory::GetDefaultTestingFactory() {
   return base::BindRepeating([](content::BrowserContext* context) {
-    return base::WrapUnique(BuildServiceInstanceForInternal(context));
+    return BuildServiceInstanceForInternal(context);
   });
 }
 
 // static
 void HoldingSpaceKeyedServiceFactory::SetTestingFactory(
-    BrowserContextKeyedServiceFactory::TestingFactory testing_factory) {
+    GlobalTestingFactory testing_factory) {
   *GetTestingFactory() = std::move(testing_factory);
 }
 
@@ -70,34 +71,40 @@ HoldingSpaceKeyedServiceFactory::GetBrowserContextToUse(
   Profile* const profile = Profile::FromBrowserContext(context);
 
   // Guest sessions are supported but redirect to the primary OTR profile.
-  if (profile->IsGuestSession())
+  if (profile->IsGuestSession()) {
     return profile->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  }
 
   // Don't create the service for OTR profiles outside of guest sessions.
   return profile->IsOffTheRecord() ? nullptr : context;
 }
 
-KeyedService* HoldingSpaceKeyedServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+HoldingSpaceKeyedServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  TestingFactory* testing_factory = GetTestingFactory();
+  GlobalTestingFactory* testing_factory = GetTestingFactory();
   return testing_factory->is_null() ? BuildServiceInstanceForInternal(context)
-                                    : testing_factory->Run(context).release();
+                                    : testing_factory->Run(context);
 }
 
 // static
-KeyedService* HoldingSpaceKeyedServiceFactory::BuildServiceInstanceForInternal(
+std::unique_ptr<KeyedService>
+HoldingSpaceKeyedServiceFactory::BuildServiceInstanceForInternal(
     content::BrowserContext* context) {
   Profile* const profile = Profile::FromBrowserContext(context);
   DCHECK_EQ(profile->IsGuestSession(), profile->IsOffTheRecord());
 
   user_manager::User* user = ProfileHelper::Get()->GetUserByProfile(profile);
-  if (!user)
+  if (!user) {
     return nullptr;
+  }
 
-  if (user->GetType() == user_manager::USER_TYPE_KIOSK_APP)
+  if (user->GetType() == user_manager::UserType::kKioskApp) {
     return nullptr;
+  }
 
-  return new HoldingSpaceKeyedService(profile, user->GetAccountId());
+  return std::make_unique<HoldingSpaceKeyedService>(profile,
+                                                    user->GetAccountId());
 }
 
 void HoldingSpaceKeyedServiceFactory::RegisterProfilePrefs(

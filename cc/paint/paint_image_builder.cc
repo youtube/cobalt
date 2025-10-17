@@ -29,7 +29,7 @@ PaintImageBuilder::PaintImageBuilder(PaintImage image, bool clear_contents)
 #endif
   if (clear_contents) {
     paint_image_.sk_image_ = nullptr;
-    paint_image_.paint_record_ = absl::nullopt;
+    paint_image_.paint_record_ = std::nullopt;
     paint_image_.paint_record_rect_ = gfx::Rect();
     paint_image_.paint_image_generator_ = nullptr;
     paint_image_.cached_sk_image_ = nullptr;
@@ -48,7 +48,11 @@ PaintImage PaintImageBuilder::TakePaintImage() {
     DCHECK(!paint_image_.paint_record_);
     DCHECK(!paint_image_.paint_image_generator_);
     DCHECK(!paint_image_.sk_image_->isLazyGenerated());
-    DCHECK(!paint_image_.paint_worklet_input_);
+    DCHECK(!paint_image_.deferred_paint_record_);
+    DCHECK(!paint_image_.gainmap_paint_image_generator_);
+    if (paint_image_.gainmap_sk_image_) {
+      DCHECK(!paint_image_.gainmap_sk_image_->isLazyGenerated());
+    }
     // TODO(khushalsagar): Assert that we don't have an animated image type
     // here. The only case where this is possible is DragImage. There are 2 use
     // cases going through that path, re-orienting the image and for use by the
@@ -59,21 +63,27 @@ PaintImage PaintImageBuilder::TakePaintImage() {
   } else if (paint_image_.paint_record_) {
     DCHECK(!paint_image_.sk_image_);
     DCHECK(!paint_image_.paint_image_generator_);
-    DCHECK(!paint_image_.paint_worklet_input_);
+    DCHECK(!paint_image_.deferred_paint_record_);
+    DCHECK(!paint_image_.gainmap_paint_image_generator_);
+    DCHECK(!paint_image_.gainmap_sk_image_);
     // TODO(khushalsagar): Assert that we don't have an animated image type
     // here.
   } else if (paint_image_.paint_image_generator_) {
     DCHECK(!paint_image_.sk_image_);
     DCHECK(!paint_image_.paint_record_);
-    DCHECK(!paint_image_.paint_worklet_input_);
-  } else if (paint_image_.paint_worklet_input_) {
+    DCHECK(!paint_image_.deferred_paint_record_);
+    DCHECK(!paint_image_.gainmap_sk_image_);
+  } else if (paint_image_.deferred_paint_record_) {
     DCHECK(!paint_image_.sk_image_);
     DCHECK(!paint_image_.paint_record_);
     DCHECK(!paint_image_.paint_image_generator_);
+    DCHECK(!paint_image_.gainmap_sk_image_);
+    DCHECK(!paint_image_.gainmap_paint_image_generator_);
   }
 
   if (paint_image_.HasGainmap()) {
-    DCHECK(paint_image_.paint_image_generator_);
+    DCHECK(paint_image_.paint_image_generator_ ||
+           paint_image_.gainmap_sk_image_);
   }
 
   if (paint_image_.ShouldAnimate()) {
@@ -83,6 +93,17 @@ PaintImage PaintImageBuilder::TakePaintImage() {
       DCHECK_GT(frame.duration, base::TimeDelta());
   }
 #endif
+  if (paint_image_.reinterpret_as_srgb_) {
+    if (paint_image_.sk_image_) {
+      paint_image_.sk_image_ = paint_image_.sk_image_->reinterpretColorSpace(
+          SkColorSpace::MakeSRGB());
+    }
+    if (paint_image_.cached_sk_image_) {
+      paint_image_.cached_sk_image_ =
+          paint_image_.cached_sk_image_->reinterpretColorSpace(
+              SkColorSpace::MakeSRGB());
+    }
+  }
 
   // We may already have a cached_sk_image_ if this builder was created with a
   // copy.

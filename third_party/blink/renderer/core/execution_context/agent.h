@@ -45,6 +45,8 @@ class CORE_EXPORT Agent : public GarbageCollected<Agent>,
     return event_loop_;
   }
 
+  v8::Isolate* isolate() { return isolate_; }
+
   void Trace(Visitor*) const override;
 
   void AttachContext(ExecutionContext*);
@@ -64,12 +66,16 @@ class CORE_EXPORT Agent : public GarbageCollected<Agent>,
   // Only called from blink::SetIsCrossOriginIsolated.
   static void SetIsCrossOriginIsolated(bool value);
 
+  static bool IsWebSecurityDisabled();
+  static void SetIsWebSecurityDisabled(bool value);
+
   // Represents adherence to an additional set of restrictions above and beyond
   // "cross-origin isolated".
   //
   // TODO(mkwst): We need a specification for these restrictions:
   // https://crbug.com/1206150.
   static bool IsIsolatedContext();
+  static void ResetIsIsolatedContextForTest();
   // Only called from blink::SetIsIsolatedContext.
   static void SetIsIsolatedContext(bool value);
 
@@ -123,6 +129,7 @@ class CORE_EXPORT Agent : public GarbageCollected<Agent>,
   // scheduler::EventLoopDelegate overrides:
   void NotifyRejectedPromises() override;
 
+  v8::Isolate* isolate_;
   scoped_refptr<RejectedPromises> rejected_promises_;
   scoped_refptr<scheduler::EventLoop> event_loop_;
   const base::UnguessableToken cluster_id_;

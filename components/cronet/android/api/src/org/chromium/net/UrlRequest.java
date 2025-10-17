@@ -4,6 +4,8 @@
 
 package org.chromium.net;
 
+import androidx.annotation.RequiresOptIn;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 
@@ -47,26 +49,22 @@ public abstract class UrlRequest {
          */
         public abstract Builder disableCache();
 
-        /**
-         * Lowest request priority. Passed to {@link #setPriority}.
-         */
+        /** Lowest request priority. Passed to {@link #setPriority}. */
         public static final int REQUEST_PRIORITY_IDLE = 0;
-        /**
-         * Very low request priority. Passed to {@link #setPriority}.
-         */
+
+        /** Very low request priority. Passed to {@link #setPriority}. */
         public static final int REQUEST_PRIORITY_LOWEST = 1;
-        /**
-         * Low request priority. Passed to {@link #setPriority}.
-         */
+
+        /** Low request priority. Passed to {@link #setPriority}. */
         public static final int REQUEST_PRIORITY_LOW = 2;
+
         /**
          * Medium request priority. Passed to {@link #setPriority}. This is the default priority
          * given to the request.
          */
         public static final int REQUEST_PRIORITY_MEDIUM = 3;
-        /**
-         * Highest request priority. Passed to {@link #setPriority}.
-         */
+
+        /** Highest request priority. Passed to {@link #setPriority}. */
         public static final int REQUEST_PRIORITY_HIGHEST = 4;
 
         /**
@@ -114,6 +112,21 @@ public abstract class UrlRequest {
          * @return the builder to facilitate chaining.
          */
         public Builder addRequestAnnotation(Object annotation) {
+            return this;
+        }
+
+        /**
+         * Binds the request to the specified network handle. Cronet will send this request only
+         * using the network associated to this handle. If this network disconnects the request will
+         * fail, the exact error will depend on the stage of request processing when the network
+         * disconnects. Network handles can be obtained through {@code Network#getNetworkHandle}.
+         * Only available starting from Android Marshmallow.
+         *
+         * @param networkHandle the network handle to bind the request to. Specify {@link
+         * CronetEngine#UNBIND_NETWORK_HANDLE} to unbind.
+         * @return the builder to facilitate chaining.
+         */
+        public Builder bindToNetwork(long networkHandle) {
             return this;
         }
 
@@ -171,9 +184,37 @@ public abstract class UrlRequest {
         }
 
         /**
+         * Allows Cronet to use the specified compression dictionary for this request. When
+         * specified, Cronet might signal to the server the availability of said compression
+         * dictionary. For this to have any effect, the CronetEngine that will execute this request
+         * must have been configured to enable a compression scheme that supports external
+         * dictionaries. This partially implements draft-ietf-httpbis-compression-dictionary within
+         * Cronet. Cronet won't directly handle "Use-As-Dictionary" response headers, it will
+         * instead rely on the embedder to: either, handle them and later call
+         * UrlRequest.Builder#setCompressionDictionary for requests which match Use-As-Dictionary's
+         * rules; or, fetch compression dictionaries via some other out of band mechanism, and later
+         * call UrlRequest.Builder#setCompressionDictionary. Cronet will interpret the dictionary as
+         * matching only this UrlRequest. If said request is redirected, and the embedder decides to
+         * follow the redirect, the dictionary will match also the new URL.
+         *
+         * @param dictionarySha256Hash the SHA-256 of the specified compression dictionary.
+         * @param dictionary the compression dictionary that Cronet can use for this UrlRequest.
+         *     This must be a direct ByteBuffer.
+         * @param dictionaryId the optional ID associated with this dictionary, must be an empty
+         *     string if missing. If present, this will be sent via the Dictionary-ID header. You
+         *     would need to specify this if the server specified an id in its "Use-As-Dictionary"
+         *     response.
+         * @return the builder to facilitate chaining.
+         */
+        @Experimental
+        public Builder setRawCompressionDictionary(
+                byte[] dictionarySha256Hash, ByteBuffer dictionary, String dictionaryId) {
+            return this;
+        }
+
+        /**
          * Creates a {@link UrlRequest} using configuration within this {@link Builder}. The
-         * returned
-         * {@code UrlRequest} can then be started by calling {@link UrlRequest#start}.
+         * returned {@code UrlRequest} can then be started by calling {@link UrlRequest#start}.
          *
          * @return constructed {@link UrlRequest} using configuration within this {@link Builder}.
          */
@@ -279,20 +320,18 @@ public abstract class UrlRequest {
         public void onCanceled(UrlRequest request, UrlResponseInfo info) {}
     }
 
-    /**
-     * Request status values returned by {@link #getStatus}.
-     */
+    /** Request status values returned by {@link #getStatus}. */
     public static class Status {
-        /**
-         * This state indicates that the request is completed, canceled, or is not started.
-         */
+        /** This state indicates that the request is completed, canceled, or is not started. */
         public static final int INVALID = -1;
+
         /**
          * This state corresponds to a resource load that has either not yet begun or is idle
          * waiting for the consumer to do something to move things along (e.g. when the consumer of
          * a {@link UrlRequest} has not called {@link UrlRequest#read read()} yet).
          */
         public static final int IDLE = 0;
+
         /**
          * When a socket pool group is below the maximum number of sockets allowed per group, but a
          * new socket cannot be created due to the per-pool socket limit, this state is returned by
@@ -300,17 +339,20 @@ public abstract class UrlRequest {
          * serviced by a pending new connection.
          */
         public static final int WAITING_FOR_STALLED_SOCKET_POOL = 1;
+
         /**
          * When a socket pool group has reached the maximum number of sockets allowed per group,
          * this state is returned for all requests that don't have a socket, except those that
          * correspond to a pending new connection.
          */
         public static final int WAITING_FOR_AVAILABLE_SOCKET = 2;
+
         /**
          * This state indicates that the URLRequest delegate has chosen to block this request before
          * it was sent over the network.
          */
         public static final int WAITING_FOR_DELEGATE = 3;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for access to a
          * resource in the cache. If multiple requests are made for the same resource, the first
@@ -319,56 +361,66 @@ public abstract class UrlRequest {
          * cache reuse.
          */
         public static final int WAITING_FOR_CACHE = 4;
+
         /**
          * This state corresponds to a resource being blocked waiting for the PAC script to be
          * downloaded.
          */
         public static final int DOWNLOADING_PAC_FILE = 5;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for a proxy autoconfig
          * script to return a proxy server to use.
          */
         public static final int RESOLVING_PROXY_FOR_URL = 6;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for a proxy autoconfig
          * script to return a proxy server to use, but that proxy script is busy resolving the IP
          * address of a host.
          */
         public static final int RESOLVING_HOST_IN_PAC_FILE = 7;
+
         /**
          * This state indicates that we're in the process of establishing a tunnel through the proxy
          * server.
          */
         public static final int ESTABLISHING_PROXY_TUNNEL = 8;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for a host name to be
          * resolved. This could either indicate resolution of the origin server corresponding to the
          * resource or to the host name of a proxy server used to fetch the resource.
          */
         public static final int RESOLVING_HOST = 9;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for a TCP connection
          * (or other network connection) to be established. HTTP requests that reuse a keep-alive
          * connection skip this state.
          */
         public static final int CONNECTING = 10;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for the SSL handshake
          * to complete.
          */
         public static final int SSL_HANDSHAKE = 11;
+
         /**
          * This state corresponds to a resource load that is blocked waiting to completely upload a
          * request to a server. In the case of a HTTP POST request, this state includes the period
          * of time during which the message body is being uploaded.
          */
         public static final int SENDING_REQUEST = 12;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for the response to a
          * network request. In the case of a HTTP transaction, this corresponds to the period after
          * the request is sent and before all of the response headers have been received.
          */
         public static final int WAITING_FOR_RESPONSE = 13;
+
         /**
          * This state corresponds to a resource load that is blocked waiting for a read to complete.
          * In the case of a HTTP transaction, this corresponds to the period after the response
@@ -381,9 +433,7 @@ public abstract class UrlRequest {
         private Status() {}
     }
 
-    /**
-     * Listener class used with {@link #getStatus} to receive the status of a {@link UrlRequest}.
-     */
+    /** Listener class used with {@link #getStatus} to receive the status of a {@link UrlRequest}. */
     public abstract static class StatusListener {
         /**
          * Invoked on {@link UrlRequest}'s {@link Executor}'s thread when request status is
@@ -456,4 +506,20 @@ public abstract class UrlRequest {
     // Note:  There are deliberately no accessors for the results of the request
     // here. Having none removes any ambiguity over when they are populated,
     // particularly in the redirect case.
+
+    /**
+     * An annotation for APIs which are not considered stable yet.
+     *
+     * <p>Experimental APIs are subject to change, breakage, or removal at any time and may not be
+     * production ready.
+     *
+     * <p>It's highly recommended to reach out to Cronet maintainers (<code>net-dev@chromium.org
+     * </code>) before using one of the APIs annotated as experimental outside of debugging and
+     * proof-of-concept code.
+     *
+     * <p>By using an Experimental API, applications acknowledge that they are doing so at their own
+     * risk.
+     */
+    @RequiresOptIn
+    public @interface Experimental {}
 }

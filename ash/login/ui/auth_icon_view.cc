@@ -5,10 +5,13 @@
 #include "ash/login/ui/auth_icon_view.h"
 
 #include "ash/login/ui/horizontal_image_sequence_animation_decoder.h"
-#include "ash/style/ash_color_provider.h"
 #include "ash/style/color_util.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/layer_animator.h"
@@ -17,6 +20,7 @@
 #include "ui/gfx/paint_throbber.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/vector_icon_types.h"
+#include "ui/lottie/animation.h"
 #include "ui/views/border.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_class_properties.h"
@@ -58,27 +62,21 @@ constexpr SkScalar kTransformScaleDownSize = 0.01;
 constexpr ShakeAnimationStep kShakeAnimationSteps[] = {
     {-5, 83}, {8, 83}, {-7, 66}, {7, 66}, {-7, 66}, {7, 66}, {-3, 83}};
 
-SkColor GetColor(AuthIconView::Color color) {
-  switch (color) {
-    case AuthIconView::Color::kPrimary:
-      return AshColorProvider::Get()->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kIconColorPrimary);
-    case AuthIconView::Color::kDisabled:
-      return ColorUtil::GetDisabledColor(
-          GetColor(AuthIconView::Color::kPrimary));
-    case AuthIconView::Color::kError:
-      // TODO(crbug.com/1233614): Either find a system color to match the color
-      // in the Fingerprint animation png sequence, or upload new png files with
-      // the right color.
-      return AshColorProvider::Get()->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kIconColorAlert);
-    case AuthIconView::Color::kPositive:
-      return AshColorProvider::Get()->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kIconColorPositive);
+}  // namespace
+
+// static
+ui::ColorId AuthIconView::GetColorId(AuthIconView::Status status) {
+  switch (status) {
+    case AuthIconView::Status::kPrimary:
+      return cros_tokens::kCrosSysOnSurface;
+    case AuthIconView::Status::kDisabled:
+      return cros_tokens::kCrosSysDisabled;
+    case AuthIconView::Status::kError:
+      return cros_tokens::kCrosSysError;
+    case AuthIconView::Status::kPositive:
+      return cros_tokens::kCrosSysPositive;
   }
 }
-
-}  // namespace
 
 AuthIconView::AuthIconView() {
   SetLayoutManager(std::make_unique<views::BoxLayout>());
@@ -93,13 +91,41 @@ AuthIconView::AuthIconView() {
   icon_->layer()->SetFillsBoundsOpaquely(false);
   icon_->layer()->GetAnimator()->set_preemption_strategy(
       ui::LayerAnimator::PreemptionStrategy::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
+
+  lottie_animation_view_ =
+      AddChildView(std::make_unique<views::AnimatedImageView>());
+  lottie_animation_view_->SetImageSize(
+      gfx::Size(kAuthIconSizeDp, kAuthIconSizeDp));
+  lottie_animation_view_->SetProperty(views::kMarginsKey,
+                                      gfx::Insets(kIconMarginDp));
+  lottie_animation_view_->SetVisible(false);
 }
 
 AuthIconView::~AuthIconView() = default;
 
-void AuthIconView::SetIcon(const gfx::VectorIcon& icon, Color color) {
-  icon_->SetImage(
-      gfx::CreateVectorIcon(icon, kAuthIconSizeDp, GetColor(color)));
+void AuthIconView::AddedToWidget() {
+  RasterizeIcon();
+}
+
+void AuthIconView::OnThemeChanged() {
+  views::View::OnThemeChanged();
+  RasterizeIcon();
+}
+
+void AuthIconView::SetIcon(const gfx::VectorIcon& icon, Status status) {
+  icon_image_model_ =
+      ui::ImageModel::FromVectorIcon(icon, GetColorId(status), kAuthIconSizeDp);
+  if (GetColorProvider()) {
+    icon_->SetImage(icon_image_model_.Rasterize(GetColorProvider()));
+  }
+  icon_->SetVisible(true);
+  lottie_animation_view_->SetVisible(false);
+}
+
+void AuthIconView::RasterizeIcon() {
+  if (!icon_image_model_.IsEmpty()) {
+    icon_->SetImage(icon_image_model_.Rasterize(GetColorProvider()));
+  }
 }
 
 void AuthIconView::SetCircleImage(int size, SkColor color) {
@@ -117,6 +143,20 @@ void AuthIconView::SetAnimation(int animation_resource_id,
               animation_resource_id),
           duration, num_frames),
       AnimatedRoundedImageView::Playback::kSingle);
+  icon_->SetVisible(true);
+  lottie_animation_view_->SetVisible(false);
+}
+
+void AuthIconView::SetLottieAnimation(
+    std::unique_ptr<lottie::Animation> animation) {
+  // This config prevents the animation from looping.
+  auto playback_config = lottie::Animation::PlaybackConfig::CreateWithStyle(
+      lottie::Animation::Style::kLinear, *animation);
+
+  lottie_animation_view_->SetAnimatedImage(std::move(animation));
+  lottie_animation_view_->Play(playback_config);
+  icon_->SetVisible(false);
+  lottie_animation_view_->SetVisible(true);
 }
 
 void AuthIconView::RunErrorShakeAnimation() {
@@ -229,8 +269,7 @@ void AuthIconView::OnPaint(gfx::Canvas* canvas) {
 
   // Draw the progress spinner on top if it's currently running.
   if (progress_animation_timer_.IsRunning()) {
-    SkColor color = AshColorProvider::Get()->GetContentLayerColor(
-        AshColorProvider::ContentLayerType::kProgressBarColorForeground);
+    SkColor color = GetColorProvider()->GetColor(cros_tokens::kCrosSysPrimary);
     base::TimeDelta elapsed_time =
         base::TimeTicks::Now() - progress_animation_start_time_;
     gfx::PaintThrobberSpinning(canvas, GetContentsBounds(), color, elapsed_time,
@@ -238,13 +277,14 @@ void AuthIconView::OnPaint(gfx::Canvas* canvas) {
   }
 }
 
-gfx::Size AuthIconView::CalculatePreferredSize() const {
+gfx::Size AuthIconView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(kAuthIconViewDp, kAuthIconViewDp);
 }
 
 void AuthIconView::OnGestureEvent(ui::GestureEvent* event) {
-  if (event->type() != ui::ET_GESTURE_TAP &&
-      event->type() != ui::ET_GESTURE_TAP_DOWN) {
+  if (event->type() != ui::EventType::kGestureTap &&
+      event->type() != ui::EventType::kGestureTapDown) {
     return;
   }
 
@@ -273,7 +313,7 @@ void AuthIconView::CircleImageSource::Draw(gfx::Canvas* canvas) {
   canvas->DrawCircle(gfx::PointF(radius, radius), radius, flags);
 }
 
-BEGIN_METADATA(AuthIconView, View)
+BEGIN_METADATA(AuthIconView)
 END_METADATA
 
 }  // namespace ash

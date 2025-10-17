@@ -13,13 +13,14 @@
 #include "base/strings/string_number_conversions.h"
 #include "chromeos/ash/components/nearby/common/client/nearby_api_call_flow_impl.h"
 #include "chromeos/ash/components/nearby/common/client/nearby_http_result.h"
-#include "chromeos/ash/components/nearby/presence/proto/list_public_certificates_rpc.pb.h"
+#include "chromeos/ash/components/nearby/presence/proto/list_shared_credentials_rpc.pb.h"
 #include "chromeos/ash/components/nearby/presence/proto/rpc_resources.pb.h"
 #include "chromeos/ash/components/nearby/presence/proto/update_device_rpc.pb.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
+#include "google_apis/gaia/gaia_constants.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace {
@@ -29,17 +30,14 @@ namespace {
 const char kDefaultNearbyPresenceV1HTTPHost[] =
     "https://nearbypresence-pa.googleapis.com";
 
-const char kNearbyPresenceV1Path[] = "v1/";
+const char kNearbyPresenceV1Path[] = "v1/presence/";
 
-const char kListPublicCertificatesPath[] = "publicCertificates";
+const char kListSharedCredentialsPath[] = "listSharedCredentials";
 
-const char kPageSize[] = "page_size";
-const char kPageToken[] = "page_token";
-const char kSecretIds[] = "secret_ids";
+const char kDusi[] = "dusi";
+const char kIdentityType[] = "identity_type";
 
-const char kNearbyPresenceOAuth2Scope[] =
-    "https://www.googleapis.com/auth/nearbypresence-pa";
-const char kNearbyPresenceOAthConsumerName[] = "nearby_presence_client";
+const char kNearbyPresenceOAthConsumerName[] = "nearby_presence_server_client";
 
 // Creates the full Nearby Presence v1 URL for endpoint to the API with
 // |request_path|.
@@ -49,23 +47,12 @@ GURL CreateV1RequestUrl(const std::string& request_path) {
 }
 
 ash::nearby::NearbyApiCallFlow::QueryParameters
-ListPublicCertificatesRequestToQueryParameters(
-    const ash::nearby::proto::ListPublicCertificatesRequest& request) {
+ListSharedCredentialsRequestToQueryParameters(
+    const ash::nearby::proto::ListSharedCredentialsRequest& request) {
   ash::nearby::NearbyApiCallFlow::QueryParameters query_parameters;
-  if (request.page_size() > 0) {
-    query_parameters.emplace_back(kPageSize,
-                                  base::NumberToString(request.page_size()));
-  }
-  if (!request.page_token().empty()) {
-    query_parameters.emplace_back(kPageToken, request.page_token());
-  }
-  for (const std::string& id : request.secret_ids()) {
-    // NOTE: One Platform requires that byte fields be URL-safe base64 encoded.
-    std::string encoded_id;
-    base::Base64UrlEncode(id, base::Base64UrlEncodePolicy::INCLUDE_PADDING,
-                          &encoded_id);
-    query_parameters.emplace_back(kSecretIds, encoded_id);
-  }
+  query_parameters.emplace_back(kDusi, request.dusi());
+  query_parameters.emplace_back(kIdentityType,
+                                base::NumberToString(request.identity_type()));
   return query_parameters;
 }
 
@@ -129,10 +116,10 @@ const net::PartialNetworkTrafficAnnotationTag& GetUpdateDeviceAnnotation() {
 }
 
 const net::PartialNetworkTrafficAnnotationTag&
-GetListPublicCertificatesAnnotation() {
+GetListSharedCredentialsAnnotation() {
   static const net::PartialNetworkTrafficAnnotationTag annotation =
       net::DefinePartialNetworkTrafficAnnotation(
-          "nearby_presence_list_public_certificates", "oauth2_api_call_flow",
+          "nearby_presence_list_shared_credentials", "oauth2_api_call_flow",
           R"(
       semantics {
         sender: "Nearby Presence"
@@ -228,21 +215,21 @@ void NearbyPresenceServerClientImpl::UpdateDevice(
     ErrorCallback error_callback) {
   MakeApiCall(CreateV1RequestUrl(request.device().name()), RequestType::kPatch,
               request.SerializeAsString(),
-              /*request_as_query_parameters=*/absl::nullopt,
-              std::move(callback), std::move(error_callback),
-              GetUpdateDeviceAnnotation());
+              /*request_as_query_parameters=*/std::nullopt, std::move(callback),
+              std::move(error_callback), GetUpdateDeviceAnnotation());
 }
 
-void NearbyPresenceServerClientImpl::ListPublicCertificates(
-    const ash::nearby::proto::ListPublicCertificatesRequest& request,
-    ListPublicCertificatesCallback callback,
+void NearbyPresenceServerClientImpl::ListSharedCredentials(
+    const ash::nearby::proto::ListSharedCredentialsRequest& request,
+    ListSharedCredentialsCallback callback,
     ErrorCallback error_callback) {
-  MakeApiCall(
-      CreateV1RequestUrl(request.parent() + "/" + kListPublicCertificatesPath),
-      RequestType::kGet, /*serialized_request=*/absl::nullopt,
-      ListPublicCertificatesRequestToQueryParameters(request),
-      std::move(callback), std::move(error_callback),
-      GetListPublicCertificatesAnnotation());
+  MakeApiCall(CreateV1RequestUrl(request.dusi() + "/" +
+                                 base::NumberToString(request.identity_type()) +
+                                 "/" + kListSharedCredentialsPath),
+              RequestType::kGet, /*serialized_request=*/std::nullopt,
+              ListSharedCredentialsRequestToQueryParameters(request),
+              std::move(callback), std::move(error_callback),
+              GetListSharedCredentialsAnnotation());
 }
 
 std::string NearbyPresenceServerClientImpl::GetAccessTokenUsed() {
@@ -253,8 +240,8 @@ template <class ResponseProto>
 void NearbyPresenceServerClientImpl::MakeApiCall(
     const GURL& request_url,
     RequestType request_type,
-    const absl::optional<std::string>& serialized_request,
-    const absl::optional<NearbyApiCallFlow::QueryParameters>&
+    const std::optional<std::string>& serialized_request,
+    const std::optional<NearbyApiCallFlow::QueryParameters>&
         request_as_query_parameters,
     base::OnceCallback<void(const ResponseProto&)> response_callback,
     ErrorCallback error_callback,
@@ -271,7 +258,7 @@ void NearbyPresenceServerClientImpl::MakeApiCall(
   error_callback_ = std::move(error_callback);
 
   OAuth2AccessTokenManager::ScopeSet scopes;
-  scopes.insert(kNearbyPresenceOAuth2Scope);
+  scopes.insert(GaiaConstants::kNearbyPresenceOAuth2Scope);
 
   access_token_fetcher_ = std::make_unique<
       signin::PrimaryAccountAccessTokenFetcher>(
@@ -287,8 +274,8 @@ void NearbyPresenceServerClientImpl::MakeApiCall(
 template <class ResponseProto>
 void NearbyPresenceServerClientImpl::OnAccessTokenFetched(
     RequestType request_type,
-    const absl::optional<std::string>& serialized_request,
-    const absl::optional<NearbyApiCallFlow::QueryParameters>&
+    const std::optional<std::string>& serialized_request,
+    const std::optional<NearbyApiCallFlow::QueryParameters>&
         request_as_query_parameters,
     base::OnceCallback<void(const ResponseProto&)> response_callback,
     GoogleServiceAuthError error,

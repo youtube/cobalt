@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,12 +18,11 @@
 #include "chromeos/ash/components/dbus/shill/shill_client_helper.h"
 #include "chromeos/ash/components/dbus/shill/shill_property_changed_observer.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_observer.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 #include "dbus/mock_bus.h"
 #include "dbus/mock_object_proxy.h"
 #include "dbus/object_proxy.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::MakeMatcher;
 using ::testing::Matcher;
@@ -110,6 +110,10 @@ class ShillClientUnittestBase : public testing::Test {
 
   // Expects the reader to have a uint32_t
   static void ExpectUint32Argument(uint32_t expected_value,
+                                   dbus::MessageReader* reader);
+
+  // Expects the reader to have a int
+  static void ExpectIntArgument(int expected_value,
                                    dbus::MessageReader* reader);
 
   // Expects the reader to have an array of bytes
@@ -202,7 +206,7 @@ class ShillClientUnittestBase : public testing::Test {
   // The name of the method which is expected to be called.
   std::string expected_method_name_;
   // The response which the mock object proxy returns.
-  raw_ptr<dbus::Response, ExperimentalAsh> response_;
+  raw_ptr<dbus::Response, DanglingUntriaged> response_;
   // A callback to intercept and check the method call arguments.
   ArgumentCheckCallback argument_checker_;
 };

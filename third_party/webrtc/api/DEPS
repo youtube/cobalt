@@ -74,14 +74,25 @@ specific_include_rules = {
     "+rtc_base/socket_address.h",
   ],
 
+  "audio_device_defines\.h": [
+    "+rtc_base/strings/string_builder.h",
+  ],
+  
+  "audio_format\.h": [
+    "+rtc_base/strings/string_builder.h",
+  ],
+
   "candidate\.h": [
     "+rtc_base/network_constants.h",
     "+rtc_base/socket_address.h",
   ],
 
+  "create_peerconnection_factory\.h": [
+    "+rtc_base/thread.h",
+  ],
+
   "data_channel_interface\.h": [
     "+rtc_base/copy_on_write_buffer.h",
-    "+rtc_base/ref_count.h",
   ],
 
   "data_channel_transport_interface\.h": [
@@ -89,38 +100,21 @@ specific_include_rules = {
   ],
 
   "dtls_transport_interface\.h": [
-    "+rtc_base/ref_count.h",
     "+rtc_base/ssl_certificate.h",
-  ],
-
-  "dtmf_sender_interface\.h": [
-    "+rtc_base/ref_count.h",
   ],
 
   "fec_controller\.h": [
     "+modules/include/module_fec_types.h",
   ],
 
-  "frame_transformer_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "ice_transport_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "jsep\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "media_stream_interface\.h": [
-    "+modules/audio_processing/include/audio_processing_statistics.h",
-    "+rtc_base/ref_count.h",
-  ],
-
   "packet_socket_factory\.h": [
-    "+rtc_base/proxy_info.h",
     "+rtc_base/async_packet_socket.h",
+    "+rtc_base/socket_address.h",
+    "+rtc_base/ssl_certificate.h",
+  ],
+
+  "turn_customizer\.h": [
+    "+p2p/base/port_interface.h",
   ],
 
   "peer_connection_interface\.h": [
@@ -132,10 +126,10 @@ specific_include_rules = {
     "+rtc_base/network.h",
     "+rtc_base/network_constants.h",
     "+rtc_base/network_monitor_factory.h",
-    "+rtc_base/ref_count.h",
     "+rtc_base/rtc_certificate.h",
     "+rtc_base/rtc_certificate_generator.h",
     "+rtc_base/socket_address.h",
+    "+rtc_base/socket_factory.h",
     "+rtc_base/ssl_certificate.h",
     "+rtc_base/ssl_stream_adapter.h",
     "+rtc_base/thread.h",
@@ -148,98 +142,30 @@ specific_include_rules = {
   ],
 
   "ref_counted_base\.h": [
-    "+rtc_base/ref_count.h",
     "+rtc_base/ref_counter.h",
   ],
 
   "rtc_error\.h": [
     "+rtc_base/logging.h",
+    "+absl/strings/has_absl_stringify.h",
+    "+absl/strings/str_format.h",
   ],
   "rtc_event_log_output_file.h": [
     # For private member and constructor.
     "+rtc_base/system/file_wrapper.h",
   ],
-  "rtp_receiver_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "rtp_sender_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "rtp_transceiver_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "sctp_transport_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "set_local_description_observer_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-  "set_remote_description_observer_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
 
   "legacy_stats_types\.h": [
-    "+rtc_base/ref_count.h",
+    "+rtc_base/thread_annotations.h",
     "+rtc_base/thread_checker.h",
-  ],
-
-  "uma_metrics\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "audio_mixer\.h": [
-    "+rtc_base/ref_count.h",
   ],
 
   "audio_decoder\.h": [
     "+rtc_base/buffer.h",
   ],
 
-  "audio_decoder_factory\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
   "audio_encoder\.h": [
     "+rtc_base/buffer.h",
-  ],
-
-  "audio_encoder_factory\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "frame_decryptor_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "frame_encryptor_interface\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "rtc_stats_collector_callback\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "rtc_stats_report\.h": [
-    "+rtc_base/ref_count.h",
-  ],
-
-  "audioproc_float\.h": [
-    "+modules/audio_processing/include/audio_processing.h",
-  ],
-
-  "echo_detector_creator\.h": [
-    "+modules/audio_processing/include/audio_processing.h",
-  ],
-
-  "fake_metronome\.h": [
-    "+rtc_base/synchronization/mutex.h",
-    "+rtc_base/task_queue.h",
-    "+rtc_base/task_utils/repeating_task.h",
-    "+rtc_base/thread_annotations.h",
   ],
 
   "make_ref_counted\.h": [
@@ -260,6 +186,11 @@ specific_include_rules = {
 
   "notifier\.h": [
     "+rtc_base/system/no_unique_address.h",
+    "+rtc_base/thread_annotations.h",
+  ],
+
+  "priority\.h": [
+    "+rtc_base/strong_alias.h",
   ],
 
   "simulated_network\.h": [
@@ -279,8 +210,8 @@ specific_include_rules = {
     "+modules/video_coding/include/video_codec_interface.h"
   ],
 
-  "video_encoder_config\.h": [
-    "+rtc_base/ref_count.h",
+  "rtp_parameters\.h": [
+    "+absl/strings/str_format.h",
   ],
 
   "sequence_checker\.h": [
@@ -288,16 +219,21 @@ specific_include_rules = {
     "+rtc_base/thread_annotations.h",
   ],
 
-  "wrapping_async_dns_resolver\.h": [
-    "+rtc_base/async_resolver.h",
-    "+rtc_base/async_resolver_interface.h",
-    "+rtc_base/socket_address.h",
-    "+rtc_base/third_party/sigslot/sigslot.h",
-    "+rtc_base/thread_annotations.h",
-  ],
-
   "video_encoder_factory_template.*\.h": [
     "+modules/video_coding",
+  ],
+
+  "video_encoder_factory_interface\.h": [
+    "+rtc_base/numerics",
+  ],
+
+  "video_encoder_interface\.h": [
+    "+rtc_base/numerics",
+  ],
+
+  "simple_encoder_wrapper\.h": [
+    "+common_video",
+    "+modules",
   ],
 
   "video_decoder_factory_template.*\.h": [
@@ -314,6 +250,10 @@ specific_include_rules = {
 
   "field_trials_registry\.h": [
     "+rtc_base/containers/flat_set.h",
+  ],
+
+  "ice_transport_factory\.h": [
+    "+p2p/base/port_allocator.h",
   ],
 
   # .cc files in api/ should not be restricted in what they can #include,

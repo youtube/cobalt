@@ -10,6 +10,7 @@
 #include <set>
 
 #include "base/files/file.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/services/font/public/mojom/font_service.mojom.h"
@@ -32,7 +33,8 @@ class MappedFontFile;
 // of this mismatch, we create a thread which owns the mojo pipe, sends and
 // receives messages. The multiple threads which call through FontLoader class
 // do blocking message calls to this thread.
-// TODO(936569): Rename FontServiceThread since it's no longer a thread.
+// TODO(crbug.com/40615872): Rename FontServiceThread since it's no longer a
+// thread.
 class FontServiceThread : public base::RefCountedThreadSafe<FontServiceThread> {
  public:
   FontServiceThread();
@@ -195,7 +197,8 @@ class FontServiceThread : public base::RefCountedThreadSafe<FontServiceThread> {
   // gets an error during this time all events in |pending_waitable_events_| are
   // signaled. This is necessary as when the pipe is closed the callbacks are
   // never received.
-  std::set<base::WaitableEvent*> pending_waitable_events_;
+  std::set<raw_ptr<base::WaitableEvent, SetExperimental>>
+      pending_waitable_events_;
 
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };

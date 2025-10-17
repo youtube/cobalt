@@ -15,21 +15,26 @@
 
 namespace ash {
 
+class IconButton;
+
 // This view displays a scrollable list of `CalendarEventListItemView`.
 class ASH_EXPORT CalendarEventListView
     : public CalendarModel::Observer,
       public CalendarViewController::Observer,
       public views::View {
- public:
-  METADATA_HEADER(CalendarEventListView);
+  METADATA_HEADER(CalendarEventListView, views::View)
 
+ public:
   explicit CalendarEventListView(
       CalendarViewController* calendar_view_controller);
   CalendarEventListView(const CalendarEventListView& other) = delete;
   CalendarEventListView& operator=(const CalendarEventListView& other) = delete;
   ~CalendarEventListView() override;
 
+  void RequestCloseButtonFocus();
+
  private:
+  friend class CalendarViewEventListViewFetchTest;
   friend class CalendarViewEventListViewTest;
   friend class CalendarViewTest;
 
@@ -38,34 +43,42 @@ class ASH_EXPORT CalendarEventListView
 
   // CalendarModel::Observer:
   void OnEventsFetched(const CalendarModel::FetchingStatus status,
-                       const base::Time start_time,
-                       const google_apis::calendar::EventList* events) override;
+                       const base::Time start_time) override;
 
   // views::View
-  void Layout() override;
+  void Layout(PassKey) override;
 
   // Updates the event list entries.
   void UpdateListItems();
 
-  // Takes a list of `CalendarEvent`'s and generates a parent container
-  // containing each `CalendarEvent` as a `CalendarEventListItemViewJelly` view.
+  // Takes a list of `CalendarEvent`'s and a parent view id and generates a
+  // parent container containing each `CalendarEvent` as a
+  // `CalendarEventListItemViewJelly` view.
   // Returns the parent container.
   std::unique_ptr<views::View> CreateChildEventListView(
-      std::list<google_apis::calendar::CalendarEvent> events);
+      std::list<google_apis::calendar::CalendarEvent> events,
+      int parent_view_id);
 
   // Owned by `CalendarView`.
-  raw_ptr<CalendarViewController, ExperimentalAsh> calendar_view_controller_;
+  raw_ptr<CalendarViewController> calendar_view_controller_;
 
   // Owned by `CalendarEventListView`.
-  const raw_ptr<views::View, ExperimentalAsh> close_button_container_;
-  const raw_ptr<views::ScrollView, ExperimentalAsh> scroll_view_;
+  const raw_ptr<views::View> close_button_container_;
+  raw_ptr<IconButton> close_button_;
+  const raw_ptr<views::ScrollView> scroll_view_;
 
   // Adds fade in/out gradients to `scroll_view_`.
   std::unique_ptr<ScrollViewGradientHelper> gradient_helper_;
 
   // The content of the `scroll_view_`, which carries a list of
   // `CalendarEventListItemView`. Owned by `CalendarEventListView`.
-  const raw_ptr<views::View, ExperimentalAsh> content_view_;
+  const raw_ptr<views::View> content_view_;
+
+  // The current or the next event in the event list view.
+  raw_ptr<views::View> current_or_next_event_view_ = nullptr;
+
+  // The index of the current or the next event in the event list view.
+  int current_or_next_event_index_ = 0;
 
   // views::View:
   void OnThemeChanged() override;

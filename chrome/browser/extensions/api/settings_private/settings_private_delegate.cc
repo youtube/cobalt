@@ -27,15 +27,14 @@ SettingsPrivateDelegate::SettingsPrivateDelegate(Profile* profile)
   prefs_util_ = std::make_unique<PrefsUtil>(profile);
 }
 
-SettingsPrivateDelegate::~SettingsPrivateDelegate() {
-}
+SettingsPrivateDelegate::~SettingsPrivateDelegate() = default;
 
-absl::optional<base::Value::Dict> SettingsPrivateDelegate::GetPref(
+std::optional<base::Value::Dict> SettingsPrivateDelegate::GetPref(
     const std::string& name) {
-  absl::optional<api::settings_private::PrefObject> pref =
+  std::optional<api::settings_private::PrefObject> pref =
       prefs_util_->GetPref(name);
   if (!pref)
-    return absl::nullopt;
+    return std::nullopt;
   return pref->ToValue();
 }
 
@@ -44,7 +43,7 @@ base::Value::List SettingsPrivateDelegate::GetAllPrefs() {
 
   const TypedPrefMap& keys = prefs_util_->GetAllowlistedKeys();
   for (const auto& it : keys) {
-    if (absl::optional<base::Value::Dict> pref = GetPref(it.first); pref) {
+    if (std::optional<base::Value::Dict> pref = GetPref(it.first); pref) {
       prefs.Append(std::move(*pref));
     }
   }
@@ -64,7 +63,7 @@ base::Value SettingsPrivateDelegate::GetDefaultZoom() {
   // default value.
   if (profile_->IsOffTheRecord())
     return base::Value(0.0);
-  double zoom = blink::PageZoomLevelToZoomFactor(
+  double zoom = blink::ZoomLevelToZoomFactor(
       profile_->GetZoomLevelPrefs()->GetDefaultZoomLevelPref());
   return base::Value(zoom);
 }
@@ -74,7 +73,7 @@ settings_private::SetPrefResult SettingsPrivateDelegate::SetDefaultZoom(
   // See comment in GetDefaultZoom().
   if (profile_->IsOffTheRecord())
     return settings_private::SetPrefResult::PREF_NOT_MODIFIABLE;
-  double zoom_factor = blink::PageZoomFactorToZoomLevel(zoom);
+  double zoom_factor = blink::ZoomFactorToZoomLevel(zoom);
   profile_->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(zoom_factor);
   return settings_private::SetPrefResult::SUCCESS;
 }

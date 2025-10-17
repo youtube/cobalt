@@ -15,7 +15,6 @@
 #include "base/process/launch.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/interstitials/enterprise_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -30,10 +29,11 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #endif
 
@@ -51,18 +51,6 @@
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 using content::Referrer;
-
-namespace {
-
-bool HasSeenRecurrentErrorInternal(content::WebContents* web_contents,
-                                   int cert_error) {
-  StatefulSSLHostStateDelegate* state =
-      StatefulSSLHostStateDelegateFactory::GetForProfile(
-          Profile::FromBrowserContext(web_contents->GetBrowserContext()));
-  return state->HasSeenRecurrentErrors(cert_error);
-}
-
-}  // namespace
 
 SSLErrorControllerClient::SSLErrorControllerClient(
     content::WebContents* web_contents,
@@ -84,34 +72,37 @@ SSLErrorControllerClient::SSLErrorControllerClient(
       request_url_(request_url),
       cert_error_(cert_error) {}
 
-SSLErrorControllerClient::~SSLErrorControllerClient() {}
+SSLErrorControllerClient::~SSLErrorControllerClient() = default;
 
 void SSLErrorControllerClient::GoBack() {
   SecurityInterstitialControllerClient::GoBackAfterNavigationCommitted();
 }
 
 void SSLErrorControllerClient::Proceed() {
-  MaybeTriggerSecurityInterstitialProceededEvent(web_contents_, request_url_,
+  content::WebContents* const web_contents = this->web_contents();
+  MaybeTriggerSecurityInterstitialProceededEvent(web_contents, request_url_,
                                                  "SSL_ERROR", cert_error_);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Hosted Apps should not be allowed to run if there is a problem with their
   // certificate. So, when users click proceed on an interstitial, move the tab
   // to a regular Chrome window and proceed as usual there.
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents_);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (web_app::AppBrowserController::IsWebApp(browser))
     chrome::OpenInChrome(browser);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   Profile* profile =
-      Profile::FromBrowserContext(web_contents_->GetBrowserContext());
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
   StatefulSSLHostStateDelegate* state =
       static_cast<StatefulSSLHostStateDelegate*>(
           profile->GetSSLHostStateDelegate());
   // StatefulSSLHostStateDelegate can be null during tests.
   if (state) {
-    state->AllowCert(
-        request_url_.host(), *ssl_info_.cert.get(), cert_error_,
-        web_contents_->GetPrimaryMainFrame()->GetStoragePartition());
+    // Notifies the browser process when a certificate exception is allowed.
+    web_contents->SetAlwaysSendSubresourceNotifications();
+
+    state->AllowCert(request_url_.host(), *ssl_info_.cert.get(), cert_error_,
+                     InterstitialRenderFrameHost()->GetStoragePartition());
     Reload();
   }
 }
@@ -123,17 +114,13 @@ bool SSLErrorControllerClient::CanLaunchDateAndTimeSettings() {
 void SSLErrorControllerClient::LaunchDateAndTimeSettings() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
       ProfileManager::GetActiveUserProfile(),
-      chromeos::settings::mojom::kDateAndTimeSectionPath);
+      chromeos::settings::mojom::kSystemPreferencesSectionPath);
 #else
   base::ThreadPool::PostTask(
       FROM_HERE, {base::TaskPriority::USER_VISIBLE, base::MayBlock()},
       base::BindOnce(&security_interstitials::LaunchDateAndTimeSettings));
 #endif
-}
-
-bool SSLErrorControllerClient::HasSeenRecurrentError() {
-  return HasSeenRecurrentErrorInternal(web_contents_, cert_error_);
 }

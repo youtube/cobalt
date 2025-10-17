@@ -13,6 +13,8 @@
 
 #if V8_OS_DARWIN
 #include <dispatch/dispatch.h>
+#elif V8_OS_ZOS
+#include "zos-semaphore.h"
 #elif V8_OS_POSIX
 #include <semaphore.h>
 #endif
@@ -58,6 +60,7 @@ class V8_BASE_EXPORT Semaphore {
 #elif V8_OS_WIN
   using NativeHandle = HANDLE;
 #endif
+
   NativeHandle& native_handle() {
     return native_handle_;
   }

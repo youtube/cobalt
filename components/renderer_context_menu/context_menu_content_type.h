@@ -7,7 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "content/public/browser/context_menu_params.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 // ContextMenuContentType is a helper to decide which category/group of items
 // are relevant for a given WebContents and a context.
@@ -45,7 +45,6 @@ class ContextMenuContentType {
     ITEM_GROUP_DEVELOPER,
     ITEM_GROUP_DEVTOOLS_UNPACKED_EXT,
     ITEM_GROUP_PRINT_PREVIEW,
-    ITEM_GROUP_PASSWORD,
     ITEM_GROUP_EXISTING_LINK_TO_TEXT,
     ITEM_GROUP_AUTOFILL
   };

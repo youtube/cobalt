@@ -18,6 +18,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "device/vr/public/mojom/isolated_xr_service.mojom-forward.h"
 #include "device/vr/public/mojom/vr_service.mojom.h"
+#include "device/vr/public/mojom/xr_device.mojom.h"
 #include "device/vr/public/mojom/xr_session.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -141,6 +142,11 @@ class CONTENT_EXPORT VRServiceImpl : public device::mojom::VRService,
 
   bool InternalSupportsSession(device::mojom::XRSessionOptions* options);
 
+  void DoRequestPermissions(
+      const std::vector<blink::PermissionType> request_permissions,
+      base::OnceCallback<void(
+          const std::vector<blink::mojom::PermissionStatus>&)> result_callback);
+
   // The following steps are ordered in the general flow for "RequestSession"
   // GetPermissionStatus will result in a call to OnPermissionResult which then
   // calls EnsureRuntimeInstalled (with a callback to OnInstallResult), which
@@ -175,7 +181,14 @@ class CONTENT_EXPORT VRServiceImpl : public device::mojom::VRService,
       SessionRequestData request,
       device::mojom::XRSessionPtr session,
       mojo::PendingRemote<device::mojom::XRSessionMetricsRecorder>
-          session_metrics_recorder);
+          session_metrics_recorder,
+      mojo::PendingRemote<device::mojom::WebXrInternalsRendererListener>
+          xr_internals_listener);
+
+  mojo::PendingRemote<device::mojom::WebXrInternalsRendererListener>
+  WebXrInternalsRendererListener();
+
+  ExitPresentCallback on_exit_present_;
 
   scoped_refptr<XRRuntimeManagerImpl> runtime_manager_;
   mojo::RemoteSet<device::mojom::XRSessionClient> session_clients_;

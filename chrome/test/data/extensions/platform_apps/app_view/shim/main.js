@@ -215,6 +215,28 @@ function testCloseWithPendingEmbedRequest(appToEmbed) {
   embedder.test.succeed();
 };
 
+function testFocusWebViewInAppView(appToEmbed) {
+  let appview = new AppView();
+  appview.style.border = 'solid';
+  document.body.appendChild(appview);
+  appview.connect(
+      appToEmbed, {'runWebViewInAppViewFocusTest': true}, (success) => {
+        embedder.test.assertTrue(success);
+        appview.focus();
+        // The test continues on the C++ side.
+        embedder.test.succeed();
+      });
+};
+
+function testBasicConnect(appToEmbed) {
+  let appview = new AppView();
+  document.body.appendChild(appview);
+  appview.connect(appToEmbed, {}, (success) => {
+    embedder.test.assertTrue(success);
+    embedder.test.succeed();
+  });
+}
+
 embedder.test.testList = {
   'testAppViewWithUndefinedDataShouldSucceed':
       testAppViewWithUndefinedDataShouldSucceed,
@@ -225,6 +247,8 @@ embedder.test.testList = {
       testAppViewConnectFollowingPreviousConnect,
   'testAppViewEmbedSelfShouldFail': testAppViewEmbedSelfShouldFail,
   'testCloseWithPendingEmbedRequest': testCloseWithPendingEmbedRequest,
+  'testFocusWebViewInAppView': testFocusWebViewInAppView,
+  'testBasicConnect': testBasicConnect,
 };
 
 onload = function() {

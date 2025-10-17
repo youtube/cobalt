@@ -116,9 +116,16 @@ class NavigationItem : public base::SupportsUserData {
   virtual base::Time GetTimestamp() const = 0;
 
   // The type of user agent requested for the navigation.
-  // TODO(crbug.com/697512): Create equivalent enum type for WebContents.
+  // TODO(crbug.com/40508799): Create equivalent enum type for WebContents.
   virtual void SetUserAgentType(UserAgentType type) = 0;
   virtual UserAgentType GetUserAgentType() const = 0;
+
+  // File resources stored outside of the app container require access
+  // permissions to load during session restore. `data` refers to the
+  // file path resource bookmark that will be stored with the corresponding
+  // access permissions.
+  virtual void SetSecurityScopedFileResource(NSData* data) = 0;
+  virtual NSData* GetSecurityScopedFileResource() = 0;
 
   // `true` if this item is the result of a POST request with data.
   virtual bool HasPostData() const = 0;

@@ -4,24 +4,29 @@
 
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 
+#include <optional>
+
 #include "base/check_op.h"
 #include "base/types/optional_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace ui {
 
 DataTransferEndpoint::DataTransferEndpoint(const GURL& url,
-                                           bool notify_if_restricted)
+                                           DataTransferEndpointOptions options)
     : type_(EndpointType::kUrl),
       url_(url),
-      notify_if_restricted_(notify_if_restricted) {}
+      off_the_record_(options.off_the_record),
+      notify_if_restricted_(options.notify_if_restricted) {
+  DCHECK(url.is_valid());
+}
 
 DataTransferEndpoint::DataTransferEndpoint(EndpointType type,
-                                           bool notify_if_restricted)
+                                           DataTransferEndpointOptions options)
     : type_(type),
-      url_(absl::nullopt),
-      notify_if_restricted_(notify_if_restricted) {
+      url_(std::nullopt),
+      off_the_record_(options.off_the_record),
+      notify_if_restricted_(options.notify_if_restricted) {
   DCHECK_NE(type, EndpointType::kUrl);
 }
 
@@ -37,10 +42,8 @@ DataTransferEndpoint& DataTransferEndpoint::operator=(
 DataTransferEndpoint& DataTransferEndpoint::operator=(
     DataTransferEndpoint&& other) = default;
 
-bool DataTransferEndpoint::operator==(const DataTransferEndpoint& other) const {
-  return url_ == other.url_ && type_ == other.type_ &&
-         notify_if_restricted_ == other.notify_if_restricted_;
-}
+bool DataTransferEndpoint::operator==(const DataTransferEndpoint& other) const =
+    default;
 
 DataTransferEndpoint::~DataTransferEndpoint() = default;
 

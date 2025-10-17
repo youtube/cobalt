@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/mojo/services/mojo_video_encode_accelerator_service.h"
+
 #include <stddef.h>
 
 #include "base/functional/bind.h"
@@ -14,9 +16,9 @@
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_info.h"
 #include "gpu/config/gpu_preferences.h"
+#include "media/base/encoder_status.h"
 #include "media/mojo/clients/mojo_media_log_service.h"
 #include "media/mojo/mojom/video_encode_accelerator.mojom.h"
-#include "media/mojo/services/mojo_video_encode_accelerator_service.h"
 #include "media/video/fake_video_encode_accelerator.h"
 #include "media/video/video_encode_accelerator.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -36,23 +38,30 @@ namespace media {
 
 static const gfx::Size kInputVisibleSize(64, 48);
 
-std::unique_ptr<VideoEncodeAccelerator> CreateAndInitializeFakeVEA(
+EncoderStatus::Or<std::unique_ptr<VideoEncodeAccelerator>>
+CreateAndInitializeFakeVEA(
     bool will_initialization_succeed,
     const VideoEncodeAccelerator::Config& config,
     VideoEncodeAccelerator::Client* client,
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     const gpu::GPUInfo::GPUDevice& gpu_device,
-    std::unique_ptr<MediaLog> media_log) {
+    std::unique_ptr<MediaLog> media_log,
+    MojoVideoEncodeAcceleratorService::GetCommandBufferHelperCB
+        get_command_buffer_helper_cb,
+    scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner) {
   // Use FakeVEA as scoped_ptr to guarantee proper destruction via Destroy().
   auto vea = std::make_unique<FakeVideoEncodeAccelerator>(
       base::SingleThreadTaskRunner::GetCurrentDefault());
   vea->SetWillInitializationSucceed(will_initialization_succeed);
-  const bool result = vea->Initialize(config, client, media_log->Clone());
+  const EncoderStatus result =
+      vea->Initialize(config, client, media_log->Clone());
 
-  // Mimic the behaviour of GpuVideoEncodeAcceleratorFactory::CreateVEA().
-  return result ? base::WrapUnique<VideoEncodeAccelerator>(vea.release())
-                : nullptr;
+  if (result.is_ok()) {
+    return base::WrapUnique<VideoEncodeAccelerator>(vea.release());
+  } else {
+    return std::move(result);
+  }
 }
 
 class MockMojoVideoEncodeAcceleratorClient
@@ -104,7 +113,9 @@ class MojoVideoEncodeAcceleratorServiceTest : public ::testing::Test {
         base::BindRepeating(&CreateAndInitializeFakeVEA,
                             will_fake_vea_initialization_succeed),
         gpu::GpuPreferences(), gpu::GpuDriverBugWorkarounds(),
-        gpu::GPUInfo::GPUDevice());
+        gpu::GPUInfo::GPUDevice(),
+        MojoVideoEncodeAcceleratorService::GetCommandBufferHelperCB(),
+        base::SingleThreadTaskRunner::GetCurrentDefault());
   }
 
   void BindAndInitialize() {
@@ -125,7 +136,10 @@ class MojoVideoEncodeAcceleratorServiceTest : public ::testing::Test {
     constexpr media::Bitrate kInitialBitrate =
         media::Bitrate::ConstantBitrate(100000u);
     const media::VideoEncodeAccelerator::Config config(
-        PIXEL_FORMAT_I420, kInputVisibleSize, H264PROFILE_MIN, kInitialBitrate);
+        PIXEL_FORMAT_I420, kInputVisibleSize, H264PROFILE_MIN, kInitialBitrate,
+        media::VideoEncodeAccelerator::kDefaultFramerate,
+        VideoEncodeAccelerator::Config::StorageType::kGpuMemoryBuffer,
+        VideoEncodeAccelerator::Config::ContentType::kCamera);
 
     mojo::PendingReceiver<mojom::MediaLog> media_log_pending_receiver;
     auto media_log_pending_remote =
@@ -134,7 +148,9 @@ class MojoVideoEncodeAcceleratorServiceTest : public ::testing::Test {
     mojo_vea_service()->Initialize(
         config, std::move(pending_client_remote),
         std::move(media_log_pending_remote),
-        base::BindOnce([](bool success) { ASSERT_TRUE(success); }));
+        base::BindOnce([](const media::EncoderStatus& status) {
+          ASSERT_TRUE(status.is_ok());
+        }));
     base::RunLoop().RunUntilIdle();
   }
 
@@ -191,8 +207,8 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, EncodeOneFrame) {
     EXPECT_CALL(*mock_mojo_vea_client(),
                 BitstreamBufferReady(kBitstreamBufferId, _));
 
-    mojo_vea_service()->Encode(video_frame, true /* is_keyframe */,
-                               base::DoNothing());
+    media::VideoEncoder::EncodeOptions options(/* key_frame */ true);
+    mojo_vea_service()->Encode(video_frame, options, base::DoNothing());
     base::RunLoop().RunUntilIdle();
   }
 }
@@ -207,7 +223,7 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, EncodingParametersChange) {
   VideoBitrateAllocation bitrate_allocation;
   bitrate_allocation.SetBitrate(0, 0, kNewBitrate);
   mojo_vea_service()->RequestEncodingParametersChangeWithLayers(
-      bitrate_allocation, kNewFramerate);
+      bitrate_allocation, kNewFramerate, std::nullopt);
   base::RunLoop().RunUntilIdle();
 
   ASSERT_TRUE(fake_vea());
@@ -215,6 +231,7 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, EncodingParametersChange) {
   expected_allocation.SetBitrate(0, 0, kNewBitrate);
   EXPECT_EQ(expected_allocation,
             fake_vea()->stored_bitrate_allocations().back());
+  EXPECT_TRUE(fake_vea()->stored_frame_sizes().empty());
 }
 
 // Tests that a RequestEncodingParametersChange() ripples through correctly.
@@ -239,12 +256,57 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest,
     }
 
     mojo_vea_service()->RequestEncodingParametersChangeWithLayers(
-        bitrate_allocation, kNewFramerate);
+        bitrate_allocation, kNewFramerate, std::nullopt);
     base::RunLoop().RunUntilIdle();
 
     ASSERT_TRUE(fake_vea());
     EXPECT_EQ(bitrate_allocation,
               fake_vea()->stored_bitrate_allocations().back());
+    EXPECT_TRUE(fake_vea()->stored_frame_sizes().empty());
+  }
+}
+
+// Tests that a RequestEncodingParametersChange() ripples through correctly.
+TEST_F(MojoVideoEncodeAcceleratorServiceTest,
+       EncodingParametersWithBitrateAllocationAndFrameSize) {
+  CreateMojoVideoEncodeAccelerator();
+  BindAndInitialize();
+
+  const uint32_t kNewFramerate = 321321u;
+  const size_t kMaxNumBitrates = VideoBitrateAllocation::kMaxSpatialLayers *
+                                 VideoBitrateAllocation::kMaxTemporalLayers;
+
+  // Verify translation of VideoBitrateAllocation into vector of bitrates for
+  // everything from empty array up to max number of layers.
+  VideoBitrateAllocation bitrate_allocation;
+  // Verify frame size from 256 x 144 to 256*kMaxSpatialLayers x
+  // 144*kMaxSpatialLayers.
+  const int kFrameSizeWidthBase = 256;
+  const int kFrameSizeHeightBase = 144;
+  gfx::Size frame_size = gfx::Size(kFrameSizeWidthBase, kFrameSizeHeightBase);
+  for (size_t i = 0; i <= kMaxNumBitrates; ++i) {
+    if (i > 0) {
+      uint32_t layer_bitrate = i * 1000;
+      const size_t si = (i - 1) / VideoBitrateAllocation::kMaxTemporalLayers;
+      const size_t ti = (i - 1) % VideoBitrateAllocation::kMaxTemporalLayers;
+      bitrate_allocation.SetBitrate(si, ti, layer_bitrate);
+    }
+
+    if (i < VideoBitrateAllocation::kMaxSpatialLayers) {
+      frame_size = gfx::Size(kFrameSizeWidthBase * (i + 1),
+                             kFrameSizeHeightBase * (i + 1));
+    }
+
+    EXPECT_CALL(*mock_mojo_vea_client(),
+                RequireBitstreamBuffers(_, frame_size, _));
+    mojo_vea_service()->RequestEncodingParametersChangeWithLayers(
+        bitrate_allocation, kNewFramerate, frame_size);
+    base::RunLoop().RunUntilIdle();
+
+    ASSERT_TRUE(fake_vea());
+    EXPECT_EQ(bitrate_allocation,
+              fake_vea()->stored_bitrate_allocations().back());
+    EXPECT_EQ(frame_size, fake_vea()->stored_frame_sizes().back());
   }
 }
 
@@ -259,7 +321,10 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest,
   constexpr media::Bitrate kInitialBitrate =
       media::Bitrate::ConstantBitrate(100000u);
   const media::VideoEncodeAccelerator::Config config(
-      PIXEL_FORMAT_I420, kInputVisibleSize, H264PROFILE_MIN, kInitialBitrate);
+      PIXEL_FORMAT_I420, kInputVisibleSize, H264PROFILE_MIN, kInitialBitrate,
+      media::VideoEncodeAccelerator::kDefaultFramerate,
+      VideoEncodeAccelerator::Config::StorageType::kGpuMemoryBuffer,
+      VideoEncodeAccelerator::Config::ContentType::kCamera);
   mojo::PendingReceiver<mojom::MediaLog> media_log_pending_receiver;
   auto media_log_pending_remote =
       media_log_pending_receiver.InitWithNewPipeAndPassRemote();
@@ -267,7 +332,9 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest,
   mojo_vea_service()->Initialize(
       config, std::move(invalid_mojo_vea_client),
       std::move(media_log_pending_remote),
-      base::BindOnce([](bool success) { ASSERT_FALSE(success); }));
+      base::BindOnce([](const media::EncoderStatus& status) {
+        ASSERT_FALSE(status.is_ok());
+      }));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -286,14 +353,19 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, InitializeFailure) {
   constexpr media::Bitrate kInitialBitrate =
       media::Bitrate::ConstantBitrate(100000u);
   const media::VideoEncodeAccelerator::Config config(
-      PIXEL_FORMAT_I420, kInputVisibleSize, H264PROFILE_MIN, kInitialBitrate);
+      PIXEL_FORMAT_I420, kInputVisibleSize, H264PROFILE_MIN, kInitialBitrate,
+      media::VideoEncodeAccelerator::kDefaultFramerate,
+      VideoEncodeAccelerator::Config::StorageType::kGpuMemoryBuffer,
+      VideoEncodeAccelerator::Config::ContentType::kCamera);
   mojo::PendingReceiver<mojom::MediaLog> media_log_pending_receiver;
   auto media_log_pending_remote =
       media_log_pending_receiver.InitWithNewPipeAndPassRemote();
 
   mojo_vea_service()->Initialize(
       config, std::move(mojo_vea_client), std::move(media_log_pending_remote),
-      base::BindOnce([](bool success) { ASSERT_FALSE(success); }));
+      base::BindOnce([](const media::EncoderStatus& status) {
+        ASSERT_FALSE(status.is_ok());
+      }));
   base::RunLoop().RunUntilIdle();
 
   mojo_vea_receiver->Close();
@@ -331,8 +403,8 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, EncodeWithWrongSizeFails) {
 
   EXPECT_CALL(*mock_mojo_vea_client(), NotifyErrorStatus);
 
-  mojo_vea_service()->Encode(video_frame, true /* is_keyframe */,
-                             base::DoNothing());
+  media::VideoEncoder::EncodeOptions options(/* key_frame */ true);
+  mojo_vea_service()->Encode(video_frame, options, base::DoNothing());
   base::RunLoop().RunUntilIdle();
 }
 
@@ -343,8 +415,8 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, CallsBeforeInitializeAreIgnored) {
   CreateMojoVideoEncodeAccelerator();
   {
     const auto video_frame = VideoFrame::CreateBlackFrame(kInputVisibleSize);
-    mojo_vea_service()->Encode(video_frame, true /* is_keyframe */,
-                               base::DoNothing());
+    media::VideoEncoder::EncodeOptions options(/* key_frame */ true);
+    mojo_vea_service()->Encode(video_frame, options, base::DoNothing());
     base::RunLoop().RunUntilIdle();
   }
   {
@@ -361,7 +433,7 @@ TEST_F(MojoVideoEncodeAcceleratorServiceTest, CallsBeforeInitializeAreIgnored) {
     media::VideoBitrateAllocation bitrate_allocation;
     bitrate_allocation.SetBitrate(0, 0, kNewBitrate);
     mojo_vea_service()->RequestEncodingParametersChangeWithLayers(
-        bitrate_allocation, kNewFramerate);
+        bitrate_allocation, kNewFramerate, std::nullopt);
     base::RunLoop().RunUntilIdle();
   }
 }

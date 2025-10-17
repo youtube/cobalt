@@ -4,6 +4,8 @@
 
 #include "ui/gfx/win/text_analysis_source.h"
 
+#include <string_view>
+
 #include "base/check.h"
 
 namespace gfx {
@@ -58,8 +60,10 @@ HRESULT TextAnalysisSource::GetTextAtPosition(UINT32 text_position,
     *text_length = 0;
     return S_OK;
   }
-  *text_string = text_.c_str() + text_position;
-  *text_length = text_.length() - text_position;
+  std::wstring_view view(text_);
+  std::wstring_view substring = view.substr(text_position);
+  *text_string = substring.data();
+  *text_length = substring.length();
   return S_OK;
 }
 

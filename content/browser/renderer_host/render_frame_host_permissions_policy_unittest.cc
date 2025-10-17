@@ -4,14 +4,17 @@
 
 #include <vector>
 
+#include "content/browser/site_instance_impl.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/test/test_render_frame_host.h"
+#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/blink/public/common/frame/frame_policy.h"
-#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
+#include "third_party/blink/public/mojom/frame/deferred_fetch_policy.mojom-shared.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -30,10 +33,10 @@ class RenderFrameHostPermissionsPolicyTest
   static constexpr const char* kOrigin3 = "https://example.com";
   static constexpr const char* kOrigin4 = "https://test.com";
 
-  static const blink::mojom::PermissionsPolicyFeature kDefaultEnabledFeature =
-      blink::mojom::PermissionsPolicyFeature::kSyncXHR;
-  static const blink::mojom::PermissionsPolicyFeature kDefaultSelfFeature =
-      blink::mojom::PermissionsPolicyFeature::kGeolocation;
+  static const network::mojom::PermissionsPolicyFeature kDefaultEnabledFeature =
+      network::mojom::PermissionsPolicyFeature::kSyncXHR;
+  static const network::mojom::PermissionsPolicyFeature kDefaultSelfFeature =
+      network::mojom::PermissionsPolicyFeature::kGeolocation;
 
   RenderFrameHost* GetMainRFH(const char* origin) {
     RenderFrameHost* result = web_contents()->GetPrimaryMainFrame();
@@ -54,7 +57,7 @@ class RenderFrameHostPermissionsPolicyTest
   // page to simulate that.
   void RefreshPageAndSetHeaderPolicy(
       RenderFrameHost** rfh,
-      blink::mojom::PermissionsPolicyFeature feature,
+      network::mojom::PermissionsPolicyFeature feature,
       const std::vector<std::string>& origins) {
     RenderFrameHost* current = *rfh;
     auto navigation = NavigationSimulator::CreateRendererInitiated(
@@ -66,12 +69,30 @@ class RenderFrameHostPermissionsPolicyTest
 
   void SetContainerPolicy(RenderFrameHost* parent,
                           RenderFrameHost* child,
-                          blink::mojom::PermissionsPolicyFeature feature,
+                          network::mojom::PermissionsPolicyFeature feature,
                           const std::vector<std::string>& origins) {
+    // If kOriginKeyedProcessesByDefault is enabled, then it's possible that
+    // `parent` and `child` are cross-process to each other even if they're same
+    // site (as some of the tests below assume). In that case, we need to use
+    // the FrameToken from the proxy instead.
+    bool child_uses_proxy =
+        static_cast<SiteInstanceImpl*>(parent->GetSiteInstance())->group() !=
+        static_cast<SiteInstanceImpl*>(child->GetSiteInstance())->group();
+    blink::FrameToken frame_token;
+    // Note: we can't assign from a ternary here since blink::LocalFrameToken
+    // and blink::RemoteFrameToken are incompatible types.
+    if (child_uses_proxy) {
+      frame_token = static_cast<RenderFrameHostImpl*>(child)
+                        ->GetProxyToParent()
+                        ->GetFrameToken();
+    } else {
+      frame_token = child->GetFrameToken();
+    }
     static_cast<TestRenderFrameHost*>(parent)->DidChangeFramePolicy(
-        child->GetFrameToken(), {network::mojom::WebSandboxFlags::kNone,
-                                 CreateFPHeader(feature, origins),
-                                 {} /* required_document_policy */});
+        frame_token, {network::mojom::WebSandboxFlags::kNone,
+                      CreateFPHeader(feature, origins),
+                      {} /* required_document_policy */,
+                      blink::mojom::DeferredFetchPolicy::kDisabled});
   }
 
   void SimulateNavigation(RenderFrameHost** rfh, const GURL& url) {
@@ -82,14 +103,15 @@ class RenderFrameHostPermissionsPolicyTest
   }
 
  private:
-  blink::ParsedPermissionsPolicy CreateFPHeader(
-      blink::mojom::PermissionsPolicyFeature feature,
+  network::ParsedPermissionsPolicy CreateFPHeader(
+      network::mojom::PermissionsPolicyFeature feature,
       const std::vector<std::string>& origins) {
-    blink::ParsedPermissionsPolicy result(1);
+    network::ParsedPermissionsPolicy result(1);
     result[0].feature = feature;
     for (auto const& origin : origins) {
-      result[0].allowed_origins.emplace_back(url::Origin::Create(GURL(origin)),
-                                             /*has_subdomain_wildcard=*/false);
+      result[0].allowed_origins.emplace_back(
+          *network::OriginWithPossibleWildcards::FromOrigin(
+              url::Origin::Create(GURL(origin))));
     }
     return result;
   }

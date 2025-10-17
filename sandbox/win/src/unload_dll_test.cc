@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/scoped_handle.h"
 #include "build/build_config.h"
 #include "sandbox/win/src/sandbox.h"
@@ -48,8 +53,7 @@ std::unique_ptr<TestRunner> BaselineAvicapRunner() {
   runner->SetTimeout(2000);
   // Add a file rule, because that ensures that the interception agent has
   // more than one item in its internal table.
-  runner->AddRule(SubSystem::kFiles, Semantics::kFilesAllowReadonly,
-                  L"\\??\\*.exe");
+  runner->AllowFileAccess(FileSemantics::kAllowReadonly, L"\\??\\*.exe");
   return runner;
 }
 
@@ -91,10 +95,8 @@ std::unique_ptr<TestRunner> UnloadAvicapWithPatchingRunner() {
   // Add a couple of rules that ensures that the interception agent add EAT
   // patching on the client which makes sure that the unload dll record does
   // not interact badly with them.
-  runner->AddRule(SubSystem::kFiles, Semantics::kFilesAllowReadonly,
-                  L"\\??\\*.exe");
-  runner->AddRule(SubSystem::kFiles, Semantics::kFilesAllowReadonly,
-                  L"\\??\\*.log");
+  runner->AllowFileAccess(FileSemantics::kAllowReadonly, L"\\??\\*.exe");
+  runner->AllowFileAccess(FileSemantics::kAllowReadonly, L"\\??\\*.log");
   return runner;
 }
 

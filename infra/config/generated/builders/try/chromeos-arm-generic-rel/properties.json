@@ -1,13 +1,16 @@
 {
   "$build/chromium_tests_builder_config": {
     "builder_config": {
+      "additional_exclusions": [
+        "infra/config/generated/builders/try/chromeos-arm-generic-rel/gn-args.json"
+      ],
       "builder_db": {
         "entries": [
           {
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-arm-generic-rel",
-              "project": "chromium-m114"
+              "project": "chromium-m138"
             },
             "builder_spec": {
               "builder_group": "chromium.chromiumos",
@@ -39,15 +42,25 @@
         {
           "bucket": "ci",
           "builder": "chromeos-arm-generic-rel",
-          "project": "chromium-m114"
+          "project": "chromium-m138"
         }
-      ]
+      ],
+      "targets_spec_directory": "src/infra/config/generated/builders/try/chromeos-arm-generic-rel/targets"
     }
   },
-  "$build/reclient": {
-    "instance": "rbe-chromium-untrusted",
-    "jobs": 150,
-    "metrics_project": "chromium-reclient-metrics"
+  "$build/siso": {
+    "configs": [
+      "builder",
+      "remote-link"
+    ],
+    "enable_cloud_monitoring": true,
+    "enable_cloud_profiler": true,
+    "enable_cloud_trace": true,
+    "experiments": [],
+    "metrics_project": "chromium-reclient-metrics",
+    "output_local_strategy": "minimum",
+    "project": "rbe-chromium-untrusted",
+    "remote_jobs": 150
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],
@@ -57,6 +70,5 @@
     ]
   },
   "builder_group": "tryserver.chromium.chromiumos",
-  "cq": "required",
   "recipe": "chromium_trybot"
 }

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "quiche/quic/platform/api/quic_export.h"
@@ -74,7 +75,7 @@ enum QuicRstStreamErrorCode : uint32_t {
   // A frame that fails to satisfy layout requirements or with an invalid size
   // was received.
   QUIC_STREAM_FRAME_ERROR = 23,
-  // Peer exhibits a behavior that might be generating excessive load.
+  // The system is experiencing excessive load, possibly due to peer behavior.
   QUIC_STREAM_EXCESSIVE_LOAD = 24,
   // A Stream ID or Push ID was used incorrectly, such as exceeding a limit,
   // reducing a limit, or being reused.
@@ -124,7 +125,7 @@ static_assert(static_cast<int>(QUIC_STREAM_LAST_ERROR) <=
 // These values must remain stable as they are uploaded to UMA histograms.
 // To add a new error code, use the current value of QUIC_LAST_ERROR and
 // increment QUIC_LAST_ERROR.
-enum QuicErrorCode {
+enum QuicErrorCode : uint32_t {
   QUIC_NO_ERROR = 0,
 
   // Connection has reached an invalid state.
@@ -249,6 +250,26 @@ enum QuicErrorCode {
 
   // Handshake failed.
   QUIC_HANDSHAKE_FAILED = 28,
+  // Split from QUIC_HANDSHAKE_FAILED and specially indicates handshake failure
+  // due to packets buffered for too long.
+  QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG = 214,
+  // Handshake failed due to invalid hostname in ClientHello. Only sent from
+  // server.
+  QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME = 216,
+  // Handshake failed because server is rejecting all connections. Only sent
+  // from server.
+  QUIC_HANDSHAKE_FAILED_REJECTING_ALL_CONNECTIONS = 217,
+  // Handshake failed because the connection failed validity checks in
+  // QuicDispatcher. Only sent from server.
+  QUIC_HANDSHAKE_FAILED_INVALID_CONNECTION = 218,
+  // Handshake failed because
+  // 1) There used to be a QuicConnection created for the connection ID. And
+  // 2) When the QuicConnection was destroyed, it did not have a termination
+  //    packet so the QuicDispatcher synthesized one using this error code.
+  // Only sent from server.
+  QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE = 219,
+  // Handshake failed because there is a CID collision. Only sent from server.
+  QUIC_HANDSHAKE_FAILED_CID_COLLISION = 220,
   // Handshake message contained out of order tags.
   QUIC_CRYPTO_TAGS_OUT_OF_ORDER = 29,
   // Handshake message contained too many entries.
@@ -619,8 +640,11 @@ enum QuicErrorCode {
   // Error code related to backend health-check.
   QUIC_SERVER_UNHEALTHY = 213,
 
+  // Client application lost network access.
+  QUIC_CLIENT_LOST_NETWORK_ACCESS = 215,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 214,
+  QUIC_LAST_ERROR = 221,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
@@ -662,7 +686,7 @@ enum class QuicHttpQpackErrorCode {
 
 // Represents a reason for resetting a stream in both gQUIC and IETF error code
 // space.  Both error codes have to be present.
-class QUIC_EXPORT_PRIVATE QuicResetStreamError {
+class QUICHE_EXPORT QuicResetStreamError {
  public:
   // Constructs a QuicResetStreamError from QuicRstStreamErrorCode; the IETF
   // error code is inferred.
@@ -701,15 +725,17 @@ class QUIC_EXPORT_PRIVATE QuicResetStreamError {
   uint64_t ietf_application_code_;
 };
 
-// Convert TLS alert code to QuicErrorCode.
-QUIC_EXPORT_PRIVATE QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc);
+// Convert TLS alert code to QuicErrorCode. Returns nullopt if the alert code
+// is not recognized.
+QUICHE_EXPORT std::optional<QuicErrorCode> TlsAlertToQuicErrorCode(
+    uint8_t desc);
 
 // Returns the name of the QuicRstStreamErrorCode as a char*
-QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
+QUICHE_EXPORT const char* QuicRstStreamErrorCodeToString(
     QuicRstStreamErrorCode error);
 
 // Returns the name of the QuicErrorCode as a char*
-QUIC_EXPORT_PRIVATE const char* QuicErrorCodeToString(QuicErrorCode error);
+QUICHE_EXPORT const char* QuicErrorCodeToString(QuicErrorCode error);
 
 // Wire values for QUIC transport errors.
 // https://quicwg.org/base-drafts/draft-ietf-quic-transport.html#name-transport-error-codes
@@ -733,40 +759,39 @@ enum QuicIetfTransportErrorCodes : uint64_t {
   CRYPTO_ERROR_LAST = 0x1FF,
 };
 
-QUIC_EXPORT_PRIVATE std::string QuicIetfTransportErrorCodeString(
+QUICHE_EXPORT std::string QuicIetfTransportErrorCodeString(
     QuicIetfTransportErrorCodes c);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const QuicIetfTransportErrorCodes& c);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const QuicIetfTransportErrorCodes& c);
 
 // A transport error code (if is_transport_close is true) or application error
 // code (if is_transport_close is false) to be used in CONNECTION_CLOSE frames.
-struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
+struct QUICHE_EXPORT QuicErrorCodeToIetfMapping {
   bool is_transport_close;
   uint64_t error_code;
 };
 
 // Convert QuicErrorCode to transport or application IETF error code
 // to be used in CONNECTION_CLOSE frames.
-QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping
+QUICHE_EXPORT QuicErrorCodeToIetfMapping
 QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
 
 // Convert a QuicRstStreamErrorCode to an application error code to be used in
 // an IETF QUIC RESET_STREAM frame
-QUIC_EXPORT_PRIVATE uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
+QUICHE_EXPORT uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
     QuicRstStreamErrorCode rst_stream_error_code);
 
 // Convert the application error code of an IETF QUIC RESET_STREAM frame
 // to QuicRstStreamErrorCode.
-QUIC_EXPORT_PRIVATE QuicRstStreamErrorCode
+QUICHE_EXPORT QuicRstStreamErrorCode
 IetfResetStreamErrorCodeToRstStreamErrorCode(uint64_t ietf_error_code);
 
-QUIC_EXPORT_PRIVATE inline std::string HistogramEnumString(
-    QuicErrorCode enum_value) {
+QUICHE_EXPORT inline std::string HistogramEnumString(QuicErrorCode enum_value) {
   return QuicErrorCodeToString(enum_value);
 }
 
-QUIC_EXPORT_PRIVATE inline std::string HistogramEnumDescription(
+QUICHE_EXPORT inline std::string HistogramEnumDescription(
     QuicErrorCode /*dummy*/) {
   return "cause";
 }

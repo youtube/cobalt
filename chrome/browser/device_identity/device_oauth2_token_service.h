@@ -9,8 +9,9 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/device_identity/device_oauth2_token_store.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "google_apis/gaia/gaia_oauth_client.h"
@@ -77,7 +78,7 @@ class DeviceOAuth2TokenService : public OAuth2AccessTokenManager::Delegate,
 
   OAuth2AccessTokenManager* GetAccessTokenManager();
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   // Used on non-ChromeOS platforms to set the email associated with the
   // current service account. On ChromeOS, this function isn't used because
   // the service account identity comes from CrosSettings.
@@ -130,7 +131,8 @@ class DeviceOAuth2TokenService : public OAuth2AccessTokenManager::Delegate,
   std::unique_ptr<OAuth2AccessTokenFetcher> CreateAccessTokenFetcher(
       const CoreAccountId& account_id,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      OAuth2AccessTokenConsumer* consumer) override;
+      OAuth2AccessTokenConsumer* consumer,
+      const std::string& token_binding_challenge) override;
   bool HasRefreshToken(const CoreAccountId& account_id) const override;
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
       const override;
@@ -176,7 +178,7 @@ class DeviceOAuth2TokenService : public OAuth2AccessTokenManager::Delegate,
 
   // Currently open requests that are waiting while loading the system salt or
   // validating the token.
-  std::vector<PendingRequest*> pending_requests_;
+  std::vector<raw_ptr<PendingRequest, VectorExperimental>> pending_requests_;
 
   // Callbacks to invoke, if set, for refresh token-related events.
   RefreshTokenAvailableCallback on_refresh_token_available_callback_;

@@ -10,11 +10,13 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "ash/app_list/app_list_test_view_delegate.h"
 #include "ash/app_list/model/app_list_test_model.h"
+#include "ash/app_list/model/search/search_box_model.h"
 #include "ash/app_list/model/search/test_search_result.h"
 #include "ash/app_list/views/app_list_folder_view.h"
 #include "ash/app_list/views/app_list_item_view.h"
@@ -50,6 +52,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
@@ -497,7 +500,7 @@ class AppListViewTest : public views::ViewsTestBase {
   // Needed by AppsContainerView::ContinueContainer.
   AshColorProvider ash_color_provider_;
 
-  raw_ptr<AppListView, ExperimentalAsh> view_ =
+  raw_ptr<AppListView, DanglingUntriaged> view_ =
       nullptr;  // Owned by native widget.
   std::unique_ptr<AppListTestViewDelegate> delegate_;
   std::unique_ptr<AppsGridViewTestApi> test_api_;
@@ -596,7 +599,7 @@ class AppListViewFocusTest : public views::ViewsTestBase,
     constexpr int kBestMatchContainerIndex = 1;
     return contents_view()
         ->search_result_page_view()
-        ->search_view_for_test()
+        ->search_view()
         ->result_container_views_for_test()[kBestMatchContainerIndex];
   }
 
@@ -607,35 +610,15 @@ class AppListViewFocusTest : public views::ViewsTestBase,
   void SimulateKeyPress(ui::KeyboardCode key_code,
                         bool shift_down,
                         bool ctrl_down = false) {
-    ui::KeyEvent key_event(ui::ET_KEY_PRESSED, key_code,
-                           shift_down
-                               ? ui::EF_SHIFT_DOWN
-                               : ctrl_down ? ui::EF_CONTROL_DOWN : ui::EF_NONE);
+    ui::KeyEvent key_event(ui::EventType::kKeyPressed, key_code,
+                           shift_down  ? ui::EF_SHIFT_DOWN
+                           : ctrl_down ? ui::EF_CONTROL_DOWN
+                                       : ui::EF_NONE);
     view_->GetWidget()->OnKeyEvent(&key_event);
   }
 
-  // Add search results for test on focus movement.
+  // Adds test search results.
   void SetUpSearchResults(int list_results_num) {
-    SearchModel::SearchResults* results = GetSearchModel()->results();
-    results->DeleteAll();
-
-    for (int i = 0; i < list_results_num; ++i) {
-      std::unique_ptr<TestSearchResult> result =
-          std::make_unique<TestSearchResult>();
-      result->set_display_type(SearchResultDisplayType::kList);
-      result->set_display_score(1);
-      result->SetTitle(u"Test");
-      result->set_best_match(true);
-      results->Add(std::move(result));
-    }
-
-    // Adding results will schedule Update().
-    base::RunLoop().RunUntilIdle();
-  }
-
-  // Add search results for test on embedded Assistant UI.
-  void SetUpSearchResultsForAssistantUI(int list_results_num,
-                                        int index_open_assistant_ui) {
     SearchModel::SearchResults* results = GetSearchModel()->results();
     results->DeleteAll();
     double display_score = list_results_num;
@@ -651,9 +634,6 @@ class AppListViewFocusTest : public views::ViewsTestBase,
       result->SetTitle(u"Test" + base::NumberToString16(i));
       result->set_result_id("Test" + base::NumberToString(i));
       result->set_best_match(true);
-      if (i == index_open_assistant_ui)
-        result->set_is_omnibox_search(true);
-
       results->Add(std::move(result));
     }
 
@@ -663,8 +643,7 @@ class AppListViewFocusTest : public views::ViewsTestBase,
 
   void ClearSearchResults() { GetSearchModel()->results()->DeleteAll(); }
 
-  void AddSearchResultWithTitleAndScore(const base::StringPiece& title,
-                                        double score) {
+  void AddSearchResultWithTitleAndScore(std::string_view title, double score) {
     std::unique_ptr<TestSearchResult> result =
         std::make_unique<TestSearchResult>();
     result->set_display_type(ash::SearchResultDisplayType::kList);
@@ -685,10 +664,6 @@ class AppListViewFocusTest : public views::ViewsTestBase,
 
   int GetTotalOpenSearchResultCount() {
     return delegate_->open_search_result_count();
-  }
-
-  int GetTotalOpenAssistantUICount() {
-    return delegate_->open_assistant_ui_count();
   }
 
   // Test focus traversal across all the views in |view_list|. The initial focus
@@ -730,7 +705,7 @@ class AppListViewFocusTest : public views::ViewsTestBase,
     EXPECT_EQ(is_rtl_ ? next_view : prev_view, focused_view());
 
     SimulateKeyPress(ui::VKEY_RIGHT, false);
-    EXPECT_EQ(textfield, focused_view());
+    EXPECT_EQ(textfield, focused_view()) << focused_view()->GetClassName();
   }
 
   // Test the behavior triggered by left and right key when focus is on the
@@ -745,10 +720,10 @@ class AppListViewFocusTest : public views::ViewsTestBase,
     textfield->InsertText(
         text,
         ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-    views::View* next_view = next_view =
+    views::View* next_view =
         view_->GetWidget()->GetFocusManager()->GetNextFocusableView(
             textfield, view_->GetWidget(), false, false);
-    views::View* prev_view = prev_view =
+    views::View* prev_view =
         view_->GetWidget()->GetFocusManager()->GetNextFocusableView(
             textfield, view_->GetWidget(), true, false);
     EXPECT_EQ(text.length(), textfield->GetCursorPosition());
@@ -847,13 +822,15 @@ class AppListViewFocusTest : public views::ViewsTestBase,
     return view_->GetWidget()->GetFocusManager()->GetFocusedView();
   }
 
+  SearchModel* search_model() { return delegate_->GetTestSearchModel(); }
+
  protected:
   bool is_rtl_ = false;
   base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
   AshColorProvider ash_color_provider_;
-  raw_ptr<AppListView, ExperimentalAsh> view_ =
+  raw_ptr<AppListView, DanglingUntriaged> view_ =
       nullptr;  // Owned by native widget.
 
   std::unique_ptr<AppListTestViewDelegate> delegate_;
@@ -1045,7 +1022,7 @@ TEST_F(AppListViewFocusTest, SearchBoxTextDoesNotUpdateOnResultFocus) {
 TEST_F(AppListViewFocusTest, CtrlASelectsAllTextInSearchbox) {
   Show();
   search_box_view()->search_box()->InsertText(
-      u"test",
+      u"test0",
       ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
   constexpr int kListResults = 2;
   SetUpSearchResults(kListResults);
@@ -1057,21 +1034,21 @@ TEST_F(AppListViewFocusTest, CtrlASelectsAllTextInSearchbox) {
   // Focus left the searchbox, so the selected range should be at the end of the
   // search text.
   EXPECT_FALSE(search_box_view()->search_box()->HasSelection());
-  EXPECT_EQ(gfx::Range(4, 4),
+  EXPECT_EQ(gfx::Range(5, 5),
             search_box_view()->search_box()->GetSelectedRange());
 
   // Press Ctrl-A, everything should be selected and the selected range should
   // include the whole text.
   SimulateKeyPress(ui::VKEY_A, false, true);
   EXPECT_TRUE(search_box_view()->search_box()->HasSelection());
-  EXPECT_EQ(gfx::Range(0, 4),
+  EXPECT_EQ(gfx::Range(0, 5),
             search_box_view()->search_box()->GetSelectedRange());
 
   // Advance focus, Focus should leave the searchbox, and the selected range
   // should be at the end of the search text.
   SimulateKeyPress(ui::VKEY_TAB, false);
   EXPECT_FALSE(search_box_view()->search_box()->HasSelection());
-  EXPECT_EQ(gfx::Range(4, 4),
+  EXPECT_EQ(gfx::Range(5, 5),
             search_box_view()->search_box()->GetSelectedRange());
 }
 
@@ -1095,7 +1072,7 @@ TEST_F(AppListViewFocusTest, FirstResultSelectedAfterSearchResultsUpdated) {
   ResultSelectionController* selection_controller =
       contents_view()
           ->search_result_page_view()
-          ->search_view_for_test()
+          ->search_view()
           ->result_selection_controller_for_test();
 
   // Ensures the |ResultSelectionController| selects the correct result.
@@ -1147,11 +1124,11 @@ TEST_F(AppListViewFocusTest, SetFocusOnSearchboxWhenActivated) {
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
 
   // Activate the search box.
-  search_box_view()->SetSearchBoxActive(true, ui::ET_MOUSE_PRESSED);
+  search_box_view()->SetSearchBoxActive(true, ui::EventType::kMousePressed);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
 
   // Deactivate the search box won't move focus away.
-  search_box_view()->SetSearchBoxActive(false, ui::ET_MOUSE_PRESSED);
+  search_box_view()->SetSearchBoxActive(false, ui::EventType::kMousePressed);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
 }
 
@@ -1191,20 +1168,39 @@ TEST_P(AppListViewFocusTest, FocusResetAfterHittingEnterOrEscapeOnFolderName) {
   EXPECT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
 
   // Set focus on the folder name.
-  views::View* folder_name_view =
-      app_list_folder_view()->folder_header_view()->GetFolderNameViewForTest();
+  FolderHeaderView* const folder_header_view =
+      app_list_folder_view()->folder_header_view();
+  views::View* const folder_name_view =
+      folder_header_view->GetFolderNameViewForTest();
   folder_name_view->RequestFocus();
+
+  EXPECT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
+  EXPECT_TRUE(folder_header_view->IsFolderNameViewActiveForTest());
 
   // Hit enter key.
   SimulateKeyPress(ui::VKEY_RETURN, false);
-  EXPECT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
-  EXPECT_FALSE(folder_name_view->HasFocus());
 
-  // Refocus and hit escape key.
-  folder_name_view->RequestFocus();
+  EXPECT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
+  EXPECT_FALSE(folder_header_view->IsFolderNameViewActiveForTest());
+
+  // Reactivate and hit escape key. NOTE: The folder name view will not have
+  // focus if Jelly feature is disabled, in that case it's sufficient to refocus
+  // the folder name view to "reactivate" it.
+  if (folder_name_view->HasFocus()) {
+    SimulateKeyPress(ui::VKEY_RETURN, false);
+  } else {
+    folder_name_view->RequestFocus();
+  }
+
+  EXPECT_TRUE(folder_header_view->IsFolderNameViewActiveForTest());
+
   SimulateKeyPress(ui::VKEY_ESCAPE, false);
   EXPECT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
-  EXPECT_FALSE(folder_name_view->HasFocus());
+  EXPECT_FALSE(folder_header_view->IsFolderNameViewActiveForTest());
+
+  // Escape when textfield is not active closes the floder.
+  SimulateKeyPress(ui::VKEY_ESCAPE, false);
+  EXPECT_FALSE(contents_view()->apps_container_view()->IsInFolderView());
 }
 
 // Tests that the selection highlight follows the page change.
@@ -1241,7 +1237,7 @@ TEST_F(AppListViewFocusTest, SelectionDoesNotShowInFolderIfNotSelected) {
       folder_item_view()->bounds().CenterPoint();
   ui::GestureEvent tap(folder_item_view_bounds.x(), folder_item_view_bounds.y(),
                        0, base::TimeTicks(),
-                       ui::GestureEventDetails(ui::ET_GESTURE_TAP));
+                       ui::GestureEventDetails(ui::EventType::kGestureTap));
   folder_item_view()->OnGestureEvent(&tap);
   ASSERT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
 
@@ -1272,7 +1268,7 @@ TEST_F(AppListViewFocusTest, SelectionGoesIntoFolderIfSelected) {
       folder_item_view()->bounds().CenterPoint();
   ui::GestureEvent tap(folder_item_view_bounds.x(), folder_item_view_bounds.y(),
                        0, base::TimeTicks(),
-                       ui::GestureEventDetails(ui::ET_GESTURE_TAP));
+                       ui::GestureEventDetails(ui::EventType::kGestureTap));
   folder_item_view()->OnGestureEvent(&tap);
   ASSERT_TRUE(contents_view()->apps_container_view()->IsInFolderView());
 
@@ -1286,6 +1282,135 @@ TEST_F(AppListViewFocusTest, SelectionGoesIntoFolderIfSelected) {
       ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_NONE));
   EXPECT_TRUE(apps_grid_view()->IsSelectedView(folder_item_view()));
   EXPECT_EQ(folder_item_view(), focused_view());
+}
+
+// Exercises ButtonFocusSkipper with only the Assistant button.
+TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsAssistantButton) {
+  search_model()->search_box()->SetSunfishButtonVisibility(
+      SearchBoxModel::SunfishButtonVisibility::kHidden);
+  search_model()->search_box()->SetShowAssistantButton(true);
+
+  Show();
+  const views::ViewModelT<AppListItemView>* view_model =
+      apps_grid_view()->view_model();
+  AppListItemView* first_item_view = view_model->view_at(0);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  ASSERT_TRUE(search_box_view()->assistant_button());
+  ASSERT_TRUE(search_box_view()->assistant_button()->GetVisible());
+
+  // Pressing down arrow moves focus into apps.
+  SimulateKeyPress(ui::VKEY_DOWN, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_TRUE(first_item_view->HasFocus());
+
+  // Pressing up arrow moves focus back to search box.
+  SimulateKeyPress(ui::VKEY_UP, /*shift_down=*/false);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(first_item_view->HasFocus());
+
+  // Tab key moves focus to assistant button.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view()->assistant_button()->HasFocus());
+
+  // Shift-tab moves focus back to search box.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+}
+
+// Exercises ButtonFocusSkipper with only the Sunfish button.
+TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishButton) {
+  search_model()->search_box()->SetSunfishButtonVisibility(
+      SearchBoxModel::SunfishButtonVisibility::kShownWithSunfishIcon);
+  search_model()->search_box()->SetShowAssistantButton(false);
+
+  Show();
+  const views::ViewModelT<AppListItemView>* view_model =
+      apps_grid_view()->view_model();
+  AppListItemView* first_item_view = view_model->view_at(0);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  ASSERT_TRUE(search_box_view()->sunfish_button());
+  ASSERT_TRUE(search_box_view()->sunfish_button()->GetVisible());
+
+  // Pressing down arrow moves focus into apps.
+  SimulateKeyPress(ui::VKEY_DOWN, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_TRUE(first_item_view->HasFocus());
+
+  // Pressing up arrow moves focus back to search box.
+  SimulateKeyPress(ui::VKEY_UP, /*shift_down=*/false);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_FALSE(first_item_view->HasFocus());
+
+  // Tab key moves focus to Sunfish button.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view()->sunfish_button()->HasFocus());
+
+  // Shift-tab moves focus back to search box.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+}
+
+// Exercises ButtonFocusSkipper with both Sunfish and Assistant buttons.
+TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishAndAssistantButtons) {
+  search_model()->search_box()->SetSunfishButtonVisibility(
+      SearchBoxModel::SunfishButtonVisibility::kShownWithSunfishIcon);
+  search_model()->search_box()->SetShowAssistantButton(true);
+
+  Show();
+  const views::ViewModelT<AppListItemView>* view_model =
+      apps_grid_view()->view_model();
+  AppListItemView* first_item_view = view_model->view_at(0);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  ASSERT_TRUE(search_box_view()->sunfish_button());
+  ASSERT_TRUE(search_box_view()->sunfish_button()->GetVisible());
+  ASSERT_TRUE(search_box_view()->assistant_button());
+  ASSERT_TRUE(search_box_view()->assistant_button()->GetVisible());
+
+  // Pressing down arrow moves focus into apps.
+  SimulateKeyPress(ui::VKEY_DOWN, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_TRUE(first_item_view->HasFocus());
+
+  // Pressing up arrow moves focus back to search box.
+  SimulateKeyPress(ui::VKEY_UP, /*shift_down=*/false);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(first_item_view->HasFocus());
+
+  // Tab key moves focus to Sunfish button.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+
+  // Tab key moves focus to assistant button.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_TRUE(search_box_view()->assistant_button()->HasFocus());
+
+  // Shift-tab moves focus back to Sunfish button.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
+  EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+
+  // Shift-tab moves focus back to search box.
+  SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
+  EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
 }
 
 // Tests that in tablet mode, the app list opens in fullscreen by default.
@@ -1455,7 +1580,8 @@ TEST_F(AppListViewTest, PageSwitchingAnimationTest) {
   EXPECT_TRUE(main_view->contents_view()->IsStateActive(
       ash::AppListState::kStateSearchResults));
 
-  ui::KeyEvent key_event(ui::ET_KEY_PRESSED, ui::VKEY_ESCAPE, ui::EF_NONE);
+  ui::KeyEvent key_event(ui::EventType::kKeyPressed, ui::VKEY_ESCAPE,
+                         ui::EF_NONE);
   main_view->contents_view()->GetWidget()->OnKeyEvent(&key_event);
 
   EXPECT_TRUE(
@@ -1539,8 +1665,9 @@ TEST_F(AppListViewTest, ShowContextMenuBetweenAppsInTabletMode) {
 
   // Tap between two apps in tablet mode.
   const gfx::Point middle = GetPointBetweenTwoApps();
-  ui::GestureEvent tap(middle.x(), middle.y(), 0, base::TimeTicks(),
-                       ui::GestureEventDetails(ui::ET_GESTURE_TWO_FINGER_TAP));
+  ui::GestureEvent tap(
+      middle.x(), middle.y(), 0, base::TimeTicks(),
+      ui::GestureEventDetails(ui::EventType::kGestureTwoFingerTap));
   view_->OnGestureEvent(&tap);
 
   // The wallpaper context menu should show.
@@ -1549,11 +1676,11 @@ TEST_F(AppListViewTest, ShowContextMenuBetweenAppsInTabletMode) {
 
   // Click between two apps in tablet mode.
   ui::MouseEvent click_mouse_event(
-      ui::ET_MOUSE_PRESSED, middle, middle, ui::EventTimeForNow(),
+      ui::EventType::kMousePressed, middle, middle, ui::EventTimeForNow(),
       ui::EF_RIGHT_MOUSE_BUTTON, ui::EF_RIGHT_MOUSE_BUTTON);
   view_->OnMouseEvent(&click_mouse_event);
   ui::MouseEvent release_mouse_event(
-      ui::ET_MOUSE_RELEASED, middle, middle, ui::EventTimeForNow(),
+      ui::EventType::kMouseReleased, middle, middle, ui::EventTimeForNow(),
       ui::EF_RIGHT_MOUSE_BUTTON, ui::EF_RIGHT_MOUSE_BUTTON);
   view_->OnMouseEvent(&release_mouse_event);
 
@@ -1634,7 +1761,7 @@ TEST_F(AppListViewTest, CloseFolderByClickingBackground) {
   EXPECT_TRUE(apps_container_view->IsInFolderView());
 
   // Simulate mouse press on folder background to close the folder.
-  ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                        ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                        ui::EF_LEFT_MOUSE_BUTTON);
   apps_container_view->folder_background_view()->OnMouseEvent(&event);
@@ -1656,25 +1783,22 @@ TEST_P(AppListViewFocusTest, ShowEmbeddedAssistantUI) {
       u"test",
       ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
   const int kListResults = 2;
-  const int kIndexOpenAssistantUi = 1;
 
-  SetUpSearchResultsForAssistantUI(kListResults, kIndexOpenAssistantUi);
+  SetUpSearchResults(kListResults);
   SimulateKeyPress(ui::VKEY_RETURN, false);
   EXPECT_EQ(1, GetOpenFirstSearchResultCount());
   EXPECT_EQ(1, GetTotalOpenSearchResultCount());
-  EXPECT_EQ(0, GetTotalOpenAssistantUICount());
 
   // Type something in search box to transition to re-open search state and
   // populate fake list results. Then hit Enter key.
   search_box_view()->search_box()->InsertText(
       u"test",
       ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  SetUpSearchResultsForAssistantUI(kListResults, kIndexOpenAssistantUi);
+  SetUpSearchResults(kListResults);
   SimulateKeyPress(ui::VKEY_DOWN, false);
   SimulateKeyPress(ui::VKEY_RETURN, false);
   EXPECT_EQ(1, GetOpenFirstSearchResultCount());
   EXPECT_EQ(2, GetTotalOpenSearchResultCount());
-  EXPECT_EQ(1, GetTotalOpenAssistantUICount());
 }
 
 // Tests that pressing escape in embedded Assistant UI returns to fullscreen

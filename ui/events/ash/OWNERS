@@ -1,5 +1,5 @@
 file://ui/chromeos/OWNERS
 
-zentaro@chromium.org
-
-per-file keyboard_*=dpad@google.com
+hidehiko@chromium.org
+jimmyxgong@chromium.org
+yhanada@chromium.org

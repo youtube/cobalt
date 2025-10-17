@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './strings.m.js';
+import '/strings.m.js';
 
 import {CustomElement} from 'chrome://resources/js/custom_element.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -76,8 +76,8 @@ export class StatusBoxElement extends CustomElement {
   initialize(scope: string, status: Status) {
     const notSpecifiedString = loadTimeData.getString('notSpecified');
 
-    // Set appropriate box legend based on status key
-    this.shadowRoot!.querySelector('.legend')!.textContent =
+    // Set appropriate box heading based on status key.
+    this.shadowRoot!.querySelector('.status-box-heading')!.textContent =
         loadTimeData.getString(status.policyDescriptionKey);
     if (status.flexOrgWarning) {
       this.setLabelInnerHtmlAndShow(

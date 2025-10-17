@@ -9,8 +9,8 @@
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request_id.h"
 #include "content/public/browser/render_frame_host.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom.h"
 
 namespace permissions {
 
@@ -19,7 +19,7 @@ WindowManagementPermissionContext::WindowManagementPermissionContext(
     : PermissionContextBase(
           browser_context,
           ContentSettingsType::WINDOW_MANAGEMENT,
-          blink::mojom::PermissionsPolicyFeature::kWindowManagement) {}
+          network::mojom::PermissionsPolicyFeature::kWindowManagement) {}
 
 WindowManagementPermissionContext::~WindowManagementPermissionContext() =
     default;
@@ -29,7 +29,7 @@ ContentSetting WindowManagementPermissionContext::GetPermissionStatusInternal(
     content::RenderFrameHost* render_frame_host,
     const GURL& requesting_origin,
     const GURL& embedding_origin) const {
-  // TODO(crbug.com/897300): Add window-placement support on Android.
+  // TODO(crbug.com/40092782): Add window-management support on Android.
   NOTIMPLEMENTED_LOG_ONCE();
   return CONTENT_SETTING_BLOCK;
 }

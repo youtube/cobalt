@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/startup/credential_provider_signin_dialog_win.h"
+
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -10,7 +12,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/startup/buildflags.h"
-#include "chrome/browser/ui/startup/credential_provider_signin_dialog_win.h"
 #include "chrome/browser/ui/startup/credential_provider_signin_dialog_win_test_data.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
@@ -34,8 +35,9 @@ class SigninDialogLoadingStoppedObserver : public content::WebContentsObserver {
         idle_closure_(std::move(idle_closure)) {}
 
   void DidStopLoading() override {
-    if (idle_closure_)
+    if (idle_closure_) {
       std::move(idle_closure_).Run();
+    }
   }
 
   base::OnceClosure idle_closure_;
@@ -54,8 +56,10 @@ class CredentialProviderSigninDialogWinBaseTest : public InProcessBrowserTest {
   content::WebContents* web_contents() { return web_contents_; }
   virtual void WaitForDialogToLoad();
 
-  raw_ptr<views::WebDialogView, DanglingUntriaged> web_view_ = nullptr;
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<views::WebDialogView, AcrossTasksDanglingUntriaged> web_view_ =
+      nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_ =
+      nullptr;
 };
 
 CredentialProviderSigninDialogWinBaseTest::
@@ -167,8 +171,9 @@ void CredentialProviderSigninDialogWinDialogTest::HandleSignInComplete(
   signin_complete_called_ = true;
   result_dict_ = std::move(signin_result);
 
-  if (signin_complete_closure_)
+  if (signin_complete_closure_) {
     std::move(signin_complete_closure_).Run();
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(CredentialProviderSigninDialogWinDialogTest,
@@ -204,7 +209,7 @@ IN_PROC_BROWSER_TEST_F(CredentialProviderSigninDialogWinDialogTest,
 
   EXPECT_TRUE(signin_complete_called_);
   EXPECT_EQ(result_dict_.size(), 1u);
-  absl::optional<int> exit_code =
+  std::optional<int> exit_code =
       result_dict_.FindInt(credential_provider::kKeyExitCode);
   EXPECT_TRUE(exit_code);
   EXPECT_EQ(credential_provider::kUiecAbort, exit_code.value());
@@ -218,10 +223,10 @@ IN_PROC_BROWSER_TEST_F(CredentialProviderSigninDialogWinDialogTest,
   WaitForDialogToLoad();
 
   ASSERT_TRUE(web_view_->IsWebContentsCreationOverridden(
-      nullptr /* source_site_instance */,
+      nullptr /* opener */, nullptr /* source_site_instance */,
       content::mojom::WindowContainerType::NORMAL /* window_container_type */,
       GURL() /* opener_url */, "foo" /* frame_name */,
-      GURL::EmptyGURL() /* target_url */));
+      GURL() /* target_url */));
 
   web_view_->GetWidget()->CloseWithReason(
       views::Widget::ClosedReason::kEscKeyPressed);
@@ -374,7 +379,7 @@ IN_PROC_BROWSER_TEST_P(CredentialProviderSigninDialogWinDialogExitCodeTest,
   SendSigninCompleteMessage(signin_result);
   EXPECT_TRUE(signin_complete_called_);
   EXPECT_EQ(exit_code_, expected_error_code);
-  absl::optional<int> exit_code_value =
+  std::optional<int> exit_code_value =
       result_dict_.FindInt(credential_provider::kKeyExitCode);
   EXPECT_EQ(exit_code_value, expected_error_code);
 
@@ -539,7 +544,7 @@ IN_PROC_BROWSER_TEST_F(
     EscapeClosesDialogTest) {
   WaitForDialogToLoad();
   views::Widget::Widgets all_widgets = views::test::WidgetTest::GetAllWidgets();
-  ui::KeyEvent escape_key_event(ui::EventType::ET_KEY_PRESSED,
+  ui::KeyEvent escape_key_event(ui::EventType::kKeyPressed,
                                 ui::KeyboardCode::VKEY_ESCAPE,
                                 ui::DomCode::ESCAPE, 0);
   (*all_widgets.begin())->OnKeyEvent(&escape_key_event);

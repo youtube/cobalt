@@ -1,17 +1,17 @@
 #!/usr/bin/env perl
-# Copyright (c) 2018, Google Inc.
+# Copyright 2018 The BoringSSL Authors
 #
-# Permission to use, copy, modify, and/or distribute this software for any
-# purpose with or without fee is hereby granted, provided that the above
-# copyright notice and this permission notice appear in all copies.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-# SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-# OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-# CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 # This file defines helper functions for crypto/test/abi_test.h on x86_64. See
 # that header for details on how to use this.
@@ -141,6 +141,7 @@ my $code = <<____;
 abi_test_trampoline:
 .cfi_startproc
 .seh_startproc
+	_CET_ENDBR
 	# Stack layout:
 	#   8 bytes - align
 	#   $caller_state_size bytes - saved caller registers
@@ -178,7 +179,7 @@ my $caller_state_offset = $scratch_offset + 8;
 $code .= <<____;
 	subq	\$$stack_alloc_size, %rsp
 .cfi_adjust_cfa_offset	$stack_alloc_size
-.seh_allocstack	$stack_alloc_size
+.seh_stackalloc	$stack_alloc_size
 ____
 $code .= <<____ if (!$win64);
 	movq	$unwind, $unwind_offset(%rsp)
@@ -194,12 +195,13 @@ $code .= store_caller_state($caller_state_offset, "%rsp", sub {
   # pointer just before the call.
   my $cfi_off = $off - $stack_alloc_size - 8;
   my $seh_dir = ".seh_savereg";
-  $seh_dir = ".seh_savexmm128" if ($reg =~ /^xmm/);
+  $seh_dir = ".seh_savexmm" if ($reg =~ /^xmm/);
   return <<____;
 .cfi_offset	$reg, $cfi_off
 $seh_dir	\%$reg, $off
 ____
 });
+$code .= ".seh_endprologue\n";
 
 $code .= load_caller_state(0, $state);
 $code .= <<____;
@@ -307,6 +309,7 @@ foreach ("ax", "bx", "cx", "dx", "di", "si", "bp", 8..15) {
 .globl	abi_test_clobber_r$_
 .align	16
 abi_test_clobber_r$_:
+	_CET_ENDBR
 	xorq	%r$_, %r$_
 	ret
 .size	abi_test_clobber_r$_,.-abi_test_clobber_r$_
@@ -319,6 +322,7 @@ foreach (0..15) {
 .globl	abi_test_clobber_xmm$_
 .align	16
 abi_test_clobber_xmm$_:
+	_CET_ENDBR
 	pxor	%xmm$_, %xmm$_
 	ret
 .size	abi_test_clobber_xmm$_,.-abi_test_clobber_xmm$_
@@ -335,9 +339,11 @@ $code .= <<____;
 abi_test_bad_unwind_wrong_register:
 .cfi_startproc
 .seh_startproc
+	_CET_ENDBR
 	pushq	%r12
 .cfi_push	%r13	# This should be %r13
 .seh_pushreg	%r13	# This should be %r13
+.seh_endprologue
 	# Windows evaluates epilogs directly in the unwinder, rather than using
 	# unwind codes. Add a nop so there is one non-epilog point (immediately
 	# before the nop) where the unwinder can observe the mistake.
@@ -358,9 +364,11 @@ abi_test_bad_unwind_wrong_register:
 abi_test_bad_unwind_temporary:
 .cfi_startproc
 .seh_startproc
+	_CET_ENDBR
 	pushq	%r12
 .cfi_push	%r12
 .seh_pushreg	%r12
+.seh_endprologue
 
 	movq	%r12, %rax
 	inc	%rax
@@ -384,6 +392,7 @@ abi_test_bad_unwind_temporary:
 .type	abi_test_set_direction_flag, \@abi-omnipotent
 .globl	abi_test_get_and_clear_direction_flag
 abi_test_get_and_clear_direction_flag:
+	_CET_ENDBR
 	pushfq
 	popq	%rax
 	andq	\$0x400, %rax
@@ -397,6 +406,7 @@ abi_test_get_and_clear_direction_flag:
 .type	abi_test_set_direction_flag, \@abi-omnipotent
 .globl	abi_test_set_direction_flag
 abi_test_set_direction_flag:
+	_CET_ENDBR
 	std
 	ret
 .size abi_test_set_direction_flag,.-abi_test_set_direction_flag
@@ -415,6 +425,7 @@ abi_test_bad_unwind_epilog:
 .seh_startproc
 	pushq	%r12
 .seh_pushreg	%r12
+.seh_endprologue
 
 	nop
 

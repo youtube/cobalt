@@ -186,7 +186,7 @@ void StarboardRendererClient::OnVideoOpacityChange(bool opaque) {
   client_->OnVideoOpacityChange(opaque);
 }
 
-void StarboardRendererClient::OnVideoFrameRateChange(absl::optional<int> fps) {
+void StarboardRendererClient::OnVideoFrameRateChange(std::optional<int> fps) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   client_->OnVideoFrameRateChange(fps);
 }
@@ -260,7 +260,6 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       break;
     case StarboardRenderingMode::kInvalid:
       NOTREACHED() << "Invalid SbPlayer output mode";
-      break;
   }
   // OnMojoRendererInitialized() should be called from StarboardRenderer
   // after this. In the case where OnMojoRendererInitialized() is called

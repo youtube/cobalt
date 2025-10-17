@@ -13,8 +13,9 @@ bool PathProvider(int key, base::FilePath* result) {
   if (key != DIR_TEST_DATA)
     return false;
   base::FilePath cur;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &cur))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &cur)) {
     return false;
+  }
   cur = cur.Append(FILE_PATH_LITERAL("extensions"));
   cur = cur.Append(FILE_PATH_LITERAL("test"));
   cur = cur.Append(FILE_PATH_LITERAL("data"));
@@ -27,7 +28,10 @@ bool PathProvider(int key, base::FilePath* result) {
 // This cannot be done as a static initializer sadly since Visual Studio will
 // eliminate this object file if there is no direct entry point into it.
 void RegisterPathProvider() {
+  static bool registered = false;
+  DCHECK(!registered);
   base::PathService::RegisterProvider(PathProvider, PATH_START, PATH_END);
+  registered = true;
 }
 
 }  // namespace extensions

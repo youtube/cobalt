@@ -9,7 +9,7 @@
 #include "chrome/browser/apps/app_service/publishers/arc_apps.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "components/arc/intent_helper/arc_intent_helper_bridge.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
 
 namespace apps {
 
@@ -22,7 +22,8 @@ ArcApps* ArcAppsFactory::GetForProfile(Profile* profile) {
 
 // static
 ArcAppsFactory* ArcAppsFactory::GetInstance() {
-  return base::Singleton<ArcAppsFactory>::get();
+  static base::NoDestructor<ArcAppsFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -37,19 +38,24 @@ ArcAppsFactory::ArcAppsFactory()
           "ArcApps",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(AppServiceProxyFactory::GetInstance());
   DependsOn(ArcAppListPrefsFactory::GetInstance());
   DependsOn(arc::ArcIntentHelperBridge::GetFactory());
 }
 
-KeyedService* ArcAppsFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ArcAppsFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  auto* arc_apps = new ArcApps(AppServiceProxyFactory::GetForProfile(
-      Profile::FromBrowserContext(context)));
+  auto arc_apps =
+      std::make_unique<ArcApps>(AppServiceProxyFactory::GetForProfile(
+          Profile::FromBrowserContext(context)));
   arc_apps->Initialize();
   return arc_apps;
 }

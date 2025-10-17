@@ -4,8 +4,9 @@
 
 package org.chromium.components.webxr;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.content_public.browser.WebContents;
 
 /**
  * This is the "stub" version of ArClassProvider and is only compiled in if |enable_arcore| is
@@ -13,9 +14,12 @@ import androidx.annotation.Nullable;
  * this just returns null for all of the types. Any method signatures updated in the "real" version
  * need to also be updated here as well.
  */
+@NullMarked
 /*package*/ class ArClassProvider {
-    /*package*/ static @Nullable XrImmersiveOverlay.Delegate getOverlayDelegate(
-            @NonNull ArCompositorDelegate compositorDelegate, boolean useOverlay,
+    /*package*/ static XrImmersiveOverlay.@Nullable Delegate getOverlayDelegate(
+            ArCompositorDelegate compositorDelegate,
+            final WebContents webContents,
+            boolean useOverlay,
             boolean canRenderDomContent) {
         return null;
     }

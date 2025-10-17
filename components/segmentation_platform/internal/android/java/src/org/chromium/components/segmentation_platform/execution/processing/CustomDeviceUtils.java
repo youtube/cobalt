@@ -6,14 +6,15 @@ package org.chromium.components.segmentation_platform.execution.processing;
 
 import android.util.DisplayMetrics;
 
-import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-/**
- * Implements methods to get device info.
- */
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+
+/** Implements methods to get device info. */
 @JNINamespace("segmentation_platform")
+@NullMarked
 public class CustomDeviceUtils {
     /**
      * This method gets the PPI(pixels per inch) for device display in which chrome is running.

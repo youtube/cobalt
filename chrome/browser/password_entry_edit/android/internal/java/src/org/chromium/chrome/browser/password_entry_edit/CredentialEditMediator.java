@@ -32,6 +32,8 @@ import androidx.annotation.IntDef;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.password_entry_edit.CredentialEditCoordinator.CredentialActionDelegate;
 import org.chromium.chrome.browser.password_entry_edit.CredentialEntryFragmentViewBase.UiActionHandler;
 import org.chromium.chrome.browser.password_manager.ConfirmationDialogHelper;
@@ -51,6 +53,7 @@ import java.util.Set;
  * Contains the logic for the edit component. It  updates the model when needed and reacts to UI
  * events (e.g. button clicks).
  */
+@NullMarked
 public class CredentialEditMediator implements UiActionHandler {
     static final String SAVED_PASSWORD_ACTION_HISTOGRAM =
             "PasswordManager.CredentialEntryActions.SavedPassword";
@@ -58,8 +61,6 @@ public class CredentialEditMediator implements UiActionHandler {
             "PasswordManager.CredentialEntryActions.FederatedCredential";
     static final String BLOCKED_CREDENTIAL_ACTION_HISTOGRAM =
             "PasswordManager.CredentialEntryActions.BlockedCredential";
-    static final String EDIT_ERROR_HISTOGRAM = "PasswordManager.CredentialEditError";
-
     private final PasswordAccessReauthenticationHelper mReauthenticationHelper;
     private final ConfirmationDialogHelper mDeleteDialogHelper;
     private final CredentialActionDelegate mCredentialActionDelegate;
@@ -77,8 +78,17 @@ public class CredentialEditMediator implements UiActionHandler {
      * These values are persisted to logs. Entries should not be renumbered and
      * numeric values should never be reused.
      */
-    @IntDef({DELETED, COPIED_USERNAME, UNMASKED_PASSWORD, MASKED_PASSWORD, COPIED_PASSWORD,
-            EDITED_USERNAME, EDITED_PASSWORD, EDITED_USERNAME_AND_PASSWORD, ACTION_COUNT})
+    @IntDef({
+        DELETED,
+        COPIED_USERNAME,
+        UNMASKED_PASSWORD,
+        MASKED_PASSWORD,
+        COPIED_PASSWORD,
+        EDITED_USERNAME,
+        EDITED_PASSWORD,
+        EDITED_USERNAME_AND_PASSWORD,
+        ACTION_COUNT
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CredentialEntryAction {
         /**
@@ -87,34 +97,22 @@ public class CredentialEditMediator implements UiActionHandler {
          */
         int DELETED = 0;
 
-        /**
-         * The username was copied.
-         */
+        /** The username was copied. */
         int COPIED_USERNAME = 1;
 
-        /**
-         * The password was unmasked. Recorded after successful reauth is one was performed.
-         */
+        /** The password was unmasked. Recorded after successful reauth is one was performed. */
         int UNMASKED_PASSWORD = 2;
 
-        /**
-         * The password was masked.
-         */
+        /** The password was masked. */
         int MASKED_PASSWORD = 3;
 
-        /**
-         * The password was copied. Recorded after successful reauth is one was performed.
-         */
+        /** The password was copied. Recorded after successful reauth is one was performed. */
         int COPIED_PASSWORD = 4;
 
-        /**
-         * The username was edited. Recorded after the user presses the save button".
-         */
+        /** The username was edited. Recorded after the user presses the save button". */
         int EDITED_USERNAME = 5;
 
-        /**
-         * The password was edited. Recorded after the user presses the save button".
-         */
+        /** The password was edited. Recorded after the user presses the save button". */
         int EDITED_PASSWORD = 6;
 
         /**
@@ -134,34 +132,34 @@ public class CredentialEditMediator implements UiActionHandler {
     @IntDef({EMPTY_PASSWORD, DUPLICATE_USERNAME, ERROR_COUNT})
     @Retention(RetentionPolicy.SOURCE)
     public @interface CredentialEditError {
-        /**
-         *  The password field is empty.
-         */
+        /** The password field is empty. */
         int EMPTY_PASSWORD = 0;
 
-        /**
-         * The username in the username field is already saved for this site/app.
-         */
+        /** The username in the username field is already saved for this site/app. */
         int DUPLICATE_USERNAME = 1;
 
         int ERROR_COUNT = 2;
     }
 
-    CredentialEditMediator(PasswordAccessReauthenticationHelper reauthenticationHelper,
+    CredentialEditMediator(
+            PasswordAccessReauthenticationHelper reauthenticationHelper,
             ConfirmationDialogHelper deleteDialogHelper,
-            CredentialActionDelegate credentialActionDelegate, Runnable helpLauncher,
+            CredentialActionDelegate credentialActionDelegate,
+            Runnable helpLauncher,
             boolean isBlockedCredential) {
         mReauthenticationHelper = reauthenticationHelper;
         mDeleteDialogHelper = deleteDialogHelper;
         mCredentialActionDelegate = credentialActionDelegate;
         mHelpLauncher = helpLauncher;
         mIsBlockedCredential = isBlockedCredential;
-    };
+    }
 
+    @Initializer
     void initialize(PropertyModel model) {
         mModel = model;
     }
 
+    @Initializer
     void setCredential(String username, String password, boolean isInsecureCredential) {
         mOriginalUsername = username;
         mOriginalPassword = password;
@@ -172,6 +170,7 @@ public class CredentialEditMediator implements UiActionHandler {
         mModel.set(PASSWORD, password);
     }
 
+    @Initializer
     void setExistingUsernames(String[] existingUsernames) {
         mExistingUsernames = new HashSet<>(Arrays.asList(existingUsernames));
     }
@@ -188,12 +187,14 @@ public class CredentialEditMediator implements UiActionHandler {
             mModel.set(PASSWORD_VISIBLE, false);
             return;
         }
-        reauthenticateUser(ReauthReason.VIEW_PASSWORD, (reauthSucceeded) -> {
-            if (!reauthSucceeded) return;
-            RecordHistogram.recordEnumeratedHistogram(
-                    SAVED_PASSWORD_ACTION_HISTOGRAM, UNMASKED_PASSWORD, ACTION_COUNT);
-            mModel.set(PASSWORD_VISIBLE, true);
-        });
+        reauthenticateUser(
+                ReauthReason.VIEW_PASSWORD,
+                (reauthSucceeded) -> {
+                    if (!reauthSucceeded) return;
+                    RecordHistogram.recordEnumeratedHistogram(
+                            SAVED_PASSWORD_ACTION_HISTOGRAM, UNMASKED_PASSWORD, ACTION_COUNT);
+                    mModel.set(PASSWORD_VISIBLE, true);
+                });
     }
 
     @Override
@@ -208,28 +209,22 @@ public class CredentialEditMediator implements UiActionHandler {
         boolean hasError =
                 !mOriginalUsername.equals(username) && mExistingUsernames.contains(username);
         mModel.set(DUPLICATE_USERNAME_ERROR, hasError);
-        if (hasError) {
-            RecordHistogram.recordEnumeratedHistogram(
-                    EDIT_ERROR_HISTOGRAM, DUPLICATE_USERNAME, ERROR_COUNT);
-        }
     }
 
     @Override
     public void onPasswordTextChanged(String password) {
         mModel.set(PASSWORD, password);
         mModel.set(EMPTY_PASSWORD_ERROR, password.isEmpty());
-        if (password.isEmpty()) {
-            RecordHistogram.recordEnumeratedHistogram(
-                    EDIT_ERROR_HISTOGRAM, EMPTY_PASSWORD, ERROR_COUNT);
-        }
     }
 
     @Override
     public void onCopyUsername(Context context) {
         recordUsernameCopied();
         Clipboard.getInstance().setText("username", mModel.get(USERNAME));
-        Toast.makeText(context, R.string.password_entry_viewer_username_copied_into_clipboard,
-                     Toast.LENGTH_SHORT)
+        Toast.makeText(
+                        context,
+                        R.string.password_entry_viewer_username_copied_into_clipboard,
+                        Toast.LENGTH_SHORT)
                 .show();
     }
 
@@ -244,12 +239,17 @@ public class CredentialEditMediator implements UiActionHandler {
         if (resources == null) return;
         String title =
                 resources.getString(R.string.password_entry_edit_delete_credential_dialog_title);
-        String message = resources.getString(mIsInsecureCredential
-                        ? R.string.password_check_delete_credential_dialog_body
-                        : R.string.password_entry_edit_deletion_dialog_body,
-                mModel.get(URL_OR_APP));
-        mDeleteDialogHelper.showConfirmation(title, message,
-                R.string.password_entry_edit_delete_credential_dialog_confirm, () -> {
+        String message =
+                resources.getString(
+                        mIsInsecureCredential
+                                ? R.string.password_check_delete_credential_dialog_body
+                                : R.string.password_entry_edit_deletion_dialog_body,
+                        mModel.get(URL_OR_APP));
+        mDeleteDialogHelper.showConfirmation(
+                title,
+                message,
+                R.string.password_entry_edit_delete_credential_dialog_confirm,
+                () -> {
                     recordDeleted();
                     mCredentialActionDelegate.deleteCredential();
                 });
@@ -262,15 +262,19 @@ public class CredentialEditMediator implements UiActionHandler {
 
     @Override
     public void onCopyPassword(Context context) {
-        reauthenticateUser(ReauthReason.COPY_PASSWORD, (reauthSucceeded) -> {
-            if (!reauthSucceeded) return;
-            RecordHistogram.recordEnumeratedHistogram(
-                    SAVED_PASSWORD_ACTION_HISTOGRAM, COPIED_PASSWORD, ACTION_COUNT);
-            Clipboard.getInstance().setPassword(mModel.get(PASSWORD));
-            Toast.makeText(context, R.string.password_entry_viewer_password_copied_into_clipboard,
-                         Toast.LENGTH_SHORT)
-                    .show();
-        });
+        reauthenticateUser(
+                ReauthReason.COPY_PASSWORD,
+                (reauthSucceeded) -> {
+                    if (!reauthSucceeded) return;
+                    RecordHistogram.recordEnumeratedHistogram(
+                            SAVED_PASSWORD_ACTION_HISTOGRAM, COPIED_PASSWORD, ACTION_COUNT);
+                    Clipboard.getInstance().setPassword(mModel.get(PASSWORD));
+                    Toast.makeText(
+                                    context,
+                                    R.string.password_entry_viewer_password_copied_into_clipboard,
+                                    Toast.LENGTH_SHORT)
+                            .show();
+                });
     }
 
     private void reauthenticateUser(@ReauthReason int reason, Callback<Boolean> action) {
@@ -282,9 +286,10 @@ public class CredentialEditMediator implements UiActionHandler {
     }
 
     private void recordUsernameCopied() {
-        String histogram = mModel.get(FEDERATION_ORIGIN).isEmpty()
-                ? SAVED_PASSWORD_ACTION_HISTOGRAM
-                : FEDERATED_CREDENTIAL_ACTION_HISTOGRAM;
+        String histogram =
+                mModel.get(FEDERATION_ORIGIN).isEmpty()
+                        ? SAVED_PASSWORD_ACTION_HISTOGRAM
+                        : FEDERATED_CREDENTIAL_ACTION_HISTOGRAM;
         RecordHistogram.recordEnumeratedHistogram(histogram, COPIED_USERNAME, ACTION_COUNT);
     }
 

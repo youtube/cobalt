@@ -288,8 +288,8 @@ void PoolAllocator::push()
 // Do a mass-deallocation of all the individual allocations that have occurred since the last
 // push(), or since the last pop(), or since the object's creation.
 //
-// The deallocated pages are saved for future allocations.
-void PoolAllocator::pop()
+// Single-page allocations are saved for future use unless the release strategy is All.
+void PoolAllocator::pop(ReleaseStrategy releaseStrategy)
 {
     if (mStack.size() < 1)
     {
@@ -302,12 +302,15 @@ void PoolAllocator::pop()
 
     while (mInUseList != page)
     {
+        // Grab the pageCount before calling the destructor.  While the destructor doesn't actually
+        // touch this variable, it's confusing MSAN.
+        const size_t pageCount = mInUseList->pageCount;
+        PageHeader *nextInUse  = mInUseList->nextPage;
 
         // invoke destructor to free allocation list
         mInUseList->~PageHeader();
 
-        PageHeader *nextInUse = mInUseList->nextPage;
-        if (mInUseList->pageCount > 1)
+        if (pageCount > 1 || releaseStrategy == ReleaseStrategy::All)
         {
             delete[] reinterpret_cast<char *>(mInUseList);
         }

@@ -18,7 +18,6 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/style/dark_light_mode_controller_impl.h"
-#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_service.h"
@@ -68,8 +67,8 @@ class MockAssistantUiModelObserver : public AssistantUiModelObserver {
               OnUiVisibilityChanged,
               (AssistantVisibility new_visibility,
                AssistantVisibility old_visibility,
-               absl::optional<AssistantEntryPoint> entry_point,
-               absl::optional<AssistantExitPoint> exit_point),
+               std::optional<AssistantEntryPoint> entry_point,
+               std::optional<AssistantExitPoint> exit_point),
               (override));
 };
 
@@ -94,22 +93,16 @@ class MockNewWindowDelegate : public testing::NiceMock<TestNewWindowDelegate> {
 
 class AssistantControllerImplTest : public AssistantAshTestBase {
  public:
-  AssistantControllerImplTest() {
-    auto delegate = std::make_unique<MockNewWindowDelegate>();
-    new_window_delegate_ = delegate.get();
-    delegate_provider_ =
-        std::make_unique<TestNewWindowDelegateProvider>(std::move(delegate));
-  }
+  AssistantControllerImplTest() = default;
 
   AssistantController* controller() { return AssistantController::Get(); }
-  MockNewWindowDelegate& new_window_delegate() { return *new_window_delegate_; }
+  MockNewWindowDelegate& new_window_delegate() { return new_window_delegate_; }
   const AssistantUiModel* ui_model() {
     return AssistantUiController::Get()->GetModel();
   }
 
  private:
-  raw_ptr<MockNewWindowDelegate, ExperimentalAsh> new_window_delegate_;
-  std::unique_ptr<TestNewWindowDelegateProvider> delegate_provider_;
+  MockNewWindowDelegate new_window_delegate_;
 };
 
 // Same with `AssistantControllerImplTest` except that this class does not set
@@ -233,8 +226,8 @@ TEST_F(AssistantControllerImplTest, ClosesAssistantUiForFeedbackDeeplink) {
   EXPECT_CALL(ui_model_observer_mock, OnUiVisibilityChanged)
       .WillOnce([](AssistantVisibility new_visibility,
                    AssistantVisibility old_visibility,
-                   absl::optional<AssistantEntryPoint> entry_point,
-                   absl::optional<AssistantExitPoint> exit_point) {
+                   std::optional<AssistantEntryPoint> entry_point,
+                   std::optional<AssistantExitPoint> exit_point) {
         EXPECT_EQ(old_visibility, AssistantVisibility::kVisible);
         EXPECT_EQ(new_visibility, AssistantVisibility::kClosing);
         EXPECT_FALSE(entry_point.has_value());
@@ -243,8 +236,8 @@ TEST_F(AssistantControllerImplTest, ClosesAssistantUiForFeedbackDeeplink) {
   EXPECT_CALL(ui_model_observer_mock, OnUiVisibilityChanged)
       .WillOnce([](AssistantVisibility new_visibility,
                    AssistantVisibility old_visibility,
-                   absl::optional<AssistantEntryPoint> entry_point,
-                   absl::optional<AssistantExitPoint> exit_point) {
+                   std::optional<AssistantEntryPoint> entry_point,
+                   std::optional<AssistantExitPoint> exit_point) {
         EXPECT_EQ(old_visibility, AssistantVisibility::kClosing);
         EXPECT_EQ(new_visibility, AssistantVisibility::kClosed);
         EXPECT_FALSE(entry_point.has_value());

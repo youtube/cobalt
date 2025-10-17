@@ -4,6 +4,10 @@
 
 #include "ui/events/ozone/evdev/keyboard_evdev.h"
 
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "ui/events/event.h"
 #include "ui/events/event_constants.h"
@@ -12,22 +16,55 @@
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
+#include "ui/events/keycodes/keyboard_codes_posix.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/events/types/event_type.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
+#endif
+
 namespace ui {
 
-KeyboardEvdev::KeyboardEvdev(EventModifiers* modifiers,
-                             KeyboardLayoutEngine* keyboard_layout_engine,
-                             const EventDispatchCallback& callback)
+namespace {
+
+std::optional<KeyboardCode> RemapButtonsToKeyboardCodes(unsigned int key) {
+#if BUILDFLAG(IS_CHROMEOS)
+  if (!ash::features::IsPeripheralCustomizationEnabled()) {
+    return std::nullopt;
+  }
+
+  if (key >= BTN_0 && key <= BTN_9) {
+    return static_cast<KeyboardCode>(static_cast<int>(VKEY_BUTTON_0) +
+                                     (key - BTN_0));
+  }
+
+  // BTN_A through BTN_Z is only 6 buttons as it only includes {A, B, C, X, Y,
+  // Z}.
+  if (key >= BTN_A && key <= BTN_Z) {
+    return static_cast<KeyboardCode>(static_cast<int>(VKEY_BUTTON_A) +
+                                     (key - BTN_A));
+  }
+#endif
+
+  return std::nullopt;
+}
+
+}  // namespace
+
+KeyboardEvdev::KeyboardEvdev(
+    EventModifiers* modifiers,
+    KeyboardLayoutEngine* keyboard_layout_engine,
+    const EventDispatchCallback& callback,
+    base::RepeatingCallback<void(bool)> any_keys_are_pressed_callback)
     : callback_(callback),
+      any_keys_are_pressed_callback_(any_keys_are_pressed_callback),
       modifiers_(modifiers),
       keyboard_layout_engine_(keyboard_layout_engine),
       auto_repeat_handler_(this) {}
 
-KeyboardEvdev::~KeyboardEvdev() {
-}
+KeyboardEvdev::~KeyboardEvdev() = default;
 
 void KeyboardEvdev::OnKeyChange(unsigned int key,
                                 unsigned int scan_code,
@@ -39,14 +76,34 @@ void KeyboardEvdev::OnKeyChange(unsigned int key,
   if (key > KEY_MAX)
     return;
 
+  if (slow_keys_handler_.IsEnabled() && !suppress_auto_repeat &&
+      !slow_keys_handler_.UpdateKeyStateAndShouldDispatch(
+          key, down, timestamp, device_id,
+          base::BindOnce(&KeyboardEvdev::OnKeyChangeCallbackAdapter,
+                         weak_ptr_factory_.GetWeakPtr(), key, scan_code, down,
+                         suppress_auto_repeat, device_id, flags))) {
+    // The SlowKeysHandler keeps track of recursion to prevent infinite loop.
+    return;
+  }
+
   bool was_down = key_state_.test(key);
   bool is_repeat = down && was_down;
   if (!down && !was_down)
     return;  // Key already released.
 
   key_state_.set(key, down);
-  auto_repeat_handler_.UpdateKeyRepeat(key, scan_code, down,
-                                       suppress_auto_repeat, device_id);
+  // HID codes that are unknown to Linux can sometimes map to BTN_MISC. This can
+  // cause BTN_MISC to appear permanently held down for some set of peripherals.
+  // BTN_MISC is equal to BTN_0 which is seen on some graphics tablets, but for
+  // the current usages of this check, graphics tablets holding a button down is
+  // irrelevant. See b/331482962 for more info.
+  {
+    auto key_state_without_btn_misc_ = key_state_;
+    key_state_without_btn_misc_.reset(BTN_MISC);
+    any_keys_are_pressed_callback_.Run(key_state_without_btn_misc_.any());
+  }
+  auto_repeat_handler_.UpdateKeyRepeat(
+      key, scan_code, down, suppress_auto_repeat, device_id, timestamp);
   DispatchKey(key, scan_code, down, is_repeat, timestamp, device_id, flags);
 }
 
@@ -76,10 +133,24 @@ void KeyboardEvdev::GetAutoRepeatRate(base::TimeDelta* delay,
   auto_repeat_handler_.GetAutoRepeatRate(delay, interval);
 }
 
-bool KeyboardEvdev::SetCurrentLayoutByName(const std::string& layout_name) {
-  bool result = keyboard_layout_engine_->SetCurrentLayoutByName(layout_name);
+void KeyboardEvdev::SetSlowKeysEnabled(bool enabled) {
+  slow_keys_handler_.SetEnabled(enabled);
+}
+
+bool KeyboardEvdev::IsSlowKeysEnabled() const {
+  return slow_keys_handler_.IsEnabled();
+}
+
+void KeyboardEvdev::SetSlowKeysDelay(base::TimeDelta delay) {
+  slow_keys_handler_.SetDelay(delay);
+}
+
+void KeyboardEvdev::SetCurrentLayoutByName(
+    const std::string& layout_name,
+    base::OnceCallback<void(bool)> callback) {
+  keyboard_layout_engine_->SetCurrentLayoutByName(layout_name,
+                                                  std::move(callback));
   RefreshModifiers();
-  return result;
 }
 
 void KeyboardEvdev::FlushInput(base::OnceClosure closure) {
@@ -140,24 +211,48 @@ void KeyboardEvdev::DispatchKey(unsigned int key,
                                 int device_id,
                                 int flags) {
   DomCode dom_code = KeycodeConverter::EvdevCodeToDomCode(key);
-  if (dom_code == DomCode::NONE)
-    return;
-  int modifier_flags = modifiers_->GetModifierFlags();
   DomKey dom_key;
   KeyboardCode key_code;
-  if (!keyboard_layout_engine_->Lookup(dom_code, modifier_flags, &dom_key,
-                                       &key_code))
-    return;
-  if (!repeat) {
-    int flag = ModifierDomKeyToEventFlag(dom_key);
-    UpdateModifier(flag, down);
+
+  if (auto button_key_code = RemapButtonsToKeyboardCodes(key);
+      button_key_code.has_value()) {
+    dom_code = DomCode::NONE;
+    dom_key = DomKey::NONE;
+    key_code = *button_key_code;
+  } else {
+    if (dom_code == DomCode::NONE) {
+      return;
+    }
+    int modifier_flags = modifiers_->GetModifierFlags();
+    if (!keyboard_layout_engine_->Lookup(dom_code, modifier_flags, &dom_key,
+                                         &key_code)) {
+      return;
+    }
+    if (!repeat) {
+      int flag = ModifierDomKeyToEventFlag(dom_key);
+      UpdateModifier(flag, down);
+    }
   }
 
-  KeyEvent event(down ? ET_KEY_PRESSED : ET_KEY_RELEASED, key_code, dom_code,
-                 flags | modifiers_->GetModifierFlags(), dom_key, timestamp);
+  KeyEvent event(
+      down ? EventType::kKeyPressed : EventType::kKeyReleased, key_code,
+      dom_code,
+      flags | modifiers_->GetModifierFlags() | (repeat ? ui::EF_IS_REPEAT : 0),
+      dom_key, timestamp);
   event.set_scan_code(scan_code);
   event.set_source_device_id(device_id);
   callback_.Run(&event);
+}
+
+void KeyboardEvdev::OnKeyChangeCallbackAdapter(unsigned int key,
+                                               unsigned int scan_code,
+                                               bool down,
+                                               bool suppress_auto_repeat,
+                                               int device_id,
+                                               int flags,
+                                               base::TimeTicks timestamp) {
+  OnKeyChange(key, scan_code, down, suppress_auto_repeat, timestamp, device_id,
+              flags);
 }
 
 }  // namespace ui

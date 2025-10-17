@@ -74,8 +74,8 @@ class PrintingManager : public chromeos::printing::printing_manager::mojom::
   void Shutdown() override;
 
   // history::HistoryServiceObserver:
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
 
   // CupsPrintJobManager::Observer impls
   void OnPrintJobCreated(base::WeakPtr<CupsPrintJob> job) override;
@@ -131,15 +131,15 @@ class PrintingManager : public chromeos::printing::printing_manager::mojom::
 
   // Not owned, this is the intermediate layer to interact with the print
   // job local database.
-  raw_ptr<PrintJobHistoryService, ExperimentalAsh> print_job_history_service_;
+  raw_ptr<PrintJobHistoryService, DanglingUntriaged> print_job_history_service_;
 
   // Not owned, this provides the necessary observers to observe when browser
   // history has been cleared.
-  raw_ptr<history::HistoryService, ExperimentalAsh> history_service_;
+  raw_ptr<history::HistoryService> history_service_;
 
   // Not owned, this provides the necessary observers to observe when an
   // ongoing print job has been updated.
-  raw_ptr<CupsPrintJobManager, ExperimentalAsh> cups_print_job_manager_;
+  raw_ptr<CupsPrintJobManager> cups_print_job_manager_;
 
   IntegerPrefMember print_job_history_expiration_period_;
 

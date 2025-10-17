@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "base/token.h"
+#include "base/unguessable_token.h"
 #include "mojo/public/cpp/bindings/enum_traits.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
 #include "services/tracing/public/mojom/perfetto_service.mojom-shared.h"
@@ -165,6 +167,23 @@ class StructTraits<tracing::mojom::TraceConfigDataView, perfetto::TraceConfig> {
 
   static bool write_into_file(const perfetto::TraceConfig& src) {
     return src.write_into_file();
+  }
+
+  static std::optional<base::Token> trace_uuid(
+      const perfetto::TraceConfig& src) {
+    if (src.has_trace_uuid_msb() || src.has_trace_uuid_lsb()) {
+      return base::Token(src.trace_uuid_msb(), src.trace_uuid_lsb());
+    }
+    return std::nullopt;
+  }
+
+  static std::optional<base::UnguessableToken> unique_session_name(
+      const perfetto::TraceConfig& src) {
+    if (src.has_unique_session_name()) {
+      return base::UnguessableToken::DeserializeFromString(
+          src.unique_session_name());
+    }
+    return std::nullopt;
   }
 
   static bool Read(tracing::mojom::TraceConfigDataView data,

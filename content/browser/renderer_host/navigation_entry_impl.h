@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,9 +19,11 @@
 #include "build/build_config.h"
 #include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/frame_navigation_entry.h"
+#include "content/browser/renderer_host/navigation_transitions/navigation_transition_data.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/favicon_status.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/global_request_id.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/reload_type.h"
@@ -28,9 +31,9 @@
 #include "content/public/browser/restore_type.h"
 #include "content/public/browser/ssl_status.h"
 #include "net/base/isolation_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/page_state/page_state.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-forward.h"
+#include "third_party/blink/public/mojom/navigation/system_entropy.mojom-forward.h"
 #include "url/origin.h"
 
 namespace blink {
@@ -45,7 +48,6 @@ namespace content {
 class FrameTreeNode;
 class NavigationEntryRestoreContext;
 class NavigationEntryRestoreContextImpl;
-class SubresourceWebBundleNavigationInfo;
 
 class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
  public:
@@ -105,8 +107,8 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
       scoped_refptr<SiteInstanceImpl> instance,
       const GURL& url,
       const Referrer& referrer,
-      const absl::optional<url::Origin>& initiator_origin,
-      const absl::optional<GURL>& initiator_base_url,
+      const std::optional<url::Origin>& initiator_origin,
+      const std::optional<GURL>& initiator_base_url,
       const std::u16string& title,
       ui::PageTransition transition_type,
       bool is_renderer_initiated,
@@ -123,7 +125,7 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   int GetUniqueID() override;
   PageType GetPageType() override;
   void SetURL(const GURL& url) override;
-  const GURL& GetURL() override;
+  const GURL& GetURL() const override;
   void SetBaseURLForDataURL(const GURL& url) override;
   const GURL& GetBaseURLForDataURL() override;
 #if BUILDFLAG(IS_ANDROID)
@@ -135,9 +137,11 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   void SetReferrer(const Referrer& referrer) override;
   const Referrer& GetReferrer() override;
   void SetVirtualURL(const GURL& url) override;
-  const GURL& GetVirtualURL() override;
-  void SetTitle(const std::u16string& title) override;
+  const GURL& GetVirtualURL() const override;
+  void SetTitle(std::u16string title) override;
   const std::u16string& GetTitle() override;
+  void SetApplicationTitle(const std::u16string& application_title) override;
+  const std::optional<std::u16string>& GetApplicationTitle() override;
   void SetPageState(const blink::PageState& state,
                     NavigationEntryRestoreContext* context) override;
   blink::PageState GetPageState() override;
@@ -167,7 +171,7 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   int GetHttpStatusCode() override;
   void SetRedirectChain(const std::vector<GURL>& redirects) override;
   const std::vector<GURL>& GetRedirectChain() override;
-  const absl::optional<ReplacedNavigationEntryData>& GetReplacedEntryData()
+  const std::optional<ReplacedNavigationEntryData>& GetReplacedEntryData()
       override;
   bool IsRestored() override;
   std::string GetExtraHeaders() override;
@@ -209,6 +213,7 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
       const GURL& dest_url,
       blink::mojom::ReferrerPtr dest_referrer,
       blink::mojom::NavigationType navigation_type,
+      base::TimeTicks actual_navigation_start,
       base::TimeTicks navigation_start,
       base::TimeTicks input_start);
   blink::mojom::CommitNavigationParamsPtr ConstructCommitNavigationParams(
@@ -222,7 +227,8 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
       int current_length_to_send,
       const blink::FramePolicy& frame_policy,
       bool ancestor_or_self_has_cspee,
-      absl::optional<blink::scheduler::TaskAttributionId>
+      blink::mojom::SystemEntropy system_entropy_at_navigation_start,
+      std::optional<blink::scheduler::TaskAttributionId>
           soft_navigation_heuristics_task_id);
 
   // Once a navigation entry is committed, we should no longer track several
@@ -256,17 +262,15 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
       SiteInstanceImpl* site_instance,
       scoped_refptr<SiteInstanceImpl> source_site_instance,
       const GURL& url,
-      const absl::optional<url::Origin>& origin,
+      const std::optional<url::Origin>& origin,
       const Referrer& referrer,
-      const absl::optional<url::Origin>& initiator_origin,
-      const absl::optional<GURL>& initiator_base_url,
+      const std::optional<url::Origin>& initiator_origin,
+      const std::optional<GURL>& initiator_base_url,
       const std::vector<GURL>& redirect_chain,
       const blink::PageState& page_state,
       const std::string& method,
       int64_t post_id,
       scoped_refptr<network::SharedURLLoaderFactory> blob_url_loader_factory,
-      std::unique_ptr<SubresourceWebBundleNavigationInfo>
-          subresource_web_bundle_navigation_info,
       std::unique_ptr<PolicyContainerPolicies> policy_container_policies);
 
   // Returns the FrameNavigationEntry corresponding to |frame_tree_node|, if
@@ -333,7 +337,6 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   // Note that the SiteInstance should usually not be changed after it is set,
   // but this may happen if the NavigationEntry was cloned and needs to use a
   // different SiteInstance.
-  void set_site_instance(scoped_refptr<SiteInstanceImpl> site_instance);
   SiteInstanceImpl* site_instance() const {
     return frame_tree_->frame_entry->site_instance();
   }
@@ -395,8 +398,8 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
 
   // Indicates which FrameTreeNode to navigate.  Currently only used if the
   // --site-per-process flag is passed.
-  int frame_tree_node_id() const { return frame_tree_node_id_; }
-  void set_frame_tree_node_id(int frame_tree_node_id) {
+  FrameTreeNodeId frame_tree_node_id() const { return frame_tree_node_id_; }
+  void set_frame_tree_node_id(FrameTreeNodeId frame_tree_node_id) {
     frame_tree_node_id_ = frame_tree_node_id;
   }
 
@@ -418,7 +421,7 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
     isolation_info_ = isolation_info;
   }
 
-  const absl::optional<net::IsolationInfo>& isolation_info() const {
+  const std::optional<net::IsolationInfo>& isolation_info() const {
     return isolation_info_;
   }
 
@@ -509,6 +512,13 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
     return initial_navigation_entry_state_;
   }
 
+  NavigationTransitionData& navigation_transition_data() {
+    return navigation_transition_data_;
+  }
+  const NavigationTransitionData& navigation_transition_data() const {
+    return navigation_transition_data_;
+  }
+
  private:
   std::unique_ptr<NavigationEntryImpl> CloneAndReplaceInternal(
       scoped_refptr<FrameNavigationEntry> frame_entry,
@@ -537,6 +547,11 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   GURL virtual_url_;
   bool update_virtual_url_with_url_;
   std::u16string title_;
+  // The application title is optional and may be empty. If set to a non-empty
+  // value, a web app displayed in an app window may use this string instead of
+  // the regular title. See
+  // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/DocumentSubtitle/explainer.md
+  std::optional<std::u16string> application_title_;
   FaviconStatus favicon_;
   SSLStatus ssl_;
   ui::PageTransition transition_type_;
@@ -588,12 +603,12 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   // value is not needed after the entry commits and is not persisted.
   bool can_load_local_resources_;
 
-  // If not -1, this indicates which FrameTreeNode to navigate.  This field is
+  // If valid, this indicates which FrameTreeNode to navigate.  This field is
   // not persisted because it is experimental and only used when the
   // --site-per-process flag is passed.  It is cleared in |ResetForCommit|
   // because we only use it while the navigation is pending.
   // TODO(creis): Move this to FrameNavigationEntry.
-  int frame_tree_node_id_;
+  FrameTreeNodeId frame_tree_node_id_;
 
   // Whether the URL load carries a user gesture.
   bool has_user_gesture_;
@@ -613,14 +628,14 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   // determines the IsolationInfo to be used when navigating to this
   // NavigationEntry; otherwise, it is determined based on the navigating frame
   // and top frame origins. For example, this is used for view-source.
-  absl::optional<net::IsolationInfo> isolation_info_;
+  std::optional<net::IsolationInfo> isolation_info_;
 
   // Stores information about the entry prior to being replaced (e.g.
   // history.replaceState()). It is preserved after commit (session sync for
   // offline analysis) but should not be persisted. The concept is valid for
   // subframe navigations but we only need to track it for main frames, that's
   // why the field is listed here.
-  absl::optional<ReplacedNavigationEntryData> replaced_entry_data_;
+  std::optional<ReplacedNavigationEntryData> replaced_entry_data_;
 
   // Set to true if this page does a navigation without ever receiving a user
   // gesture. If true, it will be skipped on subsequent back/forward button
@@ -642,6 +657,10 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   // See comment for the enum for explanation.
   InitialNavigationEntryState initial_navigation_entry_state_ =
       InitialNavigationEntryState::kNonInitial;
+
+  // Information about a navigation transition. See the comments on the class
+  // for details.
+  NavigationTransitionData navigation_transition_data_;
 };
 
 }  // namespace content

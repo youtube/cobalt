@@ -8,6 +8,7 @@
 #include <memory>
 #include <ratio>
 #include <string>
+#include <string_view>
 
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
@@ -41,7 +42,8 @@ namespace feed {
 namespace {
 StreamKind kStreamKinds[] = {StreamKind::kForYou, StreamKind::kFollowing,
                              StreamKind::kSingleWebFeed};
-// TODO(crbug.com/1369777) Add kSingleWebFeed streams to metrics reporting below
+// TODO(crbug.com/40869325) Add kSingleWebFeed streams to metrics reporting
+// below
 using feed::FeedEngagementType;
 using feed::FeedUserActionType;
 const int kMaxSuggestionsTotal = 50;
@@ -76,7 +78,7 @@ constexpr base::TimeDelta kMinStableContentSliceVisibilityTime =
 constexpr base::TimeDelta kMaxStableContentSliceVisibilityTime =
     base::Seconds(30);
 
-base::StringPiece HistogramReplacement(const StreamType& stream_type) {
+std::string_view HistogramReplacement(const StreamType& stream_type) {
   switch (stream_type.GetKind()) {
     case StreamKind::kForYou:
       return "Feed.";
@@ -145,11 +147,10 @@ std::string LoadLatencyStepName(LoadLatencyTimes::StepKind kind) {
   }
 }
 
-base::StringPiece ContentOrderToString(ContentOrder content_order) {
+std::string_view ContentOrderToString(ContentOrder content_order) {
   switch (content_order) {
     case ContentOrder::kUnspecified:
       NOTREACHED();
-      [[fallthrough]];
     case ContentOrder::kGrouped:
       return "Grouped";
     case ContentOrder::kReverseChron:
@@ -170,7 +171,7 @@ FeedSortType GetSortTypeFromContentOrder(ContentOrder content_order) {
 
 void ReportLoadLatencies(std::unique_ptr<LoadLatencyTimes> latencies) {
   for (const LoadLatencyTimes::Step& step : latencies->steps()) {
-    // TODO(crbug/1152592): Add a WebFeed-specific histogram for this.
+    // TODO(crbug.com/40158714): Add a WebFeed-specific histogram for this.
     base::UmaHistogramCustomTimes("ContentSuggestions.Feed.LoadStepLatency." +
                                       LoadLatencyStepName(step.kind),
                                   step.latency, base::Milliseconds(50),
@@ -207,7 +208,7 @@ void ReportContentLifetimeInvalidAge(
       /*buckets=*/50);
 }
 
-base::StringPiece NetworkRequestTypeUmaName(NetworkRequestType type) {
+std::string_view NetworkRequestTypeUmaName(NetworkRequestType type) {
   switch (type) {
     case NetworkRequestType::kFeedQuery:
       return "FeedQuery";
@@ -239,7 +240,7 @@ base::StringPiece NetworkRequestTypeUmaName(NetworkRequestType type) {
 }
 
 std::string InfoCardActionUmaName(const StreamType& stream_type,
-                                  base::StringPiece action_name) {
+                                  std::string_view action_name) {
   return base::StrCat({"ContentSuggestions.", HistogramReplacement(stream_type),
                        "InfoCard.", action_name});
 }
@@ -298,18 +299,11 @@ void ReportCombinedSubscriptionCountAtEngagementTime(int subscription_count) {
   base::UmaHistogramSparse(
       "ContentSuggestions.Feed.AllFeeds.FollowCount.Engaged2",
       subscription_count);
-  // TODO(b/228342051): The histogram below is being obsoleted because it has a
-  // misleading name. Once the new *.Engaged2 series collects a large enough
-  // sample history, it will be effectively removed/obsoleted.
-  base::UmaHistogramSparse(
-      "ContentSuggestions.Feed.WebFeed.FollowCount.Engaged",
-      subscription_count);
 }
 
 bool IsGoodExplicitInteraction(FeedUserActionType action) {
   switch (action) {
     case FeedUserActionType::kAddedToReadLater:
-    case FeedUserActionType::kTappedCrowButton:
     case FeedUserActionType::kTappedFollowButton:
     case FeedUserActionType::kShare:
     case FeedUserActionType::kTappedAddToReadingList:
@@ -324,21 +318,7 @@ bool IsGoodExplicitInteraction(FeedUserActionType action) {
 }  // namespace
 MetricsReporter::LoadStreamResultSummary::LoadStreamResultSummary() = default;
 MetricsReporter::LoadStreamResultSummary::LoadStreamResultSummary(
-    LoadStreamStatus load_from_store_status,
-    LoadStreamStatus final_status,
-    bool is_initial_load,
-    bool loaded_new_content_from_network,
-    base::TimeDelta stored_content_age,
-    ContentOrder content_order,
-    absl::optional<feedstore::Metadata::StreamMetadata> stream_metadata) {
-  this->load_from_store_status = load_from_store_status;
-  this->final_status = final_status;
-  this->is_initial_load = is_initial_load;
-  this->loaded_new_content_from_network = loaded_new_content_from_network;
-  this->stored_content_age = stored_content_age;
-  this->content_order = content_order;
-  this->stream_metadata = stream_metadata;
-}
+    const LoadStreamResultSummary& src) = default;
 MetricsReporter::LoadStreamResultSummary::~LoadStreamResultSummary() = default;
 
 MetricsReporter::SurfaceWaiting::SurfaceWaiting() = default;
@@ -420,7 +400,7 @@ void MetricsReporter::TrackTimeSpentInFeed(bool interacted_or_scrolled) {
     persistent_data_.accumulated_time_spent_in_feed +=
         std::min(kTimeSpentInFeedInteractionTimeout,
                  base::TimeTicks::Now() - *time_in_feed_start_);
-    time_in_feed_start_ = absl::nullopt;
+    time_in_feed_start_ = std::nullopt;
   }
 
   if (interacted_or_scrolled) {
@@ -663,14 +643,14 @@ void MetricsReporter::OtherUserAction(const StreamType& stream_type,
       RecordInteraction(stream_type);
       break;
     case FeedUserActionType::kTappedHideStory:
-      // TODO(crbug.com/1111101): This action is not visible to client code, so
+      // TODO(crbug.com/40708979): This action is not visible to client code, so
       // not yet used.
       base::RecordAction(base::UserMetricsAction(
           "ContentSuggestions.Feed.CardAction.HideStory"));
       RecordInteraction(stream_type);
       break;
     case FeedUserActionType::kTappedNotInterestedIn:
-      // TODO(crbug.com/1111101): This action is not visible to client code, so
+      // TODO(crbug.com/40708979): This action is not visible to client code, so
       // not yet used.
       base::RecordAction(base::UserMetricsAction(
           "ContentSuggestions.Feed.CardAction.NotInterestedIn"));
@@ -725,8 +705,12 @@ void MetricsReporter::OtherUserAction(const StreamType& stream_type,
           "ContentSuggestions.Feed.CardAction.ManageHidden"));
       RecordInteraction(stream_type);
       break;
+    case FeedUserActionType::kTappedManageFollowing:
+      base::RecordAction(base::UserMetricsAction(
+          "ContentSuggestions.Feed.CardAction.ManageFollowing"));
+      RecordInteraction(stream_type);
+      break;
     case FeedUserActionType::kAddedToReadLater:
-    case FeedUserActionType::kTappedCrowButton:
     case FeedUserActionType::kTappedFollowButton:
     case FeedUserActionType::kEphemeralChange:
     case FeedUserActionType::kEphemeralChangeRejected:
@@ -742,7 +726,6 @@ void MetricsReporter::OtherUserAction(const StreamType& stream_type,
     case FeedUserActionType::kClosedNativeContextMenu:
     case FeedUserActionType::kOpenedNativePulldownMenu:
     case FeedUserActionType::kClosedNativePulldownMenu:
-    case FeedUserActionType::kTappedManageFollowing:
     case FeedUserActionType::kTappedFollowOnManagementSurface:
     case FeedUserActionType::kTappedUnfollowOnManagementSurface:
     case FeedUserActionType::kTappedFollowOnFollowAccelerator:
@@ -770,11 +753,42 @@ void MetricsReporter::OtherUserAction(const StreamType& stream_type,
     case FeedUserActionType::kTappedFollowOnRecommendationFollowAccelerator:
     case FeedUserActionType::kTappedGotItFeedPostFollowActiveHelp:
     case FeedUserActionType::kTappedRefreshFollowingFeedOnSnackbar:
-    case FeedUserActionType::kTappedFeedSignInPromoUIContinue:
-    case FeedUserActionType::kTappedFeedSignInPromoUICancel:
+    case FeedUserActionType::kNonSwipeManualRefresh:
       // Nothing additional for these actions. Note that some of these are iOS
       // only.
 
+      break;
+  }
+}
+
+void MetricsReporter::OtherUserAction(FeedUserActionType action_type) {
+  if (IsGoodExplicitInteraction(action_type)) {
+    good_visit_state_.OnGoodExplicitInteraction();
+  }
+
+  ReportUserActionHistogram(action_type);
+  switch (action_type) {
+    case FeedUserActionType::kTappedManageInterests:
+      base::RecordAction(base::UserMetricsAction(
+          "ContentSuggestions.Feed.CardAction.ManageInterests"));
+      break;
+    case FeedUserActionType::kTappedManageActivity:
+      base::RecordAction(base::UserMetricsAction(
+          "ContentSuggestions.Feed.CardAction.ManageActivity"));
+      break;
+    case FeedUserActionType::kTappedManageHidden:
+      base::RecordAction(base::UserMetricsAction(
+          "ContentSuggestions.Feed.CardAction.ManageHidden"));
+      break;
+    case FeedUserActionType::kTappedManageFollowing:
+      base::RecordAction(base::UserMetricsAction(
+          "ContentSuggestions.Feed.CardAction.ManageFollowing"));
+      break;
+    case FeedUserActionType::kTappedLearnMore:
+      base::RecordAction(base::UserMetricsAction(
+          "ContentSuggestions.Feed.CardAction.LearnMore"));
+      break;
+    default:
       break;
   }
 }
@@ -909,7 +923,7 @@ void MetricsReporter::NetworkRequestComplete(
         << " response_size=" << response_info.encoded_size_bytes
         << " duration=" << response_info.fetch_duration;
 
-  base::StringPiece request_name = NetworkRequestTypeUmaName(type);
+  std::string_view request_name = NetworkRequestTypeUmaName(type);
   base::UmaHistogramSparse(
       base::StrCat(
           {"ContentSuggestions.Feed.Network.ResponseStatus.", request_name}),
@@ -935,7 +949,7 @@ void MetricsReporter::OnLoadStream(
   bool loaded_new_content_from_network =
       result_summary.loaded_new_content_from_network;
   base::TimeDelta stored_content_age = result_summary.stored_content_age;
-  absl::optional<feedstore::Metadata::StreamMetadata> stream_metadata =
+  std::optional<feedstore::Metadata::StreamMetadata> stream_metadata =
       result_summary.stream_metadata;
   ContentOrder content_order = result_summary.content_order;
   VVLOG << "OnLoadStream load_from_store_status=" << load_from_store_status
@@ -1074,6 +1088,11 @@ void MetricsReporter::OnImageFetched(const GURL& url,
                                      int net_error_or_http_status) {
   VVLOG << "OnImageFetched status=" << net_error_or_http_status << " " << url;
   base::UmaHistogramSparse("ContentSuggestions.Feed.ImageFetchStatus",
+                           net_error_or_http_status);
+}
+
+void MetricsReporter::OnResourceFetched(int net_error_or_http_status) {
+  base::UmaHistogramSparse("ContentSuggestions.Feed.ResourceFetchStatus",
                            net_error_or_http_status);
 }
 

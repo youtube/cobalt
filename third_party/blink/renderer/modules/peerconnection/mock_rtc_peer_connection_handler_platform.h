@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc/api/peer_connection_interface.h"
 #include "third_party/webrtc/api/stats/rtc_stats.h"
+#include "third_party/webrtc/api/test/mock_peerconnectioninterface.h"
 #include "third_party/webrtc/api/test/mock_session_description_interface.h"
 
 namespace blink {
@@ -59,9 +60,9 @@ class MockRTCPeerConnectionHandlerPlatform : public RTCPeerConnectionHandler {
 
   bool Initialize(ExecutionContext* context,
                   const webrtc::PeerConnectionInterface::RTCConfiguration&,
-                  GoogMediaConstraints* media_constraints,
                   WebLocalFrame*,
-                  ExceptionState&) override;
+                  ExceptionState&,
+                  RTCRtpTransport*) override;
   void Close() override;
   void CloseAndUnregister() override;
 
@@ -79,10 +80,7 @@ class MockRTCPeerConnectionHandlerPlatform : public RTCPeerConnectionHandler {
       const webrtc::PeerConnectionInterface::RTCConfiguration&) override;
   void AddIceCandidate(RTCVoidRequest*, RTCIceCandidatePlatform*) override;
   void RestartIce() override;
-  void GetStats(RTCStatsRequest*) override;
-  void GetStats(RTCStatsReportCallback,
-                const Vector<webrtc::NonStandardGroupId>&,
-                bool is_track_stats_deprecation_trial_enabled) override;
+  void GetStats(RTCStatsReportCallback) override;
   webrtc::RTCErrorOr<std::unique_ptr<RTCRtpTransceiverPlatform>>
   AddTransceiverWithTrack(MediaStreamComponent*,
                           const webrtc::RtpTransceiverInit&) override;
@@ -94,13 +92,10 @@ class MockRTCPeerConnectionHandlerPlatform : public RTCPeerConnectionHandler {
       const MediaStreamDescriptorVector&) override;
   webrtc::RTCErrorOr<std::unique_ptr<RTCRtpTransceiverPlatform>> RemoveTrack(
       RTCRtpSenderPlatform*) override;
-  rtc::scoped_refptr<webrtc::DataChannelInterface> CreateDataChannel(
+  webrtc::scoped_refptr<webrtc::DataChannelInterface> CreateDataChannel(
       const String& label,
       const webrtc::DataChannelInit&) override;
   webrtc::PeerConnectionInterface* NativePeerConnection() override;
-  void RunSynchronousOnceClosureOnSignalingThread(
-      CrossThreadOnceClosure closure,
-      const char* trace_event_name) override;
   void RunSynchronousOnceClosureOnSignalingThread(
       base::OnceClosure closure,
       const char* trace_event_name) override;
@@ -111,6 +106,8 @@ class MockRTCPeerConnectionHandlerPlatform : public RTCPeerConnectionHandler {
   class DummyRTCRtpTransceiverPlatform;
 
   Vector<std::unique_ptr<DummyRTCRtpTransceiverPlatform>> transceivers_;
+  webrtc::scoped_refptr<webrtc::MockPeerConnectionInterface>
+      native_peer_connection_;
 };
 
 }  // namespace blink

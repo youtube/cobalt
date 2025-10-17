@@ -9,13 +9,10 @@
 
 namespace content {
 
-constexpr char kAttributionReportingRegisterSourceHeader[] =
-    "Attribution-Reporting-Register-Source";
+inline constexpr char kAttributionReportingInfoHeader[] =
+    "Attribution-Reporting-Info";
 
-constexpr char kAttributionReportingRegisterOsSourceHeader[] =
-    "Attribution-Reporting-Register-OS-Source";
-
-constexpr base::TimeDelta kDefaultAttributionSourceExpiry = base::Days(30);
+inline constexpr base::TimeDelta kReportExpiry = base::Days(30);
 
 }  // namespace content
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -11,14 +12,12 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
-#include "base/ranges/algorithm.h"
+#include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/aura/client/screen_position_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/test/aura_test_utils.h"
-#include "ui/aura/test/ui_controls_factory_aura.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/gfx/native_widget_types.h"
@@ -36,7 +35,6 @@ using ui_controls::LEFT;
 using ui_controls::MIDDLE;
 using ui_controls::MouseButton;
 using ui_controls::RIGHT;
-using ui_controls::UIControlsAura;
 using ui_controls::UP;
 
 aura::Window* RootWindowForPoint(const gfx::Point& point,
@@ -48,7 +46,7 @@ aura::Window* RootWindowForPoint(const gfx::Point& point,
   // doesn't rely on having a DesktopScreenX11.
   std::vector<aura::Window*> windows =
       views::DesktopWindowTreeHostPlatform::GetAllOpenWindows();
-  const auto i = base::ranges::find_if(windows, [point](auto* window) {
+  const auto i = std::ranges::find_if(windows, [point](auto* window) {
     return window->GetBoundsInScreen().Contains(point) || window->HasCapture();
   });
 
@@ -65,21 +63,12 @@ aura::Window* RootWindowForPoint(const gfx::Point& point,
   return hint ? hint : found;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-aura::Window* TopRootWindow() {
-  std::vector<aura::Window*> windows =
-      views::DesktopWindowTreeHostPlatform::GetAllOpenWindows();
-  DCHECK(!windows.empty());
-  return windows[0]->GetRootWindow();
-}
-#endif
-
 }  // namespace
 
 namespace ui_controls {
 
 void EnableUIControls() {
-  // TODO(crbug.com/1396661): This gets called twice in some tests.
+  // TODO(crbug.com/40249511): This gets called twice in some tests.
   // Add DCHECK once these tests are fixed.
   if (!g_ozone_ui_controls_test_helper) {
     g_ozone_ui_controls_test_helper =
@@ -113,7 +102,11 @@ bool SendKeyPressNotifyWhenDone(gfx::NativeWindow window,
                                 bool shift,
                                 bool alt,
                                 bool command,
-                                base::OnceClosure closure) {
+                                base::OnceClosure closure,
+                                KeyEventType wait_for) {
+  // This doesn't time out if `window` is deleted before the key release events
+  // are dispatched, so it's fine to ignore `wait_for` and always wait for key
+  // release events.
   DCHECK(!command);  // No command key on Aura
   return SendKeyEventsNotifyWhenDone(
       window, key, kKeyPress | kKeyRelease, std::move(closure),
@@ -182,10 +175,9 @@ bool SendMouseMoveNotifyWhenDone(int screen_x,
   DCHECK_EQ(screen, display::Screen::GetScreen());
   screen->set_cursor_screen_point(gfx::Point(screen_x, screen_y));
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
   if (root_location != root_current_location &&
-      g_ozone_ui_controls_test_helper->ButtonDownMask() == 0 &&
-      !g_ozone_ui_controls_test_helper->MustUseUiControlsForMoveCursorTo()) {
+      !g_ozone_ui_controls_test_helper->MustUseUiControlsForMoveCursorTo() &&
+      g_ozone_ui_controls_test_helper->ButtonDownMask() == 0) {
     // Move the cursor because EnterNotify/LeaveNotify are generated with the
     // current mouse position as a result of XGrabPointer()
     root_window->MoveCursorTo(root_location);
@@ -193,7 +185,6 @@ bool SendMouseMoveNotifyWhenDone(int screen_x,
         std::move(task));
     return true;
   }
-#endif
 
   g_ozone_ui_controls_test_helper->SendMouseMotionNotifyEvent(
       host->GetAcceleratedWidget(), root_location, screen_location,
@@ -246,39 +237,10 @@ bool SendMouseClick(MouseButton type, gfx::NativeWindow window_hint) {
                          window_hint);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
 // static
-bool SendTouchEvents(int action, int id, int x, int y) {
-  return SendTouchEventsNotifyWhenDone(action, id, x, y, base::OnceClosure());
-}
-
-// static
-bool SendTouchEventsNotifyWhenDone(int action,
-                                   int id,
-                                   int x,
-                                   int y,
-                                   base::OnceClosure task) {
-  DCHECK(g_ozone_ui_controls_test_helper);
-  gfx::Point screen_location(x, y);
-  aura::Window* root_window;
-
-  // Touch release events might not have coordinates that match any window, so
-  // just use whichever window is on top.
-  if (action & ui_controls::kTouchRelease) {
-    root_window = TopRootWindow();
-  } else {
-    root_window = RootWindowForPoint(screen_location);
-  }
-
-  if (root_window == nullptr) {
-    return true;
-  }
-
-  g_ozone_ui_controls_test_helper->SendTouchEvent(
-      root_window->GetHost()->GetAcceleratedWidget(), action, id,
-      screen_location, std::move(task));
-
-  return true;
+void ForceUseScreenCoordinatesOnce() {
+  g_ozone_ui_controls_test_helper->ForceUseScreenCoordinatesOnce();
 }
 #endif
 

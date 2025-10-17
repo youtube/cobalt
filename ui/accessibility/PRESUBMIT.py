@@ -8,8 +8,6 @@ import json
 import os
 import re
 
-USE_PYTHON3 = True
-
 AX_MOJOM = 'ui/accessibility/ax_enums.mojom'
 AUTOMATION_IDL = 'extensions/common/api/automation.idl'
 
@@ -286,11 +284,12 @@ def CheckModesMatch(input_api, output_api):
     'kAXModeBasic',
     'kAXModeWebContentsOnly',
     'kAXModeComplete',
-    'kAXModeCompleteNoHTML',
     'kAXModeFormControls',
-    'kExperimentalFirstFlag',
-    'kExperimentalFormControls',
-    'kExperimentalLastFlag',
+    'kFilterFirstFlag',
+    'kFormsAndLabelsOnly',
+    'kOnScreenOnly',
+    'kFilterLastFlag',
+    'kAXModeOnScreen',
   ]
 
   for value in ax_modes_in_header:

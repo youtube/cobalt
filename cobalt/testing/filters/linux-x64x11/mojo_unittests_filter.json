@@ -6,6 +6,9 @@
     "ValidationTest.BoundsCheck",
     "ValidationTest.Conformance",
     "ValidationTest.ResponseBoundsCheck",
-    "ValidationTest.ResponseConformance"
+    "ValidationTest.ResponseConformance",
+    "MessagePipeTest.DataPipeConsumerHandlePingPong",
+    "MessagePipeTest.DataPipeProducerHandlePingPong",
+    "DirectReceiverTest.*"
   ]
 }

@@ -35,8 +35,8 @@ webrtc::VideoFrame WebrtcVideoFrameAdapter::CreateVideoFrame(
         rect.left(), rect.top(), rect.width(), rect.height()});
   }
 
-  rtc::scoped_refptr<WebrtcVideoFrameAdapter> adapter(
-      new rtc::RefCountedObject<WebrtcVideoFrameAdapter>(
+  webrtc::scoped_refptr<WebrtcVideoFrameAdapter> adapter(
+      new webrtc::RefCountedObject<WebrtcVideoFrameAdapter>(
           std::move(desktop_frame), std::move(frame_stats)));
 
   // In the empty case, it is important to set the video-frame's update
@@ -45,6 +45,9 @@ webrtc::VideoFrame WebrtcVideoFrameAdapter::CreateVideoFrame(
   return webrtc::VideoFrame::Builder()
       .set_video_frame_buffer(adapter)
       .set_update_rect(video_update_rect)
+      // Added for b/333806004 - webrtc::FrameCadenceAdapterImpl requires
+      // video-frames to have monotonically increasing timestamps.
+      .set_timestamp_us(base::TimeTicks::Now().since_origin().InMicroseconds())
       .build();
 }
 
@@ -70,7 +73,7 @@ int WebrtcVideoFrameAdapter::height() const {
   return frame_size_.height();
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface>
+webrtc::scoped_refptr<webrtc::I420BufferInterface>
 WebrtcVideoFrameAdapter::ToI420() {
   // Strictly speaking all adapters must implement ToI420(), so that if the
   // external encoder fails, an internal libvpx could be used. But the remoting

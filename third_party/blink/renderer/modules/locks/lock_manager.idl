@@ -8,12 +8,12 @@ callback LockGrantedCallback = any (Lock? lock);
 // https://w3c.github.io/web-locks/#lockmanager
 [
     SecureContext,
-    Exposed=(Window,Worker)
+    Exposed(Window StableBlinkFeatures, Worker StableBlinkFeatures, SharedStorageWorklet SharedStorageWebLocks)
 ] interface LockManager {
-    [CallWith=ScriptState, RaisesException, Measure] Promise<Lock> request(
+    [CallWith=ScriptState, RaisesException, Measure] Promise<any> request(
         DOMString name,
         LockGrantedCallback callback);
-    [CallWith=ScriptState, RaisesException, Measure] Promise<Lock> request(
+    [CallWith=ScriptState, RaisesException, Measure] Promise<any> request(
         DOMString name,
         LockOptions options,
         LockGrantedCallback callback);

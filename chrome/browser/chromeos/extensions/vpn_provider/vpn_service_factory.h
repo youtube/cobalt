@@ -16,7 +16,7 @@ class BrowserContext;
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 namespace chromeos {
@@ -34,7 +34,7 @@ class VpnServiceFactory : public ProfileKeyedServiceFactory {
   static VpnServiceFactory* GetInstance();
 
  private:
-  friend struct base::DefaultSingletonTraits<VpnServiceFactory>;
+  friend base::NoDestructor<VpnServiceFactory>;
 
   VpnServiceFactory();
   ~VpnServiceFactory() override;
@@ -42,7 +42,7 @@ class VpnServiceFactory : public ProfileKeyedServiceFactory {
   // BrowserContextKeyedServiceFactory:
   bool ServiceIsCreatedWithBrowserContext() const override;
   bool ServiceIsNULLWhileTesting() const override;
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

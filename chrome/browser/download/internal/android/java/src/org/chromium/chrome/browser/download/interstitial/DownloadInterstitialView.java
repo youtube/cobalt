@@ -15,17 +15,20 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.chrome.browser.download.home.list.ListProperties;
 import org.chromium.chrome.browser.download.home.list.holder.GenericViewHolder;
 import org.chromium.chrome.browser.download.home.list.holder.InProgressGenericViewHolder;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.components.browser_ui.widget.DualControlLayout;
+import org.chromium.components.browser_ui.widget.DualControlLayout.ButtonType;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.components.offline_items_collection.OfflineItemState;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Class for a download interstitial which handles all interaction with the view. */
+@NullMarked
 class DownloadInterstitialView {
     private final View mView;
     private final TextView mTitle;
@@ -56,15 +59,23 @@ class DownloadInterstitialView {
         fileInfo.addView(mGenericViewHolder.itemView);
         fileInfo.addView(mInProgressGenericViewHolder.itemView);
 
-        mPrimaryButton = DualControlLayout.createButtonForLayout(context, true, "", null);
-        mPrimaryButton.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        mPrimaryButton =
+                DualControlLayout.createButtonForLayout(
+                        context, ButtonType.PRIMARY_FILLED, "", null);
+        mPrimaryButton.setLayoutParams(
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         mPrimaryButton.setVisibility(View.INVISIBLE);
 
-        mSecondaryButton = DualControlLayout.createButtonForLayout(
-                context, false, mView.getResources().getString(R.string.cancel), null);
-        mSecondaryButton.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        mSecondaryButton =
+                DualControlLayout.createButtonForLayout(
+                        context,
+                        ButtonType.SECONDARY_TEXT,
+                        mView.getResources().getString(R.string.cancel),
+                        null);
+        mSecondaryButton.setLayoutParams(
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         mSecondaryButton.setVisibility(View.INVISIBLE);
 
         DualControlLayout buttonBar = mView.findViewById(R.id.button_bar);

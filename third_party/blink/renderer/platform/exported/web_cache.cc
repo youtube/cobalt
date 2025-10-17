@@ -30,6 +30,7 @@
 
 #include "third_party/blink/public/platform/web_cache.h"
 
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/platform/loader/fetch/memory_cache.h"
@@ -43,12 +44,6 @@ static void ToResourceTypeStat(const MemoryCache::TypeStatistic& from,
   to.count = from.count;
   to.size = from.size;
   to.decoded_size = from.decoded_size;
-}
-
-void WebCache::SetCapacity(size_t capacity) {
-  MemoryCache* cache = MemoryCache::Get();
-  if (cache)
-    cache->SetCapacity(static_cast<unsigned>(capacity));
 }
 
 void WebCache::Clear() {
@@ -68,7 +63,7 @@ void WebCache::GetResourceTypeStats(WebCacheResourceTypeStats* result) {
     ToResourceTypeStat(stats.fonts, result->fonts);
     ToResourceTypeStat(stats.other, result->other);
   } else {
-    memset(result, 0, sizeof(WebCacheResourceTypeStats));
+    UNSAFE_TODO(memset(result, 0, sizeof(WebCacheResourceTypeStats)));
   }
 }
 

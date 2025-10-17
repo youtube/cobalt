@@ -3,9 +3,12 @@
 // found in the LICENSE file.
 
 #include <lib/async/default.h>
+#include <lib/inspect/component/cpp/component.h>
 #include <lib/sys/cpp/component_context.h>
-#include <lib/sys/inspect/cpp/component.h>
+#include <lib/trace-provider/provider.h>
 
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -19,7 +22,6 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/values.h"
 #include "build/chromecast_buildflags.h"
@@ -32,9 +34,12 @@
 #include "fuchsia_web/runners/cast/cast_runner.h"
 #include "fuchsia_web/runners/cast/cast_runner_switches.h"
 #include "fuchsia_web/webinstance_host/web_instance_host.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
+
+// Process ID used for logging and tracing. Should match the base name of the
+// .cm file used by the cast_runner component.
+constexpr char kProcessName[] = "cast_runner";
 
 // Config-data key for launching Cast content without using Scenic.
 constexpr char kHeadlessConfigKey[] = "headless";
@@ -43,8 +48,8 @@ constexpr char kHeadlessConfigKey[] = "headless";
 constexpr char kDisableCodeGenConfigKey[] = "disable-codegen";
 
 // Returns the value of |config_key| or false if it is not set.
-bool GetConfigBool(base::StringPiece config_key) {
-  const absl::optional<base::Value::Dict>& config =
+bool GetConfigBool(std::string_view config_key) {
+  const std::optional<base::Value::Dict>& config =
       fuchsia_component_support::LoadPackageConfig();
   if (config)
     return config->FindBool(config_key).value_or(false);
@@ -58,7 +63,7 @@ int main(int argc, char** argv) {
 
   base::CommandLine::Init(argc, argv);
 
-  static constexpr base::StringPiece kComponentUrl(
+  static constexpr std::string_view kComponentUrl(
       "fuchsia-pkg://fuchsia.com/cast_runner#meta/cast_runner.cm");
   fuchsia_component_support::RegisterProductDataForCrashReporting(
       kComponentUrl, "FuchsiaCastRunner");
@@ -68,7 +73,10 @@ int main(int argc, char** argv) {
   CHECK(InitLoggingFromCommandLine(*command_line))
       << "Failed to initialize logging.";
 
-  LogComponentStartWithVersion("cast_runner");
+  // Initialize tracing and logging.
+  trace::TraceProviderWithFdio trace_provider(async_get_default_dispatcher(),
+                                              kProcessName);
+  LogComponentStartWithVersion(kProcessName);
 
   // CastRunner is built even when `enable_cast_receiver=false` so that it can
   // always be tested. However, the statically linked WebEngineHost dependency
@@ -89,8 +97,12 @@ int main(int argc, char** argv) {
   const base::ScopedNaturalServiceBinding resolver_binding(outgoing_directory,
                                                            &resolver);
 
+  // Services from this component will be provided to each web instance.
+  WebInstanceHostWithServicesFromThisComponent web_instance_host(
+      *outgoing_directory,
+      /*is_web_instance_component_in_same_package=*/false);
+
   // Publish the fuchsia.component.runner.ComponentRunner for Cast apps.
-  WebInstanceHost web_instance_host(*outgoing_directory);
   CastRunner runner(
       web_instance_host,
       {.headless = command_line->HasSwitch(kForceHeadlessForTestsSwitch) ||
@@ -117,8 +129,8 @@ int main(int argc, char** argv) {
   }
 
   // Publish version information for this component to Inspect.
-  sys::ComponentInspector inspect(base::ComponentContextForProcess());
-  fuchsia_component_support::PublishVersionInfoToInspect(&inspect);
+  inspect::ComponentInspector inspect(async_get_default_dispatcher(), {});
+  fuchsia_component_support::PublishVersionInfoToInspect(&inspect.root());
 
   outgoing_directory->ServeFromStartupInfo();
 

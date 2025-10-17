@@ -9,28 +9,28 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.widget.FrameLayout;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /**
  * A specialized FrameLayout that is capable of ignoring all user input based on the state of
  * the bottom sheet.
  */
+@NullMarked
 class TouchRestrictingFrameLayout extends FrameLayout {
     /** A handle to the bottom sheet. */
-    private BottomSheet mBottomSheet;
+    private @Nullable BottomSheet mBottomSheet;
 
     public TouchRestrictingFrameLayout(Context context, AttributeSet atts) {
         super(context, atts);
     }
 
-    /**
-     * @param sheet The bottom sheet.
-     */
+    /** @param sheet The bottom sheet. */
     public void setBottomSheet(BottomSheet sheet) {
         mBottomSheet = sheet;
     }
 
-    /**
-     * @return Whether touch is enabled.
-     */
+    /** @return Whether touch is enabled. */
     private boolean isTouchDisabled() {
         return mBottomSheet == null
                 || mBottomSheet.getSheetState() == BottomSheetController.SheetState.SCROLLING;
@@ -38,13 +38,13 @@ class TouchRestrictingFrameLayout extends FrameLayout {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        if (isTouchDisabled()) return false;
+        if (isTouchDisabled()) return true;
         return super.onInterceptTouchEvent(event);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (isTouchDisabled()) return false;
+        if (isTouchDisabled()) return true;
         return super.onTouchEvent(event);
     }
 }

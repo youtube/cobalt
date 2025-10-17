@@ -5,18 +5,14 @@
 import("//chrome/common/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
-assert(is_chromeos_ash, "Projector Annotator is ChromeOS only")
+assert(is_chromeos, "Projector is ChromeOS only")
 
 cur_dir = rebase_path(".", "//")
-
-mojom("annotator_mojo_bindings") {
-  sources = [ "annotator_structs.mojom" ]
-  webui_module_path = "/$cur_dir"
-}
 
 mojom("projector_mojo_bindings") {
   sources = [ "projector_types.mojom" ]
   webui_module_path = "/$cur_dir"
+
   public_deps = [ "//mojo/public/mojom/base" ]
   cpp_typemaps = [
     {

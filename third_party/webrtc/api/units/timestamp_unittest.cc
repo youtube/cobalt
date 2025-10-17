@@ -8,9 +8,12 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "api/units/timestamp.h"
+
+#include <cstdint>
 #include <limits>
 
-#include "api/units/timestamp.h"
+#include "api/units/time_delta.h"
 #include "test/gtest.h"
 
 namespace webrtc {

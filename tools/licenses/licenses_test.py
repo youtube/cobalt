@@ -5,13 +5,21 @@
 """Unit tests for //tools/licenses/licenses.py.
 """
 
+import argparse
+import contextlib
+import csv
+import io
+import itertools
 import os
 import pathlib
 import sys
 import unittest
 
-REPOSITORY_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+REPOSITORY_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(os.path.join(REPOSITORY_ROOT, 'tools', 'licenses'))
+REL_REPOSITORY_ROOT = os.path.relpath(REPOSITORY_ROOT)
 
 import licenses
 from test_utils import path_from_root
@@ -24,33 +32,90 @@ def construct_absolute_path(path):
 class LicensesTest(unittest.TestCase):
   def _get_metadata(self):
     return {
-        os.path.join('third_party', 'lib1'): {
+        os.path.join('third_party', 'lib1'): [{
             'Name': 'lib1',
-            'License File': os.path.join('third_party', 'lib1', 'LICENSE'),
-        },
-        os.path.join('third_party', 'lib2'): {
+            'Shipped': 'yes',
+            'License': 'MIT',
+            'License File': [os.path.join('third_party', 'lib1', 'LICENSE')],
+        }],
+        os.path.join('third_party', 'lib2'): [{
             'Name': 'lib2',
-            'License File': os.path.join('third_party', 'lib2', 'LICENSE'),
-        },
-        'ignored': {
+            'Shipped': 'yes',
+            'License': 'MIT, Apache 2.0',
+            'License File': [
+                os.path.join('third_party', 'lib2', 'LICENSE-A'),
+                os.path.join('third_party', 'lib2', 'LICENSE-B'),
+            ],
+        }],
+        'ignored': [{
             'Name': 'ignored',
-            'License File': licenses.NOT_SHIPPED,
-        },
-        os.path.join('third_party', 'lib3'): {
+            'Shipped': 'no',
+            'License File': [],
+        }],
+        os.path.join('third_party', 'lib_unshipped'): [{
+            'Name': 'lib_unshipped',
+            'Shipped': 'no',
+            'License': '',
+            'License File': [
+                os.path.join('third_party', 'lib_unshipped', 'LICENSE')
+            ],
+        }],
+        os.path.join('third_party', 'lib3'): [{
             'Name': 'lib3',
-            'License File': os.path.join('third_party', 'lib3', 'LICENSE'),
-        },
-        os.path.join('third_party', 'lib3-v1'): {
+            'Shipped': 'yes',
+            'License': '',
+            'License File': [os.path.join('third_party', 'lib3', 'LICENSE')],
+        }],
+        os.path.join('third_party', 'lib3-v1'): [{
             # Test SPDX license file dedup. (different name, same license file)
             'Name': 'lib3-v1',
-            'License File': os.path.join('third_party', 'lib3', 'LICENSE'),
-        },
-        os.path.join('third_party', 'lib3-v2'): {
+            'Shipped': 'yes',
+            'License': 'Apache 2.0',
+            'License File': [
+                os.path.join('third_party', 'lib3', 'LICENSE'),
+            ],
+        }],
+        os.path.join('third_party', 'lib3-v2'): [{
             # Test SPDX id dedup. (same name, different license file)
             'Name': 'lib3',
-            'License File': os.path.join('third_party', 'lib3-v2', 'LICENSE'),
-        },
+            'Shipped': 'yes',
+            'License': 'BSD',
+            'License File': [os.path.join('third_party', 'lib3-v2', 'LICENSE')],
+        }],
     }
+
+  def test_parse_dir(self):
+    # No metadata file found in directory
+    test_path = os.path.join('tools', 'licenses', 'test_dir_with_missing_files')
+    with self.assertRaisesRegex(
+        licenses.LicenseError,
+        "missing third party metadata file or licenses.py SPECIAL_CASES"):
+      licenses.ParseDir(test_path, REPOSITORY_ROOT)
+
+    test_path = os.path.join('tools', 'licenses', 'test_dir')
+    dir_metadata, errors = licenses.ParseDir(test_path, REPOSITORY_ROOT)
+    expected = [
+        {
+            'License File': [
+                os.path.join(REPOSITORY_ROOT, test_path, 'LICENSE')
+            ],
+            'Name': 'License tools directory parsing test',
+            'URL': 'https://chromium.tools.licenses.test/src.git',
+            'License': 'FAKE',
+            'Shipped': 'no',
+        },
+        {
+            'License File': [
+                os.path.join(REPOSITORY_ROOT, test_path, 'LICENSE')
+            ],
+            'Name': 'License tools directory parsing test for multiple',
+            'URL': 'https://chromium.tools.licenses.test/multi/src.git',
+            'License': 'FAKE',
+            'Shipped': 'no',
+        },
+    ]
+    self.assertListEqual(errors, [])
+    self.assertListEqual(dir_metadata, expected)
 
   def test_get_third_party_deps_from_gn_deps_output(self):
     prune_path = next(iter(licenses.PRUNE_PATHS))
@@ -95,11 +160,109 @@ class LicensesTest(unittest.TestCase):
             os.path.join('external', 'somelib'),
         ]))
 
+  def test_list_license_files_from_metadata(self):
+    license_files = licenses.ListLicenseFiles(
+        itertools.chain.from_iterable(self._get_metadata().values()))
+    expected = [
+        os.path.join('third_party', 'lib1', 'LICENSE'),
+        os.path.join('third_party', 'lib2', 'LICENSE-A'),
+        os.path.join('third_party', 'lib2', 'LICENSE-B'),
+        os.path.join('third_party', 'lib3-v2', 'LICENSE'),
+        os.path.join('third_party', 'lib3', 'LICENSE'),
+        os.path.join('third_party', 'lib_unshipped', 'LICENSE'),
+    ]
+    self.assertEqual(license_files, expected)
+
+  def test_list_license_files_from_template_entries(self):
+    fake_templates = [{
+        'name': m['Name'],
+        'content': '',
+        'license_file': m['License File']
+    } for m in itertools.chain.from_iterable(self._get_metadata().values())]
+    license_files = licenses.ListLicenseFiles(fake_templates)
+    expected = [
+        os.path.join('third_party', 'lib1', 'LICENSE'),
+        os.path.join('third_party', 'lib2', 'LICENSE-A'),
+        os.path.join('third_party', 'lib2', 'LICENSE-B'),
+        os.path.join('third_party', 'lib3-v2', 'LICENSE'),
+        os.path.join('third_party', 'lib3', 'LICENSE'),
+        os.path.join('third_party', 'lib_unshipped', 'LICENSE'),
+    ]
+    self.assertEqual(license_files, expected)
+
+  def test_generate_license_file_csv(self):
+    # This is the same for all the links and prevents wildly long strings.
+    prefix = ("https://source.chromium.org/chromium/chromium/src/+/main:")
+
+    csv_file = io.StringIO(licenses.GenerateLicenseFileCsv(
+        self._get_metadata()))
+    csv_rows = [row for row in csv.DictReader(csv_file)]
+
+    expected = [{
+        'Library Name': 'Chromium',
+        'Link to LICENSE file': f'{prefix}LICENSE',
+        'License Name': 'BSD 3-Clause',
+        'Binary which uses library': 'Chromium',
+        'License text for library included?': 'Yes',
+        'Source code for library includes the mirrored source?': 'Yes',
+        'Authorization date': 'N/A'
+    }, {
+        'Library Name': 'lib1',
+        'Link to LICENSE file': (
+            f'{prefix}tools/licenses/third_party/lib1/LICENSE'),
+        'License Name': 'MIT',
+        'Binary which uses library': 'Chromium',
+        'License text for library included?': 'Yes',
+        'Source code for library includes the mirrored source?': 'Yes',
+        'Authorization date': 'N/A'
+    }, {
+        'Library Name': 'lib2',
+        'Link to LICENSE file': (
+            f'{prefix}tools/licenses/third_party/lib2/LICENSE-A, '
+            f'{prefix}tools/licenses/third_party/lib2/LICENSE-B'),
+        'License Name': 'MIT, Apache 2.0',
+        'Binary which uses library': 'Chromium',
+        'License text for library included?': 'Yes',
+        'Source code for library includes the mirrored source?': 'Yes',
+        'Authorization date': 'N/A'
+    }, {
+        'Library Name': 'lib3',
+        'Link to LICENSE file': (
+            f'{prefix}tools/licenses/third_party/lib3/LICENSE'),
+        'License Name': 'UNKNOWN',
+        'Binary which uses library': 'Chromium',
+        'License text for library included?': 'Yes',
+        'Source code for library includes the mirrored source?': 'Yes',
+        'Authorization date': 'N/A'
+    }, {
+        'Library Name': 'lib3-v1',
+        'Link to LICENSE file': (
+            f'{prefix}tools/licenses/third_party/lib3/LICENSE'),
+        'License Name': 'Apache 2.0',
+        'Binary which uses library': 'Chromium',
+        'License text for library included?': 'Yes',
+        'Source code for library includes the mirrored source?': 'Yes',
+        'Authorization date': 'N/A'
+    }, {
+        'Library Name': 'lib3',
+        'Link to LICENSE file': (
+            f'{prefix}tools/licenses/third_party/lib3-v2/LICENSE'),
+        'License Name': 'BSD',
+        'Binary which uses library': 'Chromium',
+        'License text for library included?': 'Yes',
+        'Source code for library includes the mirrored source?': 'Yes',
+        'Authorization date': 'N/A'
+    }]
+
+    expected.sort(key=lambda item: item['Library Name'])
+    self.assertEqual(csv_rows, expected)
+
   def test_generate_license_file_txt(self):
     read_file_vals = [
         'root license text\n',
         'lib1 license text\n',
-        'lib2 license text\n',
+        'lib2-a license text\n',
+        'lib2-b license text\n',
         'lib3 license text\n',
         'lib3 license text\n',
         'lib3-v2 license text\n',
@@ -119,7 +282,9 @@ class LicensesTest(unittest.TestCase):
         '--------------------',
         'lib2',
         '--------------------',
-        'lib2 license text',
+        'lib2-a license text',
+        '',
+        'lib2-b license text',
         '',
         '--------------------',
         'lib3',
@@ -132,7 +297,7 @@ class LicensesTest(unittest.TestCase):
         'lib3 license text',
         '',
         '--------------------',
-        'lib3-v2',
+        'lib3',
         '--------------------',
         'lib3-v2 license text',
     ]) + '\n'  # extra new line to account for join not adding one to the end
@@ -142,7 +307,8 @@ class LicensesTest(unittest.TestCase):
     read_file_vals = [
         'root\nlicense text\n',
         'lib1\nlicense text\n',
-        'lib2\nlicense text\n',
+        'lib2-a\nlicense text\n',
+        'lib2-b\nlicense text\n',
         'lib3\nlicense text\n',
         'lib3-v2\nlicense text\n',
     ]
@@ -187,6 +353,11 @@ class LicensesTest(unittest.TestCase):
             "licenseConcluded": "LicenseRef-lib2"
         },
         {
+            "SPDXID": "SPDXRef-Package-lib2-1",
+            "name": "lib2",
+            "licenseConcluded": "LicenseRef-lib2-1"
+        },
+        {
             "SPDXID": "SPDXRef-Package-lib3",
             "name": "lib3",
             "licenseConcluded": "LicenseRef-lib3"
@@ -226,10 +397,20 @@ class LicensesTest(unittest.TestCase):
         {
             "name": "lib2",
             "licenseId": "LicenseRef-lib2",
-            "extractedText": "lib2\\nlicense text\\n",
+            "extractedText": "lib2-a\\nlicense text\\n",
             "crossRefs": [
                 {
-                    "url": "http://google.com/third_party/lib2/LICENSE"
+                    "url": "http://google.com/third_party/lib2/LICENSE-A"
+                }
+            ]
+        },
+        {
+            "name": "lib2",
+            "licenseId": "LicenseRef-lib2-1",
+            "extractedText": "lib2-b\\nlicense text\\n",
+            "crossRefs": [
+                {
+                    "url": "http://google.com/third_party/lib2/LICENSE-B"
                 }
             ]
         },
@@ -268,6 +449,11 @@ class LicensesTest(unittest.TestCase):
         {
             "spdxElementId": "SPDXRef-Package-Chromium",
             "relationshipType": "CONTAINS",
+            "relatedSpdxElement": "SPDXRef-Package-lib2-1"
+        },
+        {
+            "spdxElementId": "SPDXRef-Package-Chromium",
+            "relationshipType": "CONTAINS",
             "relatedSpdxElement": "SPDXRef-Package-lib3"
         },
         {
@@ -283,6 +469,93 @@ class LicensesTest(unittest.TestCase):
     ]
 }'''
     self.assertEqual(license_txt, expected)
+
+  def test_generate_notice_file(self):
+    read_file_vals = [
+        'lib1 license text\n',
+        'lib2-a license text\n',
+        'lib2-b license text\n',
+        'lib3 license text\n',
+        'lib3 license text\n',
+        'lib3-v2 license text\n',
+    ]
+
+    license_txt = licenses.GenerateNoticeFilePlainText(
+        self._get_metadata(), read_file=lambda _: read_file_vals.pop(0))
+
+    expected = '\n'.join([
+        '--------------------',
+        'License notice for lib1',
+        '--------------------',
+        'lib1 license text',
+        '',
+        '--------------------',
+        'License notice for lib2',
+        '--------------------',
+        'lib2-a license text',
+        '',
+        '--------------------',
+        'License notice for lib2',
+        '--------------------',
+        'lib2-b license text',
+        '',
+        '--------------------',
+        'License notice for lib3',
+        '--------------------',
+        'lib3 license text',
+        '',
+        '--------------------',
+        'License notice for lib3-v1',
+        '--------------------',
+        'lib3 license text',
+        '',
+        '--------------------',
+        'License notice for lib3',
+        '--------------------',
+        'lib3-v2 license text',
+    ]) + '\n'  # extra new line to account for join not adding one to the end
+    self.assertEqual(license_txt, expected)
+
+  def test_configuring_gen_license_file_warnings(self):
+    """
+    Tests that warnings are silenced in GenerateLicenseFile by default and
+    not logged unless enable_warnings is True.
+    """
+    root_dir = os.path.join(REPOSITORY_ROOT, 'tools', 'licenses')
+    args = argparse.Namespace(format="txt",
+                              gn_target=None,
+                              enable_warnings=True,
+                              output_file=None,
+                              depfile=None)
+
+    # Warnings enabled
+    args.extra_third_party_dirs = ["test_dir_invalid_metadata"]
+    with contextlib.redirect_stdout(io.StringIO()) as captured_output:
+      licenses.GenerateLicenseFile(args, root_dir=root_dir)
+    self.assertRegex(captured_output.getvalue(),
+                     r"Errors in test_dir_invalid_metadata")
+
+    args.extra_third_party_dirs = ["test_dir_with_missing_files"]
+    with contextlib.redirect_stdout(io.StringIO()) as captured_output:
+      licenses.GenerateLicenseFile(args, root_dir=root_dir)
+    self.assertRegex(
+        captured_output.getvalue(),
+        r"Error: missing third party .* test_dir_with_missing_files")
+
+    # # Warnings disabled
+    args.enable_warnings = False
+    args.extra_third_party_dirs = ["test_dir_invalid_metadata"]
+    with contextlib.redirect_stdout(io.StringIO()) as captured_output:
+      licenses.GenerateLicenseFile(args, root_dir=root_dir)
+    self.assertNotRegex(captured_output.getvalue(),
+                        r"Errors in test_dir_invalid_metadata")
+
+    args.extra_third_party_dirs = ["test_dir_with_missing_files"]
+    with contextlib.redirect_stdout(io.StringIO()) as captured_output:
+      licenses.GenerateLicenseFile(args, root_dir=root_dir)
+      self.assertNotRegex(
+          captured_output.getvalue(),
+          r"Error: missing third party .* test_dir_with_missing_files")
 
 
 if __name__ == '__main__':

@@ -14,6 +14,8 @@ gpu::mojom::Direct3DFeatureLevel
 EnumTraits<gpu::mojom::Direct3DFeatureLevel, D3D_FEATURE_LEVEL>::ToMojom(
     D3D_FEATURE_LEVEL d3d_feature_level) {
   switch (d3d_feature_level) {
+    case D3D_FEATURE_LEVEL_1_0_GENERIC:
+      return gpu::mojom::Direct3DFeatureLevel::k1_0_Generic;
     case D3D_FEATURE_LEVEL_1_0_CORE:
       return gpu::mojom::Direct3DFeatureLevel::k1_0_Core;
     case D3D_FEATURE_LEVEL_9_1:
@@ -38,7 +40,6 @@ EnumTraits<gpu::mojom::Direct3DFeatureLevel, D3D_FEATURE_LEVEL>::ToMojom(
       return gpu::mojom::Direct3DFeatureLevel::k12_2;
   }
   NOTREACHED() << "Invalid D3D_FEATURE_LEVEL:" << d3d_feature_level;
-  return gpu::mojom::Direct3DFeatureLevel::k1_0_Core;
 }
 
 // static
@@ -46,6 +47,16 @@ bool EnumTraits<gpu::mojom::Direct3DFeatureLevel, D3D_FEATURE_LEVEL>::FromMojom(
     gpu::mojom::Direct3DFeatureLevel input,
     D3D_FEATURE_LEVEL* out) {
   switch (input) {
+    case gpu::mojom::Direct3DFeatureLevel::k1_0_Generic:
+// TODO(crbug.com/362650376): This case is valid only for SDK version
+// 10.0.26100.0 and up.
+#ifdef NTDDI_WIN11_GE
+      *out = D3D_FEATURE_LEVEL_1_0_GENERIC;
+      return true;
+#else
+      // Should be impossible
+      return false;
+#endif
     case gpu::mojom::Direct3DFeatureLevel::k1_0_Core:
       *out = D3D_FEATURE_LEVEL_1_0_CORE;
       return true;
@@ -81,7 +92,6 @@ bool EnumTraits<gpu::mojom::Direct3DFeatureLevel, D3D_FEATURE_LEVEL>::FromMojom(
       return true;
   }
   NOTREACHED() << "Invalid D3D_FEATURE_LEVEL: " << input;
-  return false;
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -98,7 +108,6 @@ EnumTraits<gpu::mojom::HasDiscreteGpu, gpu::HasDiscreteGpu>::ToMojom(
   }
   NOTREACHED() << "Invalid gpu::HasDiscreteGpu: "
                << static_cast<int>(has_discrete_gpu);
-  return gpu::mojom::HasDiscreteGpu::kUnknown;
 }
 
 // static
@@ -117,7 +126,6 @@ bool EnumTraits<gpu::mojom::HasDiscreteGpu, gpu::HasDiscreteGpu>::FromMojom(
       return true;
   }
   NOTREACHED() << "Invalid gpu::mojom::HasDiscreteGpu: " << input;
-  return false;
 }
 
 // static

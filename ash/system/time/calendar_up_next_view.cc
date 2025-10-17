@@ -5,24 +5,25 @@
 #include "ash/system/time/calendar_up_next_view.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
+#include <utility>
 
 #include "ash/bubble/bubble_utils.h"
-#include "ash/public/cpp/ash_view_ids.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/icon_button.h"
 #include "ash/style/typography.h"
-#include "ash/system/time/calendar_event_list_item_view_jelly.h"
+#include "ash/system/time/calendar_event_list_item_view.h"
 #include "ash/system/time/calendar_metrics.h"
 #include "ash/system/time/calendar_up_next_view_background_painter.h"
 #include "ash/system/time/calendar_utils.h"
-#include "ash/system/tray/tray_constants.h"
+#include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
-#include "ui/events/types/event_type.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/background.h"
@@ -63,36 +64,30 @@ constexpr int kScrollViewportCornerRadius = 18;
 class ScrollingAnimation : public gfx::LinearAnimation,
                            public gfx::AnimationDelegate {
  public:
-  explicit ScrollingAnimation(
-      views::View* contents_view,
-      gfx::AnimationContainer* bounds_animator_container,
-      base::TimeDelta duration,
-      const gfx::Rect start_visible_rect,
-      const gfx::Rect end_visible_rect)
-      : gfx::LinearAnimation(duration,
-                             gfx::LinearAnimation::kDefaultFrameRate,
-                             this),
+  explicit ScrollingAnimation(views::View* contents_view,
+                              gfx::AnimationContainer* container,
+                              int start_x,
+                              int end_x)
+      : gfx::LinearAnimation(
+            gfx::Animation::RichAnimationDuration(base::Milliseconds(200)),
+            gfx::LinearAnimation::kDefaultFrameRate,
+            this),
         contents_view_(contents_view),
-        start_visible_rect_(start_visible_rect),
-        end_visible_rect_(end_visible_rect) {
-    SetContainer(bounds_animator_container);
+        start_x_(start_x),
+        end_x_(end_x) {
+    SetContainer(container);
   }
   ScrollingAnimation(const ScrollingAnimation&) = delete;
   ScrollingAnimation& operator=(const ScrollingAnimation&) = delete;
   ~ScrollingAnimation() override = default;
 
   void AnimateToState(double state) override {
-    gfx::Rect intermediary_rect(
-        start_visible_rect_.x() +
-            (end_visible_rect_.x() - start_visible_rect_.x()) * state,
-        start_visible_rect_.y(), start_visible_rect_.width(),
-        start_visible_rect_.height());
-
-    contents_view_->ScrollRectToVisible(intermediary_rect);
+    contents_view_->ScrollRectToVisible(
+        gfx::Rect(std::lerp(start_x_, end_x_, state), 0, 0, 0));
   }
 
   void AnimationEnded(const gfx::Animation* animation) override {
-    contents_view_->ScrollRectToVisible(end_visible_rect_);
+    contents_view_->ScrollRectToVisible(gfx::Rect(end_x_, 0, 0, 0));
   }
 
   void AnimationCanceled(const gfx::Animation* animation) override {
@@ -102,8 +97,8 @@ class ScrollingAnimation : public gfx::LinearAnimation,
  private:
   // Owned by views hierarchy.
   const raw_ptr<views::View> contents_view_;
-  const gfx::Rect start_visible_rect_;
-  const gfx::Rect end_visible_rect_;
+  const int start_x_;
+  const int end_x_;
 };
 
 std::unique_ptr<views::Button> CreateTodaysEventsButton(
@@ -138,10 +133,11 @@ bool IsRightScrollButtonEnabled(views::ScrollView* scroll_view) {
 
 // Returns the index of the first (left-most) visible (partially or wholly)
 // child in the ScrollView.
-int GetFirstVisibleChildIndex(std::vector<views::View*> event_views,
-                              views::View* scroll_view) {
+int GetFirstVisibleChildIndex(
+    std::vector<raw_ptr<views::View, VectorExperimental>> event_views,
+    views::View* scroll_view) {
   for (size_t i = 0; i < event_views.size(); ++i) {
-    auto* child = event_views[i];
+    auto* child = event_views[i].get();
     if (scroll_view->GetBoundsInScreen().Intersects(
             child->GetBoundsInScreen())) {
       return i;
@@ -156,10 +152,10 @@ int GetFirstVisibleChildIndex(std::vector<views::View*> event_views,
 // be the same (unique per Calendar) and in the same order.
 bool SameEvents(const std::list<google_apis::calendar::CalendarEvent>& a,
                 const std::list<google_apis::calendar::CalendarEvent>& b) {
-  return base::ranges::equal(a, b, [](const auto& a, const auto& b) {
+  return std::ranges::equal(a, b, [](const auto& a, const auto& b) {
     return a.id() == b.id() &&
            a.start_time().date_time() == b.start_time().date_time() &&
-           a.end_time().date_time() == b.start_time().date_time();
+           a.end_time().date_time() == b.end_time().date_time();
   });
 }
 
@@ -174,18 +170,14 @@ CalendarUpNextView::CalendarUpNextView(
       header_view_(AddChildView(std::make_unique<views::View>())),
       scroll_view_(AddChildView(std::make_unique<views::ScrollView>(
           views::ScrollView::ScrollWithLayers::kEnabled))),
-      content_view_(scroll_view_->SetContents(std::make_unique<views::View>())),
-      bounds_animator_(this) {
+      content_view_(
+          scroll_view_->SetContents(std::make_unique<views::View>())) {
   SetBackground(std::make_unique<CalendarUpNextViewBackground>(
-      cros_tokens::kCrosSysSystemOnBase));
+      cros_tokens::kCrosSysSystemOnBaseOpaque));
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical, kContainerInsets, 0));
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
-
-  if (!gfx::Animation::ShouldRenderRichAnimation()) {
-    bounds_animator_.SetAnimationDuration(base::TimeDelta());
-  }
 
   on_contents_scrolled_subscription_ =
       scroll_view_->AddContentsScrolledCallback(
@@ -197,7 +189,7 @@ CalendarUpNextView::CalendarUpNextView(
       ->SetLayoutManager(std::make_unique<views::BoxLayout>())
       ->set_main_axis_alignment(views::BoxLayout::MainAxisAlignment::kCenter);
   todays_events_button_container_->AddChildView(
-      CreateTodaysEventsButton(callback));
+      CreateTodaysEventsButton(std::move(callback)));
 
   // Header.
   auto* header_layout_manager =
@@ -234,7 +226,7 @@ CalendarUpNextView::CalendarUpNextView(
 
   // Scroll view.
   scroll_view_->SetAllowKeyboardScrolling(false);
-  scroll_view_->SetBackgroundColor(absl::nullopt);
+  scroll_view_->SetBackgroundColor(std::nullopt);
   scroll_view_->SetDrawOverflowIndicator(false);
   scroll_view_->SetViewportRoundedCornerRadius(
       gfx::RoundedCornersF(kScrollViewportCornerRadius));
@@ -264,7 +256,7 @@ void CalendarUpNextView::RefreshEvents() {
   UpdateEvents(calendar_view_controller_->UpcomingEvents());
 }
 
-void CalendarUpNextView::Layout() {
+void CalendarUpNextView::Layout(PassKey) {
   // For some reason the `content_view_` is constrained to the
   // `scroll_view_` width and so it isn't scrollable. This seems to be a
   // problem with horizontal `ScrollView`s as this doesn't happen if you
@@ -272,13 +264,14 @@ void CalendarUpNextView::Layout() {
   // scrollable, we need to set it's preferred size here so it's bigger
   // than the `scroll_view_` and therefore scrolls. See
   // https://crbug.com/1384131.
-  if (content_view_) {
+  // For single events we want it to be constrained to the scroll view width.
+  if (content_view_ && displayed_events_.size() > 1) {
     content_view_->SizeToPreferredSize();
   }
 
   // `content_view_` is a child of this class so we need to Layout after
   // changing its width.
-  views::View::Layout();
+  LayoutSuperclass<views::View>(this);
 
   // After laying out the `content_view_`, we need to set the initial scroll
   // button state.
@@ -303,14 +296,15 @@ void CalendarUpNextView::UpdateEvents(
   // Single events are displayed filling the whole width of the tray.
   if (events.size() == 1) {
     const auto event = events.back();
-    auto* child_view = content_view_->AddChildView(
-        std::make_unique<CalendarEventListItemViewJelly>(
+    auto* child_view =
+        content_view_->AddChildView(std::make_unique<CalendarEventListItemView>(
             calendar_view_controller_,
             SelectedDateParams{now, selected_date_midnight,
                                selected_date_midnight_utc},
             /*event=*/event, /*ui_params=*/
             UIParams{/*round_top_corners=*/true,
                      /*round_bottom_corners=*/true,
+                     /*is_up_next_event_list_item=*/true,
                      /*show_event_list_dot=*/false,
                      /*fixed_width=*/kLabelFullWidth},
             /*event_list_item_index=*/
@@ -334,19 +328,19 @@ void CalendarUpNextView::UpdateEvents(
   const int events_size = events.size();
   for (auto it = events.begin(); it != events.end(); ++it) {
     const int event_index = std::distance(events.begin(), it) + 1;
-    content_view_->AddChildView(
-        std::make_unique<CalendarEventListItemViewJelly>(
-            calendar_view_controller_,
-            SelectedDateParams{now, selected_date_midnight,
-                               selected_date_midnight_utc},
-            /*event=*/*it,
-            /*ui_params=*/
-            UIParams{/*round_top_corners=*/true, /*round_bottom_corners=*/true,
-                     /*show_event_list_dot=*/false,
-                     /*fixed_width=*/kLabelCappedWidth},
-            /*event_list_item_index=*/
-            EventListItemIndex{/*item_index=*/event_index,
-                               /*total_count_of_events=*/events_size}));
+    content_view_->AddChildView(std::make_unique<CalendarEventListItemView>(
+        calendar_view_controller_,
+        SelectedDateParams{now, selected_date_midnight,
+                           selected_date_midnight_utc},
+        /*event=*/*it,
+        /*ui_params=*/
+        UIParams{/*round_top_corners=*/true, /*round_bottom_corners=*/true,
+                 /*is_up_next_event_list_item=*/true,
+                 /*show_event_list_dot=*/false,
+                 /*fixed_width=*/kLabelCappedWidth},
+        /*event_list_item_index=*/
+        EventListItemIndex{/*item_index=*/event_index,
+                           /*total_count_of_events=*/events_size}));
   }
 
   // Show scroll buttons if we have multiple events.
@@ -362,6 +356,8 @@ void CalendarUpNextView::OnScrollLeftButtonPressed(const ui::Event& event) {
     return;
   }
 
+  calendar_metrics::RecordScrollEventInUpNext();
+
   const int first_visible_child_index =
       GetFirstVisibleChildIndex(event_views, scroll_view_);
   views::View* first_visible_child = event_views[first_visible_child_index];
@@ -370,8 +366,12 @@ void CalendarUpNextView::OnScrollLeftButtonPressed(const ui::Event& event) {
   // visible.
   if (first_visible_child->GetVisibleBounds().width() !=
       first_visible_child->GetContentsBounds().width()) {
-    const auto offset = first_visible_child->GetBoundsInScreen().x() -
-                        scroll_view_->GetBoundsInScreen().x();
+    const auto offset =
+        base::i18n::IsRTL()
+            ? scroll_view_->GetBoundsInScreen().right() -
+                  first_visible_child->GetBoundsInScreen().right()
+            : first_visible_child->GetBoundsInScreen().x() -
+                  scroll_view_->GetBoundsInScreen().x();
     ScrollViewByOffset(offset);
 
     return;
@@ -381,8 +381,11 @@ void CalendarUpNextView::OnScrollLeftButtonPressed(const ui::Event& event) {
   const int previous_child_index = first_visible_child_index - 1;
   const int index = std::max(0, previous_child_index);
   views::View* previous_child = event_views[index];
-  const auto offset = previous_child->GetBoundsInScreen().x() -
-                      scroll_view_->GetBoundsInScreen().x();
+  const auto offset = base::i18n::IsRTL()
+                          ? scroll_view_->GetBoundsInScreen().right() -
+                                previous_child->GetBoundsInScreen().right()
+                          : previous_child->GetBoundsInScreen().x() -
+                                scroll_view_->GetBoundsInScreen().x();
   ScrollViewByOffset(offset);
 }
 
@@ -391,6 +394,8 @@ void CalendarUpNextView::OnScrollRightButtonPressed(const ui::Event& event) {
   if (event_views.empty()) {
     return;
   }
+
+  calendar_metrics::RecordScrollEventInUpNext();
 
   const int first_visible_child_index =
       GetFirstVisibleChildIndex(event_views, scroll_view_);
@@ -421,7 +426,7 @@ void CalendarUpNextView::ToggleScrollButtonState() {
 }
 
 void CalendarUpNextView::ScrollViewByOffset(int offset) {
-  absl::optional<gfx::Rect> visible_content_rect =
+  std::optional<gfx::Rect> visible_content_rect =
       scroll_view_->GetVisibleRect();
   if (!visible_content_rect.has_value() || offset == 0) {
     return;
@@ -445,14 +450,11 @@ void CalendarUpNextView::AnimateScrollToShowXCoordinate(const int start_edge,
   }
 
   scrolling_animation_ = std::make_unique<ScrollingAnimation>(
-      content_view_, bounds_animator_.container(),
-      bounds_animator_.GetAnimationDuration(),
-      /*start_visible_rect=*/gfx::Rect(start_edge, 0, 0, 0),
-      /*end_visible_rect=*/gfx::Rect(target_edge, 0, 0, 0));
+      content_view_, animation_container_.get(), start_edge, target_edge);
   scrolling_animation_->Start();
 }
 
-BEGIN_METADATA(CalendarUpNextView, views::View);
+BEGIN_METADATA(CalendarUpNextView);
 END_METADATA
 
 }  // namespace ash

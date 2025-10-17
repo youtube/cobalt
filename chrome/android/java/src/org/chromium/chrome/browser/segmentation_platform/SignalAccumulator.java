@@ -6,8 +6,12 @@ package org.chromium.chrome.browser.segmentation_platform;
 
 import android.os.Handler;
 
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.segmentation_platform.ContextualPageActionController.ActionProvider;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 
 import java.util.List;
 
@@ -15,13 +19,20 @@ import java.util.List;
  * Convenient wrapper to keep track of the feature backend results and trigger the next step after
  * all the feature backends have responded or a time out has happened.
  */
+@NullMarked
 public class SignalAccumulator {
-    private static final long ACTION_PROVIDER_TIMEOUT_MS = 100;
+    /** Histogram name that records how long it takes to get a reader mode result. */
+    public static final String READER_MODE_SIGNAL_TIME_HISTOGRAM =
+            "DomDistiller.Time.TimeToProvideResultToAccumulator";
+
+    private static final long DEFAULT_ACTION_PROVIDER_TIMEOUT_MS = 100;
 
     // List of signals to query. Modify hasAllSignals() when adding signals to this list.
-    // TODO(crbug/1373895): Introduce a key set and directly populate InputContext.
-    private Boolean mHasPriceTracking;
-    private Boolean mHasReaderMode;
+    // TODO(crbug.com/40242243): Introduce a key set and directly populate InputContext.
+    private @Nullable Boolean mHasPriceTracking;
+    private @Nullable Boolean mHasReaderMode;
+    private @Nullable Boolean mHasPriceInsights;
+    private @Nullable Boolean mHasDiscounts;
 
     // Whether the backends didn't respond within the time limit. Any further response from the
     // backends will be ignored.
@@ -33,14 +44,17 @@ public class SignalAccumulator {
 
     // The callback to be invoked at the end of getting all the signals or time out. After it is
     // run, the accumulator becomes invalid.
-    private Runnable mCompletionCallback;
+    private @Nullable Runnable mCompletionCallback;
+    private long mGetSignalsStartMs;
 
     private final List<ActionProvider> mActionProviders;
     private final Tab mTab;
     private final Handler mHandler;
+    private final long mActionProviderTimeout;
 
     /**
      * Constructor.
+     *
      * @param handler A handler for posting task.
      * @param tab The given tab.
      * @param actionProviders List of action providers to get signals from.
@@ -49,6 +63,10 @@ public class SignalAccumulator {
         mHandler = handler;
         mTab = tab;
         mActionProviders = actionProviders;
+        mActionProviderTimeout =
+                DomDistillerFeatures.enableCustomCpaTimeout()
+                        ? DomDistillerFeatures.sReaderModeImprovementsCustomCpaTimeout.getValue()
+                        : DEFAULT_ACTION_PROVIDER_TIMEOUT_MS;
     }
 
     /**
@@ -57,13 +75,16 @@ public class SignalAccumulator {
      */
     public void getSignals(Runnable callback) {
         mCompletionCallback = callback;
+        mGetSignalsStartMs = System.currentTimeMillis();
         for (ActionProvider actionProvider : mActionProviders) {
             actionProvider.getAction(mTab, this);
         }
-        mHandler.postDelayed(() -> {
-            mHasTimedOut = true;
-            proceedToNextStepIfReady();
-        }, ACTION_PROVIDER_TIMEOUT_MS);
+        mHandler.postDelayed(
+                () -> {
+                    mHasTimedOut = true;
+                    proceedToNextStepIfReady();
+                },
+                mActionProviderTimeout);
     }
 
     /**
@@ -72,6 +93,10 @@ public class SignalAccumulator {
      */
     public void notifySignalAvailable() {
         proceedToNextStepIfReady();
+    }
+
+    public boolean hasTimedOut() {
+        return mHasTimedOut;
     }
 
     /**
@@ -94,19 +119,50 @@ public class SignalAccumulator {
     /** Called to set whether the page can be viewed in reader mode. */
     public void setHasReaderMode(Boolean hasReaderMode) {
         mHasReaderMode = hasReaderMode;
+        RecordHistogram.recordLongTimesHistogram(
+                READER_MODE_SIGNAL_TIME_HISTOGRAM, System.currentTimeMillis() - mGetSignalsStartMs);
     }
 
     /**
-     * Central method invoked whenever a backend responds or time out happens.
+     * @return Whether the page is price insights eligible. Default is false.
      */
+    public Boolean hasPriceInsights() {
+        return mHasPriceInsights == null ? false : mHasPriceInsights;
+    }
+
+    /** Called to set whether the page is price insights eligible. */
+    public void setHasPriceInsights(Boolean hasPriceInsights) {
+        mHasPriceInsights = hasPriceInsights;
+    }
+
+    /**
+     * @return Whether the page is discounts eligible. Default is false.
+     */
+    public Boolean hasDiscounts() {
+        return mHasDiscounts == null ? false : mHasDiscounts;
+    }
+
+    /** Called to set whether the page is discounts eligible. */
+    public void setHasDiscounts(Boolean hasDiscounts) {
+        mHasDiscounts = hasDiscounts;
+    }
+
+    /** Central method invoked whenever a backend responds or time out happens. */
     private void proceedToNextStepIfReady() {
         boolean isReady = mHasTimedOut || hasAllSignals();
-        if (!isReady || mIsInValid) return;
+        if (!isReady || mIsInValid || mCompletionCallback == null) return;
         mIsInValid = true;
         mCompletionCallback.run();
     }
 
     private boolean hasAllSignals() {
-        return mHasPriceTracking != null && mHasReaderMode != null;
+        return mHasPriceTracking != null
+                && mHasReaderMode != null
+                && mHasPriceInsights != null
+                && mHasDiscounts != null;
+    }
+
+    long getActionProviderTimeoutForTesting() {
+        return mActionProviderTimeout;
     }
 }

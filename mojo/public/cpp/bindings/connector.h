@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/compiler_specific.h"
@@ -17,13 +18,14 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
+#include "mojo/public/c/system/types.h"
 #include "mojo/public/cpp/bindings/connection_group.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/message_header_validator.h"
 #include "mojo/public/cpp/system/handle_signal_tracker.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Lock;
@@ -202,6 +204,8 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) Connector : public MessageReceiver {
   bool PrefersSerializedMessages() override;
   bool Accept(Message* message) override;
 
+  MojoResult AcceptAndGetResult(Message* message);
+
   MessagePipeHandle handle() const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return message_pipe_.get();
@@ -236,10 +240,21 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) Connector : public MessageReceiver {
   class ActiveDispatchTracker;
   class RunLoopNestingObserver;
 
-  // Callback of mojo::SimpleWatcher.
-  void OnWatcherHandleReady(MojoResult result);
-  // Callback of SyncHandleWatcher.
-  void OnSyncHandleWatcherHandleReady(MojoResult result);
+  // Callback given to SimpleWatcher to dispatch events for pipe activity.
+  //
+  // We pass the Connector's static interface name here as a parameter, ensuring
+  // that if Chrome crashes within this method, the crash dump will include the
+  // address of the interface name string in some accessible place such as a
+  // register or nearby stack location. We do this to help pinpoint application
+  // bugs which destroy bindings endpoints from the wrong thread, as this can
+  // result in Connector destruction racing with execution of a WeakPtr-bound
+  // OnWatcherHandleReady task.
+  void OnWatcherHandleReady(const char* interface_name, MojoResult result);
+
+  // Callback of SyncHandleWatcher. See notes on OnWatcherHandleReady()
+  // regarding the `interface_name` argument.
+  void OnSyncHandleWatcherHandleReady(const char* interface_name,
+                                      MojoResult result);
 
   void OnHandleReadyInternal(MojoResult result);
 
@@ -255,7 +270,8 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) Connector : public MessageReceiver {
   // Dispatches |message| to the receiver. Returns |true| if the message was
   // accepted by the receiver, and |false| otherwise (e.g. if it failed
   // validation).
-  bool DispatchMessage(ScopedMessageHandle handle);
+  bool DispatchMessage(ScopedMessageHandle handle)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
 
   // Posts a task to read the next message from the pipe. These two functions
   // keep |num_pending_read_tasks_| up to date to limit the number of posted
@@ -271,13 +287,14 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) Connector : public MessageReceiver {
 
   // Reads all available messages off of the pipe, possibly dispatching one or
   // more of them depending on the state of the Connector when this is called.
-  void ReadAllAvailableMessages();
+  void ReadAllAvailableMessages() VALID_CONTEXT_REQUIRED(sequence_checker_);
 
   // If |force_pipe_reset| is true, this method replaces the existing
   // |message_pipe_| with a dummy message pipe handle (whose peer is closed).
   // If |force_async_handler| is true, |connection_error_handler_| is called
   // asynchronously.
-  void HandleError(bool force_pipe_reset, bool force_async_handler);
+  void HandleError(bool force_pipe_reset, bool force_async_handler)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
 
   // Cancels any calls made to |handle_watcher_|.
   void CancelWait();
@@ -300,9 +317,9 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) Connector : public MessageReceiver {
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
   std::unique_ptr<SimpleWatcher> handle_watcher_;
-  absl::optional<HandleSignalTracker> peer_remoteness_tracker_;
+  std::optional<HandleSignalTracker> peer_remoteness_tracker_;
 
-  std::atomic<bool> error_;
+  std::atomic<bool> error_ GUARDED_BY_CONTEXT(sequence_checker_);
   bool drop_writes_ = false;
   bool enforce_errors_from_incoming_receiver_ = true;
 
@@ -316,7 +333,7 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) Connector : public MessageReceiver {
 
   // If sending messages is allowed from multiple sequences, |lock_| is used to
   // protect modifications to |message_pipe_| and |drop_writes_|.
-  absl::optional<base::Lock> lock_;
+  std::optional<base::Lock> lock_;
 
   std::unique_ptr<SyncHandleWatcher> sync_watcher_;
 

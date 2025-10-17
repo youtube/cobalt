@@ -38,9 +38,7 @@ SkiaOutputSurfaceDependencyWebView::~SkiaOutputSurfaceDependencyWebView() =
 
 std::unique_ptr<gpu::SingleTaskSequence>
 SkiaOutputSurfaceDependencyWebView::CreateSequence() {
-  return std::make_unique<TaskForwardingSequence>(
-      task_queue_, gpu_service_->sync_point_manager(),
-      gpu_service_->scheduler());
+  return std::make_unique<TaskForwardingSequence>(task_queue_);
 }
 
 gpu::SharedImageManager*
@@ -73,7 +71,7 @@ SkiaOutputSurfaceDependencyWebView::GetVulkanContextProvider() {
   return shared_context_state_->vk_context_provider();
 }
 
-viz::DawnContextProvider*
+gpu::DawnContextProvider*
 SkiaOutputSurfaceDependencyWebView::GetDawnContextProvider() {
   return nullptr;
 }
@@ -88,15 +86,11 @@ SkiaOutputSurfaceDependencyWebView::GetGpuFeatureInfo() {
   return gpu_service_->gpu_feature_info();
 }
 
-gpu::MailboxManager* SkiaOutputSurfaceDependencyWebView::GetMailboxManager() {
-  return gpu_service_->mailbox_manager();
-}
-
 void SkiaOutputSurfaceDependencyWebView::ScheduleGrContextCleanup() {
-  // There is no way to access the gpu thread here, so leave it no-op for now.
+  shared_context_state_->ScheduleSkiaCleanup();
 }
 
-scoped_refptr<base::TaskRunner>
+scoped_refptr<base::SingleThreadTaskRunner>
 SkiaOutputSurfaceDependencyWebView::GetClientTaskRunner() {
   return task_queue_->GetClientTaskRunner();
 }
@@ -110,14 +104,11 @@ gpu::SurfaceHandle SkiaOutputSurfaceDependencyWebView::GetSurfaceHandle() {
 }
 
 scoped_refptr<gl::Presenter>
-SkiaOutputSurfaceDependencyWebView::CreatePresenter(
-    base::WeakPtr<gpu::ImageTransportSurfaceDelegate> stub,
-    gl::GLSurfaceFormat format) {
+SkiaOutputSurfaceDependencyWebView::CreatePresenter() {
   return nullptr;
 }
 scoped_refptr<gl::GLSurface>
 SkiaOutputSurfaceDependencyWebView::CreateGLSurface(
-    base::WeakPtr<gpu::ImageTransportSurfaceDelegate> stub,
     gl::GLSurfaceFormat format) {
   return gl_surface_.get();
 }
@@ -125,13 +116,11 @@ SkiaOutputSurfaceDependencyWebView::CreateGLSurface(
 base::ScopedClosureRunner SkiaOutputSurfaceDependencyWebView::CachePresenter(
     gl::Presenter* presenter) {
   NOTREACHED();
-  return base::ScopedClosureRunner();
 }
 
 base::ScopedClosureRunner SkiaOutputSurfaceDependencyWebView::CacheGLSurface(
     gl::GLSurface* surface) {
   NOTREACHED();
-  return base::ScopedClosureRunner();
 }
 
 void SkiaOutputSurfaceDependencyWebView::DidLoseContext(
@@ -139,12 +128,6 @@ void SkiaOutputSurfaceDependencyWebView::DidLoseContext(
     const GURL& active_url) {
   // No GpuChannelManagerDelegate here, so leave it no-op for now.
   LOG(ERROR) << "SkiaRenderer detected lost context.";
-}
-
-base::TimeDelta
-SkiaOutputSurfaceDependencyWebView::GetGpuBlockedTimeSinceLastSwap() {
-  // WebView doesn't track how long GPU thread was blocked
-  return base::TimeDelta();
 }
 
 void SkiaOutputSurfaceDependencyWebView::ScheduleDelayedGPUTaskFromGPUThread(

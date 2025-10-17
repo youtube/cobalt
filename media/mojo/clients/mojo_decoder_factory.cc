@@ -19,6 +19,32 @@
 
 namespace media {
 
+namespace {
+
+#if BUILDFLAG(ENABLE_MOJO_VIDEO_DECODER)
+
+void CreateMojoVideoDecoder(
+    media::mojom::InterfaceFactory* interface_factory,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    GpuVideoAcceleratorFactories* gpu_factories,
+    MediaLog* media_log,
+    RequestOverlayInfoCB request_overlay_info_cb,
+    const gfx::ColorSpace& target_color_space,
+    std::vector<std::unique_ptr<VideoDecoder>>* video_decoders) {
+  mojo::PendingRemote<mojom::VideoDecoder> video_decoder_remote;
+  interface_factory->CreateVideoDecoder(
+      video_decoder_remote.InitWithNewPipeAndPassReceiver(),
+      /*dst_video_decoder=*/{});
+
+  video_decoders->push_back(std::make_unique<MojoVideoDecoder>(
+      task_runner, gpu_factories, media_log, std::move(video_decoder_remote),
+      std::move(request_overlay_info_cb), target_color_space));
+}
+
+#endif  // BUILDFLAG(ENABLE_MOJO_VIDEO_DECODER)
+
+}  // namespace
+
 MojoDecoderFactory::MojoDecoderFactory(
     media::mojom::InterfaceFactory* interface_factory)
     : interface_factory_(interface_factory) {
@@ -49,17 +75,10 @@ void MojoDecoderFactory::CreateVideoDecoders(
     const gfx::ColorSpace& target_color_space,
     std::vector<std::unique_ptr<VideoDecoder>>* video_decoders) {
 #if BUILDFLAG(ENABLE_MOJO_VIDEO_DECODER)
-
-  mojo::PendingRemote<mojom::VideoDecoder> video_decoder_remote;
-  interface_factory_->CreateVideoDecoder(
-      video_decoder_remote.InitWithNewPipeAndPassReceiver(),
-      /*dst_video_decoder=*/{});
-
-  video_decoders->push_back(std::make_unique<MojoVideoDecoder>(
-      task_runner, gpu_factories, media_log, std::move(video_decoder_remote),
-      std::move(request_overlay_info_cb), target_color_space));
-
-#endif
+  CreateMojoVideoDecoder(
+      interface_factory_, std::move(task_runner), gpu_factories, media_log,
+      std::move(request_overlay_info_cb), target_color_space, video_decoders);
+#endif  // BUILDFLAG(ENABLE_MOJO_VIDEO_DECODER)
 }
 
 }  // namespace media

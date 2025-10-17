@@ -8,9 +8,8 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
-
-#include "base/strings/string_piece.h"
 
 namespace extensions {
 
@@ -42,7 +41,7 @@ class FeatureProvider {
 
   // Directly get Features from the common FeatureProvider types.
   // Each is equivalent to GetByName('featuretype')->GetFeature(name).
-  // NOTE: These functions may return |nullptr| in case corresponding JSON file
+  // NOTE: These functions may return `nullptr` in case corresponding JSON file
   // got corrupted.
   static const Feature* GetAPIFeature(const std::string& name);
   static const Feature* GetManifestFeature(const std::string& name);
@@ -52,21 +51,21 @@ class FeatureProvider {
   // Returns the feature with the specified name.
   const Feature* GetFeature(const std::string& name) const;
 
-  // Returns the parent feature of |feature|, or null if there isn't one.
+  // Returns the parent feature of `feature`, or null if there isn't one.
   const Feature* GetParent(const Feature& feature) const;
 
-  // Returns the features inside the |parent| namespace, recursively.
+  // Returns the features inside the `parent` namespace, recursively.
   std::vector<const Feature*> GetChildren(const Feature& parent) const;
 
   // Returns a map containing all features described by this instance.
   // TODO(devlin): Rename this to be features().
   const FeatureMap& GetAllFeatures() const;
 
-  void AddFeature(base::StringPiece name, std::unique_ptr<Feature> feature);
+  void AddFeature(std::string_view name, std::unique_ptr<Feature> feature);
 
   // Takes ownership. Used in preference to unique_ptr variant to reduce size
   // of generated code.
-  void AddFeature(base::StringPiece name, Feature* feature);
+  void AddFeature(std::string_view name, Feature* feature);
 
  private:
   FeatureMap features_;

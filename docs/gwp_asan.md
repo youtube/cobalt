@@ -8,7 +8,8 @@ the error.
 It is also known by its recursive backronym, GWP-ASan Will Provide Allocation
 Sanity.
 
-To read a more in-depth explanation of GWP-ASan see [this post](https://sites.google.com/a/chromium.org/dev/Home/chromium-security/articles/gwp-asan).
+To read a more in-depth explanation of GWP-ASan see [this
+post](https://www.chromium.org/Home/chromium-security/articles/gwp-asan).
 
 ## Allocator
 
@@ -97,3 +98,38 @@ GWP-ASan exception.
 
 There is [not yet](https://crbug.com/910749) a way to inspect GWP-ASan data in
 a minidump (crash report) without access to Google's crash service.
+
+## Appendix: Probabilities
+
+The question "shall we enable GWP-ASan at all in this process?" is
+answered by
+
+`base::RandDouble()` &lt; `ProcessSamplingProbability` &times;
+`ProcessSamplingBoost2`
+
+where
+
+*   0.0 &le; `ProcessSamplingProbability` &le; 1.0,
+
+*   `ProcessSamplingBoost2` &ge; 1, and
+
+*   `base::RandDouble()` has range [0, 1).
+
+The question "on average, how many allocations shall occur before
+GWP-ASan takes a sample?" is answered by
+
+`AllocationSamplingMultiplier` &times; (`AllocationSamplingRange`
+&lowast;&lowast; `base::RandDouble()`)
+
+where
+
+*   `AllocationSamplingMultiplier` &ge; 1,
+
+*   `AllocationSamplingRange` &ge; 1, and
+
+*   the final expression is &lt; `max(size_t)`.
+
+As an example, on Linux, using the default parameters and
+`base::RandDouble() == 0.5`, we get
+
+1500 &times; (16 &lowast;&lowast; 0.5) = 6000

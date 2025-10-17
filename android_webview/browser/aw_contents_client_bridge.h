@@ -40,6 +40,7 @@ namespace android_webview {
 // indirect refs from the Application (via callbacks) and so can outlive
 // webview, this class notifies it before being destroyed and to nullify
 // any references.
+// Lifetime: WebView
 class AwContentsClientBridge {
  public:
   // Used to package up information needed by OnReceivedHttpError for transfer
@@ -97,6 +98,7 @@ class AwContentsClientBridge {
                                 bool has_user_gesture,
                                 bool is_redirect,
                                 bool is_outermost_main_frame,
+                                const net::HttpRequestHeaders& request_headers,
                                 bool* ignore_navigation);
 
   bool SendBrowseIntent(const std::u16string& url);
@@ -135,23 +137,17 @@ class AwContentsClientBridge {
 
   // Methods called from Java.
   void ProceedSslError(JNIEnv* env,
-                       const base::android::JavaRef<jobject>& obj,
                        jboolean proceed,
                        jint id);
   void ProvideClientCertificateResponse(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& object,
       jint request_id,
       const base::android::JavaRef<jobjectArray>& encoded_chain_ref,
       const base::android::JavaRef<jobject>& private_key_ref);
-  void ConfirmJsResult(JNIEnv*,
-                       const base::android::JavaRef<jobject>&,
-                       int id,
-                       const base::android::JavaRef<jstring>& prompt);
-  void CancelJsResult(JNIEnv*, const base::android::JavaRef<jobject>&, int id);
+  void ConfirmJsResult(JNIEnv*, int id, std::optional<std::u16string> prompt);
+  void CancelJsResult(JNIEnv*, int id);
 
   void TakeSafeBrowsingAction(JNIEnv*,
-                              const base::android::JavaRef<jobject>&,
                               int action,
                               bool reporting,
                               int request_id);

@@ -8,13 +8,13 @@
 #import <IOBluetooth/IOBluetooth.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 
-#include "base/mac/scoped_nsobject.h"
 #include "base/time/time.h"
 #include "device/bluetooth/bluetooth_device_mac.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
+@class BluetoothDeviceDisconnectListener;
 @class IOBluetoothDevice;
 
 namespace device {
@@ -22,7 +22,8 @@ namespace device {
 class BluetoothAdapterMac;
 class BluetoothUUID;
 
-class BluetoothClassicDeviceMac : public BluetoothDeviceMac {
+class DEVICE_BLUETOOTH_EXPORT BluetoothClassicDeviceMac
+    : public BluetoothDeviceMac {
  public:
   explicit BluetoothClassicDeviceMac(BluetoothAdapterMac* adapter,
                                      IOBluetoothDevice* device);
@@ -42,15 +43,14 @@ class BluetoothClassicDeviceMac : public BluetoothDeviceMac {
   uint16_t GetProductID() const override;
   uint16_t GetDeviceID() const override;
   uint16_t GetAppearance() const override;
-  absl::optional<std::string> GetName() const override;
+  std::optional<std::string> GetName() const override;
   bool IsPaired() const override;
   bool IsConnected() const override;
   bool IsGattConnected() const override;
   bool IsConnectable() const override;
   bool IsConnecting() const override;
-  UUIDSet GetUUIDs() const override;
-  absl::optional<int8_t> GetInquiryRSSI() const override;
-  absl::optional<int8_t> GetInquiryTxPower() const override;
+  std::optional<int8_t> GetInquiryRSSI() const override;
+  std::optional<int8_t> GetInquiryTxPower() const override;
   bool ExpectingPinCode() const override;
   bool ExpectingPasskey() const override;
   bool ExpectingConfirmation() const override;
@@ -79,15 +79,20 @@ class BluetoothClassicDeviceMac : public BluetoothDeviceMac {
 
   base::Time GetLastUpdateTime() const override;
 
+  void OnDeviceDisconnected();
+
   // Returns the Bluetooth address for the |device|. The returned address has a
   // normalized format (see below).
   static std::string GetDeviceAddress(IOBluetoothDevice* device);
   bool IsLowEnergyDevice() override;
+  IOBluetoothDevice* device() { return device_; }
+
+  void StartListeningDisconnectEvent();
 
  protected:
   // BluetoothDevice override
   void CreateGattConnectionImpl(
-      absl::optional<BluetoothUUID> service_uuid) override;
+      std::optional<BluetoothUUID> service_uuid) override;
   void DisconnectGatt() override;
 
  private:
@@ -98,7 +103,8 @@ class BluetoothClassicDeviceMac : public BluetoothDeviceMac {
   int GetHostTransmitPower(
       BluetoothHCITransmitPowerLevelType power_level_type) const;
 
-  base::scoped_nsobject<IOBluetoothDevice> device_;
+  IOBluetoothDevice* __strong device_;
+  BluetoothDeviceDisconnectListener* __strong disconnect_listener_;
 };
 
 }  // namespace device

@@ -16,14 +16,17 @@ import android.widget.RelativeLayout;
 import androidx.webkit.WebViewClientCompat;
 
 /**
- * This activity always has at most one live webview. Any previously exisisting
- * webview instance is destroyed first before creating a new one. This activity
- * is designed for testing create/destroy webview sequence, for catching potential
- * memory leaks and memory benchmarking.
+ * This activity always has at most one live webview. Any previously exisisting webview instance is
+ * destroyed first before creating a new one. This activity is designed for testing create/destroy
+ * webview sequence, for catching potential memory leaks and memory benchmarking.
  *
- * Note that this activity does not destroy any webviews in other activities. For
- * example launching TelemetryActivity followed by WebViewCreateDestroyActivity
- * will yield two webview instances in total.
+ * <p>If no URL is given in the intent launching the activity then any existing WebView will be
+ * destroyed but no new WebView will be created, to allow examining memory usage in the zero-WebView
+ * state.
+ *
+ * <p>Note that this activity does not destroy any webviews in other activities. For example
+ * launching TelemetryActivity followed by WebViewCreateDestroyActivity will yield two webview
+ * instances in total.
  */
 public class WebViewCreateDestroyActivity extends Activity {
     @SuppressLint("StaticFieldLeak")
@@ -39,22 +42,24 @@ public class WebViewCreateDestroyActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_empty);
-        getWindow().setTitle(
-                getResources().getString(R.string.title_activity_create_destroy));
+        getWindow().setTitle(getResources().getString(R.string.title_activity_create_destroy));
         onNewIntent(getIntent());
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         destroyWebViewIfExists();
-        openUsingNewWebView(intent);
+        String url = getUrlFromIntent(intent);
+        if (url != null) {
+            openUsingNewWebView(url);
+        }
     }
 
-    private void openUsingNewWebView(Intent intent) {
+    private void openUsingNewWebView(String url) {
         sWebView = new WebView(this);
         sWebView.setLayoutParams(
-                new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.emptyview);
         layout.addView(sWebView);
 
@@ -63,16 +68,16 @@ public class WebViewCreateDestroyActivity extends Activity {
         webSettings.setUseWideViewPort(true);
         webSettings.setLoadWithOverviewMode(true);
 
-        sWebView.setWebViewClient(new WebViewClientCompat() {
-            @SuppressWarnings("deprecation") // because we support api level 19 and up.
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return false;
-            }
-        });
+        sWebView.setWebViewClient(
+                new WebViewClientCompat() {
+                    @SuppressWarnings("deprecation") // because we support api level 19 and up.
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                        return false;
+                    }
+                });
 
-        String url = getUrlFromIntent(intent);
-        sWebView.loadUrl(url == null ? "about:blank" : url);
+        sWebView.loadUrl(url);
     }
 
     private void destroyWebViewIfExists() {

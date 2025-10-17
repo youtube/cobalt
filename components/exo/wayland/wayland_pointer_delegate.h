@@ -42,7 +42,7 @@ class WaylandPointerDelegate : public WaylandInputDelegate,
   void OnPointerScroll(base::TimeTicks time_stamp,
                        const gfx::Vector2dF& offset,
                        bool discrete) override;
-  void OnPointerScrollStop(base::TimeTicks time_stamp) override;
+  void OnFingerScrollStop(base::TimeTicks time_stamp) override;
   void OnPointerFrame() override;
 
  private:
@@ -50,10 +50,10 @@ class WaylandPointerDelegate : public WaylandInputDelegate,
   wl_client* client() const;
 
   // The pointer resource associated with the pointer.
-  const raw_ptr<wl_resource, ExperimentalAsh> pointer_resource_;
+  const raw_ptr<wl_resource> pointer_resource_;
 
   // Owned by Server, which always outlives this delegate.
-  const raw_ptr<SerialTracker, ExperimentalAsh> serial_tracker_;
+  const raw_ptr<SerialTracker> serial_tracker_;
 };
 
 }  // namespace wayland

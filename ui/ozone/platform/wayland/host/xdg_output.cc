@@ -6,61 +6,38 @@
 
 #include <xdg-output-unstable-v1-client-protocol.h>
 
+#include "ui/ozone/platform/wayland/common/wayland_util.h"
 #include "ui/ozone/platform/wayland/host/wayland_output.h"
 
 namespace ui {
 
 XDGOutput::XDGOutput(zxdg_output_v1* xdg_output) : xdg_output_(xdg_output) {
-  static const zxdg_output_v1_listener listener = {
-      &XDGOutput::OutputHandleLogicalPosition,
-      &XDGOutput::OutputHandleLogicalSize,
-      &XDGOutput::OutputHandleDone,
-      &XDGOutput::OutputHandleName,
-      &XDGOutput::OutputHandleDescription,
-  };
   // Can be nullptr in tests.
-  if (xdg_output_)
-    zxdg_output_v1_add_listener(xdg_output_.get(), &listener, this);
+  if (xdg_output_) {
+    static constexpr zxdg_output_v1_listener kXdgOutputListener = {
+        .logical_position = &OnLogicalPosition,
+        .logical_size = &OnLogicalSize,
+        .done = &OnDone,
+        .name = &OnName,
+        .description = &OnDescription,
+    };
+    zxdg_output_v1_add_listener(xdg_output_.get(), &kXdgOutputListener, this);
+  }
 }
 
 XDGOutput::~XDGOutput() = default;
-
-// static
-void XDGOutput::OutputHandleLogicalPosition(
-    void* data,
-    struct zxdg_output_v1* zxdg_output_v1,
-    int32_t x,
-    int32_t y) {
-  if (XDGOutput* xdg_output = static_cast<XDGOutput*>(data))
-    xdg_output->logical_position_ = gfx::Point(x, y);
-}
-
-// static
-void XDGOutput::OutputHandleLogicalSize(void* data,
-                                        struct zxdg_output_v1* zxdg_output_v1,
-                                        int32_t width,
-                                        int32_t height) {
-  if (XDGOutput* xdg_output = static_cast<XDGOutput*>(data))
-    xdg_output->logical_size_ = gfx::Size(width, height);
-}
-
-// static
-void XDGOutput::OutputHandleDone(void* data,
-                                 struct zxdg_output_v1* zxdg_output_v1) {
-  // deprecated since version 3
-}
 
 bool XDGOutput::IsReady() const {
   return is_ready_;
 }
 
-void XDGOutput::OnDone() {
+void XDGOutput::HandleDone() {
   // If `logical_size` has been set the server must have propagated all the
   // necessary state events for this xdg_output.
   is_ready_ = !logical_size_.IsEmpty();
 }
 
-void XDGOutput::UpdateMetrics(bool surface_submission_in_pixel_coordinates,
+void XDGOutput::UpdateMetrics(bool compute_scale_from_size,
                               WaylandOutput::Metrics& metrics) {
   if (!IsReady()) {
     return;
@@ -80,33 +57,74 @@ void XDGOutput::UpdateMetrics(bool surface_submission_in_pixel_coordinates,
   }
 
   const gfx::Size logical_size = logical_size_;
-  if (surface_submission_in_pixel_coordinates && !logical_size.IsEmpty()) {
-    const gfx::Size physical_size = metrics.physical_size;
-    DCHECK(!physical_size.IsEmpty());
+  const gfx::Size physical_size = metrics.physical_size;
+  DCHECK(!physical_size.IsEmpty());
+
+  // As per xdg-ouput spec, compositors not scaling the monitor viewport in its
+  // compositing space will advertise logical size equal to the physical size
+  // (coming from current wl_output's mode info), in which case wl_output's
+  // scale must be used. Mutter, for example, when running with its logical
+  // monitor layout mode disabled, reports the same value for both logical and
+  // physical size even for scales other than 1, which is considered
+  // spec-compliant and has been similarly worked around in toolkits like GTK.
+  // See https://gitlab.gnome.org/GNOME/mutter/-/issues/2631 for more details.
+  //
+  // TODO(crbug.com/336007385): Deriving display scale from xdg-ouput logical
+  // size has been considered hacky and bug-prone, eg: rounding issues, as the
+  // rounding algorithm used by compositors is unspecified. wp-fractional-scale
+  // should be used instead as the long term solution, though it requires
+  // broader refactor in how scales are assigned to browser windows.
+  compute_scale_from_size &=
+      (!logical_size.IsEmpty() && logical_size != physical_size);
+  if (compute_scale_from_size) {
     const float max_physical_side =
         std::max(physical_size.width(), physical_size.height());
     const float max_logical_side =
         std::max(logical_size.width(), logical_size.height());
-    metrics.scale_factor = max_physical_side / max_logical_side;
+    // The scale needs to be clamped here in the same way as in other wayland
+    // code, e.g. 'WaylandSurface::GetWaylandScale()'.
+    metrics.scale_factor = wl::ClampScale(max_physical_side / max_logical_side);
   }
 }
 
 // static
-void XDGOutput::OutputHandleName(void* data,
-                                 struct zxdg_output_v1* zxdg_output_v1,
-                                 const char* name) {
-  if (XDGOutput* xdg_output = static_cast<XDGOutput*>(data)) {
-    xdg_output->name_ = name ? std::string(name) : std::string();
+void XDGOutput::OnLogicalPosition(void* data,
+                                  zxdg_output_v1* output,
+                                  int32_t x,
+                                  int32_t y) {
+  if (auto* self = static_cast<XDGOutput*>(data)) {
+    self->logical_position_ = gfx::Point(x, y);
   }
 }
 
 // static
-void XDGOutput::OutputHandleDescription(void* data,
-                                        struct zxdg_output_v1* zxdg_output_v1,
-                                        const char* description) {
-  if (XDGOutput* xdg_output = static_cast<XDGOutput*>(data)) {
-    xdg_output->description_ =
-        description ? std::string(description) : std::string();
+void XDGOutput::OnLogicalSize(void* data,
+                              zxdg_output_v1* output,
+                              int32_t width,
+                              int32_t height) {
+  if (auto* self = static_cast<XDGOutput*>(data)) {
+    self->logical_size_ = gfx::Size(width, height);
+  }
+}
+
+// static
+void XDGOutput::OnDone(void* data, zxdg_output_v1* output) {
+  // deprecated since version 3
+}
+
+// static
+void XDGOutput::OnName(void* data, zxdg_output_v1* output, const char* name) {
+  if (auto* self = static_cast<XDGOutput*>(data)) {
+    self->name_ = name ? std::string(name) : std::string();
+  }
+}
+
+// static
+void XDGOutput::OnDescription(void* data,
+                              zxdg_output_v1* output,
+                              const char* description) {
+  if (auto* self = static_cast<XDGOutput*>(data)) {
+    self->description_ = description ? std::string(description) : std::string();
   }
 }
 

@@ -16,10 +16,10 @@
 
 -- Create a track for process OOM scores.
 DROP VIEW IF EXISTS oom_score_span;
-CREATE VIEW oom_score_span AS
+CREATE PERFETTO VIEW oom_score_span AS
 SELECT
   ts,
-  LEAD(ts, 1, (SELECT end_ts + 1 FROM trace_bounds))
+  LEAD(ts, 1, trace_end() + 1)
   OVER(PARTITION BY track_id ORDER BY ts) - ts AS dur,
   upid,
   CAST(value AS INT) AS oom_score_val

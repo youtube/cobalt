@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/json_web_key.h"
 
 #include <stddef.h>
@@ -13,7 +18,7 @@
 
 // For disabling noisy logging.
 struct Environment {
-  Environment() { logging::SetMinLogLevel(logging::LOG_FATAL); }
+  Environment() { logging::SetMinLogLevel(logging::LOGGING_FATAL); }
 };
 
 Environment* env = new Environment();

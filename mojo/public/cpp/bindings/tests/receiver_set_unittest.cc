@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "mojo/public/cpp/bindings/receiver_set.h"
+
 #include <memory>
 #include <utility>
 
@@ -10,16 +12,23 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
-#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/tests/bindings_test_base.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "mojo/public/cpp/system/functions.h"
-#include "mojo/public/interfaces/bindings/tests/ping_service.mojom.h"
-#include "mojo/public/interfaces/bindings/tests/test_associated_interfaces.mojom.h"
+#include "mojo/public/interfaces/bindings/tests/ping_service.test-mojom.h"
+#include "mojo/public/interfaces/bindings/tests/test_associated_interfaces.test-mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace mojo {
 namespace test {
+
+class ReceiverSetStaticAssertTests {
+  // The receiver entry in a receiver set with no context should be the same
+  // size as a regular receiver + one machine word for the vtable.
+  static_assert(sizeof(Receiver<PingService>) + sizeof(void*) ==
+                sizeof(ReceiverSet<PingService>::ReceiverEntry));
+};
+
 namespace {
 
 using ReceiverSetTest = BindingsTestBase;
@@ -191,6 +200,37 @@ TEST_P(ReceiverSetTest, ReceiverSetMutableContext) {
     ping_b->Ping(loop.QuitClosure());
     loop.Run();
   }
+}
+
+TEST_P(ReceiverSetTest, ReceiverSetGetContext) {
+  PingImpl impl;
+
+  ReceiverSet<PingService, int> receivers;
+  Remote<PingService> ping_a, ping_b;
+  ReceiverId receiver_a =
+      receivers.Add(&impl, ping_a.BindNewPipeAndPassReceiver(), 1);
+  ReceiverId receiver_b =
+      receivers.Add(&impl, ping_b.BindNewPipeAndPassReceiver(), 2);
+
+  EXPECT_EQ(1, *receivers.GetContext(receiver_a));
+  EXPECT_EQ(2, *receivers.GetContext(receiver_b));
+  EXPECT_EQ(nullptr, receivers.GetContext(receiver_b + 1));
+}
+
+TEST_P(ReceiverSetTest, ReceiverSetGetAllContexts) {
+  PingImpl impl;
+
+  ReceiverSet<PingService, int> receivers;
+  Remote<PingService> ping_a, ping_b;
+  ReceiverId receiver_a =
+      receivers.Add(&impl, ping_a.BindNewPipeAndPassReceiver(), 1);
+  ReceiverId receiver_b =
+      receivers.Add(&impl, ping_b.BindNewPipeAndPassReceiver(), 2);
+
+  std::map<ReceiverId, int*> contexts = receivers.GetAllContexts();
+  EXPECT_EQ(2u, contexts.size());
+  EXPECT_EQ(1, *contexts[receiver_a]);
+  EXPECT_EQ(2, *contexts[receiver_b]);
 }
 
 TEST_P(ReceiverSetTest, ReceiverSetDispatchReceiver) {

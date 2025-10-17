@@ -38,10 +38,10 @@ class AmpPageLoadMetricsBrowserTest : public InProcessBrowserTest,
   AmpPageLoadMetricsBrowserTest& operator=(
       const AmpPageLoadMetricsBrowserTest&) = delete;
 
-  ~AmpPageLoadMetricsBrowserTest() override {}
+  ~AmpPageLoadMetricsBrowserTest() override = default;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     InProcessBrowserTest::SetUp();
   }
 
@@ -75,7 +75,7 @@ class AmpPageLoadMetricsBrowserTest : public InProcessBrowserTest,
   void ExpectMetricValueForUrl(const GURL& url,
                                const char* metric_name,
                                const int expected_value) {
-    for (auto* entry :
+    for (const ukm::mojom::UkmEntry* entry :
          test_ukm_recorder_->GetEntriesByName(UkmEntry::kEntryName)) {
       auto* source = test_ukm_recorder_->GetSourceForSourceId(entry->source_id);
       if (source && source->url() == url) {
@@ -89,7 +89,7 @@ class AmpPageLoadMetricsBrowserTest : public InProcessBrowserTest,
                                const char* metric_name,
                                const int expected_count) {
     int count = 0;
-    for (auto* entry :
+    for (const ukm::mojom::UkmEntry* entry :
          test_ukm_recorder_->GetEntriesByName(UkmEntry::kEntryName)) {
       auto* source = test_ukm_recorder_->GetSourceForSourceId(entry->source_id);
       if (source && source->url() == url &&
@@ -195,7 +195,7 @@ class AmpPageLoadMetricsFencedFrameBrowserTest
 };
 
 // Currently, prerendering doesn't support FencedFrames.
-// TODO(crbug.com/1335481): Add a test with prerendering.
+// TODO(crbug.com/40228553): Add a test with prerendering.
 IN_PROC_BROWSER_TEST_F(AmpPageLoadMetricsFencedFrameBrowserTest,
                        AmpFencedFrame) {
   GURL url = https_test_server()->GetURL("/english_page.html");

@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/filters/ffmpeg_h264_to_annex_b_bitstream_converter.h"
+
 #include <stdint.h>
 
+#include "base/compiler_specific.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/scoped_av_packet.h"
-#include "media/filters/ffmpeg_h264_to_annex_b_bitstream_converter.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -14,7 +16,13 @@ namespace media {
 // Test data arrays.
 static const uint8_t kHeaderDataOkWithFieldLen4[] = {
     0x01, 0x42, 0x00, 0x28, 0xFF, 0xE1, 0x00, 0x08, 0x67, 0x42, 0x00, 0x28,
-    0xE9, 0x05, 0x89, 0xC8, 0x01, 0x00, 0x04, 0x68, 0xCE, 0x06, 0xF2, 0x00};
+    0xE9, 0x05, 0x89, 0xC8, 0x01, 0x00, 0x04, 0x68, 0xCE, 0x06, 0xF2};
+
+// SPS and PPS have trailing null bytes.
+static const uint8_t kHeaderDataTrailingNullsWithFieldLen4[] = {
+    0x01, 0x42, 0x00, 0x28, 0xFF, 0xE1, 0x00, 0x09, 0x67,
+    0x42, 0x00, 0x28, 0xE9, 0x05, 0x89, 0xC8, 0x00, 0x01,
+    0x00, 0x05, 0x68, 0xCE, 0x06, 0xF2, 0x00};
 
 static const uint8_t kPacketDataOkWithFieldLen4[] = {
     0x00, 0x00, 0x0B, 0xF7, 0x65, 0xB8, 0x40, 0x57, 0x0B, 0xF0, 0xDF, 0xF8,
@@ -281,7 +289,7 @@ class FFmpegH264ToAnnexBBitstreamConverterTest : public testing::Test {
     // Set up AVCConfigurationRecord correctly for tests.
     // It's ok to do const cast here as data in kHeaderDataOkWithFieldLen4 is
     // never written to.
-    memset(&test_parameters_, 0, sizeof(AVCodecParameters));
+    UNSAFE_TODO(memset(&test_parameters_, 0, sizeof(AVCodecParameters)));
     test_parameters_.extradata =
         const_cast<uint8_t*>(kHeaderDataOkWithFieldLen4);
     test_parameters_.extradata_size = sizeof(kHeaderDataOkWithFieldLen4);
@@ -295,7 +303,7 @@ class FFmpegH264ToAnnexBBitstreamConverterTest : public testing::Test {
   void CreatePacket(AVPacket* packet, const uint8_t* data, uint32_t data_size) {
     // Create new packet sized of |data_size| from |data|.
     EXPECT_EQ(av_new_packet(packet, data_size), 0);
-    memcpy(packet->data, data, data_size);
+    UNSAFE_TODO(memcpy(packet->data, data, data_size));
   }
 
   // Variable to hold valid dummy parameters for testing.
@@ -321,9 +329,9 @@ TEST_F(FFmpegH264ToAnnexBBitstreamConverterTest, Conversion_SuccessBigPacket) {
 
   // Create new packet with 1000 excess bytes.
   auto test_packet = ScopedAVPacket::Allocate();
-  static uint8_t excess_data[sizeof(kPacketDataOkWithFieldLen4) + 1000] = {0};
-  memcpy(excess_data, kPacketDataOkWithFieldLen4,
-         sizeof(kPacketDataOkWithFieldLen4));
+  static uint8_t excess_data[sizeof(kPacketDataOkWithFieldLen4) + 1000] = {};
+  UNSAFE_TODO(memcpy(excess_data, kPacketDataOkWithFieldLen4,
+                     sizeof(kPacketDataOkWithFieldLen4)));
   CreatePacket(test_packet.get(), excess_data, sizeof(excess_data));
 
   // Try out the actual conversion (should be successful and allocate new
@@ -333,7 +341,7 @@ TEST_F(FFmpegH264ToAnnexBBitstreamConverterTest, Conversion_SuccessBigPacket) {
   // Converter will be automatically cleaned up.
 }
 
-TEST_F(FFmpegH264ToAnnexBBitstreamConverterTest, Conversion_FailureNullParams) {
+TEST_F(FFmpegH264ToAnnexBBitstreamConverterTest, Conversion_SuccessNullParams) {
   // Set up AVCConfigurationRecord to represent NULL data.
   AVCodecParameters dummy_parameters;
   dummy_parameters.extradata = nullptr;
@@ -349,9 +357,38 @@ TEST_F(FFmpegH264ToAnnexBBitstreamConverterTest, Conversion_FailureNullParams) {
                sizeof(kPacketDataOkWithFieldLen4));
 
   // Try out the actual conversion. This should fail due to missing extradata.
-  EXPECT_FALSE(converter.ConvertPacket(test_packet.get()));
+  auto* packet_data = test_packet->data;
+  EXPECT_TRUE(converter.ConvertPacket(test_packet.get()));
+  EXPECT_EQ(static_cast<size_t>(test_packet->size),
+            sizeof(kPacketDataOkWithFieldLen4));
+  EXPECT_EQ(test_packet->data, packet_data);
 
   // Converter will be automatically cleaned up.
+}
+
+TEST_F(FFmpegH264ToAnnexBBitstreamConverterTest,
+       Conversion_SuccessTrailingNulls) {
+  // Convert using the standard configuration to find the expected size.
+  FFmpegH264ToAnnexBBitstreamConverter converter(&test_parameters_);
+  auto expected_packet = ScopedAVPacket::Allocate();
+  CreatePacket(expected_packet.get(), kPacketDataOkWithFieldLen4,
+               sizeof(kPacketDataOkWithFieldLen4));
+  EXPECT_TRUE(converter.ConvertPacket(expected_packet.get()));
+
+  // Convert using the trailing nulls configuration.
+  AVCodecParameters parameters;
+  parameters.extradata =
+      const_cast<uint8_t*>(kHeaderDataTrailingNullsWithFieldLen4);
+  parameters.extradata_size = sizeof(kHeaderDataTrailingNullsWithFieldLen4);
+  FFmpegH264ToAnnexBBitstreamConverter test_converter(&parameters);
+
+  auto test_packet = ScopedAVPacket::Allocate();
+  CreatePacket(test_packet.get(), kPacketDataOkWithFieldLen4,
+               sizeof(kPacketDataOkWithFieldLen4));
+  EXPECT_TRUE(test_converter.ConvertPacket(test_packet.get()));
+
+  // The converted packets should be the same.
+  EXPECT_EQ(expected_packet->size, test_packet->size);
 }
 
 }  // namespace media

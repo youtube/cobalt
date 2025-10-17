@@ -30,14 +30,11 @@
 
 #include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
 
+#include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/renderer/core/timing/performance_timing_for_reporting.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 
 namespace blink {
-
-static double MillisecondsToSeconds(uint64_t milliseconds) {
-  return static_cast<double>(milliseconds / 1000.0);
-}
 
 void WebPerformanceMetricsForReporting::Reset() {
   private_.Reset();
@@ -60,11 +57,10 @@ WebNavigationType WebPerformanceMetricsForReporting::GetNavigationType() const {
       return kWebNavigationTypeOther;
   }
   NOTREACHED();
-  return kWebNavigationTypeOther;
 }
 
 double WebPerformanceMetricsForReporting::NavigationStart() const {
-  return MillisecondsToSeconds(private_->timing()->navigationStart());
+  return base::Milliseconds(private_->timing()->navigationStart()).InSecondsF();
 }
 
 base::TimeTicks
@@ -78,16 +74,17 @@ WebPerformanceMetricsForReporting::BackForwardCacheRestore() const {
       restore_timings =
           private_->timingForReporting()->BackForwardCacheRestore();
 
-  WebVector<BackForwardCacheRestoreTiming> timings(restore_timings.size());
+  std::vector<BackForwardCacheRestoreTiming> timings(restore_timings.size());
   for (wtf_size_t i = 0; i < restore_timings.size(); i++) {
     timings[i].navigation_start =
-        MillisecondsToSeconds(restore_timings[i].navigation_start);
+        base::Milliseconds(restore_timings[i].navigation_start).InSecondsF();
     timings[i].first_paint =
-        MillisecondsToSeconds(restore_timings[i].first_paint);
+        base::Milliseconds(restore_timings[i].first_paint).InSecondsF();
     for (wtf_size_t j = 0;
          j < restore_timings[i].request_animation_frames.size(); j++) {
       timings[i].request_animation_frames[j] =
-          MillisecondsToSeconds(restore_timings[i].request_animation_frames[j]);
+          base::Milliseconds(restore_timings[i].request_animation_frames[j])
+              .InSecondsF();
     }
     timings[i].first_input_delay = restore_timings[i].first_input_delay;
   }
@@ -95,44 +92,64 @@ WebPerformanceMetricsForReporting::BackForwardCacheRestore() const {
 }
 
 double WebPerformanceMetricsForReporting::InputForNavigationStart() const {
-  return MillisecondsToSeconds(private_->timingForReporting()->inputStart());
+  return base::Milliseconds(private_->timingForReporting()->inputStart())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::ResponseStart() const {
-  return MillisecondsToSeconds(private_->timing()->responseStart());
+  return base::Milliseconds(private_->timing()->responseStart()).InSecondsF();
+}
+
+double WebPerformanceMetricsForReporting::DomainLookupStart() const {
+  return base::Milliseconds(private_->timing()->domainLookupStart())
+      .InSecondsF();
+}
+
+double WebPerformanceMetricsForReporting::DomainLookupEnd() const {
+  return base::Milliseconds(private_->timing()->domainLookupEnd()).InSecondsF();
+}
+
+double WebPerformanceMetricsForReporting::ConnectStart() const {
+  return base::Milliseconds(private_->timing()->connectStart()).InSecondsF();
+}
+
+double WebPerformanceMetricsForReporting::ConnectEnd() const {
+  return base::Milliseconds(private_->timing()->connectEnd()).InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::DomContentLoadedEventStart() const {
-  return MillisecondsToSeconds(
-      private_->timing()->domContentLoadedEventStart());
+  return base::Milliseconds(private_->timing()->domContentLoadedEventStart())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::DomContentLoadedEventEnd() const {
-  return MillisecondsToSeconds(private_->timing()->domContentLoadedEventEnd());
+  return base::Milliseconds(private_->timing()->domContentLoadedEventEnd())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::LoadEventStart() const {
-  return MillisecondsToSeconds(private_->timing()->loadEventStart());
+  return base::Milliseconds(private_->timing()->loadEventStart()).InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::LoadEventEnd() const {
-  return MillisecondsToSeconds(private_->timing()->loadEventEnd());
+  return base::Milliseconds(private_->timing()->loadEventEnd()).InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::FirstPaint() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->FirstPaintForMetrics());
+  return base::Milliseconds(
+             private_->timingForReporting()->FirstPaintForMetrics())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::FirstImagePaint() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->FirstImagePaint());
+  return base::Milliseconds(private_->timingForReporting()->FirstImagePaint())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::FirstContentfulPaint() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()
-          ->FirstContentfulPaintIgnoringSoftNavigations());
+  return base::Milliseconds(private_->timingForReporting()
+                                ->FirstContentfulPaintIgnoringSoftNavigations())
+      .InSecondsF();
 }
 
 base::TimeTicks
@@ -148,175 +165,131 @@ base::TimeTicks WebPerformanceMetricsForReporting::
 }
 
 double WebPerformanceMetricsForReporting::FirstMeaningfulPaint() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->FirstMeaningfulPaint());
+  return base::Milliseconds(
+             private_->timingForReporting()->FirstMeaningfulPaint())
+      .InSecondsF();
 }
 
-double WebPerformanceMetricsForReporting::LargestImagePaintForMetrics() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->LargestImagePaintForMetrics());
+LargestContentfulPaintDetailsForReporting
+WebPerformanceMetricsForReporting::LargestContentfulDetailsForMetrics() const {
+  return (private_->timingForReporting()
+              ->LargestContentfulPaintDetailsForMetrics());
 }
 
-uint64_t WebPerformanceMetricsForReporting::LargestImagePaintSizeForMetrics()
-    const {
-  return private_->timingForReporting()->LargestImagePaintSizeForMetrics();
-}
-
-double WebPerformanceMetricsForReporting::LargestTextPaintForMetrics() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->LargestTextPaintForMetrics());
-}
-
-uint64_t WebPerformanceMetricsForReporting::LargestTextPaintSizeForMetrics()
-    const {
-  return private_->timingForReporting()->LargestTextPaintSizeForMetrics();
-}
-
-base::TimeTicks WebPerformanceMetricsForReporting::
-    LargestContentfulPaintAsMonotonicTimeForMetrics() const {
-  return private_->timingForReporting()
-      ->LargestContentfulPaintAsMonotonicTimeForMetrics();
-}
-
-blink::LargestContentfulPaintType
-WebPerformanceMetricsForReporting::LargestContentfulPaintTypeForMetrics()
-    const {
-  return private_->timingForReporting()->LargestContentfulPaintTypeForMetrics();
-}
-
-double
-WebPerformanceMetricsForReporting::LargestContentfulPaintImageBPPForMetrics()
-    const {
-  return private_->timingForReporting()
-      ->LargestContentfulPaintImageBPPForMetrics();
-}
-
-absl::optional<WebURLRequest::Priority> WebPerformanceMetricsForReporting::
-    LargestContentfulPaintImageRequestPriorityForMetrics() const {
-  return private_->timingForReporting()
-      ->LargestContentfulPaintImageRequestPriorityForMetrics();
-}
-
-absl::optional<base::TimeDelta>
-WebPerformanceMetricsForReporting::LargestContentfulPaintImageLoadStart()
-    const {
-  return private_->timingForReporting()->LargestContentfulPaintImageLoadStart();
-}
-
-absl::optional<base::TimeDelta>
-WebPerformanceMetricsForReporting::LargestContentfulPaintImageLoadEnd() const {
-  return private_->timingForReporting()->LargestContentfulPaintImageLoadEnd();
+LargestContentfulPaintDetailsForReporting WebPerformanceMetricsForReporting::
+    SoftNavigationLargestContentfulDetailsForMetrics() const {
+  return (private_->timingForReporting()
+              ->SoftNavigationLargestContentfulPaintDetailsForMetrics());
 }
 
 double WebPerformanceMetricsForReporting::FirstEligibleToPaint() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->FirstEligibleToPaint());
+  return base::Milliseconds(
+             private_->timingForReporting()->FirstEligibleToPaint())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::FirstInputOrScrollNotifiedTimestamp()
     const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->FirstInputOrScrollNotifiedTimestamp());
+  return base::Milliseconds(private_->timingForReporting()
+                                ->FirstInputOrScrollNotifiedTimestamp())
+      .InSecondsF();
 }
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::FirstInputDelay() const {
   return private_->timingForReporting()->FirstInputDelay();
 }
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::FirstInputTimestamp() const {
   return private_->timingForReporting()->FirstInputTimestamp();
 }
 
-absl::optional<base::TimeTicks>
+std::optional<base::TimeTicks>
 WebPerformanceMetricsForReporting::FirstInputTimestampAsMonotonicTime() const {
   return private_->timingForReporting()->FirstInputTimestampAsMonotonicTime();
 }
 
-absl::optional<base::TimeDelta>
-WebPerformanceMetricsForReporting::LongestInputDelay() const {
-  return private_->timingForReporting()->LongestInputDelay();
-}
-
-absl::optional<base::TimeDelta>
-WebPerformanceMetricsForReporting::LongestInputTimestamp() const {
-  return private_->timingForReporting()->LongestInputTimestamp();
-}
-
-absl::optional<base::TimeDelta>
-WebPerformanceMetricsForReporting::FirstInputProcessingTime() const {
-  return private_->timingForReporting()->FirstInputProcessingTime();
-}
-
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::FirstScrollDelay() const {
   return private_->timingForReporting()->FirstScrollDelay();
 }
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::FirstScrollTimestamp() const {
   return private_->timingForReporting()->FirstScrollTimestamp();
 }
 
 double WebPerformanceMetricsForReporting::ParseStart() const {
-  return MillisecondsToSeconds(private_->timingForReporting()->ParseStart());
+  return base::Milliseconds(private_->timingForReporting()->ParseStart())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::ParseStop() const {
-  return MillisecondsToSeconds(private_->timingForReporting()->ParseStop());
+  return base::Milliseconds(private_->timingForReporting()->ParseStop())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::ParseBlockedOnScriptLoadDuration()
     const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->ParseBlockedOnScriptLoadDuration());
+  return base::Milliseconds(
+             private_->timingForReporting()->ParseBlockedOnScriptLoadDuration())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::
     ParseBlockedOnScriptLoadFromDocumentWriteDuration() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()
-          ->ParseBlockedOnScriptLoadFromDocumentWriteDuration());
+  return base::Milliseconds(
+             private_->timingForReporting()
+                 ->ParseBlockedOnScriptLoadFromDocumentWriteDuration())
+      .InSecondsF();
 }
 
 double
 WebPerformanceMetricsForReporting::ParseBlockedOnScriptExecutionDuration()
     const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()->ParseBlockedOnScriptExecutionDuration());
+  return base::Milliseconds(private_->timingForReporting()
+                                ->ParseBlockedOnScriptExecutionDuration())
+      .InSecondsF();
 }
 
 double WebPerformanceMetricsForReporting::
     ParseBlockedOnScriptExecutionFromDocumentWriteDuration() const {
-  return MillisecondsToSeconds(
-      private_->timingForReporting()
-          ->ParseBlockedOnScriptExecutionFromDocumentWriteDuration());
+  return base::Milliseconds(
+             private_->timingForReporting()
+                 ->ParseBlockedOnScriptExecutionFromDocumentWriteDuration())
+      .InSecondsF();
 }
 
-absl::optional<base::TimeTicks>
-WebPerformanceMetricsForReporting::LastPortalActivatedPaint() const {
-  return private_->timingForReporting()->LastPortalActivatedPaint();
-}
-
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::PrerenderActivationStart() const {
   return private_->timingForReporting()->PrerenderActivationStart();
 }
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::UserTimingMarkFullyLoaded() const {
   return private_->timingForReporting()->UserTimingMarkFullyLoaded();
 }
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::UserTimingMarkFullyVisible() const {
   return private_->timingForReporting()->UserTimingMarkFullyVisible();
 }
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 WebPerformanceMetricsForReporting::UserTimingMarkInteractive() const {
   return private_->timingForReporting()->UserTimingMarkInteractive();
+}
+
+std::optional<std::tuple<std::string, base::TimeDelta>>
+WebPerformanceMetricsForReporting::CustomUserTimingMark() const {
+  auto mark = private_->timingForReporting()->CustomUserTimingMark();
+  if (!mark) {
+    return std::nullopt;
+  }
+  const auto [name, start_time] = mark.value();
+
+  return std::make_tuple(name.Utf8(), start_time);
 }
 
 WebPerformanceMetricsForReporting::WebPerformanceMetricsForReporting(

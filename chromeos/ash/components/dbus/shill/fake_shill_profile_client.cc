@@ -134,6 +134,9 @@ void FakeShillProfileClient::DeleteEntry(const dbus::ObjectPath& profile_path,
     case FakeShillSimulatedResult::kTimeout:
       // No callbacks get executed and the caller should eventually timeout.
       return;
+    case FakeShillSimulatedResult::kInProgress:
+      // No callbacks get executed in this case.
+      return;
   }
 
   ProfileProperties* profile = GetProfile(profile_path);
@@ -273,7 +276,7 @@ base::Value::Dict FakeShillProfileClient::GetProfileProperties(
   return profile->properties.Clone();
 }
 
-absl::optional<base::Value::Dict> FakeShillProfileClient::GetService(
+std::optional<base::Value::Dict> FakeShillProfileClient::GetService(
     const std::string& service_path,
     std::string* profile_path) {
   DCHECK(profile_path);
@@ -287,7 +290,7 @@ absl::optional<base::Value::Dict> FakeShillProfileClient::GetService(
     *profile_path = profile.profile_path;
     return entry->Clone();
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool FakeShillProfileClient::HasService(const std::string& service_path) {

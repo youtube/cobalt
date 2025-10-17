@@ -7,6 +7,7 @@
 
 #include "ash/public/cpp/ash_public_export.h"
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 
 namespace app_list_features {
@@ -28,13 +29,6 @@ ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kEnableExactMatchForNonLatinLocale);
 // suggestions.
 ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kForceShowContinueSection);
 
-// Enables iconified text and inline icons in launcher search.
-ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kSearchResultInlineIcon);
-
-// Enables a fling gesture or mouse scroll from the shelf to show the bubble
-// launcher.
-ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kQuickActionShowBubbleLauncher);
-
 // Enable shortened search result update animations when in progress animations
 // are interrupted by search model updates.
 ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kDynamicSearchUpdateAnimation);
@@ -42,8 +36,19 @@ ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kDynamicSearchUpdateAnimation);
 // Enables Play Store search in the launcher.
 ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kLauncherPlayStoreSearch);
 
-// Enables app list drag and drop refactor to use views drag and drop APIs.
-ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kDragAndDropRefactor);
+// Enables the Launcher Apps Collection UI in ChromeOS - a modular view with
+// different categories filled with predefined apps.
+ASH_PUBLIC_EXPORT BASE_DECLARE_FEATURE(kAppsCollections);
+
+// Whether the Apps Collections is enabled counterfactually as part of an
+// experiment arm.
+const base::FeatureParam<bool> kAppsCollectionsEnabledCounterfactually{
+    &kAppsCollections, "is-counterfactual", false};
+
+// Whether the Apps Collections is enabled counterfactually as part of an
+// experiment arm.
+const base::FeatureParam<bool> kAppsCollectionsEnabledWithModifiedOrder{
+    &kAppsCollections, "is-modified-order", false};
 
 ASH_PUBLIC_EXPORT bool IsAppReinstallZeroStateEnabled();
 ASH_PUBLIC_EXPORT bool IsAppListLaunchRecordingEnabled();
@@ -51,12 +56,12 @@ ASH_PUBLIC_EXPORT bool IsExactMatchForNonLatinLocaleEnabled();
 ASH_PUBLIC_EXPORT bool IsForceShowContinueSectionEnabled();
 ASH_PUBLIC_EXPORT bool IsAggregatedMlSearchRankingEnabled();
 ASH_PUBLIC_EXPORT bool IsLauncherSearchNormalizationEnabled();
-ASH_PUBLIC_EXPORT bool IsSearchResultInlineIconEnabled();
-ASH_PUBLIC_EXPORT bool IsQuickActionShowBubbleLauncherEnabled();
 ASH_PUBLIC_EXPORT bool IsDynamicSearchUpdateAnimationEnabled();
 ASH_PUBLIC_EXPORT base::TimeDelta DynamicSearchUpdateAnimationDuration();
 ASH_PUBLIC_EXPORT bool IsLauncherPlayStoreSearchEnabled();
-ASH_PUBLIC_EXPORT bool IsDragAndDropRefactorEnabled();
+ASH_PUBLIC_EXPORT bool IsAppsCollectionsEnabled();
+ASH_PUBLIC_EXPORT bool IsAppsCollectionsEnabledCounterfactually();
+ASH_PUBLIC_EXPORT bool IsAppsCollectionsEnabledWithModifiedOrder();
 
 }  // namespace app_list_features
 

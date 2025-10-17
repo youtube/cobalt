@@ -7,8 +7,10 @@
 #include <memory>
 
 #include "base/feature_list.h"
+#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_view_controller.h"
 #include "extensions/common/extension_features.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_tracker.h"
@@ -68,14 +70,17 @@ ExtensionsMenuCoordinator::CreateExtensionsMenuBubbleDialogDelegate(
   DCHECK(base::FeatureList::IsEnabled(
       extensions_features::kExtensionsMenuAccessControl));
   auto bubble_delegate = std::make_unique<views::BubbleDialogDelegate>(
-      anchor_view, views::BubbleBorder::TOP_RIGHT);
+      anchor_view, views::BubbleBorder::TOP_RIGHT,
+      views::BubbleBorder::DIALOG_SHADOW, /*autosize=*/true);
+  bubble_delegate->SetOwnedByWidget(
+      views::WidgetDelegate::OwnedByWidgetPassKey());
   bubble_delegate->set_margins(gfx::Insets(0));
   bubble_delegate->set_fixed_width(
       views::LayoutProvider::Get()->GetDistanceMetric(
-          views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
+          ChromeDistanceMetric::DISTANCE_EXTENSIONS_MENU_WIDTH));
   // Let anchor view's MenuButtonController handle the highlight.
   bubble_delegate->set_highlight_button_when_shown(false);
-  bubble_delegate->SetButtons(ui::DIALOG_BUTTON_NONE);
+  bubble_delegate->SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   bubble_delegate->SetEnableArrowKeyTraversal(true);
 
   auto* bubble_contents = bubble_delegate->SetContentsView(

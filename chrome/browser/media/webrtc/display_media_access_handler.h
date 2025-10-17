@@ -9,7 +9,6 @@
 
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/media/capture_access_handler_base.h"
 #include "chrome/browser/media/media_access_handler.h"
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
@@ -41,12 +40,12 @@ class DisplayMediaAccessHandler : public CaptureAccessHandlerBase,
   ~DisplayMediaAccessHandler() override;
 
   // MediaAccessHandler implementation.
-  bool SupportsStreamType(content::WebContents* web_contents,
+  bool SupportsStreamType(content::RenderFrameHost* render_frame_host,
                           const blink::mojom::MediaStreamType stream_type,
                           const extensions::Extension* extension) override;
   bool CheckMediaAccessPermission(
       content::RenderFrameHost* render_frame_host,
-      const GURL& security_origin,
+      const url::Origin& security_origin,
       blink::mojom::MediaStreamType type,
       const extensions::Extension* extension) override;
   void HandleRequest(content::WebContents* web_contents,
@@ -61,6 +60,15 @@ class DisplayMediaAccessHandler : public CaptureAccessHandlerBase,
 
  private:
   friend class DisplayMediaAccessHandlerTest;
+
+  void ShowMediaSelectionDialog(content::WebContents* web_contents,
+                                const content::MediaStreamRequest& request,
+                                content::MediaResponseCallback callback);
+
+  void BypassMediaSelectionDialog(content::WebContents* web_contents,
+                                  const content::MediaStreamRequest& request,
+                                  const content::DesktopMediaID& media_id,
+                                  content::MediaResponseCallback callback);
 
   void ProcessChangeSourceRequest(content::WebContents* web_contents,
                                   const content::MediaStreamRequest& request,

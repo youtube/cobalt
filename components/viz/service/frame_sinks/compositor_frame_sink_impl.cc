@@ -51,12 +51,10 @@ class BundleClientProxy : public mojom::CompositorFrameSinkClient {
 
   void OnBeginFrame(const BeginFrameArgs& args,
                     const FrameTimingDetailsMap& timing_details,
-                    bool frame_ack,
                     std::vector<ReturnedResource> resources) override {
     if (auto* bundle = GetBundle()) {
       bundle->EnqueueOnBeginFrame(frame_sink_id_.sink_id(), args,
-                                  timing_details, frame_ack,
-                                  std::move(resources));
+                                  timing_details, std::move(resources));
     }
   }
 
@@ -81,6 +79,8 @@ class BundleClientProxy : public mojom::CompositorFrameSinkClient {
     }
   }
 
+  void OnSurfaceEvicted(const LocalSurfaceId& local_surface_id) override {}
+
  private:
   FrameSinkBundleImpl* GetBundle() {
     return manager_->GetFrameSinkBundle(bundle_id_);
@@ -96,7 +96,7 @@ class BundleClientProxy : public mojom::CompositorFrameSinkClient {
 CompositorFrameSinkImpl::CompositorFrameSinkImpl(
     FrameSinkManagerImpl* frame_sink_manager,
     const FrameSinkId& frame_sink_id,
-    absl::optional<FrameSinkBundleId> bundle_id,
+    std::optional<FrameSinkBundleId> bundle_id,
     mojo::PendingReceiver<mojom::CompositorFrameSink> receiver,
     mojo::PendingRemote<mojom::CompositorFrameSinkClient> client)
     : compositor_frame_sink_client_(std::move(client)),
@@ -131,14 +131,14 @@ void CompositorFrameSinkImpl::SetWantsAnimateOnlyBeginFrames() {
   support_->SetWantsAnimateOnlyBeginFrames();
 }
 
-void CompositorFrameSinkImpl::SetWantsBeginFrameAcks() {
-  support_->SetWantsBeginFrameAcks();
+void CompositorFrameSinkImpl::SetAutoNeedsBeginFrame() {
+  support_->SetAutoNeedsBeginFrame();
 }
 
 void CompositorFrameSinkImpl::SubmitCompositorFrame(
     const LocalSurfaceId& local_surface_id,
     CompositorFrame frame,
-    absl::optional<HitTestRegionList> hit_test_region_list,
+    std::optional<HitTestRegionList> hit_test_region_list,
     uint64_t submit_time) {
   // Non-root surface frames should not have display transform hint.
   DCHECK_EQ(gfx::OVERLAY_TRANSFORM_NONE, frame.metadata.display_transform_hint);
@@ -150,7 +150,7 @@ void CompositorFrameSinkImpl::SubmitCompositorFrame(
 void CompositorFrameSinkImpl::SubmitCompositorFrameSync(
     const LocalSurfaceId& local_surface_id,
     CompositorFrame frame,
-    absl::optional<HitTestRegionList> hit_test_region_list,
+    std::optional<HitTestRegionList> hit_test_region_list,
     uint64_t submit_time,
     SubmitCompositorFrameSyncCallback callback) {
   SubmitCompositorFrameInternal(local_surface_id, std::move(frame),
@@ -161,7 +161,7 @@ void CompositorFrameSinkImpl::SubmitCompositorFrameSync(
 void CompositorFrameSinkImpl::SubmitCompositorFrameInternal(
     const LocalSurfaceId& local_surface_id,
     CompositorFrame frame,
-    absl::optional<HitTestRegionList> hit_test_region_list,
+    std::optional<HitTestRegionList> hit_test_region_list,
     uint64_t submit_time,
     mojom::CompositorFrameSink::SubmitCompositorFrameSyncCallback callback) {
   const auto result = support_->MaybeSubmitCompositorFrame(
@@ -176,27 +176,11 @@ void CompositorFrameSinkImpl::SubmitCompositorFrameInternal(
               << " because " << reason;
   compositor_frame_sink_receiver_.ResetWithReason(static_cast<uint32_t>(result),
                                                   reason);
-  OnClientConnectionLost();
 }
 
 void CompositorFrameSinkImpl::DidNotProduceFrame(
     const BeginFrameAck& begin_frame_ack) {
   support_->DidNotProduceFrame(begin_frame_ack);
-}
-
-void CompositorFrameSinkImpl::DidAllocateSharedBitmap(
-    base::ReadOnlySharedMemoryRegion region,
-    const SharedBitmapId& id) {
-  if (!support_->DidAllocateSharedBitmap(std::move(region), id)) {
-    DLOG(ERROR) << "DidAllocateSharedBitmap failed for duplicate "
-                << "SharedBitmapId";
-    compositor_frame_sink_receiver_.reset();
-    OnClientConnectionLost();
-  }
-}
-
-void CompositorFrameSinkImpl::DidDeleteSharedBitmap(const SharedBitmapId& id) {
-  support_->DidDeleteSharedBitmap(id);
 }
 
 void CompositorFrameSinkImpl::InitializeCompositorFrameSinkType(
@@ -205,15 +189,14 @@ void CompositorFrameSinkImpl::InitializeCompositorFrameSinkType(
 }
 
 void CompositorFrameSinkImpl::BindLayerContext(
-    mojom::PendingLayerContextPtr context) {
-  support_->BindLayerContext(*context);
+    mojom::PendingLayerContextPtr context,
+    bool draw_mode_is_gpu) {
+  support_->BindLayerContext(*context, draw_mode_is_gpu);
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void CompositorFrameSinkImpl::SetThreadIds(
-    const std::vector<int32_t>& thread_ids) {
-  support_->SetThreadIds(/*from_untrusted_client=*/true,
-                         base::MakeFlatSet<base::PlatformThreadId>(thread_ids));
+void CompositorFrameSinkImpl::SetThreads(const std::vector<Thread>& threads) {
+  support_->SetThreads(/*from_untrusted_client=*/true, threads);
 }
 #endif
 

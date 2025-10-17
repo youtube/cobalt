@@ -4,7 +4,22 @@
 
 #include "chrome/browser/performance_manager/user_tuning/user_performance_tuning_notifier.h"
 
+#include <algorithm>
+#include <iterator>
+#include <memory>
+#include <utility>
+
+#include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
+#include "components/performance_manager/graph/frame_node_impl.h"
+#include "components/performance_manager/graph/page_node_impl.h"
+#include "components/performance_manager/graph/system_node_impl.h"
+#include "components/performance_manager/public/decorators/process_metrics_decorator.h"
+#include "components/performance_manager/public/features.h"
+#include "components/performance_manager/public/graph/graph.h"
 #include "components/performance_manager/test_support/graph_test_harness.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace performance_manager::user_tuning {
 
@@ -21,18 +36,31 @@ class UserPerformanceTuningNotifierTest : public GraphTestHarness {
       ++memory_percent_threshold_reached_count_;
     }
 
-    void NotifyMemoryMetricsRefreshed() override { ++memory_refreshed_count_; }
-
     int tab_count_threshold_reached_count_ = 0;
     int memory_percent_threshold_reached_count_ = 0;
-    int memory_refreshed_count_ = 0;
+  };
+
+  class TestProcessMetricsDecorator : public ProcessMetricsDecorator {
+   public:
+    void RequestProcessesMemoryMetrics(
+        bool immediate_request,
+        ProcessMemoryDumpCallback callback) override {
+      if (immediate_request) {
+        ++request_immediate_metrics_count_;
+      }
+      ProcessMetricsDecorator::RequestProcessesMemoryMetrics(
+          immediate_request, std::move(callback));
+    }
+
+    int request_immediate_metrics_count_ = 0;
   };
 
   void SetUp() override {
     GraphTestHarness::SetUp();
 
-    graph()->PassToGraph(
-        std::make_unique<performance_manager::ProcessMetricsDecorator>());
+    auto decorator = std::make_unique<TestProcessMetricsDecorator>();
+    decorator_ = decorator.get();
+    graph()->PassToGraph(std::move(decorator));
 
     auto receiver = std::make_unique<TestReceiver>();
     receiver_ = receiver.get();
@@ -43,6 +71,7 @@ class UserPerformanceTuningNotifierTest : public GraphTestHarness {
     graph()->PassToGraph(std::move(notifier));
   }
 
+  raw_ptr<TestProcessMetricsDecorator> decorator_;
   raw_ptr<TestReceiver> receiver_;
 };
 
@@ -101,18 +130,4 @@ TEST_F(UserPerformanceTuningNotifierTest, TestMemoryThresholdTriggered) {
       ->OnProcessMemoryMetricsAvailable();
   EXPECT_EQ(1, receiver_->memory_percent_threshold_reached_count_);
 }
-
-TEST_F(UserPerformanceTuningNotifierTest, TestMemoryAvailableTriggered) {
-  // Memory Metrics are available
-  SystemNodeImpl::FromNode(graph()->GetSystemNode())
-      ->OnProcessMemoryMetricsAvailable();
-  EXPECT_EQ(1, receiver_->memory_refreshed_count_);
-
-  // When memory metrics are available again, the notifier should be
-  // triggered again
-  SystemNodeImpl::FromNode(graph()->GetSystemNode())
-      ->OnProcessMemoryMetricsAvailable();
-  EXPECT_EQ(2, receiver_->memory_refreshed_count_);
-}
-
 }  // namespace performance_manager::user_tuning

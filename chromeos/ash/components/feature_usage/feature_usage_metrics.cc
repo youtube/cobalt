@@ -4,6 +4,8 @@
 
 #include "chromeos/ash/components/feature_usage/feature_usage_metrics.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
@@ -17,7 +19,6 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::feature_usage {
 
@@ -32,8 +33,8 @@ std::string FeatureToHistogram(const std::string& feature_name) {
 
 }  // namespace
 
-absl::optional<bool> FeatureUsageMetrics::Delegate::IsAccessible() const {
-  return absl::nullopt;
+std::optional<bool> FeatureUsageMetrics::Delegate::IsAccessible() const {
+  return std::nullopt;
 }
 
 // First time periodic metrics are reported after 'kInitialInterval` time.
@@ -64,7 +65,7 @@ FeatureUsageMetrics::FeatureUsageMetrics(const std::string& feature_name,
   // Schedule the first run some time in the future to not overload startup
   // flow.
   SetupTimer(kInitialInterval);
-  base::PowerMonitor::AddPowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
 }
 
 void FeatureUsageMetrics::SetupTimer(base::TimeDelta delta) {
@@ -76,7 +77,7 @@ void FeatureUsageMetrics::SetupTimer(base::TimeDelta delta) {
 
 FeatureUsageMetrics::~FeatureUsageMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  base::PowerMonitor::RemovePowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
   MaybeReportUseTime();
 }
 
@@ -124,7 +125,7 @@ void FeatureUsageMetrics::StopSuccessfulUsage() {
 
 void FeatureUsageMetrics::OnSuspend() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  timer_.AbandonAndStop();
+  timer_.Stop();
   ReportPeriodicMetrics();
 }
 
@@ -164,7 +165,7 @@ void FeatureUsageMetrics::ReportPeriodicMetrics() {
   if (is_eligible)
     base::UmaHistogramEnumeration(histogram_name_, Event::kEligible);
 
-  absl::optional<bool> is_accessible = delegate_->IsAccessible();
+  std::optional<bool> is_accessible = delegate_->IsAccessible();
 
   if (is_accessible.has_value()) {
     // If accessible must be eligible.

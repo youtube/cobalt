@@ -6,11 +6,13 @@
 #define EXTENSIONS_BROWSER_UPDATER_EXTENSION_INSTALLER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "components/update_client/update_client.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
@@ -26,7 +28,7 @@ class ExtensionInstaller : public update_client::CrxInstaller {
   // A callback to implement the install of a new version of the extension.
   // Takes ownership of the directory at |unpacked_dir|.
   using ExtensionInstallerCallback = base::RepeatingCallback<void(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const std::string& public_key,
       const base::FilePath& unpacked_dir,
       bool install_immediately,
@@ -35,7 +37,7 @@ class ExtensionInstaller : public update_client::CrxInstaller {
   // This method takes the id and root directory for an extension we're doing
   // an update check for, as well as a callback to call if we get a new version
   // of it to install.
-  ExtensionInstaller(std::string extension_id,
+  ExtensionInstaller(ExtensionId extension_id,
                      const base::FilePath& extension_root,
                      bool install_immediately,
                      ExtensionInstallerCallback extension_installer_callback);
@@ -54,8 +56,8 @@ class ExtensionInstaller : public update_client::CrxInstaller {
                std::unique_ptr<InstallParams> install_params,
                ProgressCallback progress_callback,
                UpdateClientCallback update_client_callback) override;
-  bool GetInstalledFile(const std::string& file,
-                        base::FilePath* installed_file) override;
+  std::optional<base::FilePath> GetInstalledFile(
+      const std::string& file) override;
   bool Uninstall() override;
 
   // For unit tests.
@@ -65,7 +67,7 @@ class ExtensionInstaller : public update_client::CrxInstaller {
   friend class base::RefCountedThreadSafe<ExtensionInstaller>;
   ~ExtensionInstaller() override;
 
-  std::string extension_id_;
+  ExtensionId extension_id_;
   base::FilePath extension_root_;
   bool install_immediately_;
   ExtensionInstallerCallback extension_installer_callback_;

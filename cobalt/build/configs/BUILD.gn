@@ -21,6 +21,9 @@ config("cobalt_config") {
     ":default_includes",
     ":buildflag_defines",
   ]
+  if (enable_cobalt_hermetic_hacks) {
+    configs += [ ":no_mallinfo" ]
+  }
   if ((current_toolchain == starboard_toolchain &&
        starboard_toolchain != default_toolchain) ||
       current_toolchain == native_target) {
@@ -160,4 +163,8 @@ config("buildflag_defines") {
   if (build_base_with_cpp17) {
     defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
   }
+}
+
+config("no_mallinfo") {
+  defines = [ "__NO_MALLINFO__" ]
 }

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
+import {assert} from '//resources/js/assert.js';
+import {PromiseResolver} from '//resources/js/promise_resolver.js';
 
 /**
  * A base class for all test browser proxies to inherit from. Provides helper
@@ -63,11 +63,11 @@ export class TestBrowserProxy {
    * @param args Arguments to be forwarded to the testing code, useful for
    *     checking whether the proxy method was called with the expected
    *     arguments.
-   * @return If set the result registered via |setResult[Mapper]For|.
    */
-  methodCalled(methodName: string, ...args: any[]): any {
+  methodCalled(methodName: string, ...args: any[]): void {
+    // Tip: check that the |methodName| is being passed to |this.constructor|.
     const methodData = this.resolverMap_.get(methodName);
-    assert(methodData);
+    assert(methodData, `Method '${methodName}' not found in TestBrowserProxy.`);
     const storedArgs = args.length === 1 ? args[0] : args;
     methodData.args.push(storedArgs);
     this.resolverMap_.set(methodName, methodData);

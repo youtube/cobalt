@@ -5,86 +5,23 @@
 #include "services/accessibility/features/v8_manager.h"
 
 #include <memory>
-#include <vector>
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/callback_helpers.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "mojo/public/c/system/types.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
-#include "services/accessibility/features/mojo/test/test_api.test-mojom.h"
-#include "services/accessibility/public/mojom/accessibility_service.mojom-shared.h"
+#include "services/accessibility/features/mojo/test/js_test_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "v8_manager.h"
 
 namespace ax {
-
-// C++ implementation of the TestBindingInterface. The other end of the pipe is
-// held in Javascript.
-class TestBindingInterfaceImpl : public axtest::mojom::TestBindingInterface,
-                                 public InterfaceBinder {
- public:
-  explicit TestBindingInterfaceImpl(base::OnceCallback<void(bool)> on_complete)
-      : on_complete_(std::move(on_complete)), receiver_(this) {}
-  ~TestBindingInterfaceImpl() override = default;
-  TestBindingInterfaceImpl& operator=(const TestBindingInterfaceImpl&) = delete;
-  TestBindingInterfaceImpl(const TestBindingInterfaceImpl&) = delete;
-
-  // InterfaceBinder overrides:
-  void BindReceiver(mojo::GenericPendingReceiver pending_receiver) override {
-    auto receiver = pending_receiver.As<axtest::mojom::TestBindingInterface>();
-    receiver_.Bind(std::move(receiver));
-    receiver_.set_disconnect_handler(base::BindLambdaForTesting(
-        [this]() { std::move(on_complete_).Run(false); }));
-  }
-
-  bool MatchesInterface(const std::string& interface_name) override {
-    return interface_name == "axtest.mojom.TestBindingInterface";
-  }
-
-  // axtest::mojom::TestBindingInterface overrides:
-  void AddTestInterface(AddTestInterfaceCallback callback) override {
-    int index = test_interface_receivers_.size();
-    test_interface_receivers_.emplace_back();
-    auto pending_receiver =
-        test_interface_receivers_[index].BindNewPipeAndPassReceiver();
-    std::move(callback).Run(std::move(pending_receiver));
-  }
-
-  void GetTestStruct(int num,
-                     const std::string& name,
-                     GetTestStructCallback callback) override {
-    auto result = axtest::mojom::TestStruct::New();
-    result->is_structy = true;
-    // Modify the passed values a bit to ensure it's not just an echo.
-    result->num = num + 1;
-    result->name = name + " rocks";
-    std::move(callback).Run(std::move(result));
-  }
-
-  void SendEnumToTestInterface(axtest::mojom::TestEnum num) override {
-    for (auto& receiver : test_interface_receivers_) {
-      receiver->TestMethod(num);
-    }
-  }
-
-  void Disconnect() override { receiver_.reset(); }
-
-  void TestComplete(bool success) override {
-    std::move(on_complete_).Run(success);
-  }
-
- private:
-  base::OnceCallback<void(bool)> on_complete_;
-  mojo::Receiver<axtest::mojom::TestBindingInterface> receiver_;
-  std::vector<mojo::Remote<axtest::mojom::TestInterface>>
-      test_interface_receivers_;
-};
 
 class V8ManagerTest : public testing::Test {
  public:
@@ -99,7 +36,7 @@ class V8ManagerTest : public testing::Test {
     base::FilePath gen_test_data_root;
     base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT, &gen_test_data_root);
     base::FilePath source_path = gen_test_data_root.Append(FILE_PATH_LITERAL(
-        "gen/services/accessibility/features/mojo/test/mojom_test_support.js"));
+        "services/accessibility/features/mojo/test/mojom_test_support.js"));
     std::string script;
     EXPECT_TRUE(ReadFileToString(source_path, &script));
     return script;
@@ -107,22 +44,23 @@ class V8ManagerTest : public testing::Test {
 
   void RunJSMojoTest(const std::string& js_script) {
     base::RunLoop waiter;
-    std::unique_ptr<TestBindingInterfaceImpl> test_interface =
-        std::make_unique<TestBindingInterfaceImpl>(
+    std::unique_ptr<JSTestInterface> test_interface =
+        std::make_unique<JSTestInterface>(
             base::BindLambdaForTesting([&waiter](bool success) {
               EXPECT_TRUE(success) << "Mojo JS was not successful";
               waiter.Quit();
             }));
-    scoped_refptr<V8Manager> manager = V8Manager::Create();
-    manager->SetTestMojoInterface(std::move(test_interface));
-    manager->AddV8Bindings();
+    V8Manager manager;
+    manager.AddInterfaceForTest(std::move(test_interface));
+    manager.FinishContextSetUp();
 
     base::RunLoop script_waiter;
-    manager->ExecuteScript(GetMojoTestSupportJS(), script_waiter.QuitClosure());
+    manager.RunScriptForTest(GetMojoTestSupportJS(),
+                             script_waiter.QuitClosure());
     // Wait for the script to be executed.
     script_waiter.Run();
 
-    manager->ExecuteScript(js_script, base::DoNothing());
+    manager.RunScriptForTest(js_script, base::DoNothing());
     // Wait for the test mojom API testComplete method.
     waiter.Run();
   }
@@ -133,12 +71,12 @@ class V8ManagerTest : public testing::Test {
 
 // Test to execute Javascript that doesn't involve Mojo.
 TEST_F(V8ManagerTest, ExecutesSimpleScript) {
-  scoped_refptr<V8Manager> manager = V8Manager::Create();
-  manager->AddV8Bindings();
+  V8Manager manager;
+  manager.FinishContextSetUp();
   base::RunLoop script_waiter;
   // Test that this script compiles and runs. That indicates that
   // the atpconsole.log binding was added and that JS works in general.
-  manager->ExecuteScript(R"JS(
+  manager.RunScriptForTest(R"JS(
     const d = 22;
     var m = 1;
     let y = 1973;
@@ -146,19 +84,19 @@ TEST_F(V8ManagerTest, ExecutesSimpleScript) {
     // can be installed on the context.
     atpconsole.log('Green is the loneliest color');
   )JS",
-                         script_waiter.QuitClosure());
+                           script_waiter.QuitClosure());
   script_waiter.Run();
 }
 
 // Sanity check of TextEncoder/TextDecoder.
 TEST_F(V8ManagerTest, SanityCheckTextEncoder) {
-  scoped_refptr<V8Manager> manager = V8Manager::Create();
-  manager->AddV8Bindings();
+  V8Manager manager;
+  manager.FinishContextSetUp();
   base::RunLoop script_waiter;
   // Test that this script compiles and runs. That indicates there
   // is no issue creating and using TextEncoder/Decoder, but does
   // not verify that the values are as expected.
-  manager->ExecuteScript(R"JS(
+  manager.RunScriptForTest(R"JS(
     let encoder = new TextEncoder();
     let decoder = new TextDecoder();
     // With contents.
@@ -168,7 +106,7 @@ TEST_F(V8ManagerTest, SanityCheckTextEncoder) {
     encoded = encoder.encode('');
     response = decoder.decode(encoded);
   )JS",
-                         script_waiter.QuitClosure());
+                           script_waiter.QuitClosure());
   script_waiter.Run();
 }
 
@@ -196,18 +134,18 @@ TEST_F(V8ManagerTest, MAYBE_SanityCheckMojoBindings) {
 #endif  // BUILDFLAG(IS_FUCHSIA)
 TEST_F(V8ManagerTest, MAYBE_CheckMojoConstants) {
   base::RunLoop waiter;
-  std::unique_ptr<TestBindingInterfaceImpl> test_interface =
-      std::make_unique<TestBindingInterfaceImpl>(
+  std::unique_ptr<JSTestInterface> test_interface =
+      std::make_unique<JSTestInterface>(
           base::BindLambdaForTesting([&waiter](bool success) {
             EXPECT_TRUE(success) << "Mojo JS was not successful";
             waiter.Quit();
           }));
-  scoped_refptr<V8Manager> manager = V8Manager::Create();
-  manager->SetTestMojoInterface(std::move(test_interface));
-  manager->AddV8Bindings();
+  V8Manager manager;
+  manager.AddInterfaceForTest(std::move(test_interface));
+  manager.FinishContextSetUp();
 
   base::RunLoop script_waiter;
-  manager->ExecuteScript(GetMojoTestSupportJS(), script_waiter.QuitClosure());
+  manager.RunScriptForTest(GetMojoTestSupportJS(), script_waiter.QuitClosure());
   // Wait for the script to be executed.
   script_waiter.Run();
 
@@ -250,7 +188,7 @@ TEST_F(V8ManagerTest, MAYBE_CheckMojoConstants) {
       )JS",
                            test.name.c_str(), test.value);
     base::RunLoop test_waiter;
-    manager->ExecuteScript(script, test_waiter.QuitClosure());
+    manager.RunScriptForTest(script, test_waiter.QuitClosure());
     test_waiter.Run();
   }
 }
@@ -367,5 +305,70 @@ TEST_F(V8ManagerTest, MAYBE_MojoCancelBindings) {
     };
     new TestWrapper();)JS");
 }
+
+// TODO(b:262637071) Fails on Fuchsia due to ReadFileToString failing.
+#if BUILDFLAG(IS_FUCHSIA)
+#define MAYBE_ExecuteModuleWithImports DISABLED_ExecuteModuleWithImports
+#else
+#define MAYBE_ExecuteModuleWithImports ExecuteModuleWithImports
+#endif  // BUILDFLAG(IS_FUCHSIA)
+TEST_F(V8ManagerTest, MAYBE_ExecuteModuleWithImports) {
+  base::FilePath gen_test_data_root;
+  CHECK(base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT,
+                               &gen_test_data_root));
+  base::FilePath file_1_path = gen_test_data_root.Append(FILE_PATH_LITERAL(
+      "services/accessibility/features/mojo/test/test_api.test-mojom.m.js"));
+  base::File file1(file_1_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  ASSERT_TRUE(file1.IsValid());
+  base::FilePath file_2_path = gen_test_data_root.Append(FILE_PATH_LITERAL(
+      "services/accessibility/features/mojo/test/module_import.js"));
+  base::File file2(file_2_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  ASSERT_TRUE(file2.IsValid());
+
+  base::FilePath file_3_path = gen_test_data_root.Append(
+      FILE_PATH_LITERAL("mojo/public/js/bindings.js"));
+  base::File file3(file_3_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  ASSERT_TRUE(file3.IsValid());
+
+  base::RunLoop module_waiter;
+  std::unique_ptr<JSTestInterface> test_interface =
+      std::make_unique<JSTestInterface>(
+          base::BindLambdaForTesting([&module_waiter](bool success) {
+            EXPECT_TRUE(success) << "Mojo JS was not successful";
+            module_waiter.Quit();
+          }));
+  V8Manager manager;
+  manager.AddInterfaceForTest(std::move(test_interface));
+
+  // Important: files are added in fifo order (first file 2 will be evaluated
+  // which will request 1 and then 3).
+  manager.AddFileForTest(std::move(file2));
+  manager.AddFileForTest(std::move(file1));
+  manager.AddFileForTest(std::move(file3));
+  manager.FinishContextSetUp();
+  manager.ExecuteModule(file_2_path, base::DoNothing());
+  module_waiter.Run();
+}
+
+TEST_F(V8ManagerTest, NormalizesPaths) {
+  std::string result = V8Environment::NormalizeRelativePath("a.txt", "b/c");
+  EXPECT_EQ(result, "b/c/a.txt");
+  result = V8Environment::NormalizeRelativePath("./a.txt", "b/c");
+  EXPECT_EQ(result, "b/c/a.txt");
+  result = V8Environment::NormalizeRelativePath("../d.txt", "b/c");
+  EXPECT_EQ(result, "b/d.txt");
+
+  // Should fail, no base directory to resolve to.
+  EXPECT_DEATH(V8Environment::NormalizeRelativePath("e.txt", ""), "");
+
+  // Should fail, base directory ends with '/'.
+  EXPECT_DEATH(V8Environment::NormalizeRelativePath("e.txt", "a/"), "");
+
+  // Should fail, relative path references parent of base directory.
+  EXPECT_DEATH(V8Environment::NormalizeRelativePath("../../../e.txt", "a/b"),
+               "");
+}
+
+// TODO(b:313924294): add test to handle missing files.
 
 }  // namespace ax

@@ -9,7 +9,9 @@
 
 #include "ash/ime/ime_controller_impl.h"
 #include "ash/public/cpp/keyboard/keyboard_controller_observer.h"
+#include "ash/public/mojom/input_device_settings.mojom.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
@@ -21,7 +23,7 @@
 #include "ui/events/event_handler.h"
 
 namespace ui {
-enum class DomCode;
+enum class DomCode : uint32_t;
 class KeyEvent;
 }
 
@@ -37,7 +39,7 @@ class Keyboard : public ui::EventHandler,
                  public SurfaceObserver,
                  public SeatObserver,
                  public ash::KeyboardControllerObserver,
-                 public ash::ImeControllerImpl::Observer {
+                 public ash::ImeController::Observer {
  public:
   Keyboard(std::unique_ptr<KeyboardDelegate> delegate, Seat* seat);
   Keyboard(const Keyboard&) = delete;
@@ -78,13 +80,18 @@ class Keyboard : public ui::EventHandler,
   void OnKeyRepeatSettingsChanged(
       const ash::KeyRepeatSettings& settings) override;
 
-  // Overridden from ash::ImeControllerImpl::Observer:
+  // Overridden from ash::ImeController::Observer:
   void OnCapsLockChanged(bool enabled) override;
   void OnKeyboardLayoutNameChanged(const std::string& layout_name) override;
 
   Surface* focused_surface_for_testing() const { return focus_; }
 
  private:
+  // Returns a set of keys with keys that should not be handled by the surface
+  // filtered out from pressed_keys_.
+  base::flat_map<PhysicalCode, base::flat_set<KeyState>>
+  GetPressedKeysForSurface(Surface* surface);
+
   // Change keyboard focus to |surface|.
   void SetFocus(Surface* surface);
 
@@ -111,23 +118,23 @@ class Keyboard : public ui::EventHandler,
   std::unique_ptr<KeyboardDelegate> delegate_;
 
   // Seat that the Keyboard recieves focus events from.
-  const raw_ptr<Seat, ExperimentalAsh> seat_;
+  const raw_ptr<Seat> seat_;
 
   // The delegate instance that events about device configuration are dispatched
   // to.
-  raw_ptr<KeyboardDeviceConfigurationDelegate, ExperimentalAsh>
-      device_configuration_delegate_ = nullptr;
+  raw_ptr<KeyboardDeviceConfigurationDelegate> device_configuration_delegate_ =
+      nullptr;
 
   // Indicates that each key event is expected to be acknowledged.
   bool are_keyboard_key_acks_needed_ = false;
 
   // The current focus surface for the keyboard.
-  raw_ptr<Surface, ExperimentalAsh> focus_ = nullptr;
+  raw_ptr<Surface> focus_ = nullptr;
 
   // Set of currently pressed keys. First value is a platform code and second
   // value is the code that was delivered to client. See Seat.h for more
   // details.
-  base::flat_map<ui::DomCode, KeyState> pressed_keys_;
+  base::flat_map<PhysicalCode, base::flat_set<KeyState>> pressed_keys_;
 
   // Key state changes that are expected to be acknowledged.
   using KeyStateChange = std::pair<ui::KeyEvent, base::TimeTicks>;
@@ -138,6 +145,9 @@ class Keyboard : public ui::EventHandler,
 
   // Delay until a key state change expected to be acknowledged is expired.
   const base::TimeDelta expiration_delay_for_pending_key_acks_;
+
+  // Tracks whether the last key event is the target of autorepeat.
+  bool auto_repeat_enabled_ = true;
 
   // True when the ARC app window is focused.
   // TODO(yhanada, https://crbug.com/847500): Remove this when we find a way to

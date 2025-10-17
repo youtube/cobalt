@@ -4,7 +4,10 @@
 
 #include "components/services/heap_profiling/connection_manager.h"
 
+#include <utility>
+
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/json/string_escape.h"
 #include "base/metrics/histogram_macros.h"
 #include "components/services/heap_profiling/json_exporter.h"
@@ -44,11 +47,14 @@ struct ConnectionManager::Connection {
              mojo::PendingRemote<mojom::ProfilingClient> client,
              mojom::ProcessType process_type,
              uint32_t sampling_rate,
-             mojom::StackMode stack_mode)
+             mojom::StackMode stack_mode,
+             mojom::ProfilingService::AddProfilingClientCallback
+                 started_profiling_callback)
       : client(std::move(client)),
         process_type(process_type),
         stack_mode(stack_mode),
-        sampling_rate(sampling_rate) {
+        sampling_rate(sampling_rate),
+        started_profiling_callback(std::move(started_profiling_callback)) {
     this->client.set_disconnect_handler(std::move(complete_cb));
   }
 
@@ -70,6 +76,9 @@ struct ConnectionManager::Connection {
   // https://bugs.chromium.org/p/chromium/issues/detail?id=810748#c4.
   // A |sampling_rate| of 1 is equivalent to recording all allocations.
   uint32_t sampling_rate = 1;
+
+  mojom::ProfilingService::AddProfilingClientCallback
+      started_profiling_callback;
 };
 
 ConnectionManager::ConnectionManager() {
@@ -83,13 +92,17 @@ void ConnectionManager::OnNewConnection(
     base::ProcessId pid,
     mojo::PendingRemote<mojom::ProfilingClient> client,
     mojom::ProcessType process_type,
-    mojom::ProfilingParamsPtr params) {
+    mojom::ProfilingParamsPtr params,
+    mojom::ProfilingService::AddProfilingClientCallback
+        started_profiling_closure) {
   base::AutoLock lock(connections_lock_);
 
   // Attempting to start profiling on an already profiled processs should have
   // no effect.
-  if (connections_.find(pid) != connections_.end())
+  if (connections_.find(pid) != connections_.end()) {
+    std::move(started_profiling_closure).Run(/*success=*/false);
     return;
+  }
 
   // It's theoretically possible that we started profiling a process, the
   // profiling was stopped [e.g. by hitting the 10-s timeout], and then we tried
@@ -106,7 +119,8 @@ void ConnectionManager::OnNewConnection(
 
   auto connection = std::make_unique<Connection>(
       std::move(complete_cb), std::move(client), process_type,
-      params->sampling_rate, params->stack_mode);
+      params->sampling_rate, params->stack_mode,
+      std::move(started_profiling_closure));
   connection->client->StartProfiling(
       std::move(params), base::BindOnce(&ConnectionManager::OnProfilingStarted,
                                         weak_factory_.GetWeakPtr(), pid));
@@ -140,6 +154,9 @@ void ConnectionManager::OnConnectionComplete(base::ProcessId pid) {
   base::AutoLock lock(connections_lock_);
   auto found = connections_.find(pid);
   CHECK(found != connections_.end());
+  if (!found->second->started_profiling_callback.is_null()) {
+    std::move(found->second->started_profiling_callback).Run(/*success=*/false);
+  }
   connections_.erase(found);
 }
 
@@ -149,8 +166,10 @@ void ConnectionManager::OnProfilingStarted(base::ProcessId pid) {
   // It's possible that the client disconnected in the short time before
   // profiling started.
   auto found = connections_.find(pid);
-  if (found != connections_.end())
+  if (found != connections_.end()) {
     found->second->started_profiling = true;
+    std::move(found->second->started_profiling_callback).Run(/*success=*/true);
+  }
 }
 
 void ConnectionManager::ReportMetrics() {
@@ -185,10 +204,6 @@ void ConnectionManager::DumpProcessesForTracing(
   for (auto& it : connections_) {
     base::ProcessId pid = it.first;
     Connection* connection = it.second.get();
-    // TODO(ssid): Stop writing JSON to traces when proto output is enabled,
-    // https://crbug.com/1228548.
-    if (write_proto)
-      connection->client->AddHeapProfileToTrace(base::DoNothing());
 
     connection->client->RetrieveHeapProfile(base::BindOnce(
         &ConnectionManager::HeapProfileRetrieved, weak_factory_.GetWeakPtr(),

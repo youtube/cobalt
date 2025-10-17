@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "absl/strings/escaping.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
@@ -48,7 +49,11 @@ int main(int argc, char* argv[]) {
   quic::CryptoFramer framer;
   framer.set_visitor(&printer);
   framer.set_process_truncated_messages(true);
-  std::string input = absl::HexStringToBytes(messages[0]);
+  std::string input;
+  if (!absl::HexStringToBytes(messages[0], &input)) {
+    cerr << "Invalid hex string provided" << endl;
+    return 1;
+  }
   if (!framer.ProcessInput(input)) {
     return 1;
   }

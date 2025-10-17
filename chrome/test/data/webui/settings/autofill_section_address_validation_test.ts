@@ -5,32 +5,80 @@
 // clang-format off
 import 'chrome://settings/lazy_load.js';
 
-import {CountryDetailManagerImpl, CrInputElement, CrTextareaElement} from 'chrome://settings/lazy_load.js';
+import type {CrInputElement, CrTextareaElement} from 'chrome://settings/lazy_load.js';
+import {CountryDetailManagerProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {createAddressEntry, createEmptyAddressEntry, makeGuid, STUB_USER_ACCOUNT_INFO} from './passwords_and_autofill_fake_data.js';
-import {CountryDetailManagerTestImpl, createAddressDialog, expectEvent} from './autofill_section_test_utils.js';
+import {createAddressEntry, createEmptyAddressEntry, makeGuid, STUB_USER_ACCOUNT_INFO} from './autofill_fake_data.js';
+import {createAddressDialog, expectEvent} from './autofill_section_test_utils.js';
+import {TestCountryDetailManagerProxy} from './test_country_detail_manager_proxy.js';
 // clang-format on
 
+const FieldType = chrome.autofillPrivate.FieldType;
+
 suite('AutofillSectionAddressValidationTests', () => {
+  let countryDetailManager: TestCountryDetailManagerProxy;
+
   setup(() => {
-    CountryDetailManagerImpl.setInstance(new CountryDetailManagerTestImpl());
+    countryDetailManager = new TestCountryDetailManagerProxy();
+    CountryDetailManagerProxyImpl.setInstance(countryDetailManager);
+
+    countryDetailManager.setGetCountryListRepsonse([
+      {name: 'United States', countryCode: 'US'},  // Default country.
+      {name: 'Israel', countryCode: 'IL'},
+      {name: 'United Kingdom', countryCode: 'GB'},
+    ]);
+    countryDetailManager.setGetAddressFormatRepsonse({
+      components: [
+        {
+          row: [
+            {
+              field: FieldType.NAME_FULL,
+              fieldName: 'Name',
+              isLongField: true,
+              isRequired: false,
+            },
+          ],
+        },
+        {
+          row: [{
+            field: FieldType.COMPANY_NAME,
+            fieldName: 'Organization',
+            isLongField: true,
+            isRequired: false,
+          }],
+        },
+        {
+          row: [
+            {
+              field: FieldType.ADDRESS_HOME_CITY,
+              fieldName: 'City',
+              isLongField: false,
+              isRequired: true,
+            },
+            {
+              field: FieldType.ADDRESS_HOME_STATE,
+              fieldName: 'State',
+              isLongField: false,
+              isRequired: true,
+            },
+            {
+              field: FieldType.ADDRESS_HOME_ZIP,
+              fieldName: 'ZIP code',
+              isLongField: false,
+              isRequired: true,
+            },
+          ],
+        },
+      ],
+      languageCode: 'en',
+    });
   });
 
   test('verifyRequiredFields', async () => {
     const address = createEmptyAddressEntry();
-    address.countryCode = 'US';
-
-    const components =
-        await CountryDetailManagerImpl.getInstance().getAddressFormat(
-            address.countryCode);
-
-    const nRequired = components.components.reduce(
-        (n, row) =>
-            n + row.row.filter(component => component.isRequired).length,
-        0);
-
-    assertGT(nRequired, 0, 'US addresses should have required components');
+    address.fields.push({type: FieldType.ADDRESS_HOME_COUNTRY, value: 'US'});
 
     const dialog = await createAddressDialog(address, {
       ...STUB_USER_ACCOUNT_INFO,
@@ -40,7 +88,7 @@ suite('AutofillSectionAddressValidationTests', () => {
     const save = dialog.$.saveButton;
 
     assertEquals(
-        nRequired, content.querySelectorAll('[required]').length,
+        3, content.querySelectorAll('[required]').length,
         'number of required elements should match required components');
     assertEquals(
         0, content.querySelectorAll('[invalid]').length,
@@ -52,7 +100,7 @@ suite('AutofillSectionAddressValidationTests', () => {
 
     // Attempt to save reveals invalid fields, the address is not saveable.
     assertEquals(
-        nRequired, content.querySelectorAll('[invalid]').length,
+        3, content.querySelectorAll('[invalid]').length,
         'all required components should be indicated after an attempt to save');
     assertTrue(
         save.disabled, 'the save button is disable with revealed errors');
@@ -76,7 +124,9 @@ suite('AutofillSectionAddressValidationTests', () => {
     assertFalse(firstRequired.invalid, 'no error on empty element initially');
     // Imitate typing and clearing in the input.
     firstRequired.value = 'value';
+    await microtasksFinished();
     firstRequired.value = '';
+    await microtasksFinished();
     assertTrue(firstRequired.invalid, 'indicate empty element after updates');
 
 
@@ -147,10 +197,14 @@ suite('AutofillSectionAddressValidationTests', () => {
 
   test('verifySaveabilityOfInitiallyInvalid', async () => {
     const address = createAddressEntry();
-    address.metadata!.source = chrome.autofillPrivate.AddressSource.ACCOUNT;
+    address.metadata!.recordType =
+        chrome.autofillPrivate.AddressRecordType.ACCOUNT;
 
     // This field is required.
-    delete address.addressLines;
+    const entry = address.fields.find(
+        entry => entry.type === FieldType.ADDRESS_HOME_STREET_ADDRESS);
+    assertTrue(!!entry);
+    address.fields.splice(address.fields.indexOf(entry), 1);
 
     const dialog = await createAddressDialog(address);
     const save = dialog.$.saveButton;
@@ -161,10 +215,10 @@ suite('AutofillSectionAddressValidationTests', () => {
   test('verifyInvalidatingInitiallyInvalid', async () => {
     const address = createEmptyAddressEntry();
     address.guid = makeGuid();
-    address.countryCode = 'US';
+    address.fields.push({type: FieldType.ADDRESS_HOME_COUNTRY, value: 'US'});
     address.metadata = {
       summaryLabel: '',
-      source: chrome.autofillPrivate.AddressSource.ACCOUNT,
+      recordType: chrome.autofillPrivate.AddressRecordType.ACCOUNT,
     };
 
     const dialog = await createAddressDialog(address);

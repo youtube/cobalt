@@ -22,6 +22,7 @@ component("shared_mojom_traits") {
 mojom("mojom") {
   generate_java = true
   sources = [
+    "browser_controls_offset_tag_modifications.mojom",
     "browser_controls_params.mojom",
     "browser_controls_state.mojom",
     "overscroll_behavior.mojom",
@@ -84,6 +85,22 @@ mojom("mojom") {
     {
       types = [
         {
+          mojom = "cc.mojom.BrowserControlsOffsetTagModifications"
+          cpp = "::cc::BrowserControlsOffsetTagModifications"
+        },
+        {
+          mojom = "cc.mojom.BrowserControlsOffsetTags"
+          cpp = "::cc::BrowserControlsOffsetTags"
+        },
+      ]
+      traits_headers = [
+        "//cc/mojom/browser_controls_offset_tag_modifications_mojom_traits.h",
+      ]
+      traits_public_deps = [ "//components/viz/common" ]
+    },
+    {
+      types = [
+        {
           mojom = "cc.mojom.RenderFrameMetadata"
           cpp = "::cc::RenderFrameMetadata"
         },
@@ -95,4 +112,81 @@ mojom("mojom") {
 
   cpp_typemaps = shared_typemap
   blink_cpp_typemaps = shared_typemap
+}
+
+mojom("layer_trees") {
+  generate_java = true
+  sources = [
+    "element_id.mojom",
+    "hit_test_opaqueness.mojom",
+    "layer_type.mojom",
+    "missing_tile_reason.mojom",
+    "paint_flags.mojom",
+    "synced_scroll_offset.mojom",
+    "ui_resource_id.mojom",
+  ]
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "cc.mojom.ElementId"
+          cpp = "::cc::ElementId"
+          nullable_is_same_type = true
+          copyable_pass_by_value = true
+        },
+      ]
+      traits_headers = [ "element_id_mojom_traits.h" ]
+      traits_public_deps = [ "//cc/paint" ]
+    },
+    {
+      types = [
+        {
+          mojom = "cc.mojom.HitTestOpaqueness"
+          cpp = "::cc::HitTestOpaqueness"
+        },
+      ]
+      traits_headers = [ "hit_test_opaqueness_mojom_traits.h" ]
+    },
+    {
+      types = [
+        {
+          mojom = "cc.mojom.FilterQuality"
+          cpp = "::cc::PaintFlags::FilterQuality"
+        },
+        {
+          mojom = "cc.mojom.DynamicRangeLimit"
+          cpp = "::cc::PaintFlags::DynamicRangeLimitMixture"
+        },
+      ]
+      traits_headers = [ "paint_flags_mojom_traits.h" ]
+      traits_public_deps = [ "//cc/paint" ]
+    },
+    {
+      types = [
+        {
+          mojom = "cc.mojom.SyncedScrollOffset"
+          cpp = "::scoped_refptr<::cc::SyncedScrollOffset>"
+          nullable_is_same_type = true
+          copyable_pass_by_value = true
+        },
+      ]
+      traits_headers = [ "//cc/mojom/synced_scroll_offset_mojom_traits.h" ]
+      traits_sources = [ "//cc/mojom/synced_scroll_offset_mojom_traits.cc" ]
+      traits_public_deps = [ "//ui/gfx/geometry/mojom" ]
+    },
+    {
+      types = [
+        {
+          mojom = "cc.mojom.UIResourceId"
+          cpp = "::cc::UIResourceId"
+          copyable_pass_by_value = true
+        },
+      ]
+      traits_headers = [ "ui_resource_id_mojom_traits.h" ]
+    },
+  ]
+  public_deps = [
+    "//skia/public/mojom",
+    "//ui/gfx/geometry/mojom",
+  ]
 }

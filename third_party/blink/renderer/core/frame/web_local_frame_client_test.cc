@@ -9,10 +9,12 @@
 
 #include <utility>
 
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -34,7 +36,7 @@ class CallTrackingTestWebLocalFrameClient
   void DidCommitNavigation(
       WebHistoryCommitType commit_type,
       bool should_reset_browser_interface_broker,
-      const ParsedPermissionsPolicy& permissions_policy_header,
+      const network::ParsedPermissionsPolicy& permissions_policy_header,
       const DocumentPolicyFeatureState& document_policy_header) override {
     calls_.push_back("DidCommitNavigation");
     TestWebFrameClient::DidCommitNavigation(
@@ -84,6 +86,7 @@ class CallTrackingTestWebLocalFrameClient
 };
 
 TEST(WebLocalFrameClientTest, Basic) {
+  test::TaskEnvironment task_environment;
   CallTrackingTestWebLocalFrameClient client;
   frame_test_helpers::WebViewHelper web_view_helper;
 

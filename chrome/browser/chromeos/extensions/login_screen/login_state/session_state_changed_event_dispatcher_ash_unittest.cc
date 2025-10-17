@@ -2,16 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-#include "chrome/browser/chromeos/extensions/login_screen/login_state/session_state_changed_event_dispatcher.h"
-
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/idle_service_ash.h"
-#include "chrome/browser/ash/crosapi/test_crosapi_dependency_registry.h"
+#include "chrome/browser/chromeos/extensions/login_screen/login_state/session_state_changed_event_dispatcher.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/extensions/api/login_state.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -38,19 +35,19 @@ const struct {
 } kTestCases[] = {
     {session_manager::SessionState::OOBE,
      crosapi::mojom::SessionState::kInOobeScreen,
-     extensions::api::login_state::SessionState::SESSION_STATE_IN_OOBE_SCREEN},
+     extensions::api::login_state::SessionState::kInOobeScreen},
     {session_manager::SessionState::LOGIN_PRIMARY,
      crosapi::mojom::SessionState::kInLoginScreen,
-     extensions::api::login_state::SessionState::SESSION_STATE_IN_LOGIN_SCREEN},
+     extensions::api::login_state::SessionState::kInLoginScreen},
     {session_manager::SessionState::ACTIVE,
      crosapi::mojom::SessionState::kInSession,
-     extensions::api::login_state::SessionState::SESSION_STATE_IN_SESSION},
+     extensions::api::login_state::SessionState::kInSession},
     {session_manager::SessionState::LOCKED,
      crosapi::mojom::SessionState::kInLockScreen,
-     extensions::api::login_state::SessionState::SESSION_STATE_IN_LOCK_SCREEN},
+     extensions::api::login_state::SessionState::kInLockScreen},
     {session_manager::SessionState::UNKNOWN,
      crosapi::mojom::SessionState::kUnknown,
-     extensions::api::login_state::SessionState::SESSION_STATE_UNKNOWN},
+     extensions::api::login_state::SessionState::kUnknown},
 };
 
 bool WasSessionStateChangedEventDispatched(
@@ -87,7 +84,7 @@ class SessionStateChangedEventDispatcherAshUnittest : public testing::Test {
                  void(crosapi::mojom::SessionState state));
   };
 
-  SessionStateChangedEventDispatcherAshUnittest() {}
+  SessionStateChangedEventDispatcherAshUnittest() = default;
 
   SessionStateChangedEventDispatcherAshUnittest(
       const SessionStateChangedEventDispatcherAshUnittest&) = delete;
@@ -108,9 +105,8 @@ class SessionStateChangedEventDispatcherAshUnittest : public testing::Test {
     testing_profile_ =
         profile_manager_->CreateTestingProfile(chrome::kInitialProfile);
 
-    crosapi::IdleServiceAsh::DisableForTesting();
     ash::LoginState::Initialize();
-    manager_ = crosapi::CreateCrosapiManagerWithTestRegistry();
+    manager_ = std::make_unique<crosapi::CrosapiManager>();
 
     dispatcher_ =
         std::make_unique<SessionStateChangedEventDispatcher>(testing_profile_);
@@ -130,7 +126,7 @@ class SessionStateChangedEventDispatcherAshUnittest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<TestingProfile, ExperimentalAsh> testing_profile_;
+  raw_ptr<TestingProfile> testing_profile_;
   std::unique_ptr<session_manager::SessionManager> session_manager_;
   std::unique_ptr<crosapi::CrosapiManager> manager_;
   std::unique_ptr<SessionStateChangedEventDispatcher> dispatcher_;

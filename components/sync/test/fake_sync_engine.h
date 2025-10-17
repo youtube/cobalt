@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "components/sync/engine/configure_reason.h"
 #include "components/sync/engine/sync_engine.h"
 #include "components/sync/engine/sync_status.h"
 #include "google_apis/gaia/core_account_id.h"
@@ -25,8 +26,7 @@ namespace syncer {
 // get through initialization. It often returns null pointers or nonsense
 // values; it is not intended to be used in tests that depend on SyncEngine
 // behavior.
-class FakeSyncEngine : public SyncEngine,
-                       public base::SupportsWeakPtr<FakeSyncEngine> {
+class FakeSyncEngine final : public SyncEngine {
  public:
   static constexpr char kTestBirthday[] = "1";
 
@@ -39,20 +39,28 @@ class FakeSyncEngine : public SyncEngine,
     return authenticated_account_id_;
   }
 
+  ConfigureReason last_configure_reason() const {
+    return last_configure_reason_;
+  }
+
   bool started_handling_invalidations() {
     return started_handling_invalidations_;
   }
 
+  void SetPollIntervalElapsed(bool elapsed);
+
   // Manual completion of Initialize(), required if auto-completion was disabled
   // in the constructor.
   void TriggerInitializationCompletion(bool success);
+
+  void SetDetailedStatus(const SyncStatus& status);
 
   // Immediately calls params.host->OnEngineInitialized.
   void Initialize(InitParams params) override;
 
   bool IsInitialized() const override;
 
-  void TriggerRefresh(const ModelTypeSet& types) override;
+  void TriggerRefresh(const DataTypeSet& types) override;
 
   void UpdateCredentials(const SyncCredentials& credentials) override;
 
@@ -86,37 +94,45 @@ class FakeSyncEngine : public SyncEngine,
 
   void ConfigureDataTypes(ConfigureParams params) override;
 
-  void ConnectDataType(ModelType type,
+  void ConnectDataType(DataType type,
                        std::unique_ptr<DataTypeActivationResponse>) override;
-  void DisconnectDataType(ModelType type) override;
-
-  void SetProxyTabsDatatypeEnabled(bool enabled) override;
+  void DisconnectDataType(DataType type) override;
 
   const SyncStatus& GetDetailedStatus() const override;
 
   void HasUnsyncedItemsForTest(
       base::OnceCallback<void(bool)> cb) const override;
   void GetThrottledDataTypesForTest(
-      base::OnceCallback<void(ModelTypeSet)> cb) const override;
+      base::OnceCallback<void(DataTypeSet)> cb) const override;
 
   void RequestBufferedProtocolEventsAndEnableForwarding() override;
   void DisableProtocolEventForwarding() override;
 
   void OnCookieJarChanged(bool account_mismatch,
                           base::OnceClosure callback) override;
-  void SetInvalidationsForSessionsEnabled(bool enabled) override;
+  bool IsNextPollTimeInThePast() const override;
+  void ClearNigoriDataForMigration() override;
   void GetNigoriNodeForDebugging(AllNodesCallback callback) override;
+  void RecordNigoriMemoryUsageAndCountsHistograms() override;
+
+  base::WeakPtr<FakeSyncEngine> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
  private:
   const bool allow_init_completion_;
   const bool is_first_time_sync_configure_;
   const base::RepeatingClosure sync_transport_data_cleared_cb_;
-  // DanglingUntriaged because it is assigned a DanglingUntriaged pointer.
-  raw_ptr<SyncEngineHost, DanglingUntriaged> host_ = nullptr;
+  // AcrossTasksDanglingUntriaged because it is assigned a
+  // AcrossTasksDanglingUntriaged pointer.
+  raw_ptr<SyncEngineHost, AcrossTasksDanglingUntriaged> host_ = nullptr;
   bool initialized_ = false;
-  const SyncStatus default_sync_status_;
+  SyncStatus sync_status_;
   CoreAccountId authenticated_account_id_;
   bool started_handling_invalidations_ = false;
+  bool is_next_poll_time_in_the_past_ = false;
+  ConfigureReason last_configure_reason_ = CONFIGURE_REASON_UNKNOWN;
+  base::WeakPtrFactory<FakeSyncEngine> weak_ptr_factory_{this};
 };
 
 }  // namespace syncer

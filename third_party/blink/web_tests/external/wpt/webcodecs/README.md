@@ -7,13 +7,13 @@
 To add, update or remove a test file, please update the list below.
 
 Please provide full reference and steps to generate the test file so that
-any people can regenerate or update the file in the future.
+anybody can regenerate or update the file in the future.
 
 ## Notes
 * When updating the sample offsets and descriptions for tests using mp4 files, it's easiest to use [mp4box.js](https://gpac.github.io/mp4box.js/test/filereader.html).
   * Sample offsets can be copied from the "Sample View" tab after unchecking all but offset and size. Use a multi-line edit mode and clang-format to quickly format entries.
   * Description entries can be found under moov.trak.mdia.minf.stbl.stsd in box view.
-    * avc1.avcC has an offset, size in the same view. Add 8 to offset and subtract 8 from the size to get the values the tests want.
+    * avc1.avcC or hvc1.hvcC has an offset, size in the same view. Add 8 to offset and subtract 8 from the size to get the values the tests want.
   * If you use ffprobe -show_packets to get sample offsets, you may need to add 4 to each `pos` value. You can tell if you need to by whether or not tests pass.
 
 ## List of Test Files
@@ -54,9 +54,7 @@ gifski -o four-colors-flip.gif four-colors*.png
 
 ### four-colors-flip.avif
 ```
-ffmpeg -i four-colors-flip.gif -vcodec libaom-av1 -crf 16 four-colors-flip.mp4
-mp4box -add-image ref:primary:tk=1:samp=1 -ab avis -ab avif -ab miaf -brand avis four-colors-flip.mp4 -out four-colors-flip.avif
-mp4box -edits 1=r four-colors-flip.avif
+ffmpeg -i four-colors-flip.gif -crf 16 four-colors-flip.avif
 ```
 
 ### four-colors-limited-range-(420|422|444)-8bpc.avif
@@ -98,16 +96,20 @@ ffmpeg -f lavfi -i testsrc=rate=10:n=1 -t 1 -pix_fmt yuv420p -vcodec h264 -tune 
 ffmpeg -i h264.mp4 -codec copy -bsf:v h264_mp4toannexb -f h264 h264.annexb
 ```
 
+### h265.mp4
+```
+ffmpeg -f lavfi -i testsrc=rate=10:n=1 -t 1 -pix_fmt yuv420p -vcodec hevc -tag:v hvc1 -tune zerolatency h265.mp4
+```
+
+### h265.annexb
+```
+ffmpeg -i h265.mp4 -codec copy -bsf:v hevc_mp4toannexb -f hevc h265.annexb
+```
+
 ### sfx.adts
 ```
 sox -n -r 48000 sfx.wav synth 1 sine 480
 ffmpeg -i sfx.wav -frames:a 10 -acodec aac -b:a 96K sfx.adts
-```
-
-### sfx-alaw.wav
-```
-sox -n -r 48000 sfx.wav synth 1 sine 480
-ffmpeg -i sfx.wav -frames:a 10 -acodec pcm_alaw sfx-alaw.wav
 ```
 
 ### sfx.mp3
@@ -116,22 +118,42 @@ sox -n -r 48000 sfx.wav synth 1 sine 480
 ffmpeg -i sfx.wav -frames:a 10 -acodec libmp3lame -b:a 96K sfx.mp3
 ```
 
+### sfx.flac
+```
+sox -n -r 48000 sfx.wav synth 1 sine 480
+ffmpeg -i sfx.wav -frames:a 10 sfx.flac
+```
+
 ### sfx-aac.mp4
 ```
 sox -n -r 48000 sfx.wav synth 1 sine 480
 ffmpeg -i sfx.wav -frames:a 10 -acodec aac -b:a 96K sfx-aac.mp4
 ```
 
-### sfx-mulaw.wav
+### sfx-*.wav
 ```
 sox -n -r 48000 sfx.wav synth 1 sine 480
-ffmpeg -i sfx.wav -frames:a 10 -acodec pcm_mulaw sfx-mulaw.wav
+for codec in s16 s24 s32 f32
+do
+  # Add "le" suffix
+  ffmpeg -i sfx.wav -frames:a 10 -acodec pcm_"$codec"le sfx-pcm-$codec.wav
+done
+ffmpeg -i sfx.wav -frames:a 10 -acodec pcm_u8 sfx-pcm-u8.wav
+for codec in alaw mulaw
+do
+  ffmpeg -i sfx.wav -frames:a 10 -acodec pcm_$codec sfx-$codec.wav
+done
 ```
 
 ### sfx-opus.ogg
 ```
 sox -n -r 48000 sfx.wav synth 1 sine 480
 ffmpeg -i sfx.wav -frames:a 10 -acodec libopus -b:a 96K sfx-opus.ogg
+
+### sfx-vorbis.ogg
+```
+sox -n -r 48000 sfx.wav synth 1 sine 480
+ffmpeg -i sfx.wav -frames:a 10 -acodec libvorbis -b:a 96K sfx-vorbis.ogg
 ```
 
 ### av1.mp4

@@ -16,6 +16,7 @@
 
 namespace content {
 
+class MediaSession;
 class WebContents;
 class RenderFrameHost;
 
@@ -35,6 +36,7 @@ class WebContentsObserverProxy : public WebContentsObserver {
  private:
   void RenderFrameCreated(RenderFrameHost* render_frame_host) override;
   void RenderFrameDeleted(RenderFrameHost* render_frame_host) override;
+  void PrimaryPageChanged(content::Page& page) override;
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus termination_status) override;
   void DidStartLoading() override;
@@ -56,6 +58,7 @@ class WebContentsObserverProxy : public WebContentsObserver {
   void DidFinishLoad(RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
   void DOMContentLoaded(RenderFrameHost* render_frame_host) override;
+  void OnFirstContentfulPaintInPrimaryMainFrame() override;
   void NavigationEntryCommitted(
       const LoadCommittedDetails& load_details) override;
   void NavigationEntriesDeleted() override;
@@ -64,6 +67,7 @@ class WebContentsObserverProxy : public WebContentsObserver {
   void FrameReceivedUserActivation(RenderFrameHost*) override;
   void WebContentsDestroyed() override;
   void DidChangeThemeColor() override;
+  void OnBackgroundColorChanged() override;
   void MediaStartedPlaying(const MediaPlayerInfo& video_type,
                            const MediaPlayerId& id) override;
   void MediaStoppedPlaying(
@@ -75,9 +79,11 @@ class WebContentsObserverProxy : public WebContentsObserver {
                                      bool will_cause_resize) override;
   bool SetToBaseURLForDataURLIfNeeded(GURL* url);
   void ViewportFitChanged(blink::mojom::ViewportFit value) override;
+  void SafeAreaConstraintChanged(bool has_constriant) override;
   void VirtualKeyboardModeChanged(ui::mojom::VirtualKeyboardMode mode) override;
   void OnWebContentsFocused(RenderWidgetHost*) override;
   void OnWebContentsLostFocus(RenderWidgetHost*) override;
+  void MediaSessionCreated(MediaSession* media_session) override;
 
   base::android::ScopedJavaGlobalRef<jobject> java_observer_;
   GURL base_url_of_last_started_data_url_;

@@ -4,6 +4,7 @@
 
 #include "components/translate/core/browser/translate_metrics_logger_impl.h"
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -686,7 +687,7 @@ TEST_F(TranslateMetricsLoggerImplTest, LogTriggerDecision) {
   // value to Translate.PageLoad.TriggerDecision. All of the values will be
   // captured by Translate.PageLoad.TriggerDecision.TotalCount and
   // Translate.PageLoad.TriggerDecision.AllTriggerDecisions.
-  const TriggerDecision kTriggerDecisions[] = {
+  const auto kTriggerDecisions = std::to_array<TriggerDecision>({
       TriggerDecision::kAutomaticTranslationByLink,
       TriggerDecision::kDisabledByRanker,
       TriggerDecision::kDisabledUnsupportedLanguage,
@@ -695,7 +696,9 @@ TEST_F(TranslateMetricsLoggerImplTest, LogTriggerDecision) {
       TriggerDecision::kShowUI,
       TriggerDecision::kDisabledByRanker,
       TriggerDecision::kDisabledOffline,
-      TriggerDecision::kDisabledNeverTranslateLanguage};
+      TriggerDecision::kDisabledNeverTranslateLanguage,
+      TriggerDecision::kDisabledMatchesPreviousLanguage,
+  });
 
   for (const auto& trigger_decision : kTriggerDecisions)
     translate_metrics_logger()->LogTriggerDecision(trigger_decision);
@@ -715,7 +718,7 @@ TEST_F(TranslateMetricsLoggerImplTest, LogTriggerDecision) {
 TEST_F(TranslateMetricsLoggerImplTest, LogHrefTriggerDecision) {
   // If we log multiple trigger decisions, we expect that only the first one is
   // recorded.
-  const TriggerDecision kTriggerDecisions[] = {
+  const auto kTriggerDecisions = std::to_array<TriggerDecision>({
       TriggerDecision::kAutomaticTranslationByLink,
       TriggerDecision::kDisabledByRanker,
       TriggerDecision::kDisabledUnsupportedLanguage,
@@ -724,7 +727,8 @@ TEST_F(TranslateMetricsLoggerImplTest, LogHrefTriggerDecision) {
       TriggerDecision::kShowUI,
       TriggerDecision::kDisabledByRanker,
       TriggerDecision::kDisabledOffline,
-      TriggerDecision::kDisabledNeverTranslateLanguage};
+      TriggerDecision::kDisabledNeverTranslateLanguage,
+  });
 
   for (const auto& trigger_decision : kTriggerDecisions)
     translate_metrics_logger()->LogTriggerDecision(trigger_decision);
@@ -1511,19 +1515,23 @@ TEST_F(TranslateMetricsLoggerImplTest, LogMaxTimeToTranslate) {
 }
 
 TEST_F(TranslateMetricsLoggerImplTest, LogUIInteraction) {
-  const UIInteraction kUIInteractions[] = {
+  const auto kUIInteractions = std::to_array<UIInteraction>({
       UIInteraction::kTranslate,
       UIInteraction::kRevert,
-      UIInteraction::kAlwaysTranslateLanguage,
       UIInteraction::kChangeSourceLanguage,
       UIInteraction::kChangeTargetLanguage,
-      UIInteraction::kNeverTranslateLanguage,
-      UIInteraction::kNeverTranslateSite,
       UIInteraction::kCloseUIExplicitly,
       UIInteraction::kCloseUILostFocus,
       UIInteraction::kTranslate,
       UIInteraction::kChangeSourceLanguage,
-      UIInteraction::kCloseUIExplicitly};
+      UIInteraction::kCloseUIExplicitly,
+      UIInteraction::kAddAlwaysTranslateLanguage,
+      UIInteraction::kRemoveAlwaysTranslateLanguage,
+      UIInteraction::kAddNeverTranslateLanguage,
+      UIInteraction::kRemoveNeverTranslateLanguage,
+      UIInteraction::kAddNeverTranslateSite,
+      UIInteraction::kRemoveNeverTranslateSite,
+  });
   for (auto ui_interaction : kUIInteractions) {
     translate_metrics_logger()->LogUIInteraction(ui_interaction);
   }
@@ -1531,29 +1539,40 @@ TEST_F(TranslateMetricsLoggerImplTest, LogUIInteraction) {
   translate_metrics_logger()->RecordMetrics(true);
 
   // Checks internal state that track UI interactions over the page load.
-  CheckUIInteractions(kUIInteractions[0], 12);
+  CheckUIInteractions(kUIInteractions[0], 15);
 
   // Check that the expected values are recorded to
   // Translate.UiInteraction.Event.
-  histogram_tester()->ExpectTotalCount(kTranslateUiInteractionEvent, 12);
+  histogram_tester()->ExpectTotalCount(kTranslateUiInteractionEvent, 15);
   histogram_tester()->ExpectBucketCount(kTranslateUiInteractionEvent,
                                         UIInteraction::kTranslate, 2);
   histogram_tester()->ExpectBucketCount(kTranslateUiInteractionEvent,
                                         UIInteraction::kRevert, 1);
   histogram_tester()->ExpectBucketCount(
-      kTranslateUiInteractionEvent, UIInteraction::kAlwaysTranslateLanguage, 1);
-  histogram_tester()->ExpectBucketCount(
       kTranslateUiInteractionEvent, UIInteraction::kChangeSourceLanguage, 2);
   histogram_tester()->ExpectBucketCount(
       kTranslateUiInteractionEvent, UIInteraction::kChangeTargetLanguage, 1);
-  histogram_tester()->ExpectBucketCount(
-      kTranslateUiInteractionEvent, UIInteraction::kNeverTranslateLanguage, 1);
-  histogram_tester()->ExpectBucketCount(kTranslateUiInteractionEvent,
-                                        UIInteraction::kNeverTranslateSite, 1);
   histogram_tester()->ExpectBucketCount(kTranslateUiInteractionEvent,
                                         UIInteraction::kCloseUIExplicitly, 2);
   histogram_tester()->ExpectBucketCount(kTranslateUiInteractionEvent,
                                         UIInteraction::kCloseUILostFocus, 1);
+  histogram_tester()->ExpectBucketCount(
+      kTranslateUiInteractionEvent, UIInteraction::kAddAlwaysTranslateLanguage,
+      1);
+  histogram_tester()->ExpectBucketCount(
+      kTranslateUiInteractionEvent,
+      UIInteraction::kRemoveAlwaysTranslateLanguage, 1);
+  histogram_tester()->ExpectBucketCount(
+      kTranslateUiInteractionEvent, UIInteraction::kAddNeverTranslateLanguage,
+      1);
+  histogram_tester()->ExpectBucketCount(
+      kTranslateUiInteractionEvent,
+      UIInteraction::kRemoveNeverTranslateLanguage, 1);
+  histogram_tester()->ExpectBucketCount(
+      kTranslateUiInteractionEvent, UIInteraction::kAddNeverTranslateSite, 1);
+  histogram_tester()->ExpectBucketCount(
+      kTranslateUiInteractionEvent, UIInteraction::kRemoveNeverTranslateSite,
+      1);
 }
 
 TEST_F(TranslateMetricsLoggerImplTest, LogApplicationStartMetrics) {
@@ -1566,8 +1585,8 @@ TEST_F(TranslateMetricsLoggerImplTest, LogApplicationStartMetrics) {
 
   // Add values to always translate language, never translate language, and
   // never translate site.
-  translate_prefs->AddLanguagePairToAlwaysTranslateList("es", "x");
-  translate_prefs->AddLanguagePairToAlwaysTranslateList("de", "x");
+  translate_prefs->AddLanguagePairToAlwaysTranslateList("es", "en");
+  translate_prefs->AddLanguagePairToAlwaysTranslateList("de", "en");
 
   translate_prefs->BlockLanguage("en");
   translate_prefs->BlockLanguage("fr");

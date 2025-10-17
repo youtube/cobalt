@@ -36,7 +36,6 @@ struct EnumTraits<network::mojom::HashAlgorithm,
         return network::mojom::HashAlgorithm::HASH_ALGO_SHA512;
     }
     NOTREACHED();
-    return network::mojom::HashAlgorithm::HASH_ALGO_NONE;
   }
 
   static bool FromMojom(network::mojom::HashAlgorithm input,
@@ -65,7 +64,6 @@ struct EnumTraits<network::mojom::HashAlgorithm,
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 
@@ -85,7 +83,6 @@ struct EnumTraits<network::mojom::SignatureAlgorithm,
         return network::mojom::SignatureAlgorithm::SIG_ALGO_ECDSA;
     }
     NOTREACHED();
-    return network::mojom::SignatureAlgorithm::SIG_ALGO_ANONYMOUS;
   }
 
   static bool FromMojom(network::mojom::SignatureAlgorithm input,
@@ -105,7 +102,6 @@ struct EnumTraits<network::mojom::SignatureAlgorithm,
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 
@@ -122,7 +118,7 @@ struct StructTraits<network::mojom::DigitallySignedDataView,
   }
   static base::span<const uint8_t> signature(
       const net::ct::DigitallySigned& obj) {
-    return base::as_bytes(base::make_span(obj.signature_data));
+    return base::as_byte_span(obj.signature_data);
   }
 
   static bool Read(network::mojom::DigitallySignedDataView obj,

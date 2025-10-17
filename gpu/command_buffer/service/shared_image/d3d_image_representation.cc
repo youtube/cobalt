@@ -4,10 +4,39 @@
 
 #include "gpu/command_buffer/service/shared_image/d3d_image_representation.h"
 
+#include "base/strings/strcat.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing.h"
+#include "gpu/ipc/common/dxgi_helpers.h"
+#include "third_party/angle/include/EGL/eglext_angle.h"
+#include "ui/gl/gl_angle_util_win.h"
+#include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/scoped_restore_texture.h"
+
+namespace {
+
+D3D11_TEXTURE2D_DESC InitVideoCopyTextureDesc(UINT width,
+                                              UINT height,
+                                              DXGI_FORMAT format) {
+  D3D11_TEXTURE2D_DESC desc = {0};
+  desc.Width = width;
+  desc.Height = height;
+  desc.Format = format;
+  desc.MipLevels = 1;
+  desc.ArraySize = 1;
+  desc.SampleDesc.Count = 1;
+  desc.SampleDesc.Quality = 0;
+  desc.Usage = D3D11_USAGE_DEFAULT;
+  desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+  desc.CPUAccessFlags = 0;
+  desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_NTHANDLE |
+                   D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+
+  return desc;
+}
+
+}  // namespace
 
 namespace gpu {
 
@@ -16,9 +45,11 @@ GLTexturePassthroughD3DImageRepresentation::
         SharedImageManager* manager,
         SharedImageBacking* backing,
         MemoryTypeTracker* tracker,
+        Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
         std::vector<scoped_refptr<D3DImageBacking::GLTextureHolder>>
             gl_texture_holders)
     : GLTexturePassthroughImageRepresentation(manager, backing, tracker),
+      d3d11_device_(std::move(d3d11_device)),
       gl_texture_holders_(std::move(gl_texture_holders)) {}
 
 GLTexturePassthroughD3DImageRepresentation::
@@ -42,119 +73,411 @@ void* GLTexturePassthroughD3DImageRepresentation::GetEGLImage() {
 
 bool GLTexturePassthroughD3DImageRepresentation::BeginAccess(GLenum mode) {
   D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
-  for (int plane = 0; plane < format().NumberOfPlanes(); plane++) {
-    // Clear any textures that are marked as needing binding (note that there is
-    // no actual "binding" action that is necessary to take here, as none of the
-    // GLImages that can be attached to a texture when it is marked as binding
-    // actually need to be bound lazily to the texture).
-    GetTexturePassthrough(plane)->clear_bind_pending();
+
+  const bool write_access =
+      mode == GL_SHARED_IMAGE_ACCESS_MODE_READWRITE_CHROMIUM;
+  if (!d3d_image_backing->BeginAccessD3D11(d3d11_device_, write_access)) {
+    return false;
   }
-  bool write_access = mode == GL_SHARED_IMAGE_ACCESS_MODE_READWRITE_CHROMIUM;
-  return d3d_image_backing->BeginAccessD3D11(write_access);
+
+  for (auto& gl_texture_holder : gl_texture_holders_) {
+    // Bind GLImage to texture if it is necessary.
+    gl_texture_holder->BindEGLImageToTexture();
+  }
+
+  return true;
 }
 
 void GLTexturePassthroughD3DImageRepresentation::EndAccess() {
   D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
-  d3d_image_backing->EndAccessD3D11();
+  d3d_image_backing->EndAccessD3D11(d3d11_device_);
 }
 
-#if BUILDFLAG(USE_DAWN)
 DawnD3DImageRepresentation::DawnD3DImageRepresentation(
     SharedImageManager* manager,
     SharedImageBacking* backing,
     MemoryTypeTracker* tracker,
-    WGPUDevice device)
+    const wgpu::Device& device,
+    wgpu::BackendType backend_type,
+    std::vector<wgpu::TextureFormat> view_formats)
     : DawnImageRepresentation(manager, backing, tracker),
       device_(device),
-      dawn_procs_(dawn::native::GetProcs()) {
+      backend_type_(backend_type),
+      view_formats_(view_formats) {
   DCHECK(device_);
-
-  // Keep a reference to the device so that it stays valid (it might become
-  // lost in which case operations will be noops).
-  dawn_procs_.deviceReference(device_);
 }
 
 DawnD3DImageRepresentation::~DawnD3DImageRepresentation() {
   EndAccess();
-  dawn_procs_.deviceRelease(device_);
 }
 
-WGPUTexture DawnD3DImageRepresentation::BeginAccess(WGPUTextureUsage usage) {
+wgpu::Texture DawnD3DImageRepresentation::BeginAccess(
+    wgpu::TextureUsage usage,
+    wgpu::TextureUsage internal_usage) {
   D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
-  texture_ = d3d_image_backing->BeginAccessDawn(device_, usage);
+  texture_ = d3d_image_backing->BeginAccessDawn(device_, backend_type_, usage,
+                                                internal_usage, view_formats_);
   return texture_;
 }
 
 void DawnD3DImageRepresentation::EndAccess() {
-  if (!texture_)
+  if (!texture_) {
     return;
+  }
 
   // Do this before further operations since those could end up destroying the
   // Dawn device and we want the fence to be duplicated before then.
   D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
-  d3d_image_backing->EndAccessDawn(device_, texture_);
-
-  // All further operations on the textures are errors (they would be racy
-  // with other backings).
-  dawn_procs_.textureDestroy(texture_);
-
-  dawn_procs_.textureRelease(texture_);
-  texture_ = nullptr;
+  d3d_image_backing->EndAccessDawn(device_, std::move(texture_));
 }
-#endif  // BUILDFLAG(USE_DAWN)
+
+DawnD3DBufferRepresentation::DawnD3DBufferRepresentation(
+    SharedImageManager* manager,
+    SharedImageBacking* backing,
+    MemoryTypeTracker* tracker,
+    const wgpu::Device& device,
+    wgpu::BackendType backend_type)
+    : DawnBufferRepresentation(manager, backing, tracker),
+      device_(device),
+      backend_type_(backend_type) {
+  DCHECK(device_);
+}
+
+DawnD3DBufferRepresentation::~DawnD3DBufferRepresentation() {
+  EndAccess();
+}
+
+wgpu::Buffer DawnD3DBufferRepresentation::BeginAccess(wgpu::BufferUsage usage) {
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  buffer_ =
+      d3d_image_backing->BeginAccessDawnBuffer(device_, backend_type_, usage);
+  return buffer_;
+}
+
+void DawnD3DBufferRepresentation::EndAccess() {
+  if (!buffer_) {
+    return;
+  }
+
+  // Do this before further operations since those could end up destroying the
+  // Dawn device and we want the fence to be duplicated before then.
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  d3d_image_backing->EndAccessDawnBuffer(device_, buffer_);
+
+  // All further operations on the buffer are errors (they would be racy
+  // with other backings).
+  buffer_ = nullptr;
+}
 
 OverlayD3DImageRepresentation::OverlayD3DImageRepresentation(
     SharedImageManager* manager,
     SharedImageBacking* backing,
-    MemoryTypeTracker* tracker)
-    : OverlayImageRepresentation(manager, backing, tracker) {}
+    MemoryTypeTracker* tracker,
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device)
+    : OverlayImageRepresentation(manager, backing, tracker),
+      d3d11_device_(std::move(d3d11_device)) {}
 
 OverlayD3DImageRepresentation::~OverlayD3DImageRepresentation() = default;
 
 bool OverlayD3DImageRepresentation::BeginReadAccess(
     gfx::GpuFenceHandle& acquire_fence) {
   return static_cast<D3DImageBacking*>(backing())->BeginAccessD3D11(
-      /*write_access=*/false);
+      d3d11_device_, /*write_access=*/false, /*is_overlay=*/true);
 }
 
 void OverlayD3DImageRepresentation::EndReadAccess(
     gfx::GpuFenceHandle release_fence) {
   DCHECK(release_fence.is_null());
-  static_cast<D3DImageBacking*>(backing())->EndAccessD3D11();
+  static_cast<D3DImageBacking*>(backing())->EndAccessD3D11(d3d11_device_,
+                                                           /*is_overlay=*/true);
 }
 
-absl::optional<gl::DCLayerOverlayImage>
+std::optional<gl::DCLayerOverlayImage>
 OverlayD3DImageRepresentation::GetDCLayerOverlayImage() {
   return static_cast<D3DImageBacking*>(backing())->GetDCLayerOverlayImage();
 }
 
-D3D11VideoDecodeImageRepresentation::D3D11VideoDecodeImageRepresentation(
+D3D11VideoImageRepresentation::D3D11VideoImageRepresentation(
     SharedImageManager* manager,
     SharedImageBacking* backing,
     MemoryTypeTracker* tracker,
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> texture)
-    : VideoDecodeImageRepresentation(manager, backing, tracker),
-      texture_(std::move(texture)) {}
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_texture)
+    : VideoImageRepresentation(manager, backing, tracker),
+      d3d11_device_(std::move(d3d11_device)),
+      d3d11_texture_(std::move(d3d11_texture)) {}
 
-D3D11VideoDecodeImageRepresentation::~D3D11VideoDecodeImageRepresentation() =
-    default;
+D3D11VideoImageRepresentation::~D3D11VideoImageRepresentation() = default;
 
-bool D3D11VideoDecodeImageRepresentation::BeginWriteAccess() {
+bool D3D11VideoImageRepresentation::BeginWriteAccess() {
   D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
-  if (!d3d_image_backing->BeginAccessD3D11(/*write_access=*/true))
+  if (!d3d_image_backing->BeginAccessD3D11(d3d11_device_,
+                                           /*write_access=*/true)) {
     return false;
-
+  }
   return true;
 }
 
-void D3D11VideoDecodeImageRepresentation::EndWriteAccess() {
+void D3D11VideoImageRepresentation::EndWriteAccess() {
   D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
-  d3d_image_backing->EndAccessD3D11();
+  d3d_image_backing->EndAccessD3D11(d3d11_device_);
+}
+
+bool D3D11VideoImageRepresentation::BeginReadAccess() {
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  if (!d3d_image_backing->BeginAccessD3D11(d3d11_device_,
+                                           /*write_access=*/false)) {
+    return false;
+  }
+  return true;
+}
+
+void D3D11VideoImageRepresentation::EndReadAccess() {
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  d3d_image_backing->EndAccessD3D11(d3d11_device_);
 }
 
 Microsoft::WRL::ComPtr<ID3D11Texture2D>
-D3D11VideoDecodeImageRepresentation::GetD3D11Texture() const {
-  return texture_;
+D3D11VideoImageRepresentation::GetD3D11Texture() const {
+  return d3d11_texture_;
+}
+
+std::unique_ptr<D3D11VideoImageCopyRepresentation>
+D3D11VideoImageCopyRepresentation::CreateFromGL(GLuint gl_texture_id,
+                                                std::string_view debug_label,
+                                                ID3D11Device* d3d_device,
+                                                SharedImageManager* manager,
+                                                SharedImageBacking* backing,
+                                                MemoryTypeTracker* tracker) {
+  gl::GLApi* const api = gl::g_current_gl_context;
+  D3D11_TEXTURE2D_DESC desc = InitVideoCopyTextureDesc(
+      backing->size().width(), backing->size().height(),
+      DXGI_FORMAT_R8G8B8A8_UNORM);
+
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d_dest_texture;
+  HRESULT hr = d3d_device->CreateTexture2D(&desc, nullptr, &d3d_dest_texture);
+  if (FAILED(hr)) {
+    LOG(ERROR) << "Failed to create destination texture for video: "
+               << logging::SystemErrorCodeToString(hr);
+    return nullptr;
+  }
+  std::string updated_debug_label = base::StrCat(
+      {"D3D11VideoImageCopyRepresentation_", std::string(debug_label)});
+  d3d_dest_texture->SetPrivateData(WKPDID_D3DDebugObjectName,
+                                   updated_debug_label.length(),
+                                   updated_debug_label.c_str());
+
+  Microsoft::WRL::ComPtr<IDXGIResource1> dxgi_resource;
+  hr = d3d_dest_texture.As(&dxgi_resource);
+  CHECK_EQ(hr, S_OK);
+  HANDLE dest_texture_handle;
+  hr = dxgi_resource->CreateSharedHandle(
+      nullptr, DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE, nullptr,
+      &dest_texture_handle);
+  CHECK_EQ(hr, S_OK);
+  base::win::ScopedHandle scoped_shared_handle(dest_texture_handle);
+
+  Microsoft::WRL::ComPtr<ID3D11Device> angle_device =
+      gl::QueryD3D11DeviceObjectFromANGLE();
+  Microsoft::WRL::ComPtr<ID3D11Device1> angle_device1;
+  hr = angle_device->QueryInterface(IID_PPV_ARGS(&angle_device1));
+  CHECK_EQ(hr, S_OK);
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> remote_texture;
+  hr = angle_device1->OpenSharedResource1(dest_texture_handle,
+                                          IID_PPV_ARGS(&remote_texture));
+  CHECK_EQ(hr, S_OK);
+
+  GLuint gl_texture_dest;
+  api->glGenTexturesFn(1, &gl_texture_dest);
+  gl::ScopedRestoreTexture scoped_restore(gl::g_current_gl_context,
+                                          GL_TEXTURE_2D, gl_texture_dest);
+  api->glTexParameteriFn(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  api->glTexParameteriFn(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+  const EGLint egl_attrib_list[] = {EGL_TEXTURE_INTERNAL_FORMAT_ANGLE, GL_RGBA,
+                                    EGL_NONE};
+  auto egl_image = gl::MakeScopedEGLImage(
+      EGL_NO_CONTEXT, EGL_D3D11_TEXTURE_ANGLE,
+      static_cast<EGLClientBuffer>(remote_texture.Get()), egl_attrib_list);
+  if (!egl_image.get()) {
+    LOG(ERROR) << "Failed to create an EGL image";
+    api->glDeleteTexturesFn(1, &gl_texture_dest);
+    return nullptr;
+  }
+
+  api->glEGLImageTargetTexture2DOESFn(GL_TEXTURE_2D, egl_image.get());
+  if (eglGetError() != static_cast<EGLint>(EGL_SUCCESS)) {
+    LOG(ERROR) << "Failed to bind EGL image to texture for video";
+    api->glDeleteTexturesFn(1, &gl_texture_dest);
+    return nullptr;
+  }
+
+  Microsoft::WRL::ComPtr<IDXGIKeyedMutex> keyed_mutex;
+  hr = remote_texture->QueryInterface(IID_PPV_ARGS(&keyed_mutex));
+  CHECK_EQ(hr, S_OK);
+  // Using the keyed mutex here is not required for synchronization with another
+  // thread; the texture is only written here and only consumed by the decoder
+  // using this representation.  However, a side effect of
+  // AcquireSync/ReleaseSync is that  modifications to the texture made here are
+  // "visible" to other D3D devices.
+  hr = keyed_mutex->AcquireSync(0, INFINITE);
+  CHECK_EQ(hr, S_OK);
+  {
+    DXGIScopedReleaseKeyedMutex scoped_keyed_mutex(keyed_mutex, 0);
+
+    // Using glCopySubTextureCHROMIUM may look odd here since the entire texture
+    // is being copied.  However, glCopyTextureCHROMIUM for some reason releases
+    // the backing texture before copying, which is not helpful since the goal
+    // here is to copy to the shared texture and not some random texture that
+    // ANGLE creates.
+    api->glCopySubTextureCHROMIUMFn(
+        gl_texture_id, 0, GL_TEXTURE_2D, gl_texture_dest, 0, 0, 0, 0, 0,
+        backing->size().width(), backing->size().height(), GL_FALSE, GL_FALSE,
+        GL_FALSE);
+    CHECK_EQ(glGetError(), static_cast<unsigned int>(GL_NO_ERROR));
+  }
+
+  api->glDeleteTexturesFn(1, &gl_texture_dest);
+
+  return std::make_unique<D3D11VideoImageCopyRepresentation>(
+      manager, backing, tracker, d3d_dest_texture.Get());
+}
+
+std::unique_ptr<D3D11VideoImageCopyRepresentation>
+D3D11VideoImageCopyRepresentation::CreateFromD3D(SharedImageManager* manager,
+                                                 SharedImageBacking* backing,
+                                                 MemoryTypeTracker* tracker,
+                                                 ID3D11Device* d3d_device,
+                                                 ID3D11Texture2D* texture,
+                                                 std::string_view debug_label,
+                                                 ID3D11Device* texture_device) {
+  D3D11_TEXTURE2D_DESC source_desc;
+  texture->GetDesc(&source_desc);
+
+  D3D11_TEXTURE2D_DESC desc = InitVideoCopyTextureDesc(
+      source_desc.Width, source_desc.Height, source_desc.Format);
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d_dest_texture;
+  HRESULT hr = d3d_device->CreateTexture2D(&desc, nullptr, &d3d_dest_texture);
+  if (FAILED(hr)) {
+    LOG(ERROR) << "Failed to create destination texture for video:"
+               << logging::SystemErrorCodeToString(hr);
+    return nullptr;
+  }
+  std::string updated_debug_label = base::StrCat(
+      {"D3D11VideoImageCopyRepresentation_", std::string(debug_label)});
+  d3d_dest_texture->SetPrivateData(WKPDID_D3DDebugObjectName,
+                                   updated_debug_label.length(),
+                                   updated_debug_label.c_str());
+
+  Microsoft::WRL::ComPtr<IDXGIResource1> dxgi_resource;
+  hr = d3d_dest_texture.As(&dxgi_resource);
+  CHECK_EQ(hr, S_OK);
+  HANDLE dest_texture_handle;
+  hr = dxgi_resource->CreateSharedHandle(
+      nullptr, DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE, nullptr,
+      &dest_texture_handle);
+  CHECK_EQ(hr, S_OK);
+  base::win::ScopedHandle scoped_shared_handle(dest_texture_handle);
+
+  Microsoft::WRL::ComPtr<ID3D11Device1> texture_device1;
+  hr = texture_device->QueryInterface(IID_PPV_ARGS(&texture_device1));
+  CHECK_EQ(hr, S_OK);
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> shared_texture;
+  hr = texture_device1->OpenSharedResource1(dest_texture_handle,
+                                            IID_PPV_ARGS(&shared_texture));
+  CHECK_EQ(hr, S_OK);
+  Microsoft::WRL::ComPtr<IDXGIKeyedMutex> shared_keyed_mutex;
+  hr = shared_texture.As(&shared_keyed_mutex);
+  CHECK_EQ(hr, S_OK);
+  Microsoft::WRL::ComPtr<ID3D11DeviceContext> texture_device_context;
+  texture_device->GetImmediateContext(&texture_device_context);
+
+  hr = shared_keyed_mutex->AcquireSync(0, INFINITE);
+  CHECK_EQ(hr, S_OK);
+  {
+    DXGIScopedReleaseKeyedMutex scoped_keyed_mutex(shared_keyed_mutex, 0);
+    texture_device_context->CopyResource(shared_texture.Get(), texture);
+  }
+
+  return std::make_unique<D3D11VideoImageCopyRepresentation>(
+      manager, backing, tracker, d3d_dest_texture.Get());
+}
+
+D3D11VideoImageCopyRepresentation::D3D11VideoImageCopyRepresentation(
+    SharedImageManager* manager,
+    SharedImageBacking* backing,
+    MemoryTypeTracker* tracker,
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_texture)
+    : VideoImageRepresentation(manager, backing, tracker),
+      d3d11_texture_(std::move(d3d11_texture)) {}
+
+D3D11VideoImageCopyRepresentation::~D3D11VideoImageCopyRepresentation() =
+    default;
+
+bool D3D11VideoImageCopyRepresentation::BeginWriteAccess() {
+  // This is a copy of an image, write not supported
+  NOTREACHED();
+}
+
+void D3D11VideoImageCopyRepresentation::EndWriteAccess() {}
+
+bool D3D11VideoImageCopyRepresentation::BeginReadAccess() {
+  // This representation and underlying texture was created exclusively
+  // for a particular caller.  No synchronization is required because
+  // only the caller has this representation.
+  return true;
+}
+
+void D3D11VideoImageCopyRepresentation::EndReadAccess() {}
+
+Microsoft::WRL::ComPtr<ID3D11Texture2D>
+D3D11VideoImageCopyRepresentation::GetD3D11Texture() const {
+  return d3d11_texture_;
+}
+
+// D3DSkiaGraphiteDawnImageRepresentation
+
+D3DSkiaGraphiteDawnImageRepresentation::
+    ~D3DSkiaGraphiteDawnImageRepresentation() = default;
+
+// Enabling this functionality reduces overhead in the compositor by lowering
+// the frequency of begin/end access pairs. The semantic constraints for a
+// representation being able to return true are the following:
+// * It is valid to call BeginScopedReadAccess() concurrently on two
+//   different representations of the same image
+// * The backing supports true concurrent read access rather than emulating
+//   concurrent reads by "pausing" a first read when a second read of a
+//   different representation type begins, which requires that the second
+//   representation's read finish within the scope of its GPU task in order
+//   to ensure that nothing actually accesses the first representation
+//   while it is paused. Some backings that support only exclusive access
+//   from the SI perspective do the latter (e.g.,
+//   ExternalVulkanImageBacking as its "support" of concurrent GL and
+//   Vulkan access). SupportsMultipleConcurrentReadAccess() results in the
+//   compositor's read access being long-lived (i.e., beyond the scope of
+//   a single GPU task).
+// This representation meets both of the above constraints.
+bool D3DSkiaGraphiteDawnImageRepresentation::
+    SupportsMultipleConcurrentReadAccess() {
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  // KeyedMutex does not support concurrent read access atm.
+  // TODO(348598119): re-evaluate whether we can return true for keyed mutexes.
+  return !d3d_image_backing->has_keyed_mutex();
+}
+
+bool D3DSkiaGraphiteDawnImageRepresentation::
+    NeedGraphiteContextSubmitBeforeEndAccess() {
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  return !d3d_image_backing->SupportsDeferredGraphiteSubmit();
+}
+
+std::vector<scoped_refptr<SkiaImageRepresentation::GraphiteTextureHolder>>
+D3DSkiaGraphiteDawnImageRepresentation::WrapBackendTextures(
+    wgpu::Texture texture,
+    std::vector<skgpu::graphite::BackendTexture> backend_textures) {
+  D3DImageBacking* d3d_image_backing = static_cast<D3DImageBacking*>(backing());
+  return d3d_image_backing->CreateGraphiteTextureHolders(
+      GetDevice(), std::move(texture), std::move(backend_textures));
 }
 
 }  // namespace gpu

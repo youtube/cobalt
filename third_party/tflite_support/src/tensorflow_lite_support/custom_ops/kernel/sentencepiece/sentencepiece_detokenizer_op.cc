@@ -37,7 +37,7 @@ REGISTER_OP("TFSentencepieceDetokenizeOp")
       shape_inference::DimensionHandle dim;
       TF_RETURN_IF_ERROR(c->Subtract(c->NumElements(c->input(2)), 1, &dim));
       c->set_output(0, c->Vector(dim));
-      return OkStatus();
+      return absl::OkStatus();
     });
 
 template <typename Tsplits>
@@ -73,8 +73,9 @@ class TFSentencepieceDetokenizerOp : public tensorflow::OpKernel {
           ctx,
           res.type ==
               tflite::ops::custom::sentencepiece::DecoderResultType::SUCCESS,
-          tensorflow::Status(tensorflow::error::INTERNAL,
-                             "Sentencepiece conversion failed"));
+          absl::Status(
+              static_cast<absl::StatusCode>(tensorflow::error::INTERNAL),
+              "Sentencepiece conversion failed"));
       output_flat(i) = res.decoded;
     }
   }

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_SETTINGS_DEVICE_SETTINGS_PROVIDER_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -31,7 +32,7 @@ class ChromeDeviceSettingsProto;
 
 namespace ash {
 
-constexpr char kAllowlistCOILFallbackHistogram[] =
+inline constexpr char kAllowlistCOILFallbackHistogram[] =
     "Login.AllowlistCOILFallback";
 
 // CrosSettingsProvider implementation that works with device settings.
@@ -55,12 +56,12 @@ class DeviceSettingsProvider
   ~DeviceSettingsProvider() override;
 
   // Returns true if |path| is handled by this provider.
-  static bool IsDeviceSetting(const std::string& name);
+  static bool IsDeviceSetting(std::string_view name);
 
   // CrosSettingsProvider implementation.
-  const base::Value* Get(const std::string& path) const override;
+  const base::Value* Get(std::string_view path) const override;
   TrustedStatus PrepareTrustedValues(base::OnceClosure* callback) override;
-  bool HandlesSetting(const std::string& path) const override;
+  bool HandlesSetting(std::string_view path) const override;
 
   // Helper function that decodes policies from provided proto into the pref
   // map.
@@ -73,7 +74,7 @@ class DeviceSettingsProvider
   }
 
  private:
-  // TODO(https://crbug.com/433840): There are no longer any actual callers of
+  // TODO(crbug.com/41143265): There are no longer any actual callers of
   // DeviceSettingsProvider::DoSet, but it is still called in the tests.
   // Still TODO: remove the calls from the test, and remove the extra state
   // that this class will no longer need (ie, cached written values).
@@ -121,8 +122,8 @@ class DeviceSettingsProvider
   // Pending callbacks that need to be invoked after settings verification.
   std::vector<base::OnceClosure> callbacks_;
 
-  raw_ptr<DeviceSettingsService, ExperimentalAsh> device_settings_service_;
-  raw_ptr<PrefService, DanglingUntriaged | ExperimentalAsh> local_state_;
+  raw_ptr<DeviceSettingsService> device_settings_service_;
+  raw_ptr<PrefService, DanglingUntriaged> local_state_;
 
   mutable PrefValueMap migration_values_;
 
@@ -151,7 +152,7 @@ class DeviceSettingsProvider
   FRIEND_TEST_ALL_PREFIXES(DeviceSettingsProviderTest,
                            PolicyFailedPermanentlyNotification);
   FRIEND_TEST_ALL_PREFIXES(DeviceSettingsProviderTest, PolicyLoadNotification);
-  // TODO(https://crbug.com/433840) Remove these once DoSet is removed.
+  // TODO(crbug.com/41143265) Remove these once DoSet is removed.
   FRIEND_TEST_ALL_PREFIXES(DeviceSettingsProviderTest, SetPrefFailed);
   FRIEND_TEST_ALL_PREFIXES(DeviceSettingsProviderTest, SetPrefSucceed);
   FRIEND_TEST_ALL_PREFIXES(DeviceSettingsProviderTest, SetPrefTwice);

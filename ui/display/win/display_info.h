@@ -6,6 +6,7 @@
 #define UI_DISPLAY_WIN_DISPLAY_INFO_H_
 
 #include <windows.h>
+
 #include <stdint.h>
 
 #include "ui/display/display.h"
@@ -20,14 +21,28 @@ class DISPLAY_EXPORT DisplayInfo final {
               float device_scale_factor,
               float sdr_white_level,
               Display::Rotation rotation,
-              int display_frequency,
+              float display_frequency,
               const gfx::Vector2dF& pixels_per_inch,
               DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY output_technology,
               const std::string& label);
+
+  // This should only be used in headless mode when synthesized display ids are
+  // used in place of the ones derived from the real monitor information.
+  DisplayInfo(int64_t id,
+              const MONITORINFOEX& monitor_info,
+              float device_scale_factor,
+              float sdr_white_level,
+              Display::Rotation rotation,
+              float display_frequency,
+              const gfx::Vector2dF& pixels_per_inch,
+              DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY output_technology,
+              const std::string& label);
+
   DisplayInfo(const DisplayInfo& other);
   ~DisplayInfo();
 
-  static int64_t DeviceIdFromDeviceName(const wchar_t* device_name);
+  // Derives a display ID using monitor information.
+  static int64_t DisplayIdFromMonitorInfo(const MONITORINFOEX& monitor);
 
   int64_t id() const { return id_; }
   const gfx::Rect& screen_rect() const { return screen_rect_; }
@@ -35,15 +50,15 @@ class DISPLAY_EXPORT DisplayInfo final {
   float device_scale_factor() const { return device_scale_factor_; }
   float sdr_white_level() const { return sdr_white_level_; }
   Display::Rotation rotation() const { return rotation_; }
-  int display_frequency() const { return display_frequency_; }
+  float display_frequency() const { return display_frequency_; }
   const gfx::Vector2dF& pixels_per_inch() const { return pixels_per_inch_; }
   DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY output_technology() const {
     return output_technology_;
   }
   const std::string& label() const { return label_; }
+  const std::wstring& device_name() const { return device_name_; }
 
   bool operator==(const DisplayInfo& rhs) const;
-  bool operator!=(const DisplayInfo& rhs) const { return !(*this == rhs); }
 
  private:
   int64_t id_;
@@ -57,12 +72,14 @@ class DISPLAY_EXPORT DisplayInfo final {
   float device_scale_factor_;
   float sdr_white_level_;
   Display::Rotation rotation_;
-  int display_frequency_;
+  float display_frequency_;
   // Pixels per inch of a display. This value will only be set for touch
   // monitors. In non-touch cases, it will be set to Zero.
   gfx::Vector2dF pixels_per_inch_;
   DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY output_technology_;
   std::string label_;
+  // The MONITORINFOEX::szDevice device name representing the display.
+  std::wstring device_name_;
 };
 
 }  // namespace display::win::internal

@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_WORKERS_DEDICATED_WORKER_MESSAGING_PROXY_H_
 
 #include <memory>
+
 #include "base/functional/function_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
@@ -15,7 +16,10 @@
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/messaging/blink_transferable_message.h"
 #include "third_party/blink/renderer/core/messaging/message_port.h"
+#include "third_party/blink/renderer/core/workers/custom_event_message.h"
 #include "third_party/blink/renderer/core/workers/parent_execution_context_task_runners.h"
 #include "third_party/blink/renderer/core/workers/threaded_messaging_proxy_base.h"
 #include "third_party/blink/renderer/core/workers/worker_backing_thread_startup_data.h"
@@ -58,14 +62,18 @@ class CORE_EXPORT DedicatedWorkerMessagingProxy
       const KURL& script_url,
       const FetchClientSettingsObjectSnapshot& outside_settings_object,
       const v8_inspector::V8StackTraceId&,
-      const String& source_code,
-      RejectCoepUnsafeNone reject_coep_unsafe_none,
       const blink::DedicatedWorkerToken& token,
       mojo::PendingRemote<mojom::blink::DedicatedWorkerHost>
           dedicated_worker_host,
       mojo::PendingRemote<mojom::blink::BackForwardCacheControllerHost>
           back_forward_cache_controller_host);
   void PostMessageToWorkerGlobalScope(BlinkTransferableMessage);
+  void PostCustomEventToWorkerGlobalScope(
+      TaskType task_type,
+      CrossThreadFunction<Event*(ScriptState*, CustomEventMessage)>
+          event_factory_callback,
+      CrossThreadFunction<Event*(ScriptState*)> event_factory_error_callback,
+      CustomEventMessage);
 
   bool HasPendingActivity() const;
 
@@ -95,8 +103,23 @@ class CORE_EXPORT DedicatedWorkerMessagingProxy
 
  private:
   friend class DedicatedWorkerMessagingProxyForTest;
+  struct CustomEventInfo {
+    TaskType task_type;
+    CustomEventMessage message;
+    CrossThreadFunction<Event*(ScriptState*, CustomEventMessage)>
+        event_factory_callback;
+    CrossThreadFunction<Event*(ScriptState*)> event_factory_error_callback;
+  };
+  // This struct abstracts MessageEvent (worker.postMessage()) and other events
+  // to be dispatched on the worker context. These parameters are mutually
+  // exclusive. If the task info is for MessageEvent, only the message should be
+  // set. Otherwise, only the custome_event_info should be set.
+  struct TaskInfo {
+    std::optional<CustomEventInfo> custom_event_info;
+    std::optional<BlinkTransferableMessage> message;
+  };
 
-  absl::optional<WorkerBackingThreadStartupData> CreateBackingThreadStartupData(
+  std::optional<WorkerBackingThreadStartupData> CreateBackingThreadStartupData(
       v8::Isolate*);
 
   std::unique_ptr<WorkerThread> CreateWorkerThread() override;
@@ -117,7 +140,7 @@ class CORE_EXPORT DedicatedWorkerMessagingProxy
 
   // Tasks are queued here until worker scripts are evaluated on the worker
   // global scope.
-  Vector<BlinkTransferableMessage> queued_early_tasks_;
+  Vector<TaskInfo> queued_early_tasks_;
 
   // Passed to DedicatedWorkerThread on worker thread creation.
   mojo::PendingRemote<mojom::blink::DedicatedWorkerHost>

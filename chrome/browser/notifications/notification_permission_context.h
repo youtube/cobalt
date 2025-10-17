@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_NOTIFICATIONS_NOTIFICATION_PERMISSION_CONTEXT_H_
 #define CHROME_BROWSER_NOTIFICATIONS_NOTIFICATION_PERMISSION_CONTEXT_H_
 
+#include <memory>
+
 #include "base/gtest_prod_util.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/permissions/permission_context_base.h"
@@ -114,11 +116,11 @@ class NotificationPermissionContext
 
   // PermissionContextBase implementation.
   void DecidePermission(
-      const permissions::PermissionRequestID& id,
-      const GURL& requesting_origin,
-      const GURL& embedding_origin,
-      bool user_gesture,
+      std::unique_ptr<permissions::PermissionRequestData> request_data,
       permissions::BrowserPermissionCallback callback) override;
+  void UpdateTabContext(const permissions::PermissionRequestID& id,
+                        const GURL& requesting_frame,
+                        bool allowed) override;
 
   base::WeakPtrFactory<NotificationPermissionContext> weak_factory_ui_thread_{
       this};

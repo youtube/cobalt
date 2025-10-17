@@ -9,7 +9,6 @@
 #include "ash/webui/grit/ash_media_app_resources.h"
 #include "ash/webui/media_app_ui/buildflags.h"
 #include "ash/webui/media_app_ui/media_app_page_handler.h"
-#include "ash/webui/media_app_ui/url_constants.h"
 #include "ash/webui/web_applications/webui_test_prod_util.h"
 #include "chromeos/grit/chromeos_media_app_bundle_resources.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
@@ -38,6 +37,9 @@ content::WebUIDataSource* CreateAndAddHostDataSource(
     content::BrowserContext* browser_context) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       browser_context, kChromeUIMediaAppHost);
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
 
   // Add resources from ash_media_app_resources.pak.
   source->SetDefaultResource(IDR_MEDIA_APP_INDEX_DARK_LIGHT_HTML);

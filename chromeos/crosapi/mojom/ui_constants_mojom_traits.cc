@@ -22,7 +22,6 @@ EnumTraits<crosapi::mojom::ResourceScaleFactor,
       return crosapi::mojom::ResourceScaleFactor::k300Percent;
     case ui::ResourceScaleFactor::NUM_SCALE_FACTORS:
       NOTREACHED();
-      return crosapi::mojom::ResourceScaleFactor::kScaleFactorNone;
   }
 }
 

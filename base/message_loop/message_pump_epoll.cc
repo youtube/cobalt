@@ -2,25 +2,63 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/message_loop/message_pump_epoll.h"
 
-#include <sys/epoll.h>
 #include <sys/eventfd.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
+#include "base/feature_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
-#include "base/ranges/algorithm.h"
 #include "base/threading/thread_checker.h"
+#include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if DCHECK_IS_ON()
+#include <iomanip>
+#endif
 
 namespace base {
+
+namespace {
+
+// Under this feature native work is batched.
+BASE_FEATURE(kBatchNativeEventsInMessagePumpEpoll,
+             "BatchNativeEventsInMessagePumpEpoll",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Caches the state of the "BatchNativeEventsInMessagePumpEpoll".
+std::atomic_bool g_use_batched_version = false;
+std::atomic_bool g_use_poll = false;
+
+constexpr std::pair<uint32_t, short int> kEpollToPollEvents[] = {
+    {EPOLLIN, POLLIN},   {EPOLLOUT, POLLOUT}, {EPOLLRDHUP, POLLRDHUP},
+    {EPOLLPRI, POLLPRI}, {EPOLLERR, POLLERR}, {EPOLLHUP, POLLHUP}};
+
+void SetEventsForPoll(const uint32_t epoll_events, struct pollfd* poll_entry) {
+  poll_entry->events = 0;
+  for (const auto& epoll_poll : kEpollToPollEvents) {
+    if (epoll_events & epoll_poll.first) {
+      poll_entry->events |= epoll_poll.second;
+    }
+  }
+}
+}  // namespace
 
 // Parameters used to construct and describe an interest.
 struct MessagePumpEpoll::InterestParams {
@@ -103,7 +141,7 @@ class MessagePumpEpoll::Interest : public RefCounted<Interest> {
 };
 
 MessagePumpEpoll::MessagePumpEpoll() {
-  epoll_.reset(epoll_create(/*ignored_but_must_be_positive=*/1));
+  epoll_.reset(epoll_create1(/*flags=*/0));
   PCHECK(epoll_.is_valid());
 
   wake_event_.reset(eventfd(0, EFD_NONBLOCK));
@@ -112,9 +150,26 @@ MessagePumpEpoll::MessagePumpEpoll() {
   epoll_event wake{.events = EPOLLIN, .data = {.ptr = &wake_event_}};
   int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_ADD, wake_event_.get(), &wake);
   PCHECK(rv == 0);
+
+  struct pollfd poll_entry;
+  poll_entry.fd = wake_event_.get();
+  poll_entry.events = POLLIN;
+  poll_entry.revents = 0;
+  pollfds_.push_back(poll_entry);
+
+  next_metrics_time_ = base::TimeTicks::Now() + base::Minutes(1);
 }
 
 MessagePumpEpoll::~MessagePumpEpoll() = default;
+
+void MessagePumpEpoll::InitializeFeatures() {
+  // Relaxed memory order since no memory access depends on value.
+  g_use_batched_version.store(
+      base::FeatureList::IsEnabled(kBatchNativeEventsInMessagePumpEpoll),
+      std::memory_order_relaxed);
+  g_use_poll.store(base::FeatureList::IsEnabled(kUsePollForMessagePumpEpoll),
+                   std::memory_order_relaxed);
+}
 
 bool MessagePumpEpoll::WatchFileDescriptor(int fd,
                                            bool persistent,
@@ -146,7 +201,7 @@ bool MessagePumpEpoll::WatchFileDescriptor(int fd,
     // non-persistent) Interest.
     existing_interest->set_active(true);
   } else {
-    entry.interests->push_back(controller->AssignInterest(params));
+    entry.interests.push_back(controller->AssignInterest(params));
     if (existing_interest) {
       UnregisterInterest(existing_interest);
     }
@@ -166,7 +221,7 @@ bool MessagePumpEpoll::WatchFileDescriptor(int fd,
 void MessagePumpEpoll::Run(Delegate* delegate) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   RunState run_state(delegate);
-  AutoReset<RunState*> auto_reset_run_state(&run_state_, &run_state);
+  AutoReset<raw_ptr<RunState>> auto_reset_run_state(&run_state_, &run_state);
   for (;;) {
     // Do some work and see if the next task is ready right away.
     Delegate::NextWorkInfo next_work_info = delegate->DoWork();
@@ -175,28 +230,59 @@ void MessagePumpEpoll::Run(Delegate* delegate) {
       break;
     }
 
-    // Process any immediately ready IO event, but don't wait for more yet.
-    const bool processed_events = WaitForEpollEvents(TimeDelta());
+    if (next_work_info.recent_now > next_metrics_time_) {
+      RecordPeriodicMetrics();
+    }
+
+    // Reset the native work flag before processing IO events.
+    native_work_started_ = false;
+
+    // Process any immediately ready IO event, but don't sleep yet.
+    // Process epoll events until none is available without blocking or
+    // the maximum number of iterations is reached. The maximum number of
+    // iterations when `g_use_batched_version` is true was chosen so that
+    // all available events are dispatched 95% of the time in local tests.
+    // The maximum is not infinite because we want to yield to application
+    // tasks at some point.
+    bool did_native_work = false;
+    const int max_iterations =
+        g_use_batched_version.load(std::memory_order_relaxed) ? 16 : 1;
+    for (int i = 0; i < max_iterations; ++i) {
+      if (!WaitForEpollEvents(TimeDelta())) {
+        break;
+      }
+      did_native_work = true;
+    }
+
+    bool attempt_more_work = immediate_work_available || did_native_work;
+
+    if (run_state.should_quit) {
+      break;
+    }
+    if (attempt_more_work) {
+      continue;
+    }
+
+    delegate->DoIdleWork();
     if (run_state.should_quit) {
       break;
     }
 
-    if (immediate_work_available || processed_events) {
-      continue;
-    }
-
-    const bool did_idle_work = delegate->DoIdleWork();
-    if (run_state.should_quit) {
-      break;
-    }
-    if (did_idle_work) {
-      continue;
-    }
-
+    TimeDelta next_metrics_delay =
+        next_metrics_time_ - next_work_info.recent_now;
     TimeDelta timeout = TimeDelta::Max();
     DCHECK(!next_work_info.delayed_run_time.is_null());
     if (!next_work_info.delayed_run_time.is_max()) {
       timeout = next_work_info.remaining_delay();
+    }
+    if (timeout > next_metrics_delay) {
+      timeout = next_metrics_delay;
+      // Ensure we never get a negative timeout from the next_metrics_delay as
+      // this will cause epoll to block indefinitely if no fds are signaled,
+      // preventing existing non-fd tasks from running.
+      if (timeout < base::Milliseconds(0)) {
+        timeout = base::Milliseconds(0);
+      }
     }
     delegate->BeforeWait();
     WaitForEpollEvents(timeout);
@@ -204,6 +290,12 @@ void MessagePumpEpoll::Run(Delegate* delegate) {
       break;
     }
   }
+}
+
+void MessagePumpEpoll::RecordPeriodicMetrics() {
+  UMA_HISTOGRAM_COUNTS_1000("MessagePumpEpoll.WatchedFileDescriptors",
+                            (int)entries_.size());
+  next_metrics_time_ += base::Minutes(1);
 }
 
 void MessagePumpEpoll::Quit() {
@@ -232,24 +324,95 @@ void MessagePumpEpoll::ScheduleDelayedWork(
 
 void MessagePumpEpoll::AddEpollEvent(EpollEventEntry& entry) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!entry.stopped);
   const uint32_t events = entry.ComputeActiveEvents();
   epoll_event event{.events = events, .data = {.ptr = &entry}};
   int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_ADD, entry.fd, &event);
+#if DCHECK_IS_ON()
+  // TODO(361611793): Remove these debug logs after resolving the issue.
+  if (rv != 0) {
+    for (auto& history : entry.epoll_history_) {
+      if (history.event) {
+        auto& e = history.event.value();
+        LOG(ERROR) << "events=0x" << std::hex << std::setfill('0')
+                   << std::setw(8) << e.events;
+        LOG(ERROR) << "data=0x" << std::hex << std::setfill('0')
+                   << std::setw(16) << e.data.u64;
+      }
+      LOG(ERROR) << history.stack_trace;
+    }
+  } else {
+    entry.PushEpollHistory(std::make_optional(event));
+  }
+#endif
   DPCHECK(rv == 0);
   entry.registered_events = events;
+
+  DCHECK(FindPollEntry(entry.fd) == pollfds_.end());
+  struct pollfd poll_entry;
+  poll_entry.fd = entry.fd;
+  poll_entry.revents = 0;
+  SetEventsForPoll(events, &poll_entry);
+
+  pollfds_.push_back(poll_entry);
 }
 
 void MessagePumpEpoll::UpdateEpollEvent(EpollEventEntry& entry) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const uint32_t events = entry.ComputeActiveEvents();
-  if (events == entry.registered_events && !(events & EPOLLONESHOT)) {
-    // Persistent events don't need to be modified if no bits are changing.
-    return;
+  if (!entry.stopped) {
+    if (events == 0) {
+      // There is no active interest now.
+      // We don't have to call epoll_ctl() if the last event was registered as
+      // one-shot since the fd has already been disabled.
+      if (!(entry.registered_events & EPOLLONESHOT)) {
+        // The fd is still enabled. We need to disable it but don't remove the
+        // entry from `entries_` to keep the reference alive because handling
+        // the entry isn't finished yet.
+        StopEpollEvent(entry);
+      } else {
+        // No work needs to be done for epoll, but for poll we have to implement
+        // the equivalent of oneshot ourselves by unregistering for all events.
+        auto poll_entry = FindPollEntry(entry.fd);
+        CHECK(poll_entry != pollfds_.end());
+        poll_entry->events = 0;
+      }
+      return;
+    }
+    if (events == entry.registered_events && !(events & EPOLLONESHOT)) {
+      // Persistent events don't need to be modified if no bits are changing.
+      return;
+    }
+    epoll_event event{.events = events, .data = {.ptr = &entry}};
+    int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_MOD, entry.fd, &event);
+    DPCHECK(rv == 0);
+#if DCHECK_IS_ON()
+    entry.PushEpollHistory(std::make_optional(event));
+#endif
+    entry.registered_events = events;
+
+    auto poll_entry = FindPollEntry(entry.fd);
+    CHECK(poll_entry != pollfds_.end());
+    SetEventsForPoll(events, &(*poll_entry));
+  } else if (events != 0) {
+    // An interest for the fd has been reactivated. Re-enable the fd.
+    entry.stopped = false;
+    AddEpollEvent(entry);
   }
-  epoll_event event{.events = events, .data = {.ptr = &entry}};
-  int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_MOD, entry.fd, &event);
-  DPCHECK(rv == 0);
-  entry.registered_events = events;
+}
+
+void MessagePumpEpoll::StopEpollEvent(EpollEventEntry& entry) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!entry.stopped) {
+    int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_DEL, entry.fd, nullptr);
+    DPCHECK(rv == 0);
+#if DCHECK_IS_ON()
+    entry.PushEpollHistory(std::nullopt);
+#endif
+    entry.stopped = true;
+    entry.registered_events = 0;
+    RemovePollEntry(entry.fd);
+  }
 }
 
 void MessagePumpEpoll::UnregisterInterest(
@@ -258,18 +421,17 @@ void MessagePumpEpoll::UnregisterInterest(
 
   const int fd = interest->params().fd;
   auto entry_it = entries_.find(fd);
-  DCHECK(entry_it != entries_.end());
+  CHECK(entry_it != entries_.end());
 
   EpollEventEntry& entry = entry_it->second;
-  auto& interests = entry.interests.container();
-  auto it = ranges::find(interests, interest);
-  DCHECK(it != interests.end());
+  auto& interests = entry.interests;
+  auto* it = std::ranges::find(interests, interest);
+  CHECK(it != interests.end());
   interests.erase(it);
 
   if (interests.empty()) {
+    StopEpollEvent(entry);
     entries_.erase(entry_it);
-    int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_DEL, fd, nullptr);
-    DPCHECK(rv == 0);
   } else {
     UpdateEpollEvent(entry);
   }
@@ -280,25 +442,47 @@ bool MessagePumpEpoll::WaitForEpollEvents(TimeDelta timeout) {
 
   // `timeout` has microsecond resolution, but timeouts accepted by epoll_wait()
   // are integral milliseconds. Round up to the next millisecond.
-  // TODO(https://crbug.com/1382894): Consider higher-resolution timeouts.
+  // TODO(crbug.com/40245876): Consider higher-resolution timeouts.
   const int epoll_timeout =
       timeout.is_max() ? -1
                        : saturated_cast<int>(timeout.InMillisecondsRoundedUp());
-  epoll_event events[16];
-  const int epoll_result =
-      epoll_wait(epoll_.get(), events, std::size(events), epoll_timeout);
-  if (epoll_result < 0) {
-    DPCHECK(errno == EINTR);
-    return false;
+
+  // Used in the "epoll" code path.
+  epoll_event epoll_events[16];
+  // Used in the "poll" code path.
+  std::vector<epoll_event> poll_events;
+  // Will refer to `events` or `events_vector` depending on which
+  // code path is taken.
+  span<epoll_event> ready_events;
+
+  // When there are many FDs, epoll() can be significantly faster as poll needs
+  // to iterate through the list of watched fds. This value is pretty arbitrary,
+  // the internet suggests that under 1000 fds that epoll isn't noticeably
+  // faster than poll but this isn't easy to empirically measure.
+  bool use_poll =
+      g_use_poll.load(std::memory_order_relaxed) && entries_.size() < 500;
+
+  if (use_poll) {
+    if (!GetEventsPoll(epoll_timeout, &poll_events)) {
+      return false;
+    }
+    ready_events = span(poll_events).first(poll_events.size());
+  } else {
+    const int epoll_result = epoll_wait(epoll_.get(), epoll_events,
+                                        std::size(epoll_events), epoll_timeout);
+    if (epoll_result < 0) {
+      DPCHECK(errno == EINTR);
+      return false;
+    }
+    if (epoll_result == 0) {
+      return false;
+    }
+
+    ready_events =
+        span(epoll_events).first(base::checked_cast<size_t>(epoll_result));
   }
 
-  if (epoll_result == 0) {
-    return false;
-  }
-
-  const base::span<epoll_event> ready_events(events,
-                                             static_cast<size_t>(epoll_result));
-  for (auto& e : ready_events) {
+  for (epoll_event& e : ready_events) {
     if (e.data.ptr == &wake_event_) {
       // Wake-up events are always safe to handle immediately. Unlike other
       // events used by MessagePumpEpoll they also don't point to an
@@ -329,15 +513,68 @@ bool MessagePumpEpoll::WaitForEpollEvents(TimeDelta timeout) {
   return true;
 }
 
+std::vector<struct pollfd>::iterator MessagePumpEpoll::FindPollEntry(int fd) {
+  return std::find_if(
+      pollfds_.begin(), pollfds_.end(),
+      [fd](const struct pollfd poll_entry) { return poll_entry.fd == fd; });
+}
+
+void MessagePumpEpoll::RemovePollEntry(int fd) {
+  pollfds_.erase(FindPollEntry(fd));
+}
+
+bool MessagePumpEpoll::GetEventsPoll(int epoll_timeout,
+                                     std::vector<epoll_event>* epoll_events) {
+  int retval = poll(&pollfds_[0], base::checked_cast<nfds_t>(pollfds_.size()),
+                    epoll_timeout);
+  if (retval < 0) {
+    DPCHECK(errno == EINTR);
+    return false;
+  }
+  // Nothing to do, timeout.
+  if (retval == 0) {
+    return false;
+  }
+
+  for (struct pollfd& pollfd_entry : pollfds_) {
+    if (pollfd_entry.revents == 0) {
+      continue;
+    }
+
+    epoll_event event;
+    memset(&event, 0, sizeof(event));
+
+    if (pollfd_entry.fd == wake_event_.get()) {
+      event.data.ptr = &wake_event_;
+    } else {
+      auto entry = entries_.find(pollfd_entry.fd);
+      CHECK(entry != entries_.end());
+      event.data.ptr = &(entry->second);
+    }
+
+    for (const auto& epoll_poll : kEpollToPollEvents) {
+      if (pollfd_entry.revents & epoll_poll.second) {
+        event.events |= epoll_poll.first;
+      }
+    }
+    epoll_events->push_back(event);
+    pollfd_entry.revents = 0;
+  }
+  return true;
+}
+
 void MessagePumpEpoll::OnEpollEvent(EpollEventEntry& entry, uint32_t events) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!entry.stopped);
 
   const bool readable = (events & EPOLLIN) != 0;
   const bool writable = (events & EPOLLOUT) != 0;
 
   // Under different circumstances, peer closure may raise both/either EPOLLHUP
-  // and/or EPOLLERR. Treat them as equivalent.
+  // and/or EPOLLERR. Treat them as equivalent. Notify the watchers to
+  // gracefully stop watching if disconnected.
   const bool disconnected = (events & (EPOLLHUP | EPOLLERR)) != 0;
+  DCHECK(readable || writable || disconnected);
 
   // Copy the set of Interests, since interests may be added to or removed from
   // `entry` during the loop below. This copy is inexpensive in practice
@@ -347,17 +584,20 @@ void MessagePumpEpoll::OnEpollEvent(EpollEventEntry& entry, uint32_t events) {
   // Any of these interests' event handlers may destroy any of the others'
   // controllers. Start all of them watching for destruction before we actually
   // dispatch any events.
-  for (const auto& interest : interests.container()) {
+  for (const auto& interest : interests) {
     interest->WatchForControllerDestruction();
   }
 
-  for (const auto& interest : interests.container()) {
+  bool event_handled = false;
+  for (const auto& interest : interests) {
     if (!interest->active()) {
       continue;
     }
 
+    const bool one_shot = interest->params().one_shot;
     const bool can_read = (readable || disconnected) && interest->params().read;
-    const bool can_write = writable && interest->params().write;
+    const bool can_write = (writable || disconnected) &&
+                           interest->params().write && (!one_shot || !can_read);
     if (!can_read && !can_write) {
       // If this Interest is active but not watching for whichever event was
       // raised here, there's nothing to do. This can occur if a descriptor has
@@ -376,10 +616,17 @@ void MessagePumpEpoll::OnEpollEvent(EpollEventEntry& entry, uint32_t events) {
 
     if (!interest->was_controller_destroyed()) {
       HandleEvent(entry.fd, can_read, can_write, interest->controller());
+      event_handled = true;
     }
   }
 
-  for (const auto& interest : interests.container()) {
+  // Stop `EpollEventEntry` for disconnected file descriptor without active
+  // interests.
+  if (disconnected && !event_handled) {
+    StopEpollEvent(entry);
+  }
+
+  for (const auto& interest : interests) {
     interest->StopWatchingForControllerDestruction();
   }
 }
@@ -389,6 +636,7 @@ void MessagePumpEpoll::HandleEvent(int fd,
                                    bool can_write,
                                    FdWatchController* controller) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  BeginNativeWorkBatch();
   // Make the MessagePumpDelegate aware of this other form of "DoWork". Skip if
   // HandleNotification() is called outside of Run() (e.g. in unit tests).
   Delegate::ScopedDoWorkItem scoped_do_work_item;
@@ -427,9 +675,21 @@ void MessagePumpEpoll::HandleEvent(int fd,
 
 void MessagePumpEpoll::HandleWakeUp() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  BeginNativeWorkBatch();
   uint64_t value;
   ssize_t n = HANDLE_EINTR(read(wake_event_.get(), &value, sizeof(value)));
   DPCHECK(n == sizeof(value));
+}
+
+void MessagePumpEpoll::BeginNativeWorkBatch() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Call `BeginNativeWorkBeforeDoWork()` if native work hasn't started.
+  if (!native_work_started_) {
+    if (run_state_) {
+      run_state_->delegate->BeginNativeWorkBeforeDoWork();
+    }
+    native_work_started_ = true;
+  }
 }
 
 MessagePumpEpoll::EpollEventEntry::EpollEventEntry(int fd) : fd(fd) {}
@@ -441,10 +701,10 @@ MessagePumpEpoll::EpollEventEntry::~EpollEventEntry() {
   }
 }
 
-uint32_t MessagePumpEpoll::EpollEventEntry::ComputeActiveEvents() {
+uint32_t MessagePumpEpoll::EpollEventEntry::ComputeActiveEvents() const {
   uint32_t events = 0;
   bool one_shot = true;
-  for (const auto& interest : interests.container()) {
+  for (const auto& interest : interests) {
     if (!interest->active()) {
       continue;
     }

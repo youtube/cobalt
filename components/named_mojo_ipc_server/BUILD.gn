@@ -14,6 +14,7 @@ static_library("named_mojo_ipc_server") {
   sources = [
     "connection_info.cc",
     "connection_info.h",
+    "endpoint_options.cc",
     "endpoint_options.h",
     "ipc_server.h",
     "named_mojo_ipc_server.cc",
@@ -22,6 +23,8 @@ static_library("named_mojo_ipc_server") {
     "named_mojo_ipc_server_client_util.h",
     "named_mojo_ipc_util.cc",
     "named_mojo_ipc_util.h",
+    "named_mojo_message_pipe_server.cc",
+    "named_mojo_message_pipe_server.h",
     "named_mojo_server_endpoint_connector.cc",
     "named_mojo_server_endpoint_connector.h",
   ]
@@ -31,12 +34,14 @@ static_library("named_mojo_ipc_server") {
     "//mojo/public/cpp/platform",
     "//mojo/public/cpp/system",
   ]
+  libs = []
   if (is_linux) {
     sources += [ "named_mojo_server_endpoint_connector_linux.cc" ]
   } else if (is_win) {
     sources += [ "named_mojo_server_endpoint_connector_win.cc" ]
   } else if (is_mac) {
     sources += [ "named_mojo_server_endpoint_connector_mac.cc" ]
+    libs += [ "bsm" ]
   } else {
     sources += [ "named_mojo_server_endpoint_connector_unsupported.cc" ]
   }

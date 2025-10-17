@@ -13,6 +13,7 @@
 #include "base/base_switches.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -74,6 +75,13 @@ MultiprocessTestHelper::~MultiprocessTestHelper() {
   CHECK(!test_child_.IsValid());
 }
 
+// static
+void MultiprocessTestHelper::InitForMultiprocessTest() {
+  auto& command_line = *base::CommandLine::ForCurrentProcess();
+  bool is_broker = !command_line.HasSwitch(kRunAsBrokerClient);
+  mojo::core::Init({.is_broker_process = is_broker});
+}
+
 ScopedMessagePipeHandle MultiprocessTestHelper::StartChild(
     const std::string& test_child_name,
     LaunchType launch_type) {
@@ -112,8 +120,9 @@ ScopedMessagePipeHandle MultiprocessTestHelper::StartChildWithExtraSwitch(
   // clients to spawn other test clients.
   for (const auto& entry :
        base::CommandLine::ForCurrentProcess()->GetSwitches()) {
-    if (uninherited_args.find(entry.first) == uninherited_args.end())
+    if (!base::Contains(uninherited_args, entry.first)) {
       command_line.AppendSwitchNative(entry.first, entry.second);
+    }
   }
 
 #if !BUILDFLAG(IS_FUCHSIA)

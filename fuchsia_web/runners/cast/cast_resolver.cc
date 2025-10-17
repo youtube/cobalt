@@ -11,12 +11,14 @@
 
 #include <stdint.h>
 
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
+#include "base/numerics/byte_conversions.h"
 
 namespace {
 
@@ -43,6 +45,18 @@ void DeclareAndExposeProtocol(fuchsia_component_decl::Component& decl) {
   }}));
 }
 
+uint64_t FetchAbiRevision() {
+  constexpr char kPkgAbiRevisionPath[] = "/pkg/meta/fuchsia.abi/abi-revision";
+
+  // Read the Little Endian representation of the unsigned 64-bit integer ABI
+  // revision from the file in the metadata directory.
+  std::array<uint8_t, 8u> abi_revision_le = {};
+  std::optional<uint64_t> read_bytes =
+      base::ReadFile(base::FilePath(kPkgAbiRevisionPath), abi_revision_le);
+  CHECK_EQ(read_bytes.value(), sizeof(abi_revision_le));
+  return base::U64FromLittleEndian(abi_revision_le);
+}
+
 }  // namespace
 
 CastResolver::CastResolver() = default;
@@ -59,7 +73,7 @@ void CastResolver::Resolve(CastResolver::ResolveRequest& request,
           }},
       }},
 
-      // TODO(crbug.com/1379385): Replace with attributed-capability expose
+      // TODO(crbug.com/40875550): Replace with attributed-capability expose
       // rules for each protocol, when supported by the framework.
       .uses =
           std::vector{
@@ -67,7 +81,7 @@ void CastResolver::Resolve(CastResolver::ResolveRequest& request,
                   .source = Ref::WithParent({}),
                   .source_name = "svc",
                   .target_path = "/svc",
-                  .rights = fuchsia_io::kRwStarDir,
+                  .rights = fuchsia_io::wire::kRStarDir,
                   .dependency_type =
                       fuchsia_component_decl::DependencyType::kStrong,
               }}),
@@ -99,11 +113,13 @@ void CastResolver::Resolve(CastResolver::ResolveRequest& request,
   }
 
   // Encode the component manifest into the resolver result.
+  static const uint64_t abi_revision = FetchAbiRevision();
   fuchsia_component_resolution::ResolverResolveResponse result{{
       .component = fuchsia_component_resolution::Component{{
           .url = std::move(request.component_url()),
           .decl =
               fuchsia_mem::Data::WithBytes(std::move(persisted_decl.value())),
+          .abi_revision = abi_revision,
       }},
   }};
 
@@ -117,4 +133,13 @@ void CastResolver::ResolveWithContext(
 
   completer.Reply(
       fit::error(fuchsia_component_resolution::ResolverError::kNotSupported));
+}
+
+void CastResolver::handle_unknown_method(
+    fidl::UnknownMethodMetadata<fuchsia_component_resolution::Resolver>
+        metadata,
+    fidl::UnknownMethodCompleter::Sync& completer) {
+  LOG(ERROR) << "Unknown method called on CastResolver. Ordinal: "
+             << metadata.method_ordinal;
+  completer.Close(ZX_ERR_NOT_SUPPORTED);
 }

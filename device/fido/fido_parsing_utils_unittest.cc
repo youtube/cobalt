@@ -102,15 +102,13 @@ TEST(U2fParsingUtils, StaticMaterialize) {
   EXPECT_THAT(Materialize(base::span<const uint8_t, 0>()),
               ::testing::IsEmpty());
 
-  EXPECT_THAT(Materialize(base::make_span(kOne)),
-              ::testing::ElementsAreArray(kOne));
-  EXPECT_THAT(Materialize(base::make_span(kOneTwoThree)),
+  EXPECT_THAT(Materialize(base::span(kOne)), ::testing::ElementsAreArray(kOne));
+  EXPECT_THAT(Materialize(base::span(kOneTwoThree)),
               ::testing::ElementsAreArray(kOneTwoThree));
 
-  static_assert(
-      std::is_same<std::array<uint8_t, 1>,
-                   decltype(Materialize(base::make_span(kOne)))>::value,
-      "Materialize with a static span should yield a std::array.");
+  static_assert(std::is_same<std::array<uint8_t, 1>,
+                             decltype(Materialize(base::span(kOne)))>::value,
+                "Materialize with a static span should yield a std::array.");
 }
 
 TEST(U2fParsingUtils, MaterializeOrNull) {
@@ -118,7 +116,7 @@ TEST(U2fParsingUtils, MaterializeOrNull) {
   ASSERT_TRUE(result.has_value());
   EXPECT_THAT(*result, ::testing::ElementsAreArray(kOneTwoThree));
 
-  EXPECT_EQ(MaterializeOrNull(absl::nullopt), absl::nullopt);
+  EXPECT_EQ(MaterializeOrNull(std::nullopt), std::nullopt);
 }
 
 TEST(U2fParsingUtils, Append) {
@@ -141,13 +139,13 @@ TEST(U2fParsingUtils, Append) {
 
 TEST(U2fParsingUtils, AppendSelfCrashes) {
   std::vector<uint8_t> target(std::begin(kOneTwoThree), std::end(kOneTwoThree));
-  auto span = base::make_span(target);
+  auto span = base::span(target);
 
   // Tests the case where |in_values| overlap with the beginning of |*target|.
-  EXPECT_DEATH_IF_SUPPORTED(Append(&target, span.first(1)), "");
+  EXPECT_DEATH_IF_SUPPORTED(Append(&target, span.first(1u)), "");
 
   // Tests the case where |in_values| overlap with the end of |*target|.
-  EXPECT_DEATH_IF_SUPPORTED(Append(&target, span.last(1)), "");
+  EXPECT_DEATH_IF_SUPPORTED(Append(&target, span.last(1u)), "");
 }
 
 // ExtractSpan and ExtractSuffixSpan are implicitly tested as they used by
@@ -270,16 +268,6 @@ TEST(U2fParsingUtils, SplitSpan) {
   EXPECT_THAT(
       SplitSpan(kOneTwoThree, 6),
       ::testing::ElementsAre(::testing::ElementsAreArray(kOneTwoThree)));
-}
-
-TEST(U2fParsingUtils, CreateSHA256Hash) {
-  EXPECT_THAT(CreateSHA256Hash("acme.com"),
-              ::testing::ElementsAreArray(test_data::kApplicationParameter));
-}
-
-TEST(U2fParsingUtils, ConvertSpanToStringPiece) {
-  constexpr uint8_t kTestAsciiAbcd[] = {'a', 'b', 'c', 'd'};
-  EXPECT_EQ("abcd", ConvertToStringPiece(kTestAsciiAbcd));
 }
 
 }  // namespace fido_parsing_utils

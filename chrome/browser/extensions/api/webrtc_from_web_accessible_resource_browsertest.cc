@@ -4,6 +4,7 @@
 
 #include "base/command_line.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/permissions/permission_request_manager.h"
@@ -17,14 +18,14 @@ namespace extensions {
 
 class WebRtcFromWebAccessibleResourceTest : public ExtensionApiTest {
  public:
-  WebRtcFromWebAccessibleResourceTest() {}
+  WebRtcFromWebAccessibleResourceTest() = default;
 
   WebRtcFromWebAccessibleResourceTest(
       const WebRtcFromWebAccessibleResourceTest&) = delete;
   WebRtcFromWebAccessibleResourceTest& operator=(
       const WebRtcFromWebAccessibleResourceTest&) = delete;
 
-  ~WebRtcFromWebAccessibleResourceTest() override {}
+  ~WebRtcFromWebAccessibleResourceTest() override = default;
 
   // InProcessBrowserTest:
   void SetUpOnMainThread() override {

@@ -13,6 +13,8 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "components/contextual_search/core/browser/contextual_search_delegate.h"
 
+class Profile;
+
 // Manages the native extraction and request logic for Contextual Search,
 // and interacts with the Java ContextualSearchManager for UX.
 // Most of the work is done by the associated |ContextualSearchDelegate|.
@@ -20,7 +22,8 @@ class ContextualSearchManager {
  public:
   // Constructs a native manager associated with the Java manager.
   ContextualSearchManager(JNIEnv* env,
-                          const base::android::JavaRef<jobject>& obj);
+                          const base::android::JavaRef<jobject>& obj,
+                          Profile* profile);
 
   ContextualSearchManager(const ContextualSearchManager&) = delete;
   ContextualSearchManager& operator=(const ContextualSearchManager&) = delete;
@@ -50,6 +53,13 @@ class ContextualSearchManager {
       const base::android::JavaParamRef<jobject>& j_contextual_search_context,
       const base::android::JavaParamRef<jobject>& j_base_web_contents);
 
+  // Removes a search URL from history. |search_start_time_ms| represents the
+  // time at which |search_url| was committed.
+  void RemoveLastHistoryEntry(JNIEnv* env,
+                              const base::android::JavaParamRef<jobject>& obj,
+                              std::string& search_url,
+                              jlong search_start_time_ms);
+
  private:
   void OnSearchTermResolutionResponse(
       const ResolvedSearchTerm& resolved_search_term);
@@ -64,6 +74,11 @@ class ContextualSearchManager {
 
   // Our global reference to the Java ContextualSearchManager.
   base::android::ScopedJavaGlobalRef<jobject> java_manager_;
+
+  // Used if we need to clear history.
+  base::CancelableTaskTracker history_task_tracker_;
+
+  raw_ptr<Profile> profile_;
 
   // The delegate we're using the do the real work.
   std::unique_ptr<ContextualSearchDelegate> delegate_;

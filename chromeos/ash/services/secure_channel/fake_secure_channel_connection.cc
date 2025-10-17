@@ -4,12 +4,13 @@
 
 #include "chromeos/ash/services/secure_channel/fake_secure_channel_connection.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/functional/callback.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "chromeos/ash/services/secure_channel/file_transfer_update_callback.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel_types.mojom.h"
 #include "chromeos/ash/services/secure_channel/register_payload_file_request.h"
@@ -35,26 +36,57 @@ void FakeSecureChannelConnection::ChangeStatus(const Status& new_status) {
   status_ = new_status;
 
   // Copy to prevent channel from being removed during handler.
-  std::vector<Observer*> observers_copy = observers_;
-  for (auto* observer : observers_copy) {
+  std::vector<raw_ptr<Observer, VectorExperimental>> observers_copy =
+      observers_;
+  for (ash::secure_channel::SecureChannel::Observer* observer :
+       observers_copy) {
     observer->OnSecureChannelStatusChanged(this, old_status, status_);
+  }
+}
+
+void FakeSecureChannelConnection::ChangeNearbyConnectionState(
+    mojom::NearbyConnectionStep nearby_connection_step,
+    mojom::NearbyConnectionStepResult result) {
+  // Copy to prevent channel from being removed during handler.
+  std::vector<raw_ptr<Observer, VectorExperimental>> observers_copy =
+      observers_;
+  for (Observer* observer : observers_copy) {
+    observer->OnNearbyConnectionStateChanged(this, nearby_connection_step,
+                                             result);
+  }
+}
+
+void FakeSecureChannelConnection::ChangeSecureChannelAuthenticationState(
+    mojom::SecureChannelState secure_channel_authentication_state) {
+  // Copy to prevent channel from being removed during handler.
+  std::vector<raw_ptr<Observer, VectorExperimental>> observers_copy =
+      observers_;
+  for (Observer* observer : observers_copy) {
+    observer->OnSecureChannelAuthenticationStateChanged(
+        this, secure_channel_authentication_state);
   }
 }
 
 void FakeSecureChannelConnection::ReceiveMessage(const std::string& feature,
                                                  const std::string& payload) {
   // Copy to prevent channel from being removed during handler.
-  std::vector<Observer*> observers_copy = observers_;
-  for (auto* observer : observers_copy)
+  std::vector<raw_ptr<Observer, VectorExperimental>> observers_copy =
+      observers_;
+  for (ash::secure_channel::SecureChannel::Observer* observer :
+       observers_copy) {
     observer->OnMessageReceived(this, feature, payload);
+  }
 }
 
 void FakeSecureChannelConnection::CompleteSendingMessage(int sequence_number) {
   DCHECK(next_sequence_number_ > sequence_number);
   // Copy to prevent channel from being removed during handler.
-  std::vector<Observer*> observers_copy = observers_;
-  for (auto* observer : observers_copy)
+  std::vector<raw_ptr<Observer, VectorExperimental>> observers_copy =
+      observers_;
+  for (ash::secure_channel::SecureChannel::Observer* observer :
+       observers_copy) {
     observer->OnMessageSent(this, sequence_number);
+  }
 }
 
 void FakeSecureChannelConnection::Initialize() {
@@ -93,15 +125,15 @@ void FakeSecureChannelConnection::AddObserver(Observer* observer) {
 }
 
 void FakeSecureChannelConnection::RemoveObserver(Observer* observer) {
-  observers_.erase(base::ranges::find(observers_, observer), observers_.end());
+  observers_.erase(std::ranges::find(observers_, observer), observers_.end());
 }
 
 void FakeSecureChannelConnection::GetConnectionRssi(
-    base::OnceCallback<void(absl::optional<int32_t>)> callback) {
+    base::OnceCallback<void(std::optional<int32_t>)> callback) {
   std::move(callback).Run(rssi_to_return_);
 }
 
-absl::optional<std::string>
+std::optional<std::string>
 FakeSecureChannelConnection::GetChannelBindingData() {
   return channel_binding_data_;
 }

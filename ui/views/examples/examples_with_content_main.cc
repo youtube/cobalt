@@ -9,6 +9,7 @@
 #include "build/build_config.h"
 #include "content/public/browser/browser_context.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/views/examples/examples_color_mixer.h"
 #include "ui/views/examples/examples_window.h"
 #include "ui/views/examples/examples_window_with_content.h"
@@ -16,7 +17,6 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "sandbox/mac/seatbelt_exec.h"
-#include "ui/display/screen.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -52,7 +52,7 @@ void ShowContentExampleWindow(ui::ViewsContentClient* views_content_client,
   // sandbox::InitLibcUrandomOverrides(). See http://crbug.com/374712.
   if (!browser_context) {
     browser_context->SaveSessionState();
-    NOTREACHED_NORETURN();
+    NOTREACHED();
   }
 }
 
@@ -68,17 +68,15 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int) {
 int main(int argc, const char** argv) {
   base::CommandLine::Init(argc, argv);
 
-#if BUILDFLAG(IS_MAC)
-  display::ScopedNativeScreen desktop_screen;
-#endif
   ui::ColorProviderManager::Get().AppendColorProviderInitializer(
       base::BindRepeating(&views::examples::AddExamplesColorMixers));
 
   ui::ViewsContentClient views_content_client(argc, argv);
 #endif
 
-  if (views::examples::CheckCommandLineUsage())
+  if (views::examples::CheckCommandLineUsage()) {
     return 0;
+  }
 
 #if BUILDFLAG(IS_MAC)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -90,8 +88,9 @@ int main(int argc, const char** argv) {
       sandbox::SeatbeltExecServer::CreateFromArguments(
           command_line->GetProgram().value().c_str(), argc,
           const_cast<char**>(argv));
-  if (seatbelt.sandbox_required)
+  if (seatbelt.sandbox_required) {
     CHECK(seatbelt.server->InitializeSandbox());
+  }
 #endif
 
   views_content_client.set_on_resources_loaded_callback(

@@ -30,18 +30,15 @@ class FakeCompositorFrameReportingController
   void BeginMainFrameAborted(
       const viz::BeginFrameId& id,
       CommitEarlyOutReason reason =
-          CommitEarlyOutReason::ABORTED_NOT_VISIBLE) override;
+          CommitEarlyOutReason::kAbortedNotVisible) override;
   void WillCommit() override;
   void DidCommit() override;
   void WillActivate() override;
   void DidActivate() override;
   void DidSubmitCompositorFrame(
-      uint32_t frame_token,
-      base::TimeTicks submit_time,
+      SubmitInfo& submit_info,
       const viz::BeginFrameId& current_frame_id,
-      const viz::BeginFrameId& last_activated_frame_id,
-      EventMetricsSet events_metrics,
-      bool has_missing_content) override;
+      const viz::BeginFrameId& last_activated_frame_id) override;
   void DidPresentCompositorFrame(
       uint32_t frame_token,
       const viz::FrameTimingDetails& details) override;

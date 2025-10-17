@@ -1,5 +1,7 @@
 #include "quiche/http2/adapter/callback_visitor.h"
 
+#include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_nghttp2_callbacks.h"
@@ -528,6 +530,61 @@ TEST(ServerCallbackVisitorUnitTest, MismatchedContentLengthCallbacks) {
 
   int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
+}
+
+TEST(ServerCallbackVisitorUnitTest, HeadersAfterFin) {
+  testing::StrictMock<MockNghttp2Callbacks> callbacks;
+  CallbackVisitor visitor(Perspective::kServer,
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+
+  testing::InSequence seq;
+
+  // HEADERS on stream 1
+  EXPECT_CALL(
+      callbacks,
+      OnBeginFrame(HasFrameHeader(
+          1, HEADERS, NGHTTP2_FLAG_END_HEADERS | NGHTTP2_FLAG_END_STREAM)));
+  visitor.OnFrameHeader(1, 23, HEADERS, 5);
+
+  EXPECT_CALL(callbacks,
+              OnBeginHeaders(IsHeaders(
+                  1, NGHTTP2_FLAG_END_HEADERS | NGHTTP2_FLAG_END_STREAM,
+                  NGHTTP2_HCAT_REQUEST)));
+  EXPECT_TRUE(visitor.OnBeginHeadersForStream(1));
+
+  EXPECT_EQ(visitor.stream_map_size(), 1);
+
+  EXPECT_CALL(callbacks, OnHeader).Times(5);
+  visitor.OnHeaderForStream(1, ":method", "POST");
+  visitor.OnHeaderForStream(1, ":path", "/example/path");
+  visitor.OnHeaderForStream(1, ":scheme", "https");
+  visitor.OnHeaderForStream(1, ":authority", "example.com");
+  visitor.OnHeaderForStream(1, "accept", "text/html");
+
+  EXPECT_CALL(callbacks,
+              OnFrameRecv(IsHeaders(
+                  1, NGHTTP2_FLAG_END_HEADERS | NGHTTP2_FLAG_END_STREAM,
+                  NGHTTP2_HCAT_REQUEST)));
+  visitor.OnEndHeadersForStream(1);
+
+  EXPECT_TRUE(visitor.OnEndStream(1));
+
+  EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
+  visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
+
+  EXPECT_EQ(visitor.stream_map_size(), 0);
+
+  // Invalid repeat HEADERS on closed stream 1
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(
+                             1, HEADERS, NGHTTP2_FLAG_END_HEADERS)));
+  visitor.OnFrameHeader(1, 23, HEADERS, 4);
+
+  EXPECT_CALL(callbacks, OnBeginHeaders(IsHeaders(1, NGHTTP2_FLAG_END_HEADERS,
+                                                  NGHTTP2_HCAT_HEADERS)));
+  EXPECT_TRUE(visitor.OnBeginHeadersForStream(1));
+
+  // The visitor should not revive streams that have already been closed.
+  EXPECT_EQ(visitor.stream_map_size(), 0);
 }
 
 }  // namespace

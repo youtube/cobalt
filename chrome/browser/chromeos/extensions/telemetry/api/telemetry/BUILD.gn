@@ -2,11 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/chromeos/extensions/api/api_sources.gni")
-import("//chrome/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
-import("//tools/json_schema_compiler/json_schema_api.gni")
 
 assert(enable_extensions,
        "Cannot depend on extensions because enable_extensions=false.")
@@ -21,7 +18,6 @@ source_set("telemetry") {
 
   deps = [
     "//base",
-    "//build:chromeos_buildflags",
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:remote_probe_strategy",
     "//chrome/browser/extensions",
@@ -36,35 +32,18 @@ source_set("telemetry") {
   ]
 }
 
-function_registration("api_registration") {
-  sources = chromeos_system_extensions_api_schema_sources
-  impl_dir = "//chrome/browser/chromeos/extensions/telemetry/api/telemetry"
-  configs = [ "//build/config:precompiled_headers" ]
-  bundle_name = "ChromeOS"
-  root_namespace = chromeos_system_extensions_api_root_namespace
-  schema_include_rules = chromeos_system_extensions_api_schema_include_rules
-
-  deps = [
-    ":telemetry",
-    "//base",
-    "//extensions/common",
-  ]
-}
-
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [
-    "fake_probe_service.cc",
-    "fake_probe_service.h",
-    "telemetry_api_browsertest.cc",
-  ]
+  sources = [ "telemetry_api_browsertest.cc" ]
 
   deps = [
     ":telemetry",
     "//base",
-    "//build:chromeos_buildflags",
+    "//chrome/browser/chromeos/extensions/telemetry/api/common:remote_probe_strategy",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:test_support",
+    "//chromeos/ash/components/telemetry_extension/telemetry",
+    "//chromeos/crosapi/cpp/telemetry:test_support",
     "//chromeos/crosapi/mojom",
     "//chromeos/services/network_config/public/mojom:network_types",
     "//chromeos/services/network_health/public/mojom:types",
@@ -75,19 +54,6 @@ source_set("browser_tests") {
   ]
 
   data = [ "//chrome/test/data" ]
-
-  if (is_chromeos_ash) {
-    sources += [
-      "fake_probe_service_factory.cc",
-      "fake_probe_service_factory.h",
-    ]
-
-    deps += [ "//chrome/browser/ash/telemetry_extension" ]
-  }
-
-  if (is_chromeos_lacros) {
-    deps += [ "//chromeos/lacros" ]
-  }
 }
 
 source_set("unit_tests") {

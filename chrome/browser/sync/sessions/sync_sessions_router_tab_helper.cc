@@ -6,10 +6,12 @@
 
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
+#include "build/build_config.h"
 #include "chrome/browser/sync/sessions/sync_sessions_web_contents_router.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/language/core/common/language_experiments.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/sync/base/features.h"
 #include "components/sync_sessions/synced_tab_delegate.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
@@ -21,26 +23,44 @@ namespace sync_sessions {
 
 SyncSessionsRouterTabHelper::SyncSessionsRouterTabHelper(
     content::WebContents* web_contents,
-    SyncSessionsWebContentsRouter* router)
-    : content::WebContentsUserData<SyncSessionsRouterTabHelper>(*web_contents),
-      content::WebContentsObserver(web_contents),
-      router_(router) {
-  chrome_translate_client_ =
-      ChromeTranslateClient::FromWebContents(web_contents);
+    SyncSessionsWebContentsRouter* router,
+    ChromeTranslateClient* chrome_translate_client,
+    favicon::FaviconDriver* favicon_driver)
+    : content::WebContentsObserver(web_contents),
+      router_(router),
+      chrome_translate_client_(chrome_translate_client),
+      favicon_driver_(favicon_driver) {
   // A translate client is not always attached to web contents (e.g. tests).
   if (chrome_translate_client_) {
     chrome_translate_client_->GetTranslateDriver()
         ->AddLanguageDetectionObserver(this);
   }
 
-  favicon_driver_ =
-      favicon::ContentFaviconDriver::FromWebContents(web_contents);
   if (favicon_driver_) {
     favicon_driver_->AddObserver(this);
   }
 }
 
-SyncSessionsRouterTabHelper::~SyncSessionsRouterTabHelper() = default;
+SyncSessionsRouterTabHelper::~SyncSessionsRouterTabHelper() {
+  // Android and desktop intentionally have divergent behavior. The core
+  // requirement is that NotifyTabClosed() is called when the list of tabs that
+  // will be synced has been updated to no longer include the close tab. On
+  // Desktop the TabFeatures are destroyed first. Thus NotifyTabClosed() must be
+  // called by another class (see BrowserListRouterHelper). On Android the list
+  // is updated first, thus it's safe to call NotifyTabClosed() here.
+#if BUILDFLAG(IS_ANDROID)
+  if (router_) {
+    router_->NotifyTabClosed();
+  }
+#endif
+  if (chrome_translate_client_) {
+    chrome_translate_client_->GetTranslateDriver()
+        ->RemoveLanguageDetectionObserver(this);
+  }
+  if (favicon_driver_) {
+    favicon_driver_->RemoveObserver(this);
+  }
+}
 
 void SyncSessionsRouterTabHelper::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
@@ -51,17 +71,6 @@ void SyncSessionsRouterTabHelper::DidFinishNavigation(
 
 void SyncSessionsRouterTabHelper::TitleWasSet(content::NavigationEntry* entry) {
   NotifyRouter();
-}
-
-void SyncSessionsRouterTabHelper::WebContentsDestroyed() {
-  NotifyRouter();
-  if (chrome_translate_client_) {
-    chrome_translate_client_->GetTranslateDriver()
-        ->RemoveLanguageDetectionObserver(this);
-  }
-  if (favicon_driver_) {
-    favicon_driver_->RemoveObserver(this);
-  }
 }
 
 void SyncSessionsRouterTabHelper::DidFinishLoad(
@@ -82,9 +91,18 @@ void SyncSessionsRouterTabHelper::DidOpenRequestedURL(
     ui::PageTransition transition,
     bool started_from_context_menu,
     bool renderer_initiated) {
-  // TODO(crbug.com/1007969): This is a relic from when we actually did change
+  // TODO(crbug.com/40649749): This is a relic from when we actually did change
   // something about the tab here. It should be safe to remove now.
   NotifyRouter();
+}
+
+void SyncSessionsRouterTabHelper::OnVisibilityChanged(
+    content::Visibility visibility) {
+  // Only notify a notification when the tab becomes visible. This is necessary
+  // to sync the last active time field.
+  if (visibility == content::Visibility::VISIBLE) {
+    NotifyRouter();
+  }
 }
 
 void SyncSessionsRouterTabHelper::OnLanguageDetermined(
@@ -108,7 +126,5 @@ void SyncSessionsRouterTabHelper::OnFaviconUpdated(
     NotifyRouter();
   }
 }
-
-WEB_CONTENTS_USER_DATA_KEY_IMPL(SyncSessionsRouterTabHelper);
 
 }  // namespace sync_sessions

@@ -7,13 +7,14 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "build/build_config.h"
 #include "services/network/public/cpp/resource_request_body.h"
 #include "services/network/public/mojom/referrer_policy.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/page_state/page_state.mojom.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -25,7 +26,7 @@ namespace blink {
 constexpr int kMaxScrollAnchorSelectorLength = 500;
 
 struct BLINK_COMMON_EXPORT ExplodedHttpBody {
-  absl::optional<std::u16string> http_content_type;
+  std::optional<std::u16string> http_content_type;
   scoped_refptr<network::ResourceRequestBody> request_body;
   bool contains_passwords;
 
@@ -35,13 +36,13 @@ struct BLINK_COMMON_EXPORT ExplodedHttpBody {
 
 struct BLINK_COMMON_EXPORT ExplodedFrameState {
   // When adding a new member, also add it to ExplodedFrameState::assign.
-  absl::optional<std::u16string> url_string;
-  absl::optional<std::u16string> referrer;
-  absl::optional<url::Origin> initiator_origin;
-  absl::optional<std::u16string> initiator_base_url_string;
-  absl::optional<std::u16string> target;
-  absl::optional<std::u16string> state_object;
-  std::vector<absl::optional<std::u16string>> document_state;
+  std::optional<std::u16string> url_string;
+  std::optional<std::u16string> referrer;
+  std::optional<url::Origin> initiator_origin;
+  std::optional<std::u16string> initiator_base_url_string;
+  std::optional<std::u16string> target;
+  std::optional<std::u16string> state_object;
+  std::vector<std::optional<std::u16string>> document_state;
   blink::mojom::ScrollRestorationType scroll_restoration_type =
       blink::mojom::ScrollRestorationType::kAuto;
   bool did_save_scroll_or_scale_state = true;
@@ -53,12 +54,12 @@ struct BLINK_COMMON_EXPORT ExplodedFrameState {
   network::mojom::ReferrerPolicy referrer_policy =
       network::mojom::ReferrerPolicy::kDefault;
   ExplodedHttpBody http_body;
-  absl::optional<std::u16string> scroll_anchor_selector;
+  std::optional<std::u16string> scroll_anchor_selector;
   gfx::PointF scroll_anchor_offset;
   uint64_t scroll_anchor_simhash = 0;
-  absl::optional<std::u16string> navigation_api_key;
-  absl::optional<std::u16string> navigation_api_id;
-  absl::optional<std::u16string> navigation_api_state;
+  std::optional<std::u16string> navigation_api_key;
+  std::optional<std::u16string> navigation_api_id;
+  std::optional<std::u16string> navigation_api_state;
   bool protect_url_in_navigation_api = false;
   std::vector<ExplodedFrameState> children;
 
@@ -76,7 +77,7 @@ struct BLINK_COMMON_EXPORT ExplodedPageState {
   // extract referenced files from ExplodedHttpBody.  |referenced_files|
   // currently contains a list from all frames, but cannot be deserialized into
   // the files referenced by each frame.  See http://crbug.com/441966.
-  std::vector<absl::optional<std::u16string>> referenced_files;
+  std::vector<std::optional<std::u16string>> referenced_files;
   ExplodedFrameState top;
 
   ExplodedPageState();
@@ -106,7 +107,7 @@ BLINK_COMMON_EXPORT bool DecodePageStateWithDeviceScaleFactorForTesting(
 // + |size|) back into a ResourceRequestBody.  Returns nullptr if the
 // decoding fails (e.g. if |data| is malformed).
 BLINK_COMMON_EXPORT scoped_refptr<network::ResourceRequestBody>
-DecodeResourceRequestBody(const char* data, size_t size);
+DecodeResourceRequestBody(base::span<const uint8_t> data);
 
 // Encodes |resource_request_body| into |encoded|.
 BLINK_COMMON_EXPORT std::string EncodeResourceRequestBody(

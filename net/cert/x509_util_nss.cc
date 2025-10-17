@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/x509_util_nss.h"
 
 #include <cert.h>  // Must be included before certdb.h
@@ -18,6 +23,7 @@
 #include <secport.h>
 #include <string.h>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "crypto/nss_util.h"
@@ -38,8 +44,7 @@ std::string DecodeAVAValue(CERTAVA* ava) {
   SECItem* decode_item = CERT_DecodeAVAValue(&ava->value);
   if (!decode_item)
     return std::string();
-  std::string value(reinterpret_cast<char*>(decode_item->data),
-                    decode_item->len);
+  std::string value(base::as_string_view(SECItemAsSpan(*decode_item)));
   SECITEM_FreeItem(decode_item, PR_TRUE);
   return value;
 }
@@ -72,7 +77,7 @@ std::string GetUniqueNicknameForSlot(const std::string& nickname,
   while (SEC_CertNicknameConflict(temp_nickname.c_str(),
                                   const_cast<SECItem*>(subject),
                                   CERT_GetDefaultCertDB())) {
-    base::SStringPrintf(&new_name, "%s #%d", nickname.c_str(), index++);
+    new_name = base::StringPrintf("%s #%d", nickname.c_str(), index++);
     temp_nickname = token_name + new_name;
   }
 
@@ -135,12 +140,22 @@ std::string GetDefaultNickname(CERTCertificate* nss_cert, CertType type) {
 
 }  // namespace
 
+base::span<const uint8_t> SECItemAsSpan(const SECItem& item) {
+  // SAFETY: item is an NSS SECItem struct that represents an array of bytes
+  // pointed to by `data` of length `len`.
+  return UNSAFE_BUFFERS(base::span(item.data, item.len));
+}
+
+base::span<const uint8_t> CERTCertificateAsSpan(
+    const CERTCertificate* nss_cert) {
+  return SECItemAsSpan(nss_cert->derCert);
+}
+
 bool IsSameCertificate(CERTCertificate* a, CERTCertificate* b) {
   DCHECK(a && b);
   if (a == b)
     return true;
-  return a->derCert.len == b->derCert.len &&
-         memcmp(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
+  return CERTCertificateAsSpan(a) == CERTCertificateAsSpan(b);
 }
 
 bool IsSameCertificate(CERTCertificate* a, const X509Certificate* b) {
@@ -151,23 +166,22 @@ bool IsSameCertificate(const X509Certificate* a, CERTCertificate* b) {
 }
 
 bool IsSameCertificate(CERTCertificate* a, const CRYPTO_BUFFER* b) {
-  return a->derCert.len == CRYPTO_BUFFER_len(b) &&
-         memcmp(a->derCert.data, CRYPTO_BUFFER_data(b), a->derCert.len) == 0;
+  return CERTCertificateAsSpan(a) == CryptoBufferAsSpan(b);
 }
 bool IsSameCertificate(const CRYPTO_BUFFER* a, CERTCertificate* b) {
   return IsSameCertificate(b, a);
 }
 
-ScopedCERTCertificate CreateCERTCertificateFromBytes(const uint8_t* data,
-                                                     size_t length) {
+ScopedCERTCertificate CreateCERTCertificateFromBytes(
+    base::span<const uint8_t> data) {
   crypto::EnsureNSSInit();
 
   if (!NSS_IsInitialized())
     return nullptr;
 
   SECItem der_cert;
-  der_cert.data = const_cast<uint8_t*>(data);
-  der_cert.len = base::checked_cast<unsigned>(length);
+  der_cert.data = const_cast<uint8_t*>(data.data());
+  der_cert.len = base::checked_cast<unsigned>(data.size());
   der_cert.type = siDERCertBuffer;
 
   // Parse into a certificate structure.
@@ -178,8 +192,8 @@ ScopedCERTCertificate CreateCERTCertificateFromBytes(const uint8_t* data,
 
 ScopedCERTCertificate CreateCERTCertificateFromX509Certificate(
     const X509Certificate* cert) {
-  return CreateCERTCertificateFromBytes(CRYPTO_BUFFER_data(cert->cert_buffer()),
-                                        CRYPTO_BUFFER_len(cert->cert_buffer()));
+  return CreateCERTCertificateFromBytes(
+      CryptoBufferAsSpan(cert->cert_buffer()));
 }
 
 ScopedCERTCertificateList CreateCERTCertificateListFromX509Certificate(
@@ -200,8 +214,7 @@ ScopedCERTCertificateList CreateCERTCertificateListFromX509Certificate(
   nss_chain.push_back(std::move(nss_cert));
   for (const auto& intermediate : cert->intermediate_buffers()) {
     ScopedCERTCertificate nss_intermediate =
-        CreateCERTCertificateFromBytes(CRYPTO_BUFFER_data(intermediate.get()),
-                                       CRYPTO_BUFFER_len(intermediate.get()));
+        CreateCERTCertificateFromBytes(CryptoBufferAsSpan(intermediate.get()));
     if (!nss_intermediate) {
       if (invalid_intermediate_behavior == InvalidIntermediateBehavior::kFail)
         return {};
@@ -213,11 +226,11 @@ ScopedCERTCertificateList CreateCERTCertificateListFromX509Certificate(
   return nss_chain;
 }
 
-ScopedCERTCertificateList CreateCERTCertificateListFromBytes(const char* data,
-                                                             size_t length,
-                                                             int format) {
-  CertificateList certs = X509Certificate::CreateCertificateListFromBytes(
-      base::as_bytes(base::make_span(data, length)), format);
+ScopedCERTCertificateList CreateCERTCertificateListFromBytes(
+    base::span<const uint8_t> data,
+    int format) {
+  CertificateList certs =
+      X509Certificate::CreateCertificateListFromBytes(data, format);
   ScopedCERTCertificateList nss_chain;
   nss_chain.reserve(certs.size());
   for (const scoped_refptr<X509Certificate>& cert : certs) {
@@ -256,8 +269,8 @@ scoped_refptr<X509Certificate> CreateX509CertificateFromCERTCertificate(
   if (!nss_cert || !nss_cert->derCert.len) {
     return nullptr;
   }
-  bssl::UniquePtr<CRYPTO_BUFFER> cert_handle(x509_util::CreateCryptoBuffer(
-      base::make_span(nss_cert->derCert.data, nss_cert->derCert.len)));
+  bssl::UniquePtr<CRYPTO_BUFFER> cert_handle(
+      x509_util::CreateCryptoBuffer(CERTCertificateAsSpan(nss_cert)));
 
   std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates;
   intermediates.reserve(nss_chain.size());
@@ -265,8 +278,8 @@ scoped_refptr<X509Certificate> CreateX509CertificateFromCERTCertificate(
     if (!nss_intermediate || !nss_intermediate->derCert.len) {
       return nullptr;
     }
-    intermediates.push_back(x509_util::CreateCryptoBuffer(base::make_span(
-        nss_intermediate->derCert.data, nss_intermediate->derCert.len)));
+    intermediates.push_back(
+        x509_util::CreateCryptoBuffer(CERTCertificateAsSpan(nss_intermediate)));
   }
 
   return X509Certificate::CreateFromBufferUnsafeOptions(
@@ -296,17 +309,15 @@ CertificateList CreateX509CertificateListFromCERTCertificates(
 bool GetDEREncoded(CERTCertificate* cert, std::string* der_encoded) {
   if (!cert || !cert->derCert.len)
     return false;
-  der_encoded->assign(reinterpret_cast<char*>(cert->derCert.data),
-                      cert->derCert.len);
+  *der_encoded = base::as_string_view(CERTCertificateAsSpan(cert));
   return true;
 }
 
 bool GetPEMEncoded(CERTCertificate* cert, std::string* pem_encoded) {
   if (!cert || !cert->derCert.len)
     return false;
-  std::string der(reinterpret_cast<char*>(cert->derCert.data),
-                  cert->derCert.len);
-  return X509Certificate::GetPEMEncodedFromDER(der, pem_encoded);
+  return X509Certificate::GetPEMEncodedFromDER(
+      base::as_string_view(CERTCertificateAsSpan(cert)), pem_encoded);
 }
 
 void GetRFC822SubjectAltNames(CERTCertificate* cert_handle,
@@ -329,9 +340,8 @@ void GetRFC822SubjectAltNames(CERTCertificate* cert_handle,
   CERTGeneralName* name = alt_name_list;
   while (name) {
     if (name->type == certRFC822Name) {
-      names->push_back(
-          std::string(reinterpret_cast<char*>(name->name.other.data),
-                      name->name.other.len));
+      names->emplace_back(
+          base::as_string_view(SECItemAsSpan(name->name.other)));
     }
     name = CERT_GetNextGeneralName(name);
     if (name == alt_name_list)
@@ -360,14 +370,12 @@ void GetUPNSubjectAltNames(CERTCertificate* cert_handle,
   while (name) {
     if (name->type == certOtherName) {
       OtherName* on = &name->name.OthName;
-      if (on->oid.len == sizeof(kUpnOid) &&
-          memcmp(on->oid.data, kUpnOid, sizeof(kUpnOid)) == 0) {
+      if (SECItemAsSpan(on->oid) == kUpnOid) {
         SECItem decoded;
         if (SEC_QuickDERDecodeItem(arena.get(), &decoded,
                                    SEC_ASN1_GET(SEC_UTF8StringTemplate),
                                    &name->name.OthName.name) == SECSuccess) {
-          names->push_back(
-              std::string(reinterpret_cast<char*>(decoded.data), decoded.len));
+          names->emplace_back(base::as_string_view(SECItemAsSpan(decoded)));
         }
       }
     }
@@ -389,7 +397,10 @@ std::string GetCERTNameDisplayName(CERTName* name) {
   CERTAVA* ou_ava = nullptr;
   CERTAVA* o_ava = nullptr;
   CERTRDN** rdns = name->rdns;
-  for (size_t rdn = 0; rdns[rdn]; ++rdn) {
+  // SAFETY: TODO(crbug.com/40284755): Add a helper for iterating over
+  // null-terminated arrays, or delete the code that uses this, or convert it
+  // to use our own certificate parsing functions.
+  UNSAFE_BUFFERS(for (size_t rdn = 0; rdns[rdn]; ++rdn) {
     CERTAVA** avas = rdns[rdn]->avas;
     for (size_t pair = 0; avas[pair] != nullptr; ++pair) {
       SECOidTag tag = CERT_GetAVATag(avas[pair]);
@@ -404,7 +415,7 @@ std::string GetCERTNameDisplayName(CERTName* name) {
       if (tag == SEC_OID_AVA_ORGANIZATIONAL_UNIT_NAME && !ou_ava)
         ou_ava = avas[pair];
     }
-  }
+  });
   if (o_ava)
     return DecodeAVAValue(o_ava);
   if (ou_ava)
@@ -427,21 +438,22 @@ bool GetValidityTimes(CERTCertificate* cert,
 }
 
 SHA256HashValue CalculateFingerprint256(CERTCertificate* cert) {
-  SHA256HashValue sha256;
-  memset(sha256.data, 0, sizeof(sha256.data));
+  SHA256HashValue sha256 = {0};
 
   DCHECK(cert->derCert.data);
   DCHECK_NE(0U, cert->derCert.len);
 
-  SECStatus rv = HASH_HashBuf(HASH_AlgSHA256, sha256.data, cert->derCert.data,
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA256, sha256.data(), cert->derCert.data,
                               cert->derCert.len);
   DCHECK_EQ(SECSuccess, rv);
 
   return sha256;
 }
 
-int ImportUserCert(CERTCertificate* cert) {
-  return mozilla_security_manager::ImportUserCert(cert);
+int ImportUserCert(CERTCertificate* cert,
+                   crypto::ScopedPK11Slot preferred_slot) {
+  return mozilla_security_manager::ImportUserCert(cert,
+                                                  std::move(preferred_slot));
 }
 
 }  // namespace net::x509_util

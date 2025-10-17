@@ -7,11 +7,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "device/udev_linux/udev_loader.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace testing {
 
@@ -25,15 +25,14 @@ class FakeUdevLoader : public device::UdevLoader {
   udev_device* AddFakeDevice(std::string name,
                              std::string syspath,
                              std::string subsystem,
-                             absl::optional<std::string> devnode,
-                             absl::optional<std::string> devtype,
+                             std::optional<std::string> devnode,
+                             std::optional<std::string> devtype,
                              std::map<std::string, std::string> sysattrs,
                              std::map<std::string, std::string> properties);
 
   void Reset();
 
  private:
-  bool Init() override;
   const char* udev_device_get_action(udev_device* device) override;
   const char* udev_device_get_devnode(udev_device* device) override;
   const char* udev_device_get_devtype(udev_device* device) override;
@@ -82,15 +81,6 @@ class FakeUdevLoader : public device::UdevLoader {
   udev_device* udev_monitor_receive_device(udev_monitor* monitor) override;
   void udev_monitor_unref(udev_monitor* monitor) override;
   udev* udev_new() override;
-  void udev_set_log_fn(struct udev* udev_context,
-                       void (*log_fn)(struct udev* udev_context,
-                                      int priority,
-                                      const char* file,
-                                      int line,
-                                      const char* fn,
-                                      const char* format,
-                                      va_list args)) override;
-  void udev_set_log_priority(struct udev* udev_context, int priority) override;
   void udev_unref(udev* udev_context) override;
 
   std::vector<std::unique_ptr<udev_device>> devices_;

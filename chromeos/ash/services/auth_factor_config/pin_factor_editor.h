@@ -14,16 +14,10 @@ namespace ash::auth {
 
 class AuthFactorConfig;
 
-// The implementation of the PinFactorEditor service.
-// TODO(crbug.com/1327627): This is currently a fake and only flips a boolean
-// corresponding to the current state. No changes are sent to cryptohome.
-// Clients may use this API only if the CryptohomeRecoverySetup feature flag is
-// enabled.
+// The implementation of the PinFactorEditor mojo service.
 class PinFactorEditor : public mojom::PinFactorEditor {
  public:
-  PinFactorEditor(AuthFactorConfig*,
-                  PinBackendDelegate* pin_backend,
-                  QuickUnlockStorageDelegate* storage);
+  PinFactorEditor(AuthFactorConfig*, PinBackendDelegate* pin_backend);
   ~PinFactorEditor() override;
 
   PinFactorEditor(const PinFactorEditor&) = delete;
@@ -33,20 +27,88 @@ class PinFactorEditor : public mojom::PinFactorEditor {
       const std::string& auth_token,
       const std::string& pin,
       base::OnceCallback<void(mojom::ConfigureResult)> callback) override;
+  void UpdatePin(
+      const std::string& auth_token,
+      const std::string& pin,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback) override;
   void RemovePin(
       const std::string& auth_token,
       base::OnceCallback<void(mojom::ConfigureResult)> callback) override;
+  void GetConfiguredPinFactor(
+      const std::string& auth_token,
+      base::OnceCallback<void(std::optional<mojom::AuthFactor>)> callback)
+      override;
 
   void BindReceiver(mojo::PendingReceiver<mojom::PinFactorEditor> receiver);
 
  private:
-  void OnPinConfigured(
+  using AuthFactorSet = base::EnumSet<mojom::AuthFactor,
+                                      mojom::AuthFactor::kMinValue,
+                                      mojom::AuthFactor::kMaxValue>;
+
+  void ObtainContext(
+      const std::string& auth_token,
+      base::OnceCallback<void(std::unique_ptr<UserContext>)> callback);
+
+  void OnRemovePinConfigured(
+      const std::string& auth_token,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      AuthFactorSet factors);
+  void OnRemovePinConfiguredWithContext(
+      const std::string& auth_token,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      mojom::AuthFactor factor,
+      std::unique_ptr<UserContext> context);
+
+  void OnPinRemove(const std::string& auth_token,
+                   mojom::AuthFactor factor,
+                   base::OnceCallback<void(mojom::ConfigureResult)> callback,
+                   bool success);
+
+  void OnPinRemoveWithContext(
+      const std::string& auth_token,
+      mojom::AuthFactor factor,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      bool success,
+      std::unique_ptr<UserContext> context);
+
+  void SetPinWithContext(
+      const std::string& auth_token,
+      const std::string& pin,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      std::unique_ptr<UserContext> context);
+  void OnPinSet(const std::string& auth_token,
+                base::OnceCallback<void(mojom::ConfigureResult)> callback,
+                bool success);
+  void OnPinSetWithContext(
+      const std::string& auth_token,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      bool success,
+      std::unique_ptr<UserContext> context);
+
+  void UpdatePinWithContext(
+      const std::string& auth_token,
+      const std::string& pin,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      std::unique_ptr<UserContext> context);
+  void OnUpdatePinConfigured(
+      const std::string& auth_token,
+      mojom::AuthFactor old_pin_factor_type,
       base::OnceCallback<void(mojom::ConfigureResult)> callback,
       bool success);
+  void OnUpdatePinConfiguredWithContext(
+      const std::string& auth_token,
+      mojom::AuthFactor old_pin_factor_type,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      bool success,
+      std::unique_ptr<UserContext> context);
+
+  void GetConfiguredPinFactorResponse(
+      base::OnceCallback<void(std::optional<mojom::AuthFactor>)> callback,
+      AuthFactorSet factors);
 
   raw_ptr<AuthFactorConfig> auth_factor_config_;
   raw_ptr<PinBackendDelegate> pin_backend_;
-  raw_ptr<QuickUnlockStorageDelegate> quick_unlock_storage_;
   mojo::ReceiverSet<mojom::PinFactorEditor> receivers_;
   AuthFactorEditor auth_factor_editor_;
   base::WeakPtrFactory<PinFactorEditor> weak_factory_{this};

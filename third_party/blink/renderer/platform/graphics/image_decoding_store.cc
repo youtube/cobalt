@@ -279,7 +279,7 @@ void ImageDecodingStore::RemoveFromCacheInternal(
 
   // Remove entry from identifier map.
   typename V::iterator iter = identifier_map->find(cache_entry->Generator());
-  DCHECK(iter != identifier_map->end());
+  CHECK(iter != identifier_map->end());
   iter->value.erase(cache_entry->CacheKey());
   if (!iter->value.size())
     identifier_map->erase(iter);

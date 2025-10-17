@@ -60,7 +60,7 @@ class NetworkTestHelperBase {
   std::string ConfigureWiFi(const std::string& state);
 
   // Returns a double value for property |key| associated with |service_path|.
-  absl::optional<double> GetServiceDoubleProperty(
+  std::optional<double> GetServiceDoubleProperty(
       const std::string& service_path,
       const std::string& key);
 
@@ -68,6 +68,12 @@ class NetworkTestHelperBase {
   // The result will be empty if the service or property do not exist.
   std::string GetServiceStringProperty(const std::string& service_path,
                                        const std::string& key);
+
+  // Returns a base::Value::List for property |key| associated with
+  // |service_path|.
+  std::optional<base::Value::List> GetServiceListProperty(
+      const std::string& service_path,
+      const std::string& key);
 
   void SetServiceProperty(const std::string& service_path,
                           const std::string& key,
@@ -116,16 +122,18 @@ class NetworkTestHelperBase {
   std::string last_created_service_path_;
   int wifi_index_ = 0;
 
-  raw_ptr<ShillManagerClient::TestInterface, ExperimentalAsh> manager_test_;
-  raw_ptr<ShillProfileClient::TestInterface, ExperimentalAsh> profile_test_;
-  raw_ptr<ShillDeviceClient::TestInterface, ExperimentalAsh> device_test_;
-  raw_ptr<ShillServiceClient::TestInterface, ExperimentalAsh> service_test_;
-  raw_ptr<ShillIPConfigClient::TestInterface, ExperimentalAsh> ip_config_test_;
+  raw_ptr<ShillManagerClient::TestInterface, DanglingUntriaged> manager_test_;
+  raw_ptr<ShillProfileClient::TestInterface, DanglingUntriaged> profile_test_;
+  raw_ptr<ShillDeviceClient::TestInterface, DanglingUntriaged> device_test_;
+  raw_ptr<ShillServiceClient::TestInterface, DanglingUntriaged> service_test_;
+  raw_ptr<ShillIPConfigClient::TestInterface, DanglingUntriaged>
+      ip_config_test_;
 
-  raw_ptr<HermesEuiccClient::TestInterface, ExperimentalAsh> hermes_euicc_test_;
-  raw_ptr<HermesManagerClient::TestInterface, ExperimentalAsh>
+  raw_ptr<HermesEuiccClient::TestInterface, DanglingUntriaged>
+      hermes_euicc_test_;
+  raw_ptr<HermesManagerClient::TestInterface, DanglingUntriaged>
       hermes_manager_test_;
-  raw_ptr<HermesProfileClient::TestInterface, ExperimentalAsh>
+  raw_ptr<HermesProfileClient::TestInterface, DanglingUntriaged>
       hermes_profile_test_;
 
   base::WeakPtrFactory<NetworkTestHelperBase> weak_ptr_factory_{this};

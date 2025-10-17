@@ -4,8 +4,10 @@
 
 #include "ash/public/mojom/accelerator_keys_mojom_traits.h"
 #include "ash/public/mojom/accelerator_keys.mojom.h"
+
+#include <algorithm>
+
 #include "base/containers/fixed_flat_map.h"
-#include "base/cxx17_backports.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
@@ -55,7 +57,9 @@ TEST(AcceleratorKeysTraitsTest, SerializeAndDeserialize) {
        {mojom_vkey::kWlan, ui::KeyboardCode::VKEY_WLAN},
        {mojom_vkey::kF14, ui::KeyboardCode::VKEY_F14},
        {mojom_vkey::kPrivacyScreenToggle,
-        ui::KeyboardCode::VKEY_PRIVACY_SCREEN_TOGGLE}});
+        ui::KeyboardCode::VKEY_PRIVACY_SCREEN_TOGGLE},
+       {mojom_vkey::kAccessibility, ui::KeyboardCode::VKEY_ACCESSIBILITY},
+       {mojom_vkey::kDoNotDisturb, ui::KeyboardCode::VKEY_DO_NOT_DISTURB}});
 
   TestKeyboardCodeToMojo(enums);
   TestMojoToKeyboardCode(enums);

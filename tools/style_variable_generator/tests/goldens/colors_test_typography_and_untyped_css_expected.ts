@@ -55,7 +55,7 @@ const DARK_MODE_OVERRIDES_CSS = window ? `
   --cros-toggle-color-rgb: var(--cros-text-color-primary-rgb);
   --cros-toggle-color: rgba(var(--cros-toggle-color-rgb), var(--cros-disabled-opacity));
 
-  --cros-bg-color-elevation-1: color-mix(in srgb, rgb(255, 255, 255) 4.0%, rgb(var(--google-grey-900-rgb)));
+  --cros-bg-color-elevation-1: color-mix(in srgb, rgb(255, 255, 255) 4.0%, var(--google-grey-900));
 
   --cros-reference-opacity: 1;
 ` : '';
@@ -67,6 +67,16 @@ const UNTYPED_CSS = window ? `
 ` : '';
 
 const TYPOGRAPHY_CSS = window ? `
+  /* font faces */
+  @font-face {
+    font-family: "GSR";
+    src: local("Google Sans Regular");
+  }
+  @font-face {
+    font-family: "GSTM";
+    src: local("Google Sans Text Medium");
+  }
+
   /* font families */
   --cros-font-family-test: 'Google Sans', 'Noto Sans', sans-serif;
   --cros-font-family-other: Roboto, 'Noto Sans', sans-serif;
@@ -80,7 +90,15 @@ const TYPOGRAPHY_CSS = window ? `
 ` : '';
 
 const LEGACY_MAPPINGS_CSS = window ? `
-  --legacy_color: var(--cros-text-color-primary);
+    --cros-legacy-color-rgb: var(--cros-text-color-primary-rgb);
+    --cros-legacy-color: var(--cros-text-color-primary);
+    --cros-legacy-color-light: var(--cros-text-color-primary);
+    --cros-legacy-color-dark: var(--cros-text-color-primary);
+
+    --cros-legacy-color-w-opacity-rgb: var(--cros-text-color-primary-rgb);
+    --cros-legacy-color-w-opacity: rgba(var(--cros-legacy-color-w-opacity-rgb), 0.3);
+    --cros-legacy-color-w-opacity-light: rgba(var(--cros-legacy-color-w-opacity-rgb), 0.3);
+    --cros-legacy-color-w-opacity-dark: rgba(var(--cros-legacy-color-w-opacity-rgb), 0.3);
 ` : '';
 
 /**
@@ -167,6 +185,7 @@ export function getColorsCSS(options?: GetColorsCSSOptions) {
       @media (prefers-color-scheme: dark) {
         html:not(body), :host {
           ${DARK_MODE_OVERRIDES_CSS}
+          ${LEGACY_MAPPINGS_CSS}
         }
         :host([inverted-colors]) {
           ${DEFAULT_CSS}
@@ -209,8 +228,8 @@ export const ELEVATION_1_SHADOW = css`var(--cros-elevation-1-shadow)`;
 export const ELEVATION_2_SHADOW = css`var(--cros-elevation-2-shadow)`;
 export const ELEVATION_3_SHADOW = css`var(--cros-elevation-3-shadow)`;
 
-export const FONT_FAMILY_TEST = css`var(--cros-font-family-test-font)`;
-export const FONT_FAMILY_OTHER = css`var(--cros-font-family-other-font)`;
+export const FONT_FAMILY_TEST = css`var(--cros-font-family-test)`;
+export const FONT_FAMILY_OTHER = css`var(--cros-font-family-other)`;
 export const HEADLINE_1_FONT = css`var(--cros-headline-1-font)`;
 export const HEADLINE_1_FONT_FAMILY = css`var(--cros-headline-1-font-family)`;
 export const HEADLINE_1_FONT_SIZE = css`var(--cros-headline-1-font-size)`;

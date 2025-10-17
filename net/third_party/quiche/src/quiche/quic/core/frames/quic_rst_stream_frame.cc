@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_error_codes.h"
 
 namespace quic {
@@ -36,6 +38,16 @@ std::ostream& operator<<(std::ostream& os,
      << ", error_code: " << rst_frame.error_code
      << ", ietf_error_code: " << rst_frame.ietf_error_code << " }\n";
   return os;
+}
+
+bool QuicRstStreamFrame::operator==(const QuicRstStreamFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && byte_offset == rhs.byte_offset &&
+         error_code == rhs.error_code && ietf_error_code == rhs.ietf_error_code;
+}
+
+bool QuicRstStreamFrame::operator!=(const QuicRstStreamFrame& rhs) const {
+  return !(*this == rhs);
 }
 
 }  // namespace quic

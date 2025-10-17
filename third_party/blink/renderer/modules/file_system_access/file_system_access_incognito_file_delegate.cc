@@ -4,6 +4,9 @@
 
 #include "third_party/blink/renderer/modules/file_system_access/file_system_access_incognito_file_delegate.h"
 
+#include <optional>
+
+#include "base/compiler_specific.h"
 #include "base/files/file.h"
 #include "base/files/file_error_or.h"
 #include "base/memory/scoped_refptr.h"
@@ -12,7 +15,6 @@
 #include "base/task/thread_pool.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/system/string_data_source.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/file_system_access/file_system_access_file_delegate.h"
@@ -53,8 +55,7 @@ void WriteDataToProducer(
       << "WriteDataToProducer must not be called on the main thread";
 
   auto data_source = std::make_unique<mojo::StringDataSource>(
-      base::span<const char>(reinterpret_cast<const char*>(data->data.data()),
-                             data->data.size()),
+      base::as_chars(base::span(data->data)),
       mojo::StringDataSource::AsyncWritingMode::
           STRING_STAYS_VALID_UNTIL_COMPLETION);
 
@@ -108,7 +109,7 @@ base::FileErrorOr<int> FileSystemAccessIncognitoFileDelegate::Read(
 
   base::File::Error file_error;
   int bytes_read;
-  absl::optional<mojo_base::BigBuffer> buffer;
+  std::optional<mojo_base::BigBuffer> buffer;
   int bytes_to_read = base::saturated_cast<int>(data.size());
   mojo_ptr_->Read(offset, bytes_to_read, &buffer, &file_error, &bytes_read);
 
@@ -118,7 +119,7 @@ base::FileErrorOr<int> FileSystemAccessIncognitoFileDelegate::Read(
     CHECK_LE(bytes_read, bytes_to_read);
     CHECK_LE(buffer->size(), static_cast<uint64_t>(bytes_to_read));
 
-    memcpy(data.data(), buffer->data(), bytes_to_read);
+    UNSAFE_TODO(memcpy(data.data(), buffer->data(), bytes_to_read));
   } else {
     CHECK_EQ(bytes_read, 0);
   }
@@ -128,7 +129,7 @@ base::FileErrorOr<int> FileSystemAccessIncognitoFileDelegate::Read(
 
 base::FileErrorOr<int> FileSystemAccessIncognitoFileDelegate::Write(
     int64_t offset,
-    const base::span<uint8_t> data) {
+    base::span<const uint8_t> data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK_GE(offset, 0);
 
@@ -140,8 +141,7 @@ base::FileErrorOr<int> FileSystemAccessIncognitoFileDelegate::Write(
 
   auto ref_counted_data =
       base::MakeRefCounted<base::RefCountedData<Vector<uint8_t>>>();
-  ref_counted_data->data.Append(data.data(),
-                                static_cast<wtf_size_t>(data.size()));
+  ref_counted_data->data.AppendSpan(data);
 
   // Write the data to the data pipe on another thread. This is safe to run in
   // parallel to the `Write()` call, since the browser can read from the pipe as

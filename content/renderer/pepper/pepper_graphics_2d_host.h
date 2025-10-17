@@ -9,9 +9,9 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cc/paint/paint_canvas.h"
-#include "cc/resources/shared_bitmap_id_registrar.h"
 #include "components/viz/common/resources/release_callback.h"
 #include "content/common/content_export.h"
 #include "gpu/command_buffer/common/mailbox.h"
@@ -23,12 +23,13 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/size.h"
 
-namespace cc {
-class CrossThreadSharedBitmap;
-}
-
 namespace gfx {
 class Rect;
+}
+
+namespace gpu {
+class ClientSharedImage;
+class SharedImageInterface;
 }
 
 namespace viz {
@@ -42,9 +43,8 @@ class PepperPluginInstanceImpl;
 class PPB_ImageData_Impl;
 class RendererPpapiHost;
 
-class CONTENT_EXPORT PepperGraphics2DHost
-    : public ppapi::host::ResourceHost,
-      public base::SupportsWeakPtr<PepperGraphics2DHost> {
+class CONTENT_EXPORT PepperGraphics2DHost final
+    : public ppapi::host::ResourceHost {
  public:
   static PepperGraphics2DHost* Create(
       RendererPpapiHost* host,
@@ -77,7 +77,6 @@ class CONTENT_EXPORT PepperGraphics2DHost
              const gfx::Rect& paint_rect);
 
   bool PrepareTransferableResource(
-      cc::SharedBitmapIdRegistrar* bitmap_registrar,
       viz::TransferableResource* transferable_resource,
       viz::ReleaseCallback* release_callback);
   void AttachedToNewLayer();
@@ -177,8 +176,8 @@ class CONTENT_EXPORT PepperGraphics2DHost
 
   // Callback when compositor is done with a software resource given to it.
   void ReleaseSoftwareCallback(
-      scoped_refptr<cc::CrossThreadSharedBitmap> bitmap,
-      cc::SharedBitmapIdRegistration registration,
+      scoped_refptr<gpu::ClientSharedImage> shared_image,
+      scoped_refptr<gpu::SharedImageInterface> shared_image_interface,
       const gpu::SyncToken& sync_token,
       bool lost_resource);
   // Callback when compositor is done with a gpu resource given to it. Static
@@ -188,17 +187,17 @@ class CONTENT_EXPORT PepperGraphics2DHost
       base::WeakPtr<PepperGraphics2DHost> host,
       scoped_refptr<viz::RasterContextProvider> context,
       const gfx::Size& size,
-      const gpu::Mailbox& mailbox,
+      scoped_refptr<gpu::ClientSharedImage> shared_image,
       const gpu::SyncToken& sync_token,
       bool lost);
 
-  RendererPpapiHost* renderer_ppapi_host_;
+  raw_ptr<RendererPpapiHost> renderer_ppapi_host_;
 
   scoped_refptr<PPB_ImageData_Impl> image_data_;
 
   // Non-owning pointer to the plugin instance this context is currently bound
   // to, if any. If the context is currently unbound, this will be NULL.
-  PepperPluginInstanceImpl* bound_instance_;
+  raw_ptr<PepperPluginInstanceImpl> bound_instance_;
 
   // Keeps track of all drawing commands queued before a Flush call.
   struct QueuedOperation;
@@ -238,25 +237,30 @@ class CONTENT_EXPORT PepperGraphics2DHost
   scoped_refptr<viz::RasterContextProvider> main_thread_context_;
   struct SharedImageInfo {
     SharedImageInfo(gpu::SyncToken sync_token,
-                    gpu::Mailbox mailbox,
-                    gfx::Size size)
-        : sync_token(sync_token), mailbox(mailbox), size(size) {}
+                    scoped_refptr<gpu::ClientSharedImage> shared_image,
+                    gfx::Size size);
+    SharedImageInfo(const SharedImageInfo& shared_image_info);
+    ~SharedImageInfo();
     gpu::SyncToken sync_token;
-    gpu::Mailbox mailbox;
+    scoped_refptr<gpu::ClientSharedImage> shared_image;
     gfx::Size size;
   };
   // Shared images that are available for recycling.
   std::vector<SharedImageInfo> recycled_shared_images_;
 
-  // This is a bitmap that was recently released by the compositor and may be
-  // used to transfer bytes to the compositor again, along with the registration
-  // of the SharedBitmapId that is kept alive as long as the bitmap is, in order
-  // to give the bitmap to the compositor.
-  scoped_refptr<cc::CrossThreadSharedBitmap> cached_bitmap_;
-  cc::SharedBitmapIdRegistration cached_bitmap_registration_;
+  // This is a SharedImage for use with the software compositor that was
+  // recently released by the compositor and may be used to transfer bytes to
+  // the compositor again.
+  scoped_refptr<gpu::ClientSharedImage> cached_bitmap_shared_image_;
+  // Used for tracking whether the shared_image_interface has changed due to
+  // context lost.
+  scoped_refptr<gpu::SharedImageInterface>
+      cached_bitmap_shared_image_interface_;
 
   // Whether to use gpu memory for compositor resources.
   const bool enable_gpu_memory_buffer_;
+
+  base::WeakPtrFactory<PepperGraphics2DHost> weak_ptr_factory_{this};
 
   friend class PepperGraphics2DHostTest;
 };

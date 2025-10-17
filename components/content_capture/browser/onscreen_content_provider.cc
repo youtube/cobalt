@@ -150,6 +150,17 @@ void OnscreenContentProvider::TitleWasSet(content::NavigationEntry* entry) {
   }
 }
 
+void OnscreenContentProvider::FlushCaptureContent(
+    ContentCaptureReceiver* content_capture_receiver,
+    const ContentCaptureFrame& data) {
+  ContentCaptureSession parent_session;
+  BuildContentCaptureSession(content_capture_receiver, true /* ancestor_only */,
+                             &parent_session);
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
+    consumer->FlushCaptureContent(parent_session, data);
+  }
+}
+
 void OnscreenContentProvider::DidCaptureContent(
     ContentCaptureReceiver* content_capture_receiver,
     const ContentCaptureFrame& data) {
@@ -157,8 +168,9 @@ void OnscreenContentProvider::DidCaptureContent(
   ContentCaptureSession parent_session;
   BuildContentCaptureSession(content_capture_receiver, true /* ancestor_only */,
                              &parent_session);
-  for (auto* consumer : consumers_)
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     consumer->DidCaptureContent(parent_session, data);
+  }
 }
 
 void OnscreenContentProvider::DidUpdateContent(
@@ -167,8 +179,9 @@ void OnscreenContentProvider::DidUpdateContent(
   ContentCaptureSession parent_session;
   BuildContentCaptureSession(content_capture_receiver, true /* ancestor_only */,
                              &parent_session);
-  for (auto* consumer : consumers_)
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     consumer->DidUpdateContent(parent_session, data);
+  }
 }
 
 void OnscreenContentProvider::DidRemoveContent(
@@ -179,8 +192,9 @@ void OnscreenContentProvider::DidRemoveContent(
   // |content_capture_receiver| associated frame.
   BuildContentCaptureSession(content_capture_receiver,
                              false /* ancestor_only */, &session);
-  for (auto* consumer : consumers_)
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     consumer->DidRemoveContent(session, data);
+  }
 }
 
 void OnscreenContentProvider::DidRemoveSession(
@@ -198,8 +212,9 @@ void OnscreenContentProvider::DidRemoveSession(
   if (!BuildContentCaptureSessionLastSeen(content_capture_receiver, &session))
     return;
 
-  for (auto* consumer : consumers_)
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     consumer->DidRemoveSession(session);
+  }
 }
 
 void OnscreenContentProvider::DidUpdateTitle(
@@ -211,8 +226,9 @@ void OnscreenContentProvider::DidUpdateTitle(
   // Shall only update mainframe's title.
   DCHECK(session.size() == 1);
 
-  for (auto* consumer : consumers_)
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     consumer->DidUpdateTitle(*session.begin());
+  }
 }
 
 void OnscreenContentProvider::DidUpdateFaviconURL(
@@ -242,8 +258,9 @@ void OnscreenContentProvider::DidUpdateFavicon(
 
   // Shall only update mainframe's title.
   DCHECK(session.size() == 1);
-  for (auto* consumer : consumers_)
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     consumer->DidUpdateFavicon(*session.begin());
+  }
 }
 
 void OnscreenContentProvider::BuildContentCaptureSession(
@@ -297,7 +314,7 @@ bool OnscreenContentProvider::BuildContentCaptureSessionForMainFrame(
 }
 
 bool OnscreenContentProvider::ShouldCapture(const GURL& url) {
-  for (auto* consumer : consumers_) {
+  for (content_capture::ContentCaptureConsumer* consumer : consumers_) {
     if (consumer->ShouldCapture(url))
       return true;
   }

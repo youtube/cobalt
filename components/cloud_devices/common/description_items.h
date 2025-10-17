@@ -10,13 +10,13 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "components/cloud_devices/common/cloud_device_description.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cloud_devices {
 
@@ -42,6 +42,8 @@ namespace cloud_devices {
 template <class Option, class Traits>
 class ListCapability {
  public:
+  using OptionVector = std::vector<Option>;
+
   ListCapability();
   ListCapability(ListCapability&& other);
 
@@ -69,9 +71,28 @@ class ListCapability {
 
   void AddOption(Option&& option) { options_.emplace_back(std::move(option)); }
 
- private:
-  using OptionVector = std::vector<Option>;
+  typename OptionVector::iterator begin() { return options_.begin(); }
+  typename OptionVector::const_iterator begin() const {
+    return options_.begin();
+  }
+
+  typename OptionVector::iterator end() { return options_.end(); }
+  typename OptionVector::const_iterator end() const { return options_.end(); }
+
+  // Returns JSON path for this item relative to the root of the CDD.
+  virtual std::string GetPath() const;
+
+ protected:
   OptionVector options_;
+};
+
+// Represents a CJT item that is stored as a JSON list.  This works similarly to
+// ListCapability except it's used for ticket items instead of capabilities.
+template <class Option, class Traits>
+class ListTicketItem : public ListCapability<Option, Traits> {
+ public:
+  // ListCapability:
+  std::string GetPath() const override;
 };
 
 // Represents CDD capability stored as JSON list with default_value value.
@@ -137,7 +158,7 @@ class SelectionCapability {
   typedef std::vector<Option> OptionVector;
 
   OptionVector options_;
-  absl::optional<size_t> default_idx_;
+  std::optional<size_t> default_idx_;
 };
 
 // Represents CDD capability that can be true or false.
@@ -172,12 +193,12 @@ class BooleanCapability {
 template <class Traits>
 class EmptyCapability {
  public:
-  EmptyCapability() {}
+  EmptyCapability() = default;
 
   EmptyCapability(const EmptyCapability&) = delete;
   EmptyCapability& operator=(const EmptyCapability&) = delete;
 
-  ~EmptyCapability() {}
+  ~EmptyCapability() = default;
 
   bool LoadFrom(const CloudDeviceDescription& description);
   void SaveTo(CloudDeviceDescription* description) const;

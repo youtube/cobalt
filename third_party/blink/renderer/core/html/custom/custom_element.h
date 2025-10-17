@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/ascii_ctype.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/utf16.h"
 
 namespace blink {
 
@@ -33,7 +34,7 @@ class CORE_EXPORT CustomElement {
   // may be a different object for a given element over its lifetime
   // as it moves between documents.
   static CustomElementRegistry* Registry(const Element&);
-  static CustomElementRegistry* Registry(const Document&);
+  static CustomElementRegistry* Registry(const TreeScope&);
 
   static CustomElementDefinition* DefinitionForElement(const Element*);
 
@@ -56,16 +57,15 @@ class CORE_EXPORT CustomElement {
       return false;
 
     if (name.Is8Bit()) {
-      const LChar* characters = name.Characters8();
-      for (wtf_size_t i = 1; i < name.length(); ++i) {
+      auto characters = name.Span8();
+      for (size_t i = 1; i < characters.size(); ++i) {
         if (!Character::IsPotentialCustomElementName8BitChar(characters[i]))
           return false;
       }
     } else {
-      const UChar* characters = name.Characters16();
-      for (wtf_size_t i = 1; i < name.length();) {
-        UChar32 ch;
-        U16_NEXT(characters, i, name.length(), ch);
+      auto characters = name.Span16();
+      for (size_t i = 1; i < characters.size();) {
+        UChar32 ch = CodePointAtAndNext(characters, i);
         if (!Character::IsPotentialCustomElementNameChar(ch))
           return false;
       }
@@ -84,7 +84,7 @@ class CORE_EXPORT CustomElement {
 
   // Look up a definition, and create an autonomous custom element if
   // it's found.
-  static HTMLElement* CreateCustomElement(Document&,
+  static HTMLElement* CreateCustomElement(TreeScope&,
                                           const QualifiedName&,
                                           const CreateElementFlags);
 
@@ -99,6 +99,7 @@ class CORE_EXPORT CustomElement {
 
   static void Enqueue(Element&, CustomElementReaction&);
   static void EnqueueConnectedCallback(Element&);
+  static void EnqueueConnectedMoveCallback(Element&);
   static void EnqueueDisconnectedCallback(Element&);
   static void EnqueueAdoptedCallback(Element&,
                                      Document& old_owner,

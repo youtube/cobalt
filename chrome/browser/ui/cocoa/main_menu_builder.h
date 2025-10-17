@@ -7,13 +7,12 @@
 
 #import <Cocoa/Cocoa.h>
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/mac/scoped_nsobject.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chrome {
 
@@ -26,18 +25,18 @@ namespace chrome {
 // are hard to edit (especially cross-platform) and bring in a compile
 // dependency on ibtool. Building the menu in code has a lower maintenance
 // burden.
-void BuildMainMenu(NSApplication* nsapp,
-                   id<NSApplicationDelegate> app_delegate,
-                   const std::u16string& product_name,
-                   bool is_pwa);
+NSMenu* BuildMainMenu(NSApplication* nsapp,
+                      id<NSApplicationDelegate> app_delegate,
+                      const std::u16string& product_name,
+                      bool is_pwa);
+
+NSMenuItem* BuildFileMenuForTesting(bool is_pwa);
 
 // Internal ////////////////////////////////////////////////////////////////////
 
 namespace internal {
 
-// Helper class that builds NSMenuItems from data. Instances of this class
-// should not outlive an autorelease pool scope as it does not retain any
-// Objective-C members.
+// Helper class that builds NSMenuItems from data.
 //
 // This builder follows a fluent-interface pattern where the setters are
 // not prefixed with the typical "set_" and they return a reference to this
@@ -53,7 +52,8 @@ class MenuItemBuilder {
 
   ~MenuItemBuilder();
 
-  // Converts the item to a separator. Only tag() is also applicable.
+  // Converts the item to a separator. Only tag() and hidden() are also
+  // applicable.
   MenuItemBuilder& is_separator() {
     DCHECK_EQ(string_id_, 0);
     is_separator_ = true;
@@ -99,7 +99,7 @@ class MenuItemBuilder {
   // the one specified here is used instead.
   MenuItemBuilder& key_equivalent(NSString* key_equivalent,
                                   NSEventModifierFlags flags) {
-    DCHECK((flags & NSEventModifierFlagShift) == 0)
+    CHECK((flags & NSEventModifierFlagShift) == 0)
         << "The shift modifier flag should be directly applied to the key "
            "equivalent.";
     key_equivalent_ = key_equivalent;
@@ -125,8 +125,14 @@ class MenuItemBuilder {
     return *this;
   }
 
+  // Marks the item as a section header menu item.
+  MenuItemBuilder& is_section_header() {
+    is_section_header_ = true;
+    return *this;
+  }
+
   // Builds a NSMenuItem instance from the properties set on the Builder.
-  base::scoped_nsobject<NSMenuItem> Build() const;
+  NSMenuItem* Build() const;
 
  private:
   bool is_separator_ = false;
@@ -136,21 +142,21 @@ class MenuItemBuilder {
 
   int tag_ = 0;
 
-  id target_ = nil;
+  id __strong target_ = nil;
   SEL action_ = nil;
 
-  NSString* key_equivalent_ = @"";
+  NSString* __strong key_equivalent_ = @"";
   NSEventModifierFlags key_equivalent_flags_ = 0;
 
   bool is_alternate_ = false;
 
   bool is_removed_ = false;
 
-  absl::optional<std::vector<MenuItemBuilder>> submenu_;
+  std::optional<std::vector<MenuItemBuilder>> submenu_;
 
   bool is_hidden_ = false;
 
-  // Copy and assign allowed.
+  bool is_section_header_ = false;
 };
 
 }  // namespace internal

@@ -9,6 +9,7 @@
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
+#include "base/strings/stringprintf.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/dbus/audio/audio_node.h"
 #include "chromeos/ash/components/dbus/audio/fake_cras_audio_client.h"
@@ -118,8 +119,8 @@ TEST_F(AcceleratorCommandsTest, CycleMixedMirrorModeSwapPrimaryDisplay) {
   // display)
   display::DisplayIdList dst_ids;
   dst_ids.emplace_back(id_list[1]);
-  absl::optional<display::MixedMirrorModeParams> mixed_params(
-      absl::in_place, id_list[0], dst_ids);
+  std::optional<display::MixedMirrorModeParams> mixed_params(
+      std::in_place, id_list[0], dst_ids);
 
   display_manager()->SetMirrorMode(display::MirrorMode::kMixed, mixed_params);
 
@@ -179,7 +180,36 @@ TEST_F(AcceleratorCommandsAudioTest, VolumeSetToZeroAndThenMute) {
   // Volume down again, should decrease to zero and mute.
   PressAndReleaseKey(ui::VKEY_VOLUME_DOWN, ui::EF_NONE);
   EXPECT_EQ(audio_handler->GetOutputVolumePercent(), 0);
+  // Output node mute state will not change.
+  EXPECT_FALSE(audio_handler->IsOutputMuted());
+}
+
+TEST_F(AcceleratorCommandsAudioTest, ChangeVolumeAfterMuted) {
+  SetUpAudioNode();
+  auto* audio_handler = CrasAudioHandler::Get();
+  // Make sure that output node is in mute state.
+  audio_handler->SetOutputVolumePercent(80);
+  audio_handler->SetOutputMute(true);
   EXPECT_TRUE(audio_handler->IsOutputMuted());
+  EXPECT_EQ(audio_handler->GetOutputVolumePercent(), 80);
+  // Press the volume down key will decrease the volume but won't change the
+  // muted state.
+  PressAndReleaseKey(ui::VKEY_VOLUME_DOWN, ui::EF_NONE);
+  EXPECT_TRUE(audio_handler->IsOutputMuted());
+  EXPECT_LE(audio_handler->GetOutputVolumePercent(), 80);
+  // Volume up, should bring back the volume to its original level and unmute.
+  PressAndReleaseKey(ui::VKEY_VOLUME_UP, ui::EF_NONE);
+  EXPECT_EQ(audio_handler->GetOutputVolumePercent(), 80);
+  EXPECT_FALSE(audio_handler->IsOutputMuted());
+}
+
+TEST_F(AcceleratorCommandsAudioTest, VolumeMuteToggle) {
+  auto* audio_handler = CrasAudioHandler::Get();
+  EXPECT_FALSE(audio_handler->IsOutputMuted());
+  VolumeMuteToggle();
+  EXPECT_TRUE(audio_handler->IsOutputMuted());
+  VolumeMuteToggle();
+  EXPECT_FALSE(audio_handler->IsOutputMuted());
 }
 
 }  // namespace accelerators

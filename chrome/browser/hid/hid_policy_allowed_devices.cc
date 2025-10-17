@@ -4,6 +4,7 @@
 
 #include "chrome/browser/hid/hid_policy_allowed_devices.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,7 +15,6 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "services/device/public/mojom/hid.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace {
@@ -29,7 +29,12 @@ constexpr char kPrefVendorIdKey[] = "vendor_id";
 
 }  // namespace
 
-HidPolicyAllowedDevices::HidPolicyAllowedDevices(PrefService* pref_service) {
+HidPolicyAllowedDevices::HidPolicyAllowedDevices(PrefService* pref_service,
+                                                 bool on_login_screen)
+    : allow_devices_for_urls_pref_name_(
+          on_login_screen
+              ? prefs::kManagedWebHidAllowDevicesForUrlsOnLoginScreen
+              : prefs::kManagedWebHidAllowDevicesForUrls) {
   pref_change_registrar_.Init(pref_service);
   // The lifetime of |pref_change_registrar_| is managed by this class so it is
   // safe to use base::Unretained here.
@@ -39,7 +44,7 @@ HidPolicyAllowedDevices::HidPolicyAllowedDevices(PrefService* pref_service) {
           &HidPolicyAllowedDevices::LoadAllowAllDevicesForUrlsPolicy,
           base::Unretained(this)));
   pref_change_registrar_.Add(
-      prefs::kManagedWebHidAllowDevicesForUrls,
+      allow_devices_for_urls_pref_name_,
       base::BindRepeating(
           &HidPolicyAllowedDevices::LoadAllowDevicesForUrlsPolicy,
           base::Unretained(this)));
@@ -61,6 +66,8 @@ void HidPolicyAllowedDevices::RegisterLocalStatePrefs(
     PrefRegistrySimple* registry) {
   registry->RegisterListPref(prefs::kManagedWebHidAllowAllDevicesForUrls);
   registry->RegisterListPref(prefs::kManagedWebHidAllowDevicesForUrls);
+  registry->RegisterListPref(
+      prefs::kManagedWebHidAllowDevicesForUrlsOnLoginScreen);
   registry->RegisterListPref(
       prefs::kManagedWebHidAllowDevicesWithHidUsagesForUrls);
 }
@@ -121,7 +128,7 @@ void HidPolicyAllowedDevices::LoadAllowDevicesForUrlsPolicy() {
   vendor_policy_.clear();
 
   const auto& pref_value = pref_change_registrar_.prefs()->GetList(
-      prefs::kManagedWebHidAllowDevicesForUrls);
+      allow_devices_for_urls_pref_name_);
 
   // The pref value has already been validated by the policy handler, so it is
   // safe to assume that |pref_value| follows the policy template.
@@ -143,11 +150,11 @@ void HidPolicyAllowedDevices::LoadAllowDevicesForUrlsPolicy() {
         item.GetDict().FindList(kPrefDevicesKey);
     DCHECK(devices_value);
     for (const auto& device_value : *devices_value) {
-      const absl::optional<int> vendor_id_value =
+      const std::optional<int> vendor_id_value =
           device_value.GetDict().FindInt(kPrefVendorIdKey);
       DCHECK(vendor_id_value);
 
-      const absl::optional<int> product_id_value =
+      const std::optional<int> product_id_value =
           device_value.GetDict().FindInt(kPrefProductIdKey);
       // "product_id" is optional. If it is not specified, the policy matches
       // any device with the given vendor ID.
@@ -190,11 +197,11 @@ void HidPolicyAllowedDevices::LoadAllowDevicesWithHidUsagesForUrlsPolicy() {
         item.GetDict().FindList(kPrefUsagesKey);
     DCHECK(usages_value);
     for (const auto& usage_and_page_value : *usages_value) {
-      const absl::optional<int> usage_page_value =
+      const std::optional<int> usage_page_value =
           usage_and_page_value.GetDict().FindInt(kPrefUsagePageKey);
       DCHECK(usage_page_value);
 
-      const absl::optional<int> usage_value =
+      const std::optional<int> usage_value =
           usage_and_page_value.GetDict().FindInt(kPrefUsageKey);
       // "usage" is optional. If "usage" is not specified, the policy matches
       // any device containing a top-level collection with the given usage page.

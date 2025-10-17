@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -33,7 +38,7 @@ constexpr char kTestDeviceAddress[] = "Fake_Address";
 }  // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* raw_data, size_t size) {
-  auto data_span = base::make_span(raw_data, size);
+  auto data_span = base::span(raw_data, size);
   auto adapter =
       base::MakeRefCounted<::testing::NiceMock<device::MockBluetoothAdapter>>();
   device::FidoCableDevice test_cable_device(adapter.get(), kTestDeviceAddress);

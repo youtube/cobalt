@@ -11,8 +11,8 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
@@ -34,7 +34,7 @@ namespace webrtc {
 class TestH264Impl : public VideoCodecUnitTest {
  protected:
   std::unique_ptr<VideoEncoder> CreateEncoder() override {
-    return H264Encoder::Create(cricket::VideoCodec(cricket::kH264CodecName));
+    return CreateH264Encoder(env_);
   }
 
   std::unique_ptr<VideoDecoder> CreateDecoder() override {
@@ -42,7 +42,7 @@ class TestH264Impl : public VideoCodecUnitTest {
   }
 
   void ModifyCodecSettings(VideoCodec* codec_settings) override {
-    webrtc::test::CodecSettings(kVideoCodecH264, codec_settings);
+    test::CodecSettings(kVideoCodecH264, codec_settings);
   }
 };
 
@@ -62,9 +62,9 @@ TEST_F(TestH264Impl, MAYBE_EncodeDecode) {
   ASSERT_TRUE(WaitForEncodedFrame(&encoded_frame, &codec_specific_info));
   // First frame should be a key frame.
   encoded_frame._frameType = VideoFrameType::kVideoFrameKey;
-  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, false, 0));
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, 0));
   std::unique_ptr<VideoFrame> decoded_frame;
-  absl::optional<uint8_t> decoded_qp;
+  std::optional<uint8_t> decoded_qp;
   ASSERT_TRUE(WaitForDecodedFrame(&decoded_frame, &decoded_qp));
   ASSERT_TRUE(decoded_frame);
   EXPECT_GT(I420PSNR(&input_frame, decoded_frame.get()), 36);
@@ -87,9 +87,9 @@ TEST_F(TestH264Impl, MAYBE_DecodedQpEqualsEncodedQp) {
   ASSERT_TRUE(WaitForEncodedFrame(&encoded_frame, &codec_specific_info));
   // First frame should be a key frame.
   encoded_frame._frameType = VideoFrameType::kVideoFrameKey;
-  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, false, 0));
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, 0));
   std::unique_ptr<VideoFrame> decoded_frame;
-  absl::optional<uint8_t> decoded_qp;
+  std::optional<uint8_t> decoded_qp;
   ASSERT_TRUE(WaitForDecodedFrame(&decoded_frame, &decoded_qp));
   ASSERT_TRUE(decoded_frame);
   ASSERT_TRUE(decoded_qp);

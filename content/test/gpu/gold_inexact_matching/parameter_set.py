@@ -2,27 +2,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import dataclasses
 import typing
 
 
+@dataclasses.dataclass
 class ParameterSet():
   """Struct-like object for holding parameters for an iteration."""
 
+  # The maximum number of pixels that are allowed to differ.
+  max_diff: int
+  # The maximum per-channel delta sum that is allowed.
+  delta_threshold: int
+  # The threshold for what is considered an edge for a Sobel filter.
+  edge_threshold: int
   # This parameter is not varied, so it is set statically once instead of being
   # passed around everywhere.
-  ignored_border_thickness = 0
-
-  def __init__(self, max_diff: int, delta_threshold: int, edge_threshold: int):
-    """
-    Args:
-      max_diff: The maximum number of pixels that are allowed to differ.
-      delta_threshold: The maximum per-channel delta sum that is allowed.
-      edge_threshold: The threshold for what is considered an edge for a
-          Sobel filter.
-    """
-    self.max_diff = max_diff
-    self.delta_threshold = delta_threshold
-    self.edge_threshold = edge_threshold
+  ignored_border_thickness: int = 0
 
   def AsList(self) -> typing.List[str]:
     """Returns the object's data in list format.
@@ -35,20 +31,20 @@ class ParameterSet():
     """
     return [
         '--parameter',
-        'fuzzy_max_different_pixels:%d' % self.max_diff,
+        f'fuzzy_max_different_pixels:{self.max_diff}',
         '--parameter',
-        'fuzzy_pixel_delta_threshold:%d' % self.delta_threshold,
+        f'fuzzy_pixel_delta_threshold:{self.delta_threshold}',
         '--parameter',
-        'fuzzy_ignored_border_thickness:%d' % self.ignored_border_thickness,
+        f'fuzzy_ignored_border_thickness:{self.ignored_border_thickness}',
         '--parameter',
-        'sobel_edge_threshold:%d' % self.edge_threshold,
+        f'sobel_edge_threshold:{self.edge_threshold}',
     ]
 
   def __str__(self) -> str:
-    return ('Max different pixels: %d, Max per-channel delta sum: %d, Sobel '
-            'edge threshold: %d, Ignored border thickness: %d') % (
-                self.max_diff, self.delta_threshold, self.edge_threshold,
-                self.ignored_border_thickness)
+    return (f'Max different pixels: {self.max_diff}, '
+            f'Max per-channel delta sum: {self.delta_threshold}, '
+            f'Sobel edge threshold: {self.edge_threshold}, '
+            f'Ignored border thickness: {self.ignored_border_thickness}')
 
   def __eq__(self, other: 'ParameterSet') -> bool:
     return (self.max_diff == other.max_diff

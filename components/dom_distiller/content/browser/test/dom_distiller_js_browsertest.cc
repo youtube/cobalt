@@ -16,15 +16,16 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/dom_distiller/content/browser/test/test_util.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/shell/browser/shell.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "ui/base/resource/resource_bundle.h"
 
 namespace {
 
@@ -52,9 +53,9 @@ namespace dom_distiller {
 
 const char* kExternalTestResourcesPath =
     "third_party/dom_distiller_js/dist/test/data";
-// TODO(877461): Remove filter once image construction happens synchronously and
-// asserts do not flake anymore when exposed to different garbage collection
-// heuristics.
+// TODO(crbug.com/40590818): Remove filter once image construction happens
+// synchronously and asserts do not flake anymore when exposed to different
+// garbage collection heuristics.
 const char* kTestFilePath =
     "/war/test.html?console_log=0&filter="
     "-*.testImageExtractorWithAttributesCSSHeightCM"
@@ -66,7 +67,7 @@ const char* kRunJsTestsJs =
 
 class DomDistillerJsTest : public content::ContentBrowserTest {
  public:
-  DomDistillerJsTest() {}
+  DomDistillerJsTest() = default;
 
   // content::ContentBrowserTest:
   void SetUpOnMainThread() override {
@@ -85,35 +86,19 @@ class DomDistillerJsTest : public content::ContentBrowserTest {
   base::Value result_;
 
  private:
-  void AddComponentsResources() {
-    base::FilePath pak_file;
-    base::FilePath pak_dir;
-#if BUILDFLAG(IS_ANDROID)
-    CHECK(base::PathService::Get(base::DIR_ANDROID_APP_DATA, &pak_dir));
-    pak_dir = pak_dir.Append(FILE_PATH_LITERAL("paks"));
-#elif BUILDFLAG(IS_MAC)
-    base::PathService::Get(base::DIR_MODULE, &pak_dir);
-#else
-    base::PathService::Get(base::DIR_ASSETS, &pak_dir);
-#endif  // BUILDFLAG(IS_ANDROID)
-    pak_file =
-        pak_dir.Append(FILE_PATH_LITERAL("components_tests_resources.pak"));
-    ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
-        pak_file, ui::kScaleFactorNone);
-  }
-
   void SetUpTestServer() {
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
     path = path.AppendASCII(kExternalTestResourcesPath);
     embedded_test_server()->ServeFilesFromDirectory(path);
     ASSERT_TRUE(embedded_test_server()->Start());
   }
 };
 
-// Disabled on MSan as well as Android and Linux CFI bots.
+// Disabled on MSan, TSAN as well as Android and Linux CFI bots.
 // https://crbug.com/845180
 // https://crbug.com/1434395
+// https://crbug.com/387892105
 // Then disabled more generally on Android: https://crbug.com/979685
 // TODO(jaebaek):  HTMLImageElement::LayoutBoxWidth() returns a value that has
 // a small error from the real one (i.e., the real is 38, but it returns 37)
@@ -121,7 +106,7 @@ class DomDistillerJsTest : public content::ContentBrowserTest {
 // EmbedExtractorTest.testImageExtractorWithAttributesCSSHeightCM (See
 // crrev.com/c/916021). We must solve this precision issue.
 #if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_FUCHSIA) ||                                                   \
+    BUILDFLAG(IS_FUCHSIA) || defined(THREAD_SANITIZER) ||                      \
     ((BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) &&                        \
      (BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) ||               \
       BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC) ||                                 \
@@ -153,20 +138,21 @@ IN_PROC_BROWSER_TEST_F(DomDistillerJsTest, MAYBE_RunJsTests) {
   web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
       base::UTF8ToUTF16(kRunJsTestsJs),
       base::BindOnce(&DomDistillerJsTest::OnJsTestExecutionDone,
-                     base::Unretained(this)));
+                     base::Unretained(this)),
+      content::ISOLATED_WORLD_ID_GLOBAL);
   run_loop.Run();
 
   // Convert to dictionary and parse the results.
   ASSERT_TRUE(result_.is_dict()) << "Result is not a dictionary: " << result_;
 
   const base::Value::Dict& dict = result_.GetDict();
-  absl::optional<bool> success = dict.FindBool("success");
+  std::optional<bool> success = dict.FindBool("success");
   ASSERT_TRUE(success.has_value());
-  absl::optional<int> num_tests = dict.FindInt("numTests");
+  std::optional<int> num_tests = dict.FindInt("numTests");
   ASSERT_TRUE(num_tests.has_value());
-  absl::optional<int> failed = dict.FindInt("failed");
+  std::optional<int> failed = dict.FindInt("failed");
   ASSERT_TRUE(failed.has_value());
-  absl::optional<int> skipped = dict.FindInt("skipped");
+  std::optional<int> skipped = dict.FindInt("skipped");
   ASSERT_TRUE(skipped.has_value());
 
   VLOG(0) << "Ran " << num_tests.value()

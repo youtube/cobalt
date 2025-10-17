@@ -55,6 +55,8 @@ used when committed.
 
 ## Document Index
 
+**Note**: this is not an exhaustive list of all documents.
+
 ### Checking Out and Building
 *   [Linux Build Instructions](linux/build_instructions.md) - Linux
 *   [Mac Build Instructions](mac_build_instructions.md) - MacOS
@@ -69,8 +71,8 @@ used when committed.
     Fuchsia target (on a Linux host)
 *   [iOS Build Instructions](ios/build_instructions.md) - iOS target (on a MacOS
     host)
+*   [Gerrit Guide](gerrit_guide.md) - Setup Gerrit access
 *   [Chrome OS Build Instructions](chromeos_build_instructions.md) - Chrome OS
-*   [Lacros Build Instructions](lacros/build_instructions.md) - Lacros
 *   [Linux Chromium ARM Recipes](linux/chromium_arm.md) - Recipes for building
     Chromium for ARM on Linux.
 *   [Chrome Component Build](component_build.md) - Faster builds using more
@@ -100,6 +102,7 @@ used when committed.
 *   [Git Cookbook](git_cookbook.md) - A collection of git recipes for common
     tasks
 *   [Git Tips](git_tips.md) - More git tips
+*   [Git submodules](git_submodules.md) - Git submodule (tips, FAQ)
 
 ### Clang
 *   [Clang Compiler](clang.md) - General information on the clang compiler, used
@@ -126,6 +129,7 @@ used when committed.
 *   [Commit Checklist](commit_checklist.md) - Streamlined checklist to go
     through before uploading CLs on Gerrit.
 *   [Code Reviews](code_reviews.md) - Code review requirements and guidelines
+*   [Dependency management](dependencies.md) - Managing dependencies (DEPS, git submodules)
 *   [Respectful Code Reviews](cr_respect.md) - A guide for code reviewers
 *   [Respectful Changes](cl_respect.md) - A guide for code authors
 *   [Mandatory Code-Review Rollout](code_review_owners.md) - Upcoming policy changes related to code review and OWNERS
@@ -161,13 +165,9 @@ used when committed.
     Docs for the subsystem that allows one to sync data across devices.
 *   [Ozone Overview](ozone_overview.md) - Ozone is an abstraction layer between
     the window system and low level input and graphics.
-*   [Optimizing Chrome Web UIs](optimizing_web_uis.md) - Notes on making webuis
-    more performant*   [Guidelines for considering branch dates in project planning](release_branch_guidance.md) -
+*   [Guidelines for considering branch dates in project planning](release_branch_guidance.md) -
     What to do (and not to do) around branch dates when scheduling your project
     work.
-*   [WebUI Explainer](webui_explainer.md) - An explanation of C++ and JavaScript
-    infrastructural code for Chrome UIs implemented with web technologies (i.e.
-    chrome:// URLs).
 *   [Watchlists](infra/watchlists.md) - Use watchlists to get notified of CLs
     you are interested in.
 *   [Shutdown](shutdown.md) - Explains the steps of Chrome shutdown, to make it
@@ -259,7 +259,7 @@ used when committed.
     related tools.
 *   [Chroot Notes](linux/using_a_chroot.md) - Setting up a chroot to work around
     libfreetype differences in some versions of Linux.
-*   [Linux Sandboxing](linux/sandboxing.md) - The Linux multi-process model to
+*   [Linux Sandboxing](../sandbox/linux/README.md) - The Linux multi-process model to
     isolate browser components with different privileges.
 *   [Zygote Process](linux/zygote.md) - How the Linux Zygote process, used to
     spawn new processes, works.
@@ -276,7 +276,6 @@ used when committed.
     with clang/ninja
 *   [Cocoa tips and tricks](cocoa_tips_and_tricks.md) - A collection of idioms
     used when writing Cocoa views and controllers
-*   [MacViews Release Plan](ui/views/macviews_release.md)
 
 ### Misc Windows-Specific Docs
 *   [Handling cygwin rebaseall failures](cygwin_dll_remapping_failure.md)
@@ -310,7 +309,7 @@ used when committed.
     coverage data with the EMMA tool.
 *   [Dynamic Feature Modules (DFMs)](android_dynamic_feature_modules.md) - What
     are they and how to create new ones.
-*   [Other build-related Android docs](../build/android/docs/index.md)
+*   [Other build-related Android docs](../build/android/docs/README.md)
 *   [Chrome for Android UI](ui/android/overview.md) - Resources and best practices for
     developing UI
 
@@ -331,13 +330,18 @@ used when committed.
 *   [Debugging UI in OOBE/login/lock](login/ui_debugging.md)
 *   [Chrome Logging on Chrome OS](chrome_os_logging.md)
 *   [Debugging tips](testing/chromeos_debugging_tips.md)
-*   [What is Lacros](lacros.md)
 
 ### Misc WebUI-Specific Docs
-*   [Creating WebUI Interfaces in components/](webui_in_components.md) How to
-    create a new WebUI component in the `components/` directory.
-*   [Trusted Types on WebUI](trusted_types_on_webui.md) Tips for coding in WebUI
-    with Trusted Types in mind.
+*   [WebUI Explainer](webui/webui_explainer.md) - An explanation of C++ and
+    TypeScript infrastructural code for Chrome UIs implemented with web
+    technologies (i.e. chrome:// URLs).
+*   [Optimizing Chrome Web UIs](webui/optimizing_web_uis.md) - Notes on making
+    WebUIs more performant
+*   [Trusted Types on WebUI](webui/trusted_types_on_webui.md) - Tips for coding
+    in WebUI with Trusted Types in mind.
+*   [chrome-untrusted:// FAQ](webui/chrome_untrusted.md) - Explainer on the
+    usage of the `chrome-untrusted://` scheme for hosting WebUIs that handle
+    untrustworthy content.
 
 ### Media
 *   [Audio Focus Handling](media/audio_focus.md) - How multiple MediaSession
@@ -347,7 +351,9 @@ used when committed.
 *   [Latency tracing](media/latency_tracing.md) - How to use the
     `"audio.latency"` tracing category to measure audio latency.
 *   [Piranha Plant](piranha_plant.md) - Future architecture of MediaStreams
-*   [Video Encode Accelerator Tests](media/gpu/veatest_usage.md) - How to
+*   [Media Capture](media/capture/README.md) - Features and APIs that enable the
+    browser to capture pixels and audio from itself or the underlying OS.
+*   [Video Encode Accelerator Tests](media/gpu/video_encoder_test_usage.md) - How to
     use the accelerated video encoder test program.
 *   [Video Decoder Tests](media/gpu/video_decoder_test_usage.md) - Running the
     video decoder tests.
@@ -376,6 +382,7 @@ used when committed.
 
 ### Memory
 *   [Memory Overview](memory/README.md)
+*   [Heap Profiling with External Tools](memory/heap_profiling_external.md)
 
 ### Memory Infrastructure Timeline Profiling (MemoryInfra)
 *   [Overview](memory-infra/README.md)
@@ -427,12 +434,35 @@ used when committed.
 *   [D-Bus Mojo Connection Service](dbus_mojo_connection_service.md) - A service
     in Chrome to bootstrap CrOS services' Mojo connection.
 
+### Security
+*   [The Rule Of 2](security/rule-of-2.md) - An imoportant security rule when
+    handling untrustworthy contents (like anything downloaded from the web).
+
 ### Speed
 *   [Chrome Speed](speed/README.md) - Documentation for performance measurements and regressions in Chrome.
 *   [Chrome Speed Metrics](speed_metrics/README.md) - Documentation about user experience metrics on the web and their JavaScript APIs.
 
 ### UI
 *   [Chromium UI Platform](ui/index.md) - All things user interface
+
+### What's Up With That Transcripts
+
+These are transcripts of [What's Up With
+That](https://www.youtube.com/playlist?list=PL9ioqAuyl6ULIdZQys3fwRxi3G3ns39Hq),
+a video series of interviews with Chromium software engineers.
+
+*   [What's Up With Pointers - Episode 1](transcripts/wuwt-e01-pointers.md)
+*   [What's Up With DCHECKs - Episode 2](transcripts/wuwt-e02-dchecks.md)
+*   [What's Up With //content - Episode 3](transcripts/wuwt-e03-content.md)
+*   [What's Up With Tests - Episode 4](transcripts/wuwt-e04-tests.md)
+*   [What's Up With BUILD.gn - Episode 5](transcripts/wuwt-e05-build-gn.md)
+*   [What's Up With Open Source - Episode 6](transcripts/wuwt-e06-open-source.md)
+*   [What's Up With Mojo - Episode 7](transcripts/wuwt-e07-mojo.md)
+*   [What's Up With Processes - Episode 8](transcripts/wuwt-e08-processes.md)
+*   [What's Up With Site Isolation - Episode 9](transcripts/wuwt-e09-site-isolation.md)
+*   [What's Up With Web Platform - Episode 10](transcripts/wuwt-e10-web-platform.md)
+*   [What's Up With Web Standards - Episode 11](transcripts/wuwt-e11-web-standards.md)
+*   [What's Up With Base - Episode 12](transcripts/wuwt-e12-base.md)
 
 ### Probably Obsolete
 *   [TPM Quick Reference](tpm_quick_ref.md) - Trusted Platform Module notes.

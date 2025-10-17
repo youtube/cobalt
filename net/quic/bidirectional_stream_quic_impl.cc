@@ -17,7 +17,6 @@
 #include "net/socket/next_proto.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 #include "quic_http_stream.h"
 
 namespace net {
@@ -110,13 +109,13 @@ void BidirectionalStreamQuicImpl::SendRequestHeaders() {
 int BidirectionalStreamQuicImpl::WriteHeaders() {
   DCHECK(!has_sent_headers_);
 
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   HttpRequestInfo http_request_info;
   http_request_info.url = request_info_->url;
   http_request_info.method = request_info_->method;
   http_request_info.extra_headers = request_info_->extra_headers;
 
-  CreateSpdyHeadersFromHttpRequest(http_request_info,
+  CreateSpdyHeadersFromHttpRequest(http_request_info, std::nullopt,
                                    http_request_info.extra_headers, &headers);
   int rv = stream_->WriteHeaders(std::move(headers),
                                  request_info_->end_stream_on_headers, nullptr);
@@ -283,7 +282,7 @@ void BidirectionalStreamQuicImpl::OnReadInitialHeadersComplete(int rv) {
   }
 
   headers_bytes_received_ += rv;
-  negotiated_protocol_ = kProtoQUIC;
+  negotiated_protocol_ = NextProto::kProtoQUIC;
   connect_timing_ = session_->GetConnectTiming();
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,

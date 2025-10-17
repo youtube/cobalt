@@ -28,7 +28,7 @@ OSServiceManager* OSServiceManager::Get() {
   return *GetInstanceStorage();
 }
 
-OSServiceManager::~OSServiceManager() {}
+OSServiceManager::~OSServiceManager() = default;
 
 DWORD OSServiceManager::InstallService(
     const base::FilePath& service_binary_path,
@@ -170,7 +170,7 @@ DWORD OSServiceManager::ControlService(DWORD control) {
   if (!scm_handle.IsValid())
     return ::GetLastError();
 
-  // TODO(crbug.com/1108932): More granular access rights corresponding to the
+  // TODO(crbug.com/40141510): More granular access rights corresponding to the
   // controls can be specified.
   ScopedScHandle s_handle(::OpenService(
       scm_handle.Get(), kGCPWExtensionServiceName, SERVICE_ALL_ACCESS));

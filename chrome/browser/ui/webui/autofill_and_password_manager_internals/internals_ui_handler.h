@@ -5,14 +5,15 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_AUTOFILL_AND_PASSWORD_MANAGER_INTERNALS_INTERNALS_UI_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_AUTOFILL_AND_PASSWORD_MANAGER_INTERNALS_INTERNALS_UI_HANDLER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
+#include "base/values.h"
 #include "components/autofill/core/browser/logging/log_receiver.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/web_ui_message_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace autofill {
 class LogRouter;
@@ -26,10 +27,11 @@ class Profile;
 
 namespace autofill {
 
-constexpr char kCacheResetDone[] =
+inline constexpr char kCacheResetDone[] =
     "Done. Please close and reopen all tabs that should be affected by the "
     "cache reset.";
-constexpr char kCacheResetAlreadyInProgress[] = "Reset already in progress";
+inline constexpr char kCacheResetAlreadyInProgress[] =
+    "Reset already in progress";
 
 void CreateAndAddInternalsHTMLSource(Profile* profile,
                                      const std::string& source_name);
@@ -49,10 +51,7 @@ class AutofillCacheResetter : public content::BrowsingDataRemover::Observer {
  private:
   // Implements content::BrowsingDataRemover::Observer.
   void OnBrowsingDataRemoverDone(uint64_t failed_data_types) override;
-
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION content::BrowsingDataRemover* remover_;
+  raw_ptr<content::BrowsingDataRemover> remover_;
   Callback callback_;
 };
 
@@ -66,6 +65,7 @@ class InternalsUIHandler : public content::WebUIMessageHandler,
       base::RepeatingCallback<autofill::LogRouter*(content::BrowserContext*)>;
 
   InternalsUIHandler(std::string call_on_load,
+                     base::Value call_on_load_argument,
                      GetLogRouterFunction get_log_router_function);
 
   InternalsUIHandler(const InternalsUIHandler&) = delete;
@@ -88,20 +88,28 @@ class InternalsUIHandler : public content::WebUIMessageHandler,
   void EndSubscription();
 
   // JavaScript call handler.
+  void OnDeleteAutofillAiCacheEntry(const base::Value::List& args);
+  void OnGetAutofillAiCache(const base::Value::List& args);
   void OnLoaded(const base::Value::List& args);
   void OnResetCache(const base::Value::List& args);
+#if BUILDFLAG(IS_ANDROID)
   void OnResetUpmEviction(const base::Value::List& args);
+#else
+  void SetDomNodeId(const base::Value::List& args);
+#endif
 
   void OnResetCacheDone(const std::string& message);
 
   // JavaScript function to be called on load.
   std::string call_on_load_;
+  // The argument to be passed to the on load function.
+  base::Value call_on_load_argument_;
   GetLogRouterFunction get_log_router_function_;
 
   // Whether |this| is registered as a log receiver with the LogRouter.
   bool registered_with_log_router_ = false;
 
-  absl::optional<AutofillCacheResetter> autofill_cache_resetter_;
+  std::optional<AutofillCacheResetter> autofill_cache_resetter_;
 };
 
 }  // namespace autofill

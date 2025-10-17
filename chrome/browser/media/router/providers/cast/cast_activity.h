@@ -6,20 +6,25 @@
 #define CHROME_BROWSER_MEDIA_ROUTER_PROVIDERS_CAST_CAST_ACTIVITY_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/browser/media/router/providers/cast/cast_internal_message_util.h"
 #include "chrome/browser/media/router/providers/cast/cast_session_client.h"
 #include "chrome/browser/media/router/providers/cast/cast_session_tracker.h"
 #include "components/media_router/common/discovery/media_sink_internal.h"
 #include "components/media_router/common/media_route.h"
-#include "components/media_router/common/mojom/media_router.mojom.h"
+#include "components/media_router/common/mojom/debugger.mojom-forward.h"
+#include "components/media_router/common/mojom/logger.mojom-forward.h"
 #include "components/media_router/common/providers/cast/cast_media_source.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/mojom/presentation/presentation.mojom.h"
 
 namespace cast_channel {
 class CastMessageHandler;
@@ -31,9 +36,9 @@ class AppActivity;
 class MirroringActivity;
 class CastSessionTracker;
 
-using OnSourceChangedCallback =
-    base::RepeatingCallback<void(int old_frame_tree_node_id,
-                                 int frame_tree_node_id)>;
+using OnSourceChangedCallback = base::RepeatingCallback<void(
+    content::FrameTreeNodeId old_frame_tree_node_id,
+    content::FrameTreeNodeId frame_tree_node_id)>;
 
 class CastActivityFactoryForTest {
  public:
@@ -52,14 +57,16 @@ class CastActivity {
   CastActivity(const MediaRoute& route,
                const std::string& app_id,
                cast_channel::CastMessageHandler* message_handler,
-               CastSessionTracker* session_tracker);
+               CastSessionTracker* session_tracker,
+               mojo::Remote<mojom::Logger>& logger,
+               mojo::Remote<mojom::Debugger>& debugger);
   CastActivity(const CastActivity&) = delete;
   CastActivity& operator=(const CastActivity&) = delete;
   virtual ~CastActivity();
 
   const MediaRoute& route() const { return route_; }
   const std::string& app_id() const { return app_id_; }
-  const absl::optional<std::string>& session_id() const { return session_id_; }
+  const std::optional<std::string>& session_id() const { return session_id_; }
   const MediaSinkInternal sink() const { return sink_; }
 
   void SetRouteIsConnecting(bool is_connecting);
@@ -70,7 +77,7 @@ class CastActivity {
   virtual mojom::RoutePresentationConnectionPtr AddClient(
       const CastMediaSource& source,
       const url::Origin& origin,
-      int frame_tree_node_id);
+      content::FrameTreeNodeId frame_tree_node_id);
 
   virtual void RemoveClient(const std::string& client_id);
 
@@ -93,10 +100,11 @@ class CastActivity {
       blink::mojom::PresentationConnectionMessagePtr message);
 
   virtual void SendMediaStatusToClients(const base::Value::Dict& media_status,
-                                        absl::optional<int> request_id);
+                                        std::optional<int> request_id);
 
   // Handles a message forwarded by CastActivityManager.
-  virtual void OnAppMessage(const cast::channel::CastMessage& message) = 0;
+  virtual void OnAppMessage(
+      const openscreen::cast::proto::CastMessage& message) = 0;
   virtual void OnInternalMessage(
       const cast_channel::InternalMessage& message) = 0;
 
@@ -106,14 +114,16 @@ class CastActivity {
       blink::mojom::PresentationConnectionCloseReason close_reason);
   virtual void TerminatePresentationConnections();
 
-  virtual void CreateMediaController(
+  // Binds the given |media_controller| and |observer| to the activity to
+  // receive media commands and notify observers.
+  virtual void BindMediaController(
       mojo::PendingReceiver<mojom::MediaController> media_controller,
       mojo::PendingRemote<mojom::MediaStatusObserver> observer) = 0;
 
   // Sends media command |cast_message|, which came from the SDK client, to the
   // receiver hosting this session. Returns the locally-assigned request ID of
   // the message sent to the receiver.
-  virtual absl::optional<int> SendMediaRequestToReceiver(
+  virtual std::optional<int> SendMediaRequestToReceiver(
       const CastInternalMessage& cast_message);
 
   // Sends app message |cast_message|, which came from the SDK client, to the
@@ -135,7 +145,9 @@ class CastActivity {
 
   // Closes any virtual connection between |client_id| and this session on the
   // receiver.
-  virtual void CloseConnectionOnReceiver(const std::string& client_id);
+  virtual void CloseConnectionOnReceiver(
+      const std::string& client_id,
+      blink::mojom::PresentationConnectionCloseReason reason);
 
   // Called when the client given by |client_id| requests to leave the session.
   // This will also cause all clients within the session with matching origin
@@ -179,7 +191,7 @@ class CastActivity {
   MediaRoute route_;
   std::string app_id_;
 
-  // TODO(https://crbug.com/809249): Consider wrapping CastMessageHandler with
+  // TODO(crbug.com/40561499): Consider wrapping CastMessageHandler with
   // known parameters (sink, client ID, session transport ID) and passing them
   // to objects that need to send messages to the receiver.
   const raw_ptr<cast_channel::CastMessageHandler> message_handler_;
@@ -187,10 +199,13 @@ class CastActivity {
   const raw_ptr<CastSessionTracker> session_tracker_;
 
   // Set by CastActivityManager after the session is launched successfully.
-  absl::optional<std::string> session_id_;
+  std::optional<std::string> session_id_;
 
   MediaSinkInternal sink_;
   ClientMap connected_clients_;
+
+  const raw_ref<mojo::Remote<mojom::Logger>> logger_;
+  const raw_ref<mojo::Remote<mojom::Debugger>> debugger_;
 
  private:
   static CastSessionClientFactoryForTest* client_factory_for_test_;

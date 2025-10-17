@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/cloud_devices/common/description_items.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -86,10 +85,8 @@ class RangeVendorCapability {
 
   RangeVendorCapability& operator=(RangeVendorCapability&& other);
 
-  bool operator==(const RangeVendorCapability& other) const;
-  bool operator!=(const RangeVendorCapability& other) const {
-    return !(*this == other);
-  }
+  friend bool operator==(const RangeVendorCapability&,
+                         const RangeVendorCapability&) = default;
 
   bool IsValid() const;
   bool LoadFrom(const base::Value::Dict& dict);
@@ -109,10 +106,8 @@ struct SelectVendorCapabilityOption {
   ~SelectVendorCapabilityOption();
 
   bool IsValid() const;
-  bool operator==(const SelectVendorCapabilityOption& other) const;
-  bool operator!=(const SelectVendorCapabilityOption& other) const {
-    return !(*this == other);
-  }
+  friend bool operator==(const SelectVendorCapabilityOption&,
+                         const SelectVendorCapabilityOption&) = default;
 
   std::string value;
   std::string display_name;
@@ -141,10 +136,8 @@ class TypedValueVendorCapability {
 
   TypedValueVendorCapability& operator=(TypedValueVendorCapability&& other);
 
-  bool operator==(const TypedValueVendorCapability& other) const;
-  bool operator!=(const TypedValueVendorCapability& other) const {
-    return !(*this == other);
-  }
+  friend bool operator==(const TypedValueVendorCapability&,
+                         const TypedValueVendorCapability&) = default;
 
   bool IsValid() const;
   bool LoadFrom(const base::Value::Dict& dict);
@@ -182,9 +175,6 @@ class VendorCapability {
   ~VendorCapability();
 
   bool operator==(const VendorCapability& other) const;
-  bool operator!=(const VendorCapability& other) const {
-    return !(*this == other);
-  }
 
   bool IsValid() const;
   bool LoadFrom(const base::Value::Dict& dict);
@@ -205,6 +195,17 @@ class VendorCapability {
   };
 };
 
+struct VendorItem {
+  VendorItem();
+  VendorItem(const std::string& id, const std::string& value);
+
+  bool IsValid() const;
+  friend bool operator==(const VendorItem&, const VendorItem&) = default;
+
+  std::string id;
+  std::string value;
+};
+
 enum class ColorType {
   STANDARD_COLOR,
   STANDARD_MONOCHROME,
@@ -218,8 +219,7 @@ struct Color {
   explicit Color(ColorType type);
 
   bool IsValid() const;
-  bool operator==(const Color& other) const;
-  bool operator!=(const Color& other) const { return !(*this == other); }
+  friend bool operator==(const Color&, const Color&) = default;
 
   ColorType type;
   std::string vendor_id;
@@ -238,24 +238,14 @@ enum class OrientationType {
   AUTO_ORIENTATION,
 };
 
-enum class MarginsType {
-  NO_MARGINS,
-  STANDARD_MARGINS,
-  CUSTOM_MARGINS,
-};
-
+// This deviates from the CDD#Margins now as the type field has been removed.
+// TODO(316999874, 308709702): update the spec to reflect this change.
 struct Margins {
   Margins();
-  Margins(MarginsType type,
-          int32_t top_um,
-          int32_t right_um,
-          int32_t bottom_um,
-          int32_t left_um);
+  Margins(int32_t top_um, int32_t right_um, int32_t bottom_um, int32_t left_um);
 
   bool operator==(const Margins& other) const;
-  bool operator!=(const Margins& other) const { return !(*this == other); }
 
-  MarginsType type;
   int32_t top_um;
   int32_t right_um;
   int32_t bottom_um;
@@ -267,22 +257,23 @@ struct Dpi {
   Dpi(int32_t horizontal, int32_t vertical);
 
   bool IsValid() const;
-  bool operator==(const Dpi& other) const;
-  bool operator!=(const Dpi& other) const { return !(*this == other); }
+  friend bool operator==(const Dpi&, const Dpi&) = default;
 
   int32_t horizontal;
   int32_t vertical;
 };
 
+// This deviates from the CDD#Margins now as the values field have been renamed.
+// TODO(316999874, 308709702): update the spec to reflect this change.
 enum class FitToPageType {
-  NO_FITTING,
-  FIT_TO_PAGE,
-  GROW_TO_PAGE,
-  SHRINK_TO_PAGE,
-  FILL_PAGE,
+  AUTO,
+  AUTO_FIT,
+  FILL,
+  FIT,
+  NONE,
 };
 
-enum class MediaType {
+enum class MediaSize {
   CUSTOM_MEDIA,
 
   // North American standard sheet media names.
@@ -461,44 +452,85 @@ enum class MediaType {
 };
 
 struct Media {
+  // Use `MediaBuilder` below to build struct `Media` in an organized fashion.
   Media();
-
-  // Page size will be set to the default size um for `type`. Printable area
-  // will be set to match the page size.
-  explicit Media(MediaType type);
-
-  // Printable area will be set to `size_um`.
-  Media(MediaType type, const gfx::Size& size_um);
-
-  Media(MediaType type,
-        const gfx::Size& size_um,
-        const gfx::Rect& printable_area_um);
-
-  // Printable area will be set to `size_um`.
-  Media(const std::string& custom_display_name,
-        const std::string& vendor_id,
-        const gfx::Size& size_um);
-
-  Media(const std::string& custom_display_name,
-        const std::string& vendor_id,
-        const gfx::Size& size_um,
-        const gfx::Rect& printable_area_um);
 
   Media(const Media& other);
   Media& operator=(const Media& other);
 
-  bool MatchBySize();
-
   bool IsValid() const;
   bool operator==(const Media& other) const;
-  bool operator!=(const Media& other) const { return !(*this == other); }
 
-  MediaType type;
+  MediaSize size_name;
   gfx::Size size_um;
   bool is_continuous_feed;
   std::string custom_display_name;
   std::string vendor_id;
   gfx::Rect printable_area_um;
+  // When `is_continuous_feed` is true, the min height will be stored in
+  // `size_um` and the max height is stored in `max_height_um`.  When
+  // `is_continuous_feed` is false, `max_height_um` is not used.  This only
+  // supports a variable height, not width, so the width is always fixed.
+  int max_height_um;
+  bool has_borderless_variant;
+};
+
+// Builds `Media` structs. The caller must call at least one method that sets
+// the name, and follow any special requirements described by the methods below.
+//
+// Note that the build result can be invalid, e.g. If the caller passes in an
+// empty size or forgets to specify the size.
+//
+// Note that there is no requirement that the size corresponds to the
+// `MediaSize`. e.g. `MediaSize::NA_LETTER` and a size of 100x200 is considered
+// valid.
+class MediaBuilder {
+ public:
+  MediaBuilder();
+
+  // Sets the name to `size_name` and clears the display name and vendor ID.
+  MediaBuilder& WithStandardName(MediaSize size_name);
+
+  // Sets the name to `MediaSize::CUSTOM_MEDIA`. Sets the display name and
+  // vendor ID based on the input parameters.
+  MediaBuilder& WithCustomName(const std::string& custom_display_name,
+                               const std::string& vendor_id);
+
+  // The default printable area is the entire medium.
+  MediaBuilder& WithSizeAndDefaultPrintableArea(const gfx::Size& size_um);
+  MediaBuilder& WithSizeAndPrintableArea(const gfx::Size& size_um,
+                                         const gfx::Rect& printable_area_um);
+  MediaBuilder& WithMaxHeight(int max_height_um);
+  MediaBuilder& WithBorderlessVariant(bool has_borderless_variant);
+
+  // This is equivalent to calling WithCustomName(), except it also tries to
+  // match the name to a standard `MediaSize`.
+  // This requires the caller to call WithSizeAndDefaultPrintableArea() or
+  // WithSizeAndPrintableArea() first.
+  MediaBuilder& WithNameMaybeBasedOnSize(const std::string& custom_display_name,
+                                         const std::string& vendor_id);
+
+  // Sets the size and printable area based on the standard name, For example,
+  // if the name is `MediaSize::NA_LETTER`, then this sets the size to
+  // 215900x279400.
+  // This requires the caller to call WithStandardName() first with a name other
+  // than `MediaSize::CUSTOM_MEDIA`.
+  MediaBuilder& WithSizeAndPrintableAreaBasedOnStandardName();
+
+  // Can be called repeatedly to build `Media` structs.
+  Media Build() const;
+
+ private:
+  bool IsContinuousFeed() const;
+
+  MediaSize size_name_;
+  std::string custom_display_name_;
+  std::string vendor_id_;
+
+  gfx::Size size_um_;
+  gfx::Rect printable_area_um_;
+  int max_height_um_ = 0;
+  bool has_borderless_variant_ = false;
 };
 
 struct Interval {
@@ -506,14 +538,26 @@ struct Interval {
   Interval(int32_t start, int32_t end);
   explicit Interval(int32_t start);
 
-  bool operator==(const Interval& other) const;
-  bool operator!=(const Interval& other) const { return !(*this == other); }
+  friend bool operator==(const Interval&, const Interval&) = default;
 
   int32_t start;
   int32_t end;
 };
 
 typedef std::vector<Interval> PageRange;
+
+struct MediaType {
+  MediaType();
+  MediaType(const std::string& vendor_id,
+            const std::string& custom_display_name);
+
+  friend bool operator==(const MediaType&, const MediaType&) = default;
+
+  bool IsValid() const;
+
+  std::string vendor_id;
+  std::string custom_display_name;
+};
 
 class ContentTypeTraits;
 class PwgRasterConfigTraits;
@@ -525,10 +569,12 @@ class MarginsTraits;
 class DpiTraits;
 class FitToPageTraits;
 class MediaTraits;
+class MediaTypeTraits;
 class PageRangeTraits;
 class CollateTraits;
 class CopiesCapabilityTraits;
 class CopiesTicketItemTraits;
+class VendorItemTraits;
 
 typedef ListCapability<ContentType, ContentTypeTraits> ContentTypesCapability;
 typedef ValueCapability<PwgRasterConfig, PwgRasterConfigTraits>
@@ -543,6 +589,7 @@ typedef SelectionCapability<Margins, MarginsTraits> MarginsCapability;
 typedef SelectionCapability<Dpi, DpiTraits> DpiCapability;
 typedef SelectionCapability<FitToPageType, FitToPageTraits> FitToPageCapability;
 typedef SelectionCapability<Media, MediaTraits> MediaCapability;
+typedef SelectionCapability<MediaType, MediaTypeTraits> MediaTypeCapability;
 typedef ValueCapability<Copies, class CopiesCapabilityTraits> CopiesCapability;
 typedef EmptyCapability<class PageRangeTraits> PageRangeCapability;
 typedef BooleanCapability<class CollateTraits> CollateCapability;
@@ -566,6 +613,7 @@ typedef TicketItem<int32_t, CopiesTicketItemTraits> CopiesTicketItem;
 typedef TicketItem<PageRange, PageRangeTraits> PageRangeTicketItem;
 typedef TicketItem<bool, CollateTraits> CollateTicketItem;
 typedef TicketItem<bool, ReverseTraits> ReverseTicketItem;
+typedef ListTicketItem<VendorItem, VendorItemTraits> VendorTicketItems;
 
 }  // namespace printer
 

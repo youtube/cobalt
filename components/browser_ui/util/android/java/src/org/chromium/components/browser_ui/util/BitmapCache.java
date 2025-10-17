@@ -4,18 +4,19 @@
 
 package org.chromium.components.browser_ui.util;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.graphics.Bitmap;
 import android.os.Looper;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.collection.LruCache;
 
 import org.chromium.base.CollectionUtil;
 import org.chromium.base.DiscardableReferencePool;
 import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.Map;
  * The {@link RecentlyUsedCache} is limited in size and dropped under memory pressure, or when the
  * object is destroyed.
  */
+@NullMarked
 public class BitmapCache {
     private final int mCacheSize;
 
@@ -47,7 +49,7 @@ public class BitmapCache {
         }
 
         @Override
-        protected Bitmap create(String key) {
+        protected @Nullable Bitmap create(String key) {
             WeakReference<Bitmap> cachedBitmap = sDeduplicationCache.get(key);
             return cachedBitmap == null ? null : cachedBitmap.get();
         }
@@ -62,7 +64,7 @@ public class BitmapCache {
      * Discardable reference to the {@link RecentlyUsedCache} that can be dropped under memory
      * pressure.
      */
-    private DiscardableReferencePool.DiscardableReference<RecentlyUsedCache> mBitmapCache;
+    private DiscardableReferencePool.@Nullable DiscardableReference<RecentlyUsedCache> mBitmapCache;
 
     /**
      * The reference pool that contains the {@link #mBitmapCache}. Used to recreate a new cache
@@ -74,7 +76,8 @@ public class BitmapCache {
      * Static cache used for deduplicating bitmaps. The key is a pair of file name and thumbnail
      * size (as for the {@link #mBitmapCache}.
      */
-    private static Map<String, WeakReference<Bitmap>> sDeduplicationCache = new HashMap<>();
+    private static final Map<String, WeakReference<Bitmap>> sDeduplicationCache = new HashMap<>();
+
     private static int sUsageCount;
 
     /**
@@ -93,9 +96,7 @@ public class BitmapCache {
         mBitmapCache = referencePool.put(new RecentlyUsedCache(mCacheSize));
     }
 
-    /**
-     * Manually destroy the BitmapCache.
-     */
+    /** Manually destroy the BitmapCache. */
     public void destroy() {
         assert mReferencePool != null;
         assert mBitmapCache != null;
@@ -103,7 +104,7 @@ public class BitmapCache {
         mBitmapCache = null;
     }
 
-    public Bitmap getBitmap(String key) {
+    public @Nullable Bitmap getBitmap(String key) {
         ThreadUtils.assertOnUiThread();
         if (mBitmapCache == null) return null;
 
@@ -113,7 +114,7 @@ public class BitmapCache {
         return cachedBitmap;
     }
 
-    public void putBitmap(@NonNull String key, @Nullable Bitmap bitmap) {
+    public void putBitmap(String key, @Nullable Bitmap bitmap) {
         ThreadUtils.assertOnUiThread();
         if (bitmap == null || mBitmapCache == null) return;
 
@@ -122,9 +123,7 @@ public class BitmapCache {
         sDeduplicationCache.put(key, new WeakReference<>(bitmap));
     }
 
-    /**
-     * Evict all bitmaps from the cache.
-     */
+    /** Evict all bitmaps from the cache. */
     public void clear() {
         getBitmapCache().evictAll();
         scheduleDeduplicationCache();
@@ -136,6 +135,7 @@ public class BitmapCache {
     }
 
     private RecentlyUsedCache getBitmapCache() {
+        assumeNonNull(mBitmapCache);
         RecentlyUsedCache bitmapCache = mBitmapCache.get();
         if (bitmapCache == null) {
             bitmapCache = new RecentlyUsedCache(mCacheSize);
@@ -153,10 +153,12 @@ public class BitmapCache {
     }
 
     private static void scheduleDeduplicationCache() {
-        Looper.myQueue().addIdleHandler(() -> {
-            compactDeduplicationCache();
-            return false;
-        });
+        Looper.myQueue()
+                .addIdleHandler(
+                        () -> {
+                            compactDeduplicationCache();
+                            return false;
+                        });
     }
 
     /**
@@ -167,12 +169,10 @@ public class BitmapCache {
         CollectionUtil.strengthen(sDeduplicationCache.values());
     }
 
-    @VisibleForTesting
     static void clearDedupCacheForTesting() {
         sDeduplicationCache.clear();
     }
 
-    @VisibleForTesting
     static int dedupCacheSizeForTesting() {
         return sDeduplicationCache.size();
     }

@@ -16,17 +16,13 @@
 #include "ui/gfx/x/connection.h"
 #include "ui/gfx/x/dri3.h"
 #include "ui/gfx/x/future.h"
-#include "ui/gl/buffer_format_utils.h"
 #include "ui/gl/gl_bindings.h"
-#include "ui/gl/native_pixmap_egl_x11_binding_helper.h"
 #include "ui/gl/scoped_binders.h"
 
 namespace gl {
 
 namespace {
 bool IsFormatSupported(gfx::BufferFormat format) {
-  // Before adding a format here, verify that GLImageEGLPixmap::Initialize() can
-  // import it correctly.
   switch (format) {
     case gfx::BufferFormat::BGRA_8888:
       return true;
@@ -41,7 +37,6 @@ uint8_t Depth(gfx::BufferFormat format) {
       return 32;
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -51,7 +46,6 @@ uint8_t Bpp(gfx::BufferFormat format) {
       return 32;
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -112,7 +106,7 @@ x11::Pixmap XPixmapFromNativePixmap(const gfx::NativePixmap& native_pixmap,
     return x11::Pixmap::None;
   }
 
-  // TODO(https://crbug.com/1411749): this was made Sync() reportedly because
+  // TODO(crbug.com/40254955): this was made Sync() reportedly because
   // glXCreatePixmap() would fail on ChromeOS with "failed to create a drawable"
   // otherwise. Today, ChromeOS doesn't use X11, so that reason is obsolete. I
   // tried removing the Sync() for Linux, tested with hardware decoding a 4k
@@ -132,17 +126,77 @@ x11::Pixmap XPixmapFromNativePixmap(const gfx::NativePixmap& native_pixmap,
 
   return pixmap_id;
 }
+
+inline EGLDisplay FromXDisplay() {
+  auto* x_display = x11::Connection::Get()->GetXlibDisplay().display();
+  return eglGetDisplay(reinterpret_cast<EGLNativeDisplayType>(x_display));
+}
+
 }  // namespace
 
 }  // namespace gl
 
 namespace ui {
 
-NativePixmapEGLX11Binding::NativePixmapEGLX11Binding(
-    std::unique_ptr<gl::NativePixmapEGLX11BindingHelper> binding_helper,
-    gfx::BufferFormat format)
-    : binding_helper_(std::move(binding_helper)), format_(format) {}
-NativePixmapEGLX11Binding::~NativePixmapEGLX11Binding() = default;
+NativePixmapEGLX11Binding::NativePixmapEGLX11Binding(gfx::BufferFormat format)
+    : display_(gl::FromXDisplay()) {}
+
+NativePixmapEGLX11Binding::~NativePixmapEGLX11Binding() {
+  if (surface_) {
+    eglDestroySurface(display_, surface_);
+  }
+
+  if (pixmap_ != x11::Pixmap::None) {
+    auto* connection = x11::Connection::Get();
+    connection->FreePixmap({pixmap_});
+  }
+}
+
+bool NativePixmapEGLX11Binding::IsBufferFormatSupported(
+    gfx::BufferFormat format) {
+  return gl::IsFormatSupported(format);
+}
+
+bool NativePixmapEGLX11Binding::Initialize(x11::Pixmap pixmap) {
+  CHECK_NE(pixmap, x11::Pixmap::None);
+  pixmap_ = pixmap;
+
+  if (eglInitialize(display_, nullptr, nullptr) != EGL_TRUE) {
+    return false;
+  }
+
+  EGLint attribs[] = {EGL_BUFFER_SIZE,
+                      32,
+                      EGL_ALPHA_SIZE,
+                      8,
+                      EGL_BLUE_SIZE,
+                      8,
+                      EGL_GREEN_SIZE,
+                      8,
+                      EGL_RED_SIZE,
+                      8,
+                      EGL_SURFACE_TYPE,
+                      EGL_PIXMAP_BIT,
+                      EGL_BIND_TO_TEXTURE_RGBA,
+                      EGL_TRUE,
+                      EGL_NONE};
+
+  EGLint num_configs;
+  EGLConfig config = nullptr;
+
+  if ((eglChooseConfig(display_, attribs, &config, 1, &num_configs) !=
+       EGL_TRUE) ||
+      !num_configs) {
+    return false;
+  }
+
+  std::vector<EGLint> attrs = {EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
+                               EGL_TEXTURE_TARGET, EGL_TEXTURE_2D, EGL_NONE};
+
+  surface_ = eglCreatePixmapSurface(
+      display_, config, static_cast<EGLNativePixmapType>(pixmap), attrs.data());
+  return surface_ != EGL_NO_SURFACE;
+}
 
 // static
 std::unique_ptr<NativePixmapGLBinding> NativePixmapEGLX11Binding::Create(
@@ -169,29 +223,23 @@ std::unique_ptr<NativePixmapGLBinding> NativePixmapEGLX11Binding::Create(
   }
 
   if (target != GL_TEXTURE_2D) {
-    // gl::GLImageEGLPixmap requires GL_TEXTURE_2D.
     VLOG(1) << "GL target " << target << " is unsupported";
     return nullptr;
   }
 
-  auto binding_helper =
-      std::make_unique<gl::NativePixmapEGLX11BindingHelper>(plane_size);
+  auto binding = std::make_unique<NativePixmapEGLX11Binding>(plane_format);
   x11::Pixmap pixmap =
       gl::XPixmapFromNativePixmap(*native_pixmap, plane_format);
   if (pixmap == x11::Pixmap::None) {
     return nullptr;
   }
 
-  // TODO(https://crbug.com/1411749): if we early out below, should we call
-  // FreePixmap()?
-
-  if (!binding_helper->Initialize(std::move(pixmap))) {
+  // Transfer the ownership of `pixmap` to `NativePixmapEGLX11Binding`.
+  if (!binding->Initialize(std::move(pixmap))) {
     VLOG(1) << "Unable to initialize binding from pixmap";
     return nullptr;
   }
 
-  auto binding = std::make_unique<NativePixmapEGLX11Binding>(
-      std::move(binding_helper), plane_format);
   if (!binding->BindTexture(target, texture_id)) {
     VLOG(1) << "Unable to bind the GL texture";
     return nullptr;
@@ -210,20 +258,23 @@ bool NativePixmapEGLX11Binding::BindTexture(GLenum target, GLuint texture_id) {
   gl::ScopedTextureBinder binder(base::strict_cast<unsigned int>(target),
                                  base::strict_cast<unsigned int>(texture_id));
 
-  if (!binding_helper_->BindTexImage(base::strict_cast<unsigned>(target))) {
-    LOG(ERROR) << "Unable to bind GL image to target = " << target;
+  if (!surface_) {
+    LOG(ERROR) << "No surface, cannot bind to target = " << target;
+    return false;
+  }
+
+  // Requires TEXTURE_2D target.
+  if (target != GL_TEXTURE_2D) {
+    LOG(ERROR) << "Cannot bind to unsupported target = " << target;
+    return false;
+  }
+
+  if (eglBindTexImage(display_, surface_, EGL_BACK_BUFFER) != EGL_TRUE) {
+    LOG(ERROR) << "Unable to bind image to target = " << target;
     return false;
   }
 
   return true;
-}
-
-GLuint NativePixmapEGLX11Binding::GetInternalFormat() {
-  return base::strict_cast<GLuint>(gl::BufferFormatToGLInternalFormat(format_));
-}
-
-GLenum NativePixmapEGLX11Binding::GetDataType() {
-  return GL_UNSIGNED_BYTE;
 }
 
 }  // namespace ui

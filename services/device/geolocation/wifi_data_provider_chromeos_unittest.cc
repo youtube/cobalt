@@ -8,7 +8,6 @@
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
@@ -64,8 +63,7 @@ class GeolocationChromeOsWifiDataProviderTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_;
   ash::NetworkHandlerTestHelper network_handler_test_helper_;
   scoped_refptr<WifiDataProviderChromeOs> provider_;
-  raw_ptr<ash::ShillManagerClient::TestInterface, ExperimentalAsh>
-      manager_test_;
+  raw_ptr<ash::ShillManagerClient::TestInterface> manager_test_;
   WifiData::AccessPointDataSet ap_data_;
 };
 
@@ -86,8 +84,7 @@ TEST_F(GeolocationChromeOsWifiDataProviderTest, GetOneAccessPoint) {
   AddAccessPoints(1, 1);
   EXPECT_TRUE(GetAccessPointData());
   ASSERT_EQ(1u, ap_data_.size());
-  EXPECT_EQ("00:00:03:04:05:06",
-            base::UTF16ToUTF8(ap_data_.begin()->mac_address));
+  EXPECT_EQ("00:00:03:04:05:06", ap_data_.begin()->mac_address);
 }
 
 TEST_F(GeolocationChromeOsWifiDataProviderTest, GetManyAccessPoints) {

@@ -14,7 +14,7 @@
 
 namespace blink {
 
-WGPUComputePipelineDescriptor AsDawnType(
+wgpu::ComputePipelineDescriptor AsDawnType(
     GPUDevice* device,
     const GPUComputePipelineDescriptor* webgpu_desc,
     std::string* label,
@@ -23,12 +23,11 @@ WGPUComputePipelineDescriptor AsDawnType(
   DCHECK(label);
   DCHECK(computeStage);
 
-  WGPUComputePipelineDescriptor dawn_desc = {};
-  dawn_desc.nextInChain = nullptr;
-
-  dawn_desc.layout = AsDawnType(webgpu_desc->layout());
-  if (webgpu_desc->hasLabel()) {
-    *label = webgpu_desc->label().Utf8();
+  wgpu::ComputePipelineDescriptor dawn_desc = {
+      .layout = AsDawnType(webgpu_desc->layout()),
+  };
+  *label = webgpu_desc->label().Utf8();
+  if (!label->empty()) {
     dawn_desc.label = label->c_str();
   }
 
@@ -38,7 +37,8 @@ WGPUComputePipelineDescriptor AsDawnType(
   dawn_desc.compute.constantCount = computeStage->constantCount;
   dawn_desc.compute.constants = computeStage->constants.get();
   dawn_desc.compute.module = programmable_stage_desc->module()->GetHandle();
-  dawn_desc.compute.entryPoint = computeStage->entry_point.c_str();
+  dawn_desc.compute.entryPoint =
+      computeStage->entry_point ? computeStage->entry_point->c_str() : nullptr;
 
   return dawn_desc;
 }
@@ -52,25 +52,25 @@ GPUComputePipeline* GPUComputePipeline::Create(
 
   std::string label;
   OwnedProgrammableStage computeStage;
-  WGPUComputePipelineDescriptor dawn_desc =
+  wgpu::ComputePipelineDescriptor dawn_desc =
       AsDawnType(device, webgpu_desc, &label, &computeStage);
 
   GPUComputePipeline* pipeline = MakeGarbageCollected<GPUComputePipeline>(
-      device, device->GetProcs().deviceCreateComputePipeline(
-                  device->GetHandle(), &dawn_desc));
-  if (webgpu_desc->hasLabel())
-    pipeline->setLabel(webgpu_desc->label());
+      device, device->GetHandle().CreateComputePipeline(&dawn_desc),
+      webgpu_desc->label());
   return pipeline;
 }
 
 GPUComputePipeline::GPUComputePipeline(GPUDevice* device,
-                                       WGPUComputePipeline compute_pipeline)
-    : DawnObject<WGPUComputePipeline>(device, compute_pipeline) {}
+                                       wgpu::ComputePipeline compute_pipeline,
+                                       const String& label)
+    : DawnObject<wgpu::ComputePipeline>(device,
+                                        std::move(compute_pipeline),
+                                        label) {}
 
 GPUBindGroupLayout* GPUComputePipeline::getBindGroupLayout(uint32_t index) {
   return MakeGarbageCollected<GPUBindGroupLayout>(
-      device_,
-      GetProcs().computePipelineGetBindGroupLayout(GetHandle(), index));
+      device_, GetHandle().GetBindGroupLayout(index), String());
 }
 
 }  // namespace blink

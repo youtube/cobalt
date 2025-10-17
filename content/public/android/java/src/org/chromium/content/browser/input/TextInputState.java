@@ -11,12 +11,16 @@ import android.view.inputmethod.SurroundingText;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.Locale;
 
 /**
  * An immutable class to contain text, selection range, composition range, and whether
  * it's single line or multiple lines that are being edited.
  */
+@NullMarked
 public class TextInputState {
     private final CharSequence mText;
     private final Range mSelection;
@@ -46,7 +50,11 @@ public class TextInputState {
         }
     }
 
-    public TextInputState(CharSequence text, Range selection, Range composition, boolean singleLine,
+    public TextInputState(
+            CharSequence text,
+            Range selection,
+            Range composition,
+            boolean singleLine,
             boolean replyToRequest) {
         selection.clamp(0, text.length());
         if (composition.start() != -1 || composition.end() != -1) {
@@ -79,7 +87,7 @@ public class TextInputState {
         return mReplyToRequest;
     }
 
-    public CharSequence getSelectedText() {
+    public @Nullable CharSequence getSelectedText() {
         if (mSelection.start() == mSelection.end()) return null;
         return TextUtils.substring(mText, mSelection.start(), mSelection.end());
     }
@@ -102,8 +110,11 @@ public class TextInputState {
     public SurroundingText getSurroundingText(int beforeLength, int afterLength) {
         SurroundingTextInternal surroundingText =
                 getSurroundingTextInternal(beforeLength, afterLength);
-        return new SurroundingText(surroundingText.mText, surroundingText.mSelectionStart,
-                surroundingText.mSelectionEnd, surroundingText.mOffset);
+        return new SurroundingText(
+                surroundingText.mText,
+                surroundingText.mSelectionStart,
+                surroundingText.mSelectionEnd,
+                surroundingText.mOffset);
     }
 
     @VisibleForTesting
@@ -111,8 +122,9 @@ public class TextInputState {
             int beforeLength, int afterLength) {
         beforeLength = Math.max(0, Math.min(beforeLength, mSelection.start()));
         afterLength = Math.max(0, Math.min(afterLength, mText.length() - mSelection.end()));
-        CharSequence text = TextUtils.substring(
-                mText, mSelection.start() - beforeLength, mSelection.end() + afterLength);
+        CharSequence text =
+                TextUtils.substring(
+                        mText, mSelection.start() - beforeLength, mSelection.end() + afterLength);
         return new SurroundingTextInternal(
                 text, beforeLength, mSelection.end() - (mSelection.start() - beforeLength), -1);
     }
@@ -122,15 +134,20 @@ public class TextInputState {
         if (!(o instanceof TextInputState)) return false;
         TextInputState t = (TextInputState) o;
         if (t == this) return true;
-        return TextUtils.equals(mText, t.mText) && mSelection.equals(t.mSelection)
-                && mComposition.equals(t.mComposition) && mSingleLine == t.mSingleLine
+        return TextUtils.equals(mText, t.mText)
+                && mSelection.equals(t.mSelection)
+                && mComposition.equals(t.mComposition)
+                && mSingleLine == t.mSingleLine
                 && mReplyToRequest == t.mReplyToRequest;
     }
 
     @Override
     public int hashCode() {
-        return mText.hashCode() * 7 + mSelection.hashCode() * 11 + mComposition.hashCode() * 13
-                + (mSingleLine ? 19 : 0) + (mReplyToRequest ? 23 : 0);
+        return mText.hashCode() * 7
+                + mSelection.hashCode() * 11
+                + mComposition.hashCode() * 13
+                + (mSingleLine ? 19 : 0)
+                + (mReplyToRequest ? 23 : 0);
     }
 
     @SuppressWarnings("unused")
@@ -140,8 +157,13 @@ public class TextInputState {
 
     @Override
     public String toString() {
-        return String.format(Locale.US, "TextInputState {[%s] SEL%s COM%s %s%s}", mText, mSelection,
-                mComposition, mSingleLine ? "SIN" : "MUL",
+        return String.format(
+                Locale.US,
+                "TextInputState {[%s] SEL%s COM%s %s%s}",
+                mText,
+                mSelection,
+                mComposition,
+                mSingleLine ? "SIN" : "MUL",
                 mReplyToRequest ? " ReplyToRequest" : "");
     }
 }

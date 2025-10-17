@@ -29,7 +29,7 @@ WebGPUInProcessContext::~WebGPUInProcessContext() {
   // Trigger any pending lost contexts. First do a full sync between client
   // and service threads. Then execute any pending tasks.
   if (webgpu_implementation_) {
-    // TODO(crbug.com/868192): do the equivalent of a glFinish here?
+    // TODO(crbug.com/40586882): do the equivalent of a glFinish here?
     client_task_runner_->RunUntilIdle();
     webgpu_implementation_.reset();
   }
@@ -53,9 +53,10 @@ ContextResult WebGPUInProcessContext::Initialize(
   command_buffer_ =
       std::make_unique<InProcessCommandBuffer>(task_executor, GURL());
 
-  auto result = command_buffer_->Initialize(attribs, client_task_runner_,
-                                            /*gr_shader_cache=*/nullptr,
-                                            /*activity_flags=*/nullptr);
+  auto result =
+      command_buffer_->Initialize(attribs, client_task_runner_,
+                                  /*gr_shader_cache=*/nullptr,
+                                  /*use_shader_cache_shm_count=*/nullptr);
   if (result != ContextResult::kSuccess) {
     DLOG(ERROR) << "Failed to initialize InProcessCommmandBuffer";
     return result;

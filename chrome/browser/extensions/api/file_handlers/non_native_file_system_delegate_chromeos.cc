@@ -13,9 +13,11 @@
 
 namespace extensions {
 
-NonNativeFileSystemDelegateChromeOS::NonNativeFileSystemDelegateChromeOS() {}
+NonNativeFileSystemDelegateChromeOS::NonNativeFileSystemDelegateChromeOS() =
+    default;
 
-NonNativeFileSystemDelegateChromeOS::~NonNativeFileSystemDelegateChromeOS() {}
+NonNativeFileSystemDelegateChromeOS::~NonNativeFileSystemDelegateChromeOS() =
+    default;
 
 bool NonNativeFileSystemDelegateChromeOS::IsUnderNonNativeLocalPath(
     content::BrowserContext* context,
@@ -34,7 +36,7 @@ bool NonNativeFileSystemDelegateChromeOS::HasNonNativeMimeTypeProvider(
 void NonNativeFileSystemDelegateChromeOS::GetNonNativeLocalPathMimeType(
     content::BrowserContext* context,
     const base::FilePath& path,
-    base::OnceCallback<void(const absl::optional<std::string>&)> callback) {
+    base::OnceCallback<void(const std::optional<std::string>&)> callback) {
   return file_manager::util::GetNonNativeLocalPathMimeType(
       Profile::FromBrowserContext(context), path, std::move(callback));
 }

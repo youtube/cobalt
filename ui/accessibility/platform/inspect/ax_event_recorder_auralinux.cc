@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/accessibility/platform/inspect/ax_event_recorder_auralinux.h"
 
 #include <atk/atk.h>
 #include <atk/atkutil.h>
 #include <atspi/atspi.h>
+
+#include <array>
 
 #include "base/no_destructor.h"
 #include "base/process/process_handle.h"
@@ -53,7 +60,7 @@ bool AXEventRecorderAuraLinux::ShouldUseATSPI() {
 }
 
 AXEventRecorderAuraLinux::AXEventRecorderAuraLinux(
-    AXPlatformTreeManager* manager,
+    base::WeakPtr<AXPlatformTreeManager> manager,
     base::ProcessId pid,
     const AXTreeSelector& selector)
     : manager_(manager), pid_(pid), selector_(selector) {
@@ -121,8 +128,12 @@ std::string AXEventRecorderAuraLinux::AtkObjectToString(AtkObject* obj,
       base::StringPrintf("role=ROLE_%s", base::ToUpperASCII(role).c_str());
   // Getting the name breaks firing of name-change events. Allow disabling of
   // logging the name in those situations.
-  if (include_name)
-    str += base::StringPrintf(" name='%s'", atk_object_get_name(obj));
+  if (include_name) {
+    // Supplying null to the corresponding argument of a "%s" specifier is UB.
+    // Explicitly avoid this.
+    const gchar* name = atk_object_get_name(obj);
+    str += base::StringPrintf(" name='%s'", name ? name : "(null)");
+  }
   return str;
 }
 
@@ -130,7 +141,7 @@ void AXEventRecorderAuraLinux::ProcessATKEvent(const char* event,
                                                unsigned int n_params,
                                                const GValue* params) {
   // If we don't have a root object, it means the tree is being destroyed.
-  if (!manager_->RootDelegate()) {
+  if (!manager_ || !manager_->RootDelegate()) {
     RemoveATKEventListeners();
     return;
   }
@@ -223,7 +234,7 @@ void AXEventRecorderAuraLinux::ProcessATKEvent(const char* event,
 // This list is composed of the sorted event names taken from the list provided
 // in the libatspi documentation at:
 // https://developer.gnome.org/libatspi/stable/AtspiEventListener.html#atspi-event-listener-register
-const char* const kEventNames[] = {
+constexpr auto kEventNames = std::to_array<const char*>({
     "document:load-complete",
     "object:active-descendant-changed",
     "object:children-changed",
@@ -270,7 +281,7 @@ const char* const kEventNames[] = {
     "window:restyle",
     "window:shade",
     "window:unshade",
-};
+});
 
 static void OnATSPIEventReceived(AtspiEvent* event, void* data) {
   static_cast<AXEventRecorderAuraLinux*>(data)->ProcessATSPIEvent(event);
@@ -382,7 +393,7 @@ void AXEventRecorderAuraLinux::ProcessATSPIEvent(const AtspiEvent* event) {
   g_array_free(state_array, TRUE);
   g_object_unref(atspi_states);
   output << " ";
-  base::ranges::copy(states, std::ostream_iterator<std::string>(output, ", "));
+  std::ranges::copy(states, std::ostream_iterator<std::string>(output, ", "));
 
   OnEvent(output.str());
 }

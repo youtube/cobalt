@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "ash/frame/wide_frame_view.h"
+
 #include <memory>
 
 #include "ash/frame/non_client_frame_view_ash.h"
@@ -23,6 +24,7 @@
 #include "ui/aura/window_targeter.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
+#include "ui/events/types/event_type.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/caption_button_layout_constants.h"
 
@@ -60,7 +62,7 @@ class WideFrameTargeter : public aura::WindowTargeter {
   }
 
  private:
-  raw_ptr<chromeos::HeaderView, ExperimentalAsh> header_view_;
+  raw_ptr<chromeos::HeaderView> header_view_;
 };
 
 }  // namespace
@@ -95,9 +97,6 @@ WideFrameView::WideFrameView(views::Widget* target)
     : target_(target),
       frame_context_menu_controller_(
           std::make_unique<FrameContextMenuController>(target_, this)) {
-  // WideFrameView is owned by its client, not by Views.
-  SetOwnedByWidget(false);
-
   aura::Window* target_window = target->GetNativeWindow();
   target_window->AddObserver(this);
   // Use the HeaderView itself as a frame view because WideFrameView is
@@ -109,13 +108,13 @@ WideFrameView::WideFrameView(views::Widget* target)
   header_view_->set_context_menu_controller(
       frame_context_menu_controller_.get());
 
-  views::Widget::InitParams params;
-  params.type = views::Widget::InitParams::TYPE_POPUP;
+  views::Widget::InitParams params(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
   params.delegate = this;
   params.bounds = GetFrameBounds(target);
   params.name = "WideFrameView";
   params.parent = target->GetNativeWindow();
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
   // Setup Opacity Control.
   // WideFrame should be used only when the rounded corner is not necessary.
   params.opacity = views::Widget::InitParams::WindowOpacity::kOpaque;
@@ -131,7 +130,7 @@ WideFrameView::WideFrameView(views::Widget* target)
   window->SetProperty(kHideInOverviewKey, true);
   window->SetProperty(kForceVisibleInMiniViewKey, true);
   window->SetEventTargeter(std::make_unique<WideFrameTargeter>(header_view()));
-  set_owned_by_client();
+  set_owned_by_client(OwnedByClientPassKey());
   WindowState::Get(window)->set_allow_set_bounds_direct(true);
 
   paint_as_active_subscription_ =
@@ -141,6 +140,7 @@ WideFrameView::WideFrameView(views::Widget* target)
 }
 
 WideFrameView::~WideFrameView() {
+  header_view_->set_context_menu_controller(nullptr);
   if (widget_)
     widget_->CloseNow();
   if (target_) {
@@ -151,7 +151,7 @@ WideFrameView::~WideFrameView() {
   }
 }
 
-void WideFrameView::Layout() {
+void WideFrameView::Layout(PassKey) {
   int onscreen_height = header_view_->GetPreferredOnScreenHeight();
   if (onscreen_height == 0 || !GetVisible()) {
     header_view_->SetVisible(false);
@@ -164,7 +164,8 @@ void WideFrameView::Layout() {
 
 void WideFrameView::OnMouseEvent(ui::MouseEvent* event) {
   if (event->IsOnlyLeftMouseButton()) {
-    if ((event->flags() & ui::EF_IS_DOUBLE_CLICK)) {
+    if ((event->flags() & ui::EF_IS_DOUBLE_CLICK) &&
+        event->type() == ui::EventType::kMousePressed) {
       base::RecordAction(
           base::UserMetricsAction("Caption_ClickTogglesMaximize"));
       const WMEvent wm_event(WM_EVENT_TOGGLE_MAXIMIZE_CAPTION);
@@ -228,7 +229,7 @@ void WideFrameView::OnImmersiveFullscreenExited() {
   widget_->GetNativeWindow()->SetTransparent(false);
   if (target_)
     GetTargetHeaderView()->OnImmersiveFullscreenExited();
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void WideFrameView::SetVisibleFraction(double visible_fraction) {

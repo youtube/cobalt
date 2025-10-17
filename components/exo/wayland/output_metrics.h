@@ -24,6 +24,8 @@ namespace exo::wayland {
 // Metrics for wl_output and supported extensions.
 struct OutputMetrics {
   explicit OutputMetrics(const display::Display& display);
+  OutputMetrics(const OutputMetrics&);
+  OutputMetrics& operator=(const OutputMetrics&);
   virtual ~OutputMetrics();
 
   //////////////////////////////////////////////////////////////////////////////
@@ -99,6 +101,9 @@ struct OutputMetrics {
   // Describes the insets for the output in logical screen coordinates, from
   // which the work area can be calculated.
   gfx::Insets logical_insets;
+
+  // Describes the overscan insets for the output in physical pixels.
+  gfx::Insets physical_overscan_insets;
 
   // A deprecated description of the device scale factor for the output. This is
   // calculated by taking `ManagedDisplayInfo::device_scale_factor_`,

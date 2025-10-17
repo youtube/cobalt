@@ -74,6 +74,40 @@ interface AccessibilityProvider {
   // the browser.
   // Proto from: ash/webui/eche_app_ui/proto/accessibility_mojom.proto
   HandleAccessibilityEventReceived(array<uint8> serialized_proto);
+
+  // Sets the observer for when accessibility actions need to be send to the
+  // SWA from the browser.
+  SetAccessibilityObserver(pending_remote<AccessibilityObserver> observer);
+
+  // Returns true if an accessibility feature that requires
+  // the tree stream is enabled.
+  IsAccessibilityEnabled() => (bool enabled);
+};
+
+// Observer for accessibility provider. Should be created using
+// SetAccessibilityObserver in AccessibilityProvider.
+// Used to send messages from chrome to interact
+// with the android phone through the SWA.
+// Proto from: ash/webui/eche_app_ui/proto/accessibility_mojom.proto
+interface AccessibilityObserver {
+  // Enable or disable accessibility tree streaming
+  // based on state of assistive technologies.
+  EnableAccessibilityTreeStreaming(bool enable);
+  // Enable or disable explore by touch based on the state of chromevox.
+  EnableExploreByTouch(bool enable);
+  // Sends the accessibility action to the SWA for processing.
+  // The proto sent is proto::AccessibilityActionData.
+  PerformAction(array<uint8> serialized_proto) => (bool result);
+
+  // Refreshes the current node with extra data.
+  // Returns Rect specifying location, or null if textLocation is not available.
+  // The result rect is encoded in binary as proto::Rect from the accessibility
+  // mojom.
+  // `refresh_data_proto` is proto::AccessibilityActionData with the type of
+  // GET_TEXT_LOCATION.
+  // `text_location_proto` is proto::Rect.
+  RefreshWithExtraData(array<uint8> refresh_data_proto)
+      => (array<uint8>? text_location_proto);
 };
 
 // Interface for generating uid. The uid is unique and persistent.
@@ -111,13 +145,17 @@ interface NotificationGenerator {
 
 // Enum representing the video streaming status from browser. Numerical
 // values should not be changed because they must stay in sync with value on
-// Eche web app code.
+// Eche web app code. Keep in sync with the StreamStatus UMA enum defined in
+// //tools/metrics/histograms/enums.xml.
+//
+// LINT.IfChange(EcheStreamStatus)
 enum StreamStatus {
     kStreamStatusUnknown,      // Initial state, not trigger anything yet
     kStreamStatusInitializing, // Eche browser is setting up video streaming
     kStreamStatusStarted,      // Video streaming is set up and started
     kStreamStatusStopped,      // Video streaming is stopped
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:EcheStreamStatus)
 
 // Interface to notify the video streaming status from Eche browser to Eche
 // SWA native code.
@@ -171,9 +209,37 @@ interface ConnectionStatusObserver {
   OnConnectionStatusChanged(ConnectionStatus status);
 };
 
+// Interface for when the Eche SWA requests for the current keyboard layout and
+// sets an observer to see whenever the layout changes within ChromeOS.
+interface KeyboardLayoutHandler {
+  // Notifies the native code that the Eche SWA has requested for the current
+  // keyboard layout.
+  RequestCurrentKeyboardLayout();
+
+  // Registers a generic interface to observe events from browser-to-renderer.
+  SetKeyboardLayoutObserver(pending_remote<KeyboardLayoutObserver> observer);
+};
+
+// A generic interface to let Eche SWA observe the system's keyboard layout
+// changes.
+interface KeyboardLayoutObserver {
+  // Sends the keyboard layout information to the Eche SWA.
+  // id        - ID that identifies the IME (e.g., "t:latn-post", "pinyin").
+  // longName  - Long name of the IME, which is used as the user-visible name.
+  // shortName - UI indicator for the IME (e.g., "US"). If the IME has no
+  //             indicator, uses the first two characters in its preferred
+  //             keyboard layout or language code (e.g., "ko", "ja", "en-US").
+  // layoutTag - Keyboard layout name (e.g., "us(workman)", "us(colemak)", "us",
+  //             "fr(oss)", "gb(extd)").
+  OnKeyboardLayoutChanged(string id, string longName, string shortName,
+                          string layoutTag);
+};
+
 // Enum representing what EntryPoint was used to launch the eche app stream.
-// Keep in sync with AppStreamLaunchEntryPoint in
-// tools/metrics/histograms/enums.xml
+// Keep in sync with the AppStreamLaunchEntryPoint UMA enum defined in
+// //tools/metrics/histograms/enums.xml.
+//
+// LINT.IfChange(AppStreamLaunchEntryPoint)
 enum AppStreamLaunchEntryPoint {
   APPS_LIST = 0,    // App stream was launched from the full apps list.
   NOTIFICATION = 1, // App stream was launched from a notification.
@@ -183,3 +249,4 @@ enum AppStreamLaunchEntryPoint {
   // value should have been set.
   UNKNOWN = 3,
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:AppStreamLaunchEntryPoint)

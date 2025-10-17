@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -94,6 +95,10 @@ TEST(BinaryHttpRequest, DecodeGetNoBody) {
   for (const auto& word : words) {
     data += WordToBytes(word);
   }
+
+  // Remove all padding
+  data.resize(data.size() - 3);
+
   const auto request_so = BinaryHttpRequest::Create(data);
   ASSERT_TRUE(request_so.ok());
   const BinaryHttpRequest request = *request_so;
@@ -116,6 +121,68 @@ TEST(BinaryHttpRequest, DecodeGetNoBody) {
             "zlib/1.2.3};Field{host=www.example.com};Field{accept-language=en, "
             "mi}}Body{}}}"));
   TestPrintTo(request);
+}
+
+TEST(BinaryHttpRequest, EncodeGetNoBodyOrHeaders) {
+  /*
+    (HTTP/2)
+    :method GET
+    :authority example.com
+    :path /
+    :scheme https
+  */
+  BinaryHttpRequest request({"GET", "https", "example.com", "/"});
+
+  /*
+      00000000: 00034745 54056874 7470730b 6578616d  ..GET.https.exam
+      00000010: 706c652e 636f6d01 2f000              ple.com./..
+  */
+  const uint32_t expected_words[] = {0x00034745, 0x54056874, 0x7470730b,
+                                     0x6578616d, 0x706c652e, 0x636f6d01,
+                                     0x2f000000};
+  std::string expected;
+  for (const auto& word : expected_words) {
+    expected += WordToBytes(word);
+  }
+  // Remove padding.
+  expected.resize(expected.size() - 1);
+
+  const auto result = request.Serialize();
+  ASSERT_TRUE(result.ok());
+  ASSERT_EQ(*result, expected);
+  EXPECT_THAT(request.DebugString(),
+              StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{}Body{}}}"));
+  TestPrintTo(request);
+}
+
+TEST(BinaryHttpRequest, DecodeGetNoBodyOrHeaders) {
+  const uint32_t words[] = {0x00034745, 0x54056874, 0x7470730b, 0x6578616d,
+                            0x706c652e, 0x636f6d01, 0x2f000000};
+  std::string data;
+  for (const auto& word : words) {
+    data += WordToBytes(word);
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    // In the first pass, we remove a byte of padding, or alternatively an empty
+    // set of trailers. In the second pass, we further omit the empty body. In
+    // the third pass, we further omit the empty headers.
+    data.resize(data.size() - 1);
+    const auto request_so = BinaryHttpRequest::Create(data);
+    ASSERT_TRUE(request_so.ok());
+    const BinaryHttpRequest request = *request_so;
+    ASSERT_THAT(request.control_data(),
+                FieldsAre("GET", "https", "example.com", "/"));
+    std::vector<BinaryHttpMessage::Field> expected_fields = {};
+    for (const auto& field : expected_fields) {
+      TestPrintTo(field);
+    }
+    ASSERT_THAT(request.GetHeaderFields(), ContainerEq(expected_fields));
+    ASSERT_EQ(request.body(), "");
+    EXPECT_THAT(request.DebugString(),
+                StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{}Body{}}}"));
+    TestPrintTo(request);
+  }
 }
 
 TEST(BinaryHttpRequest, EncodeGetWithAuthority) {

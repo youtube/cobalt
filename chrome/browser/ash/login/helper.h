@@ -9,7 +9,9 @@
 
 #include <string>
 
+#include "ash/public/cpp/login_screen_model.h"
 #include "base/memory/ref_counted.h"
+#include "chromeos/ash/components/login/auth/public/session_auth_factors.h"
 #include "chromeos/ash/components/network/network_handler_callbacks.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/views/view.h"
@@ -24,14 +26,18 @@ class Size;
 
 namespace content {
 class StoragePartition;
-}
+}  // namespace content
 
 namespace network {
 namespace mojom {
 class NetworkContext;
-}
+}  // namespace mojom
 class SharedURLLoaderFactory;
-}
+}  // namespace network
+
+namespace policy {
+class DeviceLocalAccountPolicyBroker;
+}  // namespace policy
 
 namespace ash {
 
@@ -49,7 +55,7 @@ namespace login {
 
 // Maximum size of user image, in which it should be saved to be properly
 // displayed under all possible DPI values.
-const int kMaxUserImageSize = 512;
+inline constexpr int kMaxUserImageSize = 512;
 
 // Returns true if lock/login should scroll user pods into view itself when
 // virtual keyboard is shown and disable vk overscroll.
@@ -121,6 +127,19 @@ void SaveSyncPasswordDataToProfile(const UserContext& user_context,
 // which means that online login should have been already happened in the past.
 base::TimeDelta TimeToOnlineSignIn(base::Time last_online_signin,
                                    base::TimeDelta offline_signin_limit);
+
+// Checks whether full management disclosure is needed for the public/managed
+// session login screen UI. Full disclosure is needed if the session is
+// managed and any risky extensions or network certificates are forced
+// through the policies.
+bool IsFullManagementDisclosureNeeded(
+    policy::DeviceLocalAccountPolicyBroker* broker);
+
+// Sets the available auth factors for the user on the login & lock screen.
+void SetAuthFactorsForUser(const AccountId& user,
+                           const SessionAuthFactors& auth_factors,
+                           bool is_pin_disabled_by_policy,
+                           LoginScreenModel* login_screen);
 
 }  // namespace login
 }  // namespace ash

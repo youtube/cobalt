@@ -54,12 +54,24 @@ void ContentData::Trace(Visitor* visitor) const {
   visitor->Trace(next_);
 }
 
-LayoutObject* ImageContentData::CreateLayoutObject(
-    PseudoElement& pseudo,
-    const ComputedStyle& pseudo_style) const {
-  LayoutImage* image = LayoutImage::CreateAnonymous(pseudo);
+String ContentData::ConcatenateAltText(const ContentData& first_alt_data) {
+  DCHECK(first_alt_data.IsAlt());
+  StringBuilder alt_text;
+  for (const ContentData* content_data = &first_alt_data; content_data;
+       content_data = content_data->Next()) {
+    if (auto* alt_counter = DynamicTo<AltCounterContentData>(content_data)) {
+      alt_text.Append(alt_counter->GetText());
+    } else {
+      alt_text.Append(To<AltTextContentData>(content_data)->GetText());
+    }
+  }
+  return alt_text.ToString();
+}
+
+LayoutObject* ImageContentData::CreateLayoutObject(LayoutObject& owner) const {
+  LayoutImage* image = LayoutImage::CreateAnonymous(owner.GetDocument());
   bool match_parent_size = image_ && image_->IsGeneratedImage();
-  image->SetPseudoElementStyle(&pseudo_style, match_parent_size);
+  image->SetPseudoElementStyle(owner, match_parent_size);
   if (image_) {
     image->SetImageResource(
         MakeGarbageCollected<LayoutImageResourceStyleImage>(image_.Get()));
@@ -74,52 +86,60 @@ void ImageContentData::Trace(Visitor* visitor) const {
   ContentData::Trace(visitor);
 }
 
-LayoutObject* TextContentData::CreateLayoutObject(
-    PseudoElement& pseudo,
-    const ComputedStyle& pseudo_style) const {
+LayoutObject* TextContentData::CreateLayoutObject(LayoutObject& owner) const {
   LayoutObject* layout_object =
-      LayoutTextFragment::CreateAnonymous(pseudo, text_);
-  layout_object->SetPseudoElementStyle(&pseudo_style);
+      LayoutTextFragment::CreateAnonymous(owner.GetDocument(), text_);
+  layout_object->SetPseudoElementStyle(owner);
   return layout_object;
 }
 
 LayoutObject* AltTextContentData::CreateLayoutObject(
-    PseudoElement& pseudo,
-    const ComputedStyle& pseudo_style) const {
+    LayoutObject& owner) const {
   // Does not require a layout object. Calling site should first check
   // IsAltContentData() before calling this method.
   NOTREACHED();
-  return nullptr;
 }
 
 LayoutObject* CounterContentData::CreateLayoutObject(
-    PseudoElement& pseudo,
-    const ComputedStyle& pseudo_style) const {
+    LayoutObject& owner) const {
   LayoutObject* layout_object =
-      MakeGarbageCollected<LayoutCounter>(pseudo, *this);
-  layout_object->SetPseudoElementStyle(&pseudo_style);
+      MakeGarbageCollected<LayoutCounter>(owner.GetDocument(), *this);
+  layout_object->SetPseudoElementStyle(owner);
   return layout_object;
 }
 
 void CounterContentData::Trace(Visitor* visitor) const {
-  visitor->Trace(tree_scope_);
+  visitor->Trace(counter_data_);
   ContentData::Trace(visitor);
 }
 
-LayoutObject* QuoteContentData::CreateLayoutObject(
-    PseudoElement& pseudo,
-    const ComputedStyle& pseudo_style) const {
+LayoutObject* AltCounterContentData::CreateLayoutObject(
+    LayoutObject& owner) const {
+  NOTREACHED();
+}
+
+void AltCounterContentData::UpdateText(
+    CountersAttachmentContext& context,
+    const StyleEngine& style_engine,
+    const LayoutObject& content_generating_object) {
+  Vector<int> counter_values = context.GetCounterValues(
+      content_generating_object, Identifier(), Separator().IsNull());
+  const CounterStyle& counter_style =
+      style_engine.FindCounterStyleAcrossScopes(ListStyle(), GetTreeScope());
+  String text = LayoutCounter::GenerateCounterText(std::move(counter_values),
+                                                   &counter_style, Separator());
+  SetText(std::move(text));
+}
+
+LayoutObject* QuoteContentData::CreateLayoutObject(LayoutObject& owner) const {
   LayoutObject* layout_object =
-      MakeGarbageCollected<LayoutQuote>(pseudo, quote_);
-  layout_object->SetPseudoElementStyle(&pseudo_style);
+      MakeGarbageCollected<LayoutQuote>(owner, quote_);
+  layout_object->SetPseudoElementStyle(owner);
   return layout_object;
 }
 
-LayoutObject* NoneContentData::CreateLayoutObject(
-    PseudoElement& pseudo,
-    const ComputedStyle& pseudo_style) const {
+LayoutObject* NoneContentData::CreateLayoutObject(LayoutObject& owner) const {
   NOTREACHED();
-  return nullptr;
 }
 
 }  // namespace blink

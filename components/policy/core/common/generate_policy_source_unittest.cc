@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <cstring>
 #include <memory>
 #include <string>
 
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/policy/core/common/policy_details.h"
 #include "components/policy/core/common/proxy_settings_constants.h"
 #include "components/policy/core/common/schema.h"
@@ -22,7 +26,7 @@ namespace policy {
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Checks if two schemas are the same or not. Note that this function doesn't
 // consider restrictions on integers and strings nor pattern properties.
 bool IsSameSchema(Schema a, Schema b) {
@@ -165,7 +169,7 @@ TEST(GeneratePolicySource, ChromeSchemaData) {
   ASSERT_EQ(base::Value::Type::STRING, subschema.type());
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   subschema = schema.GetKnownProperty(key::kPowerManagementIdleSettings);
   ASSERT_TRUE(subschema.valid());
 
@@ -180,6 +184,29 @@ TEST(GeneratePolicySource, ChromeSchemaData) {
 #endif
 }
 
+TEST(GeneratePolicySource, PolicyScope) {
+  const PolicyDetails* details;
+#if !BUILDFLAG(IS_IOS)
+  details = GetChromePolicyDetails(key::kCloudProfileReportingEnabled);
+  ASSERT_TRUE(details);
+  EXPECT_EQ(kSingleProfile, details->scope);
+#endif
+
+  details = GetChromePolicyDetails(key::kDefaultSearchProviderEnabled);
+  ASSERT_TRUE(details);
+  EXPECT_EQ(kProfile, details->scope);
+
+  details = GetChromePolicyDetails(key::kCloudReportingEnabled);
+  ASSERT_TRUE(details);
+  EXPECT_EQ(kBrowser, details->scope);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  details = GetChromePolicyDetails(key::kDeviceGuestModeEnabled);
+  ASSERT_TRUE(details);
+  EXPECT_EQ(kDevice, details->scope);
+#endif
+}
+
 TEST(GeneratePolicySource, PolicyDetails) {
   EXPECT_FALSE(GetChromePolicyDetails(""));
   EXPECT_FALSE(GetChromePolicyDetails("no such policy"));
@@ -191,7 +218,7 @@ TEST(GeneratePolicySource, PolicyDetails) {
       GetChromePolicyDetails(key::kSearchSuggestEnabled);
   ASSERT_TRUE(details);
   EXPECT_FALSE(details->is_deprecated);
-  EXPECT_FALSE(details->is_device_policy);
+  EXPECT_EQ(kProfile, details->scope);
   EXPECT_EQ(6, details->id);
   EXPECT_EQ(0u, details->max_external_data_size);
 
@@ -199,16 +226,16 @@ TEST(GeneratePolicySource, PolicyDetails) {
   details = GetChromePolicyDetails(key::kJavascriptEnabled);
   ASSERT_TRUE(details);
   EXPECT_TRUE(details->is_deprecated);
-  EXPECT_FALSE(details->is_device_policy);
+  EXPECT_EQ(kProfile, details->scope);
   EXPECT_EQ(9, details->id);
   EXPECT_EQ(0u, details->max_external_data_size);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   details = GetChromePolicyDetails(key::kDevicePolicyRefreshRate);
   ASSERT_TRUE(details);
   EXPECT_FALSE(details->is_deprecated);
-  EXPECT_TRUE(details->is_device_policy);
+  EXPECT_EQ(kDevice, details->scope);
   EXPECT_EQ(90, details->id);
   EXPECT_EQ(0u, details->max_external_data_size);
 
@@ -217,7 +244,7 @@ TEST(GeneratePolicySource, PolicyDetails) {
   details = GetChromePolicyDetails(key::kWallpaperImage);
   ASSERT_TRUE(details);
   EXPECT_FALSE(details->is_deprecated);
-  EXPECT_FALSE(details->is_device_policy);
+  EXPECT_EQ(kProfile, details->scope);
   EXPECT_EQ(262, details->id);
   EXPECT_GT(details->max_external_data_size, 0u);
 #endif

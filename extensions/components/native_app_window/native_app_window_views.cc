@@ -5,15 +5,19 @@
 #include "extensions/components/native_app_window/native_app_window_views.h"
 
 #include "base/functional/bind.h"
-#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/app_window/app_window.h"
-#include "extensions/common/draggable_region.h"
+#include "extensions/common/mojom/app_window.mojom.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "third_party/skia/include/core/SkRegion.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/widget/widget.h"
@@ -42,22 +46,21 @@ void NativeAppWindowViews::Init(
       create_params.GetContentMaximumSize(gfx::Insets()));
   Observe(app_window_->web_contents());
 
-  // TODO(pbos): See if this can retain SetOwnedByWidget(true) and get deleted
-  // through WidgetDelegate::DeleteDelegate(). It's not clear to me how this
-  // ends up destructed, but the below preserves a previous DialogDelegate
-  // override that did not end with a direct `delete this;`.
-  SetOwnedByWidget(false);
-  RegisterDeleteDelegateCallback(base::BindOnce(
-      [](NativeAppWindowViews* dialog) {
-        dialog->widget_->RemoveObserver(dialog);
-        dialog->app_window_->OnNativeClose();
-      },
-      this));
+  // TODO(pbos): It's not clear to me how this ends up destructed.
+  RegisterDeleteDelegateCallback(RegisterDeleteCallbackPassKey(),
+                                 base::BindOnce(
+                                     [](NativeAppWindowViews* dialog) {
+                                       dialog->widget_->RemoveObserver(dialog);
+                                       dialog->app_window_->OnNativeClose();
+                                     },
+                                     this));
   web_view_ = AddChildView(std::make_unique<views::WebView>(nullptr));
   web_view_->SetWebContents(app_window_->web_contents());
 
-  SetCanMinimize(!app_window_->show_on_lock_screen());
+  SetCanMinimize(true);
   SetCanMaximize(GetCanMaximizeWindow());
+  // Intentionally the same as maximize.
+  SetCanFullscreen(GetCanMaximizeWindow());
   SetCanResize(GetCanResizeWindow());
 
   widget_ = new views::Widget;
@@ -69,7 +72,7 @@ void NativeAppWindowViews::Init(
 
 NativeAppWindowViews::~NativeAppWindowViews() {
   web_view_->SetWebContents(nullptr);
-  CHECK(!IsInObserverList());
+  CHECK(!views::WidgetObserver::IsInObserverList());
 }
 
 void NativeAppWindowViews::OnCanHaveAlphaEnabledChanged() {
@@ -80,13 +83,17 @@ void NativeAppWindowViews::InitializeWindow(
     extensions::AppWindow* app_window,
     const extensions::AppWindow::CreateParams& create_params) {
   // Stub implementation. See also ChromeNativeAppWindowViews.
-  views::Widget::InitParams init_params(views::Widget::InitParams::TYPE_WINDOW);
+  views::Widget::InitParams init_params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
   init_params.delegate = this;
   if (create_params.always_on_top)
     init_params.z_order = ui::ZOrderLevel::kFloatingWindow;
   widget_->Init(std::move(init_params));
   widget_->CenterWindow(
-      create_params.GetInitialWindowBounds(gfx::Insets()).size());
+      create_params
+          .GetInitialWindowBounds(gfx::Insets(), gfx::RoundedCornersF())
+          .size());
 }
 
 // ui::BaseWindow implementation.
@@ -115,13 +122,13 @@ gfx::Rect NativeAppWindowViews::GetRestoredBounds() const {
   return widget_->GetRestoredBounds();
 }
 
-ui::WindowShowState NativeAppWindowViews::GetRestoredState() const {
+ui::mojom::WindowShowState NativeAppWindowViews::GetRestoredState() const {
   // Stub implementation. See also ChromeNativeAppWindowViews.
   if (IsMaximized())
-    return ui::SHOW_STATE_MAXIMIZED;
+    return ui::mojom::WindowShowState::kMaximized;
   if (IsFullscreen())
-    return ui::SHOW_STATE_FULLSCREEN;
-  return ui::SHOW_STATE_NORMAL;
+    return ui::mojom::WindowShowState::kFullscreen;
+  return ui::mojom::WindowShowState::kNormal;
 }
 
 gfx::Rect NativeAppWindowViews::GetBounds() const {
@@ -214,8 +221,9 @@ bool NativeAppWindowViews::ShouldSaveWindowPlacement() const {
   return true;
 }
 
-void NativeAppWindowViews::SaveWindowPlacement(const gfx::Rect& bounds,
-                                               ui::WindowShowState show_state) {
+void NativeAppWindowViews::SaveWindowPlacement(
+    const gfx::Rect& bounds,
+    ui::mojom::WindowShowState show_state) {
   views::WidgetDelegate::SaveWindowPlacement(bounds, show_state);
   app_window_->OnNativeWindowChanged();
 }
@@ -263,11 +271,13 @@ void NativeAppWindowViews::RenderFrameCreated(
 
   if (app_window_->requested_alpha_enabled() && CanHaveAlphaEnabled()) {
     render_frame_host->GetView()->SetBackgroundColor(SK_ColorTRANSPARENT);
-  } else if (app_window_->show_on_lock_screen()) {
-    // When shown on the lock screen, app windows will be shown on top of black
-    // background - to avoid a white flash while launching the app window,
-    // initialize it with black background color.
-    render_frame_host->GetView()->SetBackgroundColor(SK_ColorBLACK);
+  }
+
+  if (frameless_) {
+    mojo::Remote<extensions::mojom::AppWindow> app_window;
+    render_frame_host->GetRemoteInterfaces()->GetInterface(
+        app_window.BindNewPipeAndPassReceiver());
+    app_window->SetSupportsDraggableRegions(true);
   }
 }
 
@@ -310,8 +320,8 @@ void NativeAppWindowViews::UpdateWindowTitle() {
   widget_->UpdateWindowTitle();
 }
 
-void NativeAppWindowViews::UpdateDraggableRegions(
-    const std::vector<extensions::DraggableRegion>& regions) {
+void NativeAppWindowViews::DraggableRegionsChanged(
+    const std::vector<blink::mojom::DraggableRegionPtr>& regions) {
   // Draggable region is not supported for non-frameless window.
   if (!frameless_)
     return;
@@ -330,7 +340,7 @@ void NativeAppWindowViews::UpdateShape(std::unique_ptr<ShapeRects> rects) {
 }
 
 bool NativeAppWindowViews::HandleKeyboardEvent(
-    const content::NativeWebKeyboardEvent& event) {
+    const input::NativeWebKeyboardEvent& event) {
   return unhandled_keyboard_event_handler_.HandleKeyboardEvent(
       event, GetFocusManager());
 }
@@ -366,6 +376,10 @@ gfx::Insets NativeAppWindowViews::GetFrameInsets() const {
   return window_bounds.InsetsFrom(client_bounds);
 }
 
+gfx::RoundedCornersF NativeAppWindowViews::GetWindowRadii() const {
+  return gfx::RoundedCornersF();
+}
+
 gfx::Size NativeAppWindowViews::GetContentMinimumSize() const {
   return size_constraints_.GetMinimumSize();
 }
@@ -380,12 +394,14 @@ void NativeAppWindowViews::SetContentSizeConstraints(
   size_constraints_.set_minimum_size(min_size);
   size_constraints_.set_maximum_size(max_size);
   SetCanMaximize(GetCanMaximizeWindow());
+  // Intentionally the same as maximize.
+  SetCanFullscreen(GetCanMaximizeWindow());
   SetCanResize(GetCanResizeWindow());
   widget_->OnSizeConstraintsChanged();
 }
 
 bool NativeAppWindowViews::CanHaveAlphaEnabled() const {
-  return widget_->IsTranslucentWindowOpacitySupported();
+  return views::Widget::IsWindowCompositingSupported();
 }
 
 void NativeAppWindowViews::SetVisibleOnAllWorkspaces(bool always_visible) {
@@ -419,6 +435,8 @@ void NativeAppWindowViews::RemoveObserver(
 
 void NativeAppWindowViews::OnWidgetHasHitTestMaskChanged() {
   SetCanMaximize(GetCanMaximizeWindow());
+  // Intentionally the same as maximize.
+  SetCanFullscreen(GetCanMaximizeWindow());
   SetCanResize(GetCanResizeWindow());
 }
 
@@ -437,7 +455,7 @@ bool NativeAppWindowViews::GetCanMaximizeWindow() const {
          !WidgetHasHitTestMask();
 }
 
-BEGIN_METADATA(NativeAppWindowViews, views::WidgetDelegateView)
+BEGIN_METADATA(NativeAppWindowViews)
 ADD_READONLY_PROPERTY_METADATA(bool, CanMaximizeWindow)
 ADD_READONLY_PROPERTY_METADATA(bool, CanResizeWindow)
 END_METADATA

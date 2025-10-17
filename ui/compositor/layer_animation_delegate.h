@@ -5,7 +5,8 @@
 #ifndef UI_COMPOSITOR_LAYER_ANIMATION_DELEGATE_H_
 #define UI_COMPOSITOR_LAYER_ANIMATION_DELEGATE_H_
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/compositor/compositor_export.h"
 #include "ui/compositor/property_change_reason.h"
@@ -39,7 +40,7 @@ class COMPOSITOR_EXPORT LayerAnimationDelegate {
                                           PropertyChangeReason reasons) = 0;
   virtual void SetGrayscaleFromAnimation(float grayscale,
                                          PropertyChangeReason reason) = 0;
-  virtual void SetColorFromAnimation(SkColor color,
+  virtual void SetColorFromAnimation(SkColor4f color,
                                      PropertyChangeReason reason) = 0;
   virtual void SetClipRectFromAnimation(const gfx::Rect& clip_rect,
                                         PropertyChangeReason reason) = 0;
@@ -56,7 +57,7 @@ class COMPOSITOR_EXPORT LayerAnimationDelegate {
   virtual bool GetVisibilityForAnimation() const = 0;
   virtual float GetBrightnessForAnimation() const = 0;
   virtual float GetGrayscaleForAnimation() const = 0;
-  virtual SkColor GetColorForAnimation() const = 0;
+  virtual SkColor4f GetColorForAnimation() const = 0;
   virtual gfx::Rect GetClipRectForAnimation() const = 0;
   virtual gfx::RoundedCornersF GetRoundedCornersForAnimation() const = 0;
   virtual const gfx::LinearGradient& GetGradientMaskForAnimation() const = 0;
@@ -65,9 +66,6 @@ class COMPOSITOR_EXPORT LayerAnimationDelegate {
   virtual cc::Layer* GetCcLayer() const = 0;
   virtual LayerAnimatorCollection* GetLayerAnimatorCollection() = 0;
   virtual LayerThreadedAnimationDelegate* GetThreadedAnimationDelegate() = 0;
-  // Returns absl::nullopt if the frame number is not available, e.g. when
-  // Layer is not attached to a Compositor. Otherwise, returns the frame number.
-  virtual absl::optional<int> GetFrameNumber() const = 0;
   virtual float GetRefreshRate() const = 0;
 
  protected:

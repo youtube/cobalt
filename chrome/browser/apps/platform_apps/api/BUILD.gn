@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//chrome/common/apps/platform_apps/api/api_sources.gni")
 import("//extensions/buildflags/buildflags.gni")
@@ -29,8 +28,6 @@ source_set("api") {
     "browser/browser_api.h",
     "browser_context_keyed_service_factories.cc",
     "browser_context_keyed_service_factories.h",
-    "deprecation_features.cc",
-    "deprecation_features.h",
     "media_galleries/blob_data_source_factory.cc",
     "media_galleries/blob_data_source_factory.h",
     "media_galleries/media_galleries_api.cc",
@@ -47,11 +44,13 @@ source_set("api") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
-  deps = [
-    "//build:chromeos_buildflags",
-    "//chrome/app:generated_resources_grit",
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
-    # TODO(https://crbug.com/883570): It'd be nice to have more APIs here
+  deps = [
+    "//chrome/app:generated_resources_grit",
+    "//chrome/browser:primitives",
+
+    # TODO(crbug.com/40593486): It'd be nice to have more APIs here
     # extracted into their own BUILD files (so they are easy to audit, add, or
     # remove), but any that depend on //chrome/browser:browser can't.
     "//chrome/browser:browser_process",
@@ -64,45 +63,52 @@ source_set("api") {
     "//components/storage_monitor",
     "//components/web_modal",
     "//extensions/browser",
+    "//ui/shell_dialogs",
   ]
 
+  visibility = []
+
   if (is_chromeos) {
+    # For transition period of crosapi removal.
+    visibility += [ "//chrome/browser/ash/crosapi" ]
+
     sources += [
+      "arc_apps_private/arc_apps_private_api.cc",
+      "arc_apps_private/arc_apps_private_api.h",
       "enterprise_remote_apps/enterprise_remote_apps_api.cc",
       "enterprise_remote_apps/enterprise_remote_apps_api.h",
     ]
 
-    deps += [ "//chromeos/components/remote_apps/mojom" ]
-  }
-
-  if (is_chromeos_ash) {
-    sources += [
-      "arc_apps_private/arc_apps_private_api.cc",
-      "arc_apps_private/arc_apps_private_api.h",
-    ]
-
     deps += [
-      "//chrome/browser/ash/crosapi",
+      "//chrome/browser/ash/app_list/arc",
+      "//chrome/browser/ash/login/demo_mode",
+      "//chrome/browser/ash/remote_apps",
+      "//chromeos/components/remote_apps/mojom",
       "//ui/events:event_constants",
     ]
+
+    # TODO(crbug.com/40251081): Remove these deps. Needed only to allow circular includes.
+    deps += [ "//chrome/browser/ash/extensions/file_manager" ]
+
+    # TODO(crbug.com/40251079): Remove circular dependencies.
+    allow_circular_includes_from =
+        [ "//chrome/browser/ash/extensions/file_manager" ]
   }
 
   if (use_lld) {
-    visibility = [
+    visibility += [
       "//chrome/browser",
+      "//chrome/browser/profiles:profiles_extra_parts_impl",
       "//chrome/browser/ui",
     ]
   } else {
     # //chrome/browser:browser and //chrome/browser/ui:* will be split into
     # multiple libraries when not linking with lld.
-    visibility = [
+    visibility += [
       "//chrome/browser:*",
+      "//chrome/browser/profiles:profiles_extra_parts_impl",
       "//chrome/browser/ui:*",
     ]
   }
-  visibility += [
-    ":api_registration",
-    "//chrome/browser/ash",
-    "//chrome/browser/chromeos",
-  ]
+  visibility += [ ":api_registration" ]
 }

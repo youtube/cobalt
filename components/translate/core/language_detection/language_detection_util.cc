@@ -6,6 +6,10 @@
 
 #include <stddef.h>
 
+#include <array>
+#include <string_view>
+
+#include "base/containers/fixed_flat_set.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_functions.h"
@@ -15,7 +19,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/language/core/common/language_util.h"
-#include "components/translate/core/common/translate_constants.h"
+#include "components/language_detection/core/constants.h" // nogncheck
 #include "components/translate/core/common/translate_metrics.h"
 #include "components/translate/core/language_detection/chinese_script_classifier.h"
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"
@@ -29,12 +33,12 @@ struct SimilarLanguageCode {
   int group;
 };
 
-const SimilarLanguageCode kSimilarLanguageCodes[] = {
-  {"bs", 1},
-  {"hr", 1},
-  {"hi", 2},
-  {"ne", 2},
-};
+constexpr auto kSimilarLanguageCodes = std::to_array<SimilarLanguageCode>({
+    {"bs", 1},
+    {"hr", 1},
+    {"hi", 2},
+    {"ne", 2},
+});
 
 // Checks |kSimilarLanguageCodes| and returns group code.
 int GetSimilarLanguageGroupCode(const std::string& language) {
@@ -46,14 +50,11 @@ int GetSimilarLanguageGroupCode(const std::string& language) {
   return 0;
 }
 
-// Well-known languages which often have wrong server configuration of
-// Content-Language: en.
-const char* const kWellKnownCodesOnWrongConfiguration[] = {
-    "es",    "pt", "ja", "ru", "de", "zh-CN",
-    "zh-TW", "ar", "id", "fr", "it", "th"};
-
 // Applies a series of language code modification in proper order.
 void ApplyLanguageCodeCorrection(std::string* code) {
+  if (!code || code->empty()) {
+    return;
+  }
   // Correct well-known format errors.
   translate::CorrectLanguageCodeTypo(code);
 
@@ -63,6 +64,27 @@ void ApplyLanguageCodeCorrection(std::string* code) {
   }
 
   language::ToTranslateLanguageSynonym(code);
+}
+
+// Get page language from html language code if it is not empty, otherwise get
+// page language from Content-Language code. Returns an empty string when
+// Content-Language code is empty.
+std::string GetHTMLOrHTTPContentLanguage(const std::string& content_lang,
+                                         const std::string& html_lang) {
+  // Check if html lang attribute is valid.
+  std::string modified_lang = html_lang;
+  ApplyLanguageCodeCorrection(&modified_lang);
+  if (!modified_lang.empty()) {
+    // Found a valid html lang.
+    return modified_lang;
+  }
+  // Check if Content-Language is valid.
+  if (!content_lang.empty()) {
+    modified_lang = content_lang;
+    ApplyLanguageCodeCorrection(&modified_lang);
+  }
+
+  return modified_lang;
 }
 
 // Checks if the model can complement a sub code when the page language doesn't
@@ -88,14 +110,14 @@ std::string FilterDetectedLanguage(const std::string& utf8_text,
   // Ignore unreliable, "unknown", and xx-Latn predictions that are currently
   // not supported.
   if (!is_detection_reliable)
-    return translate::kUnknownLanguageCode;
-  // TODO(crbug.com/1178193): Determine if ar-Latn and hi-Latn need to be added
+    return language_detection::kUnknownLanguageCode;
+  // TODO(crbug.com/40169055): Determine if ar-Latn and hi-Latn need to be added
   // for the TFLite-based detection model.
   if (detected_language == "bg-Latn" || detected_language == "el-Latn" ||
       detected_language == "ja-Latn" || detected_language == "ru-Latn" ||
       detected_language == "zh-Latn" ||
       detected_language == chrome_lang_id::NNetLanguageIdentifier::kUnknown) {
-    return translate::kUnknownLanguageCode;
+    return language_detection::kUnknownLanguageCode;
   }
 
   if (detected_language == "zh") {
@@ -110,7 +132,7 @@ std::string FilterDetectedLanguage(const std::string& utf8_text,
       return "zh-TW";
     if (zh_classification == "zh-Hans")
       return "zh-CN";
-    return translate::kUnknownLanguageCode;
+    return language_detection::kUnknownLanguageCode;
   }
   // The detection is reliable and none of the cases that are not handled by the
   // language detection model.
@@ -136,8 +158,8 @@ std::string DetermineTextLanguage(const std::string& utf8_text,
   const std::string& detected_language = lang_id_result.language;
 
   // Update histograms.
-  const base::HistogramBase::Sample pred_lang_hash =
-      static_cast<base::HistogramBase::Sample>(
+  const base::HistogramBase::Sample32 pred_lang_hash =
+      static_cast<base::HistogramBase::Sample32>(
           base::HashMetricName(detected_language));
   base::UmaHistogramSparse("Translate.CLD3.LanguageDetected", pred_lang_hash);
   if (detected_language != chrome_lang_id::NNetLanguageIdentifier::kUnknown) {
@@ -175,60 +197,52 @@ std::string DeterminePageLanguage(const std::string& code,
   return DeterminePageLanguage(code, html_lang, detected_language, is_reliable);
 }
 
+std::string DeterminePageLanguageNoModel(
+    const std::string& code,
+    const std::string& html_lang,
+    LanguageVerificationType language_verification_type) {
+  translate::ReportLanguageVerification(language_verification_type);
+  std::string language = GetHTMLOrHTTPContentLanguage(code, html_lang);
+  return language.empty() ? language_detection::kUnknownLanguageCode : language;
+}
+
 // Now consider the web page language details along with the contents language.
 std::string DeterminePageLanguage(const std::string& code,
                                   const std::string& html_lang,
                                   const std::string& model_detected_language,
                                   bool is_model_reliable) {
-  // Check if html lang attribute is valid.
-  std::string modified_html_lang;
-  if (!html_lang.empty()) {
-    modified_html_lang = html_lang;
-    ApplyLanguageCodeCorrection(&modified_html_lang);
-    VLOG(9) << "html lang based language code: " << modified_html_lang;
-  }
-
-  // Check if Content-Language is valid.
-  std::string modified_code;
-  if (!code.empty()) {
-    modified_code = code;
-    ApplyLanguageCodeCorrection(&modified_code);
-  }
-
-  // Adopt |modified_html_lang| if it is valid. Otherwise, adopt
-  // |modified_code|.
-  std::string language = modified_html_lang.empty() ? modified_code :
-                                                      modified_html_lang;
-
+  std::string language = GetHTMLOrHTTPContentLanguage(code, html_lang);
   // If |language| is empty, just use model result even though it might be
-  // translate::kUnknownLanguageCode.
+  // language_detection::kUnknownLanguageCode.
   if (language.empty()) {
     translate::ReportLanguageVerification(
-        translate::LANGUAGE_VERIFICATION_MODEL_ONLY);
+        translate::LanguageVerificationType::kModelOnly);
     return model_detected_language;
   }
 
-  if (model_detected_language == kUnknownLanguageCode) {
+  // If |model_detected_language| is empty, just use |language|.
+  if (model_detected_language.empty() ||
+      model_detected_language == language_detection::kUnknownLanguageCode) {
     translate::ReportLanguageVerification(
-        translate::LANGUAGE_VERIFICATION_MODEL_UNKNOWN);
+        translate::LanguageVerificationType::kModelUnknown);
     return language;
   }
 
   if (CanModelComplementSubCode(language, model_detected_language)) {
     translate::ReportLanguageVerification(
-        translate::LANGUAGE_VERIFICATION_MODEL_COMPLEMENTS_COUNTRY);
+        translate::LanguageVerificationType::kModelComplementsCountry);
     return model_detected_language;
   }
 
   if (IsSameOrSimilarLanguages(language, model_detected_language)) {
     translate::ReportLanguageVerification(
-        translate::LANGUAGE_VERIFICATION_MODEL_AGREES);
+        translate::LanguageVerificationType::kModelAgrees);
     return language;
   }
 
   if (MaybeServerWrongConfiguration(language, model_detected_language)) {
     translate::ReportLanguageVerification(
-        translate::LANGUAGE_VERIFICATION_MODEL_OVERRIDES);
+        translate::LanguageVerificationType::kModelOverrides);
     return model_detected_language;
   }
 
@@ -236,8 +250,8 @@ std::string DeterminePageLanguage(const std::string& code,
   // written in another language with confidence. In this case, Chrome doesn't
   // rely on any of the language codes, and gives up suggesting a translation.
   translate::ReportLanguageVerification(
-      translate::LANGUAGE_VERIFICATION_MODEL_DISAGREES);
-  return kUnknownLanguageCode;
+      translate::LanguageVerificationType::kModelDisagrees);
+  return language_detection::kUnknownLanguageCode;
 }
 
 void CorrectLanguageCodeTypo(std::string* code) {
@@ -268,13 +282,13 @@ void CorrectLanguageCodeTypo(std::string* code) {
 bool IsValidLanguageCode(const std::string& code) {
   // Roughly check if the language code follows /[a-zA-Z]{2,3}(-[a-zA-Z]{2})?/.
   // TODO(hajimehoshi): How about es-419, which is used as an Accept language?
-  std::vector<base::StringPiece> chunks = base::SplitStringPiece(
+  std::vector<std::string_view> chunks = base::SplitStringPiece(
       code, "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   if (chunks.size() < 1 || 2 < chunks.size())
     return false;
 
-  const base::StringPiece& main_code = chunks[0];
+  std::string_view main_code = chunks[0];
 
   if (main_code.size() < 1 || 3 < main_code.size())
     return false;
@@ -287,7 +301,7 @@ bool IsValidLanguageCode(const std::string& code) {
   if (chunks.size() == 1)
     return true;
 
-  const base::StringPiece& sub_code = chunks[1];
+  std::string_view sub_code = chunks[1];
 
   if (sub_code.size() != 2)
     return false;
@@ -317,9 +331,7 @@ bool IsSameOrSimilarLanguages(const std::string& page_language,
   // Language code part of |page_language| is matched to one of
   // |model_detected_language|. Country code is ignored here.
   if (page_language_main_part == model_detected_language_main_part) {
-    // Languages are matched strictly. Reports false to metrics, but returns
-    // true.
-    translate::ReportSimilarLanguageMatch(false);
+    // Languages are matched strictly - return true.
     return true;
   }
 
@@ -329,16 +341,17 @@ bool IsSameOrSimilarLanguages(const std::string& page_language,
   bool match = page_code != 0 && page_code == GetSimilarLanguageGroupCode(
                                                   model_detected_language);
 
-  translate::ReportSimilarLanguageMatch(match);
   return match;
 }
 
 bool IsServerWrongConfigurationLanguage(const std::string& language_code) {
-  for (size_t i = 0; i < std::size(kWellKnownCodesOnWrongConfiguration); ++i) {
-    if (language_code == kWellKnownCodesOnWrongConfiguration[i])
-      return true;
-  }
-  return false;
+  // Well-known languages which often have wrong server configuration of
+  // Content-Language: en.
+  constexpr auto kSet = base::MakeFixedFlatSet<std::string_view>(
+      {"es", "pt", "ja", "ru", "de", "zh-CN", "zh-TW", "ar", "id", "fr", "it",
+       "th"});
+
+  return kSet.contains(language_code);
 }
 
 bool MaybeServerWrongConfiguration(const std::string& page_language,

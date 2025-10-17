@@ -8,9 +8,9 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/session/connection_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/arc/input_method_manager/arc_input_method_manager_bridge.h"
+#include "chromeos/ash/experiences/arc/session/connection_observer.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace arc {
@@ -53,8 +53,8 @@ class ArcInputMethodManagerBridgeImpl
   void OnImeInfoChanged(std::vector<mojom::ImeInfoPtr> ime_info_array) override;
 
  private:
-  const raw_ptr<Delegate, ExperimentalAsh> delegate_;
-  const raw_ptr<ArcBridgeService, ExperimentalAsh>
+  const raw_ptr<Delegate> delegate_;
+  const raw_ptr<ArcBridgeService>
       bridge_service_;  // Owned by ArcServiceManager
 };
 

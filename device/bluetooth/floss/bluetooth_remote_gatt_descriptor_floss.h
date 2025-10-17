@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #ifndef DEVICE_BLUETOOTH_FLOSS_BLUETOOTH_REMOTE_GATT_DESCRIPTOR_FLOSS_H_
@@ -46,7 +46,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothRemoteGattDescriptorFloss
   device::BluetoothRemoteGattCharacteristic::Permissions GetPermissions()
       const override;
   void ReadRemoteDescriptor(ValueCallback callback) override;
-  void WriteRemoteDescriptor(const std::vector<uint8_t>& new_value,
+  void WriteRemoteDescriptor(base::span<const uint8_t> new_value,
                              base::OnceClosure callback,
                              ErrorCallback error_callback) override;
 

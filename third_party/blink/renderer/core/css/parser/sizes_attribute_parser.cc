@@ -7,58 +7,107 @@
 #include "third_party/blink/renderer/core/css/media_query_evaluator.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/core/css/parser/sizes_math_function_parser.h"
+#include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/media_type_names.h"
 
 namespace blink {
 
-SizesAttributeParser::SizesAttributeParser(
-    MediaValues* media_values,
-    const String& attribute,
-    const ExecutionContext* execution_context)
+SizesAttributeParser::SizesAttributeParser(MediaValues* media_values,
+                                           const String& attribute,
+                                           ExecutionContext* execution_context,
+                                           const HTMLImageElement* img)
     : media_values_(media_values),
       execution_context_(execution_context),
-      length_(0),
-      length_was_set_(false) {
+      img_(img) {
   DCHECK(media_values_);
   DCHECK(media_values_->Width().has_value());
   DCHECK(media_values_->Height().has_value());
-  CSSTokenizer tokenizer(attribute);
-  auto [tokens, offsets] = tokenizer.TokenizeToEOFWithOffsets();
-  is_valid_ =
-      Parse(CSSParserTokenRange(tokens),
-            CSSParserTokenOffsets(tokens, std::move(offsets), attribute));
+
+  CSSParserTokenStream stream(attribute);
+  is_valid_ = Parse(stream);
 }
 
-float SizesAttributeParser::length() {
-  if (is_valid_) {
-    return EffectiveSize();
+bool SizesAttributeParser::Parse(CSSParserTokenStream& stream) {
+  while (!stream.AtEnd()) {
+    stream.ConsumeWhitespace();
+
+    if (css_parsing_utils::AtIdent(stream.Peek(), "auto")) {
+      // Spec: "For better backwards-compatibility with legacy user
+      // agents that don't support the auto keyword, fallback sizes
+      // can be specified if desired."
+      // For example: sizes="auto, (max-width: 30em) 100vw, ..."
+      is_auto_ = true;
+      return true;
+    }
+
+    CSSParserTokenStream::State savepoint = stream.Save();
+    MediaQuerySet* media_condition =
+        MediaQueryParser::ParseMediaCondition(stream, execution_context_);
+    if (!media_condition || !MediaConditionMatches(*media_condition)) {
+      // If we failed to parse a media condition, most likely there
+      // simply wasn't any and we won't have moved in the stream.
+      // However, there are certain edge cases where we _thought_
+      // we would have parsed a media condition but it was actually
+      // meant as a size; in particular, a calc() expression would
+      // count as <general-enclosed> and thus be parsed as a media
+      // condition, then promptly fail, whereas we should really
+      // parse it as a size. Thus, we need to rewind in this case.
+      // If it really were a valid but failing media condition,
+      // this rewinding is harmless; we'd try parsing the media
+      // condition as a size and then fail (if nothing else, because
+      // the comma is not immediately after it).
+      stream.EnsureLookAhead();
+      stream.Restore(savepoint);
+    }
+
+    if (stream.Peek().GetType() != kCommaToken) {
+      float length;
+      if (CalculateLengthInPixels(stream, length)) {
+        stream.ConsumeWhitespace();
+        if (stream.AtEnd() || stream.Peek().GetType() == kCommaToken) {
+          size_ = length;
+          size_was_set_ = true;
+          return true;
+        }
+      }
+    }
+
+    stream.SkipUntilPeekedTypeIs<kCommaToken>();
+    if (!stream.AtEnd()) {
+      stream.Consume();
+    }
   }
-  return EffectiveSizeDefaultValue();
+
+  return false;
 }
 
-bool SizesAttributeParser::CalculateLengthInPixels(CSSParserTokenRange range,
+bool SizesAttributeParser::CalculateLengthInPixels(CSSParserTokenStream& stream,
                                                    float& result) {
-  const CSSParserToken& start_token = range.Peek();
+  const CSSParserToken& start_token = stream.Peek();
   CSSParserTokenType type = start_token.GetType();
   if (type == kDimensionToken) {
     double length;
     if (!CSSPrimitiveValue::IsLength(start_token.GetUnitType())) {
       return false;
     }
+
     if ((media_values_->ComputeLength(start_token.NumericValue(),
                                       start_token.GetUnitType(), length)) &&
         (length >= 0)) {
       result = ClampTo<float>(length);
+      stream.Consume();
       return true;
     }
   } else if (type == kFunctionToken) {
-    SizesMathFunctionParser calc_parser(range, media_values_);
+    SizesMathFunctionParser calc_parser(stream, media_values_);
     if (!calc_parser.IsValid()) {
       return false;
     }
+
     result = calc_parser.Result();
     return true;
   } else if (type == kNumberToken && !start_token.NumericValue()) {
+    stream.Consume();
     result = 0;
     return true;
   }
@@ -69,56 +118,47 @@ bool SizesAttributeParser::CalculateLengthInPixels(CSSParserTokenRange range,
 bool SizesAttributeParser::MediaConditionMatches(
     const MediaQuerySet& media_condition) {
   // A Media Condition cannot have a media type other then screen.
-  MediaQueryEvaluator media_query_evaluator(media_values_);
-  return media_query_evaluator.Eval(media_condition);
+  MediaQueryEvaluator* media_query_evaluator =
+      MakeGarbageCollected<MediaQueryEvaluator>(media_values_);
+
+  return media_query_evaluator->Eval(media_condition);
 }
 
-bool SizesAttributeParser::Parse(CSSParserTokenRange range,
-                                 const CSSParserTokenOffsets& offsets) {
-  // Split on a comma token and parse the result tokens as (media-condition,
-  // length) pairs
-  while (!range.AtEnd()) {
-    const CSSParserToken* media_condition_start = &range.Peek();
-    // The length is the last component value before the comma which isn't
-    // whitespace or a comment
-    const CSSParserToken* length_token_start = &range.Peek();
-    const CSSParserToken* length_token_end = &range.Peek();
-    while (!range.AtEnd() && range.Peek().GetType() != kCommaToken) {
-      length_token_start = &range.Peek();
-      range.ConsumeComponentValue();
-      length_token_end = &range.Peek();
-      range.ConsumeWhitespace();
-    }
-    range.Consume();
-
-    float length;
-    if (!CalculateLengthInPixels(
-            range.MakeSubRange(length_token_start, length_token_end), length)) {
-      continue;
-    }
-    MediaQuerySet* media_condition = MediaQueryParser::ParseMediaCondition(
-        range.MakeSubRange(media_condition_start, length_token_start), offsets,
-        execution_context_);
-    if (!media_condition || !MediaConditionMatches(*media_condition)) {
-      continue;
-    }
-    length_ = length;
-    length_was_set_ = true;
-    return true;
+float SizesAttributeParser::Size() {
+  if (is_valid_) {
+    return EffectiveSize();
   }
-  return false;
+
+  return EffectiveSizeDefaultValue();
 }
 
 float SizesAttributeParser::EffectiveSize() {
-  if (length_was_set_) {
-    return length_;
+  // Spec:
+  // https://html.spec.whatwg.org/#parsing-a-sizes-attribute
+
+  // 3.6 If size is not auto, then return size.
+  if (size_was_set_) {
+    return size_;
   }
+
+  // 3.3 If size is auto, and img is not null, and img is being rendered, and
+  // img allows auto-sizes, then set size to the concrete object size width of
+  // img, in CSS pixels.
+  if (is_auto_ && img_ && img_->IsBeingRendered() && img_->AllowAutoSizes()) {
+    return img_->LayoutBoxWidth();
+  }
+
+  // 4. Return 100vw.
   return EffectiveSizeDefaultValue();
 }
 
 float SizesAttributeParser::EffectiveSizeDefaultValue() {
   // Returning the equivalent of "100vw"
   return ClampTo<float>(*media_values_->Width());
+}
+
+bool SizesAttributeParser::IsAuto() {
+  return is_auto_;
 }
 
 }  // namespace blink

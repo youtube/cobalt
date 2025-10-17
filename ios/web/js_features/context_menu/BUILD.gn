@@ -6,14 +6,12 @@ import("//ios/build/config.gni")
 import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("context_menu") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     ":context_menu_all_frames_ts",
     ":context_menu_main_frame_ts",
     "//base",
     "//components/url_formatter",
     "//ios/web/common",
-    "//ios/web/common:features",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
   ]
@@ -55,7 +53,6 @@ optimize_ts("context_menu_main_frame_ts") {
 }
 
 source_set("unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   deps = [
@@ -67,6 +64,8 @@ source_set("unittests") {
     "//ios/web/common:web_view_creation_util",
     "//ios/web/js_messaging",
     "//ios/web/js_messaging:java_script_feature",
+    "//ios/web/js_messaging:web_view_js_utils",
+    "//ios/web/public/js_messaging:web_view_js_utils",
     "//ios/web/public/test",
     "//ios/web/public/test:javascript_test",
     "//ios/web/public/test:test_fixture",

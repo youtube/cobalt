@@ -6,11 +6,12 @@
 
 #include "base/check.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/iterable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_readable_stream_read_result.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_web_transport_options.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
@@ -45,7 +46,7 @@ v8::Local<v8::Value> ReadValueFromStream(const V8TestingScope& scope,
   auto* reader =
       stream->GetDefaultReaderForTesting(script_state, ASSERT_NO_EXCEPTION);
 
-  ScriptPromise read_promise = reader->read(script_state, ASSERT_NO_EXCEPTION);
+  auto read_promise = reader->read(script_state, ASSERT_NO_EXCEPTION);
 
   ScriptPromiseTester read_tester(script_state, read_promise);
   read_tester.WaitUntilSettled();
@@ -102,7 +103,8 @@ void TestWebTransportCreator::Connect(
   handshake_client->OnConnectionEstablished(
       std::move(web_transport_to_pass),
       client_remote.InitWithNewPipeAndPassReceiver(),
-      network::mojom::blink::HttpResponseHeaders::New());
+      network::mojom::blink::HttpResponseHeaders::New(),
+      network::mojom::blink::WebTransportStats::New());
   client_remote_.Bind(std::move(client_remote));
 }
 

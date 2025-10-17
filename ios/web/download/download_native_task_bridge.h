@@ -21,8 +21,8 @@ using NativeDownloadTaskProgressCallback =
                                  double fraction_completed)>;
 
 // Callback invoked once the NSURLResponse is received for the WKDownload*.
-using NativeDownloadTaskResponseCallback =
-    base::OnceCallback<void(int http_error_code, NSString* mime_type)>;
+using NativeDownloadTaskResponseCallback = base::OnceCallback<
+    void(int http_error_code, NSString* mime_type, NSURL* redirected_url)>;
 
 // Callback invoked once the WKDownload completes, possibly in error.
 using NativeDownloadTaskCompleteCallback =
@@ -35,12 +35,11 @@ using NativeDownloadTaskCompleteCallback =
 // Used to set response url, content length, mimetype and http response headers
 // in CRWWkNavigationHandler so method can interact with WKWebView.
 - (BOOL)onDownloadNativeTaskBridgeReadyForDownload:
-    (DownloadNativeTaskBridge*)bridge API_AVAILABLE(ios(15));
+    (DownloadNativeTaskBridge*)bridge;
 
 // Calls CRWWKNavigationHandlerDelegate to resume download using the web view.
 - (void)resumeDownloadNativeTask:(NSData*)data
-               completionHandler:(void (^)(WKDownload*))completionHandler
-    API_AVAILABLE(ios(15));
+               completionHandler:(void (^)(WKDownload*))completionHandler;
 
 @end
 
@@ -51,7 +50,7 @@ using NativeDownloadTaskCompleteCallback =
 // Default initializer. `download` and `delegate` must be non-nil.
 - (instancetype)initWithDownload:(WKDownload*)download
                         delegate:(id<DownloadNativeTaskBridgeDelegate>)delegate
-    NS_DESIGNATED_INITIALIZER API_AVAILABLE(ios(15));
+    NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
 
@@ -65,7 +64,7 @@ using NativeDownloadTaskCompleteCallback =
      responseCallback:(NativeDownloadTaskResponseCallback)responseCallback
      completeCallback:(NativeDownloadTaskCompleteCallback)completeCallback;
 
-@property(nonatomic, readonly) WKDownload* download API_AVAILABLE(ios(15));
+@property(nonatomic, readonly) WKDownload* download;
 @property(nonatomic, readonly) NSURLResponse* response;
 @property(nonatomic, readonly) NSString* suggestedFilename;
 @property(nonatomic, readonly) NSProgress* progress;

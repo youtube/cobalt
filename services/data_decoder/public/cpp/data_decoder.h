@@ -5,6 +5,7 @@
 #ifndef SERVICES_DATA_DECODER_PUBLIC_CPP_DATA_DECODER_H_
 #define SERVICES_DATA_DECODER_PUBLIC_CPP_DATA_DECODER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_forward.h"
@@ -18,7 +19,6 @@
 #include "services/data_decoder/public/cpp/service_provider.h"
 #include "services/data_decoder/public/mojom/data_decoder_service.mojom.h"
 #include "services/data_decoder/public/mojom/xml_parser.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo_base {
 class BigBuffer;
@@ -66,8 +66,13 @@ class DataDecoder {
       base::OnceCallback<void(base::expected<T, std::string>)>;
   using StructuredHeaderParseItemCallback =
       ResultCallback<net::structured_headers::ParameterizedItem>;
+  using StructuredHeaderParseListCallback =
+      ResultCallback<net::structured_headers::List>;
+  using StructuredHeaderParseDictionaryCallback =
+      ResultCallback<net::structured_headers::Dictionary>;
   using ValueParseCallback = ResultCallback<base::Value>;
   using GzipperCallback = ResultCallback<mojo_base::BigBuffer>;
+  using ValidationCallback = ResultCallback<bool>;
   using CancellationFlag = base::RefCountedData<bool>;
 
   // Returns a raw interface to the service instance. This launches an instance
@@ -105,6 +110,39 @@ class DataDecoder {
   static void ParseStructuredHeaderItemIsolated(
       const std::string& header,
       StructuredHeaderParseItemCallback callback);
+
+  // Parses the potentially unsafe string in |header| as a structured header
+  // list using this DataDecoder's service instance or some other
+  // platform-specific decoding facility.
+  //
+  // Note that |callback| will only be called if the parsing operation succeeds
+  // or fails before this DataDecoder is destroyed.
+  void ParseStructuredHeaderList(const std::string& header,
+                                 StructuredHeaderParseListCallback callback);
+
+  // Parses the potentially unsafe string in |header| as a structured header
+  // list. This static helper uses a dedicated instance of the Data Decoder
+  // service on applicable platforms.
+  static void ParseStructuredHeaderListIsolated(
+      const std::string& header,
+      StructuredHeaderParseListCallback callback);
+
+  // Parses the potentially unsafe string in `header` as a structured header
+  // dictionary using this DataDecoder's service instance or some other
+  // platform-specific decoding facility.
+  //
+  // Note that `callback` will only be called if the parsing operation succeeds
+  // or fails before this DataDecoder is destroyed.
+  void ParseStructuredHeaderDictionary(
+      const std::string& header,
+      StructuredHeaderParseDictionaryCallback callback);
+
+  // Parses the potentially unsafe string in `header` as a structured header
+  // dictionary. This static helper uses a dedicated instance of the Data
+  // Decoder service on applicable platforms.
+  static void ParseStructuredHeaderDictionaryIsolated(
+      const std::string& header,
+      StructuredHeaderParseDictionaryCallback callback);
 
   // Parses the potentially unsafe XML string in |xml| using this
   // DataDecoder's service instance. The Value provided to the callback
@@ -156,6 +194,28 @@ class DataDecoder {
   // Note that |callback| will only be called if the parsing operation succeeds
   // or fails before this DataDecoder is destroyed.
   void GzipUncompress(base::span<const uint8_t> data, GzipperCallback callback);
+
+  // Parses the potentially unsafe CBOR bytes in |cbor| using this
+  // DataDecoder's service instance or some other platform-specific decoding
+  // facility. The parser conforms to RFC 7049, except a few limitations:
+  // - Does not support null or undefined values.
+  // - Integers must fit in the 'int' type.
+  // - The keys in Maps must be a string or byte-string.
+  // - If at least one Map key is invalid, an error will be returned.
+  //
+  // Note that |callback| will only be called if the parsing operation succeeds
+  // or fails before this DataDecoder is destroyed.
+  void ParseCbor(base::span<const uint8_t> cbor, ValueParseCallback callback);
+
+  // Parses the potentially unsafe CBOR bytes in |cbor|. This static helper
+  // uses a dedicated instance of the Data Decoder service on applicable
+  // platforms.
+  static void ParseCborIsolated(base::span<const uint8_t> cbor,
+                                ValueParseCallback callback);
+
+  // Validates the format of the potentially unsafe `pix_code`.
+  void ValidatePixCode(const std::string& pix_code,
+                       ValidationCallback callback);
 
  private:
   // The amount of idle time to tolerate on a DataDecoder instance. If the

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/enterprise/reporting/extension_info.h"
 
+#include <algorithm>
 #include <string>
 
 #include "chrome/browser/profiles/profile.h"
@@ -11,6 +12,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest.h"
+#include "extensions/common/manifest_handlers/permissions_parser.h"
 #include "extensions/common/manifest_url_handlers.h"
 #include "extensions/common/permissions/permissions_data.h"
 
@@ -37,30 +39,50 @@ em::Extension_InstallType GetExtensionInstallType(
     case ManifestLocation::kExternalPolicy:
     case ManifestLocation::kExternalPolicyDownload:
       return em::Extension_InstallType_TYPE_ADMIN;
-    default:
-      NOTREACHED();
-      [[fallthrough]];
     case ManifestLocation::kInvalidLocation:
     case ManifestLocation::kComponent:
     case ManifestLocation::kExternalComponent:
       return em::Extension_InstallType_TYPE_OTHER;
+    default:
+      NOTREACHED();
   }
 }
 
 void AddPermission(const extensions::Extension* extension,
                    em::Extension* extension_info) {
-  for (const std::string& permission :
-       extension->permissions_data()->active_permissions().GetAPIsAsStrings()) {
+  auto add_permission = [extension_info](const std::string& permission) {
     extension_info->add_permissions(permission);
-  }
+  };
+
+  std::ranges::for_each(
+      extensions::PermissionsParser::GetRequiredPermissions(extension)
+          .GetAPIsAsStrings(),
+      add_permission);
+
+  std::ranges::for_each(
+      extensions::PermissionsParser::GetOptionalPermissions(extension)
+          .GetAPIsAsStrings(),
+      add_permission);
+  return;
 }
 
 void AddHostPermission(const extensions::Extension* extension,
                        em::Extension* extension_info) {
-  for (const auto& url :
-       extension->permissions_data()->active_permissions().explicit_hosts()) {
+  auto add_permission = [extension_info](const URLPattern& url) {
     extension_info->add_host_permissions(url.GetAsString());
-  }
+  };
+
+  std::ranges::for_each(
+      extensions::PermissionsParser::GetRequiredPermissions(extension)
+          .explicit_hosts(),
+      add_permission);
+
+  std::ranges::for_each(
+      extensions::PermissionsParser::GetOptionalPermissions(extension)
+          .explicit_hosts(),
+      add_permission);
+
+  return;
 }
 
 void AddExtensions(const extensions::ExtensionSet& extensions,
@@ -117,7 +139,6 @@ em::Extension_ExtensionType ConvertExtensionTypeToProto(
       return em::Extension_ExtensionType_TYPE_CHROMEOS_SYSTEM_EXTENSION;
     case extensions::Manifest::NUM_LOAD_TYPES:
       NOTREACHED();
-      return em::Extension_ExtensionType_TYPE_UNKNOWN;
   }
 }
 

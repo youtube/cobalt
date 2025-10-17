@@ -23,8 +23,7 @@ ContextMenuContentTypeWebView::ContextMenuContentTypeWebView(
     : ContextMenuContentType(params, true),
       web_view_guest_(std::move(web_view_guest)) {}
 
-ContextMenuContentTypeWebView::~ContextMenuContentTypeWebView() {
-}
+ContextMenuContentTypeWebView::~ContextMenuContentTypeWebView() = default;
 
 const Extension* ContextMenuContentTypeWebView::GetExtension() const {
   if (!web_view_guest_)
@@ -62,7 +61,7 @@ bool ContextMenuContentTypeWebView::SupportsGroup(int group) {
         // For a list of places where <webview>/GuestViews are supported, see:
         // https://goo.gl/xfJkwp.
         if (!embedder_extension && web_view_guest_ &&
-            web_view_guest_->owner_web_contents()->GetWebUI()) {
+            web_view_guest_->owner_rfh()->GetMainFrame()->GetWebUI()) {
           return false;
         }
       }

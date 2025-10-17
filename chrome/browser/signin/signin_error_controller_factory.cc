@@ -5,7 +5,6 @@
 #include "chrome/browser/signin/signin_error_controller_factory.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/account_consistency_mode_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -15,14 +14,14 @@ SigninErrorControllerFactory::SigninErrorControllerFactory()
           "SigninErrorController",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
-SigninErrorControllerFactory::~SigninErrorControllerFactory() {}
+SigninErrorControllerFactory::~SigninErrorControllerFactory() = default;
 
 // static
 SigninErrorController* SigninErrorControllerFactory::GetForProfile(
@@ -33,20 +32,22 @@ SigninErrorController* SigninErrorControllerFactory::GetForProfile(
 
 // static
 SigninErrorControllerFactory* SigninErrorControllerFactory::GetInstance() {
-  return base::Singleton<SigninErrorControllerFactory>::get();
+  static base::NoDestructor<SigninErrorControllerFactory> instance;
+  return instance.get();
 }
 
-KeyedService* SigninErrorControllerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SigninErrorControllerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   SigninErrorController::AccountMode account_mode =
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       SigninErrorController::AccountMode::ANY_ACCOUNT;
 #else
       AccountConsistencyModeManager::IsMirrorEnabledForProfile(profile)
           ? SigninErrorController::AccountMode::ANY_ACCOUNT
           : SigninErrorController::AccountMode::PRIMARY_ACCOUNT;
 #endif
-  return new SigninErrorController(
+  return std::make_unique<SigninErrorController>(
       account_mode, IdentityManagerFactory::GetForProfile(profile));
 }

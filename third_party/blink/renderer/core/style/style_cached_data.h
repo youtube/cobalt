@@ -13,10 +13,15 @@ namespace blink {
 
 class ComputedStyle;
 
-using PositionFallbackStyleCache = Vector<scoped_refptr<const ComputedStyle>>;
-using PseudoElementStyleCache = Vector<scoped_refptr<const ComputedStyle>, 4>;
+using PseudoElementStyleCache = GCedHeapVector<Member<const ComputedStyle>, 4>;
 
-class CORE_EXPORT StyleCachedData final {
+class CORE_EXPORT StyleCachedData final
+    : public GarbageCollected<StyleCachedData> {
+ public:
+  void Trace(Visitor* visitor) const {
+    visitor->Trace(pseudo_element_styles_);
+  }
+
  private:
   friend class ComputedStyle;
   friend class ComputedStyleBuilder;
@@ -39,13 +44,7 @@ class CORE_EXPORT StyleCachedData final {
   //    <script>
   //      getComputedStyle(div, "::before").color // still green.
   //    </script>
-  std::unique_ptr<PseudoElementStyleCache> pseudo_element_styles_;
-
-  // This cache stores the ComputedStyles for an anchor-positioned element after
-  // applying each @try block in the @position-fallback rule. Note that this is
-  // not the computed style of any element, but used when laying out an
-  // anchor-positioned element with fallback positions only.
-  std::unique_ptr<PositionFallbackStyleCache> position_fallback_styles_;
+  Member<PseudoElementStyleCache> pseudo_element_styles_;
 
   // Stores the names of of all custom properties on a given ComputedStyle.
   std::unique_ptr<Vector<AtomicString>> variable_names_;

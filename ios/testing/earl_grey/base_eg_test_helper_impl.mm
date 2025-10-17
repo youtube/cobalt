@@ -8,10 +8,6 @@
 #import "base/logging.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation BaseEGTestHelperImpl {
   // Used to raise EarlGrey exception with specific file name and line number.
   EarlGreyImpl* _impl;
@@ -32,8 +28,9 @@
 }
 
 - (void)failWithError:(NSError*)error expression:(NSString*)expression {
-  if (!error)
+  if (!error) {
     return;
+  }
 
   NSString* name = [NSString stringWithFormat:@"%@ helper error", [self class]];
   NSString* reason =
@@ -47,8 +44,9 @@
 - (void)fail:(BOOL)fail
      expression:(NSString*)expression
     description:(NSString*)description {
-  if (!fail)
+  if (!fail) {
     return;
+  }
 
   DLOG(WARNING) << "\n" << base::debug::StackTrace(/*count=*/15).ToString();
 

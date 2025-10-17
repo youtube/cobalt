@@ -18,8 +18,8 @@ sys.path.append(os.path.join(_SRC_DIR, 'third_party', 'node'))
 import node
 import node_modules
 
-from path_mappings import GetDepToPathMappings
-from validate_tsconfig import validateTsconfigJson, validateJavaScriptAllowed, validateRootDir, isUnsupportedJsTarget
+from path_utils import isInAshFolder, getTargetPath
+from validate_tsconfig import validateTsconfigJson, validateJavaScriptAllowed, validateRootDir, isUnsupportedJsTarget, isMappingAllowed, validateDefinitionDeps
 
 
 def _write_tsconfig_json(gen_dir, tsconfig, tsconfig_file):
@@ -31,12 +31,20 @@ def _write_tsconfig_json(gen_dir, tsconfig, tsconfig_file):
     json.dump(tsconfig, generated_tsconfig, indent=2)
   return
 
+
+# Normalize `input_path` from being relative to _CWD, to being relative to
+# _SRC_DIR.
+def _relative_to_src(input_path):
+  return os.path.relpath(os.path.normpath(os.path.join(_CWD, input_path)),
+                         _SRC_DIR)
+
+
 def main(argv):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--raw_deps', nargs='*')
   parser.add_argument('--deps', nargs='*')
   parser.add_argument('--gen_dir', required=True)
   parser.add_argument('--path_mappings', nargs='*')
+  parser.add_argument('--path_mappings_file')
 
   parser.add_argument('--root_gen_dir', required=True)
   parser.add_argument('--root_src_dir', required=True)
@@ -77,39 +85,68 @@ def main(argv):
 
   tsconfig['compilerOptions'] = collections.OrderedDict()
 
-  with io.open(tsconfig_base_file, encoding='utf-8', mode='r') as f:
-    tsconfig_base = json.loads(f.read())
+  # Recursively iterate all inherited tsconfig files, walking up the
+  # inheritance chain.
+  parent_tsconfig_file = tsconfig_base_file
+  parent_tsconfig_counter = 0
+  has_skip_lib_check = False
+  while parent_tsconfig_file != None:
+    with io.open(parent_tsconfig_file, encoding='utf-8', mode='r') as f:
+      parent_tsconfig = json.loads(f.read())
 
-    is_base_tsconfig = args.tsconfig_base is None or \
-        args.tsconfig_base.endswith('/tools/typescript/tsconfig_base.json')
-    is_tsconfig_valid, error = validateTsconfigJson(tsconfig_base,
-                                                    tsconfig_base_file,
-                                                    is_base_tsconfig)
-    if not is_tsconfig_valid:
-      raise AssertionError(error)
+      # Validate each encountered tsconfig files against a set of constraints.
+      parent_tsconfig_file_normalized = _relative_to_src(parent_tsconfig_file)
+      is_base_tsconfig = parent_tsconfig_file_normalized.endswith(
+          os.path.normpath('tools/typescript/tsconfig_base.json'))
+      is_tsconfig_valid, error = validateTsconfigJson(
+          parent_tsconfig, parent_tsconfig_file_normalized, is_base_tsconfig)
+      if not is_tsconfig_valid:
+        raise AssertionError(error)
 
-    # Work-around for https://github.com/microsoft/TypeScript/issues/30024. Need
-    # to append 'trusted-types' in cases where the default configuration's
-    # 'types' field is overridden, because of the Chromium patch  at
-    # third_party/node/typescript.patch
-    # TODO(dpapad): Remove if/when the TypeScript bug has been fixed.
-    if 'compilerOptions' in tsconfig_base and \
-        'types' in tsconfig_base['compilerOptions']:
-      types = tsconfig_base['compilerOptions']['types']
+      # Detect whether 'skipLibCheck' is explicitly specified in the inheritance
+      # chain, used further below to automatically populate 'skipLibCheck' where
+      # possible.
+      if not has_skip_lib_check:
+        has_skip_lib_check = 'compilerOptions' in parent_tsconfig and \
+            'skipLibCheck' in parent_tsconfig['compilerOptions']
 
-      if 'trusted-types' not in types:
-        # Ensure that typeRoots is not overridden in an incompatible way.
-        ERROR_MSG = ('Need to include \'third_party/node/node_modules/@types\' '
-                     'when overriding the default typeRoots')
-        assert ('typeRoots' in tsconfig_base['compilerOptions']), ERROR_MSG
-        type_roots = tsconfig_base['compilerOptions']['typeRoots']
-        has_type_root = any(r.endswith('third_party/node/node_modules/@types') \
-            for r in type_roots)
-        assert has_type_root, ERROR_MSG
+      # Work-around for https://github.com/microsoft/TypeScript/issues/30024.
+      # Need to append 'trusted-types' in cases where the default
+      # configuration's 'types' field is overridden, because of the Chromium
+      # patch at third_party/node/patches/typescript.patch. Only look in the
+      # last tsconfig in the chain for any 'types' overrides as it seems
+      # sufficent since shared tsconfigs in tools/typescript/ already include
+      # 'trusted-types'.
+      # TODO(dpapad): Remove if/when the TypeScript bug has been fixed.
+      if parent_tsconfig_counter == 0:
+        if 'compilerOptions' in parent_tsconfig and \
+            'types' in parent_tsconfig['compilerOptions']:
+          types = parent_tsconfig['compilerOptions']['types']
 
-        augmented_types = types.copy()
-        augmented_types.append('trusted-types')
-        tsconfig['compilerOptions']['types'] = augmented_types
+          if 'trusted-types' not in types:
+            # Ensure that typeRoots is not overridden in an incompatible way.
+            ERROR_MSG = (
+                'Need to include \'third_party/node/node_modules/@types\' '
+                'when overriding the default typeRoots')
+            assert ('typeRoots'
+                    in parent_tsconfig['compilerOptions']), ERROR_MSG
+            type_roots = parent_tsconfig['compilerOptions']['typeRoots']
+            has_type_root = any(r.endswith('third_party/node/node_modules/@types') \
+                for r in type_roots)
+            assert has_type_root, ERROR_MSG
+
+            augmented_types = types.copy()
+            augmented_types.append('trusted-types')
+            tsconfig['compilerOptions']['types'] = augmented_types
+
+      # Calculate next step in the inheritance chain.
+      extends = parent_tsconfig.get('extends', None)
+      if extends != None:
+        parent_tsconfig_file = os.path.normpath(
+            os.path.join(os.path.dirname(parent_tsconfig_file), extends))
+        parent_tsconfig_counter += 1
+      else:
+        parent_tsconfig_file = None
 
   tsconfig['compilerOptions']['rootDir'] = root_dir
   tsconfig['compilerOptions']['outDir'] = out_dir
@@ -126,7 +163,7 @@ def main(argv):
     out_dir = os.path.realpath(os.path.join(_CWD, args.gen_dir,
                                             out_dir)).replace('\\', '/')
     is_js_allowed, error = validateJavaScriptAllowed(source_dir, out_dir,
-                                                     args.platform == 'ios')
+                                                     args.platform)
     if not is_js_allowed:
       raise AssertionError(error)
     tsconfig['compilerOptions']['allowJs'] = True
@@ -148,43 +185,49 @@ def main(argv):
     # Source .ts files are always resolved as being relative to |root_dir|.
     tsconfig['files'].extend([os.path.join(root_dir, f) for f in args.in_files])
 
+  has_local_definitions = False
   if args.definitions is not None:
     for d in args.definitions:
       assert d.endswith(
           '.d.ts'), f'Invalid definition \'{d}\'. Should end with \'.d.ts\''
     tsconfig['files'].extend(args.definitions)
 
-  # Handle path mappings, for example chrome://resources/ URLs.
-  path_mappings = collections.defaultdict(list)
+    SHARED_DEFINITIONS_FOLDER = os.path.join(args.root_src_dir,
+                                             'tools/typescript/definitions')
+    local_definitions = list(
+        filter(lambda d: not d.startswith(SHARED_DEFINITIONS_FOLDER),
+               args.definitions))
+    has_local_definitions = len(local_definitions) > 0
+
+  # Set 'skipLibCheck' to true if not specified in any parent config and if no
+  # definitions outside of tools/typescript/definitions exist, to speed up the
+  # build.
+  if not has_skip_lib_check and not has_local_definitions:
+    tsconfig['compilerOptions']['skipLibCheck'] = True
+
+  target_path = getTargetPath(args.gen_dir, args.root_gen_dir)
+  is_ash_target = isInAshFolder(target_path)
 
   if args.deps is not None:
     tsconfig['references'] = [{'path': dep} for dep in args.deps]
 
-    assert args.raw_deps is not None
-    dep_to_path_mappings = GetDepToPathMappings(
-        args.root_gen_dir,
-        # Sometimes root_src_dir has trailing slashes. Remove them if necessary.
-        args.root_src_dir.rstrip('/'),
-        args.platform)
+  path_mappings = collections.defaultdict(list)
+  # Load all mappings from the input file, if one exists.
+  if (args.path_mappings_file is not None):
+    path_mappings_path = os.path.join(args.gen_dir, args.path_mappings_file)
+    with open(path_mappings_path, 'r', encoding='utf-8') as f:
+      file_mappings = json.loads(f.read())
+      for url in file_mappings:
+        path_mappings[url] = file_mappings[url]
 
-    for dep in args.raw_deps:
-      if dep not in dep_to_path_mappings:
-        assert not dep.startswith("//ui/webui/resources"), \
-            f'Missing path mapping for \'{dep}\'. Update ' \
-            '//tools/typescript/path_mappings.py accordingly.'
-
-        # Path mappings outside of //ui/webui/resources are not inferred from
-        # |args.deps| yet.
-        continue
-
-      mappings = dep_to_path_mappings[dep]
-      for (url, dir) in mappings:
-        path_mappings[url].append(os.path.join('./', dir))
-        path_mappings['chrome:' + url].append(os.path.join('./', dir))
-
+  # Add target-specified mappings.
   if args.path_mappings is not None:
     for m in args.path_mappings:
       mapping = m.split('|')
+      mapping_path = os.path.relpath(mapping[1], args.root_src_dir)
+      assert isMappingAllowed(is_ash_target, target_path, mapping_path), \
+          f'Cannot use mapping to Ash-specific folder {mapping_path} from ' \
+          f'non-Ash target {target_path}'
       path_mappings[mapping[0]].append(os.path.join('./', mapping[1]))
 
   tsconfig['compilerOptions']['paths'] = path_mappings
@@ -253,9 +296,26 @@ def main(argv):
       if os.path.exists(tsbuildinfo_path):
         os.remove(tsbuildinfo_path)
 
-  if args.in_files is not None:
+  # Invoke the TS compiler again, with the --listFilesOnly flag, to detect any
+  # files that are used by the build, but not properly declared as dependencies.
+  out = node.RunNode([
+      node_modules.PathToTypescript(),
+      '--project',
+      os.path.join(args.gen_dir, tsconfig_file),
+      '--listFilesOnly',
+  ])
+  files_list = out.split('\n')
+  definitions_files = list(filter(lambda f: f.endswith('.d.ts'), files_list))
+  definitions = args.definitions if args.definitions is not None else []
+  list_valid, error_msg = validateDefinitionDeps(definitions_files, target_path,
+                                                 args.gen_dir,
+                                                 args.root_gen_dir, definitions)
+  if not list_valid:
+    raise AssertionError(error_msg)
 
-    manifest_path = os.path.join(args.gen_dir, f'{args.output_suffix}.manifest')
+  if args.in_files is not None:
+    manifest_path = os.path.join(args.gen_dir,
+                                 f'{args.output_suffix}_manifest.json')
     with open(manifest_path, 'w', encoding='utf-8') as manifest_file:
       manifest_data = {}
       manifest_data['base_dir'] = args.out_dir

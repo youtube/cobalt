@@ -20,10 +20,11 @@
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
-#include "ash/style/ash_color_provider.h"
+#include "ash/style/system_shadow.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
@@ -31,19 +32,28 @@
 #include "components/prefs/pref_service.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/highlight_border.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/layout_provider.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/mouse_constants.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_targeter.h"
+#include "ui/views/view_targeter_delegate.h"
 
 namespace ash {
 
@@ -68,15 +78,14 @@ constexpr int kSeparatorMarginDp = 20;
 constexpr int kPortraitPaneSpacing = 24;
 
 constexpr int kTextLineHeightDp = 16;
-constexpr int kRoundRectCornerRadiusDp = 2;
+constexpr int kJellyRoundRectCornerRadiusDp = 8;
 
-constexpr int kDropDownIconSizeDp = 16;
+constexpr int kJellyDropDownIconSizeDp = 20;
 constexpr int kArrowButtonSizeDp = 48;
 constexpr int kAdvancedViewButtonWidthDp = 190;
-constexpr int kAdvancedViewButtonHeightDp = 16;
+constexpr int kJellyAdvancedViewButtonHeightDp = 20;
 constexpr int kSpacingBetweenSelectionTitleAndButtonDp = 4;
 
-constexpr int kNonEmptyWidth = 1;
 constexpr int kNonEmptyHeight = 1;
 
 constexpr char kMonitoringWarningClassName[] = "MonitoringWarning";
@@ -93,7 +102,7 @@ views::Label* CreateLabel(const std::u16string& text, ui::ColorId color_id) {
   label->SetFontList(views::Label::GetDefaultFontList().Derive(
       0, gfx::Font::FontStyle::NORMAL, gfx::Font::Weight::NORMAL));
   label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  label->SetEnabledColorId(color_id);
+  label->SetEnabledColor(color_id);
   return label;
 }
 
@@ -117,29 +126,73 @@ class LoginExpandedPublicAccountEventHandler : public ui::EventHandler {
  private:
   // ui::EventHandler:
   void OnMouseEvent(ui::MouseEvent* event) override {
-    if (event->type() == ui::ET_MOUSE_PRESSED) {
+    if (event->type() == ui::EventType::kMousePressed) {
       view_->ProcessPressedEvent(event->AsLocatedEvent());
     }
   }
   void OnGestureEvent(ui::GestureEvent* event) override {
-    if ((event->type() == ui::ET_GESTURE_TAP ||
-         event->type() == ui::ET_GESTURE_TAP_DOWN)) {
+    if ((event->type() == ui::EventType::kGestureTap ||
+         event->type() == ui::EventType::kGestureTapDown)) {
       view_->ProcessPressedEvent(event->AsLocatedEvent());
     }
   }
   void OnKeyEvent(ui::KeyEvent* event) override { view_->OnKeyEvent(event); }
 
-  raw_ptr<LoginExpandedPublicAccountView, ExperimentalAsh> view_;
+  raw_ptr<LoginExpandedPublicAccountView> view_;
 };
+
+// Places the submit button in the bottom right corner of the host view with
+// `kPaddingDp` padding from the corner.
+class SubmitButtonContainer : public views::BoxLayoutView,
+                              public views::ViewTargeterDelegate {
+  METADATA_HEADER(SubmitButtonContainer, views::BoxLayoutView)
+
+ public:
+  SubmitButtonContainer() {
+    SetMainAxisAlignment(views::LayoutAlignment::kEnd);
+    SetCrossAxisAlignment(views::LayoutAlignment::kEnd);
+    SetInsideBorderInsets(gfx::Insets::TLBR(0, 0, kPaddingDp, kPaddingDp));
+    SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
+  }
+  SubmitButtonContainer(const SubmitButtonContainer&) = delete;
+  SubmitButtonContainer& operator=(const SubmitButtonContainer&) = delete;
+  ~SubmitButtonContainer() override = default;
+
+ private:
+  // views::ViewTargeterDelegate:
+  bool DoesIntersectRect(const View* target,
+                         const gfx::Rect& rect) const override {
+    DCHECK_EQ(this, target);
+    // Only receive mouse/touch input if the cursor's position intersects the
+    // `submit_button_` (assumed to be a direct child of
+    // `SubmitButtonContainer`). Without this logic, the `SubmitButtonContainer`
+    // receives all mouse/touch input events and prevents the rest of the
+    // buttons/links in `LoginExpandedPublicAccountView`'s contents  from being
+    // clickable/touchable.
+    for (const auto& child : children()) {
+      const gfx::Rect child_bounds_in_parent_coordinates =
+          child->ConvertRectToParent(child->GetContentsBounds());
+      if (rect.Intersects(child_bounds_in_parent_coordinates)) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
+BEGIN_METADATA(SubmitButtonContainer)
+END_METADATA
 
 }  // namespace
 
 // Button with text on the left side and an icon on the right side.
 class SelectionButtonView : public LoginButton {
+  METADATA_HEADER(SelectionButtonView, LoginButton)
+
  public:
   SelectionButtonView(PressedCallback callback, const std::u16string& text)
       : LoginButton(std::move(callback)) {
-    SetAccessibleName(text);
+    GetViewAccessibility().SetName(text);
     SetPaintToLayer();
     layer()->SetFillsBoundsOpaquely(false);
     SetFocusBehavior(FocusBehavior::ALWAYS);
@@ -163,9 +216,10 @@ class SelectionButtonView : public LoginButton {
         views::BoxLayout::MainAxisAlignment::kStart);
     AddChildView(label_container);
 
-    label_ = CreateLabel(text, kColorAshTextColorPrimary);
+    label_ = CreateLabel(
+        text, static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface));
     left_margin_view_ = add_horizontal_margin(left_margin_, label_container);
-    label_container->AddChildView(label_.get());
+    label_container->AddChildViewRaw(label_.get());
 
     auto* icon_container = new NonAccessibleView();
     icon_container->SetCanProcessEventsWithinSubtree(false);
@@ -178,10 +232,10 @@ class SelectionButtonView : public LoginButton {
 
     icon_ = new views::ImageView;
     icon_->SetVerticalAlignment(views::ImageView::Alignment::kCenter);
-    icon_->SetPreferredSize(
-        gfx::Size(kDropDownIconSizeDp, kDropDownIconSizeDp));
+    const int icon_size = kJellyDropDownIconSizeDp;
+    icon_->SetPreferredSize(gfx::Size(icon_size, icon_size));
 
-    icon_container->AddChildView(icon_.get());
+    icon_container->AddChildViewRaw(icon_.get());
     right_margin_view_ = add_horizontal_margin(right_margin_, icon_container);
   }
 
@@ -189,13 +243,6 @@ class SelectionButtonView : public LoginButton {
   SelectionButtonView& operator=(const SelectionButtonView&) = delete;
 
   ~SelectionButtonView() override = default;
-
-  // Return the preferred height of this view. This overrides the default
-  // behavior in FillLayout::GetPreferredHeightForWidth which calculates the
-  // height based on its child height.
-  int GetHeightForWidth(int w) const override {
-    return GetPreferredSize().height();
-  }
 
   ui::Cursor GetCursor(const ui::MouseEvent& event) override {
     return ui::mojom::CursorType::kHand;
@@ -212,16 +259,16 @@ class SelectionButtonView : public LoginButton {
         gfx::Size(left_margin_, kNonEmptyHeight));
     right_margin_view_->SetPreferredSize(
         gfx::Size(right_margin_, kNonEmptyHeight));
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 
   void SetTextColorId(ui::ColorId color_id) {
-    label_->SetEnabledColorId(color_id);
+    label_->SetEnabledColor(color_id);
   }
   void SetText(const std::u16string& text) {
-    SetAccessibleName(text);
+    GetViewAccessibility().SetName(text);
     label_->SetText(text);
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 
   void SetIcon(const gfx::VectorIcon& icon, ui::ColorId color_id) {
@@ -231,32 +278,49 @@ class SelectionButtonView : public LoginButton {
  private:
   int left_margin_ = 0;
   int right_margin_ = 0;
-  raw_ptr<views::Label, ExperimentalAsh> label_ = nullptr;
-  raw_ptr<views::ImageView, ExperimentalAsh> icon_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> left_margin_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> right_margin_view_ = nullptr;
+  raw_ptr<views::Label> label_ = nullptr;
+  raw_ptr<views::ImageView> icon_ = nullptr;
+  raw_ptr<views::View> left_margin_view_ = nullptr;
+  raw_ptr<views::View> right_margin_view_ = nullptr;
 };
+
+BEGIN_METADATA(SelectionButtonView)
+END_METADATA
 
 // Container for the device monitoring warning. Composed of an optional warning
 // icon on the left and a label to the right.
 class MonitoringWarningView : public NonAccessibleView {
+  METADATA_HEADER(MonitoringWarningView, NonAccessibleView)
+
  public:
   MonitoringWarningView()
       : NonAccessibleView(kMonitoringWarningClassName),
         warning_type_(WarningType::kNone) {
-    image_ = new views::ImageView();
-    image_->SetImage(ui::ImageModel::FromVectorIcon(
-        vector_icons::kWarningIcon, kColorAshIconColorWarning,
-        kMonitoringWarningIconSizeDp));
-    image_->SetVisible(false);
-    AddChildView(image_.get());
-
     const std::u16string label_text = l10n_util::GetStringUTF16(
         IDS_ASH_LOGIN_PUBLIC_ACCOUNT_MONITORING_WARNING);
-    label_ = CreateLabel(label_text, kColorAshTextColorPrimary);
-    label_->SetMultiLine(true);
-    label_->SetLineHeight(kTextLineHeightDp);
-    AddChildView(label_.get());
+    views::Builder<views::View>(this)
+        .SetLayoutManager(std::make_unique<views::BoxLayout>(
+            views::LayoutOrientation::kVertical, gfx::Insets(),
+            kSpacingBetweenMonitoringWarningIconAndLabelDp))
+        .AddChildren(
+            views::Builder<views::ImageView>()
+                .CopyAddressTo(&image_)
+                .SetVisible(false)
+                .SetImage(ui::ImageModel::FromVectorIcon(
+                    vector_icons::kWarningIcon,
+                    static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface),
+                    kMonitoringWarningIconSizeDp)),
+            views::Builder<views::View>()
+                .CopyAddressTo(&placeholder_)
+                .SetPreferredSize(gfx::Size(0, kMonitoringWarningIconSizeDp)),
+            views::Builder<views::Label>(
+                base::WrapUnique(CreateLabel(
+                    label_text,
+                    static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface))))
+                .SetMultiLine(true)
+                .CopyAddressTo(&label_)
+                .SetLineHeight(kTextLineHeightDp))
+        .BuildChildren();
   }
 
   enum class WarningType { kNone, kSoftWarning, kFullWarning };
@@ -276,32 +340,6 @@ class MonitoringWarningView : public NonAccessibleView {
 
   ~MonitoringWarningView() override = default;
 
-  // TODO(crbug/682266): MonitoringWarningview is effectively laid out as
-  // BoxLayout with kSpacingBetweenMonitoringWarningIconAndLabelDp spacing
-  // between its two child views. However, horizontal BoxLayout and FlexLayout
-  // do not handle views that override GetHeightForWidth well, so it's
-  // implemented ad-hoc here.
-  int GetHeightForWidth(int w) const override {
-    return image_->GetPreferredSize().height() +
-           kSpacingBetweenMonitoringWarningIconAndLabelDp +
-           label_->GetHeightForWidth(w);
-  }
-
-  void Layout() override {
-    int y = 0;
-
-    image_->SizeToPreferredSize();
-    image_->SetPosition(gfx::Point{0, y});
-    y = image_->bounds().bottom();
-
-    y += kSpacingBetweenMonitoringWarningIconAndLabelDp;
-
-    int label_height = label_->GetHeightForWidth(size().width());
-    label_->SetSize(gfx::Size{size().width(), label_height});
-    label_->SetPosition(gfx::Point{0, y});
-    y = label_->bounds().bottom();
-  }
-
  private:
   void UpdateLabel() {
     // Call sequence of UpdateForUser() and SetWarningType() is not clear.
@@ -316,27 +354,63 @@ class MonitoringWarningView : public NonAccessibleView {
           IDS_ASH_LOGIN_MANAGED_SESSION_MONITORING_FULL_WARNING,
           base::UTF8ToUTF16(device_manager_.value()));
       image_->SetVisible(true);
+      placeholder_->SetVisible(false);
     } else {
       label_text = l10n_util::GetStringFUTF16(
           IDS_ASH_LOGIN_MANAGED_SESSION_MONITORING_SOFT_WARNING,
           base::UTF8ToUTF16(device_manager_.value()));
       image_->SetVisible(false);
+      placeholder_->SetVisible(true);
     }
     label_->SetText(label_text);
     InvalidateLayout();
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 
   friend class LoginExpandedPublicAccountView::TestApi;
 
   WarningType warning_type_;
-  absl::optional<std::string> device_manager_;
-  raw_ptr<views::ImageView, ExperimentalAsh> image_;
-  raw_ptr<views::Label, ExperimentalAsh> label_;
+  std::optional<std::string> device_manager_;
+  raw_ptr<views::ImageView> image_;
+  raw_ptr<views::View> placeholder_;
+  raw_ptr<views::Label> label_;
 };
+
+BEGIN_METADATA(MonitoringWarningView)
+END_METADATA
+
+// Implements the left part of the expanded public session view.
+class LeftPaneView : public NonAccessibleView {
+  METADATA_HEADER(LeftPaneView, NonAccessibleView)
+
+ public:
+  LeftPaneView() {
+    SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kVertical, gfx::Insets(), 24));
+  }
+  LeftPaneView(const LeftPaneView&) = delete;
+  LeftPaneView& operator=(const LeftPaneView&) = delete;
+  ~LeftPaneView() override = default;
+
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    if (available_size.is_fully_bounded() &&
+        available_size.width().value() >= available_size.height().value()) {
+      return gfx::Size{kLandscapeLeftPaneWidthDp,
+                       available_size.height().value() - 2 * kPaddingDp};
+    } else {
+      return View::CalculatePreferredSize(available_size);
+    }
+  }
+};
+
+BEGIN_METADATA(LeftPaneView)
+END_METADATA
 
 // Implements the right part of the expanded public session view.
 class RightPaneView : public NonAccessibleView {
+  METADATA_HEADER(RightPaneView, NonAccessibleView)
+
  public:
   explicit RightPaneView(const base::RepeatingClosure& on_learn_more_tapped)
       : NonAccessibleView(kRightPaneViewClassName) {
@@ -356,15 +430,14 @@ class RightPaneView : public NonAccessibleView {
     views::StyledLabel::RangeStyleInfo style;
     style.custom_font = learn_more_label_->GetFontList().Derive(
         0, gfx::Font::FontStyle::NORMAL, gfx::Font::Weight::NORMAL);
-    style.override_color = AshColorProvider::Get()->GetContentLayerColor(
-        AshColorProvider::ContentLayerType::kTextColorPrimary);
+    style.override_color_id =
+        static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface);
     learn_more_label_->AddStyleRange(gfx::Range(0, offset), style);
 
     views::StyledLabel::RangeStyleInfo link_style =
         views::StyledLabel::RangeStyleInfo::CreateForLink(on_learn_more_tapped);
-    const SkColor blue = AshColorProvider::Get()->GetContentLayerColor(
-        AshColorProvider::ContentLayerType::kButtonLabelColorBlue);
-    link_style.override_color = blue;
+    link_style.override_color_id =
+        static_cast<ui::ColorId>(cros_tokens::kCrosSysPrimary);
     learn_more_label_->AddStyleRange(gfx::Range(offset, offset + link.length()),
                                      link_style);
     learn_more_label_->SetAutoColorReadabilityEnabled(false);
@@ -381,12 +454,16 @@ class RightPaneView : public NonAccessibleView {
                             base::Unretained(this)),
         l10n_util::GetStringUTF16(
             IDS_ASH_LOGIN_PUBLIC_SESSION_LANGUAGE_AND_INPUT));
-    advanced_view_button_->SetTextColorId(kColorAshButtonLabelColorBlue);
+    const ui::ColorId advanced_view_button_color_id =
+        static_cast<ui::ColorId>(cros_tokens::kCrosSysPrimary);
+    const int advanced_view_button_icon_size = kJellyAdvancedViewButtonHeightDp;
+    advanced_view_button_->SetTextColorId(advanced_view_button_color_id);
     advanced_view_button_->SetIcon(kLoginScreenButtonDropdownIcon,
-                                   kColorAshButtonLabelColorBlue);
+                                   advanced_view_button_color_id);
+
     advanced_view_button_->SetPreferredSize(
-        gfx::Size(kAdvancedViewButtonWidthDp, kAdvancedViewButtonHeightDp));
-    AddChildView(advanced_view_button_.get());
+        gfx::Size(kAdvancedViewButtonWidthDp, advanced_view_button_icon_size));
+    AddChildViewRaw(advanced_view_button_.get());
 
     advanced_view_button_->SetProperty(
         views::kMarginsKey, gfx::Insets().set_bottom(
@@ -398,12 +475,12 @@ class RightPaneView : public NonAccessibleView {
     advanced_view_->SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kVertical));
     advanced_view_->SetVisible(false);
-    AddChildView(advanced_view_.get());
+    AddChildViewRaw(advanced_view_.get());
 
     language_title_ = CreateLabel(
         l10n_util::GetStringUTF16(IDS_ASH_LOGIN_LANGUAGE_SELECTION_SELECT),
         kColorAshTextColorSecondary);
-    advanced_view_->AddChildView(language_title_.get());
+    advanced_view_->AddChildViewRaw(language_title_.get());
     language_title_->SetProperty(
         views::kMarginsKey,
         gfx::Insets().set_bottom(kSpacingBetweenSelectionTitleAndButtonDp));
@@ -411,7 +488,7 @@ class RightPaneView : public NonAccessibleView {
     keyboard_title_ = CreateLabel(
         l10n_util::GetStringUTF16(IDS_ASH_LOGIN_KEYBOARD_SELECTION_SELECT),
         kColorAshTextColorSecondary);
-    advanced_view_->AddChildView(keyboard_title_.get());
+    advanced_view_->AddChildViewRaw(keyboard_title_.get());
     keyboard_title_->SetProperty(
         views::kMarginsKey,
         gfx::Insets()
@@ -425,9 +502,14 @@ class RightPaneView : public NonAccessibleView {
 
   ~RightPaneView() override = default;
 
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    return GetLayoutManager()->GetPreferredSize(this, available_size);
+  }
+
   void UpdateForUser(const LoginUserInfo& user) {
     DCHECK_EQ(user.basic_user_info.type,
-              user_manager::USER_TYPE_PUBLIC_ACCOUNT);
+              user_manager::UserType::kPublicAccount);
     current_user_ = user;
     if (!language_changed_by_user_) {
       selected_language_item_value_ = user.public_account_info->default_locale;
@@ -464,7 +546,7 @@ class RightPaneView : public NonAccessibleView {
 
   void PopulateLanguageItems(const std::vector<LocaleItem>& locales) {
     language_items_.clear();
-    int selected_language_index = 0;
+    std::optional<int> selected_language_index = std::nullopt;
     for (const auto& locale : locales) {
       PublicAccountMenuView::Item item;
       if (locale.group_name) {
@@ -503,7 +585,7 @@ class RightPaneView : public NonAccessibleView {
   void PopulateKeyboardItems(
       const std::vector<InputMethodItem>& keyboard_layouts) {
     keyboard_items_.clear();
-    int selected_keyboard_index = 0;
+    std::optional<int> selected_keyboard_index = std::nullopt;
     for (const auto& keyboard : keyboard_layouts) {
       PublicAccountMenuView::Item item;
       item.title = keyboard.title;
@@ -546,10 +628,12 @@ class RightPaneView : public NonAccessibleView {
   }
 
   void Login() {
-    // TODO(crbug.com/984021) change to LaunchSamlPublicSession which would
+    // TODO(crbug.com/40636049) change to LaunchSamlPublicSession which would
     // take |selected_language_item_value_| and |selected_keyboard_item_value_|
     // too.
     if (current_user_.public_account_info->using_saml) {
+      // TODO(b/333882432): Remove this log after the bug fixed.
+      LOG(WARNING) << "b/333882432: RightPaneView::Login";
       Shell::Get()->login_screen_controller()->ShowGaiaSignin(
           current_user_.basic_user_info.account_id);
     } else {
@@ -569,14 +653,16 @@ class RightPaneView : public NonAccessibleView {
 
   LoginUserInfo current_user_;
 
-  raw_ptr<SelectionButtonView, ExperimentalAsh> advanced_view_button_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> advanced_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> language_title_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> keyboard_title_ = nullptr;
-  raw_ptr<views::StyledLabel, ExperimentalAsh> learn_more_label_ = nullptr;
+  raw_ptr<SelectionButtonView> advanced_view_button_ = nullptr;
+  raw_ptr<views::View> advanced_view_ = nullptr;
+  raw_ptr<views::View> language_title_ = nullptr;
+  raw_ptr<views::View> keyboard_title_ = nullptr;
+  raw_ptr<views::StyledLabel> learn_more_label_ = nullptr;
 
-  raw_ptr<PublicAccountMenuView, ExperimentalAsh> language_menu_view_ = nullptr;
-  raw_ptr<PublicAccountMenuView, ExperimentalAsh> keyboard_menu_view_ = nullptr;
+  raw_ptr<PublicAccountMenuView, DanglingUntriaged> language_menu_view_ =
+      nullptr;
+  raw_ptr<PublicAccountMenuView, DanglingUntriaged> keyboard_menu_view_ =
+      nullptr;
 
   std::string selected_language_item_value_;
   std::string selected_keyboard_item_value_;
@@ -594,6 +680,9 @@ class RightPaneView : public NonAccessibleView {
 
   base::WeakPtrFactory<RightPaneView> weak_factory_{this};
 };
+
+BEGIN_METADATA(RightPaneView)
+END_METADATA
 
 LoginExpandedPublicAccountView::TestApi::TestApi(
     LoginExpandedPublicAccountView* view)
@@ -708,49 +797,56 @@ LoginExpandedPublicAccountView::LoginExpandedPublicAccountView(
       on_dismissed_(on_dismissed),
       event_handler_(
           std::make_unique<LoginExpandedPublicAccountEventHandler>(this)) {
-  SetPreferredSize(GetPreferredSizeLandscape());
-  layout_ = SetLayoutManager(std::make_unique<views::BoxLayout>());
+  SetBackground(views::CreateRoundedRectBackground(
+      cros_tokens::kCrosSysSystemBaseElevated, kJellyRoundRectCornerRadiusDp));
+  SetBorder(std::make_unique<views::HighlightBorder>(
+      kJellyRoundRectCornerRadiusDp,
+      views::HighlightBorder::Type::kHighlightBorderOnShadow));
+  shadow_ = SystemShadow::CreateShadowOnNinePatchLayerForView(
+      this, SystemShadow::Type::kElevation12);
+  shadow_->SetRoundedCornerRadius(kJellyRoundRectCornerRadiusDp);
 
-  user_view_ = new LoginUserView(
-      LoginDisplayStyle::kExtraSmall, false /*show_dropdown*/,
-      base::DoNothing(), base::RepeatingClosure(), base::RepeatingClosure());
+  SetPreferredSize(GetPreferredSizeLandscape());
+  SetUseDefaultFillLayout(true);
+  box_layout_view_ = AddChildView(std::make_unique<views::BoxLayoutView>());
+
+  user_view_ =
+      new LoginUserView(LoginDisplayStyle::kExtraSmall, false /*show_dropdown*/,
+                        base::DoNothing(), base::RepeatingClosure());
   user_view_->SetForceOpaque(true);
   user_view_->SetTapEnabled(false);
 
-  left_pane_ = new NonAccessibleView();
-  AddChildView(left_pane_.get());
-  left_pane_->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical));
-
-  left_pane_->AddChildView(user_view_.get());
+  left_pane_ = box_layout_view_->AddChildView(std::make_unique<LeftPaneView>());
+  left_pane_->AddChildViewRaw(user_view_.get());
 
   const bool enable_warning = Shell::Get()->local_state()->GetBoolean(
       prefs::kManagedGuestSessionPrivacyWarningsEnabled);
   if (enable_warning) {
-    views::View* padding =
-        left_pane_->AddChildView(std::make_unique<NonAccessibleView>());
-    padding->SetPreferredSize(gfx::Size{kNonEmptyWidth, 24});
     monitoring_warning_view_ =
         left_pane_->AddChildView(std::make_unique<MonitoringWarningView>());
   }
 
-  separator_ = AddChildView(std::make_unique<views::View>());
-  separator_->SetBackground(
-      views::CreateThemedSolidBackground(kColorAshSeparatorColor));
+  separator_ = box_layout_view_->AddChildView(std::make_unique<views::View>());
+  const ui::ColorId separator_color_id =
+      static_cast<ui::ColorId>(cros_tokens::kCrosSysSeparator);
+  separator_->SetBackground(views::CreateSolidBackground(separator_color_id));
 
   right_pane_ = new RightPaneView(
       base::BindRepeating(&LoginExpandedPublicAccountView::ShowWarningDialog,
                           base::Unretained(this)));
-  AddChildView(right_pane_.get());
+  box_layout_view_->AddChildViewRaw(right_pane_.get());
 
-  submit_button_ = AddChildView(std::make_unique<ArrowButtonView>(
-      base::BindRepeating(&RightPaneView::Login, base::Unretained(right_pane_)),
-      kArrowButtonSizeDp));
-  submit_button_->SetAccessibleName(l10n_util::GetStringUTF16(
+  auto* const submit_button_container =
+      AddChildView(std::make_unique<SubmitButtonContainer>());
+  submit_button_ =
+      submit_button_container->AddChildView(std::make_unique<ArrowButtonView>(
+          base::BindRepeating(&RightPaneView::Login,
+                              base::Unretained(right_pane_)),
+          kArrowButtonSizeDp));
+  submit_button_->GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
       IDS_ASH_LOGIN_PUBLIC_ACCOUNT_LOG_IN_BUTTON_ACCESSIBLE_NAME));
-  // `submit_button_` has absolute position and is laid out in our `Layout()`
-  // override.
-  submit_button_->SetProperty(views::kViewIgnoredByLayoutKey, true);
+  submit_button_->SetBackgroundColorId(
+      cros_tokens::kCrosSysSystemPrimaryContainer);
 }
 
 LoginExpandedPublicAccountView::~LoginExpandedPublicAccountView() = default;
@@ -815,6 +911,7 @@ const LoginUserInfo& LoginExpandedPublicAccountView::current_user() const {
 }
 
 void LoginExpandedPublicAccountView::Hide() {
+  shadow_.reset();
   SetVisible(false);
   right_pane_->Reset();
   on_dismissed_.Run();
@@ -857,36 +954,8 @@ void LoginExpandedPublicAccountView::OnBoundsChanged(
   }
 }
 
-int LoginExpandedPublicAccountView::GetHeightForWidth(int width) const {
-  if (width >= GetPreferredSizeLandscape().width()) {
-    return GetPreferredSizeLandscape().height();
-  }
-  return GetPreferredSizePortrait().height();
-}
-
-void LoginExpandedPublicAccountView::Layout() {
-  View::Layout();
-
-  submit_button_->SizeToPreferredSize();
-  const int submit_button_x =
-      size().width() - kPaddingDp - submit_button_->size().width();
-  const int submit_button_y =
-      size().height() - kPaddingDp - submit_button_->size().height();
-  submit_button_->SetPosition(gfx::Point{submit_button_x, submit_button_y});
-}
-
-void LoginExpandedPublicAccountView::OnPaint(gfx::Canvas* canvas) {
-  views::View::OnPaint(canvas);
-
-  cc::PaintFlags flags;
-  flags.setStyle(cc::PaintFlags::kFill_Style);
-  flags.setColor(GetColorProvider()->GetColor(kColorAshShieldAndBase80));
-  flags.setAntiAlias(true);
-  canvas->DrawRoundRect(GetContentsBounds(), kRoundRectCornerRadiusDp, flags);
-}
-
 void LoginExpandedPublicAccountView::OnKeyEvent(ui::KeyEvent* event) {
-  if (!GetVisible() || event->type() != ui::ET_KEY_PRESSED) {
+  if (!GetVisible() || event->type() != ui::EventType::kKeyPressed) {
     return;
   }
 
@@ -901,10 +970,10 @@ void LoginExpandedPublicAccountView::OnKeyEvent(ui::KeyEvent* event) {
 }
 
 void LoginExpandedPublicAccountView::UseLandscapeLayout() {
-  layout_->SetOrientation(views::BoxLayout::Orientation::kHorizontal);
+  box_layout_view_->SetOrientation(views::BoxLayout::Orientation::kHorizontal);
+  box_layout_view_->SetBetweenChildSpacing(kSeparatorMarginDp);
+  box_layout_view_->SetInsideBorderInsets(gfx::Insets());
 
-  left_pane_->SetPreferredSize(
-      gfx::Size{kLandscapeLeftPaneWidthDp, size().height() - 2 * kPaddingDp});
   left_pane_->SetProperty(
       views::kMarginsKey,
       gfx::Insets::TLBR(kPaddingDp, kPaddingDp, kPaddingDp, 0));
@@ -914,9 +983,6 @@ void LoginExpandedPublicAccountView::UseLandscapeLayout() {
       gfx::Size{kSeparatorThicknessDp, kNonEmptyHeight});
   separator_->SetProperty(views::kCrossAxisAlignmentKey,
                           views::LayoutAlignment::kStretch);
-  separator_->SetProperty(
-      views::kMarginsKey,
-      gfx::Insets::TLBR(0, kSeparatorMarginDp, 0, kSeparatorMarginDp));
 
   right_pane_->SetProperty(
       views::kMarginsKey,
@@ -924,18 +990,15 @@ void LoginExpandedPublicAccountView::UseLandscapeLayout() {
 }
 
 void LoginExpandedPublicAccountView::UsePortraitLayout() {
-  layout_->SetOrientation(views::BoxLayout::Orientation::kVertical);
-
-  left_pane_->SetPreferredSize(absl::nullopt);
-  left_pane_->SetProperty(views::kMarginsKey,
-                          gfx::Insets::TLBR(kPaddingDp, kPaddingDp,
-                                            kPortraitPaneSpacing, kPaddingDp));
-
+  box_layout_view_->SetOrientation(views::BoxLayout::Orientation::kVertical);
+  box_layout_view_->SetBetweenChildSpacing(kPortraitPaneSpacing);
+  box_layout_view_->SetInsideBorderInsets(gfx::Insets(kPaddingDp));
+  left_pane_->ClearProperty(views::kMarginsKey);
+  right_pane_->ClearProperty(views::kMarginsKey);
   separator_->SetVisible(false);
-
-  right_pane_->SetProperty(
-      views::kMarginsKey,
-      gfx::Insets::TLBR(0, kPaddingDp, kPaddingDp, kPaddingDp));
 }
+
+BEGIN_METADATA(LoginExpandedPublicAccountView)
+END_METADATA
 
 }  // namespace ash

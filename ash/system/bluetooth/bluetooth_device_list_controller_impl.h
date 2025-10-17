@@ -15,7 +15,6 @@
 #include "chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom.h"
 
 namespace views {
-class Separator;
 class View;
 }  // namespace views
 
@@ -60,19 +59,20 @@ class ASH_EXPORT BluetoothDeviceListControllerImpl
   // the position after the final view that was added is returned.
   size_t CreateViewsIfMissingAndReorder(
       const PairedBluetoothDevicePropertiesPtrs& device_property_list,
-      base::flat_map<std::string, BluetoothDeviceListItemView*>* previous_views,
+      base::flat_map<std::string,
+                     raw_ptr<BluetoothDeviceListItemView, CtnExperimental>>*
+          previous_views,
       size_t index);
 
-  const raw_ptr<BluetoothDetailedView, ExperimentalAsh>
-      bluetooth_detailed_view_;
+  const raw_ptr<BluetoothDetailedView> bluetooth_detailed_view_;
 
   bool is_bluetooth_enabled_ = false;
-  base::flat_map<std::string, BluetoothDeviceListItemView*>
+  base::flat_map<std::string,
+                 raw_ptr<BluetoothDeviceListItemView, CtnExperimental>>
       device_id_to_view_map_;
-  views::Separator* device_list_separator_ = nullptr;
-  views::View* connected_sub_header_ = nullptr;
-  views::View* no_device_connected_sub_header_ = nullptr;
-  views::View* previously_connected_sub_header_ = nullptr;
+  raw_ptr<views::View> connected_sub_header_ = nullptr;
+  raw_ptr<views::View> no_device_connected_sub_header_ = nullptr;
+  raw_ptr<views::View> previously_connected_sub_header_ = nullptr;
 };
 
 }  // namespace ash

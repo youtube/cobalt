@@ -9,18 +9,20 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
-#include "base/allocator/partition_allocator/page_allocator.h"
-#include "base/allocator/partition_allocator/partition_address_space.h"
 #include "base/bits.h"
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
+#include "base/feature_visitor.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
@@ -30,16 +32,16 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/span_printf.h"
 #include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "gin/array_buffer.h"
 #include "gin/gin_features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "partition_alloc/page_allocator.h"
+#include "partition_alloc/partition_address_space.h"
 #include "tools/v8_context_snapshot/buildflags.h"
 #include "v8/include/v8-initialization.h"
 #include "v8/include/v8-snapshot.h"
@@ -48,7 +50,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/apk_assets.h"
 #elif BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #endif
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
@@ -60,11 +62,16 @@ namespace {
 base::MemoryMappedFile* g_mapped_snapshot = nullptr;
 
 #if defined(V8_USE_EXTERNAL_STARTUP_DATA)
-absl::optional<gin::V8SnapshotFileType> g_snapshot_file_type;
+std::optional<gin::V8SnapshotFileType> g_snapshot_file_type;
 #endif
 
 bool GenerateEntropy(unsigned char* buffer, size_t amount) {
-  base::RandBytes(buffer, amount);
+  base::RandBytes(
+      // SAFETY: This depends on v8 providing a valid pointer/size pair.
+      //
+      // TODO(crbug.com/338574383): The signature is fixed as it's a callback
+      // from v8, but maybe v8 can use a span.
+      UNSAFE_BUFFERS(base::span(buffer, amount)));
   return true;
 }
 
@@ -112,11 +119,9 @@ const char* GetSnapshotFileName(const V8SnapshotFileType file_type) {
       return kV8ContextSnapshotFileName;
 #else
       NOTREACHED();
-      return nullptr;
 #endif
   }
   NOTREACHED();
-  return nullptr;
 }
 
 void GetV8FilePath(const char* file_name, base::FilePath* path_out) {
@@ -125,7 +130,7 @@ void GetV8FilePath(const char* file_name, base::FilePath* path_out) {
   *path_out =
       base::FilePath(FILE_PATH_LITERAL("assets")).AppendASCII(file_name);
 #elif BUILDFLAG(IS_MAC)
-  *path_out = base::mac::PathForFrameworkBundleResource(file_name);
+  *path_out = base::apple::PathForFrameworkBundleResource(file_name);
 #else
   base::FilePath data_path;
   bool r = base::PathService::Get(base::DIR_ASSETS, &data_path);
@@ -152,52 +157,31 @@ base::File OpenV8File(const char* file_name,
   // Re-try logic here is motivated by http://crbug.com/479537
   // for A/V on Windows (https://support.microsoft.com/en-us/kb/316609).
 
-  // These match tools/metrics/histograms.xml
-  enum OpenV8FileResult {
-    OPENED = 0,
-    OPENED_RETRY,
-    FAILED_IN_USE,
-    FAILED_OTHER,
-    MAX_VALUE
-  };
   base::FilePath path;
   GetV8FilePath(file_name, &path);
 
 #if BUILDFLAG(IS_ANDROID)
   base::File file(base::android::OpenApkAsset(path.value(), region_out));
-  OpenV8FileResult result = file.IsValid() ? OpenV8FileResult::OPENED
-                                           : OpenV8FileResult::FAILED_OTHER;
 #else
   // Re-try logic here is motivated by http://crbug.com/479537
   // for A/V on Windows (https://support.microsoft.com/en-us/kb/316609).
   const int kMaxOpenAttempts = 5;
   const int kOpenRetryDelayMillis = 250;
 
-  OpenV8FileResult result = OpenV8FileResult::FAILED_IN_USE;
   int flags = base::File::FLAG_OPEN | base::File::FLAG_READ;
   base::File file;
   for (int attempt = 0; attempt < kMaxOpenAttempts; attempt++) {
     file.Initialize(path, flags);
     if (file.IsValid()) {
       *region_out = base::MemoryMappedFile::Region::kWholeFile;
-      if (attempt == 0) {
-        result = OpenV8FileResult::OPENED;
-        break;
-      } else {
-        result = OpenV8FileResult::OPENED_RETRY;
-        break;
-      }
+      break;
     } else if (file.error_details() != base::File::FILE_ERROR_IN_USE) {
-      result = OpenV8FileResult::FAILED_OTHER;
       break;
     } else if (kMaxOpenAttempts - 1 != attempt) {
       base::PlatformThread::Sleep(base::Milliseconds(kOpenRetryDelayMillis));
     }
   }
 #endif  // BUILDFLAG(IS_ANDROID)
-
-  UMA_HISTOGRAM_ENUMERATION("V8.Initializer.OpenV8File.Result", result,
-                            OpenV8FileResult::MAX_VALUE);
   return file;
 }
 
@@ -212,7 +196,7 @@ void SetV8FlagsFormatted(const char* format, ...) {
   char buffer[128];
   va_list args;
   va_start(args, format);
-  int length = base::vsnprintf(buffer, sizeof(buffer), format, args);
+  int length = base::VSpanPrintf(buffer, format, args);
   if (length <= 0 || sizeof(buffer) <= static_cast<unsigned>(length)) {
     PLOG(ERROR) << "Invalid formatted V8 flag: " << format;
     return;
@@ -235,23 +219,127 @@ void SetV8FlagsIfOverridden(const base::Feature& feature,
   }
 }
 
+constexpr std::string_view kV8FlagFeaturePrefix = "V8Flag_";
+
+}  // namespace
+
+class V8FeatureVisitor : public base::FeatureVisitor {
+ public:
+  void Visit(const std::string& feature_name,
+             base::FeatureList::OverrideState override_state,
+             const std::map<std::string, std::string>& params,
+             const std::string& trial_name,
+             const std::string& group_name) override {
+    std::string_view feature_name_view(feature_name);
+
+    // VisitFeaturesAndParams is called with kV8FlagFeaturePrefix as a filter
+    // prefix, so we expect all feature names to start with "V8Flag_". Strip
+    // this prefix off to get the corresponding V8 flag name.
+    DCHECK(feature_name_view.starts_with(kV8FlagFeaturePrefix));
+    std::string flag_name(
+        feature_name_view.substr(kV8FlagFeaturePrefix.size()));
+
+    switch (override_state) {
+      case base::FeatureList::OverrideState::OVERRIDE_USE_DEFAULT:
+        return;
+
+      case base::FeatureList::OverrideState::OVERRIDE_DISABLE_FEATURE:
+        SetV8FlagsFormatted("--no-%s", flag_name.c_str());
+        // Do not set parameters for disabled features.
+        break;
+
+      case base::FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE:
+        SetV8FlagsFormatted("--%s", flag_name.c_str());
+        for (const auto& [param_name, param_value] : params) {
+          SetV8FlagsFormatted("--%s=%s", param_name.c_str(),
+                              param_value.c_str());
+        }
+        break;
+    }
+  }
+};
+
+namespace {
+
+// Sets mandatory V8 flags.
 void SetFlags(IsolateHolder::ScriptMode mode,
-              const std::string js_command_line_flags) {
-  // We assume that all feature flag defaults correspond to the default
-  // values of the corresponding V8 flags.
+              const std::string& js_command_line_flags) {
+
+  if (IsolateHolder::kStrictMode == mode) {
+    SetV8Flags("--use_strict");
+  }
+
+  // Apply any --js-flags explicitly specified by the caller.
+  if (!js_command_line_flags.empty()) {
+    std::vector<std::string_view> flag_list = base::SplitStringPiece(
+        js_command_line_flags, ",", base::TRIM_WHITESPACE,
+        base::SPLIT_WANT_NONEMPTY);
+    for (const auto& flag : flag_list) {
+      v8::V8::SetFlagsFromString(std::string(flag).c_str(), flag.size());
+    }
+  }
+}
+
+// Sets feature flags that are default to enabled.
+//
+// This function must be called *before* SetFeatureFlags is called, so that
+// default-enabled flags may be overridden and disabled.
+//
+// Usually V8 is the source of truth for the default state of feature flags.
+// However, some features must be shipped from the blink side because they add
+// new globals, which requires updating web tests that cannot be skipped (to
+// safeguard against accidentally breaking the web).
+void SetDefaultEnabledFeatureFlags() {
+  SetV8Flags("--js-float16array");
+  SetV8Flags("--js-explicit-resource-management");
+  SetV8Flags("--js-regexp-escape");
+}
+
+// Sets feature controlled V8 flags.
+void SetFeatureFlags() {
+  // Chromium features prefixed with "V8Flag_" are forwarded to V8 as V8 flags,
+  // with the "V8Flag_" prefix stripped off. For example, an enabled feature
+  // "V8Flag_foo_bar" will be passed to V8 as the flag `--foo_bar`. Similarly,
+  // if that feature is explicitly disabled, it will be passed to V8 as
+  // `--no-foo_bar`. No Chromium-side declaration of a V8Flag_foo_bar feature
+  // is necessary, the matching is done on strings.
+  //
+  // Parameters attached to features will also be passed through, with the same
+  // name as the parameter and the value passed by string, to be decoded by V8's
+  // flag parsing.
+  //
+  // Thus, running Chromium with:
+  //
+  //   --enable-features=V8Flag_foo,V8Flag_bar:bar_param/20
+  //   --disable-features=V8Flag_baz
+  //
+  // will be converted, on V8 initialization, to V8 flags:
+  //
+  //   --foo --bar --bar_param=20 --no-baz
+  V8FeatureVisitor feature_visitor;
+  base::FeatureList::VisitFeaturesAndParams(feature_visitor,
+                                            kV8FlagFeaturePrefix);
+
+  // Otherwise, feature flags explicitly defined in Chromium are translated
+  // to V8 flags as follows. We ignore feature flag default values, instead
+  // using the corresponding V8 flags default values if there is no explicit
+  // feature override.
   SetV8FlagsIfOverridden(features::kV8CompactCodeSpaceWithStack,
                          "--compact-code-space-with-stack",
                          "--no-compact-code-space-with-stack");
   SetV8FlagsIfOverridden(features::kV8CompactWithStack, "--compact-with-stack",
                          "--no-compact-with-stack");
-  SetV8FlagsIfOverridden(features::kV8CrashOnEvacuationFailure,
-                         "--crash-on-aborted-evacuation",
-                         "--no-crash-on-aborted-evacuation");
   SetV8FlagsIfOverridden(features::kV8OptimizeJavascript, "--opt", "--no-opt");
   SetV8FlagsIfOverridden(features::kV8FlushBytecode, "--flush-bytecode",
                          "--no-flush-bytecode");
   SetV8FlagsIfOverridden(features::kV8FlushBaselineCode,
                          "--flush-baseline-code", "--no-flush-baseline-code");
+  SetV8FlagsIfOverridden(features::kV8FlushCodeBasedOnTabVisibility,
+                         "--flush-code-based-on-tab-visibility",
+                         "--no-flush-code-based-on-tab-visibility");
+  SetV8FlagsIfOverridden(features::kV8FlushCodeBasedOnTime,
+                         "--flush-code-based-on-time",
+                         "--no-flush-code-based-on-time");
   SetV8FlagsIfOverridden(features::kV8OffThreadFinalization,
                          "--finalize-streaming-on-background",
                          "--no-finalize-streaming-on-background");
@@ -261,6 +349,9 @@ void SetFlags(IsolateHolder::ScriptMode mode,
         static_cast<int>(
             features::kV8MemoryReducerStartDelay.Get().InMilliseconds()));
   }
+  SetV8FlagsIfOverridden(features::kV8ConcurrentMarkingHighPriorityThreads,
+                         "--concurrent-marking-high-priority-threads",
+                         "--no-concurrent-marking-high-priority-threads");
   SetV8FlagsIfOverridden(features::kV8LazyFeedbackAllocation,
                          "--lazy-feedback-allocation",
                          "--no-lazy-feedback-allocation");
@@ -280,19 +371,55 @@ void SetFlags(IsolateHolder::ScriptMode mode,
       features::kV8ExperimentalRegexpEngine,
       "--enable-experimental-regexp-engine-on-excessive-backtracks",
       "--no-enable-experimental-regexp-engine-on-excessive-backtracks");
+  SetV8FlagsIfOverridden(features::kV8ExternalMemoryAccountedInGlobalLimit,
+                         "--external-memory-accounted-in-global-limit",
+                         "--no-external-memory-accounted-in-global-limit");
+  SetV8FlagsIfOverridden(features::kV8GCSpeedUsesCounters,
+                         "--gc-speed-uses-counters",
+                         "--no-gc-speed-uses-counters");
   SetV8FlagsIfOverridden(features::kV8TurboFastApiCalls,
                          "--turbo-fast-api-calls", "--no-turbo-fast-api-calls");
   SetV8FlagsIfOverridden(features::kV8MegaDomIC, "--mega-dom-ic",
                          "--no-mega-dom-ic");
   SetV8FlagsIfOverridden(features::kV8Maglev, "--maglev", "--no-maglev");
+  SetV8FlagsIfOverridden(features::kV8ConcurrentMaglevHighPriorityThreads,
+                         "--concurrent-maglev-high-priority-threads",
+                         "--no-concurrent-maglev-high-priority-threads");
+  if (base::FeatureList::IsEnabled(features::kV8MemoryReducer)) {
+    SetV8FlagsFormatted("--memory-reducer-gc-count=%i",
+                        features::kV8MemoryReducerGCCount.Get());
+  }
+  if (base::FeatureList::IsEnabled(features::kV8PreconfigureOldGen)) {
+    SetV8FlagsFormatted("--preconfigured-old-space-size=%i",
+                        features::kV8PreconfigureOldGenSize.Get());
+  }
+  SetV8FlagsIfOverridden(features::kV8IncrementalMarkingStartUserVisible,
+                         "--incremental-marking-start-user-visible",
+                         "--no-incremental-marking-start-user-visible");
+  SetV8FlagsIfOverridden(features::kV8IdleGcOnContextDisposal,
+                         "--idle-gc-on-context-disposal",
+                         "--no-idle-gc-on-context-disposal");
+  SetV8FlagsIfOverridden(features::kV8MinorMS, "--minor-ms", "--no-minor-ms");
+  if (base::FeatureList::IsEnabled(features::kV8ScavengerHigherCapacity)) {
+    SetV8FlagsFormatted("--scavenger-max-new-space-capacity-mb=%i",
+                        features::kV8ScavengerMaxCapacity.Get());
+  }
   SetV8FlagsIfOverridden(features::kV8Sparkplug, "--sparkplug",
                          "--no-sparkplug");
   SetV8FlagsIfOverridden(features::kV8Turbofan, "--turbofan", "--no-turbofan");
+  SetV8FlagsIfOverridden(features::kV8Turboshaft, "--turboshaft",
+                         "--no-turboshaft");
+  SetV8FlagsIfOverridden(features::kV8TurboshaftInstructionSelection,
+                         "--turboshaft-instruction-selection",
+                         "--no-turboshaft-instruction-selection");
   SetV8FlagsIfOverridden(features::kV8ConcurrentSparkplug,
                          "--concurrent-sparkplug", "--no-concurrent-sparkplug");
   SetV8FlagsIfOverridden(features::kV8SparkplugNeedsShortBuiltinCalls,
                          "--sparkplug-needs-short-builtins",
                          "--no-sparkplug-needs-short-builtins");
+  SetV8FlagsIfOverridden(features::kV8BaselineBatchCompilation,
+                         "--baseline-batch-compilation",
+                         "--no-baseline-batch-compilation");
   SetV8FlagsIfOverridden(features::kV8ShortBuiltinCalls,
                          "--short-builtin-calls", "--no-short-builtin-calls");
   SetV8FlagsIfOverridden(features::kV8CodeMemoryWriteProtection,
@@ -300,6 +427,22 @@ void SetFlags(IsolateHolder::ScriptMode mode,
                          "--no-write-protect-code-memory");
   SetV8FlagsIfOverridden(features::kV8SlowHistograms, "--slow-histograms",
                          "--no-slow-histograms");
+  SetV8FlagsIfOverridden(features::kV8SideStepTransitions,
+                         "--clone_object_sidestep_transitions",
+                         "--noclone_object_sidestep_transitions");
+  SetV8FlagsIfOverridden(features::kV8SingleThreadedGCInBackground,
+                         "--single-threaded-gc-in-background",
+                         "--no-single-threaded-gc-in-background");
+  SetV8FlagsIfOverridden(features::kV8SingleThreadedGCInBackgroundParallelPause,
+                         "--parallel-pause-for-gc-in-background",
+                         "--no-parallel-pause-for-gc-in-background");
+  SetV8FlagsIfOverridden(
+      features::kV8SingleThreadedGCInBackgroundNoIncrementalMarking,
+      "--no-incremental-marking-for-gc-in-background",
+      "--incremental-marking-for-gc-in-background");
+  SetV8FlagsIfOverridden(features::kV8DecommitPooledPages,
+                         "--decommit-pooled-pages",
+                         "--no-decommit-pooled-pages");
 
   if (base::FeatureList::IsEnabled(features::kV8ConcurrentSparkplug)) {
     if (int max_threads = features::kV8ConcurrentSparkplugMaxThreads.Get()) {
@@ -316,11 +459,36 @@ void SetFlags(IsolateHolder::ScriptMode mode,
     }
   }
 
+  if (base::FeatureList::IsEnabled(features::kV8FlushCodeBasedOnTime)) {
+    if (int old_time = features::kV8FlushCodeOldTime.Get()) {
+      SetV8FlagsFormatted("--bytecode-old-time=%i", old_time);
+    }
+  }
+
+  if (base::FeatureList::IsEnabled(features::kV8EfficiencyModeTiering)) {
+    int delay = features::kV8EfficiencyModeTieringDelayTurbofan.Get();
+    if (delay == 0) {
+      SetV8FlagsFormatted(
+          "--efficiency-mode-for-tiering-heuristics "
+          "--efficiency-mode-disable-turbofan");
+    } else {
+      SetV8FlagsFormatted(
+          "--efficiency-mode-for-tiering-heuristics "
+          "--noefficiency-mode-disable-turbofan "
+          "--efficiency-mode-delay-turbofan=%i",
+          delay);
+    }
+  } else {
+    SetV8FlagsFormatted("--no-efficiency-mode-for-tiering-heuristics");
+  }
+
   // Make sure aliases of kV8SlowHistograms only enable the feature to
   // avoid contradicting settings between multiple finch experiments.
   bool any_slow_histograms_alias =
       base::FeatureList::IsEnabled(
           features::kV8SlowHistogramsCodeMemoryWriteProtection) ||
+      base::FeatureList::IsEnabled(
+          features::kV8SlowHistogramsIntelJCCErratumMitigation) ||
       base::FeatureList::IsEnabled(features::kV8SlowHistogramsSparkplug) ||
       base::FeatureList::IsEnabled(
           features::kV8SlowHistogramsSparkplugAndroid) ||
@@ -332,76 +500,62 @@ void SetFlags(IsolateHolder::ScriptMode mode,
                            "--no-slow-histograms");
   }
 
-  // JavaScript language features.
-  SetV8FlagsIfOverridden(features::kJavaScriptSymbolAsWeakMapKey,
-                         "--harmony-symbol-as-weakmap-key",
-                         "--no-harmony-symbol-as-weakmap-key");
-  SetV8FlagsIfOverridden(features::kJavaScriptChangeArrayByCopy,
-                         "--harmony-change-array-by-copy",
-                         "--no-harmony-change-array-by-copy");
-  if (base::FeatureList::IsEnabled(features::kJavaScriptRabGsab)) {
-    SetV8Flags("--harmony-rab-gsab");
-  } else {
-    SetV8Flags("--no-harmony-rab-gsab");
-  }
-  SetV8FlagsIfOverridden(features::kJavaScriptStringIsWellFormed,
-                         "--harmony-string-is-well-formed",
-                         "--no-harmony-string-is-well-formed");
-  SetV8FlagsIfOverridden(features::kJavaScriptRegExpUnicodeSets,
-                         "--harmony-regexp-unicode-sets",
-                         "--no-harmony-regexp-unicode-sets");
-  SetV8FlagsIfOverridden(features::kJavaScriptJsonParseWithSource,
-                         "--harmony-json-parse-with-source",
-                         "--no-harmony-json-parse-with-source");
-  SetV8FlagsIfOverridden(features::kJavaScriptArrayBufferTransfer,
-                         "--harmony-rab-gsab-transfer",
-                         "--no-harmony-rab-gsab-transfer");
+  SetV8FlagsIfOverridden(features::kV8IgnitionElideRedundantTdzChecks,
+                         "--ignition-elide-redundant-tdz-checks",
+                         "--no-ignition-elide-redundant-tdz-checks");
 
-  if (IsolateHolder::kStrictMode == mode) {
-    SetV8Flags("--use_strict");
-  }
+  SetV8FlagsIfOverridden(features::kV8IntelJCCErratumMitigation,
+                         "--intel-jcc-erratum-mitigation",
+                         "--no-intel-jcc-erratum-mitigation");
 
   SetV8FlagsIfOverridden(features::kV8UseLibmTrigFunctions,
                          "--use-libm-trig-functions",
                          "--no-use-libm-trig-functions");
 
-  SetV8FlagsIfOverridden(features::kJavaScriptCompileHintsMagic,
-                         "--compile-hints-magic", "--no-compile-hints-magic");
+  SetV8FlagsIfOverridden(features::kV8UseOriginalMessageForStackTrace,
+                         "--use-original-message-for-stack-trace",
+                         "--no-use-original-message-for-stack-trace");
+
+  // JavaScript language features.
+  SetV8FlagsIfOverridden(features::kJavaScriptRegExpModifiers,
+                         "--js-regexp-modifiers", "--no-js-regexp-modifiers");
+  SetV8FlagsIfOverridden(features::kJavaScriptImportAttributes,
+                         "--harmony-import-attributes",
+                         "--no-harmony-import-attributes");
+  SetV8FlagsIfOverridden(features::kJavaScriptRegExpDuplicateNamedGroups,
+                         "--js-regexp-duplicate-named-groups",
+                         "--no-js-duplicate-named-groups");
+  SetV8FlagsIfOverridden(features::kJavaScriptPromiseTry, "--js-promise-try",
+                         "--no-js-promise-try");
 
   // WebAssembly features.
 
-  SetV8FlagsIfOverridden(features::kWebAssemblyTailCall,
-                         "--experimental-wasm-return-call",
-                         "--no-experimental-wasm-return-call");
-  SetV8FlagsIfOverridden(features::kWebAssemblyInlining,
-                         "--experimental-wasm-inlining",
-                         "--no-experimental-wasm-inlining");
-
-  if (js_command_line_flags.empty())
-    return;
-
-  // Allow the --js-flags switch to override existing flags:
-  std::vector<base::StringPiece> flag_list =
-      base::SplitStringPiece(js_command_line_flags, ",", base::TRIM_WHITESPACE,
-                             base::SPLIT_WANT_NONEMPTY);
-  for (const auto& flag : flag_list) {
-    v8::V8::SetFlagsFromString(std::string(flag).c_str(), flag.size());
-  }
+  SetV8FlagsIfOverridden(features::kWebAssemblyDeopt, "--wasm-deopt",
+                         "--no-wasm-deopt");
+  SetV8FlagsIfOverridden(features::kWebAssemblyInliningCallIndirect,
+                         "--wasm-inlining-call-indirect",
+                         "--no-wasm-inlining-call-indirect");
 }
 
 }  // namespace
 
 // static
 void V8Initializer::Initialize(IsolateHolder::ScriptMode mode,
-                               const std::string js_command_line_flags,
+                               const std::string& js_command_line_flags,
+                               bool disallow_v8_feature_flag_overrides,
                                v8::OOMErrorCallback oom_error_callback) {
   static bool v8_is_initialized = false;
   if (v8_is_initialized)
     return;
 
-  // Flags need to be set before InitializePlatform as they are used for
-  // system instrumentation initialization.
-  // See https://crbug.com/v8/11043
+  // Flags need to be set before InitializePlatform as they are used for system
+  // instrumentation initialization, see https://crbug.com/v8/11043. --js-flags
+  // and other mandatory flags in `SetFlags` must be ordered after feature flag
+  // overrides.
+  SetDefaultEnabledFeatureFlags();
+  if (!disallow_v8_feature_flag_overrides) {
+    SetFeatureFlags();
+  }
   SetFlags(mode, js_command_line_flags);
 
   v8::V8::InitializePlatform(V8Platform::Get());
@@ -507,7 +661,7 @@ void V8Initializer::GetV8ExternalSnapshotData(const char** snapshot_data_out,
 // static
 void V8Initializer::LoadV8Snapshot(V8SnapshotFileType snapshot_file_type) {
   if (g_mapped_snapshot) {
-    // TODO(crbug.com/802962): Confirm not loading different type of snapshot
+    // TODO(crbug.com/40558459): Confirm not loading different type of snapshot
     // files in a process.
     return;
   }
@@ -528,7 +682,6 @@ void V8Initializer::LoadV8SnapshotFromFile(
 
   if (!snapshot_file.IsValid()) {
     LOG(FATAL) << "Error loading V8 startup snapshot file";
-    return;
   }
 
   g_snapshot_file_type = snapshot_file_type;
@@ -540,7 +693,6 @@ void V8Initializer::LoadV8SnapshotFromFile(
 
   if (!MapV8File(std::move(snapshot_file), region, &g_mapped_snapshot)) {
     LOG(FATAL) << "Error mapping V8 startup snapshot file";
-    return;
   }
 }
 

@@ -40,6 +40,17 @@ struct MyExampleStatusTraits {
   static uint32_t PackExtraData(const internal::StatusData& data) {
     return 0;
   }
+
+  // [OPTIONAL] When a status doesn't include a message, the only source of
+  // information about the failure reason is the numeric code. This can be
+  // somewhat annoying to look up in the correct enum, so creating this method
+  // allows a default message with a string representation of the code.
+  static constexpr std::string ReadableCodeName(Codes code) {
+    switch(code) {
+      case Codes::kSomething: return "Something";
+      ...
+    }
+  }
 };
 
 // Typically, you'd want to redefine your template instantiation, like this.
@@ -65,7 +76,7 @@ TypedStatus<T>&& AddHere() &&;
 // specific error value, ie: HRESULT. This data is for human consumption only
 // in a developer setting, and can't be extracted from the TypedStatus
 // normally. The code value should be sufficiently informative between sender
-// and reciever of the TypedStatus.
+// and receiver of the TypedStatus.
 template<typename D>
 TypedStatus<T>&& WithData(const char *key, const D& value) &&;
 template<typename D>
@@ -260,7 +271,7 @@ struct MyExampleStatusTraits {
   static constexpr StatusGroupType Group() { return "MyExampleStatus"; }
   static constexpr Codes OkEnumValue() { return Codes::kDefaultValue; }
   static uint32_t PackExtraData(const StatusData& info) {
-    absl::optional<int> hresult = info.data.GetIntValue("HRESULT");
+    std::optional<int> hresult = info.data.GetIntValue("HRESULT");
     return static_cast<uint32_t>(hresult.has_value() ? *hresult : 0);
   }
 }

@@ -16,8 +16,7 @@
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 namespace {
 
@@ -86,11 +85,13 @@ class OnboardingUiTrackerImplTest : public testing::Test {
 
   size_t GetNumObserverCalls() const { return fake_observer_.num_calls(); }
 
-  void HandleGetStarted() { controller_->HandleGetStarted(); }
+  void HandleGetStarted() {
+    controller_->HandleGetStarted(/*is_icon_clicked_when_nudge_visible=*/false);
+  }
 
   void InvokePendingSetFeatureEnabledStateCallback(bool expected_enabled) {
     fake_multidevice_setup_client_.InvokePendingSetFeatureEnabledStateCallback(
-        Feature::kPhoneHub, expected_enabled, absl::nullopt, true);
+        Feature::kPhoneHub, expected_enabled, std::nullopt, true);
   }
 
   size_t GetOnShouldShowOnboardingUiChangedCallCount() {
@@ -195,5 +196,4 @@ TEST_F(OnboardingUiTrackerImplTest, HideUiWhenFeatureIsEnabled) {
   EXPECT_FALSE(ShouldShowOnboardingUi());
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

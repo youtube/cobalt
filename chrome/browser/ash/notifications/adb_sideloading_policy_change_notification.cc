@@ -34,9 +34,9 @@ constexpr char kAdbSideloadingPowerwashOnRebootNotificationId[] =
 namespace ash {
 
 AdbSideloadingPolicyChangeNotification::
-    AdbSideloadingPolicyChangeNotification() {}
+    AdbSideloadingPolicyChangeNotification() = default;
 AdbSideloadingPolicyChangeNotification::
-    ~AdbSideloadingPolicyChangeNotification() {}
+    ~AdbSideloadingPolicyChangeNotification() = default;
 
 void AdbSideloadingPolicyChangeNotification::Show(Type type) {
   std::u16string title, text;
@@ -54,7 +54,6 @@ void AdbSideloadingPolicyChangeNotification::Show(Type type) {
   switch (type) {
     case Type::kNone:
       NOTREACHED();
-      return;
     case Type::kSideloadingDisallowed:
       title = l10n_util::GetStringUTF16(
           IDS_ADB_SIDELOADING_POLICY_CHANGE_SIDELOADING_DISALLOWED_NOTIFICATION_TITLE);
@@ -110,7 +109,7 @@ void AdbSideloadingPolicyChangeNotification::Show(Type type) {
 }
 
 void AdbSideloadingPolicyChangeNotification::HandleNotificationClick(
-    absl::optional<int> button_index) {
+    std::optional<int> button_index) {
   // Only request restart when the button is clicked, i.e. ignore the clicks
   // on the body of the notification.
   if (!button_index)

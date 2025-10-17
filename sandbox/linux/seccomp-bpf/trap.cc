@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sandbox/linux/seccomp-bpf/trap.h"
 
 #include <errno.h>
@@ -30,8 +35,7 @@
 namespace {
 
 struct arch_sigsys {
-  // This is not raw_ptr because it is a pointer to a code address given to us
-  // by the kernel.
+  // RAW_PTR_EXCLUSION: Points to a code address given to us by the kernel.
   RAW_PTR_EXCLUSION void* ip;
   int nr;
   unsigned int arch;

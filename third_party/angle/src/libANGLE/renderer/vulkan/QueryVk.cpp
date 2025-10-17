@@ -11,8 +11,8 @@
 #include "libANGLE/Context.h"
 #include "libANGLE/TransformFeedback.h"
 #include "libANGLE/renderer/vulkan/ContextVk.h"
-#include "libANGLE/renderer/vulkan/RendererVk.h"
 #include "libANGLE/renderer/vulkan/TransformFeedbackVk.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 #include "common/debug.h"
 
@@ -439,7 +439,7 @@ angle::Result QueryVk::queryCounter(const gl::Context *context)
     return mQueryHelper.get().flushAndWriteTimestamp(contextVk);
 }
 
-bool QueryVk::isCurrentlyInUse(RendererVk *renderer) const
+bool QueryVk::isCurrentlyInUse(vk::Renderer *renderer) const
 {
     ASSERT(mQueryHelper.isReferenced());
     return !renderer->hasResourceUseFinished(mQueryHelper.get().getResourceUse());
@@ -447,7 +447,7 @@ bool QueryVk::isCurrentlyInUse(RendererVk *renderer) const
 
 angle::Result QueryVk::finishRunningCommands(ContextVk *contextVk)
 {
-    RendererVk *renderer = contextVk->getRenderer();
+    vk::Renderer *renderer = contextVk->getRenderer();
 
     // Caller already made sure query has been submitted.
     if (!renderer->hasResourceUseFinished(mQueryHelper.get().getResourceUse()))
@@ -472,8 +472,8 @@ angle::Result QueryVk::getResult(const gl::Context *context, bool wait)
         return angle::Result::Continue;
     }
 
-    ContextVk *contextVk = vk::GetImpl(context);
-    RendererVk *renderer = contextVk->getRenderer();
+    ContextVk *contextVk   = vk::GetImpl(context);
+    vk::Renderer *renderer = contextVk->getRenderer();
 
     // Support the pathological case where begin/end is called on a render pass query but without
     // any render passes in between.  In this case, the query helper is never allocated.
@@ -492,7 +492,8 @@ angle::Result QueryVk::getResult(const gl::Context *context, bool wait)
     // We only need to check mQueryHelper, not mStashedQueryHelper, since they are always in order.
     if (contextVk->hasUnsubmittedUse(mQueryHelper.get()))
     {
-        ANGLE_TRY(contextVk->flushImpl(nullptr, RenderPassClosureReason::GetQueryResult));
+        ANGLE_TRY(contextVk->flushAndSubmitCommands(nullptr, nullptr,
+                                                    RenderPassClosureReason::GetQueryResult));
 
         ASSERT(contextVk->getRenderer()->hasResourceUseSubmitted(
             mQueryHelperTimeElapsedBegin.getResourceUse()));
@@ -506,14 +507,13 @@ angle::Result QueryVk::getResult(const gl::Context *context, bool wait)
     // not-ready if not waiting).
     if (isCurrentlyInUse(renderer) &&
         (!renderer->getFeatures().supportsHostQueryReset.enabled ||
-         renderer->getFeatures().forceWaitForSubmissionToCompleteForQueryResult.enabled ||
-         renderer->isAsyncCommandQueueEnabled()))
+         renderer->getFeatures().forceWaitForSubmissionToCompleteForQueryResult.enabled))
     {
         // The query might appear busy because there was no check for completed commands
         // recently. Do that now and see if the query is still busy.  If the application is
         // looping until the query results become available, there wouldn't be any forward
         // progress without this.
-        ANGLE_TRY(renderer->checkCompletedCommands(contextVk));
+        ANGLE_TRY(renderer->checkCompletedCommandsAndCleanup(contextVk));
 
         if (isCurrentlyInUse(renderer))
         {

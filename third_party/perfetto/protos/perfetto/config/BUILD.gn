@@ -37,18 +37,20 @@ perfetto_proto_library("@TYPE@") {
 
   sources = [
     "chrome/chrome_config.proto",
+    "chrome/histogram_samples.proto",
     "chrome/scenario_config.proto",
+    "chrome/system_metrics.proto",
+    "chrome/v8_config.proto",
     "data_source_config.proto",
+    "etw/etw_config.proto",
     "interceptor_config.proto",
     "stress_test_config.proto",
     "test_config.proto",
     "trace_config.proto",
   ]
-}
 
-perfetto_proto_library("descriptor") {
-  proto_generators = [ "descriptor" ]
   generate_descriptor = "config.descriptor"
-  deps = [ ":source_set" ]
-  sources = [ "trace_config.proto" ]
+  generator_visibility =
+      [ "../../../src/trace_config_utils:gen_cc_config_descriptor" ]
+  descriptor_root_source = "trace_config.proto"
 }

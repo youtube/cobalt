@@ -16,7 +16,9 @@ WaylandDataOffer::WaylandDataOffer(wl_data_offer* data_offer)
       source_actions_(WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE),
       dnd_action_(WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE) {
   static constexpr wl_data_offer_listener kDataOfferListener = {
-      &OnOffer, &OnSourceAction, &OnAction};
+      .offer = &OnOffer,
+      .source_actions = &OnSourceActions,
+      .action = &OnAction};
   wl_data_offer_add_listener(data_offer, &kDataOfferListener, this);
 }
 
@@ -25,10 +27,12 @@ WaylandDataOffer::~WaylandDataOffer() {
 }
 
 void WaylandDataOffer::Accept(uint32_t serial, const std::string& mime_type) {
+  mime_type_accepted_ = true;
   wl_data_offer_accept(data_offer_.get(), serial, mime_type.c_str());
 }
 
 void WaylandDataOffer::Reject(uint32_t serial) {
+  mime_type_accepted_ = false;
   // Passing a null MIME type means "reject."
   wl_data_offer_accept(data_offer_.get(), serial, nullptr);
 }
@@ -45,8 +49,9 @@ base::ScopedFD WaylandDataOffer::Receive(const std::string& mime_type) {
   // mimetype, then it is safer to "read" the clipboard data with
   // a mimetype mime_type known to be available.
   std::string effective_mime_type = mime_type;
-  if (mime_type == kMimeTypeText && text_plain_mime_type_inserted())
-    effective_mime_type = kMimeTypeTextUtf8;
+  if (mime_type == kMimeTypePlainText && text_plain_mime_type_inserted()) {
+    effective_mime_type = kMimeTypeUtf8PlainText;
+  }
 
   wl_data_offer_receive(data_offer_.get(), effective_mime_type.data(),
                         write_fd.get());
@@ -56,7 +61,11 @@ base::ScopedFD WaylandDataOffer::Receive(const std::string& mime_type) {
 void WaylandDataOffer::FinishOffer() {
   if (wl::get_version_of_object(data_offer_.get()) >=
       WL_DATA_OFFER_FINISH_SINCE_VERSION) {
-    wl_data_offer_finish(data_offer_.get());
+    // As per the spec it is illegal to call finish if no mimetype was accepted
+    // or no action was received.
+    if (mime_type_accepted_ && dnd_action_) {
+      wl_data_offer_finish(data_offer_.get());
+    }
   }
 }
 
@@ -75,6 +84,15 @@ void WaylandDataOffer::SetDndActions(uint32_t dnd_actions) {
     preferred_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE;
 
   wl_data_offer_set_actions(data_offer_.get(), dnd_actions, preferred_action);
+
+  // Some compositors might take too long to send the "action" event, so that we
+  // never reset `dnd_action_` before the drop happens. However, calling finish
+  // in that case still leads to a protocol error. To prevent that, perform the
+  // reset now already. See also
+  // https://gitlab.freedesktop.org/wayland/wayland-protocols/-/issues/202.
+  if (dnd_actions == 0) {
+    dnd_action_ = 0;
+  }
 }
 
 // static
@@ -85,9 +103,9 @@ void WaylandDataOffer::OnOffer(void* data,
   self->AddMimeType(mime_type);
 }
 
-void WaylandDataOffer::OnSourceAction(void* data,
-                                      wl_data_offer* offer,
-                                      uint32_t source_actions) {
+void WaylandDataOffer::OnSourceActions(void* data,
+                                       wl_data_offer* offer,
+                                       uint32_t source_actions) {
   auto* self = static_cast<WaylandDataOffer*>(data);
   self->source_actions_ = source_actions;
 }

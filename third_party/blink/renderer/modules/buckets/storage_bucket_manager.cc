@@ -6,11 +6,12 @@
 
 #include <cstdint>
 
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_storage_bucket_options.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
+#include "third_party/blink/renderer/core/dom/quota_exceeded_error.h"
 #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
 #include "third_party/blink/renderer/modules/buckets/storage_bucket.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -51,27 +52,27 @@ bool IsValidName(const String& name) {
 mojom::blink::BucketPoliciesPtr ToMojoBucketPolicies(
     const StorageBucketOptions* options) {
   auto policies = mojom::blink::BucketPolicies::New();
-  if (options->hasPersistedNonNull()) {
-    policies->persisted = options->persistedNonNull();
+  if (options->hasPersisted()) {
+    policies->persisted = options->persisted();
     policies->has_persisted = true;
   }
 
-  if (options->hasQuotaNonNull()) {
-    DCHECK_LE(options->quotaNonNull(),
-              uint64_t{std::numeric_limits<int64_t>::max()});
-    policies->quota = options->quotaNonNull();
+  if (options->hasQuota()) {
+    DCHECK_LE(options->quota(), uint64_t{std::numeric_limits<int64_t>::max()});
+    policies->quota = options->quota();
     policies->has_quota = true;
   }
 
-  if (options->hasDurabilityNonNull()) {
-    policies->durability = options->durabilityNonNull() == "strict"
+  if (options->hasDurability()) {
+    policies->durability = options->durability() == "strict"
                                ? mojom::blink::BucketDurability::kStrict
                                : mojom::blink::BucketDurability::kRelaxed;
     policies->has_durability = true;
   }
 
-  if (options->hasExpiresNonNull()) {
-    policies->expires = base::Time::FromJsTime(options->expiresNonNull());
+  if (options->hasExpires()) {
+    policies->expires =
+        base::Time::FromMillisecondsSinceUnixEpoch(options->expires());
   }
 
   return policies;
@@ -98,15 +99,22 @@ StorageBucketManager* StorageBucketManager::storageBuckets(
   return supplement;
 }
 
-ScriptPromise StorageBucketManager::open(ScriptState* script_state,
-                                         const String& name,
-                                         const StorageBucketOptions* options,
-                                         ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<StorageBucket> StorageBucketManager::open(
+    ScriptState* script_state,
+    const String& name,
+    const StorageBucketOptions* options,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<StorageBucket>>(
       script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
+  auto promise = resolver->Promise();
 
   ExecutionContext* context = ExecutionContext::From(script_state);
+
+  if (context->IsContextDestroyed()) {
+    exception_state.ThrowTypeError("The window/worker has been destroyed.");
+    return promise;
+  }
+
   if (!context->GetSecurityOrigin()->CanAccessStorageBuckets()) {
     exception_state.ThrowSecurityError(
         "Access to Storage Buckets API is denied in this context.");
@@ -120,7 +128,7 @@ ScriptPromise StorageBucketManager::open(ScriptState* script_state,
     return promise;
   }
 
-  if (options->hasQuotaNonNull() && options->quotaNonNull() == 0) {
+  if (options->hasQuota() && options->quota() == 0) {
     resolver->Reject(V8ThrowException::CreateTypeError(
         script_state->GetIsolate(), "The bucket's quota cannot equal zero."));
     return promise;
@@ -136,13 +144,20 @@ ScriptPromise StorageBucketManager::open(ScriptState* script_state,
   return promise;
 }
 
-ScriptPromise StorageBucketManager::keys(ScriptState* script_state,
-                                         ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
+ScriptPromise<IDLSequence<IDLString>> StorageBucketManager::keys(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLSequence<IDLString>>>(
+          script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
 
   ExecutionContext* context = ExecutionContext::From(script_state);
+  if (context->IsContextDestroyed()) {
+    exception_state.ThrowTypeError("The window/worker has been destroyed.");
+    return promise;
+  }
+
   if (!context->GetSecurityOrigin()->CanAccessStorageBuckets()) {
     exception_state.ThrowSecurityError(
         "Access to Storage Buckets API is denied in this context.");
@@ -155,14 +170,20 @@ ScriptPromise StorageBucketManager::keys(ScriptState* script_state,
   return promise;
 }
 
-ScriptPromise StorageBucketManager::Delete(ScriptState* script_state,
-                                           const String& name,
-                                           ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLUndefined> StorageBucketManager::Delete(
+    ScriptState* script_state,
+    const String& name,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
+  auto promise = resolver->Promise();
 
   ExecutionContext* context = ExecutionContext::From(script_state);
+  if (context->IsContextDestroyed()) {
+    exception_state.ThrowTypeError("The window/worker has been destroyed.");
+    return promise;
+  }
+
   if (!context->GetSecurityOrigin()->CanAccessStorageBuckets()) {
     exception_state.ThrowSecurityError(
         "Access to Storage Buckets API is denied in this context.");
@@ -197,7 +218,7 @@ mojom::blink::BucketManagerHost* StorageBucketManager::GetBucketManager(
 }
 
 void StorageBucketManager::DidOpen(
-    ScriptPromiseResolver* resolver,
+    ScriptPromiseResolver<StorageBucket>* resolver,
     const String& name,
     mojo::PendingRemote<mojom::blink::BucketHost> bucket_remote,
     mojom::blink::BucketError error) {
@@ -215,9 +236,7 @@ void StorageBucketManager::DidOpen(
             "Unknown error occured while creating a bucket."));
         return;
       case mojom::blink::BucketError::kQuotaExceeded:
-        resolver->Reject(MakeGarbageCollected<DOMException>(
-            DOMExceptionCode::kQuotaExceededError,
-            "Too many buckets created."));
+        QuotaExceededError::Reject(resolver, "Too many buckets created.");
         return;
       case mojom::blink::BucketError::kInvalidExpiration:
         resolver->Reject(V8ThrowException::CreateTypeError(
@@ -230,9 +249,10 @@ void StorageBucketManager::DidOpen(
       navigator_base_, name, std::move(bucket_remote)));
 }
 
-void StorageBucketManager::DidGetKeys(ScriptPromiseResolver* resolver,
-                                      const Vector<String>& keys,
-                                      bool success) {
+void StorageBucketManager::DidGetKeys(
+    ScriptPromiseResolver<IDLSequence<IDLString>>* resolver,
+    const Vector<String>& keys,
+    bool success) {
   ScriptState* script_state = resolver->GetScriptState();
   if (!script_state->ContextIsValid()) {
     return;
@@ -248,14 +268,9 @@ void StorageBucketManager::DidGetKeys(ScriptPromiseResolver* resolver,
   resolver->Resolve(keys);
 }
 
-void StorageBucketManager::DidDelete(ScriptPromiseResolver* resolver,
-                                     bool success) {
-  ScriptState* script_state = resolver->GetScriptState();
-  if (!script_state->ContextIsValid()) {
-    return;
-  }
-  ScriptState::Scope scope(script_state);
-
+void StorageBucketManager::DidDelete(
+    ScriptPromiseResolver<IDLUndefined>* resolver,
+    bool success) {
   if (!success) {
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kUnknownError,
@@ -265,42 +280,22 @@ void StorageBucketManager::DidDelete(ScriptPromiseResolver* resolver,
   resolver->Resolve();
 }
 
-void StorageBucketManager::GetBucketForDevtools(
+StorageBucket* StorageBucketManager::GetBucketForDevtools(
     ScriptState* script_state,
-    const String& name,
-    base::OnceCallback<void(StorageBucket*)> callback) {
+    const String& name) {
   ExecutionContext* context = ExecutionContext::From(script_state);
   if (!context->GetSecurityOrigin()->CanAccessStorageBuckets()) {
-    std::move(callback).Run(nullptr);
-    return;
+    return nullptr;
   }
+
+  mojo::PendingRemote<mojom::blink::BucketHost> bucket_remote;
 
   GetBucketManager(script_state)
-      ->GetBucketForDevtools(
-          name,
-          WTF::BindOnce(&StorageBucketManager::DidGetBucketForDevtools,
-                        WrapPersistent(this), WrapPersistent(script_state),
-                        name, std::move(callback)));
-}
+      ->GetBucketForDevtools(name,
+                             bucket_remote.InitWithNewPipeAndPassReceiver());
 
-void StorageBucketManager::DidGetBucketForDevtools(
-    ScriptState* script_state,
-    const String& name,
-    base::OnceCallback<void(StorageBucket*)> callback,
-    mojo::PendingRemote<mojom::blink::BucketHost> bucket_remote,
-    mojom::blink::BucketError) {
-  if (!script_state->ContextIsValid()) {
-    std::move(callback).Run(nullptr);
-    return;
-  }
-  ScriptState::Scope scope(script_state);
-
-  if (!bucket_remote) {
-    std::move(callback).Run(nullptr);
-    return;
-  }
-  std::move(callback).Run(MakeGarbageCollected<StorageBucket>(
-      navigator_base_, name, std::move(bucket_remote)));
+  return MakeGarbageCollected<StorageBucket>(navigator_base_, name,
+                                             std::move(bucket_remote));
 }
 
 void StorageBucketManager::Trace(Visitor* visitor) const {

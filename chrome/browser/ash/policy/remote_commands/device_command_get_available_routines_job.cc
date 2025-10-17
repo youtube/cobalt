@@ -28,12 +28,12 @@ constexpr char kRoutinesFieldName[] = "routines";
 std::string CreatePayload(
     const std::vector<ash::cros_healthd::mojom::DiagnosticRoutineEnum>&
         available_routines) {
-  base::Value::Dict root_dict;
   base::Value::List routine_list;
   for (const auto& routine : available_routines) {
     routine_list.Append(static_cast<int>(routine));
   }
-  root_dict.Set(kRoutinesFieldName, std::move(routine_list));
+  auto root_dict =
+      base::Value::Dict().Set(kRoutinesFieldName, std::move(routine_list));
 
   std::string payload;
   base::JSONWriter::Write(root_dict, &payload);
@@ -71,7 +71,7 @@ void DeviceCommandGetAvailableRoutinesJob::OnCrosHealthdResponseReceived(
     SYSLOG(ERROR) << "No routines received from cros_healthd.";
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(result_callback),
-                                  ResultType::kFailure, absl::nullopt));
+                                  ResultType::kFailure, std::nullopt));
     return;
   }
 

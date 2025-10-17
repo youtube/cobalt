@@ -5,29 +5,26 @@
 #include "content/browser/browsing_data/clear_site_data_handler.h"
 
 #include <memory>
+#include <optional>
 
-#include "base/base_switches.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "content/public/common/content_switches.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_browser_context.h"
 #include "net/base/load_flags.h"
-#include "net/http/http_util.h"
-#include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
-#include "net/url_request/redirect_info.h"
-#include "net/url_request/url_request_context.h"
-#include "net/url_request/url_request_context_builder.h"
-#include "net/url_request/url_request_test_util.h"
+#include "net/cookies/cookie_partition_key.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/features_generated.h"
 
 using ::testing::_;
@@ -40,32 +37,31 @@ using Message = ClearSiteDataHandler::ConsoleMessagesDelegate::Message;
 namespace {
 
 const char kClearCookiesHeader[] = "\"cookies\"";
+const char kClearPrefetchCacheHeader[] = "\"prefetchCache\"";
+const char kClearPrerenderCacheHeader[] = "\"prerenderCache\"";
+const char kClearPrefetchAndPrerenderCacheHeader[] =
+    "\"prefetchCache\", \"prerenderCache\"";
 
-BrowserContext* FakeBrowserContextGetter() {
-  return nullptr;
-}
-
-WebContents* FakeWebContentsGetter() {
-  return nullptr;
-}
+const StoragePartitionConfig kTestStoragePartitionConfig;
 
 // A slightly modified ClearSiteDataHandler for testing with dummy clearing
 // functionality.
 class TestHandler : public ClearSiteDataHandler {
  public:
-  TestHandler(
-      base::RepeatingCallback<BrowserContext*()> browser_context_getter,
-      base::RepeatingCallback<WebContents*()> web_contents_getter,
-      const GURL& url,
-      const std::string& header_value,
-      int load_flags,
-      const absl::optional<net::CookiePartitionKey>& cookie_partition_key,
-      const absl::optional<blink::StorageKey>& storage_key,
-      bool partitioned_state_allowed_only,
-      base::OnceClosure callback,
-      std::unique_ptr<ConsoleMessagesDelegate> delegate)
-      : ClearSiteDataHandler(browser_context_getter,
-                             web_contents_getter,
+  TestHandler(base::WeakPtr<BrowserContext> browser_context,
+              base::WeakPtr<WebContents> web_contents,
+              const StoragePartitionConfig& storage_partition_config,
+              const GURL& url,
+              const std::string& header_value,
+              int load_flags,
+              const std::optional<net::CookiePartitionKey> cookie_partition_key,
+              const std::optional<blink::StorageKey> storage_key,
+              bool partitioned_state_allowed_only,
+              base::OnceClosure callback,
+              std::unique_ptr<ConsoleMessagesDelegate> delegate)
+      : ClearSiteDataHandler(browser_context,
+                             web_contents,
+                             storage_partition_config,
                              url,
                              header_value,
                              load_flags,
@@ -80,28 +76,25 @@ class TestHandler : public ClearSiteDataHandler {
   // test cases.
   bool DoHandleHeader() { return HandleHeaderAndOutputConsoleMessages(); }
 
-  MOCK_METHOD9(
+  MOCK_METHOD8(
       ClearSiteData,
-      void(const url::Origin& origin,
-           bool clear_cookies,
-           bool clear_storage,
-           bool clear_cache,
-           std::set<std::string> storage_buckets_to_remove,
+      void(const StoragePartitionConfig& storage_partition_config,
+           const url::Origin& origin,
+           const ClearSiteDataTypeSet clear_site_data_types,
+           const std::set<std::string>& storage_buckets_to_remove,
            bool avoid_closing_connections,
-           const absl::optional<net::CookiePartitionKey>& cookie_partition_key,
-           const absl::optional<blink::StorageKey>& storage_key,
+           const std::optional<net::CookiePartitionKey> cookie_partition_key,
+           const std::optional<blink::StorageKey> storage_key,
            bool partitioned_state_allowed_only));
 
  protected:
   void ExecuteClearingTask(
       const url::Origin& origin,
-      bool clear_cookies,
-      bool clear_storage,
-      bool clear_cache,
+      const ClearSiteDataTypeSet clear_site_data_types,
       const std::set<std::string>& storage_buckets_to_remove,
       base::OnceClosure callback) override {
-    ClearSiteData(origin, clear_cookies, clear_storage, clear_cache,
-                  storage_buckets_to_remove, false,
+    ClearSiteData(StoragePartitionConfigForTesting(), origin,
+                  clear_site_data_types, storage_buckets_to_remove, false,
                   CookiePartitionKeyForTesting(), StorageKeyForTesting(),
                   PartitionedStateOnlyForTesting());
 
@@ -123,8 +116,7 @@ class VectorConsoleMessagesDelegate : public ConsoleMessagesDelegate {
       : message_buffer_(message_buffer) {}
   ~VectorConsoleMessagesDelegate() override = default;
 
-  void OutputMessages(const base::RepeatingCallback<WebContents*()>&
-                          web_contents_getter) override {
+  void OutputMessages(base::WeakPtr<WebContents> web_contents) override {
     *message_buffer_ = GetMessagesForTesting();
   }
 
@@ -155,15 +147,16 @@ class StringConsoleMessagesDelegate : public ConsoleMessagesDelegate {
 
 }  // namespace
 
-class ClearSiteDataHandlerTest
-    : public testing::Test,
-      public testing::WithParamInterface<std::vector<base::test::FeatureRef>> {
+class ClearSiteDataHandlerTest : public testing::Test,
+                                 public testing::WithParamInterface<bool> {
  public:
   ClearSiteDataHandlerTest()
       : task_environment_(BrowserTaskEnvironment::IO_MAINLOOP) {}
 
   ClearSiteDataHandlerTest(const ClearSiteDataHandlerTest&) = delete;
   ClearSiteDataHandlerTest& operator=(const ClearSiteDataHandlerTest&) = delete;
+
+  bool IsStorageBucketSupportEnabled() { return GetParam(); }
 
  private:
   BrowserTaskEnvironment task_environment_;
@@ -172,155 +165,162 @@ class ClearSiteDataHandlerTest
 INSTANTIATE_TEST_SUITE_P(
     ParseHeaderAndExecuteClearingTaskWithFeaturesEnabledTestSuite,
     ClearSiteDataHandlerTest,
-    testing::Values(std::vector<base::test::FeatureRef>{},
-                    std::vector<base::test::FeatureRef>{
-                        blink::features::kStorageBuckets}));
+    testing::Bool());
 
 TEST_P(ClearSiteDataHandlerTest, ParseHeaderAndExecuteClearingTask) {
+  std::vector<base::test::FeatureRef> features_to_enable;
+  std::vector<base::test::FeatureRef> features_to_disable;
+  if (IsStorageBucketSupportEnabled()) {
+    features_to_enable.push_back(blink::features::kStorageBuckets);
+  } else {
+    features_to_disable.push_back(blink::features::kStorageBuckets);
+  }
   base::test::ScopedFeatureList features;
-  features.InitWithFeatures(GetParam(), {});
+  features.InitWithFeatures(features_to_enable, features_to_disable);
 
   struct TestCase {
     const char* header;
     bool cookies;
     bool storage;
     bool cache;
+    bool client_hints;
     std::set<std::string> storage_buckets_to_remove;
-  };
-
-  std::vector<TestCase> standard_test_cases = {
-      // One data type.
-      {"\"cookies\"", true, false, false},
-      {"\"storage\"", false, true, false},
-      {"\"cache\"", false, false, true},
-
-      // Two data types.
-      {"\"cookies\", \"storage\"", true, true, false},
-      {"\"cookies\", \"cache\"", true, false, true},
-      {"\"storage\", \"cache\"", false, true, true},
-
-      // Three data types.
-      {"\"storage\", \"cache\", \"cookies\"", true, true, true},
-      {"\"cache\", \"cookies\", \"storage\"", true, true, true},
-      {"\"cookies\", \"storage\", \"cache\"", true, true, true},
-
-      // The wildcard datatype is not yet shipped.
-      {"\"*\", \"storage\"", false, true, false},
-      {"\"cookies\", \"*\", \"storage\"", true, true, false},
-      {"\"*\", \"cookies\", \"*\"", true, false, false},
-
-      // Different formatting.
-      {"\"cookies\"", true, false, false},
-
-      // Duplicates.
-      {"\"cookies\", \"cookies\"", true, false, false},
-
-      // Other JSON-formatted items in the list.
-      {"\"storage\", { \"other_params\": {} }", false, true, false},
-
-      // Unknown types are ignored, but we still proceed with the deletion for
-      // those that we recognize.
-      {"\"cache\", \"foo\"", false, false, true},
   };
 
   std::set<std::string> storage_buckets_test_case_expectation = {"drafts",
                                                                  "inbox"};
 
+  std::vector<TestCase> test_cases = {
+      // One data type.
+      {"\"cookies\"", true, false, false, false},
+      {"\"storage\"", false, true, false, false},
+      {"\"cache\"", false, false, true, false},
+      {"\"clientHints\"", false, false, false, true},
+
+      // Two data types.
+      {"\"cookies\", \"storage\"", true, true, false, false},
+      {"\"cookies\", \"cache\"", true, false, true, false},
+      {"\"storage\", \"cache\"", false, true, true, false},
+      {"\"cookies\", \"clientHints\"", true, false, false, true},
+      {"\"storage\", \"clientHints\"", false, true, false, true},
+      {"\"cache\", \"clientHints\"", false, false, true, true},
+
+      // Three data types.
+      {"\"cookies\", \"storage\", \"cache\"", true, true, true, false},
+      {"\"clientHints\", \"storage\", \"cache\"", false, true, true, true},
+      {"\"cookies\", \"clientHints\", \"cache\"", true, false, true, true},
+      {"\"cookies\", \"storage\", \"clientHints\"", true, true, false, true},
+
+      // Four data types.
+      {"\"cookies\", \"storage\", \"cache\", \"clientHints\"", true, true, true,
+       true},
+
+      // Wildcard.
+      {"\"*\"", true, true, true, true},
+      {"\"*\", \"storage\"", true, true, true, true},
+      {"\"cookies\", \"*\", \"storage\"", true, true, true, true},
+      {"\"*\", \"cookies\", \"*\"", true, true, true, true},
+      {"\"*\", \"clientHints\"", true, true, true, true},
+
+      // Different formatting.
+      {"\"cookies\"", true, false, false, false},
+
+      // Duplicates.
+      {"\"cookies\", \"cookies\"", true, false, false, false},
+
+      // Other JSON-formatted items in the list.
+      {"\"storage\", { \"other_params\": {} }", false, true, false, false},
+
+      // Unknown types are ignored, but we still proceed with the deletion for
+      // those that we recognize.
+      {"\"cache\", \"foo\"", false, false, true, false},
+
+      // Storage Buckets
+      {"\"storage\", \"storage:drafts\"", false, true, false, false},
+      {"\"*\", \"storage:drafts\", \"storage:inbox\"", true, true, true, true,
+       std::set<std::string>()},
+      {"\"cookies\", \"storage:drafts", true, false, false,
+       false},  // Invalid header, should end with '"'
+      {"\"cookies\", \"storage:invalid_name$#$\"", true, false, false,
+       false},  // Invalid bucket name
+
+      {"\"cookies\", \"storage:drafts\", \"storage:inbox\"", true, false, false,
+       false,
+       IsStorageBucketSupportEnabled() ? storage_buckets_test_case_expectation
+                                       : std::set<std::string>()},
+  };
+
   if (!base::FeatureList::IsEnabled(blink::features::kStorageBuckets)) {
     storage_buckets_test_case_expectation.clear();
   }
 
-  std::vector<TestCase> experimental_test_cases = {
-      // Wildcard.
-      {"\"*\"", true, true, true},
-      {"\"*\", \"storage\"", true, true, true},
-      {"\"cache\", \"*\", \"storage\"", true, true, true},
-      {"\"*\", \"cookies\", \"*\"", true, true, true},
+  for (const TestCase& test_case : test_cases) {
+    SCOPED_TRACE(test_case.header);
 
-      // Storage Buckets
-      {"\"storage\", \"storage:drafts\"", false, true, false},
-      {"\"cookies\", \"storage:drafts", true, false,
-       false},  // Invalid header, should end with '"'
-      {"\"cookies\", \"storage:invalid_name$#$\"", true, false,
-       false},  // Invalid bucket name
+    // Test that ParseHeader works correctly.
+    ClearSiteDataTypeSet clear_site_data_types;
+    std::set<std::string> storage_buckets_to_remove = {};
 
-      {"\"cookies\", \"storage:drafts\", \"storage:inbox\"", true, false, false,
-       storage_buckets_test_case_expectation}};
+    GURL url("https://example.com");
+    ConsoleMessagesDelegate console_delegate;
 
-  const std::vector<TestCase>* test_case_sets[] = {&standard_test_cases,
-                                                   &experimental_test_cases};
-
-  for (const std::vector<TestCase>* test_cases : test_case_sets) {
-    base::test::ScopedCommandLine scoped_command_line;
-    if (test_cases == &experimental_test_cases) {
-      scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-          switches::kEnableExperimentalWebPlatformFeatures);
+    base::HistogramTester histogram_tester;
+    bool success = ClearSiteDataHandler::ParseHeaderForTesting(
+        test_case.header, &clear_site_data_types, &storage_buckets_to_remove,
+        &console_delegate, url);
+    if (!test_case.cookies && !test_case.storage && !test_case.cache &&
+        !test_case.client_hints &&
+        test_case.storage_buckets_to_remove.empty()) {
+      EXPECT_FALSE(success);
+      continue;
     }
+    EXPECT_TRUE(success);
 
-    for (const TestCase& test_case : *test_cases) {
-      SCOPED_TRACE(test_case.header);
+    EXPECT_EQ(test_case.cookies,
+              clear_site_data_types.Has(ClearSiteDataType::kCookies));
+    EXPECT_EQ(test_case.storage,
+              clear_site_data_types.Has(ClearSiteDataType::kStorage));
+    EXPECT_EQ(test_case.cache,
+              clear_site_data_types.Has(ClearSiteDataType::kCache));
+    EXPECT_EQ(test_case.client_hints,
+              clear_site_data_types.Has(ClearSiteDataType::kClientHints));
+    EXPECT_EQ(test_case.storage_buckets_to_remove, storage_buckets_to_remove);
 
-      // Test that ParseHeader works correctly.
-      bool actual_cookies;
-      bool actual_storage;
-      bool actual_cache;
-      std::set<std::string> storage_buckets_to_remove = {};
+    // Count the number of bits in a mask that are 1.
+    auto count_ones_in_mask = [](int mask) {
+      int count = 0;
+      for (size_t i = 0; i < sizeof(mask) * 8; ++i) {
+        count += (mask >> i) & 1;
+      }
+      return count;
+    };
+    histogram_tester.ExpectTotalCount("Storage.ClearSiteDataHeader.Parameters",
+                                      1);
+    int sample =
+        histogram_tester.GetTotalSum("Storage.ClearSiteDataHeader.Parameters");
+    // There should be one bit set to one for each data type seen.
+    EXPECT_EQ(count_ones_in_mask(sample),
+              static_cast<int>(test_case.cookies) +
+                  static_cast<int>(test_case.storage) +
+                  static_cast<int>(test_case.cache) +
+                  static_cast<int>(!storage_buckets_to_remove.empty()) +
+                  static_cast<int>(test_case.client_hints));
 
-      GURL url("https://example.com");
-      ConsoleMessagesDelegate console_delegate;
+    // Test that a call with the above parameters actually reaches
+    // ExecuteClearingTask().
+    TestHandler handler(
+        nullptr, nullptr, kTestStoragePartitionConfig, url, test_case.header,
+        net::LOAD_NORMAL, /*cookie_partition_key=*/std::nullopt,
+        /*storage_key=*/std::nullopt, /*partitioned_state_allowed_only=*/false,
+        base::DoNothing(), std::make_unique<ConsoleMessagesDelegate>());
 
-      base::HistogramTester histogram_tester;
-      EXPECT_TRUE(ClearSiteDataHandler::ParseHeaderForTesting(
-          test_case.header, &actual_cookies, &actual_storage, &actual_cache,
-          &storage_buckets_to_remove, &console_delegate, url));
+    EXPECT_CALL(handler, ClearSiteData(
+                             _, url::Origin::Create(url), clear_site_data_types,
+                             test_case.storage_buckets_to_remove, _, _, _, _));
+    bool defer = handler.DoHandleHeader();
+    EXPECT_TRUE(defer);
 
-      EXPECT_EQ(test_case.cookies, actual_cookies);
-      EXPECT_EQ(test_case.storage, actual_storage);
-      EXPECT_EQ(test_case.cache, actual_cache);
-      EXPECT_EQ(test_case.storage_buckets_to_remove, storage_buckets_to_remove);
-
-      // Count the number of bits in a mask that are 1.
-      auto count_ones_in_mask = [](int mask) {
-        int count = 0;
-        for (size_t i = 0; i < sizeof(mask) * 8; ++i) {
-          count += (mask >> i) & 1;
-        }
-        return count;
-      };
-      histogram_tester.ExpectTotalCount(
-          "Storage.ClearSiteDataHeader.Parameters", 1);
-      int sample = histogram_tester.GetTotalSum(
-          "Storage.ClearSiteDataHeader.Parameters");
-      // There should be one bit set to one for each data type seen.
-      EXPECT_EQ(count_ones_in_mask(sample),
-                static_cast<int>(test_case.cookies) +
-                    static_cast<int>(test_case.storage) +
-                    static_cast<int>(test_case.cache) +
-                    static_cast<int>(!storage_buckets_to_remove.empty()));
-
-      // Test that a call with the above parameters actually reaches
-      // ExecuteClearingTask().
-      auto context = net::CreateTestURLRequestContextBuilder()->Build();
-      std::unique_ptr<net::URLRequest> request(context->CreateRequest(
-          url, net::DEFAULT_PRIORITY, nullptr, TRAFFIC_ANNOTATION_FOR_TESTS));
-      TestHandler handler(
-          base::BindRepeating(&FakeBrowserContextGetter),
-          base::BindRepeating(&FakeWebContentsGetter), request->url(),
-          test_case.header, request->load_flags(),
-          /*cookie_partition_key=*/absl::nullopt, /*storage_key=*/absl::nullopt,
-          /*partitioned_state_allowed_only=*/false, base::DoNothing(),
-          std::make_unique<ConsoleMessagesDelegate>());
-
-      EXPECT_CALL(
-          handler,
-          ClearSiteData(url::Origin::Create(url), test_case.cookies,
-                        test_case.storage, test_case.cache,
-                        test_case.storage_buckets_to_remove, _, _, _, _));
-      bool defer = handler.DoHandleHeader();
-      EXPECT_TRUE(defer);
-
-      testing::Mock::VerifyAndClearExpectations(&handler);
-    }
+    testing::Mock::VerifyAndClearExpectations(&handler);
   }
 }
 
@@ -351,20 +351,18 @@ TEST_F(ClearSiteDataHandlerTest, InvalidHeader) {
   for (const TestCase& test_case : test_cases) {
     SCOPED_TRACE(test_case.header);
 
-    bool actual_cookies;
-    bool actual_storage;
-    bool actual_cache;
+    ClearSiteDataTypeSet clear_site_data_types;
     std::set<std::string> actual_storage_buckets_to_remove;
 
     ConsoleMessagesDelegate console_delegate;
 
     EXPECT_FALSE(ClearSiteDataHandler::ParseHeaderForTesting(
-        test_case.header, &actual_cookies, &actual_storage, &actual_cache,
+        test_case.header, &clear_site_data_types,
         &actual_storage_buckets_to_remove, &console_delegate, GURL()));
 
     std::string multiline_message;
     for (const auto& message : console_delegate.GetMessagesForTesting()) {
-      EXPECT_EQ(blink::mojom::ConsoleMessageLevel::kError, message.level);
+      EXPECT_EQ(blink::mojom::ConsoleMessageLevel::kWarning, message.level);
       multiline_message += message.text + "\n";
     }
 
@@ -373,20 +371,15 @@ TEST_F(ClearSiteDataHandlerTest, InvalidHeader) {
 }
 
 TEST_F(ClearSiteDataHandlerTest, ClearCookieSuccess) {
-  auto context = net::CreateTestURLRequestContextBuilder()->Build();
-  std::unique_ptr<net::URLRequest> request(
-      context->CreateRequest(GURL("https://example.com"), net::DEFAULT_PRIORITY,
-                             nullptr, TRAFFIC_ANNOTATION_FOR_TESTS));
   std::vector<Message> message_buffer;
   TestHandler handler(
-      base::BindRepeating(&FakeBrowserContextGetter),
-      base::BindRepeating(&FakeWebContentsGetter), request->url(),
-      kClearCookiesHeader, request->load_flags(),
-      /*cookie_partition_key=*/absl::nullopt, /*storage_key=*/absl::nullopt,
+      nullptr, nullptr, kTestStoragePartitionConfig,
+      GURL("https://example.com"), kClearCookiesHeader, net::LOAD_NORMAL,
+      /*cookie_partition_key=*/std::nullopt, /*storage_key=*/std::nullopt,
       /*partitioned_state_allowed_only=*/false, base::DoNothing(),
       std::make_unique<VectorConsoleMessagesDelegate>(&message_buffer));
 
-  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _, _));
+  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _));
   bool defer = handler.DoHandleHeader();
   EXPECT_TRUE(defer);
   EXPECT_EQ(1u, message_buffer.size());
@@ -401,21 +394,16 @@ TEST_F(ClearSiteDataHandlerTest, ClearCookieSuccess) {
 }
 
 TEST_F(ClearSiteDataHandlerTest, LoadDoNotSaveCookies) {
-  auto context = net::CreateTestURLRequestContextBuilder()->Build();
-  std::unique_ptr<net::URLRequest> request(
-      context->CreateRequest(GURL("https://example.com"), net::DEFAULT_PRIORITY,
-                             nullptr, TRAFFIC_ANNOTATION_FOR_TESTS));
-  request->SetLoadFlags(net::LOAD_DO_NOT_SAVE_COOKIES);
   std::vector<Message> message_buffer;
   TestHandler handler(
-      base::BindRepeating(&FakeBrowserContextGetter),
-      base::BindRepeating(&FakeWebContentsGetter), request->url(),
-      kClearCookiesHeader, request->load_flags(),
-      /*cookie_partition_key=*/absl::nullopt, /*storage_key=*/absl::nullopt,
-      /*partitioned_state_allowed_only=*/false, base::DoNothing(),
+      nullptr, nullptr, kTestStoragePartitionConfig,
+      GURL("https://example.com"), kClearCookiesHeader,
+      net::LOAD_DO_NOT_SAVE_COOKIES, /*cookie_partition_key=*/std::nullopt,
+      /*storage_key=*/std::nullopt, /*partitioned_state_allowed_only=*/false,
+      base::DoNothing(),
       std::make_unique<VectorConsoleMessagesDelegate>(&message_buffer));
 
-  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _)).Times(0);
   bool defer = handler.DoHandleHeader();
   EXPECT_FALSE(defer);
   EXPECT_EQ(1u, message_buffer.size());
@@ -451,22 +439,16 @@ TEST_F(ClearSiteDataHandlerTest, InvalidOrigin) {
       {"data:unique-origin;", false, "Not supported for unique origins."},
   };
 
-  auto context = net::CreateTestURLRequestContextBuilder()->Build();
-
   for (const TestCase& test_case : kTestCases) {
-    std::unique_ptr<net::URLRequest> request(
-        context->CreateRequest(GURL(test_case.origin), net::DEFAULT_PRIORITY,
-                               nullptr, TRAFFIC_ANNOTATION_FOR_TESTS));
     std::vector<Message> message_buffer;
     TestHandler handler(
-        base::BindRepeating(&FakeBrowserContextGetter),
-        base::BindRepeating(&FakeWebContentsGetter), request->url(),
-        kClearCookiesHeader, request->load_flags(),
-        /*cookie_partition_key=*/absl::nullopt, /*storage_key=*/absl::nullopt,
+        nullptr, nullptr, kTestStoragePartitionConfig, GURL(test_case.origin),
+        kClearCookiesHeader, net::LOAD_NORMAL,
+        /*cookie_partition_key=*/std::nullopt, /*storage_key=*/std::nullopt,
         /*partitioned_state_allowed_only=*/false, base::DoNothing(),
         std::make_unique<VectorConsoleMessagesDelegate>(&message_buffer));
 
-    EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _, _))
+    EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _))
         .Times(test_case.expect_success ? 1 : 0);
 
     bool defer = handler.DoHandleHeader();
@@ -531,34 +513,41 @@ TEST_F(ClearSiteDataHandlerTest, FormattedConsoleOutput) {
        "Clear-Site-Data header on 'https://origin3.com/bar': "
        "Cleared data types: \"cache\".\n"},
 
+      // Successful deletion for client hints.
+      {"\"clientHints\"", "https://origin3.com/bar",
+       "Clear-Site-Data header on 'https://origin3.com/bar': "
+       "Cleared data types: \"clientHints\".\n"},
+
+      // Successful deletion for *.
+      {"\"*\"", "https://origin3.com/bar",
+       "Clear-Site-Data header on 'https://origin3.com/bar': Cleared data "
+       "types: \"cookies\", \"storage\", \"cache\", \"clientHints\". Clearing "
+       "channel IDs and HTTP authentication cache is currently not supported, "
+       "as it breaks active network connections.\n"},
+
       // Redirect to the original URL.
       // Successful deletion outputs one line.
       {"", "https://origin1.com/foo",
        "Clear-Site-Data header on 'https://origin1.com/foo': "
-       "No recognized types specified.\n"}};
+       "No recognized types specified.\n"},
+  };
 
-  // TODO(crbug.com/876931): Delay output until next frame for navigations.
+  // TODO(crbug.com/41409604): Delay output until next frame for navigations.
   bool kHandlerTypeIsNavigation[] = {false};
 
   for (bool navigation : kHandlerTypeIsNavigation) {
     SCOPED_TRACE(navigation ? "Navigation test." : "Subresource test.");
-
-    auto context = net::CreateTestURLRequestContextBuilder()->Build();
-    std::unique_ptr<net::URLRequest> request(
-        context->CreateRequest(GURL(kTestCases[0].url), net::DEFAULT_PRIORITY,
-                               nullptr, TRAFFIC_ANNOTATION_FOR_TESTS));
 
     std::string output_buffer;
     std::string last_seen_console_output;
 
     // |NetworkServiceClient| creates a new |ClearSiteDataHandler| for each
     // navigation, redirect, or subresource header responses.
-    for (size_t i = 0; i < std::size(kTestCases); i++) {
+    for (const auto& test : kTestCases) {
       TestHandler handler(
-          base::BindRepeating(&FakeBrowserContextGetter),
-          base::BindRepeating(&FakeWebContentsGetter), GURL(kTestCases[i].url),
-          kTestCases[i].header, request->load_flags(),
-          /*cookie_partition_key=*/absl::nullopt, /*storage_key=*/absl::nullopt,
+          nullptr, nullptr, kTestStoragePartitionConfig, GURL(test.url),
+          test.header, net::LOAD_NORMAL, /*cookie_partition_key=*/std::nullopt,
+          /*storage_key=*/std::nullopt,
           /*partitioned_state_allowed_only=*/false, base::DoNothing(),
           std::make_unique<StringConsoleMessagesDelegate>(&output_buffer));
       handler.DoHandleHeader();
@@ -568,8 +557,7 @@ TEST_F(ClearSiteDataHandlerTest, FormattedConsoleOutput) {
       if (navigation) {
         EXPECT_TRUE(output_buffer.empty());
       } else {
-        EXPECT_EQ(last_seen_console_output + kTestCases[i].output,
-                  output_buffer);
+        EXPECT_EQ(last_seen_console_output + test.output, output_buffer);
       }
 
       last_seen_console_output = output_buffer;
@@ -585,51 +573,39 @@ TEST_F(ClearSiteDataHandlerTest, FormattedConsoleOutput) {
 }
 
 TEST_F(ClearSiteDataHandlerTest, CookiePartitionKey) {
-  absl::optional<net::CookiePartitionKey> cookie_partition_keys[] = {
-      absl::nullopt,
+  std::optional<net::CookiePartitionKey> cookie_partition_keys[] = {
+      std::nullopt,
       net::CookiePartitionKey::FromURLForTesting(GURL("https://www.foo.com")),
   };
   const GURL kTestURL("https://www.bar.com");
 
   for (const auto& cookie_partition_key : cookie_partition_keys) {
-    auto context = net::CreateTestURLRequestContextBuilder()->Build();
-    std::unique_ptr<net::URLRequest> request(
-        context->CreateRequest(kTestURL, net::DEFAULT_PRIORITY, nullptr,
-                               TRAFFIC_ANNOTATION_FOR_TESTS));
     std::string output_buffer;
     TestHandler handler(
-        base::BindRepeating(&FakeBrowserContextGetter),
-        base::BindRepeating(&FakeWebContentsGetter), kTestURL, "\"cookies\"",
-        request->load_flags(), cookie_partition_key,
-        /*storage_key=*/absl::nullopt,
+        nullptr, nullptr, kTestStoragePartitionConfig, kTestURL, "\"cookies\"",
+        net::LOAD_NORMAL, cookie_partition_key, /*storage_key=*/std::nullopt,
         /*partitioned_state_allowed_only=*/false, base::DoNothing(),
         std::make_unique<StringConsoleMessagesDelegate>(&output_buffer));
     EXPECT_CALL(handler,
-                ClearSiteData(_, _, _, _, _, _, cookie_partition_key, _, _));
+                ClearSiteData(_, _, _, _, _, cookie_partition_key, _, _));
     EXPECT_TRUE(handler.DoHandleHeader());
   }
 }
 
 TEST_F(ClearSiteDataHandlerTest, StorageKey) {
-  absl::optional<blink::StorageKey> storage_keys[] = {
-      absl::nullopt,
+  std::optional<blink::StorageKey> storage_keys[] = {
+      std::nullopt,
       blink::StorageKey::CreateFromStringForTesting("https://example.com")};
   const GURL kTestURL("https://example.com");
 
   for (const auto& storage_key : storage_keys) {
-    auto context = net::CreateTestURLRequestContextBuilder()->Build();
-    std::unique_ptr<net::URLRequest> request(
-        context->CreateRequest(kTestURL, net::DEFAULT_PRIORITY, nullptr,
-                               TRAFFIC_ANNOTATION_FOR_TESTS));
     std::string output_buffer;
     TestHandler handler(
-        base::BindRepeating(&FakeBrowserContextGetter),
-        base::BindRepeating(&FakeWebContentsGetter), kTestURL, "\"storage\"",
-        request->load_flags(), /*cookie_partition_key=*/absl::nullopt,
-        storage_key,
+        nullptr, nullptr, kTestStoragePartitionConfig, kTestURL, "\"storage\"",
+        net::LOAD_NORMAL, /*cookie_partition_key=*/std::nullopt, storage_key,
         /*partitioned_state_allowed_only=*/false, base::DoNothing(),
         std::make_unique<StringConsoleMessagesDelegate>(&output_buffer));
-    EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, storage_key, _));
+    EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, storage_key, _));
     EXPECT_TRUE(handler.DoHandleHeader());
   }
 }
@@ -639,22 +615,121 @@ TEST_F(ClearSiteDataHandlerTest, ThirdPartyCookieBlockingEnabled) {
   const GURL kTestURL("https://example.com");
 
   for (const auto partitioned_state_allowed_only : test_cases) {
-    auto context = net::CreateTestURLRequestContextBuilder()->Build();
-    std::unique_ptr<net::URLRequest> request(
-        context->CreateRequest(kTestURL, net::DEFAULT_PRIORITY, nullptr,
-                               TRAFFIC_ANNOTATION_FOR_TESTS));
+    SCOPED_TRACE(base::StringPrintf("partitioned_state_allowed_only: %d",
+                                    partitioned_state_allowed_only));
     std::string output_buffer;
     TestHandler handler(
-        base::BindRepeating(&FakeBrowserContextGetter),
-        base::BindRepeating(&FakeWebContentsGetter), kTestURL, "\"storage\"",
-        request->load_flags(), /*cookie_partition_key=*/absl::nullopt,
-        /*storage_key=*/absl::nullopt, partitioned_state_allowed_only,
+        nullptr, nullptr, kTestStoragePartitionConfig, kTestURL, "\"storage\"",
+        net::LOAD_NORMAL, /*cookie_partition_key=*/std::nullopt,
+        /*storage_key=*/std::nullopt, partitioned_state_allowed_only,
         base::DoNothing(),
         std::make_unique<StringConsoleMessagesDelegate>(&output_buffer));
-    EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _,
+    EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _,
                                        partitioned_state_allowed_only));
     EXPECT_TRUE(handler.DoHandleHeader());
   }
 }
 
+TEST_F(ClearSiteDataHandlerTest, CorrectStoragePartition) {
+  const GURL kTestURL("https://example.com");
+  TestBrowserContext test_browser_context;
+  test_browser_context.set_is_off_the_record(false);
+
+  std::vector<StoragePartitionConfig> test_cases{
+      StoragePartitionConfig::Create(&test_browser_context, "test_domain_0",
+                                     "test name 1", true),
+      StoragePartitionConfig::Create(&test_browser_context, "test_domain_1",
+                                     "test name 2", false),
+      StoragePartitionConfig::Create(&test_browser_context, "test_domain_1",
+                                     "test name 3", false),
+      StoragePartitionConfig::Create(&test_browser_context, "test_domain_1", "",
+                                     false),
+  };
+
+  for (const StoragePartitionConfig& storage_partition_config : test_cases) {
+    std::string output_buffer;
+    TestHandler handler(
+        nullptr, nullptr, storage_partition_config, kTestURL, "\"storage\"",
+        net::LOAD_NORMAL, /*cookie_partition_key=*/std::nullopt,
+        /*storage_key=*/std::nullopt, /*partitioned_state_allowed_only=*/false,
+        base::DoNothing(),
+        std::make_unique<StringConsoleMessagesDelegate>(&output_buffer));
+    EXPECT_CALL(handler,
+                ClearSiteData(storage_partition_config, _, _, _, _, _, _, _));
+    EXPECT_TRUE(handler.DoHandleHeader());
+  }
+}
+
+TEST_F(ClearSiteDataHandlerTest, ClearPrefetchCacheSuccess) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      blink::features::kClearSiteDataPrefetchPrerenderCache);
+
+  std::vector<Message> message_buffer;
+  TestHandler handler(
+      nullptr, nullptr, kTestStoragePartitionConfig,
+      GURL("https://example.com"), kClearPrefetchCacheHeader, net::LOAD_NORMAL,
+      /*cookie_partition_key=*/std::nullopt, /*storage_key=*/std::nullopt,
+      /*partitioned_state_allowed_only=*/false, base::DoNothing(),
+      std::make_unique<VectorConsoleMessagesDelegate>(&message_buffer));
+
+  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _));
+  bool defer = handler.DoHandleHeader();
+  EXPECT_TRUE(defer);
+  EXPECT_EQ(1u, message_buffer.size());
+  EXPECT_EQ("Cleared data types: \"prefetchCache\".",
+            message_buffer.front().text);
+  EXPECT_EQ(message_buffer.front().level,
+            blink::mojom::ConsoleMessageLevel::kInfo);
+  testing::Mock::VerifyAndClearExpectations(&handler);
+}
+
+TEST_F(ClearSiteDataHandlerTest, ClearPrerenderCacheSuccess) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      blink::features::kClearSiteDataPrefetchPrerenderCache);
+
+  std::vector<Message> message_buffer;
+  TestHandler handler(
+      nullptr, nullptr, kTestStoragePartitionConfig,
+      GURL("https://example.com"), kClearPrerenderCacheHeader, net::LOAD_NORMAL,
+      /*cookie_partition_key=*/std::nullopt, /*storage_key=*/std::nullopt,
+      /*partitioned_state_allowed_only=*/false, base::DoNothing(),
+      std::make_unique<VectorConsoleMessagesDelegate>(&message_buffer));
+
+  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _));
+  bool defer = handler.DoHandleHeader();
+  EXPECT_TRUE(defer);
+  EXPECT_EQ(1u, message_buffer.size());
+  EXPECT_EQ("Cleared data types: \"prerenderCache\".",
+            message_buffer.front().text);
+  EXPECT_EQ(message_buffer.front().level,
+            blink::mojom::ConsoleMessageLevel::kInfo);
+  testing::Mock::VerifyAndClearExpectations(&handler);
+}
+
+TEST_F(ClearSiteDataHandlerTest, ClearPrefetchAndPrerenderCacheSuccess) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      blink::features::kClearSiteDataPrefetchPrerenderCache);
+
+  std::vector<Message> message_buffer;
+  TestHandler handler(
+      nullptr, nullptr, kTestStoragePartitionConfig,
+      GURL("https://example.com"), kClearPrefetchAndPrerenderCacheHeader,
+      net::LOAD_NORMAL,
+      /*cookie_partition_key=*/std::nullopt, /*storage_key=*/std::nullopt,
+      /*partitioned_state_allowed_only=*/false, base::DoNothing(),
+      std::make_unique<VectorConsoleMessagesDelegate>(&message_buffer));
+
+  EXPECT_CALL(handler, ClearSiteData(_, _, _, _, _, _, _, _));
+  bool defer = handler.DoHandleHeader();
+  EXPECT_TRUE(defer);
+  EXPECT_EQ(1u, message_buffer.size());
+  EXPECT_EQ("Cleared data types: \"prefetchCache\", \"prerenderCache\".",
+            message_buffer.front().text);
+  EXPECT_EQ(message_buffer.front().level,
+            blink::mojom::ConsoleMessageLevel::kInfo);
+  testing::Mock::VerifyAndClearExpectations(&handler);
+}
 }  // namespace content

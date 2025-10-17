@@ -23,8 +23,8 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_endian.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 namespace {
@@ -248,6 +248,7 @@ bool QuicUtils::IsRetransmittableFrame(QuicFrameType type) {
     case MTU_DISCOVERY_FRAME:
     case PATH_CHALLENGE_FRAME:
     case PATH_RESPONSE_FRAME:
+    case IMMEDIATE_ACK_FRAME:
       return false;
     default:
       return true;
@@ -508,13 +509,14 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
 
 // static
 bool QuicUtils::IsConnectionIdValidForVersion(
-    QuicConnectionId connection_id, QuicTransportVersion transport_version) {
+    const QuicConnectionId& connection_id,
+    QuicTransportVersion transport_version) {
   return IsConnectionIdLengthValidForVersion(connection_id.length(),
                                              transport_version);
 }
 
 StatelessResetToken QuicUtils::GenerateStatelessResetToken(
-    QuicConnectionId connection_id) {
+    const QuicConnectionId& connection_id) {
   static_assert(sizeof(absl::uint128) == sizeof(StatelessResetToken),
                 "bad size");
   static_assert(alignof(absl::uint128) >= alignof(StatelessResetToken),
@@ -616,6 +618,23 @@ QuicByteCount MemSliceSpanTotalSize(absl::Span<quiche::QuicheMemSlice> span) {
     total += slice.length();
   }
   return total;
+}
+
+absl::string_view PosixBasename(absl::string_view path) {
+  constexpr char kPathSeparator = '/';
+  size_t pos = path.find_last_of(kPathSeparator);
+
+  // Handle the case with no `kPathSeparator` in `path`.
+  if (pos == absl::string_view::npos) {
+    return path;
+  }
+
+  // Handle the case with a single leading `kPathSeparator` in `path`.
+  if (pos == 0) {
+    return absl::ClippedSubstr(path, 1);
+  }
+
+  return absl::ClippedSubstr(path, pos + 1);
 }
 
 std::string RawSha256(absl::string_view input) {

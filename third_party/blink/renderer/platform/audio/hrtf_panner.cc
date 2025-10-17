@@ -23,8 +23,14 @@
  * DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/audio/hrtf_panner.h"
 
+#include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
@@ -340,8 +346,8 @@ void HRTFPanner::Pan(double desired_azimuth,
 }
 
 void HRTFPanner::PanWithSampleAccurateValues(
-    double* desired_azimuth,
-    double* elevation,
+    base::span<double> desired_azimuth,
+    base::span<double> elevation,
     const AudioBus* input_bus,
     AudioBus* output_bus,
     uint32_t frames_to_process,

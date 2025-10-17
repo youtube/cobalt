@@ -23,43 +23,45 @@ import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /**
- * The uninstall confirmation dialog, which allows the user to confirm that they
- * want to uninstall and report the app as abusive.
+ * The uninstall confirmation dialog, which allows the user to confirm that they want to uninstall
+ * and report the app as abusive.
  */
 public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Controller {
     /** Interface for receiving notifications of user actions. */
     public interface Callback {
-        /**
-         * Called when the user has selected to uninstall the app.
-         */
+        /** Called when the user has selected to uninstall the app. */
         public void onUninstall();
     }
 
     private static final String TAG = "UpdateReportAbuseDlg";
 
     // The Activity context to use.
-    private Context mActivityContext;
+    private final Context mActivityContext;
 
     // The modal dialog manager to use.
-    private ModalDialogManager mModalDialogManager;
+    private final ModalDialogManager mModalDialogManager;
 
     // The short name of the app the user is uninstalling.
-    private String mAppShortName;
+    private final String mAppShortName;
 
     // The package name for the app the user is uninstalling.
-    private String mAppPackageName;
+    private final String mAppPackageName;
 
     // Whether to show the checkbox for reporting abuse.
-    private boolean mShowAbuseCheckbox;
+    private final boolean mShowAbuseCheckbox;
 
     // When checked, the app will not just be uninstalled, but also reported for abuse.
     private CheckBox mReportAbuseCheckBox;
 
     // Notifies the parent (dialog beneath us) that uninstalling was the action taken by the user.
-    private Callback mOnUninstallCallback;
+    private final Callback mOnUninstallCallback;
 
-    public WebApkUpdateReportAbuseDialog(Context activityContext, ModalDialogManager manager,
-            String appPackageName, String appShortName, boolean showAbuseCheckbox,
+    public WebApkUpdateReportAbuseDialog(
+            Context activityContext,
+            ModalDialogManager manager,
+            String appPackageName,
+            String appShortName,
+            boolean showAbuseCheckbox,
             Callback callback) {
         mActivityContext = activityContext;
         mModalDialogManager = manager;
@@ -69,9 +71,7 @@ public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Cont
         mOnUninstallCallback = callback;
     }
 
-    /**
-     * Shows the dialog.
-     */
+    /** Shows the dialog. */
     public void show() {
         Context context = ContextUtils.getApplicationContext();
         Resources resources = context.getResources();
@@ -82,15 +82,21 @@ public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Cont
                 new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                         .with(ModalDialogProperties.CONTROLLER, this)
                         .with(ModalDialogProperties.TITLE, title)
-                        .with(ModalDialogProperties.BUTTON_STYLES,
+                        .with(
+                                ModalDialogProperties.BUTTON_STYLES,
                                 ModalDialogProperties.ButtonStyles.PRIMARY_FILLED_NEGATIVE_OUTLINE)
-                        .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT, resources,
+                        .with(
+                                ModalDialogProperties.POSITIVE_BUTTON_TEXT,
+                                resources,
                                 R.string.webapk_report_abuse_confirm)
-                        .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT, resources,
+                        .with(
+                                ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
+                                resources,
                                 R.string.webapk_report_abuse_cancel);
         if (mShowAbuseCheckbox) {
-            View dialogCustomView = LayoutInflaterUtils.inflate(
-                    context, R.layout.webapk_update_report_abuse_custom_view, null);
+            View dialogCustomView =
+                    LayoutInflaterUtils.inflate(
+                            context, R.layout.webapk_update_report_abuse_custom_view, null);
             mReportAbuseCheckBox = dialogCustomView.findViewById(R.id.report_abuse);
             builder = builder.with(ModalDialogProperties.CUSTOM_VIEW, dialogCustomView);
         }

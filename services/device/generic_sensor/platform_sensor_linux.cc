@@ -4,8 +4,10 @@
 
 #include "services/device/generic_sensor/platform_sensor_linux.h"
 
+#include <algorithm>
+
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "services/device/generic_sensor/linux/sensor_data_linux.h"
 #include "services/device/generic_sensor/platform_sensor_reader_linux.h"
@@ -15,9 +17,9 @@ namespace device {
 PlatformSensorLinux::PlatformSensorLinux(
     mojom::SensorType type,
     SensorReadingSharedBuffer* reading_buffer,
-    PlatformSensorProvider* provider,
+    base::WeakPtr<PlatformSensorProvider> provider,
     const SensorInfoLinux* sensor_device)
-    : PlatformSensor(type, reading_buffer, provider),
+    : PlatformSensor(type, reading_buffer, std::move(provider)),
       default_configuration_(
           PlatformSensorConfiguration(sensor_device->device_frequency)),
       reporting_mode_(sensor_device->reporting_mode) {

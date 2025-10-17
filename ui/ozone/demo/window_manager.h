@@ -18,6 +18,8 @@ namespace display {
 class DisplaySnapshot;
 class NativeDisplayDelegate;
 
+struct DisplayConfigurationParams;
+
 }  // namespace display
 
 namespace ui {
@@ -41,10 +43,11 @@ class WindowManager : public display::NativeDisplayObserver {
 
  private:
   void OnDisplaysAcquired(
-      const std::vector<display::DisplaySnapshot*>& displays);
-  void OnDisplayConfigured(const int64_t display_id,
-                           const gfx::Rect& bounds,
-                           bool config_success);
+      const std::vector<raw_ptr<display::DisplaySnapshot, VectorExperimental>>&
+          displays);
+  void OnDisplayConfigured(
+      const std::vector<display::DisplayConfigurationParams>& request_results,
+      bool config_success);
 
   // display::NativeDisplayDelegate:
   void OnConfigurationChanged() override;

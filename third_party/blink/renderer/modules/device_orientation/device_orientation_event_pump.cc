@@ -8,7 +8,7 @@
 
 #include "services/device/public/cpp/generic_sensor/sensor_reading.h"
 #include "services/device/public/mojom/sensor.mojom-blink.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/platform_event_controller.h"
@@ -172,9 +172,9 @@ bool DeviceOrientationEventPump::SensorsReadyOrErrored() const {
 }
 
 DeviceOrientationData* DeviceOrientationEventPump::GetDataFromSharedMemory() {
-  absl::optional<double> alpha;
-  absl::optional<double> beta;
-  absl::optional<double> gamma;
+  std::optional<double> alpha;
+  std::optional<double> beta;
+  std::optional<double> gamma;
   bool absolute = false;
   bool got_reading = false;
   device::SensorReading reading;

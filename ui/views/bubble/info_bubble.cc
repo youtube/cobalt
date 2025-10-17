@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -53,8 +54,11 @@ class InfoBubbleFrame : public BubbleFrameView {
 InfoBubble::InfoBubble(View* anchor,
                        BubbleBorder::Arrow arrow,
                        const std::u16string& message)
-    : BubbleDialogDelegateView(anchor, arrow) {
-  DialogDelegate::SetButtons(ui::DIALOG_BUTTON_NONE);
+    : BubbleDialogDelegateView(anchor,
+                               arrow,
+                               views::BubbleBorder::DIALOG_SHADOW,
+                               true) {
+  DialogDelegate::SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
 
   set_margins(LayoutProvider::Get()->GetInsetsMetric(
       InsetsMetric::INSETS_TOOLTIP_BUBBLE));
@@ -81,8 +85,9 @@ void InfoBubble::Show() {
 
 void InfoBubble::Hide() {
   Widget* widget = GetWidget();
-  if (widget && !widget->IsClosed())
+  if (widget && !widget->IsClosed()) {
     widget->Close();
+  }
 }
 
 std::unique_ptr<NonClientFrameView> InfoBubble::CreateNonClientFrameView(
@@ -91,37 +96,41 @@ std::unique_ptr<NonClientFrameView> InfoBubble::CreateNonClientFrameView(
   auto frame = std::make_unique<InfoBubbleFrame>(margins());
   frame->set_available_bounds(anchor_widget()->GetWindowBoundsInScreen());
   auto border = std::make_unique<BubbleBorder>(arrow(), GetShadow());
-  border->SetColor(color());
+  border->SetColor(background_color());
   frame->SetBubbleBorder(std::move(border));
   frame_ = frame.get();
   return frame;
 }
 
-gfx::Size InfoBubble::CalculatePreferredSize() const {
-  if (preferred_width_ == 0)
-    return BubbleDialogDelegateView::CalculatePreferredSize();
+gfx::Size InfoBubble::CalculatePreferredSize(
+    const SizeBounds& available_size) const {
+  if (preferred_width_ == 0) {
+    return BubbleDialogDelegateView::CalculatePreferredSize(available_size);
+  }
 
   int pref_width = preferred_width_;
   pref_width -= frame_->GetInsets().width();
   pref_width -= 2 * kBubbleBorderVisibleWidth;
-  return gfx::Size(pref_width, GetHeightForWidth(pref_width));
+  return gfx::Size(pref_width, GetLayoutManager()->GetPreferredHeightForWidth(
+                                   this, pref_width));
 }
 
 void InfoBubble::OnWidgetBoundsChanged(Widget* widget,
                                        const gfx::Rect& new_bounds) {
   BubbleDialogDelegateView::OnWidgetBoundsChanged(widget, new_bounds);
-  if (anchor_widget() == widget)
+  if (anchor_widget() == widget) {
     frame_->set_available_bounds(widget->GetWindowBoundsInScreen());
+  }
 }
 
 void InfoBubble::UpdatePosition() {
   Widget* const widget = GetWidget();
-  if (!widget)
+  if (!widget) {
     return;
+  }
 
   if (anchor_widget()->IsVisible() &&
       !GetAnchorView()->GetVisibleBounds().IsEmpty()) {
-    SizeToContents();
     widget->SetVisibilityChangedAnimationsEnabled(true);
     widget->ShowInactive();
   } else {
@@ -130,7 +139,7 @@ void InfoBubble::UpdatePosition() {
   }
 }
 
-BEGIN_METADATA(InfoBubble, BubbleDialogDelegateView)
+BEGIN_METADATA(InfoBubble)
 END_METADATA
 
 }  // namespace views

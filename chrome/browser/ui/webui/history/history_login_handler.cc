@@ -15,6 +15,8 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/webui/profile_info_watcher.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -22,7 +24,7 @@
 HistoryLoginHandler::HistoryLoginHandler(base::RepeatingClosure signin_callback)
     : signin_callback_(std::move(signin_callback)) {}
 
-HistoryLoginHandler::~HistoryLoginHandler() {}
+HistoryLoginHandler::~HistoryLoginHandler() = default;
 
 void HistoryLoginHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
@@ -55,8 +57,9 @@ void HistoryLoginHandler::HandleOtherDevicesInitialized(
 
 void HistoryLoginHandler::ProfileInfoChanged() {
   bool signed_in = !profile_info_watcher_->GetAuthenticatedUsername().empty();
-  if (!signin_callback_.is_null())
+  if (!signin_callback_.is_null()) {
     signin_callback_.Run();
+  }
 
   FireWebUIListener("sign-in-state-changed", base::Value(signed_in));
 }
@@ -64,9 +67,15 @@ void HistoryLoginHandler::ProfileInfoChanged() {
 void HistoryLoginHandler::HandleTurnOnSyncFlow(
     const base::Value::List& /*args*/) {
   Profile* profile = Profile::FromWebUI(web_ui());
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  CoreAccountInfo account_info =
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+#if !BUILDFLAG(IS_CHROMEOS)
+  if (account_info.IsEmpty()) {
+    account_info = signin_ui_util::GetSingleAccountForPromos(identity_manager);
+  }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
   signin_ui_util::EnableSyncFromSingleAccountPromo(
-      profile,
-      IdentityManagerFactory::GetForProfile(profile)->GetPrimaryAccountInfo(
-          signin::ConsentLevel::kSignin),
-      signin_metrics::AccessPoint::ACCESS_POINT_RECENT_TABS);
+      profile, account_info, signin_metrics::AccessPoint::kRecentTabs);
 }

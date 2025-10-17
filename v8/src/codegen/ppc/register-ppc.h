@@ -73,6 +73,15 @@ namespace internal {
 #define C_REGISTERS(V)                                            \
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS                                         \
+  r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, \
+      r29, r30
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS                                      \
+  d14, d15, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, \
+      d29, d30, d31
+
 // clang-format on
 
 // The following constants describe the stack frame linkage area as
@@ -136,6 +145,13 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DEFINE_REGISTER)
@@ -153,10 +169,8 @@ constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
 
 // PPC64 calling convention
-constexpr Register arg_reg_1 = r3;
-constexpr Register arg_reg_2 = r4;
-constexpr Register arg_reg_3 = r5;
-constexpr Register arg_reg_4 = r6;
+constexpr Register kCArgRegs[] = {r3, r4, r5, r6, r7, r8, r9, r10};
+static const int kRegisterPassedArguments = arraysize(kCArgRegs);
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -313,11 +327,14 @@ constexpr Register kJavaScriptCallCodeStartRegister = r5;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = r6;
 constexpr Register kJavaScriptCallExtraArg1Register = r5;
+// DispatchHandle is only needed for the sandbox which is not available on
+// ppc64.
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 constexpr Register kRuntimeCallFunctionRegister = r4;
 constexpr Register kRuntimeCallArgCountRegister = r3;
 constexpr Register kRuntimeCallArgvRegister = r5;
-constexpr Register kWasmInstanceRegister = r10;
+constexpr Register kWasmImplicitArgRegister = r10;
 constexpr Register kWasmCompileLazyFuncIndexRegister = r15;
 
 constexpr DoubleRegister kFPReturnRegister0 = d1;

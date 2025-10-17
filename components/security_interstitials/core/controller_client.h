@@ -52,6 +52,11 @@ enum SecurityInterstitialCommand {
   CMD_REPORT_PHISHING_ERROR = 12,
   // Open enhanced protection settings.
   CMD_OPEN_ENHANCED_PROTECTION_SETTINGS = 13,
+  // User closes interstitial without making decision through UI.
+  CMD_CLOSE_INTERSTITIAL_WITHOUT_UI = 14,
+  // Request permission to blocked website.
+  CMD_REQUEST_SITE_ACCESS_PERMISSION = 15,
+  CMD_OPEN_ANDROID_ADVANCED_PROTECTION_SETTINGS = 16,
 };
 
 // Provides methods for handling commands from the user, which requires some
@@ -82,7 +87,7 @@ class ControllerClient {
 
   // Close the error and go back to the previous page. This applies to
   // situations where navigation is blocked before committing.
-  // TODO(crbug.com/928901) - rename this to NavigateAway or similar.
+  // TODO(crbug.com/41439461) - rename this to NavigateAway or similar.
   virtual void GoBack() = 0;
   // Whether it is possible to go 'Back to safety'.
   virtual bool CanGoBack() = 0;
@@ -108,6 +113,10 @@ class ControllerClient {
   virtual void OpenUrlInNewForegroundTab(const GURL& url) = 0;
 
   virtual void OpenEnhancedProtectionSettings() = 0;
+
+#if BUILDFLAG(IS_ANDROID)
+  virtual void OpenAdvancedProtectionSettings() = 0;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   virtual PrefService* GetPrefService() = 0;
 

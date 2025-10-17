@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "device/bluetooth/bluez/bluetooth_device_bluez.h"
 
 #include <stdio.h>
@@ -241,11 +246,10 @@ device::BluetoothTransport BluetoothDeviceBlueZ::GetType() const {
   }
 
   NOTREACHED();
-  return device::BLUETOOTH_TRANSPORT_INVALID;
 }
 
 void BluetoothDeviceBlueZ::CreateGattConnectionImpl(
-    absl::optional<BluetoothUUID> service_uuid) {
+    std::optional<BluetoothUUID> service_uuid) {
 // Once ConnectLE is supported on Linux, this buildflag will not be necessary
 // (this bluez code is only run on Chrome OS and Linux).
 #if BUILDFLAG(IS_CHROMEOS)
@@ -299,7 +303,7 @@ void BluetoothDeviceBlueZ::DisconnectGatt() {
 
   // IsPaired() returns true if we've connected to the device before. So we
   // check the dbus property directly.
-  // TODO(crbug.com/649651): Use IsPaired once it returns true only for paired
+  // TODO(crbug.com/40486156): Use IsPaired once it returns true only for paired
   // devices.
   bluez::BluetoothDeviceClient::Properties* properties =
       bluez::BluezDBusManager::Get()->GetBluetoothDeviceClient()->GetProperties(
@@ -405,7 +409,7 @@ uint16_t BluetoothDeviceBlueZ::GetAppearance() const {
   return properties->appearance.value();
 }
 
-absl::optional<std::string> BluetoothDeviceBlueZ::GetName() const {
+std::optional<std::string> BluetoothDeviceBlueZ::GetName() const {
   bluez::BluetoothDeviceClient::Properties* properties =
       bluez::BluezDBusManager::Get()->GetBluetoothDeviceClient()->GetProperties(
           object_path_);
@@ -414,7 +418,7 @@ absl::optional<std::string> BluetoothDeviceBlueZ::GetName() const {
   if (properties->name.is_valid())
     return properties->name.value();
   else
-    return absl::nullopt;
+    return std::nullopt;
 }
 
 bool BluetoothDeviceBlueZ::IsPaired() const {
@@ -492,14 +496,14 @@ BluetoothDevice::UUIDSet BluetoothDeviceBlueZ::GetUUIDs() const {
   return device_uuids_.GetUUIDs();
 }
 
-absl::optional<int8_t> BluetoothDeviceBlueZ::GetInquiryRSSI() const {
+std::optional<int8_t> BluetoothDeviceBlueZ::GetInquiryRSSI() const {
   bluez::BluetoothDeviceClient::Properties* properties =
       bluez::BluezDBusManager::Get()->GetBluetoothDeviceClient()->GetProperties(
           object_path_);
   DCHECK(properties);
 
   if (!properties->rssi.is_valid())
-    return absl::nullopt;
+    return std::nullopt;
 
   // BlueZ uses int16_t because there is no int8_t for DBus, so we should never
   // get an int16_t that cannot be represented by an int8_t. But just in case
@@ -507,14 +511,14 @@ absl::optional<int8_t> BluetoothDeviceBlueZ::GetInquiryRSSI() const {
   return ClampPower(properties->rssi.value());
 }
 
-absl::optional<int8_t> BluetoothDeviceBlueZ::GetInquiryTxPower() const {
+std::optional<int8_t> BluetoothDeviceBlueZ::GetInquiryTxPower() const {
   bluez::BluetoothDeviceClient::Properties* properties =
       bluez::BluezDBusManager::Get()->GetBluetoothDeviceClient()->GetProperties(
           object_path_);
   DCHECK(properties);
 
   if (!properties->tx_power.is_valid())
-    return absl::nullopt;
+    return std::nullopt;
 
   // BlueZ uses int16_t because there is no int8_t for DBus, so we should never
   // get an int16_t that cannot be represented by an int8_t. But just in case
@@ -569,7 +573,6 @@ void BluetoothDeviceBlueZ::SetConnectionLatency(
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   BLUETOOTH_LOG(EVENT) << "Setting LE connection parameters: min="
@@ -1131,7 +1134,7 @@ void BluetoothDeviceBlueZ::OnConnect(ConnectCallback callback) {
   SetTrusted();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  std::move(callback).Run(/*error_code=*/absl::nullopt);
+  std::move(callback).Run(/*error_code=*/std::nullopt);
 }
 
 void BluetoothDeviceBlueZ::OnConnectError(ConnectCallback callback,
@@ -1200,7 +1203,7 @@ void BluetoothDeviceBlueZ::OnPairDuringConnectError(
 void BluetoothDeviceBlueZ::OnPair(ConnectCallback callback) {
   BLUETOOTH_LOG(EVENT) << object_path_.value() << ": Paired";
   EndPairing();
-  std::move(callback).Run(/*error_code=*/absl::nullopt);
+  std::move(callback).Run(/*error_code=*/std::nullopt);
 }
 
 void BluetoothDeviceBlueZ::OnPairError(ConnectCallback callback,

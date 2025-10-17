@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
@@ -16,14 +17,20 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/values.h"
+#include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/extensions/extension_test_util.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_features.h"
@@ -32,8 +39,9 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/browsertest_util.h"
+#include "extensions/browser/extension_host.h"
+#include "extensions/browser/process_manager.h"
 #include "extensions/common/permissions/permissions_data.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -167,7 +175,7 @@ class ExtensionCookiesTest : public ExtensionBrowserTest {
                   const std::vector<std::string>& cookies) {
     GURL url = test_server()->GetURL(host, "/");
     for (const std::string& cookie : cookies) {
-      content::SetCookie(browser()->profile(), url, cookie);
+      ASSERT_TRUE(content::SetCookie(browser()->profile(), url, cookie));
     }
   }
 
@@ -264,19 +272,21 @@ class ExtensionCookiesTest : public ExtensionBrowserTest {
   const Extension* MakeExtension(
       const std::vector<std::string>& host_patterns) {
     ChromeTestExtensionLoader loader(profile());
-    DictionaryBuilder manifest;
-    manifest.Set("name", "Cookies test extension")
-        .Set("version", "1")
-        .Set("manifest_version", 2)
-        .Set("web_accessible_resources", ListBuilder().Append("*.html").Build())
-        .Set("content_security_policy", kCspHeader)
-        .Set("permissions",
-             ListBuilder()
-                 .Append(host_patterns.begin(), host_patterns.end())
-                 .Build());
+    base::Value::List permissions;
+    for (const auto& host_pattern : host_patterns) {
+      permissions.Append(host_pattern);
+    }
+    auto manifest = base::Value::Dict()
+                        .Set("name", "Cookies test extension")
+                        .Set("version", "1")
+                        .Set("manifest_version", 2)
+                        .Set("web_accessible_resources",
+                             base::Value::List().Append("*.html"))
+                        .Set("content_security_policy", kCspHeader)
+                        .Set("permissions", std::move(permissions));
     extension_dir_->WriteFile(FILE_PATH_LITERAL("empty.html"), "");
     extension_dir_->WriteFile(FILE_PATH_LITERAL("script.js"), "");
-    extension_dir_->WriteManifest(manifest.ToJSON());
+    extension_dir_->WriteManifest(manifest);
 
     const Extension* extension =
         loader.LoadExtension(extension_dir_->UnpackedPath()).get();
@@ -345,12 +355,14 @@ class ExtensionSameSiteCookiesTest
           ->GetNetworkContext()
           ->GetCookieManager(
               cookie_manager_remote_.BindNewPipeAndPassReceiver());
-      cookie_manager_remote_->SetContentSettingsForLegacyCookieAccess(
+      cookie_manager_remote_->SetContentSettings(
+          ContentSettingsType::LEGACY_COOKIE_ACCESS,
           {ContentSettingPatternSource(
               ContentSettingsPattern::Wildcard(),
               ContentSettingsPattern::Wildcard(),
               base::Value(ContentSetting::CONTENT_SETTING_ALLOW),
-              /*source=*/std::string(), /*incognito=*/false)});
+              content_settings::ProviderType::kNone, /*incognito=*/false)},
+          base::NullCallback());
       cookie_manager_remote_.FlushForTesting();
     }
   }
@@ -734,6 +746,9 @@ IN_PROC_BROWSER_TEST_P(ExtensionSameSiteCookiesTest,
   constexpr char kActiveTabHost[] = "active-tab.example";
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), test_server()->GetURL(kActiveTabHost, "/title1.html")));
+  CookieSettingsFactory::GetForProfile(browser()->profile())
+      ->SetCookieSetting(test_server()->GetURL(kActiveTabHost, "/"),
+                         CONTENT_SETTING_ALLOW);
   SetCookies(kActiveTabHost);
   content::RenderFrameHost* extension_subframe = nullptr;
   {
@@ -825,7 +840,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionSameSiteCookiesTest,
     // Read back the response reported by the extension service worker.
     std::string json;
     EXPECT_TRUE(queue.WaitForMessage(&json));
-    absl::optional<base::Value> value =
+    std::optional<base::Value> value =
         base::JSONReader::Read(json, base::JSON_ALLOW_TRAILING_COMMAS);
     EXPECT_TRUE(value->is_string());
     return value->GetString();

@@ -8,35 +8,36 @@
 #include <string>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "components/feed/feed_feature_list.h"
 
 namespace feed {
 
-absl::optional<Experiments> TranslateExperiments(
+bool ExperimentGroup::operator==(const ExperimentGroup& rhs) const {
+  return name == rhs.name && experiment_id == rhs.experiment_id;
+}
+
+std::optional<Experiments> TranslateExperiments(
     const google::protobuf::RepeatedPtrField<feedwire::Experiment>&
         wire_experiments) {
   // Set up the Experiments map that contains the trial -> list of groups.
-  absl::optional<Experiments> experiments = absl::nullopt;
+  std::optional<Experiments> experiments = std::nullopt;
   if (wire_experiments.size() > 0) {
     Experiments e;
     for (feedwire::Experiment exp : wire_experiments) {
       if (exp.has_trial_name() && exp.has_group_name()) {
         // Extract experiment in response that contains both trial and
         // group names.
-        if (e.find(exp.trial_name()) != e.end()) {
-          e[exp.trial_name()].push_back(exp.group_name());
-        } else {
-          e[exp.trial_name()] = {exp.group_name()};
+        ExperimentGroup group;
+        group.name = exp.group_name();
+        group.experiment_id = 0;
+        if (exp.has_experiment_id()) {
+          base::StringToInt(exp.experiment_id(), &(group.experiment_id));
         }
-      } else if (exp.has_experiment_id() &&
-                 base::FeatureList::IsEnabled(kFeedExperimentIDTagging)) {
-        // Extract experiment in response that contains an experiment ID.
-        std::string trial_name =
-            exp.has_trial_name() ? exp.trial_name() : kDiscoverFeedExperiments;
-        if (e.find(trial_name) != e.end()) {
-          e[trial_name].push_back(exp.experiment_id());
+        if (e.find(exp.trial_name()) != e.end()) {
+          e[exp.trial_name()].push_back(group);
         } else {
-          e[trial_name] = {exp.experiment_id()};
+          e[exp.trial_name()] = {group};
         }
       }
     }

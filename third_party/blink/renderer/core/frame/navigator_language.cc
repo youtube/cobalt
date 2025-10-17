@@ -4,7 +4,9 @@
 
 #include "third_party/blink/renderer/core/frame/navigator_language.h"
 
+#include "base/command_line.h"
 #include "services/network/public/cpp/features.h"
+#include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/platform/language.h"
@@ -67,11 +69,17 @@ void NavigatorLanguage::EnsureUpdatedLanguage() {
       languages_ = ParseAndSanitize(accept_languages_override);
     } else {
       languages_ = ParseAndSanitize(GetAcceptLanguages());
-      if (RuntimeEnabledFeatures::ReduceAcceptLanguageEnabled(
+      // Reduce the Accept-Language if the ReduceAcceptLanguage deprecation
+      // trial is not enabled and feature flag ReduceAcceptLanguage is enabled.
+      if (RuntimeEnabledFeatures::DisableReduceAcceptLanguageEnabled(
               execution_context_)) {
-        languages_ = Vector<String>({languages_.front()});
         UseCounter::Count(execution_context_,
-                          WebFeature::kReduceAcceptLanguage);
+                          WebFeature::kDisableReduceAcceptLanguage);
+      } else if (base::FeatureList::IsEnabled(
+                     network::features::kReduceAcceptLanguage) &&
+                 !base::CommandLine::ForCurrentProcess()->HasSwitch(
+                     blink::switches::kDisableReduceAcceptLanguage)) {
+        languages_ = Vector<String>({languages_.front()});
       }
     }
 

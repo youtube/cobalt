@@ -6,14 +6,15 @@ package org.chromium.components.location;
 
 import android.Manifest;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.base.WindowAndroid;
 
-/**
- * Provides native access to system-level location settings and permissions.
- */
+/** Provides native access to system-level location settings and permissions. */
+@NullMarked
 public class LocationSettings {
     private LocationSettings() {}
 
@@ -23,8 +24,13 @@ public class LocationSettings {
     }
 
     @CalledByNative
+    private static boolean hasAndroidFineLocationPermission() {
+        return LocationUtils.getInstance().hasAndroidFineLocationPermission();
+    }
+
+    @CalledByNative
     private static boolean canPromptForAndroidLocationPermission(WindowAndroid windowAndroid) {
-        // TODO(crbug.com/1206673): Investigate if this should be ACCESS_COARSE_LOCATION.
+        // TODO(crbug.com/40765216): Investigate if this should be ACCESS_COARSE_LOCATION.
         return windowAndroid.canRequestPermission(Manifest.permission.ACCESS_FINE_LOCATION);
     }
 
@@ -40,16 +46,20 @@ public class LocationSettings {
 
     @CalledByNative
     private static void promptToEnableSystemLocationSetting(
-            @LocationSettingsDialogContext int promptContext, WindowAndroid window,
+            @LocationSettingsDialogContext int promptContext,
+            WindowAndroid window,
             final long nativeCallback) {
-        LocationUtils.getInstance().promptToEnableSystemLocationSetting(
-                promptContext, window, new Callback<Integer>() {
-                    @Override
-                    public void onResult(Integer result) {
-                        LocationSettingsJni.get().onLocationSettingsDialogOutcome(
-                                nativeCallback, result);
-                    }
-                });
+        LocationUtils.getInstance()
+                .promptToEnableSystemLocationSetting(
+                        promptContext,
+                        window,
+                        new Callback<Integer>() {
+                            @Override
+                            public void onResult(Integer result) {
+                                LocationSettingsJni.get()
+                                        .onLocationSettingsDialogOutcome(nativeCallback, result);
+                            }
+                        });
     }
 
     @NativeMethods

@@ -30,7 +30,10 @@
 #include "third_party/blink/renderer/platform/graphics/test/gpu_test_utils.h"
 #include "third_party/blink/renderer/platform/graphics/test/mock_compositor_frame_sink.h"
 #include "third_party/blink/renderer/platform/graphics/test/mock_embedded_frame_sink_provider.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
+#include "third_party/blink/renderer/platform/text/layout_locale.h"
+#include "third_party/blink/renderer/platform/text/text_direction.h"
 
 using ::testing::_;
 using ::testing::Values;
@@ -62,7 +65,8 @@ class HTMLCanvasElementModuleTest : public ::testing::Test,
     web_view_helper_.Initialize();
     GetDocument().documentElement()->setInnerHTML(
         String::FromUTF8("<body><canvas id='c'></canvas></body>"));
-    canvas_element_ = To<HTMLCanvasElement>(GetDocument().getElementById("c"));
+    canvas_element_ =
+        To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
   }
 
   LocalDOMWindow* GetWindow() const {
@@ -77,9 +81,11 @@ class HTMLCanvasElementModuleTest : public ::testing::Test,
   HTMLCanvasElement& canvas_element() const { return *canvas_element_; }
   OffscreenCanvas* TransferControlToOffscreen(ExceptionState& exception_state) {
     return HTMLCanvasElementModule::TransferControlToOffscreenInternal(
-        GetWindow(), canvas_element(), exception_state);
+        ToScriptStateForMainWorld(GetWindow()->GetFrame()), canvas_element(),
+        exception_state);
   }
 
+  test::TaskEnvironment task_environment_;
   frame_test_helpers::WebViewHelper web_view_helper_;
   Persistent<HTMLCanvasElement> canvas_element_;
   Persistent<CanvasRenderingContext> context_;
@@ -91,7 +97,56 @@ TEST_F(HTMLCanvasElementModuleTest, TransferControlToOffscreen) {
   const OffscreenCanvas* offscreen_canvas =
       TransferControlToOffscreen(exception_state);
   const DOMNodeId canvas_id = offscreen_canvas->PlaceholderCanvasId();
-  EXPECT_EQ(canvas_id, DOMNodeIds::IdForNode(&(canvas_element())));
+  EXPECT_EQ(canvas_id, canvas_element().GetDomNodeId());
+}
+
+// Test that lang and direction attributes are transferred correctly.
+TEST_F(HTMLCanvasElementModuleTest, TransferLangAndDirectionToOffscreen) {
+  NonThrowableExceptionState exception_state;
+  canvas_element_->setAttribute(AtomicString("lang"), "zh-CN");
+  canvas_element_->setAttribute(AtomicString("dir"), "rtl");
+
+  OffscreenCanvas* offscreen_canvas =
+      TransferControlToOffscreen(exception_state);
+
+  const LayoutLocale* locale = offscreen_canvas->GetLocale();
+  EXPECT_EQ(locale->LocaleString(), AtomicString("zh-CN"));
+
+  const TextDirection direction = offscreen_canvas->GetTextDirection(
+      /*conputed_style=*/nullptr);
+  EXPECT_EQ(direction, TextDirection::kRtl);
+}
+
+// Test that lang and direction defaults are transferred correctly.
+TEST_F(HTMLCanvasElementModuleTest,
+       TransferLangAndDirectionDefaultsToOffscreen) {
+  NonThrowableExceptionState exception_state;
+  OffscreenCanvas* offscreen_canvas =
+      TransferControlToOffscreen(exception_state);
+
+  const LayoutLocale* locale = offscreen_canvas->GetLocale();
+  EXPECT_EQ(locale, &LayoutLocale::GetDefault());
+
+  const TextDirection direction = offscreen_canvas->GetTextDirection(
+      /*conputed_style=*/nullptr);
+  EXPECT_EQ(direction, TextDirection::kLtr);
+}
+
+// Test that lang and direction from document are transferred correctly.
+TEST_F(HTMLCanvasElementModuleTest,
+       TransferLangAndDirectionDocumentToOffscreen) {
+  NonThrowableExceptionState exception_state;
+  GetDocument().documentElement()->setAttribute(AtomicString("lang"), "zh-CN");
+  GetDocument().documentElement()->setAttribute(AtomicString("dir"), "rtl");
+  OffscreenCanvas* offscreen_canvas =
+      TransferControlToOffscreen(exception_state);
+
+  const LayoutLocale* locale = offscreen_canvas->GetLocale();
+  EXPECT_EQ(locale->LocaleString(), AtomicString("zh-CN"));
+
+  const TextDirection direction = offscreen_canvas->GetTextDirection(
+      /*conputed_style=*/nullptr);
+  EXPECT_EQ(direction, TextDirection::kRtl);
 }
 
 // Verifies that a desynchronized canvas has the appropriate opacity/blending
@@ -114,7 +169,7 @@ TEST_P(HTMLCanvasElementModuleTest, LowLatencyCanvasCompositorFrameOpacity) {
 
   context_provider->UnboundTestContextGL()
       ->set_supports_gpu_memory_buffer_format(buffer_format, true);
-  InitializeSharedGpuContext(context_provider.get());
+  InitializeSharedGpuContextGLES2(context_provider.get());
 
   // To intercept SubmitCompositorFrame/SubmitCompositorFrameSync messages sent
   // by a canvas's CanvasResourceDispatcher, we have to override the Mojo
@@ -130,11 +185,6 @@ TEST_P(HTMLCanvasElementModuleTest, LowLatencyCanvasCompositorFrameOpacity) {
   CanvasContextCreationAttributesCore attrs;
   attrs.alpha = context_alpha;
   attrs.desynchronized = true;
-  // |context_| creation triggers a SurfaceLayerBridge creation which connects
-  // to a MockEmbeddedFrameSinkProvider to create a new CompositorFrameSink,
-  // that will receive a SetNeedsBeginFrame() upon construction.
-  mock_embedded_frame_sink_provider
-      .set_num_expected_set_needs_begin_frame_on_sink_construction(1);
   EXPECT_CALL(mock_embedded_frame_sink_provider, CreateCompositorFrameSink_(_));
   context_ = canvas_element().GetCanvasRenderingContext(String("2d"), attrs);
   EXPECT_EQ(context_->CreationAttributes().alpha, attrs.alpha);
@@ -163,12 +213,11 @@ TEST_P(HTMLCanvasElementModuleTest, LowLatencyCanvasCompositorFrameOpacity) {
                       context_alpha);
           })));
   canvas_element().PreFinalizeFrame();
-  context_->FinalizeFrame(CanvasResourceProvider::FlushReason::kTesting);
-  canvas_element().PostFinalizeFrame(
-      CanvasResourceProvider::FlushReason::kTesting);
+  context_->FinalizeFrame(FlushReason::kTesting);
+  canvas_element().PostFinalizeFrame(FlushReason::kTesting);
   platform->RunUntilIdle();
 
-  SharedGpuContext::ResetForTesting();
+  SharedGpuContext::Reset();
 #endif
 }
 

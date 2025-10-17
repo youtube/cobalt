@@ -6,6 +6,9 @@
 
 #include <math.h>
 
+#include <algorithm>
+#include <array>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,7 +16,6 @@
 #include "base/check_op.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -26,7 +28,7 @@
 #include "components/omnibox/browser/in_memory_url_index_types.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/url_prefix.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/omnibox/common/string_cleaning.h"
 #include "url/gurl.h"
 #include "url/third_party/mozilla/url_parse.h"
 
@@ -45,7 +47,7 @@ const int kMaxRawTermScore = 30;
 // lookups of scores without requiring math. This is initialized by
 // InitDaysAgoToRecencyScoreArray called by
 // ScoredHistoryMatch::Init().
-float days_ago_to_recency_score[kDaysToPrecomputeRecencyScoresFor];
+std::array<float, kDaysToPrecomputeRecencyScoresFor> days_ago_to_recency_score;
 
 // Pre-computed information to speed up calculating topicality scores.
 // |raw_term_score_to_topicality_score| is a simple array mapping how raw terms
@@ -54,7 +56,7 @@ float days_ago_to_recency_score[kDaysToPrecomputeRecencyScoresFor];
 // assign it.  This allows easy lookups of scores without requiring math. This
 // is initialized by InitRawTermScoreToTopicalityScoreArray() called from
 // ScoredHistoryMatch::Init().
-float raw_term_score_to_topicality_score[kMaxRawTermScore];
+std::array<float, kMaxRawTermScore> raw_term_score_to_topicality_score;
 
 // Precalculates raw_term_score_to_topicality_score, used in
 // GetTopicalityScore().
@@ -162,9 +164,9 @@ ScoredHistoryMatch::ScoredHistoryMatch(
   // has been constructed via the no-args constructor.
   ScoredHistoryMatch::Init();
 
-  if (OmniboxFieldTrial::IsLogUrlScoringSignalsEnabled()) {
+  if (OmniboxFieldTrial::IsPopulatingUrlScoringSignalsEnabled()) {
     // Populate the scoring signals available in the URL Row.
-    scoring_signals = absl::make_optional<ScoringSignals>();
+    scoring_signals = std::make_optional<ScoringSignals>();
     scoring_signals->set_typed_count(row.typed_count());
     scoring_signals->set_visit_count(row.visit_count());
     base::TimeDelta elapsed_time = now - row.last_visit();
@@ -178,8 +180,8 @@ ScoredHistoryMatch::ScoredHistoryMatch(
   base::OffsetAdjuster::Adjustments adjustments;
   GURL gurl = row.url();
   std::u16string cleaned_up_url_for_matching =
-      bookmarks::CleanUpUrlForMatching(gurl, &adjustments);
-  std::u16string title = bookmarks::CleanUpTitleForMatching(row.title());
+      string_cleaning::CleanUpUrlForMatching(gurl, &adjustments);
+  std::u16string title = string_cleaning::CleanUpTitleForMatching(row.title());
   int term_num = 0;
   for (const auto& term : terms_vector) {
     TermMatches url_term_matches =
@@ -496,9 +498,11 @@ ScoredHistoryMatch::ComputeUrlMatchingSignals(
   size_t last_part_of_host_pos =
       url.possibly_invalid_spec().rfind('.', path_pos);
 
-  // Get end position for 'www'. Not set if 'www' not exists in host.
-  absl::optional<size_t> www_end_pos;
-  if (base::ToLowerASCII(url.spec().substr(host_pos, 3)).compare("www") == 0) {
+  // Get end position for 'www'. Not set if 'www' does not exist in the host
+  // component.
+  std::optional<size_t> www_end_pos;
+  if (host_pos + 3 <= url.spec().length() &&
+      base::ToLowerASCII(url.spec().substr(host_pos, 3)).compare("www") == 0) {
     www_end_pos = host_pos + 2;
   }
 
@@ -514,9 +518,9 @@ ScoredHistoryMatch::ComputeUrlMatchingSignals(
     www_end_pos = end_pos;
   }
 
-  absl::optional<bool> host_match_at_word_boundary = absl::nullopt;
-  absl::optional<bool> has_non_scheme_www_match = absl::nullopt;
-  absl::optional<size_t> first_url_match_position = absl::nullopt;
+  std::optional<bool> host_match_at_word_boundary = std::nullopt;
+  std::optional<bool> has_non_scheme_www_match = std::nullopt;
+  std::optional<size_t> first_url_match_position = std::nullopt;
   size_t total_url_match_length = 0;
   size_t total_host_match_length = 0;
   size_t total_path_match_length = 0;
@@ -715,7 +719,7 @@ float ScoredHistoryMatch::GetTopicalityScore(
   IncrementTitleMatchTermScores(terms_to_word_starts_offsets,
                                 word_starts.title_word_starts_, &term_scores);
 
-  if (OmniboxFieldTrial::IsLogUrlScoringSignalsEnabled()) {
+  if (OmniboxFieldTrial::IsPopulatingUrlScoringSignalsEnabled()) {
     // Url matching signals.
     const auto url_matching_signals = ComputeUrlMatchingSignals(
         terms_to_word_starts_offsets, url, word_starts.url_word_starts_,
@@ -801,10 +805,6 @@ void ScoredHistoryMatch::IncrementUrlMatchTermScores(
   base::OffsetAdjuster::AdjustOffset(adjustments, &query_pos);
   base::OffsetAdjuster::AdjustOffset(adjustments, &last_part_of_host_pos);
 
-  // Loop through all URL matches and score them appropriately.
-  url::Component query = parsed.query;
-  url::Component key, value;
-
   for (const auto& url_match : url_matches) {
     // Calculate the offset in the URL string where the meaningful (word) part
     // of the term starts.  This takes into account times when a term starts
@@ -821,23 +821,7 @@ void ScoredHistoryMatch::IncrementUrlMatchTermScores(
                                   (*next_word_starts == term_word_offset);
     if (term_word_offset >= query_pos) {
       // The match is in the query or ref component.
-      if (OmniboxFieldTrial::ShouldDisableCGIParamMatching()) {
-        // Only match cgi param values, NOT the param keys.
-        while (url::ExtractQueryKeyValue(url.spec().c_str(), &query, &key,
-                                         &value)) {
-          size_t value_begin = value.begin;
-          size_t value_end = value.end();
-          base::OffsetAdjuster::AdjustOffset(adjustments, &value_begin);
-          base::OffsetAdjuster::AdjustOffset(adjustments, &value_end);
-          if (term_word_offset >= value_begin &&
-              term_word_offset <= value_end) {
-            if (term_scores) {
-              (*term_scores)[url_match.term_num] += 5;
-            }
-            break;
-          }
-        }
-      } else if (term_scores) {
+      if (term_scores) {
         (*term_scores)[url_match.term_num] += 5;
       }
     } else if (term_word_offset >= path_pos) {
@@ -936,8 +920,8 @@ float ScoredHistoryMatch::GetFrequency(const base::Time& now,
   auto visits_end =
       visits.begin() + std::min(visits.size(), max_visits_to_score_);
   // Visits should be in newest to oldest order.
-  DCHECK(base::ranges::adjacent_find(visits.begin(), visits_end, std::less<>(),
-                                     &history::VisitInfo::first) == visits_end);
+  DCHECK(std::ranges::adjacent_find(visits.begin(), visits_end, std::less<>(),
+                                    &history::VisitInfo::first) == visits_end);
   for (auto i = visits.begin(); i != visits_end; ++i) {
     const bool is_page_transition_typed =
         ui::PageTransitionCoreTypeIs(i->second, ui::PAGE_TRANSITION_TYPED);

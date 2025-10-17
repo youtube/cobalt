@@ -7,8 +7,12 @@
 #include <stdint.h>
 
 #include <set>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
@@ -17,22 +21,23 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/clipboard/clipboard_constants.h"
-#include "ui/gfx/x/x11_atom_cache.h"
+#include "ui/gfx/x/atom_cache.h"
 
 namespace ui {
 
 std::vector<x11::Atom> GetTextAtomsFrom() {
   return {x11::GetAtom(kMimeTypeLinuxUtf8String),
           x11::GetAtom(kMimeTypeLinuxString), x11::GetAtom(kMimeTypeLinuxText),
-          x11::GetAtom(kMimeTypeText), x11::GetAtom(kMimeTypeTextUtf8)};
+          x11::GetAtom(kMimeTypePlainText),
+          x11::GetAtom(kMimeTypeUtf8PlainText)};
 }
 
 std::vector<x11::Atom> GetURLAtomsFrom() {
-  return {x11::GetAtom(kMimeTypeURIList), x11::GetAtom(kMimeTypeMozillaURL)};
+  return {x11::GetAtom(kMimeTypeUriList), x11::GetAtom(kMimeTypeMozillaUrl)};
 }
 
 std::vector<x11::Atom> GetURIListAtomsFrom() {
-  return {x11::GetAtom(kMimeTypeURIList)};
+  return {x11::GetAtom(kMimeTypeUriList)};
 }
 
 void GetAtomIntersection(const std::vector<x11::Atom>& desired,
@@ -44,11 +49,10 @@ void GetAtomIntersection(const std::vector<x11::Atom>& desired,
   }
 }
 
-void AddString16ToVector(const std::u16string& str,
+void AddString16ToVector(std::u16string_view str,
                          std::vector<unsigned char>* bytes) {
-  const unsigned char* front =
-      reinterpret_cast<const unsigned char*>(str.data());
-  bytes->insert(bytes->end(), front, front + (str.size() * 2));
+  auto span = base::as_byte_span(str);
+  bytes->insert(bytes->end(), span.begin(), span.end());
 }
 
 std::vector<std::string> ParseURIList(const SelectionData& data) {
@@ -61,32 +65,20 @@ std::vector<std::string> ParseURIList(const SelectionData& data) {
 
 std::string RefCountedMemoryToString(
     const scoped_refptr<base::RefCountedMemory>& memory) {
-  if (!memory.get()) {
-    NOTREACHED();
-    return std::string();
-  }
+  CHECK(memory.get());
 
-  size_t size = memory->size();
-  if (!size)
-    return std::string();
-
-  const unsigned char* front = memory->front();
-  return std::string(reinterpret_cast<const char*>(front), size);
+  return std::string(base::as_string_view(*memory));
 }
 
 std::u16string RefCountedMemoryToString16(
     const scoped_refptr<base::RefCountedMemory>& memory) {
-  if (!memory.get()) {
-    NOTREACHED();
-    return std::u16string();
-  }
+  CHECK(memory.get());
 
-  size_t size = memory->size();
-  if (!size)
-    return std::u16string();
-
-  const unsigned char* front = memory->front();
-  return std::u16string(reinterpret_cast<const char16_t*>(front), size / 2);
+  auto in_bytes = base::span(*memory);
+  std::u16string out;
+  out.resize(memory->size() / 2u);
+  base::as_writable_byte_span(out).copy_from(in_bytes);
+  return out;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -112,6 +104,15 @@ ui::SelectionData SelectionFormatMap::GetFirstOf(
     if (data_it != data_.end()) {
       return SelectionData(data_it->first, data_it->second);
     }
+  }
+
+  return SelectionData();
+}
+
+ui::SelectionData SelectionFormatMap::Get(x11::Atom requested_type) const {
+  auto data_it = data_.find(requested_type);
+  if (data_it != data_.end()) {
+    return SelectionData(data_it->first, data_it->second);
   }
 
   return SelectionData();
@@ -154,58 +155,51 @@ x11::Atom SelectionData::GetType() const {
   return type_;
 }
 
-const unsigned char* SelectionData::GetData() const {
-  return memory_.get() ? memory_->front() : nullptr;
-}
-
-size_t SelectionData::GetSize() const {
-  return memory_.get() ? memory_->size() : 0;
+base::span<const unsigned char> SelectionData::GetSpan() const {
+  return memory_ ? *memory_ : base::span<const unsigned char>();
 }
 
 std::string SelectionData::GetText() const {
   if (type_ == x11::GetAtom(kMimeTypeLinuxUtf8String) ||
       type_ == x11::GetAtom(kMimeTypeLinuxText) ||
-      type_ == x11::GetAtom(kMimeTypeTextUtf8)) {
+      type_ == x11::GetAtom(kMimeTypeUtf8PlainText)) {
     return RefCountedMemoryToString(memory_);
-  } else if (type_ == x11::GetAtom(kMimeTypeLinuxString) ||
-             type_ == x11::GetAtom(kMimeTypeText)) {
+  } else {
+    // BTW, I looked at COMPOUND_TEXT, and there's no way we're going to
+    // support that. Yuck.
+    CHECK(type_ == x11::GetAtom(kMimeTypeLinuxString) ||
+          type_ == x11::GetAtom(kMimeTypePlainText));
     std::string result;
     base::ConvertToUtf8AndNormalize(RefCountedMemoryToString(memory_),
                                     base::kCodepageLatin1, &result);
     return result;
-  } else {
-    // BTW, I looked at COMPOUND_TEXT, and there's no way we're going to
-    // support that. Yuck.
-    NOTREACHED();
-    return std::string();
   }
 }
 
 std::u16string SelectionData::GetHtml() const {
   std::u16string markup;
 
-  if (type_ == x11::GetAtom(kMimeTypeHTML)) {
-    const unsigned char* data = GetData();
-    size_t size = GetSize();
+  CHECK_EQ(type_, x11::GetAtom(kMimeTypeHtml));
+  base::span<const unsigned char> span = GetSpan();
 
-    // If the data starts with U+FEFF, i.e., Byte Order Mark, assume it is
-    // UTF-16, otherwise assume UTF-8.
-    if (size >= 2 && reinterpret_cast<const char16_t*>(data)[0] == u'\uFEFF') {
-      markup.assign(reinterpret_cast<const char16_t*>(data) + 1,
-                    (size / 2) - 1);
+  // If the data starts with U+FEFF, i.e., Byte Order Mark, assume it is
+  // UTF-16, otherwise assume UTF-8.
+  UNSAFE_TODO({
+    if (span.size() >= 2 &&
+        reinterpret_cast<const char16_t*>(span.data())[0] == u'\uFEFF') {
+      markup.assign(reinterpret_cast<const char16_t*>(span.data()) + 1,
+                    (span.size() / 2) - 1);
     } else {
-      base::UTF8ToUTF16(reinterpret_cast<const char*>(data), size, &markup);
+      markup = base::UTF8ToUTF16(base::as_string_view(span));
     }
+  });
 
-    // If there is a terminating NULL, drop it.
-    if (!markup.empty() && markup.at(markup.length() - 1) == '\0')
-      markup.resize(markup.length() - 1);
-
-    return markup;
-  } else {
-    NOTREACHED();
-    return markup;
+  // If there is a terminating NULL, drop it.
+  if (!markup.empty() && markup.back() == '\0') {
+    markup.pop_back();
   }
+
+  return markup;
 }
 
 void SelectionData::AssignTo(std::string* result) const {
@@ -217,12 +211,11 @@ void SelectionData::AssignTo(std::u16string* result) const {
 }
 
 scoped_refptr<base::RefCountedBytes> SelectionData::TakeBytes() {
-  if (!memory_.get())
+  if (!memory_.get()) {
     return nullptr;
-
+  }
   auto* memory = memory_.release();
-  return base::MakeRefCounted<base::RefCountedBytes>(memory->data(),
-                                                     memory->size());
+  return base::MakeRefCounted<base::RefCountedBytes>(*memory);
 }
 
 }  // namespace ui

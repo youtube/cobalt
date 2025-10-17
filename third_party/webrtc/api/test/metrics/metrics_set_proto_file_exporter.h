@@ -14,6 +14,7 @@
 #include <map>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/test/metrics/metric.h"
 #include "api/test/metrics/metrics_exporter.h"
@@ -47,7 +48,7 @@ class MetricsSetProtoFileExporter : public MetricsExporter {
   MetricsSetProtoFileExporter& operator=(const MetricsSetProtoFileExporter&) =
       delete;
 
-  bool Export(rtc::ArrayView<const Metric> metrics) override;
+  bool Export(ArrayView<const Metric> metrics) override;
 
  private:
   const Options options_;

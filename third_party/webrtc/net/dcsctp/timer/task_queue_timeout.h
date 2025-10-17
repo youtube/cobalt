@@ -15,6 +15,7 @@
 
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
+#include "api/units/timestamp.h"
 #include "net/dcsctp/public/timeout.h"
 
 namespace dcsctp {
@@ -71,16 +72,20 @@ class TaskQueueTimeoutFactory {
     // expiration time _further away_ than what is now the expected expiration
     // time. In this scenario, a new delayed task has to be posted with a
     // shorter duration and the old task has to be forgotten.
-    rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> pending_task_safety_flag_;
+    webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag>
+        pending_task_safety_flag_;
     // The time when the posted delayed task is set to expire. Will be set to
     // the infinite future if there is no such task running.
-    TimeMs posted_task_expiration_ = TimeMs::InfiniteFuture();
+    webrtc::Timestamp posted_task_expiration_ =
+        webrtc::Timestamp::PlusInfinity();
     // The time when the timeout expires. It will be set to the infinite future
     // if the timeout is not running/not started.
-    TimeMs timeout_expiration_ = TimeMs::InfiniteFuture();
+    webrtc::Timestamp timeout_expiration_ = webrtc::Timestamp::PlusInfinity();
     // The current timeout ID that will be reported when expired.
     TimeoutID timeout_id_ = TimeoutID(0);
   };
+
+  webrtc::Timestamp Now() { return webrtc::Timestamp::Millis(*get_time_()); }
 
   RTC_NO_UNIQUE_ADDRESS webrtc::SequenceChecker thread_checker_;
   webrtc::TaskQueueBase& task_queue_;

@@ -7,24 +7,30 @@
 
 #include <stddef.h>
 
-#include "base/containers/stack_container.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include <array>
+#include <memory>
+#include <optional>
+
 #include "base/notreached.h"
 #include "cc/cc_export.h"
-#include "cc/tiles/picture_layer_tiling_set.h"
 #include "cc/tiles/prioritized_tile.h"
 #include "cc/tiles/tile.h"
 #include "cc/tiles/tile_priority.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace cc {
+
+class PictureLayerTilingSet;
 
 // This queue returns all tiles required to be rasterized from HIGH_RESOLUTION
 // and LOW_RESOLUTION tilings.
 class CC_EXPORT TilingSetRasterQueueAll {
  public:
-  TilingSetRasterQueueAll(PictureLayerTilingSet* tiling_set,
-                          bool prioritize_low_res,
-                          bool is_drawing_layer);
+  static std::unique_ptr<TilingSetRasterQueueAll> Create(
+      PictureLayerTilingSet* tiling_set,
+      bool prioritize_low_res,
+      bool is_drawing_layer);
+
   TilingSetRasterQueueAll(const TilingSetRasterQueueAll&) = delete;
   ~TilingSetRasterQueueAll();
 
@@ -142,8 +148,7 @@ class CC_EXPORT TilingSetRasterQueueAll {
   class TilingIterator {
    public:
     TilingIterator();
-    explicit TilingIterator(PictureLayerTiling* tiling,
-                            TilingData* tiling_data);
+    TilingIterator(PictureLayerTiling* tiling, TilingData* tiling_data);
     ~TilingIterator();
 
     bool done() const { return !current_tile_.tile(); }
@@ -160,7 +165,6 @@ class CC_EXPORT TilingSetRasterQueueAll {
           return TilePriority::EVENTUALLY;
       }
       NOTREACHED();
-      return TilePriority::EVENTUALLY;
     }
 
     TilingIterator& operator++();
@@ -195,12 +199,14 @@ class CC_EXPORT TilingSetRasterQueueAll {
     NUM_ITERATORS
   };
 
+  TilingSetRasterQueueAll(
+      PictureLayerTiling* high_res_tiling,
+      PictureLayerTiling* low_res_tiling,
+      PictureLayerTiling* active_non_ideal_pending_high_res_tiling,
+      bool is_drawing_layer);
+
   void MakeTilingIterator(IteratorType type, PictureLayerTiling* tiling);
   void AdvanceToNextStage();
-
-  // `tiling_set_` is not a raw_ptr<...> for performance reasons (based on
-  // analysis of sampling profiler data).
-  RAW_PTR_EXCLUSION PictureLayerTilingSet* tiling_set_;
 
   struct IterationStage {
     IterationStage(IteratorType type, TilePriority::PriorityBin bin);
@@ -212,8 +218,8 @@ class CC_EXPORT TilingSetRasterQueueAll {
 
   // The max number of stages is 6: 1 low res, 3 high res, and 2 active non
   // ideal pending high res.
-  base::StackVector<IterationStage, 6> stages_;
-  TilingIterator iterators_[NUM_ITERATORS];
+  absl::InlinedVector<IterationStage, 6> stages_;
+  std::array<std::optional<TilingIterator>, NUM_ITERATORS> iterators_;
   bool is_drawing_layer_ = false;
 };
 

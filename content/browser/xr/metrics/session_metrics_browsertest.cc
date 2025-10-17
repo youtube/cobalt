@@ -12,6 +12,7 @@
 #include "content/public/test/prerender_test_util.h"
 #include "content/shell/browser/shell.h"
 #include "device/vr/public/mojom/vr_service.mojom.h"
+#include "device/vr/public/mojom/xr_device.mojom.h"
 #include "device/vr/public/mojom/xr_session.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -31,7 +32,7 @@ class SessionMetricsPrerenderingBrowserTest : public ContentBrowserTest {
   }
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     ContentBrowserTest::SetUp();
   }
 
@@ -58,14 +59,16 @@ IN_PROC_BROWSER_TEST_F(SessionMetricsPrerenderingBrowserTest,
       SessionMetricsHelper::CreateForWebContents(web_contents());
   auto session_options = device::mojom::XRSessionOptions::New();
   std::unordered_set<device::mojom::XRSessionFeature> enabled_features;
-  metrics_helper->StartImmersiveSession(*(session_options), enabled_features);
+  metrics_helper->StartImmersiveSession(
+      device::mojom::XRDeviceId::FAKE_DEVICE_ID, *(session_options),
+      enabled_features);
   auto entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::XR_WebXR_Session::kEntryName);
   EXPECT_EQ(0u, entries.size());
 
   // Load a page in the prerender.
   auto prerender_url = embedded_test_server()->GetURL("/title1.html");
-  int host_id = prerender_helper()->AddPrerender(prerender_url);
+  FrameTreeNodeId host_id = prerender_helper()->AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   EXPECT_FALSE(host_observer.was_activated());
   entries = test_ukm_recorder.GetEntriesByName(
@@ -112,7 +115,9 @@ IN_PROC_BROWSER_TEST_F(SessionMetricsFencedFrameBrowserTest,
       SessionMetricsHelper::CreateForWebContents(web_contents());
   auto session_options = device::mojom::XRSessionOptions::New();
   std::unordered_set<device::mojom::XRSessionFeature> enabled_features;
-  metrics_helper->StartImmersiveSession(*(session_options), enabled_features);
+  metrics_helper->StartImmersiveSession(
+      device::mojom::XRDeviceId::FAKE_DEVICE_ID, *(session_options),
+      enabled_features);
   auto entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::XR_WebXR_Session::kEntryName);
   EXPECT_EQ(0u, entries.size());

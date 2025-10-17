@@ -5,6 +5,8 @@
 #include "chrome/browser/android/webapk/webapk_update_data_fetcher.h"
 
 #include <jni.h>
+
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -16,8 +18,8 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/android/chrome_jni_headers/WebApkUpdateDataFetcher_jni.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/webapps/browser/android/webapp_icon.h"
 #include "components/webapps/browser/android/webapps_icon_utils.h"
 #include "components/webapps/browser/android/webapps_utils.h"
 #include "components/webapps/browser/features.h"
@@ -25,15 +27,17 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
-#include "third_party/smhasher/src/MurmurHash2.h"
+#include "third_party/smhasher/src/src/MurmurHash2.h"
 #include "ui/android/color_utils_android.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/WebApkUpdateDataFetcher_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -46,32 +50,18 @@ bool IsInScope(const GURL& url, const GURL& scope) {
                           base::CompareCase::SENSITIVE);
 }
 
-constexpr char kGotUpdateManifestHistogramName[] =
-    "WebApk.Update.DidGetInstallableData";
-
-// These values are logged to UMA. Entries should not be renumbered and
-// numeric values should never be reused. Please keep in sync with
-// "WebApkUpdateManifestResult" in src/tools/metrics/histograms/enums.xml.
-enum class ManifestResult {
-  kDifferent = 0,
-  kDifferentLegacyId = 1,
-  kFound = 2,
-  kMaxValue = kFound,
-};
-
 }  // anonymous namespace
 
 jlong JNI_WebApkUpdateDataFetcher_Initialize(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jstring>& java_start_url,
-    const JavaParamRef<jstring>& java_scope_url,
-    const JavaParamRef<jstring>& java_web_manifest_url,
+    std::string& java_start_url,
+    std::string& java_scope_url,
+    std::string& java_web_manifest_url,
     const JavaParamRef<jstring>& java_web_manifest_id) {
-  GURL start_url(base::android::ConvertJavaStringToUTF8(env, java_start_url));
-  GURL scope(base::android::ConvertJavaStringToUTF8(env, java_scope_url));
-  GURL web_manifest_url(
-      base::android::ConvertJavaStringToUTF8(env, java_web_manifest_url));
+  GURL start_url(java_start_url);
+  GURL scope(java_scope_url);
+  GURL web_manifest_url(java_web_manifest_url);
   GURL web_manifest_id;
   if (!java_web_manifest_id.is_null()) {
     web_manifest_id =
@@ -93,13 +83,11 @@ WebApkUpdateDataFetcher::WebApkUpdateDataFetcher(JNIEnv* env,
       scope_(scope),
       web_manifest_url_(web_manifest_url),
       web_manifest_id_(web_manifest_id),
-      info_(GURL()),
-      is_primary_icon_maskable_(false),
-      is_splash_icon_maskable_(false) {
+      info_(GURL()) {
   java_ref_.Reset(env, obj);
 }
 
-WebApkUpdateDataFetcher::~WebApkUpdateDataFetcher() {}
+WebApkUpdateDataFetcher::~WebApkUpdateDataFetcher() = default;
 
 void WebApkUpdateDataFetcher::ReplaceWebContents(
     JNIEnv* env,
@@ -142,13 +130,10 @@ void WebApkUpdateDataFetcher::FetchInstallableData() {
     return;
 
   webapps::InstallableParams params;
-  params.valid_manifest = true;
-  params.prefer_maskable_icon =
-      webapps::WebappsIconUtils::DoesAndroidSupportMaskableIcons();
-  params.has_worker = !webapps::features::SkipInstallServiceWorkerCheck();
-  params.wait_for_worker = !webapps::features::SkipInstallServiceWorkerCheck();
+  params.installable_criteria =
+      webapps::InstallableCriteria::kValidManifestWithIcons;
+  params.prefer_maskable_icon = true;
   params.valid_primary_icon = true;
-  params.valid_splash_icon = true;
   webapps::InstallableManager* installable_manager =
       webapps::InstallableManager::FromWebContents(web_contents());
   installable_manager->GetData(
@@ -172,136 +157,95 @@ void WebApkUpdateDataFetcher::OnDidGetInstallableData(
   // observing too. It is based on our assumption that it is invalid for
   // web developers to change the Web Manifest location. When it does
   // change, we will treat the new Web Manifest as the one of another WebAPK.
-  if (!data.NoBlockingErrors() || blink::IsEmptyManifest(*data.manifest) ||
+  if (!data.errors.empty() || blink::IsEmptyManifest(*data.manifest) ||
       !webapps::WebappsUtils::AreWebManifestUrlsWebApkCompatible(
           *data.manifest)) {
     return;
   }
 
-  if (!base::FeatureList::IsEnabled(webapps::features::kWebApkUniqueId) &&
-      web_manifest_url_ != *data.manifest_url) {
-    UMA_HISTOGRAM_ENUMERATION(kGotUpdateManifestHistogramName,
-                              ManifestResult::kDifferent,
-                              ManifestResult::kMaxValue);
+  CHECK(!data.manifest->id.is_empty());
+
+  // If there isn't an existing manifest ID, check if either manifest URL or
+  // start URL are the same. If neither of them are the same, we treat the
+  // manifest as one of another WebAPK.
+  if (web_manifest_id_.is_empty() && web_manifest_url_ != *data.manifest_url &&
+      start_url_ != data.manifest->start_url) {
     return;
-  } else {
-    GURL new_manifest_id(blink::GetIdFromManifest(*data.manifest));
-    if (web_manifest_id_.is_empty()) {
-      // Don't have an existing manifest ID, check if either manifest URL or
-      // start URL are the same. If neither of them are the same, we treat the
-      // manifest as one of another WebAPK.
-      if (web_manifest_url_ != *data.manifest_url &&
-          start_url_ != data.manifest->start_url) {
-        UMA_HISTOGRAM_ENUMERATION(kGotUpdateManifestHistogramName,
-                                  ManifestResult::kDifferentLegacyId,
-                                  ManifestResult::kMaxValue);
-        return;
-      }
-    } else if (web_manifest_id_ != new_manifest_id) {
-      // If the fetched manifest id is different from the current one,
-      // continue observing as the id is the identity for the application. We
-      // will treat the manifest with different id as the one of another WebAPK.
-      UMA_HISTOGRAM_ENUMERATION(kGotUpdateManifestHistogramName,
-                                ManifestResult::kDifferent,
-                                ManifestResult::kMaxValue);
-      return;
-    }
   }
 
-  UMA_HISTOGRAM_ENUMERATION(kGotUpdateManifestHistogramName,
-                            ManifestResult::kFound, ManifestResult::kMaxValue);
+  // If there is an existing manifest ID, but the fetched manifest id is
+  // different from the current one, continue observing as the id is the
+  // identity for the application. We will treat the manifest with different id
+  // as the one of another WebAPK.
+  if (!web_manifest_id_.is_empty() && web_manifest_id_ != data.manifest->id) {
+    return;
+  }
 
   info_.UpdateFromManifest(*data.manifest);
   info_.manifest_url = *data.manifest_url;
   info_.best_primary_icon_url = *data.primary_icon_url;
+  info_.is_primary_icon_maskable = data.has_maskable_primary_icon;
   primary_icon_ = *data.primary_icon;
-  is_primary_icon_maskable_ = data.has_maskable_primary_icon;
-
-  if (data.splash_icon && !data.splash_icon->drawsNothing()) {
-    info_.splash_image_url = *data.splash_icon_url;
-    splash_icon_ = *data.splash_icon;
-    is_splash_icon_maskable_ = data.has_maskable_splash_icon;
-  }
-
-  std::set<GURL> urls{info_.best_primary_icon_url};
-  if (!info_.splash_image_url.is_empty())
-    urls.insert(info_.splash_image_url);
-
-  for (const auto& shortcut_url : info_.best_shortcut_icon_urls) {
-    if (shortcut_url.is_valid())
-      urls.insert(shortcut_url);
-  }
+  info_.UpdateBestSplashIcon(*data.manifest);
 
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
 
-  webapps::WebApkIconHasher::DownloadAndComputeMurmur2Hash(
+  icon_hasher_ = std::make_unique<webapps::WebApkIconsHasher>();
+  icon_hasher_->DownloadAndComputeMurmur2Hash(
       profile->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess()
           .get(),
       web_contents()->GetWeakPtr(), url::Origin::Create(last_fetched_url_),
-      urls,
+      info_, primary_icon_,
       base::BindOnce(&WebApkUpdateDataFetcher::OnGotIconMurmur2Hashes,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WebApkUpdateDataFetcher::OnGotIconMurmur2Hashes(
-    absl::optional<std::map<std::string, webapps::WebApkIconHasher::Icon>>
-        hashes) {
-  if (!hashes)
+    std::map<GURL, std::unique_ptr<webapps::WebappIcon>> icons) {
+  if (icons.empty()) {
     return;
+  }
 
   JNIEnv* env = base::android::AttachCurrentThread();
 
-  ScopedJavaLocalRef<jstring> java_url =
-      base::android::ConvertUTF8ToJavaString(env, info_.url.spec());
-  ScopedJavaLocalRef<jstring> java_scope =
-      base::android::ConvertUTF8ToJavaString(env, info_.scope.spec());
-  ScopedJavaLocalRef<jstring> java_name =
-      base::android::ConvertUTF16ToJavaString(env, info_.name);
-  ScopedJavaLocalRef<jstring> java_short_name =
-      base::android::ConvertUTF16ToJavaString(env, info_.short_name);
-  ScopedJavaLocalRef<jstring> java_manifest_url =
-      base::android::ConvertUTF8ToJavaString(env, info_.manifest_url.spec());
   ScopedJavaLocalRef<jstring> java_manifest_id =
       base::android::ConvertUTF8ToJavaString(env, info_.manifest_id.spec());
-  ScopedJavaLocalRef<jstring> java_primary_icon_url =
-      base::android::ConvertUTF8ToJavaString(
-          env, info_.best_primary_icon_url.spec());
-  ScopedJavaLocalRef<jstring> java_primary_icon_murmur2_hash =
-      base::android::ConvertUTF8ToJavaString(
-          env, (*hashes)[info_.best_primary_icon_url.spec()].hash);
+
+  std::string primary_icon_murmur2_hash =
+      icons[info_.best_primary_icon_url]->hash();
   ScopedJavaLocalRef<jobject> java_primary_icon =
       gfx::ConvertToJavaBitmap(primary_icon_);
-  jboolean java_is_primary_icon_maskable = is_primary_icon_maskable_;
-  ScopedJavaLocalRef<jstring> java_splash_icon_url =
-      base::android::ConvertUTF8ToJavaString(env,
-                                             info_.splash_image_url.spec());
-  ScopedJavaLocalRef<jstring> java_splash_icon_murmur2_hash =
-      base::android::ConvertUTF8ToJavaString(
-          env, (*hashes)[info_.splash_image_url.spec()].hash);
-  jboolean java_is_splash_icon_maskable = is_splash_icon_maskable_;
-  ScopedJavaLocalRef<jobject> java_splash_icon;
-  if (!splash_icon_.drawsNothing())
-    java_splash_icon = gfx::ConvertToJavaBitmap(splash_icon_);
+  jboolean java_is_primary_icon_maskable = info_.is_primary_icon_maskable;
+
+  jboolean java_is_splash_icon_maskable = info_.is_splash_image_maskable;
+  std::string splash_icon_hash = "";
+  std::string splash_icon_data = "";
+  {
+    auto it = icons.find(info_.splash_image_url);
+    if (it != icons.end()) {
+      splash_icon_hash = it->second->hash();
+      splash_icon_data = it->second->ExtractData();
+    }
+  }
+  base::android::ScopedJavaLocalRef<jbyteArray> java_splash_icon_data =
+      base::android::ToJavaByteArray(env, splash_icon_data);
+
   ScopedJavaLocalRef<jobjectArray> java_icon_urls =
       base::android::ToJavaArrayOfStrings(env, info_.icon_urls);
 
-  ScopedJavaLocalRef<jstring> java_share_action;
-  ScopedJavaLocalRef<jstring> java_share_params_title;
-  ScopedJavaLocalRef<jstring> java_share_params_text;
-  ScopedJavaLocalRef<jstring> java_share_params_url;
+  std::string share_action;
+  std::u16string share_params_title;
+  std::u16string share_params_text;
   jboolean java_share_params_is_method_post = false;
   jboolean java_share_params_is_enctype_multipart = false;
   ScopedJavaLocalRef<jobjectArray> java_share_params_file_names;
   ScopedJavaLocalRef<jobjectArray> java_share_params_accepts;
   if (info_.share_target.has_value() && info_.share_target->action.is_valid()) {
-    java_share_action = base::android::ConvertUTF8ToJavaString(
-        env, info_.share_target->action.spec());
-    java_share_params_title = base::android::ConvertUTF16ToJavaString(
-        env, info_.share_target->params.title);
-    java_share_params_text = base::android::ConvertUTF16ToJavaString(
-        env, info_.share_target->params.text);
+    share_action = info_.share_target->action.spec();
+    share_params_title = info_.share_target->params.title;
+    share_params_text = info_.share_target->params.text;
 
     java_share_params_is_method_post =
         (info_.share_target->method ==
@@ -335,12 +279,12 @@ void WebApkUpdateDataFetcher::OnGotIconMurmur2Hashes(
     const auto& shortcut = info_.shortcut_items[i];
     const GURL& chosen_icon_url = info_.best_shortcut_icon_urls[i];
 
-    auto it = hashes->find(chosen_icon_url.spec());
+    auto it = icons.find(chosen_icon_url);
     std::string chosen_icon_hash;
     std::string chosen_icon_data;
-    if (it != hashes->end()) {
-      chosen_icon_hash = it->second.hash;
-      chosen_icon_data = std::move(it->second.unsafe_data);
+    if (it != icons.end()) {
+      chosen_icon_hash = it->second->hash();
+      chosen_icon_data = it->second->ExtractData();
     }
 
     shortcuts.push_back({shortcut.name,
@@ -352,18 +296,20 @@ void WebApkUpdateDataFetcher::OnGotIconMurmur2Hashes(
   }
 
   Java_WebApkUpdateDataFetcher_onDataAvailable(
-      env, java_ref_, java_url, java_scope, java_name, java_short_name,
-      java_manifest_url, java_manifest_id, java_primary_icon_url,
-      java_primary_icon_murmur2_hash, java_primary_icon,
-      java_is_primary_icon_maskable, java_splash_icon_url,
-      java_splash_icon_murmur2_hash, java_splash_icon,
+      env, java_ref_, info_.url.spec(), info_.scope.spec(), info_.name,
+      info_.short_name, info_.manifest_url.spec(), java_manifest_id,
+      info_.best_primary_icon_url.spec(), primary_icon_murmur2_hash,
+      java_primary_icon, java_is_primary_icon_maskable,
+      info_.splash_image_url.spec(), splash_icon_hash, java_splash_icon_data,
       java_is_splash_icon_maskable, java_icon_urls,
       static_cast<int>(info_.display), static_cast<int>(info_.orientation),
       ui::OptionalSkColorToJavaColor(info_.theme_color),
-      ui::OptionalSkColorToJavaColor(info_.background_color), java_share_action,
-      java_share_params_title, java_share_params_text,
-      java_share_params_is_method_post, java_share_params_is_enctype_multipart,
-      java_share_params_file_names, java_share_params_accepts,
+      ui::OptionalSkColorToJavaColor(info_.background_color),
+      ui::OptionalSkColorToJavaColor(info_.dark_theme_color),
+      ui::OptionalSkColorToJavaColor(info_.dark_background_color), share_action,
+      share_params_title, share_params_text, java_share_params_is_method_post,
+      java_share_params_is_enctype_multipart, java_share_params_file_names,
+      java_share_params_accepts,
       base::android::ToJavaArrayOfStringArray(env, shortcuts),
       base::android::ToJavaArrayOfByteArray(env, shortcut_icon_data));
 }

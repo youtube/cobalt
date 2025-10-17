@@ -11,11 +11,12 @@
 #include <memory>
 
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/stack_allocated.h"
 #include "base/synchronization/lock.h"
 #include "components/viz/common/gpu/context_cache_controller.h"
 #include "components/viz/common/gpu/context_lost_observer.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/viz_common_export.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/context_result.h"
@@ -42,6 +43,8 @@ namespace viz {
 class VIZ_COMMON_EXPORT ContextProvider {
  public:
   class VIZ_COMMON_EXPORT ScopedContextLock {
+    STACK_ALLOCATED();
+
    public:
     explicit ScopedContextLock(ContextProvider* context_provider);
     ~ScopedContextLock();
@@ -51,7 +54,7 @@ class VIZ_COMMON_EXPORT ContextProvider {
     }
 
    private:
-    const raw_ptr<ContextProvider> context_provider_;
+    ContextProvider* const context_provider_;
     base::AutoLock context_lock_;
     std::unique_ptr<ContextCacheController::ScopedBusy> busy_;
   };
@@ -110,6 +113,9 @@ class VIZ_COMMON_EXPORT ContextProvider {
   // Get a GLES2 interface to the 3d context.  The context provider must have
   // been successfully bound to a thread before calling this.
   virtual gpu::gles2::GLES2Interface* ContextGL() = 0;
+
+  // Returns the format that should be used for GL texture storage.
+  virtual unsigned int GetGrGLTextureFormat(SharedImageFormat format) const = 0;
 
  protected:
   virtual ~ContextProvider() = default;

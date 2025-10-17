@@ -11,14 +11,13 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sync/sync_service_factory.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
 namespace {
 
-void StartSyncOnUIThread(const base::FilePath& profile,
-                         syncer::ModelType type) {
+void StartSyncOnUIThread(const base::FilePath& profile, syncer::DataType type) {
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   if (!profile_manager) {
     // Can happen in tests.
@@ -40,7 +39,7 @@ void StartSyncOnUIThread(const base::FilePath& profile,
   service->OnDataTypeRequestsSyncStartup(type);
 }
 
-void StartSyncProxy(const base::FilePath& profile, syncer::ModelType type) {
+void StartSyncProxy(const base::FilePath& profile, syncer::DataType type) {
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&StartSyncOnUIThread, profile, type));
 }

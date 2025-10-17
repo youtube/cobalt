@@ -38,7 +38,8 @@ class TestBlinkWebUnitTestSupport : public BlinkPlatformImpl {
   };
 
   explicit TestBlinkWebUnitTestSupport(
-      SchedulerType scheduler_type = SchedulerType::kMockScheduler);
+      SchedulerType scheduler_type,
+      std::string additional_v8_flags = std::string());
 
   TestBlinkWebUnitTestSupport(const TestBlinkWebUnitTestSupport&) = delete;
   TestBlinkWebUnitTestSupport& operator=(const TestBlinkWebUnitTestSupport&) =
@@ -47,8 +48,6 @@ class TestBlinkWebUnitTestSupport : public BlinkPlatformImpl {
   ~TestBlinkWebUnitTestSupport() override;
 
   blink::WebString UserAgent() override;
-  blink::WebString FullUserAgent() override;
-  blink::WebString ReducedUserAgent() override;
   blink::WebString QueryLocalizedString(int resource_id) override;
   blink::WebString QueryLocalizedString(int resource_id,
                                         const blink::WebString& value) override;

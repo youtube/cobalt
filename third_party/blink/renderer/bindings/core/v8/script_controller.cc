@@ -35,12 +35,14 @@
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_evaluation_result.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_gc_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 #include "third_party/blink/renderer/bindings/core/v8/window_proxy.h"
+#include "third_party/blink/renderer/bindings/core/v8/window_proxy_manager.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/scriptable_document_parser.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -108,6 +110,10 @@ void ScriptController::Trace(Visitor* visitor) const {
   visitor->Trace(window_proxy_manager_);
 }
 
+LocalWindowProxy* ScriptController::WindowProxy(DOMWrapperWorld& world) {
+  return window_proxy_manager_->WindowProxy(world);
+}
+
 void ScriptController::UpdateSecurityOrigin(
     const SecurityOrigin* security_origin) {
   window_proxy_manager_->UpdateSecurityOrigin(security_origin);
@@ -121,18 +127,13 @@ TextPosition ScriptController::EventHandlerPosition() const {
   return TextPosition::MinimumPosition();
 }
 
-void ScriptController::EnableEval() {
-  SetEvalForWorld(DOMWrapperWorld::MainWorld(), true /* allow_eval */,
-                  g_empty_string /* error_message */);
-}
-
 void ScriptController::DisableEval(const String& error_message) {
-  SetEvalForWorld(DOMWrapperWorld::MainWorld(), false /* allow_eval */,
-                  error_message);
+  SetEvalForWorld(DOMWrapperWorld::MainWorld(GetIsolate()),
+                  false /* allow_eval */, error_message);
 }
 
 void ScriptController::SetWasmEvalErrorMessage(const String& error_message) {
-  SetWasmEvalErrorMessageForWorld(DOMWrapperWorld::MainWorld(),
+  SetWasmEvalErrorMessageForWorld(DOMWrapperWorld::MainWorld(GetIsolate()),
                                   /*allow_eval=*/false, error_message);
 }
 
@@ -140,7 +141,7 @@ void ScriptController::DisableEvalForIsolatedWorld(
     int32_t world_id,
     const String& error_message) {
   DCHECK(DOMWrapperWorld::IsIsolatedWorldId(world_id));
-  scoped_refptr<DOMWrapperWorld> world =
+  DOMWrapperWorld* world =
       DOMWrapperWorld::EnsureIsolatedWorld(GetIsolate(), world_id);
   SetEvalForWorld(*world, false /* allow_eval */, error_message);
 }
@@ -149,7 +150,7 @@ void ScriptController::SetWasmEvalErrorMessageForIsolatedWorld(
     int32_t world_id,
     const String& error_message) {
   DCHECK(DOMWrapperWorld::IsIsolatedWorldId(world_id));
-  scoped_refptr<DOMWrapperWorld> world =
+  DOMWrapperWorld* world =
       DOMWrapperWorld::EnsureIsolatedWorld(GetIsolate(), world_id);
   SetWasmEvalErrorMessageForWorld(*world, /*allow_eval=*/false, error_message);
 }
@@ -209,8 +210,9 @@ Vector<const char*>& RegisteredExtensionNames() {
 void ScriptController::RegisterExtensionIfNeeded(
     std::unique_ptr<v8::Extension> extension) {
   for (const auto* extension_name : RegisteredExtensionNames()) {
-    if (!strcmp(extension_name, extension->name()))
+    if (!UNSAFE_TODO(strcmp(extension_name, extension->name()))) {
       return;
+    }
   }
   RegisteredExtensionNames().push_back(extension->name());
   v8::RegisterExtension(std::move(extension));
@@ -227,6 +229,20 @@ v8::ExtensionConfiguration ScriptController::ExtensionsFor(
 
 void ScriptController::UpdateDocument() {
   window_proxy_manager_->UpdateDocument();
+}
+
+void ScriptController::DiscardFrame() {
+  DCHECK(window_->GetFrame());
+  auto* previous_document_loader =
+      window_->GetFrame()->Loader().GetDocumentLoader();
+  DCHECK(previous_document_loader);
+  auto params =
+      previous_document_loader->CreateWebNavigationParamsToCloneDocument();
+  WebNavigationParams::FillStaticResponse(params.get(), "text/html", "UTF-8",
+                                          base::span<const char>());
+  params->frame_load_type = WebFrameLoadType::kReplaceCurrentItem;
+  window_->GetFrame()->Loader().CommitNavigation(std::move(params), nullptr,
+                                                 CommitReason::kDiscard);
 }
 
 void ScriptController::ExecuteJavaScriptURL(
@@ -260,7 +276,8 @@ void ScriptController::ExecuteJavaScriptURL(
       SanitizeScriptErrors::kDoNotSanitize);
 
   DCHECK_EQ(&window_->GetScriptController(), this);
-  v8::HandleScope handle_scope(GetIsolate());
+  v8::Isolate* isolate = GetIsolate();
+  v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Value> v8_result =
       script->RunScriptAndReturnValue(window_).GetSuccessValueOrEmpty();
   UseCounter::Count(window_.Get(), WebFeature::kExecutedJavaScriptURL);
@@ -302,11 +319,10 @@ void ScriptController::ExecuteJavaScriptURL(
   DCHECK(previous_document_loader);
   auto params =
       previous_document_loader->CreateWebNavigationParamsToCloneDocument();
-  String result = ToCoreString(v8::Local<v8::String>::Cast(v8_result));
+  String result = ToCoreString(isolate, v8::Local<v8::String>::Cast(v8_result));
   WebNavigationParams::FillStaticResponse(
       params.get(), "text/html", "UTF-8",
-      StringUTF8Adaptor(
-          result, kStrictUTF8ConversionReplacingUnpairedSurrogatesWithFFFD));
+      StringUTF8Adaptor(result, Utf8ConversionMode::kStrictReplacingErrors));
   params->frame_load_type = WebFrameLoadType::kReplaceCurrentItem;
   window_->GetFrame()->Loader().CommitNavigation(std::move(params), nullptr,
                                                  CommitReason::kJavascriptUrl);
@@ -359,9 +375,13 @@ bool ScriptController::CanExecuteScript(ExecuteScriptPolicy policy) {
   return true;
 }
 
-scoped_refptr<DOMWrapperWorld>
-ScriptController::CreateNewInspectorIsolatedWorld(const String& world_name) {
-  scoped_refptr<DOMWrapperWorld> world = DOMWrapperWorld::Create(
+v8::Isolate* ScriptController::GetIsolate() const {
+  return window_proxy_manager_->GetIsolate();
+}
+
+DOMWrapperWorld* ScriptController::CreateNewInspectorIsolatedWorld(
+    const String& world_name) {
+  DOMWrapperWorld* world = DOMWrapperWorld::Create(
       GetIsolate(), DOMWrapperWorld::WorldType::kInspectorIsolated);
   // Bail out if we could not create an isolated world.
   if (!world)

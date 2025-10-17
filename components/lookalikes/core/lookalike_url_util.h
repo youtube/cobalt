@@ -6,10 +6,12 @@
 #define COMPONENTS_LOOKALIKES_CORE_LOOKALIKE_URL_UTIL_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_span.h"
 #include "components/lookalikes/core/safety_tips.pb.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
@@ -19,8 +21,10 @@
 
 namespace lookalikes {
 
-// Name of the histogram recorded by the interstitial for lookalike match types.
+// Name of the histograms recorded by the interstitial for lookalike match
+// types.
 extern const char kInterstitialHistogramName[];
+extern const char kIncognitoInterstitialHistogramName[];
 
 // Register applicable preferences with the provided registry.
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
@@ -122,11 +126,16 @@ enum class NavigationSuggestionEvent {
   kMaxValue = kComboSquattingSiteEngagement,
 };
 
-struct Top500DomainsParams {
-  // Skeletons of top 500 domains. There can be fewer than 500 skeletons in
-  // this array.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope
+struct TopBucketDomainsParams {
+  // Skeletons of top bucket domains. This is the top 500 or 1000 most popular
+  // domains (though, there can be fewer than 500 or 1000 skeletons in this
+  // array).
+  // This field is not a raw_ptr<> because it only ever points to statically-
+  // allocated memory which is never freed, so it cannot dangle.
+  // Spanification note: unlike the raw_spans below, the pointed-to arrays
+  // are defined in generated files, so their size isn't exposed in the header.
+  // To get compile-time safety guarantees, the header itself would have to be
+  // generated as well.
   RAW_PTR_EXCLUSION const char* const* edit_distance_skeletons;
   // Number of skeletons in `edit_distance_skeletons`.
   size_t num_edit_distance_skeletons;
@@ -137,18 +146,13 @@ struct ComboSquattingParams {
   // (in pairs). The first item in each pair is the brand name and the second
   // item is its skeleton. Brand names should be usable in domain names (i.e.
   // lower case, no punctuation except for - etc.)
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope
-  RAW_PTR_EXCLUSION const std::pair<const char*, const char*>* brand_names;
-  // Number of brand names in combo_squatting_brand_names.
-  size_t num_brand_names;
+  base::raw_span<const std::string_view[2]> brand_names;
 
   // List of popular keywords such as "login", "online".
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope
-  RAW_PTR_EXCLUSION const char* const* popular_keywords;
-  // Number of popular keywords in combo_squatting_keywords.
-  size_t num_popular_keywords;
+  base::raw_span<const std::string_view> popular_keywords;
+
+  // Needed to provide a non-trivial destructor so NoDestructor can be used.
+  ~ComboSquattingParams() {}
 };
 
 struct DomainInfo {
@@ -220,7 +224,8 @@ bool IsTopDomain(const DomainInfo& domain_info);
 std::string GetETLDPlusOne(const std::string& hostname);
 
 // Records an interstitial histogram entry for the given match type.
-void RecordUMAFromMatchType(LookalikeUrlMatchType match_type);
+void RecordUMAFromMatchType(LookalikeUrlMatchType match_type,
+                            bool is_incognito);
 
 using LookalikeTargetAllowlistChecker =
     base::RepeatingCallback<bool(const std::string&)>;
@@ -278,10 +283,10 @@ void SetEnterpriseAllowlistForTesting(PrefService* pref_service,
 bool HasOneCharacterSwap(const std::u16string& str1,
                          const std::u16string& str2);
 
-// Sets information about top 500 domains for testing.
-void SetTop500DomainsParamsForTesting(const Top500DomainsParams& params);
-// Resets information about top 500 domains for testing.
-void ResetTop500DomainsParamsForTesting();
+// Sets information about top bucket domains for testing.
+void SetTopBucketDomainsParamsForTesting(const TopBucketDomainsParams& params);
+// Resets information about top bucket domains for testing.
+void ResetTopBucketDomainsParamsForTesting();
 
 // Returns true if the launch configuration provided by the component updater
 // enables `heuristic` for the given `etld_plus_one`.

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_EXTENSIONS_API_SCRIPTING_SCRIPTING_API_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,22 +14,14 @@
 #include "chrome/common/extensions/api/scripting.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/script_executor.h"
+#include "extensions/browser/scripting_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/mojom/code_injection.mojom.h"
 #include "extensions/common/user_script.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
-
-// A simple helper struct to represent a read file (either CSS or JS) to be
-// injected.
-struct InjectedFileSource {
-  InjectedFileSource(std::string file_name, std::unique_ptr<std::string> data);
-  InjectedFileSource(InjectedFileSource&&);
-  ~InjectedFileSource();
-
-  std::string file_name;
-  std::unique_ptr<std::string> data;
-};
 
 class ScriptingExecuteScriptFunction : public ExtensionFunction {
  public:
@@ -47,8 +40,8 @@ class ScriptingExecuteScriptFunction : public ExtensionFunction {
   ~ScriptingExecuteScriptFunction() override;
 
   // Called when the resource files to be injected has been loaded.
-  void DidLoadResources(std::vector<InjectedFileSource> file_sources,
-                        absl::optional<std::string> load_error);
+  void DidLoadResources(std::vector<scripting::InjectedFileSource> file_sources,
+                        std::optional<std::string> load_error);
 
   // Triggers the execution of `sources` in the appropriate context.
   // Returns true on success; on failure, populates `error`.
@@ -76,8 +69,8 @@ class ScriptingInsertCSSFunction : public ExtensionFunction {
   ~ScriptingInsertCSSFunction() override;
 
   // Called when the resource files to be injected has been loaded.
-  void DidLoadResources(std::vector<InjectedFileSource> file_sources,
-                        absl::optional<std::string> load_error);
+  void DidLoadResources(std::vector<scripting::InjectedFileSource> file_sources,
+                        std::optional<std::string> load_error);
 
   // Triggers the execution of `sources` in the appropriate context.
   // Returns true on success; on failure, populates `error`.
@@ -108,9 +101,6 @@ class ScriptingRemoveCSSFunction : public ExtensionFunction {
   void OnCSSRemoved(std::vector<ScriptExecutor::FrameResult> results);
 };
 
-using ValidateContentScriptsResult =
-    std::pair<std::unique_ptr<UserScriptList>, absl::optional<std::string>>;
-
 class ScriptingRegisterContentScriptsFunction : public ExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("scripting.registerContentScripts",
@@ -131,10 +121,10 @@ class ScriptingRegisterContentScriptsFunction : public ExtensionFunction {
   // Called when script files have been checked.
   void OnContentScriptFilesValidated(
       std::set<std::string> persistent_script_ids,
-      ValidateContentScriptsResult result);
+      scripting::ValidateScriptsResult result);
 
   // Called when content scripts have been registered.
-  void OnContentScriptsRegistered(const absl::optional<std::string>& error);
+  void OnContentScriptsRegistered(const std::optional<std::string>& error);
 };
 
 class ScriptingGetRegisteredContentScriptsFunction : public ExtensionFunction {
@@ -173,7 +163,7 @@ class ScriptingUnregisterContentScriptsFunction : public ExtensionFunction {
   ~ScriptingUnregisterContentScriptsFunction() override;
 
   // Called when content scripts have been unregistered.
-  void OnContentScriptsUnregistered(const absl::optional<std::string>& error);
+  void OnContentScriptsUnregistered(const std::optional<std::string>& error);
 };
 
 class ScriptingUpdateContentScriptsFunction : public ExtensionFunction {
@@ -193,13 +183,22 @@ class ScriptingUpdateContentScriptsFunction : public ExtensionFunction {
  private:
   ~ScriptingUpdateContentScriptsFunction() override;
 
+  // Returns a UserScript object by updating the `original_script` with the
+  // `new_script` given delta. If the updated script cannot be parsed, populates
+  // `parse_error` and returns nullptr.
+  std::unique_ptr<UserScript> ApplyUpdate(
+      std::set<std::string>* script_ids_to_persist,
+      api::scripting::RegisteredContentScript& new_script,
+      api::scripting::RegisteredContentScript& original_script,
+      std::u16string* parse_error);
+
   // Called when script files have been checked.
   void OnContentScriptFilesValidated(
       std::set<std::string> persistent_script_ids,
-      ValidateContentScriptsResult result);
+      scripting::ValidateScriptsResult result);
 
   // Called when content scripts have been updated.
-  void OnContentScriptsUpdated(const absl::optional<std::string>& error);
+  void OnContentScriptsUpdated(const std::optional<std::string>& error);
 };
 
 }  // namespace extensions

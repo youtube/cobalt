@@ -5,10 +5,12 @@
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_android) {
   android_library("internal_java") {
+    mergeable_android_manifests = [ "android/AndroidManifest.xml" ]
     sources = [
       "android/java/src/org/chromium/components/background_task_scheduler/internal/BackgroundTaskBroadcastReceiver.java",
       "android/java/src/org/chromium/components/background_task_scheduler/internal/BackgroundTaskJobService.java",
@@ -26,6 +28,7 @@ if (is_android) {
       "//components/background_task_scheduler:public_java",
       "//content/public/android:content_main_dex_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/androidx:androidx_core_core_java",
     ]
   }
 
@@ -45,18 +48,17 @@ if (is_android) {
   }
 
   android_library("native_task_java") {
+    srcjar_deps = [ ":jni_headers" ]
     sources = [
       "android/java/src/org/chromium/components/background_task_scheduler/internal/NativeTaskScheduler.java",
       "android/java/src/org/chromium/components/background_task_scheduler/internal/TaskInfoBridge.java",
     ]
 
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
-
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//components/background_task_scheduler:factory_java",
       "//components/background_task_scheduler:public_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
   }
 

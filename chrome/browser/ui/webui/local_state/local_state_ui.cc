@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/values.h"
@@ -39,6 +40,17 @@ class LocalStateUIHandler : public content::WebUIMessageHandler {
   // Called from JS when the page has loaded. Serializes local state prefs and
   // sends them to the page.
   void HandleRequestJson(const base::Value::List& args);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS, the local state file contains some information about other
+  // user accounts which we don't want to expose to other users. In that case,
+  // this will filter out the prefs to only include variations and UMA related
+  // fields, which don't contain PII.
+  std::vector<std::string> accepted_pref_prefixes_{"variations",
+                                                   "user_experience_metrics"};
+#else
+  std::vector<std::string> accepted_pref_prefixes_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 };
 
 void LocalStateUIHandler::RegisterMessages() {
@@ -50,8 +62,9 @@ void LocalStateUIHandler::RegisterMessages() {
 
 void LocalStateUIHandler::HandleRequestJson(const base::Value::List& args) {
   AllowJavascript();
-  absl::optional<std::string> json =
-      GetPrefsAsJson(g_browser_process->local_state());
+
+  std::optional<std::string> json = local_state_utils::GetPrefsAsJson(
+      g_browser_process->local_state(), accepted_pref_prefixes_);
   if (!json) {
     json = "Error loading Local State file.";
   }
@@ -72,5 +85,4 @@ LocalStateUI::LocalStateUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   web_ui->AddMessageHandler(std::make_unique<LocalStateUIHandler>());
 }
 
-LocalStateUI::~LocalStateUI() {
-}
+LocalStateUI::~LocalStateUI() = default;

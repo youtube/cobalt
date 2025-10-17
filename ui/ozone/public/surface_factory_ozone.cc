@@ -21,9 +21,9 @@
 
 namespace ui {
 
-SurfaceFactoryOzone::SurfaceFactoryOzone() {}
+SurfaceFactoryOzone::SurfaceFactoryOzone() = default;
 
-SurfaceFactoryOzone::~SurfaceFactoryOzone() {}
+SurfaceFactoryOzone::~SurfaceFactoryOzone() = default;
 
 std::vector<gl::GLImplementationParts>
 SurfaceFactoryOzone::GetAllowedGLImplementations() {
@@ -82,7 +82,7 @@ scoped_refptr<gfx::NativePixmap> SurfaceFactoryOzone::CreateNativePixmap(
     gfx::Size size,
     gfx::BufferFormat format,
     gfx::BufferUsage usage,
-    absl::optional<gfx::Size> framebuffer_size) {
+    std::optional<gfx::Size> framebuffer_size) {
   return nullptr;
 }
 
@@ -125,14 +125,40 @@ void SurfaceFactoryOzone::SetGetProtectedNativePixmapDelegate(
     const GetProtectedNativePixmapCallback&
         get_protected_native_pixmap_callback) {}
 
+bool SurfaceFactoryOzone::SupportsDrmModifiersFilter() const {
+  return false;
+}
+
+void SurfaceFactoryOzone::SetDrmModifiersFilter(
+    std::unique_ptr<DrmModifiersFilter> filter) {
+  NOTIMPLEMENTED();
+}
+
 std::vector<gfx::BufferFormat>
 SurfaceFactoryOzone::GetSupportedFormatsForTexturing() const {
   return std::vector<gfx::BufferFormat>();
 }
 
-absl::optional<gfx::BufferFormat>
+std::vector<gfx::BufferFormat>
+SurfaceFactoryOzone::GetSupportedFormatsForGLNativePixmapImport() {
+  std::vector<gfx::BufferFormat> supported_buffer_formats;
+  auto* gl_ozone = GetCurrentGLOzone();
+  if (!gl_ozone) {
+    return supported_buffer_formats;
+  }
+
+  for (int j = 0; j <= static_cast<int>(gfx::BufferFormat::LAST); ++j) {
+    const gfx::BufferFormat buffer_format = static_cast<gfx::BufferFormat>(j);
+    if (gl_ozone->CanImportNativePixmap(buffer_format)) {
+      supported_buffer_formats.push_back(buffer_format);
+    }
+  }
+  return supported_buffer_formats;
+}
+
+std::optional<gfx::BufferFormat>
 SurfaceFactoryOzone::GetPreferredFormatForSolidColor() const {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace ui

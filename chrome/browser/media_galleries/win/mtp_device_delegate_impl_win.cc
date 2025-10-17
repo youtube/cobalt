@@ -15,6 +15,7 @@
 
 #include "base/check_op.h"
 #include "base/files/file_path.h"
+#include "base/files/safe_base_name.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/notreached.h"
@@ -199,7 +200,9 @@ base::File::Error ReadDirectoryOnBlockingPoolThread(
     return error;
 
   while (!(current = file_enum->Next()).empty()) {
-    entries->emplace_back(storage::VirtualPath::BaseName(current),
+    auto name = base::SafeBaseName::Create(current);
+    CHECK(name) << current;
+    entries->emplace_back(*name, std::string(),
                           file_enum->IsDirectory()
                               ? filesystem::mojom::FsFileType::DIRECTORY
                               : filesystem::mojom::FsFileType::REGULAR_FILE);

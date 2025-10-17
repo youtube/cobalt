@@ -17,16 +17,20 @@
 #include "chromeos/ash/components/network/network_configuration_observer.h"
 #include "chromeos/ash/components/network/network_metadata_observer.h"
 #include "chromeos/ash/components/sync_wifi/network_identifier.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/model/model_type_store.h"
-#include "components/sync/model/model_type_sync_bridge.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/model/data_type_store.h"
+#include "components/sync/model/data_type_sync_bridge.h"
 
 class PrefRegistrySimple;
 class PrefService;
 
 namespace syncer {
-class ModelTypeChangeProcessor;
+class DataTypeLocalChangeProcessor;
 }  // namespace syncer
+
+namespace ash::timer_factory {
+class TimerFactory;
+}  // namespace ash::timer_factory
 
 namespace ash {
 
@@ -41,11 +45,10 @@ const char kHasFixedAutoconnect[] = "sync_wifi.has_fixed_autoconnect";
 class LocalNetworkCollector;
 class SyncedNetworkMetricsLogger;
 class SyncedNetworkUpdater;
-class TimerFactory;
 
 // Receives updates to network configurations from the Chrome sync back end and
 // from the system network stack and keeps both lists in sync.
-class WifiConfigurationBridge : public syncer::ModelTypeSyncBridge,
+class WifiConfigurationBridge : public syncer::DataTypeSyncBridge,
                                 public NetworkConfigurationObserver,
                                 public NetworkMetadataObserver {
  public:
@@ -54,10 +57,10 @@ class WifiConfigurationBridge : public syncer::ModelTypeSyncBridge,
       LocalNetworkCollector* local_network_collector,
       NetworkConfigurationHandler* network_configuration_handler,
       SyncedNetworkMetricsLogger* metrics_recorder,
-      TimerFactory* timer_factory,
+      ash::timer_factory::TimerFactory* timer_factory,
       PrefService* pref_service,
-      std::unique_ptr<syncer::ModelTypeChangeProcessor> change_processor,
-      syncer::OnceModelTypeStoreFactory create_store_callback);
+      std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
+      syncer::OnceDataTypeStoreFactory create_store_callback);
 
   WifiConfigurationBridge(const WifiConfigurationBridge&) = delete;
   WifiConfigurationBridge& operator=(const WifiConfigurationBridge&) = delete;
@@ -66,19 +69,22 @@ class WifiConfigurationBridge : public syncer::ModelTypeSyncBridge,
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
-  // syncer::ModelTypeSyncBridge:
+  // syncer::DataTypeSyncBridge:
   std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
       override;
-  absl::optional<syncer::ModelError> MergeFullSyncData(
+  std::optional<syncer::ModelError> MergeFullSyncData(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_data) override;
-  absl::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
+  std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
-  void GetData(StorageKeyList storage_keys, DataCallback callback) override;
-  void GetAllDataForDebugging(DataCallback callback) override;
-  std::string GetClientTag(const syncer::EntityData& entity_data) override;
-  std::string GetStorageKey(const syncer::EntityData& entity_data) override;
+  std::unique_ptr<syncer::DataBatch> GetDataForCommit(
+      StorageKeyList storage_keys) override;
+  std::unique_ptr<syncer::DataBatch> GetAllDataForDebugging() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
+  std::string GetStorageKey(
+      const syncer::EntityData& entity_data) const override;
   void ApplyDisableSyncChanges(std::unique_ptr<syncer::MetadataChangeList>
                                    delete_metadata_change_list) override;
 
@@ -102,17 +108,17 @@ class WifiConfigurationBridge : public syncer::ModelTypeSyncBridge,
       base::WeakPtr<NetworkMetadataStore> network_metadata_store);
 
  private:
-  void Commit(std::unique_ptr<syncer::ModelTypeStore::WriteBatch> batch);
+  void Commit(std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch);
 
-  // Callbacks for ModelTypeStore.
-  void OnStoreCreated(const absl::optional<syncer::ModelError>& error,
-                      std::unique_ptr<syncer::ModelTypeStore> store);
+  // Callbacks for DataTypeStore.
+  void OnStoreCreated(const std::optional<syncer::ModelError>& error,
+                      std::unique_ptr<syncer::DataTypeStore> store);
   void OnReadAllData(
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore::RecordList> records);
-  void OnReadAllMetadata(const absl::optional<syncer::ModelError>& error,
+      const std::optional<syncer::ModelError>& error,
+      std::unique_ptr<syncer::DataTypeStore::RecordList> records);
+  void OnReadAllMetadata(const std::optional<syncer::ModelError>& error,
                          std::unique_ptr<syncer::MetadataBatch> metadata_batch);
-  void OnCommit(const absl::optional<syncer::ModelError>& error);
+  void OnCommit(const std::optional<syncer::ModelError>& error);
 
   void OnGetAllSyncableNetworksResult(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
@@ -120,7 +126,7 @@ class WifiConfigurationBridge : public syncer::ModelTypeSyncBridge,
       std::vector<sync_pb::WifiConfigurationSpecifics> local_network_list);
 
   void SaveNetworkToSync(
-      absl::optional<sync_pb::WifiConfigurationSpecifics> proto);
+      std::optional<sync_pb::WifiConfigurationSpecifics> proto);
   void RemoveNetworkFromSync(const std::string& storage_key);
 
   // Starts an async request to serialize a network to a proto and save to sync.
@@ -152,21 +158,20 @@ class WifiConfigurationBridge : public syncer::ModelTypeSyncBridge,
   // most recent change is kept if there are multiple changes to the same
   // network.
   base::flat_map<std::string,
-                 absl::optional<sync_pb::WifiConfigurationSpecifics>>
+                 std::optional<sync_pb::WifiConfigurationSpecifics>>
       networks_to_sync_when_ready_;
 
   // The on disk store of WifiConfigurationSpecifics protos that mirrors what
   // is on the sync server.  This gets updated when changes are received from
   // the server and after local changes have been committed to the server.
-  std::unique_ptr<syncer::ModelTypeStore> store_;
+  std::unique_ptr<syncer::DataTypeStore> store_;
 
-  raw_ptr<SyncedNetworkUpdater, ExperimentalAsh> synced_network_updater_;
-  raw_ptr<LocalNetworkCollector, ExperimentalAsh> local_network_collector_;
-  raw_ptr<NetworkConfigurationHandler, ExperimentalAsh>
-      network_configuration_handler_;
-  raw_ptr<SyncedNetworkMetricsLogger, ExperimentalAsh> metrics_recorder_;
-  raw_ptr<TimerFactory, ExperimentalAsh> timer_factory_;
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
+  raw_ptr<SyncedNetworkUpdater, DanglingUntriaged> synced_network_updater_;
+  raw_ptr<LocalNetworkCollector, DanglingUntriaged> local_network_collector_;
+  raw_ptr<NetworkConfigurationHandler> network_configuration_handler_;
+  raw_ptr<SyncedNetworkMetricsLogger, DanglingUntriaged> metrics_recorder_;
+  raw_ptr<ash::timer_factory::TimerFactory, DanglingUntriaged> timer_factory_;
+  raw_ptr<PrefService, DanglingUntriaged> pref_service_;
   base::WeakPtr<NetworkMetadataStore> network_metadata_store_;
 
   base::WeakPtrFactory<WifiConfigurationBridge> weak_ptr_factory_{this};

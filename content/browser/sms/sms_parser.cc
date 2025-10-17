@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-#include <utility>
-
 #include "content/browser/sms/sms_parser.h"
 
-#include "base/strings/string_piece.h"
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include "net/base/url_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -36,7 +35,7 @@ ParseDomainResult ParseDomain(const std::string& domain) {
     return std::make_tuple(SmsParsingStatus::kHostAndPortNotParsed, GURL());
 
   // Expect localhost to always be http.
-  if (net::HostStringIsLocalhost(base::StringPiece(host))) {
+  if (net::HostStringIsLocalhost(std::string_view(host))) {
     scheme = "http://";
   } else {
     scheme = "https://";
@@ -66,9 +65,9 @@ SmsParser::Result::Result(const url::Origin& top_origin,
 SmsParser::Result::Result(const Result& other) = default;
 SmsParser::Result::~Result() = default;
 
-OriginList SmsParser::Result::GetOriginList() const {
+SmsFetcher::OriginList SmsParser::Result::GetOriginList() const {
   DCHECK(IsValid());
-  OriginList origin_list;
+  SmsFetcher::OriginList origin_list;
   if (!embedded_origin.opaque())
     origin_list.push_back(embedded_origin);
   origin_list.push_back(top_origin);
@@ -76,7 +75,7 @@ OriginList SmsParser::Result::GetOriginList() const {
 }
 
 // static
-SmsParser::Result SmsParser::Parse(base::StringPiece sms) {
+SmsParser::Result SmsParser::Parse(std::string_view sms) {
   std::string top_domain, otp, embedded_domain;
   // TODO(yigu): The existing kOtpFormatRegex may filter out invalid SMSes that
   // would fall into |kHostAndPortNotParsed| or |kGURLNotValid| below. We should

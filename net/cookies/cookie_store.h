@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,7 +22,6 @@
 #include "net/cookies/cookie_deletion_info.h"
 #include "net/cookies/cookie_options.h"
 #include "net/cookies/cookie_partition_key_collection.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -74,8 +74,16 @@ class NET_EXPORT CookieStore {
       const GURL& source_url,
       const CookieOptions& options,
       SetCookiesCallback callback,
-      absl::optional<CookieAccessResult> cookie_access_result =
-          absl::nullopt) = 0;
+      std::optional<CookieAccessResult> cookie_access_result =
+          std::nullopt) = 0;
+
+  // Set the cookie on the cookie store. This is unsafe because it doesn't do
+  // any of the usual inclusion checks and will always insert the cookie, This
+  // should be used for testing only. Use this only if SetCanonicalCookieAsync
+  // does not fit your testing requirements.
+  virtual void SetUnsafeCanonicalCookieForTestAsync(
+      std::unique_ptr<CanonicalCookie> cookie,
+      SetCookiesCallback callback) = 0;
 
   // Obtains a CookieList for the given |url| and |options|. The returned
   // cookies are passed into |callback|, ordered by longest path, then earliest
@@ -157,7 +165,7 @@ class NET_EXPORT CookieStore {
   // the instance initialization process). Otherwise, this returns true to
   // indicate success. CookieStores which do not support modifying cookieable
   // schemes will always return false.
-  virtual void SetCookieableSchemes(const std::vector<std::string>& schemes,
+  virtual void SetCookieableSchemes(std::vector<std::string> schemes,
                                     SetCookieableSchemesCallback callback) = 0;
 
   // Transfer ownership of a CookieAccessDelegate.
@@ -172,11 +180,9 @@ class NET_EXPORT CookieStore {
   // Returns a boolean indicating whether the cookie `site` has any cookie
   // in another partition other than the `cookie_partition_key` supplied.
   // Will return nullopt if cookies have not finished loading.
-  // If the partition key is null, the method assumes it is because partitioned
-  // cookies are disabled.
-  virtual absl::optional<bool> SiteHasCookieInOtherPartition(
+  virtual std::optional<bool> SiteHasCookieInOtherPartition(
       const net::SchemefulSite& site,
-      const absl::optional<CookiePartitionKey>& cookie_partition_key) const;
+      const CookiePartitionKey& cookie_partition_key) const;
 
  private:
   // Used to determine whether a particular cookie should be subject to legacy

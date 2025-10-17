@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//third_party/blink/renderer/modules/ml/webnn/features.gni")
-
 config("cpuinfo_include") {
   include_dirs = [
     "src/include",
@@ -11,11 +9,6 @@ config("cpuinfo_include") {
     "src/deps/clog/include",
   ]
 }
-
-# Build cpuinfo as a shared library to avoid initialization issue in renderer
-# process sandbox (crbug.com/1341106) for WebNN XNNPACK Linux component build.
-build_cpuinfo_shared_library =
-    build_webnn_with_xnnpack && is_linux && is_component_build
 
 config("cpuinfo_config") {
   cflags = [
@@ -25,29 +18,22 @@ config("cpuinfo_config") {
     # For clog.c.
     "-Wno-unused-result",
 
+    # For src/src/arm/windows/init-by-logical-sys-info.c.
+    "-Wno-tautological-pointer-compare",
+
     # A lot of locations.
     "-Wno-unused-function",
   ]
 
-  if (build_cpuinfo_shared_library) {
-    # Export all symbols when building shared library.
-    cflags += [ "-fvisibility=default" ]
-  }
-
   defines = [
     "_GNU_SOURCE=1",  # Required for CPU_SETSIZE to be available.
     "CPUINFO_INTERNAL=",
+    "CPUINFO_LOG_LEVEL=0",  # CPUINFO_LOG_NONE=0
     "CPUINFO_PRIVATE=",
   ]
 }
 
-if (build_cpuinfo_shared_library) {
-  _cpuinfo_target_type = "shared_library"
-} else {
-  _cpuinfo_target_type = "source_set"
-}
-
-target(_cpuinfo_target_type, "cpuinfo") {
+source_set("cpuinfo") {
   public = [ "src/include/cpuinfo.h" ]
 
   sources = [
@@ -56,6 +42,7 @@ target(_cpuinfo_target_type, "cpuinfo") {
     "src/src/api.c",
     "src/src/cache.c",
     "src/src/init.c",
+    "src/src/log.c",
   ]
 
   deps = [

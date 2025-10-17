@@ -11,7 +11,7 @@
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/view_tracker.h"
 
-class MediaRouterActionController;
+class CastToolbarButtonController;
 class PrefService;
 
 namespace views {
@@ -49,13 +49,13 @@ class MediaRemotingDialogCoordinatorViews
 // media stream directly to the remote device instead of playing it locally and
 // then mirroring it remotely.
 class MediaRemotingDialogView : public views::BubbleDialogDelegateView {
- public:
-  METADATA_HEADER(MediaRemotingDialogView);
+  METADATA_HEADER(MediaRemotingDialogView, views::BubbleDialogDelegateView)
 
+ public:
   MediaRemotingDialogView(
       views::View* anchor_view,
       PrefService* pref_service,
-      MediaRouterActionController* action_controller,
+      CastToolbarButtonController* action_controller,
       MediaRemotingDialogCoordinator::PermissionCallback permission_callback);
   MediaRemotingDialogView(const MediaRemotingDialogView&) = delete;
   MediaRemotingDialogView& operator=(const MediaRemotingDialogView&) = delete;
@@ -69,7 +69,7 @@ class MediaRemotingDialogView : public views::BubbleDialogDelegateView {
   void ReportPermission(bool allowed);
 
   const raw_ptr<PrefService> pref_service_;
-  const raw_ptr<MediaRouterActionController> action_controller_;
+  const raw_ptr<CastToolbarButtonController> action_controller_;
   MediaRemotingDialogCoordinator::PermissionCallback permission_callback_;
 
   // Checkbox the user can use to indicate whether the preference should be

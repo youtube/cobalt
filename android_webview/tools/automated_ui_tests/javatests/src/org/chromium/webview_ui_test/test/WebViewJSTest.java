@@ -7,14 +7,12 @@ package org.chromium.webview_ui_test.test;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
-import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.web.sugar.Web.onWebView;
 
 import static org.chromium.ui.test.util.ViewUtils.VIEW_NULL;
-import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
-import static org.chromium.ui.test.util.ViewUtils.waitForView;
 
 import androidx.test.filters.MediumTest;
 
@@ -24,6 +22,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.test.BaseJUnit4ClassRunner;
+import org.chromium.ui.test.util.ViewUtils;
 import org.chromium.webview_ui_test.WebViewUiTestActivity;
 import org.chromium.webview_ui_test.test.util.UseLayout;
 import org.chromium.webview_ui_test.test.util.WebViewUiTestRule;
@@ -36,8 +35,8 @@ import org.chromium.webview_ui_test.test.util.WebViewUiTestRule;
 @RunWith(BaseJUnit4ClassRunner.class)
 public class WebViewJSTest {
     @Rule
-    public WebViewUiTestRule mWebViewActivityRule = new WebViewUiTestRule(
-            WebViewUiTestActivity.class);
+    public WebViewUiTestRule mWebViewActivityRule =
+            new WebViewUiTestRule(WebViewUiTestActivity.class);
 
     @Before
     public void setUp() {
@@ -53,9 +52,9 @@ public class WebViewJSTest {
         mWebViewActivityRule.loadJavaScriptSync(
                 "document.getElementById('alert-button').click();", false);
         // Wait for the correct view to be shown
-        onViewWaiting(withText("Clicked")).check(matches(isDisplayed()));
+        onView(withText("Clicked")).inRoot(isDialog()).check(matches(isDisplayed()));
         onView(withText("OK")).check(matches(isDisplayed())).perform(click());
         // "OK" should disappear once we've clicked on it. Wait for that to happen.
-        onView(isRoot()).check(waitForView(withText("OK"), VIEW_NULL));
+        ViewUtils.waitForViewCheckingState(withText("OK"), VIEW_NULL);
     }
 }

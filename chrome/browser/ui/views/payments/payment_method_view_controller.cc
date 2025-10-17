@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view.h"
@@ -40,7 +41,7 @@ namespace payments {
 
 namespace {
 
-class PaymentMethodListItem : public PaymentRequestItemList::Item {
+class PaymentMethodListItem final : public PaymentRequestItemList::Item {
  public:
   // Does not take ownership of |app|, which should not be null and should
   // outlive this object. |list| is the PaymentRequestItemList object that will
@@ -65,7 +66,11 @@ class PaymentMethodListItem : public PaymentRequestItemList::Item {
   PaymentMethodListItem(const PaymentMethodListItem&) = delete;
   PaymentMethodListItem& operator=(const PaymentMethodListItem&) = delete;
 
-  ~PaymentMethodListItem() override {}
+  ~PaymentMethodListItem() override = default;
+
+  base::WeakPtr<PaymentRequestRowView> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
  private:
   // PaymentRequestItemList::Item:
@@ -79,8 +84,9 @@ class PaymentMethodListItem : public PaymentRequestItemList::Item {
       std::u16string* accessible_content) override {
     DCHECK(accessible_content);
     auto card_info_container = std::make_unique<views::View>();
-    if (!app_)
+    if (!app_) {
       return card_info_container;
+    }
 
     card_info_container->SetCanProcessEventsWithinSubtree(false);
 
@@ -92,11 +98,13 @@ class PaymentMethodListItem : public PaymentRequestItemList::Item {
     card_info_container->SetLayoutManager(std::move(box_layout));
 
     std::u16string label_str = app_->GetLabel();
-    if (!label_str.empty())
-      card_info_container->AddChildView(new views::Label(label_str));
+    if (!label_str.empty()) {
+      card_info_container->AddChildViewRaw(new views::Label(label_str));
+    }
     std::u16string sublabel = app_->GetSublabel();
-    if (!sublabel.empty())
-      card_info_container->AddChildView(new views::Label(sublabel));
+    if (!sublabel.empty()) {
+      card_info_container->AddChildViewRaw(new views::Label(sublabel));
+    }
     std::u16string missing_info;
     if (!app_->IsCompleteForPayment()) {
       missing_info = app_->GetMissingInfoLabel();
@@ -139,6 +147,7 @@ class PaymentMethodListItem : public PaymentRequestItemList::Item {
 
   base::WeakPtr<PaymentApp> app_;
   base::WeakPtr<PaymentRequestDialogView> dialog_;
+  base::WeakPtrFactory<PaymentMethodListItem> weak_ptr_factory_{this};
 };
 
 }  // namespace
@@ -159,7 +168,7 @@ PaymentMethodViewController::PaymentMethodViewController(
   }
 }
 
-PaymentMethodViewController::~PaymentMethodViewController() {}
+PaymentMethodViewController::~PaymentMethodViewController() = default;
 
 std::u16string PaymentMethodViewController::GetSheetTitle() {
   return l10n_util::GetStringUTF16(
@@ -178,7 +187,7 @@ void PaymentMethodViewController::FillContentView(views::View* content_view) {
       payment_method_list_.CreateListView();
   list_view->SetID(
       static_cast<int>(DialogViewID::PAYMENT_METHOD_SHEET_LIST_VIEW));
-  content_view->AddChildView(list_view.release());
+  content_view->AddChildViewRaw(list_view.release());
 }
 
 bool PaymentMethodViewController::ShouldShowPrimaryButton() {

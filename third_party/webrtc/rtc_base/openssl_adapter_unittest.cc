@@ -10,16 +10,21 @@
 
 #include "rtc_base/openssl_adapter.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "absl/memory/memory.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/socket.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/ssl_certificate.h"
+#include "rtc_base/thread.h"
 #include "test/gmock.h"
+#include "test/gtest.h"
 
-namespace rtc {
+namespace webrtc {
 namespace {
 
 class MockAsyncSocket : public Socket {
@@ -84,7 +89,7 @@ TEST(OpenSSLAdapterTest, TestTransformAlpnProtocols) {
 // Verifies that SSLStart works when OpenSSLAdapter is started in standalone
 // mode.
 TEST(OpenSSLAdapterTest, TestBeginSSLBeforeConnection) {
-  rtc::AutoThread main_thread;
+  AutoThread main_thread;
   Socket* async_socket = new MockAsyncSocket();
   OpenSSLAdapter adapter(async_socket);
   EXPECT_EQ(adapter.StartSSL("webrtc.org"), 0);
@@ -92,7 +97,7 @@ TEST(OpenSSLAdapterTest, TestBeginSSLBeforeConnection) {
 
 // Verifies that the adapter factory can create new adapters.
 TEST(OpenSSLAdapterFactoryTest, CreateSingleOpenSSLAdapter) {
-  rtc::AutoThread main_thread;
+  AutoThread main_thread;
   OpenSSLAdapterFactory adapter_factory;
   Socket* async_socket = new MockAsyncSocket();
   auto simple_adapter = std::unique_ptr<OpenSSLAdapter>(
@@ -103,7 +108,7 @@ TEST(OpenSSLAdapterFactoryTest, CreateSingleOpenSSLAdapter) {
 // Verifies that setting a custom verifier still allows for adapters to be
 // created.
 TEST(OpenSSLAdapterFactoryTest, CreateWorksWithCustomVerifier) {
-  rtc::AutoThread main_thread;
+  AutoThread main_thread;
   MockCertVerifier* mock_verifier = new MockCertVerifier();
   EXPECT_CALL(*mock_verifier, Verify(_)).WillRepeatedly(Return(true));
   auto cert_verifier = std::unique_ptr<SSLCertificateVerifier>(mock_verifier);
@@ -116,19 +121,4 @@ TEST(OpenSSLAdapterFactoryTest, CreateWorksWithCustomVerifier) {
   EXPECT_NE(simple_adapter, nullptr);
 }
 
-TEST(StrJoinTest, SingleElement) {
-  EXPECT_EQ(webrtc_openssl_adapter_internal::StrJoin({"a"}, ','), "a");
-}
-
-TEST(StrJoinTest, TwoElements) {
-  EXPECT_EQ(webrtc_openssl_adapter_internal::StrJoin({"first", "second"}, ':'),
-            "first:second");
-}
-
-TEST(StrJoinTest, WithEmptyElement) {
-  EXPECT_EQ(
-      webrtc_openssl_adapter_internal::StrJoin({"first", "", "second"}, ':'),
-      "first::second");
-}
-
-}  // namespace rtc
+}  // namespace webrtc

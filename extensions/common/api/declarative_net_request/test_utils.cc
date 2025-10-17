@@ -55,7 +55,7 @@ base::Value::List ToValue(const std::vector<T>& vec) {
 template <typename T>
 void SetValue(base::Value::Dict& dict,
               const char* key,
-              const absl::optional<T>& value) {
+              const std::optional<T>& value) {
   if (!value)
     return;
 
@@ -88,6 +88,8 @@ base::Value::Dict TestRuleCondition::ToValue() const {
   SetValue(dict, kTabIdsKey, tab_ids);
   SetValue(dict, kExcludedTabIdsKey, excluded_tab_ids);
   SetValue(dict, kDomainTypeKey, domain_type);
+  SetValue(dict, kResponseHeadersKey, response_headers);
+  SetValue(dict, kExcludedResponseHeadersKey, excluded_response_headers);
 
   return dict;
 }
@@ -158,7 +160,7 @@ base::Value::Dict TestRuleRedirect::ToValue() const {
 
 TestHeaderInfo::TestHeaderInfo(std::string header,
                                std::string operation,
-                               absl::optional<std::string> value)
+                               std::optional<std::string> value)
     : header(std::move(header)),
       operation(std::move(operation)),
       value(std::move(value)) {}
@@ -171,6 +173,26 @@ base::Value::Dict TestHeaderInfo::ToValue() const {
   SetValue(dict, kHeaderNameKey, header);
   SetValue(dict, kHeaderOperationKey, operation);
   SetValue(dict, kHeaderValueKey, value);
+  return dict;
+}
+
+TestHeaderCondition::TestHeaderCondition(
+    std::string header,
+    std::vector<std::string> values,
+    std::vector<std::string> excluded_values)
+    : header(std::move(header)),
+      values(std::move(values)),
+      excluded_values(std::move(excluded_values)) {}
+TestHeaderCondition::~TestHeaderCondition() = default;
+TestHeaderCondition::TestHeaderCondition(const TestHeaderCondition&) = default;
+TestHeaderCondition& TestHeaderCondition::operator=(
+    const TestHeaderCondition&) = default;
+
+base::Value::Dict TestHeaderCondition::ToValue() const {
+  base::Value::Dict dict;
+  SetValue(dict, kHeaderNameKey, header);
+  SetValue(dict, kHeaderValuesKey, values);
+  SetValue(dict, kHeaderExcludedValuesKey, excluded_values);
   return dict;
 }
 
@@ -301,6 +323,12 @@ base::Value::Dict CreateManifest(
                                 ToValue(ruleset_info)));
   }
 
+  if (flags & kConfig_HasManifestSandbox) {
+    manifest_builder.SetByDottedPath(
+        keys::kSandboxedPages,
+        base::Value::List().Append(kManifestSandboxPageFilepath));
+  }
+
   // std::move() to trigger rvalue overloads.
   return std::move(manifest_builder)
       .Set(keys::kName, extension_name)
@@ -331,11 +359,26 @@ void WriteManifestAndRulesets(const base::FilePath& extension_dir,
         .Serialize(info.rules_value);
   }
 
-  // Persists a background script if needed.
+  // Persist a background script if needed.
   if (flags & ConfigFlag::kConfig_HasBackgroundScript) {
-    std::string content = "chrome.test.sendMessage('ready');";
+    static constexpr char kScriptWithOnUpdateAvailable[] =
+        "chrome.runtime.onUpdateAvailable.addListener(() => {});"
+        "chrome.test.sendMessage('ready');";
+
+    std::string content = flags & ConfigFlag::kConfig_ListenForOnUpdateAvailable
+                              ? kScriptWithOnUpdateAvailable
+                              : "chrome.test.sendMessage('ready');";
     CHECK(base::WriteFile(extension_dir.Append(kBackgroundScriptFilepath),
                           content));
+  }
+
+  // Persist a manifest sandbox page if needed.
+  if (flags & ConfigFlag::kConfig_HasManifestSandbox) {
+    static constexpr char kManifestSandboxPage[] = "<html></html>";
+
+    CHECK(
+        base::WriteFile(extension_dir.AppendASCII(kManifestSandboxPageFilepath),
+                        kManifestSandboxPage));
   }
 
   // Persist manifest file.

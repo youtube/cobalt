@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES2/gl2extchromium.h>
@@ -9,7 +14,11 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 
+#include "base/command_line.h"
+#include "build/build_config.h"
+#include "gpu/command_buffer/service/service_utils.h"
 #include "gpu/command_buffer/tests/gl_manager.h"
 #include "gpu/command_buffer/tests/gl_test_utils.h"
 #include "gpu/config/gpu_test_config.h"
@@ -45,7 +54,7 @@ void BlendEquationFuncAdd(float dst[4],
                           float src[4],
                           float src1[4],
                           uint8_t result[4]) {
-  float r[4];
+  std::array<float, 4> r;
   r[0] = src[0] * Weight<RGBs, 0>(dst, src, src1) +
          dst[0] * Weight<RGBd, 0>(dst, src, src1);
   r[1] = src[1] * Weight<RGBs, 1>(dst, src, src1) +
@@ -101,7 +110,15 @@ class EXTBlendFuncExtendedDrawTest : public testing::TestWithParam<bool> {
   }
 
   bool IsApplicable() const {
+#if BUILDFLAG(IS_ANDROID)
+    // Skip on Android due to Qualcomm driver bugs with implicitly assigned
+    // output locations and multiple render buffers. This extension is still
+    // used by Skia but Skia works around these bugs.
+    // http://anglebug.com/42267082
+    return false;
+#else
     return GLTestHelper::HasExtension("GL_EXT_blend_func_extended");
+#endif
   }
 
   virtual const char* GetVertexShader() {
@@ -221,7 +238,7 @@ TEST_P(EXTBlendFuncExtendedDrawTest, ESSL1FragColor) {
           });
   // clang-format on
   CreateProgramWithFragmentShader(kFragColorShader);
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
   DrawAndVerify();
 }
 
@@ -249,13 +266,21 @@ TEST_P(EXTBlendFuncExtendedDrawTest, ESSL1FragData) {
           });
   // clang-format on
   CreateProgramWithFragmentShader(kFragDataShader);
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
   DrawAndVerify();
 }
 
 class EXTBlendFuncExtendedES3DrawTest : public EXTBlendFuncExtendedDrawTest {
  protected:
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (!gles2::UsePassthroughCommandDecoder(command_line)) {
+      // TODO(crbug.com/40160681): remove suppression when passthrough ships.
+      GTEST_SKIP();
+    }
+#endif
+
     GLManager::Options options;
     options.size = gfx::Size(kWidth, kHeight);
     options.context_type = CONTEXT_TYPE_OPENGLES3;
@@ -298,7 +323,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ESSL3Var) {
   // clang-format on
   CreateProgramWithFragmentShader(kFragColorShader);
   glBindFragDataLocationIndexedEXT(program_, 0, 1, "SecondaryFragColor");
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
   DrawAndVerify();
 }
 
@@ -331,7 +356,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ESSL3BindArrayWithSimpleName) {
   CreateProgramWithFragmentShader(kFragDataShader);
   glBindFragDataLocationEXT(program_, 0, "FragData");
   glBindFragDataLocationIndexedEXT(program_, 0, 1, "SecondaryFragData");
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
   DrawAndVerify();
 }
 
@@ -399,7 +424,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ESSL3BindArrayAsArray) {
   CreateProgramWithFragmentShader(kFragDataShader);
   glBindFragDataLocationEXT(program_, 0, "FragData[0]");
   glBindFragDataLocationIndexedEXT(program_, 0, 1, "SecondaryFragData[0]");
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
   DrawAndVerify();
 }
 
@@ -435,7 +460,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ES3Getters) {
   EXPECT_EQ(static_cast<GLenum>(GL_INVALID_OPERATION), glGetError());
   index = glGetFragDataIndexEXT(program_, "SecondaryFragColor");
   EXPECT_EQ(static_cast<GLenum>(GL_INVALID_OPERATION), glGetError());
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
 
   // Getters return location and index after linking. Run twice to confirm that
   // setters do not affect the getters until next link.
@@ -461,7 +486,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ES3Getters) {
     glBindFragDataLocationIndexedEXT(program_, 0, 1, "FragColor");
   }
 
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
 
   location = glGetFragDataLocation(program_, "FragColor");
   EXPECT_EQ(0, location);
@@ -486,7 +511,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ES3Getters) {
   // Reset the settings and verify that the driver gets them correct.
   glBindFragDataLocationEXT(program_, 0, "FragColor");
   glBindFragDataLocationIndexedEXT(program_, 0, 1, "SecondaryFragColor");
-  LinkProgram();
+  EXPECT_TRUE(LinkProgram());
   DrawAndVerify();
 }
 
@@ -566,7 +591,7 @@ TEST_P(EXTBlendFuncExtendedES3DrawTest, ES3GettersArray) {
     }
 
     EXPECT_EQ(static_cast<GLenum>(GL_NO_ERROR), glGetError());
-    LinkProgram();
+    EXPECT_TRUE(LinkProgram());
     EXPECT_EQ(kFragData0Location, glGetFragDataLocation(program_, "FragData"));
     EXPECT_EQ(0, glGetFragDataIndexEXT(program_, "FragData"));
     EXPECT_EQ(kFragData0Location,

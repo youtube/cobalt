@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_mojo_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_opus_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_pcm_encoder.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
@@ -24,10 +25,11 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_std.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
-#if BUILDFLAG(IS_WIN) || \
-    (BUILDFLAG(IS_MAC) && BUILDFLAG(USE_PROPRIETARY_CODECS))
+#if BUILDFLAG(IS_WIN) || ((BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)) && \
+                          BUILDFLAG(USE_PROPRIETARY_CODECS))
 #define HAS_AAC_ENCODER 1
 #endif
 
@@ -53,27 +55,40 @@ namespace blink {
 // Max size of buffers passed on to encoders.
 const int kMaxChunkedBufferDurationMs = 60;
 
-AudioTrackRecorder::CodecId AudioTrackRecorder::GetPreferredCodecId() {
+AudioTrackRecorder::CodecId AudioTrackRecorder::GetPreferredCodecId(
+    MediaTrackContainerType type) {
   return CodecId::kOpus;
 }
 
 AudioTrackRecorder::AudioTrackRecorder(
+    scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
     CodecId codec,
     MediaStreamComponent* track,
-    OnEncodedAudioCB on_encoded_audio_cb,
-    base::OnceClosure on_track_source_ended_cb,
+    WeakCell<CallbackInterface>* callback_interface,
     uint32_t bits_per_second,
     BitrateMode bitrate_mode,
     scoped_refptr<base::SequencedTaskRunner> encoder_task_runner)
-    : TrackRecorder(std::move(on_track_source_ended_cb)),
+    : TrackRecorder(base::BindPostTask(
+          main_thread_task_runner,
+          WTF::BindOnce(&CallbackInterface::OnSourceReadyStateChanged,
+                        WrapPersistent(callback_interface)))),
       track_(track),
       encoder_task_runner_(std::move(encoder_task_runner)),
       encoder_(encoder_task_runner_,
-               CreateAudioEncoder(codec,
-                                  encoder_task_runner_,
-                                  std::move(on_encoded_audio_cb),
-                                  bits_per_second,
-                                  bitrate_mode)) {
+               CreateAudioEncoder(
+                   codec,
+                   encoder_task_runner_,
+                   base::BindPostTask(
+                       main_thread_task_runner,
+                       WTF::BindRepeating(&CallbackInterface::OnEncodedAudio,
+                                          WrapPersistent(callback_interface))),
+                   base::BindPostTask(
+                       main_thread_task_runner,
+                       WTF::BindOnce(&CallbackInterface::OnAudioEncodingError,
+                                     WrapPersistent(callback_interface))),
+                   bits_per_second,
+                   bitrate_mode)),
+      callback_interface_(callback_interface) {
   DCHECK(IsMainThread());
   DCHECK(track_);
   DCHECK(track_->GetSourceType() == MediaStreamSource::kTypeAudio);
@@ -93,26 +108,27 @@ std::unique_ptr<AudioTrackEncoder> AudioTrackRecorder::CreateAudioEncoder(
     CodecId codec,
     scoped_refptr<base::SequencedTaskRunner> encoder_task_runner,
     OnEncodedAudioCB on_encoded_audio_cb,
+    OnEncodedAudioErrorCB on_encoded_audio_error_cb,
     uint32_t bits_per_second,
     BitrateMode bitrate_mode) {
   std::unique_ptr<AudioTrackEncoder> encoder;
   switch (codec) {
     case CodecId::kPcm:
       return std::make_unique<AudioTrackPcmEncoder>(
-          std::move(on_encoded_audio_cb));
+          std::move(on_encoded_audio_cb), std::move(on_encoded_audio_error_cb));
     case CodecId::kAac:
 #if HAS_AAC_ENCODER
       return std::make_unique<AudioTrackMojoEncoder>(
           encoder_task_runner, codec, std::move(on_encoded_audio_cb),
-          bits_per_second);
-#endif
+          std::move(on_encoded_audio_error_cb), bits_per_second);
+#else
       NOTREACHED() << "AAC encoder is not supported.";
-      return nullptr;
+#endif
     case CodecId::kOpus:
     default:
       return std::make_unique<AudioTrackOpusEncoder>(
-          std::move(on_encoded_audio_cb), bits_per_second,
-          bitrate_mode == BitrateMode::kVariable);
+          std::move(on_encoded_audio_cb), std::move(on_encoded_audio_error_cb),
+          bits_per_second, bitrate_mode == BitrateMode::kVariable);
   }
 }
 

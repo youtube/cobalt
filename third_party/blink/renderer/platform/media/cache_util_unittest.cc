@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <string>
 
 #include "base/format_macros.h"
@@ -46,7 +47,7 @@ static WebURLResponse CreateResponse(const GRFUTestCase& test) {
 TEST(CacheUtilTest, GetReasonsForUncacheability) {
   enum { kNoReasons = 0 };
 
-  const GRFUTestCase tests[] = {
+  const auto tests = std::to_array<GRFUTestCase>({
       {WebURLResponse::kHTTPVersion_1_1, 206, "ETag: 'fooblort'", kNoReasons},
       {WebURLResponse::kHTTPVersion_1_1, 206, "",
        kNoStrongValidatorOnPartialResponse},
@@ -68,7 +69,7 @@ TEST(CacheUtilTest, GetReasonsForUncacheability) {
        kNoStore},
       {WebURLResponse::kHTTPVersion_1_1, 200,
        "cache-control: no-cache\ncache-control: no-store", kNoCache | kNoStore},
-  };
+  });
   for (size_t i = 0; i < std::size(tests); ++i) {
     SCOPED_TRACE(base::StringPrintf("case: %" PRIuS
                                     ", version: %d, code: %d, headers: %s",

@@ -14,7 +14,6 @@ import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
-import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -23,13 +22,14 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.ColorRes;
-import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.widget.ImageViewCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.DualControlLayout;
-import org.chromium.ui.UiUtils;
-import org.chromium.ui.text.NoUnderlineClickableSpan;
+import org.chromium.components.browser_ui.widget.DualControlLayout.ButtonType;
+import org.chromium.ui.text.ChromeClickableSpan;
 import org.chromium.ui.widget.ButtonCompat;
 import org.chromium.ui.widget.ChromeImageButton;
 import org.chromium.ui.widget.ChromeImageView;
@@ -53,15 +53,14 @@ import java.util.List;
  * Logic for what happens when things are clicked should be implemented by the
  * InfoBarInteractionHandler.
  */
+@NullMarked
 public final class InfoBarLayout extends ViewGroup implements View.OnClickListener {
-    /**
-     * Parameters used for laying out children.
-     */
+    /** Parameters used for laying out children. */
     private static class LayoutParams extends ViewGroup.LayoutParams {
-        public int startMargin;
-        public int endMargin;
-        public int topMargin;
-        public int bottomMargin;
+        public final int startMargin;
+        public final int endMargin;
+        public final int topMargin;
+        public final int bottomMargin;
 
         // Where this view will be laid out. Calculated in onMeasure() and used in onLayout().
         public int start;
@@ -78,8 +77,6 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
 
     private final int mSmallIconSize;
     private final int mSmallIconMargin;
-    private final int mBigIconSize;
-    private final int mBigIconMargin;
     private final int mMarginAboveButtonGroup;
     private final int mMarginAboveControlGroups;
     private final int mPadding;
@@ -89,14 +86,14 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
     private final ImageButton mCloseButton;
     private final InfoBarControlLayout mMessageLayout;
     private final List<InfoBarControlLayout> mControlLayouts;
-    private ViewGroup mFooterViewGroup;
+    private @Nullable ViewGroup mFooterViewGroup;
 
-    private TextView mMessageTextView;
-    private ImageView mIconView;
-    private DualControlLayout mButtonRowLayout;
+    private final TextView mMessageTextView;
+    private final @Nullable ImageView mIconView;
+    private @Nullable DualControlLayout mButtonRowLayout;
 
     private CharSequence mMessageMainText;
-    private String mMessageLinkText;
+    private @Nullable String mMessageLinkText;
     private int mMessageInlineLinkRangeStart;
     private int mMessageInlineLinkRangeEnd;
 
@@ -104,6 +101,7 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
      * Constructs a layout for the specified infobar. After calling this, be sure to set the
      * message, the buttons, and/or the custom content using setMessage(), setButtons(), and
      * setCustomContent().
+     *
      * @param context The context used to render.
      * @param infoBar InfoBarInteractionHandler that listens to events.
      * @param iconResourceId ID of the icon to use for the infobar.
@@ -111,8 +109,13 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
      * @param iconBitmap Bitmap for the icon to use, if the resource ID wasn't passed through.
      * @param message The message to show in the infobar.
      */
-    public InfoBarLayout(Context context, InfoBarInteractionHandler infoBar, int iconResourceId,
-            @ColorRes int iconTintId, Bitmap iconBitmap, CharSequence message) {
+    public InfoBarLayout(
+            Context context,
+            InfoBarInteractionHandler infoBar,
+            int iconResourceId,
+            @ColorRes int iconTintId,
+            @Nullable Bitmap iconBitmap,
+            CharSequence message) {
         super(context);
         mControlLayouts = new ArrayList<InfoBarControlLayout>();
 
@@ -122,8 +125,6 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
         Resources res = getResources();
         mSmallIconSize = res.getDimensionPixelSize(R.dimen.infobar_small_icon_size);
         mSmallIconMargin = res.getDimensionPixelSize(R.dimen.infobar_small_icon_margin);
-        mBigIconSize = res.getDimensionPixelSize(R.dimen.infobar_big_icon_size);
-        mBigIconMargin = res.getDimensionPixelSize(R.dimen.infobar_big_icon_margin);
         mMarginAboveButtonGroup =
                 res.getDimensionPixelSize(R.dimen.infobar_margin_above_button_row);
         mMarginAboveControlGroups =
@@ -181,9 +182,7 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
         mMessageTextView.setText(prepareMainMessageString());
     }
 
-    /**
-     * Appends a link to the message, if an infobar requires one (e.g. "Learn more").
-     */
+    /** Appends a link to the message, if an infobar requires one (e.g. "Learn more"). */
     public void appendMessageLinkText(String linkText) {
         mMessageLinkText = linkText;
         mMessageTextView.setText(prepareMainMessageString());
@@ -223,10 +222,10 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
     /**
      * Adds one or two buttons to the layout.
      *
-     * @param primaryText Text for the primary button.  If empty, no buttons are added at all.
+     * @param primaryText Text for the primary button. If empty, no buttons are added at all.
      * @param secondaryText Text for the secondary button, or null if there isn't a second button.
      */
-    public void setButtons(String primaryText, String secondaryText) {
+    public void setButtons(String primaryText, @Nullable String secondaryText) {
         if (TextUtils.isEmpty(primaryText)) {
             assert TextUtils.isEmpty(secondaryText);
             return;
@@ -234,8 +233,9 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
 
         Button secondaryButton = null;
         if (!TextUtils.isEmpty(secondaryText)) {
-            secondaryButton = DualControlLayout.createButtonForLayout(
-                    getContext(), false, secondaryText, this);
+            secondaryButton =
+                    DualControlLayout.createButtonForLayout(
+                            getContext(), ButtonType.SECONDARY_TEXT, secondaryText, this);
         }
 
         setBottomViews(
@@ -253,60 +253,39 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
      * @param alignment One of ALIGN_START, ALIGN_APART, or ALIGN_END from
      *                  {@link DualControlLayout}.
      */
-    public void setBottomViews(String primaryText, View secondaryView, int alignment) {
+    public void setBottomViews(String primaryText, @Nullable View secondaryView, int alignment) {
         assert !TextUtils.isEmpty(primaryText);
         Button primaryButton =
-                DualControlLayout.createButtonForLayout(getContext(), true, primaryText, this);
+                DualControlLayout.createButtonForLayout(
+                        getContext(), ButtonType.PRIMARY_FILLED, primaryText, this);
 
         assert mButtonRowLayout == null;
         mButtonRowLayout = new DualControlLayout(getContext(), null);
         mButtonRowLayout.setAlignment(alignment);
-        mButtonRowLayout.setStackedMargin(getResources().getDimensionPixelSize(
-                R.dimen.infobar_margin_between_stacked_buttons));
+        mButtonRowLayout.setStackedMargin(
+                getResources()
+                        .getDimensionPixelSize(R.dimen.infobar_margin_between_stacked_buttons));
 
         mButtonRowLayout.addView(primaryButton);
-        if (secondaryView != null) mButtonRowLayout.addView(secondaryView);
+        if (secondaryView != null) {
+            mButtonRowLayout.addView(secondaryView);
+        }
     }
 
-    /**
-     * Adjusts styling to account for the big icon layout.
-     */
-    public void setIsUsingBigIcon() {
-        if (mIconView == null) return;
-
-        LayoutParams lp = (LayoutParams) mIconView.getLayoutParams();
-        lp.width = mBigIconSize;
-        lp.height = mBigIconSize;
-        lp.endMargin = mBigIconMargin;
-
-        Resources res = getContext().getResources();
-        float textSize = res.getDimension(R.dimen.infobar_big_icon_message_size);
-        mMessageTextView.setTypeface(UiUtils.createRobotoMediumTypeface());
-        mMessageTextView.setMaxLines(1);
-        mMessageTextView.setEllipsize(TextUtils.TruncateAt.END);
-        mMessageTextView.setTextSize(TypedValue.COMPLEX_UNIT_PX, textSize);
-    }
-
-    /**
-     * Returns the primary button, or null if it doesn't exist.
-     */
-    public ButtonCompat getPrimaryButton() {
+    /** Returns the primary button, or null if it doesn't exist. */
+    public @Nullable ButtonCompat getPrimaryButton() {
         return mButtonRowLayout == null
                 ? null
                 : (ButtonCompat) mButtonRowLayout.findViewById(R.id.button_primary);
     }
 
-    /**
-     * Returns whether or not InfoBar has a footer.
-     */
+    /** Returns whether or not InfoBar has a footer. */
     public boolean hasFooter() {
         return mFooterViewGroup != null;
     }
 
-    /**
-     * Returns the icon, or null if it doesn't exist.
-     */
-    public ImageView getIcon() {
+    /** Returns the icon, or null if it doesn't exist. */
+    public @Nullable ImageView getIcon() {
         return mIconView;
     }
 
@@ -314,7 +293,7 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
      * Must be called after the message, buttons, and custom content have been set, and before the
      * first call to onMeasure().
      */
-    // TODO(crbug/1056346): onContentCreated is made public to allow access from InfoBar. Once
+    // TODO(crbug.com/40120294): onContentCreated is made public to allow access from InfoBar. Once
     // InfoBar is modularized, restore access to package private.
     public void onContentCreated() {
         // Add the child views in the desired focus order.
@@ -380,8 +359,8 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
      */
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        assert getLayoutParams().height
-                == LayoutParams.WRAP_CONTENT : "InfoBar heights cannot be constrained.";
+        assert getLayoutParams().height == LayoutParams.WRAP_CONTENT
+                : "InfoBar heights cannot be constrained.";
 
         // Apply the padding that surrounds all the infobar controls.
         final int layoutWidth = Math.max(MeasureSpec.getSize(widthMeasureSpec), mMinWidth);
@@ -420,8 +399,10 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
         // Control layouts are placed below the message layout and the close button.  The icon is
         // ignored for this particular calculation because the icon enforces a left margin on all of
         // the control layouts and won't be overlapped.
-        layoutBottom += Math.max(
-                getChildHeightWithMargins(mMessageLayout), getChildHeightWithMargins(mCloseButton));
+        layoutBottom +=
+                Math.max(
+                        getChildHeightWithMargins(mMessageLayout),
+                        getChildHeightWithMargins(mCloseButton));
 
         // The other control layouts are constrained only by the icon's width.
         final int controlPaddedStart = paddedStart + iconWidth;
@@ -458,19 +439,22 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
             layoutBottom += mFooterViewGroup.getMeasuredHeight();
         }
 
-        setMeasuredDimension(resolveSize(layoutWidth, widthMeasureSpec),
+        setMeasuredDimension(
+                resolveSize(layoutWidth, widthMeasureSpec),
                 resolveSize(layoutBottom, heightMeasureSpec));
     }
 
-    private static int getChildWidthWithMargins(View view) {
+    private static int getChildWidthWithMargins(@Nullable View view) {
         if (view == null) return 0;
-        return view.getMeasuredWidth() + getChildLayoutParams(view).startMargin
+        return view.getMeasuredWidth()
+                + getChildLayoutParams(view).startMargin
                 + getChildLayoutParams(view).endMargin;
     }
 
-    private static int getChildHeightWithMargins(View view) {
+    private static int getChildHeightWithMargins(@Nullable View view) {
         if (view == null) return 0;
-        return view.getMeasuredHeight() + getChildLayoutParams(view).topMargin
+        return view.getMeasuredHeight()
+                + getChildLayoutParams(view).topMargin
                 + getChildLayoutParams(view).bottomMargin;
     }
 
@@ -478,9 +462,7 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
         return (LayoutParams) view.getLayoutParams();
     }
 
-    /**
-     * Measures a child for the given space, taking into account its margins.
-     */
+    /** Measures a child for the given space, taking into account its margins. */
     private void measureChildWithFixedWidth(View child, int width) {
         LayoutParams lp = getChildLayoutParams(child);
         int availableWidth = width - lp.startMargin - lp.endMargin;
@@ -522,8 +504,11 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
                 assert mMessageInlineLinkRangeStart < mMessageInlineLinkRangeEnd;
                 assert mMessageInlineLinkRangeEnd < mMessageMainText.length();
 
-                spannedMessage.setSpan(createClickableSpan(), mMessageInlineLinkRangeStart,
-                        mMessageInlineLinkRangeEnd, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+                spannedMessage.setSpan(
+                        createClickableSpan(),
+                        mMessageInlineLinkRangeStart,
+                        mMessageInlineLinkRangeEnd,
+                        Spanned.SPAN_INCLUSIVE_INCLUSIVE);
             }
 
             fullString.append(spannedMessage);
@@ -535,28 +520,34 @@ public final class InfoBarLayout extends ViewGroup implements View.OnClickListen
             int spanStart = fullString.length();
 
             fullString.append(mMessageLinkText);
-            fullString.setSpan(createClickableSpan(), spanStart, fullString.length(),
+            fullString.setSpan(
+                    createClickableSpan(),
+                    spanStart,
+                    fullString.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
         return fullString;
     }
 
-    private NoUnderlineClickableSpan createClickableSpan() {
-        return new NoUnderlineClickableSpan(getContext(), (view) -> mInfoBar.onLinkClicked());
+    private ChromeClickableSpan createClickableSpan() {
+        return new ChromeClickableSpan(getContext(), (view) -> mInfoBar.onLinkClicked());
     }
 
     /**
      * Creates a View that holds an icon representing an infobar.
+     *
      * @param context Context to grab resources from.
      * @param iconResourceId ID of the icon to use for the infobar.
      * @param iconTintId The {@link ColorRes} used as tint for {@code iconResourceId}.
      * @param iconBitmap Bitmap for the icon to use, if the resource ID wasn't passed through.
      * @return {@link ImageButton} that represents the icon.
      */
-    @Nullable
-    public static ImageView createIconView(
-            Context context, int iconResourceId, @ColorRes int iconTintId, Bitmap iconBitmap) {
+    public static @Nullable ImageView createIconView(
+            Context context,
+            int iconResourceId,
+            @ColorRes int iconTintId,
+            @Nullable Bitmap iconBitmap) {
         if (iconResourceId == 0 && iconBitmap == null) return null;
 
         final ChromeImageView iconView = new ChromeImageView(context);

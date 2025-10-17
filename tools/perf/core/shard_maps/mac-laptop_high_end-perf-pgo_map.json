@@ -225,20 +225,6 @@
                 "end": 12,
                 "abridged": false
             }
-        },
-        "executables": {
-            "performance_browser_tests": {
-                "arguments": [
-                    "--full-performance-run",
-                    "--test-launcher-jobs=1",
-                    "--test-launcher-retry-limit=0",
-                    "--ui-test-action-timeout=60000",
-                    "--ui-test-action-max-timeout=60000",
-                    "--test-launcher-timeout=60000",
-                    "--gtest_filter=*/TabCapturePerformanceTest.*:*/CastV2PerformanceTest.*"
-                ],
-                "path": "browser_tests"
-            }
         }
     },
     "14": {
@@ -359,12 +345,6 @@
         "benchmarks": {
             "system_health.memory_desktop": {
                 "begin": 69,
-                "abridged": false
-            },
-            "tab_switching.typical_25": {
-                "abridged": false
-            },
-            "tracing.tracing_with_background_memory_infra": {
                 "abridged": false
             },
             "v8.browsing_desktop": {

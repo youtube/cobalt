@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,15 +19,16 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
-#include "chrome/updater/device_management/dm_cached_policy_info.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
 #include "chrome/updater/device_management/dm_message.h"
 #include "chrome/updater/device_management/dm_policy_builder_for_testing.h"
 #include "chrome/updater/device_management/dm_response_validator.h"
-#include "chrome/updater/device_management/dm_storage.h"
 #include "chrome/updater/net/network.h"
+#include "chrome/updater/policy/dm_policy_manager.h"
 #include "chrome/updater/policy/service.h"
 #include "chrome/updater/protos/omaha_settings.pb.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/test/unit_test_util.h"
+#include "components/policy/core/common/policy_types.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/update_client/network.h"
 #include "net/base/url_util.h"
@@ -35,18 +38,19 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using base::test::RunClosure;
 
 namespace updater {
 namespace {
 
-class TestTokenService : public TokenServiceInterface {
+class TestTokenService
+    : public device_management_storage::TokenServiceInterface {
  public:
   TestTokenService(const std::string& enrollment_token,
                    const std::string& dm_token)
       : enrollment_token_(enrollment_token), dm_token_(dm_token) {}
-  ~TestTokenService() override = default;
 
   // Overrides for TokenServiceInterface.
   std::string GetDeviceID() const override { return "test-device-id"; }
@@ -57,6 +61,8 @@ class TestTokenService : public TokenServiceInterface {
     enrollment_token_ = enrollment_token;
     return true;
   }
+
+  bool DeleteEnrollmentToken() override { return StoreEnrollmentToken(""); }
 
   std::string GetEnrollmentToken() const override { return enrollment_token_; }
 
@@ -80,9 +86,8 @@ class TestTokenService : public TokenServiceInterface {
 class TestConfigurator : public DMClient::Configurator {
  public:
   explicit TestConfigurator(const GURL& url);
-  ~TestConfigurator() override = default;
 
-  std::string GetDMServerUrl() const override { return server_url_; }
+  GURL GetDMServerUrl() const override { return server_url_; }
 
   std::string GetAgentParameter() const override {
     return "Updater-Test-Agent";
@@ -97,30 +102,36 @@ class TestConfigurator : public DMClient::Configurator {
 
  private:
   scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
-  const std::string server_url_;
+  const GURL server_url_;
 };
 
 TestConfigurator::TestConfigurator(const GURL& url)
     : network_fetcher_factory_(base::MakeRefCounted<NetworkFetcherFactory>(
           PolicyServiceProxyConfiguration::Get(
               test::CreateTestPolicyService()))),
-      server_url_(url.spec()) {}
+      server_url_(url) {}
 
 class DMRequestCallbackHandler
     : public base::RefCountedThreadSafe<DMRequestCallbackHandler> {
  public:
   DMRequestCallbackHandler() = default;
 
+  enum class PublicKeyType {
+    kNone,
+    kTestKey1,
+    kTestKey2,
+  };
+
   MOCK_METHOD0(PostRequestCompleted, void(void));
 
   void CreateStorage(bool init_dm_token, bool init_cache_info) {
     ASSERT_TRUE(storage_dir_.CreateUniqueTempDir());
-    constexpr char kEnrollmentToken[] = "TestEnrollmentToken";
-    constexpr char kDmToken[] = "test-dm-token";
-    storage_ = base::MakeRefCounted<DMStorage>(
-        storage_dir_.GetPath(),
-        std::make_unique<TestTokenService>(kEnrollmentToken,
-                                           init_dm_token ? kDmToken : ""));
+    static constexpr char kEnrollmentToken[] = "TestEnrollmentToken";
+    static constexpr char kDmToken[] = "test-dm-token";
+    storage_ =
+        CreateDMStorage(storage_dir_.GetPath(),
+                        std::make_unique<TestTokenService>(
+                            kEnrollmentToken, init_dm_token ? kDmToken : ""));
 
     if (init_cache_info) {
       ASSERT_TRUE(storage_->CanPersistPolicies());
@@ -128,7 +139,8 @@ class DMRequestCallbackHandler
           dm_response = GetDefaultTestingPolicyFetchDMResponse(
               /*first_request=*/true, /*rotate_to_new_key=*/false,
               DMPolicyBuilderForTesting::SigningOption::kSignNormally);
-      std::unique_ptr<CachedPolicyInfo> info = storage_->GetCachedPolicyInfo();
+      std::unique_ptr<device_management_storage::CachedPolicyInfo> info =
+          storage_->GetCachedPolicyInfo();
       std::vector<PolicyValidationResult> validation_results;
       DMPolicyMap policies = ParsePolicyFetchResponse(
           dm_response->SerializeAsString(), *info.get(), storage_->GetDmToken(),
@@ -146,21 +158,23 @@ class DMRequestCallbackHandler
     expected_result_ = expected_result;
   }
 
-  void SetExpectNewPublicKey(bool expect_new_key) {
-    expect_new_public_key_ = expect_new_key;
+  void SetExpectedPublicKey(PublicKeyType expect_key_type) {
+    expected_public_key_type_ = expect_key_type;
   }
 
-  scoped_refptr<DMStorage> GetStorage() { return storage_; }
+  scoped_refptr<device_management_storage::DMStorage> GetStorage() {
+    return storage_;
+  }
 
  protected:
   virtual ~DMRequestCallbackHandler() = default;
 
   base::ScopedTempDir storage_dir_;
-  scoped_refptr<DMStorage> storage_;
+  scoped_refptr<device_management_storage::DMStorage> storage_;
 
   net::HttpStatusCode expected_http_status_ = net::HTTP_OK;
   DMClient::RequestResult expected_result_ = DMClient::RequestResult::kSuccess;
-  bool expect_new_public_key_ = false;
+  PublicKeyType expected_public_key_type_ = PublicKeyType::kNone;
 
  private:
   friend class base::RefCountedThreadSafe<DMRequestCallbackHandler>;
@@ -213,19 +227,26 @@ class DMPolicyFetchRequestCallbackHandler : public DMRequestCallbackHandler {
       return;
     }
 
-    std::unique_ptr<CachedPolicyInfo> info = storage_->GetCachedPolicyInfo();
-    EXPECT_FALSE(info->public_key().empty());
-    if (expect_new_public_key_) {
-      EXPECT_EQ(info->public_key(), GetTestKey2()->GetPublicKeyString());
-    } else {
-      EXPECT_EQ(info->public_key(), GetTestKey1()->GetPublicKeyString());
+    std::unique_ptr<device_management_storage::CachedPolicyInfo> info =
+        storage_->GetCachedPolicyInfo();
+    switch (expected_public_key_type_) {
+      case PublicKeyType::kTestKey1:
+        EXPECT_EQ(info->public_key(), GetTestKey1()->GetPublicKeyString());
+        break;
+      case PublicKeyType::kTestKey2:
+        EXPECT_EQ(info->public_key(), GetTestKey2()->GetPublicKeyString());
+        break;
+      case PublicKeyType::kNone:
+      default:
+        EXPECT_TRUE(info->public_key().empty());
+        break;
     }
 
     if (result == DMClient::RequestResult::kSuccess) {
-      std::unique_ptr<::wireless_android_enterprise_devicemanagement::
-                          OmahaSettingsClientProto>
-          omaha_settings = storage_->GetOmahaPolicySettings();
-      EXPECT_NE(omaha_settings, nullptr);
+      std::optional<::wireless_android_enterprise_devicemanagement::
+                        OmahaSettingsClientProto>
+          omaha_settings = GetOmahaPolicySettings(storage_);
+      EXPECT_TRUE(omaha_settings);
 
       // Sample some of the policy values and check they are expected.
       EXPECT_EQ(omaha_settings->proxy_mode(), "pac_script");
@@ -267,8 +288,6 @@ class DMValidationReportRequestCallbackHandler
 
 class DMClientTest : public ::testing::Test {
  public:
-  ~DMClientTest() override = default;
-
   std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
       const net::test_server::HttpRequest& request) {
     std::string app_type;
@@ -356,6 +375,7 @@ class DMPolicyFetchClientTest : public DMClientTest {
  public:
   void PostRequest() {
     DMClient::FetchPolicy(
+        policy::PolicyFetchReason::kTest,
         std::make_unique<TestConfigurator>(test_server_.GetURL("/dm_api")),
         callback_handler_->GetStorage(),
         base::BindOnce(&DMPolicyFetchRequestCallbackHandler::OnRequestComplete,
@@ -456,6 +476,8 @@ TEST_F(DMRegisterClientTest, BadRequest) {
       base::MakeRefCounted<DMRegisterRequestCallbackHandler>(true);
   callback_handler_->CreateStorage(/*init_dm_token=*/false,
                                    /*init_cache_info=*/false);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kTestKey1);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kHttpError);
   StartTestServerWithResponse(net::HTTP_BAD_REQUEST, "" /* response body */);
@@ -492,6 +514,8 @@ TEST_F(DMRegisterClientTest, BadResponseData) {
       base::MakeRefCounted<DMRegisterRequestCallbackHandler>(true);
   callback_handler_->CreateStorage(/*init_dm_token=*/false,
                                    /*init_cache_info=*/false);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kNone);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kUnexpectedResponse);
   StartTestServerWithResponse(net::HTTP_OK, "BadResponseData");
@@ -510,9 +534,10 @@ TEST_F(DMPolicyFetchClientTest, NoDMToken) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/false,
                                    /*init_cache_info=*/false);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kTestKey1);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kNoDMToken);
-  callback_handler_->SetExpectNewPublicKey(false);
 
   std::unique_ptr<::enterprise_management::DeviceManagementResponse>
       dm_response = GetDefaultTestingPolicyFetchDMResponse(
@@ -534,6 +559,8 @@ TEST_F(DMPolicyFetchClientTest, FirstRequest) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/true,
                                    /*init_cache_info=*/false);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kTestKey1);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kSuccess);
 
@@ -557,6 +584,8 @@ TEST_F(DMPolicyFetchClientTest, NoRotateKey) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/true,
                                    /*init_cache_info=*/true);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kTestKey1);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kSuccess);
 
@@ -582,7 +611,8 @@ TEST_F(DMPolicyFetchClientTest, RotateKey) {
                                    /*init_cache_info=*/true);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kSuccess);
-  callback_handler_->SetExpectNewPublicKey(true);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kTestKey2);
 
   std::unique_ptr<::enterprise_management::DeviceManagementResponse>
       dm_response = GetDefaultTestingPolicyFetchDMResponse(
@@ -604,11 +634,13 @@ TEST_F(DMPolicyFetchClientTest, RejectKeyWithBadSignature) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/true,
                                    /*init_cache_info=*/true);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kNone);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kUnexpectedResponse);
-  callback_handler_->SetExpectNewPublicKey(false);
 
   PolicyValidationResult expected_validation_result;
+  expected_validation_result.policy_type = "google/machine-level-omaha";
   expected_validation_result.status =
       PolicyValidationResult::Status::kValidationBadKeyVerificationSignature;
   callback_handler_->AppendExpectedValidationResult(expected_validation_result);
@@ -632,9 +664,10 @@ TEST_F(DMPolicyFetchClientTest, RejectDataWithBadSignature) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/true,
                                    /*init_cache_info=*/true);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kNone);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kUnexpectedResponse);
-  callback_handler_->SetExpectNewPublicKey(false);
   PolicyValidationResult expected_validation_result;
   expected_validation_result.policy_type = "google/machine-level-omaha";
   expected_validation_result.status =
@@ -707,6 +740,8 @@ TEST_F(DMPolicyFetchClientTest, BadResponse) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/true,
                                    /*init_cache_info=*/true);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kNone);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kUnexpectedResponse);
   StartTestServerWithResponse(net::HTTP_OK, "Unexpected response data");
@@ -725,6 +760,8 @@ TEST_F(DMPolicyFetchClientTest, BadRequest) {
       base::MakeRefCounted<DMPolicyFetchRequestCallbackHandler>();
   callback_handler_->CreateStorage(/*init_dm_token=*/true,
                                    /*init_cache_info=*/true);
+  callback_handler_->SetExpectedPublicKey(
+      DMRequestCallbackHandler::PublicKeyType::kTestKey1);
   callback_handler_->SetExpectedRequestResult(
       DMClient::RequestResult::kHttpError);
   StartTestServerWithResponse(net::HTTP_BAD_REQUEST, "" /* response body */);
@@ -801,6 +838,69 @@ TEST_F(DMPolicyValidationReportClientTest, NoPayload) {
       .WillOnce(RunClosure(quit_closure));
   PostRequest(PolicyValidationResult());
   run_loop.Run();
+}
+
+TEST(DMClient, StreamRequestResultEnumValue) {
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kSuccess;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kSuccess");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNoDeviceID;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNoDeviceID");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kAlreadyRegistered;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kAlreadyRegistered");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNotManaged;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNotManaged");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kDeregistered;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kDeregistered");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNoDMToken;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNoDMToken");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kFetcherError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kFetcherError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNetworkError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNetworkError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kHttpError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kHttpError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kSerializationError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kSerializationError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kUnexpectedResponse;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kUnexpectedResponse");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNoPayload;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNoPayload");
+  }
 }
 
 }  // namespace updater

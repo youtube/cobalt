@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_COMPONENT_UPDATER_COMPONENT_UPDATER_PATHS_H_
 #define COMPONENTS_COMPONENT_UPDATER_COMPONENT_UPDATER_PATHS_H_
 
+#include "base/component_export.h"
+
 namespace component_updater {
 
 enum {
@@ -24,9 +26,9 @@ enum {
                                             // component implementations.
   // The following paths live in the user directory only, and point to the base
   // installation directory for the component.
-  DIR_COMPONENT_CLD2,              // The Compact Language Detector.
-  DIR_RECOVERY_BASE,               // The Recovery.
-  DIR_SWIFT_SHADER,                // The SwiftShader.
+  DIR_COMPONENT_CLD2,  // The Compact Language Detector.
+  DIR_RECOVERY_BASE,   // The Recovery.
+  DIR_SWIFT_SHADER,    // The SwiftShader.
   PATH_END
 };
 
@@ -40,6 +42,7 @@ enum {
 // should provide the same value that they use for |components_system_root_key|.
 // |components_user_root_key| is the path provider key defining where the
 // component updater should install new versions of components.
+COMPONENT_EXPORT(COMPONENT_UPDATER_PATHS)
 void RegisterPathProvider(int components_system_root_key,
                           int components_system_root_key_alt,
                           int components_user_root_key);

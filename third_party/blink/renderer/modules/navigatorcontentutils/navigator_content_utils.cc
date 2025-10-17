@@ -31,6 +31,7 @@
 #include "third_party/blink/public/common/scheme_registry.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
@@ -113,8 +114,8 @@ bool VerifyCustomHandlerScheme(const String& scheme,
 
   bool has_custom_scheme_prefix = false;
   StringUTF8Adaptor scheme_adaptor(scheme);
-  if (!IsValidCustomHandlerScheme(scheme_adaptor.AsStringPiece(),
-                                  security_level, &has_custom_scheme_prefix)) {
+  if (!IsValidCustomHandlerScheme(scheme_adaptor.AsStringView(), security_level,
+                                  &has_custom_scheme_prefix)) {
     if (has_custom_scheme_prefix) {
       error_string = "The scheme name '" + scheme +
                      "' is not allowed. Schemes starting with '" + scheme +
@@ -136,8 +137,8 @@ bool VerifyCustomHandlerURLSyntax(const KURL& full_url,
                                   const String& user_url,
                                   String& error_message) {
   StringUTF8Adaptor url_adaptor(user_url);
-  URLSyntaxErrorCode code = IsValidCustomHandlerURLSyntax(
-      GURL(full_url), url_adaptor.AsStringPiece());
+  URLSyntaxErrorCode code =
+      IsValidCustomHandlerURLSyntax(GURL(full_url), url_adaptor.AsStringView());
   switch (code) {
     case URLSyntaxErrorCode::kNoError:
       return true;
@@ -178,8 +179,9 @@ void NavigatorContentUtils::registerProtocolHandler(
   if (!window)
     return;
 
+  WebSecurityOrigin origin(window->GetSecurityOrigin());
   ProtocolHandlerSecurityLevel security_level =
-      Platform::Current()->GetProtocolHandlerSecurityLevel();
+      Platform::Current()->GetProtocolHandlerSecurityLevel(origin);
 
   // Per the HTML specification, exceptions for arguments must be surfaced in
   // the order of the arguments.
@@ -205,9 +207,17 @@ void NavigatorContentUtils::registerProtocolHandler(
                         ? WebFeature::kRegisterProtocolHandlerSecureOrigin
                         : WebFeature::kRegisterProtocolHandlerInsecureOrigin);
 
-  NavigatorContentUtils::From(navigator, *window->GetFrame())
-      .Client()
-      ->RegisterProtocolHandler(scheme, window->CompleteURL(url));
+  Document* document = window->document();
+  auto* client =
+      NavigatorContentUtils::From(navigator, *window->GetFrame()).Client();
+
+  if (!document->IsPrerendering()) {
+    client->RegisterProtocolHandler(scheme, window->CompleteURL(url));
+  } else {
+    document->AddPostPrerenderingActivationStep(WTF::BindOnce(
+        &NavigatorContentUtilsClient::RegisterProtocolHandler,
+        WrapWeakPersistent(client), scheme, window->CompleteURL(url)));
+  }
 }
 
 void NavigatorContentUtils::unregisterProtocolHandler(
@@ -219,8 +229,9 @@ void NavigatorContentUtils::unregisterProtocolHandler(
   if (!window)
     return;
 
+  WebSecurityOrigin origin(window->GetSecurityOrigin());
   ProtocolHandlerSecurityLevel security_level =
-      Platform::Current()->GetProtocolHandlerSecurityLevel();
+      Platform::Current()->GetProtocolHandlerSecurityLevel(origin);
 
   String error_message;
   if (!VerifyCustomHandlerScheme(scheme, error_message, security_level)) {
@@ -231,9 +242,17 @@ void NavigatorContentUtils::unregisterProtocolHandler(
   if (!VerifyCustomHandlerURL(*window, url, exception_state, security_level))
     return;
 
-  NavigatorContentUtils::From(navigator, *window->GetFrame())
-      .Client()
-      ->UnregisterProtocolHandler(scheme, window->CompleteURL(url));
+  Document* document = window->document();
+  auto* client =
+      NavigatorContentUtils::From(navigator, *window->GetFrame()).Client();
+
+  if (!document->IsPrerendering()) {
+    client->UnregisterProtocolHandler(scheme, window->CompleteURL(url));
+  } else {
+    document->AddPostPrerenderingActivationStep(WTF::BindOnce(
+        &NavigatorContentUtilsClient::UnregisterProtocolHandler,
+        WrapWeakPersistent(client), scheme, window->CompleteURL(url)));
+  }
 }
 
 void NavigatorContentUtils::Trace(Visitor* visitor) const {

@@ -7,6 +7,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 namespace adapter {
@@ -59,6 +60,34 @@ class QUICHE_EXPORT Http2VisitorInterface {
   // Called when there are serialized frames to send. Should return how many
   // bytes were actually sent. May return kSendBlocked or kSendError.
   virtual int64_t OnReadyToSend(absl::string_view serialized) = 0;
+
+  struct DataFrameHeaderInfo {
+    int64_t payload_length;
+    bool end_data;
+    bool end_stream;  // If true, also implies end_data.
+  };
+  // Called when the codec is ready to construct a DATA frame header. The
+  // implementation should return the number of bytes ready to send, and whether
+  // it's the end of the message body data. If the implementation returns 0
+  // bytes and also `end_data` is false, then the stream is deferred until
+  // resumed by the application. `payload_length` must be at most `max_length`.
+  // A `payload_length` of -1 indicates that this stream has encountered an
+  // unrecoverable error.
+  virtual DataFrameHeaderInfo OnReadyToSendDataForStream(
+      Http2StreamId /*stream_id*/, size_t /*max_length*/) {
+    QUICHE_LOG(FATAL) << "Not implemented";
+    return DataFrameHeaderInfo{};
+  }
+
+  // Called when the codec is ready to send a DATA frame. The implementation
+  // should send the `frame_header` and specified number of payload bytes.
+  // Returning false indicates an unrecoverable error.
+  virtual bool SendDataFrame(Http2StreamId /*stream_id*/,
+                             absl::string_view /*frame_header*/,
+                             size_t /*payload_bytes*/) {
+    QUICHE_LOG(FATAL) << "Not implemented.";
+    return false;
+  }
 
   // Called when a connection-level error has occurred.
   enum class ConnectionError {
@@ -121,7 +150,7 @@ class QUICHE_EXPORT Http2VisitorInterface {
   // different error code instead, which should be done before returning
   // HEADER_RST_STREAM. Returning HEADER_CONNECTION_ERROR will lead to a
   // non-recoverable error on the connection.
-  enum OnHeaderResult {
+  enum class OnHeaderResult {
     // The header was accepted.
     HEADER_OK,
     // The application considers the header a connection error.
@@ -250,6 +279,16 @@ class QUICHE_EXPORT Http2VisitorInterface {
   // for a stream. Note that there may be multiple metadata blocks for a stream.
   // Returns false if there was an error unpacking the metadata payload.
   virtual bool OnMetadataEndForStream(Http2StreamId stream_id) = 0;
+
+  // Called when the connection is ready to send a metadata payload for a
+  // stream. Should return the number of payload bytes copied to |dest|, or a
+  // negative integer to indicate an error, as well as a boolean indicating
+  // whether the metadata payload has been completely copied.
+  virtual std::pair<int64_t, bool> PackMetadataForStream(
+      Http2StreamId /*stream_id*/, uint8_t* /*dest*/, size_t /*dest_len*/) {
+    QUICHE_LOG(DFATAL) << "Not implemented";
+    return {-1, false};
+  }
 
   // Invoked with an error message from the application.
   virtual void OnErrorDebug(absl::string_view message) = 0;

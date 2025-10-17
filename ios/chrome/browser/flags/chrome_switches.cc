@@ -21,10 +21,6 @@ const char kDisableIOSPasswordSuggestions[] =
 const char kDisableThirdPartyKeyboardWorkaround[] =
     "disable-third-party-keyboard-workaround";
 
-// Enables the Promo Manager to display full-screen promos on app startup.
-const char kEnablePromoManagerFullscreenPromos[] =
-    "enable-promo-manager-fullscreen-promos";
-
 // Enables support for Handoff from Chrome on iOS to the default browser of
 // other Apple devices.
 const char kEnableIOSHandoffToOtherDevices[] =
@@ -47,6 +43,10 @@ const char kEnableUpgradeSigninPromo[] = "enable-upgrade-signin-promo";
 // e.g. "Android."
 const char kForceDeviceSwitcherExperienceCommandLineFlag[] =
     "force-device-switcher-experience";
+
+// Enables shopping feature user experience for the segment specified in the
+// argument, e.g. "ShoppingUser" or "Other".
+const char kForceShopperExperience[] = "force-shopper-experience";
 
 // A string used to override the default user agent with a custom one.
 const char kUserAgent[] = "user-agent";

@@ -11,10 +11,13 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/display/display.h"
 #include "ui/display/display_export.h"
 #include "ui/display/display_layout.h"
+#include "ui/display/manager/util/display_manager_util.h"
+#include "ui/display/test/virtual_display_util.h"
 #include "ui/display/types/display_constants.h"
 
 namespace gfx {
@@ -27,14 +30,18 @@ class ManagedDisplayInfo;
 
 namespace test {
 
-class DISPLAY_EXPORT DisplayManagerTestApi {
+class DISPLAY_EXPORT DisplayManagerTestApi : public VirtualDisplayUtil {
  public:
   explicit DisplayManagerTestApi(DisplayManager* display_manager);
-
   DisplayManagerTestApi(const DisplayManagerTestApi&) = delete;
   DisplayManagerTestApi& operator=(const DisplayManagerTestApi&) = delete;
 
-  virtual ~DisplayManagerTestApi();
+  ~DisplayManagerTestApi() override;
+
+  // VirtualDisplayUtil:
+  int64_t AddDisplay(const DisplayParams& display_params) override;
+  void RemoveDisplay(int64_t display_id) override;
+  void ResetDisplays() override;
 
   void set_maximum_display(size_t maximum_display_num) {
     maximum_support_display_ = maximum_display_num;
@@ -44,10 +51,19 @@ class DISPLAY_EXPORT DisplayManagerTestApi {
   // Update the display configuration as given in |display_specs|. The format of
   // |display_spec| is a list of comma separated spec for each displays. Please
   // refer to the comment in |display::ManagedDisplayInfo::CreateFromSpec| for
-  // the format of the display spec.
-  // Note: To add rounded-corners properly upon startup, set it via specifying
-  // the command line switch `ash-host-window-bounds`.
-  void UpdateDisplay(const std::string& display_specs);
+  // the format of the display spec. If `from_native_platform` is true, the non
+  // native information, such as display zoom, will be ignored and instead
+  // copied from the current configuration.  Note: To add rounded-corners
+  // properly upon startup, set it via specifying the command line switch
+  // `ash-host-window-bounds`. If `generate_new_ids` is true displays in
+  // `display_spec` will be created with new display ids.
+  void UpdateDisplay(const std::string& display_specs,
+                     bool from_native_platform = false,
+                     bool generate_new_ids = false);
+
+  void UpdateDisplayWithDisplayInfoList(
+      const std::vector<ManagedDisplayInfo>& display_info_list,
+      bool from_native_platform = false);
 
   // Set the 1st display as an internal display and returns the display Id for
   // the internal display.
@@ -76,7 +92,7 @@ class DISPLAY_EXPORT DisplayManagerTestApi {
   // Indicate the maximum number of displays that chrome device can support.
   static size_t maximum_support_display_;
 
-  raw_ptr<DisplayManager, ExperimentalAsh> display_manager_;  // not owned
+  raw_ptr<DisplayManager> display_manager_;  // not owned
 };
 
 class DISPLAY_EXPORT ScopedSetInternalDisplayId {

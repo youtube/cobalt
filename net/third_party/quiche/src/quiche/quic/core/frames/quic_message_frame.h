@@ -9,13 +9,13 @@
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 
 using QuicMessageData = absl::InlinedVector<quiche::QuicheMemSlice, 1>;
 
-struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
+struct QUICHE_EXPORT QuicMessageFrame {
   QuicMessageFrame() = default;
   explicit QuicMessageFrame(QuicMessageId message_id);
   QuicMessageFrame(QuicMessageId message_id,
@@ -31,8 +31,8 @@ struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
 
   ~QuicMessageFrame();
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicMessageFrame& s);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicMessageFrame& s);
 
   // message_id is only used on the sender side and does not get serialized on
   // wire.

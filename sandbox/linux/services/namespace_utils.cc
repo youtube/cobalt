@@ -79,7 +79,6 @@ bool NamespaceUtils::KernelSupportsUnprivilegedNamespace(int type) {
       break;
     default:
       NOTREACHED();
-      return false;
   }
 
   return base::PathExists(base::FilePath(path));

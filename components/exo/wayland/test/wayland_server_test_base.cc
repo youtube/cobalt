@@ -5,7 +5,6 @@
 #include "components/exo/wayland/test/wayland_server_test_base.h"
 
 #include <stdlib.h>
-
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -14,10 +13,12 @@
 #include <memory>
 
 #include "base/atomic_sequence_num.h"
+#include "base/compiler_specific.h"
 #include "base/process/process_handle.h"
 #include "base/strings/stringprintf.h"
 #include "components/exo/display.h"
 #include "components/exo/security_delegate.h"
+#include "components/exo/test/exo_test_data_exchange_delegate.h"
 #include "components/exo/test/test_security_delegate.h"
 #include "components/exo/wayland/server.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -44,7 +45,7 @@ WaylandServerTestBase::ScopedTempSocket::ScopedTempSocket() {
 
   struct sockaddr_un addr;
   addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, server_path_.MaybeAsASCII().c_str(), 108);
+  UNSAFE_TODO(strncpy(addr.sun_path, server_path_.MaybeAsASCII().c_str(), 108));
   int size = offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path);
   CHECK(bind(fd_.get(), reinterpret_cast<struct sockaddr*>(&addr), size) == 0);
 }
@@ -73,7 +74,8 @@ void WaylandServerTestBase::SetUp() {
   setenv("XDG_RUNTIME_DIR", xdg_temp_dir_.GetPath().MaybeAsASCII().c_str(),
          1 /* overwrite */);
   TestBase::SetUp();
-  display_ = std::make_unique<Display>();
+  display_ =
+      std::make_unique<Display>(std::make_unique<TestDataExchangeDelegate>());
 }
 
 void WaylandServerTestBase::TearDown() {

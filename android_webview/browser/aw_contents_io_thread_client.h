@@ -14,18 +14,27 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/compiler_specific.h"
 #include "base/functional/callback_forward.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/task/thread_pool.h"
+#include "base/unguessable_token.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/global_routing_id.h"
 
 namespace content {
 class WebContents;
 }
 
+namespace embedder_support {
+class InputStream;
+}
+
 namespace android_webview {
 
 class AwWebResourceInterceptResponse;
 struct AwWebResourceRequest;
+
+// TODO(crbug.com/373474043): Consider upstreaming this implementation to
+// safe_browsing::WebContentsKey .
+using WebContentsKey = base::UnguessableToken;
+WebContentsKey GetWebContentsKey(content::WebContents& web_contents);
 
 // This class provides a means of calling Java methods on an instance that has
 // a 1:1 relationship with a WebContents instance directly from the IO thread.
@@ -59,12 +68,6 @@ class AwContentsIoThreadClient {
   static void Associate(content::WebContents* web_contents,
                         const base::android::JavaRef<jobject>& jclient);
 
-  // Sets the |jclient| java instance to which service worker related
-  // callbacks should be delegated.
-  static void SetServiceWorkerIoThreadClient(
-      const base::android::JavaRef<jobject>& jclient,
-      const base::android::JavaRef<jobject>& browser_context);
-
   // |jclient| must hold a non-null Java object.
   explicit AwContentsIoThreadClient(
       const base::android::JavaRef<jobject>& jclient);
@@ -81,64 +84,75 @@ class AwContentsIoThreadClient {
   CacheMode GetCacheMode() const;
 
   // This will attempt to fetch the AwContentsIoThreadClient for the given
-  // RenderFrameHost id.
+  // blink::LocalFrameToken.
   // This method can be called from any thread.
   // A null std::unique_ptr is a valid return value.
-  static std::unique_ptr<AwContentsIoThreadClient> FromID(
-      content::GlobalRenderFrameHostId render_frame_host_id);
+  static std::unique_ptr<AwContentsIoThreadClient> FromToken(
+      const content::GlobalRenderFrameHostToken& global_frame_token);
 
   // This map is useful when browser side navigations are enabled as
   // render_frame_ids will not be valid anymore for some of the navigations.
   static std::unique_ptr<AwContentsIoThreadClient> FromID(
-      int frame_tree_node_id);
+      content::FrameTreeNodeId frame_tree_node_id);
 
-  // Returns the global thread client for service worker related callbacks.
+  // This will attempt to fetch the AwContentsIoThreadClient for the given key.
+  // This method can be called from any thread.
   // A null std::unique_ptr is a valid return value.
-  static std::unique_ptr<AwContentsIoThreadClient>
-  GetServiceWorkerIoThreadClient();
+  static std::unique_ptr<AwContentsIoThreadClient> FromKey(WebContentsKey key);
 
   // Called on the IO thread when a subframe is created.
-  static void SubFrameCreated(int render_process_id,
-                              int parent_render_frame_id,
-                              int child_render_frame_id);
+  static void SubFrameCreated(int child_id,
+                              const blink::LocalFrameToken& parent_frame_token,
+                              const blink::LocalFrameToken& child_frame_token);
 
   // This method is called on the IO thread only.
+  struct InterceptResponseData {
+    InterceptResponseData();
+    ~InterceptResponseData();
+
+    // Move only.
+    InterceptResponseData(InterceptResponseData&& other);
+    InterceptResponseData& operator=(InterceptResponseData&& other);
+
+    std::unique_ptr<AwWebResourceInterceptResponse> response;
+    std::unique_ptr<embedder_support::InputStream> input_stream;
+  };
   using ShouldInterceptRequestResponseCallback =
-      base::OnceCallback<void(std::unique_ptr<AwWebResourceInterceptResponse>)>;
+      base::OnceCallback<void(InterceptResponseData)>;
   void ShouldInterceptRequestAsync(
       AwWebResourceRequest request,
       ShouldInterceptRequestResponseCallback callback);
 
-  // Check if the request should be blocked based on web content ownership.
-  bool ShouldBlockRequest(AwWebResourceRequest request);
-
   // Retrieve the AllowContentAccess setting value of this AwContents.
   // This method is called on the IO thread only.
-  bool ShouldBlockContentUrls() const;
+  bool ShouldBlockContentUrls(base::TimeDelta& counter) const;
 
   // Retrieve the AllowFileAccess setting value of this AwContents.
   // This method is called on the IO thread only.
-  bool ShouldBlockFileUrls() const;
+  bool ShouldBlockFileUrls(base::TimeDelta& counter) const;
 
   // Retrieves if special android file urls (android_{asset/res}) should be
   // allowed.
-  bool ShouldBlockSpecialFileUrls() const;
+  bool ShouldBlockSpecialFileUrls(base::TimeDelta& counter) const;
 
   // Retrieve the BlockNetworkLoads setting value of this AwContents.
   // This method is called on the IO thread only.
-  bool ShouldBlockNetworkLoads() const;
+  bool ShouldBlockNetworkLoads(base::TimeDelta& counter) const;
+
+  // Retrieve the AcceptCookies setting value of this AwContents.
+  bool ShouldAcceptCookies(base::TimeDelta& counter) const;
 
   // Retrieve the AcceptThirdPartyCookies setting value of this AwContents.
-  bool ShouldAcceptThirdPartyCookies() const;
+  bool ShouldAcceptThirdPartyCookies(base::TimeDelta& counter) const;
 
   // Retrieve the SafeBrowsingEnabled setting value of this AwContents.
   bool GetSafeBrowsingEnabled() const;
 
+  // Enables getting and setting cookies as part of shouldInterceptRequest.
+  bool ShouldIncludeCookiesOnIntercept(base::TimeDelta& counter) const;
+
  private:
   base::android::ScopedJavaGlobalRef<jobject> java_object_;
-  base::android::ScopedJavaGlobalRef<jobject> bg_thread_client_object_;
-  scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner_ =
-      base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
 };
 
 }  // namespace android_webview

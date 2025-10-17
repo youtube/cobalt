@@ -5,16 +5,28 @@
 #ifndef IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_HELP_COMMANDS_H_
 #define IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_HELP_COMMANDS_H_
 
-// Commands to control the display of in-product help UI ("bubbles").
+#import "ios/chrome/browser/bubble/public/in_product_help_type.h"
+
+#import <Foundation/Foundation.h>
+
+/// Commands to control the display of in-product help UI ("bubbles").
 @protocol HelpCommands <NSObject>
 
-// Shows a relevant help bubble, if any.
-- (void)showHelpBubbleIfEligible;
+/// Optionally presents an in-product help bubble of `type`. The eligibility
+/// can depend on the UI hierarchy at the moment, the configuration and the
+/// display history of the bubble, etc.
+- (void)presentInProductHelpWithType:(InProductHelpType)type;
 
-// Shows a relevant help bubble for long-press state, if any.
-- (void)showLongPressHelpBubbleIfEligible;
+/// Delegate method to be invoked when the user has performed a swipe on the
+/// toolbar to switch tabs. Remove `toolbarSwipeGestureIPH` if visible.
+- (void)handleToolbarSwipeGesture;
 
-// Dismisses all bubbles.
+/// Delegate method to be invoked when a gestural in-product help view is
+/// visible but the user has tapped outside of it. Do nothing if invoked when
+/// there is no IPH view.
+- (void)handleTapOutsideOfVisibleGestureInProductHelp;
+
+/// Dismisses all bubbles.
 - (void)hideAllHelpBubbles;
 
 @end

@@ -4,15 +4,17 @@
 
 #include "chrome/browser/enterprise/remote_commands/clear_browsing_data_job.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
-#include "build/build_config.h"
-#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/policy/core/common/policy_logger.h"
+#include "content/public/browser/browsing_data_remover.h"
 
 namespace enterprise_commands {
 
@@ -20,7 +22,6 @@ namespace {
 
 const char kFailedTypesPath[] = "failed_data_types";
 
-const char kProfilePathField[] = "profile_path";
 const char kClearCacheField[] = "clear_cache";
 const char kClearCookiesField[] = "clear_cookies";
 
@@ -60,7 +61,9 @@ std::string CreatePayload(uint64_t failed_data_types) {
 }  // namespace
 
 ClearBrowsingDataJob::ClearBrowsingDataJob(ProfileManager* profile_manager)
-    : profile_manager_(profile_manager) {}
+    : job_profile_picker_(profile_manager) {}
+ClearBrowsingDataJob::ClearBrowsingDataJob(Profile* profile)
+    : job_profile_picker_(profile) {}
 
 ClearBrowsingDataJob::~ClearBrowsingDataJob() = default;
 
@@ -71,60 +74,25 @@ enterprise_management::RemoteCommand_Type ClearBrowsingDataJob::GetType()
 
 bool ClearBrowsingDataJob::ParseCommandPayload(
     const std::string& command_payload) {
-  absl::optional<base::Value> root(base::JSONReader::Read(command_payload));
+  VLOG_POLICY(2, REMOTE_COMMANDS)
+      << "Clear browsing data command payload: " << command_payload;
+  std::optional<base::Value::Dict> root =
+      base::JSONReader::ReadDict(command_payload);
   if (!root)
     return false;
 
-  if (!root->is_dict())
+  if (!job_profile_picker_.ParseCommandPayload(*root)) {
     return false;
-  const base::Value::Dict& dict = root->GetDict();
-
-  const std::string* path = dict.FindString(kProfilePathField);
-  if (!path)
-    return false;
-
-  // On Windows, file paths are wstring as opposed to string on other platforms.
-  // On POSIX platforms other than MacOS and ChromeOS, the encoding is unknown.
-  //
-  // This path is sent from the server, which obtained it from Chrome in a
-  // previous report, and Chrome casts the path as UTF8 using UTF8Unsafe before
-  // sending it (see BrowserReportGeneratorDesktop::GenerateProfileInfo).
-  // Because of that, the best thing we can do everywhere is try to get the
-  // path from UTF8, and ending up with an invalid path will fail later in
-  // RunImpl when we attempt to get the profile from the path.
-  profile_path_ = base::FilePath::FromUTF8Unsafe(*path);
-#if BUILDFLAG(IS_WIN)
-  // For Windows machines, the path that Chrome reports for the profile is
-  // "Normalized" to all lower-case on the reporting server. This means that
-  // when the server sends the command, the path will be all lower case and
-  // the profile manager won't be able to use it as a key. To avoid this issue,
-  // This code will iterate over all profile paths and find the one that matches
-  // in a case-insensitive comparison. If this doesn't find one, RunImpl will
-  // fail in the same manner as if the profile didn't exist, which is the
-  // expected behavior.
-  ProfileAttributesStorage& storage =
-      profile_manager_->GetProfileAttributesStorage();
-  for (ProfileAttributesEntry* entry : storage.GetAllProfilesAttributes()) {
-    base::FilePath entry_path = entry->GetPath();
-
-    if (base::FilePath::CompareEqualIgnoreCase(profile_path_.value(),
-                                               entry_path.value())) {
-      profile_path_ = entry_path;
-      break;
-    }
   }
-#endif
 
   // Not specifying these fields is equivalent to setting them to false.
-  clear_cache_ = dict.FindBool(kClearCacheField).value_or(false);
-  clear_cookies_ = dict.FindBool(kClearCookiesField).value_or(false);
+  clear_cache_ = root->FindBool(kClearCacheField).value_or(false);
+  clear_cookies_ = root->FindBool(kClearCookiesField).value_or(false);
 
   return true;
 }
 
 void ClearBrowsingDataJob::RunImpl(CallbackWithResult result_callback) {
-  DCHECK(profile_manager_);
-
   uint64_t types = 0;
   if (clear_cache_)
     types |= content::BrowsingDataRemover::DATA_TYPE_CACHE;
@@ -132,7 +100,7 @@ void ClearBrowsingDataJob::RunImpl(CallbackWithResult result_callback) {
   if (clear_cookies_)
     types |= content::BrowsingDataRemover::DATA_TYPE_COOKIES;
 
-  Profile* profile = profile_manager_->GetProfileByPath(profile_path_);
+  Profile* profile = job_profile_picker_.GetProfile();
   if (!profile) {
     // If the payload's profile path doesn't correspond to an existing profile,
     // there's nothing to do. The most likely scenario is that the profile was
@@ -147,6 +115,10 @@ void ClearBrowsingDataJob::RunImpl(CallbackWithResult result_callback) {
   result_callback_ = std::move(result_callback);
 
   if (types == 0) {
+    LOG_POLICY(WARNING, REMOTE_COMMANDS)
+        << "Clear browsing data command has not specified any "
+           "data types. Please double check the payload to "
+           "make sure everything is set as required.";
     // There's nothing to clear, invoke the callback with success result and be
     // done.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -167,7 +139,7 @@ void ClearBrowsingDataJob::RunImpl(CallbackWithResult result_callback) {
 
 void ClearBrowsingDataJob::OnBrowsingDataRemoverDone(
     uint64_t failed_data_types) {
-  Profile* profile = profile_manager_->GetProfileByPath(profile_path_);
+  Profile* profile = job_profile_picker_.GetProfile();
   DCHECK(profile);
 
   content::BrowsingDataRemover* remover = profile->GetBrowsingDataRemover();

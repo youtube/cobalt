@@ -10,13 +10,16 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_forward.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/ash/app_list/search/search_provider.h"
-#include "chrome/browser/ui/webui/settings/ash/search/search.mojom.h"
+#include "chrome/browser/ui/webui/ash/settings/search/mojom/search.mojom.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/session_manager/core/session_manager_observer.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 class Profile;
@@ -26,9 +29,9 @@ class Hierarchy;
 class SearchHandler;
 }  // namespace ash::settings
 
-namespace gfx {
-class ImageSkia;
-}
+namespace ui {
+class ImageModel;
+}  // namespace ui
 
 namespace app_list {
 
@@ -38,7 +41,7 @@ class OsSettingsResult : public ChromeSearchResult {
   OsSettingsResult(Profile* profile,
                    const ash::settings::mojom::SearchResultPtr& result,
                    double relevance_score,
-                   const gfx::ImageSkia& icon,
+                   const ui::ImageModel& icon,
                    const std::u16string& query);
   ~OsSettingsResult() override;
 
@@ -49,7 +52,7 @@ class OsSettingsResult : public ChromeSearchResult {
   void Open(int event_flags) override;
 
  private:
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   const std::string url_path_;
 };
 
@@ -57,16 +60,23 @@ class OsSettingsResult : public ChromeSearchResult {
 // provided for zero-state.
 class OsSettingsProvider : public SearchProvider,
                            public apps::AppRegistryCache::Observer,
-                           public ash::settings::mojom::SearchResultsObserver {
+                           public ash::settings::mojom::SearchResultsObserver,
+                           public session_manager::SessionManagerObserver {
  public:
-  OsSettingsProvider(Profile* profile,
-                     ash::settings::SearchHandler* search_handler,
-                     const ash::settings::Hierarchy* hierarchy,
-                     apps::AppServiceProxy* app_service_proxy);
+  explicit OsSettingsProvider(Profile* profile);
   ~OsSettingsProvider() override;
 
   OsSettingsProvider(const OsSettingsProvider&) = delete;
   OsSettingsProvider& operator=(const OsSettingsProvider&) = delete;
+
+  // Initialize the provider. It should be called when:
+  //    1. User session start up tasks has completed.
+  //    2. User session start up tasks has not completed, but user has start to
+  //    search in launcher.
+  //    3. In tests with fake search handler and hierarchy provided.
+  void MaybeInitialize(
+      ash::settings::SearchHandler* fake_search_handler = nullptr,
+      const ash::settings::Hierarchy* fake_hierarchy = nullptr);
 
   // SearchProvider:
   void Start(const std::u16string& query) override;
@@ -80,6 +90,9 @@ class OsSettingsProvider : public SearchProvider,
 
   // mojom::SearchResultsObserver:
   void OnSearchResultsChanged() override;
+
+  // session_manager::SessionManagerObserver:
+  void OnUserSessionStartUpTaskCompleted() override;
 
  private:
   void OnSearchReturned(
@@ -118,16 +131,24 @@ class OsSettingsProvider : public SearchProvider,
   float min_score_ = 0.4f;
   float min_score_for_alternates_ = 0.4f;
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
-  raw_ptr<ash::settings::SearchHandler, ExperimentalAsh> search_handler_;
-  raw_ptr<const ash::settings::Hierarchy, ExperimentalAsh> hierarchy_;
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> app_service_proxy_;
-  gfx::ImageSkia icon_;
+  bool has_initialized = false;
+  const raw_ptr<Profile> profile_;
+  raw_ptr<ash::settings::SearchHandler> search_handler_ = nullptr;
+  raw_ptr<const ash::settings::Hierarchy> hierarchy_ = nullptr;
+  ui::ImageModel icon_;
 
   // Last query. It is reset when view is closed.
   std::u16string last_query_;
   mojo::Receiver<ash::settings::mojom::SearchResultsObserver>
       search_results_observer_receiver_{this};
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
+
+  base::ScopedObservation<session_manager::SessionManager,
+                          session_manager::SessionManagerObserver>
+      session_manager_observation_{this};
 
   base::WeakPtrFactory<OsSettingsProvider> weak_factory_{this};
 };

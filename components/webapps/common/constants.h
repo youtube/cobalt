@@ -13,7 +13,7 @@ namespace webapps {
 extern const size_t kMaxMetaTagAttributeLength;
 
 // Pref key that refers to list of all apps that have been migrated to web apps.
-// TODO(https://crbug.com/1266574):
+// TODO(crbug.com/40802205):
 // Remove this after preinstalled apps are migrated.
 extern const char kWebAppsMigratedPreinstalledApps[];
 
@@ -22,6 +22,15 @@ extern const double kMaximumScreenshotRatio;
 
 // Maximum length of description to be displayed on the richer install dialog.
 extern const size_t kMaximumDescriptionLength;
+
+// Minimum dimension size in pixels for screenshots.
+extern const int kMinimumScreenshotSizeInPx;
+
+// Maximum dimension size in pixels for screenshots.
+extern const int kMaximumScreenshotSizeInPx;
+
+// Maximum number of screenshots allowed, the rest will be ignored.
+extern const int kMaximumNumOfScreenshots;
 
 }  // namespace webapps
 

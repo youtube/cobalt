@@ -142,7 +142,7 @@ class ObserverStub : public RequestCoordinator::Observer {
 
 class ActiveTabInfoStub : public RequestCoordinator::ActiveTabInfo {
  public:
-  ~ActiveTabInfoStub() override {}
+  ~ActiveTabInfoStub() override = default;
   bool DoesActiveTabMatch(const GURL&) override {
     return does_active_tab_match_;
   }
@@ -284,10 +284,11 @@ class RequestCoordinatorTest : public testing::Test {
 
   void CallRequestNotPicked(bool non_user_requested_tasks_remaining,
                             bool disabled_tasks_remaining) {
-    if (disabled_tasks_remaining)
+    if (disabled_tasks_remaining) {
       coordinator()->disabled_requests_.insert(kRequestId1);
-    else
+    } else {
       coordinator()->disabled_requests_.clear();
+    }
 
     coordinator()->RequestNotPicked(non_user_requested_tasks_remaining, false,
                                     base::Time());
@@ -390,7 +391,7 @@ class RequestCoordinatorTest : public testing::Test {
   }
 
  protected:
-  raw_ptr<ActiveTabInfoStub> active_tab_info_ = nullptr;
+  raw_ptr<ActiveTabInfoStub, DanglingUntriaged> active_tab_info_ = nullptr;
 
  private:
   GetRequestsResult last_get_requests_result_;
@@ -399,9 +400,10 @@ class RequestCoordinatorTest : public testing::Test {
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner_;
   base::SingleThreadTaskRunner::CurrentDefaultHandle
       task_runner_current_default_handle_;
-  raw_ptr<network::NetworkQualityTracker> network_quality_tracker_;
+  raw_ptr<network::NetworkQualityTracker, DanglingUntriaged>
+      network_quality_tracker_;
   std::unique_ptr<RequestCoordinatorStubTaco> coordinator_taco_;
-  raw_ptr<OfflinerStub> offliner_;
+  raw_ptr<OfflinerStub, DanglingUntriaged> offliner_;
   base::WaitableEvent waiter_;
   ObserverStub observer_;
   AddRequestResult expected_add_request_result_;
@@ -429,7 +431,7 @@ RequestCoordinatorTest::RequestCoordinatorTest()
                          kBatteryPercentageHigh,
                          net::NetworkChangeNotifier::CONNECTION_3G) {}
 
-RequestCoordinatorTest::~RequestCoordinatorTest() {}
+RequestCoordinatorTest::~RequestCoordinatorTest() = default;
 
 void RequestCoordinatorTest::SetUp() {
   coordinator_taco_ = std::make_unique<RequestCoordinatorStubTaco>();

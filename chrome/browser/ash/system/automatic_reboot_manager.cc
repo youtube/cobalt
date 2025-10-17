@@ -31,6 +31,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "base/time/clock.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "base/timer/wall_clock_timer.h"
@@ -131,8 +132,8 @@ struct SystemEventTimes {
 
   SystemEventTimes() = default;
 
-  absl::optional<base::TimeTicks> boot_time;
-  absl::optional<base::TimeTicks> update_reboot_needed_time;
+  std::optional<base::TimeTicks> boot_time;
+  std::optional<base::TimeTicks> update_reboot_needed_time;
 };
 
 SystemEventTimes GetSystemEventTimes() {
@@ -172,8 +173,7 @@ AutomaticRebootManager::AutomaticRebootManager(
   // idle. Start listening for user activity to determine whether the user is
   // idle or not.
   if (!session_manager::SessionManager::Get()->IsSessionStarted()) {
-    if (ui::UserActivityDetector::Get())
-      ui::UserActivityDetector::Get()->AddObserver(this);
+    ui::UserActivityDetector::Get()->AddObserver(this);
     session_manager_observation_.Observe(
         session_manager::SessionManager::Get());
     login_screen_idle_timer_ = std::make_unique<base::OneShotTimer>();
@@ -194,8 +194,7 @@ AutomaticRebootManager::~AutomaticRebootManager() {
 
   chromeos::PowerManagerClient::Get()->RemoveObserver(this);
   UpdateEngineClient::Get()->RemoveObserver(this);
-  if (ui::UserActivityDetector::Get())
-    ui::UserActivityDetector::Get()->RemoveObserver(this);
+  ui::UserActivityDetector::Get()->RemoveObserver(this);
 }
 
 void AutomaticRebootManager::AddObserver(
@@ -266,8 +265,7 @@ void AutomaticRebootManager::OnUserSessionStarted(bool is_primary_user) {
 
   // A session is starting. Stop listening for user activity as it no longer is
   // a relevant criterion.
-  if (ui::UserActivityDetector::Get())
-    ui::UserActivityDetector::Get()->RemoveObserver(this);
+  ui::UserActivityDetector::Get()->RemoveObserver(this);
   session_manager_observation_.Reset();
   login_screen_idle_timer_.reset();
 }

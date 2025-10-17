@@ -4,10 +4,14 @@
 
 #include "ui/views/examples/bubble_example.h"
 
+#include <array>
 #include <memory>
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/label_button.h"
@@ -23,18 +27,19 @@ namespace views::examples {
 
 namespace {
 
-ExamplesColorIds colors[] = {ExamplesColorIds::kColorBubbleExampleBackground1,
-                             ExamplesColorIds::kColorBubbleExampleBackground2,
-                             ExamplesColorIds::kColorBubbleExampleBackground3,
-                             ExamplesColorIds::kColorBubbleExampleBackground4};
+constexpr auto colors = std::to_array<ExamplesColorIds>(
+    {ExamplesColorIds::kColorBubbleExampleBackground1,
+     ExamplesColorIds::kColorBubbleExampleBackground2,
+     ExamplesColorIds::kColorBubbleExampleBackground3,
+     ExamplesColorIds::kColorBubbleExampleBackground4});
 
-BubbleBorder::Arrow arrows[] = {
-    BubbleBorder::TOP_LEFT,     BubbleBorder::TOP_CENTER,
-    BubbleBorder::TOP_RIGHT,    BubbleBorder::RIGHT_TOP,
-    BubbleBorder::RIGHT_CENTER, BubbleBorder::RIGHT_BOTTOM,
-    BubbleBorder::BOTTOM_RIGHT, BubbleBorder::BOTTOM_CENTER,
-    BubbleBorder::BOTTOM_LEFT,  BubbleBorder::LEFT_BOTTOM,
-    BubbleBorder::LEFT_CENTER,  BubbleBorder::LEFT_TOP};
+constexpr auto arrows = std::to_array<BubbleBorder::Arrow>(
+    {BubbleBorder::TOP_LEFT, BubbleBorder::TOP_CENTER, BubbleBorder::TOP_RIGHT,
+     BubbleBorder::RIGHT_TOP, BubbleBorder::RIGHT_CENTER,
+     BubbleBorder::RIGHT_BOTTOM, BubbleBorder::BOTTOM_RIGHT,
+     BubbleBorder::BOTTOM_CENTER, BubbleBorder::BOTTOM_LEFT,
+     BubbleBorder::LEFT_BOTTOM, BubbleBorder::LEFT_CENTER,
+     BubbleBorder::LEFT_TOP});
 
 std::u16string GetArrowName(BubbleBorder::Arrow arrow) {
   switch (arrow) {
@@ -70,11 +75,16 @@ std::u16string GetArrowName(BubbleBorder::Arrow arrow) {
   return u"INVALID";
 }
 
+}  // namespace
+
 class ExampleBubble : public BubbleDialogDelegateView {
+  METADATA_HEADER(ExampleBubble, BubbleDialogDelegateView)
+
  public:
   ExampleBubble(View* anchor, BubbleBorder::Arrow arrow)
       : BubbleDialogDelegateView(anchor, arrow) {
-    DialogDelegate::SetButtons(ui::DIALOG_BUTTON_NONE);
+    DialogDelegate::SetButtons(
+        static_cast<int>(ui::mojom::DialogButton::kNone));
   }
 
   ExampleBubble(const ExampleBubble&) = delete;
@@ -88,7 +98,8 @@ class ExampleBubble : public BubbleDialogDelegateView {
   }
 };
 
-}  // namespace
+BEGIN_METADATA(ExampleBubble)
+END_METADATA
 
 BubbleExample::BubbleExample() : ExampleBase("Bubble") {}
 
@@ -113,7 +124,7 @@ void BubbleExample::CreateExampleView(View* container) {
       u"Persistent"));
 }
 
-void BubbleExample::ShowBubble(Button** button,
+void BubbleExample::ShowBubble(raw_ptr<Button>* button,
                                BubbleBorder::Shadow shadow,
                                bool persistent,
                                const ui::Event& event) {
@@ -121,25 +132,24 @@ void BubbleExample::ShowBubble(Button** button,
   static const int count = std::size(arrows);
   arrow_index = (arrow_index + count + (event.IsShiftDown() ? -1 : 1)) % count;
   BubbleBorder::Arrow arrow = arrows[arrow_index];
-  if (event.IsControlDown())
+  if (event.IsControlDown()) {
     arrow = BubbleBorder::NONE;
-  else if (event.IsAltDown())
+  } else if (event.IsAltDown()) {
     arrow = BubbleBorder::FLOAT;
+  }
 
-  auto* provider = (*button)->GetColorProvider();
   // |bubble| will be destroyed by its widget when the widget is destroyed.
   auto bubble = std::make_unique<ExampleBubble>(*button, arrow);
-  bubble->set_color(
-      provider->GetColor(colors[(color_index++) % std::size(colors)]));
+  bubble->SetBackgroundColor(colors[(color_index++) % std::size(colors)]);
   bubble->set_shadow(shadow);
-  if (persistent)
+  if (persistent) {
     bubble->set_close_on_deactivate(false);
+  }
 
   BubbleDialogDelegateView::CreateBubble(std::move(bubble))->Show();
 
-  LogStatus(
+  PrintStatus(
       "Click with optional modifiers: [Ctrl] for set_arrow(NONE), "
       "[Alt] for set_arrow(FLOAT), or [Shift] to reverse the arrow iteration.");
 }
-
 }  // namespace views::examples

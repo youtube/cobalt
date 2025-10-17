@@ -30,7 +30,7 @@ constexpr char kOldConfigsDictKey[] = "old_configs";
 
 ConfigSource::ConfigSource() {
   const user_manager::UserList& users =
-      user_manager::UserManager::Get()->GetUsers();
+      user_manager::UserManager::Get()->GetPersistedUsers();
   for (const user_manager::User* user : users) {
     if (user->IsChild())
       LoadConfigForUser(user);
@@ -78,7 +78,7 @@ void ConfigSource::LoadConfigForUser(const user_manager::User* user) {
 
 void ConfigSource::AddAuthenticator(const base::Value::Dict& dict,
                                     const user_manager::User* user) {
-  absl::optional<AccessCodeConfig> code_config =
+  std::optional<AccessCodeConfig> code_config =
       AccessCodeConfig::FromDictionary(dict);
   if (code_config) {
     config_map_[user->GetAccountId()].push_back(

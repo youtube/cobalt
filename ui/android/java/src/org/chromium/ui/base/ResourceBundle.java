@@ -4,16 +4,15 @@
 
 package org.chromium.ui.base;
 
-import android.content.res.AssetFileDescriptor;
-import android.content.res.AssetManager;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-import org.chromium.base.ContextUtils;
+import org.chromium.base.ApkAssets;
 import org.chromium.base.LocaleUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -25,15 +24,14 @@ import java.util.Arrays;
  * {@link ResourceBundle#setNoAvailableLocalePaks()} before calling the getters in this class.
  */
 @JNINamespace("ui")
+@NullMarked
 public final class ResourceBundle {
     private static final String TAG = "ResourceBundle";
-    private static String[] sAvailableLocales;
+    private static String @Nullable [] sAvailableLocales;
 
     private ResourceBundle() {}
 
-    /**
-     * Called when there are no locale pak files available.
-     */
+    /** Called when there are no locale pak files available. */
     @CalledByNative
     public static void setNoAvailableLocalePaks() {
         assert sAvailableLocales == null;
@@ -42,7 +40,8 @@ public final class ResourceBundle {
 
     /**
      * Sets the available locale pak files.
-     * @param uncompressed Locales that have pak files.
+     *
+     * @param locales Locales that have pak files.
      */
     public static void setAvailablePakLocales(String[] locales) {
         assert sAvailableLocales == null;
@@ -73,7 +72,7 @@ public final class ResourceBundle {
      * @return Asset path to .pak file, or null if the locale is not supported.
      */
     @CalledByNative
-    private static String getLocalePakResourcePath(
+    private static @Nullable String getLocalePakResourcePath(
             String locale, boolean inBundle, boolean logError) {
         if (sAvailableLocales == null) {
             // Locales may be null in unit tests.
@@ -88,29 +87,27 @@ public final class ResourceBundle {
             if (locale.equals("en-US")) {
                 pathPrefix = "assets/fallback-locales/";
             } else {
-                String lang = LocalizationUtils.getSplitLanguageForAndroid(
-                        LocaleUtils.toBaseLanguage(locale));
+                String lang =
+                        LocalizationUtils.getSplitLanguageForAndroid(
+                                LocaleUtils.toBaseLanguage(locale));
                 pathPrefix = "assets/locales#lang_" + lang + "/";
             }
         }
-        String assetPath = pathPrefix + locale + ".pak";
-        AssetManager manager = ContextUtils.getApplicationContext().getAssets();
+        String apkSubpath = pathPrefix + locale + ".pak";
         // The file may not exist if the language split for this locale has not been installed
         // yet, so make sure it exists before returning the asset path.
-        try (AssetFileDescriptor afd = manager.openNonAssetFd(assetPath)) {
-            return assetPath;
-        } catch (IOException e) {
-            // Fallback for apk targets.
-            // TODO(crbug.com/1176290): Remove the need for this fallback logic.
-            String fallbackPath = "assets/locales/" + locale + ".pak";
-            try (AssetFileDescriptor afd = manager.openNonAssetFd(fallbackPath)) {
-                return fallbackPath;
-            } catch (IOException e2) {
-            }
-            if (logError) {
-                Log.e(TAG, "path=%s", assetPath, e);
-            }
-            return null;
+        if (ApkAssets.exists(apkSubpath)) {
+            return apkSubpath;
         }
+        // Fallback for apk targets.
+        // TODO(crbug.com/40168285): Remove the need for this fallback logic.
+        String fallbackPath = "assets/locales/" + locale + ".pak";
+        if (ApkAssets.exists(fallbackPath)) {
+            return fallbackPath;
+        }
+        if (logError) {
+            Log.e(TAG, "Did not exist: %s", apkSubpath);
+        }
+        return null;
     }
 }

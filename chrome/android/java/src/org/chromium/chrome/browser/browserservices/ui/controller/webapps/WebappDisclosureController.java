@@ -10,42 +10,45 @@ import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntent
 import org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityModel;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier;
 import org.chromium.chrome.browser.browserservices.ui.controller.DisclosureController;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.webapps.WebappDataStorage;
 import org.chromium.chrome.browser.webapps.WebappDeferredStartupWithStorageHandler;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.webapk.lib.common.WebApkConstants;
 
-import javax.inject.Inject;
-
 /**
  * Unbound WebAPKs are part of Chrome. They have access to cookies and report metrics the same way
  * as the rest of Chrome. However, there is no UI indicating they are running in Chrome. For privacy
  * purposes we show a Snackbar based privacy disclosure that the activity is running as part of
  * Chrome. This occurs once per app installation, but will appear again if Chrome's storage is
- * cleared. The Snackbar must be acknowledged in order to be dismissed and should remain onscreen
- * as long as the app is open. It should remain active even across pause/resume and should show the
+ * cleared. The Snackbar must be acknowledged in order to be dismissed and should remain onscreen as
+ * long as the app is open. It should remain active even across pause/resume and should show the
  * next time the app is opened if it hasn't been acknowledged.
  */
-@ActivityScope
 public class WebappDisclosureController extends DisclosureController {
     private final BrowserServicesIntentDataProvider mIntentDataProvider;
 
-    @Inject
-    public WebappDisclosureController(BrowserServicesIntentDataProvider intentDataProvider,
-            WebappDeferredStartupWithStorageHandler deferredStartupWithStorageHandler,
-            TrustedWebActivityModel model, ActivityLifecycleDispatcher lifecycleDispatcher,
-            CurrentPageVerifier currentPageVerifier) {
-        super(model, lifecycleDispatcher, currentPageVerifier,
+    public WebappDisclosureController(
+            TrustedWebActivityModel model,
+            ActivityLifecycleDispatcher lifecycleDispatcher,
+            CurrentPageVerifier currentPageVerifier,
+            BrowserServicesIntentDataProvider intentDataProvider,
+            WebappDeferredStartupWithStorageHandler webappDeferredStartupWithStorageHandler) {
+        super(
+                model,
+                lifecycleDispatcher,
+                currentPageVerifier,
                 intentDataProvider.getClientPackageName());
         mIntentDataProvider = intentDataProvider;
 
-        deferredStartupWithStorageHandler.addTask((storage, didCreateStorage) -> {
-            if (lifecycleDispatcher.isActivityFinishingOrDestroyed()) return;
+        webappDeferredStartupWithStorageHandler.addTask(
+                (storage, didCreateStorage) -> {
+                    if (lifecycleDispatcher.isActivityFinishingOrDestroyed()) {
+                        return;
+                    }
 
-            onDeferredStartupWithStorage(storage, didCreateStorage);
-        });
+                    onDeferredStartupWithStorage(storage, didCreateStorage);
+                });
     }
 
     void onDeferredStartupWithStorage(
@@ -64,8 +67,9 @@ public class WebappDisclosureController extends DisclosureController {
 
     @Override
     public void onDisclosureAccepted() {
-        WebappDataStorage storage = WebappRegistry.getInstance().getWebappDataStorage(
-                mIntentDataProvider.getWebappExtras().id);
+        WebappDataStorage storage =
+                WebappRegistry.getInstance()
+                        .getWebappDataStorage(mIntentDataProvider.getWebappExtras().id);
         assert storage != null;
 
         storage.clearShowDisclosure();
@@ -80,13 +84,15 @@ public class WebappDisclosureController extends DisclosureController {
     protected boolean shouldShowDisclosure() {
         // Only show disclosure for unbound WebAPKs.
         if (mIntentDataProvider.getClientPackageName() == null
-                || mIntentDataProvider.getClientPackageName().startsWith(
-                        WebApkConstants.WEBAPK_PACKAGE_PREFIX)) {
+                || mIntentDataProvider
+                        .getClientPackageName()
+                        .startsWith(WebApkConstants.WEBAPK_PACKAGE_PREFIX)) {
             return false;
         }
 
-        WebappDataStorage storage = WebappRegistry.getInstance().getWebappDataStorage(
-                mIntentDataProvider.getWebappExtras().id);
+        WebappDataStorage storage =
+                WebappRegistry.getInstance()
+                        .getWebappDataStorage(mIntentDataProvider.getWebappExtras().id);
         if (storage == null) return false;
 
         // Show only if the correct flag is set.
@@ -95,7 +101,7 @@ public class WebappDisclosureController extends DisclosureController {
 
     @Override
     protected boolean isFirstTime() {
-        // TODO(crbug.com/1128675): isFirstTime is used for showing notification disclosure for
+        // TODO(crbug.com/40149064): isFirstTime is used for showing notification disclosure for
         // TWAs, not used in Webapk for now.
         return false;
     }

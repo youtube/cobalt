@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -60,8 +61,7 @@ class WebRtcLoggingController
       void(bool, const std::string&, const std::string&)>
       StartEventLoggingCallback;
 
-  static void AttachToRenderProcessHost(content::RenderProcessHost* host,
-                                        WebRtcLogUploader* log_uploader);
+  static void AttachToRenderProcessHost(content::RenderProcessHost* host);
   static WebRtcLoggingController* FromRenderProcessHost(
       content::RenderProcessHost* host);
 
@@ -116,8 +116,7 @@ class WebRtcLoggingController
 
   // Called when an RTP packet is sent or received. Must be called on the UI
   // thread.
-  void OnRtpPacket(std::unique_ptr<uint8_t[]> packet_header,
-                   size_t header_length,
+  void OnRtpPacket(base::HeapArray<uint8_t> packet_header,
                    size_t packet_length,
                    bool incoming);
 
@@ -155,8 +154,7 @@ class WebRtcLoggingController
   friend class base::RefCounted<WebRtcLoggingController>;
 
   WebRtcLoggingController(int render_process_id,
-                          content::BrowserContext* browser_context,
-                          WebRtcLogUploader* log_uploader);
+                          content::BrowserContext* browser_context);
   ~WebRtcLoggingController() override;
 
   void OnAgentDisconnected();
@@ -236,10 +234,6 @@ class WebRtcLoggingController
 
   // The callback to call when StopRtpDump is called.
   content::RenderProcessHost::WebRtcStopRtpDumpCallback stop_rtp_dump_callback_;
-
-  // A pointer to the log uploader that's shared for all browser contexts.
-  // Ownership lies with the browser process.
-  const raw_ptr<WebRtcLogUploader> log_uploader_;
 
   // Web app id used for statistics. Created as the hash of the value of a
   // "client" meta data key, if exists. 0 means undefined, and is the hash of

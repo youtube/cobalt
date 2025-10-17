@@ -10,6 +10,7 @@
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/system_logs/debug_log_writer.h"
 #include "chrome/browser/feedback/system_logs/chrome_system_logs_fetcher.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/logging_chrome.h"
 #include "components/feedback/feedback_util.h"
 #include "components/feedback/system_logs/system_logs_fetcher.h"
@@ -22,26 +23,26 @@ namespace {
 // Writes |contents| to a temp directory then compresses it to |dest_file_path|.
 // Returns the name of the compressed file (with the zip extension) on success,
 // or nullopt on failure.
-absl::optional<base::FilePath> WriteCompressedFile(
+std::optional<base::FilePath> WriteCompressedFile(
     const std::string& contents,
     base::FilePath dest_file_path) {
   base::ScopedTempDir temp_dir;
   if (!temp_dir.CreateUniqueTempDir()) {
     LOG(ERROR) << "Unable to create temp dir.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   base::FilePath temp_file_path(
       temp_dir.GetPath().Append(dest_file_path.BaseName()));
   if (!base::WriteFile(temp_file_path, contents)) {
     LOG(ERROR) << "Unable to write file: " << temp_file_path.value();
-    return absl::nullopt;
+    return std::nullopt;
   }
   base::FilePath zip_file_path(
       dest_file_path.AddExtension(FILE_PATH_LITERAL(".zip")));
   if (!zip::Zip(temp_dir.GetPath(), zip_file_path,
                 /*include_hidden_files=*/false)) {
     LOG(ERROR) << "Failed to zip file to: " << zip_file_path.value();
-    return absl::nullopt;
+    return std::nullopt;
   }
   return zip_file_path;
 }
@@ -51,7 +52,7 @@ absl::optional<base::FilePath> WriteCompressedFile(
 // string to a compressed system_logs.txt.zip file and invokes |callback|.
 void FetchCompleted(
     const base::FilePath& dest_dir,
-    base::OnceCallback<void(absl::optional<base::FilePath>)> callback,
+    base::OnceCallback<void(std::optional<base::FilePath>)> callback,
     std::unique_ptr<system_logs::SystemLogsResponse> sys_info) {
   base::FilePath system_logs_file_path =
       logging::GenerateTimestampedName(
@@ -74,10 +75,11 @@ void FetchCompleted(
 namespace system_logs_writer {
 
 void WriteSystemLogs(
+    Profile* profile,
     const base::FilePath& dest_dir,
     bool scrub_data,
-    base::OnceCallback<void(absl::optional<base::FilePath>)> callback) {
-  system_logs::BuildChromeSystemLogsFetcher(scrub_data)
+    base::OnceCallback<void(std::optional<base::FilePath>)> callback) {
+  system_logs::BuildChromeSystemLogsFetcher(profile, scrub_data)
       ->Fetch(base::BindOnce(FetchCompleted, dest_dir, std::move(callback)));
 }
 

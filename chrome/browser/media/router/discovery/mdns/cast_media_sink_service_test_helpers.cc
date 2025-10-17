@@ -31,7 +31,7 @@ MockCastMediaSinkServiceImpl::MockCastMediaSinkServiceImpl(
     const OnSinksDiscoveredCallback& callback,
     cast_channel::CastSocketService* cast_socket_service,
     DiscoveryNetworkMonitor* network_monitor,
-    MediaSinkServiceBase* dial_media_sink_service)
+    DialMediaSinkServiceImpl* dial_media_sink_service)
     : CastMediaSinkServiceImpl(callback,
                                cast_socket_service,
                                network_monitor,
@@ -41,10 +41,18 @@ MockCastMediaSinkServiceImpl::MockCastMediaSinkServiceImpl(
 
 MockCastMediaSinkServiceImpl::~MockCastMediaSinkServiceImpl() = default;
 
+TestCastMediaSinkService::TestCastMediaSinkService(
+    cast_channel::CastSocketService* cast_socket_service,
+    DiscoveryNetworkMonitor* network_monitor)
+    : cast_socket_service_(cast_socket_service),
+      network_monitor_(network_monitor) {}
+
+TestCastMediaSinkService::~TestCastMediaSinkService() = default;
+
 std::unique_ptr<CastMediaSinkServiceImpl, base::OnTaskRunnerDeleter>
 TestCastMediaSinkService::CreateImpl(
     const OnSinksDiscoveredCallback& sinks_discovered_cb,
-    MediaSinkServiceBase* dial_media_sink_service) {
+    DialMediaSinkServiceImpl* dial_media_sink_service) {
   auto mock_impl =
       std::unique_ptr<MockCastMediaSinkServiceImpl, base::OnTaskRunnerDeleter>(
           new NiceMock<MockCastMediaSinkServiceImpl>(

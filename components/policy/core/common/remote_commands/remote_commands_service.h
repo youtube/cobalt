@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/policy_invalidation_scope.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
@@ -30,6 +31,7 @@ namespace policy {
 class CloudPolicyClient;
 class CloudPolicyStore;
 class RemoteCommandsFactory;
+enum class RemoteCommandsFetchReason;
 
 // Service class which will connect to a CloudPolicyClient in order to fetch
 // remote commands from DMServer and send results for executed commands
@@ -88,6 +90,9 @@ class POLICY_EXPORT RemoteCommandsService
       PolicyInvalidationScope scope,
       enterprise_management::RemoteCommand_Type command_type);
 
+  // Returns remote command fetch request type based on the invalidation scope.
+  static std::string GetRequestType(PolicyInvalidationScope scope);
+
   RemoteCommandsService(std::unique_ptr<RemoteCommandsFactory> factory,
                         CloudPolicyClient* client,
                         CloudPolicyStore* store,
@@ -103,7 +108,7 @@ class POLICY_EXPORT RemoteCommandsService
   // immediately after the current ongoing request finishes.
   // Returns true if the new request was started immediately. Returns false if
   // another request was in progress already and the new request got enqueued.
-  bool FetchRemoteCommands();
+  bool FetchRemoteCommands(RemoteCommandsFetchReason reason);
 
   // Returns whether a command fetch request is in progress or not.
   bool IsCommandFetchInProgressForTesting() const {
@@ -130,6 +135,13 @@ class POLICY_EXPORT RemoteCommandsService
       const enterprise_management::SignedData& signed_command);
   void EnqueueCommand(const enterprise_management::RemoteCommand& command,
                       const enterprise_management::SignedData& signed_command);
+
+  // Returns true if we can fetch remote commands.
+  // We can't fetch remote command for many reasons, such as
+  // - the client is not registered.
+  // - there is a command fetch on going.
+  // - CEC is not enabled.
+  bool CanFetchRemoteCommands();
 
   // RemoteCommandsQueue::Observer:
   void OnJobStarted(RemoteCommandJob* command) override;
@@ -182,6 +194,9 @@ class POLICY_EXPORT RemoteCommandsService
 
   // Represents remote commands scope covered by service.
   const PolicyInvalidationScope scope_;
+
+  base::ScopedObservation<RemoteCommandsQueue, RemoteCommandsQueue::Observer>
+      remote_commands_queue_observation{this};
 
   base::WeakPtrFactory<RemoteCommandsService> weak_factory_{this};
 };

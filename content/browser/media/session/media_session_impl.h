@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <map>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -16,6 +17,7 @@
 #include "base/containers/id_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "content/browser/media/session/audio_focus_delegate.h"
@@ -29,7 +31,6 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "services/media_session/public/mojom/audio_focus.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
 #include "third_party/blink/public/mojom/mediasession/media_session.mojom.h"
 
@@ -51,6 +52,7 @@ class MediaSessionImplVisibilityBrowserTest;
 class MediaSessionPlayerObserver;
 class MediaSessionServiceImpl;
 class MediaSessionServiceImplBrowserTest;
+class VideoPictureInPictureWindowControllerImpl;
 
 #if BUILDFLAG(IS_ANDROID)
 class MediaSessionAndroid;
@@ -111,9 +113,6 @@ class MediaSessionImpl : public MediaSession,
   // Removes all the players associated with |observer|. Abandons audio focus if
   // these were the last players in the session.
   CONTENT_EXPORT void RemovePlayers(MediaSessionPlayerObserver* observer);
-
-  // Record that the session was ducked.
-  void RecordSessionDuck();
 
   // Called when a player is paused in the content.
   // If the paused player is the last player, we suspend the MediaSession.
@@ -216,6 +215,10 @@ class MediaSessionImpl : public MediaSession,
   CONTENT_EXPORT void SetAudioFocusGroupId(
       const base::UnguessableToken& group_id) override;
 
+  // Returns the `RenderFrameHost` for the currently MediaSession routed
+  // service.
+  RenderFrameHost* GetRoutedFrame() override;
+
   // Suspend the media session.
   // |type| represents the origin of the request.
   CONTENT_EXPORT void Suspend(MediaSession::SuspendType suspend_type) override;
@@ -273,13 +276,17 @@ class MediaSessionImpl : public MediaSession,
   // Exit picture-in-picture.
   void ExitPictureInPicture() override;
 
+  // Automatically enter picture-in-picture from a non-user source (e.g. in
+  // reaction to content being hidden).
+  void EnterAutoPictureInPicture() override;
+
   // Routes the audio from this Media Session to the given output device. If
   // |id| is null, we will route to the default output device.
   // Players created after this setting has been set will also have their audio
   // rerouted. This setting persists until cross-origin navigation occurs, the
   // renderer reports an audio sink change to a device different from |id|, or
   // this method is called again.
-  void SetAudioSinkId(const absl::optional<std::string>& id) override;
+  void SetAudioSinkId(const std::optional<std::string>& id) override;
 
   // Mute/Unmute the microphone for a WebRTC session.
   void ToggleMicrophone() override;
@@ -312,6 +319,10 @@ class MediaSessionImpl : public MediaSession,
       int desired_size_px,
       GetMediaImageBitmapCallback callback) override;
 
+  // Called to report to all players that the auto picture in picture
+  // information changed.
+  void ReportAutoPictureInPictureInfoChanged() override;
+
   const base::UnguessableToken& audio_focus_group_id() const {
     return audio_focus_group_id_;
   }
@@ -328,12 +339,16 @@ class MediaSessionImpl : public MediaSession,
   // device switching.
   void OnAudioOutputSinkChangingDisabled();
 
+  // Called when any of the normal players video visibility changes.
+  CONTENT_EXPORT void OnVideoVisibilityChanged();
+
   // Update the value of `remote_playback_metadata_`.
   CONTENT_EXPORT void SetRemotePlaybackMetadata(
       media_session::mojom::RemotePlaybackMetadataPtr metadata);
 
   // Returns whether the action should be routed to |routed_service_|.
-  bool ShouldRouteAction(media_session::mojom::MediaSessionAction action) const;
+  CONTENT_EXPORT bool ShouldRouteAction(
+      media_session::mojom::MediaSessionAction action) const;
 
   // Returns the source ID which links media sessions on the same browser
   // context together.
@@ -342,7 +357,18 @@ class MediaSessionImpl : public MediaSession,
   // Returns the Audio Focus request ID associated with this media session.
   const base::UnguessableToken& GetRequestId() const;
 
+  // Flushes the VideoPictureInPictureWindowControllerImpl with the latest data.
+  void UpdateVideoPictureInPictureWindowController(
+      VideoPictureInPictureWindowControllerImpl* pip_controller) const;
+
+  // Returns a WeakPtr to `this`.
+  base::WeakPtr<MediaSessionImpl> GetWeakPtr();
+
   CONTENT_EXPORT bool HasImageCacheForTest(const GURL& image_url) const;
+
+  // Make sure that all observers have received any pending callbacks from us,
+  // that might otherwise be sitting in a message pipe somewhere.
+  void flush_observers_for_testing() { observers_.FlushForTesting(); }
 
  private:
   friend class content::WebContentsUserData<MediaSessionImpl>;
@@ -356,6 +382,7 @@ class MediaSessionImpl : public MediaSession,
   friend class MediaSessionImplTest;
   friend class MediaSessionImplDurationThrottleTest;
   friend class MediaInternalsAudioFocusTest;
+  friend class WebAppSystemMediaControlsBrowserTest;
 
   CONTENT_EXPORT void RemoveAllPlayersForTest();
   CONTENT_EXPORT MediaSessionUmaHelper* uma_helper_for_test();
@@ -370,11 +397,11 @@ class MediaSessionImpl : public MediaSession,
     PlayerIdentifier& operator=(const PlayerIdentifier&) = default;
     PlayerIdentifier& operator=(PlayerIdentifier&&) = default;
 
-    bool operator==(const PlayerIdentifier& other) const;
-    bool operator!=(const PlayerIdentifier& other) const;
-    bool operator<(const PlayerIdentifier& other) const;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #constexpr-ctor-field-initializer, #union
+    friend bool operator==(const PlayerIdentifier&,
+                           const PlayerIdentifier&) = default;
+    friend auto operator<=>(const PlayerIdentifier&,
+                            const PlayerIdentifier&) = default;
+    // RAW_PTR_EXCLUSION: #union
     RAW_PTR_EXCLUSION MediaSessionPlayerObserver* observer;
     int player_id;
   };
@@ -429,6 +456,9 @@ class MediaSessionImpl : public MediaSession,
   CONTENT_EXPORT bool AddOneShotPlayer(MediaSessionPlayerObserver* observer,
                                        int player_id);
 
+  CONTENT_EXPORT bool AddAmbientPlayer(MediaSessionPlayerObserver* observer,
+                                       int player_id);
+
   // Returns true if there is at least one player and all the players are
   // one-shot.
   bool HasOnlyOneShotPlayers() const;
@@ -452,7 +482,28 @@ class MediaSessionImpl : public MediaSession,
   // changed.
   void RebuildAndNotifyMetadataChanged();
 
+#if BUILDFLAG(IS_CHROMEOS)
+  void BuildPlaceholderMetadata(
+      media_session::MediaMetadata& metadata,
+      std::vector<media_session::MediaImage>& artwork);
+#endif
+
+  void BuildMetadata(media_session::MediaMetadata& metadata,
+                     std::vector<media_session::MediaImage>& artwork);
+
   bool IsPictureInPictureAvailable() const;
+
+  // Iterates over all |normal_players_| and returns true if any of the players'
+  // videos is sufficiently visible, false otherwise.
+  CONTENT_EXPORT bool HasSufficientlyVisibleVideo() const;
+
+  // Iterates over all |normal_players_| and returns true if any of the players'
+  // videos is sufficiently visible, false otherwise.
+  //
+  // This is very similar to `HasSufficientlyVisibleVideo`, however this method
+  // is used to get notifications on demand, while `HasSufficientlyVisibleVideo`
+  // is constantly reporting visibility.
+  void GetVisibility(GetVisibilityCallback get_visibility_callback) override;
 
   // Returns the device ID for the audio output device being used by all of the
   // normal players. If the players are not all using the same audio output
@@ -478,8 +529,8 @@ class MediaSessionImpl : public MediaSession,
   void ForAllPlayers(base::RepeatingCallback<void(const PlayerIdentifier&)>);
 
   // Restrict duration update under certain frequency.
-  absl::optional<media_session::MediaPosition> MaybeGuardDurationUpdate(
-      absl::optional<media_session::MediaPosition> position);
+  std::optional<media_session::MediaPosition> MaybeGuardDurationUpdate(
+      std::optional<media_session::MediaPosition> position);
 
   void IncreaseDurationUpdateAllowance();
 
@@ -487,6 +538,16 @@ class MediaSessionImpl : public MediaSession,
 
   CONTENT_EXPORT void SetShouldThrottleDurationUpdateForTest(
       bool should_throttle);
+
+  // Returns true if there exists a single normal "playing" player with picture
+  // in picture available, false otherwise.
+  bool CouldEnterBrowserInitiatedAutomaticPictureInPicture() const;
+
+  // Automatically enter picture-in-picture from a non-user source (e.g. in
+  // reaction to content being hidden), if the EnterAutoPictureInPicture action
+  // is registered by the browser (the user did not provide an
+  // `enterpictureinpicture` action handler).
+  void MaybeEnterBrowserInitiatedAutomaticPictureInPicture() const;
 
   // Duration update allowance is inscreasing by 1 every 20 seconds, and
   // capped at 3. Every duration updates will consume 1 allowance, and
@@ -502,13 +563,21 @@ class MediaSessionImpl : public MediaSession,
   std::set<media_session::mojom::MediaSessionAction> actions_;
 
   std::unique_ptr<AudioFocusDelegate> delegate_;
+
+  // Standard video playback (e.g. WebMediaPlayerImpl players).
   std::map<PlayerIdentifier, media_session::mojom::AudioFocusType>
       normal_players_;
+
+  // Pepper players (PPAPI players).
   base::flat_set<PlayerIdentifier> pepper_players_;
 
   // Players that are playing in the web contents but we cannot control (e.g.
-  // WebAudio or MediaStream).
+  // MediaStream).
   base::flat_set<PlayerIdentifier> one_shot_players_;
+
+  // Players that we can neither control nor should affect other players in the
+  // audio focus stack (e.g. WebAudio).
+  base::flat_set<PlayerIdentifier> ambient_players_;
 
   // Players that are removed from |normal_players_| temporarily when the page
   // goes to back-forward cache. When the page is restored from the cache, these
@@ -526,7 +595,7 @@ class MediaSessionImpl : public MediaSession,
   media_session::mojom::MediaSessionInfoPtr session_info_;
 
   // The last updated |MediaPosition| that was sent to |observers_|.
-  absl::optional<media_session::MediaPosition> position_;
+  std::optional<media_session::MediaPosition> position_;
 
   MediaSessionUmaHelper uma_helper_;
 
@@ -534,6 +603,13 @@ class MediaSessionImpl : public MediaSession,
   // is set to |true| after StartDucking(), and will be set to |false| after
   // StopDucking().
   bool is_ducking_;
+
+  // True if we should unduck when we gain audio focus. This is set to true each
+  // time we request focus, and set to false if the AudioFocusManager tells us
+  // to duck. If our request is granted and this is still true, we will unduck.
+  // If false (because we were told to duck after our request began) we will
+  // remain ducked, as that is the intended state the AudioFocusManager expects.
+  bool should_unduck_on_focus_gained_ = true;
 
   base::UnguessableToken audio_focus_group_id_ = base::UnguessableToken::Null();
 
@@ -547,7 +623,7 @@ class MediaSessionImpl : public MediaSession,
   // Used to persist audio device selection between navigations on the same
   // origin.
   url::Origin origin_;
-  absl::optional<std::string> audio_device_id_for_origin_;
+  std::optional<std::string> audio_device_id_for_origin_;
 
   class PageData : public content::PageUserData<PageData> {
    public:
@@ -586,7 +662,8 @@ class MediaSessionImpl : public MediaSession,
 
   // MediaSessionService-related fields
   using ServicesMap =
-      std::map<GlobalRenderFrameHostId, MediaSessionServiceImpl*>;
+      std::map<GlobalRenderFrameHostId,
+               raw_ptr<MediaSessionServiceImpl, CtnExperimental>>;
 
   // The current metadata and images associated with the current media session.
   media_session::MediaMetadata metadata_;
@@ -620,9 +697,20 @@ class MediaSessionImpl : public MediaSession,
   // Whether the associated WebContents is connected to a presentation.
   bool has_presentation_ = false;
 
-  absl::optional<PlayerIdentifier> guarding_player_id_;
+  std::optional<PlayerIdentifier> guarding_player_id_;
 
   media_session::mojom::RemotePlaybackMetadataPtr remote_playback_metadata_;
+
+  // Used by tests to force media sessions to be ignored when finding a new
+  // active session.
+  bool always_ignore_for_active_session_for_testing_ = false;
+
+  // True if the given media has infinite duration OR has a duration that
+  // changes often enough to be considered live. See
+  // `MaybeGuardDurationUpdate()` for details on duration changes.
+  bool is_considered_live_ = false;
+
+  base::WeakPtrFactory<MediaSessionImpl> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

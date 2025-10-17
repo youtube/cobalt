@@ -20,9 +20,9 @@
 
 #include "third_party/blink/renderer/modules/accessibility/ax_progress_indicator.h"
 
-#include "third_party/blink/renderer/core/aom/accessible_node.h"
 #include "third_party/blink/renderer/core/html/html_progress_element.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/modules/accessibility/ax_object-inl.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 
@@ -34,7 +34,7 @@ namespace blink {
 // See the `HTMLProgressElement` class for more information.
 AXProgressIndicator::AXProgressIndicator(LayoutObject* layout_object,
                                          AXObjectCacheImpl& ax_object_cache)
-    : AXLayoutObject(layout_object, ax_object_cache) {
+    : AXNodeObject(layout_object, ax_object_cache) {
   DCHECK(layout_object);
   DCHECK(IsA<HTMLProgressElement>(layout_object->GetNode()))
       << "The layout object's node isn't an HTMLProgressElement.";
@@ -45,9 +45,7 @@ ax::mojom::blink::Role AXProgressIndicator::NativeRoleIgnoringAria() const {
 }
 
 bool AXProgressIndicator::ValueForRange(float* out_value) const {
-  float value_now;
-  if (HasAOMPropertyOrARIAAttribute(AOMFloatProperty::kValueNow, value_now)) {
-    *out_value = value_now;
+  if (AriaFloatAttribute(html_names::kAriaValuenowAttr, out_value)) {
     return true;
   }
 
@@ -60,9 +58,7 @@ bool AXProgressIndicator::ValueForRange(float* out_value) const {
 }
 
 bool AXProgressIndicator::MaxValueForRange(float* out_value) const {
-  float value_max;
-  if (HasAOMPropertyOrARIAAttribute(AOMFloatProperty::kValueMax, value_max)) {
-    *out_value = value_max;
+  if (AriaFloatAttribute(html_names::kAriaValuemaxAttr, out_value)) {
     return true;
   }
 
@@ -71,9 +67,7 @@ bool AXProgressIndicator::MaxValueForRange(float* out_value) const {
 }
 
 bool AXProgressIndicator::MinValueForRange(float* out_value) const {
-  float value_min;
-  if (HasAOMPropertyOrARIAAttribute(AOMFloatProperty::kValueMin, value_min)) {
-    *out_value = value_min;
+  if (AriaFloatAttribute(html_names::kAriaValueminAttr, out_value)) {
     return true;
   }
 
@@ -82,9 +76,7 @@ bool AXProgressIndicator::MinValueForRange(float* out_value) const {
 }
 
 HTMLProgressElement* AXProgressIndicator::GetProgressElement() const {
-  LayoutObject* layout = layout_object_.Get();
-  DCHECK(layout);
-  return DynamicTo<HTMLProgressElement>(layout->GetNode());
+  return DynamicTo<HTMLProgressElement>(GetNode());
 }
 
 }  // namespace blink

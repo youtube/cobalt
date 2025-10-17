@@ -8,13 +8,15 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
+#include "components/autofill/core/browser/autofill_type.h"
+#include "components/autofill/core/common/password_generation_util.h"
 #include "components/autofill/core/common/signatures.h"
-#include "url/gurl.h"
+#include "components/autofill/core/common/unique_ids.h"
 
-namespace autofill {
-class FormStructure;
-}
+class GURL;
 
 namespace password_manager {
 
@@ -41,50 +43,71 @@ class PasswordGenerationFrameHelper {
   virtual ~PasswordGenerationFrameHelper();
 
   // Instructs the PasswordRequirementsService to fetch requirements for
-  // |origin|. This needs to be called to enable domain-wide password
+  // `origin`. This needs to be called to enable domain-wide password
   // requirements overrides.
   void PrefetchSpec(const GURL& origin);
 
   // Stores password requirements received from the autofill server for the
-  // |forms| and fetches domain-wide requirements.
+  // `form` and fetches domain-wide requirements.
   void ProcessPasswordRequirements(
-      const std::vector<autofill::FormStructure*>& forms);
+      const autofill::FormData& form,
+      const base::flat_map<autofill::FieldGlobalId,
+                           autofill::AutofillType::ServerPrediction>&
+          predictions);
 
   // Determines current state of password generation
-  // |log_debug_data| determines whether log entries are sent to the
+  // `log_debug_data` determines whether log entries are sent to the
   // autofill::SavePasswordProgressLogger.
   //
   // Virtual for testing
   virtual bool IsGenerationEnabled(bool log_debug_data) const;
 
+  // Returns true if `field_renderer_id` is in `generation_enabled_fields_` set.
+  virtual bool IsManualGenerationEnabledField(
+      autofill::FieldRendererId field_renderer_id) const;
+
+  // Adds `field_renderer_id` to `generation_enabled_fields_` set.
+  virtual void AddManualGenerationEnabledField(
+      autofill::FieldRendererId field_renderer_id);
+
   // Returns a randomly generated password that should (but is not guaranteed
   // to) match the requirements of the site.
-  // |last_committed_url| refers to the main frame URL and may impact the
+  // `last_committed_url` refers to the main frame URL and may impact the
   // password generation rules that are imposed by the site.
-  // |form_signature| and |field_signature| identify the field for which a
+  // `form_signature` and `field_signature` identify the field for which a
   // password shall be generated.
-  // |max_length| refers to the maximum allowed length according to the site and
+  // `max_length` refers to the maximum allowed length according to the site and
   // may be 0 if unset.
   //
   // Virtual for testing
   //
-  // TODO(crbug.com/855595): Add a stub for this class to facilitate testing.
+  // TODO(crbug.com/41396292): Add a stub for this class to facilitate testing.
   virtual std::u16string GeneratePassword(
       const GURL& last_committed_url,
+      autofill::password_generation::PasswordGenerationType generation_type,
       autofill::FormSignature form_signature,
       autofill::FieldSignature field_signature,
-      uint32_t max_length);
+      uint64_t max_length);
+
+  const base::flat_set<autofill::FieldRendererId>&
+  GenerationEnabledFieldsForTests() const {
+    return generation_enabled_fields_;
+  }
 
  private:
   friend class PasswordGenerationFrameHelperTest;
 
   // The PasswordManagerClient instance associated with this instance. Must
   // outlive this instance.
-  raw_ptr<PasswordManagerClient> client_;
+  const raw_ptr<PasswordManagerClient> client_;
 
   // The PasswordManagerDriver instance associated with this instance. Must
   // outlive this instance.
-  raw_ptr<PasswordManagerDriver> driver_;
+  const raw_ptr<PasswordManagerDriver> driver_;
+
+  // The fields that have manual generation enabled. This includes fields that
+  // have type="text".
+  base::flat_set<autofill::FieldRendererId> generation_enabled_fields_;
 };
 
 }  // namespace password_manager

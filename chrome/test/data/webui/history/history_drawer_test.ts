@@ -4,7 +4,8 @@
 
 import 'chrome://history/history.js';
 
-import {BrowserServiceImpl, ensureLazyLoaded, HistoryAppElement, HistorySideBarElement} from 'chrome://history/history.js';
+import type {HistoryAppElement, HistorySideBarElement} from 'chrome://history/history.js';
+import {BrowserServiceImpl, ensureLazyLoaded} from 'chrome://history/history.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -21,7 +22,7 @@ suite('drawer-test', function() {
     app = document.createElement('history-app');
     document.body.appendChild(app);
     return Promise.all([
-      testService.whenCalled('queryHistory'),
+      testService.handler.whenCalled('queryHistory'),
       ensureLazyLoaded(),
     ]);
   });
@@ -40,7 +41,7 @@ suite('drawer-test', function() {
       assertFalse(!!drawerSideBar);
 
       const menuButton =
-          app.$.toolbar.$.mainToolbar.shadowRoot!.querySelector<HTMLElement>(
+          app.$.toolbar.$.mainToolbar.shadowRoot.querySelector<HTMLElement>(
               '#menuButton');
       assertTrue(!!menuButton);
 

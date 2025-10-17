@@ -21,12 +21,13 @@ namespace extensions {
 namespace command_line_private = api::command_line_private;
 
 ExtensionFunction::ResponseAction CommandLinePrivateHasSwitchFunction::Run() {
-  absl::optional<command_line_private::HasSwitch::Params> params =
+  std::optional<command_line_private::HasSwitch::Params> params =
       command_line_private::HasSwitch::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  if (params->name.empty())
+  if (params->name.empty()) {
     return RespondNow(Error(kEmptySwitchName));
+  }
 
   return RespondNow(
       ArgumentList(command_line_private::HasSwitch::Results::Create(

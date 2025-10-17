@@ -13,10 +13,12 @@
 // limitations under the License.
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
+
+#include <optional>
+
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -42,7 +44,7 @@ void CobaltTrustedHeaderClient::OnHeadersReceived(
     const net::IPEndPoint& remote_endpoint,
     OnHeadersReceivedCallback callback) {
   // Do nothing for response header
-  std::move(callback).Run(net::OK, absl::nullopt, absl::nullopt);
+  std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
 }
 
 }  // namespace browser

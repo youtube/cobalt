@@ -29,7 +29,7 @@ class RequestCoordinator;
 // Manages showing the in-progress notification.
 class AutoFetchNotifier {
  public:
-  virtual ~AutoFetchNotifier() {}
+  virtual ~AutoFetchNotifier() = default;
   // Ensures that the in-progress notification is showing with the appropriate
   // request count.
   virtual void NotifyInProgress(int in_flight_count) {}
@@ -57,7 +57,7 @@ class AndroidTabFinder {
   // Returns a mapping of Android tab ID to TabInfo.
   virtual std::map<int, TabInfo> FindAndroidTabs(
       std::vector<int> android_tab_ids);
-  virtual absl::optional<TabInfo> FindNavigationTab(
+  virtual std::optional<TabInfo> FindNavigationTab(
       content::WebContents* web_contents);
 };
 
@@ -69,7 +69,7 @@ struct RequestInfo {
   auto_fetch::ClientIdMetadata metadata;
 };
 
-absl::optional<RequestInfo> MakeRequestInfo(const SavePageRequest& request);
+std::optional<RequestInfo> MakeRequestInfo(const SavePageRequest& request);
 
 // |AutoFetchPageLoadWatcher|'s more unit-testable internal implementation.
 // This class was designed to have few dependencies to make testing more
@@ -82,7 +82,7 @@ class InternalImpl {
   // We need this because we can't call these functions directly.
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
     // Sets the notification state of a request to
     // |SavePageRequest::AutoFetchNotificationState::kShown|. Results in a call
     // to |SetNotificationStateComplete|.

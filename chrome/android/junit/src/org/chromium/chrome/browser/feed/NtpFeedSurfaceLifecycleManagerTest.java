@@ -22,48 +22,41 @@ import android.app.Activity;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.preferences.Pref;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabHidingType;
-import org.chromium.chrome.browser.tab.TabImpl;
 import org.chromium.components.prefs.PrefService;
 
-/**
- * Unit tests for {@link FeedSurfaceLifecycleManager}.
- */
+/** Unit tests for {@link FeedSurfaceLifecycleManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class NtpFeedSurfaceLifecycleManagerTest {
-    @Mock
-    private Activity mActivity;
-    @Mock
-    private TabImpl mTab;
-    @Mock
-    private Stream mStream;
-    @Mock
-    private PrefService mPrefService;
-    @Mock
-    private FeedSurfaceCoordinator mCoordinator;
-    @Mock
-    private FeedReliabilityLogger mFeedReliabilityLogger;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Activity mActivity;
+    @Mock private Tab mTab;
+    @Mock private Stream mStream;
+    @Mock private PrefService mPrefService;
+    @Mock private FeedSurfaceCoordinator mCoordinator;
+    @Mock private FeedReliabilityLogger mFeedReliabilityLogger;
 
     private NtpFeedSurfaceLifecycleManager mNtpStreamLifecycleManager;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         // Initialize a test instance for PrefService.
         when(mPrefService.getBoolean(anyString())).thenReturn(true);
@@ -75,11 +68,6 @@ public class NtpFeedSurfaceLifecycleManagerTest {
         mNtpStreamLifecycleManager =
                 new NtpFeedSurfaceLifecycleManager(mActivity, mTab, mCoordinator);
         verify(mStream, times(1)).onCreate(or(any(String.class), isNull()));
-    }
-
-    @After
-    public void tearDown() {
-        NtpFeedSurfaceLifecycleManager.setPrefServiceForTesting(null);
     }
 
     @Test
@@ -153,8 +141,9 @@ public class NtpFeedSurfaceLifecycleManagerTest {
         verify(mStream, times(1)).onShow();
 
         // Hide the stream.
-        mNtpStreamLifecycleManager.getTabObserverForTesting().onHidden(
-                mTab, TabHidingType.CHANGED_TABS);
+        mNtpStreamLifecycleManager
+                .getTabObserverForTesting()
+                .onHidden(mTab, TabHidingType.CHANGED_TABS);
         verify(mStream, times(1)).onShow();
         verify(mStream, times(1)).onHide();
     }
@@ -302,12 +291,5 @@ public class NtpFeedSurfaceLifecycleManagerTest {
     public void testPaused() {
         ApplicationStatus.onStateChangeForTesting(mActivity, ActivityState.PAUSED);
         verify(mCoordinator).onActivityPaused();
-    }
-
-    @Test
-    @SmallTest
-    public void testPaused() {
-        ApplicationStatus.onStateChangeForTesting(mActivity, ActivityState.STOPPED);
-        verify(mCoordinator).onApplicationStopped();
     }
 }

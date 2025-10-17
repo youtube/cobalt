@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_PERMISSIONS_PERMISSION_SERVICE_CONTEXT_H_
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 
 #include "base/memory/raw_ptr.h"
@@ -67,10 +68,11 @@ class CONTENT_EXPORT PermissionServiceContext
       mojo::PendingReceiver<blink::mojom::PermissionService> receiver);
 
   void CreateSubscription(
-      blink::PermissionType permission_type,
+      const blink::mojom::PermissionDescriptorPtr& permission,
       const url::Origin& origin,
-      blink::mojom::PermissionStatus current_status,
-      blink::mojom::PermissionStatus last_known_status,
+      PermissionStatus current_status,
+      PermissionStatus last_known_status,
+      bool should_include_device_status,
       mojo::PendingRemote<blink::mojom::PermissionObserver> observer);
 
   // Called when the connection to a PermissionObserver has an error.
@@ -80,7 +82,7 @@ class CONTENT_EXPORT PermissionServiceContext
   // May return nullptr during teardown, or when showing an interstitial.
   BrowserContext* GetBrowserContext() const;
 
-  GURL GetEmbeddingOrigin() const;
+  std::optional<GURL> GetEmbeddingOrigin() const;
 
   RenderFrameHost* render_frame_host() const { return render_frame_host_; }
   RenderProcessHost* render_process_host() const {

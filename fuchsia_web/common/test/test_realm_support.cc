@@ -6,15 +6,16 @@
 
 #include <lib/sys/component/cpp/testing/realm_builder.h>
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/ranges/algorithm.h"
 
 using ::component_testing::ChildRef;
+using ::component_testing::Dictionary;
 using ::component_testing::Directory;
 using ::component_testing::ParentRef;
 using ::component_testing::Protocol;
@@ -42,7 +43,7 @@ void AppendCommandLineArgumentsToProgram(
     // Create a new "args" list and insert it at the proper location in the
     // program's entries; entries' keys must be sorted as per
     // https://fuchsia.dev/reference/fidl/fuchsia.data?hl=en#Dictionary.
-    auto lower_bound = base::ranges::lower_bound(
+    auto lower_bound = std::ranges::lower_bound(
         *entries, "args", /*comp=*/{},
         [](const fuchsia::data::DictionaryEntry& entry) { return entry.key; });
     auto it = entries->emplace(lower_bound);
@@ -62,7 +63,7 @@ void AppendCommandLineArgumentsToProgram(
 }  // namespace
 
 void AppendCommandLineArguments(RealmBuilder& realm_builder,
-                                base::StringPiece child_name,
+                                std::string_view child_name,
                                 const base::CommandLine& command_line) {
   const std::string child_name_str(child_name);
   auto child_component_decl = realm_builder.GetComponentDecl(child_name_str);
@@ -80,51 +81,72 @@ void AppendCommandLineArgumentsForRealm(
   realm_builder.ReplaceRealmDecl(std::move(decl));
 }
 
-void AddSyslogRoutesFromParent(RealmBuilder& realm_builder,
-                               base::StringPiece child_name) {
+void AddRouteFromParent(RealmBuilder& realm_builder,
+                        std::string_view child_name,
+                        std::string_view protocol_name) {
   ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
-  realm_builder.AddRoute(
-      Route{.capabilities = {Protocol{"fuchsia.logger.LogSink"}},
-            .source = ParentRef{},
-            .targets = {std::move(child_ref)}});
+  realm_builder.AddRoute(Route{.capabilities = {Protocol{protocol_name}},
+                               .source = ParentRef{},
+                               .targets = {std::move(child_ref)}});
+}
+
+void AddDictionaryRouteFromParent(RealmBuilder& realm_builder,
+                                  std::string_view child_name,
+                                  std::string_view dictionary_name) {
+  ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
+  realm_builder.AddRoute(Route{.capabilities = {Dictionary{dictionary_name}},
+                               .source = ParentRef{},
+                               .targets = {std::move(child_ref)}});
+}
+
+void AddSyslogRoutesFromParent(RealmBuilder& realm_builder,
+                               std::string_view child_name) {
+  AddDictionaryRouteFromParent(realm_builder, child_name, "diagnostics");
 }
 
 void AddVulkanRoutesFromParent(RealmBuilder& realm_builder,
-                               base::StringPiece child_name) {
+                               std::string_view child_name) {
   ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
   realm_builder.AddRoute(
       Route{.capabilities = {Protocol{"fuchsia.sysmem.Allocator"},
+                             Protocol{"fuchsia.sysmem2.Allocator"},
                              Protocol{"fuchsia.tracing.provider.Registry"},
                              Protocol{"fuchsia.vulkan.loader.Loader"}},
             .source = ParentRef{},
             .targets = {std::move(child_ref)}});
 }
 
-void AddFontService(RealmBuilder& realm_builder, base::StringPiece child_name) {
+void AddFontService(RealmBuilder& realm_builder, std::string_view child_name) {
   static constexpr char kFontsService[] = "isolated_fonts";
   static constexpr char kFontsUrl[] =
-      "fuchsia-pkg://fuchsia.com/fonts#meta/fonts.cm";
+      "fuchsia-pkg://fuchsia.com/fonts_hermetic_for_test"
+      "#meta/font_provider_hermetic_for_test.cm";
   realm_builder.AddChild(kFontsService, kFontsUrl);
   AddSyslogRoutesFromParent(realm_builder, kFontsService);
   ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
   realm_builder
-      .AddRoute(Route{
-          .capabilities = {Directory{.name = "config-data", .subdir = "fonts"}},
-          .source = ParentRef{},
-          .targets = {ChildRef{kFontsService}}})
+      .AddRoute(Route{.capabilities =
+                          {
+                              Protocol{"fuchsia.tracing.provider.Registry"},
+                          },
+                      .source = ParentRef{},
+                      .targets = {ChildRef{kFontsService}}})
       .AddRoute(Route{.capabilities = {Protocol{"fuchsia.fonts.Provider"}},
                       .source = ChildRef{kFontsService},
                       .targets = {std::move(child_ref)}});
 }
 
-void AddTestUiStack(RealmBuilder& realm_builder, base::StringPiece child_name) {
+void AddTestUiStack(RealmBuilder& realm_builder, std::string_view child_name) {
   static constexpr char kTestUiStackService[] = "test_ui_stack";
   static constexpr char kTestUiStackUrl[] =
       "fuchsia-pkg://fuchsia.com/flatland-scene-manager-test-ui-stack#meta/"
       "test-ui-stack.cm";
   realm_builder.AddChild(kTestUiStackService, kTestUiStackUrl);
+  AddRouteFromParent(realm_builder, kTestUiStackService,
+                     "fuchsia.scheduler.ProfileProvider");
   AddSyslogRoutesFromParent(realm_builder, kTestUiStackService);
   AddVulkanRoutesFromParent(realm_builder, kTestUiStackService);
+
   ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
   realm_builder
       .AddRoute(
@@ -135,7 +157,6 @@ void AddTestUiStack(RealmBuilder& realm_builder, base::StringPiece child_name) {
                           {
                               Protocol{"fuchsia.ui.composition.Allocator"},
                               Protocol{"fuchsia.ui.composition.Flatland"},
-                              Protocol{"fuchsia.ui.scenic.Scenic"},
                           },
                       .source = ChildRef{kTestUiStackService},
                       .targets = {std::move(child_ref)}});

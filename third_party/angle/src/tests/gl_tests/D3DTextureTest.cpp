@@ -1283,6 +1283,16 @@ class D3DTextureClearTest : public D3DTextureTest
             EXPECT_PIXEL_32F_EQ(static_cast<GLint>(bufferSize) / 2,
                                 static_cast<GLint>(bufferSize) / 2, 1.0f, 1.0f, 1.0f, 1.0f);
         }
+        else if (format == DXGI_FORMAT_R16_UNORM)
+        {
+            EXPECT_PIXEL_16_NEAR(static_cast<GLint>(bufferSize) / 2,
+                                 static_cast<GLint>(bufferSize) / 2, 65535, 0, 0, 65535, 0);
+        }
+        else if (format == DXGI_FORMAT_R16G16_UNORM)
+        {
+            EXPECT_PIXEL_16_NEAR(static_cast<GLint>(bufferSize) / 2,
+                                 static_cast<GLint>(bufferSize) / 2, 65535, 65535, 0, 65535, 0);
+        }
         else
         {
             GLuint readColor[4] = {0, 0, 0, 255};
@@ -1294,11 +1304,9 @@ class D3DTextureClearTest : public D3DTextureTest
                     readColor[0] = readColor[1] = readColor[2] = 255;
                     break;
                 case GL_RG_EXT:
-                case GL_RG16_EXT:
                     readColor[0] = readColor[1] = 255;
                     break;
                 case GL_RED_EXT:
-                case GL_R16_EXT:
                     readColor[0] = 255;
                     break;
             }
@@ -1621,11 +1629,14 @@ class D3DTextureYUVTest : public D3DTextureTest
     void CreateAndBindImageToTexture(EGLDisplay display,
                                      ID3D11Texture2D *d3d11Texture,
                                      EGLint plane,
+                                     GLenum internalFormat,
                                      GLenum target,
                                      EGLImage *image,
                                      GLuint *texture)
     {
-        const EGLint attribs[] = {EGL_D3D11_TEXTURE_PLANE_ANGLE, plane, EGL_NONE};
+        const EGLint attribs[] = {EGL_TEXTURE_INTERNAL_FORMAT_ANGLE,
+                                  static_cast<EGLint>(internalFormat),
+                                  EGL_D3D11_TEXTURE_PLANE_ANGLE, plane, EGL_NONE};
         *image                 = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_D3D11_TEXTURE_ANGLE,
                                                    static_cast<EGLClientBuffer>(d3d11Texture), attribs);
         ASSERT_EGL_SUCCESS();
@@ -1740,8 +1751,10 @@ class D3DTextureYUVTest : public D3DTextureTest
         // Create and bind Y plane texture to image.
         EGLImage yImage;
         GLuint yTexture;
-        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 0, GL_TEXTURE_EXTERNAL_OES,
-                                    &yImage, &yTexture);
+
+        GLenum internalFormat = format == DXGI_FORMAT_NV12 ? GL_RED_EXT : GL_R16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 0, internalFormat,
+                                    GL_TEXTURE_EXTERNAL_OES, &yImage, &yTexture);
 
         GLuint rbo;
         glGenRenderbuffers(1, &rbo);
@@ -1775,16 +1788,18 @@ class D3DTextureYUVTest : public D3DTextureTest
         }
         else
         {
-            EXPECT_PIXEL_16UI(static_cast<GLint>(bufferSize) / 2,
-                              static_cast<GLint>(bufferSize) / 2, kYFillValue, 0, 0, 0xffff);
+            EXPECT_PIXEL_16_NEAR(static_cast<GLint>(bufferSize) / 2,
+                                 static_cast<GLint>(bufferSize) / 2, kYFillValue, 0, 0, 0xffff, 0);
         }
         ASSERT_GL_NO_ERROR();
 
         // Create and bind UV plane texture to image.
         EGLImage uvImage;
         GLuint uvTexture;
-        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 1, GL_TEXTURE_EXTERNAL_OES,
-                                    &uvImage, &uvTexture);
+
+        internalFormat = format == DXGI_FORMAT_NV12 ? GL_RG_EXT : GL_RG16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 1, internalFormat,
+                                    GL_TEXTURE_EXTERNAL_OES, &uvImage, &uvTexture);
 
         // Draw the UV plane using a shader.
         glUseProgram(program);
@@ -1804,9 +1819,9 @@ class D3DTextureYUVTest : public D3DTextureTest
         }
         else
         {
-            EXPECT_PIXEL_16UI(static_cast<GLint>(bufferSize) / 4,
-                              static_cast<GLint>(bufferSize) / 4, kUFillValue, kVFillValue, 0,
-                              0xffff);
+            EXPECT_PIXEL_16_NEAR(static_cast<GLint>(bufferSize) / 4,
+                                 static_cast<GLint>(bufferSize) / 4, kUFillValue, kVFillValue, 0,
+                                 0xffff, 0);
         }
         ASSERT_GL_NO_ERROR();
 
@@ -1878,8 +1893,10 @@ class D3DTextureYUVTest : public D3DTextureTest
         // Create and bind Y plane texture to image.
         EGLImage yImage;
         GLuint yTexture;
-        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 0, GL_TEXTURE_2D, &yImage,
-                                    &yTexture);
+
+        GLenum internalFormat = format == DXGI_FORMAT_NV12 ? GL_RED_EXT : GL_R16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 0, internalFormat, GL_TEXTURE_2D,
+                                    &yImage, &yTexture);
 
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, yImage);
         ASSERT_GL_NO_ERROR();
@@ -1903,8 +1920,10 @@ class D3DTextureYUVTest : public D3DTextureTest
         // Create and bind UV plane texture to image.
         EGLImage uvImage;
         GLuint uvTexture;
-        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 1, GL_TEXTURE_2D, &uvImage,
-                                    &uvTexture);
+
+        internalFormat = format == DXGI_FORMAT_NV12 ? GL_RG_EXT : GL_RG16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 1, internalFormat, GL_TEXTURE_2D,
+                                    &uvImage, &uvTexture);
 
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uvTexture, 0);
         EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
@@ -1965,6 +1984,385 @@ class D3DTextureYUVTest : public D3DTextureTest
         eglDestroyImageKHR(display, yImage);
         eglDestroyImageKHR(display, uvImage);
     }
+
+    void RunYUVReadPixelTest(DXGI_FORMAT format)
+    {
+        ASSERT(format == DXGI_FORMAT_NV12 || format == DXGI_FORMAT_P010 ||
+               format == DXGI_FORMAT_P016);
+        UINT formatSupport;
+        ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11() ||
+                           FAILED(mD3D11Device->CheckFormatSupport(format, &formatSupport)));
+        ASSERT_TRUE(formatSupport &
+                    (D3D11_FORMAT_SUPPORT_TEXTURE2D | D3D11_FORMAT_SUPPORT_RENDER_TARGET));
+
+        const bool isNV12          = (format == DXGI_FORMAT_NV12);
+        const unsigned kYFillValue = isNV12 ? 0x12 : 0x1234;
+        const unsigned kUFillValue = isNV12 ? 0x23 : 0x2345;
+        const unsigned kVFillValue = isNV12 ? 0x34 : 0x3456;
+
+        constexpr char kVS[] =
+            R"(precision highp float;
+            attribute vec4 position;
+            varying vec2 texcoord;
+
+            void main()
+            {
+                gl_Position = position;
+                texcoord = (position.xy * 0.5) + 0.5;
+                texcoord.y = 1.0 - texcoord.y;
+            })";
+
+        constexpr char kFS[] =
+            R"(precision highp float;
+            uniform vec4 color;
+            varying vec2 texcoord;
+
+            void main()
+            {
+                gl_FragColor = color;
+            })";
+
+        GLuint program = CompileProgram(kVS, kFS);
+        ASSERT_NE(0u, program) << "shader compilation failed.";
+
+        GLint colorLocation = glGetUniformLocation(program, "color");
+        ASSERT_NE(-1, colorLocation);
+
+        EGLWindow *window  = getEGLWindow();
+        EGLDisplay display = window->getDisplay();
+
+        window->makeCurrent();
+
+        const UINT bufferSize = 32;
+        EXPECT_TRUE(mD3D11Device != nullptr);
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11Texture;
+        CD3D11_TEXTURE2D_DESC desc(format, bufferSize, bufferSize, 1, 1,
+                                   D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+
+        EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &d3d11Texture)));
+
+        // Create and bind Y plane texture to image.
+        EGLImage yImage;
+        GLuint yTexture;
+
+        GLenum internalFormat = format == DXGI_FORMAT_NV12 ? GL_RED_EXT : GL_R16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 0, internalFormat, GL_TEXTURE_2D,
+                                    &yImage, &yTexture);
+
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, yImage);
+        ASSERT_GL_NO_ERROR();
+
+        GLuint fbo;
+        glGenFramebuffers(1, &fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, yTexture, 0);
+        EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+                  static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
+        ASSERT_GL_NO_ERROR();
+
+        // Draw the Y plane using a shader.
+        glUseProgram(program);
+        glUniform4f(colorLocation, kYFillValue * 1.0f / (isNV12 ? 0xff : 0xffff), 0, 0, 0);
+        ASSERT_GL_NO_ERROR();
+
+        drawQuad(program, "position", 1.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Read the Y plane pixels.
+        if (isNV12)
+        {
+            GLubyte yPixels[4] = {};
+            glReadPixels(0, bufferSize / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, yPixels);
+            EXPECT_EQ(yPixels[0], kYFillValue);
+        }
+        else
+        {
+            GLushort yPixels[4] = {};
+            glReadPixels(0, bufferSize / 2, 1, 1, GL_RGBA, GL_UNSIGNED_SHORT, yPixels);
+            EXPECT_EQ(yPixels[0], kYFillValue);
+        }
+
+        // Create and bind UV plane texture to image.
+        EGLImage uvImage;
+        GLuint uvTexture;
+
+        internalFormat = format == DXGI_FORMAT_NV12 ? GL_RG_EXT : GL_RG16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 1, internalFormat, GL_TEXTURE_2D,
+                                    &uvImage, &uvTexture);
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uvTexture, 0);
+        EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+                  static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
+        ASSERT_GL_NO_ERROR();
+
+        // Draw the UV plane using a shader.
+        glUseProgram(program);
+        glUniform4f(colorLocation, kUFillValue * 1.0f / (isNV12 ? 0xff : 0xffff),
+                    kVFillValue * 1.0f / (isNV12 ? 0xff : 0xffff), 0, 0);
+        ASSERT_GL_NO_ERROR();
+
+        drawQuad(program, "position", 1.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Read the UV plane pixels.
+        if (isNV12)
+        {
+            GLubyte uvPixels[4] = {};
+            glReadPixels(0, bufferSize / 4, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, uvPixels);
+            EXPECT_EQ(uvPixels[0], kUFillValue);
+            EXPECT_EQ(uvPixels[1], kVFillValue);
+        }
+        else
+        {
+            GLushort uvPixels[4] = {};
+            glReadPixels(0, bufferSize / 4, 1, 1, GL_RGBA, GL_UNSIGNED_SHORT, uvPixels);
+            EXPECT_EQ(uvPixels[0], kUFillValue);
+            EXPECT_EQ(uvPixels[1], kVFillValue);
+        }
+
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> stagingTexture;
+        CD3D11_TEXTURE2D_DESC stagingDesc = desc;
+        stagingDesc.BindFlags             = 0;
+        stagingDesc.Usage                 = D3D11_USAGE_STAGING;
+        stagingDesc.CPUAccessFlags        = D3D11_CPU_ACCESS_READ;
+
+        EXPECT_TRUE(
+            SUCCEEDED(mD3D11Device->CreateTexture2D(&stagingDesc, nullptr, &stagingTexture)));
+
+        Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+        mD3D11Device->GetImmediateContext(&context);
+
+        context->CopyResource(stagingTexture.Get(), d3d11Texture.Get());
+        ASSERT_GL_NO_ERROR();
+
+        D3D11_MAPPED_SUBRESOURCE mapped = {};
+        EXPECT_TRUE(SUCCEEDED(context->Map(stagingTexture.Get(), 0, D3D11_MAP_READ, 0, &mapped)));
+
+        uint8_t *yPlane  = reinterpret_cast<uint8_t *>(mapped.pData);
+        uint8_t *uvPlane = yPlane + bufferSize * mapped.RowPitch;
+        if (isNV12)
+        {
+            EXPECT_EQ(yPlane[mapped.RowPitch * bufferSize / 2], kYFillValue);
+            EXPECT_EQ(uvPlane[mapped.RowPitch * bufferSize / 4], kUFillValue);
+            EXPECT_EQ(uvPlane[mapped.RowPitch * bufferSize / 4 + 1], kVFillValue);
+        }
+        else
+        {
+            EXPECT_EQ(yPlane[mapped.RowPitch * bufferSize / 2], kYFillValue & 0xff);
+            EXPECT_EQ(yPlane[mapped.RowPitch * bufferSize / 2 + 1], (kYFillValue >> 8) & 0xff);
+            EXPECT_EQ(uvPlane[mapped.RowPitch * bufferSize / 4], kUFillValue & 0xff);
+            EXPECT_EQ(uvPlane[mapped.RowPitch * bufferSize / 4 + 1], (kUFillValue >> 8) & 0xff);
+            EXPECT_EQ(uvPlane[mapped.RowPitch * bufferSize / 4 + 2], kVFillValue & 0xff);
+            EXPECT_EQ(uvPlane[mapped.RowPitch * bufferSize / 4 + 3], (kVFillValue >> 8) & 0xff);
+        }
+
+        context->Unmap(stagingTexture.Get(), 0);
+
+        glDeleteProgram(program);
+        glDeleteTextures(1, &yTexture);
+        glDeleteTextures(1, &uvTexture);
+        glDeleteFramebuffers(1, &fbo);
+        eglDestroyImageKHR(display, yImage);
+        eglDestroyImageKHR(display, uvImage);
+    }
+
+    template <typename T>
+    void RunYUVWritePixelTest(DXGI_FORMAT format)
+    {
+        ASSERT(format == DXGI_FORMAT_NV12 || format == DXGI_FORMAT_P010 ||
+               format == DXGI_FORMAT_P016);
+        UINT formatSupport;
+        ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11() ||
+                           FAILED(mD3D11Device->CheckFormatSupport(format, &formatSupport)));
+        ASSERT_TRUE(formatSupport &
+                    (D3D11_FORMAT_SUPPORT_TEXTURE2D | D3D11_FORMAT_SUPPORT_RENDER_TARGET));
+
+        const bool isNV12                = (format == DXGI_FORMAT_NV12);
+        const unsigned kYFillValueFull   = isNV12 ? 0x12 : 0x1234;
+        const unsigned kUFillValueFull   = isNV12 ? 0x23 : 0x2345;
+        const unsigned kVFillValueFull   = isNV12 ? 0x34 : 0x3456;
+        const unsigned kYFillValueOffset = isNV12 ? 0x56 : 0x5678;
+        const unsigned kUFillValueOffset = isNV12 ? 0x67 : 0x6789;
+        const unsigned kVFillValueOffset = isNV12 ? 0x78 : 0x7890;
+
+        EGLWindow *window  = getEGLWindow();
+        EGLDisplay display = window->getDisplay();
+        window->makeCurrent();
+
+        const UINT bufferSize = 32;
+        EXPECT_TRUE(mD3D11Device != nullptr);
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11Texture;
+        CD3D11_TEXTURE2D_DESC desc(format, bufferSize, bufferSize, 1, 1,
+                                   D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+
+        EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &d3d11Texture)));
+
+        // Create and bind Y plane texture to image.
+        EGLImage yImage;
+        GLuint yTexture;
+        GLenum internalFormat = isNV12 ? GL_RED_EXT : GL_R16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 0, internalFormat, GL_TEXTURE_2D,
+                                    &yImage, &yTexture);
+        ASSERT_GL_NO_ERROR();
+
+        // Write the Y plane data to full texture (0, 0) to (32, 32).
+        GLenum type = isNV12 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_SHORT;
+        std::vector<T> yData(bufferSize * bufferSize, kYFillValueFull);
+        glTexSubImage2D(GL_TEXTURE_2D, /*level=*/0, /*xoffset=*/0, /*yoffset=*/0,
+                        /*width=*/bufferSize,
+                        /*height=*/bufferSize, GL_RED_EXT, type, yData.data());
+        ASSERT_GL_NO_ERROR();
+
+        GLuint fbo;
+        glGenFramebuffers(1, &fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, yTexture, 0);
+        EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+                  static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
+        ASSERT_GL_NO_ERROR();
+
+        // Read the Y plane pixels for a region starting at 0, 0 offsets.
+        // yPixels of size (4*4) region (*4) bytes per RGBA pixel
+        T yPixels[4 * 4 * 4] = {};
+        glReadPixels(/*x=*/0, /*y=*/0, /*width*/ 4, /*height=*/4, GL_RGBA, type, yPixels);
+        EXPECT_EQ(yPixels[0], kYFillValueFull);
+        EXPECT_EQ(yPixels[4], kYFillValueFull);
+        EXPECT_EQ(yPixels[16], kYFillValueFull);
+
+        // Write the Y plane data with offseted values for subregion (16, 16) - (32, 32).
+        std::vector<T> yDataOffset(bufferSize * bufferSize, kYFillValueOffset);
+        glTexSubImage2D(GL_TEXTURE_2D, /*level=*/0, /*xoffset=*/bufferSize / 2,
+                        /*yoffset=*/bufferSize / 2, /*width=*/bufferSize / 2,
+                        /*height=*/bufferSize / 2, GL_RED_EXT, type, yDataOffset.data());
+        ASSERT_GL_NO_ERROR();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, yTexture, 0);
+        EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+                  static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
+        ASSERT_GL_NO_ERROR();
+
+        // Read the Y plane pixels for a region starting at some offsets.
+        // yPixels of size (16*16) region (*4) bytes per RGBA pixel
+        T yPixelsOffset[16 * 16 * 4] = {};
+        glReadPixels(/*x=*/bufferSize / 2, /*y=*/bufferSize / 2, /*width=*/bufferSize / 2,
+                     /*height=*/bufferSize / 2, GL_RGBA, type, yPixelsOffset);
+        EXPECT_EQ(yPixelsOffset[0], kYFillValueOffset);
+        EXPECT_EQ(yPixelsOffset[12], kYFillValueOffset);
+
+        // Create and bind UV plane texture to image.
+        EGLImage uvImage;
+        GLuint uvTexture;
+        internalFormat = format == DXGI_FORMAT_NV12 ? GL_RG_EXT : GL_RG16_EXT;
+        CreateAndBindImageToTexture(display, d3d11Texture.Get(), 1, internalFormat, GL_TEXTURE_2D,
+                                    &uvImage, &uvTexture);
+        ASSERT_GL_NO_ERROR();
+
+        // Write the UV plane data to texture's full uv plane (0, 0,) - (16, 16).
+        std::vector<T> uvData((bufferSize * bufferSize) / 2);
+        for (UINT i = 0; i < (bufferSize * bufferSize) / 2; i++)
+        {
+            uvData[i] = i % 2 == 0 ? kUFillValueFull : kVFillValueFull;
+        }
+        glTexSubImage2D(GL_TEXTURE_2D, /*level=*/0, /*xoffset=*/0, /*yoffset=*/0,
+                        /*width=*/bufferSize / 2,
+                        /*height=*/bufferSize / 2, GL_RG_EXT, type, uvData.data());
+        ASSERT_GL_NO_ERROR();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uvTexture, 0);
+        EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+                  static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
+        ASSERT_GL_NO_ERROR();
+
+        // Read the UV plane pixels for a region starting at 0, 0 offsets.
+        // uvPixels of size (4*4) region (*4) bytes per RGBA pixel
+        T uvPixels[4 * 4 * 4] = {};
+        glReadPixels(/*x=*/0, /*y=*/0, /*width=*/4, /*height=*/4, GL_RGBA, type, uvPixels);
+        EXPECT_EQ(uvPixels[0], kUFillValueFull);
+        EXPECT_EQ(uvPixels[1], kVFillValueFull);
+        EXPECT_EQ(uvPixels[4], kUFillValueFull);
+        EXPECT_EQ(uvPixels[5], kVFillValueFull);
+        EXPECT_EQ(uvPixels[16], kUFillValueFull);
+        EXPECT_EQ(uvPixels[17], kVFillValueFull);
+
+        // Write the UV plane data with offset values for subregion (8, 8) - (16, 16).
+        std::vector<T> uvDataOffset((bufferSize * bufferSize) / 2);
+        for (UINT i = 0; i < (bufferSize * bufferSize) / 2; i++)
+        {
+            uvDataOffset[i] = i % 2 == 0 ? kUFillValueOffset : kVFillValueOffset;
+        }
+        glTexSubImage2D(GL_TEXTURE_2D, /*level=*/0, /*xoffset=*/bufferSize / 4,
+                        /*yoffset=*/bufferSize / 4, /*width=*/bufferSize / 4,
+                        /*height=*/bufferSize / 4, GL_RG_EXT, type, uvDataOffset.data());
+        ASSERT_GL_NO_ERROR();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uvTexture, 0);
+        EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+                  static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
+        ASSERT_GL_NO_ERROR();
+
+        // Read the UV plane pixels for a region starting at some offsets.
+        // uvPixels of size (8*8) region (*4) bytes per RGBA pixel
+        T uvPixelsOffset[8 * 8 * 4] = {};
+        glReadPixels(/*x=*/bufferSize / 4, /*y=*/bufferSize / 4, /*width=*/bufferSize / 4,
+                     /*height=*/bufferSize / 4, GL_RGBA, type, uvPixelsOffset);
+        EXPECT_EQ(uvPixelsOffset[0], kUFillValueOffset);
+        EXPECT_EQ(uvPixelsOffset[1], kVFillValueOffset);
+        EXPECT_EQ(uvPixelsOffset[12], kUFillValueOffset);
+        EXPECT_EQ(uvPixelsOffset[13], kVFillValueOffset);
+
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> stagingTexture;
+        CD3D11_TEXTURE2D_DESC stagingDesc = desc;
+        stagingDesc.BindFlags             = 0;
+        stagingDesc.Usage                 = D3D11_USAGE_STAGING;
+        stagingDesc.CPUAccessFlags        = D3D11_CPU_ACCESS_READ;
+
+        EXPECT_TRUE(
+            SUCCEEDED(mD3D11Device->CreateTexture2D(&stagingDesc, nullptr, &stagingTexture)));
+
+        Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+        mD3D11Device->GetImmediateContext(&context);
+
+        context->CopyResource(stagingTexture.Get(), d3d11Texture.Get());
+        ASSERT_GL_NO_ERROR();
+
+        D3D11_MAPPED_SUBRESOURCE mapped = {};
+        EXPECT_TRUE(SUCCEEDED(context->Map(stagingTexture.Get(), 0, D3D11_MAP_READ, 0, &mapped)));
+
+        uint8_t *yPlane  = reinterpret_cast<uint8_t *>(mapped.pData);
+        uint8_t *uvPlane = yPlane + bufferSize * mapped.RowPitch;
+        auto getYValue   = [&](int x, int y) {
+            const T *lineStart = reinterpret_cast<const T *>(yPlane + y * mapped.RowPitch);
+            return lineStart[x];
+        };
+
+        auto getUValue = [&](int x, int y) {
+            const T *lineStart = reinterpret_cast<const T *>(uvPlane + y * mapped.RowPitch);
+            return lineStart[x * 2 + 0];
+        };
+
+        auto getVValue = [&](int x, int y) {
+            const T *lineStart = reinterpret_cast<const T *>(uvPlane + y * mapped.RowPitch);
+            return lineStart[x * 2 + 1];
+        };
+        // Compare first y pixel with full write values.
+        EXPECT_EQ(getYValue(0, 0), kYFillValueFull);
+        // Compare last y pixel with overwritten subregion values.
+        EXPECT_EQ(getYValue(bufferSize - 1, bufferSize - 1), kYFillValueOffset);
+        // Compare first uv pixel with full write values.
+        EXPECT_EQ(getUValue(0, 0), kUFillValueFull);
+        EXPECT_EQ(getVValue(0, 0), kVFillValueFull);
+        // Compare last uv pixel with overwritten subregion values.
+        EXPECT_EQ(getUValue(bufferSize / 2 - 1, bufferSize / 2 - 1), kUFillValueOffset);
+        EXPECT_EQ(getVValue(bufferSize / 2 - 1, bufferSize / 2 - 1), kVFillValueOffset);
+
+        context->Unmap(stagingTexture.Get(), 0);
+
+        glDeleteTextures(1, &yTexture);
+        glDeleteTextures(1, &uvTexture);
+        glDeleteFramebuffers(1, &fbo);
+        eglDestroyImageKHR(display, yImage);
+        eglDestroyImageKHR(display, uvImage);
+    }
 };
 
 // Test that an NV12 D3D11 texture can be imported as two R8 and RG8 EGLImages and the resulting GL
@@ -2009,13 +2407,58 @@ TEST_P(D3DTextureYUVTest, P016TextureImageRender)
     RunYUVRenderTest(DXGI_FORMAT_P016);
 }
 
+// Test that an NV12 D3D11 texture can be imported as two R8 and RG8 EGLImages and rendered to as
+// framebuffer attachments and then read from as individual planes.
+TEST_P(D3DTextureYUVTest, NV12TextureImageReadPixel)
+{
+    RunYUVReadPixelTest(DXGI_FORMAT_NV12);
+}
+
+// ANGLE ES2/D3D11 supports GL_EXT_texture_norm16 even though the extension spec says it's ES3 only.
+// Test P010 on ES2 since Chromium's Skia context is ES2 and it uses P010 for HDR video playback.
+TEST_P(D3DTextureYUVTest, P010TextureImageReadPixel)
+{
+    RunYUVReadPixelTest(DXGI_FORMAT_P010);
+}
+
+// Same as above, but for P016. P016 doesn't seem to be supported on all GPUs so it might be skipped
+// more often than P010 and NV12 e.g. on the NVIDIA GTX 1050 Ti.
+TEST_P(D3DTextureYUVTest, P016TextureImageReadPixel)
+{
+    RunYUVReadPixelTest(DXGI_FORMAT_P016);
+}
+
+// Test that an NV12 D3D11 texture can be imported as two R8 and RG8 EGLImages and write data to
+// them through glTexSubImage2D and then rendered to as framebuffer attachments and then read from
+// as individual planes.
+TEST_P(D3DTextureYUVTest, NV12TextureImageWritePixel)
+{
+    RunYUVWritePixelTest<uint8_t>(DXGI_FORMAT_NV12);
+}
+
+// Test that an P010 D3D11 texture can be imported as two R16 and RG16 EGLImages and write data to
+// them through glTexSubImage2D and then rendered to as framebuffer attachments and then read from
+// as individual planes.
+TEST_P(D3DTextureYUVTest, P010TextureImageWritePixel)
+{
+    RunYUVWritePixelTest<uint16_t>(DXGI_FORMAT_P010);
+}
+
+// Test that an P016 D3D11 texture can be imported as two R16 and RG16 EGLImages and write data to
+// them through glTexSubImage2D and then rendered to as framebuffer attachments and then read from
+// as individual planes.
+TEST_P(D3DTextureYUVTest, P016TextureImageWritePixel)
+{
+    RunYUVWritePixelTest<uint16_t>(DXGI_FORMAT_P016);
+}
+
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
 ANGLE_INSTANTIATE_TEST_ES2(D3DTextureTest);
 ANGLE_INSTANTIATE_TEST_ES2(D3DTextureClearTest);
 ANGLE_INSTANTIATE_TEST_ES2(D3DTextureYUVTest);
 ANGLE_INSTANTIATE_TEST_ES3(D3DTextureTestES3);
-// D3D Debug device reports an error. http://anglebug.com/3513
+// D3D Debug device reports an error. http://anglebug.com/40096593
 // ANGLE_INSTANTIATE_TEST(D3DTextureTestMS, ES2_D3D11());
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(D3DTextureTestMS);
 }  // namespace angle

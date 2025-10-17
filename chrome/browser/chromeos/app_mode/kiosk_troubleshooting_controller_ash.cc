@@ -17,38 +17,47 @@ namespace ash {
 
 KioskTroubleshootingControllerAsh::KioskTroubleshootingControllerAsh(
     PrefService* pref_service,
-    base::OnceClosure shutdown_app_session_callback)
-    : KioskTroubleshootingController(pref_service,
-                                     std::move(shutdown_app_session_callback)) {
+    base::OnceClosure shutdown_kiosk_browser_session_callback)
+    : KioskTroubleshootingController(
+          pref_service,
+          std::move(shutdown_kiosk_browser_session_callback)) {
   RegisterTroubleshootingAccelerators();
 }
 
 KioskTroubleshootingControllerAsh::~KioskTroubleshootingControllerAsh() {
-  Shell::Get()->accelerator_controller()->UnregisterAll(this);
+  ash::Shell::Get()->accelerator_controller()->UnregisterAll(this);
 }
 
 bool KioskTroubleshootingControllerAsh::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
-  // Do not process any accelerators if troubleshooting tools are disabled.
-  if (!AreKioskTroubleshootingToolsEnabled()) {
+  auto it = accelerators_with_actions_.find(accelerator);
+  if (it == accelerators_with_actions_.end()) {
     return false;
   }
 
-  auto it = accelerators_with_actions_.find(accelerator);
-  DCHECK(it != accelerators_with_actions_.end());
+  // Block registered accelerators if the troubleshooting tools are disabled.
+  if (!AreKioskTroubleshootingToolsEnabled()) {
+    return true;
+  }
 
   switch (it->second) {
     case TroubleshootingAcceleratorAction::NEW_WINDOW:
-      accelerators::NewWindow();
+      ash::accelerators::NewWindow();
       return true;
     case TroubleshootingAcceleratorAction::SWITCH_WINDOWS_FORWARD:
-      accelerators::CycleForwardMru(/*same_app_only=*/false);
+      ash::accelerators::CycleForwardMru(/*same_app_only=*/false);
       return true;
     case TroubleshootingAcceleratorAction::SWITCH_WINDOWS_BACKWARD:
-      accelerators::CycleBackwardMru(/*same_app_only=*/false);
+      ash::accelerators::CycleBackwardMru(/*same_app_only=*/false);
       return true;
     case TroubleshootingAcceleratorAction::SHOW_TASK_MANAGER:
-      accelerators::ShowTaskManager();
+      ash::accelerators::ShowTaskManager();
+      return true;
+    case TroubleshootingAcceleratorAction::OPEN_FEEDBACK_PAGE:
+      ash::accelerators::OpenFeedbackPage();
+      return true;
+    case TroubleshootingAcceleratorAction::TOGGLE_OVERVIEW:
+      ash::accelerators::ToggleOverview();
       return true;
   }
 
@@ -56,7 +65,7 @@ bool KioskTroubleshootingControllerAsh::AcceleratorPressed(
 }
 
 bool KioskTroubleshootingControllerAsh::CanHandleAccelerators() const {
-  return AreKioskTroubleshootingToolsEnabled();
+  return true;
 }
 
 void KioskTroubleshootingControllerAsh::RegisterTroubleshootingAccelerators() {
@@ -80,7 +89,16 @@ void KioskTroubleshootingControllerAsh::RegisterTroubleshootingAccelerators() {
       {ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_COMMAND_DOWN),
        TroubleshootingAcceleratorAction::SHOW_TASK_MANAGER});
 
-  Shell::Get()->accelerator_controller()->Register(GetAllAccelerators(), this);
+  // Shift+Alt+I
+  accelerators_with_actions_.insert(
+      {ui::Accelerator(ui::VKEY_I, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN),
+       TroubleshootingAcceleratorAction::OPEN_FEEDBACK_PAGE});
+  // F5
+  accelerators_with_actions_.insert(
+      {ui::Accelerator(ui::VKEY_MEDIA_LAUNCH_APP1, ui::EF_NONE),
+       TroubleshootingAcceleratorAction::TOGGLE_OVERVIEW});
+  ash::Shell::Get()->accelerator_controller()->Register(GetAllAccelerators(),
+                                                        this);
 }
 
 std::vector<ui::Accelerator>

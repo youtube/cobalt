@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/login/login_handler.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/logging.h"
@@ -14,7 +15,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/auth.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 
@@ -25,9 +25,10 @@ namespace {
 
 class LoginHandlerAndroid : public LoginHandler {
  public:
-  LoginHandlerAndroid(const net::AuthChallengeInfo& auth_info,
-                      content::WebContents* web_contents,
-                      LoginAuthRequiredCallback auth_required_callback)
+  LoginHandlerAndroid(
+      const net::AuthChallengeInfo& auth_info,
+      content::WebContents* web_contents,
+      content::LoginDelegate::LoginAuthRequiredCallback auth_required_callback)
       : LoginHandler(auth_info,
                      web_contents,
                      std::move(auth_required_callback)) {}
@@ -40,7 +41,7 @@ class LoginHandlerAndroid : public LoginHandler {
 
  protected:
   // LoginHandler methods:
-  void BuildViewImpl(const std::u16string& authority,
+  bool BuildViewImpl(const std::u16string& authority,
                      const std::u16string& explanation,
                      LoginModelData* login_model_data) override {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -56,20 +57,21 @@ class LoginHandlerAndroid : public LoginHandler {
     if (tab && window) {
       chrome_http_auth_handler_ = std::make_unique<ChromeHttpAuthHandler>(
           authority, explanation, login_model_data);
-      chrome_http_auth_handler_->Init();
-      chrome_http_auth_handler_->SetObserver(this);
+      chrome_http_auth_handler_->Init(this);
       chrome_http_auth_handler_->ShowDialog(tab->GetJavaObject(),
                                             window->GetJavaObject());
+      return true;
     } else {
-      CancelAuth();
       LOG(WARNING) << "HTTP Authentication failed because TabAndroid is "
-          "missing";
+                      "missing";
+      return false;
     }
   }
 
   void CloseDialog() override {
-    if (chrome_http_auth_handler_)
+    if (chrome_http_auth_handler_) {
       chrome_http_auth_handler_->CloseDialog();
+    }
   }
 
  private:
@@ -82,7 +84,7 @@ class LoginHandlerAndroid : public LoginHandler {
 std::unique_ptr<LoginHandler> LoginHandler::Create(
     const net::AuthChallengeInfo& auth_info,
     content::WebContents* web_contents,
-    LoginAuthRequiredCallback auth_required_callback) {
+    content::LoginDelegate::LoginAuthRequiredCallback auth_required_callback) {
   return std::make_unique<LoginHandlerAndroid>(
       auth_info, web_contents, std::move(auth_required_callback));
 }

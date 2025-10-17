@@ -37,7 +37,7 @@ class AccountReconcilorDelegate {
   virtual bool ShouldAbortReconcileIfPrimaryHasError() const;
 
   // Returns the consent level that should be used for obtaining the primary
-  // account. Defaults to ConsentLevel::kSync.
+  // account. Defaults to ConsentLevel::kSignin.
   virtual ConsentLevel GetConsentLevelForPrimaryAccount() const;
 
   // Returns a pair of mode and accounts to send to Mutilogin endpoint.
@@ -55,14 +55,18 @@ class AccountReconcilorDelegate {
       const std::vector<gaia::ListedAccount>& gaia_accounts,
       bool first_execution);
 
-  // Revokes secondary accounts if needed.
-  virtual void RevokeSecondaryTokensBeforeReconcileIfNeeded();
+  // On Dice platforms:
+  // - Revokes tokens in error state except the primary account with consent
+  // level `GetConsentLevelForPrimaryAccount()`.
+  // - If `IsUpdateCookieAllowed()` returns false, it also revokes tokens not
+  // present in the gaia cookies to maintain account consistency.
+  // On other platforms, this is no-op.
+  virtual void RevokeSecondaryTokensForReconcileIfNeeded(
+      const std::vector<gaia::ListedAccount>& gaia_accounts);
 
   // Called when cookies are deleted by user action.
-  // This might be a no-op or signout the profile or lead to a sync paused state
-  // based on different platforms conditions.
-  virtual void OnAccountsCookieDeletedByUserAction(
-      bool synced_data_deletion_in_progress);
+  // This might be a no-op or signout the profile.
+  virtual void OnAccountsCookieDeletedByUserAction();
 
   // Returns whether tokens should be revoked when the primary account is empty.
   virtual bool ShouldRevokeTokensIfNoPrimaryAccount() const;

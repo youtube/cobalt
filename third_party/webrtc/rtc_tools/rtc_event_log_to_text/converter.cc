@@ -12,9 +12,15 @@
 
 #include <inttypes.h>
 
+#include <cstdio>
 #include <map>
+#include <string>
 #include <vector>
 
+#include "api/candidate.h"
+#include "api/rtp_parameters.h"
+#include "api/transport/bandwidth_usage.h"
+#include "api/video/video_codec_type.h"
 #include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
 #include "logging/rtc_event_log/events/rtc_event_alr_state.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_network_adaptation.h"
@@ -175,7 +181,8 @@ bool Convert(std::string inputfile,
   auto bwe_probe_failure_handler =
       [&](const LoggedBweProbeFailureEvent& event) {
         fprintf(output, "BWE_PROBE_FAILURE %" PRId64 " id=%d reason=%d\n",
-                event.log_time_ms(), event.id, event.failure_reason);
+                event.log_time_ms(), event.id,
+                static_cast<int>(event.failure_reason));
       };
 
   auto bwe_probe_success_handler =
@@ -209,7 +216,8 @@ bool Convert(std::string inputfile,
   auto dtls_transport_state_handler =
       [&](const LoggedDtlsTransportState& event) {
         fprintf(output, "DTLS_TRANSPORT_STATE %" PRId64 " state=%d\n",
-                event.log_time_ms(), event.dtls_transport_state);
+                event.log_time_ms(),
+                static_cast<int>(event.dtls_transport_state));
       };
 
   auto dtls_transport_writable_handler =
@@ -229,12 +237,10 @@ bool Convert(std::string inputfile,
                 {IceCandidatePairConfigType::kNumValues, "NUM_VALUES"}};
 
         static const std::map<IceCandidateType, std::string>
-            candidate_type_name{{IceCandidateType::kUnknown, "UNKNOWN"},
-                                {IceCandidateType::kLocal, "LOCAL"},
-                                {IceCandidateType::kStun, "STUN"},
+            candidate_type_name{{IceCandidateType::kHost, "LOCAL"},
+                                {IceCandidateType::kSrflx, "STUN"},
                                 {IceCandidateType::kPrflx, "PRFLX"},
-                                {IceCandidateType::kRelay, "RELAY"},
-                                {IceCandidateType::kNumValues, "NUM_VALUES"}};
+                                {IceCandidateType::kRelay, "RELAY"}};
 
         static const std::map<IceCandidatePairProtocol, std::string>
             protocol_name{{IceCandidatePairProtocol::kUnknown, "UNKNOWN"},
@@ -333,10 +339,11 @@ bool Convert(std::string inputfile,
       fprintf(output, " transmission_offset=%d",
               event.rtp.header.extension.transmissionTimeOffset);
     }
-    if (event.rtp.header.extension.hasAudioLevel) {
+    if (event.rtp.header.extension.audio_level()) {
       fprintf(output, " voice_activity=%d",
-              event.rtp.header.extension.voiceActivity);
-      fprintf(output, " audio_level=%u", event.rtp.header.extension.audioLevel);
+              event.rtp.header.extension.audio_level()->voice_activity());
+      fprintf(output, " audio_level=%u",
+              event.rtp.header.extension.audio_level()->level());
     }
     if (event.rtp.header.extension.hasVideoRotation) {
       fprintf(output, " video_rotation=%d",
@@ -367,10 +374,11 @@ bool Convert(std::string inputfile,
       fprintf(output, " transmission_offset=%d",
               event.rtp.header.extension.transmissionTimeOffset);
     }
-    if (event.rtp.header.extension.hasAudioLevel) {
+    if (event.rtp.header.extension.audio_level()) {
       fprintf(output, " voice_activity=%d",
-              event.rtp.header.extension.voiceActivity);
-      fprintf(output, " audio_level=%u", event.rtp.header.extension.audioLevel);
+              event.rtp.header.extension.audio_level()->voice_activity());
+      fprintf(output, " audio_level=%u",
+              event.rtp.header.extension.audio_level()->level());
     }
     if (event.rtp.header.extension.hasVideoRotation) {
       fprintf(output, " video_rotation=%d",
@@ -428,7 +436,7 @@ bool Convert(std::string inputfile,
         {VideoCodecType::kVideoCodecVP9, "VP9"},
         {VideoCodecType::kVideoCodecAV1, "AV1"},
         {VideoCodecType::kVideoCodecH264, "H264"},
-        {VideoCodecType::kVideoCodecMultiplex, "MULTIPLEX"}};
+        {VideoCodecType::kVideoCodecH265, "H265"}};
 
     fprintf(output,
             "FRAME_DECODED %" PRId64 " render_time=%" PRId64

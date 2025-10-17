@@ -6,27 +6,18 @@
 
 #import <memory>
 
-#import "base/base_paths.h"
 #import "base/check.h"
 #import "base/no_destructor.h"
-#import "base/path_service.h"
 #import "components/keyed_service/ios/browser_state_dependency_manager.h"
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_client.h"
-#import "ios/components/security_interstitials/safe_browsing/safe_browsing_service.h"
-#import "ios/web/public/browser_state.h"
-#import "ios/web_view/internal/app/application_context.h"
 #import "ios/web_view/internal/safe_browsing/web_view_safe_browsing_client.h"
 #import "ios/web_view/internal/web_view_browser_state.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace ios_web_view {
 
 // static
 SafeBrowsingClient* WebViewSafeBrowsingClientFactory::GetForBrowserState(
-    web::BrowserState* browser_state) {
+    WebViewBrowserState* browser_state) {
   return static_cast<SafeBrowsingClient*>(
       GetInstance()->GetServiceForBrowserState(browser_state, /*create=*/true));
 }
@@ -48,18 +39,7 @@ WebViewSafeBrowsingClientFactory::BuildServiceInstanceFor(
     web::BrowserState* context) const {
   WebViewBrowserState* browser_state =
       WebViewBrowserState::FromBrowserState(context);
-  std::unique_ptr<WebViewSafeBrowsingClient> service =
-      std::make_unique<WebViewSafeBrowsingClient>();
-
-  // Ensure that Safe Browsing is initialized.
-  SafeBrowsingService* safe_browsing_service =
-      ApplicationContext::GetInstance()->GetSafeBrowsingService();
-  base::FilePath data_path;
-  CHECK(base::PathService::Get(base::DIR_APP_DATA, &data_path));
-  safe_browsing_service->Initialize(
-      browser_state->GetRecordingBrowserState()->GetPrefs(), data_path,
-      /*safe_browsing_metrics_collector=*/nullptr);
-  return service;
+  return std::make_unique<WebViewSafeBrowsingClient>(browser_state->GetPrefs());
 }
 
 web::BrowserState* WebViewSafeBrowsingClientFactory::GetBrowserStateToUse(

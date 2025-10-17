@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -15,7 +16,6 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
@@ -107,7 +107,7 @@ void PluginServiceImpl::Init() {
 PpapiPluginProcessHost* PluginServiceImpl::FindPpapiPluginProcess(
     const base::FilePath& plugin_path,
     const base::FilePath& profile_data_directory,
-    const absl::optional<url::Origin>& origin_lock) {
+    const std::optional<url::Origin>& origin_lock) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   for (PpapiPluginProcessHostIterator iter; !iter.Done(); ++iter) {
@@ -124,7 +124,7 @@ PpapiPluginProcessHost* PluginServiceImpl::FindOrStartPpapiPluginProcess(
     int render_process_id,
     const base::FilePath& plugin_path,
     const base::FilePath& profile_data_directory,
-    const absl::optional<url::Origin>& origin_lock) {
+    const std::optional<url::Origin>& origin_lock) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (filter_ && !filter_->CanLoadPlugin(render_process_id, plugin_path)) {
@@ -167,7 +167,7 @@ void PluginServiceImpl::OpenChannelToPpapiPlugin(
     int render_process_id,
     const base::FilePath& plugin_path,
     const base::FilePath& profile_data_directory,
-    const absl::optional<url::Origin>& origin_lock,
+    const std::optional<url::Origin>& origin_lock,
     PpapiPluginProcessHost::PluginClient* client) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -250,7 +250,7 @@ std::u16string PluginServiceImpl::GetPluginDisplayNameByPath(
 #if BUILDFLAG(IS_MAC)
     // Many plugins on the Mac have .plugin in the actual name, which looks
     // terrible, so look for that and strip it off if present.
-    static constexpr base::StringPiece16 kPluginExtension = u".plugin";
+    static constexpr std::u16string_view kPluginExtension = u".plugin";
     if (base::EndsWith(plugin_name, kPluginExtension))
       plugin_name.erase(plugin_name.size() - kPluginExtension.size());
 #endif  // BUILDFLAG(IS_MAC)

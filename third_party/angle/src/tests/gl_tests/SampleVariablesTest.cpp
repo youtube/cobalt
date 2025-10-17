@@ -5,6 +5,8 @@
 //
 // Test built-in variables added by OES_sample_variables
 
+#include <unordered_set>
+
 #include "common/mathutil.h"
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
@@ -464,8 +466,7 @@ TEST_P(SampleVariablesTest, SampleMask)
 precision highp float;
 uniform highp int sampleMask;
 
-// Fails on Adreno without explicit location
-layout(location = 0) out vec4 color;
+out vec4 color;
 
 void main()
 {

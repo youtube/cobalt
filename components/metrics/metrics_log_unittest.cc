@@ -25,7 +25,6 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/metrics/cpu_metrics_provider.h"
 #include "components/metrics/delegating_provider.h"
 #include "components/metrics/environment_recorder.h"
@@ -33,6 +32,7 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_metrics_provider.h"
 #include "components/metrics/test/test_metrics_service_client.h"
+#include "components/network_time/network_time_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/active_field_trials.h"
@@ -70,7 +70,7 @@ class TestMetricsLog : public MetricsLog {
   TestMetricsLog(const TestMetricsLog&) = delete;
   TestMetricsLog& operator=(const TestMetricsLog&) = delete;
 
-  ~TestMetricsLog() override {}
+  ~TestMetricsLog() override = default;
 
   const ChromeUserMetricsExtension& uma_proto() const {
     return *MetricsLog::uma_proto();
@@ -87,13 +87,16 @@ class TestMetricsLog : public MetricsLog {
 
 // Returns the expected hardware class for a metrics log.
 std::string GetExpectedHardwareClass() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Currently, we are relying on base/ implementation for functionality on our
   // side which can be fragile if in the future someone decides to change that.
   // This replicates the logic to get the hardware class for ChromeOS and this
   // result should match with the result by calling
   // base::SysInfo::HardwareModelName().
   std::string board = base::SysInfo::GetLsbReleaseBoard();
+  if (board == "unknown") {
+    return "";
+  }
   const size_t index = board.find("-signed-");
   if (index != std::string::npos)
     board.resize(index);
@@ -101,6 +104,17 @@ std::string GetExpectedHardwareClass() {
 #else
   return base::SysInfo::HardwareModelName();
 #endif
+}
+
+// Sets the time in |network_time| to |time|.
+void UpdateNetworkTime(network_time::NetworkTimeTracker* network_time_tracker,
+                       base::TickClock* tick_clock,
+                       base::Time time) {
+  network_time_tracker->UpdateNetworkTime(
+      time,
+      base::Seconds(1),         // resolution
+      base::Milliseconds(250),  // latency
+      tick_clock->NowTicks());  // posting time
 }
 
 }  // namespace
@@ -112,7 +126,7 @@ class MetricsLogTest : public testing::Test {
   MetricsLogTest(const MetricsLogTest&) = delete;
   MetricsLogTest& operator=(const MetricsLogTest&) = delete;
 
-  ~MetricsLogTest() override {}
+  ~MetricsLogTest() override = default;
 
  protected:
   // Check that the values in |system_values| are filled in and expected ones
@@ -150,6 +164,29 @@ class MetricsLogTest : public testing::Test {
   TestingPrefServiceSimple prefs_;
 };
 
+TEST_F(MetricsLogTest, FinalizedRecordId) {
+  MetricsLog log1(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
+  MetricsLog log2(kClientId, kSessionId, MetricsLog::INDEPENDENT_LOG, &client_);
+  MetricsLog log3(kClientId, kSessionId, MetricsLog::INITIAL_STABILITY_LOG,
+                  &client_);
+
+  ASSERT_FALSE(log1.uma_proto()->has_finalized_record_id());
+  ASSERT_FALSE(log2.uma_proto()->has_finalized_record_id());
+  ASSERT_FALSE(log3.uma_proto()->has_finalized_record_id());
+
+  // Set an initial finalized record-id value in prefs, so test values are
+  // predictable.
+  prefs_.SetInteger(prefs::kMetricsLogFinalizedRecordId, 500);
+
+  log1.AssignFinalizedRecordId(&prefs_);
+  log2.AssignFinalizedRecordId(&prefs_);
+  log3.AssignFinalizedRecordId(&prefs_);
+
+  EXPECT_EQ(501, log1.uma_proto()->finalized_record_id());
+  EXPECT_EQ(502, log2.uma_proto()->finalized_record_id());
+  EXPECT_EQ(503, log3.uma_proto()->finalized_record_id());
+}
+
 TEST_F(MetricsLogTest, RecordId) {
   MetricsLog log1(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
   MetricsLog log2(kClientId, kSessionId, MetricsLog::INDEPENDENT_LOG, &client_);
@@ -171,6 +208,38 @@ TEST_F(MetricsLogTest, RecordId) {
   EXPECT_EQ(502, log2.uma_proto()->record_id());
   EXPECT_EQ(503, log3.uma_proto()->record_id());
 }
+
+TEST_F(MetricsLogTest, SessionHash) {
+  MetricsLog log1(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
+  MetricsLog log2(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
+
+  // Verify that created logs are tagged with the same session hash.
+  EXPECT_TRUE(log1.uma_proto()->system_profile().has_session_hash());
+  EXPECT_TRUE(log2.uma_proto()->system_profile().has_session_hash());
+  EXPECT_EQ(log1.uma_proto()->system_profile().session_hash(),
+            log2.uma_proto()->system_profile().session_hash());
+}
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+TEST_F(MetricsLogTest, FgBgId) {
+  MetricsLog log1(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
+  MetricsLog log2(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
+
+  // Verify that both logs have the same fg_bg_id.
+  EXPECT_TRUE(log1.uma_proto()->system_profile().has_fg_bg_id());
+  EXPECT_TRUE(log2.uma_proto()->system_profile().has_fg_bg_id());
+  EXPECT_EQ(log1.uma_proto()->system_profile().fg_bg_id(),
+            log2.uma_proto()->system_profile().fg_bg_id());
+
+  // Verify that a log created after a call to IncrementFgBgId() will have a
+  // different `fg_bg_id` than the ones before.
+  MetricsLog::IncrementFgBgId();
+  MetricsLog log3(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
+  EXPECT_TRUE(log3.uma_proto()->system_profile().has_fg_bg_id());
+  EXPECT_NE(log1.uma_proto()->system_profile().fg_bg_id(),
+            log3.uma_proto()->system_profile().fg_bg_id());
+}
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
 TEST_F(MetricsLogTest, LogType) {
   MetricsLog log1(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client_);
@@ -208,7 +277,7 @@ TEST_F(MetricsLogTest, BasicRecord) {
 
   std::string encoded;
   log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
-                  &encoded);
+                  log.GetCurrentClockTime(/*record_time_zone=*/true), &encoded);
 
   // A couple of fields are hard to mock, so these will be copied over directly
   // for the expected output.
@@ -230,6 +299,12 @@ TEST_F(MetricsLogTest, BasicRecord) {
   // Hashes of "mock-flag-1" and "mock-flag-2" from SetUpCommandLine.
   system_profile->add_command_line_key_hash(2578836236);
   system_profile->add_command_line_key_hash(2867288449);
+  // The session hash.
+  system_profile->set_session_hash(
+      log.uma_proto()->system_profile().session_hash());
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  system_profile->set_fg_bg_id(log.uma_proto()->system_profile().fg_bg_id());
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
 #if defined(ADDRESS_SANITIZER) || DCHECK_IS_ON()
   system_profile->set_is_instrumented_build(true);
@@ -246,19 +321,17 @@ TEST_F(MetricsLogTest, BasicRecord) {
   hardware->set_dll_base(reinterpret_cast<uint64_t>(CURRENT_MODULE()));
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  system_profile->mutable_os()->set_name("Lacros");
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   system_profile->mutable_os()->set_name("CrOS");
 #else
   system_profile->mutable_os()->set_name(base::SysInfo::OperatingSystemName());
 #endif
   system_profile->mutable_os()->set_version(
       base::SysInfo::OperatingSystemVersion());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   system_profile->mutable_os()->set_kernel_version(
       base::SysInfo::KernelVersion());
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#elif BUILDFLAG(IS_LINUX)
   system_profile->mutable_os()->set_kernel_version(
       base::SysInfo::OperatingSystemVersion());
 #elif BUILDFLAG(IS_ANDROID)
@@ -319,13 +392,14 @@ TEST_F(MetricsLogTest, FinalizeLog) {
   // the one that was used when the log was created.
   std::string encoded;
   log.FinalizeLog(/*truncate_events=*/true, client_.GetVersionString(),
-                  &encoded);
+                  log.GetCurrentClockTime(/*record_time_zone=*/true), &encoded);
 
   // Finalize |log2|. We do not truncate events, and we pass a different version
   // string than the one that was used when the log was created.
   client_.set_version_string(kNewVersionString);
   std::string encoded2;
   log2.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
+                   log.GetCurrentClockTime(/*record_time_zone=*/true),
                    &encoded2);
 
   ChromeUserMetricsExtension parsed;
@@ -361,8 +435,9 @@ TEST_F(MetricsLogTest, Timestamps_InitialStabilityLog) {
                  clock.get(), nullptr, &client_);
   clock->SetNow(base::Time::FromTimeT(2));
   std::string encoded;
+  // Don't set the close_time param since this is an initial stability log.
   log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
-                  &encoded);
+                  /*close_time=*/std::nullopt, &encoded);
   ChromeUserMetricsExtension parsed;
   ASSERT_TRUE(parsed.ParseFromString(encoded));
   EXPECT_FALSE(parsed.has_time_log_created());
@@ -379,8 +454,9 @@ TEST_F(MetricsLogTest, Timestamps_IndependentLog) {
                  clock.get(), nullptr, &client_);
   clock->SetNow(base::Time::FromTimeT(2));
   std::string encoded;
+  // Don't set the close_time param since this is an independent log.
   log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
-                  &encoded);
+                  /*close_time=*/std::nullopt, &encoded);
   ChromeUserMetricsExtension parsed;
   ASSERT_TRUE(parsed.ParseFromString(encoded));
   EXPECT_FALSE(parsed.has_time_log_created());
@@ -398,7 +474,7 @@ TEST_F(MetricsLogTest, Timestamps_OngoingLog) {
   clock->SetNow(base::Time::FromTimeT(2));
   std::string encoded;
   log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
-                  &encoded);
+                  log.GetCurrentClockTime(/*record_time_zone=*/true), &encoded);
   ChromeUserMetricsExtension parsed;
   ASSERT_TRUE(parsed.ParseFromString(encoded));
   EXPECT_TRUE(parsed.has_time_log_created());
@@ -411,6 +487,178 @@ TEST_F(MetricsLogTest, Timestamps_OngoingLog) {
   EXPECT_EQ(parsed.time_log_closed().time_sec(), 2);
   EXPECT_EQ(parsed.time_log_closed().time_source(),
             ChromeUserMetricsExtension::RealLocalTime::CLIENT_CLOCK);
+  // The timezone should be set, but we don't check what it is.
+  EXPECT_TRUE(parsed.time_log_closed().has_time_zone_offset_from_gmt_sec());
+}
+
+TEST_F(MetricsLogTest,
+       Timestamps_OngoingLogLog_WithNetworkClockExists_AlwaysUnavailable) {
+  // Setup a network clock that doesn't provide a timestamp (time unavailable).
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::MainThreadType::IO);
+  std::unique_ptr<network_time::FieldTrialTest> field_trial_test(
+      new network_time::FieldTrialTest());
+  field_trial_test->SetFeatureParams(
+      true, 0.0, network_time::NetworkTimeTracker::FETCHES_ON_DEMAND_ONLY);
+  scoped_refptr<network::TestSharedURLLoaderFactory> shared_url_loader_factory =
+      base::MakeRefCounted<network::TestSharedURLLoaderFactory>();
+  TestingPrefServiceSimple pref_service;
+  network_time::NetworkTimeTracker::RegisterPrefs(pref_service.registry());
+  network_time::NetworkTimeTracker network_time_tracker(
+      std::make_unique<base::DefaultClock>(),
+      std::make_unique<base::DefaultTickClock>(), &pref_service,
+      shared_url_loader_factory, /*fetch_behavior=*/std::nullopt);
+
+  // Set up the backup client clock.
+  TestMetricsServiceClient client;
+  std::unique_ptr<base::SimpleTestClock> clock =
+      std::make_unique<base::SimpleTestClock>();
+
+  // Should have times from regular (ongoing) logs.  These times should come
+  // from the backup client clock, not the (unavailable) network clock.
+  clock->SetNow(base::Time::FromTimeT(1));
+  MetricsLog log(kClientId, kSessionId, MetricsLog::ONGOING_LOG, clock.get(),
+                 &network_time_tracker, &client);
+  clock->SetNow(base::Time::FromTimeT(2));
+
+  // Check the output.
+  std::string encoded;
+  log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
+                  log.GetCurrentClockTime(/*record_time_zone=*/true), &encoded);
+  ChromeUserMetricsExtension parsed;
+  ASSERT_TRUE(parsed.ParseFromString(encoded));
+  EXPECT_TRUE(parsed.has_time_log_created());
+  EXPECT_EQ(parsed.time_log_created().time_sec(), 1);
+  EXPECT_EQ(parsed.time_log_created().time_source(),
+            ChromeUserMetricsExtension::RealLocalTime::CLIENT_CLOCK);
+  // The timezone should not be set in the time_log_created field.
+  EXPECT_FALSE(parsed.time_log_created().has_time_zone_offset_from_gmt_sec());
+  EXPECT_TRUE(parsed.has_time_log_closed());
+  EXPECT_EQ(parsed.time_log_closed().time_sec(), 2);
+  EXPECT_EQ(parsed.time_log_closed().time_source(),
+            ChromeUserMetricsExtension::RealLocalTime::CLIENT_CLOCK);
+  // The timezone should be set, but we don't check what it is.
+  EXPECT_TRUE(parsed.time_log_closed().has_time_zone_offset_from_gmt_sec());
+}
+
+TEST_F(
+    MetricsLogTest,
+    Timestamps_OngoingLogLog_WithNetworkClockExists_UnavailableThenAvailable) {
+  // Setup a network clock that initially doesn't provide a timestamp (time
+  // unavailable).
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::MainThreadType::IO);
+  std::unique_ptr<network_time::FieldTrialTest> field_trial_test(
+      new network_time::FieldTrialTest());
+  field_trial_test->SetFeatureParams(
+      true, 0.0, network_time::NetworkTimeTracker::FETCHES_ON_DEMAND_ONLY);
+  scoped_refptr<network::TestSharedURLLoaderFactory> shared_url_loader_factory =
+      base::MakeRefCounted<network::TestSharedURLLoaderFactory>();
+  TestingPrefServiceSimple pref_service;
+  network_time::NetworkTimeTracker::RegisterPrefs(pref_service.registry());
+  base::SimpleTestClock* clock = new base::SimpleTestClock;
+  base::SimpleTestTickClock* tick_clock = new base::SimpleTestTickClock();
+  // Do this to be sure that |is_null| returns false.
+  clock->Advance(base::Days(111));
+  tick_clock->Advance(base::Days(222));
+  network_time::NetworkTimeTracker network_time_tracker(
+      std::unique_ptr<base::Clock>(clock),
+      std::unique_ptr<const base::TickClock>(tick_clock), &pref_service,
+      shared_url_loader_factory, /*fetch_behavior=*/std::nullopt);
+
+  // Should have times from regular (ongoing) logs.  The creation time should
+  // come from the backup client clock; the closure time should come from the
+  // network clock.
+  clock->SetNow(base::Time::FromTimeT(1));
+  TestMetricsServiceClient client;
+  MetricsLog log(kClientId, kSessionId, MetricsLog::ONGOING_LOG, clock,
+                 &network_time_tracker, &client);
+  // Advance the backup client clock.  (Value should not be used; merely
+  // advanced to make sure the new value doesn't show up anywhere.)
+  clock->SetNow(base::Time::FromTimeT(2));
+  // Set the network time tracker.
+  UpdateNetworkTime(&network_time_tracker, tick_clock,
+                    base::Time::FromTimeT(3));
+
+  // Check the output.
+  std::string encoded;
+  log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
+                  log.GetCurrentClockTime(/*record_time_zone=*/true), &encoded);
+  ChromeUserMetricsExtension parsed;
+  ASSERT_TRUE(parsed.ParseFromString(encoded));
+  EXPECT_TRUE(parsed.has_time_log_created());
+  EXPECT_EQ(parsed.time_log_created().time_sec(), 1);
+  EXPECT_EQ(parsed.time_log_created().time_source(),
+            ChromeUserMetricsExtension::RealLocalTime::CLIENT_CLOCK);
+  // The timezone should not be set in the time_log_created field.
+  EXPECT_FALSE(parsed.time_log_created().has_time_zone_offset_from_gmt_sec());
+  EXPECT_TRUE(parsed.has_time_log_closed());
+  EXPECT_EQ(parsed.time_log_closed().time_sec(), 3);
+  EXPECT_EQ(parsed.time_log_closed().time_source(),
+            ChromeUserMetricsExtension::RealLocalTime::NETWORK_TIME_CLOCK);
+  // The timezone should be set, but we don't check what it is.
+  EXPECT_TRUE(parsed.time_log_closed().has_time_zone_offset_from_gmt_sec());
+}
+
+TEST_F(MetricsLogTest,
+       Timestamps_OngoingLogLog_WithNetworkClockExists_AlwaysAvailable) {
+  // Setup a network clock that provides a timestamp.
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::MainThreadType::IO);
+  std::unique_ptr<network_time::FieldTrialTest> field_trial_test(
+      new network_time::FieldTrialTest());
+  field_trial_test->SetFeatureParams(
+      true, 0.0, network_time::NetworkTimeTracker::FETCHES_ON_DEMAND_ONLY);
+  scoped_refptr<network::TestSharedURLLoaderFactory> shared_url_loader_factory =
+      base::MakeRefCounted<network::TestSharedURLLoaderFactory>();
+  TestingPrefServiceSimple pref_service;
+  network_time::NetworkTimeTracker::RegisterPrefs(pref_service.registry());
+  base::SimpleTestClock* clock = new base::SimpleTestClock;
+  base::SimpleTestTickClock* tick_clock = new base::SimpleTestTickClock();
+  // Do this to be sure that |is_null| returns false.
+  clock->Advance(base::Days(111));
+  tick_clock->Advance(base::Days(222));
+  network_time::NetworkTimeTracker network_time_tracker(
+      std::unique_ptr<base::Clock>(clock),
+      std::unique_ptr<const base::TickClock>(tick_clock), &pref_service,
+      shared_url_loader_factory, /*fetch_behavior=*/std::nullopt);
+
+  // Should have times from regular (ongoing) logs.  These times should come
+  // from the network clock.
+  // Set the backup client clock time.  (Value should not be used; merely set
+  // to make sure the value doesn't show up anywhere.)
+  clock->SetNow(base::Time::FromTimeT(1));
+  // Set the network time tracker.
+  UpdateNetworkTime(&network_time_tracker, tick_clock,
+                    base::Time::FromTimeT(2));
+  TestMetricsServiceClient client;
+  MetricsLog log(kClientId, kSessionId, MetricsLog::ONGOING_LOG, clock,
+                 &network_time_tracker, &client);
+  // Advance the backup client clock.  (Value should not be used; merely
+  // advanced to make sure the new value doesn't show up anywhere.)
+  clock->SetNow(base::Time::FromTimeT(3));
+  // Advance and set the network time clock.
+  UpdateNetworkTime(&network_time_tracker, tick_clock,
+                    base::Time::FromTimeT(4));
+
+  // Check the output.
+  std::string encoded;
+  log.FinalizeLog(/*truncate_events=*/false, client_.GetVersionString(),
+                  log.GetCurrentClockTime(/*record_time_zone=*/true), &encoded);
+  ChromeUserMetricsExtension parsed;
+  ASSERT_TRUE(parsed.ParseFromString(encoded));
+  EXPECT_TRUE(parsed.has_time_log_created());
+  // Time should be the first time returned by the network time tracker.
+  EXPECT_EQ(parsed.time_log_created().time_sec(), 2);
+  EXPECT_EQ(parsed.time_log_created().time_source(),
+            ChromeUserMetricsExtension::RealLocalTime::NETWORK_TIME_CLOCK);
+  // The timezone should not be set in the time_log_created field.
+  EXPECT_FALSE(parsed.time_log_created().has_time_zone_offset_from_gmt_sec());
+  EXPECT_TRUE(parsed.has_time_log_closed());
+  // Time should be the second time returned by the network time tracker.
+  EXPECT_EQ(parsed.time_log_closed().time_sec(), 4);
+  EXPECT_EQ(parsed.time_log_closed().time_source(),
+            ChromeUserMetricsExtension::RealLocalTime::NETWORK_TIME_CLOCK);
   // The timezone should be set, but we don't check what it is.
   EXPECT_TRUE(parsed.time_log_closed().has_time_zone_offset_from_gmt_sec());
 }
@@ -585,8 +833,7 @@ TEST_F(MetricsLogTest, OngoingLogStabilityMetrics) {
   delegating_provider.RegisterMetricsProvider(
       base::WrapUnique<MetricsProvider>(test_provider));
   log.RecordEnvironment(&delegating_provider);
-  log.RecordCurrentSessionData(base::TimeDelta(), base::TimeDelta(),
-                               &delegating_provider, &prefs_);
+  log.RecordCurrentSessionData(&delegating_provider, &prefs_);
 
   // The test provider should have been called upon to provide regular but not
   // initial stability metrics.

@@ -4,8 +4,8 @@
 
 package org.chromium.ui.modaldialog;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogPriority;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -22,11 +22,10 @@ import java.util.function.Consumer;
  * A container class to provide basic operations for pending dialogs with attributes {@link
  * ModalDialogType} and {@link ModalDialogPriority}.
  */
+@NullMarked
 class PendingDialogContainer {
-    /**
-     *  A class representing the attributes of a pending dialog.
-     */
-    class PendingDialogType {
+    /** A class representing the attributes of a pending dialog. */
+    static class PendingDialogType {
         public final PropertyModel propertyModel;
         public final @ModalDialogType int dialogType;
         public final @ModalDialogPriority int dialogPriority;
@@ -69,13 +68,16 @@ class PendingDialogContainer {
      *
      * @param dialogType The {@link ModalDialogType} of the {@link PropertyModel}.
      * @param dialogPriority The {@link ModalDialogPriority} of the {@link PropertyModel}.
-     * @param model The {@link PropertyModel} which contains the {@link ModalDialogProperties}
-     *         to launch a dialog.
-     * @param showAsNext If set to true, the {@link PropertyModel} |model| would be put as first
-     *         in its list of dialog.
+     * @param model The {@link PropertyModel} which contains the {@link ModalDialogProperties} to
+     *     launch a dialog.
+     * @param showAsNext If set to true, the {@link PropertyModel} |model| would be put as first in
+     *     its list of dialog.
      */
-    void put(@ModalDialogType int dialogType, @ModalDialogPriority int dialogPriority,
-            PropertyModel model, boolean showAsNext) {
+    void put(
+            @ModalDialogType int dialogType,
+            @ModalDialogPriority int dialogPriority,
+            @Nullable PropertyModel model,
+            boolean showAsNext) {
         Integer key = computeKey(dialogType, dialogPriority);
         List<PropertyModel> dialogs = mPendingDialogs.get(key);
         if (dialogs == null) mPendingDialogs.put(key, dialogs = new ArrayList<>());
@@ -168,7 +170,8 @@ class PendingDialogContainer {
     boolean remove(@ModalDialogType int dialogType, Consumer<PropertyModel> consumer) {
         boolean dialogRemoved = false;
         for (@ModalDialogPriority int priority = ModalDialogPriority.RANGE_MIN;
-                priority <= ModalDialogPriority.RANGE_MAX; ++priority) {
+                priority <= ModalDialogPriority.RANGE_MAX;
+                ++priority) {
             Integer key = computeKey(dialogType, priority);
             List<PropertyModel> dialogs = mPendingDialogs.get(key);
             // No matching dialogs of type |dialogType| found with |priority|, continue searching
@@ -195,9 +198,11 @@ class PendingDialogContainer {
     @Nullable
     PendingDialogType getNextPendingDialog(Set<Integer> suspendedTypes) {
         for (@ModalDialogPriority int priority = ModalDialogPriority.RANGE_MAX;
-                priority >= ModalDialogPriority.RANGE_MIN; --priority) {
+                priority >= ModalDialogPriority.RANGE_MIN;
+                --priority) {
             for (@ModalDialogType int type = ModalDialogType.RANGE_MAX;
-                    type >= ModalDialogType.RANGE_MIN; --type) {
+                    type >= ModalDialogType.RANGE_MIN;
+                    --type) {
                 if (suspendedTypes.contains(type)) continue;
                 Integer key = computeKey(type, priority);
                 List<PropertyModel> dialogs = mPendingDialogs.get(key);

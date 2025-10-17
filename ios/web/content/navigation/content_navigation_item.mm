@@ -12,10 +12,6 @@
 #import "content/public/browser/web_contents.h"
 #import "net/http/http_request_headers.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 const char kNavigationItemDataKey[] = "navigation_item";
@@ -44,7 +40,7 @@ class NavigationItemHolder : public base::SupportsUserData::Data {
   std::unique_ptr<NavigationItem> navigation_item_;
 };
 
-// TODO(crbug.com/1419001): rather than converting here, we could instead use
+// TODO(crbug.com/40257932): rather than converting here, we could instead use
 // network::mojom::ReferrerPolicy directly and remove web::ReferrerPolicy.
 ReferrerPolicy FromContentReferrerPolicy(
     network::mojom::ReferrerPolicy policy) {
@@ -70,7 +66,6 @@ ReferrerPolicy FromContentReferrerPolicy(
     default:
       NOTREACHED();
   }
-  return ReferrerPolicyDefault;
 }
 
 NavigationItem* ContentNavigationItem::GetOrCreate(
@@ -159,8 +154,8 @@ const SSLStatus& ContentNavigationItem::GetSSL() const {
 }
 
 SSLStatus& ContentNavigationItem::GetSSL() {
-  // TODO(crbug.com/1419001): update web::SSLStatus to include some of the newer
-  // fields/values that are included in content::SSLStatus.
+  // TODO(crbug.com/40257932): update web::SSLStatus to include some of the
+  // newer fields/values that are included in content::SSLStatus.
   const auto& content_ssl_status = entry_->GetSSL();
   constexpr int WEB_SUPPORTED_STATUS_MASK =
       content::SSLStatus::DISPLAYED_INSECURE_CONTENT;
@@ -190,6 +185,14 @@ void ContentNavigationItem::SetUserAgentType(UserAgentType type) {
 
 UserAgentType ContentNavigationItem::GetUserAgentType() const {
   return user_agent_type_;
+}
+
+void ContentNavigationItem::SetSecurityScopedFileResource(NSData* data) {
+  security_scoped_file_resource_ = [data copy];
+}
+
+NSData* ContentNavigationItem::GetSecurityScopedFileResource() {
+  return security_scoped_file_resource_;
 }
 
 bool ContentNavigationItem::HasPostData() const {
@@ -224,7 +227,7 @@ void ContentNavigationItem::SetHttpsUpgradeType(
 }
 
 HttpsUpgradeType ContentNavigationItem::GetHttpsUpgradeType() const {
-  // TODO(crbug.com/1419001): Determine an analog.
+  // TODO(crbug.com/40257932): Determine an analog.
   return HttpsUpgradeType::kNone;
 }
 

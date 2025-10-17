@@ -26,7 +26,8 @@
 #include "third_party/blink/renderer/core/editing/position.h"
 
 #include <stdio.h>
-#include <ostream>  // NOLINT
+
+#include <ostream>
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
@@ -194,7 +195,6 @@ Node* PositionTemplate<Strategy>::ComputeContainerNode() const {
     }
   }
   NOTREACHED();
-  return nullptr;
 }
 
 template <typename Strategy>
@@ -226,7 +226,6 @@ int PositionTemplate<Strategy>::ComputeOffsetInContainerNode() const {
       return Strategy::Index(*anchor_node_) + 1;
   }
   NOTREACHED();
-  return 0;
 }
 
 // Neighbor-anchored positions are invalid DOM positions, so they need to be
@@ -291,7 +290,6 @@ Node* PositionTemplate<Strategy>::ComputeNodeBeforePosition() const {
       return anchor_node_.Get();
   }
   NOTREACHED();
-  return nullptr;
 }
 
 template <typename Strategy>
@@ -310,7 +308,6 @@ Node* PositionTemplate<Strategy>::ComputeNodeAfterPosition() const {
       return Strategy::NextSibling(*anchor_node_);
   }
   NOTREACHED();
-  return nullptr;
 }
 
 // An implementation of |Range::firstNode()|.
@@ -452,7 +449,6 @@ bool PositionTemplate<Strategy>::AtFirstEditingPositionForNode() const {
       return !EditingStrategy::LastOffsetForEditing(AnchorNode());
   }
   NOTREACHED();
-  return false;
 }
 
 template <typename Strategy>
@@ -648,7 +644,6 @@ Position ToPositionInDOMTree(const PositionInFlatTree& position) {
     }
     default:
       NOTREACHED();
-      return Position();
   }
 }
 
@@ -670,7 +665,6 @@ String PositionTemplate<Strategy>::ToAnchorTypeAndOffsetString() const {
       return "afterAnchor";
   }
   NOTREACHED();
-  return g_empty_string;
 }
 
 #if DCHECK_IS_ON()
@@ -721,7 +715,6 @@ std::ostream& operator<<(std::ostream& ostream,
       return ostream << "offsetInAnchor";
   }
   NOTREACHED();
-  return ostream << "anchorType=" << static_cast<int>(anchor_type);
 }
 
 std::ostream& operator<<(std::ostream& ostream, const Position& position) {

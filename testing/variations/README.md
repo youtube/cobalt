@@ -5,25 +5,24 @@ which is used to ensure test coverage of active field trials.
 
 For each study, the first available experiment after platform filtering is used
 as the default experiment for Chromium builds. This experiment is also used for
-perf bots and various browser tests in the waterfall (e.g. browser_tests,
-components_browsertests, content_browsertests, extensions_browsertests, interactive_ui_tests and
-sync_integration_tests). It is not used by unit test targets.
+perf bots and various tests in the waterfall (browser tests, including those in
+browser_tests, components_browsertests, content_browsertests,
+extensions_browsertests, interactive_ui_tests, and sync_integration_tests, and
+[web platform tests](/docs/testing/web_platform_tests.md)). It is not used by
+unit test targets.
 
-> Note: This configuration applies specifically to Chromium developer builds.
-> Chrome branded / official builds do not use these definitions by default.
-> They can, however, be enabled with the `--enable-field-trial-config` switch.
+> Note: This configuration applies specifically to Chromium developer and
+> [Chrome for Testing branded](https://goo.gle/chrome-for-testing) builds.
+> Chrome branded builds do not use these definitions by default. They can, however,
+> be enabled with the `--enable-field-trial-config` switch.
 > For Chrome branded Android builds, due to binary size constraints, the
 > configuration cannot be applied by this switch.
 
 > Note: Non-developer builds of Chromium (for example, non-Chrome browsers,
 > or Chromium builds provided by Linux distros) should disable the testing
 > config by either (1) specifying the GN flag `disable_fieldtrial_testing_config=true`,
-> (2) specifying the `--disable-field-trial-config` switch, (3) specifying field
-> trials using the `--force-fieldtrials` switch, or (4) specifying a custom
-> variations server URL using the `--variations-server-url` switch. In order to
-> apply the testing configuration as well as specify additional field trials
-> (using `--force-fieldtrials`), the `--enable-field-trial-config` switch can be
-> used.
+> (2) specifying the `--disable-field-trial-config` switch or (3) specifying a
+> custom variations server URL using the `--variations-server-url` switch.
 
 > Note: An experiment in the testing configuration file that enables/disables a
 > feature that is explicitly overridden (e.g. using the `--enable-features` or
@@ -109,7 +108,7 @@ the experiment group name.
 > config.
 
 The remaining keys -- `enable_features`, `disable_features`, `min_os_version`,
-and `params` -- are optional.
+`disable_benchmarking`, and `params` -- are optional.
 
 `enable_features` and `disable_features` indicate which features should be
 enabled and disabled, respectively, through the
@@ -119,6 +118,18 @@ enabled and disabled, respectively, through the
 the experiment. This string is decoded as a `base::Version`. The same version is
 applied to all platforms. If you need different versions for different
 platforms, you will need to use different studies.
+
+`disable_benchmarking` indicates that when the flag
+`--enable-benchmarking` is passed at start up this experiment should not be
+enabled. This should be used extremely sparingly.
+
+> Warning: `disable_benchmarking` works as described above on most platforms
+> however when using the
+> [fieldtrial_util.py](https://source.chromium.org/chromium/chromium/src/+/main:tools/variations/fieldtrial_util.py)
+> script we will always exclude `disable_benchmarking` experiments. This is
+> due to this script being primarily used for benchmarking, and because it
+> generates command lines flags to set state we don't know if
+> `--enable-benchmarking` will be passed or not.
 
 `params` is a dictionary mapping parameter name to parameter value.
 

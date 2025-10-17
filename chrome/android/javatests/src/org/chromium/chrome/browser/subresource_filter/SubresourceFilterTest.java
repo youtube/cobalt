@@ -12,6 +12,7 @@ import android.widget.TextView;
 import androidx.test.espresso.Espresso;
 import androidx.test.filters.LargeTest;
 
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -19,14 +20,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.MockSafeBrowsingApiHandler;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.infobar.InfoBarContainer;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -35,10 +36,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.util.ChromeTabUtils;
-import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.browser_ui.modaldialog.TabModalPresenter;
-import org.chromium.components.infobars.InfoBar;
 import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
@@ -46,14 +44,12 @@ import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.components.messages.MessageStateHandler;
 import org.chromium.components.messages.MessagesTestHelper;
 import org.chromium.components.safe_browsing.SafeBrowsingApiBridge;
-import org.chromium.components.subresource_filter.AdsBlockedInfoBar;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.EmbeddedTestServerRule;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.test.util.UiRestriction;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -62,7 +58,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * End to end tests of SubresourceFilter ad filtering on Android.
  *
- * Since these tests take a while to set up (averaging 12 seconds between activity startup and
+ * <p>Since these tests take a while to set up (averaging 12 seconds between activity startup and
  * ruleset publishing), prefer to limit the number of test cases where possible.
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -71,8 +67,7 @@ public final class SubresourceFilterTest {
     @Rule
     public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
 
-    @Rule
-    public EmbeddedTestServerRule mTestServerRule = new EmbeddedTestServerRule();
+    @Rule public EmbeddedTestServerRule mTestServerRule = new EmbeddedTestServerRule();
 
     private EmbeddedTestServer mTestServer;
 
@@ -87,7 +82,7 @@ public final class SubresourceFilterTest {
 
     private void createAndPublishRulesetDisallowingSuffix(String suffix) {
         TestRulesetPublisher publisher = new TestRulesetPublisher();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> publisher.createAndPublishRulesetDisallowingSuffixForTesting(suffix));
 
         // This takes an average of 6 seconds but can range anywhere from 2-10 seconds on occasion.
@@ -100,7 +95,7 @@ public final class SubresourceFilterTest {
     @Before
     public void setUp() throws Exception {
         mTestServer = mTestServerRule.getServer();
-        SafeBrowsingApiBridge.setHandler(new MockSafeBrowsingApiHandler());
+        SafeBrowsingApiBridge.setSafeBrowsingApiHandler(new MockSafeBrowsingApiHandler());
         mActivityTestRule.startMainActivityOnBlankPage();
 
         // Disallow all jpgs.
@@ -110,6 +105,7 @@ public final class SubresourceFilterTest {
     @After
     public void tearDown() {
         MockSafeBrowsingApiHandler.clearMockResponses();
+        SafeBrowsingApiBridge.clearHandlerForTesting();
     }
 
     @Test
@@ -121,125 +117,30 @@ public final class SubresourceFilterTest {
         String loaded = mActivityTestRule.runJavaScriptCodeInCurrentTab("imgLoaded");
         Assert.assertEquals("true", loaded);
 
-        // Check that the infobar is not showing.
-        List<InfoBar> infoBars = mActivityTestRule.getInfoBars();
-        CriteriaHelper.pollUiThread(() -> infoBars.isEmpty());
+        verifyNoMessageShown();
     }
 
     @Test
     @LargeTest
-    @DisableFeatures(ChromeFeatureList.MESSAGES_FOR_ANDROID_ADS_BLOCKED)
-    public void resourceFilteredClose_InfobarUI() throws Exception {
-        String url = mTestServer.getURL(PAGE_WITH_JPG);
-        Assert.assertFalse(
-                loadPageWithBlockableContentAndTestIfBlocked(url, METADATA_FOR_ENFORCEMENT));
-
-        // Check that the infobar is showing.
-        List<InfoBar> infoBars = mActivityTestRule.getInfoBars();
-        CriteriaHelper.pollUiThread(() -> infoBars.size() == 1);
-        AdsBlockedInfoBar infobar = (AdsBlockedInfoBar) infoBars.get(0);
-
-        // Click the link once to expand it.
-        TestThreadUtils.runOnUiThreadBlocking(infobar::onLinkClicked);
-
-        // Check the checkbox and press the button to reload.
-        TestThreadUtils.runOnUiThreadBlocking(() -> infobar.onCheckedChanged(null, true));
-
-        // Think better of it and just close the infobar.
-        TestThreadUtils.runOnUiThreadBlocking(infobar::onCloseButtonClicked);
-        Tab tab = mActivityTestRule.getActivity().getActivityTab();
-        CriteriaHelper.pollUiThread(() -> !InfoBarContainer.get(tab).hasInfoBars());
-    }
-
-    @Test
-    @LargeTest
-    @DisableFeatures(ChromeFeatureList.MESSAGES_FOR_ANDROID_ADS_BLOCKED)
-    public void resourceFilteredClickLearnMore_InfobarUI() throws Exception {
-        String url = mTestServer.getURL(PAGE_WITH_JPG);
-        Assert.assertFalse(
-                loadPageWithBlockableContentAndTestIfBlocked(url, METADATA_FOR_ENFORCEMENT));
-
-        Tab originalTab = mActivityTestRule.getActivity().getActivityTab();
-        CallbackHelper tabCreatedCallback = new CallbackHelper();
-        TabModel tabModel = mActivityTestRule.getActivity().getTabModelSelector().getCurrentModel();
-        TestThreadUtils.runOnUiThreadBlocking(() -> tabModel.addObserver(new TabModelObserver() {
-            @Override
-            public void didAddTab(Tab tab, @TabLaunchType int type,
-                    @TabCreationState int creationState, boolean markedForSelection) {
-                if (tab.getUrl().getSpec().equals(LEARN_MORE_PAGE)) {
-                    tabCreatedCallback.notifyCalled();
-                }
-            }
-        }));
-
-        // Check that the infobar is showing.
-        List<InfoBar> infoBars = mActivityTestRule.getInfoBars();
-        CriteriaHelper.pollUiThread(() -> infoBars.size() == 1);
-        AdsBlockedInfoBar infobar = (AdsBlockedInfoBar) infoBars.get(0);
-
-        // Click the link once to expand it.
-        TestThreadUtils.runOnUiThreadBlocking(infobar::onLinkClicked);
-
-        // Click again to navigate, which should spawn a new tab.
-        TestThreadUtils.runOnUiThreadBlocking(infobar::onLinkClicked);
-
-        // Wait for the tab to be added with the correct URL. Note, do not wait for this URL to be
-        // loaded since it is not controlled by the test instrumentation. Just waiting for the
-        // navigation to start should be OK though.
-        tabCreatedCallback.waitForCallback("Never received tab created event", 0);
-
-        // The infobar should not be removed on the original tab.
-        CriteriaHelper.pollUiThread(() -> InfoBarContainer.get(originalTab).hasInfoBars());
-    }
-
-    @Test
-    @LargeTest
-    @Restriction(UiRestriction.RESTRICTION_TYPE_PHONE)
-    @EnableFeatures(ChromeFeatureList.MESSAGES_FOR_ANDROID_ADS_BLOCKED)
-    public void resourceFilteredClickLearnMore_MessagesUI_ReshowDialogOnPhoneOnBackPress()
+    @Restriction(DeviceFormFactor.PHONE)
+    public void resourceFilteredClickLearnMore_MessagesUi_ReshowDialogOnPhoneOnBackPress()
             throws Exception {
-        testResourceFilteredClickLearnMore_MessagesUIFlow();
+        testResourceFilteredClickLearnMore_MessagesUiFlow();
     }
 
     @Test
     @LargeTest
-    @Restriction(UiRestriction.RESTRICTION_TYPE_TABLET)
-    @EnableFeatures(ChromeFeatureList.MESSAGES_FOR_ANDROID_ADS_BLOCKED)
-    public void resourceFilteredClickLearnMore_MessagesUI_ReshowDialogOnTabletOnBackPress()
+    @Restriction(DeviceFormFactor.TABLET)
+    public void resourceFilteredClickLearnMore_MessagesUi_ReshowDialogOnTabletOnBackPress()
             throws Exception {
-        testResourceFilteredClickLearnMore_MessagesUIFlow();
+        testResourceFilteredClickLearnMore_MessagesUiFlow();
     }
 
     @Test
     @LargeTest
-    @DisableFeatures(ChromeFeatureList.MESSAGES_FOR_ANDROID_ADS_BLOCKED)
-    public void resourceFilteredReload_InfobarUI() throws Exception {
+    public void resourceFilteredReload_MessagesUi() throws Exception {
         String url = mTestServer.getURL(PAGE_WITH_JPG);
-        Assert.assertFalse(
-                loadPageWithBlockableContentAndTestIfBlocked(url, METADATA_FOR_ENFORCEMENT));
-
-        // Check that the infobar is showing.
-        List<InfoBar> infoBars = mActivityTestRule.getInfoBars();
-        CriteriaHelper.pollUiThread(() -> infoBars.size() == 1);
-        AdsBlockedInfoBar infobar = (AdsBlockedInfoBar) infoBars.get(0);
-
-        // Click the link once to expand it.
-        TestThreadUtils.runOnUiThreadBlocking(infobar::onLinkClicked);
-
-        // Check the checkbox and press the button to reload.
-        TestThreadUtils.runOnUiThreadBlocking(() -> infobar.onCheckedChanged(null, true));
-        TestThreadUtils.runOnUiThreadBlocking(() -> infobar.onButtonClicked(true));
-
-        Assert.assertTrue(verifyPageReloadedWithOriginalContent(url));
-    }
-
-    @Test
-    @LargeTest
-    @EnableFeatures(ChromeFeatureList.MESSAGES_FOR_ANDROID_ADS_BLOCKED)
-    public void resourceFilteredReload_MessagesUI() throws Exception {
-        String url = mTestServer.getURL(PAGE_WITH_JPG);
-        Assert.assertFalse(
-                loadPageWithBlockableContentAndTestIfBlocked(url, METADATA_FOR_ENFORCEMENT));
+        Assert.assertFalse(loadPageWithBlockableContentAndTestIfBlocked(url, false));
 
         // Check that the Ads Blocked message is showing and get the active message.
         PropertyModel message = verifyAndGetAdsBlockedMessage();
@@ -248,9 +149,9 @@ public final class SubresourceFilterTest {
         PropertyModel adsBlockedDialog = createAdsBlockedDialog(message);
         ModalDialogProperties.Controller dialogController =
                 adsBlockedDialog.get(ModalDialogProperties.CONTROLLER);
-        TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> dialogController.onClick(
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        dialogController.onClick(
                                 adsBlockedDialog, ModalDialogProperties.ButtonType.POSITIVE));
 
         Assert.assertTrue(verifyPageReloadedWithOriginalContent(url));
@@ -260,30 +161,33 @@ public final class SubresourceFilterTest {
     @LargeTest
     public void resourceNotFilteredWithWarning() throws Exception {
         String url = mTestServer.getURL(PAGE_WITH_JPG);
-        Assert.assertTrue(loadPageWithBlockableContentAndTestIfBlocked(url, METADATA_FOR_WARNING));
+        Assert.assertTrue(loadPageWithBlockableContentAndTestIfBlocked(url, true));
 
-        // Check that the infobar is not showing.
-        List<InfoBar> infoBars = mActivityTestRule.getInfoBars();
-        CriteriaHelper.pollUiThread(() -> infoBars.isEmpty());
+        verifyNoMessageShown();
     }
 
-    private void testResourceFilteredClickLearnMore_MessagesUIFlow()
+    private void testResourceFilteredClickLearnMore_MessagesUiFlow()
             throws TimeoutException, ExecutionException, InterruptedException {
         String url = mTestServer.getURL(PAGE_WITH_JPG);
-        Assert.assertFalse(
-                loadPageWithBlockableContentAndTestIfBlocked(url, METADATA_FOR_ENFORCEMENT));
+        Assert.assertFalse(loadPageWithBlockableContentAndTestIfBlocked(url, false));
 
         CallbackHelper tabCreatedCallback = new CallbackHelper();
         TabModel tabModel = mActivityTestRule.getActivity().getTabModelSelector().getCurrentModel();
-        TestThreadUtils.runOnUiThreadBlocking(() -> tabModel.addObserver(new TabModelObserver() {
-            @Override
-            public void didAddTab(Tab tab, @TabLaunchType int type,
-                    @TabCreationState int creationState, boolean markedForSelection) {
-                if (tab.getUrl().getSpec().equals(LEARN_MORE_PAGE)) {
-                    tabCreatedCallback.notifyCalled();
-                }
-            }
-        }));
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        tabModel.addObserver(
+                                new TabModelObserver() {
+                                    @Override
+                                    public void didAddTab(
+                                            Tab tab,
+                                            @TabLaunchType int type,
+                                            @TabCreationState int creationState,
+                                            boolean markedForSelection) {
+                                        if (tab.getUrl().getSpec().equals(LEARN_MORE_PAGE)) {
+                                            tabCreatedCallback.notifyCalled();
+                                        }
+                                    }
+                                }));
 
         // Check that the Ads Blocked message is showing and get the active message.
         PropertyModel message = verifyAndGetAdsBlockedMessage();
@@ -292,17 +196,20 @@ public final class SubresourceFilterTest {
 
         // Trigger the Ads Blocked dialog and simulate the "Learn more" link click.
         createAdsBlockedDialog(message);
-        View dialogView = ((TabModalPresenter) mActivityTestRule.getActivity()
-                                   .getModalDialogManager()
-                                   .getCurrentPresenterForTest())
-                                  .getDialogContainerForTest();
+        View dialogView =
+                ((TabModalPresenter)
+                                mActivityTestRule
+                                        .getActivity()
+                                        .getModalDialogManager()
+                                        .getCurrentPresenterForTest())
+                        .getDialogContainerForTest();
         TextView messageView = dialogView.findViewById(R.id.message_paragraph_1);
         Spanned spannedMessage = (Spanned) messageView.getText();
         ClickableSpan[] spans =
                 spannedMessage.getSpans(0, spannedMessage.length(), ClickableSpan.class);
         Assert.assertEquals(
                 "Ads Blocked dialog message text must have only 1 ClickableSpan.", 1, spans.length);
-        TestThreadUtils.runOnUiThreadBlocking(() -> spans[0].onClick(messageView));
+        ThreadUtils.runOnUiThreadBlocking(() -> spans[0].onClick(messageView));
 
         // Wait for the tab to be added with the correct URL. Note, do not wait for this URL to be
         // loaded since it is not controlled by the test instrumentation. Just waiting for the
@@ -313,34 +220,46 @@ public final class SubresourceFilterTest {
         // Press the back button to go to the original tab where the dialog was shown.
         Espresso.pressBack();
 
-        CriteriaHelper.pollUiThread(() -> {
-            // Verify that the dialog is re-shown on the original tab.
-            return mActivityTestRule.getActivity().getModalDialogManager().getCurrentDialogForTest()
-                    != null;
-        }, "The dialog should be re-shown on navigation to the original tab.");
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    // Verify that the dialog is re-shown on the original tab.
+                    return mActivityTestRule
+                                    .getActivity()
+                                    .getModalDialogManager()
+                                    .getCurrentDialogForTest()
+                            != null;
+                },
+                "The dialog should be re-shown on navigation to the original tab.");
     }
 
-    private boolean loadPageWithBlockableContentAndTestIfBlocked(String url, String metadata)
+    private boolean loadPageWithBlockableContentAndTestIfBlocked(String url, boolean isForWarning)
             throws TimeoutException {
-        MockSafeBrowsingApiHandler.addMockResponse(url, metadata);
+        int[] threatAttribute =
+                isForWarning
+                        ? new int[] {MockSafeBrowsingApiHandler.THREAT_ATTRIBUTE_CANARY_CODE}
+                        : new int[0];
+        MockSafeBrowsingApiHandler.addMockResponse(
+                url, MockSafeBrowsingApiHandler.BETTER_ADS_VIOLATION_CODE, threatAttribute);
         mActivityTestRule.loadUrl(url);
         return Boolean.parseBoolean(mActivityTestRule.runJavaScriptCodeInCurrentTab("imgLoaded"));
     }
 
     private PropertyModel verifyAndGetAdsBlockedMessage() throws ExecutionException {
-        MessageDispatcher messageDispatcher = TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> MessageDispatcherProvider.from(
-                                mActivityTestRule.getActivity().getWindowAndroid()));
-        List<MessageStateHandler> messages = MessagesTestHelper.getEnqueuedMessages(
-                messageDispatcher, MessageIdentifier.ADS_BLOCKED);
+        MessageDispatcher messageDispatcher =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                MessageDispatcherProvider.from(
+                                        mActivityTestRule.getActivity().getWindowAndroid()));
+        List<MessageStateHandler> messages =
+                MessagesTestHelper.getEnqueuedMessages(
+                        messageDispatcher, MessageIdentifier.ADS_BLOCKED);
         return MessagesTestHelper.getCurrentMessage(messages.get(0));
     }
 
     private PropertyModel createAdsBlockedDialog(PropertyModel message) {
         // Simulate the message secondary button click.
         Runnable secondaryActionCallback = message.get(MessageBannerProperties.ON_SECONDARY_ACTION);
-        TestThreadUtils.runOnUiThreadBlocking(secondaryActionCallback);
+        ThreadUtils.runOnUiThreadBlocking(secondaryActionCallback);
 
         // Retrieve the Ads Blocked dialog.
         ModalDialogManager modalDialogManager =
@@ -352,9 +271,20 @@ public final class SubresourceFilterTest {
         Tab tab = mActivityTestRule.getActivity().getActivityTab();
         ChromeTabUtils.waitForTabPageLoaded(tab, url);
 
-        CriteriaHelper.pollUiThread(() -> !InfoBarContainer.get(tab).hasInfoBars());
+        verifyNoMessageShown();
 
         // Reloading should allowlist the site, so resources should no longer be filtered.
         return Boolean.parseBoolean(mActivityTestRule.runJavaScriptCodeInCurrentTab("imgLoaded"));
+    }
+
+    private void verifyNoMessageShown() {
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Messages should not be enqueued.",
+                            MessagesTestHelper.getMessageCount(
+                                    mActivityTestRule.getActivity().getWindowAndroid()),
+                            Matchers.is(0));
+                });
     }
 }

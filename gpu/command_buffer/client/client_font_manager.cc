@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/command_buffer/client/client_font_manager.h"
 
+#include <bit>
 #include <type_traits>
 
 #include "base/bits.h"
@@ -40,7 +46,7 @@ class Serializer {
  private:
   void AlignMemory(uint32_t size, size_t alignment) {
     // Due to the math below, alignment must be a power of two.
-    DCHECK(base::bits::IsPowerOfTwo(alignment));
+    DCHECK(std::has_single_bit(alignment));
 
     size_t memory = reinterpret_cast<size_t>(memory_.get());
     size_t padding = base::bits::AlignUp(memory, alignment) - memory;
@@ -160,7 +166,7 @@ void ClientFontManager::Serialize() {
   for (SkDiscardableHandleId handle_id = last_serialized_handle_id_ + 1;
        handle_id <= last_allocated_handle_id_; handle_id++) {
     auto it = discardable_handle_map_.find(handle_id);
-    DCHECK(it != discardable_handle_map_.end());
+    CHECK(it != discardable_handle_map_.end());
 
     // We must have a valid |client_handle| here since all new handles are
     // currently in locked state.

@@ -10,8 +10,7 @@
 #include "extensions/browser/api/declarative_net_request/flat/extension_ruleset_generated.h"
 #include "extensions/browser/api/declarative_net_request/utils.h"
 
-namespace extensions {
-namespace declarative_net_request {
+namespace extensions::declarative_net_request {
 namespace {
 
 namespace dnr_api = api::declarative_net_request;
@@ -34,7 +33,7 @@ dnr_api::HeaderOperation ConvertFlatHeaderOperation(
 
 RequestAction::HeaderInfo::HeaderInfo(std::string header,
                                       dnr_api::HeaderOperation operation,
-                                      absl::optional<std::string> value)
+                                      std::optional<std::string> value)
     : header(std::move(header)),
       operation(operation),
       value(std::move(value)) {}
@@ -42,8 +41,9 @@ RequestAction::HeaderInfo::HeaderInfo(std::string header,
 RequestAction::HeaderInfo::HeaderInfo(const flat::ModifyHeaderInfo& info)
     : header(CreateString<std::string>(*info.header())),
       operation(ConvertFlatHeaderOperation(info.operation())) {
-  if (info.value())
+  if (info.value()) {
     value = CreateString<std::string>(*info.value());
+  }
 }
 
 RequestAction::HeaderInfo::~HeaderInfo() = default;
@@ -86,15 +86,16 @@ bool operator>(const RequestAction& lhs, const RequestAction& rhs) {
          std::tie(rhs.index_priority, rhs.ruleset_id, rhs.rule_id);
 }
 
-absl::optional<RequestAction> GetMaxPriorityAction(
-    absl::optional<RequestAction> lhs,
-    absl::optional<RequestAction> rhs) {
-  if (!lhs)
+std::optional<RequestAction> GetMaxPriorityAction(
+    std::optional<RequestAction> lhs,
+    std::optional<RequestAction> rhs) {
+  if (!lhs) {
     return rhs;
-  if (!rhs)
+  }
+  if (!rhs) {
     return lhs;
+  }
   return lhs > rhs ? std::move(lhs) : std::move(rhs);
 }
 
-}  // namespace declarative_net_request
-}  // namespace extensions
+}  // namespace extensions::declarative_net_request

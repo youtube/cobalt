@@ -9,14 +9,17 @@
 
 #include "ash/ash_export.h"
 #include "ash/wm/splitview/split_view_controller.h"
+#include "ash/wm/splitview/split_view_types.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace aura {
 class Window;
 }  // namespace aura
+
+namespace gfx {
+class Rect;
+}  // namespace gfx
 
 namespace views {
 class Widget;
@@ -72,36 +75,36 @@ class ASH_EXPORT SplitViewDragIndicators {
     // snapping region but not snappable.
     kFromFloat,
 
-    // Currently dragging in the |SplitViewController::SnapPosition::kPrimary|
+    // Currently dragging in the |SnapPosition::kPrimary|
     // snap area, and the dragged window is eligible to be snapped in split
     // view.
     kToSnapPrimary,
 
-    // Currently dragging in the |SplitViewController::SnapPosition::kSecondary|
+    // Currently dragging in the |SnapPosition::kSecondary|
     // snap area, and the dragged window is eligible to be snapped in split
     // view.
     kToSnapSecondary
   };
 
-  // |SplitViewController::SnapPosition::kPrimary|, if |window_dragging_state|
-  // is |kToSnapLeft| |SplitViewController::SnapPosition::kSecondary|, if
+  // |SnapPosition::kPrimary|, if |window_dragging_state|
+  // is |kToSnapLeft| |SnapPosition::kSecondary|, if
   // |window_dragging_state| is |kToSnapRight|
-  // |SplitViewController::SnapPosition::kNone| otherwise
-  static SplitViewController::SnapPosition GetSnapPosition(
+  // |SnapPosition::kNone| otherwise
+  static SnapPosition GetSnapPosition(
       WindowDraggingState window_dragging_state);
 
   // |kNoDrag| if |is_dragging| is false or split view is unsupported. If
   // |is_dragging| is true and split view is supported, then:
   // |non_snap_state|, if |snap_position| is
-  // |SplitViewController::SnapPosition::kNone|
+  // |SnapPosition::kNone|
   // |kToSnapLeft|, if |snap_position| is
-  // |SplitViewController::SnapPosition::kPrimary|
+  // |SnapPosition::kPrimary|
   // |kToSnapRight|, if |snap_position| is
-  // |SplitViewController::SnapPosition::kSecondary|
+  // |SnapPosition::kSecondary|
   static WindowDraggingState ComputeWindowDraggingState(
       bool is_dragging,
       WindowDraggingState non_snap_state,
-      SplitViewController::SnapPosition snap_position);
+      SnapPosition snap_position);
 
   explicit SplitViewDragIndicators(aura::Window* root_window);
 
@@ -110,14 +113,25 @@ class ASH_EXPORT SplitViewDragIndicators {
 
   ~SplitViewDragIndicators();
 
-  void SetDraggedWindow(aura::Window* dragged_window);
-  void SetWindowDraggingState(WindowDraggingState window_dragging_state);
-  void OnDisplayBoundsChanged();
-  bool GetIndicatorTypeVisibilityForTesting(IndicatorType type) const;
-  gfx::Rect GetLeftHighlightViewBounds() const;
   WindowDraggingState current_window_dragging_state() const {
     return current_window_dragging_state_;
   }
+
+  void SetDraggedWindow(aura::Window* dragged_window);
+  void SetWindowDraggingState(WindowDraggingState window_dragging_state);
+  void OnDisplayBoundsChanged();
+  gfx::Rect GetLeftHighlightViewBounds() const;
+
+  // Constructs the internal widget and its contents view. No-op if already
+  // constructed.
+  //
+  // The widget is also automatically constructed internally if
+  // `SetDraggedWindow|WindowDraggingState()`, so the caller is not required
+  // to explicitly call this beforehand.
+  void InitWidget();
+
+  gfx::Rect GetRightHighlightViewBoundsForTesting() const;
+  bool GetIndicatorTypeVisibilityForTesting(IndicatorType type) const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SplitViewDragIndicatorsTest,
@@ -125,17 +139,21 @@ class ASH_EXPORT SplitViewDragIndicators {
   class RotatedImageLabelView;
   class SplitViewDragIndicatorsView;
 
-  // The root content view of |widget_|.
-  raw_ptr<SplitViewDragIndicatorsView, DanglingUntriaged | ExperimentalAsh>
-      indicators_view_ = nullptr;
+  SplitViewDragIndicatorsView& GetOrCreateIndicatorsView();
 
+  const raw_ptr<aura::Window> root_window_ = nullptr;
   WindowDraggingState current_window_dragging_state_ =
       WindowDraggingState::kNoDrag;
 
   // The SplitViewDragIndicators widget. It covers the entire root window
   // and displays regions and text indicating where users should drag windows
   // enter split view.
+  //
+  // Both the widget and view are lazily constructed for performance reasons.
   std::unique_ptr<views::Widget> widget_;
+  // The root content view of |widget_|.
+  raw_ptr<SplitViewDragIndicatorsView, DanglingUntriaged> indicators_view_ =
+      nullptr;
 };
 
 }  // namespace ash

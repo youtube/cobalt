@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/nacl/renderer/plugin/pnacl_resources.h"
 
 #include <stddef.h>
@@ -50,7 +55,6 @@ PP_NaClFileInfo PnaclResources::TakeFileInfo(ResourceType type) {
   size_t index = static_cast<size_t>(type);
   if (index >= NUM_TYPES) {
     NOTREACHED();
-    return kInvalidNaClFileInfo;
   }
   PP_NaClFileInfo to_return = resources_[index].file_info;
   resources_[index].file_info = kInvalidNaClFileInfo;

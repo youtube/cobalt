@@ -5,6 +5,7 @@
 #include "chrome/browser/sharing_hub/sharing_hub_model.h"
 
 #include "base/base64.h"
+#include "base/check_deref.h"
 #include "base/logging.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/escape.h"
@@ -13,11 +14,9 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/feed/web_feed_tab_helper.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
-#include "chrome/browser/share/share_features.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/shell_integration.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -26,9 +25,9 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/qrcode_generator/qrcode_generator_bubble_controller.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/feed/feed_feature_list.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browser_thread.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image.h"
@@ -48,7 +47,7 @@ SharingHubAction::SharingHubAction(int command_id,
                                    int announcement_id)
     : command_id(command_id),
       title(title),
-      icon(icon),
+      icon(CHECK_DEREF(icon)),
       feature_name_for_metrics(feature_name_for_metrics),
       announcement_id(announcement_id) {}
 
@@ -66,38 +65,28 @@ SharingHubModel::SharingHubModel(content::BrowserContext* context)
 
 SharingHubModel::~SharingHubModel() = default;
 
-void SharingHubModel::GetFirstPartyActionList(
-    content::WebContents* web_contents,
-    std::vector<SharingHubAction>* list) {
+std::vector<SharingHubAction> SharingHubModel::GetFirstPartyActionList(
+    content::WebContents* web_contents) const {
+  std::vector<SharingHubAction> results;
   for (const auto& action : first_party_action_list_) {
     if (action.command_id == IDC_SEND_TAB_TO_SELF) {
-      if (DoShowSendTabToSelfForWebContents(web_contents)) {
-        list->push_back(action);
+      if (send_tab_to_self::ShouldDisplayEntryPoint(web_contents)) {
+        results.push_back(action);
       }
     } else if (action.command_id == IDC_QRCODE_GENERATOR) {
       if (qrcode_generator::QRCodeGeneratorBubbleController::
               IsGeneratorAvailable(web_contents->GetLastCommittedURL())) {
-        list->push_back(action);
+        results.push_back(action);
       }
-    } else if (action.command_id == IDC_FOLLOW) {
-      TabWebFeedFollowState follow_state =
-          feed::WebFeedTabHelper::GetFollowState(web_contents);
-      if (follow_state == TabWebFeedFollowState::kNotFollowed)
-        list->push_back(action);
-    } else if (action.command_id == IDC_UNFOLLOW) {
-      TabWebFeedFollowState follow_state =
-          feed::WebFeedTabHelper::GetFollowState(web_contents);
-      if (follow_state == TabWebFeedFollowState::kFollowed)
-        list->push_back(action);
     } else if (action.command_id == IDC_SAVE_PAGE) {
-      if (chrome::CanSavePage(
-              chrome::FindBrowserWithWebContents(web_contents))) {
-        list->push_back(action);
+      if (chrome::CanSavePage(chrome::FindBrowserWithTab(web_contents))) {
+        results.push_back(action);
       }
     } else {
-      list->push_back(action);
+      results.push_back(action);
     }
   }
+  return results;
 }
 
 void SharingHubModel::PopulateFirstPartyActions() {
@@ -115,9 +104,8 @@ void SharingHubModel::PopulateFirstPartyActions() {
   }
 
   first_party_action_list_.emplace_back(
-      IDC_SEND_TAB_TO_SELF,
-      l10n_util::GetStringUTF16(IDS_CONTEXT_MENU_SEND_TAB_TO_SELF),
-      &kLaptopAndSmartphoneIcon, "SharingHubDesktop.SendTabToSelfSelected", 0);
+      IDC_SEND_TAB_TO_SELF, l10n_util::GetStringUTF16(IDS_SEND_TAB_TO_SELF),
+      &kDevicesIcon, "SharingHubDesktop.SendTabToSelfSelected", 0);
 
   first_party_action_list_.emplace_back(
       IDC_QRCODE_GENERATOR,
@@ -132,24 +120,9 @@ void SharingHubModel::PopulateFirstPartyActions() {
         0);
   }
 
-  if (base::FeatureList::IsEnabled(feed::kWebUiFeed)) {
-    first_party_action_list_.emplace_back(
-        IDC_FOLLOW, l10n_util::GetStringUTF16(IDS_SHARING_HUB_FOLLOW_LABEL),
-        &kAddIcon, "SharingHubDesktop.FollowSelected", 0);
-    first_party_action_list_.emplace_back(
-        IDC_UNFOLLOW,
-        l10n_util::GetStringUTF16(IDS_SHARING_HUB_FOLLOWING_LABEL),
-        &views::kMenuCheckIcon, "SharingHubDesktop.UnfollowSelected", 0);
-  }
-
   first_party_action_list_.emplace_back(
       IDC_SAVE_PAGE, l10n_util::GetStringUTF16(IDS_SHARING_HUB_SAVE_PAGE_LABEL),
       &kSavePageIcon, "SharingHubDesktop.SavePageSelected", 0);
-}
-
-bool SharingHubModel::DoShowSendTabToSelfForWebContents(
-    content::WebContents* web_contents) {
-  return send_tab_to_self::ShouldDisplayEntryPoint(web_contents);
 }
 
 }  // namespace sharing_hub

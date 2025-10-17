@@ -7,10 +7,12 @@
 #include <vector>
 
 #include "ash/system/video_conference/effects/fake_video_conference_effects.h"
+#include "ash/system/video_conference/effects/fake_video_conference_tray_effects_manager.h"
 #include "ash/system/video_conference/video_conference_tray_controller.h"
 #include "base/functional/callback.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
+#include "chromeos/crosapi/mojom/video_conference.mojom-forward.h"
 #include "chromeos/crosapi/mojom/video_conference.mojom.h"
 #include "media/capture/video/chromeos/mojom/cros_camera_service.mojom-shared.h"
 #include "url/gurl.h"
@@ -32,7 +34,7 @@ FakeVideoConferenceTrayController::FakeVideoConferenceTrayController()
       /*last_activity_time=*/base::Time::Now(),
       /*is_capturing_camera=*/false, /*is_capturing_microphone=*/true,
       /*is_capturing_screen=*/true, /*title=*/u"Zoom",
-      /*url=*/absl::nullopt));
+      /*url=*/std::nullopt));
 }
 
 FakeVideoConferenceTrayController::~FakeVideoConferenceTrayController() {
@@ -57,6 +59,25 @@ bool FakeVideoConferenceTrayController::GetCameraMuted() {
 
 bool FakeVideoConferenceTrayController::GetMicrophoneMuted() {
   return microphone_muted_;
+}
+
+void FakeVideoConferenceTrayController::StopAllScreenShare() {
+  // Call real `StopAllScreenShare` if initialized.
+  if (initialized()) {
+    VideoConferenceTrayController::StopAllScreenShare();
+  }
+  stop_all_screen_share_count_++;
+}
+
+VideoConferenceTrayEffectsManager&
+FakeVideoConferenceTrayController::GetEffectsManager() {
+  return effects_manager_ ? *effects_manager_
+                          : VideoConferenceTrayController::GetEffectsManager();
+}
+
+void FakeVideoConferenceTrayController::SetEffectsManager(
+    VideoConferenceTrayEffectsManager* effects_manager) {
+  effects_manager_ = effects_manager;
 }
 
 void FakeVideoConferenceTrayController::GetMediaApps(
@@ -91,6 +112,11 @@ void FakeVideoConferenceTrayController::HandleDeviceUsedWhileDisabled(
   VideoConferenceTrayController::HandleDeviceUsedWhileDisabled(device,
                                                                app_name);
   device_used_while_disabled_records_.emplace_back(device, app_name);
+}
+
+void FakeVideoConferenceTrayController::HandleClientUpdate(
+    crosapi::mojom::VideoConferenceClientUpdatePtr update) {
+  last_client_update_ = std::move(update);
 }
 
 void FakeVideoConferenceTrayController::AddMediaApp(

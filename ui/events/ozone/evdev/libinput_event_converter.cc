@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 
+#include <ostream>
 #include <string>
 
 #include "base/logging.h"
@@ -184,28 +185,28 @@ LibInputEventConverter::LibInputContext::~LibInputContext() {
   }
 }
 
-absl::optional<LibInputEventConverter::LibInputContext>
+std::optional<LibInputEventConverter::LibInputContext>
 LibInputEventConverter::LibInputContext::Create() {
   libinput* const li = libinput_path_create_context(&interface_, nullptr);
   if (!li) {
     LOG(ERROR) << "libinput_path_create_context failed";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  return absl::make_optional(LibInputEventConverter::LibInputContext(li));
+  return std::make_optional(LibInputEventConverter::LibInputContext(li));
 }
 
-absl::optional<LibInputEventConverter::LibInputDevice>
+std::optional<LibInputEventConverter::LibInputDevice>
 LibInputEventConverter::LibInputContext::AddDevice(
     int id,
     const base::FilePath& path) const {
   auto* const dev = libinput_path_add_device(li_, path.value().c_str());
   if (!dev) {
     LOG(ERROR) << "libinput_path_add_device failed with device: " << path;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  return absl::make_optional(LibInputDevice(id, dev));
+  return std::make_optional(LibInputDevice(id, dev));
 }
 
 bool LibInputEventConverter::LibInputContext::Dispatch() const {
@@ -221,13 +222,13 @@ int LibInputEventConverter::LibInputContext::Fd() {
   return libinput_get_fd(li_);
 }
 
-absl::optional<LibInputEventConverter::LibInputEvent>
+std::optional<LibInputEventConverter::LibInputEvent>
 LibInputEventConverter::LibInputContext::NextEvent() const {
   libinput_event* const event = libinput_get_event(li_);
   if (!event) {
-    return absl::nullopt;
+    return std::nullopt;
   }
-  return absl::make_optional(LibInputEvent(event));
+  return std::make_optional(LibInputEvent(event));
 }
 
 int LibInputEventConverter::LibInputContext::OpenRestricted(const char* path,
@@ -360,31 +361,7 @@ void LibInputEventConverter::HandleEvent(const LibInputEvent& event) {
       HandlePointerAxis(event);
       break;
 
-    case LIBINPUT_EVENT_TOUCH_DOWN:
-    case LIBINPUT_EVENT_TOUCH_UP:
-    case LIBINPUT_EVENT_TOUCH_MOTION:
-    case LIBINPUT_EVENT_TOUCH_CANCEL:
-    case LIBINPUT_EVENT_TOUCH_FRAME:
-    case LIBINPUT_EVENT_NONE:
-    case LIBINPUT_EVENT_DEVICE_ADDED:
-    case LIBINPUT_EVENT_DEVICE_REMOVED:
-    case LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE:
-    case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
-    case LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY:
-    case LIBINPUT_EVENT_TABLET_TOOL_TIP:
-    case LIBINPUT_EVENT_TABLET_TOOL_BUTTON:
-    case LIBINPUT_EVENT_TABLET_PAD_BUTTON:
-    case LIBINPUT_EVENT_TABLET_PAD_RING:
-    case LIBINPUT_EVENT_TABLET_PAD_STRIP:
-    case LIBINPUT_EVENT_KEYBOARD_KEY:
-    case LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN:
-    case LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE:
-    case LIBINPUT_EVENT_GESTURE_SWIPE_END:
-    case LIBINPUT_EVENT_GESTURE_PINCH_BEGIN:
-    case LIBINPUT_EVENT_GESTURE_PINCH_UPDATE:
-    case LIBINPUT_EVENT_GESTURE_PINCH_END:
-    case LIBINPUT_EVENT_SWITCH_TOGGLE:
-    case LIBINPUT_EVENT_TABLET_PAD_KEY:
+    default:
       DVLOG(3) << "Ignoring libinput event: " << event.Type();
       break;
   }
@@ -436,7 +413,7 @@ void LibInputEventConverter::HandlePointerAxis(const LibInputEvent& evt) {
 
   DVLOG(3) << "Pointer axis h:" << h << ", v:" << v;
 
-  dispatcher_->DispatchScrollEvent({input_device_.id, ET_SCROLL,
+  dispatcher_->DispatchScrollEvent({input_device_.id, EventType::kScroll,
                                     cursor_->GetLocation(), delta, delta, 2,
                                     Timestamp(evt)});
 }
@@ -445,6 +422,16 @@ base::TimeTicks LibInputEventConverter::Timestamp(const LibInputEvent& evt) {
   libinput_event_pointer* event = evt.PointerEvent();
   uint64_t time_usec = libinput_event_pointer_get_time_usec(event);
   return base::TimeTicks() + base::Microseconds(time_usec);
+}
+
+std::ostream& LibInputEventConverter::DescribeForLog(std::ostream& os) const {
+  os << "class=ui::LibInputEventConverter id=" << input_device_.id << std::endl
+     << " has_keyboard=" << has_keyboard_ << std::endl
+     << " has_mouse=" << has_mouse_ << std::endl
+     << " has_touchpad=" << has_touchpad_ << std::endl
+     << " has_touchscreen=" << has_touchscreen_ << std::endl
+     << "base ";
+  return EventConverterEvdev::DescribeForLog(os);
 }
 
 }  // namespace ui

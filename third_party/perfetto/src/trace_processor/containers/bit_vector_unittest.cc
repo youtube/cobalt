@@ -17,14 +17,21 @@
 #include "src/trace_processor/containers/bit_vector.h"
 
 #include <bitset>
+#include <cstdint>
 #include <random>
+#include <utility>
+#include <vector>
 
-#include "src/trace_processor/containers/bit_vector_iterators.h"
+#include "perfetto/protozero/scattered_heap_buffer.h"
 #include "test/gtest_and_gmock.h"
 
-namespace perfetto {
-namespace trace_processor {
+#include "protos/perfetto/trace_processor/serialization.pbzero.h"
+
+namespace perfetto::trace_processor {
 namespace {
+using testing::ElementsAre;
+using testing::IsEmpty;
+using testing::UnorderedElementsAre;
 
 TEST(BitVectorUnittest, CreateAllTrue) {
   BitVector bv(2049, true);
@@ -306,159 +313,136 @@ TEST(BitVectorUnittest, UpdateSetBitsStress) {
   }
 }
 
-TEST(BitVectorUnittest, IterateAllBitsConst) {
-  BitVector bv;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    if (i % 7 == 0 || i % 13 == 0) {
-      bv.AppendTrue();
-    } else {
-      bv.AppendFalse();
-    }
-  }
+TEST(BitVectorUnittest, SelectBitsSimple) {
+  BitVector bv = {true, false, true, false, true, true, true};
+  BitVector mask = {true, false, true, true, false, false, true};
+  bv.SelectBits(mask);
 
-  uint32_t i = 0;
-  for (auto it = bv.IterateAllBits(); it; it.Next(), ++i) {
-    ASSERT_EQ(it.IsSet(), i % 7 == 0 || i % 13 == 0);
-    ASSERT_EQ(it.index(), i);
-  }
+  ASSERT_EQ(bv.size(), 4u);
+  ASSERT_EQ(bv.IsSet(0), true);
+  ASSERT_EQ(bv.IsSet(1), true);
+  ASSERT_EQ(bv.IsSet(2), false);
+  ASSERT_EQ(bv.IsSet(3), true);
+  ASSERT_EQ(bv.CountSetBits(), 3u);
 }
 
-TEST(BitVectorUnittest, IterateAllBitsSet) {
-  BitVector bv;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    if (i % 7 == 0 || i % 13 == 0) {
-      bv.AppendTrue();
-    } else {
-      bv.AppendFalse();
-    }
-  }
+TEST(BitVectorUnittest, SelectBitsSmallerMain) {
+  BitVector bv = {true, false, true, false};
+  BitVector mask = {true, false, true, true, false, false, true};
+  bv.SelectBits(mask);
 
-  // Unset every 15th bit.
-  for (auto it = bv.IterateAllBits(); it; it.Next()) {
-    if (it.index() % 15 == 0) {
-      it.Set();
-    }
-  }
-
-  // Go through the iterator manually and check it has updated
-  // to not have every 15th bit set.
-  uint32_t count = 0;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    bool is_set = i % 15 == 0 || i % 7 == 0 || i % 13 == 0;
-
-    ASSERT_EQ(bv.IsSet(i), is_set);
-    ASSERT_EQ(bv.CountSetBits(i), count);
-
-    if (is_set) {
-      ASSERT_EQ(bv.IndexOfNthSet(count++), i);
-    }
-  }
+  ASSERT_EQ(bv.size(), 3u);
+  ASSERT_EQ(bv.IsSet(0), true);
+  ASSERT_EQ(bv.IsSet(1), true);
+  ASSERT_EQ(bv.IsSet(2), false);
+  ASSERT_EQ(bv.CountSetBits(), 2u);
 }
 
-TEST(BitVectorUnittest, IterateAllBitsClear) {
-  BitVector bv;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    if (i % 7 == 0 || i % 13 == 0) {
-      bv.AppendTrue();
-    } else {
-      bv.AppendFalse();
-    }
+TEST(BitVectorUnittest, SelectBitsLarge) {
+  BitVector bv = BitVector::RangeForTesting(
+      0, 813, [](uint32_t idx) { return idx % 7 == 0; });
+  BitVector mask = BitVector::RangeForTesting(
+      0, 813, [](uint32_t idx) { return idx % 3 == 0; });
+  bv.SelectBits(mask);
+
+  BitVector expected = BitVector::RangeForTesting(
+      0, 271u, [](uint32_t idx) { return (idx * 3) % 7 == 0; });
+
+  ASSERT_EQ(bv.size(), 271u);
+  for (uint32_t i = 0; i < expected.size(); ++i) {
+    ASSERT_EQ(expected.IsSet(i), bv.IsSet(i)) << "Index " << i;
+    ASSERT_EQ(expected.CountSetBits(i), bv.CountSetBits(i)) << "Index " << i;
   }
-
-  // Unset every 15th bit.
-  for (auto it = bv.IterateAllBits(); it; it.Next()) {
-    if (it.index() % 15 == 0) {
-      it.Clear();
-    }
-  }
-
-  // Go through the iterator manually and check it has updated
-  // to not have every 15th bit set.
-  uint32_t count = 0;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    bool is_set = i % 15 != 0 && (i % 7 == 0 || i % 13 == 0);
-
-    ASSERT_EQ(bv.IsSet(i), is_set);
-    ASSERT_EQ(bv.CountSetBits(i), count);
-
-    if (is_set) {
-      ASSERT_EQ(bv.IndexOfNthSet(count++), i);
-    }
-  }
+  ASSERT_EQ(expected.CountSetBits(), bv.CountSetBits());
 }
 
-TEST(BitVectorUnittest, IterateSetBitsConst) {
-  BitVector bv;
-  std::vector<uint32_t> set_indices;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    if (i % 7 == 0 || i % 13 == 0) {
-      bv.AppendTrue();
-      set_indices.emplace_back(i);
-    } else {
-      bv.AppendFalse();
-    }
-  }
+TEST(BitVectorUnittest, SelectBitsLargeSmallerMain) {
+  BitVector bv = BitVector::RangeForTesting(
+      0, 279, [](uint32_t idx) { return idx % 7 == 0; });
+  BitVector mask = BitVector::RangeForTesting(
+      0, 813, [](uint32_t idx) { return idx % 3 == 0; });
+  bv.SelectBits(mask);
 
-  uint32_t i = 0;
-  for (auto it = bv.IterateSetBits(); it; it.Next(), ++i) {
-    ASSERT_EQ(it.IsSet(), true);
-    ASSERT_EQ(it.index(), set_indices[i]);
+  BitVector expected = BitVector::RangeForTesting(
+      0, 93, [](uint32_t idx) { return (idx * 3) % 7 == 0; });
+
+  ASSERT_EQ(bv.size(), 93u);
+  for (uint32_t i = 0; i < expected.size(); ++i) {
+    ASSERT_EQ(expected.IsSet(i), bv.IsSet(i)) << "Index " << i;
+    ASSERT_EQ(expected.CountSetBits(i), bv.CountSetBits(i)) << "Index " << i;
   }
-  ASSERT_EQ(i, set_indices.size());
+  ASSERT_EQ(expected.CountSetBits(), bv.CountSetBits());
 }
 
-TEST(BitVectorUnittest, IterateSetBitsClear) {
-  BitVector bv;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    if (i % 7 == 0 || i % 13 == 0) {
-      bv.AppendTrue();
-    } else {
-      bv.AppendFalse();
-    }
+TEST(BitVectorUnittest, SelectBitsDense) {
+  BitVector bv =
+      BitVector::RangeForTesting(0, 279, [](uint32_t) { return true; });
+  BitVector mask =
+      BitVector::RangeForTesting(0, 279, [](uint32_t idx) { return idx < 80; });
+  bv.SelectBits(mask);
+
+  BitVector expected =
+      BitVector::RangeForTesting(0, 80, [](uint32_t) { return true; });
+
+  ASSERT_EQ(bv.size(), 80u);
+  for (uint32_t i = 0; i < expected.size(); ++i) {
+    ASSERT_EQ(expected.IsSet(i), bv.IsSet(i)) << "Index " << i;
+    ASSERT_EQ(expected.CountSetBits(i), bv.CountSetBits(i)) << "Index " << i;
   }
-
-  for (auto it = bv.IterateSetBits(); it; it.Next()) {
-    if (it.index() % 15 == 0) {
-      it.Clear();
-    }
-  }
-
-  // Go through the iterator manually and check it has updated
-  // to not have every 15th bit set.
-  uint32_t count = 0;
-  for (uint32_t i = 0; i < 12345; ++i) {
-    bool is_set = i % 15 != 0 && (i % 7 == 0 || i % 13 == 0);
-
-    ASSERT_EQ(bv.IsSet(i), is_set);
-    ASSERT_EQ(bv.CountSetBits(i), count);
-
-    if (is_set) {
-      ASSERT_EQ(bv.IndexOfNthSet(count++), i);
-    }
-  }
+  ASSERT_EQ(expected.CountSetBits(), bv.CountSetBits());
 }
 
-TEST(BitVectorUnittest, IterateSetBitsStartsCorrectly) {
-  BitVector bv;
-  bv.AppendFalse();
-  bv.AppendTrue();
+TEST(BitVectorUnittest, SelectBitsEnd) {
+  BitVector bv = BitVector::RangeForTesting(
+      0, 279, [](uint32_t idx) { return idx % 7 == 0; });
+  BitVector mask = BitVector::RangeForTesting(
+      0, 813, [](uint32_t idx) { return idx % 3 == 0; });
+  bv.SelectBits(mask);
 
-  auto it = bv.IterateSetBits();
-  ASSERT_TRUE(it);
-  ASSERT_EQ(it.index(), 1u);
-  ASSERT_TRUE(it.IsSet());
+  BitVector expected = BitVector::RangeForTesting(
+      0, 93, [](uint32_t idx) { return (idx * 3) % 7 == 0; });
 
-  it.Next();
-  ASSERT_FALSE(it);
+  ASSERT_EQ(bv.size(), 93u);
+  for (uint32_t i = 0; i < expected.size(); ++i) {
+    ASSERT_EQ(expected.IsSet(i), bv.IsSet(i)) << "Index " << i;
+    ASSERT_EQ(expected.CountSetBits(i), bv.CountSetBits(i)) << "Index " << i;
+  }
+  ASSERT_EQ(expected.CountSetBits(), bv.CountSetBits());
+}
+
+TEST(BitVectorUnittest, SelectBitsOob) {
+  BitVector bv = BitVector::RangeForTesting(
+      0, 512, [](uint32_t idx) { return idx % 7 == 0; });
+  BitVector mask = BitVector(512, true);
+  bv.SelectBits(mask);
+
+  BitVector expected = BitVector::RangeForTesting(
+      0, 512, [](uint32_t idx) { return idx % 7 == 0; });
+
+  ASSERT_EQ(bv.size(), 512u);
+  for (uint32_t i = 0; i < expected.size(); ++i) {
+    ASSERT_EQ(expected.IsSet(i), bv.IsSet(i)) << "Index " << i;
+    ASSERT_EQ(expected.CountSetBits(i), bv.CountSetBits(i)) << "Index " << i;
+  }
+  ASSERT_EQ(expected.CountSetBits(), bv.CountSetBits());
 }
 
 TEST(BitVectorUnittest, IntersectRange) {
-  BitVector bv = BitVector::Range(1, 20, [](uint32_t t) { return t % 2 == 0; });
+  BitVector bv =
+      BitVector::RangeForTesting(1, 20, [](uint32_t t) { return t % 2 == 0; });
   BitVector intersected = bv.IntersectRange(3, 10);
 
   ASSERT_EQ(intersected.IndexOfNthSet(0), 4u);
   ASSERT_EQ(intersected.CountSetBits(), 3u);
-  ASSERT_EQ(intersected.size(), 10u);
+}
+
+TEST(BitVectorUnittest, IntersectRangeFromStart) {
+  BitVector bv =
+      BitVector::RangeForTesting(1, 20, [](uint32_t t) { return t % 2 == 0; });
+  BitVector intersected = bv.IntersectRange(0, 10);
+
+  ASSERT_EQ(intersected.IndexOfNthSet(0), 2u);
+  ASSERT_EQ(intersected.CountSetBits(), 4u);
 }
 
 TEST(BitVectorUnittest, IntersectRange2) {
@@ -466,24 +450,23 @@ TEST(BitVectorUnittest, IntersectRange2) {
   BitVector intersected = bv.IntersectRange(2, 4);
 
   ASSERT_EQ(intersected.IndexOfNthSet(0), 2u);
-  ASSERT_EQ(intersected.size(), 4u);
 }
 
 TEST(BitVectorUnittest, IntersectRangeAfterWord) {
-  BitVector bv =
-      BitVector::Range(64 + 1, 64 + 20, [](uint32_t t) { return t % 2 == 0; });
+  BitVector bv = BitVector::RangeForTesting(
+      64 + 1, 64 + 20, [](uint32_t t) { return t % 2 == 0; });
   BitVector intersected = bv.IntersectRange(64 + 3, 64 + 10);
 
   ASSERT_EQ(intersected.IndexOfNthSet(0), 64 + 4u);
   ASSERT_EQ(intersected.CountSetBits(), 3u);
-  ASSERT_EQ(intersected.size(), 64 + 10u);
 }
 
 TEST(BitVectorUnittest, IntersectRangeSetBitsBeforeRange) {
-  BitVector bv = BitVector::Range(10, 30, [](uint32_t t) { return t < 15; });
+  BitVector bv =
+      BitVector::RangeForTesting(10, 30, [](uint32_t t) { return t < 15; });
   BitVector intersected = bv.IntersectRange(16, 50);
 
-  ASSERT_FALSE(intersected.size());
+  ASSERT_FALSE(intersected.CountSetBits());
 }
 
 TEST(BitVectorUnittest, IntersectRangeSetBitOnBoundary) {
@@ -491,21 +474,34 @@ TEST(BitVectorUnittest, IntersectRangeSetBitOnBoundary) {
   bv.Set(5);
   BitVector intersected = bv.IntersectRange(5, 20);
 
-  ASSERT_EQ(intersected.size(), 6u);
+  ASSERT_EQ(intersected.CountSetBits(), 1u);
+  ASSERT_EQ(intersected.IndexOfNthSet(0), 5u);
 }
 
 TEST(BitVectorUnittest, IntersectRangeStressTest) {
-  BitVector bv =
-      BitVector::Range(65, 1024 + 1, [](uint32_t t) { return t % 2 == 0; });
+  BitVector bv = BitVector::RangeForTesting(
+      65, 1024 + 1, [](uint32_t t) { return t % 2 == 0; });
   BitVector intersected = bv.IntersectRange(30, 500);
 
   ASSERT_EQ(intersected.IndexOfNthSet(0), 66u);
   ASSERT_EQ(intersected.CountSetBits(), 217u);
-  ASSERT_EQ(intersected.size(), 500u);
+}
+
+TEST(BitVectorUnittest, IntersectRangeAppendFalse) {
+  BitVector bv(70u, true);
+  BitVector out = bv.IntersectRange(10, 12u);
+  out.Resize(70u);
+
+  ASSERT_TRUE(out.IsSet(10u));
+  ASSERT_TRUE(out.IsSet(11u));
+  ASSERT_FALSE(out.IsSet(12u));
+  ASSERT_FALSE(out.IsSet(60u));
+  ASSERT_FALSE(out.IsSet(69u));
 }
 
 TEST(BitVectorUnittest, Range) {
-  BitVector bv = BitVector::Range(1, 9, [](uint32_t t) { return t % 3 == 0; });
+  BitVector bv =
+      BitVector::RangeForTesting(1, 9, [](uint32_t t) { return t % 3 == 0; });
   ASSERT_EQ(bv.size(), 9u);
 
   ASSERT_FALSE(bv.IsSet(0));
@@ -516,8 +512,8 @@ TEST(BitVectorUnittest, Range) {
 }
 
 TEST(BitVectorUnittest, RangeStressTest) {
-  BitVector bv =
-      BitVector::Range(1, 1025, [](uint32_t t) { return t % 3 == 0; });
+  BitVector bv = BitVector::RangeForTesting(
+      1, 1025, [](uint32_t t) { return t % 3 == 0; });
   ASSERT_EQ(bv.size(), 1025u);
   ASSERT_FALSE(bv.IsSet(0));
   for (uint32_t i = 1; i < 1025; ++i) {
@@ -527,9 +523,7 @@ TEST(BitVectorUnittest, RangeStressTest) {
 }
 
 TEST(BitVectorUnittest, BuilderSkip) {
-  BitVector::Builder builder(128);
-
-  builder.Skip(127);
+  BitVector::Builder builder(128, 127);
   builder.Append(1);
 
   BitVector bv = std::move(builder).Build();
@@ -538,6 +532,14 @@ TEST(BitVectorUnittest, BuilderSkip) {
   ASSERT_FALSE(bv.IsSet(10));
   ASSERT_FALSE(bv.IsSet(126));
   ASSERT_TRUE(bv.IsSet(127));
+}
+
+TEST(BitVectorUnittest, BuilderSkipAll) {
+  BitVector::Builder builder(128, 128);
+  BitVector bv = std::move(builder).Build();
+
+  ASSERT_EQ(bv.size(), 128u);
+  ASSERT_EQ(bv.CountSetBits(), 0u);
 }
 
 TEST(BitVectorUnittest, BuilderBitsInCompleteWordsUntilFull) {
@@ -567,6 +569,22 @@ TEST(BitVectorUnittest, Builder) {
   ASSERT_FALSE(bv.IsSet(2));
 }
 
+TEST(BitVectorUnittest, BuilderCountSetBits) {
+  // 16 words and 1 bit
+  BitVector::Builder builder(1025);
+
+  // 100100011010001010110011110001001 as a hex literal, with 15 set bits.
+  uint64_t word = 0x123456789;
+  for (uint32_t i = 0; i < 16; ++i) {
+    builder.AppendWord(word);
+  }
+  builder.Append(1);
+  BitVector bv = std::move(builder).Build();
+
+  ASSERT_EQ(bv.CountSetBits(500), 120u);
+  ASSERT_EQ(bv.CountSetBits(), 16 * 15 + 1u);
+}
+
 TEST(BitVectorUnittest, BuilderStressTest) {
   // Space for 128 words and 1 bit
   uint32_t size = 8 * 1024 + 1;
@@ -585,7 +603,7 @@ TEST(BitVectorUnittest, BuilderStressTest) {
   ASSERT_EQ(builder.BitsUntilFull(), size - 1024);
   ASSERT_EQ(builder.BitsUntilWordBoundaryOrFull(), 0u);
 
-  // 100100011010001010110011110001001 as a hex literal.
+  // 100100011010001010110011110001001 as a hex literal, with 15 set bits.
   uint64_t word = 0x123456789;
 
   // Add all of the remaining words.
@@ -602,6 +620,8 @@ TEST(BitVectorUnittest, BuilderStressTest) {
   builder.Append(1);
 
   BitVector bv = std::move(builder).Build();
+
+  ASSERT_EQ(bv.CountSetBits(), 2681u);
   ASSERT_EQ(bv.size(), 8u * 1024u + 1u);
 
   ASSERT_TRUE(bv.IsSet(0));
@@ -613,13 +633,119 @@ TEST(BitVectorUnittest, BuilderStressTest) {
   ASSERT_TRUE(bv.IsSet(8 * 1024));
 }
 
+TEST(BitVectorUnittest, FromSortedIndexVectorEmpty) {
+  std::vector<int64_t> indices{};
+  BitVector bv = BitVector::FromSortedIndexVector(indices);
+
+  ASSERT_EQ(bv.size(), 0u);
+}
+
+TEST(BitVectorUnittest, FromSortedIndexVector) {
+  std::vector<int64_t> indices{0, 100, 200, 2000};
+  BitVector bv = BitVector::FromSortedIndexVector(indices);
+
+  ASSERT_EQ(bv.size(), 2001u);
+  ASSERT_EQ(bv.CountSetBits(), 4u);
+  ASSERT_TRUE(bv.IsSet(0));
+  ASSERT_TRUE(bv.IsSet(100));
+  ASSERT_TRUE(bv.IsSet(200));
+  ASSERT_TRUE(bv.IsSet(2000));
+}
+
+TEST(BitVectorUnittest, FromSortedIndexVectorStressTestLargeValues) {
+  std::vector<int64_t> indices{0, 1 << 2, 1 << 10, 1 << 20, 1 << 30};
+  BitVector bv = BitVector::FromSortedIndexVector(indices);
+
+  ASSERT_EQ(bv.size(), (1 << 30) + 1u);
+  ASSERT_EQ(bv.CountSetBits(), 5u);
+  ASSERT_TRUE(bv.IsSet(0));
+  ASSERT_TRUE(bv.IsSet(1 << 2));
+  ASSERT_TRUE(bv.IsSet(1 << 10));
+  ASSERT_TRUE(bv.IsSet(1 << 20));
+  ASSERT_TRUE(bv.IsSet(1 << 30));
+}
+
+TEST(BitVectorUnittest, FromUnsortedIndexVectorEmpty) {
+  std::vector<uint32_t> indices{};
+  BitVector bv = BitVector::FromUnsortedIndexVector(indices);
+
+  ASSERT_EQ(bv.size(), 0u);
+}
+
+TEST(BitVectorUnittest, FromUnsortedIndexVector) {
+  std::vector<uint32_t> indices{0, 2000, 200, 100};
+  BitVector bv = BitVector::FromUnsortedIndexVector(indices);
+
+  ASSERT_EQ(bv.size(), 2001u);
+  ASSERT_EQ(bv.CountSetBits(), 4u);
+  ASSERT_TRUE(bv.IsSet(0));
+  ASSERT_TRUE(bv.IsSet(100));
+  ASSERT_TRUE(bv.IsSet(200));
+  ASSERT_TRUE(bv.IsSet(2000));
+}
+
+TEST(BitVectorUnittest, FromUnsortedIndexVectorStressTestLargeValues) {
+  std::vector<uint32_t> indices{0, 1 << 30, 1 << 10, 1 << 2, 1 << 20};
+  BitVector bv = BitVector::FromUnsortedIndexVector(indices);
+
+  ASSERT_EQ(bv.size(), (1 << 30) + 1u);
+  ASSERT_EQ(bv.CountSetBits(), 5u);
+  ASSERT_TRUE(bv.IsSet(0));
+  ASSERT_TRUE(bv.IsSet(1 << 2));
+  ASSERT_TRUE(bv.IsSet(1 << 10));
+  ASSERT_TRUE(bv.IsSet(1 << 20));
+  ASSERT_TRUE(bv.IsSet(1 << 30));
+}
+
 TEST(BitVectorUnittest, Not) {
   BitVector bv(10);
   bv.Set(2);
+  bv.Not();
 
-  BitVector not_bv = bv.Not();
-  EXPECT_FALSE(not_bv.IsSet(2));
-  EXPECT_EQ(not_bv.CountSetBits(), 9u);
+  EXPECT_FALSE(bv.IsSet(2));
+  EXPECT_EQ(bv.CountSetBits(), 9u);
+  EXPECT_THAT(bv.GetSetBitIndices(),
+              UnorderedElementsAre(0u, 1u, 3u, 4u, 5u, 6u, 7u, 8u, 9u));
+}
+
+TEST(BitVectorUnittest, NotBig) {
+  BitVector bv = BitVector::RangeForTesting(
+      0, 1026, [](uint32_t i) { return i % 5 == 0; });
+  bv.Not();
+
+  EXPECT_EQ(bv.CountSetBits(), 820u);
+}
+
+TEST(BitVectorUnittest, NotAppendAfter) {
+  BitVector bv(30);
+  bv.Not();
+  bv.AppendFalse();
+
+  ASSERT_FALSE(bv.IsSet(30));
+}
+
+TEST(BitVectorUnittest, Or) {
+  BitVector bv{1, 1, 0, 0};
+  BitVector bv_second{1, 0, 1, 0};
+  bv.Or(bv_second);
+
+  ASSERT_EQ(bv.CountSetBits(), 3u);
+  ASSERT_TRUE(bv.Set(0));
+  ASSERT_TRUE(bv.Set(1));
+  ASSERT_TRUE(bv.Set(2));
+}
+
+TEST(BitVectorUnittest, OrBig) {
+  BitVector bv = BitVector::RangeForTesting(
+      0, 1025, [](uint32_t i) { return i % 5 == 0; });
+  BitVector bv_sec = BitVector::RangeForTesting(
+      0, 1025, [](uint32_t i) { return i % 3 == 0; });
+  bv.Or(bv_sec);
+
+  BitVector bv_or = BitVector::RangeForTesting(
+      0, 1025, [](uint32_t i) { return i % 5 == 0 || i % 3 == 0; });
+
+  ASSERT_EQ(bv.CountSetBits(), bv_or.CountSetBits());
 }
 
 TEST(BitVectorUnittest, QueryStressTest) {
@@ -640,33 +766,64 @@ TEST(BitVectorUnittest, QueryStressTest) {
     if (res)
       int_vec.emplace_back(i);
   }
+}
 
-  auto all_it = bv.IterateAllBits();
-  for (uint32_t i = 0; i < kCount; ++i) {
-    uint32_t count = static_cast<uint32_t>(std::count(
-        bool_vec.begin(), bool_vec.begin() + static_cast<int32_t>(i), true));
-    ASSERT_EQ(bv.IsSet(i), bool_vec[i]);
-    ASSERT_EQ(bv.CountSetBits(i), count);
+TEST(BitVectorUnittest, GetSetBitIndices) {
+  BitVector bv = {true, false, true, false, true, true, false, false};
+  ASSERT_THAT(bv.GetSetBitIndices(), ElementsAre(0u, 2u, 4u, 5u));
+}
 
-    ASSERT_TRUE(all_it);
-    ASSERT_EQ(all_it.IsSet(), bool_vec[i]);
-    ASSERT_EQ(all_it.index(), i);
-    all_it.Next();
-  }
-  ASSERT_FALSE(all_it);
+TEST(BitVectorUnittest, GetSetBitIndicesIntersectRange) {
+  BitVector bv(130u, true);
+  BitVector out = bv.IntersectRange(10, 12);
+  ASSERT_THAT(out.GetSetBitIndices(), ElementsAre(10, 11));
+}
 
-  auto set_it = bv.IterateSetBits();
-  for (uint32_t i = 0; i < int_vec.size(); ++i) {
-    ASSERT_EQ(bv.IndexOfNthSet(i), int_vec[i]);
+TEST(BitVectorUnittest, UpdateSetBitsGetSetBitIndices) {
+  BitVector bv(130u, true);
+  bv.UpdateSetBits(BitVector(60u));
+  ASSERT_THAT(bv.GetSetBitIndices(), IsEmpty());
+}
 
-    ASSERT_TRUE(set_it);
-    ASSERT_EQ(set_it.IsSet(), true);
-    ASSERT_EQ(set_it.index(), int_vec[i]);
-    set_it.Next();
-  }
-  ASSERT_FALSE(set_it);
+TEST(BitVectorUnittest, ResizeBug) {
+  uint32_t size = 8 * 8 * 8;
+  BitVector bv(size, true);
+  bv.Resize(size + 5, true);
+  ASSERT_EQ(bv.size(), size + 5);
+  ASSERT_EQ(bv.CountSetBits(), size + 5);
+}
+
+TEST(BitVectorUnittest, SerializeSimple) {
+  BitVector bv{1, 0, 1, 0, 1, 0, 1};
+  protozero::HeapBuffered<protos::pbzero::SerializedColumn::BitVector> msg;
+  bv.Serialize(msg.get());
+  auto buffer = msg.SerializeAsArray();
+
+  protos::pbzero::SerializedColumn::BitVector::Decoder decoder(buffer.data(),
+                                                               buffer.size());
+  ASSERT_EQ(decoder.size(), 7u);
+}
+
+TEST(BitVectorUnittest, SerializeDeserializeSimple) {
+  BitVector bv{1, 0, 1, 0, 1, 0, 1};
+  protozero::HeapBuffered<protos::pbzero::SerializedColumn::BitVector> msg;
+  bv.Serialize(msg.get());
+  auto buffer = msg.SerializeAsArray();
+
+  protos::pbzero::SerializedColumn::BitVector::Decoder decoder(buffer.data(),
+                                                               buffer.size());
+
+  BitVector des;
+  des.Deserialize(decoder);
+
+  ASSERT_EQ(des.size(), 7u);
+  ASSERT_EQ(des.CountSetBits(), 4u);
+
+  ASSERT_TRUE(des.IsSet(0));
+  ASSERT_TRUE(des.IsSet(2));
+  ASSERT_TRUE(des.IsSet(4));
+  ASSERT_TRUE(des.IsSet(6));
 }
 
 }  // namespace
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor

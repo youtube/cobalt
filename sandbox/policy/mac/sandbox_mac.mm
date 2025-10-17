@@ -12,33 +12,26 @@
 #include "base/feature_list.h"
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/posix/eintr_wrapper.h"
-#include "components/services/screen_ai/buildflags/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
-#include "printing/buildflags/buildflags.h"
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/mac/audio.sb.h"
 #include "sandbox/policy/mac/cdm.sb.h"
 #include "sandbox/policy/mac/common.sb.h"
 #include "sandbox/policy/mac/gpu.sb.h"
 #include "sandbox/policy/mac/mirroring.sb.h"
-#include "sandbox/policy/mac/nacl_loader.sb.h"
 #include "sandbox/policy/mac/network.sb.h"
-#include "sandbox/policy/mac/ppapi.sb.h"
-#if BUILDFLAG(ENABLE_OOP_PRINTING)
+#include "sandbox/policy/mac/on_device_model_execution.sb.h"
 #include "sandbox/policy/mac/print_backend.sb.h"
-#endif
 #include "sandbox/policy/mac/print_compositor.sb.h"
 #include "sandbox/policy/mac/renderer.sb.h"
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 #include "sandbox/policy/mac/screen_ai.sb.h"
-#endif
+#include "sandbox/policy/mac/on_device_translation.sb.h"
 #include "sandbox/policy/mac/speech_recognition.sb.h"
 #include "sandbox/policy/mac/utility.sb.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 
-namespace sandbox {
-namespace policy {
+namespace sandbox::policy {
 
 base::FilePath GetCanonicalPath(const base::FilePath& path) {
   base::ScopedFD fd(HANDLE_EINTR(open(path.value().c_str(), O_RDONLY)));
@@ -72,32 +65,26 @@ std::string GetSandboxProfile(sandbox::mojom::Sandbox sandbox_type) {
     case sandbox::mojom::Sandbox::kMirroring:
       profile += kSeatbeltPolicyString_mirroring;
       break;
-    case sandbox::mojom::Sandbox::kNaClLoader:
-      profile += kSeatbeltPolicyString_nacl_loader;
-      break;
     case sandbox::mojom::Sandbox::kNetwork:
       profile += kSeatbeltPolicyString_network;
       break;
-#if BUILDFLAG(ENABLE_PPAPI)
-    case sandbox::mojom::Sandbox::kPpapi:
-      profile += kSeatbeltPolicyString_ppapi;
-      break;
-#endif
-#if BUILDFLAG(ENABLE_OOP_PRINTING)
     case sandbox::mojom::Sandbox::kPrintBackend:
       profile += kSeatbeltPolicyString_print_backend;
       break;
-#endif
     case sandbox::mojom::Sandbox::kPrintCompositor:
       profile += kSeatbeltPolicyString_print_compositor;
       break;
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
     case sandbox::mojom::Sandbox::kScreenAI:
       profile += kSeatbeltPolicyString_screen_ai;
       break;
-#endif
     case sandbox::mojom::Sandbox::kSpeechRecognition:
       profile += kSeatbeltPolicyString_speech_recognition;
+      break;
+    case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
+      profile += kSeatbeltPolicyString_on_device_model_execution;
+      break;
+    case sandbox::mojom::Sandbox::kOnDeviceTranslation:
+      profile += kSeatbeltPolicyString_on_device_translation;
       break;
     // kService and kUtility are the same on OS_MAC, so fallthrough.
     case sandbox::mojom::Sandbox::kService:
@@ -109,8 +96,7 @@ std::string GetSandboxProfile(sandbox::mojom::Sandbox sandbox_type) {
       profile += kSeatbeltPolicyString_renderer;
       break;
     case sandbox::mojom::Sandbox::kNoSandbox:
-      CHECK(false);
-      break;
+      NOTREACHED();
   }
   return profile;
 }
@@ -132,5 +118,4 @@ bool CanCacheSandboxPolicy(sandbox::mojom::Sandbox sandbox_type) {
   }
 }
 
-}  // namespace policy
-}  // namespace sandbox
+}  // namespace sandbox::policy

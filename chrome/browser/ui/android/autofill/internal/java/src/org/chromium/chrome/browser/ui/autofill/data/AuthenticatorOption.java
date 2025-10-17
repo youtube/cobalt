@@ -4,11 +4,14 @@
 
 package org.chromium.chrome.browser.ui.autofill.data;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.autofill.CardUnmaskChallengeOptionType;
 
 /**
  * Represents an authenticator option to be displayed in the {@link AuthenticatorSelectionDialog}.
  */
+@NullMarked
 public class AuthenticatorOption {
     private final String mTitle;
     private final String mIdentifier;
@@ -16,7 +19,11 @@ public class AuthenticatorOption {
     private final int mIconResId;
     private final @CardUnmaskChallengeOptionType int mType;
 
-    private AuthenticatorOption(String title, String identifier, String description, int iconResId,
+    private AuthenticatorOption(
+            String title,
+            String identifier,
+            String description,
+            int iconResId,
             @CardUnmaskChallengeOptionType int type) {
         this.mTitle = title;
         this.mIdentifier = identifier;
@@ -58,9 +65,9 @@ public class AuthenticatorOption {
 
     /** Builder for {@link AuthenticatorOption}. */
     public static final class Builder {
-        private String mTitle;
-        private String mIdentifier;
-        private String mDescription;
+        private @Nullable String mTitle;
+        private @Nullable String mIdentifier;
+        private @Nullable String mDescription;
         private int mIconResId;
         private @CardUnmaskChallengeOptionType int mType;
 
@@ -73,28 +80,29 @@ public class AuthenticatorOption {
             this.mIdentifier = identifier;
             return this;
         }
+
         public Builder setDescription(String description) {
             this.mDescription = description;
             return this;
         }
+
         public Builder setIconResId(int iconResId) {
             this.mIconResId = iconResId;
             return this;
         }
+
         public Builder setType(@CardUnmaskChallengeOptionType int type) {
             this.mType = type;
             return this;
         }
 
         public AuthenticatorOption build() {
-            assert mTitle != null
-                    && !mTitle.isEmpty() : "title for the AuthenticatorOption must be set";
-            assert mIdentifier != null
-                    && !mIdentifier.isEmpty()
-                : "identifier for the AuthenticatorOption must be set";
-            assert mDescription != null
-                    && !mDescription.isEmpty()
-                : "description for the AuthenticatorOption must be set";
+            assert mTitle != null && !mTitle.isEmpty()
+                    : "title for the AuthenticatorOption must be set";
+            assert mIdentifier != null && !mIdentifier.isEmpty()
+                    : "identifier for the AuthenticatorOption must be set";
+            assert mDescription != null && !mDescription.isEmpty()
+                    : "description for the AuthenticatorOption must be set";
             assert mType != 0 : "type for the AuthenticatorOption must be set";
             return new AuthenticatorOption(mTitle, mIdentifier, mDescription, mIconResId, mType);
         }

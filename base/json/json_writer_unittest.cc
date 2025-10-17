@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "base/json/json_writer.h"
-#include "base/json/json_reader.h"
+
+#include <optional>
 
 #include "base/containers/span.h"
+#include "base/json/json_reader.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/strings/string_util.h"
@@ -94,18 +97,17 @@ TEST(JsonWriterTest, KeysWithPeriods) {
             R"({"a.b":3,"c":2,"d.e.f":{"g.h.i.j":1}})");
 
   EXPECT_EQ(WriteJson(Value::Dict()  //
-                          .Set("a", Value::Dict().Set("b", 2))
+                          .SetByDottedPath("a.b", 2)
                           .Set("a.b", 1)),
             R"({"a":{"b":2},"a.b":1})");
 }
 
 TEST(JsonWriterTest, BinaryValues) {
-  const auto kBinaryData =
-      base::make_span(reinterpret_cast<const uint8_t*>("asdf"), 4u);
+  const auto kBinaryData = byte_span_from_cstring("asdf");
 
   // Binary values should return errors unless suppressed via the
   // `OPTIONS_OMIT_BINARY_VALUES` flag.
-  EXPECT_EQ(WriteJson(Value(kBinaryData)), absl::nullopt);
+  EXPECT_EQ(WriteJson(Value(kBinaryData)), std::nullopt);
   EXPECT_EQ(WriteJsonWithOptions(Value(kBinaryData),
                                  JsonOptions::OPTIONS_OMIT_BINARY_VALUES),
             "");
@@ -116,7 +118,7 @@ TEST(JsonWriterTest, BinaryValues) {
                          .Append(Value(kBinaryData))
                          .Append(2)
                          .Append(Value(kBinaryData));
-  EXPECT_EQ(WriteJson(binary_list), absl::nullopt);
+  EXPECT_EQ(WriteJson(binary_list), std::nullopt);
   EXPECT_EQ(
       WriteJsonWithOptions(binary_list, JSONWriter::OPTIONS_OMIT_BINARY_VALUES),
       "[5,2]");
@@ -127,7 +129,7 @@ TEST(JsonWriterTest, BinaryValues) {
                          .Set("c", Value(kBinaryData))
                          .Set("d", 2)
                          .Set("e", Value(kBinaryData));
-  EXPECT_EQ(WriteJson(binary_dict), absl::nullopt);
+  EXPECT_EQ(WriteJson(binary_dict), std::nullopt);
   EXPECT_EQ(
       WriteJsonWithOptions(binary_dict, JSONWriter::OPTIONS_OMIT_BINARY_VALUES),
       R"({"b":5,"d":2})");
@@ -153,10 +155,10 @@ TEST(JsonWriterTest, StackOverflow) {
   }
 
   Value deep_list_value(std::move(deep_list));
-  EXPECT_EQ(WriteJson(deep_list_value), absl::nullopt);
+  EXPECT_EQ(WriteJson(deep_list_value), std::nullopt);
   EXPECT_EQ(
       WriteJsonWithOptions(deep_list_value, JSONWriter::OPTIONS_PRETTY_PRINT),
-      absl::nullopt);
+      std::nullopt);
 
   // We cannot just let `deep_list` tear down since it
   // would cause a stack overflow. Therefore, we tear
@@ -183,11 +185,10 @@ TEST(JsonWriterTest, TestMaxDepthWithValidNodes) {
   }
 
   // Ensure we can read and write the JSON
-  auto json_val = JSONReader::ReadAndReturnValueWithError(
-      nested_json, JSON_ALLOW_TRAILING_COMMAS);
-  EXPECT_TRUE(json_val.has_value());
-  const Value& value = *json_val;
-  EXPECT_NE(WriteJson(value), absl::nullopt);
+  ASSERT_OK_AND_ASSIGN(Value value,
+                       JSONReader::ReadAndReturnValueWithError(
+                           nested_json, JSON_ALLOW_TRAILING_COMMAS));
+  EXPECT_TRUE(WriteJson(std::move(value)).has_value());
 }
 
 // Test that the JSONWriter::Write method still works.

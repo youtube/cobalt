@@ -10,9 +10,9 @@
 
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -46,16 +46,16 @@ bool AreColorsEqual(SkColor expected_color,
                     SkColor actual_color,
                     int threshold);
 
-base::FilePath GetAppIconsAnyDir(Profile* profile, const AppId& app_id);
+base::FilePath GetAppIconsAnyDir(Profile* profile,
+                                 const webapps::AppId& app_id);
 
-base::FilePath GetAppIconsMaskableDir(Profile* profile, const AppId& app_id);
+base::FilePath GetAppIconsMaskableDir(Profile* profile,
+                                      const webapps::AppId& app_id);
 
-base::FilePath GetOtherIconsDir(Profile* profile, const AppId& app_id);
+base::FilePath GetOtherIconsDir(Profile* profile, const webapps::AppId& app_id);
 
 // Performs blocking IO and decompression.
-bool ReadBitmap(FileUtilsWrapper* utils,
-                const base::FilePath& file_path,
-                SkBitmap* bitmap);
+SkBitmap ReadBitmap(FileUtilsWrapper* utils, const base::FilePath& file_path);
 
 base::span<const int> GetIconSizes();
 
@@ -101,12 +101,12 @@ void AddIconsToWebAppInstallInfo(
 
 void IconManagerWriteGeneratedIcons(
     WebAppIconManager& icon_manager,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::vector<GeneratedIconsInfo>& icons_info);
 
 // Synchronous read of an app icon pixel.
 SkColor IconManagerReadAppIconPixel(WebAppIconManager& icon_manager,
-                                    const AppId& app_id,
+                                    const webapps::AppId& app_id,
                                     SquareSizePx size_px,
                                     int x = 0,
                                     int y = 0);

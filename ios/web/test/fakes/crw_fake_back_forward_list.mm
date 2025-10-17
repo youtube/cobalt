@@ -9,10 +9,6 @@
 #import "base/check.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface CRWFakeBackForwardList (PrivateMethods)
 - (NSArray*)mockSublistWithURLArray:(NSArray<NSString*>*)URLs;
 @end
@@ -54,12 +50,15 @@
 
 - (void)moveCurrentToIndex:(NSUInteger)index {
   NSMutableArray* logicalList = [[NSMutableArray alloc] init];
-  if (self.backList)
+  if (self.backList) {
     [logicalList addObjectsFromArray:self.backList];
-  if (self.currentItem)
+  }
+  if (self.currentItem) {
     [logicalList addObject:self.currentItem];
-  if (self.forwardList)
+  }
+  if (self.forwardList) {
     [logicalList addObjectsFromArray:self.forwardList];
+  }
 
   NSUInteger count = logicalList.count;
   CHECK(index < count);

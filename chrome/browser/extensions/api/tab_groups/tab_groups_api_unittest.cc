@@ -5,33 +5,40 @@
 #include "chrome/browser/extensions/api/tab_groups/tab_groups_api.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/api/tab_groups/tab_groups_constants.h"
 #include "chrome/browser/extensions/api/tab_groups/tab_groups_event_router.h"
 #include "chrome/browser/extensions/api/tab_groups/tab_groups_event_router_factory.h"
-#include "chrome/browser/extensions/api/tab_groups/tab_groups_util.h"
-#include "chrome/browser/extensions/api/tabs/tabs_constants.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/sessions/session_tab_helper_factory.h"
+#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_sync_service_initialized_observer.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/test/base/test_browser_window.h"
+#include "components/data_sharing/public/features.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/saved_tab_groups/public/features.h"
+#include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/tab_group.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/web_contents_tester.h"
 #include "extensions/browser/api_test_utils.h"
@@ -40,9 +47,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/test_event_router_observer.h"
 #include "extensions/common/constants.h"
-#include "extensions/common/error_utils.h"
 #include "extensions/common/extension_builder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 
@@ -54,7 +59,7 @@ base::Value::List RunTabGroupsQueryFunction(
     const std::string& query_info) {
   auto function = base::MakeRefCounted<TabGroupsQueryFunction>();
   function->set_extension(extension);
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       api_test_utils::RunFunctionAndReturnSingleResult(
           function.get(), query_info, browser_context,
           api_test_utils::FunctionMode::kNone);
@@ -67,7 +72,7 @@ base::Value::Dict RunTabGroupsGetFunction(
     const std::string& args) {
   auto function = base::MakeRefCounted<TabGroupsGetFunction>();
   function->set_extension(extension);
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       api_test_utils::RunFunctionAndReturnSingleResult(
           function.get(), args, browser_context,
           api_test_utils::FunctionMode::kNone);
@@ -77,7 +82,7 @@ base::Value::Dict RunTabGroupsGetFunction(
 // Creates an extension with "tabGroups" permission.
 scoped_refptr<const Extension> CreateTabGroupsExtension() {
   return ExtensionBuilder("Extension with tabGroups permission")
-      .AddPermission("tabGroups")
+      .AddAPIPermission("tabGroups")
       .Build();
 }
 
@@ -109,17 +114,25 @@ class TabGroupsApiUnitTest : public ExtensionServiceTestBase {
     return web_contentses_[index];
   }
 
- private:
+  void WaitForTabGroupSyncServiceInitialized() {
+    auto observer =
+        std::make_unique<tab_groups::TabGroupSyncServiceInitializedObserver>(
+            tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile()));
+    observer->Wait();
+  }
+
   // ExtensionServiceTestBase:
   void SetUp() override;
   void TearDown() override;
 
+ private:
   // The browser (and accompanying window).
   std::unique_ptr<TestBrowserWindow> browser_window_;
   std::unique_ptr<Browser> browser_;
 
   // The original web contentses in order.
-  std::vector<content::WebContents*> web_contentses_;
+  std::vector<raw_ptr<content::WebContents, VectorExperimental>>
+      web_contentses_;
 };
 
 void TabGroupsApiUnitTest::SetUp() {
@@ -128,8 +141,6 @@ void TabGroupsApiUnitTest::SetUp() {
 
   // Create a browser window.
   browser_window_ = std::make_unique<TestBrowserWindow>();
-  // TestBrowserWindowOwner handles its own lifetime, and also cleans up
-  // |window2|.
   Browser::CreateParams params(profile(), /* user_gesture */ true);
   params.type = Browser::TYPE_NORMAL;
   params.window = browser_window_.get();
@@ -156,6 +167,10 @@ void TabGroupsApiUnitTest::SetUp() {
   // We need to call TabGroupsEventRouterFactory::Get() in order to instantiate
   // the keyed service, since it's not created by default in unit tests.
   TabGroupsEventRouterFactory::Get(browser_context());
+
+  // Wait for the TabGroupSyncService to properly initialize before making any
+  // changes to tab groups.
+  WaitForTabGroupSyncServiceInitialized();
 }
 
 void TabGroupsApiUnitTest::TearDown() {
@@ -168,15 +183,17 @@ void TabGroupsApiUnitTest::TearDown() {
 // tests querying on a TabStripModel that doesnt support tab groups
 TEST_F(TabGroupsApiUnitTest, TabStripModelWithNoTabGroupFails) {
   // Create a new window that doesnt support groups and add a few tabs.
-  TestBrowserWindow* window2 = new TestBrowserWindow;
+  auto window2 = std::make_unique<TestBrowserWindow>();
+
+  Browser::CreateParams params(profile(), /* user_gesture */ true);
+  params.type = Browser::TYPE_NORMAL;
+  params.window = window2.get();
+  params.are_tab_groups_enabled = false;
 
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
-  new TestBrowserWindowOwner(window2);
-  Browser::CreateParams params(profile(), /* user_gesture */ true);
-  params.type = Browser::TYPE_NORMAL;
-  params.window = window2;
-  params.are_tab_groups_enabled = false;
+  new TestBrowserWindowOwner(std::move(window2));
+
   std::unique_ptr<Browser> browser2(Browser::Create(params));
   BrowserList::SetLastActive(browser2.get());
 
@@ -212,22 +229,20 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsQueryTitle) {
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(tab_strip_model->SupportsTabGroups());
 
-  TabGroupModel* tab_group_model = tab_strip_model->group_model();
-
   // Create 3 groups with different titles.
   const tab_groups::TabGroupColorId color = tab_groups::TabGroupColorId::kGrey;
 
   tab_groups::TabGroupId group1 = tab_strip_model->AddToNewGroup({0});
   tab_groups::TabGroupVisualData visual_data1(u"Sample title", color);
-  tab_group_model->GetTabGroup(group1)->SetVisualData(visual_data1);
+  tab_strip_model->ChangeTabGroupVisuals(group1, visual_data1);
 
   tab_groups::TabGroupId group2 = tab_strip_model->AddToNewGroup({1});
   tab_groups::TabGroupVisualData visual_data2(u"Sample title suffixed", color);
-  tab_group_model->GetTabGroup(group2)->SetVisualData(visual_data2);
+  tab_strip_model->ChangeTabGroupVisuals(group2, visual_data2);
 
   tab_groups::TabGroupId group3 = tab_strip_model->AddToNewGroup({2});
   tab_groups::TabGroupVisualData visual_data3(u"Prefixed Sample title", color);
-  tab_group_model->GetTabGroup(group3)->SetVisualData(visual_data3);
+  tab_strip_model->ChangeTabGroupVisuals(group3, visual_data3);
 
   // Query by title and verify results.
   const char* kTitleQueryInfo = R"([{"title": "Sample title"}])";
@@ -237,7 +252,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsQueryTitle) {
 
   const base::Value& group_info = groups_list[0];
   ASSERT_TRUE(group_info.is_dict());
-  EXPECT_EQ(tab_groups_util::GetGroupId(group1),
+  EXPECT_EQ(ExtensionTabUtil::GetGroupId(group1),
             *group_info.GetDict().FindInt("id"));
 }
 
@@ -248,23 +263,21 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsQueryColor) {
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(tab_strip_model->SupportsTabGroups());
 
-  TabGroupModel* tab_group_model = tab_strip_model->group_model();
-
   // Create 3 groups with different colors.
   tab_groups::TabGroupId group1 = tab_strip_model->AddToNewGroup({0});
   tab_groups::TabGroupVisualData visual_data1(
       std::u16string(), tab_groups::TabGroupColorId::kGrey);
-  tab_group_model->GetTabGroup(group1)->SetVisualData(visual_data1);
+  tab_strip_model->ChangeTabGroupVisuals(group1, visual_data1);
 
   tab_groups::TabGroupId group2 = tab_strip_model->AddToNewGroup({1});
   tab_groups::TabGroupVisualData visual_data2(
       std::u16string(), tab_groups::TabGroupColorId::kRed);
-  tab_group_model->GetTabGroup(group2)->SetVisualData(visual_data2);
+  tab_strip_model->ChangeTabGroupVisuals(group2, visual_data2);
 
   tab_groups::TabGroupId group3 = tab_strip_model->AddToNewGroup({2});
   tab_groups::TabGroupVisualData visual_data3(
       std::u16string(), tab_groups::TabGroupColorId::kBlue);
-  tab_group_model->GetTabGroup(group3)->SetVisualData(visual_data3);
+  tab_strip_model->ChangeTabGroupVisuals(group3, visual_data3);
 
   // Query by color and verify results.
   const char* kColorQueryInfo = R"([{"color": "blue"}])";
@@ -274,8 +287,102 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsQueryColor) {
 
   const base::Value& group_info = groups_list[0];
   ASSERT_EQ(base::Value::Type::DICT, group_info.type());
-  EXPECT_EQ(tab_groups_util::GetGroupId(group3),
+  EXPECT_EQ(ExtensionTabUtil::GetGroupId(group3),
             *group_info.GetDict().FindInt("id"));
+}
+
+class SharedTabGroupExtensionsTabUtilTest : public TabGroupsApiUnitTest {
+ public:
+  SharedTabGroupExtensionsTabUtilTest() {
+    feature_list_.InitWithFeatures(
+        {
+            tab_groups::kTabGroupSyncServiceDesktopMigration,
+            data_sharing::features::kDataSharingFeature,
+        },
+        {});
+  }
+
+  SharedTabGroupExtensionsTabUtilTest(
+      const SharedTabGroupExtensionsTabUtilTest&) = delete;
+  SharedTabGroupExtensionsTabUtilTest& operator=(
+      const SharedTabGroupExtensionsTabUtilTest&) = delete;
+
+  void SetUp() override {
+    TabGroupsApiUnitTest ::SetUp();
+    tab_groups::TabGroupSyncService* service =
+        static_cast<tab_groups::TabGroupSyncService*>(
+            tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+                browser()->profile()));
+    service->SetIsInitializedForTesting(true);
+  }
+
+  void ShareTabGroup(const tab_groups::TabGroupId& group_id,
+                     const std::string& collaboration_id) {
+    tab_groups::TabGroupSyncService* service =
+        static_cast<tab_groups::TabGroupSyncService*>(
+            tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+                browser()->profile()));
+    service->MakeTabGroupSharedForTesting(group_id, collaboration_id);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Test that querying groups by color returns the correct groups.
+TEST_F(SharedTabGroupExtensionsTabUtilTest, TabGroupsQueryShared) {
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(tab_strip_model->SupportsTabGroups());
+
+  // Create a group that is unshared.
+  tab_groups::TabGroupId group1 = tab_strip_model->AddToNewGroup({0});
+  tab_groups::TabGroupVisualData visual_data1(
+      std::u16string(), tab_groups::TabGroupColorId::kGrey);
+  tab_strip_model->ChangeTabGroupVisuals(group1, visual_data1);
+
+  const char* not_shared_query = R"([{"shared": false}])";
+  const char* shared_query = R"([{"shared": true}])";
+
+  {  // Query unshared groups.
+    scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+
+    base::Value::List groups_list = RunTabGroupsQueryFunction(
+        browser()->profile(), extension.get(), not_shared_query);
+    ASSERT_EQ(1u, groups_list.size());
+
+    const base::Value& group_info = groups_list[0];
+    ASSERT_EQ(base::Value::Type::DICT, group_info.type());
+    EXPECT_EQ(ExtensionTabUtil::GetGroupId(group1),
+              *group_info.GetDict().FindInt("id"));
+  }
+
+  {  // Query shared groups.
+    scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+    base::Value::List groups_list =
+        RunTabGroupsQueryFunction(profile(), extension.get(), shared_query);
+    ASSERT_EQ(0u, groups_list.size());
+  }
+
+  ShareTabGroup(group1, "collaboration_id_1");
+
+  {  // Query unshared groups.
+    scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+    base::Value::List groups_list =
+        RunTabGroupsQueryFunction(profile(), extension.get(), not_shared_query);
+    ASSERT_EQ(0u, groups_list.size());
+  }
+
+  {  // Query shared groups.
+    scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+    base::Value::List groups_list =
+        RunTabGroupsQueryFunction(profile(), extension.get(), shared_query);
+    ASSERT_EQ(1u, groups_list.size());
+
+    const base::Value& group_info = groups_list[0];
+    ASSERT_EQ(base::Value::Type::DICT, group_info.type());
+    EXPECT_EQ(ExtensionTabUtil::GetGroupId(group1),
+              *group_info.GetDict().FindInt("id"));
+  }
 }
 
 // Test that getting a group returns the correct metadata.
@@ -285,14 +392,12 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsGetSuccess) {
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(tab_strip_model->SupportsTabGroups());
 
-  TabGroupModel* tab_group_model = tab_strip_model->group_model();
-
   // Create a group.
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({0, 1, 2});
   tab_groups::TabGroupVisualData visual_data(
       u"Title", tab_groups::TabGroupColorId::kBlue);
-  tab_group_model->GetTabGroup(group)->SetVisualData(visual_data);
-  int group_id = tab_groups_util::GetGroupId(group);
+  tab_strip_model->ChangeTabGroupVisuals(group, visual_data);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Use the TabGroupsGetFunction to get the group object.
   constexpr char kFormatArgs[] = R"([%d])";
@@ -314,9 +419,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsGetError) {
   function->set_extension(extension);
   std::string error = api_test_utils::RunFunctionAndReturnError(
       function.get(), "[0]", profile(), api_test_utils::FunctionMode::kNone);
-  EXPECT_EQ(ErrorUtils::FormatErrorMessage(
-                tab_groups_constants::kGroupNotFoundError, "0"),
-            error);
+  EXPECT_EQ("No group with id: 0.", error);
 }
 
 // Test that updating group metadata works as expected.
@@ -332,8 +435,8 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsUpdateSuccess) {
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({0, 1, 2});
   tab_groups::TabGroupVisualData visual_data(
       u"Initial title", tab_groups::TabGroupColorId::kBlue);
-  tab_group_model->GetTabGroup(group)->SetVisualData(visual_data);
-  int group_id = tab_groups_util::GetGroupId(group);
+  tab_strip_model->ChangeTabGroupVisuals(group, visual_data);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Use the TabGroupsUpdateFunction to update the title and color.
   auto function = base::MakeRefCounted<TabGroupsUpdateFunction>();
@@ -363,9 +466,48 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsUpdateError) {
   std::string error = api_test_utils::RunFunctionAndReturnError(
       function.get(), "[0, {}]", profile(),
       api_test_utils::FunctionMode::kNone);
-  EXPECT_EQ(ErrorUtils::FormatErrorMessage(
-                tab_groups_constants::kGroupNotFoundError, "0"),
-            error);
+  EXPECT_EQ("No group with id: 0.", error);
+}
+
+// Test that tabGroups.update() passes on a saved group.
+TEST_F(TabGroupsApiUnitTest, TabGroupsUpdateSavedTab) {
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(tab_strip_model->SupportsTabGroups());
+
+  TabGroupModel* tab_group_model = tab_strip_model->group_model();
+
+  // Create a group.
+  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({0, 1, 2});
+  tab_groups::TabGroupVisualData visual_data(
+      u"Initial title", tab_groups::TabGroupColorId::kBlue);
+  tab_strip_model->ChangeTabGroupVisuals(group, visual_data);
+
+  tab_groups::TabGroupSyncService* saved_service =
+      tab_groups::SavedTabGroupUtils::GetServiceForProfile(
+          browser()->profile());
+  ASSERT_TRUE(saved_service);
+  saved_service->SetIsInitializedForTesting(true);
+  saved_service->AddGroup(
+      tab_groups::SavedTabGroupUtils::CreateSavedTabGroupFromLocalId(group));
+  int group_id = ExtensionTabUtil::GetGroupId(group);
+  ASSERT_TRUE(saved_service->GetGroup(group));
+
+  scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+
+  // Update the group, visual metadata, it should pass.
+  auto function = base::MakeRefCounted<TabGroupsUpdateFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] =
+      R"([%d, {"title": "another title", "color": "red"}])";
+  const std::string args = base::StringPrintf(kFormatArgs, group_id);
+  EXPECT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  // Check that values were updated.
+  tab_groups::TabGroupVisualData expected_visual_data(
+      u"another title", tab_groups::TabGroupColorId::kRed);
+  ASSERT_EQ(expected_visual_data,
+            *tab_group_model->GetTabGroup(group)->visual_data());
 }
 
 // Test that moving a group to the right results in the correct tab order.
@@ -378,7 +520,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveRight) {
 
   // Create a group with multiple tabs.
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({1, 2, 3});
-  int group_id = tab_groups_util::GetGroupId(group);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Use the TabGroupsMoveFunction to move the group to index 2.
   auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
@@ -400,6 +542,80 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveRight) {
   EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(4).value());
 }
 
+// Test that moving a group to the right of another group results in the correct
+// tab order.
+TEST_F(TabGroupsApiUnitTest, TabGroupsMoveAdjacentGroupRight) {
+  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+
+  scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+
+  // Create a group with multiple tabs.
+  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({1, 2, 3});
+  tab_groups::TabGroupId group_2 = tab_strip_model->AddToNewGroup({4, 5});
+
+  int group_id = ExtensionTabUtil::GetGroupId(group);
+
+  // Use the TabGroupsMoveFunction to move the group to index 3.
+  auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([%d, {"index": 3}])";
+  const std::string args = base::StringPrintf(kFormatArgs, group_id);
+  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(0), web_contents(0));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(1), web_contents(4));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(2), web_contents(5));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(3), web_contents(1));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(4), web_contents(2));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(5), web_contents(3));
+
+  EXPECT_EQ(group_2, tab_strip_model->GetTabGroupForTab(1).value());
+  EXPECT_EQ(group_2, tab_strip_model->GetTabGroupForTab(2).value());
+
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(3).value());
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(4).value());
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(5).value());
+}
+
+// Test that moving a group to the right of another group results in the correct
+// tab order.
+TEST_F(TabGroupsApiUnitTest, TabGroupsMoveGroupCannotMoveToTheMiddleOfAGroup) {
+  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+
+  scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+
+  // Create a group with multiple tabs.
+  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({1, 2});
+  tab_groups::TabGroupId group_2 = tab_strip_model->AddToNewGroup({4, 5});
+
+  int group_id = ExtensionTabUtil::GetGroupId(group);
+
+  // Use the TabGroupsMoveFunction to move the group to index 3.
+  auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([%d, {"index": 3}])";
+  const std::string args = base::StringPrintf(kFormatArgs, group_id);
+  EXPECT_FALSE(api_test_utils::RunFunction(
+      function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
+
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(0), web_contents(0));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(1), web_contents(1));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(2), web_contents(2));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(3), web_contents(3));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(4), web_contents(4));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(5), web_contents(5));
+
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(1).value());
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(2).value());
+  EXPECT_EQ(group_2, tab_strip_model->GetTabGroupForTab(4).value());
+  EXPECT_EQ(group_2, tab_strip_model->GetTabGroupForTab(5).value());
+}
+
 // Test that moving a group to the left results in the correct tab order.
 TEST_F(TabGroupsApiUnitTest, TabGroupsMoveLeft) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
@@ -410,7 +626,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveLeft) {
 
   // Create a group with multiple tabs.
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({2, 3, 4});
-  int group_id = tab_groups_util::GetGroupId(group);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Use the TabGroupsMoveFunction to move the group to index 0.
   auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
@@ -442,16 +658,18 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveAcrossWindows) {
 
   // Create a group with multiple tabs.
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({2, 3, 4});
-  int group_id = tab_groups_util::GetGroupId(group);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Create a new window and add a few tabs.
-  TestBrowserWindow* window2 = new TestBrowserWindow;
-  // TestBrowserWindowOwner handles its own lifetime, and also cleans up
-  // |window2|.
-  new TestBrowserWindowOwner(window2);
+  auto window2 = std::make_unique<TestBrowserWindow>();
   Browser::CreateParams params(profile(), /* user_gesture */ true);
   params.type = Browser::TYPE_NORMAL;
-  params.window = window2;
+  params.window = window2.get();
+
+  // TestBrowserWindowOwner handles its own lifetime, and also cleans up
+  // |window2|.
+  new TestBrowserWindowOwner(std::move(window2));
+
   std::unique_ptr<Browser> browser2(Browser::Create(params));
   BrowserList::SetLastActive(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
@@ -509,7 +727,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveToPinnedError) {
 
   // Create a group with an unpinned tab.
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({4});
-  int group_id = tab_groups_util::GetGroupId(group);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Try to move the group to index 1 and expect an error.
   auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
@@ -518,8 +736,9 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveToPinnedError) {
   const std::string args = base::StringPrintf(kFormatArgs, group_id);
   std::string error = api_test_utils::RunFunctionAndReturnError(
       function.get(), args, profile(), api_test_utils::FunctionMode::kNone);
-  EXPECT_EQ(tab_groups_constants::kCannotMoveGroupIntoMiddleOfPinnedTabsError,
-            error);
+  EXPECT_EQ(
+      "Cannot move the group to an index that is in the middle of pinned tabs.",
+      error);
 }
 
 // Test that a group cannot be moved into the middle of another group.
@@ -533,7 +752,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveToOtherGroupError) {
   // Create two tab groups, one with multiple tabs and the other to move.
   tab_strip_model->AddToNewGroup({0, 1, 2});
   tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({4});
-  int group_id = tab_groups_util::GetGroupId(group);
+  int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Try to move the second group to index 1 and expect an error.
   auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
@@ -542,8 +761,10 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsMoveToOtherGroupError) {
   const std::string args = base::StringPrintf(kFormatArgs, group_id);
   std::string error = api_test_utils::RunFunctionAndReturnError(
       function.get(), args, profile(), api_test_utils::FunctionMode::kNone);
-  EXPECT_EQ(tab_groups_constants::kCannotMoveGroupIntoMiddleOfOtherGroupError,
-            error);
+  EXPECT_EQ(
+      "Cannot move the group to an index that is in the middle of another "
+      "group.",
+      error);
 }
 
 TEST_F(TabGroupsApiUnitTest, TabGroupsOnCreated) {
@@ -570,8 +791,7 @@ TEST_F(TabGroupsApiUnitTest, TabGroupsOnUpdated) {
 
   tab_groups::TabGroupVisualData visual_data(u"Title",
                                              tab_groups::TabGroupColorId::kRed);
-  tab_strip_model->group_model()->GetTabGroup(group)->SetVisualData(
-      visual_data);
+  tab_strip_model->ChangeTabGroupVisuals(group, visual_data);
 
   EXPECT_EQ(1u, event_observer.events().size());
   EXPECT_TRUE(base::Contains(event_observer.events(),
@@ -613,7 +833,7 @@ TEST_F(TabGroupsApiUnitTest, IsTabStripEditable) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
-  int group_id = tab_groups_util::GetGroupId(
+  int group_id = ExtensionTabUtil::GetGroupId(
       browser()->tab_strip_model()->AddToNewGroup({0}));
   const std::string args =
       base::StringPrintf(R"([%d, {"index": %d}])", group_id, 1);
@@ -629,7 +849,7 @@ TEST_F(TabGroupsApiUnitTest, IsTabStripEditable) {
   }
 
   // Make tab strip uneditable.
-  browser_window()->SetIsTabStripEditable(false);
+  browser_window()->SetTabStripNotEditableForTesting();
   EXPECT_FALSE(browser_window()->IsTabStripEditable());
 
   // Succeed querying group when tab strip is not editable.
@@ -648,8 +868,47 @@ TEST_F(TabGroupsApiUnitTest, IsTabStripEditable) {
     function->set_extension(extension);
     std::string error = api_test_utils::RunFunctionAndReturnError(
         function.get(), args, profile());
-    EXPECT_EQ(tabs_constants::kTabStripNotEditableError, error);
+    EXPECT_EQ(ExtensionTabUtil::kTabStripNotEditableError, error);
   }
+}
+
+// Test that moving a group within the same window but specifying the window id
+// does not cause unexpected behavior.
+TEST_F(TabGroupsApiUnitTest, TabGroupsMoveGroupWithinSameWindowWithWindowId) {
+  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+
+  scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+
+  // Create a group with multiple tabs.
+  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({1, 2, 3});
+  int group_id = ExtensionTabUtil::GetGroupId(group);
+  int window_id = ExtensionTabUtil::GetWindowId(browser());
+
+  // Move the group to index 1, specifying the current window id.
+  auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([%d, {"windowId": %d, "index": 1}])";
+  const std::string args = base::StringPrintf(kFormatArgs, group_id, window_id);
+  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  // Verify the tabs are in the correct order.The group should now be at
+  // index 1.
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(0), web_contents(0));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(1), web_contents(1));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(2), web_contents(2));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(3), web_contents(3));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(4), web_contents(4));
+  EXPECT_EQ(tab_strip_model->GetWebContentsAt(5), web_contents(5));
+
+  // Verify that the group is still associated with the correct tabs.
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(1).value());
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(2).value());
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(3).value());
+
+  tab_strip_model->CloseAllTabs();
 }
 
 }  // namespace extensions

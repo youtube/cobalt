@@ -15,10 +15,11 @@ bool graphite_tint_test_override = false;
 namespace ui {
 
 bool IsSystemGraphiteTinted() {
-  if (graphite_tint_test_override)
+  if (graphite_tint_test_override) {
     return true;
+  }
 
-  return [NSColor currentControlTint] == NSGraphiteControlTint;
+  return NSColor.currentControlTint == NSGraphiteControlTint;
 }
 
 SkColor ColorToGrayscale(SkColor color) {
@@ -35,4 +36,4 @@ ScopedEnableGraphiteTint::~ScopedEnableGraphiteTint() {
   graphite_tint_test_override = original_test_override_;
 }
 
-}  // ui
+}  // namespace ui

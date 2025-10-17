@@ -6,14 +6,13 @@
 #define NET_CERT_CERT_VERIFY_RESULT_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "base/supports_user_data.h"
 #include "base/values.h"
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/cert/ct_policy_status.h"
-#include "net/cert/ocsp_verify_result.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
+#include "third_party/boringssl/src/include/openssl/pki/ocsp.h"
 
 namespace ct {
 enum class CTPolicyCompliance;
@@ -24,20 +23,12 @@ namespace net {
 class X509Certificate;
 
 // The result of certificate verification.
-//
-// Additional debugging or purely informational data may be added through
-// SupportsUserData, but such data must not be used for anything that changes
-// how the results are interpreted or acted upon: any data that changes the
-// meaning of the result must be added as a member in this class, not through
-// SupportsUserData.
-// Any Data added through SupportsUserData must implement Clone().
-class NET_EXPORT CertVerifyResult : public base::SupportsUserData {
+// LINT.IfChange(CertVerifyResult)
+class NET_EXPORT CertVerifyResult {
  public:
   CertVerifyResult();
   CertVerifyResult(const CertVerifyResult& other);
-  ~CertVerifyResult() override;
-
-  CertVerifyResult& operator=(const CertVerifyResult& other);
+  ~CertVerifyResult();
 
   void Reset();
 
@@ -88,12 +79,8 @@ class NET_EXPORT CertVerifyResult : public base::SupportsUserData {
   // meaningless if the certificate was not trusted.
   bool is_issued_by_known_root;
 
-  // is_issued_by_additional_trust_anchor is true if the root CA used for this
-  // verification came from the list of additional trust anchors.
-  bool is_issued_by_additional_trust_anchor;
-
   // Verification of stapled OCSP response, if present.
-  OCSPVerifyResult ocsp_result;
+  bssl::OCSPVerifyResult ocsp_result;
 
   // `scts` contains the result of verifying any provided or embedded SCTs for
   // this certificate against the set of known logs. Consumers should not simply
@@ -104,7 +91,11 @@ class NET_EXPORT CertVerifyResult : public base::SupportsUserData {
   // The result of evaluating whether the certificate complies with the
   // Certificate Transparency policy.
   ct::CTPolicyCompliance policy_compliance;
+
+  // The result of evaluating CT requirements.
+  ct::CTRequirementsStatus ct_requirement_status;
 };
+// LINT.ThenChange(/services/network/public/cpp/net_ipc_param_traits.cc:CertVerifyResult)
 
 }  // namespace net
 

@@ -141,7 +141,9 @@ message EnableTracingRequest {
 }
 
 message EnableTracingResponse {
-  oneof state { bool disabled = 1; }
+  oneof state {
+    bool disabled = 1;
+  }
 
   // If present and non-empty tracing was disabled because of an error.
   // Introduced in Android S.
@@ -205,6 +207,10 @@ message FreeBuffersResponse {}
 // Arguments for rpc Flush().
 message FlushRequest {
   optional uint32 timeout_ms = 1;
+
+  // More details such as flush reason and originator. Introduced in v38 / V.
+  // See FlushFlags in include/perfetto/ext/tracing/core/flush_flags.h.
+  optional uint64 flags = 2;
 }
 
 message FlushResponse {}
@@ -246,7 +252,11 @@ message ObserveEventsResponse {
 }
 
 // Arguments for rpc QueryServiceState.
-message QueryServiceStateRequest {}
+message QueryServiceStateRequest {
+  // If set, only the TracingServiceState.tracing_sessions is filled. Producers
+  // and data sources are omitted.
+  optional bool sessions_only = 1;
+}
 
 message QueryServiceStateResponse {
   // In order to avoid hitting IPC message size limitations, the service will
@@ -279,9 +289,39 @@ message SaveTraceForBugreportResponse {
 
 // Arguments for rpc CloneSession.
 message CloneSessionRequest {
-  // The session ID to clone. If session_id == kBugreportSessionId (0xff...ff)
-  // the session with the highest bugreport score is cloned (if any exists).
-  optional uint64 session_id = 1;
+  oneof selector {
+    // The session ID to clone. If session_id == kBugreportSessionId (0xff...ff)
+    // the session with the highest bugreport score is cloned (if any exists).
+    uint64 session_id = 1;
+
+    // The unique_session_name of the tracing session to clone. Tracing sessions
+    // that are clones of other tracing sessions are ignored.
+    string unique_session_name = 4;
+  }
+
+  // If set, the trace filter will not have effect on the cloned session.
+  // Used for bugreports.
+  optional bool skip_trace_filter = 2;
+
+  // If set, affects the generation of the FlushFlags::CloneTarget to be set
+  // to kBugreport when requesting the flush to the producers.
+  optional bool for_bugreport = 3;
+
+  // If set, this is stored in the trace as name of the trigger that caused the
+  // clone.
+  optional string clone_trigger_name = 5;
+  // If set, this is stored in the trace as name of the producer that triggered
+  // the clone.
+  optional string clone_trigger_producer_name = 6;
+  // If set, this is stored in the trace as uid of the producer that triggered
+  // the clone.
+  optional int32 clone_trigger_trusted_producer_uid = 7;
+  // If set, this is stored in the trace as timestamp of the trigger that caused
+  // the clone.
+  optional uint64 clone_trigger_boot_time_ns = 8;
+  // If set, this is stored in the trace as the configured delay of the trigger
+  // that caused the clone.
+  optional uint64 clone_trigger_delay_ms = 9;
 }
 
 message CloneSessionResponse {
@@ -289,4 +329,8 @@ message CloneSessionResponse {
   // the details about the failure.
   optional bool success = 1;
   optional string error = 2;
+
+  // The UUID of the cloned session.
+  optional int64 uuid_msb = 3;
+  optional int64 uuid_lsb = 4;
 }

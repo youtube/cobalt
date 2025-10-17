@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/fake_translate_agent.h"
@@ -20,9 +21,9 @@
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_manager.h"
+#include "components/translate/content/android/translate_message.h"
 #include "components/translate/content/browser/content_translate_driver.h"
 #include "components/translate/content/common/translate.mojom.h"
-#include "components/translate/core/browser/translate_infobar_delegate.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/translate/core/browser/translate_ui_delegate.h"
 #include "components/translate/core/common/language_detection_details.h"
@@ -40,7 +41,7 @@ namespace {
 class TranslateManagerRenderViewHostAndroidTest
     : public ChromeRenderViewHostTestHarness {
  public:
-  TranslateManagerRenderViewHostAndroidTest() {}
+  TranslateManagerRenderViewHostAndroidTest() = default;
 
   TranslateManagerRenderViewHostAndroidTest(
       const TranslateManagerRenderViewHostAndroidTest&) = delete;
@@ -71,30 +72,6 @@ class TranslateManagerRenderViewHostAndroidTest
     return infobars::ContentInfoBarManager::FromWebContents(web_contents());
   }
 
-  // Returns the translate infobar if there is 1 infobar and it is a translate
-  // infobar.
-  translate::TranslateInfoBarDelegate* GetTranslateInfoBar() {
-    return (infobar_manager()->infobar_count() == 1)
-               ? infobar_manager()
-                     ->infobar_at(0)
-                     ->delegate()
-                     ->AsTranslateInfoBarDelegate()
-               : NULL;
-  }
-
-#if !defined(USE_AURA) && !BUILDFLAG(IS_MAC)
-  // If there is 1 infobar and it is a translate infobar, closes it and returns
-  // true.  Returns false otherwise.
-  bool CloseTranslateInfoBar() {
-    infobars::InfoBarDelegate* infobar = GetTranslateInfoBar();
-    if (!infobar)
-      return false;
-    infobar->InfoBarDismissed();  // Simulates closing the infobar.
-    infobar_manager()->RemoveInfoBar(infobar_manager()->infobar_at(0));
-    return true;
-  }
-#endif
-
  protected:
   void SetUp() override {
     // Setup the test environment, including the threads and message loops. This
@@ -123,50 +100,11 @@ class TranslateManagerRenderViewHostAndroidTest
  private:
   // The infobars that have been removed.
   // WARNING: the pointers point to deleted objects, use only for comparison.
-  std::set<infobars::InfoBarDelegate*> removed_infobars_;
+  std::set<raw_ptr<infobars::InfoBarDelegate, SetExperimental>>
+      removed_infobars_;
 
   FakeTranslateAgent fake_agent_;
 };
-
-TEST_F(TranslateManagerRenderViewHostAndroidTest,
-       ManualTranslateOnReadyBeforeLanguageDetermined) {
-  // This only makes sense for infobars, because the check for supported
-  // languages moved out of the Infobar into the TranslateManager.
-  if (TranslateService::IsTranslateBubbleEnabled())
-    return;
-
-  GURL url("http://www.google.com");
-  // We should not have a translate infobar.
-  ASSERT_TRUE(GetTranslateInfoBar() == NULL);
-  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
-                                                             url);
-  ChromeTranslateClient::FromWebContents(web_contents())
-      ->ManualTranslateWhenReady();
-  ASSERT_TRUE(GetTranslateInfoBar() == NULL);
-  SimulateOnTranslateLanguageDetermined("fr", true);
-  EXPECT_TRUE(GetTranslateInfoBar() != NULL);
-  EXPECT_TRUE(CloseTranslateInfoBar());
-}
-
-TEST_F(TranslateManagerRenderViewHostAndroidTest,
-       ManualTranslateOnReadyAfterLanguageDetermined) {
-  // This only makes sense for infobars, because the check for supported
-  // languages moved out of the Infobar into the TranslateManager.
-  if (TranslateService::IsTranslateBubbleEnabled())
-    return;
-
-  GURL url("http://www.google.com");
-  // We should not have a translate infobar.
-  ASSERT_TRUE(GetTranslateInfoBar() == NULL);
-  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
-                                                             url);
-  ASSERT_TRUE(GetTranslateInfoBar() == NULL);
-  SimulateOnTranslateLanguageDetermined("fr", true);
-  ChromeTranslateClient::FromWebContents(web_contents())
-      ->ManualTranslateWhenReady();
-  EXPECT_TRUE(GetTranslateInfoBar() != NULL);
-  EXPECT_TRUE(CloseTranslateInfoBar());
-}
 
 }  // namespace
 }  // namespace translate

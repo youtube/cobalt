@@ -4,14 +4,17 @@
 
 #include "cc/tiles/tiles_with_resource_iterator.h"
 
+#include "base/memory/raw_ptr.h"
 #include "cc/layers/picture_layer_impl.h"
 #include "cc/tiles/picture_layer_tiling_set.h"
 
 namespace cc {
 
 TilesWithResourceIterator::TilesWithResourceIterator(
-    const std::vector<PictureLayerImpl*>* picture_layers,
-    const std::vector<PictureLayerImpl*>* secondary_picture_layers)
+    const std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>*
+        picture_layers,
+    const std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>*
+        secondary_picture_layers)
     : picture_layers_(picture_layers),
       secondary_picture_layers_(secondary_picture_layers),
       active_layers_(picture_layers) {
@@ -28,19 +31,6 @@ Tile* TilesWithResourceIterator::GetCurrent() {
   return AtEnd() ? nullptr : tile_iterator_->GetCurrent();
 }
 
-PrioritizedTile* TilesWithResourceIterator::GetCurrentAsPrioritizedTile() {
-  if (prioritized_tile_)
-    return &*prioritized_tile_;
-  Tile* tile = GetCurrent();
-  if (!tile)
-    return nullptr;
-  PictureLayerTiling* tiling = CurrentPictureLayerTiling();
-  prioritized_tile_ = tiling->MakePrioritizedTile(
-      tile, tiling->ComputePriorityRectTypeForTile(tile),
-      tiling->IsTileOccluded(tile));
-  return &*prioritized_tile_;
-}
-
 bool TilesWithResourceIterator::IsCurrentTileOccluded() {
   Tile* tile = GetCurrent();
   return tile && tile->tiling()->IsTileOccluded(tile);
@@ -49,7 +39,6 @@ bool TilesWithResourceIterator::IsCurrentTileOccluded() {
 void TilesWithResourceIterator::Next() {
   if (AtEnd())
     return;
-  prioritized_tile_.reset();
   DCHECK(tile_iterator_);
   tile_iterator_->Next();
   if (FindNextInTileIterator())

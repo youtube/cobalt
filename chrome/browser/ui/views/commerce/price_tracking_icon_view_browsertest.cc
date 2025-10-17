@@ -1,13 +1,14 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "chrome/browser/ui/views/commerce/price_tracking_icon_view.h"
 
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
-#include "chrome/browser/ui/views/commerce/price_tracking_icon_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -26,7 +27,8 @@ const char kTestURL[] = "about:blank";
 class PriceTrackingIconViewBrowserTest : public UiBrowserTest {
  public:
   PriceTrackingIconViewBrowserTest() {
-    test_features_.InitAndEnableFeature(commerce::kShoppingList);
+    test_features_.InitWithFeatures({commerce::kShoppingList},
+                                    {commerce::kPriceInsights});
   }
 
   // UiBrowserTest:

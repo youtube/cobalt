@@ -60,7 +60,7 @@ MATCHER_P(MatchValue, expected, "matches base::Value") {
 class MockArcAppInstallEventLogUploaderDelegate
     : public ArcAppInstallEventLogUploader::Delegate {
  public:
-  MockArcAppInstallEventLogUploaderDelegate() {}
+  MockArcAppInstallEventLogUploaderDelegate() = default;
 
   MockArcAppInstallEventLogUploaderDelegate(
       const MockArcAppInstallEventLogUploaderDelegate&) = delete;
@@ -112,7 +112,8 @@ class ArcAppInstallEventLogUploaderTest : public testing::Test {
   void CompleteSerialize() {
     EXPECT_CALL(delegate_, SerializeForUpload_)
         .WillOnce(WithArgs<0>(Invoke(
-            [=](ArcAppInstallEventLogUploader::Delegate::SerializationCallback&
+            [=, this](
+                ArcAppInstallEventLogUploader::Delegate::SerializationCallback&
                     callback) { std::move(callback).Run(&log_); })));
   }
 

@@ -14,6 +14,8 @@
 #include "ash/frame_sink/ui_resource_manager.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
+#include "cc/scheduler/scheduler.h"
 #include "cc/trees/layer_tree_frame_sink_client.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/quads/compositor_frame.h"
@@ -50,9 +52,19 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
           const gfx::Size& last_submitted_frame_size,
           float last_submitted_frame_dsf)>;
 
-  // The callback is the source of frames for the holder.
-  FrameSinkHolder(std::unique_ptr<cc::LayerTreeFrameSink> frame_sink,
-                  GetCompositorFrameCallback callback);
+  // Refer to declaration of `FrameSinkHost::OnFirstFrameRequested` for a
+  // detailed comment.
+  using OnFirstFrameRequestedCallback = base::OnceCallback<void()>;
+
+  // Refer to declaration of `FrameSinkHost::OnFrameSinkLost` for a detailed
+  // comment.
+  using OnFrameSinkLost = base::OnceCallback<void()>;
+
+  FrameSinkHolder(
+      std::unique_ptr<cc::LayerTreeFrameSink> frame_sink,
+      GetCompositorFrameCallback get_compositor_frame_callback,
+      OnFirstFrameRequestedCallback on_first_frame_requested_callback,
+      OnFrameSinkLost on_frame_sink_lost_callback);
 
   FrameSinkHolder(const FrameSinkHolder&) = delete;
   FrameSinkHolder& operator=(const FrameSinkHolder&) = delete;
@@ -78,7 +90,7 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
   // When auto-update mode is on, we keep on submitting frames asynchronously to
   // display compositor without a request to submit a frame via
   // `SubmitCompositorFrame()`.
-  void SetAutoUpdateMode(bool mode) { auto_update_ = mode; }
+  void SetAutoUpdateMode(bool mode);
 
   UiResourceManager& resource_manager() { return resources_manager_; }
 
@@ -92,7 +104,7 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
 
   // Overridden from cc::LayerTreeFrameSinkClient:
   void SetBeginFrameSource(viz::BeginFrameSource* source) override;
-  absl::optional<viz::HitTestRegionList> BuildHitTestData() override;
+  std::optional<viz::HitTestRegionList> BuildHitTestData() override;
   void ReclaimResources(std::vector<viz::ReturnedResource> resources) override;
   void SetTreeActivationCallback(base::RepeatingClosure callback) override;
   void DidReceiveCompositorFrameAck() override;
@@ -119,6 +131,18 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
  private:
   friend class FrameSinkHolderTestApi;
 
+  void ObserveBeginFrameSource(bool start);
+
+  // If we have not consecutively produced a frame in response to OnBeginFrame
+  // events from the compositor, we can stop observing the
+  // `begin_frame_source_`. This is because continuous polling from the
+  // compositor and receiving DidNotProduceFrame responses from the client is
+  // unnecessary work and can cause power regression.
+  void MaybeStopObservingBeingFrameSource();
+
+  void DidNotProduceFrame(viz::BeginFrameAck&& begin_frame_ack,
+                          cc::FrameSkippedReason reason);
+
   // Create an empty frame that has dsf and size of the last submitted frame.
   viz::CompositorFrame CreateEmptyFrame();
 
@@ -134,16 +158,16 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
   // Extend the lifetime of `this` by adding it as a observer to `root_window`.
   void SetRootWindowForDeletion(aura::Window* root_window);
 
-  // True when the display compositor has already asked for the a compositor
-  // frame. This signifies that the gpu process has been fully initialized.
-  bool first_frame_requested_ = false;
+  bool first_frame_requested() const {
+    return !on_first_frame_requested_callback_;
+  }
 
   // The layer tree frame sink created from `host_window_.
   std::unique_ptr<cc::LayerTreeFrameSink> frame_sink_;
 
   // The currently observed `BeginFrameSource` which will notify us with
   // `OnBeginFrameDerivedImpl()`.
-  raw_ptr<viz::BeginFrameSource, ExperimentalAsh> begin_frame_source_ = nullptr;
+  raw_ptr<viz::BeginFrameSource> begin_frame_source_ = nullptr;
 
   // True if we submitted a compositor frame and are waiting for a call to
   // `DidReceiveCompositorFrameAck()`.
@@ -158,11 +182,6 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
   // If either changes, we'll need to allocate a new local surface ID.
   gfx::Size last_frame_size_in_pixels_;
   float last_frame_device_scale_factor_ = 1.0f;
-
-  // The root window to which `this` holder becomes an observer to extend its
-  // lifespan till all the in-flight resource to display compositor are
-  // reclaimed.
-  base::raw_ptr<aura::Window> root_window_for_deletion_ = nullptr;
 
   // Keeps track of resources that are currently available to be reused in a
   // compositor frame and the resources that are in-use by the display
@@ -184,6 +203,27 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
 
   // The callback to generate the next compositor frame.
   GetCompositorFrameCallback get_compositor_frame_callback_;
+
+  // The callback invoked when the display compositor asks for a compositor
+  // frame for the first time. This signifies that the gpu process has been
+  // fully initialized.
+  OnFirstFrameRequestedCallback on_first_frame_requested_callback_;
+
+  // The callback invoked when the connection to `frame_sink_` is lost.
+  OnFrameSinkLost on_frame_sink_lost_callback_;
+  bool is_frame_sink_lost_ = false;
+
+  // Observation of the root window to which this holder becomes an observer to
+  // extend its lifespan till all the in-flight resource to display compositor
+  // are reclaimed.
+  base::ScopedObservation<aura::Window, aura::WindowObserver>
+      root_window_observation_{this};
+  base::ScopedObservation<viz::BeginFrameSource, viz::BeginFrameObserver>
+      begin_frame_observation_{this};
+
+  // The number of DidNotProduceFrame responses since the last time when a frame
+  // is submitted.
+  int consecutive_begin_frames_produced_no_frame_count_ = 0;
 
   base::WeakPtrFactory<FrameSinkHolder> weak_ptr_factory_{this};
 };

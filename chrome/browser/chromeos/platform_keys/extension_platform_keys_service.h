@@ -16,6 +16,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/platform_keys/key_permissions/key_permissions_service.h"
+#include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chromeos/crosapi/mojom/keystore_error.mojom.h"
 #include "chromeos/crosapi/mojom/keystore_service.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -81,28 +82,33 @@ class ExtensionPlatformKeysService : public KeyedService {
   // failed, |public_key_spki_der| will be empty.
   using GenerateKeyCallback = base::OnceCallback<void(
       std::vector<uint8_t> public_key_spki_der,
-      absl::optional<crosapi::mojom::KeystoreError> error)>;
+      std::optional<crosapi::mojom::KeystoreError> error)>;
 
-  // Generates an RSA key pair with |modulus_length_bits| and registers the key
-  // to allow a single sign operation by the given extension. |token_id|
-  // specifies the token to store the key pair on. If |sw_backed| is true, the
-  // generated RSA key pair will be software-backed. If the generation was
-  // successful, |callback| will be invoked with the resulting public key. If it
-  // failed, the resulting public key will be empty. Will only call back during
-  // the lifetime of this object.
+  // Generates a RSA key pair with `modulus_length_bits` and marks the key as
+  // corporate. `key_type` should be either `kRsassaPkcs1V15` or `kRsaOaep` (the
+  // only RSA key algorithms currently supported). If `key_type` is equal to
+  // `kRsassaPkcs1V15`, the key will be registered to allow a single sign
+  // operation by the given extension. `token_id` specifies the token to store
+  // the key pair on. If `sw_backed` is true, the generated RSA key pair will be
+  // software-backed. If the generation was successful, `callback` will be
+  // invoked with the resulting public key. If it failed, the resulting public
+  // key will be empty. Will only call back during the lifetime of this object.
   void GenerateRSAKey(platform_keys::TokenId token_id,
+                      platform_keys::KeyType key_type,
                       unsigned int modulus_length_bits,
                       bool sw_backed,
                       std::string extension_id,
                       GenerateKeyCallback callback);
 
-  // Generates an EC key pair with |named_curve| and registers the key to allow
-  // a single sign operation by the given extension. |token_id| specifies the
-  // token to store the key pair on. If the generation was successful,
-  // |callback| will be invoked with the resulting public key. If it failed, the
-  // resulting public key will be empty. Will only call back during the lifetime
-  // of this object.
+  // Generates an EC key pair with `named_curve`, marks the key as corporate,
+  // and registers it to allow a single sign operation by the given extension.
+  // `key_type` should be `kEcdsa` (the only EC key algorithm currently
+  // supported). `token_id` specifies the token to store the key pair on. If the
+  // generation was successful, `callback` will be invoked with the resulting
+  // public key. If it failed, the resulting public key will be empty. Will only
+  // call back during the lifetime of this object.
   void GenerateECKey(platform_keys::TokenId token_id,
+                     platform_keys::KeyType key_type,
                      std::string named_curve,
                      std::string extension_id,
                      GenerateKeyCallback callback);
@@ -116,7 +122,7 @@ class ExtensionPlatformKeysService : public KeyedService {
   // failed, |signature| will be empty.
   using SignCallback = base::OnceCallback<void(
       std::vector<uint8_t> signature,
-      absl::optional<crosapi::mojom::KeystoreError> error)>;
+      std::optional<crosapi::mojom::KeystoreError> error)>;
 
   // Digests |data|, applies PKCS1 padding if specified by |hash_algorithm| and
   // chooses the signature algorithm according to |key_type| and signs the data
@@ -130,7 +136,7 @@ class ExtensionPlatformKeysService : public KeyedService {
   // future signing attempts. If signing was successful, |callback| will be
   // invoked with the signature. If it failed, the resulting signature will be
   // empty. Will only call back during the lifetime of this object.
-  void SignDigest(absl::optional<platform_keys::TokenId> token_id,
+  void SignDigest(std::optional<platform_keys::TokenId> token_id,
                   std::vector<uint8_t> data,
                   std::vector<uint8_t> public_key_spki_der,
                   platform_keys::KeyType key_type,
@@ -150,7 +156,7 @@ class ExtensionPlatformKeysService : public KeyedService {
   // future signing attempts. If signing was successful, |callback| will be
   // invoked with the signature. If it failed, the resulting signature will be
   // empty. Will only call back during the lifetime of this object.
-  void SignRSAPKCS1Raw(absl::optional<platform_keys::TokenId> token_id,
+  void SignRSAPKCS1Raw(std::optional<platform_keys::TokenId> token_id,
                        std::vector<uint8_t> data,
                        std::vector<uint8_t> public_key_spki_der,
                        std::string extension_id,
@@ -161,7 +167,7 @@ class ExtensionPlatformKeysService : public KeyedService {
   // occurred, |matches| will be null.
   using SelectCertificatesCallback = base::OnceCallback<void(
       std::unique_ptr<net::CertificateList> matches,
-      absl::optional<crosapi::mojom::KeystoreError> error)>;
+      std::optional<crosapi::mojom::KeystoreError> error)>;
 
   // Returns a list of certificates matching |request|.
   // 1) all certificates that match the request (like being rooted in one of the
@@ -185,12 +191,29 @@ class ExtensionPlatformKeysService : public KeyedService {
       SelectCertificatesCallback callback,
       content::WebContents* web_contents);
 
+  using SetKeyTagCallback = base::OnceCallback<void(
+      std::optional<crosapi::mojom::KeystoreError> error)>;
+
+  // Sets a custom |tag| to a key that matches |public_key_spki_der|. This tag
+  // can later be used to find the key based on some external logic.
+  // |token_id| represents the token where the key is located.
+  // If the extension does not have permissions to use this key, the
+  // operation aborts. In any case |callback| will be invoked and if the
+  // operation failed it will contain an error. Will only call back during the
+  // lifetime of this object.
+  void SetKeyTag(platform_keys::TokenId token_id,
+                 std::vector<uint8_t> tag,
+                 std::vector<uint8_t> public_key_spki_der,
+                 std::string extension_id,
+                 SetKeyTagCallback callback);
+
  private:
   class GenerateRSAKeyTask;
   class GenerateECKeyTask;
   class GenerateKeyTask;
   class SelectTask;
   class SignTask;
+  class SetKeyTagTask;
   class Task;
 
   // Starts |task| eventually. To ensure that at most one |Task| is running at a
@@ -202,16 +225,6 @@ class ExtensionPlatformKeysService : public KeyedService {
   // other tasks are queued (see StartOrQueueTask()), it will start the next
   // one.
   void TaskFinished(Task* task);
-
-  // Callback used by |GenerateRSAKey|.
-  // If the key generation was successful, registers the generated public key
-  // for the given extension. If any error occurs during key generation or
-  // registration, calls |callback| with an error status. Otherwise, on success,
-  // calls |callback| with the public key.
-  void GeneratedKey(const std::string& extension_id,
-                    const GenerateKeyCallback& callback,
-                    const std::string& public_key_spki_der,
-                    platform_keys::Status status);
 
   const raw_ptr<content::BrowserContext> browser_context_ = nullptr;
   const raw_ptr<crosapi::mojom::KeystoreService> keystore_service_ = nullptr;

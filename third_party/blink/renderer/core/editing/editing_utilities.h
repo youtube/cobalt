@@ -142,12 +142,11 @@ inline ContainerNode* ParentCrossingShadowBoundaries<EditingInFlatTreeStrategy>(
   return FlatTreeTraversal::Parent(node);
 }
 
+void WriteImageToClipboard(SystemClipboard& system_clipboard,
+                           const scoped_refptr<Image>& image,
+                           const KURL& url_string,
+                           const String& title);
 void WriteImageNodeToClipboard(SystemClipboard&, const Node&, const String&);
-
-// boolean functions on Node
-
-// FIXME: editingIgnoresContent, canHaveChildrenForEditing, and isAtomicNode
-// should be renamed to reflect its usage.
 
 // Returns true for nodes that either have no content, or have content that is
 // ignored (skipped over) while editing. There are no VisiblePositions inside
@@ -168,12 +167,13 @@ bool IsMailHTMLBlockquoteElement(const Node*);
 // invalid nodes to <table> elements.
 bool IsDisplayInsideTable(const Node*);
 bool IsTableCell(const Node*);
+bool IsTablePartElement(const Node*);
 bool IsHTMLListElement(const Node*);
 bool IsListItem(const Node*);
 bool IsListItemTag(const Node*);
 bool IsListElementTag(const Node*);
 bool IsPresentationalHTMLElement(const Node*);
-bool IsRenderedAsNonInlineTableImageOrHR(const Node*);
+CORE_EXPORT bool IsRenderedAsNonInlineTableImageOrHR(const Node*);
 bool IsNonTableCellHTMLBlockElement(const Node*);
 bool IsBlockFlowElement(const Node&);
 bool IsInPasswordField(const Position&);
@@ -181,6 +181,10 @@ CORE_EXPORT TextDirection DirectionOfEnclosingBlockOf(const Position&);
 CORE_EXPORT TextDirection
 DirectionOfEnclosingBlockOf(const PositionInFlatTree&);
 CORE_EXPORT TextDirection PrimaryDirectionOf(const Node&);
+
+// If the passed in Node is an Element, return Element::GetComputedStyle, if the
+// Node has a LayoutObject, return LayoutObject::Style(), otherwise nullptr.
+const ComputedStyle* GetComputedStyleForElementOrLayoutObject(const Node&);
 
 // -------------------------------------------------------------------------
 // Position
@@ -259,6 +263,9 @@ int16_t ComparePositions(const PositionInFlatTree&, const PositionInFlatTree&);
 // Returns true if `node` in `range`, otherwise false.
 // Note: This function resides in "editing_utilities.cc".
 bool IsNodeFullyContained(const EphemeralRange& range, const Node& node);
+// Returns true if the element's visibility or display
+// style is changed to visible or inline, respectively.
+bool EnsureNodeVisibility(HTMLElement*);
 
 // boolean functions on Position
 
@@ -285,6 +292,7 @@ PositionWithAffinity AdjustForEditingBoundary(const Position&);
 
 CORE_EXPORT Position ComputePositionForNodeRemoval(const Position&,
                                                    const Node&);
+Position ComputePlaceholderToCollapseAt(const Position&);
 
 // TODO(editing-dev): These two functions should be eliminated.
 CORE_EXPORT Position PositionBeforeNode(const Node&);
@@ -382,20 +390,26 @@ gfx::QuadF LocalToAbsoluteQuadOf(const LocalCaretRect&);
 // -------------------------------------------------------------------------
 
 // Functions dispatch InputEvent
-InputEvent::EventCancelable InputTypeIsCancelable(
-    InputEvent::InputType input_type);
-const StaticRangeVector* TargetRangesForInputEvent(const Node&);
+const GCedStaticRangeVector* TargetRangesForInputEvent(const Node&);
 DispatchEventResult DispatchBeforeInputInsertText(
     Node*,
     const String& data,
     InputEvent::InputType = InputEvent::InputType::kInsertText,
-    const StaticRangeVector* = nullptr);
-DispatchEventResult DispatchBeforeInputEditorCommand(Node*,
-                                                     InputEvent::InputType,
-                                                     const StaticRangeVector*);
+    const GCedStaticRangeVector* = nullptr);
+DispatchEventResult DispatchBeforeInputEditorCommand(
+    Node*,
+    InputEvent::InputType,
+    const GCedStaticRangeVector*);
 DispatchEventResult DispatchBeforeInputDataTransfer(Node*,
                                                     InputEvent::InputType,
                                                     DataTransfer*);
+
+// Helper function to dispatch beforeinput and input events whose inputType is
+// insertReplacementText.
+void InsertTextAndSendInputEventsOfTypeInsertReplacementText(
+    LocalFrame&,
+    const String&,
+    bool allow_edit_context = false);
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_EDITING_UTILITIES_H_

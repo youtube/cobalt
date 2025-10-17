@@ -9,6 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "chromeos/ash/components/phonehub/feature_status_provider.h"
+#include "chromeos/ash/components/phonehub/phone_hub_structured_metrics_logger.h"
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_client.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/multidevice_setup_client.h"
 #include "chromeos/ash/services/secure_channel/public/cpp/client/connection_manager.h"
@@ -35,7 +36,8 @@ class FeatureStatusProviderImpl
       multidevice_setup::MultiDeviceSetupClient* multidevice_setup_client,
       secure_channel::ConnectionManager* connection_manager,
       session_manager::SessionManager* session_manager,
-      chromeos::PowerManagerClient* power_manager_client);
+      chromeos::PowerManagerClient* power_manager_client,
+      PhoneHubStructuredMetricsLogger* phone_hub_structured_metrics_logger);
   ~FeatureStatusProviderImpl() override;
 
  private:
@@ -78,16 +80,17 @@ class FeatureStatusProviderImpl
   void SuspendImminent(power_manager::SuspendImminent::Reason reason) override;
   void SuspendDone(base::TimeDelta sleep_duration) override;
 
-  raw_ptr<device_sync::DeviceSyncClient, ExperimentalAsh> device_sync_client_;
-  raw_ptr<multidevice_setup::MultiDeviceSetupClient, ExperimentalAsh>
-      multidevice_setup_client_;
-  raw_ptr<secure_channel::ConnectionManager, ExperimentalAsh>
-      connection_manager_;
-  raw_ptr<session_manager::SessionManager, ExperimentalAsh> session_manager_;
-  raw_ptr<chromeos::PowerManagerClient, ExperimentalAsh> power_manager_client_;
+  void CheckEligibleDevicesForNudge();
+
+  raw_ptr<device_sync::DeviceSyncClient> device_sync_client_;
+  raw_ptr<multidevice_setup::MultiDeviceSetupClient> multidevice_setup_client_;
+  raw_ptr<secure_channel::ConnectionManager> connection_manager_;
+  raw_ptr<session_manager::SessionManager> session_manager_;
+  raw_ptr<chromeos::PowerManagerClient> power_manager_client_;
+  raw_ptr<PhoneHubStructuredMetricsLogger> phone_hub_structured_metrics_logger_;
 
   scoped_refptr<device::BluetoothAdapter> bluetooth_adapter_;
-  absl::optional<FeatureStatus> status_;
+  std::optional<FeatureStatus> status_;
   bool is_suspended_ = false;
 
   base::WeakPtrFactory<FeatureStatusProviderImpl> weak_ptr_factory_{this};

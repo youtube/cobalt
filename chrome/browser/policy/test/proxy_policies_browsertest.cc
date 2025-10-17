@@ -9,7 +9,7 @@
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/core/common/policy_service.h"
@@ -29,7 +29,7 @@ namespace {
 void VerifyProxyPrefs(PrefService* prefs,
                       const std::string& expected_proxy_server,
                       const std::string& expected_proxy_pac_url,
-                      absl::optional<bool> expected_proxy_pac_mandatory,
+                      std::optional<bool> expected_proxy_pac_mandatory,
                       const std::string& expected_proxy_bypass_list,
                       const ProxyPrefs::ProxyMode& expected_proxy_mode) {
   const base::Value::Dict& pref_dict =
@@ -76,10 +76,10 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, SeparateProxyPoliciesMerging) {
   UpdateProviderPolicy(policies);
 
   VerifyProxyPrefs(g_browser_process->local_state(), std::string(),
-                   std::string(), absl::nullopt, std::string(),
+                   std::string(), std::nullopt, std::string(),
                    ProxyPrefs::MODE_SYSTEM);
-  VerifyProxyPrefs(browser()->profile()->GetPrefs(), std::string(),
-                   std::string(), absl::nullopt, std::string(),
+  VerifyProxyPrefs(chrome_test_utils::GetProfile(this)->GetPrefs(),
+                   std::string(), std::string(), std::nullopt, std::string(),
                    ProxyPrefs::MODE_SYSTEM);
 }
 

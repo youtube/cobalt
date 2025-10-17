@@ -23,6 +23,11 @@ load(
 
 package(
     default_visibility = ["//visibility:public"],
+    features = [
+        "header_modules",
+        "layering_check",
+        "parse_headers",
+    ],
 )
 
 licenses(["notice"])
@@ -49,6 +54,7 @@ cc_library(
         ":debugging_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:dynamic_annotations",
         "//absl/base:raw_logging_internal",
     ],
 )
@@ -60,8 +66,11 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":stacktrace",
+        "//absl/base:config",
         "//absl/base:core_headers",
-        "@com_google_googletest//:gtest_main",
+        "//absl/types:span",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -81,8 +90,8 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS + select({
-        "//absl:msvc_compiler": ["-DEFAULTLIB:dbghelp.lib"],
-        "//absl:clang-cl_compiler": ["-DEFAULTLIB:dbghelp.lib"],
+        "@rules_cc//cc/compiler:msvc-cl": ["-DEFAULTLIB:dbghelp.lib"],
+        "@rules_cc//cc/compiler:clang-cl": ["-DEFAULTLIB:dbghelp.lib"],
         "//absl:mingw_compiler": [
             "-DEFAULTLIB:dbghelp.lib",
             "-ldbghelp",
@@ -106,13 +115,13 @@ cc_test(
     name = "symbolize_test",
     srcs = ["symbolize_test.cc"],
     copts = ABSL_TEST_COPTS + select({
-        "//absl:msvc_compiler": ["/Z7"],
-        "//absl:clang-cl_compiler": ["/Z7"],
+        "@rules_cc//cc/compiler:msvc-cl": ["/Z7"],
+        "@rules_cc//cc/compiler:clang-cl": ["/Z7"],
         "//conditions:default": [],
     }),
     linkopts = ABSL_DEFAULT_LINKOPTS + select({
-        "//absl:msvc_compiler": ["/DEBUG"],
-        "//absl:clang-cl_compiler": ["/DEBUG"],
+        "@rules_cc//cc/compiler:msvc-cl": ["/DEBUG"],
+        "@rules_cc//cc/compiler:clang-cl": ["/DEBUG"],
         "//conditions:default": [],
     }),
     deps = [
@@ -121,10 +130,11 @@ cc_test(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:raw_logging_internal",
+        "//absl/log",
+        "//absl/log:check",
         "//absl/memory",
         "//absl/strings",
-        "@com_google_googletest//:gtest",
+        "@googletest//:gtest",
     ],
 )
 
@@ -169,9 +179,9 @@ cc_test(
     srcs = ["failure_signal_handler_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = select({
-        "//absl:msvc_compiler": [],
-        "//absl:clang-cl_compiler": [],
-        "//absl:wasm": [],
+        "@rules_cc//cc/compiler:msvc-cl": [],
+        "@rules_cc//cc/compiler:clang-cl": [],
+        "@rules_cc//cc/compiler:emscripten": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
@@ -179,8 +189,9 @@ cc_test(
         ":stacktrace",
         ":symbolize",
         "//absl/base:raw_logging_internal",
+        "//absl/log:check",
         "//absl/strings",
-        "@com_google_googletest//:gtest",
+        "@googletest//:gtest",
     ],
 )
 
@@ -193,6 +204,7 @@ cc_library(
     ],
     hdrs = [
         "internal/address_is_readable.h",
+        "internal/addresses.h",
         "internal/elf_mem_image.h",
         "internal/vdso_support.h",
     ],
@@ -214,11 +226,17 @@ cc_library(
     hdrs = ["internal/demangle.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//absl/container:__pkg__",
+        "//absl/debugging:__pkg__",
+    ],
     deps = [
+        ":demangle_rust",
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:nullability",
+        "//absl/numeric:bits",
     ],
 )
 
@@ -232,9 +250,110 @@ cc_test(
         ":stack_consumption",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:raw_logging_internal",
+        "//absl/log",
         "//absl/memory",
-        "@com_google_googletest//:gtest_main",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "bounded_utf8_length_sequence",
+    hdrs = ["internal/bounded_utf8_length_sequence.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/numeric:bits",
+    ],
+)
+
+cc_test(
+    name = "bounded_utf8_length_sequence_test",
+    srcs = ["internal/bounded_utf8_length_sequence_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bounded_utf8_length_sequence",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "decode_rust_punycode",
+    srcs = ["internal/decode_rust_punycode.cc"],
+    hdrs = ["internal/decode_rust_punycode.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bounded_utf8_length_sequence",
+        ":utf8_for_code_point",
+        "//absl/base:config",
+        "//absl/base:nullability",
+    ],
+)
+
+cc_test(
+    name = "decode_rust_punycode_test",
+    srcs = ["internal/decode_rust_punycode_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":decode_rust_punycode",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "demangle_rust",
+    srcs = ["internal/demangle_rust.cc"],
+    hdrs = ["internal/demangle_rust.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":decode_rust_punycode",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "demangle_rust_test",
+    srcs = ["internal/demangle_rust_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":demangle_rust",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "utf8_for_code_point",
+    srcs = ["internal/utf8_for_code_point.cc"],
+    hdrs = ["internal/utf8_for_code_point.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = ["//absl/base:config"],
+)
+
+cc_test(
+    name = "utf8_for_code_point_test",
+    srcs = ["internal/utf8_for_code_point_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":utf8_for_code_point",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -259,8 +378,9 @@ cc_test(
     deps = [
         ":leak_check",
         "//absl/base:config",
-        "//absl/base:raw_logging_internal",
-        "@com_google_googletest//:gtest_main",
+        "//absl/log",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -276,8 +396,9 @@ cc_binary(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":leak_check",
-        "//absl/base:raw_logging_internal",
-        "@com_google_googletest//:gtest_main",
+        "//absl/log",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -305,8 +426,9 @@ cc_test(
     deps = [
         ":stack_consumption",
         "//absl/base:core_headers",
-        "//absl/base:raw_logging_internal",
-        "@com_google_googletest//:gtest_main",
+        "//absl/log",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -321,6 +443,6 @@ cc_binary(
         ":stacktrace",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "@com_github_google_benchmark//:benchmark_main",
+        "@google_benchmark//:benchmark_main",
     ],
 )

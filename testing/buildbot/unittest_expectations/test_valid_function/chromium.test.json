@@ -12,7 +12,6 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "kvm": "1",
             "os": "Linux"

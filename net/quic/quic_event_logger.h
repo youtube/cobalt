@@ -37,7 +37,8 @@ class NET_EXPORT_PRIVATE QuicEventLogger
                     quic::EncryptionLevel encryption_level,
                     const quic::QuicFrames& retransmittable_frames,
                     const quic::QuicFrames& nonretransmittable_frames,
-                    quic::QuicTime sent_time) override;
+                    quic::QuicTime sent_time,
+                    uint32_t batch_id) override;
   void OnIncomingAck(quic::QuicPacketNumber ack_packet_number,
                      quic::EncryptionLevel ack_decrypted_level,
                      const quic::QuicAckFrame& frame,
@@ -70,7 +71,6 @@ class NET_EXPORT_PRIVATE QuicEventLogger
       const quic::QuicStreamsBlockedFrame& frame) override;
   void OnMaxStreamsFrame(const quic::QuicMaxStreamsFrame& frame) override;
   void OnStreamFrame(const quic::QuicStreamFrame& frame) override;
-  void OnStopWaitingFrame(const quic::QuicStopWaitingFrame& frame) override;
   void OnRstStreamFrame(const quic::QuicRstStreamFrame& frame) override;
   void OnConnectionCloseFrame(
       const quic::QuicConnectionCloseFrame& frame) override;
@@ -90,7 +90,6 @@ class NET_EXPORT_PRIVATE QuicEventLogger
   void OnHandshakeDoneFrame(const quic::QuicHandshakeDoneFrame& frame) override;
   void OnCoalescedPacketSent(const quic::QuicCoalescedPacket& coalesced_packet,
                              size_t length) override;
-  void OnPublicResetPacket(const quic::QuicPublicResetPacket& packet) override;
   void OnVersionNegotiationPacket(
       const quic::QuicVersionNegotiationPacket& packet) override;
   void OnConnectionClosed(const quic::QuicConnectionCloseFrame& frame,
@@ -104,6 +103,7 @@ class NET_EXPORT_PRIVATE QuicEventLogger
   void OnTransportParametersResumed(
       const quic::TransportParameters& transport_parameters) override;
   void OnZeroRttRejected(int reason) override;
+  void OnEncryptedClientHelloSent(std::string_view client_hello) override;
 
   // Events that are not received via the visitor and have to be called manually
   // from the session.

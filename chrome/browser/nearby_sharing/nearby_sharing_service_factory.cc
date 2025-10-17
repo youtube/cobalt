@@ -7,25 +7,25 @@
 #include <memory>
 #include <utility>
 
-#include "base/feature_list.h"
-#include "base/memory/singleton.h"
-#include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "ash/constants/ash_features.h"
+#include "base/check.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/ash/nearby/nearby_process_manager_factory.h"
-#include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
-#include "chrome/browser/nearby_sharing/nearby_connections_manager_impl.h"
 #include "chrome/browser/nearby_sharing/nearby_sharing_service_impl.h"
 #include "chrome/browser/nearby_sharing/power_client_chromeos.h"
-#include "chrome/browser/nearby_sharing/public/cpp/nearby_connections_manager.h"
 #include "chrome/browser/nearby_sharing/wifi_network_configuration/wifi_network_configuration_handler.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/nearby/common/connections_manager/nearby_connections_manager.h"
+#include "chromeos/ash/components/nearby/common/connections_manager/nearby_connections_manager_impl.h"
+#include "components/cross_device/logging/logging.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_context.h"
 
 namespace {
@@ -33,8 +33,8 @@ namespace {
 constexpr char kServiceName[] = "NearbySharingService";
 constexpr char kServiceId[] = "NearbySharing";
 
-absl::optional<bool>& IsSupportedTesting() {
-  static absl::optional<bool> is_supported;
+std::optional<bool>& IsSupportedTesting() {
+  static std::optional<bool> is_supported;
   return is_supported;
 }
 
@@ -42,24 +42,31 @@ absl::optional<bool>& IsSupportedTesting() {
 
 // static
 NearbySharingServiceFactory* NearbySharingServiceFactory::GetInstance() {
-  return base::Singleton<NearbySharingServiceFactory>::get();
+  static base::NoDestructor<NearbySharingServiceFactory> instance;
+  return instance.get();
 }
 
 // static
 bool NearbySharingServiceFactory::IsNearbyShareSupportedForBrowserContext(
     content::BrowserContext* context) {
-  if (IsSupportedTesting().has_value())
+  if (IsSupportedTesting().has_value()) {
     return *IsSupportedTesting();
+  }
 
-  if (!base::FeatureList::IsEnabled(features::kNearbySharing))
+  if (!ash::features::IsCrossDeviceFeatureSuiteAllowed()) {
     return false;
+  }
 
-  Profile* profile = Profile::FromBrowserContext(context);
-  if (!profile)
+  // Nearby Share is supported only for the primary user.
+  const auto* user =
+      ash::BrowserContextHelper::Get()->GetUserByBrowserContext(context);
+  auto* user_manager = user_manager::UserManager::Get();
+  if (!user || !user_manager->IsPrimaryUser(user)) {
     return false;
+  }
 
-  if (!ash::nearby::NearbyProcessManagerFactory::CanBeLaunchedForProfile(
-          profile)) {
+  // Guest/kiosk users cannot use Nearby Share.
+  if (!user->HasGaiaAccount()) {
     return false;
   }
 
@@ -81,7 +88,14 @@ void NearbySharingServiceFactory::
 
 NearbySharingServiceFactory::NearbySharingServiceFactory()
     // Nearby Sharing features are disabled in incognito.
-    : ProfileKeyedServiceFactory(kServiceName) {
+    : ProfileKeyedServiceFactory(
+          kServiceName,
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
+              .Build()) {
   DependsOn(IdentityManagerFactory::GetInstance());
   DependsOn(ash::nearby::NearbyProcessManagerFactory::GetInstance());
   DependsOn(NotificationDisplayServiceFactory::GetInstance());
@@ -89,18 +103,24 @@ NearbySharingServiceFactory::NearbySharingServiceFactory()
 
 NearbySharingServiceFactory::~NearbySharingServiceFactory() = default;
 
-KeyedService* NearbySharingServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+NearbySharingServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!IsNearbyShareSupportedForBrowserContext(context)) {
     return nullptr;
   }
+
+  // GetForBrowserContext() must be called after the initialization of
+  // Profile initialization, because the service depends on its preferences.
+  auto* user =
+      ash::BrowserContextHelper::Get()->GetUserByBrowserContext(context);
+  CHECK(user->is_profile_created());
 
   Profile* profile = Profile::FromBrowserContext(context);
 
   ash::nearby::NearbyProcessManager* process_manager =
       ash::nearby::NearbyProcessManagerFactory::GetForProfile(profile);
 
-  PrefService* pref_service = profile->GetPrefs();
   NotificationDisplayService* notification_display_service =
       NotificationDisplayServiceFactory::GetForProfile(profile);
 
@@ -108,11 +128,11 @@ KeyedService* NearbySharingServiceFactory::BuildServiceInstanceFor(
       std::make_unique<NearbyConnectionsManagerImpl>(process_manager,
                                                      kServiceId);
 
-  NS_LOG(VERBOSE) << __func__
-                  << ": creating NearbySharingService for primary profile";
+  CD_LOG(VERBOSE, Feature::NS)
+      << __func__ << ": creating NearbySharingService for primary profile";
 
-  return new NearbySharingServiceImpl(
-      pref_service, notification_display_service, profile,
+  return std::make_unique<NearbySharingServiceImpl>(
+      *user, profile, notification_display_service,
       std::move(nearby_connections_manager), process_manager,
       std::make_unique<PowerClientChromeos>(),
       std::make_unique<WifiNetworkConfigurationHandler>());
@@ -121,12 +141,4 @@ KeyedService* NearbySharingServiceFactory::BuildServiceInstanceFor(
 void NearbySharingServiceFactory::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   RegisterNearbySharingPrefs(registry);
-}
-
-bool NearbySharingServiceFactory::ServiceIsCreatedWithBrowserContext() const {
-  return true;
-}
-
-bool NearbySharingServiceFactory::ServiceIsNULLWhileTesting() const {
-  return true;
 }

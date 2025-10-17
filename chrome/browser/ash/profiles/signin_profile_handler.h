@@ -20,7 +20,7 @@ namespace ash {
 
 // Handles sign-in profile related operations, specifically its removal
 // on session start.
-// TODO(crbug.com/1325210): Cleans up the internal code structure to remove
+// TODO(crbug.com/40225390): Cleans up the internal code structure to remove
 // unneeded header dependency.
 class SigninProfileHandler : public OAuth2LoginManager::Observer,
                              public content::BrowsingDataRemover::Observer {
@@ -54,8 +54,7 @@ class SigninProfileHandler : public OAuth2LoginManager::Observer,
   // Called when sign-in profile clearing is completed.
   void OnSigninProfileCleared();
 
-  raw_ptr<content::BrowsingDataRemover, ExperimentalAsh>
-      browsing_data_remover_ = nullptr;
+  raw_ptr<content::BrowsingDataRemover> browsing_data_remover_ = nullptr;
   base::RepeatingClosure on_clear_profile_stage_finished_;
   std::vector<base::OnceClosure> on_clear_callbacks_;
 

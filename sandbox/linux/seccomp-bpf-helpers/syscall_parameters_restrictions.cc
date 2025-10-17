@@ -15,16 +15,19 @@
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
+#include "base/allocator/partition_alloc_features.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/notreached.h"
 #include "base/synchronization/synchronization_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "sandbox/linux/bpf_dsl/bpf_dsl.h"
 #include "sandbox/linux/bpf_dsl/seccomp_macros.h"
 #include "sandbox/linux/seccomp-bpf-helpers/sigsys_handlers.h"
@@ -35,8 +38,7 @@
 #include "sandbox/linux/system_headers/linux_syscalls.h"
 #include "sandbox/linux/system_headers/linux_time.h"
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) && \
-    !defined(__arm__) && !defined(__aarch64__) &&             \
+#if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && \
     !defined(PTRACE_GET_THREAD_AREA)
 // Also include asm/ptrace-abi.h since ptrace.h in older libc (for instance
 // the one in Ubuntu 16.04 LTS) is missing PTRACE_GET_THREAD_AREA.
@@ -107,7 +109,7 @@ inline bool IsArchitectureMips() {
 // to allow those futex(2) calls to fail with EINVAL, instead of crashing the
 // process. See crbug.com/598471.
 inline bool IsBuggyGlibcSemPost() {
-#if defined(LIBC_GLIBC) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if defined(LIBC_GLIBC) && !BUILDFLAG(IS_CHROMEOS)
   return true;
 #else
   return false;
@@ -174,7 +176,17 @@ ResultExpr RestrictPrctl() {
               , PR_SET_PTRACER, PR_SET_TIMERSLACK
               , PR_GET_NO_NEW_PRIVS
 #if defined(ARCH_CPU_ARM64)
-              , PR_PAC_RESET_KEYS, PR_GET_TAGGED_ADDR_CTRL
+                ,
+                PR_PAC_RESET_KEYS
+                // PR_GET_TAGGED_ADDR_CTRL is used by debuggerd to report
+                // whether memory tagging is active.
+                ,
+                PR_GET_TAGGED_ADDR_CTRL
+                // PR_PAC_GET_ENABLED_KEYS is used by debuggerd to report
+                // whether pointer authentication is enabled and which keys (A
+                // or B) are active.
+                ,
+                PR_PAC_GET_ENABLED_KEYS
 #endif
 
 // Enable PR_SET_TIMERSLACK_PID, an Android custom prctl which is used in:
@@ -219,14 +231,17 @@ ResultExpr RestrictIoctl() {
 }
 
 ResultExpr RestrictMmapFlags() {
-  // The flags you see are actually the allowed ones, and the variable is a
-  // "denied" mask because of the negation operator.
-  // Significantly, we don't permit MAP_HUGETLB, or the newer flags such as
-  // MAP_POPULATE.
+#if BUILDFLAG(IS_ANDROID) && defined(__x86_64__)
+  const uint64_t kArchSpecificAllowedMask = MAP_32BIT;
+#else
+  const uint64_t kArchSpecificAllowedMask = 0;
+#endif
+  // The flags MAP_HUGETLB and MAP_POPULATE are specifically not permitted.
   // TODO(davidung), remove MAP_DENYWRITE with updated Tegra libraries.
   const uint64_t kAllowedMask = MAP_SHARED | MAP_PRIVATE | MAP_ANONYMOUS |
                                 MAP_STACK | MAP_NORESERVE | MAP_FIXED |
-                                MAP_DENYWRITE | MAP_LOCKED;
+                                MAP_DENYWRITE | MAP_LOCKED |
+                                kArchSpecificAllowedMask;
   const Arg<int> flags(3);
   return If((flags & ~kAllowedMask) == 0, Allow()).Else(CrashSIGSYS());
 }
@@ -323,23 +338,34 @@ ResultExpr RestrictKillTarget(pid_t target_pid, int sysno) {
       return CrashSIGSYSKill();
     default:
       NOTREACHED();
-      return CrashSIGSYS();
   }
 }
 
 ResultExpr RestrictFutex() {
   const uint64_t kAllowedFutexFlags = FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME;
+  ResultExpr error = IsBuggyGlibcSemPost() ? Error(EINVAL) : CrashSIGSYSFutex();
   const Arg<int> op(1);
   return Switch(op & ~kAllowedFutexFlags)
       .Cases({FUTEX_WAIT, FUTEX_WAKE, FUTEX_REQUEUE, FUTEX_CMP_REQUEUE,
-#if BUILDFLAG(ENABLE_MUTEX_PRIORITY_INHERITANCE)
-              // Enable priority-inheritance operations.
-              FUTEX_LOCK_PI, FUTEX_UNLOCK_PI, FUTEX_TRYLOCK_PI,
-              FUTEX_WAIT_REQUEUE_PI, FUTEX_CMP_REQUEUE_PI,
-#endif  // BUILDFLAG(ENABLE_MUTEX_PRIORITY_INHERITANCE)
               FUTEX_WAKE_OP, FUTEX_WAIT_BITSET, FUTEX_WAKE_BITSET},
              Allow())
-      .Default(IsBuggyGlibcSemPost() ? Error(EINVAL) : CrashSIGSYSFutex());
+#if BUILDFLAG(ENABLE_MUTEX_PRIORITY_INHERITANCE)
+      // Priority-inheritance futex operations are enabled only on Android
+      // kernels 6.1+. Bionic uses the PI variants of the futex operations
+      // (FUTEX_LOCK_PI2, FUTEX_UNLOCK_PI) to implement priority inheriting
+      // mutexes.
+      .Cases({FUTEX_LOCK_PI, FUTEX_UNLOCK_PI, FUTEX_TRYLOCK_PI,
+              FUTEX_WAIT_REQUEUE_PI, FUTEX_CMP_REQUEUE_PI, FUTEX_LOCK_PI2},
+             (base::KernelSupportsPriorityInheritanceFutex() &&
+                      (base::FeatureList::IsEnabled(
+                           base::features::kUsePriorityInheritanceMutex) ||
+                       base::FeatureList::IsEnabled(
+                           base::features::
+                               kPartitionAllocUsePriorityInheritanceLocks))
+                  ? Allow()
+                  : error))
+#endif  // BUILDFLAG(ENABLE_MUTEX_PRIORITY_INHERITANCE)
+      .Default(error);
 }
 
 ResultExpr RestrictGetSetpriority(pid_t target_pid) {
@@ -372,7 +398,6 @@ ResultExpr RestrictSchedTarget(pid_t target_pid, int sysno) {
     }
     default:
       NOTREACHED();
-      return CrashSIGSYS();
   }
 }
 
@@ -418,9 +443,13 @@ ResultExpr RestrictClockID() {
 #define GRND_NONBLOCK 1
 #endif
 
+#if !defined(GRND_INSECURE)
+#define GRND_INSECURE 4
+#endif
+
 ResultExpr RestrictGetRandom() {
   const Arg<unsigned int> flags(2);
-  const unsigned int kGoodFlags = GRND_NONBLOCK;
+  const unsigned int kGoodFlags = GRND_NONBLOCK | GRND_INSECURE;
   return If((flags & ~kGoodFlags) == 0, Allow()).Else(CrashSIGSYS());
 }
 
@@ -479,6 +508,38 @@ ResultExpr RestrictGoogle3Threading(int sysno) {
 ResultExpr RestrictPipe2() {
   const Arg<int> flags(1);
   return If((flags & ~(O_CLOEXEC|O_DIRECT|O_NONBLOCK)) == 0, Allow())
+      .Else(CrashSIGSYS());
+}
+
+SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno) {
+  size_t argIndex;
+  switch (sysno) {
+#if defined(__arm__) || \
+    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
+    case __NR_send:
+      argIndex = 3;
+      break;
+#endif
+#if defined(__i386__) || defined(__x86_64__) || defined(__arm__) || \
+    defined(__mips__) || defined(__aarch64__)
+    case __NR_sendto:  // Could specify destination.
+      argIndex = 3;
+      break;
+    case __NR_sendmsg:  // Could specify destination.
+      argIndex = 2;
+      break;
+#endif
+    case __NR_sendmmsg:  // Could specify destination.
+      argIndex = 3;
+      break;
+    default:
+      NOTREACHED();
+  }
+
+  // In particular, does not include MSG_OOB due to its history of security
+  // vulnerabilities, see crbug.com/428177287.
+  const Arg<int> flags(argIndex);
+  return If((flags & ~(MSG_DONTWAIT | MSG_NOSIGNAL)) == 0, Allow())
       .Else(CrashSIGSYS());
 }
 

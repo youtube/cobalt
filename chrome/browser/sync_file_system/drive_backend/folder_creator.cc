@@ -74,8 +74,6 @@ void FolderCreator::DidListFolders(
 
   if (!file_list) {
     NOTREACHED();
-    std::move(callback).Run(std::string(), SYNC_STATUS_FAILED);
-    return;
   }
 
   candidates.reserve(candidates.size() + file_list->items().size());

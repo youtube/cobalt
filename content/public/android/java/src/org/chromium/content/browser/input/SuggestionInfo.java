@@ -4,13 +4,16 @@
 
 package org.chromium.content.browser.input;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * Represents an entry in a text suggestion popup menu. Contains the information
  * necessary to display the menu entry and the information necessary to apply
  * the suggestion.
  */
+@NullMarked
 public class SuggestionInfo {
     private final int mMarkerTag;
     private final int mSuggestionIndex;
@@ -27,16 +30,12 @@ public class SuggestionInfo {
         mSuffix = suffix;
     }
 
-    /**
-     * Used as an opaque identifier to tell Blink which suggestion was picked.
-     */
+    /** Used as an opaque identifier to tell Blink which suggestion was picked. */
     public int getMarkerTag() {
         return mMarkerTag;
     }
 
-    /**
-     * Used as an opaque identifier to tell Blink which suggestion was picked.
-     */
+    /** Used as an opaque identifier to tell Blink which suggestion was picked. */
     public int getSuggestionIndex() {
         return mSuggestionIndex;
     }
@@ -71,8 +70,13 @@ public class SuggestionInfo {
     }
 
     @CalledByNative
-    private static void createSuggestionInfoAndPutInArray(SuggestionInfo[] suggestionInfos,
-            int index, int markerTag, int suggestionIndex, String prefix, String suggestion,
+    private static void createSuggestionInfoAndPutInArray(
+            SuggestionInfo[] suggestionInfos,
+            int index,
+            int markerTag,
+            int suggestionIndex,
+            String prefix,
+            String suggestion,
             String suffix) {
         SuggestionInfo suggestionInfo =
                 new SuggestionInfo(markerTag, suggestionIndex, prefix, suggestion, suffix);

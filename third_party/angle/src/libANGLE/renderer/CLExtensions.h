@@ -8,7 +8,7 @@
 #ifndef LIBANGLE_RENDERER_CLEXTENSIONS_H_
 #define LIBANGLE_RENDERER_CLEXTENSIONS_H_
 
-#include "libANGLE/renderer/CLtypes.h"
+#include "libANGLE/renderer/cl_types.h"
 
 namespace rx
 {
@@ -18,13 +18,14 @@ struct CLExtensions
     CLExtensions();
     ~CLExtensions();
 
-    CLExtensions(const CLExtensions &) = delete;
+    CLExtensions(const CLExtensions &)            = delete;
     CLExtensions &operator=(const CLExtensions &) = delete;
 
     CLExtensions(CLExtensions &&);
     CLExtensions &operator=(CLExtensions &&);
 
     void initializeExtensions(std::string &&extensionStr);
+    void initializeVersionedExtensions(const NameVersionVector &versionedExtList);
 
     std::string versionStr;
     cl_version version = 0u;

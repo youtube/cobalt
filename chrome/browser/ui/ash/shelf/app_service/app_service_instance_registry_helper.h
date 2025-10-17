@@ -123,10 +123,9 @@ class AppServiceInstanceRegistryHelper {
   // `browser_window_to_tab_windows_` and `tab_window_to_browser_window_`.
   void UpdateTabWindow(const std::string& app_id, aura::Window* window);
 
-  raw_ptr<AppServiceAppWindowShelfController, ExperimentalAsh> controller_ =
-      nullptr;
+  raw_ptr<AppServiceAppWindowShelfController> controller_ = nullptr;
 
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> proxy_ = nullptr;
+  raw_ptr<apps::AppServiceProxy> proxy_ = nullptr;
 
   // Used to get app info for tabs.
   std::unique_ptr<ShelfControllerHelper> shelf_controller_helper_;
@@ -134,17 +133,12 @@ class AppServiceInstanceRegistryHelper {
   // Maps the ash Chrome browser window to tab windows in the browser. When the
   // browser window is inactive or invisible, tab windows in the browser should
   // be updated accordingly as well.
-  //
-  // Note: The Lacros browser should go though BrowserAppShelfController, not
-  // via this AppServiceInstanceRegistryHelper.
-  std::map<aura::Window*, std::set<aura::Window*>>
+  std::map<aura::Window*, std::set<raw_ptr<aura::Window, SetExperimental>>>
       browser_window_to_tab_windows_;
 
   // Maps the tab window to the ash Chrome browser window in the browser.
-  //
-  // Note: The Lacros browser should go though BrowserAppShelfController, not
-  // via this AppServiceInstanceRegistryHelper.
-  std::map<aura::Window*, aura::Window*> tab_window_to_browser_window_;
+  std::map<aura::Window*, raw_ptr<aura::Window, CtnExperimental>>
+      tab_window_to_browser_window_;
 };
 
 #endif  // CHROME_BROWSER_UI_ASH_SHELF_APP_SERVICE_APP_SERVICE_INSTANCE_REGISTRY_HELPER_H_

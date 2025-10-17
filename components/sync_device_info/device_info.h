@@ -7,17 +7,20 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/time/time.h"
-#include "components/sync/base/model_type.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/types/strong_alias.h"
+#include "components/sync/base/data_type.h"
 
 namespace sync_pb {
 enum SharingSpecificFields_EnabledFeatures : int;
 enum SyncEnums_DeviceType : int;
+enum SyncEnums_SendTabReceivingType : int;
 }  // namespace sync_pb
 
 namespace syncer {
@@ -41,8 +44,10 @@ class DeviceInfo {
 
   // A struct that holds information regarding to Sharing features.
   struct SharingInfo {
+    // TODO(crbug.com/40253551): remove `vapid_target_info`.
     SharingInfo(SharingTargetInfo vapid_target_info,
                 SharingTargetInfo sharing_target_info,
+                std::string chime_representative_target_id,
                 std::set<sync_pb::SharingSpecificFields_EnabledFeatures>
                     enabled_features);
     SharingInfo(const SharingInfo& other);
@@ -51,11 +56,14 @@ class DeviceInfo {
     ~SharingInfo();
 
     // Target info using VAPID key.
-    // TODO(crbug.com/1012226): Deprecate when VAPID migration is over.
+    // TODO(crbug.com/40102247): Deprecate when VAPID migration is over.
     SharingTargetInfo vapid_target_info;
 
     // Target info using Sharing sender ID.
     SharingTargetInfo sender_id_target_info;
+
+    // Identifier used to send messages to a specific device through Chime.
+    std::string chime_representative_target_id;
 
     // Set of Sharing features enabled on the device.
     std::set<sync_pb::SharingSpecificFields_EnabledFeatures> enabled_features;
@@ -64,6 +72,14 @@ class DeviceInfo {
   };
 
   struct PhoneAsASecurityKeyInfo {
+    // NotReady indicates that more time is needed to calculate the
+    // PhoneAsASecurityKeyInfo.
+    using NotReady = base::StrongAlias<class NotReadyTag, std::monostate>;
+    // NoSupport indicates that phone-as-a-security-key cannot be supported.
+    using NoSupport = base::StrongAlias<class NoSupportTag, std::monostate>;
+    using StatusOrInfo =
+        std::variant<NotReady, NoSupport, PhoneAsASecurityKeyInfo>;
+
     PhoneAsASecurityKeyInfo();
     PhoneAsASecurityKeyInfo(const PhoneAsASecurityKeyInfo& other);
     PhoneAsASecurityKeyInfo(PhoneAsASecurityKeyInfo&& other);
@@ -111,26 +127,37 @@ class DeviceInfo {
   // A Java counterpart will be generated for this enum.
   // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.sync_device_info
   //
-  enum class FormFactor { kUnknown = 0, kDesktop = 1, kPhone = 2, kTablet = 3 };
+  enum class FormFactor {
+    kUnknown = 0,
+    kDesktop = 1,
+    kPhone = 2,
+    kTablet = 3,
+    kAutomotive = 4,
+    kWearable = 5,
+    kTv = 6,
+  };
 
-  DeviceInfo(const std::string& guid,
-             const std::string& client_name,
-             const std::string& chrome_version,
-             const std::string& sync_user_agent,
-             const sync_pb::SyncEnums_DeviceType device_type,
-             const OsType os_type,
-             const FormFactor form_factor,
-             const std::string& signin_scoped_device_id,
-             const std::string& manufacturer_name,
-             const std::string& model_name,
-             const std::string& full_hardware_class,
-             base::Time last_updated_timestamp,
-             base::TimeDelta pulse_interval,
-             bool send_tab_to_self_receiving_enabled,
-             const absl::optional<SharingInfo>& sharing_info,
-             const absl::optional<PhoneAsASecurityKeyInfo>& paask_info,
-             const std::string& fcm_registration_token,
-             const ModelTypeSet& interested_data_types);
+  DeviceInfo(
+      const std::string& guid,
+      const std::string& client_name,
+      const std::string& chrome_version,
+      const std::string& sync_user_agent,
+      const sync_pb::SyncEnums_DeviceType device_type,
+      const OsType os_type,
+      const FormFactor form_factor,
+      const std::string& signin_scoped_device_id,
+      const std::string& manufacturer_name,
+      const std::string& model_name,
+      const std::string& full_hardware_class,
+      base::Time last_updated_timestamp,
+      base::TimeDelta pulse_interval,
+      bool send_tab_to_self_receiving_enabled,
+      sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type,
+      const std::optional<SharingInfo>& sharing_info,
+      const std::optional<PhoneAsASecurityKeyInfo>& paask_info,
+      const std::string& fcm_registration_token,
+      const DataTypeSet& interested_data_types,
+      std::optional<base::Time> floating_workspace_last_signin_timestamp);
 
   DeviceInfo(const DeviceInfo&) = delete;
   DeviceInfo& operator=(const DeviceInfo&) = delete;
@@ -192,16 +219,25 @@ class DeviceInfo {
   // Whether the receiving side of the SendTabToSelf feature is enabled.
   bool send_tab_to_self_receiving_enabled() const;
 
-  // Returns Sharing related info of the device.
-  const absl::optional<SharingInfo>& sharing_info() const;
+  // Enabled message types for the receiving side of the SendTabToSelf feature.
+  // This is meaningless if send_tab_to_self_receiving_enabled() returns false.
+  // If not set, the in-app message type will be assumed.
+  sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type()
+      const;
 
-  const absl::optional<PhoneAsASecurityKeyInfo>& paask_info() const;
+  // Returns Sharing related info of the device.
+  const std::optional<SharingInfo>& sharing_info() const;
+
+  const std::optional<PhoneAsASecurityKeyInfo>& paask_info() const;
 
   // Returns the FCM registration token for sync invalidations.
   const std::string& fcm_registration_token() const;
 
   // Returns the data types for which this device receives invalidations.
-  const ModelTypeSet& interested_data_types() const;
+  const DataTypeSet& interested_data_types() const;
+
+  // Returns the time at which this device was last signed into the device.
+  std::optional<base::Time> floating_workspace_last_signin_timestamp() const;
 
   // Apps can set ids for a device that is meaningful to them but
   // not unique enough so the user can be tracked. Exposing |guid|
@@ -213,15 +249,21 @@ class DeviceInfo {
 
   void set_send_tab_to_self_receiving_enabled(bool new_value);
 
-  void set_sharing_info(const absl::optional<SharingInfo>& sharing_info);
+  void set_send_tab_to_self_receiving_type(
+      sync_pb::SyncEnums_SendTabReceivingType new_value);
 
-  void set_paask_info(PhoneAsASecurityKeyInfo&& paask_info);
+  void set_sharing_info(const std::optional<SharingInfo>& sharing_info);
+
+  void set_paask_info(std::optional<PhoneAsASecurityKeyInfo>&& paask_info);
 
   void set_client_name(const std::string& client_name);
 
   void set_fcm_registration_token(const std::string& fcm_token);
 
-  void set_interested_data_types(const ModelTypeSet& data_types);
+  void set_interested_data_types(const DataTypeSet& data_types);
+
+  void set_floating_workspace_last_signin_timestamp(
+      std::optional<base::Time> time);
 
  private:
   const std::string guid_;
@@ -258,15 +300,19 @@ class DeviceInfo {
 
   bool send_tab_to_self_receiving_enabled_;
 
-  absl::optional<SharingInfo> sharing_info_;
+  sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type_;
 
-  absl::optional<PhoneAsASecurityKeyInfo> paask_info_;
+  std::optional<SharingInfo> sharing_info_;
+
+  std::optional<PhoneAsASecurityKeyInfo> paask_info_;
 
   // An FCM registration token obtained by sync invalidations service.
   std::string fcm_registration_token_;
 
   // Data types for which this device receives invalidations.
-  ModelTypeSet interested_data_types_;
+  DataTypeSet interested_data_types_;
+
+  std::optional<base::Time> floating_workspace_last_signin_timestamp_;
 
   // NOTE: when adding a member, don't forget to update
   // |StoredDeviceInfoStillAccurate| in device_info_sync_bridge.cc or else

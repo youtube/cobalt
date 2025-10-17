@@ -9,7 +9,6 @@
 
 #include "base/files/file.h"
 #include "base/functional/callback.h"
-#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/file_system_provider/request_dispatcher.h"
 #include "chromeos/crosapi/mojom/file_system_provider.mojom-forward.h"
 #include "extensions/common/extension_id.h"
@@ -25,7 +24,7 @@ class ServiceWorkerLifetimeManager;
 
 namespace ash::file_system_provider {
 
-// Routes fileSystemProvider events to an extension locally or in Lacros.
+// Routes fileSystemProvider events to an extension.
 class RequestDispatcherImpl : public RequestDispatcher {
  public:
   // This callback is an indirection to reject requests in |RequestManager|: the
@@ -37,7 +36,6 @@ class RequestDispatcherImpl : public RequestDispatcher {
   RequestDispatcherImpl(
       const extensions::ExtensionId& extension_id,
       extensions::EventRouter* event_router,
-      ForwardResultCallback forward_result_callback,
       extensions::file_system_provider::ServiceWorkerLifetimeManager*
           sw_lifetime_manager);
   ~RequestDispatcherImpl() override;
@@ -46,29 +44,16 @@ class RequestDispatcherImpl : public RequestDispatcher {
   RequestDispatcherImpl& operator=(const RequestDispatcherImpl&) = delete;
 
   bool DispatchRequest(int request_id,
-                       absl::optional<std::string> file_system_id,
+                       std::optional<std::string> file_system_id,
                        std::unique_ptr<extensions::Event> event) override;
   void CancelRequest(int request_id,
-                     absl::optional<std::string> file_system_id) override;
+                     std::optional<std::string> file_system_id) override;
 
  private:
-  // This method is only used when Lacros is enabled. It's a callback from
-  // Lacros indicating whether the operation was successfully forwarded. If the
-  // operation could not be forwarded then the file system request manager must
-  // be informed.
-  void OperationForwarded(int request_id,
-                          crosapi::mojom::FSPForwardResult result);
-  // Same as |OperationForwarded|, but called with a result of call to an older
-  // crosapi returning a boolean.
-  void OperationForwardedDeprecated(int request_id, bool delivery_failure);
-
   const extensions::ExtensionId extension_id_;
   const raw_ptr<extensions::EventRouter> event_router_;
-  const ForwardResultCallback forward_result_callback_;
   const raw_ptr<extensions::file_system_provider::ServiceWorkerLifetimeManager>
       sw_lifetime_manager_;
-
-  base::WeakPtrFactory<RequestDispatcherImpl> weak_ptr_factory_{this};
 };
 
 }  // namespace ash::file_system_provider

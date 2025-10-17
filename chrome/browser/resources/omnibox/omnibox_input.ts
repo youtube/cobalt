@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {PageClassification} from './omnibox.mojom-webui.js';
 import {OmniboxElement} from './omnibox_element.js';
+import sheet from './omnibox_input.css' with {type : 'css'};
 
 export interface QueryInputs {
   inputText: string;
@@ -26,6 +28,7 @@ export interface DisplayInputs {
 
 export class OmniboxInput extends OmniboxElement {
   private elements: {
+    top: HTMLElement,
     arrowPadding: HTMLElement,
     connectWindowOmnibox: HTMLInputElement,
     currentUrl: HTMLInputElement,
@@ -57,10 +60,12 @@ export class OmniboxInput extends OmniboxElement {
 
   constructor() {
     super('omnibox-input-template');
+    this.shadowRoot!.adoptedStyleSheets = [sheet];
   }
 
   connectedCallback() {
     this.elements = {
+      top: this.$<HTMLElement>('#top')!,
       arrowPadding: this.$<HTMLElement>('#arrow-padding')!,
       connectWindowOmnibox: this.$<HTMLInputElement>('#connect-window-omnibox')!
       ,
@@ -95,6 +100,25 @@ export class OmniboxInput extends OmniboxElement {
     };
     this.restoreInputs();
     this.setupElementListeners();
+    this.addPageClassification();
+  }
+
+  // Add Page Classification labels as options to dropdown.
+  private addPageClassification() {
+    const dropdown = this.$<HTMLSelectElement>('#page-classification')!;
+    for (const page in Object.keys(PageClassification)) {
+      const label = PageClassification[page];
+      // Filter out built-in reverse mappings for this numeric enum.
+      if (label === undefined) {
+        continue;
+      }
+      const option = document.createElement('option');
+      option.value = page;
+      option.text = label;
+      // Pre-select the OTHER option.
+      page === '4' ? option.selected = true : null;
+      dropdown.appendChild(option);
+    }
   }
 
   private storeInputs() {
@@ -161,11 +185,10 @@ export class OmniboxInput extends OmniboxElement {
         'input', this.onImportFile.bind(this));
     this.elements.processBatchInput.addEventListener(
         'input', this.onProcessBatchFile.bind(this));
-    [this.elements.importClipboard, this.elements.importFile].forEach(
-        element => {
-          this.setupDragListeners(element);
-          element.addEventListener('drop', this.onImportDropped.bind(this));
-        });
+
+    this.setupDragListeners(this.elements.top);
+    this.elements.top.addEventListener('drop', this.onImportDropped.bind(this));
+
     this.setupDragListeners(this.elements.processBatch);
     this.elements.processBatch.addEventListener(
         'drop', this.onProcessBatchDropped.bind(this));
@@ -183,15 +206,34 @@ export class OmniboxInput extends OmniboxElement {
    * drag events.
    */
   private setupDragListeners(element: Element) {
+    // There are 2 classes toggled during drags:
+    // - `drag-background` alters the `element`'s background when the mouse is
+    //   over it to indicate it's a drag target.
+    // - `drag-silence` silences mouse events from the children of `element`
+    //   while the drag is active. This is necessary to avoid receiving
+    //   `dragenter` & `dragleave` events when children of `element` are entered
+    //   or left.
+    // Ideally, there'd be just 1 class controlling both behaviors and active
+    // when dragging over `element`. However, `dragenter` and `dragleave` events
+    // are racy (see https://stackoverflow.com/questions/7110353). So instead,
+    // toggle `drag-background` when the dragging-mouse enters/leaves `element`.
+    // And toggle `drag-silence` when the mouse begins/stops dragging. This
+    // workaround isn't 100% accurate, but all the other workarounds (e.g. those
+    // listed in the stackoverflow answers), were significantly worse.
+    element.addEventListener('dragenter', () => {
+      element.classList.add('drag-background');
+      element.classList.add('drag-silence');
+    });
     element.addEventListener(
-        'dragenter', () => element.classList.add('drag-hover'));
-    element.addEventListener(
-        'dragleave', () => element.classList.remove('drag-hover'));
+        'dragleave', () => element.classList.remove('drag-background'));
     element.addEventListener('dragover', e => e.preventDefault());
     element.addEventListener('drop', e => {
       e.preventDefault();
-      element.classList.remove('drag-hover');
+      element.classList.remove('drag-background');
+      element.classList.remove('drag-silence');
     });
+    element.addEventListener(
+        'mouseenter', () => element.classList.remove('drag-silence'));
   }
 
   private onQueryInputsChanged() {

@@ -10,9 +10,7 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "gpu/gpu_export.h"
-#include "media/media_buildflags.h"
 #include "ui/gfx/buffer_types.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -41,29 +39,55 @@ enum class VulkanImplementationName : uint32_t {
 
 enum class WebGPUAdapterName : uint32_t {
   kDefault = 0,
-  kCompat = 1,
-  kSwiftShader = 2,
+  kD3D11 = 1,
+  kOpenGLES = 2,
+  kSwiftShader = 3,
 };
 
 // Affecting how chromium handles GPUPowerPreference in
 // GPURequestAdapterOptions.
 enum class WebGPUPowerPreference : uint32_t {
+  // No explicit power preference.
+  kNone = 0,
   // Choose the preferred adapter when GPUPowerPreference is not given.
   // Has no impact when GPUPowerPreference is given.
-  kDefaultLowPower = 0,
-  kDefaultHighPerformance = 1,
+  kDefaultLowPower = 1,
+  kDefaultHighPerformance = 2,
   // Choose the forced adapter regardless of whether GPUPowerPreference is set
   // or not.
-  kForceLowPower = 2,
-  kForceHighPerformance = 3,
+  kForceLowPower = 3,
+  kForceHighPerformance = 4,
 };
 
 enum class GrContextType : uint32_t {
+  kNone,
   kGL,      // Ganesh
   kVulkan,  // Ganesh
   kGraphiteDawn,
   kGraphiteMetal,
 };
+
+GPU_EXPORT std::string GrContextTypeToString(GrContextType type);
+
+// Used to represent the Skia backend that the GPU process has initialized.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class SkiaBackendType {
+  kUnknown = 0,
+  kNone = 1,
+  kGaneshGL = 2,
+  kGaneshVulkan = 3,
+  kGraphiteDawnVulkan = 4,
+  kGraphiteDawnMetal = 5,
+  kGraphiteDawnD3D11 = 6,
+  kGraphiteDawnD3D12 = 7,
+  kGraphiteMetal = 8,
+  // It's not clear what granularity of kGraphiteDawnGL* backend dawn will
+  // provided yet so those values are to be added later.
+  kMaxValue = kGraphiteMetal
+};
+
+GPU_EXPORT std::string SkiaBackendTypeToString(SkiaBackendType type);
 
 enum class DawnBackendValidationLevel : uint32_t {
   kDisabled = 0,
@@ -198,14 +222,6 @@ struct GPU_EXPORT GpuPreferences {
   // tracking.
   bool use_passthrough_cmd_decoder = false;
 
-  // Disable using a single multiplanar GpuMemoryBuffer to store biplanar
-  // VideoFrames (e.g. NV12), see https://crbug.com/791676.
-  bool disable_biplanar_gpu_memory_buffers_for_video_frames = false;
-
-  // List of texture usage & formats that require use of a platform specific
-  // texture target.
-  std::vector<gfx::BufferUsageAndFormat> texture_target_exception_list;
-
   // ===================================
   // Settings from //gpu/config/gpu_switches.h
 
@@ -254,6 +270,13 @@ struct GPU_EXPORT GpuPreferences {
   // Enable usage of unsafe WebGPU features.
   bool enable_unsafe_webgpu = false;
 
+  // Enable usage of WebGPU features intended only for use during development.
+  bool enable_webgpu_developer_features = false;
+
+  // Enable usage of experimental WebGPU features that would eventually land in
+  // the WebGPU spec.
+  bool enable_webgpu_experimental_features = false;
+
   // Enable validation layers in Dawn backends.
   DawnBackendValidationLevel enable_dawn_backend_validation =
       DawnBackendValidationLevel::kDisabled;
@@ -263,7 +286,10 @@ struct GPU_EXPORT GpuPreferences {
 
   // The adapter selecting strategy related to GPUPowerPreference.
   WebGPUPowerPreference use_webgpu_power_preference =
-      WebGPUPowerPreference::kDefaultHighPerformance;
+      WebGPUPowerPreference::kNone;
+
+  // Force the use of WebGPU Compatibility mode for all WebGPU content.
+  bool force_webgpu_compat = false;
 
   // The Dawn features(toggles) enabled on the creation of Dawn devices.
   std::vector<std::string> enabled_dawn_features_list;
@@ -288,14 +314,6 @@ struct GPU_EXPORT GpuPreferences {
 
   // Enable native CPU-mappable GPU memory buffer support on Linux.
   bool enable_native_gpu_memory_buffers = false;
-
-  // ===================================
-  // Settings from //media/base/media_switches.h
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Enable the hardware-accelerated direct video decoder on ChromeOS.
-  bool enable_chromeos_direct_video_decoder = false;
-#endif
 
   // Disables oppr debug crash dumps.
   bool disable_oopr_debug_crash_dump = false;

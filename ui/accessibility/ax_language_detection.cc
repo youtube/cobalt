@@ -33,7 +33,7 @@ const int kMaxDetectedLanguagesPerPage = 3;
 const int kMaxDetectedLanguagesPerSpan = 3;
 
 const int kShortTextIdentifierMinByteLength = 1;
-// TODO(https://crbug.com/971360): Determine appropriate value for
+// TODO(crbug.com/41463459): Determine appropriate value for
 // |kShortTextIdentifierMaxByteLength|.
 const int kShortTextIdentifierMaxByteLength = 1000;
 }  // namespace
@@ -451,7 +451,7 @@ AXLanguageDetectionManager::GetLanguageAnnotationForStringAttribute(
   std::sort(
       language_annotation.begin(), language_annotation.end(),
       [](const AXLanguageSpan& left, const AXLanguageSpan& right) -> bool {
-        return left.start_index <= right.start_index;
+        return left.start_index < right.start_index;
       });
   // Ensure that AXLanguageSpans do not overlap.
   for (size_t i = 0; i < language_annotation.size(); ++i) {
@@ -463,22 +463,19 @@ AXLanguageDetectionManager::GetLanguageAnnotationForStringAttribute(
   return language_annotation;
 }
 
-AXLanguageDetectionObserver::AXLanguageDetectionObserver(AXTree* tree)
-    : tree_(tree) {
+AXLanguageDetectionObserver::AXLanguageDetectionObserver(AXTree* tree) {
   // We expect the feature flag to have be checked before this Observer is
   // constructed, this should have been checked by
   // RegisterLanguageDetectionObserver.
   DCHECK(AXLanguageDetectionManager::IsDynamicLanguageDetectionEnabled());
 
-  tree_->AddObserver(this);
+  observation_.Observe(tree);
 }
 
-AXLanguageDetectionObserver::~AXLanguageDetectionObserver() {
-  tree_->RemoveObserver(this);
-}
+AXLanguageDetectionObserver::~AXLanguageDetectionObserver() = default;
 
 void AXLanguageDetectionObserver::OnAtomicUpdateFinished(
-    ui::AXTree* tree,
+    AXTree* tree,
     bool root_changed,
     const std::vector<Change>& changes) {
   // TODO(chrishall): We likely want to re-consider updating or resetting

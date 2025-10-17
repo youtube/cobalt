@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 
@@ -21,6 +22,16 @@
 namespace blink {
 
 class TypingCommandTest : public EditingTestBase {};
+
+// Mock for ChromeClient.
+class MockChromeClient : public EmptyChromeClient {
+ public:
+  unsigned int didUserChangeContentEditableContentCount = 0;
+  // ChromeClient overrides:
+  void DidUserChangeContentEditableContent(Element& element) override {
+    didUserChangeContentEditableContentCount++;
+  }
+};
 
 // http://crbug.com/1322746
 TEST_F(TypingCommandTest, DeleteInsignificantText) {
@@ -56,12 +67,12 @@ TEST_F(TypingCommandTest, insertLineBreakWithIllFormedHTML) {
   Element* tr = GetDocument().CreateRawElement(html_names::kTrTag);
   Element* input2 = GetDocument().CreateRawElement(html_names::kInputTag);
   Element* header = GetDocument().CreateRawElement(html_names::kHeaderTag);
-  Element* rbc = GetDocument().CreateElementForBinding("rbc");
+  Element* rbc = GetDocument().CreateElementForBinding(AtomicString("rbc"));
   input2->AppendChild(header);
   tr->AppendChild(input2);
   tr->AppendChild(rbc);
 
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   div->AppendChild(input1);
   div->AppendChild(tr);
 
@@ -87,7 +98,7 @@ TEST_F(TypingCommandTest,
   TypingCommand::InsertText(
       GetDocument(), " ", 0,
       TypingCommand::TextCompositionType::kTextCompositionUpdate, true);
-  EXPECT_EQ("<div contenteditable>^<h1></h1>|</div>",
+  EXPECT_EQ("<div contenteditable><h1>\xC2\xA0|</h1></div>",
             GetSelectionTextFromBody());
 }
 
@@ -108,20 +119,17 @@ TEST_F(TypingCommandTest, ForwardDeleteInvalidatesSelection) {
   TypingCommand::ForwardDeleteKeyPressed(GetDocument(), &editing_state);
 
   EXPECT_EQ(
-      "<blockquote>|</blockquote>"
-      "<q>"
-      "<table contenteditable=\"false\">"
-      "<colgroup width=\"-1\"></colgroup>"
-      "</table>\n"
-      "<svg></svg>"
-      "</q>",
+      "<blockquote>"
+      "<q>|<br></q>"
+      "</blockquote>"
+      "<q>\n<svg></svg></q>",
       GetSelectionTextFromBody());
 }
 
 // crbug.com/1382250
 TEST_F(TypingCommandTest, ForwardDeleteAtTableEnd) {
   SetBodyContent("<table contenteditable></table>");
-  Element* table = GetDocument().QuerySelector("table");
+  Element* table = QuerySelector("table");
   table->setTextContent("a");
   UpdateAllLifecyclePhasesForTest();
   Selection().SetSelection(SelectionInDOMTree::Builder()
@@ -134,6 +142,46 @@ TEST_F(TypingCommandTest, ForwardDeleteAtTableEnd) {
   TypingCommand::ForwardDeleteKeyPressed(GetDocument(), &editing_state);
 
   EXPECT_EQ("<table contenteditable>a|</table>", GetSelectionTextFromBody());
+}
+
+TEST_F(TypingCommandTest, TypedCharactersInContentEditable) {
+  SetBodyContent("<table contenteditable></table>");
+  Element* table = QuerySelector("table");
+  table->setTextContent("a");
+  MockChromeClient* chrome_client = MakeGarbageCollected<MockChromeClient>();
+  table->GetDocument().GetPage()->SetChromeClientForTesting(chrome_client);
+  UpdateAllLifecyclePhasesForTest();
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .Collapse(Position(table->firstChild(), 1))
+                               .Build(),
+                           SetSelectionOptions());
+  TypingCommand::InsertText(
+      GetDocument(), "b", 0,
+      TypingCommand::TextCompositionType::kTextCompositionUpdate, true);
+  TypingCommand::InsertText(
+      GetDocument(), "c", 0,
+      TypingCommand::TextCompositionType::kTextCompositionUpdate, true);
+  EXPECT_EQ("<table contenteditable>abc|</table>", GetSelectionTextFromBody());
+  EXPECT_EQ(2u, chrome_client->didUserChangeContentEditableContentCount);
+}
+
+TEST_F(TypingCommandTest, FirstTypedCharactersInContentEditable) {
+  SetBodyContent("<table contenteditable></table>");
+  Element* table = QuerySelector("table");
+  table->setTextContent("a");
+  MockChromeClient* chrome_client = MakeGarbageCollected<MockChromeClient>();
+  table->GetDocument().GetPage()->SetChromeClientForTesting(chrome_client);
+  UpdateAllLifecyclePhasesForTest();
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .Collapse(Position(table->firstChild(), 1))
+                               .Build(),
+                           SetSelectionOptions());
+  EXPECT_EQ(0u, chrome_client->didUserChangeContentEditableContentCount);
+  TypingCommand::InsertText(
+      GetDocument(), "b", 0,
+      TypingCommand::TextCompositionType::kTextCompositionUpdate, true);
+  EXPECT_EQ("<table contenteditable>ab|</table>", GetSelectionTextFromBody());
+  EXPECT_EQ(1u, chrome_client->didUserChangeContentEditableContentCount);
 }
 
 }  // namespace blink

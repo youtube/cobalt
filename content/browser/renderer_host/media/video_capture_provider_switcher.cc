@@ -3,11 +3,16 @@
 // found in the LICENSE file.
 
 #include "content/browser/renderer_host/media/video_capture_provider_switcher.h"
-#include "content/public/browser/video_capture_device_launcher.h"
 
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "content/public/browser/video_capture_device_launcher.h"
+#include "services/video_effects/public/cpp/buildflags.h"
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
+#endif
 
 namespace content {
 
@@ -23,13 +28,20 @@ class VideoCaptureDeviceLauncherSwitcher : public VideoCaptureDeviceLauncher {
 
   ~VideoCaptureDeviceLauncherSwitcher() override {}
 
-  void LaunchDeviceAsync(const std::string& device_id,
-                         blink::mojom::MediaStreamType stream_type,
-                         const media::VideoCaptureParams& params,
-                         base::WeakPtr<media::VideoFrameReceiver> receiver,
-                         base::OnceClosure connection_lost_cb,
-                         Callbacks* callbacks,
-                         base::OnceClosure done_cb) override {
+  void LaunchDeviceAsync(
+      const std::string& device_id,
+      blink::mojom::MediaStreamType stream_type,
+      const media::VideoCaptureParams& params,
+      base::WeakPtr<media::VideoFrameReceiver> receiver,
+      base::OnceClosure connection_lost_cb,
+      Callbacks* callbacks,
+      base::OnceClosure done_cb,
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+      mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor>
+          video_effects_processor,
+#endif
+      mojo::PendingRemote<media::mojom::ReadonlyVideoEffectsManager>
+          readonly_video_effects_manager) override {
     if (stream_type == blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE) {
       // Use of Unretained() is safe, because |media_device_launcher_| is owned
       // by |this|.
@@ -38,7 +50,11 @@ class VideoCaptureDeviceLauncherSwitcher : public VideoCaptureDeviceLauncher {
                          base::Unretained(media_device_launcher_.get()));
       return media_device_launcher_->LaunchDeviceAsync(
           device_id, stream_type, params, std::move(receiver),
-          std::move(connection_lost_cb), callbacks, std::move(done_cb));
+          std::move(connection_lost_cb), callbacks, std::move(done_cb),
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+          std::move(video_effects_processor),
+#endif
+          std::move(readonly_video_effects_manager));
     }
     // Use of Unretained() is safe, because |other_types_launcher_| is owned by
     // |this|.
@@ -47,7 +63,11 @@ class VideoCaptureDeviceLauncherSwitcher : public VideoCaptureDeviceLauncher {
                        base::Unretained(other_types_launcher_.get()));
     return other_types_launcher_->LaunchDeviceAsync(
         device_id, stream_type, params, std::move(receiver),
-        std::move(connection_lost_cb), callbacks, std::move(done_cb));
+        std::move(connection_lost_cb), callbacks, std::move(done_cb),
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+        std::move(video_effects_processor),
+#endif
+        std::move(readonly_video_effects_manager));
   }
 
   void AbortLaunch() override {
@@ -83,6 +103,22 @@ VideoCaptureProviderSwitcher::CreateDeviceLauncher() {
   return std::make_unique<VideoCaptureDeviceLauncherSwitcher>(
       media_device_capture_provider_->CreateDeviceLauncher(),
       other_types_capture_provider_->CreateDeviceLauncher());
+}
+
+void VideoCaptureProviderSwitcher::OpenNativeScreenCapturePicker(
+    DesktopMediaID::Type type,
+    base::OnceCallback<void(DesktopMediaID::Id)> created_callback,
+    base::OnceCallback<void(webrtc::DesktopCapturer::Source)> picker_callback,
+    base::OnceCallback<void()> cancel_callback,
+    base::OnceCallback<void()> error_callback) {
+  other_types_capture_provider_->OpenNativeScreenCapturePicker(
+      type, std::move(created_callback), std::move(picker_callback),
+      std::move(cancel_callback), std::move(error_callback));
+}
+
+void VideoCaptureProviderSwitcher::CloseNativeScreenCapturePicker(
+    DesktopMediaID device_id) {
+  other_types_capture_provider_->CloseNativeScreenCapturePicker(device_id);
 }
 
 }  // namespace content

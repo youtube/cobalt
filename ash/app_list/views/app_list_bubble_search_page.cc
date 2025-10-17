@@ -22,7 +22,7 @@ namespace {
 
 // The animation spec says 40 dips up over 250ms, but the opacity animation
 // renders the view invisible after 50ms, so animate the visible fraction.
-constexpr int kHideAnimationVerticalOffset = -40 * 250 / 50;
+constexpr int kHideAnimationVerticalOffset = -40 * 50 / 250;
 
 // Duration for the hide animation (both transform and opacity).
 constexpr base::TimeDelta kHideAnimationDuration = base::Milliseconds(50);
@@ -114,7 +114,7 @@ ui::Layer* AppListBubbleSearchPage::GetPageAnimationLayerForTest() {
   return search_view_->GetPageAnimationLayer();
 }
 
-BEGIN_METADATA(AppListBubbleSearchPage, views::View)
+BEGIN_METADATA(AppListBubbleSearchPage)
 END_METADATA
 
 }  // namespace ash

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "ipcz/message.h"
 
 #include <cstddef>
@@ -14,6 +19,7 @@
 #include "ipcz/driver_transport.h"
 #include "ipcz/ipcz.h"
 #include "third_party/abseil-cpp/absl/base/macros.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 #include "third_party/abseil-cpp/absl/types/span.h"
 #include "util/safe_math.h"
@@ -107,11 +113,13 @@ bool IsArrayValid(Message& message,
 }
 
 // Deserializes a driver object encoded within `message`, returning the object
-// on success. On failure, an invalid DriverObject is returned.
+// on success and marking its constituent handles as consumed. On failure, an
+// invalid DriverObject is returned.
 DriverObject DeserializeDriverObject(
     Message& message,
     const internal::DriverObjectData& object_data,
     absl::Span<const IpczDriverHandle> handles,
+    absl::Span<bool> is_handle_consumed,
     const DriverTransport& transport) {
   if (!IsArrayValid(message, object_data.driver_data_array, sizeof(uint8_t))) {
     return {};
@@ -128,6 +136,11 @@ DriverObject DeserializeDriverObject(
     return {};
   }
 
+  for (auto i = object_data.first_driver_handle;
+       i < object_data.first_driver_handle + object_data.num_driver_handles;
+       ++i) {
+    is_handle_consumed[i] = true;
+  }
   return DriverObject::Deserialize(
       transport, driver_data,
       handles.subspan(object_data.first_driver_handle,
@@ -273,6 +286,19 @@ bool Message::Serialize(const DriverTransport& transport) {
 
 bool Message::DeserializeUnknownType(const DriverTransport::RawMessage& message,
                                      const DriverTransport& transport) {
+  // Ensure that upon return we explicitly close any handles that weren't
+  // consumed by some object deserialization below.
+  absl::InlinedVector<bool, 8> is_handle_consumed(message.handles.size());
+  const IpczDriver* driver = transport.driver_object().driver();
+  const absl::Cleanup close_unused_handles = [&message, &is_handle_consumed,
+                                              driver] {
+    for (size_t i = 0; i < message.handles.size(); ++i) {
+      if (!is_handle_consumed[i]) {
+        driver->Close(message.handles[i], IPCZ_NO_FLAGS, nullptr);
+      }
+    }
+  };
+
   if (!CopyDataAndValidateHeader(message.data)) {
     return false;
   }
@@ -292,8 +318,9 @@ bool Message::DeserializeUnknownType(const DriverTransport::RawMessage& message,
         GetArrayView<internal::DriverObjectData>(driver_object_array_offset);
     driver_objects_.reserve(driver_object_data.size());
     for (const internal::DriverObjectData& object_data : driver_object_data) {
-      DriverObject object = DeserializeDriverObject(*this, object_data,
-                                                    message.handles, transport);
+      DriverObject object = DeserializeDriverObject(
+          *this, object_data, message.handles,
+          absl::MakeSpan(is_handle_consumed), transport);
       if (object.is_valid()) {
         driver_objects_.push_back(std::move(object));
       } else {
@@ -313,6 +340,14 @@ Message::ReceivedDataBuffer Message::TakeReceivedData() && {
   received_data_.reset();
   data_ = {};
   return buffer;
+}
+
+void Message::SetEnvelope(DriverObject envelope) {
+  envelope_ = std::move(envelope);
+}
+
+DriverObject Message::TakeEnvelope() {
+  return std::move(envelope_);
 }
 
 bool Message::CopyDataAndValidateHeader(absl::Span<const uint8_t> data) {
@@ -352,10 +387,16 @@ bool Message::CopyDataAndValidateHeader(absl::Span<const uint8_t> data) {
 
 bool Message::ValidateParameters(
     size_t params_size,
-    uint32_t params_current_version,
-    absl::Span<const internal::ParamMetadata> params_metadata) {
+    absl::Span<const internal::VersionMetadata> versions) {
   // Validate parameter data. There must be at least enough bytes following the
-  // header to encode a StructHeader and to account for all parameter data.
+  // header to encode a StructHeader and to account for all parameter data for
+  // some known version of the message.
+  const size_t minimum_size =
+      static_cast<size_t>(header().size) + sizeof(internal::StructHeader);
+  if (data_.size() < minimum_size) {
+    return false;
+  }
+
   absl::Span<uint8_t> params_data = params_data_view();
   if (params_data.size() < sizeof(internal::StructHeader)) {
     return false;
@@ -363,9 +404,6 @@ bool Message::ValidateParameters(
 
   auto& params_header =
       *reinterpret_cast<internal::StructHeader*>(params_data.data());
-  if (params_current_version < params_header.version) {
-    params_header.version = params_current_version;
-  }
 
   // The param struct's header claims to consist of more data than is present in
   // the message. Not good.
@@ -387,50 +425,66 @@ bool Message::ValidateParameters(
   // index of every object claimed by a parameter to ensure that no object is
   // claimed more than once.
   //
-  // Note that it is not an error for some objects to go unclaimed, as they may
-  // be provided for fields from a newer version of the protocol that isn't
-  // known to this receipient.
-  for (const internal::ParamMetadata& param : params_metadata) {
-    if (param.offset >= params_header.size ||
-        param.offset + param.size > params_header.size) {
-      return false;
+  // It is not an error for some objects to go unclaimed, as they may have been
+  // provided for fields from a newer version of the message that isn't known to
+  // this receipient.
+  //
+  // NOTE: All VersionMetadata and ParamMetadata structures are preprocessor-
+  // generated constants used to reflect message layouts. They are not received
+  // over the wire and do not require validation themselves.
+  for (const internal::VersionMetadata& version : versions) {
+    if (version.offset >= params_header.size ||
+        version.offset + version.size > params_header.size) {
+      // It's not an error to fall short of any version above 0. Higher-
+      // versioned fields are inaccessible to message consumers in this case.
+      return &version != &versions[0];
     }
 
-    if (param.array_element_size > 0) {
-      const uint32_t array_offset =
-          *reinterpret_cast<uint32_t*>(&params_data[param.offset]);
-      if (!IsArrayValid(*this, array_offset, param.array_element_size)) {
-        return false;
+    for (const internal::ParamMetadata& param : version.params) {
+      const size_t offset = version.offset + param.offset;
+      if (param.array_element_size > 0) {
+        const uint32_t array_offset =
+            *reinterpret_cast<uint32_t*>(&params_data[offset]);
+        if (!IsArrayValid(*this, array_offset, param.array_element_size)) {
+          return false;
+        }
       }
-    }
 
-    switch (param.type) {
-      case internal::ParamType::kDriverObject: {
-        const uint32_t index = GetParamValueAt<uint32_t>(param.offset);
-        if (index != internal::kInvalidDriverObjectIndex) {
-          if (is_object_claimed[index]) {
+      switch (param.type) {
+        case internal::ParamType::kDriverObject: {
+          const uint32_t index = GetParamValueAt<uint32_t>(offset);
+          if (index != internal::kInvalidDriverObjectIndex) {
+            if (index >= is_object_claimed.size() || is_object_claimed[index]) {
+              return false;
+            }
+            is_object_claimed[index] = true;
+          }
+          break;
+        }
+
+        case internal::ParamType::kDriverObjectArray: {
+          const internal::DriverObjectArrayData array_data =
+              GetParamValueAt<internal::DriverObjectArrayData>(offset);
+          const size_t begin = array_data.first_object_index;
+          if (begin > is_object_claimed.size()) {
             return false;
           }
-          is_object_claimed[index] = true;
-        }
-        break;
-      }
-
-      case internal::ParamType::kDriverObjectArray: {
-        const internal::DriverObjectArrayData array_data =
-            GetParamValueAt<internal::DriverObjectArrayData>(param.offset);
-        const size_t begin = array_data.first_object_index;
-        for (size_t i = begin; i < begin + array_data.num_objects; ++i) {
-          if (is_object_claimed[i]) {
+          const size_t max_num_objects = is_object_claimed.size() - begin;
+          if (array_data.num_objects > max_num_objects) {
             return false;
           }
-          is_object_claimed[i] = true;
+          for (size_t i = begin; i < begin + array_data.num_objects; ++i) {
+            if (is_object_claimed[i]) {
+              return false;
+            }
+            is_object_claimed[i] = true;
+          }
+          break;
         }
-        break;
-      }
 
-      default:
-        break;
+        default:
+          break;
+      }
     }
   }
 
@@ -439,22 +493,19 @@ bool Message::ValidateParameters(
 
 bool Message::DeserializeFromTransport(
     size_t params_size,
-    uint32_t params_current_version,
-    absl::Span<const internal::ParamMetadata> params_metadata,
+    absl::Span<const internal::VersionMetadata> versions,
     const DriverTransport::RawMessage& message,
     const DriverTransport& transport) {
   if (!DeserializeUnknownType(message, transport)) {
     return false;
   }
 
-  return ValidateParameters(params_size, params_current_version,
-                            params_metadata);
+  return ValidateParameters(params_size, versions);
 }
 
 bool Message::DeserializeFromRelay(
     size_t params_size,
-    uint32_t params_current_version,
-    absl::Span<const internal::ParamMetadata> params_metadata,
+    absl::Span<const internal::VersionMetadata> versions,
     absl::Span<const uint8_t> data,
     absl::Span<DriverObject> objects) {
   if (!CopyDataAndValidateHeader(data)) {
@@ -464,8 +515,7 @@ bool Message::DeserializeFromRelay(
   driver_objects_.resize(objects.size());
   std::move(objects.begin(), objects.end(), driver_objects_.begin());
 
-  return ValidateParameters(params_size, params_current_version,
-                            params_metadata);
+  return ValidateParameters(params_size, versions);
 }
 
 }  // namespace ipcz

@@ -20,7 +20,6 @@
 #include "cc/paint/filter_operations.h"
 #include "cc/trees/mutator_host_client.h"
 #include "ui/gfx/animation/keyframe/keyframed_animation_curve.h"
-#include "ui/gfx/geometry/box_f.h"
 #include "ui/gfx/geometry/transform_operations.h"
 
 namespace cc {
@@ -34,8 +33,10 @@ namespace {
 // tracking is done on the KeyframeModel - https://crbug.com/900241
 ElementId CalculateTargetElementId(const ElementAnimations* element_animations,
                                    const gfx::KeyframeModel* keyframe_model) {
-  if (LIKELY(KeyframeModel::ToCcKeyframeModel(keyframe_model)->element_id()))
+  if (KeyframeModel::ToCcKeyframeModel(keyframe_model)->element_id())
+      [[likely]] {
     return KeyframeModel::ToCcKeyframeModel(keyframe_model)->element_id();
+  }
   return element_animations->element_id();
 }
 
@@ -237,7 +238,7 @@ void ElementAnimations::OnColorAnimated(const SkColor& value,
                                         gfx::KeyframeModel* keyframe_model) {
   DCHECK_EQ(keyframe_model->TargetProperty(),
             TargetProperty::CSS_CUSTOM_PROPERTY);
-  // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
+  // TODO(crbug.com/40219248): Remove FromColor and make all SkColor4f.
   OnCustomPropertyAnimated(
       PaintWorkletInput::PropertyValue(SkColor4f::FromColor(value)),
       KeyframeModel::ToCcKeyframeModel(keyframe_model), target_property_id);
@@ -403,7 +404,6 @@ void ElementAnimations::AttachToCurve(gfx::AnimationCurve* c) {
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -540,11 +540,10 @@ void ElementAnimations::OnScrollOffsetAnimated(
       target_element_id, list_type, scroll_offset);
 }
 
-absl::optional<gfx::PointF> ElementAnimations::ScrollOffsetForAnimation()
-    const {
+std::optional<gfx::PointF> ElementAnimations::ScrollOffsetForAnimation() const {
   if (animation_host_)
     return animation_host_->GetScrollOffsetForAnimation(element_id());
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 PropertyToElementIdMap ElementAnimations::GetPropertyToElementIdMap() const {
@@ -587,7 +586,8 @@ PropertyToElementIdMap ElementAnimations::GetPropertyToElementIdMap() const {
         // We deliberately use two branches here so that the DCHECK can
         // differentiate between models with different element ids, and the case
         // where some models don't have an element id.
-        // TODO(crbug.com/900241): All KeyframeModels should have an ElementId.
+        // TODO(crbug.com/40600273): All KeyframeModels should have an
+        // ElementId.
         if (model->element_id()) {
           DCHECK(!element_id_for_property ||
                  element_id_for_property == model->element_id())

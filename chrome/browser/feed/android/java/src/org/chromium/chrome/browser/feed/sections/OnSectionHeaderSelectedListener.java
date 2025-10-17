@@ -4,7 +4,10 @@
 
 package org.chromium.chrome.browser.feed.sections;
 
+import org.chromium.build.annotations.NullMarked;
+
 /** Callback for when a section header is selected. */
+@NullMarked
 public interface OnSectionHeaderSelectedListener {
     /**
      * Callback for when a header tab is selected.
@@ -20,7 +23,7 @@ public interface OnSectionHeaderSelectedListener {
      *
      * @param index the index of the tab that's reselected.
      */
-    default void onSectionHeaderReselected(int index){};
+    default void onSectionHeaderReselected(int index) {}
 
     /**
      * Callback for when a header tab is unselected.
@@ -30,5 +33,5 @@ public interface OnSectionHeaderSelectedListener {
      *
      * @param index the index of the tab that's unselected.
      */
-    default void onSectionHeaderUnselected(int index){};
+    default void onSectionHeaderUnselected(int index) {}
 }

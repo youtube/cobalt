@@ -4,6 +4,8 @@
 
 #include "services/audio/output_device_mixer_manager.h"
 
+#include <optional>
+
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
@@ -17,7 +19,6 @@
 #include "services/audio/reference_output.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::_;
 using ::testing::ByMove;
@@ -103,10 +104,6 @@ class LocalMockAudioManager : public media::MockAudioManager {
               GetOutputStreamParameters,
               (const std::string&),
               (override));
-  MOCK_METHOD(AudioParameters,
-              GetDefaultOutputStreamParameters,
-              (),
-              (override));
   MOCK_METHOD(AudioOutputStream*,
               MakeAudioOutputStreamProxy,
               (const media::AudioParameters&, const std::string&),
@@ -159,7 +156,9 @@ class OutputDeviceMixerManagerTest
     EXPECT_CALL(audio_manager_, GetOutputStreamParameters(_))
         .WillRepeatedly(Return(default_params_));
 
-    EXPECT_CALL(audio_manager_, GetDefaultOutputStreamParameters())
+    EXPECT_CALL(audio_manager_,
+                GetOutputStreamParameters(
+                    media::AudioDeviceDescription::kDefaultDeviceId))
         .WillRepeatedly(Return(default_params_));
 
     EXPECT_CALL(audio_manager_, GetDefaultOutputDeviceID()).WillRepeatedly([&] {
@@ -264,12 +263,12 @@ class OutputDeviceMixerManagerTest
   }
 
   void SimulateDeviceChange() {
-    SimulateDeviceChange(absl::nullopt, absl::nullopt);
+    SimulateDeviceChange(std::nullopt, std::nullopt);
   }
 
   void SimulateDeviceChange(
-      absl::optional<std::string> new_default_physical_device,
-      absl::optional<std::string> new_communications_physical_device) {
+      std::optional<std::string> new_default_physical_device,
+      std::optional<std::string> new_communications_physical_device) {
     if (new_default_physical_device)
       current_default_physical_device_id_ = *new_default_physical_device;
 
@@ -348,10 +347,10 @@ class OutputDeviceMixerManagerTest
   void SimulateReservedDeviceChange(std::string new_reserved_physical_id) {
     switch (reserved_id_test_type()) {
       case ReservedIdTestType::kDefault:
-        SimulateDeviceChange(new_reserved_physical_id, absl::nullopt);
+        SimulateDeviceChange(new_reserved_physical_id, std::nullopt);
         return;
       case ReservedIdTestType::kCommunications:
-        SimulateDeviceChange(absl::nullopt, new_reserved_physical_id);
+        SimulateDeviceChange(std::nullopt, new_reserved_physical_id);
         return;
     }
   }
@@ -542,8 +541,8 @@ TEST_F(OutputDeviceMixerManagerTest,
 
   SetUpMockMixerCreation();
 
-  EXPECT_CALL(audio_manager_, GetOutputStreamParameters(_)).Times(0);
-  EXPECT_CALL(audio_manager_, GetDefaultOutputStreamParameters())
+  EXPECT_CALL(audio_manager_,
+              GetOutputStreamParameters(kNormalizedDefaultDeviceId))
       .WillOnce(Return(default_params_));
 
   output_mixer_manager_.MakeOutputStream(kReservedDefaultId, default_params_,
@@ -554,7 +553,6 @@ TEST_F(OutputDeviceMixerManagerTest,
 
   SetUpMockMixerCreation(kOtherFakeDeviceId);
 
-  EXPECT_CALL(audio_manager_, GetDefaultOutputStreamParameters()).Times(0);
   EXPECT_CALL(audio_manager_, GetOutputStreamParameters(kOtherFakeDeviceId))
       .WillOnce(Return(default_params_));
 
@@ -588,7 +586,10 @@ TEST_F(OutputDeviceMixerManagerTest, MakeOutputStream_WithBitstreamFormat) {
 // Makes sure we still get an unmixable stream if device info is stale and
 // AudioManager::GetOutputStreamParameters() returns invalid parameters.
 TEST_F(OutputDeviceMixerManagerTest, MakeOutputStream_WithStaleDeviceInfo) {
-  EXPECT_CALL(audio_manager_, GetDefaultOutputStreamParameters()).Times(0);
+  EXPECT_CALL(audio_manager_,
+              GetOutputStreamParameters(
+                  media::AudioDeviceDescription::kDefaultDeviceId))
+      .Times(0);
 
   // Return invalid parameters, which should fail mixer creation.
   EXPECT_CALL(audio_manager_, GetOutputStreamParameters(kOtherFakeDeviceId))

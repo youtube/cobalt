@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/navigation_entry_restore_context.h"
 #include "url/gurl.h"
@@ -46,7 +47,7 @@ class CONTENT_EXPORT NavigationEntryRestoreContextImpl
   // the frame, and URL. The unique name is a precaution in case the item
   // sequence number somehow appears in multiple frames. The URL is needed to
   // handle cases from older versions where a replaceState operation might have
-  // caused multiple FrameNavigationEntries with the same ISN and unique namm to
+  // caused multiple FrameNavigationEntries with the same ISN and unique name to
   // have different URLs.
   //
   // We also ensure that entries with an item sequence number of 0 (the default
@@ -54,28 +55,30 @@ class CONTENT_EXPORT NavigationEntryRestoreContextImpl
   // document. This may happen for entries restored without all available state,
   // and we can skip FrameNavigationEntry sharing for them because they are not
   // considered same-document anyway.
-  struct Key {
+  class Key {
+   public:
     Key(int64_t isn, const std::string& name, const GURL& entry_url)
-        : item_sequence_number(isn), unique_name(name), url(entry_url) {}
-    bool operator==(const Key& other) const {
-      return item_sequence_number == other.item_sequence_number &&
-             unique_name == other.unique_name && url == other.url;
-    }
-    const int64_t item_sequence_number;
-    const std::string unique_name;
-    const GURL url;
+        : item_sequence_number_(isn), unique_name_(name), url_(entry_url) {}
+
+    // Avoid copying of the Key as it contains strings.
+    Key(const Key&) = delete;
+    Key& operator=(const Key&) = delete;
+    Key(Key&& other) = default;
+    Key& operator=(Key&& other) = default;
 
     struct Compare {
-      bool operator()(const Key& x, const Key& y) const {
-        if (x.item_sequence_number != y.item_sequence_number)
-          return x.item_sequence_number > y.item_sequence_number;
-        if (x.unique_name != y.unique_name)
-          return x.unique_name > y.unique_name;
-        return x.url > y.url;
-      }
+      bool operator()(const Key& x, const Key& y) const;
     };
+
+   private:
+    // These values are non-const so that the Key is movable. They should
+    // otherwise never change.
+    int64_t item_sequence_number_;
+    std::string unique_name_;
+    GURL url_;
   };
-  std::map<Key, FrameNavigationEntry*, Key::Compare> entries_;
+  std::map<Key, raw_ptr<FrameNavigationEntry, CtnExperimental>, Key::Compare>
+      entries_;
 };
 
 }  // namespace content

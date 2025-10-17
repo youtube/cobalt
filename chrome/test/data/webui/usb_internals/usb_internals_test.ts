@@ -2,19 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
 import 'chrome://resources/cr_elements/cr_tree/cr_tree.js';
 
-import {CrTreeItemElement} from 'chrome://resources/cr_elements/cr_tree/cr_tree_item.js';
+import type {CrTreeItemElement} from 'chrome://resources/cr_elements/cr_tree/cr_tree_item.js';
+import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
-import {File} from 'chrome://resources/mojo/mojo/public/mojom/base/file.mojom-webui.js';
-import {ReadOnlyBuffer} from 'chrome://resources/mojo/mojo/public/mojom/base/read_only_buffer.mojom-webui.js';
-import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
-import {setSetupFn, UsbInternalsAppElement} from 'chrome://usb-internals/app.js';
-import {UsbClaimInterfaceResult, UsbControlTransferParams, UsbControlTransferRecipient, UsbControlTransferType, UsbDeviceClientRemote, UsbDeviceInfo, UsbDeviceInterface, UsbDevicePendingReceiver, UsbDeviceReceiver, UsbIsochronousPacket, UsbOpenDeviceResult, UsbOpenDeviceSuccess, UsbTransferDirection, UsbTransferStatus} from 'chrome://usb-internals/usb_device.mojom-webui.js';
-import {UsbInternalsPageHandler, UsbInternalsPageHandlerInterface, UsbInternalsPageHandlerReceiver} from 'chrome://usb-internals/usb_internals.mojom-webui.js';
-import {UsbDeviceManagerInterface, UsbDeviceManagerPendingReceiver, UsbDeviceManagerReceiver} from 'chrome://usb-internals/usb_manager.mojom-webui.js';
-import {UsbDeviceManagerTestPendingReceiver} from 'chrome://usb-internals/usb_manager_test.mojom-webui.js';
+import type {File} from 'chrome://resources/mojo/mojo/public/mojom/base/file.mojom-webui.js';
+import type {ReadOnlyBuffer} from 'chrome://resources/mojo/mojo/public/mojom/base/read_only_buffer.mojom-webui.js';
+import type {UsbInternalsAppElement} from 'chrome://usb-internals/app.js';
+import {setSetupFn} from 'chrome://usb-internals/app.js';
+import type {UsbClaimInterfaceResult, UsbControlTransferParams, UsbDeviceClientRemote, UsbDeviceInfo, UsbDeviceInterface, UsbDevicePendingReceiver, UsbIsochronousPacket, UsbOpenDeviceResult, UsbTransferDirection} from 'chrome://usb-internals/usb_device.mojom-webui.js';
+import {UsbControlTransferRecipient, UsbControlTransferType, UsbDeviceReceiver, UsbOpenDeviceSuccess, UsbTransferStatus} from 'chrome://usb-internals/usb_device.mojom-webui.js';
+import type {UsbInternalsPageHandlerInterface} from 'chrome://usb-internals/usb_internals.mojom-webui.js';
+import {UsbInternalsPageHandler, UsbInternalsPageHandlerReceiver} from 'chrome://usb-internals/usb_internals.mojom-webui.js';
+import type {UsbDeviceManagerInterface, UsbDeviceManagerPendingReceiver} from 'chrome://usb-internals/usb_manager.mojom-webui.js';
+import {UsbDeviceManagerReceiver} from 'chrome://usb-internals/usb_manager.mojom-webui.js';
+import type {UsbDeviceManagerTestPendingReceiver} from 'chrome://usb-internals/usb_manager_test.mojom-webui.js';
 import {assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
@@ -118,6 +121,13 @@ class FakeDeviceManagerRemote extends TestBrowserProxy implements
     assertNotReached();
   }
 
+  // <if expr="is_android">
+  refreshDeviceInfo(_guid: string):
+      Promise<{deviceInfo: UsbDeviceInfo | null}> {
+    assertNotReached();
+  }
+  // </if>
+
   async setClient() {}
 }
 
@@ -136,19 +146,19 @@ class FakeUsbDeviceRemote extends TestBrowserProxy implements
     this.receiver = new UsbDeviceReceiver(this);
   }
 
-  async controlTransferIn(
+  controlTransferIn(
       params: UsbControlTransferParams, length: number, _timeout: number):
       Promise<{status: UsbTransferStatus, data: ReadOnlyBuffer}> {
     const response =
         this.responses.get(usbControlTransferParamsToString(params));
     if (!response) {
-      return {
+      return Promise.resolve({
         status: UsbTransferStatus.TRANSFER_ERROR,
         data: {buffer: []},
-      };
+      });
     }
     response.data = {buffer: response.data.slice(0, length)};
-    return response;
+    return Promise.resolve(response);
   }
 
   /**
@@ -256,8 +266,8 @@ function fakeDeviceInfo(num: number): UsbDeviceInfo {
     deviceVersionMinor: 2,
     deviceVersionSubminor: 1,
     manufacturerName: stringToMojoString16('test'),
-    productName: undefined,
-    serialNumber: undefined,
+    productName: null,
+    serialNumber: null,
     webusbLandingPage: {url: 'http://google.com'},
     activeConfiguration: 1,
     configurations: [],
@@ -305,13 +315,6 @@ function createDeviceWithShortDeviceDescriptor(): FakeUsbDeviceRemote {
     data: [0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40, 0x50],
   });
   return deviceRemote;
-}
-
-/**
- * Converts an ECMAScript string to an instance of mojo_base.mojom.String16.
- */
-function stringToMojoString16(s: string): String16 {
-  return {data: Array.from(s, c => c.charCodeAt(0))};
 }
 
 /**

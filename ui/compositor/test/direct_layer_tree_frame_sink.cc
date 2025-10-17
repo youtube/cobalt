@@ -11,9 +11,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "cc/tiles/image_decode_cache_utils.h"
 #include "cc/trees/layer_tree_frame_sink_client.h"
-#include "components/viz/common/features.h"
 #include "components/viz/common/hit_test/hit_test_region_list.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
@@ -21,6 +19,11 @@
 #include "components/viz/service/display/display.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "components/viz/service/surfaces/surface.h"
+#include "gpu/ipc/client/client_shared_image_interface.h"
+
+#if BUILDFLAG(IS_APPLE)
+#include "ui/accelerated_widget_mac/ca_layer_frame_sink.h"
+#endif
 
 namespace ui {
 
@@ -28,23 +31,27 @@ DirectLayerTreeFrameSink::DirectLayerTreeFrameSink(
     const viz::FrameSinkId& frame_sink_id,
     viz::FrameSinkManagerImpl* frame_sink_manager,
     viz::Display* display,
-    scoped_refptr<viz::ContextProvider> context_provider,
-    scoped_refptr<cc::RasterContextProviderWrapper>
-        worker_context_provider_wrapper,
+    scoped_refptr<viz::RasterContextProvider> context_provider,
+    scoped_refptr<viz::RasterContextProvider> worker_context_provider,
     scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner,
-    gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager)
+    gfx::AcceleratedWidget widget)
     : LayerTreeFrameSink(std::move(context_provider),
-                         std::move(worker_context_provider_wrapper),
+                         std::move(worker_context_provider),
                          std::move(compositor_task_runner),
-                         gpu_memory_buffer_manager),
+                         /*shared_image_interface=*/nullptr),
       frame_sink_id_(frame_sink_id),
       frame_sink_manager_(frame_sink_manager),
-      display_(display) {
+      display_(display),
+      widget_(widget) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 DirectLayerTreeFrameSink::~DirectLayerTreeFrameSink() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Reset `client_` in Display to avoid accessing `client_` after this is
+  // destructed. This is to resolve the circular dependency between Display and
+  // DirectLayerTreeFrameSink.
+  display_->ResetDisplayClientForTesting(/*old_client=*/this);
 }
 
 bool DirectLayerTreeFrameSink::BindToClient(
@@ -96,7 +103,7 @@ void DirectLayerTreeFrameSink::SubmitCompositorFrame(
         device_scale_factor_);
   }
 
-  absl::optional<viz::HitTestRegionList> hit_test_region_list =
+  std::optional<viz::HitTestRegionList> hit_test_region_list =
       client_->BuildHitTestData();
 
   if (!hit_test_region_list) {
@@ -107,7 +114,7 @@ void DirectLayerTreeFrameSink::SubmitCompositorFrame(
                                         last_hit_test_data_)) {
       DCHECK(!viz::HitTestRegionList::IsEqual(*hit_test_region_list,
                                               viz::HitTestRegionList()));
-      hit_test_region_list = absl::nullopt;
+      hit_test_region_list = std::nullopt;
     } else {
       last_hit_test_data_ = *hit_test_region_list;
     }
@@ -128,18 +135,6 @@ void DirectLayerTreeFrameSink::DidNotProduceFrame(
   support_->DidNotProduceFrame(ack);
 }
 
-void DirectLayerTreeFrameSink::DidAllocateSharedBitmap(
-    base::ReadOnlySharedMemoryRegion region,
-    const viz::SharedBitmapId& id) {
-  bool ok = support_->DidAllocateSharedBitmap(std::move(region), id);
-  DCHECK(ok);
-}
-
-void DirectLayerTreeFrameSink::DidDeleteSharedBitmap(
-    const viz::SharedBitmapId& id) {
-  support_->DidDeleteSharedBitmap(id);
-}
-
 void DirectLayerTreeFrameSink::DisplayOutputSurfaceLost() {
   is_lost_ = true;
   client_->DidLoseLayerTreeFrameSink();
@@ -151,6 +146,23 @@ void DirectLayerTreeFrameSink::DisplayWillDrawAndSwap(
   if (support_->GetHitTestAggregator()) {
     support_->GetHitTestAggregator()->Aggregate(display_->CurrentSurfaceId());
   }
+}
+
+void DirectLayerTreeFrameSink::DisplayDidReceiveCALayerParams(
+    const gfx::CALayerParams& ca_layer_params) {
+#if BUILDFLAG(IS_APPLE)
+  ui::CALayerFrameSink* ca_layer_frame_sink =
+      ui::CALayerFrameSink::FromAcceleratedWidget(widget_);
+  if (ca_layer_frame_sink) {
+    ca_layer_frame_sink->UpdateCALayerTree(ca_layer_params);
+  } else {
+    DLOG(WARNING) << "Received frame for non-existent widget.";
+  }
+#else
+  // Suppress -Wunused-private-field warning.
+  (void)widget_;
+  NOTREACHED();
+#endif
 }
 
 base::TimeDelta
@@ -180,14 +192,9 @@ void DirectLayerTreeFrameSink::DidReceiveCompositorFrameAckInternal(
 void DirectLayerTreeFrameSink::OnBeginFrame(
     const viz::BeginFrameArgs& args,
     const viz::FrameTimingDetailsMap& timing_details,
-    bool frame_ack,
     std::vector<viz::ReturnedResource> resources) {
-  if (features::IsOnBeginFrameAcksEnabled()) {
-    if (frame_ack) {
-      DidReceiveCompositorFrameAck(std::move(resources));
-    } else if (!resources.empty()) {
-      ReclaimResources(std::move(resources));
-    }
+  if (!resources.empty()) {
+    ReclaimResources(std::move(resources));
   }
   for (const auto& pair : timing_details)
     client_->DidPresentCompositorFrame(pair.first, pair.second);

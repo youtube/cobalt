@@ -6,6 +6,7 @@ include_rules = [
   "+third_party/angle",
   "+third_party/libsync",
   "+third_party/libyuv",
+  "+third_party/microsoft_dxheaders",
   "+third_party/v4l-utils",
   "+third_party/webrtc/common_video",
   "+ui/base",
@@ -17,8 +18,7 @@ include_rules = [
   # media/gpu is not part of "media" target and should not use MEDIA_EXPORT.
   "-media/base/media_export.h",
 
-  # SharedImageVideo uses it.
-  "+components/viz/common/resources/resource_format_utils.h",
+  # AndroidVideoImageBacking uses it.
   "+components/viz/common/resources/resource_sizes.h",
 
   # Chrome OS specific JEA/MJDA.

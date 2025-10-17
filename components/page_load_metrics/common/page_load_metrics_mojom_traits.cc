@@ -4,6 +4,8 @@
 
 #include "components/page_load_metrics/common/page_load_metrics_mojom_traits.h"
 
+#include "mojo/public/cpp/base/time_mojom_traits.h"
+
 namespace mojo {
 
 // static
@@ -14,9 +16,6 @@ bool StructTraits<page_load_metrics::mojom::SubresourceLoadMetricsDataView,
   out->number_of_subresources_loaded = data.number_of_subresources_loaded();
   out->number_of_subresource_loads_handled_by_service_worker =
       data.number_of_subresource_loads_handled_by_service_worker();
-  out->pervasive_payload_requested = data.pervasive_payload_requested();
-  out->total_bytes_fetched = data.total_bytes_fetched();
-  out->pervasive_bytes_fetched = data.pervasive_bytes_fetched();
   return data.ReadServiceWorkerSubresourceLoadMetrics(
       &out->service_worker_subresource_load_metrics);
 }
@@ -56,6 +55,26 @@ bool StructTraits<
   out->speculation_rules_fallback = data.speculation_rules_fallback();
   out->mock_handled = data.mock_handled();
   out->mock_fallback = data.mock_fallback();
+  out->dictionary_handled = data.dictionary_handled();
+  out->dictionary_fallback = data.dictionary_fallback();
+  out->matched_cache_router_source_count =
+      data.matched_cache_router_source_count();
+  out->matched_fetch_event_router_source_count =
+      data.matched_fetch_event_router_source_count();
+  out->matched_network_router_source_count =
+      data.matched_network_router_source_count();
+  out->matched_race_network_and_fetch_router_source_count =
+      data.matched_race_network_and_fetch_router_source_count();
+  out->matched_race_network_and_cache_router_source_count =
+      data.matched_race_network_and_cache_router_source_count();
+  if (!data.ReadTotalRouterEvaluationTimeForSubresources(
+          &out->total_router_evaluation_time_for_subresources)) {
+    return false;
+  }
+  if (!data.ReadTotalCacheLookupTimeForSubresources(
+          &out->total_cache_lookup_time_for_subresources)) {
+    return false;
+  }
   return true;
 }
 

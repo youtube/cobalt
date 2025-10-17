@@ -104,26 +104,26 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
     // Key press.
     ui::EventType event_type = raw_type == kSbInputEventTypePress
-                                   ? ui::EventType::ET_KEY_PRESSED
-                                   : ui::EventType::ET_KEY_RELEASED;
+                                   ? ui::EventType::kKeyPressed
+                                   : ui::EventType::kKeyReleased;
     ui_event = std::make_unique<ui::KeyEvent>(
         event_type, key_code, dom_code, flags, dom_key,
         /*time_stamp=*/
         base::TimeTicks() + base::Microseconds(raw_timestamp));
   } else if (input_data->device_type == kSbInputDeviceTypeMouse) {
-    ui::EventType event_type = ui::EventType::ET_UNKNOWN;
+    ui::EventType event_type = ui::EventType::kUnknown;
     switch (input_data->type) {
       case kSbInputEventTypeMove:
-        event_type = ui::EventType::ET_MOUSE_MOVED;
+        event_type = ui::EventType::kMouseMoved;
         break;
       case kSbInputEventTypePress:
-        event_type = ui::EventType::ET_MOUSE_PRESSED;
+        event_type = ui::EventType::kMousePressed;
         break;
       case kSbInputEventTypeUnpress:
-        event_type = ui::EventType::ET_MOUSE_RELEASED;
+        event_type = ui::EventType::kMouseReleased;
         break;
       case kSbInputEventTypeWheel:
-        event_type = ui::EventType::ET_MOUSEWHEEL;
+        event_type = ui::EventType::kMousewheel;
         break;
       case kSbInputEventTypeInput:
         break;
@@ -135,7 +135,7 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
     // Mouse wheel scrolls are separate from MouseEvent and will crash here. We
     // need to handle them properly.
-    if (event_type == ui::EventType::ET_MOUSEWHEEL) {
+    if (event_type == ui::EventType::kMousewheel) {
       return;
     }
     ui_event = std::make_unique<ui::MouseEvent>(

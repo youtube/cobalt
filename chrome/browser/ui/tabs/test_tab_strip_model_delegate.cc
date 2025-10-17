@@ -18,10 +18,10 @@ void TestTabStripModelDelegate::AddTabAt(
     const GURL& url,
     int index,
     bool foreground,
-    absl::optional<tab_groups::TabGroupId> group) {}
+    std::optional<tab_groups::TabGroupId> group) {}
 
-Browser* TestTabStripModelDelegate::CreateNewStripWithContents(
-    std::vector<NewStripContents> contentses,
+Browser* TestTabStripModelDelegate::CreateNewStripWithTabs(
+    std::vector<NewStripContents> tabs,
     const gfx::Rect& window_bounds,
     bool maximize) {
   return nullptr;
@@ -47,8 +47,9 @@ bool TestTabStripModelDelegate::IsTabStripEditable() {
   return true;
 }
 
-void TestTabStripModelDelegate::DuplicateContentsAt(int index) {
-}
+void TestTabStripModelDelegate::DuplicateContentsAt(int index) {}
+
+void TestTabStripModelDelegate::DuplicateSplit(split_tabs::SplitTabId split) {}
 
 void TestTabStripModelDelegate::MoveToExistingWindow(
     const std::vector<int>& indices,
@@ -65,12 +66,18 @@ void TestTabStripModelDelegate::MoveTabsToNewWindow(
 void TestTabStripModelDelegate::MoveGroupToNewWindow(
     const tab_groups::TabGroupId& group) {}
 
-absl::optional<SessionID> TestTabStripModelDelegate::CreateHistoricalTab(
+std::optional<SessionID> TestTabStripModelDelegate::CreateHistoricalTab(
     content::WebContents* contents) {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void TestTabStripModelDelegate::CreateHistoricalGroup(
+    const tab_groups::TabGroupId& group) {}
+
+void TestTabStripModelDelegate::GroupAdded(
+    const tab_groups::TabGroupId& group) {}
+
+void TestTabStripModelDelegate::WillCloseGroup(
     const tab_groups::TabGroupId& group) {}
 
 void TestTabStripModelDelegate::GroupCloseStopped(
@@ -96,24 +103,43 @@ bool TestTabStripModelDelegate::CanReload() const {
 }
 
 void TestTabStripModelDelegate::AddToReadLater(
-    content::WebContents* web_contents) {}
+    std::vector<content::WebContents*> web_contentses) {}
 
 bool TestTabStripModelDelegate::SupportsReadLater() {
   return true;
 }
-
-void TestTabStripModelDelegate::CacheWebContents(
-    const std::vector<std::unique_ptr<TabStripModel::DetachedWebContents>>&
-        web_contents) {}
-
-void TestTabStripModelDelegate::FollowSite(content::WebContents* web_contents) {
-}
-
-void TestTabStripModelDelegate::UnfollowSite(
-    content::WebContents* web_contents) {}
 
 bool TestTabStripModelDelegate::IsForWebApp() {
   return false;
 }
 
 void TestTabStripModelDelegate::CopyURL(content::WebContents* web_contents) {}
+
+void TestTabStripModelDelegate::GoBack(content::WebContents* web_contents) {}
+
+bool TestTabStripModelDelegate::CanGoBack(content::WebContents* web_contents) {
+  return false;
+}
+
+bool TestTabStripModelDelegate::IsNormalWindow() {
+  return true;
+}
+
+void TestTabStripModelDelegate::NewSplitTab(std::vector<int> indices) {}
+
+BrowserWindowInterface* TestTabStripModelDelegate::GetBrowserWindowInterface() {
+  return browser_window_interface_;
+}
+
+void TestTabStripModelDelegate::OnGroupsDestruction(
+    const std::vector<tab_groups::TabGroupId>& group_ids,
+    base::OnceCallback<void()> callback,
+    bool delete_groups) {
+  std::move(callback).Run();
+}
+
+void TestTabStripModelDelegate::OnRemovingAllTabsFromGroups(
+    const std::vector<tab_groups::TabGroupId>& group_ids,
+    base::OnceCallback<void()> callback) {
+  std::move(callback).Run();
+}

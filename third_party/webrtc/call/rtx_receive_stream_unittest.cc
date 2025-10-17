@@ -10,8 +10,17 @@
 
 #include "call/rtx_receive_stream.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <map>
+
+#include "api/array_view.h"
+#include "api/units/timestamp.h"
+#include "api/video/video_rotation.h"
 #include "call/test/mock_rtp_packet_sink_interface.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "test/gmock.h"
@@ -21,7 +30,6 @@ namespace webrtc {
 
 namespace {
 
-using ::testing::_;
 using ::testing::Property;
 using ::testing::StrictMock;
 
@@ -105,7 +113,7 @@ std::map<int, int> PayloadTypeMapping() {
 }
 
 template <typename T>
-rtc::ArrayView<T> Truncate(rtc::ArrayView<T> a, size_t drop) {
+ArrayView<T> Truncate(ArrayView<T> a, size_t drop) {
   return a.subview(0, a.size() - drop);
 }
 
@@ -115,7 +123,7 @@ TEST(RtxReceiveStreamTest, RestoresPacketPayload) {
   StrictMock<MockRtpPacketSink> media_sink;
   RtxReceiveStream rtx_sink(&media_sink, PayloadTypeMapping(), kMediaSSRC);
   RtpPacketReceived rtx_packet;
-  EXPECT_TRUE(rtx_packet.Parse(rtc::ArrayView<const uint8_t>(kRtxPacket)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(kRtxPacket)));
 
   EXPECT_CALL(media_sink, OnRtpPacket)
       .WillOnce([](const RtpPacketReceived& packet) {
@@ -132,7 +140,7 @@ TEST(RtxReceiveStreamTest, SetsRecoveredFlag) {
   StrictMock<MockRtpPacketSink> media_sink;
   RtxReceiveStream rtx_sink(&media_sink, PayloadTypeMapping(), kMediaSSRC);
   RtpPacketReceived rtx_packet;
-  EXPECT_TRUE(rtx_packet.Parse(rtc::ArrayView<const uint8_t>(kRtxPacket)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(kRtxPacket)));
   EXPECT_FALSE(rtx_packet.recovered());
   EXPECT_CALL(media_sink, OnRtpPacket)
       .WillOnce([](const RtpPacketReceived& packet) {
@@ -149,7 +157,7 @@ TEST(RtxReceiveStreamTest, IgnoresUnknownPayloadType) {
 
   RtxReceiveStream rtx_sink(&media_sink, payload_type_mapping, kMediaSSRC);
   RtpPacketReceived rtx_packet;
-  EXPECT_TRUE(rtx_packet.Parse(rtc::ArrayView<const uint8_t>(kRtxPacket)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(kRtxPacket)));
   rtx_sink.OnRtpPacket(rtx_packet);
 }
 
@@ -158,7 +166,7 @@ TEST(RtxReceiveStreamTest, IgnoresTruncatedPacket) {
   RtxReceiveStream rtx_sink(&media_sink, PayloadTypeMapping(), kMediaSSRC);
   RtpPacketReceived rtx_packet;
   EXPECT_TRUE(
-      rtx_packet.Parse(Truncate(rtc::ArrayView<const uint8_t>(kRtxPacket), 2)));
+      rtx_packet.Parse(Truncate(ArrayView<const uint8_t>(kRtxPacket), 2)));
   rtx_sink.OnRtpPacket(rtx_packet);
 }
 
@@ -168,8 +176,7 @@ TEST(RtxReceiveStreamTest, CopiesRtpHeaderExtensions) {
   RtpHeaderExtensionMap extension_map;
   extension_map.RegisterByType(3, kRtpExtensionVideoRotation);
   RtpPacketReceived rtx_packet(&extension_map);
-  EXPECT_TRUE(
-      rtx_packet.Parse(rtc::ArrayView<const uint8_t>(kRtxPacketWithCVO)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(kRtxPacketWithCVO)));
 
   VideoRotation rotation = kVideoRotation_0;
   EXPECT_TRUE(rtx_packet.GetExtension<VideoOrientation>(&rotation));
@@ -193,7 +200,7 @@ TEST(RtxReceiveStreamTest, PropagatesArrivalTime) {
   StrictMock<MockRtpPacketSink> media_sink;
   RtxReceiveStream rtx_sink(&media_sink, PayloadTypeMapping(), kMediaSSRC);
   RtpPacketReceived rtx_packet(nullptr);
-  EXPECT_TRUE(rtx_packet.Parse(rtc::ArrayView<const uint8_t>(kRtxPacket)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(kRtxPacket)));
   rtx_packet.set_arrival_time(Timestamp::Millis(123));
   EXPECT_CALL(media_sink, OnRtpPacket(Property(&RtpPacketReceived::arrival_time,
                                                Timestamp::Millis(123))));
@@ -208,15 +215,14 @@ TEST(RtxReceiveStreamTest, SupportsLargePacket) {
   constexpr int kRtxPayloadOffset = 14;
   uint8_t large_rtx_packet[kRtxPacketSize];
   memcpy(large_rtx_packet, kRtxPacket, sizeof(kRtxPacket));
-  rtc::ArrayView<uint8_t> payload(large_rtx_packet + kRtxPayloadOffset,
-                                  kRtxPacketSize - kRtxPayloadOffset);
+  ArrayView<uint8_t> payload(large_rtx_packet + kRtxPayloadOffset,
+                             kRtxPacketSize - kRtxPayloadOffset);
 
   // Fill payload.
   for (size_t i = 0; i < payload.size(); i++) {
     payload[i] = i;
   }
-  EXPECT_TRUE(
-      rtx_packet.Parse(rtc::ArrayView<const uint8_t>(large_rtx_packet)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(large_rtx_packet)));
 
   EXPECT_CALL(media_sink, OnRtpPacket)
       .WillOnce([&](const RtpPacketReceived& packet) {
@@ -239,10 +245,10 @@ TEST(RtxReceiveStreamTest, SupportsLargePacketWithPadding) {
   uint8_t large_rtx_packet[kRtxPacketSize];
   memcpy(large_rtx_packet, kRtxPacketWithPadding,
          sizeof(kRtxPacketWithPadding));
-  rtc::ArrayView<uint8_t> payload(
+  ArrayView<uint8_t> payload(
       large_rtx_packet + kRtxPayloadOffset,
       kRtxPacketSize - kRtxPayloadOffset - kRtxPaddingSize);
-  rtc::ArrayView<uint8_t> padding(
+  ArrayView<uint8_t> padding(
       large_rtx_packet + kRtxPacketSize - kRtxPaddingSize, kRtxPaddingSize);
 
   // Fill payload.
@@ -254,8 +260,7 @@ TEST(RtxReceiveStreamTest, SupportsLargePacketWithPadding) {
     padding[i] = kRtxPaddingSize;
   }
 
-  EXPECT_TRUE(
-      rtx_packet.Parse(rtc::ArrayView<const uint8_t>(large_rtx_packet)));
+  EXPECT_TRUE(rtx_packet.Parse(ArrayView<const uint8_t>(large_rtx_packet)));
 
   EXPECT_CALL(media_sink, OnRtpPacket)
       .WillOnce([&](const RtpPacketReceived& packet) {

@@ -5,7 +5,10 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_NETWORK_METRICS_HOTSPOT_METRICS_HELPER_H_
 #define CHROMEOS_ASH_COMPONENTS_NETWORK_METRICS_HOTSPOT_METRICS_HELPER_H_
 
+#include <optional>
+
 #include "base/component_export.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -16,7 +19,6 @@
 #include "chromeos/ash/components/network/hotspot_state_handler.h"
 #include "chromeos/ash/services/hotspot_config/public/mojom/cros_hotspot_config.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -43,7 +45,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
 
   // Emits set hotspot configuration operation result to related UMA histogram.
   static void RecordSetHotspotConfigResult(
-      hotspot_config::mojom::SetHotspotConfigResult result);
+      hotspot_config::mojom::SetHotspotConfigResult result,
+      const std::string& shill_error = "");
 
   // Emits hotspot enable operation latency to related UMA histogram.
   static void RecordEnableHotspotLatency(const base::TimeDelta& latency);
@@ -63,6 +66,9 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
 
  private:
   friend class HotspotMetricsHelperTest;
+  friend class HotspotControllerTest;
+  friend class HotspotControllerConcurrencyApiTest;
+
   FRIEND_TEST_ALL_PREFIXES(HotspotMetricsHelperTest,
                            HotspotAllowStatusHistogram);
   FRIEND_TEST_ALL_PREFIXES(HotspotMetricsHelperTest,
@@ -77,16 +83,42 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
                            HotspotEnabledUpstreamStatusHistogram);
   FRIEND_TEST_ALL_PREFIXES(HotspotMetricsHelperTest,
                            HotspotDisableReasonHistogram);
+  FRIEND_TEST_ALL_PREFIXES(HotspotMetricsHelperTest, HotspotSetConfigHistogram);
   FRIEND_TEST_ALL_PREFIXES(HotspotControllerTest, EnableTetheringSuccess);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerTest, AbortEnableTethering);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerTest,
+                           ShillOperationFailureWhileAborting);
   FRIEND_TEST_ALL_PREFIXES(HotspotControllerTest,
                            EnableTetheringReadinessCheckFailure);
   FRIEND_TEST_ALL_PREFIXES(HotspotControllerTest,
                            EnableTetheringNetworkSetupFailure);
   FRIEND_TEST_ALL_PREFIXES(HotspotControllerTest, DisableTetheringSuccess);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerConcurrencyApiTest,
+                           EnableTetheringSuccess);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerConcurrencyApiTest,
+                           AbortEnableTethering);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerConcurrencyApiTest,
+                           ShillOperationFailureWhileAborting);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerConcurrencyApiTest,
+                           EnableTetheringReadinessCheckFailure);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerConcurrencyApiTest,
+                           EnableTetheringNetworkSetupFailure);
+  FRIEND_TEST_ALL_PREFIXES(HotspotControllerConcurrencyApiTest,
+                           DisableTetheringSuccess);
   FRIEND_TEST_ALL_PREFIXES(HotspotConfigurationHandlerTest,
                            SetAndGetHotspotConfig);
   FRIEND_TEST_ALL_PREFIXES(HotspotCapabilitiesProviderTest,
-                           CheckTetheringReadiness);
+                           CheckTetheringReadiness_Ready);
+  FRIEND_TEST_ALL_PREFIXES(HotspotCapabilitiesProviderTest,
+                           CheckTetheringReadiness_NotAllowed);
+  FRIEND_TEST_ALL_PREFIXES(HotspotCapabilitiesProviderTest,
+                           CheckTetheringReadiness_NotAllowedByCarrier);
+  FRIEND_TEST_ALL_PREFIXES(HotspotCapabilitiesProviderTest,
+                           CheckTetheringReadiness_UpstreamNotAvailable);
+  FRIEND_TEST_ALL_PREFIXES(HotspotCapabilitiesProviderTest,
+                           CheckTetheringReadiness_EmptyResult);
+  FRIEND_TEST_ALL_PREFIXES(HotspotCapabilitiesProviderTest,
+                           CheckTetheringReadiness_Failure);
 
   enum class HotspotMetricsSetEnabledResult;
   enum class HotspotMetricsSetConfigResult;
@@ -115,7 +147,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
   static HotspotMetricsSetEnabledResult GetSetEnabledMetricsResult(
       const hotspot_config::mojom::HotspotControlResult& result);
   static HotspotMetricsSetConfigResult GetSetConfigMetricsResult(
-      const hotspot_config::mojom::SetHotspotConfigResult& result);
+      const hotspot_config::mojom::SetHotspotConfigResult& result,
+      const std::string& shill_error);
   static HotspotMetricsDisableReason GetMetricsDisableReason(
       const hotspot_config::mojom::DisableReason& reason);
 
@@ -141,7 +174,12 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
     kSuccess = 0,
     kFailedNotLogin = 1,
     kFailedInvalidConfiguration = 2,
-    kMaxValue = kFailedInvalidConfiguration,
+    kFailedIllegalOperation = 3,
+    kFailedPermissionDenied = 4,
+    kFailedInvalidArgument = 5,
+    kFailedShillOperation = 6,
+    kFailedUnknownShillError = 7,
+    kMaxValue = kFailedUnknownShillError,
   };
 
   // Represents the operation result of check tethering readiness used for
@@ -153,7 +191,11 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
     kUpstreamNetworkNotAvailable = 2,
     kShillOperationFailed = 3,
     kUnknownResult = 4,
-    kMaxValue = kUnknownResult,
+    kNotAllowedByCarrier = 5,
+    kNotAllowedOnFW = 6,
+    kNotAllowedOnVariant = 7,
+    kNotAllowedUserNotEntitled = 8,
+    kMaxValue = kNotAllowedUserNotEntitled,
   };
 
   // Represents the operation result of enable/disable hotspot used for related
@@ -167,12 +209,17 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
     kInvalidConfiguration = 4,
     kUpstreamNotAvailable = 5,
     kNetworkSetupFailure = 6,
-    kWifiDriverFailure = 7,
-    kCellularAttachFailure = 8,
+    kDownstreamWifiFailure = 7,
+    kUpstreamFailure = 8,
     kShillOperationFailure = 9,
     kUnknownFailure = 10,
     kAlreadyFulfilled = 11,
-    kMaxValue = kAlreadyFulfilled,
+    kAborted = 12,
+    kInvalid = 13,
+    kBusy = 14,
+    kConcurrencyNotSupported = 15,
+    kOperationFailure = 16,
+    kMaxValue = kOperationFailure,
   };
 
   // Represents the upstream status when hotspot is enabled. These values are
@@ -195,7 +242,14 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
     kUpstreamNetworkNotAvailable = 5,
     kSuspended = 6,
     kRestart = 7,
-    kMaxValue = kRestart,
+    kUpstreamNoInternet = 8,
+    kDownstreamLinkDisconnect = 9,
+    kDownstreamNetworkDisconnect = 10,
+    kStartTimeout = 11,
+    kUpstreamNotAvailable = 12,
+    kUnknownError = 13,
+    kResourceBusy = 14,
+    kMaxValue = kResourceBusy,
   };
 
   // HotspotCapabilitiesProvider::Observer:
@@ -208,7 +262,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
   void LoggedInStateChanged() override;
 
   // hotspot_config::mojom::HotspotEnabledStateObserver:
-  void OnHotspotTurnedOn(bool wifi_turned_off) override;
+  void OnHotspotTurnedOn() override;
   void OnHotspotTurnedOff(hotspot_config::mojom::DisableReason reason) override;
 
   void LogAllowStatus();
@@ -221,22 +275,18 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
   void LogDisableReason(const hotspot_config::mojom::DisableReason& reason);
 
   // Retrieves the latest hotspot allow status and converts to
-  // HotspotMetricsAllowStatus enum. Return absl::nullopt if it is disallowed
+  // HotspotMetricsAllowStatus enum. Return std::nullopt if it is disallowed
   // due to device is not cellular capable.
-  absl::optional<HotspotMetricsAllowStatus> GetMetricsAllowStatus();
+  std::optional<HotspotMetricsAllowStatus> GetMetricsAllowStatus();
 
-  raw_ptr<EnterpriseManagedMetadataStore, ExperimentalAsh>
-      enterprise_managed_metadata_store_ = nullptr;
-  raw_ptr<HotspotCapabilitiesProvider, ExperimentalAsh>
-      hotspot_capabilities_provider_ = nullptr;
-  raw_ptr<HotspotStateHandler, ExperimentalAsh> hotspot_state_handler_ =
+  raw_ptr<EnterpriseManagedMetadataStore> enterprise_managed_metadata_store_ =
       nullptr;
-  raw_ptr<HotspotConfigurationHandler, ExperimentalAsh>
-      hotspot_configuration_handler_ = nullptr;
-  raw_ptr<HotspotEnabledStateNotifier, ExperimentalAsh>
+  raw_ptr<HotspotCapabilitiesProvider> hotspot_capabilities_provider_ = nullptr;
+  raw_ptr<HotspotStateHandler> hotspot_state_handler_ = nullptr;
+  raw_ptr<HotspotConfigurationHandler> hotspot_configuration_handler_ = nullptr;
+  raw_ptr<HotspotEnabledStateNotifier, DanglingUntriaged>
       hotspot_enabled_state_notifier_ = nullptr;
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_ =
-      nullptr;
+  raw_ptr<NetworkStateHandler> network_state_handler_ = nullptr;
 
   // A timer to wait for user connecting to their upstream cellular network
   // after login.
@@ -252,7 +302,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HotspotMetricsHelper
   bool is_hotspot_active_ = false;
 
   // Tracks the usage time for each hotspot session.
-  absl::optional<base::ElapsedTimer> usage_timer_;
+  std::optional<base::ElapsedTimer> usage_timer_;
 
   // Tracks if the device is enterprise managed or not.
   bool is_enterprise_managed_ = false;

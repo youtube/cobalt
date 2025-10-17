@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include <cmath>
+#include <optional>
+#include <type_traits>
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
@@ -11,7 +13,7 @@
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
@@ -34,6 +36,8 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 namespace {
 
@@ -82,8 +86,8 @@ TEST(CallCFunction) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(45, Handle<Smi>::cast(result)->value());
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(45, Cast<Smi>(*result).value());
 }
 
 TEST(CallCFunctionWithCallerSavedRegisters) {
@@ -110,8 +114,128 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(3, Handle<Smi>::cast(result)->value());
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(3, Cast<Smi>(*result).value());
+}
+
+TEST(StoreRawArgument) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  CodeStubAssembler m(asm_tester.state());
+
+  const uint32_t kRawArgumentsCount = i::IsolateData::GetRawArgumentCount();
+  // clang-format off
+  uint64_t inputs[] = {
+      0x12345678'9abcdef1u,
+      0xcafebaad'deadd00du,
+  };
+  // clang-format on
+  static_assert(arraysize(inputs) == kRawArgumentsCount);
+
+  enum Mode {
+    kClear,
+    kInputAsFloat64,
+    kInputAsIntPtr,
+    kInputAsInt32,
+    kModesCount
+  };
+
+  {
+    auto mode = m.SmiToInt32(m.Parameter<Smi>(1));
+
+    Label if_clear(&m), if_float64(&m), if_intptr(&m), if_int32(&m),
+        unreachable(&m), done(&m);
+
+    Label* labels[] = {&if_clear, &if_float64, &if_intptr, &if_int32};
+    int32_t modes[] = {kClear, kInputAsFloat64, kInputAsIntPtr, kInputAsInt32};
+    static_assert(kModesCount == arraysize(modes));
+    static_assert(kModesCount == arraysize(labels));
+
+    m.Switch(mode, &unreachable, modes, labels, kModesCount);
+
+    m.BIND(&if_clear);
+    {
+      // Init with 64-bit zeros.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<Float64T>(
+            i, m.Float64Constant(base::bit_cast<double>(uint64_t{0})));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&if_float64);
+    {
+      // Init with input[i] values as Float64T.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<Float64T>(
+            i, m.Float64Constant(base::bit_cast<double>(inputs[i])));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&if_intptr);
+    {
+      // Init with input[i] values as IntPtrT.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<IntPtrT>(
+            i, m.IntPtrConstant(static_cast<intptr_t>(inputs[i])));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&if_int32);
+    {
+      // Init with input[i] values as Int32T.
+      for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+        m.StoreRawArgument<Int32T>(
+            i, m.Int32Constant(static_cast<int32_t>(inputs[i])));
+      }
+      m.Goto(&done);
+    }
+    m.BIND(&unreachable);
+    {
+      m.Unreachable();
+    }
+    m.BIND(&done);
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_NE(isolate->isolate_data()->GetRawArgument<uint64_t>(i), inputs[i]);
+  }
+
+  // Check clearing with zeros works.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<uint64_t>(i), 0);
+  }
+
+  // Clear and set values as Float64.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  ft.Call(factory->NewNumber(kInputAsFloat64)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<uint64_t>(i), inputs[i]);
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<double>(i),
+             base::bit_cast<double>(inputs[i]));
+  }
+
+  // Clear and set values as IntPtrT.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  ft.Call(factory->NewNumber(kInputAsIntPtr)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<intptr_t>(i),
+             static_cast<intptr_t>(inputs[i]));
+  }
+
+  // Clear and set values as Int32T.
+  ft.Call(factory->NewNumber(kClear)).ToHandleChecked();
+  ft.Call(factory->NewNumber(kInputAsInt32)).ToHandleChecked();
+  for (uint32_t i = 0; i < kRawArgumentsCount; i++) {
+    CHECK_EQ(isolate->isolate_data()->GetRawArgument<int32_t>(i),
+             static_cast<int32_t>(inputs[i]));
+  }
 }
 
 TEST(NumberToString) {
@@ -149,30 +273,42 @@ TEST(NumberToString) {
   };
   // clang-format on
 
-  const int kFullCacheSize = isolate->heap()->MaxNumberToStringCacheSize();
   const int test_count = arraysize(inputs);
   for (int i = 0; i < test_count; i++) {
-    int cache_length_before_addition = factory->number_string_cache()->length();
-    Handle<Object> input = factory->NewNumber(inputs[i]);
-    Handle<String> expected = factory->NumberToString(input);
+    uint32_t smi_cache_length_before_addition =
+        factory->smi_string_cache()->capacity();
+    uint32_t double_cache_length_before_addition =
+        factory->double_string_cache()->capacity();
 
-    Handle<Object> result = ft.Call(input).ToHandleChecked();
-    if (result->IsUndefined(isolate)) {
+    Handle<Object> input = factory->NewNumber(inputs[i]);
+    DirectHandle<String> expected = factory->NumberToString(input);
+
+    DirectHandle<Object> result = ft.Call(input).ToHandleChecked();
+    if (IsUndefined(*result, isolate)) {
       // Query may fail if cache was resized, in which case the entry is not
       // added to the cache.
-      CHECK_LT(cache_length_before_addition, kFullCacheSize);
-      CHECK_EQ(factory->number_string_cache()->length(), kFullCacheSize);
+      if (IsSmi(*input)) {
+        CHECK_LE(smi_cache_length_before_addition,
+                 SmiStringCache::kMaxCapacity);
+        CHECK_LT(SmiStringCache::kInitialSize,
+                 factory->smi_string_cache()->capacity());
+      } else {
+        CHECK_LE(double_cache_length_before_addition,
+                 DoubleStringCache::kInitialSize);
+        CHECK_LT(DoubleStringCache::kInitialSize,
+                 factory->double_string_cache()->capacity());
+      }
       expected = factory->NumberToString(input);
       result = ft.Call(input).ToHandleChecked();
     }
-    CHECK(!result->IsUndefined(isolate));
+    CHECK(!IsUndefined(*result, isolate));
     CHECK_EQ(*expected, *result);
   }
 }
 
 namespace {
 
-void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
+void CheckToUint32Result(uint32_t expected, DirectHandle<Object> result) {
   const int64_t result_int64 = NumberToInt64(*result);
   const uint32_t result_uint32 = NumberToUint32(*result);
 
@@ -186,9 +322,9 @@ void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
       static_cast<int64_t>(std::numeric_limits<intptr_t>::max());
   if (expected_fits_into_intptr &&
       Smi::IsValid(static_cast<intptr_t>(expected))) {
-    CHECK(result->IsSmi());
+    CHECK(IsSmi(*result));
   } else {
-    CHECK(result->IsHeapNumber());
+    CHECK(IsHeapNumber(*result));
   }
 }
 
@@ -243,19 +379,19 @@ TEST(ToUint32) {
     Handle<HeapNumber> input_num;
 
     // Check with Smi input.
-    if (input_obj->IsSmi()) {
-      Handle<Smi> input_smi = Handle<Smi>::cast(input_obj);
-      Handle<Object> result = ft.Call(input_smi).ToHandleChecked();
+    if (IsSmi(*input_obj)) {
+      Handle<Smi> input_smi = Cast<Smi>(input_obj);
+      DirectHandle<Object> result = ft.Call(input_smi).ToHandleChecked();
       CheckToUint32Result(expectations[i], result);
       input_num = factory->NewHeapNumber(inputs[i]);
     } else {
-      input_num = Handle<HeapNumber>::cast(input_obj);
+      input_num = Cast<HeapNumber>(input_obj);
     }
 
     // Check with HeapNumber input.
     {
-      CHECK(input_num->IsHeapNumber());
-      Handle<Object> result = ft.Call(input_num).ToHandleChecked();
+      CHECK(IsHeapNumber(*input_num));
+      DirectHandle<Object> result = ft.Call(input_num).ToHandleChecked();
       CheckToUint32Result(expectations[i], result);
     }
   }
@@ -282,13 +418,13 @@ void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value) {
       m.SelectBooleanConstant(m.IsValidPositiveSmi(m.IntPtrConstant(value))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  MaybeHandle<Object> maybe_handle = ft.Call();
+  MaybeDirectHandle<Object> maybe_handle = ft.Call();
 
   bool expected = i::PlatformSmiTagging::IsValidSmi(value) && (value >= 0);
   if (expected) {
-    CHECK(maybe_handle.ToHandleChecked()->IsTrue(isolate));
+    CHECK(IsTrue(*maybe_handle.ToHandleChecked(), isolate));
   } else {
-    CHECK(maybe_handle.ToHandleChecked()->IsFalse(isolate));
+    CHECK(IsFalse(*maybe_handle.ToHandleChecked(), isolate));
   }
 }
 }  // namespace
@@ -420,11 +556,11 @@ TEST(FixedArrayAccessSmiIndex) {
   CodeStubAssembler m(asm_tester.state());
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(5);
   array->set(4, Smi::FromInt(733));
-  m.Return(m.LoadFixedArrayElement(m.HeapConstant(array),
+  m.Return(m.LoadFixedArrayElement(m.HeapConstantNoHole(array),
                                    m.SmiTag(m.IntPtrConstant(4)), 0));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(733, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  MaybeDirectHandle<Object> result = ft.Call();
+  CHECK_EQ(733, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(LoadHeapNumberValue) {
@@ -432,11 +568,11 @@ TEST(LoadHeapNumberValue) {
   CodeAssemblerTester asm_tester(isolate);
   CodeStubAssembler m(asm_tester.state());
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1234);
-  m.Return(m.SmiFromInt32(m.Signed(
-      m.ChangeFloat64ToUint32(m.LoadHeapNumberValue(m.HeapConstant(number))))));
+  m.Return(m.SmiFromInt32(m.Signed(m.ChangeFloat64ToUint32(
+      m.LoadHeapNumberValue(m.HeapConstantNoHole(number))))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(1234, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  MaybeDirectHandle<Object> result = ft.Call();
+  CHECK_EQ(1234, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(LoadInstanceType) {
@@ -444,11 +580,11 @@ TEST(LoadInstanceType) {
   CodeAssemblerTester asm_tester(isolate);
   CodeStubAssembler m(asm_tester.state());
   Handle<HeapObject> undefined = isolate->factory()->undefined_value();
-  m.Return(m.SmiFromInt32(m.LoadInstanceType(m.HeapConstant(undefined))));
+  m.Return(m.SmiFromInt32(m.LoadInstanceType(m.HeapConstantNoHole(undefined))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(InstanceType::ODDBALL_TYPE,
-           Handle<Smi>::cast(result.ToHandleChecked())->value());
+           Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(DecodeWordFromWord32) {
@@ -460,11 +596,11 @@ TEST(DecodeWordFromWord32) {
   m.Return(m.SmiTag(
       m.Signed(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2F)))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   // value  = 00101111
   // mask   = 00111000
   // result = 101
-  CHECK_EQ(5, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(5, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(JSFunction) {
@@ -477,9 +613,9 @@ TEST(JSFunction) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  MaybeHandle<Object> result = ft.Call(handle(Smi::FromInt(23), isolate),
-                                       handle(Smi::FromInt(34), isolate));
-  CHECK_EQ(57, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  MaybeDirectHandle<Object> result = ft.Call(handle(Smi::FromInt(23), isolate),
+                                             handle(Smi::FromInt(34), isolate));
+  CHECK_EQ(57, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(ComputeIntegerHash) {
@@ -499,11 +635,11 @@ TEST(ComputeIntegerHash) {
     int k = rand_gen.NextInt(Smi::kMaxValue);
 
     Handle<Smi> key(Smi::FromInt(k), isolate);
-    Handle<Object> result = ft.Call(key).ToHandleChecked();
+    DirectHandle<Object> result = ft.Call(key).ToHandleChecked();
 
     uint32_t hash = ComputeSeededHash(k, HashSeed(isolate));
-    Smi expected = Smi::FromInt(hash);
-    CHECK_EQ(expected, Smi::cast(*result));
+    Tagged<Smi> expected = Smi::FromInt(hash);
+    CHECK_EQ(expected, Cast<Smi>(*result));
   }
 }
 
@@ -512,55 +648,56 @@ TEST(ToString) {
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.ToStringImpl(m.GetJSContextParameter(), m.Parameter<Object>(1)));
+  m.Return(m.ToStringImpl(m.GetJSContextParameter(), m.Parameter<JSAny>(1)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  Handle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
-  Handle<FixedArray> smi_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
+  DirectHandle<FixedArray> smi_test = isolate->factory()->NewFixedArray(2);
   smi_test->set(0, Smi::FromInt(42));
-  Handle<String> str(isolate->factory()->InternalizeUtf8String("42"));
+  DirectHandle<String> str(isolate->factory()->InternalizeUtf8String("42"));
   smi_test->set(1, *str);
   test_cases->set(0, *smi_test);
 
-  Handle<FixedArray> number_test = isolate->factory()->NewFixedArray(2);
-  Handle<HeapNumber> num(isolate->factory()->NewHeapNumber(3.14));
+  DirectHandle<FixedArray> number_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<HeapNumber> num(isolate->factory()->NewHeapNumber(3.14));
   number_test->set(0, *num);
   str = isolate->factory()->InternalizeUtf8String("3.14");
   number_test->set(1, *str);
   test_cases->set(1, *number_test);
 
-  Handle<FixedArray> string_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> string_test = isolate->factory()->NewFixedArray(2);
   str = isolate->factory()->InternalizeUtf8String("test");
   string_test->set(0, *str);
   string_test->set(1, *str);
   test_cases->set(2, *string_test);
 
-  Handle<FixedArray> oddball_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> oddball_test = isolate->factory()->NewFixedArray(2);
   oddball_test->set(0, ReadOnlyRoots(isolate).undefined_value());
   str = isolate->factory()->InternalizeUtf8String("undefined");
   oddball_test->set(1, *str);
   test_cases->set(3, *oddball_test);
 
-  Handle<FixedArray> tostring_test = isolate->factory()->NewFixedArray(2);
-  Handle<FixedArray> js_array_storage = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> tostring_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> js_array_storage =
+      isolate->factory()->NewFixedArray(2);
   js_array_storage->set(0, Smi::FromInt(1));
   js_array_storage->set(1, Smi::FromInt(2));
-  Handle<JSArray> js_array = isolate->factory()->NewJSArray(2);
-  JSArray::SetContent(js_array, js_array_storage);
+  DirectHandle<JSArray> js_array = isolate->factory()->NewJSArray(2);
+  JSArray::SetContent(isolate, js_array, js_array_storage);
   tostring_test->set(0, *js_array);
   str = isolate->factory()->InternalizeUtf8String("1,2");
   tostring_test->set(1, *str);
   test_cases->set(4, *tostring_test);
 
   for (int i = 0; i < 5; ++i) {
-    Handle<FixedArray> test =
-        handle(FixedArray::cast(test_cases->get(i)), isolate);
-    Handle<Object> obj = handle(test->get(0), isolate);
-    Handle<String> expected = handle(String::cast(test->get(1)), isolate);
-    Handle<Object> result = ft.Call(obj).ToHandleChecked();
-    CHECK(result->IsString());
-    CHECK(String::Equals(isolate, Handle<String>::cast(result), expected));
+    DirectHandle<FixedArray> test(Cast<FixedArray>(test_cases->get(i)),
+                                  isolate);
+    Handle<Object> obj(test->get(0), isolate);
+    DirectHandle<String> expected(Cast<String>(test->get(1)), isolate);
+    DirectHandle<Object> result = ft.Call(obj).ToHandleChecked();
+    CHECK(IsString(*result));
+    CHECK(String::Equals(isolate, Cast<String>(result), expected));
   }
 }
 
@@ -748,7 +885,7 @@ TEST(TryToName) {
     uint32_t dummy;
     CHECK(key->AsArrayIndex(&dummy));
     CHECK(key->HasHashCode());
-    CHECK(!key->IsInternalizedString());
+    CHECK(!IsInternalizedString(*key));
     Handle<Object> index(Smi::FromInt(153), isolate);
     ft.CheckTrue(key, expect_index, index);
   }
@@ -802,9 +939,9 @@ void TestEntryToIndex() {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   // Test a wide range of entries but staying linear in the first 100 entries.
-  for (int entry = 0; entry < Dictionary::kMaxCapacity;
+  for (uint32_t entry = 0; entry < Dictionary::kMaxCapacity;
        entry = entry * 1.01 + 1) {
-    Handle<Object> result =
+    DirectHandle<Object> result =
         ft.Call(handle(Smi::FromInt(entry), isolate)).ToHandleChecked();
     CHECK_EQ(Dictionary::EntryToIndex(InternalIndex(entry)),
              Smi::ToInt(*result));
@@ -881,7 +1018,7 @@ void TestNameDictionaryLookup() {
   };
 
   for (size_t i = 0; i < arraysize(keys); i++) {
-    Handle<Object> value =
+    DirectHandle<Object> value =
         factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
         Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
@@ -972,7 +1109,7 @@ TEST(NumberDictionaryLookup) {
       NumberDictionary::New(isolate, kKeysCount);
   uint32_t keys[kKeysCount];
 
-  Handle<Object> fake_value(Smi::FromInt(42), isolate);
+  DirectHandle<Object> fake_value(Smi::FromInt(42), isolate);
   PropertyDetails fake_details = PropertyDetails::Empty();
 
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
@@ -1061,13 +1198,13 @@ TEST(TransitionLookup) {
   static_assert(ATTRS_COUNT == 8);
 
   const int kKeysCount = 300;
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
   Handle<Name> keys[kKeysCount];
 
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   Factory* factory = isolate->factory();
-  Handle<FieldType> any = FieldType::Any(isolate);
+  DirectHandle<FieldType> any = FieldType::Any(isolate);
 
   for (int i = 0; i < kKeysCount; i++) {
     Handle<Name> name;
@@ -1108,12 +1245,11 @@ TEST(TransitionLookup) {
     }
   }
 
-  CHECK(root_map->raw_transitions()
-            ->GetHeapObjectAssumeStrong()
-            .IsTransitionArray());
+  CHECK(IsTransitionArray(
+      root_map->raw_transitions().GetHeapObjectAssumeStrong()));
   Handle<TransitionArray> transitions(
-      TransitionArray::cast(
-          root_map->raw_transitions()->GetHeapObjectAssumeStrong()),
+      Cast<TransitionArray>(
+          root_map->raw_transitions().GetHeapObjectAssumeStrong()),
       isolate);
   DCHECK(transitions->IsSortedNoDuplicates());
 
@@ -1146,11 +1282,11 @@ TEST(TransitionLookup) {
 
 namespace {
 
-void AddProperties(Handle<JSObject> object, Handle<Name> names[],
+void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t count) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   for (size_t i = 0; i < count; i++) {
-    Handle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
+    DirectHandle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
     JSObject::AddProperty(isolate, object, names[i], value, NONE);
   }
 }
@@ -1168,16 +1304,16 @@ Handle<AccessorPair> CreateAccessorPair(FunctionTester* ft,
   return pair;
 }
 
-void AddProperties(Handle<JSObject> object, Handle<Name> names[],
+void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t names_count, Handle<Object> values[],
                    size_t values_count, int seed = 0) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   for (size_t i = 0; i < names_count; i++) {
-    Handle<Object> value = values[(seed + i) % values_count];
-    if (value->IsAccessorPair()) {
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
-      Handle<Object> getter(pair->getter(), isolate);
-      Handle<Object> setter(pair->setter(), isolate);
+    DirectHandle<Object> value = values[(seed + i) % values_count];
+    if (IsAccessorPair(*value)) {
+      DirectHandle<AccessorPair> pair = Cast<AccessorPair>(value);
+      DirectHandle<Object> getter(pair->getter(), isolate);
+      DirectHandle<Object> setter(pair->setter(), isolate);
       JSObject::DefineOwnAccessorIgnoreAttributes(object, names[i], getter,
                                                   setter, NONE)
           .Check();
@@ -1261,42 +1397,42 @@ TEST(TryHasOwnProperty) {
   {
     // Fast object, no inobject properties.
     int inobject_properties = 0;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
-    CHECK(!object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Fast object, all inobject properties.
     int inobject_properties = arraysize(names) * 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
-    CHECK(!object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Fast object, half inobject properties.
     int inobject_properties = arraysize(names) / 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
-    CHECK(!object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Dictionary mode object.
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names));
@@ -1304,34 +1440,38 @@ TEST(TryHasOwnProperty) {
                                   "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK(object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK(object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Global object.
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
-    JSFunction::EnsureHasInitialMap(function);
-    function->initial_map().set_instance_type(JS_GLOBAL_OBJECT_TYPE);
-    function->initial_map().set_is_prototype_map(true);
-    function->initial_map().set_is_dictionary_map(true);
-    function->initial_map().set_may_have_interesting_symbols(true);
+    JSFunction::EnsureHasInitialMap(isolate, function);
+    function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
+    function->initial_map()->set_instance_size(JSGlobalObject::kHeaderSize);
+    function->initial_map()->SetInObjectUnusedPropertyFields(0);
+    function->initial_map()->SetInObjectPropertiesStartInWords(
+        function->initial_map()->instance_size_in_words());
+    function->initial_map()->set_is_prototype_map(true);
+    function->initial_map()->set_is_dictionary_map(true);
+    function->initial_map()->set_may_have_interesting_properties(true);
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map().instance_type());
-    CHECK(object->map().is_dictionary_map());
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
+    CHECK(object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1366,16 +1506,16 @@ TEST(TryHasOwnProperty) {
   }
 
   {
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
-    CHECK_EQ(JS_PROXY_TYPE, object->map().instance_type());
+    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, names[0], expect_bailout);
   }
 
   {
     Handle<JSObject> object = isolate->global_proxy();
-    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map().instance_type());
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, names[0], expect_bailout);
   }
 }
@@ -1409,10 +1549,10 @@ TEST(TryGetOwnProperty) {
     m.Return(m.UncheckedCast<Object>(var_value.value()));
 
     m.BIND(&if_not_found);
-    m.Return(m.HeapConstant(not_found_symbol));
+    m.Return(m.HeapConstantNoHole(not_found_symbol));
 
     m.BIND(&if_bailout);
-    m.Return(m.HeapConstant(bailout_symbol));
+    m.Return(m.HeapConstantNoHole(bailout_symbol));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -1465,45 +1605,45 @@ TEST(TryGetOwnProperty) {
   {
     // Fast object, no inobject properties.
     int inobject_properties = 0;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
-    CHECK(!object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Fast object, all inobject properties.
     int inobject_properties = arraysize(names) * 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
-    CHECK(!object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Fast object, half inobject properties.
     int inobject_properties = arraysize(names) / 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
-    CHECK(!object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
     // Dictionary mode object.
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
@@ -1512,12 +1652,12 @@ TEST(TryGetOwnProperty) {
                                   "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
-    CHECK(object->map().is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK(object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1528,12 +1668,12 @@ TEST(TryGetOwnProperty) {
                   rand_gen.NextInt());
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map().instance_type());
-    CHECK(object->map().is_dictionary_map());
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
+    CHECK(object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1543,10 +1683,10 @@ TEST(TryGetOwnProperty) {
     for (Handle<JSObject> object : objects) {
       for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
         Handle<Name> name = names[name_index];
-        Handle<Object> expected_value =
+        DirectHandle<Object> expected_value =
             JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
-        Handle<Object> value = ft.Call(object, name).ToHandleChecked();
-        CHECK(expected_value->SameValue(*value));
+        DirectHandle<Object> value = ft.Call(object, name).ToHandleChecked();
+        CHECK(Object::SameValue(*expected_value, *value));
       }
     }
   }
@@ -1565,39 +1705,40 @@ TEST(TryGetOwnProperty) {
       for (size_t key_index = 0; key_index < arraysize(non_existing_names);
            key_index++) {
         Handle<Name> name = non_existing_names[key_index];
-        Handle<Object> expected_value =
+        DirectHandle<Object> expected_value =
             JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
-        CHECK(expected_value->IsUndefined(isolate));
-        Handle<Object> value = ft.Call(object, name).ToHandleChecked();
+        CHECK(IsUndefined(*expected_value, isolate));
+        DirectHandle<Object> value = ft.Call(object, name).ToHandleChecked();
         CHECK_EQ(*not_found_symbol, *value);
       }
     }
   }
 
   {
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
-    CHECK_EQ(JS_PROXY_TYPE, object->map().instance_type());
-    Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
+    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
+    DirectHandle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     // Proxies are not supported yet.
     CHECK_EQ(*bailout_symbol, *value);
   }
 
   {
     Handle<JSObject> object = isolate->global_proxy();
-    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map().instance_type());
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
     // Global proxies are not supported yet.
-    Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
+    DirectHandle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     CHECK_EQ(*bailout_symbol, *value);
   }
 }
 
 namespace {
 
-void AddElement(Handle<JSObject> object, uint32_t index, Handle<Object> value,
+void AddElement(Isolate* isolate, DirectHandle<JSObject> object, uint32_t index,
+                DirectHandle<Object> value,
                 PropertyAttributes attributes = NONE) {
-  JSObject::AddDataElement(object, index, value, attributes);
+  JSObject::AddDataElement(isolate, object, index, value, attributes);
 }
 
 }  // namespace
@@ -1684,9 +1825,9 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, PACKED_SMI_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 1, smi0);
-    CHECK_EQ(PACKED_SMI_ELEMENTS, object->map().elements_kind());
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 1, smi0);
+    CHECK_EQ(PACKED_SMI_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1697,9 +1838,9 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, HOLEY_SMI_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 13, smi0);
-    CHECK_EQ(HOLEY_SMI_ELEMENTS, object->map().elements_kind());
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 13, smi0);
+    CHECK_EQ(HOLEY_SMI_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_NOT_FOUND(object, 1);
@@ -1710,9 +1851,9 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, PACKED_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 1, smi0);
-    CHECK_EQ(PACKED_ELEMENTS, object->map().elements_kind());
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 1, smi0);
+    CHECK_EQ(PACKED_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1723,9 +1864,9 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, HOLEY_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 13, smi0);
-    CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 13, smi0);
+    CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_NOT_FOUND(object, 1);
@@ -1738,9 +1879,9 @@ TEST(TryLookupElement) {
     v8::Local<v8::ArrayBuffer> buffer =
         v8::ArrayBuffer::New(reinterpret_cast<v8::Isolate*>(isolate), 8);
     Handle<JSTypedArray> object = factory->NewJSTypedArray(
-        kExternalInt32Array, v8::Utils::OpenHandle(*buffer), 0, 2);
+        kExternalInt32Array, v8::Utils::OpenDirectHandle(*buffer), 0, 2);
 
-    CHECK_EQ(INT32_ELEMENTS, object->map().elements_kind());
+    CHECK_EQ(INT32_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1761,12 +1902,12 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSFunction> constructor = isolate->string_function();
+    DirectHandle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
-    Handle<String> str = factory->InternalizeUtf8String("ab");
-    Handle<JSPrimitiveWrapper>::cast(object)->set_value(*str);
-    AddElement(object, 13, smi0);
-    CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map().elements_kind());
+    DirectHandle<String> str = factory->InternalizeUtf8String("ab");
+    Cast<JSPrimitiveWrapper>(object)->set_value(*str);
+    AddElement(isolate, object, 13, smi0);
+    CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1776,13 +1917,13 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSFunction> constructor = isolate->string_function();
+    DirectHandle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
-    Handle<String> str = factory->InternalizeUtf8String("ab");
-    Handle<JSPrimitiveWrapper>::cast(object)->set_value(*str);
-    AddElement(object, 13, smi0);
-    JSObject::NormalizeElements(object);
-    CHECK_EQ(SLOW_STRING_WRAPPER_ELEMENTS, object->map().elements_kind());
+    DirectHandle<String> str = factory->InternalizeUtf8String("ab");
+    Cast<JSPrimitiveWrapper>(object)->set_value(*str);
+    AddElement(isolate, object, 13, smi0);
+    JSObject::NormalizeElements(isolate, object);
+    CHECK_EQ(SLOW_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1810,23 +1951,23 @@ TEST(TryLookupElement) {
 #undef CHECK_ABSENT
 
   {
-    Handle<JSArray> handler = factory->NewJSArray(0);
-    Handle<JSFunction> function =
+    DirectHandle<JSArray> handler = factory->NewJSArray(0);
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, handler);
-    CHECK_EQ(JS_PROXY_TYPE, object->map().instance_type());
+    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
 
   {
     Handle<JSObject> object = isolate->global_object();
-    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
 
   {
     Handle<JSObject> object = isolate->global_proxy();
-    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map().instance_type());
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
 }
@@ -1868,11 +2009,11 @@ TEST(AllocateJSObjectFromMap) {
 
   {
     Handle<FixedArray> empty_fixed_array = factory->empty_fixed_array();
-    Handle<PropertyArray> empty_property_array =
+    DirectHandle<PropertyArray> empty_property_array =
         factory->empty_property_array();
     for (size_t i = 0; i < arraysize(maps); i++) {
       Handle<Map> map = maps[i];
-      Handle<JSObject> result = Handle<JSObject>::cast(
+      DirectHandle<JSObject> result = Cast<JSObject>(
           ft.Call(map, empty_fixed_array, empty_fixed_array).ToHandleChecked());
       CHECK_EQ(result->map(), *map);
       CHECK_EQ(result->property_array(), *empty_property_array);
@@ -1886,19 +2027,18 @@ TEST(AllocateJSObjectFromMap) {
 
   {
     // TODO(cbruni): handle in-object properties
-    Handle<JSObject> object = Handle<JSObject>::cast(
-        v8::Utils::OpenHandle(*CompileRun("var object = {a:1,b:2, 1:1, 2:2}; "
-                                          "object")));
+    DirectHandle<JSObject> object = Cast<JSObject>(v8::Utils::OpenDirectHandle(
+        *CompileRun("var object = {a:1,b:2, 1:1, 2:2}; object")));
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
     Handle<HeapObject> properties =
         V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
             ? Handle<HeapObject>(object->property_dictionary_swiss(), isolate)
             : handle(object->property_dictionary(), isolate);
-    Handle<JSObject> result = Handle<JSObject>::cast(
-        ft.Call(handle(object->map(), isolate), properties,
-                handle(object->elements(), isolate))
-            .ToHandleChecked());
+    DirectHandle<JSObject> result =
+        Cast<JSObject>(ft.Call(handle(object->map(), isolate), properties,
+                               handle(object->elements(), isolate))
+                           .ToHandleChecked());
     CHECK_EQ(result->map(), object->map());
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CHECK_EQ(result->property_dictionary_swiss(),
@@ -1939,27 +2079,27 @@ TEST(AllocationFoldingCSA) {
 
   {
     auto fixed_array_length = Handle<Smi>(Smi::FromInt(kNumArrays), isolate);
-    Handle<FixedArray> result =
-        Handle<FixedArray>::cast(ft.Call(fixed_array_length).ToHandleChecked());
+    DirectHandle<FixedArray> result =
+        Cast<FixedArray>(ft.Call(fixed_array_length).ToHandleChecked());
     CHECK_EQ(result->length(), kNumArrays);
     if (V8_COMPRESS_POINTERS_8GB_BOOL) {
       CHECK(IsAligned(result->address(), kObjectAlignment8GbHeap));
     } else {
       CHECK(IsAligned(result->address(), kTaggedSize));
     }
-    ByteArray prev_array;
+    Tagged<ByteArray> prev_array;
     for (int i = 1; i <= kNumArrays; ++i) {
-      ByteArray current_array = ByteArray::cast(result->get(i - 1));
+      Tagged<ByteArray> current_array = Cast<ByteArray>(result->get(i - 1));
       if (V8_COMPRESS_POINTERS_8GB_BOOL) {
         CHECK(IsAligned(current_array.address(), kObjectAlignment8GbHeap));
       } else {
         CHECK(IsAligned(current_array.address(), kTaggedSize));
       }
-      CHECK_EQ(current_array.length(), i * kTaggedSize);
+      CHECK_EQ(current_array->length(), i * kTaggedSize);
       if (i != 1) {
         // TODO(v8:13070): Align prev_array.AllocatedSize() to the allocation
         // size.
-        CHECK_EQ(prev_array.address() + prev_array.AllocatedSize(),
+        CHECK_EQ(prev_array.address() + prev_array->AllocatedSize(),
                  current_array.address());
       }
       prev_array = current_array;
@@ -2000,9 +2140,9 @@ void TestDictionaryAllocation(CSAAllocator<Dictionary> csa_alloc,
 
   {
     for (int i = 0; i < max_capacity; i = i * 1.1 + 1) {
-      Handle<HeapObject> result = Handle<HeapObject>::cast(
+      DirectHandle<HeapObject> result = Cast<HeapObject>(
           ft.Call(handle(Smi::FromInt(i), isolate)).ToHandleChecked());
-      Handle<Dictionary> dict = alloc(isolate, i);
+      DirectHandle<Dictionary> dict = alloc(isolate, i);
       // Both dictionaries should be memory equal.
       int size = dict->Size();
       CHECK_EQ(0, memcmp(reinterpret_cast<void*>(dict->address()),
@@ -2080,7 +2220,7 @@ TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
   // Setup CSA for creating TFC-style builtin with stack arguments.
   // For the testing purposes we need any interface descriptor that has at
   // least one argument passed on stack.
-  using Descriptor = FlatMapIntoArrayDescriptor;
+  using Descriptor = FlattenIntoArrayWithMapFnDescriptor;
   Descriptor descriptor;
   CHECK_LT(0, Descriptor::GetStackParameterCount());
 
@@ -2099,22 +2239,34 @@ TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
 
 namespace {
 
-TNode<Object> MakeConstantNode(CodeStubAssembler& m, Handle<Object> value) {
-  if (value->IsSmi()) {
+template <typename T>
+TNode<T> MakeConstantNode(CodeStubAssembler& m, Handle<T> value) {
+  if constexpr (std::is_same_v<T, Smi>) {
     return m.SmiConstant(Smi::ToInt(*value));
+  } else if constexpr (std::is_same_v<T, Object>) {
+    if (Is<Smi>(value)) {
+      return m.SmiConstant(Smi::ToInt(*value));
+    }
+    return m.HeapConstantNoHole(Cast<HeapObject>(value));
+  } else if constexpr (is_union_v<T>) {
+    if (Is<Smi>(value)) {
+      return m.SmiConstant(Smi::ToInt(*value));
+    }
+    return m.HeapConstantNoHole(Cast<typename T::template Without<Smi>>(value));
+  } else {
+    return m.HeapConstantNoHole(value);
   }
-  return m.HeapConstant(Handle<HeapObject>::cast(value));
 }
 
-// Buids a CSA function that calls |target| function with given arguments
+// Builds a CSA function that calls |target| function with given arguments
 // |number_of_iterations| times and checks that the stack pointer values before
 // the calls and after the calls are the same.
 // Then this new function is called multiple times.
 template <typename... Args>
 void CallFunctionWithStackPointerChecks(Isolate* isolate,
                                         Handle<Object> expected_result,
-                                        Handle<Object> target,
-                                        Handle<Object> receiver, Args... args) {
+                                        Handle<JSAny> target,
+                                        Handle<JSAny> receiver, Args... args) {
   // Setup CSA for creating TFJ-style builtin.
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
@@ -2162,7 +2314,7 @@ void CallFunctionWithStackPointerChecks(Isolate* isolate,
   }
   FunctionTester ft(asm_tester.GenerateCode(), 1);
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   for (int test_count = 0; test_count < 100; ++test_count) {
     result = ft.Call().ToHandleChecked();
     CHECK_EQ(Smi::FromInt(42), *result);
@@ -2178,27 +2330,27 @@ TEST(PopAndReturnConstant) {
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  const int kNumParams = 4 + kJSArgcReceiverSlots;
+  const int kFormalParams = 0;
+  const int kActualParams = 4 + kJSArgcReceiverSlots;
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Int32T> argc =
         m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
+    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kActualParams)));
 
-    int pop_count = kNumParams;
+    int pop_count = kActualParams;
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared().DontAdaptArguments();
+  FunctionTester ft(asm_tester.GenerateCode(), kFormalParams);
 
   // Now call this function multiple time also checking that the stack pointer
   // didn't change after the calls.
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<JSAny> receiver = isolate->factory()->undefined_value();
   Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
   CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
                                      receiver,
-                                     // Pass kNumParams arguments.
+                                     // Pass kActualParams arguments.
                                      Handle<Smi>(Smi::FromInt(1), isolate),
                                      Handle<Smi>(Smi::FromInt(2), isolate),
                                      Handle<Smi>(Smi::FromInt(3), isolate),
@@ -2212,27 +2364,27 @@ TEST(PopAndReturnVariable) {
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  const int kNumParams = 4 + kJSArgcReceiverSlots;
+  const int kFormalParams = 0;
+  const int kActualParams = 4 + kJSArgcReceiverSlots;
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Int32T> argc =
         m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
+    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kActualParams)));
 
-    int pop_count = kNumParams;
+    int pop_count = kActualParams;
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared().DontAdaptArguments();
+  FunctionTester ft(asm_tester.GenerateCode(), kFormalParams);
 
   // Now call this function multiple time also checking that the stack pointer
   // didn't change after the calls.
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<JSAny> receiver = isolate->factory()->undefined_value();
   Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
   CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
                                      receiver,
-                                     // Pass kNumParams arguments.
+                                     // Pass kActualParams arguments.
                                      Handle<Smi>(Smi::FromInt(1), isolate),
                                      Handle<Smi>(Smi::FromInt(2), isolate),
                                      Handle<Smi>(Smi::FromInt(3), isolate),
@@ -2260,16 +2412,16 @@ TEST(OneToTwoByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[2],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[2]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[3],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[4],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[2],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[3],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[4],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(OneToOneByteStringCopy) {
@@ -2293,16 +2445,16 @@ TEST(OneToOneByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[2],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[2]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[3],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[4],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[2],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[3],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[4],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(OneToOneByteStringCopyNonZeroStart) {
@@ -2326,13 +2478,13 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[4]);
-  CHECK_EQ(100, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(101, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(102, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(100, Cast<SeqOneByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(101, Cast<SeqOneByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(102, Cast<SeqOneByteString>(string2)->GetChars(no_gc)[2]);
 }
 
 TEST(TwoToTwoByteStringCopy) {
@@ -2359,16 +2511,16 @@ TEST(TwoToTwoByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[2],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[2]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[3],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[4],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[2],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[3],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[4],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(Arguments) {
@@ -2392,9 +2544,8 @@ TEST(Arguments) {
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared().DontAdaptArguments();
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
                    Handle<Smi>(Smi::FromInt(13), isolate),
                    Handle<Smi>(Smi::FromInt(14), isolate))
@@ -2449,9 +2600,8 @@ TEST(ArgumentsForEach) {
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared().DontAdaptArguments();
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
                    Handle<Smi>(Smi::FromInt(13), isolate),
                    Handle<Smi>(Smi::FromInt(14), isolate))
@@ -2494,7 +2644,7 @@ TEST(IsDebugActive) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   CHECK(!isolate->debug()->is_active());
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
@@ -2563,11 +2713,11 @@ TEST(CallBuiltin) {
 
   Factory* factory = isolate->factory();
   Handle<Name> name = factory->InternalizeUtf8String("a");
-  Handle<Object> value(Smi::FromInt(153), isolate);
+  DirectHandle<Object> value(Smi::FromInt(153), isolate);
   Handle<JSObject> object = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, object, name, value, NONE);
 
-  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  DirectHandle<Object> result = ft.Call(object, name).ToHandleChecked();
   CHECK_EQ(*value, *result);
 }
 
@@ -2590,11 +2740,11 @@ TEST(TailCallBuiltin) {
 
   Factory* factory = isolate->factory();
   Handle<Name> name = factory->InternalizeUtf8String("a");
-  Handle<Object> value(Smi::FromInt(153), isolate);
+  DirectHandle<Object> value(Smi::FromInt(153), isolate);
   Handle<JSObject> object = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, object, name, value, NONE);
 
-  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  DirectHandle<Object> result = ft.Call(object, name).ToHandleChecked();
   CHECK_EQ(*value, *result);
 }
 
@@ -2609,20 +2759,21 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
                              Handle<Object> o3, Handle<Object> o4,
                              int initial_size, int result_size) {
     Handle<JSArray> array = isolate->factory()->NewJSArray(
-        kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-    Object::SetElement(isolate, array, 0, Handle<Smi>(Smi::FromInt(1), isolate),
-                       kDontThrow)
+        kind_, 2, initial_size,
+        ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+    Object::SetElement(isolate, array, 0,
+                       DirectHandle<Smi>(Smi::FromInt(1), isolate), kDontThrow)
         .Check();
-    Object::SetElement(isolate, array, 1, Handle<Smi>(Smi::FromInt(2), isolate),
-                       kDontThrow)
+    Object::SetElement(isolate, array, 1,
+                       DirectHandle<Smi>(Smi::FromInt(2), isolate), kDontThrow)
         .Check();
     CodeStubArguments args(this,
                            IntPtrConstant(kNumParams + kJSArgcReceiverSlots));
     TVariable<IntPtrT> arg_index(this);
     Label bailout(this);
     arg_index = IntPtrConstant(0);
-    TNode<Smi> length = BuildAppendJSArray(kind_, HeapConstant(array), &args,
-                                           &arg_index, &bailout);
+    TNode<Smi> length = BuildAppendJSArray(kind_, HeapConstantNoHole(array),
+                                           &args, &arg_index, &bailout);
     Return(length);
 
     BIND(&bailout);
@@ -2630,15 +2781,15 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
 
     FunctionTester ft(csa_tester->GenerateCode(), kNumParams);
 
-    Handle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
+    DirectHandle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
 
     CHECK_EQ(kind_, array->GetElementsKind());
-    CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
+    CHECK_EQ(result_size, i::Cast<Smi>(*result).value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
-    Handle<Object> obj =
+    DirectHandle<Object> obj =
         JSObject::GetElement(isolate, array, 2).ToHandleChecked();
-    Handle<HeapObject> undefined_value =
-        Handle<HeapObject>(ReadOnlyRoots(isolate).undefined_value(), isolate);
+    DirectHandle<HeapObject> undefined_value(
+        ReadOnlyRoots(isolate).undefined_value(), isolate);
     CHECK_EQ(result_size < 3 ? *undefined_value : *o1, *obj);
     obj = JSObject::GetElement(isolate, array, 3).ToHandleChecked();
     CHECK_EQ(result_size < 4 ? *undefined_value : *o2, *obj);
@@ -2648,8 +2799,9 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     CHECK_EQ(result_size < 6 ? *undefined_value : *o4, *obj);
   }
 
-  static void TestAppendJSArray(Isolate* isolate, ElementsKind kind, Object o1,
-                                Object o2, Object o3, Object o4,
+  static void TestAppendJSArray(Isolate* isolate, ElementsKind kind,
+                                Tagged<Object> o1, Tagged<Object> o2,
+                                Tagged<Object> o3, Tagged<Object> o4,
                                 int initial_size, int result_size) {
     CodeAssemblerTester asm_tester(isolate, i::JSParameterCount(kNumParams));
     AppendJSArrayCodeStubAssembler m(asm_tester.state(), kind);
@@ -2753,7 +2905,7 @@ TEST(IsPromiseHookEnabled) {
           m.IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate()));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
@@ -2778,9 +2930,9 @@ TEST(NewJSPromise) {
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result->IsJSPromise());
+  CHECK(IsJSPromise(*result));
 }
 
 TEST(NewJSPromise2) {
@@ -2796,10 +2948,10 @@ TEST(NewJSPromise2) {
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result->IsJSPromise());
-  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
+  CHECK(IsJSPromise(*result));
+  DirectHandle<JSPromise> js_promise = Cast<JSPromise>(result);
   CHECK_EQ(v8::Promise::kRejected, js_promise->status());
   CHECK_EQ(Smi::FromInt(1), js_promise->result());
   CHECK(!js_promise->has_handler());
@@ -2816,7 +2968,7 @@ TEST(IsSymbol) {
   m.Return(m.SelectBooleanConstant(m.IsSymbol(symbol)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 
@@ -2835,7 +2987,7 @@ TEST(IsPrivateSymbol) {
   m.Return(m.SelectBooleanConstant(m.IsPrivateSymbol(symbol)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
@@ -2859,7 +3011,7 @@ TEST(PromiseHasHandler) {
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }
@@ -2881,14 +3033,14 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   m.Return(promise_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK(result->IsContext());
-  Handle<Context> context_js = Handle<Context>::cast(result);
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
+  CHECK(IsContext(*result));
+  DirectHandle<Context> context_js = Cast<Context>(result);
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(context_js->get(PromiseBuiltins::kPromiseSlot).IsJSPromise());
+  CHECK(IsJSPromise(context_js->GetNoCell(PromiseBuiltins::kPromiseSlot)));
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
-           context_js->get(PromiseBuiltins::kDebugEventSlot));
+           context_js->GetNoCell(PromiseBuiltins::kDebugEventSlot));
 }
 
 TEST(CreatePromiseResolvingFunctions) {
@@ -2914,12 +3066,12 @@ TEST(CreatePromiseResolvingFunctions) {
   m.Return(arr);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result_obj =
+  DirectHandle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result_obj->IsFixedArray());
-  Handle<FixedArray> result_arr = Handle<FixedArray>::cast(result_obj);
-  CHECK(result_arr->get(0).IsJSFunction());
-  CHECK(result_arr->get(1).IsJSFunction());
+  CHECK(IsFixedArray(*result_obj));
+  DirectHandle<FixedArray> result_arr = Cast<FixedArray>(result_obj);
+  CHECK(IsJSFunction(result_arr->get(0)));
+  CHECK(IsJSFunction(result_arr->get(1)));
 }
 
 TEST(NewElementsCapacity) {
@@ -2932,25 +3084,25 @@ TEST(NewElementsCapacity) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(1), isolate);
-  Handle<Smi> result_obj = ft.CallChecked<Smi>(test_value);
+  Tagged<Smi> result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(2), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
 }
 
 TEST(NewElementsCapacitySmi) {
@@ -2962,28 +3114,28 @@ TEST(NewElementsCapacitySmi) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
-  Handle<Smi> result_obj = ft.CallChecked<Smi>(test_value);
+  Tagged<Smi> result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(2), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
 }
 
-TEST(AllocateFunctionWithMapAndContext) {
+TEST(AllocateRootFunctionWithContext) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
@@ -2996,30 +3148,27 @@ TEST(AllocateFunctionWithMapAndContext) {
       m.NewJSPromise(context, m.UndefinedConstant());
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       context, promise, m.BooleanConstant(false), native_context);
-  TNode<Object> resolve_info =
-      m.PromiseCapabilityDefaultResolveSharedFunConstant();
-  const TNode<Object> map = m.LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  const TNode<JSFunction> resolve = m.AllocateFunctionWithMapAndContext(
-      m.CAST(map), m.CAST(resolve_info), promise_context);
+  const TNode<JSFunction> resolve = m.AllocateRootFunctionWithContext(
+      RootIndex::kPromiseCapabilityDefaultResolveSharedFun, promise_context,
+      native_context);
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result_obj =
+  DirectHandle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result_obj->IsJSFunction());
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
+  CHECK(IsJSFunction(*result_obj));
+  DirectHandle<JSFunction> fun = Cast<JSFunction>(result_obj);
   CHECK_EQ(ReadOnlyRoots(isolate).empty_property_array(),
            fun->property_array());
   CHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(), fun->elements());
-  CHECK_EQ(isolate->heap()->many_closures_cell(), fun->raw_feedback_cell());
+  CHECK_EQ(*isolate->factory()->many_closures_cell(), fun->raw_feedback_cell());
   CHECK(!fun->has_prototype_slot());
   CHECK_EQ(*isolate->factory()->promise_capability_default_resolve_shared_fun(),
            fun->shared());
   CHECK_EQ(isolate->factory()
                ->promise_capability_default_resolve_shared_fun()
                ->GetCode(isolate),
-           fun->code());
+           fun->code(isolate));
 }
 
 TEST(CreatePromiseGetCapabilitiesExecutorContext) {
@@ -3039,15 +3188,15 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   m.Return(executor_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result_obj =
+  DirectHandle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result_obj->IsContext());
-  Handle<Context> context_js = Handle<Context>::cast(result_obj);
+  CHECK(IsContext(*result_obj));
+  DirectHandle<Context> context_js = Cast<Context>(result_obj);
   CHECK_EQ(PromiseBuiltins::kCapabilitiesContextLength, context_js->length());
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(
-      context_js->get(PromiseBuiltins::kCapabilitySlot).IsPromiseCapability());
+  CHECK(IsPromiseCapability(
+      context_js->GetNoCell(PromiseBuiltins::kCapabilitySlot)));
 }
 
 TEST(NewPromiseCapability) {
@@ -3060,10 +3209,10 @@ TEST(NewPromiseCapability) {
 
     auto context = m.GetJSContextParameter();
     const TNode<NativeContext> native_context = m.LoadNativeContext(context);
-    const TNode<Object> promise_constructor =
-        m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+    const TNode<Object> promise_constructor = m.LoadContextElementNoCell(
+        native_context, Context::PROMISE_FUNCTION_INDEX);
 
-    const TNode<Oddball> debug_event = m.TrueConstant();
+    const TNode<True> debug_event = m.TrueConstant();
     const TNode<Object> capability =
         m.CallBuiltin(Builtin::kNewPromiseCapability, context,
                       promise_constructor, debug_event);
@@ -3071,34 +3220,34 @@ TEST(NewPromiseCapability) {
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-    Handle<Object> result_obj = ft.Call().ToHandleChecked();
-    CHECK(result_obj->IsPromiseCapability());
-    Handle<PromiseCapability> result =
-        Handle<PromiseCapability>::cast(result_obj);
+    DirectHandle<Object> result_obj = ft.Call().ToHandleChecked();
+    CHECK(IsPromiseCapability(*result_obj));
+    DirectHandle<PromiseCapability> result =
+        Cast<PromiseCapability>(result_obj);
 
-    CHECK(result->promise().IsJSPromise());
-    CHECK(result->resolve().IsJSFunction());
-    CHECK(result->reject().IsJSFunction());
+    CHECK(IsJSPromise(result->promise()));
+    CHECK(IsJSFunction(result->resolve()));
+    CHECK(IsJSFunction(result->reject()));
     CHECK_EQ(
         *isolate->factory()->promise_capability_default_reject_shared_fun(),
-        JSFunction::cast(result->reject()).shared());
+        Cast<JSFunction>(result->reject())->shared());
     CHECK_EQ(
         *isolate->factory()->promise_capability_default_resolve_shared_fun(),
-        JSFunction::cast(result->resolve()).shared());
+        Cast<JSFunction>(result->resolve())->shared());
 
     Handle<JSFunction> callbacks[] = {
-        handle(JSFunction::cast(result->resolve()), isolate),
-        handle(JSFunction::cast(result->reject()), isolate)};
+        handle(Cast<JSFunction>(result->resolve()), isolate),
+        handle(Cast<JSFunction>(result->reject()), isolate)};
 
     for (auto&& callback : callbacks) {
-      Handle<Context> callback_context(Context::cast(callback->context()),
-                                       isolate);
+      DirectHandle<Context> callback_context(Cast<Context>(callback->context()),
+                                             isolate);
       CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo),
                callback_context->scope_info());
       CHECK_EQ(*isolate->native_context(), callback_context->native_context());
       CHECK_EQ(PromiseBuiltins::kPromiseContextLength,
                callback_context->length());
-      CHECK_EQ(callback_context->get(PromiseBuiltins::kPromiseSlot),
+      CHECK_EQ(callback_context->GetNoCell(PromiseBuiltins::kPromiseSlot),
                result->promise());
     }
   }
@@ -3111,7 +3260,7 @@ TEST(NewPromiseCapability) {
     auto context = m.GetJSContextParameter();
 
     auto constructor = m.Parameter<Object>(1);
-    const TNode<Oddball> debug_event = m.TrueConstant();
+    const TNode<True> debug_event = m.TrueConstant();
     const TNode<Object> capability = m.CallBuiltin(
         Builtin::kNewPromiseCapability, context, constructor, debug_event);
     m.Return(capability);
@@ -3119,7 +3268,7 @@ TEST(NewPromiseCapability) {
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
     Handle<JSFunction> constructor_fn =
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*CompileRun(
+        Cast<JSFunction>(v8::Utils::OpenHandle(*CompileRun(
             "(function FakePromise(executor) {"
             "  var self = this;"
             "  function resolve(value) { self.resolvedValue = value; }"
@@ -3127,39 +3276,41 @@ TEST(NewPromiseCapability) {
             "  executor(resolve, reject);"
             "})")));
 
-    Handle<Object> result_obj = ft.Call(constructor_fn).ToHandleChecked();
-    CHECK(result_obj->IsPromiseCapability());
-    Handle<PromiseCapability> result =
-        Handle<PromiseCapability>::cast(result_obj);
+    DirectHandle<Object> result_obj = ft.Call(constructor_fn).ToHandleChecked();
+    CHECK(IsPromiseCapability(*result_obj));
+    DirectHandle<PromiseCapability> result =
+        Cast<PromiseCapability>(result_obj);
 
-    CHECK(result->promise().IsJSObject());
-    Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
+    CHECK(IsJSObject(result->promise()));
+    DirectHandle<JSObject> promise(Cast<JSObject>(result->promise()), isolate);
     CHECK_EQ(constructor_fn->prototype_or_initial_map(kAcquireLoad),
              promise->map());
-    CHECK(result->resolve().IsJSFunction());
-    CHECK(result->reject().IsJSFunction());
+    CHECK(IsJSFunction(result->resolve()));
+    CHECK(IsJSFunction(result->reject()));
 
-    Handle<String> resolved_str =
+    DirectHandle<String> resolved_str =
         isolate->factory()->NewStringFromAsciiChecked("resolvedStr");
-    Handle<String> rejected_str =
+    DirectHandle<String> rejected_str =
         isolate->factory()->NewStringFromAsciiChecked("rejectedStr");
 
-    Handle<Object> argv1[] = {resolved_str};
-    Handle<Object> ret =
-        Execution::Call(isolate, handle(result->resolve(), isolate),
-                        isolate->factory()->undefined_value(), 1, argv1)
+    DirectHandle<Object> argv1[] = {resolved_str};
+    DirectHandle<Object> ret =
+        Execution::Call(isolate, direct_handle(result->resolve(), isolate),
+                        isolate->factory()->undefined_value(),
+                        base::VectorOf(argv1))
             .ToHandleChecked();
 
-    Handle<Object> prop1 =
+    DirectHandle<Object> prop1 =
         JSReceiver::GetProperty(isolate, promise, "resolvedValue")
             .ToHandleChecked();
     CHECK_EQ(*resolved_str, *prop1);
 
-    Handle<Object> argv2[] = {rejected_str};
-    ret = Execution::Call(isolate, handle(result->reject(), isolate),
-                          isolate->factory()->undefined_value(), 1, argv2)
+    DirectHandle<Object> argv2[] = {rejected_str};
+    ret = Execution::Call(isolate, direct_handle(result->reject(), isolate),
+                          isolate->factory()->undefined_value(),
+                          base::VectorOf(argv2))
               .ToHandleChecked();
-    Handle<Object> prop2 =
+    DirectHandle<Object> prop2 =
         JSReceiver::GetProperty(isolate, promise, "rejectedReason")
             .ToHandleChecked();
     CHECK_EQ(*rejected_str, *prop2);
@@ -3196,7 +3347,7 @@ TEST(DirectMemoryTest8BitWord32Immediate) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(DirectMemoryTest16BitWord32Immediate) {
@@ -3228,7 +3379,7 @@ TEST(DirectMemoryTest16BitWord32Immediate) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(DirectMemoryTest8BitWord32) {
@@ -3272,7 +3423,7 @@ TEST(DirectMemoryTest8BitWord32) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(DirectMemoryTest16BitWord32) {
@@ -3328,7 +3479,7 @@ TEST(DirectMemoryTest16BitWord32) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(LoadJSArrayElementsMap) {
@@ -3345,10 +3496,10 @@ TEST(LoadJSArrayElementsMap) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   for (int kind = 0; kind <= HOLEY_DOUBLE_ELEMENTS; kind++) {
-    Handle<Map> csa_result =
+    DirectHandle<Map> csa_result =
         ft.CallChecked<Map>(handle(Smi::FromInt(kind), isolate));
     ElementsKind elements_kind = static_cast<ElementsKind>(kind);
-    Handle<Map> result(
+    DirectHandle<Map> result(
         isolate->native_context()->GetInitialJSArrayMap(elements_kind),
         isolate);
     CHECK_EQ(*csa_result, *result);
@@ -3378,7 +3529,7 @@ TEST(IsWhiteSpaceOrLineTerminator) {
   Handle<Object> false_value = ft.false_value();
 
   for (base::uc16 c = 0; c < 0xFFFF; c++) {
-    Handle<Object> expected_value =
+    DirectHandle<Object> expected_value =
         IsWhiteSpaceOrLineTerminator(c) ? true_value : false_value;
     ft.CheckCall(expected_value, handle(Smi::FromInt(c), isolate));
   }
@@ -3458,8 +3609,8 @@ TEST(IsNumberArrayIndex) {
   for (size_t i = 0; i < arraysize(indices); i++) {
     Handle<Object> index = isolate->factory()->NewNumber(indices[i]);
     uint32_t array_index;
-    CHECK_EQ(index->ToArrayIndex(&array_index),
-             (ft.CallChecked<Smi>(index)->value() == 1));
+    CHECK_EQ(Object::ToArrayIndex(*index, &array_index),
+             ((*ft.CallChecked<Smi>(index)).value() == 1));
   }
 }
 
@@ -3484,10 +3635,10 @@ TEST(NumberMinMax) {
   Handle<Smi> smi_1(Smi::FromInt(1), isolate);
   Handle<Smi> smi_2(Smi::FromInt(2), isolate);
   Handle<Smi> smi_5(Smi::FromInt(5), isolate);
-  CHECK_EQ(ft_min.CallChecked<Smi>(smi_1, smi_2)->value(), 1);
-  CHECK_EQ(ft_min.CallChecked<Smi>(smi_2, smi_1)->value(), 1);
-  CHECK_EQ(ft_max.CallChecked<Smi>(smi_1, smi_2)->value(), 2);
-  CHECK_EQ(ft_max.CallChecked<Smi>(smi_2, smi_1)->value(), 2);
+  CHECK_EQ((*ft_min.CallChecked<Smi>(smi_1, smi_2)).value(), 1);
+  CHECK_EQ((*ft_min.CallChecked<Smi>(smi_2, smi_1)).value(), 1);
+  CHECK_EQ((*ft_max.CallChecked<Smi>(smi_1, smi_2)).value(), 2);
+  CHECK_EQ((*ft_max.CallChecked<Smi>(smi_2, smi_1)).value(), 2);
 
   // Test double values.
   Handle<Object> double_a = isolate->factory()->NewNumber(2.5);
@@ -3539,8 +3690,8 @@ TEST(NumberAddSub) {
   // Test smi values.
   Handle<Smi> smi_1(Smi::FromInt(1), isolate);
   Handle<Smi> smi_2(Smi::FromInt(2), isolate);
-  CHECK_EQ(ft_add.CallChecked<Smi>(smi_1, smi_2)->value(), 3);
-  CHECK_EQ(ft_sub.CallChecked<Smi>(smi_2, smi_1)->value(), 1);
+  CHECK_EQ((*ft_add.CallChecked<Smi>(smi_1, smi_2)).value(), 3);
+  CHECK_EQ((*ft_sub.CallChecked<Smi>(smi_2, smi_1)).value(), 1);
 
   // Test double values.
   Handle<Object> double_a = isolate->factory()->NewNumber(2.5);
@@ -3574,9 +3725,9 @@ TEST(CloneEmptyFixedArray) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(0, result.length());
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(0, result->length());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
 }
 
@@ -3592,14 +3743,14 @@ TEST(CloneFixedArray) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(5, result.length());
-  CHECK(result.get(0).IsTheHole(isolate));
-  CHECK_EQ(Smi::cast(result.get(1)).value(), 1234);
-  CHECK(result.get(2).IsTheHole(isolate));
-  CHECK(result.get(3).IsTheHole(isolate));
-  CHECK(result.get(4).IsTheHole(isolate));
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(5, result->length());
+  CHECK(IsTheHole(result->get(0), isolate));
+  CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
+  CHECK(IsTheHole(result->get(2), isolate));
+  CHECK(IsTheHole(result->get(3), isolate));
+  CHECK(IsTheHole(result->get(4), isolate));
 }
 
 TEST(CloneFixedArrayCOW) {
@@ -3614,9 +3765,9 @@ TEST(CloneFixedArrayCOW) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  source->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(*source, result);
 }
 
@@ -3628,26 +3779,26 @@ TEST(ExtractFixedArrayCOWForceCopy) {
     CodeStubAssembler m(asm_tester.state());
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
-    base::Optional<TNode<Smi>> constant(m.SmiConstant(0));
+    std::optional<TNode<Smi>> constant(m.SmiConstant(0));
     m.Return(m.ExtractFixedArray(m.Parameter<FixedArrayBase>(1), constant,
-                                 base::Optional<TNode<Smi>>(base::nullopt),
-                                 base::Optional<TNode<Smi>>(base::nullopt),
+                                 std::optional<TNode<Smi>>(std::nullopt),
+                                 std::optional<TNode<Smi>>(std::nullopt),
                                  flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  source->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_NE(*source, result);
-  CHECK_EQ(5, result.length());
-  CHECK(result.get(0).IsTheHole(isolate));
-  CHECK_EQ(Smi::cast(result.get(1)).value(), 1234);
-  CHECK(result.get(2).IsTheHole(isolate));
-  CHECK(result.get(3).IsTheHole(isolate));
-  CHECK(result.get(4).IsTheHole(isolate));
+  CHECK_EQ(5, result->length());
+  CHECK(IsTheHole(result->get(0), isolate));
+  CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
+  CHECK(IsTheHole(result->get(2), isolate));
+  CHECK(IsTheHole(result->get(3), isolate));
+  CHECK(IsTheHole(result->get(4), isolate));
 }
 
 TEST(ExtractFixedArraySimple) {
@@ -3659,24 +3810,24 @@ TEST(ExtractFixedArraySimple) {
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
-    base::Optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
-    base::Optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
+    std::optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
+    std::optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), p1_untagged, p2_untagged,
-        base::Optional<TNode<IntPtrT>>(base::nullopt), flags));
+        std::optional<TNode<IntPtrT>>(std::nullopt), flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw =
+  DirectHandle<Object> result_raw =
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result.length());
-  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
-  CHECK(result.get(1).IsTheHole(isolate));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
+  CHECK(IsTheHole(result->get(1), isolate));
 }
 
 TEST(ExtractFixedArraySimpleSmiConstant) {
@@ -3688,21 +3839,21 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
-    base::Optional<TNode<Smi>> constant_1(m.SmiConstant(1));
-    base::Optional<TNode<Smi>> constant_2(m.SmiConstant(2));
+    std::optional<TNode<Smi>> constant_1(m.SmiConstant(1));
+    std::optional<TNode<Smi>> constant_2(m.SmiConstant(2));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), constant_1, constant_2,
-        base::Optional<TNode<Smi>>(base::nullopt), flags));
+        std::optional<TNode<Smi>>(std::nullopt), flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result.length());
-  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
-  CHECK(result.get(1).IsTheHole(isolate));
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
+  CHECK(IsTheHole(result->get(1), isolate));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrConstant) {
@@ -3714,21 +3865,21 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
-    base::Optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
-    base::Optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
+    std::optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
+    std::optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), constant_1, constant_2,
-        base::Optional<TNode<IntPtrT>>(base::nullopt), flags));
+        std::optional<TNode<IntPtrT>>(std::nullopt), flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result.length());
-  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
-  CHECK(result.get(1).IsTheHole(isolate));
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
+  CHECK(IsTheHole(result->get(1), isolate));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
@@ -3737,22 +3888,22 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   {
     CodeStubAssembler m(asm_tester.state());
-    base::Optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
-    base::Optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
+    std::optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
+    std::optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), constant_1, constant_2,
-        base::Optional<TNode<IntPtrT>>(base::nullopt),
+        std::optional<TNode<IntPtrT>>(std::nullopt),
         CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result.length());
-  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
-  CHECK(result.get(1).IsTheHole(isolate));
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
+  CHECK(IsTheHole(result->get(1), isolate));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrParameters) {
@@ -3761,8 +3912,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   {
     CodeStubAssembler m(asm_tester.state());
-    base::Optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
-    base::Optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
+    std::optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
+    std::optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
     m.Return(m.ExtractFixedArray(m.Parameter<FixedArrayBase>(1), p1_untagged,
                                  p2_untagged));
   }
@@ -3770,30 +3921,31 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw =
+  DirectHandle<Object> result_raw =
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result.length());
-  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
-  CHECK(result.get(1).IsTheHole(isolate));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
+  CHECK(IsTheHole(result->get(1), isolate));
 
-  Handle<FixedDoubleArray> source_double = Handle<FixedDoubleArray>::cast(
-      isolate->factory()->NewFixedDoubleArray(5));
+  Handle<FixedDoubleArray> source_double =
+      Cast<FixedDoubleArray>(isolate->factory()->NewFixedDoubleArray(5));
   source_double->set(0, 10);
   source_double->set(1, 11);
   source_double->set(2, 12);
   source_double->set(3, 13);
   source_double->set(4, 14);
-  Handle<Object> double_result_raw =
+  DirectHandle<Object> double_result_raw =
       ft.Call(source_double, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedDoubleArray double_result = FixedDoubleArray::cast(*double_result_raw);
-  CHECK_EQ(2, double_result.length());
-  CHECK_EQ(double_result.get_scalar(0), 11);
-  CHECK_EQ(double_result.get_scalar(1), 12);
+  Tagged<FixedDoubleArray> double_result =
+      Cast<FixedDoubleArray>(*double_result_raw);
+  CHECK_EQ(2, double_result->length());
+  CHECK_EQ(double_result->get_scalar(0), 11);
+  CHECK_EQ(double_result->get_scalar(1), 12);
 }
 
 TEST(SingleInputPhiElimination) {
@@ -3836,12 +3988,13 @@ TEST(SmallOrderedHashMapAllocate) {
   Factory* factory = isolate->factory();
   int capacity = SmallOrderedHashMap::kMinCapacity;
   while (capacity <= SmallOrderedHashMap::kMaxCapacity) {
-    Handle<SmallOrderedHashMap> expected =
+    DirectHandle<SmallOrderedHashMap> expected =
         factory->NewSmallOrderedHashMap(capacity);
-    Handle<Object> result_raw =
+    DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
-    Handle<SmallOrderedHashMap> actual = Handle<SmallOrderedHashMap>(
-        SmallOrderedHashMap::cast(*result_raw), isolate);
+    DirectHandle<SmallOrderedHashMap> actual =
+        DirectHandle<SmallOrderedHashMap>(
+            Cast<SmallOrderedHashMap>(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
     CHECK_EQ(0, actual->NumberOfDeletedElements());
@@ -3874,12 +4027,12 @@ TEST(SmallOrderedHashSetAllocate) {
   int capacity = SmallOrderedHashSet::kMinCapacity;
   Factory* factory = isolate->factory();
   while (capacity <= SmallOrderedHashSet::kMaxCapacity) {
-    Handle<SmallOrderedHashSet> expected =
+    DirectHandle<SmallOrderedHashSet> expected =
         factory->NewSmallOrderedHashSet(capacity);
-    Handle<Object> result_raw =
+    DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
-    Handle<SmallOrderedHashSet> actual = Handle<SmallOrderedHashSet>(
-        SmallOrderedHashSet::cast(*result_raw), isolate);
+    DirectHandle<SmallOrderedHashSet> actual(
+        Cast<SmallOrderedHashSet>(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
     CHECK_EQ(0, actual->NumberOfDeletedElements());
@@ -3908,39 +4061,37 @@ TEST(IsDoubleElementsKind) {
         m.IsDoubleElementsKind(m.SmiToInt32(m.Parameter<Smi>(1))))));
   }
   FunctionTester ft(ft_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(
-      (*Handle<Smi>::cast(
-           ft.Call(Handle<Smi>(Smi::FromInt(PACKED_DOUBLE_ELEMENTS), isolate))
-               .ToHandleChecked()))
-          .value(),
-      1);
-  CHECK_EQ(
-      (*Handle<Smi>::cast(
-           ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_DOUBLE_ELEMENTS), isolate))
-               .ToHandleChecked()))
-          .value(),
-      1);
-  CHECK_EQ((*Handle<Smi>::cast(
-                ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_ELEMENTS), isolate))
-                    .ToHandleChecked()))
+  CHECK_EQ((*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(PACKED_DOUBLE_ELEMENTS),
+                                           isolate))
+                           .ToHandleChecked()))
                .value(),
-           0);
-  CHECK_EQ((*Handle<Smi>::cast(
-                ft.Call(Handle<Smi>(Smi::FromInt(PACKED_ELEMENTS), isolate))
-                    .ToHandleChecked()))
+           1);
+  CHECK_EQ((*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_DOUBLE_ELEMENTS),
+                                           isolate))
+                           .ToHandleChecked()))
                .value(),
-           0);
-  CHECK_EQ((*Handle<Smi>::cast(
+           1);
+  CHECK_EQ(
+      (*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_ELEMENTS), isolate))
+                      .ToHandleChecked()))
+          .value(),
+      0);
+  CHECK_EQ(
+      (*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(PACKED_ELEMENTS), isolate))
+                      .ToHandleChecked()))
+          .value(),
+      0);
+  CHECK_EQ((*Cast<Smi>(
                 ft.Call(Handle<Smi>(Smi::FromInt(PACKED_SMI_ELEMENTS), isolate))
                     .ToHandleChecked()))
                .value(),
            0);
-  CHECK_EQ((*Handle<Smi>::cast(
+  CHECK_EQ((*Cast<Smi>(
                 ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_SMI_ELEMENTS), isolate))
                     .ToHandleChecked()))
                .value(),
            0);
-  CHECK_EQ((*Handle<Smi>::cast(
+  CHECK_EQ((*Cast<Smi>(
                 ft.Call(Handle<Smi>(Smi::FromInt(DICTIONARY_ELEMENTS), isolate))
                     .ToHandleChecked()))
                .value(),
@@ -3948,8 +4099,6 @@ TEST(IsDoubleElementsKind) {
 }
 
 namespace {
-
-enum CallJumpMode { kCall, kTailCall };
 
 void TestCallJumpBuiltin(CallJumpMode mode,
                          BuiltinCallJumpMode builtin_call_jump_mode) {
@@ -3970,12 +4119,11 @@ void TestCallJumpBuiltin(CallJumpMode mode,
 
     TNode<Smi> index = m.SmiConstant(2);
 
-    Callable callable = Builtins::CallableFor(isolate, Builtin::kStringRepeat);
-    if (mode == kCall) {
-      m.Return(m.CallStub(callable, context, str, index));
+    if (mode == CallJumpMode::kCall) {
+      m.Return(m.CallBuiltin(Builtin::kStringRepeat, context, str, index));
     } else {
-      DCHECK_EQ(mode, kTailCall);
-      m.TailCallStub(callable, context, str, index);
+      DCHECK_EQ(mode, CallJumpMode::kTailCall);
+      m.TailCallBuiltin(Builtin::kStringRepeat, context, str, index);
     }
   }
   AssemblerOptions options = AssemblerOptions::Default(isolate);
@@ -3984,39 +4132,40 @@ void TestCallJumpBuiltin(CallJumpMode mode,
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
   CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
-                       Handle<String>::cast(result.ToHandleChecked())));
+                       Cast<String>(result.ToHandleChecked())));
 }
 
 }  // namespace
 
 TEST(TestCallBuiltinAbsolute) {
-  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kAbsolute);
+  TestCallJumpBuiltin(CallJumpMode::kCall, BuiltinCallJumpMode::kAbsolute);
 }
 
 TEST(TestCallBuiltinPCRelative) {
-  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kPCRelative);
+  TestCallJumpBuiltin(CallJumpMode::kCall, BuiltinCallJumpMode::kPCRelative);
 }
 
 TEST(TestCallBuiltinIndirect) {
-  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kIndirect);
+  TestCallJumpBuiltin(CallJumpMode::kCall, BuiltinCallJumpMode::kIndirect);
 }
 
 TEST(TestTailCallBuiltinAbsolute) {
-  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kAbsolute);
+  TestCallJumpBuiltin(CallJumpMode::kTailCall, BuiltinCallJumpMode::kAbsolute);
 }
 
 TEST(TestTailCallBuiltinPCRelative) {
-  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kPCRelative);
+  TestCallJumpBuiltin(CallJumpMode::kTailCall,
+                      BuiltinCallJumpMode::kPCRelative);
 }
 
 TEST(TestTailCallBuiltinIndirect) {
-  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kIndirect);
+  TestCallJumpBuiltin(CallJumpMode::kTailCall, BuiltinCallJumpMode::kIndirect);
 }
 
 TEST(InstructionSchedulingCallerSavedRegisters) {
   // This is a regression test for v8:9775, where TF's instruction scheduler
-  // incorrectly moved pure operations in between a ArchSaveCallerRegisters and
-  // a ArchRestoreCallerRegisters instruction.
+  // incorrectly moved pure operations in between an ArchSaveCallerRegisters and
+  // an ArchRestoreCallerRegisters instruction.
   bool old_turbo_instruction_scheduling = v8_flags.turbo_instruction_scheduling;
   v8_flags.turbo_instruction_scheduling = true;
 
@@ -4029,7 +4178,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
     TNode<IntPtrT> x = m.SmiUntag(m.Parameter<Smi>(1));
     TNode<WordT> y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
     TNode<ExternalReference> isolate_ptr =
-        m.ExternalConstant(ExternalReference::isolate_address(isolate));
+        m.ExternalConstant(ExternalReference::isolate_address());
     m.CallCFunctionWithCallerSavedRegisters(
         m.ExternalConstant(
             ExternalReference::smi_lexicographic_compare_function()),
@@ -4043,9 +4192,9 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   Handle<Object> input = isolate->factory()->NewNumber(8);
-  MaybeHandle<Object> result = ft.Call(input);
-  CHECK(result.ToHandleChecked()->IsSmi());
-  CHECK_EQ(result.ToHandleChecked()->Number(), 13);
+  MaybeDirectHandle<Object> result = ft.Call(input);
+  CHECK(IsSmi(*result.ToHandleChecked()));
+  CHECK_EQ(Object::NumberValue(*result.ToHandleChecked()), 13);
 
   v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
@@ -4082,19 +4231,19 @@ TEST(WasmInt32ToHeapNumber) {
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    Handle<Object> result = ft.Call().ToHandleChecked();
-    CHECK(result->IsNumber());
-    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
-    CHECK(result->StrictEquals(*expected));
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
+    CHECK(IsNumber(*result));
+    DirectHandle<Object> expected(isolate->factory()->NewNumber(test_value));
+    CHECK(Object::StrictEquals(*result, *expected));
   }
 }
 
-int32_t NumberToInt32(Handle<Object> number) {
-  if (number->IsSmi()) {
+int32_t NumberToInt32(DirectHandle<Object> number) {
+  if (IsSmi(*number)) {
     return Smi::ToInt(*number);
   }
-  if (number->IsHeapNumber()) {
-    double num = HeapNumber::cast(*number).value();
+  if (IsHeapNumber(*number)) {
+    double num = Cast<HeapNumber>(*number)->value();
     return DoubleToInt32(num);
   }
   UNREACHABLE();
@@ -4168,12 +4317,12 @@ TEST(WasmFloat32ToNumber) {
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    Handle<Object> result = ft.Call().ToHandleChecked();
-    CHECK(result->IsNumber());
-    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
-    CHECK(result->StrictEquals(*expected) ||
-          (std::isnan(test_value) && std::isnan(result->Number())));
-    CHECK_EQ(result->IsSmi(), expected->IsSmi());
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
+    CHECK(IsNumber(*result));
+    DirectHandle<Object> expected(isolate->factory()->NewNumber(test_value));
+    CHECK(Object::StrictEquals(*result, *expected) ||
+          (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
+    CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
 
@@ -4208,21 +4357,21 @@ TEST(WasmFloat64ToNumber) {
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    Handle<Object> result = ft.Call().ToHandleChecked();
-    CHECK(result->IsNumber());
-    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
-    CHECK(result->StrictEquals(*expected) ||
-          (std::isnan(test_value) && std::isnan(result->Number())));
-    CHECK_EQ(result->IsSmi(), expected->IsSmi());
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
+    CHECK(IsNumber(*result));
+    DirectHandle<Object> expected(isolate->factory()->NewNumber(test_value));
+    CHECK(Object::StrictEquals(*result, *expected) ||
+          (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
+    CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
 
-double NumberToFloat64(Handle<Object> number) {
-  if (number->IsSmi()) {
+double NumberToFloat64(DirectHandle<Object> number) {
+  if (IsSmi(*number)) {
     return Smi::ToInt(*number);
   }
-  if (number->IsHeapNumber()) {
-    return HeapNumber::cast(*number).value();
+  if (IsHeapNumber(*number)) {
+    return Cast<HeapNumber>(*number)->value();
   }
   UNREACHABLE();
 }
@@ -4297,6 +4446,31 @@ TEST(SmiUntagLeftShiftOptimization) {
 
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+}
+
+TEST(UnsignedSmiShiftLeft) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  int shift_bits = PropertyDetails::DictionaryStorageField::kShift;
+  int base = 1 << (kSmiValueSize - shift_bits - 1);
+  int target = SmiValuesAre32Bits() ? base << shift_bits
+                                    : (base << shift_bits) | 0x80000000;
+  {
+    TNode<Smi> a = m.SmiConstant(Smi::FromInt(base));
+    TNode<Smi> enum_index = m.UnsignedSmiShl(a, shift_bits);
+
+    TNode<Int32T> raw = m.TruncateIntPtrToInt32(m.SmiUntag(enum_index));
+    TNode<Int32T> expected = m.Int32Constant(target);
+
+    CSA_CHECK(&m, m.Word32Equal(raw, expected));
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
 }
 
 TEST(SmiUntagComparisonOptimization) {
@@ -4417,9 +4591,10 @@ TEST(IntPtrMulHigh) {
   TNode<IntPtrT> res = m.IntPtrMulHigh(a, b);
   m.Return(m.SmiTag(res));
 
-  FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(-147694,
-           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  CHECK_EQ(
+      -147694,
+      (*ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))).value());
   CHECK_EQ(-147694, base::bits::SignedMulHigh32(
                         std::numeric_limits<int32_t>::min(), 295387));
   CHECK_EQ(-147694, base::bits::SignedMulHigh64(
@@ -4437,7 +4612,7 @@ TEST(IntPtrMulHighConstantFoldable) {
   m.Return(m.SmiTag(res));
 
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(-147694, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(-147694, (*ft.CallChecked<Smi>()).value());
   CHECK_EQ(-147694, base::bits::SignedMulHigh32(
                         std::numeric_limits<int32_t>::min(), 295387));
   CHECK_EQ(-147694, base::bits::SignedMulHigh64(
@@ -4456,9 +4631,10 @@ TEST(UintPtrMulHigh) {
   TNode<IntPtrT> res = m.Signed(m.UintPtrMulHigh(m.Unsigned(a), m.Unsigned(b)));
   m.Return(m.SmiTag(res));
 
-  FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(147693,
-           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  CHECK_EQ(
+      147693,
+      (*ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))).value());
   CHECK_EQ(147693, base::bits::UnsignedMulHigh32(
                        std::numeric_limits<int32_t>::min(), 295387));
   CHECK_EQ(147693, base::bits::UnsignedMulHigh64(
@@ -4476,7 +4652,7 @@ TEST(UintPtrMulHighConstantFoldable) {
   m.Return(m.SmiTag(res));
 
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(147693, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(147693, (*ft.CallChecked<Smi>()).value());
   CHECK_EQ(
       147693,
       base::bits::UnsignedMulHigh32(
@@ -4502,19 +4678,15 @@ TEST(IntPtrMulWithOverflow) {
     TNode<BoolT> overflow = m.Projection<1>(pair);
     m.Return(m.SelectBooleanConstant(overflow));
 
-    FunctionTester ft(asm_tester.GenerateCode());
-    CHECK(ft.Call(handle(Smi::FromInt(-1), isolate))
-              .ToHandleChecked()
-              ->IsTrue(isolate));
-    CHECK(ft.Call(handle(Smi::FromInt(1), isolate))
-              .ToHandleChecked()
-              ->IsFalse(isolate));
-    CHECK(ft.Call(handle(Smi::FromInt(2), isolate))
-              .ToHandleChecked()
-              ->IsTrue(isolate));
-    CHECK(ft.Call(handle(Smi::FromInt(0), isolate))
-              .ToHandleChecked()
-              ->IsFalse(isolate));
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked(),
+                 isolate));
+    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked(),
+                  isolate));
+    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(2), isolate)).ToHandleChecked(),
+                 isolate));
+    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(0), isolate)).ToHandleChecked(),
+                  isolate));
   }
 
   {
@@ -4527,18 +4699,17 @@ TEST(IntPtrMulWithOverflow) {
     TNode<BoolT> overflow = m.Projection<1>(pair);
     m.Return(m.SelectBooleanConstant(overflow));
 
-    FunctionTester ft(asm_tester.GenerateCode());
-    CHECK(ft.Call(handle(Smi::FromInt(-1), isolate))
-              .ToHandleChecked()
-              ->IsFalse(isolate));
-    CHECK(ft.Call(handle(Smi::FromInt(1), isolate))
-              .ToHandleChecked()
-              ->IsFalse(isolate));
-    CHECK(ft.Call(handle(Smi::FromInt(2), isolate))
-              .ToHandleChecked()
-              ->IsTrue(isolate));
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked(),
+                  isolate));
+    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked(),
+                  isolate));
+    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(2), isolate)).ToHandleChecked(),
+                 isolate));
   }
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace compiler
 }  // namespace internal

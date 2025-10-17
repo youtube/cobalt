@@ -11,7 +11,7 @@ TestingSearchTermsData::TestingSearchTermsData(
     : google_base_url_(google_base_url) {
 }
 
-TestingSearchTermsData::~TestingSearchTermsData() {}
+TestingSearchTermsData::~TestingSearchTermsData() = default;
 
 std::string TestingSearchTermsData::GoogleBaseURLValue() const {
   return google_base_url_;
@@ -25,11 +25,6 @@ std::u16string TestingSearchTermsData::GetRlzParameterValue(
 
 std::string TestingSearchTermsData::GetSearchClient() const {
   return search_client_;
-}
-
-std::string TestingSearchTermsData::GetSuggestClient(
-    RequestSource request_source) const {
-  return suggest_client_;
 }
 
 std::string TestingSearchTermsData::GoogleImageSearchSource() const {

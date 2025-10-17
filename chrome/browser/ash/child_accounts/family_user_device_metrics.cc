@@ -8,7 +8,7 @@
 
 #include "base/check.h"
 #include "base/metrics/histogram_functions.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/settings/cros_settings_provider.h"
 #include "components/account_id/account_id.h"
@@ -60,7 +60,7 @@ const char* FamilyUserDeviceMetrics::GetGaiaUsersCountHistogramNameForTest() {
 }
 
 void FamilyUserDeviceMetrics::OnNewDay() {
-  const user_manager::UserList& users = user_manager_->GetUsers();
+  const user_manager::UserList& users = user_manager_->GetPersistedUsers();
   int family_link_users_count = 0;
   int gaia_users_count = 0;
 
@@ -95,9 +95,9 @@ void FamilyUserDeviceMetrics::OnUserSessionStarted(bool is_primary_user) {
       user_manager_->GetPrimaryUser()->GetType();
 
   NewUserAdded new_user_type = NewUserAdded::kOtherUserAdded;
-  if (type == user_manager::USER_TYPE_CHILD) {
+  if (type == user_manager::UserType::kChild) {
     new_user_type = NewUserAdded::kFamilyLinkUserAdded;
-  } else if (type == user_manager::USER_TYPE_REGULAR) {
+  } else if (type == user_manager::UserType::kRegular) {
     new_user_type = NewUserAdded::kRegularUserAdded;
   }
 

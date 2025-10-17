@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/system/sys_info.h"
+
 #include <stdint.h>
 
+#include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -19,7 +23,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/system/sys_info.h"
 #include "base/test/scoped_chromeos_version_info.h"
 #include "base/test/scoped_running_on_chromeos.h"
 #include "base/test/task_environment.h"
@@ -30,7 +33,6 @@
 #include "testing/gtest/include/gtest/gtest-death-test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/com_init_util.h"
@@ -67,17 +69,21 @@ TEST_F(SysInfoTest, NumProcs) {
 
 #if BUILDFLAG(IS_MAC)
 TEST_F(SysInfoTest, NumProcsWithSecurityMitigationEnabled) {
+  // Reset state so that the call to SetCpuSecurityMitigationsEnabled() below
+  // succeeds even if SysInfo::NumberOfProcessors() was previously called.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
+
   // Verify that the number of number of available processors available when CPU
   // security mitigation is enabled is the number of available "physical"
   // processors.
   test::ScopedFeatureList feature_list_;
   feature_list_.InitAndEnableFeature(kNumberOfCoresWithCpuSecurityMitigation);
-  SysInfo::SetIsCpuSecurityMitigationsEnabled(true);
-  EXPECT_EQ(internal::NumberOfProcessors(),
+  SysInfo::SetCpuSecurityMitigationsEnabled();
+  EXPECT_EQ(SysInfo::NumberOfProcessors(),
             internal::NumberOfPhysicalProcessors());
 
-  // Reset to default value
-  SysInfo::SetIsCpuSecurityMitigationsEnabled(false);
+  // Reset state set by this test.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -217,10 +223,10 @@ TEST_F(SysInfoTest, HardwareModelNameFormatMacAndiOS) {
   // a number.
   EXPECT_TRUE(base::MatchPattern(hardware_model, "iOS Simulator (*)"))
       << hardware_model;
-  std::vector<StringPiece> mainPieces =
+  std::vector<std::string_view> mainPieces =
       SplitStringPiece(hardware_model, "()", KEEP_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(3u, mainPieces.size()) << hardware_model;
-  std::vector<StringPiece> modelPieces =
+  std::vector<std::string_view> modelPieces =
       SplitStringPiece(mainPieces[1], ",", KEEP_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_GE(modelPieces.size(), 1u) << hardware_model;
   if (modelPieces.size() == 1u) {
@@ -234,7 +240,7 @@ TEST_F(SysInfoTest, HardwareModelNameFormatMacAndiOS) {
 #else
   // The expected format is "Foo,Bar" where Foo is "iPhone" or "iPad" and Bar is
   // a number.
-  std::vector<StringPiece> pieces =
+  std::vector<std::string_view> pieces =
       SplitStringPiece(hardware_model, ",", KEEP_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(2u, pieces.size()) << hardware_model;
   int value;
@@ -245,10 +251,10 @@ TEST_F(SysInfoTest, HardwareModelNameFormatMacAndiOS) {
 
 TEST_F(SysInfoTest, GetHardwareInfo) {
   test::TaskEnvironment task_environment;
-  absl::optional<SysInfo::HardwareInfo> hardware_info;
+  std::optional<SysInfo::HardwareInfo> hardware_info;
 
   auto callback = base::BindOnce(
-      [](absl::optional<SysInfo::HardwareInfo>* target_info,
+      [](std::optional<SysInfo::HardwareInfo>* target_info,
          SysInfo::HardwareInfo info) { *target_info = std::move(info); },
       &hardware_info);
   SysInfo::GetHardwareInfo(std::move(callback));
@@ -272,10 +278,10 @@ TEST_F(SysInfoTest, GetHardwareInfo) {
 TEST_F(SysInfoTest, GetHardwareInfoWMIMatchRegistry) {
   base::win::ScopedCOMInitializer com_initializer;
   test::TaskEnvironment task_environment;
-  absl::optional<SysInfo::HardwareInfo> hardware_info;
+  std::optional<SysInfo::HardwareInfo> hardware_info;
 
   auto callback = base::BindOnce(
-      [](absl::optional<SysInfo::HardwareInfo>* target_info,
+      [](std::optional<SysInfo::HardwareInfo>* target_info,
          SysInfo::HardwareInfo info) { *target_info = std::move(info); },
       &hardware_info);
   SysInfo::GetHardwareInfo(std::move(callback));
@@ -372,11 +378,11 @@ TEST_F(SysInfoTest, GoogleChromeOSNoVersionNumbers) {
 TEST_F(SysInfoTest, GoogleChromeOSLsbReleaseTime) {
   const char kLsbRelease[] = "CHROMEOS_RELEASE_VERSION=1.2.3.4";
   // Use a fake time that can be safely displayed as a string.
-  const Time lsb_release_time(Time::FromDoubleT(12345.6));
+  const Time lsb_release_time(Time::FromSecondsSinceUnixEpoch(12345.6));
   test::ScopedChromeOSVersionInfo version(kLsbRelease, lsb_release_time);
   Time parsed_lsb_release_time = SysInfo::GetLsbReleaseTime();
-  EXPECT_DOUBLE_EQ(lsb_release_time.ToDoubleT(),
-                   parsed_lsb_release_time.ToDoubleT());
+  EXPECT_DOUBLE_EQ(lsb_release_time.InSecondsFSinceUnixEpoch(),
+                   parsed_lsb_release_time.InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(SysInfoTest, IsRunningOnChromeOS) {
@@ -456,4 +462,26 @@ TEST_F(SysInfoTest, ScopedRunningOnChromeOS) {
 
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_POSIX)
+TEST_F(SysInfoTest, KernelVersionNumber) {
+  auto current_kernel_version = SysInfo::KernelVersionNumber::Current();
+
+  EXPECT_GT(current_kernel_version, SysInfo::KernelVersionNumber());
+  // Chromium will realistically never run on a kernel as old as 2.1.11
+  EXPECT_GT(current_kernel_version, SysInfo::KernelVersionNumber(2, 1, 11));
+
+  SysInfo::KernelVersionNumber next_major_kernel_version(
+      current_kernel_version.major + 1);
+  EXPECT_LT(current_kernel_version, next_major_kernel_version);
+
+  SysInfo::KernelVersionNumber next_minor_kernel_version(
+      current_kernel_version.major, current_kernel_version.minor + 1);
+  EXPECT_LT(current_kernel_version, next_minor_kernel_version);
+
+  SysInfo::KernelVersionNumber next_bugfix_kernel_version(
+      current_kernel_version.major, current_kernel_version.minor,
+      current_kernel_version.bugfix + 1);
+  EXPECT_LT(current_kernel_version, next_bugfix_kernel_version);
+}
+#endif  // BUILDFLAG(IS_POSIX)
 }  // namespace base

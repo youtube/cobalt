@@ -3,8 +3,10 @@
 # found in the LICENSE file.
 
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 android_library("java") {
+  srcjar_deps = [ ":jni_headers" ]
   sources = [
     "android/java/src/org/chromium/chrome/browser/image_descriptions/ImageDescriptionsController.java",
     "android/java/src/org/chromium/chrome/browser/image_descriptions/ImageDescriptionsControllerDelegate.java",
@@ -16,11 +18,11 @@ android_library("java") {
   deps = [
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//chrome/browser/device:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
+    "//chrome/browser/settings:java",
     "//chrome/browser/util:java",
     "//components/browser_ui/settings/android:java",
     "//components/browser_ui/widget/android:java",
@@ -29,11 +31,12 @@ android_library("java") {
     "//content/public/android:content_java",
     "//net/android:net_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_fragment_fragment_java",
     "//third_party/androidx:androidx_preference_preference_java",
+    "//third_party/jni_zero:jni_zero_java",
+    "//ui/accessibility:ax_base_java",
     "//ui/android:ui_full_java",
   ]
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 
   resources_package = "org.chromium.chrome.browser.image_descriptions"
 }
@@ -47,7 +50,6 @@ android_resources("java_resources") {
     "android/java/res/layout/image_descriptions_dialog.xml",
     "android/java/res/layout/radio_button_group_accessibility_preference.xml",
     "android/java/res/xml/image_descriptions_preference.xml",
-    "android/java/res/xml/image_descriptions_settings_preference.xml",
   ]
 
   deps = [
@@ -70,6 +72,7 @@ android_library("unit_device_javatests") {
     ":java",
     ":java_resources",
     "//base:base_java_test_support",
+    "//base:tasks_java",
     "//chrome/browser/device:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/preferences:java",
@@ -88,6 +91,7 @@ android_library("unit_device_javatests") {
     "//third_party/androidx:androidx_preference_preference_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_core_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_full_java",
@@ -105,6 +109,7 @@ android_library("javatests") {
     ":java",
     ":java_resources",
     "//base:base_java_test_support",
+    "//chrome/android:chrome_java",
     "//chrome/browser/device:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/preferences:java",
@@ -118,6 +123,7 @@ android_library("javatests") {
     "//content/public/android:content_java",
     "//content/public/test/android:content_java_test_support",
     "//third_party/android_deps:espresso_java",
+    "//third_party/androidx:androidx_fragment_fragment_java",
     "//third_party/androidx:androidx_preference_preference_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_core_java",

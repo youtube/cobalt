@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/android/ui_javatest_jni_headers/ClipboardAndroidTestSupport_jni.h"
 
 #include <string>
 
@@ -12,6 +11,9 @@
 #include "ui/base/clipboard/clipboard_android.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "ui/android/ui_javatest_jni_headers/ClipboardAndroidTestSupport_jni.h"
 
 namespace ui {
 
@@ -25,8 +27,7 @@ jboolean JNI_ClipboardAndroidTestSupport_NativeWriteHtml(
     base::android::ConvertJavaStringToUTF16(env, j_html_text, &html_text);
     std::string url;
     ScopedClipboardWriter clipboard_writer(ClipboardBuffer::kCopyPaste);
-    clipboard_writer.WriteHTML(html_text, url,
-                               ClipboardContentType::kSanitized);
+    clipboard_writer.WriteHTML(html_text, url);
     clipboard_writer.WriteText(html_text);
   }
   auto* clipboard = Clipboard::GetForCurrentThread();

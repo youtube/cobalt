@@ -409,17 +409,14 @@
         "load_accessibility:shopping:amazon:2018": {
             "DEFAULT": "system_health_desktop_c69a8c0e2f.wprgo"
         },
+        "load_accessibility:tech:codesearch:2025": {
+            "DEFAULT": "system_health_desktop_c0b734632c.wprgo"
+        },
         "long_running:tools:gmail-background": {
             "DEFAULT": "system_health_desktop_028.wprgo"
         },
         "long_running:tools:gmail-foreground": {
             "DEFAULT": "system_health_desktop_028.wprgo"
-        },
-        "multitab:misc:typical24": {
-            "DEFAULT": "system_health_desktop_049.wprgo"
-        },
-        "multitab:misc:typical24:2018": {
-            "DEFAULT": "system_health_desktop_37bd086ce0.wprgo"
         },
         "play:media:google_play_music": {
             "DEFAULT": "system_health_desktop_030.wprgo"

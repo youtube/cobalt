@@ -11,7 +11,6 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/v8_value_converter.h"
 #include "extensions/common/constants.h"
-#include "extensions/common/extension_messages.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest.h"
 #include "extensions/renderer/api_activity_logger.h"
@@ -30,12 +29,24 @@
 
 namespace extensions {
 
+namespace {
+
+void EmptySetterCallback(v8::Local<v8::Name> name,
+                         v8::Local<v8::Value> value,
+                         const v8::PropertyCallbackInfo<void>& info) {
+  // Empty setter is required to keep the native data property in "accessor"
+  // state even in case the value is updated by user code.
+}
+
+}  // namespace
+
 // static
 void AppHooksDelegate::IsInstalledGetterCallback(
-    v8::Local<v8::String> property,
+    v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::HandleScope handle_scope(info.GetIsolate());
-  v8::Local<v8::Context> context = info.Holder()->GetCreationContextChecked();
+  v8::Local<v8::Context> context =
+      info.Holder()->GetCreationContextChecked(info.GetIsolate());
   ScriptContext* script_context =
       ScriptContextSet::GetContextByV8Context(context);
 
@@ -49,7 +60,7 @@ void AppHooksDelegate::IsInstalledGetterCallback(
   // Since this is more-or-less an API, log it as an API call.
   APIActivityLogger::LogAPICall(hooks_delegate->ipc_sender_, context,
                                 "app.getIsInstalled",
-                                std::vector<v8::Local<v8::Value>>());
+                                v8::LocalVector<v8::Value>(info.GetIsolate()));
   info.GetReturnValue().Set(hooks_delegate->GetIsInstalled(script_context));
 }
 
@@ -73,7 +84,7 @@ APIBindingHooks::RequestResult AppHooksDelegate::HandleRequest(
     const std::string& method_name,
     const APISignature* signature,
     v8::Local<v8::Context> context,
-    std::vector<v8::Local<v8::Value>>* arguments,
+    v8::LocalVector<v8::Value>* arguments,
     const APITypeReferenceMap& refs) {
   using RequestResult = APIBindingHooks::RequestResult;
 
@@ -130,9 +141,10 @@ void AppHooksDelegate::InitializeTemplate(
   // This object should outlive contexts, so the |this| v8::External is safe.
   // TODO(devlin): This is getting pretty common. We should find a generalized
   // solution, or make gin::ObjectTemplateBuilder work for these use cases.
-  object_template->SetAccessor(gin::StringToSymbol(isolate, "isInstalled"),
-                               &AppHooksDelegate::IsInstalledGetterCallback,
-                               nullptr, v8::External::New(isolate, this));
+  object_template->SetNativeDataProperty(
+      gin::StringToSymbol(isolate, "isInstalled"),
+      &AppHooksDelegate::IsInstalledGetterCallback, EmptySetterCallback,
+      v8::External::New(isolate, this));
 }
 
 v8::Local<v8::Value> AppHooksDelegate::GetDetails(

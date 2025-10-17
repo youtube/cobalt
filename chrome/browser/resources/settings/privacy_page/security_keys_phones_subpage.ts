@@ -8,10 +8,11 @@
  */
 import '../settings_shared.css.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {SecurityKeysPhone, SecurityKeysPhonesBrowserProxy, SecurityKeysPhonesBrowserProxyImpl, SecurityKeysPhonesList} from './security_keys_browser_proxy.js';
+import type {SecurityKeysPhone, SecurityKeysPhonesBrowserProxy, SecurityKeysPhonesList} from './security_keys_browser_proxy.js';
+import {SecurityKeysPhonesBrowserProxyImpl} from './security_keys_browser_proxy.js';
 import {getTemplate} from './security_keys_phones_subpage.html.js';
 
 declare global {
@@ -30,11 +31,21 @@ export class SecurityKeysPhonesSubpageElement extends PolymerElement {
     return getTemplate();
   }
 
-  private syncedPhones_: SecurityKeysPhone[];
-  private linkedPhones_: SecurityKeysPhone[];
-  private showDialog_: boolean;
-  private dialogName_: string;
-  private dialogPublicKey_: string;
+  static get properties() {
+    return {
+      syncedPhones_: Array,
+      linkedPhones_: Array,
+      showDialog_: Boolean,
+      dialogName_: String,
+      dialogPublicKey_: String,
+    };
+  }
+
+  declare private syncedPhones_: SecurityKeysPhone[];
+  declare private linkedPhones_: SecurityKeysPhone[];
+  declare private showDialog_: boolean;
+  declare private dialogName_: string;
+  declare private dialogPublicKey_: string;
   private browserProxy_: SecurityKeysPhonesBrowserProxy =
       SecurityKeysPhonesBrowserProxyImpl.getInstance();
 

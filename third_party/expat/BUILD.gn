@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromecast_build.gni")
+import("//build/config/cast.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 
 # On Linux, we implicitly already depend on expat via fontconfig;
@@ -29,6 +29,9 @@ if (((is_linux && !is_castos) || is_chromeos) && !use_fuzzing_engine && !is_star
     cflags = [
       # xmlparse.c has some |if (0 && ...)| statements.
       "-Wno-unreachable-code",
+
+      # xmlparse.c has a switch with a break that is unreachable.
+      "-Wno-unreachable-code-break",
 
       # Various files have fallthrough annotated with comments instead of
       # attributes, and switching to attributes is difficult.

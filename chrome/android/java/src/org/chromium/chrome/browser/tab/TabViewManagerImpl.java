@@ -9,9 +9,12 @@ import android.util.SparseIntArray;
 import android.view.View;
 import android.widget.FrameLayout;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.supplier.DestroyableObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsMarginSupplier;
 
 import java.util.Comparator;
@@ -19,7 +22,10 @@ import java.util.PriorityQueue;
 
 /**
  * This class is responsible for displaying custom {@link View}s on top of {@link Tab}'s Content
- * view. Users that want to display a custom {@link View} should:
+ * view.
+ *
+ * <pre>
+ * Users that want to display a custom {@link View} should:
  *     1. Implement {@link TabViewProvider}
  *     2. Add an entry to {@link TabViewProvider.Type}
  *     3. Add their {@link TabViewProvider.Type} to {@link #PRIORITIZED_TAB_VIEW_PROVIDER_TYPES}
@@ -28,36 +34,40 @@ import java.util.PriorityQueue;
  *     4. Use {@link Tab#getTabViewManager#addTabViewProvider} and
  *        {@link Tab#getTabViewManager#removeTabViewProvider} to add and remove their
  *        {@link TabViewProvider}.
+ * </pre>
  */
+@NullMarked
 class TabViewManagerImpl implements TabViewManager, Comparator<TabViewProvider> {
     /**
      * A prioritized list of all {@link TabViewProvider.Type}s, from most important to least
      * important. The {@link TabViewProvider} with the highest priority will always be shown first,
      * regardless of its insertion time relative to other {@link TabViewProvider}s.
      */
-    @VisibleForTesting
-    @TabViewProvider.Type
-    static final int[] PRIORITIZED_TAB_VIEW_PROVIDER_TYPES = new int[] {
-            TabViewProvider.Type.SUSPENDED_TAB,
-            TabViewProvider.Type.PAINT_PREVIEW,
-            TabViewProvider.Type.SAD_TAB};
+    @VisibleForTesting @TabViewProvider.Type
+    static final int[] PRIORITIZED_TAB_VIEW_PROVIDER_TYPES =
+            new int[] {
+                TabViewProvider.Type.SUSPENDED_TAB,
+                TabViewProvider.Type.PAINT_PREVIEW,
+                TabViewProvider.Type.SAD_TAB
+            };
 
     /**
      * A lookup table for {@link #PRIORITIZED_TAB_VIEW_PROVIDER_TYPES}. This is initialized in the
      * following static block and doesn't need to be manually updated.
      */
     private static final SparseIntArray TAB_VIEW_PROVIDER_PRIORITY_LOOKUP = new SparseIntArray();
+
     static {
         for (int i = 0; i < PRIORITIZED_TAB_VIEW_PROVIDER_TYPES.length; i++) {
             TAB_VIEW_PROVIDER_PRIORITY_LOOKUP.put(PRIORITIZED_TAB_VIEW_PROVIDER_TYPES[i], i);
         }
     }
 
-    private PriorityQueue<TabViewProvider> mTabViewProviders;
-    private TabImpl mTab;
-    private View mCurrentView;
-    private DestroyableObservableSupplier<Rect> mMarginSupplier;
     private final Rect mViewMargins = new Rect();
+    private final PriorityQueue<TabViewProvider> mTabViewProviders;
+    private final TabImpl mTab;
+    private @Nullable View mCurrentView;
+    private @Nullable DestroyableObservableSupplier<Rect> mMarginSupplier;
 
     TabViewManagerImpl(TabImpl tab) {
         mTab = tab;
@@ -65,7 +75,8 @@ class TabViewManagerImpl implements TabViewManager, Comparator<TabViewProvider> 
     }
 
     private void initMarginSupplier() {
-        if (mTab.getActivity() == null || mTab.getActivity().isActivityFinishingOrDestroyed()
+        if (mTab.getActivity() == null
+                || mTab.getActivity().isActivityFinishingOrDestroyed()
                 || mMarginSupplier != null) {
             return;
         }
@@ -117,21 +128,21 @@ class TabViewManagerImpl implements TabViewManager, Comparator<TabViewProvider> 
     }
 
     private void updateCurrentTabViewProvider(TabViewProvider previousTabViewProvider) {
-        if (mTab == null) return;
-
         TabViewProvider currentTabViewProvider = mTabViewProviders.peek();
         if (currentTabViewProvider != previousTabViewProvider) {
             View view = null;
+            @ColorInt Integer backgroundColor = null;
             if (currentTabViewProvider != null) {
                 view = currentTabViewProvider.getView();
                 assert view != null;
                 view.setFocusable(true);
                 view.setFocusableInTouchMode(true);
+                backgroundColor = currentTabViewProvider.getBackgroundColor(view.getContext());
             }
             mCurrentView = view;
             initMarginSupplier();
             updateViewMargins();
-            mTab.setCustomView(mCurrentView);
+            mTab.setCustomView(mCurrentView, backgroundColor);
             if (previousTabViewProvider != null) previousTabViewProvider.onHidden();
             if (currentTabViewProvider != null) currentTabViewProvider.onShown();
         }
@@ -147,8 +158,10 @@ class TabViewManagerImpl implements TabViewManager, Comparator<TabViewProvider> 
     private void updateViewMargins() {
         if (mCurrentView == null) return;
 
-        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        FrameLayout.LayoutParams layoutParams =
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT);
         layoutParams.setMargins(
                 mViewMargins.left, mViewMargins.top, mViewMargins.right, mViewMargins.bottom);
         mCurrentView.setLayoutParams(layoutParams);
@@ -168,11 +181,10 @@ class TabViewManagerImpl implements TabViewManager, Comparator<TabViewProvider> 
     }
 
     void destroy() {
-        mTab.setCustomView(null);
+        mTab.setCustomView(null, null);
         TabViewProvider currentTabViewProvider = mTabViewProviders.peek();
         if (currentTabViewProvider != null) currentTabViewProvider.onHidden();
         mTabViewProviders.clear();
         if (mMarginSupplier != null) mMarginSupplier.destroy();
-        mTab = null;
     }
 }

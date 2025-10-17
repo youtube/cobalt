@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
@@ -42,7 +43,7 @@ class TestClient: public DevToolsAgentHostClient {
                                base::span<const uint8_t> message) override {
     if (waiting_for_reply_) {
       waiting_for_reply_ = false;
-      base::RunLoop::QuitCurrentDeprecated();
+      std::move(quit_closure_).Run();
     }
   }
 
@@ -52,12 +53,15 @@ class TestClient: public DevToolsAgentHostClient {
 
   void WaitForReply() {
     waiting_for_reply_ = true;
-    base::RunLoop().Run();
+    base::RunLoop loop;
+    quit_closure_ = loop.QuitClosure();
+    loop.Run();
   }
 
  private:
   bool closed_;
   bool waiting_for_reply_;
+  base::OnceClosure quit_closure_;
 };
 
 DevToolsAgentHost::List ExtractPageOrFrameTargets(
@@ -131,7 +135,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessDevToolsBrowserTest,
 
   // Send message to parent and child frames and get result back.
   constexpr char kMsg[] = R"({"id":0,"method":"incorrect.method"})";
-  auto message = base::as_bytes(base::make_span(kMsg, strlen(kMsg)));
+  auto message = base::byte_span_from_cstring(kMsg);
   child_host->DispatchProtocolMessage(&child_client, message);
   child_client.WaitForReply();
   parent_host->DispatchProtocolMessage(&parent_client, message);
@@ -252,7 +256,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessDownloadDevToolsBrowserTest,
   TestClient client;
   agent->AttachClient(&client);
   constexpr char kMsg[] = R"({"id":0,"method":"incorrect.method"})";
-  auto message = base::as_bytes(base::make_span(kMsg, strlen(kMsg)));
+  auto message = base::byte_span_from_cstring(kMsg);
   // Check that client is responsive.
   agent->DispatchProtocolMessage(&client, message);
   client.WaitForReply();

@@ -8,12 +8,10 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details on the presubmit API built into depot_tools.
 """
 
-USE_PYTHON3 = True
-
 
 def CheckChange(input_api, output_api):
   """Checks that actions.xml is up to date and pretty-printed."""
-  for f in input_api.AffectedTextFiles():
+  for f in input_api.AffectedFiles():
     p = f.AbsoluteLocalPath()
     if (input_api.basename(p) == 'actions.xml'
         and input_api.os_path.dirname(p) == input_api.PresubmitLocalPath()):

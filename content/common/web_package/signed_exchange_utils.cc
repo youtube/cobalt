@@ -4,19 +4,17 @@
 
 #include "content/common/web_package/signed_exchange_utils.h"
 
+#include <string_view>
+
 #include "base/base64.h"
+#include "base/strings/strcat.h"
 
 namespace content {
 namespace signed_exchange_utils {
 
 std::string CreateHeaderIntegrityHashString(
     const net::SHA256HashValue& header_integrity) {
-  std::string header_integrity_base64;
-  base::Base64Encode(
-      base::StringPiece(reinterpret_cast<const char*>(header_integrity.data),
-                        sizeof(header_integrity.data)),
-      &header_integrity_base64);
-  return std::string("sha256-") + header_integrity_base64;
+  return base::StrCat({"sha256-", base::Base64Encode(header_integrity)});
 }
 
 }  // namespace signed_exchange_utils

@@ -2,25 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/v4l2/test/vp9_decoder.h"
 
 #include <linux/v4l2-controls.h>
-
-// ChromeOS specific header; does not exist upstream
-#if BUILDFLAG(IS_CHROMEOS)
-#include <linux/media/vp9-ctrls-upstream.h>
-#endif
-
+#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 
 #include "base/bits.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "media/filters/ivf_parser.h"
-#include "media/filters/vp9_parser.h"
+#include "base/notreached.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/v4l2/test/upstream_pix_fmt.h"
+#include "media/parsers/ivf_parser.h"
+#include "media/parsers/vp9_parser.h"
 
 namespace media {
 
@@ -102,60 +102,17 @@ void FillV4L2VP9SegmentationParams(const Vp9SegmentationParams& vp9_seg_params,
   SafeArrayMemcpy(v4l2_seg->feature_data, vp9_seg_params.feature_data);
 }
 
-static void FillV4L2VP9MvProbsParams(const Vp9FrameContext& vp9_ctx,
-                                     struct v4l2_vp9_mv_probs* v4l2_mv_probs) {
-  SafeArrayMemcpy(v4l2_mv_probs->joint, vp9_ctx.mv_joint_probs);
-  SafeArrayMemcpy(v4l2_mv_probs->sign, vp9_ctx.mv_sign_prob);
-  SafeArrayMemcpy(v4l2_mv_probs->classes, vp9_ctx.mv_class_probs);
-  SafeArrayMemcpy(v4l2_mv_probs->class0_bit, vp9_ctx.mv_class0_bit_prob);
-  SafeArrayMemcpy(v4l2_mv_probs->bits, vp9_ctx.mv_bits_prob);
-  SafeArrayMemcpy(v4l2_mv_probs->class0_fr, vp9_ctx.mv_class0_fr_probs);
-  SafeArrayMemcpy(v4l2_mv_probs->fr, vp9_ctx.mv_fr_probs);
-  SafeArrayMemcpy(v4l2_mv_probs->class0_hp, vp9_ctx.mv_class0_hp_prob);
-  SafeArrayMemcpy(v4l2_mv_probs->hp, vp9_ctx.mv_hp_prob);
-}
-
-static void FillV4L2VP9ProbsParams(
-    const Vp9FrameContext& vp9_ctx,
-    struct v4l2_ctrl_vp9_compressed_hdr* v4l2_probs) {
-  SafeArrayMemcpy(v4l2_probs->tx8, vp9_ctx.tx_probs_8x8);
-  SafeArrayMemcpy(v4l2_probs->tx16, vp9_ctx.tx_probs_16x16);
-  SafeArrayMemcpy(v4l2_probs->tx32, vp9_ctx.tx_probs_32x32);
-  SafeArrayMemcpy(v4l2_probs->coef, vp9_ctx.coef_probs);
-  SafeArrayMemcpy(v4l2_probs->skip, vp9_ctx.skip_prob);
-  SafeArrayMemcpy(v4l2_probs->inter_mode, vp9_ctx.inter_mode_probs);
-  SafeArrayMemcpy(v4l2_probs->interp_filter, vp9_ctx.interp_filter_probs);
-  SafeArrayMemcpy(v4l2_probs->is_inter, vp9_ctx.is_inter_prob);
-  SafeArrayMemcpy(v4l2_probs->comp_mode, vp9_ctx.comp_mode_prob);
-  SafeArrayMemcpy(v4l2_probs->single_ref, vp9_ctx.single_ref_prob);
-  SafeArrayMemcpy(v4l2_probs->comp_ref, vp9_ctx.comp_ref_prob);
-  SafeArrayMemcpy(v4l2_probs->y_mode, vp9_ctx.y_mode_probs);
-  SafeArrayMemcpy(v4l2_probs->uv_mode, vp9_ctx.uv_mode_probs);
-  SafeArrayMemcpy(v4l2_probs->partition, vp9_ctx.partition_probs);
-
-  FillV4L2VP9MvProbsParams(vp9_ctx, &v4l2_probs->mv);
-}
-
 Vp9Decoder::Vp9Decoder(std::unique_ptr<IvfParser> ivf_parser,
                        std::unique_ptr<V4L2IoctlShim> v4l2_ioctl,
                        gfx::Size display_resolution)
     : VideoDecoder::VideoDecoder(std::move(v4l2_ioctl), display_resolution),
       ivf_parser_(std::move(ivf_parser)),
-      vp9_parser_(
-          std::make_unique<Vp9Parser>(/*parsing_compressed_header=*/true)),
-      supports_compressed_headers_(
-          v4l2_ioctl_->QueryCtrl(V4L2_CID_STATELESS_VP9_COMPRESSED_HDR)) {
+      vp9_parser_(std::make_unique<Vp9Parser>()) {
   DCHECK(v4l2_ioctl_);
 
   // This control was landed in v5.17 and is pretty much a marker that the
   // driver supports the stable API.
   DCHECK(v4l2_ioctl_->QueryCtrl(V4L2_CID_STATELESS_VP9_FRAME));
-
-  // MediaTek platforms don't support V4L2_CID_STATELESS_VP9_COMPRESSED_HDR.
-  LOG_IF(INFO, !supports_compressed_headers_)
-      << "VIDIOC_QUERYCTRL ioctl failure with "
-         "V4L2_CID_STATELESS_VP9_COMPRESSED_HDR is expected because VP9 "
-         "compressed header support is optional.";
 }
 
 Vp9Decoder::~Vp9Decoder() = default;
@@ -186,12 +143,6 @@ std::unique_ptr<Vp9Decoder> Vp9Decoder::Create(
   }
 
   auto v4l2_ioctl = std::make_unique<V4L2IoctlShim>(kDriverCodecFourcc);
-
-  if (!v4l2_ioctl->VerifyCapabilities(kDriverCodecFourcc)) {
-    LOG(ERROR) << "Device doesn't support "
-               << media::FourccToString(kDriverCodecFourcc) << ".";
-    return nullptr;
-  }
 
   gfx::Size display_resolution =
       gfx::Size(file_header.width, file_header.height);
@@ -341,8 +292,6 @@ void Vp9Decoder::SetupFrameParams(
       break;
     default:
       LOG(FATAL) << "Invalid reset frame context value!";
-      v4l2_frame_params->reset_frame_context = V4L2_VP9_RESET_FRAME_CTX_NONE;
-      break;
   }
   v4l2_frame_params->frame_context_idx =
       frame_hdr.frame_context_idx_to_save_probs;
@@ -350,8 +299,6 @@ void Vp9Decoder::SetupFrameParams(
   v4l2_frame_params->interpolation_filter = frame_hdr.interpolation_filter;
   v4l2_frame_params->tile_cols_log2 = frame_hdr.tile_cols_log2;
   v4l2_frame_params->tile_rows_log2 = frame_hdr.tile_rows_log2;
-  v4l2_frame_params->reference_mode =
-      frame_hdr.compressed_header.reference_mode;
   static_assert(Vp9RefType::VP9_FRAME_MAX - VP9_FRAME_LAST <
                     std::extent<decltype(frame_hdr.ref_frame_sign_bias)>::value,
                 "array sizes are incompatible");
@@ -423,24 +370,22 @@ void Vp9Decoder::CopyFrameData(const Vp9FrameHeader& frame_hdr,
 
   scoped_refptr<MmappedBuffer> buffer = queue->GetBuffer(0);
 
-  buffer->mmapped_planes()[0].CopyIn(frame_hdr.data, frame_hdr.frame_size);
+  buffer->mmapped_planes()[0].CopyIn(frame_hdr.data.data(),
+                                     frame_hdr.data.size());
 }
 
-VideoDecoder::Result Vp9Decoder::DecodeNextFrame(std::vector<uint8_t>& y_plane,
+VideoDecoder::Result Vp9Decoder::DecodeNextFrame(const int frame_number,
+                                                 std::vector<uint8_t>& y_plane,
                                                  std::vector<uint8_t>& u_plane,
                                                  std::vector<uint8_t>& v_plane,
                                                  gfx::Size& size,
-                                                 const int frame_number) {
-  Vp9FrameHeader frame_hdr{};
+                                                 BitDepth& bit_depth) {
+  Vp9FrameHeader frame_hdr;
 
   Vp9Parser::Result parser_res = ReadNextFrame(frame_hdr, size);
   switch (parser_res) {
     case Vp9Parser::kInvalidStream:
-      LOG_ASSERT(false) << "Failed to parse frame.";
-      return Vp9Decoder::kError;
-    case Vp9Parser::kAwaitingRefresh:
-      LOG_ASSERT(false) << "Unsupported parser return value.";
-      return Vp9Decoder::kError;
+      LOG(FATAL) << "Failed to parse frame.";
     case Vp9Parser::kEOStream:
       return Vp9Decoder::kEOStream;
     case Vp9Parser::kOk:
@@ -477,37 +422,29 @@ VideoDecoder::Result Vp9Decoder::DecodeNextFrame(std::vector<uint8_t>& y_plane,
 
   struct v4l2_ext_controls ext_ctrls = {.count = 1, .controls = ext_ctrl};
 
-  struct v4l2_ctrl_vp9_compressed_hdr v4l2_compressed_hdr_probs = {};
-  if (supports_compressed_headers_) {
-    v4l2_compressed_hdr_probs.tx_mode = frame_hdr.compressed_header.tx_mode;
-    FillV4L2VP9ProbsParams(frame_hdr.frame_context, &v4l2_compressed_hdr_probs);
-
-    ext_ctrl[ext_ctrls.count++] = {.id = V4L2_CID_STATELESS_VP9_COMPRESSED_HDR,
-                                   .size = sizeof(v4l2_compressed_hdr_probs),
-                                   .ptr = &v4l2_compressed_hdr_probs};
-  }
-
   // Before the CAPTURE queue is set up the first frame must be parsed by the
   // driver. This is done so that when VIDIOC_G_FMT is called the frame
   // dimensions and format will be ready. Specifying V4L2_CTRL_WHICH_CUR_VAL
   // when VIDIOC_S_EXT_CTRLS processes the request immediately so that the frame
   // is parsed by the driver and the state is readied.
-  v4l2_ioctl_->SetExtCtrls(OUTPUT_queue_, &ext_ctrls,
-                           is_OUTPUT_queue_new && cur_val_is_supported_);
+  v4l2_ioctl_->SetExtCtrls(OUTPUT_queue_, &ext_ctrls, is_OUTPUT_queue_new);
   v4l2_ioctl_->MediaRequestIocQueue(OUTPUT_queue_);
 
   if (!CAPTURE_queue_) {
     CreateCAPTUREQueue(kNumberOfBuffersInCaptureQueue);
   }
 
+  v4l2_ioctl_->WaitForRequestCompletion(OUTPUT_queue_);
+
   uint32_t buffer_id;
   v4l2_ioctl_->DQBuf(CAPTURE_queue_, &buffer_id);
 
   scoped_refptr<MmappedBuffer> buffer = CAPTURE_queue_->GetBuffer(buffer_id);
 
-  ConvertToYUV(y_plane, u_plane, v_plane, OUTPUT_queue_->resolution(),
-               buffer->mmapped_planes(), CAPTURE_queue_->resolution(),
-               CAPTURE_queue_->fourcc());
+  bit_depth =
+      ConvertToYUV(y_plane, u_plane, v_plane, OUTPUT_queue_->resolution(),
+                   buffer->mmapped_planes(), CAPTURE_queue_->resolution(),
+                   CAPTURE_queue_->fourcc());
 
   const std::set<int> reusable_buffer_slots = RefreshReferenceSlots(
       frame_hdr.refresh_frame_flags, CAPTURE_queue_->GetBuffer(buffer_id),
@@ -532,11 +469,6 @@ VideoDecoder::Result Vp9Decoder::DecodeNextFrame(std::vector<uint8_t>& y_plane,
   }
 
   v4l2_ioctl_->DQBuf(OUTPUT_queue_, &buffer_id);
-
-  // TODO(stevecho): With current VP9 API, VIDIOC_G_EXT_CTRLS ioctl call is
-  // needed when forward probabilities update is used. With new VP9 API landing
-  // in kernel 5.17, VIDIOC_G_EXT_CTRLS ioctl call is no longer needed, see:
-  // https://lwn.net/Articles/855419/
 
   v4l2_ioctl_->MediaRequestIocReinit(OUTPUT_queue_);
 

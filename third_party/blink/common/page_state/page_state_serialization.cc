@@ -8,6 +8,9 @@
 #include <limits>
 #include <utility>
 
+#include "base/containers/span.h"
+#include "base/containers/to_vector.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/pickle.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -37,14 +40,13 @@ float g_device_scale_factor_for_testing = 0.0;
 
 void AppendDataToRequestBody(
     const scoped_refptr<network::ResourceRequestBody>& request_body,
-    const char* data,
-    size_t data_length) {
-  request_body->AppendBytes(data, data_length);
+    base::span<const uint8_t> data) {
+  request_body->AppendCopyOfBytes(data);
 }
 
 void AppendFileRangeToRequestBody(
     const scoped_refptr<network::ResourceRequestBody>& request_body,
-    const absl::optional<std::u16string>& file_path,
+    const std::optional<std::u16string>& file_path,
     int file_start,
     int file_length,
     base::Time file_modification_time) {
@@ -59,7 +61,7 @@ void AppendFileRangeToRequestBody(
 
 void AppendReferencedFilesFromHttpBody(
     const std::vector<network::DataElement>& elements,
-    std::vector<absl::optional<std::u16string>>* referenced_files) {
+    std::vector<std::optional<std::u16string>>* referenced_files) {
   for (size_t i = 0; i < elements.size(); ++i) {
     if (elements[i].type() == network::DataElement::Tag::kFile) {
       referenced_files->emplace_back(
@@ -69,8 +71,8 @@ void AppendReferencedFilesFromHttpBody(
 }
 
 bool AppendReferencedFilesFromDocumentState(
-    const std::vector<absl::optional<std::u16string>>& document_state,
-    std::vector<absl::optional<std::u16string>>* referenced_files) {
+    const std::vector<std::optional<std::u16string>>& document_state,
+    std::vector<std::optional<std::u16string>>* referenced_files) {
   if (document_state.empty())
     return true;
 
@@ -99,7 +101,7 @@ bool AppendReferencedFilesFromDocumentState(
       return false;
 
     index++;  // Skip over name.
-    const absl::optional<std::u16string>& type = document_state[index++];
+    const std::optional<std::u16string>& type = document_state[index++];
 
     if (index >= document_state.size())
       return false;
@@ -129,7 +131,7 @@ bool AppendReferencedFilesFromDocumentState(
 
 bool RecursivelyAppendReferencedFiles(
     const ExplodedFrameState& frame_state,
-    std::vector<absl::optional<std::u16string>>* referenced_files) {
+    std::vector<std::optional<std::u16string>>* referenced_files) {
   if (frame_state.http_body.request_body) {
     AppendReferencedFilesFromHttpBody(
         *frame_state.http_body.request_body->elements(), referenced_files);
@@ -151,12 +153,11 @@ bool RecursivelyAppendReferencedFiles(
 //----------------------------------------------------------------------------
 
 struct SerializeObject {
-  SerializeObject() : version(0), parse_error(false) {}
+  SerializeObject() = default;
 
-  SerializeObject(const char* data, int len)
-      : pickle(data, len), version(0), parse_error(false) {
-    iter = base::PickleIterator(pickle);
-  }
+  explicit SerializeObject(base::span<const uint8_t> data)
+      : pickle(base::Pickle::WithUnownedBuffer(data)),
+        iter(base::PickleIterator(pickle)) {}
 
   std::string GetAsString() {
     return std::string(pickle.data_as_char(), pickle.size());
@@ -164,8 +165,8 @@ struct SerializeObject {
 
   base::Pickle pickle;
   base::PickleIterator iter;
-  int version;
-  bool parse_error;
+  int version = 0;
+  bool parse_error = false;
 };
 
 // IMPORTANT: When making updates to the PageState serialization code, be sure
@@ -214,19 +215,16 @@ const int kCurrentVersion = 33;
 // PageState serialization format you almost certainly want to add/remove fields
 // in page_state.mojom rather than using these methods.
 
-void WriteData(const void* data, size_t length, SerializeObject* obj) {
-  obj->pickle.WriteData(static_cast<const char*>(data), length);
+void WriteData(base::span<const uint8_t> data, SerializeObject* obj) {
+  obj->pickle.WriteData(data);
 }
 
-void ReadData(SerializeObject* obj, const void** data, size_t* length) {
-  const char* tmp;
-  if (obj->iter.ReadData(&tmp, length)) {
-    *data = tmp;
-  } else {
+std::optional<base::span<const uint8_t>> ReadData(SerializeObject* obj) {
+  std::optional<base::span<const uint8_t>> result = obj->iter.ReadData();
+  if (!result) {
     obj->parse_error = true;
-    *data = nullptr;
-    *length = 0;
   }
+  return result;
 }
 
 void WriteInteger(int data, SerializeObject* obj) {
@@ -254,21 +252,20 @@ int64_t ReadInteger64(SerializeObject* obj) {
 }
 
 void WriteReal(double data, SerializeObject* obj) {
-  WriteData(&data, sizeof(double), obj);
+  WriteData(base::byte_span_from_ref(base::allow_nonunique_obj, data), obj);
 }
 
 double ReadReal(SerializeObject* obj) {
-  const void* tmp = nullptr;
-  size_t length = 0;
-  double value = 0.0;
-  ReadData(obj, &tmp, &length);
-  if (length == sizeof(double)) {
-    // Use memcpy, as tmp may not be correctly aligned.
-    memcpy(&value, tmp, length);
-  } else {
-    obj->parse_error = true;
+  std::optional<base::span<const uint8_t>> data = ReadData(obj);
+  if (data && data->size() == sizeof(double)) {
+    double value;
+    base::byte_span_from_ref(base::allow_nonunique_obj, value)
+        .copy_from(data.value().first<sizeof(double)>());
+    return value;
   }
-  return value;
+
+  obj->parse_error = true;
+  return 0.0;
 }
 
 void WriteBoolean(bool data, SerializeObject* obj) {
@@ -301,13 +298,18 @@ std::string ReadStdString(SerializeObject* obj) {
 
 // Pickles a std::u16string as <int length>:<char*16 data> tuple>.
 void WriteString(const std::u16string& str, SerializeObject* obj) {
-  obj->pickle.WriteData(reinterpret_cast<const char*>(str.data()),
-                        str.length() * sizeof(char16_t));
+  // IMPLEMENTATION WARNING: This is different from Pickle::WriteString16, as
+  // that writes the size in 16-bit characters, while this writes the string as
+  // data, which writes the size in bytes. This is due to an unfortunate
+  // bifurcation where the Pickle version originally wrote a Windows
+  // std::wstring, which then turned into std::u16string, while this code
+  // originally dealt with WebString(), which then turned into std::u16string.
+  obj->pickle.WriteData(base::as_byte_span(str));
 }
 
 // If str is a null optional, this simply pickles a length of -1. Otherwise,
 // delegates to the std::u16string overload.
-void WriteString(const absl::optional<std::u16string>& str,
+void WriteString(const std::optional<std::u16string>& str,
                  SerializeObject* obj) {
   if (!str) {
     obj->pickle.WriteInt(-1);
@@ -316,7 +318,7 @@ void WriteString(const absl::optional<std::u16string>& str,
   }
 }
 
-// This reads a serialized absl::optional<std::u16string> from obj. If a string
+// This reads a serialized std::optional<std::u16string> from obj. If a string
 // can't be read, nullptr is returned.
 const char16_t* ReadStringNoCopy(SerializeObject* obj, int* num_chars) {
   int length_in_bytes;
@@ -339,10 +341,10 @@ const char16_t* ReadStringNoCopy(SerializeObject* obj, int* num_chars) {
   return reinterpret_cast<const char16_t*>(data);
 }
 
-absl::optional<std::u16string> ReadString(SerializeObject* obj) {
+std::optional<std::u16string> ReadString(SerializeObject* obj) {
   int num_chars;
   const char16_t* chars = ReadStringNoCopy(obj, &num_chars);
-  absl::optional<std::u16string> result;
+  std::optional<std::u16string> result;
   if (chars)
     result.emplace(chars, num_chars);
   return result;
@@ -374,7 +376,7 @@ size_t ReadAndValidateVectorSize(SerializeObject* obj, size_t element_size) {
 }
 
 // Writes a Vector of strings into a SerializeObject for serialization.
-void WriteStringVector(const std::vector<absl::optional<std::u16string>>& data,
+void WriteStringVector(const std::vector<std::optional<std::u16string>>& data,
                        SerializeObject* obj) {
   WriteAndValidateVectorSize(data, obj);
   for (size_t i = 0; i < data.size(); ++i) {
@@ -383,9 +385,9 @@ void WriteStringVector(const std::vector<absl::optional<std::u16string>>& data,
 }
 
 void ReadStringVector(SerializeObject* obj,
-                      std::vector<absl::optional<std::u16string>>* result) {
+                      std::vector<std::optional<std::u16string>>* result) {
   size_t num_elements =
-      ReadAndValidateVectorSize(obj, sizeof(absl::optional<std::u16string>));
+      ReadAndValidateVectorSize(obj, sizeof(std::optional<std::u16string>));
 
   result->resize(num_elements);
   for (size_t i = 0; i < num_elements; ++i)
@@ -400,7 +402,7 @@ void WriteResourceRequestBody(const network::ResourceRequestBody& request_body,
       case network::DataElement::Tag::kBytes: {
         const auto& bytes = element.As<network::DataElementBytes>().bytes();
         WriteInteger(static_cast<int>(HTTPBodyElementType::kTypeData), obj);
-        WriteData(bytes.data(), bytes.size(), obj);
+        WriteData(bytes, obj);
         break;
       }
       case network::DataElement::Tag::kFile: {
@@ -409,12 +411,12 @@ void WriteResourceRequestBody(const network::ResourceRequestBody& request_body,
         WriteString(file.path().AsUTF16Unsafe(), obj);
         WriteInteger64(static_cast<int64_t>(file.offset()), obj);
         WriteInteger64(static_cast<int64_t>(file.length()), obj);
-        WriteReal(file.expected_modification_time().ToDoubleT(), obj);
+        WriteReal(file.expected_modification_time().InSecondsFSinceUnixEpoch(),
+                  obj);
         break;
       }
       default:
         NOTREACHED();
-        continue;
     }
   }
   WriteInteger64(request_body.identifier(), obj);
@@ -428,21 +430,18 @@ void ReadResourceRequestBody(
     HTTPBodyElementType type =
         static_cast<HTTPBodyElementType>(ReadInteger(obj));
     if (type == HTTPBodyElementType::kTypeData) {
-      const void* data;
-      size_t length;
-      ReadData(obj, &data, &length);
-      if (!obj->parse_error) {
-        AppendDataToRequestBody(request_body, static_cast<const char*>(data),
-                                length);
+      std::optional<base::span<const uint8_t>> data = ReadData(obj);
+      if (data) {
+        AppendDataToRequestBody(request_body, *data);
       }
     } else if (type == HTTPBodyElementType::kTypeFile) {
-      absl::optional<std::u16string> file_path = ReadString(obj);
+      std::optional<std::u16string> file_path = ReadString(obj);
       int64_t file_start = ReadInteger64(obj);
       int64_t file_length = ReadInteger64(obj);
       double file_modification_time = ReadReal(obj);
       AppendFileRangeToRequestBody(
           request_body, file_path, file_start, file_length,
-          base::Time::FromDoubleT(file_modification_time));
+          base::Time::FromSecondsSinceUnixEpoch(file_modification_time));
     } else if (type == HTTPBodyElementType::kTypeBlob) {
       // Skip obsolete blob values.
       if (obj->version >= 16) {
@@ -477,7 +476,8 @@ void WriteHttpBody(const ExplodedHttpBody& http_body, SerializeObject* obj) {
   WriteBoolean(http_body.contains_passwords, obj);
 }
 
-void ReadFrameState(
+// This is only used for versions < 26. Later versions use ReadMojoFrameState.
+void ReadLegacyFrameState(
     SerializeObject* obj,
     bool is_top,
     std::vector<UniqueNameHelper::Replacement>* unique_name_replacements,
@@ -595,17 +595,19 @@ void ReadFrameState(
   size_t num_children =
       ReadAndValidateVectorSize(obj, sizeof(ExplodedFrameState));
   state->children.resize(num_children);
-  for (size_t i = 0; i < num_children; ++i)
-    ReadFrameState(obj, false, unique_name_replacements, &state->children[i]);
+  for (size_t i = 0; i < num_children; ++i) {
+    ReadLegacyFrameState(obj, false, unique_name_replacements,
+                         &state->children[i]);
+  }
 }
 
 // Writes the ExplodedFrameState data into the SerializeObject object for
 // serialization. This uses the custom, legacy format, and its implementation
 // should remain frozen in order to preserve this format.
 // TODO(pnoland, dcheng) Move the legacy write methods into a test-only helper.
-void WriteFrameState(const ExplodedFrameState& state,
-                     SerializeObject* obj,
-                     bool is_top) {
+void WriteLegacyFrameState(const ExplodedFrameState& state,
+                           SerializeObject* obj,
+                           bool is_top) {
   // WARNING: This data may be persisted for later use. As such, care must be
   // taken when changing the serialized format. If a new field needs to be
   // written, only adding at the end will make it easier to deal with loading
@@ -655,13 +657,14 @@ void WriteFrameState(const ExplodedFrameState& state,
   const std::vector<ExplodedFrameState>& children = state.children;
   WriteAndValidateVectorSize(children, obj);
   for (size_t i = 0; i < children.size(); ++i)
-    WriteFrameState(children[i], obj, false);
+    WriteLegacyFrameState(children[i], obj, false);
 }
 
-void WritePageState(const ExplodedPageState& state, SerializeObject* obj) {
+void WriteLegacyPageState(const ExplodedPageState& state,
+                          SerializeObject* obj) {
   WriteInteger(obj->version, obj);
   WriteStringVector(state.referenced_files, obj);
-  WriteFrameState(state.top, obj, true);
+  WriteLegacyFrameState(state.top, obj, true);
 }
 
 // Legacy read/write functions above this line. Don't change these.
@@ -675,9 +678,7 @@ void WriteResourceRequestBody(const network::ResourceRequestBody& request_body,
     switch (element.type()) {
       case network::DataElement::Tag::kBytes: {
         const auto& bytes = element.As<network::DataElementBytes>().bytes();
-        const char* data = reinterpret_cast<const char*>(bytes.data());
-        data_element = mojom::Element::NewBytes(
-            std::vector<unsigned char>(data, data + bytes.size()));
+        data_element = mojom::Element::NewBytes(base::ToVector(bytes));
         break;
       }
       case network::DataElement::Tag::kFile: {
@@ -693,7 +694,6 @@ void WriteResourceRequestBody(const network::ResourceRequestBody& request_body,
         continue;
       case network::DataElement::Tag::kChunkedDataPipe:
         NOTREACHED();
-        continue;
     }
     mojo_body->elements.push_back(std::move(data_element));
   }
@@ -707,10 +707,7 @@ void ReadResourceRequestBody(
     mojom::Element::Tag tag = element->which();
     switch (tag) {
       case mojom::Element::Tag::kBytes:
-        AppendDataToRequestBody(
-            request_body,
-            reinterpret_cast<const char*>(element->get_bytes().data()),
-            element->get_bytes().size());
+        AppendDataToRequestBody(request_body, element->get_bytes());
         break;
       case mojom::Element::Tag::kFile: {
         mojom::File* file = element->get_file().get();
@@ -754,8 +751,8 @@ void ReadHttpBody(mojom::HttpBody* mojo_body, ExplodedHttpBody* http_body) {
 // Do not depend on feature state when writing data to frame, so that the
 // contents of persisted history do not depend on whether a feature is enabled
 // or not.
-void WriteFrameState(const ExplodedFrameState& state,
-                     mojom::FrameState* frame) {
+void WriteMojoFrameState(const ExplodedFrameState& state,
+                         mojom::FrameState* frame) {
   frame->url_string = state.url_string;
   frame->referrer = state.referrer;
   if (state.initiator_origin.has_value())
@@ -805,12 +802,13 @@ void WriteFrameState(const ExplodedFrameState& state,
   const std::vector<ExplodedFrameState>& children = state.children;
   for (const auto& child : children) {
     mojom::FrameStatePtr child_frame = mojom::FrameState::New();
-    WriteFrameState(child, child_frame.get());
+    WriteMojoFrameState(child, child_frame.get());
     frame->children.push_back(std::move(child_frame));
   }
 }
 
-void ReadFrameState(mojom::FrameState* frame, ExplodedFrameState* state) {
+// This is used for versions >= 26.
+void ReadMojoFrameState(mojom::FrameState* frame, ExplodedFrameState* state) {
   state->url_string = frame->url_string;
   state->referrer = frame->referrer;
   if (frame->initiator_origin.has_value()) {
@@ -862,27 +860,27 @@ void ReadFrameState(mojom::FrameState* frame, ExplodedFrameState* state) {
   state->children.resize(frame->children.size());
   int i = 0;
   for (const auto& child : frame->children)
-    ReadFrameState(child.get(), &state->children[i++]);
+    ReadMojoFrameState(child.get(), &state->children[i++]);
 }
 
 void ReadMojoPageState(SerializeObject* obj, ExplodedPageState* state) {
-  const void* tmp = nullptr;
-  size_t length = 0;
-  ReadData(obj, &tmp, &length);
-  DCHECK_GT(length, 0u);
-  if (obj->parse_error)
+  std::optional<base::span<const uint8_t>> data = ReadData(obj);
+  if (obj->parse_error) {
     return;
+  }
 
   mojom::PageStatePtr page;
-  obj->parse_error = !(mojom::PageState::Deserialize(tmp, length, &page));
-  if (obj->parse_error)
+  obj->parse_error =
+      !(mojom::PageState::Deserialize(data->data(), data->size(), &page));
+  if (obj->parse_error) {
     return;
+  }
 
   for (const auto& referenced_file : page->referenced_files) {
     state->referenced_files.push_back(referenced_file);
   }
 
-  ReadFrameState(page->top.get(), &state->top);
+  ReadMojoFrameState(page->top.get(), &state->top);
 
   state->referenced_files.erase(std::unique(state->referenced_files.begin(),
                                             state->referenced_files.end()),
@@ -898,11 +896,10 @@ void WriteMojoPageState(const ExplodedPageState& state, SerializeObject* obj) {
   }
 
   page->top = mojom::FrameState::New();
-  WriteFrameState(state.top, page->top.get());
+  WriteMojoFrameState(state.top, page->top.get());
 
   std::vector<uint8_t> page_bytes = mojom::PageState::Serialize(&page);
-  obj->pickle.WriteData(reinterpret_cast<char*>(page_bytes.data()),
-                        page_bytes.size());
+  obj->pickle.WriteData(page_bytes);
 }
 
 void ReadPageState(SerializeObject* obj, ExplodedPageState* state) {
@@ -929,7 +926,7 @@ void ReadPageState(SerializeObject* obj, ExplodedPageState* state) {
     ReadStringVector(obj, &state->referenced_files);
 
   std::vector<UniqueNameHelper::Replacement> unique_name_replacements;
-  ReadFrameState(obj, true, &unique_name_replacements, &state->top);
+  ReadLegacyFrameState(obj, true, &unique_name_replacements, &state->top);
 
   if (obj->version < 14)
     RecursivelyAppendReferencedFiles(state->top, &state->referenced_files);
@@ -998,8 +995,15 @@ int DecodePageStateInternal(const std::string& encoded,
   if (encoded.empty())
     return true;
 
-  SerializeObject obj(encoded.data(), static_cast<int>(encoded.size()));
+  SerializeObject obj(base::as_byte_span(encoded));
   ReadPageState(&obj, exploded);
+
+  if (obj.version < kCurrentVersion) {
+    // Record when a PageState with an earlier version number is decoded, to
+    // estimate how long older version support should be retained.
+    base::UmaHistogramSparse("SessionRestore.PageStateOldVersions",
+                             obj.version);
+  }
   return obj.parse_error ? -1 : obj.version;
 }
 
@@ -1025,7 +1029,7 @@ void LegacyEncodePageStateForTesting(const ExplodedPageState& exploded,
                                      std::string* encoded) {
   SerializeObject obj;
   obj.version = version;
-  WritePageState(exploded, &obj);
+  WriteLegacyPageState(exploded, &obj);
   *encoded = obj.GetAsString();
 }
 
@@ -1041,11 +1045,10 @@ bool DecodePageStateWithDeviceScaleFactorForTesting(
 }
 
 scoped_refptr<network::ResourceRequestBody> DecodeResourceRequestBody(
-    const char* data,
-    size_t size) {
+    base::span<const uint8_t> data) {
   scoped_refptr<network::ResourceRequestBody> result =
       new network::ResourceRequestBody();
-  SerializeObject obj(data, static_cast<int>(size));
+  SerializeObject obj(data);
   ReadResourceRequestBody(&obj, result);
   // Please see the EncodeResourceRequestBody() function below for information
   // about why the contains_sensitive_info() field is being explicitly

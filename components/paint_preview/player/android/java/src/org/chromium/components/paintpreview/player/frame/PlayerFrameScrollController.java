@@ -9,33 +9,42 @@ import android.os.Handler;
 import android.util.Size;
 import android.widget.OverScroller;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.paintpreview.player.OverscrollHandler;
 
-/**
- * Handles scrolling of a frame for the paint preview player.
- */
+/** Handles scrolling of a frame for the paint preview player. */
+@NullMarked
 public class PlayerFrameScrollController {
     /** For swipe-to-refresh logic */
-    private OverscrollHandler mOverscrollHandler;
+    private @Nullable OverscrollHandler mOverscrollHandler;
+
     private boolean mIsOverscrolling;
     private float mOverscrollAmount;
+
     /** For computing flinging. */
     private final OverScroller mScroller;
+
     private final Handler mScrollerHandler = new Handler();
+
     /** References to shared state. */
     private final PlayerFrameViewport mViewport;
+
     private final Size mContentSize;
+
     /** Interface for calling shared methods on the mediator. */
     private final PlayerFrameMediatorDelegate mMediatorDelegate;
-    private final Runnable mOnScrollListener;
-    private final Runnable mOnFlingListener;
-    private boolean mAcceptUserInput;
-    private Runnable mOnScrollCallbackForAccessibility;
 
-    PlayerFrameScrollController(OverScroller scroller, PlayerFrameMediatorDelegate mediatorDelegate,
-            @Nullable Runnable onScrollListener, @Nullable Runnable onFlingListener) {
+    private final @Nullable Runnable mOnScrollListener;
+    private final @Nullable Runnable mOnFlingListener;
+    private boolean mAcceptUserInput;
+    private @Nullable Runnable mOnScrollCallbackForAccessibility;
+
+    PlayerFrameScrollController(
+            OverScroller scroller,
+            PlayerFrameMediatorDelegate mediatorDelegate,
+            @Nullable Runnable onScrollListener,
+            @Nullable Runnable onFlingListener) {
         mScroller = scroller;
         mViewport = mediatorDelegate.getViewport();
         mContentSize = mediatorDelegate.getContentSize();
@@ -45,9 +54,7 @@ public class PlayerFrameScrollController {
         mAcceptUserInput = true;
     }
 
-    /**
-     * Sets the overscroll-to-refresh handler that handles pull-to-refresh behavior.
-     */
+    /** Sets the overscroll-to-refresh handler that handles pull-to-refresh behavior. */
     public void setOverscrollHandler(OverscrollHandler overscrollHandler) {
         mOverscrollHandler = overscrollHandler;
     }
@@ -67,9 +74,10 @@ public class PlayerFrameScrollController {
 
     /**
      * Handles flinging of the viewport.
+     *
      * @param velocityX The velocity in the x-direction.
      * @param velocityY The velocity in the y-direction.
-     * @returns Whether the fling was consumed.
+     * @return Whether the fling was consumed.
      */
     public boolean onFling(float velocityX, float velocityY) {
         if (!mAcceptUserInput) return false;
@@ -79,8 +87,14 @@ public class PlayerFrameScrollController {
         int scaledContentHeight = (int) (mContentSize.getHeight() * scaleFactor);
         mScroller.forceFinished(true);
         Rect viewportRect = mViewport.asRect();
-        mScroller.fling(viewportRect.left, viewportRect.top, (int) -velocityX, (int) -velocityY, 0,
-                scaledContentWidth - viewportRect.width(), 0,
+        mScroller.fling(
+                viewportRect.left,
+                viewportRect.top,
+                (int) -velocityX,
+                (int) -velocityY,
+                0,
+                scaledContentWidth - viewportRect.width(),
+                0,
                 scaledContentHeight - viewportRect.height());
 
         if (!mScroller.isFinished() && mOnFlingListener != null) mOnFlingListener.run();
@@ -88,9 +102,7 @@ public class PlayerFrameScrollController {
         return true;
     }
 
-    /**
-     * Called when a touch event is released to possibly trigger overscroll-to-refresh.
-     */
+    /** Called when a touch event is released to possibly trigger overscroll-to-refresh. */
     public void onRelease() {
         if (mOverscrollHandler == null || !mIsOverscrolling) return;
 
@@ -99,22 +111,22 @@ public class PlayerFrameScrollController {
         mOverscrollAmount = 0.0f;
     }
 
-    /**
-     * Enables/disables processing input events for scrolling.
-     */
+    /** Enables/disables processing input events for scrolling. */
     public void setAcceptUserInput(boolean acceptUserInput) {
         mAcceptUserInput = acceptUserInput;
     }
 
-    /**
-     * Ensures that the given {@link Rect} is visible by scrolling the viewport to include it.
-     */
-    void scrollToMakeRectVisibleForAccessibility(Rect rect) {
+    /** Ensures that the given {@link Rect} is visible by scrolling the viewport to include it. */
+    void scrollToMakeRectVisibleForAccessibility(@Nullable Rect rect) {
         if (rect == null) return;
 
         float scaleFactor = mViewport.getScale();
-        Rect targetRect = new Rect((int) (rect.left * scaleFactor), (int) (rect.top * scaleFactor),
-                (int) (rect.right * scaleFactor), (int) (rect.bottom * scaleFactor));
+        Rect targetRect =
+                new Rect(
+                        (int) (rect.left * scaleFactor),
+                        (int) (rect.top * scaleFactor),
+                        (int) (rect.right * scaleFactor),
+                        (int) (rect.bottom * scaleFactor));
         Rect viewportRect = mViewport.asRect();
 
         if (viewportRect.contains(targetRect)) return;
@@ -147,7 +159,7 @@ public class PlayerFrameScrollController {
         // Ignore if there is no active overscroll and the direction is down.
         if (!mIsOverscrolling && distanceY <= 0) return false;
 
-        // TODO(crbug/1100338): Propagate this state to child mediators to
+        // TODO(crbug.com/40137904): Propagate this state to child mediators to
         // support easing.
         mOverscrollAmount += distanceY;
 
@@ -201,9 +213,7 @@ public class PlayerFrameScrollController {
         return true;
     }
 
-    /**
-     * Handles a fling update by computing the next scroll offset and programmatically scrolling.
-     */
+    /** Handles a fling update by computing the next scroll offset and programmatically scrolling. */
     private void handleFling() {
         if (mScroller.isFinished()) return;
 

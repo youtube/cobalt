@@ -15,6 +15,8 @@
 
 namespace ui {
 
+class WaylandSyncobjReleaseTimeline;
+
 // This is a wrapper of a wl_buffer. Instances of this class are managed by the
 // corresponding WaylandBufferBackings.
 class WaylandBufferHandle {
@@ -30,7 +32,7 @@ class WaylandBufferHandle {
     created_callback_ = std::move(callback);
   }
   void set_buffer_released_callback(
-      base::OnceCallback<void(struct wl_buffer*)> callback,
+      base::OnceCallback<void(wl_buffer*)> callback,
       WaylandSurface* requestor) {
     released_callbacks_.emplace(requestor, std::move(callback));
   }
@@ -41,8 +43,9 @@ class WaylandBufferHandle {
 
   uint32_t id() const { return backing_->id(); }
   gfx::Size size() const { return backing_->size(); }
-  struct wl_buffer* wl_buffer() const {
-    return wl_buffer_.get();
+  wl_buffer* buffer() const { return wl_buffer_.get(); }
+  WaylandSyncobjReleaseTimeline* release_timeline() const {
+    return release_timeline_.get();
   }
 
   // The existence of |released_callback_| is an indicator of whether the
@@ -62,21 +65,30 @@ class WaylandBufferHandle {
   }
 
  private:
-  // Called when wl_buffer object is created.
-  void OnWlBufferCreated(wl::Object<struct wl_buffer> wl_buffer);
-
-  void OnWlBufferRelease(struct wl_buffer* wl_buffer);
+  void OnWlBufferCreated(wl::Object<wl_buffer> wl_buffer);
+  void OnWlBufferReleased(wl_buffer* wl_buffer);
 
   // wl_buffer_listener:
-  static void BufferRelease(void* data, struct wl_buffer* wl_buffer);
+  static void OnRelease(void* data, wl_buffer* wl_buffer);
 
   raw_ptr<const WaylandBufferBacking> backing_;
 
   // A wl_buffer backed by the dmabuf/shm |backing_| created on the GPU side.
-  wl::Object<struct wl_buffer> wl_buffer_;
+  wl::Object<wl_buffer> wl_buffer_;
 
   // A callback that runs when the wl_buffer is created.
   base::OnceClosure created_callback_;
+
+  // Used for explicit sync using linux-drm-syncobj.
+  // As per the protocol [1], reusing a timeline for multiple buffers is not
+  // safe because the buffers could end up being released out of order. So we
+  // have release timelines on a per-buffer basis.
+  // In the case of explicit sync there is only one buffer per backing
+  // so it is safe to put it here instead of WaylandBufferBacking.
+  //
+  // [1]
+  // https://wayland.app/protocols/linux-drm-syncobj-v1#wp_linux_drm_syncobj_surface_v1:request:set_release_point
+  std::unique_ptr<WaylandSyncobjReleaseTimeline> release_timeline_;
 
   // Callbacks that binds WaylandFrameManager::OnWlBufferRelease() function,
   // which erases a pending release buffer entry from the
@@ -84,7 +96,7 @@ class WaylandBufferHandle {
   // from the wl_compositor.
   // When linux explicit synchronization is adopted, buffer_listener is unset
   // and this callback should be reset by OnExplicitRelease() instead.
-  base::flat_map<WaylandSurface*, base::OnceCallback<void(struct wl_buffer*)>>
+  base::flat_map<WaylandSurface*, base::OnceCallback<void(wl_buffer*)>>
       released_callbacks_;
 
   friend WaylandBufferBacking;

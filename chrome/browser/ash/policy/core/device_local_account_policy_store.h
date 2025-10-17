@@ -35,7 +35,8 @@ class DeviceLocalAccountPolicyStore : public UserCloudPolicyStoreBase {
       const std::string& account_id,
       ash::SessionManagerClient* client,
       ash::DeviceSettingsService* device_settings_service,
-      scoped_refptr<base::SequencedTaskRunner> background_task_runner);
+      scoped_refptr<base::SequencedTaskRunner> background_task_runner,
+      scoped_refptr<base::SequencedTaskRunner> first_load_task_runner);
 
   DeviceLocalAccountPolicyStore(const DeviceLocalAccountPolicyStore&) = delete;
   DeviceLocalAccountPolicyStore& operator=(
@@ -102,9 +103,14 @@ class DeviceLocalAccountPolicyStore : public UserCloudPolicyStoreBase {
       bool validate_in_background,
       ash::DeviceSettingsService::OwnershipStatus ownership_status);
 
+  scoped_refptr<base::SequencedTaskRunner> GetValidationTaskRunner() const;
+
+  // Hish priority task runner to be used for the first policy load.
+  scoped_refptr<base::SequencedTaskRunner> first_load_task_runner_;
+
   const std::string account_id_;
-  raw_ptr<ash::SessionManagerClient, ExperimentalAsh> session_manager_client_;
-  raw_ptr<ash::DeviceSettingsService, ExperimentalAsh> device_settings_service_;
+  raw_ptr<ash::SessionManagerClient> session_manager_client_;
+  raw_ptr<ash::DeviceSettingsService> device_settings_service_;
 
   base::WeakPtrFactory<DeviceLocalAccountPolicyStore> weak_factory_{this};
 };

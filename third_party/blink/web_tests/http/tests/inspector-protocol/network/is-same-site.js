@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startURL(
       'https://devtools.oopif.test:8443/',
       `Verifies that same site requests are marked as such`);
@@ -32,7 +32,7 @@
   await gotAllRequestsPromise;
 
   requests.sort((a,b) => (a.url + a.headers.Referer).localeCompare(b.url + b.headers.Referer));
-  testRunner.log(requests, 'requests', ['User-Agent']);
+  testRunner.log(requests.map(r => ({url: r.url, isSameSite: r.isSameSite})), 'requests');
 
   testRunner.completeTest();
 })

@@ -6,20 +6,26 @@
 #define QUICHE_QUIC_CORE_HTTP_WEB_TRANSPORT_HTTP3_H_
 
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/quic/core/web_transport_stats.h"
+#include "quiche/common/http/http_header_block.h"
+#include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/web_transport.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -32,6 +38,8 @@ enum class WebTransportHttp3RejectionReason {
   kWrongStatusCode,
   kMissingDraftVersion,
   kUnsupportedDraftVersion,
+  kSubprotocolMismatch,
+  kSubprotocolParseError,
 };
 
 // A session of WebTransport over HTTP/3.  The session is owned by
@@ -39,14 +47,14 @@ enum class WebTransportHttp3RejectionReason {
 //
 // WebTransport over HTTP/3 specification:
 // <https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3>
-class QUIC_EXPORT_PRIVATE WebTransportHttp3
+class QUICHE_EXPORT WebTransportHttp3
     : public WebTransportSession,
       public QuicSpdyStream::Http3DatagramVisitor {
  public:
   WebTransportHttp3(QuicSpdySession* session, QuicSpdyStream* connect_stream,
                     WebTransportSessionId id);
 
-  void HeadersReceived(const spdy::Http2HeaderBlock& headers);
+  void HeadersReceived(const quiche::HttpHeaderBlock& headers);
   void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor) {
     visitor_ = std::move(visitor);
   }
@@ -89,6 +97,18 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   QuicByteCount GetMaxDatagramSize() const override;
   void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) override;
 
+  webtransport::DatagramStats GetDatagramStats() override {
+    return WebTransportDatagramStatsForQuicSession(*session_);
+  }
+  webtransport::SessionStats GetSessionStats() override {
+    return WebTransportStatsForQuicSession(*session_);
+  }
+
+  void NotifySessionDraining() override;
+  void SetOnDraining(quiche::SingleUseCallback<void()> callback) override {
+    drain_callback_ = std::move(callback);
+  }
+
   // From QuicSpdyStream::Http3DatagramVisitor.
   void OnHttp3Datagram(QuicStreamId stream_id,
                        absl::string_view payload) override;
@@ -99,6 +119,21 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportHttp3RejectionReason rejection_reason() const {
     return rejection_reason_;
   }
+
+  void OnGoAwayReceived();
+  void OnDrainSessionReceived();
+
+  const std::vector<std::string>& subprotocols_offered() const {
+    return subprotocols_offered_;
+  }
+  void set_subprotocols_offered(std::vector<std::string> subprotocols_offered) {
+    subprotocols_offered_ = std::move(subprotocols_offered);
+  }
+  std::optional<std::string> GetNegotiatedSubprotocol() const override {
+    return subprotocol_selected_;
+  }
+  WebTransportHttp3RejectionReason MaybeSetSubprotocolFromResponseHeaders(
+      const quiche::HttpHeaderBlock& headers);
 
  private:
   // Notifies the visitor that the connection has been closed.  Ensures that the
@@ -119,16 +154,24 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   bool close_received_ = false;
   bool close_notified_ = false;
 
+  // On client side, stores the offered subprotocols.
+  std::vector<std::string> subprotocols_offered_;
+  // Stores the actually selected subprotocol, both on the client and on the
+  // server.
+  std::optional<std::string> subprotocol_selected_;
+
+  quiche::SingleUseCallback<void()> drain_callback_ = nullptr;
+
   WebTransportHttp3RejectionReason rejection_reason_ =
       WebTransportHttp3RejectionReason::kNone;
+  bool drain_sent_ = false;
   // Those are set to default values, which are used if the session is not
   // closed cleanly using an appropriate capsule.
   WebTransportSessionError error_code_ = 0;
   std::string error_message_ = "";
 };
 
-class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
-    : public QuicStream {
+class QUICHE_EXPORT WebTransportHttp3UnidirectionalStream : public QuicStream {
  public:
   // Incoming stream.
   WebTransportHttp3UnidirectionalStream(PendingStream* pending,
@@ -155,7 +198,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
  private:
   QuicSpdySession* session_;
   WebTransportStreamAdapter adapter_;
-  absl::optional<WebTransportSessionId> session_id_;
+  std::optional<WebTransportSessionId> session_id_;
   bool needs_to_send_preamble_;
 
   bool ReadSessionId();
@@ -165,16 +208,16 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
 
 // Remaps HTTP/3 error code into a WebTransport error code.  Returns nullopt if
 // the provided code is outside of valid range.
-QUIC_EXPORT_PRIVATE absl::optional<WebTransportStreamError>
-Http3ErrorToWebTransport(uint64_t http3_error_code);
+QUICHE_EXPORT std::optional<WebTransportStreamError> Http3ErrorToWebTransport(
+    uint64_t http3_error_code);
 
 // Same as above, but returns default error value (zero) when none could be
 // mapped.
-QUIC_EXPORT_PRIVATE WebTransportStreamError
+QUICHE_EXPORT WebTransportStreamError
 Http3ErrorToWebTransportOrDefault(uint64_t http3_error_code);
 
 // Remaps WebTransport error code into an HTTP/3 error code.
-QUIC_EXPORT_PRIVATE uint64_t
+QUICHE_EXPORT uint64_t
 WebTransportErrorToHttp3(WebTransportStreamError webtransport_error_code);
 
 }  // namespace quic

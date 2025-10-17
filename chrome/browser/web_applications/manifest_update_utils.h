@@ -10,15 +10,17 @@
 
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/browser/web_applications/web_app_install_utils.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
 class WebApp;
 class WebAppRegistrar;
 
-constexpr SquareSizePx kIdentitySizes[] = {kInstallIconSize, kLauncherIconSize};
+inline constexpr SquareSizePx kIdentitySizes[] = {kInstallIconSize,
+                                                  kLauncherIconSize};
 
 // This enum is recorded by UMA, the numeric values must not change.
 enum class ManifestUpdateResult {
@@ -41,7 +43,8 @@ enum class ManifestUpdateResult {
   kAppIdentityUpdateRejectedAndUninstalled = 16,
   kAppIsIsolatedWebApp = 17,
   kCancelledDueToMainFrameNavigation = 18,
-  kMaxValue = kCancelledDueToMainFrameNavigation,
+  kShortcutIgnoresManifest = 19,
+  kMaxValue = kShortcutIgnoresManifest,
 };
 
 std::ostream& operator<<(std::ostream& os, ManifestUpdateResult result);
@@ -52,6 +55,7 @@ enum class ManifestUpdateCheckStage {
   kPendingAppLock,
   kDownloadingNewManifestData,
   kLoadingExistingManifestData,
+  kDownloadingChangedIconUrlBitmaps,
   kComparingManifestData,
   kResolvingIdentityChanges,
   kComplete,
@@ -106,7 +110,7 @@ struct ManifestDataChanges {
 
   bool app_name_changed = false;
 
-  absl::optional<AppIconIdentityChange> app_icon_identity_change;
+  std::optional<AppIconIdentityChange> app_icon_identity_change;
 
   // `any_app_icon_changed` represents whether any app icon has changed
   // including identity and non-identity affecting app icons because reverting
@@ -115,8 +119,8 @@ struct ManifestDataChanges {
 
   bool other_fields_changed = false;
 
-  absl::optional<IdentityUpdateDecision> app_name_identity_update_decision;
-  absl::optional<IdentityUpdateDecision> app_icon_identity_update_decision;
+  std::optional<IdentityUpdateDecision> app_name_identity_update_decision;
+  std::optional<IdentityUpdateDecision> app_icon_identity_update_decision;
 
   bool HasIdentityChanges() const {
     return app_name_changed || app_icon_identity_change;
@@ -142,7 +146,7 @@ ManifestDataChanges GetManifestDataChanges(
     const ShortcutsMenuIconBitmaps* existing_shortcuts_menu_icon_bitmaps,
     const WebAppInstallInfo& new_install_info);
 
-absl::optional<AppIconIdentityChange> CompareIdentityIconBitmaps(
+std::optional<AppIconIdentityChange> CompareIdentityIconBitmaps(
     const IconBitmaps& existing_app_icon_bitmaps,
     const IconBitmaps& new_app_icon_bitmaps);
 

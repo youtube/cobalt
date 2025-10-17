@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/webui/commerce/shopping_list_context_menu_controller.h"
+
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/task_environment.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/ui/webui/commerce/shopping_list_context_menu_controller.h"
+#include "chrome/browser/ui/webui/commerce/price_tracking_handler.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
@@ -16,32 +18,31 @@
 #include "components/commerce/core/mock_shopping_service.h"
 #include "components/commerce/core/price_tracking_utils.h"
 #include "components/commerce/core/test_utils.h"
-#include "components/commerce/core/webui/shopping_list_handler.h"
 #include "components/power_bookmarks/core/power_bookmark_utils.h"
 #include "components/power_bookmarks/core/proto/power_bookmark_meta.pb.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace commerce {
 namespace {
 
-class MockShoppingListHandler : public ShoppingListHandler {
+class MockPriceTrackingHandler : public PriceTrackingHandler {
  public:
-  explicit MockShoppingListHandler(ShoppingService* shopping_service)
-      : ShoppingListHandler(
-            mojo::PendingRemote<shopping_list::mojom::Page>(),
-            mojo::PendingReceiver<shopping_list::mojom::ShoppingListHandler>(),
-            nullptr,
-            shopping_service,
-            nullptr,
-            nullptr,
-            "") {}
+  explicit MockPriceTrackingHandler(bookmarks::BookmarkModel* bookmark_model,
+                                    ShoppingService* shopping_service)
+      : PriceTrackingHandler(mojo::PendingRemote<price_tracking::mojom::Page>(),
+                             mojo::PendingReceiver<
+                                 price_tracking::mojom::PriceTrackingHandler>(),
+                             nullptr,
+                             shopping_service,
+                             nullptr,
+                             bookmark_model) {}
 
-  MOCK_METHOD1(TrackPriceForBookmark, void(int64_t bookmark_id));
-  MOCK_METHOD1(UntrackPriceForBookmark, void(int64_t bookmark_id));
+  MOCK_METHOD(void, TrackPriceForBookmark, (int64_t bookmark_id));
+  MOCK_METHOD(void, UntrackPriceForBookmark, (int64_t bookmark_id));
 };
 
 class ShoppingListContextMenuControllerTest : public testing::Test {
@@ -58,8 +59,8 @@ class ShoppingListContextMenuControllerTest : public testing::Test {
     bookmark_ = AddProductBookmark(bookmark_model_.get(), u"product 1",
                                    GURL("http://example.com/1"), 123L, true,
                                    1230000, "usd");
-    handler_ =
-        std::make_unique<MockShoppingListHandler>(shopping_service_.get());
+    handler_ = std::make_unique<MockPriceTrackingHandler>(
+        bookmark_model_.get(), shopping_service_.get());
     controller_ = std::make_unique<commerce::ShoppingListContextMenuController>(
         bookmark_model_.get(), shopping_service_.get(), handler_.get());
   }
@@ -79,19 +80,19 @@ class ShoppingListContextMenuControllerTest : public testing::Test {
 
   ui::SimpleMenuModel* menu_mode() { return menu_model_.get(); }
 
-  MockShoppingListHandler* handler() { return handler_.get(); }
+  MockPriceTrackingHandler* handler() { return handler_.get(); }
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
   base::UserActionTester user_action_tester_;
-  raw_ptr<const bookmarks::BookmarkNode> bookmark_;
+  raw_ptr<const bookmarks::BookmarkNode, DanglingUntriaged> bookmark_;
 
  private:
   std::unique_ptr<bookmarks::BookmarkModel> bookmark_model_;
   std::unique_ptr<MockShoppingService> shopping_service_;
-  std::unique_ptr<commerce::ShoppingListContextMenuController> controller_;
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
-  std::unique_ptr<MockShoppingListHandler> handler_;
+  std::unique_ptr<MockPriceTrackingHandler> handler_;
+  std::unique_ptr<commerce::ShoppingListContextMenuController> controller_;
 };
 
 TEST_F(ShoppingListContextMenuControllerTest, AddMenuItem) {

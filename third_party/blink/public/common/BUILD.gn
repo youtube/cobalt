@@ -6,6 +6,7 @@ import("//build/buildflag_header.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/rust.gni")
+import("//skia/features.gni")
 import("//testing/test.gni")
 import("//third_party/blink/public/public_features.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
@@ -16,39 +17,19 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-blink_python_runner("make_generated_origin_trial_feature") {
-  script = "../../renderer/build/scripts/make_origin_trial_feature.py"
-
-  inputs =
-      scripts_for_json5_files + [
-        "../../renderer/build/scripts/make_origin_trial_feature.py",
-        "../../renderer/platform/runtime_enabled_features.json5",
-        "../../renderer/build/scripts/templates/origin_trial_feature.h.tmpl",
-      ]
-  outputs = [ "$root_gen_dir/third_party/blink/public/common/origin_trials/origin_trial_feature.h" ]
-
-  args = [
-    rebase_path("../../renderer/platform/runtime_enabled_features.json5",
-                root_build_dir),
-    "--output_dir",
-    rebase_path("$root_gen_dir/third_party/blink/public/common/origin_trials",
-                root_build_dir),
-  ]
-}
-
 blink_python_runner("make_generated_permissions_policy_helper") {
   script = "../../renderer/build/scripts/make_policy_helper_public.py"
 
   inputs = scripts_for_json5_files + [
              "../../renderer/build/scripts/make_policy_helper_public.py",
-             "../../renderer/core/permissions_policy/permissions_policy_features.json5",
+             "//services/network/public/cpp/permissions_policy/permissions_policy_features.json5",
              "../../renderer/build/scripts/templates/policy_helper_public.cc.tmpl",
            ]
   outputs = [ "$root_gen_dir/third_party/blink/public/common/permissions_policy/policy_helper_public.cc" ]
 
   args = [
     rebase_path(
-        "../../renderer/core/permissions_policy/permissions_policy_features.json5",
+        "//services/network/public/cpp/permissions_policy/permissions_policy_features.json5",
         root_build_dir),
     "--output_dir",
     rebase_path(
@@ -61,9 +42,11 @@ blink_python_runner("make_runtime_feature_state_contexts_headers") {
   script = "../../renderer/build/scripts/make_runtime_feature_state_contexts_headers.py"
 
   inputs = scripts_for_json5_files + [
-             "../../renderer/platform/runtime_enabled_features.json5",
+             "../../renderer/build/scripts/make_runtime_features_utilities.py",
+             "../../renderer/build/scripts/make_runtime_features.py",
              "../../renderer/build/scripts/templates/runtime_feature_state_context.h.tmpl",
              "../../renderer/build/scripts/templates/runtime_feature_state_read_context.h.tmpl",
+             "../../renderer/platform/runtime_enabled_features.json5",
            ]
 
   outputs = [
@@ -103,7 +86,7 @@ buildflag_header("buildflags") {
   header = "buildflags.h"
   flags = [
     "RTC_USE_H264=$rtc_use_h264",
-    "BUILD_RUST_CRASH=$build_rust_crash",
+    "RTC_USE_H265=$rtc_use_h265",
   ]
 }
 
@@ -113,6 +96,11 @@ source_set("common_export") {
     "//third_party/blink/public/common/*",
   ]
   sources = [ "common_export.h" ]
+}
+
+source_set("preloading_headers") {
+  deps = [ ":common_export" ]
+  sources = [ "navigation/preloading_headers.h" ]
 }
 
 source_set("headers") {
@@ -137,13 +125,11 @@ source_set("headers") {
   }
 
   sources = [
-    "action_after_pagehide.h",
     "associated_interfaces/associated_interface_provider.h",
     "associated_interfaces/associated_interface_registry.h",
     "blob/blob_utils.h",
     "bluetooth/web_bluetooth_device_id.h",
     "bluetooth/web_bluetooth_device_id_mojom_traits.h",
-    "browser_interface_broker_proxy.h",
     "cache_storage/cache_storage_utils.h",
     "chrome_debug_urls.h",
     "client_hints/client_hints.h",
@@ -157,6 +143,7 @@ source_set("headers") {
     "css/navigation_controls.h",
     "css/page_orientation.h",
     "css/page_size_type.h",
+    "css/scripting.h",
     "custom_handlers/protocol_handler_utils.h",
     "device_memory/approximated_device_memory.h",
     "dom_storage/session_storage_namespace_id.h",
@@ -166,9 +153,9 @@ source_set("headers") {
     "fenced_frame/redacted_fenced_frame_config_mojom_traits.h",
     "fetch/fetch_api_request_headers_map.h",
     "fetch/fetch_api_request_headers_mojom_traits.h",
+    "fingerprinting_protection/canvas_noise_token.h",
     "forcedark/forcedark_switches.h",
     "frame/delegated_capability_request_token.h",
-    "frame/fenced_frame_permissions_policies.h",
     "frame/fenced_frame_sandbox_flags.h",
     "frame/frame_ad_evidence.h",
     "frame/frame_owner_element_type.h",
@@ -177,7 +164,6 @@ source_set("headers") {
     "frame/frame_visual_properties.h",
     "frame/from_ad_state.h",
     "frame/history_user_activation_state.h",
-    "frame/transient_allow_fullscreen.h",
     "frame/user_activation_state.h",
     "frame/user_activation_update_source.h",
     "frame/view_transition_state.h",
@@ -187,7 +173,6 @@ source_set("headers") {
     "indexeddb/indexeddb_key_path.h",
     "indexeddb/indexeddb_key_range.h",
     "indexeddb/indexeddb_metadata.h",
-    "indexeddb/web_idb_types.h",
     "input/pointer_id.h",
     "input/synthetic_web_input_event_builders.h",
     "input/web_coalesced_input_event.h",
@@ -211,12 +196,17 @@ source_set("headers") {
     "interest_group/ad_display_size_utils.h",
     "interest_group/auction_config.h",
     "interest_group/auction_config_mojom_traits.h",
+    "interest_group/auction_server_request_flags.h",
+    "interest_group/devtools_serialization.h",
     "interest_group/interest_group.h",
     "interest_group/interest_group_mojom_traits.h",
     "interest_group/seller_capabilities.h",
     "link_to_text/link_to_text_mojom_traits.h",
+    "loader/background_resource_fetch_histograms.h",
     "loader/http_body_element_type.h",
     "loader/inter_process_time_ticks_converter.h",
+    "loader/javascript_framework_detection.h",
+    "loader/lcp_critical_path_predictor_util.h",
     "loader/loader_constants.h",
     "loader/loading_behavior_flag.h",
     "loader/mime_sniffing_throttle.h",
@@ -233,10 +223,7 @@ source_set("headers") {
     "manifest/manifest.h",
     "manifest/manifest_icon_selector.h",
     "manifest/manifest_util.h",
-    "media/display_type.h",
-    "media/video_capture.h",
-    "media/watch_time_component.h",
-    "media/watch_time_reporter.h",
+    "mediastream/media_device_id.h",
     "mediastream/media_devices.h",
     "mediastream/media_devices_mojom_traits.h",
     "mediastream/media_stream_controls.h",
@@ -255,8 +242,6 @@ source_set("headers") {
     "messaging/web_message_port.h",
     "metrics/accept_language_and_content_language_usage.h",
     "metrics/document_update_reason.h",
-    "metrics/form_element_pii_type.h",
-    "metrics/post_message_counter.h",
     "mime_util/mime_util.h",
     "navigation/impression.h",
     "navigation/navigation_params.h",
@@ -271,29 +256,32 @@ source_set("headers") {
     "origin_trials/origin_trial_policy.h",
     "origin_trials/origin_trial_public_key.h",
     "origin_trials/origin_trials.h",
+    "origin_trials/origin_trials_settings_provider.h",
     "origin_trials/trial_token.h",
     "origin_trials/trial_token_result.h",
     "origin_trials/trial_token_validator.h",
+    "page/color_provider_color_maps.h",
+    "page/color_provider_color_maps_mojom_traits.h",
     "page/content_to_visible_time_reporter.h",
     "page/drag_mojom_traits.h",
     "page/drag_operation.h",
     "page/launching_process_state.h",
     "page/page_zoom.h",
+    "page/v8_compile_hints_histograms.h",
     "page_state/page_state.h",
     "page_state/page_state_serialization.h",
     "peerconnection/webrtc_ip_handling_policy.h",
+    "peerconnection/webrtc_ip_handling_url_entry.h",
     "performance/largest_contentful_paint_type.h",
     "performance/performance_timeline_constants.h",
     "permissions/permission_utils.h",
     "permissions_policy/document_policy.h",
     "permissions_policy/document_policy_features.h",
-    "permissions_policy/permissions_policy.h",
-    "permissions_policy/permissions_policy_declaration.h",
-    "permissions_policy/permissions_policy_features.h",
     "permissions_policy/policy_helper_public.h",
     "permissions_policy/policy_value.h",
     "renderer_preferences/renderer_preferences.h",
     "responsiveness_metrics/user_interaction_latency.h",
+    "safe_url_pattern.h",
     "scheduler/task_attribution_id.h",
     "scheduler/web_scheduler_tracked_feature.h",
     "scheme_registry.h",
@@ -301,14 +289,15 @@ source_set("headers") {
     "security/protocol_handler_security_level.h",
     "security/security_style.h",
     "security_context/insecure_request_policy.h",
+    "service_worker/extended_service_worker_status_code.h",
     "service_worker/service_worker_loader_helpers.h",
+    "service_worker/service_worker_router_rule.h",
     "service_worker/service_worker_scope_match.h",
     "service_worker/service_worker_status_code.h",
     "service_worker/service_worker_subresource_load_metrics.h",
     "service_worker/service_worker_type_converters.h",
     "service_worker/service_worker_types.h",
     "shared_storage/module_script_downloader.h",
-    "shared_storage/shared_storage_mojom_traits.h",
     "shared_storage/shared_storage_utils.h",
     "sms/webotp_constants.h",
     "sms/webotp_service_outcome.h",
@@ -317,32 +306,35 @@ source_set("headers") {
     "switches.h",
     "thread_safe_browser_interface_broker_proxy.h",
     "unique_name/unique_name_helper.h",
-    "url_pattern.h",
     "use_counter/use_counter_feature.h",
     "use_counter/use_counter_feature_tracker.h",
     "user_agent/user_agent_brand_version_type.h",
     "user_agent/user_agent_metadata.h",
+    "view_source/rendering_preferences.h",
     "web_cache/web_cache_resource_type_stats.h",
     "web_package/signed_exchange_consts.h",
     "web_package/web_package_request_matcher.h",
     "web_preferences/web_preferences.h",
+    "webid/federated_auth_request_mojom_traits.h",
+    "webid/login_status_account.h",
+    "webid/login_status_options.h",
     "widget/constants.h",
     "widget/device_emulation_params.h",
     "widget/visual_properties.h",
   ]
 
-  sources += get_target_outputs(":make_generated_origin_trial_feature")
   sources += get_target_outputs(":make_generated_permissions_policy_helper")
   sources += get_target_outputs(":make_runtime_feature_state_contexts_headers")
 
   public_deps = [
-    ":make_generated_origin_trial_feature",
     ":make_generated_permissions_policy_helper",
     ":make_runtime_feature_state_contexts_headers",
+    ":preloading_headers",
     "//base",
     "//mojo/public/cpp/bindings",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/network/public/cpp:cpp",
+    "//services/network/public/mojom:mojom_permissions_policy",
     "//skia",
     "//skia/public/mojom:shared_typemap_traits",
     "//third_party/blink/public:runtime_features_for_public",
@@ -351,7 +343,9 @@ source_set("headers") {
     "//third_party/blink/public/mojom:mojom_modules_headers",
     "//third_party/blink/public/mojom:mojom_platform_shared",
     "//third_party/blink/public/mojom:web_bluetooth_mojo_bindings_headers",
+    "//third_party/blink/public/mojom/origin_trials:origin_trial_feature",
     "//third_party/liburlpattern",
+    "//ui/base/mojom:ui_base_types",
     "//ui/display/mojom",
     "//ui/events:event_constants",
     "//ui/events/types:headers",
@@ -363,6 +357,7 @@ source_set("headers") {
     ":common_export",
     "//base",
     "//cc",
+    "//components/content_settings/core/common",
     "//components/shared_highlighting/core/common",
     "//components/viz/common",
     "//gpu/command_buffer/common",

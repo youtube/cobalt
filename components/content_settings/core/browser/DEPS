@@ -1,5 +1,6 @@
 include_rules = [
   "+components/content_settings/core/common",
+  "+components/tpcd/metadata",
   "+components/content_settings/core/test",
   "+components/keyed_service/core",
   "+components/pref_registry",
@@ -11,8 +12,11 @@ include_rules = [
   "+net/base",
   "+net/cookies",
   "+ppapi/buildflags",
+  "+services/network/public/cpp/permissions_policy",
   "+services/preferences/public",
   "+services/tracing/public",
-  "+third_party/blink/public/common/features_generated.h",
   "+third_party/perfetto/protos/perfetto/trace/track_event",
+
+  # TODO(crbug.com/382291442): Remove once launched.
+  "+services/network/public/cpp/features.h",
 ]

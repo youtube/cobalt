@@ -16,8 +16,8 @@ const char kGetUnmaskDetailsRequestPath[] =
 }  // namespace
 
 GetUnmaskDetailsRequest::GetUnmaskDetailsRequest(
-    base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                            PaymentsClient::UnmaskDetails&)> callback,
+    base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                            UnmaskDetails&)> callback,
     const std::string& app_locale,
     const bool full_sync_enabled)
     : callback_(std::move(callback)),
@@ -38,7 +38,7 @@ std::string GetUnmaskDetailsRequest::GetRequestContent() {
   base::Value::Dict request_dict;
   base::Value::Dict context;
   context.Set("language_code", app_locale_);
-  context.Set("billable_service", kUnmaskCardBillableServiceNumber);
+  context.Set("billable_service", kUnmaskPaymentMethodBillableServiceNumber);
   request_dict.Set("context", std::move(context));
 
   base::Value::Dict chrome_user_context;
@@ -47,7 +47,7 @@ std::string GetUnmaskDetailsRequest::GetRequestContent() {
 
   std::string request_content;
   base::JSONWriter::Write(request_dict, &request_content);
-  VLOG(3) << "getdetailsforgetrealpan request body: " << request_content;
+  DVLOG(3) << "getdetailsforgetrealpan request body: " << request_content;
   return request_content;
 }
 
@@ -56,16 +56,17 @@ void GetUnmaskDetailsRequest::ParseResponse(const base::Value::Dict& response) {
   if (method) {
     if (*method == "CVC") {
       unmask_details_.unmask_auth_method =
-          AutofillClient::UnmaskAuthMethod::kCvc;
+          PaymentsAutofillClient::UnmaskAuthMethod::kCvc;
     } else if (*method == "FIDO") {
       unmask_details_.unmask_auth_method =
-          AutofillClient::UnmaskAuthMethod::kFido;
+          PaymentsAutofillClient::UnmaskAuthMethod::kFido;
     }
   }
 
-  const absl::optional<bool> offer_fido_opt_in =
+  const std::optional<bool> server_denotes_fido_eligible_but_not_opted_in =
       response.FindBool("offer_fido_opt_in");
-  unmask_details_.offer_fido_opt_in = offer_fido_opt_in.value_or(false);
+  unmask_details_.server_denotes_fido_eligible_but_not_opted_in =
+      server_denotes_fido_eligible_but_not_opted_in.value_or(false);
 
   const base::Value::Dict* dictionary_value =
       response.FindDict("fido_request_options");
@@ -83,11 +84,11 @@ void GetUnmaskDetailsRequest::ParseResponse(const base::Value::Dict& response) {
 
 bool GetUnmaskDetailsRequest::IsResponseComplete() {
   return unmask_details_.unmask_auth_method !=
-         AutofillClient::UnmaskAuthMethod::kUnknown;
+         PaymentsAutofillClient::UnmaskAuthMethod::kUnknown;
 }
 
 void GetUnmaskDetailsRequest::RespondToDelegate(
-    AutofillClient::PaymentsRpcResult result) {
+    PaymentsAutofillClient::PaymentsRpcResult result) {
   std::move(callback_).Run(result, unmask_details_);
 }
 

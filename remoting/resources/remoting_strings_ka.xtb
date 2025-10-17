@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">აღმოჩენილია ოქმთან შეუთავსებელი ვერსია. დარწმუნდით, რომ თქვენ ორივე კომპიუტერზე აქვთ დაყენებული პროგრამული უზრუნველყოფის უახლესი ვერსია და სცადეთ კიდევ ერთხელ.</translation>
 <translation id="1008557486741366299">ახლა არა</translation>
 <translation id="1201402288615127009">შემდეგი</translation>
-<translation id="1296511125400541222">© 2023, The Chromium Authors. ყველა უფლება დაცულია.</translation>
 <translation id="1297009705180977556">„<ph name="HOSTNAME" />“-თან დაკავშირება ვერ მოხერხდა შეცდომის გამო</translation>
 <translation id="1450760146488584666">მოთხოვნილი ობიექტი არ არსებობს.</translation>
 <translation id="1480046233931937785">შემქმნელები</translation>
@@ -29,7 +28,7 @@
 <translation id="2329392777730037872"><ph name="URL" /> ვერ გაიხსნა ამ კლიენტზე.</translation>
 <translation id="2359808026110333948">გაგრძელება</translation>
 <translation id="2366718077645204424">ვერ დაუკავშირდა ჰოსტს. ამის მიზეზი შეიძლება იყოს იმ ქსელის კონფიგურაცია, რომელსაც იყენებთ.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" /> ბოლოს დაფიქსირდა ონლაინ: <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. ყველა უფლება დაცულია.</translation>
 <translation id="2504109125669302160"><ph name="PRODUCT_NAME" /> საჭიროებს „მარტივი წვდომის“ ნებართვას</translation>
 <translation id="2509394361235492552">დაკავშირებულია „<ph name="HOSTNAME" />“-თან</translation>
 <translation id="2540992418118313681">გსურთ ნახვისა და მართვისათვის, გაუზიაროს ეს კომპიუტერი სხვა მომხმარებელს?</translation>
@@ -41,6 +40,7 @@
 <translation id="2758123043070977469">ავტორიზაციისას პრობლემა წარმოიქმნა. გთხოვთ, ხელახლა ცადოთ შესვლა.</translation>
 <translation id="2803375539583399270">შეიყვანეთ PIN-კოდი</translation>
 <translation id="2919669478609886916">თქვენ ახორციელებთ ამ მანქანის სხვა მომხმარებელთან გაზიარებას. გსურთ თუ არა გაზიარების გაგრძელება?</translation>
+<translation id="2929683002824598593">მოწყობილობის გაზიარება</translation>
 <translation id="2939145106548231838">ჰოსტზე ავთენტიფიკაცია</translation>
 <translation id="3027681561976217984">შეხების რეჟიმი</translation>
 <translation id="3106379468611574572">დისტანციური კომპიუტერი არ რეაგირებს დაკავშირების მოთხოვნებზე. გადაამოწმეთ, რომ იგი ონლაინშია და ხელახლა სცადეთ.</translation>
@@ -54,7 +54,6 @@
 <translation id="3423542133075182604">უსაფრთხოების გასაღების დისტანციური დაკავშირების პროცესი</translation>
 <translation id="3581045510967524389">ვერ დაუკვშირდა ქსელს. შეამოწმეთ, რომ მოწყობილობა ონლაინშია.</translation>
 <translation id="3596628256176442606">ეს სერვისი იძლევა Chromoting-ის კლიენტების შემომავალი კავშირების გააქტიურების შესაძლებლობას.</translation>
-<translation id="369442766917958684">ხაზგარეშე.</translation>
 <translation id="3695446226812920698">შეიტყვეთ როგორ</translation>
 <translation id="3776024066357219166">თქვენი Chrome-ის დისტანციური სამუშაო დაფის სესია დასრულდა.</translation>
 <translation id="3858860766373142691">სახელი</translation>
@@ -89,12 +88,12 @@
 <translation id="4808503597364150972">შეიყვანეთ თქვენი PIN ან <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">საკვანძო კომპიუტერი</translation>
 <translation id="4867841927763172006">გაგზავნა PrtScn</translation>
-<translation id="4960795469833295568">© 2023, Google LLC. ყველა უფლება დაცულია.</translation>
 <translation id="4974476491460646149">„<ph name="HOSTNAME" />“-თან კავშირი გაწყდა</translation>
 <translation id="4985296110227979402">ჯერ თქვენი კომპიუტერი დისტანციური წვდომისთვის უნდა გამართოთ</translation>
 <translation id="4987330545941822761">Chrome-ის დისტანციურმა სამუშაო დაფამ ვერ დაადგინა, რომელი ბრაუზერით გახსნას URL-ები ადგილობრივად. გთხოვთ, აირჩიოთ ქვემოთ მოცემული სიიდან.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (ოფლაინი)</translation>
 <translation id="507204348399810022">ნამდვილად გსურთ, გათიშოთ დისტანციური კავშირები „<ph name="HOSTNAME" />“-თან?</translation>
+<translation id="5095424396646120601">ავარიულად გათიშვის ანგარიშები</translation>
 <translation id="5170982930780719864">არასწორი მასპინძლის ID.</translation>
 <translation id="5204575267916639804">ხშირად დასმული შეკითხვები</translation>
 <translation id="5222676887888702881">გამოსვლა</translation>
@@ -107,7 +106,6 @@
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">თქვენი სამუშაო დაფა ამჟამად გაზიარებულია მომხმარებელთან <ph name="USER" />.</translation>
-<translation id="5750083143895808682">შესული ხართ, როგორც <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">ხელახლა დაკავშირება</translation>
 <translation id="5810269635982033450">ეკრანი მუშაობს ტრეკპედის სახით</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> ითხოვს ნებართვას, რომ ნახოს თქვენი ეკრანი, ასევე, თქვენი კლავიატურა და მაუსი გააკონტროლოს. თუ ეს მოთხოვნა მოულოდნელია, დააჭირეთ „<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />“-ს. სხვა შემთხვევაში არჩიეთ „<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />“ და დაუშვით დაკავშირება, როცა მზად იქნებით.</translation>
@@ -121,10 +119,12 @@
 <translation id="6178645564515549384">მშობლიური შეტყობინებები საკვანძო კომპიუტერი დისტანციური დახმარებებისთვის</translation>
 <translation id="618120821413932081">დისტანციური გარჩევადობის განახლება, რათა ის დაემთხვეს ფანჯარას</translation>
 <translation id="6223301979382383752">ეკრანის ჩაწერის პარამეტრების გახსნა</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> ითხოვს ნებართვას, რომ ნახოს თქვენი ეკრანი, ასევე, თქვენი კლავიატურა და მაუსი გააკონტროლოს. გსურთ თქვენი მოწყობილობის გაზიარება?</translation>
 <translation id="6284412385303060032">მასპინძელი გაშვებულია კონსოლის ლოგიკ ეკრანზე და მხარდაჭერისათვის გააჩნია გამორთვის ფუნქცია, რომელიც რთავს მასპინძელს, მომხმარებლის სპეციპიკურ სესიაზე.</translation>
 <translation id="6542902059648396432">მოხსენება პრობლემის შესახებ…</translation>
 <translation id="6583902294974160967">მხარდაჭერა</translation>
 <translation id="6612717000975622067">გაგზავნა Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{თუ არაფერს მოიმოქმედებთ, თქვენი მოწყობილობა ავტომატურად დაიწყებს გაზიარებას # წამში}other{თუ არაფერს მოიმოქმედებთ, თქვენი მოწყობილობა ავტომატურად დაიწყებს გაზიარებას # წამში}}</translation>
 <translation id="6654753848497929428">გაზიარება</translation>
 <translation id="677755392401385740">საკვანძო კომპიუტერი ჩაირთო მომხმარებლისათვის: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">დამხმარე აპლიკაცია <ph name="PRODUCT_NAME" /> კლიენტიდან URL-ის გასახსნელად</translation>
@@ -138,6 +138,7 @@
 <translation id="7067321367069083429">ეკრანი მუშაობს სენსორული ეკრანის სახით</translation>
 <translation id="7116737094673640201">მოგესალმებათ Chrome-ის დისტანციური სამუშაო დაფა</translation>
 <translation id="7144878232160441200">გაიმეორეთ</translation>
+<translation id="7298392173540380852">Copyright 2025 The Chromium Authors. ყველა უფლება დაცულია.</translation>
 <translation id="7312846573060934304">საკვანძო კომპიუტერი ოფლაინშია.</translation>
 <translation id="7319983568955948908">შეწყვიტეთ გაზიარება</translation>
 <translation id="7359298090707901886">არჩეული ბრაუზერის მეშვეობით ადგილობრივ მოწყობილობაზე URL-ები ვერ გაიხსნება.</translation>

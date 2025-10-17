@@ -9,10 +9,24 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "components/guest_view/browser/guest_view_event.h"
-#include "extensions/browser/api/guest_view/web_view/web_view_internal_api.h"
 #include "extensions/browser/guest_view/web_view/web_view_constants.h"
+#include "extensions/browser/guest_view/web_view/web_view_guest.h"
 
 using guest_view::GuestViewEvent;
+
+namespace {
+
+// Parameters to callback functions.
+const char kFindNumberOfMatches[] = "numberOfMatches";
+const char kFindActiveMatchOrdinal[] = "activeMatchOrdinal";
+const char kFindSelectionRect[] = "selectionRect";
+const char kFindRectLeft[] = "left";
+const char kFindRectTop[] = "top";
+const char kFindRectWidth[] = "width";
+const char kFindRectHeight[] = "height";
+const char kFindCanceled[] = "canceled";
+
+}  // anonymous namespace
 
 namespace extensions {
 
@@ -39,7 +53,7 @@ void WebViewFindHelper::DispatchFindUpdateEvent(bool canceled,
   CHECK(find_update_event_);
   base::Value::Dict args;
   find_update_event_->PrepareResults(args);
-  args.Set(webview::kFindCanceled, canceled);
+  args.Set(kFindCanceled, canceled);
   args.Set(webview::kFindFinalUpdate, final_update);
   CHECK(webview_guest_);
   webview_guest_->DispatchEventToView(std::make_unique<GuestViewEvent>(
@@ -48,7 +62,7 @@ void WebViewFindHelper::DispatchFindUpdateEvent(bool canceled,
 
 void WebViewFindHelper::EndFindSession(int session_request_id, bool canceled) {
   auto session_iterator = find_info_map_.find(session_request_id);
-  DCHECK(session_iterator != find_info_map_.end());
+  CHECK(session_iterator != find_info_map_.end());
   FindInfo* find_info = session_iterator->second.get();
 
   // Call the callback function of the first request of the find session.
@@ -86,11 +100,10 @@ void WebViewFindHelper::EndFindSession(int session_request_id, bool canceled) {
   find_info_map_.erase(session_request_id);
 }
 
-void WebViewFindHelper::Find(
-    content::WebContents* guest_web_contents,
-    const std::u16string& search_text,
-    blink::mojom::FindOptionsPtr options,
-    scoped_refptr<WebViewInternalFindFunction> find_function) {
+void WebViewFindHelper::Find(content::WebContents* guest_web_contents,
+                             const std::u16string& search_text,
+                             blink::mojom::FindOptionsPtr options,
+                             ForwardResponseCallback callback) {
   // Need a new request_id for each new find request.
   ++current_find_request_id_;
 
@@ -109,9 +122,9 @@ void WebViewFindHelper::Find(
   // function can be called when the find results are available.
   std::pair<FindInfoMap::iterator, bool> insert_result =
       find_info_map_.insert(std::make_pair(
-          current_find_request_id_,
-          base::MakeRefCounted<FindInfo>(current_find_request_id_, search_text,
-                                         options.Clone(), find_function)));
+          current_find_request_id_, base::MakeRefCounted<FindInfo>(
+                                        current_find_request_id_, search_text,
+                                        options.Clone(), std::move(callback))));
   // No duplicate insertions.
   CHECK(insert_result.second);
 
@@ -212,14 +225,14 @@ void WebViewFindHelper::FindResults::AggregateResults(
 
 void WebViewFindHelper::FindResults::PrepareResults(
     base::Value::Dict& results) {
-  results.Set(webview::kFindNumberOfMatches, number_of_matches_);
-  results.Set(webview::kFindActiveMatchOrdinal, active_match_ordinal_);
+  results.Set(kFindNumberOfMatches, number_of_matches_);
+  results.Set(kFindActiveMatchOrdinal, active_match_ordinal_);
   base::Value::Dict rect;
-  rect.Set(webview::kFindRectLeft, selection_rect_.x());
-  rect.Set(webview::kFindRectTop, selection_rect_.y());
-  rect.Set(webview::kFindRectWidth, selection_rect_.width());
-  rect.Set(webview::kFindRectHeight, selection_rect_.height());
-  results.Set(webview::kFindSelectionRect, std::move(rect));
+  rect.Set(kFindRectLeft, selection_rect_.x());
+  rect.Set(kFindRectTop, selection_rect_.y());
+  rect.Set(kFindRectWidth, selection_rect_.width());
+  rect.Set(kFindRectHeight, selection_rect_.height());
+  results.Set(kFindSelectionRect, std::move(rect));
 }
 
 WebViewFindHelper::FindUpdateEvent::FindUpdateEvent(
@@ -244,15 +257,14 @@ void WebViewFindHelper::FindUpdateEvent::PrepareResults(
   find_results_.PrepareResults(results);
 }
 
-WebViewFindHelper::FindInfo::FindInfo(
-    int request_id,
-    const std::u16string& search_text,
-    blink::mojom::FindOptionsPtr options,
-    scoped_refptr<WebViewInternalFindFunction> find_function)
+WebViewFindHelper::FindInfo::FindInfo(int request_id,
+                                      const std::u16string& search_text,
+                                      blink::mojom::FindOptionsPtr options,
+                                      ForwardResponseCallback callback)
     : request_id_(request_id),
       search_text_(search_text),
       options_(std::move(options)),
-      find_function_(find_function),
+      callback_(std::move(callback)),
       replied_(false) {}
 
 void WebViewFindHelper::FindInfo::AggregateResults(
@@ -274,10 +286,10 @@ void WebViewFindHelper::FindInfo::SendResponse(bool canceled) {
   // Prepare the find results to pass to the callback function.
   base::Value::Dict results;
   find_results_.PrepareResults(results);
-  results.Set(webview::kFindCanceled, canceled);
+  results.Set(kFindCanceled, canceled);
 
   // Call the callback.
-  find_function_->ForwardResponse(std::move(results));
+  std::move(callback_).Run(std::move(results));
 }
 
 WebViewFindHelper::FindInfo::~FindInfo() = default;

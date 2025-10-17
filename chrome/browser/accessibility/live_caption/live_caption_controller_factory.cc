@@ -5,12 +5,11 @@
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
 
 #include "base/no_destructor.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/live_caption/live_caption_controller.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #endif
 
@@ -56,9 +55,10 @@ bool LiveCaptionControllerFactory::ServiceIsCreatedWithBrowserContext() const {
   return true;
 }
 
-KeyedService* LiveCaptionControllerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+LiveCaptionControllerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new LiveCaptionController(
+  return std::make_unique<LiveCaptionController>(
       Profile::FromBrowserContext(context)->GetPrefs(),
       g_browser_process->local_state(),
       g_browser_process->GetApplicationLocale(), context);

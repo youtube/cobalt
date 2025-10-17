@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/393091624): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ipcz/message.h"
 
 #include <cstdint>
@@ -57,7 +62,7 @@ class MessageTest : public testing::Test {
     // transmissible driver handle.
     EXPECT_CALL(driver(), Serialize(_, kTransportHandle, _, _, _, _, _, _))
         .WillRepeatedly([&](IpczDriverHandle handle, IpczDriverHandle transport,
-                            uint32_t, const void*, void* data,
+                            uint32_t, const void*, volatile void* data,
                             size_t* num_bytes, IpczDriverHandle* handles,
                             size_t* num_handles) {
           const size_t data_capacity = num_bytes ? *num_bytes : 0;
@@ -71,7 +76,8 @@ class MessageTest : public testing::Test {
           if (!data || !handles || data_capacity < 2 || handle_capacity < 1) {
             return IPCZ_RESULT_RESOURCE_EXHAUSTED;
           }
-          static_cast<uint16_t*>(data)[0] = static_cast<uint16_t>(handle >> 16);
+          static_cast<volatile uint16_t*>(data)[0] =
+              static_cast<uint16_t>(handle >> 16);
           handles[0] = handle & 0xffff;
           return IPCZ_RESULT_OK;
         });
@@ -80,7 +86,7 @@ class MessageTest : public testing::Test {
     // and 1 transmissible handle is expected, and these are combined into a
     // single new driver handle value to represent the deserialized object.
     EXPECT_CALL(driver(), Deserialize(_, _, _, _, kTransportHandle, _, _, _))
-        .WillRepeatedly([&](const void* data, size_t num_bytes,
+        .WillRepeatedly([&](const volatile void* data, size_t num_bytes,
                             const IpczDriverHandle* handles, size_t num_handles,
                             IpczDriverHandle transport, uint32_t, const void*,
                             IpczDriverHandle* handle) {
@@ -90,7 +96,8 @@ class MessageTest : public testing::Test {
 
           ABSL_ASSERT(num_bytes == 2);
           ABSL_ASSERT(num_handles == 1);
-          const uint16_t data_value = static_cast<const uint16_t*>(data)[0];
+          const uint16_t data_value =
+              static_cast<const volatile uint16_t*>(data)[0];
           *handle =
               (static_cast<IpczDriverHandle>(data_value) << 16) | handles[0];
           return IPCZ_RESULT_OK;
@@ -120,9 +127,8 @@ class MessageTest : public testing::Test {
 
  private:
   ::testing::StrictMock<test::MockDriver> driver_;
-  const Ref<Node> node_{MakeRefCounted<Node>(Node::Type::kNormal,
-                                             test::kMockDriver,
-                                             IPCZ_INVALID_DRIVER_HANDLE)};
+  const Ref<Node> node_{
+      MakeRefCounted<Node>(Node::Type::kNormal, test::kMockDriver)};
   const Ref<DriverTransport> transport_{MakeRefCounted<DriverTransport>(
       DriverObject(test::kMockDriver, kTransportHandle))};
   std::queue<ReceivedMessage> received_messages_;
@@ -141,11 +147,11 @@ TEST_F(MessageTest, BasicMessage) {
   EXPECT_EQ(0u, in.header().reserved0[4]);
   EXPECT_EQ(SequenceNumber(0), in.header().sequence_number);
   EXPECT_EQ(0u, in.header().size % 8u);
-  EXPECT_EQ(0u, in.params().foo);
-  EXPECT_EQ(0u, in.params().bar);
+  EXPECT_EQ(0u, in.v0()->foo);
+  EXPECT_EQ(0u, in.v0()->bar);
   EXPECT_EQ(0u, in.header().reserved1);
-  in.params().foo = 5;
-  in.params().bar = 7;
+  in.v0()->foo = 5;
+  in.v0()->bar = 7;
 
   EXPECT_EQ(0u, GetReceivedMessageCount());
   transport().Transmit(in);
@@ -154,15 +160,15 @@ TEST_F(MessageTest, BasicMessage) {
   test::msg::BasicTestMessage out;
   ReceivedMessage serialized = TakeNextReceivedMessage();
   EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
-  EXPECT_EQ(5u, out.params().foo);
-  EXPECT_EQ(7u, out.params().bar);
+  EXPECT_EQ(5u, out.v0()->foo);
+  EXPECT_EQ(7u, out.v0()->bar);
 }
 
 TEST_F(MessageTest, DataArray) {
   test::msg::MessageWithDataArray in;
-  in.params().values = in.AllocateArray<uint64_t>(3);
+  in.v0()->values = in.AllocateArray<uint64_t>(3);
 
-  absl::Span<uint64_t> values = in.GetArrayView<uint64_t>(in.params().values);
+  absl::Span<uint64_t> values = in.GetArrayView<uint64_t>(in.v0()->values);
   values[0] = 11;
   values[1] = 13;
   values[2] = 17;
@@ -173,7 +179,7 @@ TEST_F(MessageTest, DataArray) {
   ReceivedMessage serialized = TakeNextReceivedMessage();
   EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
 
-  values = out.GetArrayView<uint64_t>(out.params().values);
+  values = out.GetArrayView<uint64_t>(out.v0()->values);
   ASSERT_EQ(3u, values.size());
   EXPECT_EQ(11u, values[0]);
   EXPECT_EQ(13u, values[1]);
@@ -184,7 +190,7 @@ TEST_F(MessageTest, DriverObject) {
   constexpr IpczDriverHandle kObjectHandle = 0x12345678;
 
   test::msg::MessageWithDriverObject in;
-  in.params().object =
+  in.v0()->object =
       in.AppendDriverObject(DriverObject(test::kMockDriver, kObjectHandle));
 
   transport().Transmit(in);
@@ -193,7 +199,7 @@ TEST_F(MessageTest, DriverObject) {
   ReceivedMessage serialized = TakeNextReceivedMessage();
   EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
 
-  DriverObject object = out.TakeDriverObject(out.params().object);
+  DriverObject object = out.TakeDriverObject(out.v0()->object);
   EXPECT_EQ(kObjectHandle, object.release());
 }
 
@@ -206,7 +212,7 @@ TEST_F(MessageTest, DriverObjectArray) {
   }
 
   test::msg::MessageWithDriverObjectArray in;
-  in.params().objects = in.AppendDriverObjects(in_objects);
+  in.v0()->objects = in.AppendDriverObjects(in_objects);
 
   transport().Transmit(in);
 
@@ -214,7 +220,7 @@ TEST_F(MessageTest, DriverObjectArray) {
   ReceivedMessage serialized = TakeNextReceivedMessage();
   EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
 
-  auto objects = out.GetDriverObjectArrayView(out.params().objects);
+  auto objects = out.GetDriverObjectArrayView(out.v0()->objects);
   EXPECT_EQ(3u, objects.size());
   for (size_t i = 0; i < objects.size(); ++i) {
     EXPECT_EQ(kObjectHandles[i], objects[i].release());
@@ -245,7 +251,7 @@ TEST_F(MessageTest, ShortParamsHeader) {
       transport()));
 }
 
-TEST_F(MessageTest, ShortPrams) {
+TEST_F(MessageTest, ShortParams) {
   test::msg::BasicTestMessage m;
   m.params().header.size = 1;
   EXPECT_FALSE(m.Deserialize({m.data_view(), {}}, transport()));
@@ -259,24 +265,24 @@ TEST_F(MessageTest, ParamsOverflow) {
 
 TEST_F(MessageTest, ArrayOffsetOverflow) {
   test::msg::MessageWithDataArray m;
-  m.params().values = 10000000;
+  m.v0()->values = 10000000;
   EXPECT_FALSE(m.Deserialize({m.data_view(), {}}, transport()));
 }
 
 TEST_F(MessageTest, ArraySizeOverflow) {
   test::msg::MessageWithDataArray m;
-  m.params().values = m.AllocateArray<uint64_t>(10);
+  m.v0()->values = m.AllocateArray<uint64_t>(10);
 
-  auto& header = m.GetValueAt<internal::ArrayHeader>(m.params().values);
+  auto& header = m.GetValueAt<internal::ArrayHeader>(m.v0()->values);
   header.num_bytes = 1000000;
   EXPECT_FALSE(m.Deserialize({m.data_view(), {}}, transport()));
 }
 
 TEST_F(MessageTest, ArrayElementsOverflow) {
   test::msg::MessageWithDataArray m;
-  m.params().values = m.AllocateArray<uint64_t>(10);
+  m.v0()->values = m.AllocateArray<uint64_t>(10);
 
-  auto& header = m.GetValueAt<internal::ArrayHeader>(m.params().values);
+  auto& header = m.GetValueAt<internal::ArrayHeader>(m.v0()->values);
   header.num_elements = 1000000;
   EXPECT_FALSE(m.Deserialize({m.data_view(), {}}, transport()));
 }
@@ -284,7 +290,7 @@ TEST_F(MessageTest, ArrayElementsOverflow) {
 TEST_F(MessageTest, MalformedDriverObject) {
   constexpr IpczDriverHandle kObjectHandle = 0x12345678;
   test::msg::MessageWithDriverObject in;
-  in.params().object =
+  in.v0()->object =
       in.AppendDriverObject(DriverObject(test::kMockDriver, kObjectHandle));
 
   // Force driver object deserialization to fail. This must result in failure of
@@ -310,11 +316,11 @@ TEST_F(MessageTest, DriverObjectClaimedTwice) {
   }
 
   test::msg::MessageWithDriverArrayAndExtraObject in;
-  in.params().objects = in.AppendDriverObjects(in_objects);
+  in.v0()->objects = in.AppendDriverObjects(in_objects);
 
   // Assign the `extra_object` parameter a DriverObject which has already been
   // claimed by the second element of the `objects` parameter.
-  in.params().extra_object = 1;
+  in.v0()->extra_object = 1;
 
   transport().Transmit(in);
 
@@ -338,7 +344,7 @@ TEST_F(MessageTest, UnclaimedDriverObjects) {
   constexpr IpczDriverHandle kObjectHandle2 = 0xabcdef90;
   constexpr IpczDriverHandle kObjectHandle3 = 0x5a5a5a5a;
   test::msg::MessageWithDriverObject in;
-  in.params().object =
+  in.v0()->object =
       in.AppendDriverObject(DriverObject(test::kMockDriver, kObjectHandle1));
 
   // Append two more objects with no references to them in the message.
@@ -358,6 +364,67 @@ TEST_F(MessageTest, UnclaimedDriverObjects) {
   EXPECT_EQ(kObjectHandle1, out.driver_objects()[0].release());
   EXPECT_EQ(kObjectHandle2, out.driver_objects()[1].release());
   EXPECT_EQ(kObjectHandle3, out.driver_objects()[2].release());
+}
+
+TEST_F(MessageTest, AcceptOldVersions) {
+  using Msg = test::msg::MessageWithMultipleVersions;
+  Msg in;
+  in.v0()->a = 2;
+  in.v0()->b = 3;
+  in.v1()->c = 5;
+  in.v1()->d = 7;
+
+  const uint32_t e_offset = in.AllocateArray<uint32_t>(3);
+  const auto e_data = in.GetArrayView<uint32_t>(e_offset);
+  in.v2()->e = e_offset;
+  e_data[0] = 11;
+  e_data[1] = 13;
+  e_data[2] = 17;
+
+  // Serialize and deserialize the full V2 message.
+  {
+    transport().Transmit(in);
+    ReceivedMessage serialized = TakeNextReceivedMessage();
+    Msg out;
+    EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
+    EXPECT_EQ(2u, out.v0()->a);
+    EXPECT_EQ(3u, out.v0()->b);
+    EXPECT_EQ(5u, out.v1()->c);
+    EXPECT_EQ(7u, out.v1()->d);
+    const auto data = out.GetArrayView<uint32_t>(out.v2()->e);
+    EXPECT_EQ(3u, data.size());
+    EXPECT_EQ(11u, data[0]);
+    EXPECT_EQ(13u, data[1]);
+    EXPECT_EQ(17u, data[2]);
+  }
+
+  // Now serialize and deserialize again, forcing the message to look like a
+  // V1 message.
+  {
+    in.params().header.size -= Msg::kVersions[2].size;
+    transport().Transmit(in);
+    ReceivedMessage serialized = TakeNextReceivedMessage();
+    Msg out;
+    EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
+    EXPECT_EQ(2u, out.v0()->a);
+    EXPECT_EQ(3u, out.v0()->b);
+    EXPECT_EQ(5u, out.v1()->c);
+    EXPECT_EQ(7u, out.v1()->d);
+    EXPECT_EQ(nullptr, out.v2());
+  }
+
+  // Finally, do it for V0.
+  {
+    in.params().header.size -= Msg::kVersions[1].size;
+    transport().Transmit(in);
+    ReceivedMessage serialized = TakeNextReceivedMessage();
+    Msg out;
+    EXPECT_TRUE(out.Deserialize(serialized.AsTransportMessage(), transport()));
+    EXPECT_EQ(2u, out.v0()->a);
+    EXPECT_EQ(3u, out.v0()->b);
+    EXPECT_EQ(nullptr, out.v1());
+    EXPECT_EQ(nullptr, out.v2());
+  }
 }
 
 }  // namespace

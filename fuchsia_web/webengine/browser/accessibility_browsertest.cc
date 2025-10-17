@@ -3,16 +3,21 @@
 // found in the LICENSE file.
 
 #include <fuchsia/accessibility/semantics/cpp/fidl.h>
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
 #include <zircon/types.h>
+
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/fuchsia/mem_buffer_util.h"
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/fuchsia/test_component_context_for_process.h"
+#include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
+#include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "fuchsia_web/common/test/frame_for_test.h"
 #include "fuchsia_web/common/test/frame_test_util.h"
 #include "fuchsia_web/common/test/test_navigation_listener.h"
@@ -92,6 +97,11 @@ class FuchsiaFrameAccessibilityTest : public WebEngineBrowserTest {
   }
 
   void SetUpOnMainThread() override {
+    // Enable platform activation since that is what is begin tested here.
+    content::BrowserAccessibilityState::GetInstance()
+        ->SetActivationFromPlatformEnabled(
+            /*enabled=*/true);
+
     test_context_.emplace(
         base::TestComponentContextForProcess::InitialState::kCloneAll);
     WebEngineBrowserTest::SetUpOnMainThread();
@@ -119,14 +129,15 @@ class FuchsiaFrameAccessibilityTest : public WebEngineBrowserTest {
 
     // Change the accessibility mode on the Fuchsia side and check that it is
     // propagated correctly.
-    ASSERT_FALSE(frame_impl_->web_contents_for_test()
-                     ->IsFullAccessibilityModeForTesting());
+    ASSERT_TRUE(frame_impl_->web_contents_for_test()
+                    ->GetAccessibilityMode()
+                    .is_mode_off());
 
     semantics_manager_.SetSemanticsModeEnabled(true);
     base::RunLoop().RunUntilIdle();
 
-    ASSERT_TRUE(frame_impl_->web_contents_for_test()
-                    ->IsFullAccessibilityModeForTesting());
+    ASSERT_EQ(frame_impl_->web_contents_for_test()->GetAccessibilityMode(),
+              ui::kAXModeComplete | ui::AXMode::kScreenReader);
   }
 
   void TearDownOnMainThread() override {
@@ -134,7 +145,7 @@ class FuchsiaFrameAccessibilityTest : public WebEngineBrowserTest {
     WebEngineBrowserTest::TearDownOnMainThread();
   }
 
-  void LoadPage(base::StringPiece url, base::StringPiece page_title) {
+  void LoadPage(std::string_view url, std::string_view page_title) {
     GURL page_url(embedded_test_server()->GetURL(std::string(url)));
     ASSERT_TRUE(LoadUrlAndExpectResponse(frame_.GetNavigationController(),
                                          fuchsia::web::LoadUrlParams(),
@@ -144,16 +155,16 @@ class FuchsiaFrameAccessibilityTest : public WebEngineBrowserTest {
   }
 
  protected:
-  // TODO(crbug.com/1038786): Maybe move to WebEngineBrowserTest.
-  absl::optional<base::TestComponentContextForProcess> test_context_;
+  // TODO(crbug.com/42050058): Maybe move to WebEngineBrowserTest.
+  std::optional<base::TestComponentContextForProcess> test_context_;
 
   FrameForTest frame_;
-  FrameImpl* frame_impl_;
+  raw_ptr<FrameImpl> frame_impl_;
   FakeSemanticsManager semantics_manager_;
 
   // Binding to the fake semantics manager.
   // Optional so that it can be instantiated outside the constructor.
-  absl::optional<base::ScopedServiceBinding<
+  std::optional<base::ScopedServiceBinding<
       fuchsia::accessibility::semantics::SemanticsManager>>
       semantics_manager_binding_;
 };
@@ -298,7 +309,7 @@ IN_PROC_BROWSER_TEST_F(FuchsiaFrameAccessibilityTest,
 }
 
 // This test times out frequently, presumably due to a race condition.
-// TODO(crbug.com/1421236): Re-enable this test when it is no longer flaky.
+// TODO(crbug.com/40896150): Re-enable this test when it is no longer flaky.
 IN_PROC_BROWSER_TEST_F(FuchsiaFrameAccessibilityTest, DISABLED_Disconnect) {
   base::RunLoop run_loop;
   frame_.ptr().set_error_handler([&run_loop](zx_status_t status) {
@@ -401,16 +412,17 @@ IN_PROC_BROWSER_TEST_F(FuchsiaFrameAccessibilityTest, TogglesSemanticsUpdates) {
   semantics_manager_.SetSemanticsModeEnabled(false);
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_FALSE(frame_impl_->web_contents_for_test()
-                   ->IsFullAccessibilityModeForTesting());
+  EXPECT_TRUE(frame_impl_->web_contents_for_test()
+                  ->GetAccessibilityMode()
+                  .is_mode_off());
 
   // The tree gets cleared when semantic updates are off.
   EXPECT_EQ(semantics_manager_.semantic_tree()->tree_size(), 0u);
   semantics_manager_.SetSemanticsModeEnabled(true);
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_TRUE(frame_impl_->web_contents_for_test()
-                  ->IsFullAccessibilityModeForTesting());
+  EXPECT_EQ(frame_impl_->web_contents_for_test()->GetAccessibilityMode(),
+            ui::kAXModeComplete | ui::AXMode::kScreenReader);
 }
 
 // This test performs several tree modifications (insertions, changes, and

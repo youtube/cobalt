@@ -4,16 +4,18 @@
 
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_almanac_connector.h"
 
+#include <optional>
+
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/apps/app_service/package_id.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_wrapper.h"
 #include "chrome/browser/apps/app_service/promise_apps/proto/promise_app.pb.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
+#include "components/services/app_service/public/cpp/package_id.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/http/http_request_headers.h"
@@ -23,11 +25,10 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace apps {
 
-const PackageId kTestPackageId(AppType::kArc, "test.package.name");
+const PackageId kTestPackageId(PackageType::kArc, "test.package.name");
 
 class PromiseAppAlmanacConnectorTest : public testing::Test {
  public:
@@ -38,49 +39,43 @@ class PromiseAppAlmanacConnectorTest : public testing::Test {
     testing::Test::SetUp();
     TestingProfile::Builder profile_builder;
     profile_builder.SetSharedURLLoaderFactory(
-        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-            url_loader_factory_.get()));
+        url_loader_factory_->GetSafeWeakWrapper());
     profile_ = profile_builder.Build();
-    test_shared_loader_factory_ =
-        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-            url_loader_factory_.get());
     connector_ = std::make_unique<PromiseAppAlmanacConnector>(profile_.get());
+    connector_->SetSkipApiKeyCheckForTesting(true);
   }
 
   network::TestURLLoaderFactory* url_loader_factory() {
     return url_loader_factory_.get();
   }
 
-  Profile* profile() { return profile_.get(); }
-
  private:
-  std::unique_ptr<network::TestURLLoaderFactory> url_loader_factory_;
-  scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
-  std::unique_ptr<PromiseAppAlmanacConnector> connector_;
   content::BrowserTaskEnvironment task_environment_;
-  ash::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
   std::unique_ptr<Profile> profile_;
+  std::unique_ptr<network::TestURLLoaderFactory> url_loader_factory_;
+  std::unique_ptr<PromiseAppAlmanacConnector> connector_;
+  ash::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
 };
 
 TEST_F(PromiseAppAlmanacConnectorTest, GetPromiseAppInfoRequest) {
   std::string method;
-  std::string method_override_header;
-  std::string content_type;
+  std::optional<std::string> method_override_header;
+  std::optional<std::string> content_type;
   std::string body;
 
   url_loader_factory()->SetInterceptor(
       base::BindLambdaForTesting([&](const network::ResourceRequest& request) {
-        request.headers.GetHeader(net::HttpRequestHeaders::kContentType,
-                                  &content_type);
-        request.headers.GetHeader("X-HTTP-Method-Override",
-                                  &method_override_header);
+        content_type =
+            request.headers.GetHeader(net::HttpRequestHeaders::kContentType);
+        method_override_header =
+            request.headers.GetHeader("X-HTTP-Method-Override");
         method = request.method;
         body = network::GetUploadData(request);
       }));
   url_loader_factory()->AddResponse(
       PromiseAppAlmanacConnector::GetServerUrl().spec(), /*content=*/"");
 
-  base::test::TestFuture<absl::optional<PromiseAppWrapper>> test_callback;
+  base::test::TestFuture<std::optional<PromiseAppWrapper>> test_callback;
   connector()->GetPromiseAppInfo(kTestPackageId, test_callback.GetCallback());
   EXPECT_TRUE(test_callback.Wait());
 
@@ -101,7 +96,7 @@ TEST_F(PromiseAppAlmanacConnectorTest, GetPromiseAppInfoSuccessResponse) {
       PromiseAppAlmanacConnector::GetServerUrl().spec(),
       response.SerializeAsString());
 
-  base::test::TestFuture<absl::optional<PromiseAppWrapper>> test_callback;
+  base::test::TestFuture<std::optional<PromiseAppWrapper>> test_callback;
   connector()->GetPromiseAppInfo(kTestPackageId, test_callback.GetCallback());
   auto promise_app_info = test_callback.Get();
 
@@ -113,7 +108,7 @@ TEST_F(PromiseAppAlmanacConnectorTest, GetPromiseAppInfoErrorResponse) {
       PromiseAppAlmanacConnector::GetServerUrl().spec(), /*content=*/"",
       net::HTTP_INTERNAL_SERVER_ERROR);
 
-  base::test::TestFuture<absl::optional<PromiseAppWrapper>> test_callback;
+  base::test::TestFuture<std::optional<PromiseAppWrapper>> test_callback;
   connector()->GetPromiseAppInfo(kTestPackageId, test_callback.GetCallback());
   auto promise_app_info = test_callback.Get();
 

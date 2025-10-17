@@ -35,6 +35,13 @@ struct ClipboardFiles {
   string? file_system_id;
 };
 
+// Interface for listening to clipboard data changes.
+// Implemented by clients that want to be notified when the clipboard contents change.
+interface ClipboardListener {
+  // Called when the clipboard data has changed.
+  OnClipboardDataChanged();
+};
+
 // Implemented by the browser to allow the renderer to use the system clipboard.
 // Individual operations are atomic, but successive operations are not.
 // Therefore, it's possible that one may see text available from
@@ -120,7 +127,7 @@ interface ClipboardHost {
   ReadFiles(ClipboardBuffer buffer) => (ClipboardFiles result);
 
   [Sync]
-  ReadCustomData(ClipboardBuffer buffer, mojo_base.mojom.String16 type) =>
+  ReadDataTransferCustomData(ClipboardBuffer buffer, mojo_base.mojom.String16 type) =>
       (mojo_base.mojom.BigString16 result);
 
   // Reads both unsanitized custom formats & standard
@@ -153,8 +160,8 @@ interface ClipboardHost {
 
   WriteSmartPasteMarker();
 
-  // Chrome-specific pickled data.
-  WriteCustomData(map<mojo_base.mojom.String16, mojo_base.mojom.BigString16> data);
+  // Chromium-specific DataTransfer custom data.
+  WriteDataTransferCustomData(map<mojo_base.mojom.String16, mojo_base.mojom.BigString16> data);
 
   // TODO(dcheng): The |url| parameter should really be a GURL, but <canvas>'s
   // copy as image tries to set very long data: URLs on the clipboard. Using
@@ -177,4 +184,8 @@ interface ClipboardHost {
 
   [EnableIf=is_mac]
   WriteStringToFindPboard(mojo_base.mojom.String16 text);
+
+  // Registers a clipboard listener to be notified when the clipboard contents change.
+  // Previously registered listener would be disconnected upon registering a new one.
+  RegisterClipboardListener(pending_remote<ClipboardListener> listener);
 };

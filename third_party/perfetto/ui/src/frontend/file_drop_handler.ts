@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {Actions} from '../common/actions';
-import {globals} from './globals';
+import {AppImpl} from '../core/app_impl';
 
-let lastDragTarget: EventTarget|null = null;
+let lastDragTarget: EventTarget | null = null;
 
 export function installFileDropHandler() {
   window.ondragenter = (evt: DragEvent) => {
@@ -41,8 +40,9 @@ export function installFileDropHandler() {
     document.body.classList.remove('filedrag');
     if (evt.dataTransfer && dragEventHasFiles(evt)) {
       const file = evt.dataTransfer.files[0];
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       if (file) {
-        globals.dispatch(Actions.openTraceFromFile({file}));
+        AppImpl.instance.openTraceFromFile(file);
       }
     }
     evt.preventDefault();
@@ -55,6 +55,7 @@ export function installFileDropHandler() {
 }
 
 function dragEventHasFiles(event: DragEvent): boolean {
+  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
   if (event.dataTransfer && event.dataTransfer.types) {
     for (const type of event.dataTransfer.types) {
       if (type === 'Files') return true;

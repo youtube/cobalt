@@ -5,34 +5,21 @@
 #include "chrome/browser/ash/crostini/crostini_file_selector.h"
 
 #include "base/path_service.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/grit/generated_resources.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
-
-namespace {
-ui::SelectFileDialog::FileTypeInfo GetFileTypeInfo() {
-  ui::SelectFileDialog::FileTypeInfo file_type_info;
-  file_type_info.extensions.resize(4);
-
-  // Allowed file types include:
-  // * Ansible playbooks (yaml)
-  // * Crostini backup files (tini, tar.gz, tgz)
-  file_type_info.extensions = {{"yaml", "tini", "tar.gz", "tgz"}};
-
-  return file_type_info;
-}
-}  // namespace
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace crostini {
 CrostiniFileSelector::CrostiniFileSelector(content::WebUI* web_ui)
     : web_ui_(web_ui) {}
 
 CrostiniFileSelector::~CrostiniFileSelector() {
-  if (select_file_dialog_.get())
+  if (select_file_dialog_.get()) {
     select_file_dialog_->ListenerDestroyed();
+  }
 }
 
 void CrostiniFileSelector::SelectFile(
@@ -54,31 +41,30 @@ void CrostiniFileSelector::SelectFile(
     return;
   }
 
-  ui::SelectFileDialog::FileTypeInfo file_type_info(GetFileTypeInfo());
+  ui::SelectFileDialog::FileTypeInfo file_type_info{
+      // Allowed file types include:
+      // * Ansible playbooks (yaml)
+      // * Crostini backup files (tini, tar.gz, tgz)
+      {FILE_PATH_LITERAL("yaml"), FILE_PATH_LITERAL("tini"),
+       FILE_PATH_LITERAL("tar.gz"), FILE_PATH_LITERAL("tgz")},
+  };
   select_file_dialog_->SelectFile(
       ui::SelectFileDialog::SELECT_OPEN_FILE,
       l10n_util::GetStringUTF16(
           IDS_SETTINGS_CROSTINI_FILE_SELECTOR_DIALOG_TITLE),
       downloads_path, &file_type_info, 0, FILE_PATH_LITERAL(""),
-      GetBrowserWindow(), nullptr);
+      web_ui_->GetWebContents()->GetTopLevelNativeWindow());
 }
 
-gfx::NativeWindow CrostiniFileSelector::GetBrowserWindow() {
-  Browser* browser =
-      chrome::FindBrowserWithWebContents(web_ui_->GetWebContents());
-  return browser ? browser->window()->GetNativeWindow()
-                 : gfx::kNullNativeWindow;
+void CrostiniFileSelector::FileSelected(const ui::SelectedFileInfo& file,
+                                        int index) {
+  std::move(selected_callback_).Run(file.path());
 }
 
-void CrostiniFileSelector::FileSelected(const base::FilePath& path,
-                                        int index,
-                                        void* params) {
-  std::move(selected_callback_).Run(path);
-}
-
-void CrostiniFileSelector::FileSelectionCanceled(void* params) {
-  if (cancelled_callback_)
+void CrostiniFileSelector::FileSelectionCanceled() {
+  if (cancelled_callback_) {
     std::move(cancelled_callback_).Run();
+  }
 }
 
 }  // namespace crostini

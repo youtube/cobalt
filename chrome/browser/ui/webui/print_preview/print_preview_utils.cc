@@ -4,21 +4,17 @@
 
 #include "chrome/browser/ui/webui/print_preview/print_preview_utils.h"
 
-#include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
+#include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/strings/string_piece.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/printing/print_preview_dialog_controller.h"
 #include "chrome/browser/printing/print_view_manager.h"
 #include "chrome/browser/ui/webui/print_preview/printer_handler.h"
@@ -45,6 +41,8 @@ const char kTypeKey[] = "type";
 const char kDpiCapabilityKey[] = "dpi";
 const char kHorizontalDpi[] = "horizontal_dpi";
 const char kVerticalDpi[] = "vertical_dpi";
+const char kMediaSizeKey[] = "media_size";
+const char kIsContinuousFeed[] = "is_continuous_feed";
 
 // The dictionary key for the CDD item containing custom vendor capabilities.
 const char kVendorCapabilityKey[] = "vendor_capability";
@@ -61,15 +59,16 @@ base::Value::List PrintersToValues(const PrinterList& printer_list) {
     printer_info.Set(kSettingPrinterDescription, printer.printer_description);
 
     base::Value::Dict options;
-    for (const auto& opt_it : printer.options)
+    for (const auto& opt_it : printer.options) {
       options.SetByDottedPath(opt_it.first, opt_it.second);
+    }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     printer_info.Set(
         kCUPSEnterprisePrinter,
         base::Contains(printer.options, kCUPSEnterprisePrinter) &&
             printer.options.at(kCUPSEnterprisePrinter) == kValueTrue);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
     printer_info.Set(kSettingPrinterOptions, std::move(options));
 
@@ -94,30 +93,37 @@ bool ValueIsNull(const base::Value& val) {
 }
 
 bool DpiCapabilityInvalid(const base::Value& val) {
-  if (!val.is_dict())
+  if (!val.is_dict()) {
     return true;
+  }
   const auto& dict = val.GetDict();
-  absl::optional<int> horizontal_dpi = dict.FindInt(kHorizontalDpi);
-  if (horizontal_dpi.value_or(0) <= 0)
+  std::optional<int> horizontal_dpi = dict.FindInt(kHorizontalDpi);
+  if (horizontal_dpi.value_or(0) <= 0) {
     return true;
-  absl::optional<int> vertical_dpi = dict.FindInt(kVerticalDpi);
-  if (vertical_dpi.value_or(0) <= 0)
+  }
+  std::optional<int> vertical_dpi = dict.FindInt(kVerticalDpi);
+  if (vertical_dpi.value_or(0) <= 0) {
     return true;
+  }
   return false;
 }
 
 bool VendorCapabilityInvalid(const base::Value& val) {
-  if (!val.is_dict())
+  if (!val.is_dict()) {
     return true;
+  }
   const auto& dict = val.GetDict();
   const std::string* option_type = dict.FindString(kTypeKey);
-  if (!option_type)
+  if (!option_type) {
     return true;
-  if (*option_type != kSelectString)
+  }
+  if (*option_type != kSelectString) {
     return false;
+  }
   const base::Value::Dict* select_cap = dict.FindDict(kSelectCapKey);
-  if (!select_cap)
+  if (!select_cap) {
     return true;
+  }
   const base::Value::List* options_list = select_cap->FindList(kOptionKey);
   if (!options_list || options_list->empty() ||
       GetFilteredList(*options_list, ValueIsNull).empty()) {
@@ -134,18 +140,21 @@ void SystemDialogDone(const base::Value& error) {
 
 base::Value::Dict ValidateCddForPrintPreview(base::Value::Dict cdd) {
   base::Value::Dict* caps = cdd.FindDict(kPrinter);
-  if (!caps)
+  if (!caps) {
     return cdd;
+  }
 
   base::Value::Dict out_caps;
   for (auto capability : *caps) {
     const auto& key = capability.first;
     base::Value& value = capability.second;
     base::Value::List* list_value = nullptr;
-    if (value.is_list())
+    if (value.is_list()) {
       list_value = &value.GetList();
-    if (value.is_dict())
+    }
+    if (value.is_dict()) {
       list_value = value.GetDict().FindList(kOptionKey);
+    }
 
     if (!list_value) {
       out_caps.Set(key, std::move(value));
@@ -161,35 +170,40 @@ base::Value::Dict ValidateCddForPrintPreview(base::Value::Dict cdd) {
     } else {
       list_value->EraseIf(ValueIsNull);
     }
-    if (list_value->empty())  // leave out empty lists.
+    if (list_value->empty()) {  // leave out empty lists.
       continue;
+    }
 
     if (is_vendor_capability) {
       // Need to also filter the individual capability lists.
       for (auto& vendor_option : *list_value) {
-        if (!vendor_option.is_dict())
+        if (!vendor_option.is_dict()) {
           continue;
+        }
 
         auto& vendor_dict = vendor_option.GetDict();
         const std::string* type = vendor_dict.FindString(kTypeKey);
-        if (!type || *type != kSelectString)
+        if (!type || *type != kSelectString) {
           continue;
+        }
 
         auto* select_cap_dict = vendor_dict.FindDict(kSelectCapKey);
         if (select_cap_dict) {
           auto* option_list = select_cap_dict->FindList(kOptionKey);
-          if (option_list)
+          if (option_list) {
             option_list->EraseIf(ValueIsNull);
+          }
         }
       }
     }
     if (value.is_dict()) {
       base::Value::Dict option_dict;
       option_dict.Set(kOptionKey, std::move(*list_value));
-      absl::optional<bool> reset_to_default =
+      std::optional<bool> reset_to_default =
           value.GetDict().FindBool(kResetToDefaultKey);
-      if (reset_to_default.has_value())
+      if (reset_to_default.has_value()) {
         option_dict.Set(kResetToDefaultKey, reset_to_default.value());
+      }
       out_caps.Set(key, std::move(option_dict));
     } else {
       out_caps.Set(key, std::move(*list_value));
@@ -201,8 +215,9 @@ base::Value::Dict ValidateCddForPrintPreview(base::Value::Dict cdd) {
 
 base::Value::Dict UpdateCddWithDpiIfMissing(base::Value::Dict cdd) {
   base::Value::Dict* printer = cdd.FindDict(kPrinter);
-  if (!printer)
+  if (!printer) {
     return cdd;
+  }
 
   if (!printer->FindDict(kDpiCapabilityKey)) {
     base::Value::Dict default_dpi;
@@ -217,6 +232,37 @@ base::Value::Dict UpdateCddWithDpiIfMissing(base::Value::Dict cdd) {
   return cdd;
 }
 
+const base::Value::List* GetMediaSizeOptionsFromCdd(
+    const base::Value::Dict& cdd) {
+  const base::Value::Dict* printer = cdd.FindDict(kPrinter);
+  if (!printer) {
+    return nullptr;
+  }
+  const base::Value::Dict* media_size = printer->FindDict(kMediaSizeKey);
+  if (!media_size) {
+    return nullptr;
+  }
+  return media_size->FindList(kOptionKey);
+}
+
+void FilterContinuousFeedMediaSizes(base::Value::Dict& cdd) {
+  // OK to const_cast here since `cdd` started off non-const.
+  base::Value::List* options =
+      const_cast<base::Value::List*>(GetMediaSizeOptionsFromCdd(cdd));
+  if (!options) {
+    return;
+  }
+
+  options->EraseIf([](const base::Value& item) {
+    const base::Value::Dict* item_dict = item.GetIfDict();
+    if (!item_dict) {
+      return false;
+    }
+    std::optional<bool> is_continuous = item_dict->FindBool(kIsContinuousFeed);
+    return is_continuous.value_or(false);
+  });
+}
+
 void ConvertPrinterListForCallback(
     PrinterHandler::AddedPrintersCallback callback,
     PrinterHandler::GetPrintersDoneCallback done_callback,
@@ -225,8 +271,9 @@ void ConvertPrinterListForCallback(
 
   VLOG(1) << "Enumerate printers finished, found " << printers.size()
           << " printers";
-  if (!printers.empty())
+  if (!printers.empty()) {
     callback.Run(std::move(printers));
+  }
   std::move(done_callback).Run();
 }
 
@@ -235,11 +282,10 @@ void StartLocalPrint(base::Value::Dict job_settings,
                      content::WebContents* preview_web_contents,
                      PrinterHandler::PrintCallback callback) {
   // Get print view manager.
-  PrintPreviewDialogController* dialog_controller =
-      PrintPreviewDialogController::GetInstance();
+  auto* dialog_controller = PrintPreviewDialogController::GetInstance();
+  CHECK(dialog_controller);
   content::WebContents* initiator =
-      dialog_controller ? dialog_controller->GetInitiator(preview_web_contents)
-                        : nullptr;
+      dialog_controller->GetInitiator(preview_web_contents);
   PrintViewManager* print_view_manager =
       initiator ? PrintViewManager::FromWebContents(initiator) : nullptr;
   if (!print_view_manager) {
@@ -257,32 +303,6 @@ void StartLocalPrint(base::Value::Dict job_settings,
   print_view_manager->PrintForPrintPreview(
       std::move(job_settings), std::move(print_data),
       preview_web_contents->GetPrimaryMainFrame(), std::move(callback));
-}
-
-bool ParseSettings(const base::Value::Dict& settings,
-                   std::string* out_destination_id,
-                   std::string* out_capabilities,
-                   gfx::Size* out_page_size,
-                   base::Value::Dict* out_ticket) {
-  const std::string* ticket_opt = settings.FindString(kSettingTicket);
-  const std::string* capabilities_opt =
-      settings.FindString(kSettingCapabilities);
-  out_page_size->SetSize(settings.FindInt(kSettingPageWidth).value_or(0),
-                         settings.FindInt(kSettingPageHeight).value_or(0));
-  if (!ticket_opt || !capabilities_opt || out_page_size->IsEmpty()) {
-    NOTREACHED();
-    return false;
-  }
-  absl::optional<base::Value> ticket_value =
-      base::JSONReader::Read(*ticket_opt);
-  if (!ticket_value || !ticket_value->is_dict()) {
-    return false;
-  }
-
-  *out_destination_id = *settings.FindString(kSettingDeviceName);
-  *out_capabilities = *capabilities_opt;
-  *out_ticket = std::move(*ticket_value).TakeDict();
-  return true;
 }
 
 }  // namespace printing

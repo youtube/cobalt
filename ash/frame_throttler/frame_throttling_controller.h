@@ -30,6 +30,16 @@ class HostFrameSinkManager;
 
 namespace ash {
 
+class ASH_EXPORT ThottleControllerWindowDelegate {
+ public:
+  virtual ~ThottleControllerWindowDelegate() = default;
+  virtual viz::FrameSinkId GetFrameSinkIdForWindow(
+      const aura::Window* window) const = 0;
+};
+
+ASH_EXPORT void SetThottleControllerWindowDelegate(
+    std::unique_ptr<ThottleControllerWindowDelegate> delegate);
+
 constexpr uint8_t kDefaultThrottleFps = 20;
 
 struct ThrottleCandidates {
@@ -43,9 +53,6 @@ struct ThrottleCandidates {
 
   // The frame sink ids of the browser windows to be throttled this frame.
   base::flat_set<viz::FrameSinkId> browser_frame_sink_ids;
-
-  // The lacros windows that are to be throttled this frame.
-  base::flat_map<aura::Window*, viz::FrameSinkId> lacros_candidates;
 };
 
 class ASH_EXPORT FrameThrottlingController final
@@ -93,7 +100,7 @@ class ASH_EXPORT FrameThrottlingController final
   // If the |requested_frame_interval| is zero, the default throttled frame rate
   // is used internally.
   void StartThrottling(
-      const std::vector<aura::Window*>& windows,
+      const std::vector<raw_ptr<aura::Window, VectorExperimental>>& windows,
       base::TimeDelta requested_frame_interval = base::TimeDelta());
 
   // Ends throttling of all windows specified via StartThrottling(). The
@@ -123,28 +130,6 @@ class ASH_EXPORT FrameThrottlingController final
                           uint8_t throttled_fps);
   void EndThrottlingArc();
 
-  // Collect the lacros window in the given |window|. This function recursively
-  // walks through |window|'s descendents and finds the lacros window if any.
-  // |inside_lacros| is a flag to indicate if the functions is called inside a
-  // lacros window. |ids| are the ids of the frame sinks that are qualified for
-  // throttling. |candidates|, as output, will be filled with throttle
-  // candidates info. |lacros_window|, as output, will be set to the lacros
-  // window found.
-  void CollectLacrosWindowsInWindow(
-      aura::Window* window,
-      bool inside_lacros,
-      const base::flat_set<viz::FrameSinkId>& ids,
-      base::flat_map<aura::Window*, viz::FrameSinkId>* candidates,
-      aura::Window* lacros_window = nullptr);
-
-  // Collect the lacros candidate in the given |window|. This function
-  // recursively walks through |window|'s descendents and finds the lacros
-  // candidate if any.
-  void CollectLacrosCandidates(
-      aura::Window* window,
-      base::flat_map<aura::Window*, viz::FrameSinkId>* candidates,
-      aura::Window* lacros_window);
-
   void UpdateThrottlingOnFrameSinks();
   void SetWindowsManuallyThrottled(bool windows_manually_throttled);
   void SetCurrentThrottledFrameInterval();
@@ -154,8 +139,7 @@ class ASH_EXPORT FrameThrottlingController final
 
   void ResetThrottleCandidates(ThrottleCandidates* candidates);
 
-  const raw_ptr<viz::HostFrameSinkManager, ExperimentalAsh>
-      host_frame_sink_manager_;
+  const raw_ptr<viz::HostFrameSinkManager> host_frame_sink_manager_;
   base::ObserverList<FrameThrottlingObserver> arc_observers_;
 
   // Maps aura::WindowTreeHost* to a set of FrameSinkIds to be throttled.

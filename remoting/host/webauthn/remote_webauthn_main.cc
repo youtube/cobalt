@@ -15,11 +15,10 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "build/build_config.h"
+#include "mojo/core/embedder/embedder.h"
 #include "mojo/core/embedder/scoped_ipc_support.h"
 #include "remoting/base/auto_thread_task_runner.h"
-#include "remoting/base/breakpad.h"
 #include "remoting/base/logging.h"
-#include "remoting/base/mojo_util.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/chromoting_host_services_client.h"
 #include "remoting/host/native_messaging/native_messaging_pipe.h"
@@ -28,8 +27,14 @@
 #include "remoting/host/webauthn/remote_webauthn_caller_security_utils.h"
 #include "remoting/host/webauthn/remote_webauthn_native_messaging_host.h"
 
+#if BUILDFLAG(IS_LINUX)
+#include "remoting/base/crash/crash_reporting_crashpad.h"
+#endif  // BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
+#include "remoting/base/crash/crash_reporting_breakpad.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace remoting {
@@ -43,11 +48,15 @@ int RemoteWebAuthnMain(int argc, char** argv) {
   base::CommandLine::Init(argc, argv);
   InitHostLogging();
 
-#if defined(REMOTING_ENABLE_BREAKPAD)
+#if defined(REMOTING_ENABLE_CRASH_REPORTING)
   if (IsUsageStatsAllowed()) {
-    InitializeCrashReporting();
+#if BUILDFLAG(IS_LINUX)
+    InitializeCrashpadReporting();
+#elif BUILDFLAG(IS_WIN)
+    InitializeBreakpadReporting();
+#endif  // BUILDFLAG(IS_LINUX)
   }
-#endif  // defined(REMOTING_ENABLE_BREAKPAD)
+#endif  // defined(REMOTING_ENABLE_CRASH_REPORTING)
 
   if (!IsLaunchedByTrustedProcess()) {
     LOG(ERROR) << "Current process is not launched by a trusted process.";
@@ -58,7 +67,7 @@ int RemoteWebAuthnMain(int argc, char** argv) {
     return kInitializationFailed;
   }
 
-  InitializeMojo();
+  mojo::core::Init();
   mojo::core::ScopedIPCSupport ipc_support(
       task_runner, mojo::core::ScopedIPCSupport::ShutdownPolicy::FAST);
 
@@ -66,8 +75,7 @@ int RemoteWebAuthnMain(int argc, char** argv) {
   base::File write_file;
 
 #if BUILDFLAG(IS_POSIX)
-  read_file = base::File(STDIN_FILENO);
-  write_file = base::File(STDOUT_FILENO);
+  PipeMessagingChannel::OpenAndBlockStdio(read_file, write_file);
 #elif BUILDFLAG(IS_WIN)
   // GetStdHandle() returns pseudo-handles for stdin and stdout even if
   // the hosting executable specifies "Windows" subsystem. However the
@@ -93,10 +101,6 @@ int RemoteWebAuthnMain(int argc, char** argv) {
   NativeMessagingPipe native_messaging_pipe;
   auto channel = std::make_unique<PipeMessagingChannel>(std::move(read_file),
                                                         std::move(write_file));
-
-#if BUILDFLAG(IS_POSIX)
-  PipeMessagingChannel::ReopenStdinStdout();
-#endif  // BUILDFLAG(IS_POSIX)
 
   auto native_messaging_host =
       std::make_unique<RemoteWebAuthnNativeMessagingHost>(

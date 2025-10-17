@@ -29,7 +29,7 @@ class NearbyProcessManager : public KeyedService {
     virtual const mojo::SharedRemote<
         ::ash::nearby::presence::mojom::NearbyPresence>&
     GetNearbyPresence() const = 0;
-    virtual const mojo::SharedRemote<sharing::mojom::NearbySharingDecoder>&
+    virtual const mojo::SharedRemote<::sharing::mojom::NearbySharingDecoder>&
     GetNearbySharingDecoder() const = 0;
     virtual const mojo::SharedRemote<quick_start::mojom::QuickStartDecoder>&
     GetQuickStartDecoder() const = 0;
@@ -37,7 +37,11 @@ class NearbyProcessManager : public KeyedService {
 
   // These values are used for metrics. Entries should not be renumbered and
   // numeric values should never be reused. If entries are added, kMaxValue
-  // should be updated.
+  // should be updated. Keep in sync with the
+  // `NearbyConnectionsUtilityProcessShutdownReason` enum found at
+  // //tools/metrics/histograms/metadata/nearby/enums.xml.
+  //
+  // LINT.IfChange(NearbyConnectionsUtilityProcessShutdownReason)
   enum class NearbyProcessShutdownReason {
     kNormal = 0,
     kCrash = 1,
@@ -46,6 +50,7 @@ class NearbyProcessManager : public KeyedService {
     kPresenceMojoPipeDisconnection = 5,
     kMaxValue = kPresenceMojoPipeDisconnection
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyConnectionsUtilityProcessShutdownReason)
 
   using NearbyProcessStoppedCallback =
       base::OnceCallback<void(NearbyProcessShutdownReason)>;
@@ -71,6 +76,9 @@ class NearbyProcessManager : public KeyedService {
   // shutting down.
   virtual std::unique_ptr<NearbyProcessReference> GetNearbyProcessReference(
       NearbyProcessStoppedCallback on_process_stopped_callback) = 0;
+
+  // Immediately shut down the utility process, bypassing any debounce logic.
+  virtual void ShutDownProcess() = 0;
 
  private:
   using KeyedService::Shutdown;

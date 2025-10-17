@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/dcheck_is_on.h"
+#include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -27,6 +28,7 @@
 #include "base/trace_event/trace_event.h"
 #include "components/keyed_service/content/browser_context_keyed_service_shutdown_notifier_factory.h"
 #include "components/keyed_service/core/keyed_service_shutdown_notifier.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -34,16 +36,17 @@
 #include "extensions/browser/bad_message.h"
 #include "extensions/browser/browser_frame_context_data.h"
 #include "extensions/browser/browser_process_context_data.h"
+#include "extensions/browser/extension_function_crash_keys.h"
 #include "extensions/browser/extension_function_dispatcher.h"
 #include "extensions/browser/extension_function_registry.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/renderer_startup_helper.h"
+#include "extensions/browser/service_worker/service_worker_keepalive.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension_api.h"
 #include "extensions/common/mojom/renderer.mojom.h"
-#include "ipc/ipc_message.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-forward.h"
 
@@ -84,7 +87,7 @@ class ExtensionFunctionMemoryDumpProvider
     DCHECK(thread_checker_.CalledOnValidThread());
     DCHECK(function_name);
     auto it = function_map_.find(function_name);
-    DCHECK(it != function_map_.end());
+    CHECK(it != function_map_.end());
     DCHECK_GE(it->second, static_cast<uint64_t>(1));
     if (it->second == 1) {
       function_map_.erase(it);
@@ -274,6 +277,12 @@ class BrowserContextShutdownNotifierFactory
   BrowserContextShutdownNotifierFactory()
       : BrowserContextKeyedServiceShutdownNotifierFactory("ExtensionFunction") {
   }
+
+  content::BrowserContext* GetBrowserContextToUse(
+      content::BrowserContext* context) const override {
+    return extensions::ExtensionsBrowserClient::Get()->GetContextOwnInstance(
+        context);
+  }
 };
 
 }  // namespace
@@ -310,12 +319,6 @@ class ExtensionFunction::RenderFrameHostTracker
     if (render_frame_host == function_->render_frame_host()) {
       function_->SetRenderFrameHost(nullptr);
     }
-  }
-
-  bool OnMessageReceived(const IPC::Message& message,
-                         content::RenderFrameHost* render_frame_host) override {
-    return render_frame_host == function_->render_frame_host() &&
-           function_->OnMessageReceived(message);
   }
 
   raw_ptr<ExtensionFunction> function_;  // Owns us.
@@ -358,13 +361,27 @@ void ExtensionFunction::ResponseAction::Execute() {
 }
 
 ExtensionFunction::~ExtensionFunction() {
+  // `name_` may not be set in unit tests.
+  std::string safe_name = name() ? name() : "<unknown>";
+  // Crash keys added for https://crbug.com/1435545.
+  SCOPED_CRASH_KEY_STRING256("extensions", "destructing_ext_func_name",
+                             safe_name);
+
   if (name()) {  // name_ may not be set in unit tests.
     ExtensionFunctionMemoryDumpProvider::GetInstance().RemoveFunctionName(
         name());
   }
   if (dispatcher() && (render_frame_host() || is_from_service_worker())) {
-    dispatcher()->OnExtensionFunctionCompleted(
-        extension(), is_from_service_worker(), name());
+    dispatcher()->OnExtensionFunctionCompleted(*this);
+  }
+  // Delete the WebContentsObserver before updating the extension function
+  // crash keys so we capture the extension ID if this call hangs or crashes.
+  // http://crbug.com/1435545
+  tracker_.reset();
+  // The function may not have run due to quota limits.
+  if (extension() && did_run_) {
+    extensions::extension_function_crash_keys::EndExtensionFunctionCall(
+        extension_id());
   }
 
 // The extension function should always respond to avoid leaks in the
@@ -404,17 +421,15 @@ ExtensionFunction::~ExtensionFunction() {
   if (!response_callback_.is_null()) {
     constexpr char kShouldCallMojoCallback[] = "Ignored did_respond()";
     std::move(response_callback_)
-        .Run(ResponseType::FAILED, base::Value::List(), kShouldCallMojoCallback,
-             nullptr);
+        .Run(ResponseType::kFailed, base::Value::List(),
+             kShouldCallMojoCallback, nullptr);
   }
 #endif  // DCHECK_IS_ON()
 }
 
-void ExtensionFunction::AddWorkerResponseTarget() {
-  DCHECK(is_from_service_worker());
-
+void ExtensionFunction::AddResponseTarget() {
   if (dispatcher()) {
-    dispatcher()->AddWorkerResponseTarget(this);
+    dispatcher()->AddResponseTarget(this);
   }
 }
 
@@ -444,14 +459,14 @@ void ExtensionFunction::RespondWithError(std::string error) {
 }
 
 bool ExtensionFunction::PreRunValidation(std::string* error) {
-  // TODO(crbug.com/625646) This is a partial fix to avoid crashes when certain
-  // extension functions run during shutdown. Browser or Notification creation
-  // for example create a ScopedKeepAlive, which hit a CHECK if the browser is
-  // shutting down. This fixes the current problem as the known issues happen
-  // through synchronous calls from Run(), but posted tasks will not be covered.
-  // A possible fix would involve refactoring ExtensionFunction: unrefcount
-  // here and use weakptrs for the tasks, then have it owned by something that
-  // will be destroyed naturally in the course of shut down.
+  // TODO(crbug.com/40475418) This is a partial fix to avoid crashes when
+  // certain extension functions run during shutdown. Browser or Notification
+  // creation for example create a ScopedKeepAlive, which hit a CHECK if the
+  // browser is shutting down. This fixes the current problem as the known
+  // issues happen through synchronous calls from Run(), but posted tasks will
+  // not be covered. A possible fix would involve refactoring ExtensionFunction:
+  // unrefcount here and use weakptrs for the tasks, then have it owned by
+  // something that will be destroyed naturally in the course of shut down.
   if (extensions::ExtensionsBrowserClient::Get()->IsShuttingDown()) {
     *error = "The browser is shutting down.";
     return false;
@@ -461,10 +476,13 @@ bool ExtensionFunction::PreRunValidation(std::string* error) {
 }
 
 ExtensionFunction::ResponseAction ExtensionFunction::RunWithValidation() {
-#if DCHECK_IS_ON()
   DCHECK(!did_run_);
   did_run_ = true;
-#endif
+
+  if (extension()) {
+    extensions::extension_function_crash_keys::StartExtensionFunctionCall(
+        extension_id());
+  }
 
   std::string error;
   if (!PreRunValidation(&error)) {
@@ -518,8 +536,8 @@ bool ExtensionFunction::user_gesture() const {
   return user_gesture_ || UserGestureForTests::GetInstance()->HaveGesture();
 }
 
-bool ExtensionFunction::OnMessageReceived(const IPC::Message& message) {
-  return false;
+void ExtensionFunction::ResetServiceWorkerKeepalive() {
+  service_worker_keepalive_.reset();
 }
 
 void ExtensionFunction::SetBrowserContextForTesting(
@@ -585,9 +603,13 @@ content::WebContents* ExtensionFunction::GetSenderWebContents() {
              : nullptr;
 }
 
-void ExtensionFunction::OnServiceWorkerAck() {
+bool ExtensionFunction::ShouldKeepWorkerAliveIndefinitely() {
+  return false;
+}
+
+void ExtensionFunction::OnResponseAck() {
   // Derived classes must override this if they require and implement an
-  // ACK from the Service Worker.
+  // ACK from the renderer.
   NOTREACHED();
 }
 
@@ -604,7 +626,7 @@ ExtensionFunction::ResponseValue ExtensionFunction::Error(std::string error) {
   return CreateErrorResponseValue(std::move(error));
 }
 
-ExtensionFunction::ResponseValue ExtensionFunction::ErrorWithArguments(
+ExtensionFunction::ResponseValue ExtensionFunction::ErrorWithArgumentsDoNotUse(
     base::Value::List args,
     const std::string& error) {
   return CreateErrorWithArgumentsResponse(std::move(args), error);
@@ -652,7 +674,7 @@ bool ExtensionFunction::HasOptionalArgument(size_t index) {
 
 void ExtensionFunction::WriteToConsole(blink::mojom::ConsoleMessageLevel level,
                                        const std::string& message) {
-  // TODO(crbug.com/1096166): Service Worker-based extensions don't have a
+  // TODO(crbug.com/40700591): Service Worker-based extensions don't have a
   // RenderFrameHost.
   if (!render_frame_host_) {
     return;
@@ -662,7 +684,7 @@ void ExtensionFunction::WriteToConsole(blink::mojom::ConsoleMessageLevel level,
 
 void ExtensionFunction::ReportInspectorIssue(
     blink::mojom::InspectorIssueInfoPtr info) {
-  // TODO(crbug.com/1096166): Service Worker-based extensions don't have a
+  // TODO(crbug.com/40700591): Service Worker-based extensions don't have a
   // RenderFrameHost.
   if (!render_frame_host_) {
     return;
@@ -678,12 +700,12 @@ void ExtensionFunction::SetTransferredBlobs(
 
 void ExtensionFunction::SendResponseImpl(bool success) {
   DCHECK(!response_callback_.is_null());
-  DCHECK(!did_respond_) << name_;
-  did_respond_ = true;
+  DCHECK(!did_respond()) << name_;
 
-  ResponseType response = success ? SUCCEEDED : FAILED;
+  ResponseType response =
+      success ? ResponseType::kSucceeded : ResponseType::kFailed;
   if (bad_message_) {
-    response = BAD_MESSAGE;
+    response = ResponseType::kBadMessage;
     LOG(ERROR) << "Bad extension message " << name_;
   }
   response_type_ = std::make_unique<ResponseType>(response);

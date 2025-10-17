@@ -7,27 +7,39 @@
 // third_party/webrtc/rtc_base/logging.h since it defines some of the same
 // macros as Chromium does and we'll run into conflicts.
 
+#include <atomic>
+#include <cstddef>
+#include <cstring>
+#include <ios>
+#include <sstream>
+#include <string>
+
+#include "base/check.h"
+#include "base/logging/log_severity.h"
 #if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
 #include <CoreServices/CoreServices.h>
 #endif  // OS_MACOSX
 
-#include <algorithm>
 #include <iomanip>
 
-#include "base/atomicops.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/threading/platform_thread.h"
-#include "third_party/webrtc/rtc_base/string_utils.h"
 
 // This needs to be included after base/logging.h.
 #include "third_party/webrtc_overrides/rtc_base/diagnostic_logging.h"
 #include "third_party/webrtc_overrides/rtc_base/logging.h"
 
 #if defined(WEBRTC_MAC)
-#include "base/mac/mac_logging.h"
+#include "base/apple/osstatus_logging.h"
 #endif
+#if defined(WEBRTC_WIN)
+#include <windows.h>
+
+#include <malloc.h>
+#include <wchar.h>
+#endif  // WEBRTC_WIN
 
 // Disable logging when fuzzing, for performance reasons.
 // WEBRTC_UNSAFE_FUZZER_MODE is defined by WebRTC's BUILD.gn when
@@ -47,15 +59,14 @@
   LAZY_STREAM(logging::LogMessage(file_name, line_number, sev).stream(), \
               WEBRTC_ENABLE_LOGGING)
 
-namespace rtc {
+namespace webrtc {
 
 void (*g_logging_delegate_function)(const std::string&) = NULL;
 void (*g_extra_logging_init_function)(
     void (*logging_delegate_function)(const std::string&)) = NULL;
 #ifndef NDEBUG
-static_assert(sizeof(base::subtle::Atomic32) == sizeof(base::PlatformThreadId),
-              "Atomic32 not same size as PlatformThreadId");
-base::subtle::Atomic32 g_init_logging_delegate_thread_id = 0;
+std::atomic<base::PlatformThreadId> g_init_logging_delegate_thread_id =
+    base::kInvalidThreadId;
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
@@ -65,17 +76,16 @@ base::subtle::Atomic32 g_init_logging_delegate_thread_id = 0;
 inline int WebRtcSevToChromeSev(LoggingSeverity sev) {
   switch (sev) {
     case LS_ERROR:
-      return ::logging::LOG_ERROR;
+      return ::logging::LOGGING_ERROR;
     case LS_WARNING:
-      return ::logging::LOG_WARNING;
+      return ::logging::LOGGING_WARNING;
     case LS_INFO:
-      return ::logging::LOG_INFO;
+      return ::logging::LOGGING_INFO;
     case LS_VERBOSE:
     case LS_SENSITIVE:
-      return ::logging::LOG_VERBOSE;
+      return ::logging::LOGGING_VERBOSE;
     default:
       NOTREACHED();
-      return ::logging::LOG_FATAL;
   }
 }
 
@@ -92,7 +102,6 @@ inline int WebRtcVerbosityLevel(LoggingSeverity sev) {
       return 2;
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -101,8 +110,9 @@ static void LogExtra(std::ostringstream* print_stream,
                      LogErrorContext err_ctx,
                      int err,
                      const char* module) {
-  if (err_ctx == ERRCTX_NONE)
+  if (err_ctx == ERRCTX_NONE) {
     return;
+  }
 
   (*print_stream) << ": ";
   (*print_stream) << "[0x" << std::setfill('0') << std::hex << std::setw(8)
@@ -116,8 +126,9 @@ static void LogExtra(std::ostringstream* print_stream,
       char msgbuf[256];
       DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM;
       HMODULE hmod = GetModuleHandleA(module);
-      if (hmod)
+      if (hmod) {
         flags |= FORMAT_MESSAGE_FROM_HMODULE;
+      }
       if (DWORD len = FormatMessageA(
               flags, hmod, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
               msgbuf, sizeof(msgbuf) / sizeof(msgbuf[0]), NULL)) {
@@ -175,7 +186,7 @@ DiagnosticLogMessage::~DiagnosticLogMessage() {
     const std::string& str = print_stream_.str();
     if (log_to_chrome_) {
       LOG_LAZY_STREAM_DIRECT(file_name_, line_,
-                             rtc::WebRtcSevToChromeSev(severity_))
+                             WebRtcSevToChromeSev(severity_))
           << str;
     }
 
@@ -194,24 +205,26 @@ void InitDiagnosticLoggingDelegateFunction(
     void (*delegate)(const std::string&)) {
 #ifndef NDEBUG
   // Ensure that this function is always called from the same thread.
-  base::subtle::NoBarrier_CompareAndSwap(
-      &g_init_logging_delegate_thread_id, 0,
-      static_cast<base::subtle::Atomic32>(base::PlatformThread::CurrentId()));
-  DCHECK_EQ(
-      g_init_logging_delegate_thread_id,
-      static_cast<base::subtle::Atomic32>(base::PlatformThread::CurrentId()));
+  base::PlatformThreadId expected_thread_id = base::kInvalidThreadId;
+  g_init_logging_delegate_thread_id.compare_exchange_strong(
+      expected_thread_id, base::PlatformThread::CurrentId(),
+      std::memory_order_relaxed, std::memory_order_relaxed);
+  DCHECK_EQ(g_init_logging_delegate_thread_id,
+            base::PlatformThread::CurrentId());
 #endif
   CHECK(delegate);
   // This function may be called with the same argument several times if the
   // page is reloaded or there are several PeerConnections on one page with
   // logging enabled. This is OK, we simply don't have to do anything.
-  if (delegate == g_logging_delegate_function)
+  if (delegate == g_logging_delegate_function) {
     return;
+  }
   CHECK(!g_logging_delegate_function);
   g_logging_delegate_function = delegate;
 
-  if (g_extra_logging_init_function)
+  if (g_extra_logging_init_function) {
     g_extra_logging_init_function(delegate);
+  }
 }
 
 void SetExtraLoggingInit(
@@ -221,11 +234,11 @@ void SetExtraLoggingInit(
   g_extra_logging_init_function = function;
 }
 
-bool CheckVlogIsOnHelper(rtc::LoggingSeverity severity,
+bool CheckVlogIsOnHelper(LoggingSeverity severity,
                          const char* file,
                          size_t N) {
-  return rtc::WebRtcVerbosityLevel(severity) <=
+  return WebRtcVerbosityLevel(severity) <=
          ::logging::GetVlogLevelHelper(file, N);
 }
 
-}  // namespace rtc
+}  // namespace webrtc

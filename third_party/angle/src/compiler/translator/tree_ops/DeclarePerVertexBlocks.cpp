@@ -359,7 +359,7 @@ class DeclarePerVertexBlocksTraverser : public TIntermTraverser
 
         // TODO: handle interaction with GS and T*S where the two can have different sizes.  These
         // values are valid for EvqPerVertexOut only.  For EvqPerVertexIn, the size should come from
-        // the declaration of gl_in.  http://anglebug.com/5466.
+        // the declaration of gl_in.  http://anglebug.com/42264006.
         if (clipDistanceType)
             clipDistanceType->makeArray(mClipDistanceArraySize);
         if (cullDistanceType)
@@ -489,7 +489,11 @@ void AddPerVertexDecl(TIntermBlock *root, const TVariable *variable)
 }
 }  // anonymous namespace
 
-bool DeclarePerVertexBlocks(TCompiler *compiler, TIntermBlock *root, TSymbolTable *symbolTable)
+bool DeclarePerVertexBlocks(TCompiler *compiler,
+                            TIntermBlock *root,
+                            TSymbolTable *symbolTable,
+                            const TVariable **inputPerVertexOut,
+                            const TVariable **outputPerVertexOut)
 {
     if (compiler->getShaderType() == GL_COMPUTE_SHADER ||
         compiler->getShaderType() == GL_FRAGMENT_SHADER)
@@ -528,6 +532,15 @@ bool DeclarePerVertexBlocks(TCompiler *compiler, TIntermBlock *root, TSymbolTabl
 
     AddPerVertexDecl(root, traverser.getRedeclaredPerVertexOutVar());
     AddPerVertexDecl(root, traverser.getRedeclaredPerVertexInVar());
+
+    if (inputPerVertexOut)
+    {
+        *inputPerVertexOut = traverser.getRedeclaredPerVertexInVar();
+    }
+    if (outputPerVertexOut)
+    {
+        *outputPerVertexOut = traverser.getRedeclaredPerVertexOutVar();
+    }
 
     return compiler->validateAST(root);
 }

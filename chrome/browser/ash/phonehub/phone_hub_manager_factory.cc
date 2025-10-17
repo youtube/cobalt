@@ -7,7 +7,6 @@
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/system_tray.h"
 #include "chrome/browser/ash/attestation/soft_bind_attestation_flow_impl.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/device_sync/device_sync_client_factory.h"
 #include "chrome/browser/ash/multidevice_setup/multidevice_setup_client_factory.h"
 #include "chrome/browser/ash/phonehub/attestation_certificate_generator_impl.h"
@@ -17,8 +16,6 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/secure_channel/nearby_connector_factory.h"
 #include "chrome/browser/ash/secure_channel/secure_channel_client_provider.h"
-#include "chrome/browser/ash/sync/sync_mojo_service_ash.h"
-#include "chrome/browser/ash/sync/sync_mojo_service_factory_ash.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/favicon/history_ui_favicon_request_handler_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,6 +29,7 @@
 #include "chromeos/ash/components/phonehub/onboarding_ui_tracker_impl.h"
 #include "chromeos/ash/components/phonehub/phone_hub_manager.h"
 #include "chromeos/ash/components/phonehub/phone_hub_manager_impl.h"
+#include "chromeos/ash/components/phonehub/phone_hub_structured_metrics_logger.h"
 #include "chromeos/ash/components/phonehub/recent_apps_interaction_handler_impl.h"
 #include "chromeos/ash/components/phonehub/screen_lock_manager_impl.h"
 #include "chromeos/ash/components/phonehub/user_action_recorder_impl.h"
@@ -52,8 +50,9 @@ bool IsProhibitedByPolicy(Profile* profile) {
 }
 
 bool IsLoggedInAsPrimaryUser(Profile* profile) {
-  // Guest/incognito profiles cannot use Phone Hub.
-  if (profile->IsOffTheRecord()) {
+  // Guest/incognito/signin profiles cannot use Phone Hub.
+  if (ash::ProfileHelper::IsSigninProfile(profile) ||
+      profile->IsOffTheRecord()) {
     return false;
   }
 
@@ -76,7 +75,8 @@ PhoneHubManager* PhoneHubManagerFactory::GetForProfile(Profile* profile) {
 
 // static
 PhoneHubManagerFactory* PhoneHubManagerFactory::GetInstance() {
-  return base::Singleton<PhoneHubManagerFactory>::get();
+  static base::NoDestructor<PhoneHubManagerFactory> instance;
+  return instance.get();
 }
 
 PhoneHubManagerFactory::PhoneHubManagerFactory()
@@ -84,9 +84,12 @@ PhoneHubManagerFactory::PhoneHubManagerFactory()
           "PhoneHubManager",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(device_sync::DeviceSyncClientFactory::GetInstance());
   if (features::IsPhoneHubCameraRollEnabled()) {
@@ -97,19 +100,12 @@ PhoneHubManagerFactory::PhoneHubManagerFactory()
   DependsOn(SessionSyncServiceFactory::GetInstance());
   DependsOn(HistoryUiFaviconRequestHandlerFactory::GetInstance());
   DependsOn(SyncServiceFactory::GetInstance());
-
-  // We typically also check crosapi::browser_util::IsAshWebBrowserEnabled() in
-  // relation to this feature flag but this relies on UserManager which is not
-  // initialized at this point. Since this is just a service dependency simply
-  // checking the flag itself is fine.
-  if (base::FeatureList::IsEnabled(syncer::kChromeOSSyncedSessionSharing)) {
-    DependsOn(SyncMojoServiceFactoryAsh::GetInstance());
-  }
 }
 
 PhoneHubManagerFactory::~PhoneHubManagerFactory() = default;
 
-KeyedService* PhoneHubManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PhoneHubManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!features::IsPhoneHubEnabled()) {
     return nullptr;
@@ -126,6 +122,10 @@ KeyedService* PhoneHubManagerFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
+  if (!features::IsCrossDeviceFeatureSuiteAllowed()) {
+    return nullptr;
+  }
+
   std::unique_ptr<AttestationCertificateGeneratorImpl>
       attestation_certificate_generator = nullptr;
 
@@ -138,16 +138,7 @@ KeyedService* PhoneHubManagerFactory::BuildServiceInstanceFor(
             profile, std::move(soft_bind_attestation_flow));
   }
 
-  SyncedSessionClientAsh* synced_session_client = nullptr;
-  if (BrowserTabsModelProviderImpl::IsLacrosSessionSyncFeatureEnabled()) {
-    SyncMojoServiceAsh* sync_mojo_service =
-        SyncMojoServiceFactoryAsh::GetForProfile(profile);
-    if (sync_mojo_service) {
-      synced_session_client = sync_mojo_service->GetSyncedSessionClientAsh();
-    }
-  }
-
-  PhoneHubManagerImpl* phone_hub_manager = new PhoneHubManagerImpl(
+  auto phone_hub_manager = std::make_unique<PhoneHubManagerImpl>(
       profile->GetPrefs(),
       device_sync::DeviceSyncClientFactory::GetForProfile(profile),
       multidevice_setup::MultiDeviceSetupClientFactory::GetForProfile(profile),
@@ -155,7 +146,6 @@ KeyedService* PhoneHubManagerFactory::BuildServiceInstanceFor(
       std::make_unique<BrowserTabsModelProviderImpl>(
           multidevice_setup::MultiDeviceSetupClientFactory::GetForProfile(
               profile),
-          synced_session_client,
           SyncServiceFactory::GetInstance()->GetForProfile(profile),
           SessionSyncServiceFactory::GetInstance()->GetForProfile(profile),
           std::make_unique<BrowserTabsMetadataFetcherImpl>(
@@ -174,7 +164,7 @@ KeyedService* PhoneHubManagerFactory::BuildServiceInstanceFor(
 
   // Provide |phone_hub_manager| to the system tray so that it can be used by
   // the UI.
-  SystemTray::Get()->SetPhoneHubManager(phone_hub_manager);
+  SystemTray::Get()->SetPhoneHubManager(phone_hub_manager.get());
 
   DCHECK(!g_context_for_service);
   g_context_for_service = context;
@@ -220,6 +210,7 @@ void PhoneHubManagerFactory::RegisterProfilePrefs(
   OnboardingUiTrackerImpl::RegisterPrefs(registry);
   ScreenLockManagerImpl::RegisterPrefs(registry);
   RecentAppsInteractionHandlerImpl::RegisterPrefs(registry);
+  PhoneHubStructuredMetricsLogger::RegisterPrefs(registry);
 }
 
 }  // namespace ash::phonehub

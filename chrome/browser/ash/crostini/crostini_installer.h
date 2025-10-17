@@ -72,8 +72,6 @@ class CrostiniInstaller : public KeyedService,
     // at the top of this enum.
   };
 
-  static CrostiniInstaller* GetForProfile(Profile* profile);
-
   explicit CrostiniInstaller(Profile* profile);
 
   CrostiniInstaller(const CrostiniInstaller&) = delete;
@@ -127,12 +125,12 @@ class CrostiniInstaller : public KeyedService,
   void RecordSetupResult(SetupResult result);
 
   void OnCrostiniRestartFinished(crostini::CrostiniResult result);
-  void OnAvailableDiskSpace(absl::optional<int64_t> bytes);
+  void OnAvailableDiskSpace(std::optional<int64_t> bytes);
 
   void OnCrostiniRemovedAfterConfigurationFailed(
       crostini::CrostiniResult result);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   State state_ = State::IDLE;
   crostini::mojom::InstallerState installing_state_;

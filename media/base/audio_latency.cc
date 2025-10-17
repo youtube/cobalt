@@ -13,8 +13,8 @@
 #include "base/logging.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "media/base/limits.h"
+#include "media/media_buildflags.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
@@ -50,7 +50,7 @@ uint32_t RoundUpToPowerOfTwo(uint32_t v) {
 #if BUILDFLAG(IS_ANDROID)
 // WebAudio renderer's quantum size (frames per callback) that is used for
 // calculating the "interactive" buffer size.
-// TODO(crbug.com/988121): This number needs to be passed down from Blink when
+// TODO(crbug.com/40637820): This number needs to be passed down from Blink when
 // user-selectable render quantum size is implemented.
 const int kWebAudioRenderQuantumSize = 128;
 
@@ -68,8 +68,8 @@ int LCM(int a, int b) {
 }  // namespace
 
 // static
-bool AudioLatency::IsResamplingPassthroughSupported(LatencyType type) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+bool AudioLatency::IsResamplingPassthroughSupported(Type type) {
+#if BUILDFLAG(IS_CHROMEOS)
   return true;
 #elif BUILDFLAG(IS_FUCHSIA)
   return true;
@@ -78,7 +78,7 @@ bool AudioLatency::IsResamplingPassthroughSupported(LatencyType type) {
   // power efficient playback. Per the Android audio team, we shouldn't waste
   // cycles on resampling when using the playback mode. See OpenSLESOutputStream
   // for additional implementation details.
-  return type == LATENCY_PLAYBACK &&
+  return type == Type::kPlayback &&
          base::android::BuildInfo::GetInstance()->sdk_int() >=
              base::android::SDK_VERSION_NOUGAT_MR1;
 #else
@@ -89,7 +89,7 @@ bool AudioLatency::IsResamplingPassthroughSupported(LatencyType type) {
 // static
 int AudioLatency::GetHighLatencyBufferSize(int sample_rate,
                                            int preferred_buffer_size) {
-#if defined(USE_CRAS)
+#if BUILDFLAG(USE_CRAS)
   // Use 80ms rounded to a power of 2.
   const double eighty_ms_size = 8.0 * sample_rate / 100;
   const int high_latency_buffer_size = RoundUpToPowerOfTwo(eighty_ms_size);
@@ -251,5 +251,22 @@ int AudioLatency::GetExactBufferSize(base::TimeDelta duration,
           : (max_allowed_buffer_size / multiplier) * multiplier;
 
   return std::min(buffer_size, platform_max_buffer_size);
+}
+
+// static
+// Used for UMA histogram names, do not change the lookup.
+const char* AudioLatency::ToString(Type type) {
+  switch (type) {
+    case Type::kExactMS:
+      return "LatencyExactMs";
+    case Type::kInteractive:
+      return "LatencyInteractive";
+    case Type::kRtc:
+      return "LatencyRtc";
+    case Type::kPlayback:
+      return "LatencyPlayback";
+    case Type::kUnknown:
+      return "LatencyUnknown";
+  }
 }
 }  // namespace media

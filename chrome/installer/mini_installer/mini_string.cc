@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/mini_installer/mini_string.h"
 
 #include <windows.h>
@@ -67,7 +72,7 @@ bool SafeStrCopy(wchar_t* dest, size_t dest_size, const wchar_t* src) {
   // want to mutate the string in case the caller handles the error of a
   // failed concatenation.  For example:
   //
-  // wchar_t buf[5] = {0};
+  // wchar_t buf[5] = {};
   // if (!SafeStrCat(buf, _countof(buf), kLongName))
   //   SafeStrCat(buf, _countof(buf), kShortName);
   //

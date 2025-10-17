@@ -5,17 +5,22 @@
 #ifndef GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_D3D_IMAGE_BACKING_FACTORY_H_
 #define GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_D3D_IMAGE_BACKING_FACTORY_H_
 
-#include <d3d11.h>
-#include <dxgi1_2.h>
 #include <windows.h>
+
+#include <d3d11.h>
+#include <d3d12.h>
+#include <dxgi1_2.h>
 #include <wrl/client.h>
 
 #include <memory>
+#include <optional>
 
-#include "components/viz/common/resources/resource_format.h"
+#include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing_factory.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
+#include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/gpu_gles2_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/skia/include/core/SkColor.h"
 
 namespace gfx {
 class Size;
@@ -32,7 +37,9 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
  public:
   D3DImageBackingFactory(
       Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
-      scoped_refptr<DXGISharedHandleManager> dxgi_shared_handle_manager);
+      scoped_refptr<DXGISharedHandleManager> dxgi_shared_handle_manager,
+      const GLFormatCaps& gl_format_caps,
+      const GpuDriverBugWorkarounds& workarounds = GpuDriverBugWorkarounds());
 
   D3DImageBackingFactory(const D3DImageBackingFactory&) = delete;
   D3DImageBackingFactory& operator=(const D3DImageBackingFactory&) = delete;
@@ -41,15 +48,15 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
 
   // Returns true if D3D shared images are supported and this factory should be
   // used. Generally this means Skia-GL, passthrough decoder, and ANGLE-D3D11.
-  static bool IsD3DSharedImageSupported(const GpuPreferences& gpu_preferences);
+  static bool IsD3DSharedImageSupported(ID3D11Device* d3d11_device,
+                                        const GpuPreferences& gpu_preferences);
 
   // Returns true if DXGI swap chain shared images for overlays are supported.
-  static bool IsSwapChainSupported();
+  static bool IsSwapChainSupported(const GpuPreferences& gpu_preferences);
 
-  // Clears the current back buffer to opaque black on the immediate context.
-  static bool ClearBackBufferToOpaque(
-      Microsoft::WRL::ComPtr<IDXGISwapChain1>& swap_chain,
-      Microsoft::WRL::ComPtr<ID3D11Device>& d3d11_device);
+  // Clears the current back buffer to |color| on the immediate context.
+  static bool ClearBackBufferToColor(IDXGISwapChain1* swap_chain,
+                                     const SkColor4f& color);
 
   struct GPU_GLES2_EXPORT SwapChainBackings {
     SwapChainBackings(std::unique_ptr<SharedImageBacking> front_buffer,
@@ -75,7 +82,7 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
                                     const gfx::ColorSpace& color_space,
                                     GrSurfaceOrigin surface_origin,
                                     SkAlphaType alpha_type,
-                                    uint32_t usage);
+                                    gpu::SharedImageUsageSet usage);
 
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
@@ -85,7 +92,7 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
       const gfx::ColorSpace& color_space,
       GrSurfaceOrigin surface_origin,
       SkAlphaType alpha_type,
-      uint32_t usage,
+      SharedImageUsageSet usage,
       std::string debug_label,
       bool is_thread_safe) override;
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
@@ -95,8 +102,9 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
       const gfx::ColorSpace& color_space,
       GrSurfaceOrigin surface_origin,
       SkAlphaType alpha_type,
-      uint32_t usage,
+      SharedImageUsageSet usage,
       std::string debug_label,
+      bool is_thread_safe,
       base::span<const uint8_t> pixel_data) override;
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
@@ -105,57 +113,70 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
       const gfx::ColorSpace& color_space,
       GrSurfaceOrigin surface_origin,
       SkAlphaType alpha_type,
-      uint32_t usage,
+      SharedImageUsageSet usage,
       std::string debug_label,
+      bool is_thread_safe,
       gfx::GpuMemoryBufferHandle handle) override;
-  std::unique_ptr<SharedImageBacking> CreateSharedImage(
-      const Mailbox& mailbox,
-      gfx::GpuMemoryBufferHandle handle,
-      gfx::BufferFormat format,
-      gfx::BufferPlane plane,
-      const gfx::Size& size,
-      const gfx::ColorSpace& color_space,
-      GrSurfaceOrigin surface_origin,
-      SkAlphaType alpha_type,
-      uint32_t usage,
-      std::string debug_label) override;
 
-  bool IsSupported(uint32_t usage,
+  bool IsSupported(SharedImageUsageSet usage,
                    viz::SharedImageFormat format,
                    const gfx::Size& size,
                    bool thread_safe,
                    gfx::GpuMemoryBufferType gmb_type,
                    GrContextType gr_context_type,
                    base::span<const uint8_t> pixel_data) override;
-
+  SharedImageBackingType GetBackingType() override;
   Microsoft::WRL::ComPtr<ID3D11Device> GetDeviceForTesting() const {
     return d3d11_device_;
   }
 
  private:
-  // `format` can be single planar format, multiplanar format (with
-  // BufferPlane::DEFAULT) or legacy multiplanar format converted to single
-  // planar for per plane access eg. BufferFormat::YUV_420_BIPLANAR converted
-  // to RED_8 (for BufferPlane::Y), RG_88 (for BufferPlane::UV). It does not
-  // support external sampler use cases.
-  std::unique_ptr<SharedImageBacking> CreateSharedImageGMBs(
+  std::unique_ptr<SharedImageBacking> CreateSharedBufferD3D12(
       const Mailbox& mailbox,
-      gfx::GpuMemoryBufferHandle handle,
-      viz::SharedImageFormat format,
-      gfx::BufferPlane plane,
       const gfx::Size& size,
       const gfx::ColorSpace& color_space,
       GrSurfaceOrigin surface_origin,
       SkAlphaType alpha_type,
-      uint32_t usage);
-  bool UseMapOnDefaultTextures();
+      SharedImageUsageSet usage,
+      std::string debug_label);
+
   bool SupportsBGRA8UnormStorage();
 
+  // Checks if d3d11 device supports creating nv12 texture with the given size.
+  bool CanCreateNV12Texture(const gfx::Size& size);
+
+  // D3D11 device used for creating textures. This is also Skia's D3D11 device.
+  // Can be different from |angle_d3d11_device_| when using Graphite.
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device_;
-  absl::optional<bool> map_on_default_textures_;
-  absl::optional<bool> supports_bgra8unorm_storage_;
+
+  // A D3D12 device is currently used for creation of buffer resources to be
+  // used with WebNN and WebGPU.
+  Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device_;
+
+  std::optional<bool> supports_bgra8unorm_storage_;
 
   scoped_refptr<DXGISharedHandleManager> dxgi_shared_handle_manager_;
+
+  // D3D11 device used by ANGLE. Can be different from |d3d11_device_| when
+  // using Graphite.
+  Microsoft::WRL::ComPtr<ID3D11Device> angle_d3d11_device_;
+
+  // Stores the minimum size area unsupported by an nv12 texture.
+  // Default initialized to max size.
+  int min_nv12_size_unsupported_ = std::numeric_limits<int>::max();
+
+  // Stores the maximum size area supported by an nv12 texture.
+  int max_nv12_size_supported_ = 0;
+
+  // Stores whether NV12 format is supported by the D3D device.
+  bool d3d11_supports_nv12_;
+
+  // Capabilities needed for getting the correct GL format for creating GL
+  // textures.
+  const GLFormatCaps gl_format_caps_;
+
+  // True if using UpdateSubresource1() in UploadFromMemory() is allowed.
+  const bool use_update_subresource1_;
 };
 
 }  // namespace gpu

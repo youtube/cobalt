@@ -22,7 +22,7 @@
 #include "ui/gfx/x/connection.h"
 
 namespace x11 {
-class XScopedEventSelector;
+class ScopedEventSelector;
 }
 
 namespace ui {
@@ -49,7 +49,8 @@ class COMPONENT_EXPORT(UI_BASE_X) X11WholeScreenMoveLoop
   // X11MoveLoop:
   bool RunMoveLoop(bool can_grab_pointer,
                    scoped_refptr<ui::X11Cursor> old_cursor,
-                   scoped_refptr<ui::X11Cursor> new_cursor) override;
+                   scoped_refptr<ui::X11Cursor> new_cursor,
+                   base::OnceClosure started_callback) override;
   void UpdateCursor(scoped_refptr<ui::X11Cursor> cursor) override;
   void EndMoveLoop() override;
 
@@ -80,7 +81,7 @@ class COMPONENT_EXPORT(UI_BASE_X) X11WholeScreenMoveLoop
   x11::Window grab_input_window_;
 
   // Events selected on |grab_input_window_|.
-  std::unique_ptr<x11::XScopedEventSelector> grab_input_window_events_;
+  x11::ScopedEventSelector grab_input_window_events_;
 
   // Whether the pointer was grabbed on |grab_input_window_|.
   bool grabbed_pointer_;

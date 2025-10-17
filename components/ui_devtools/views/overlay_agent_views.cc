@@ -5,14 +5,15 @@
 #include "components/ui_devtools/views/overlay_agent_views.h"
 
 #include <memory>
+#include <utility>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/ui_devtools/ui_element.h"
 #include "components/ui_devtools/views/view_element.h"
 #include "components/ui_devtools/views/widget_element.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "third_party/skia/include/effects/SkDashPathEffect.h"
 #include "ui/compositor/paint_recorder.h"
 #include "ui/events/event.h"
 #include "ui/gfx/canvas.h"
@@ -69,7 +70,7 @@ void DrawRulers(const gfx::Rect& screen_bounds,
       canvas->Draw1pxLine(gfx::PointF(x, 0.0f), gfx::PointF(x, long_stroke),
                           SK_ColorMAGENTA);
       // Draw ruler marks.
-      std::u16string utf16_text = base::UTF8ToUTF16(std::to_string(x));
+      std::u16string utf16_text = base::UTF8ToUTF16(base::NumberToString(x));
       DrawRulerText(utf16_text, gfx::Point(x + 2, long_stroke), canvas,
                     render_text_);
 
@@ -88,7 +89,7 @@ void DrawRulers(const gfx::Rect& screen_bounds,
       canvas->Draw1pxLine(gfx::PointF(0.0f, y), gfx::PointF(long_stroke, y),
                           SK_ColorMAGENTA);
       // Draw ruler marks.
-      std::u16string utf16_text = base::UTF8ToUTF16(std::to_string(y));
+      std::u16string utf16_text = base::UTF8ToUTF16(base::NumberToString(y));
       DrawRulerText(utf16_text, gfx::Point(short_stroke + 1, y + 2), canvas,
                     render_text_);
     } else {
@@ -112,15 +113,16 @@ void DrawSizeOfRectangle(const gfx::Rect& hovered_rect,
   } else if (hovered_rect.height()) {
     // Draw only height() if height() is not empty.
     utf16_text =
-        base::UTF8ToUTF16(std::to_string(hovered_rect.height()) + unit);
+        base::UTF8ToUTF16(base::NumberToString(hovered_rect.height()) + unit);
   } else if (hovered_rect.width()) {
     // Draw only width() if width() is not empty.
-    utf16_text = base::UTF8ToUTF16(std::to_string(hovered_rect.width()) + unit);
+    utf16_text =
+        base::UTF8ToUTF16(base::NumberToString(hovered_rect.width()) + unit);
   } else {
     // If both width() and height() are empty, canvas won't draw size.
     return;
   }
-  render_text_->SetText(utf16_text);
+  render_text_->SetText(std::move(utf16_text));
   render_text_->SetColor(SK_ColorRED);
 
   const gfx::Size& text_size = render_text_->GetStringSize();
@@ -381,7 +383,7 @@ OverlayAgentViews::OverlayAgentViews(DOMAgent* dom_agent)
       show_size_on_canvas_(false),
       highlight_rect_config_(HighlightRectsConfiguration::NO_DRAW) {}
 
-OverlayAgentViews::~OverlayAgentViews() {}
+OverlayAgentViews::~OverlayAgentViews() = default;
 
 void OverlayAgentViews::SetPinnedNodeId(int node_id) {
   pinned_id_ = node_id;
@@ -391,7 +393,7 @@ void OverlayAgentViews::SetPinnedNodeId(int node_id) {
 
 protocol::Response OverlayAgentViews::setInspectMode(
     const protocol::String& in_mode,
-    protocol::Maybe<protocol::Overlay::HighlightConfig> in_highlightConfig) {
+    std::unique_ptr<protocol::Overlay::HighlightConfig> in_highlightConfig) {
   pinned_id_ = 0;
   if (in_mode.compare("searchForNode") == 0) {
     InstallPreTargetHandler();
@@ -403,8 +405,8 @@ protocol::Response OverlayAgentViews::setInspectMode(
 
 protocol::Response OverlayAgentViews::highlightNode(
     std::unique_ptr<protocol::Overlay::HighlightConfig> highlight_config,
-    protocol::Maybe<int> node_id) {
-  return HighlightNode(node_id.fromJust());
+    std::optional<int> node_id) {
+  return HighlightNode(node_id.value());
 }
 
 protocol::Response OverlayAgentViews::hideHighlight() {
@@ -504,7 +506,7 @@ void OverlayAgentViews::OnMouseEvent(ui::MouseEvent* event) {
 
   // Show parent of the pinned element with id |pinned_id_| when mouse scrolls
   // up. If parent exists, highlight and re-pin parent element.
-  if (event->type() == ui::ET_MOUSEWHEEL && pinned_id_) {
+  if (event->type() == ui::EventType::kMousewheel && pinned_id_) {
     const ui::MouseWheelEvent* mouse_event =
         static_cast<ui::MouseWheelEvent*>(event);
     DCHECK(mouse_event);
@@ -537,7 +539,7 @@ void OverlayAgentViews::OnMouseEvent(ui::MouseEvent* event) {
   }
 
   // Pin the hover element on click.
-  if (event->type() == ui::ET_MOUSE_PRESSED) {
+  if (event->type() == ui::EventType::kMousePressed) {
     if (active_window)
       event->SetHandled();
     SetPinnedNodeId(element_id);
@@ -583,7 +585,7 @@ void OverlayAgentViews::OnPaintLayer(const ui::PaintContext& context) {
   flags.setStyle(cc::PaintFlags::kStroke_Style);
 
   constexpr SkScalar intervals[] = {1.f, 4.f};
-  flags.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+  flags.setPathEffect(cc::PathEffect::MakeDash(intervals, 2, 0));
 
   if (!render_text_)
     render_text_ = gfx::RenderText::CreateRenderText();
@@ -643,7 +645,7 @@ void OverlayAgentViews::OnPaintLayer(const ui::PaintContext& context) {
                           render_text_.get());
 
       // Draw 4 guide lines along distance lines.
-      flags.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+      flags.setPathEffect(cc::PathEffect::MakeDash(intervals, 2, 0));
 
       // Bottom horizontal dotted line from left to right.
       canvas->DrawLine(
@@ -670,7 +672,7 @@ void OverlayAgentViews::OnPaintLayer(const ui::PaintContext& context) {
                              render_text_.get());
 
       // Draw 2 guide lines along distance lines.
-      flags.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+      flags.setPathEffect(cc::PathEffect::MakeDash(intervals, 2, 0));
 
       // Top horizontal dotted line from left to right.
       canvas->DrawLine(
@@ -687,7 +689,7 @@ void OverlayAgentViews::OnPaintLayer(const ui::PaintContext& context) {
                              render_text_.get());
 
       // Draw 1 guide line along distance lines.
-      flags.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+      flags.setPathEffect(cc::PathEffect::MakeDash(intervals, 2, 0));
 
       // Top horizontal dotted line from left to right.
       canvas->DrawLine(gfx::PointF(0.0f, pinned_rect_f.y()),
@@ -702,13 +704,12 @@ void OverlayAgentViews::OnPaintLayer(const ui::PaintContext& context) {
       DrawR1IntersectsR2(pinned_rect_f, hovered_rect_f, flags, canvas,
                          render_text_.get());
       // Draw 4 guide line along distance lines.
-      flags.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+      flags.setPathEffect(cc::PathEffect::MakeDash(intervals, 2, 0));
 
       DrawRectGuideLinesOnCanvas(screen_bounds, hovered_rect_f, flags, canvas);
       return;
     default:
       NOTREACHED();
-      return;
   }
 }
 

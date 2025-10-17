@@ -1,18 +1,17 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/memory/raw_ptr_asan_bound_arg_tracker.h"
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "partition_alloc/buildflags.h"
 
-#if BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
+#if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
 
 #include <sanitizer/allocator_interface.h>
 #include <sanitizer/asan_interface.h>
 
 #include "base/memory/raw_ptr_asan_service.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace base {
 
@@ -20,7 +19,7 @@ namespace {
 
 // We use thread-local storage instead of sequence-local storage for consistency
 // with PendingReport in RawPtrAsanService.
-ABSL_CONST_INIT thread_local RawPtrAsanBoundArgTracker::ProtectedArgsVector*
+constinit thread_local RawPtrAsanBoundArgTracker::ProtectedArgsVector*
     protected_args = nullptr;
 
 }  // namespace
@@ -61,10 +60,10 @@ RawPtrAsanBoundArgTracker::~RawPtrAsanBoundArgTracker() {
 
 void RawPtrAsanBoundArgTracker::Add(uintptr_t ptr) {
   if (ptr) {
-    protected_args_->push_back(ptr);
+    protected_args_.push_back(ptr);
   }
 }
 
 }  // namespace base
 
-#endif  // BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
+#endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)

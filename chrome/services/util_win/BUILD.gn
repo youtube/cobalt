@@ -10,11 +10,15 @@ source_set("lib") {
     "av_products.h",
     "processor_metrics.cc",
     "processor_metrics.h",
+    "tpm_metrics.cc",
+    "tpm_metrics.h",
     "util_read_icon.cc",
     "util_read_icon.h",
     "util_win_impl.cc",
     "util_win_impl.h",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   deps = [
     "//base",
@@ -36,6 +40,7 @@ source_set("unit_tests") {
   sources = [
     "av_products_unittest.cc",
     "processor_metrics_unittest.cc",
+    "tpm_metrics_unittest.cc",
   ]
 
   deps = [

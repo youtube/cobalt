@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/android/callback_android.h"
+#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/functional/bind.h"
@@ -17,10 +18,13 @@
 #include "base/unguessable_token.h"
 #include "media/base/android/android_util.h"
 #include "media/base/android/media_drm_bridge.h"
-#include "media/base/android/media_jni_headers/MediaDrmStorageBridge_jni.h"
 #include "media/base/media_drm_key_type.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "media/base/android/media_jni_headers/MediaDrmStorageBridge_jni.h"
+
 using base::android::AttachCurrentThread;
+using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaByteArrayToByteVector;
 using base::android::JavaByteArrayToString;
@@ -49,7 +53,6 @@ void MediaDrmStorageBridge::Initialize(const CreateStorageCB& create_storage_cb,
 
 void MediaDrmStorageBridge::OnProvisioned(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_storage,
     // Callback<Boolean>
     const JavaParamRef<jobject>& j_callback) {
   DCHECK(impl_);
@@ -66,7 +69,6 @@ void MediaDrmStorageBridge::OnProvisioned(
 
 void MediaDrmStorageBridge::OnLoadInfo(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_storage,
     const JavaParamRef<jbyteArray>& j_session_id,
     // Callback<PersistentInfo>
     const JavaParamRef<jobject>& j_callback) {
@@ -85,7 +87,6 @@ void MediaDrmStorageBridge::OnLoadInfo(
 
 void MediaDrmStorageBridge::OnSaveInfo(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_storage,
     const JavaParamRef<jobject>& j_persist_info,
     // Callback<Boolean>
     const JavaParamRef<jobject>& j_callback) {
@@ -123,7 +124,6 @@ void MediaDrmStorageBridge::OnSaveInfo(
 
 void MediaDrmStorageBridge::OnClearInfo(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_storage,
     const JavaParamRef<jbyteArray>& j_session_id,
     // Callback<Boolean>
     const JavaParamRef<jobject>& j_callback) {
@@ -184,8 +184,8 @@ void MediaDrmStorageBridge::OnSessionDataLoaded(
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_eme_id = ToJavaByteArray(env, session_id);
-  ScopedJavaLocalRef<jbyteArray> j_key_set_id = ToJavaByteArray(
-      env, session_data->key_set_id.data(), session_data->key_set_id.size());
+  ScopedJavaLocalRef<jbyteArray> j_key_set_id =
+      ToJavaByteArray(env, session_data->key_set_id);
   ScopedJavaLocalRef<jstring> j_mime =
       ConvertUTF8ToJavaString(env, session_data->mime_type);
 

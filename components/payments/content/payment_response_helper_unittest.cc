@@ -9,12 +9,15 @@
 #include <utility>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_executor.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
-#include "components/autofill/core/browser/test_personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/payments/content/payment_request_spec.h"
 #include "components/payments/content/test_payment_app.h"
 #include "components/payments/core/test_payment_request_delegate.h"
@@ -29,12 +32,13 @@ class PaymentResponseHelperTest : public testing::Test,
   PaymentResponseHelperTest()
       : test_payment_request_delegate_(
             std::make_unique<base::SingleThreadTaskExecutor>(),
-            &test_personal_data_manager_),
-        address_(autofill::test::GetFullProfile()) {
-    test_personal_data_manager_.AddProfile(address_);
+            &test_personal_data_manager_) {
+    address_ = std::make_unique<autofill::AutofillProfile>(
+        autofill::test::GetFullProfile());
+    test_personal_data_manager_.address_data_manager().AddProfile(*address_);
     test_app_ = std::make_unique<TestPaymentApp>("method-name");
   }
-  ~PaymentResponseHelperTest() override {}
+  ~PaymentResponseHelperTest() override = default;
 
   // PaymentRequestState::Delegate:
   void OnPaymentResponseReady(mojom::PaymentResponsePtr response) override {
@@ -83,7 +87,7 @@ class PaymentResponseHelperTest : public testing::Test,
 
   base::WeakPtr<PaymentRequestSpec> spec() { return spec_->AsWeakPtr(); }
   const mojom::PaymentResponsePtr& response() { return payment_response_; }
-  autofill::AutofillProfile* test_address() { return &address_; }
+  autofill::AutofillProfile* test_address() { return address_.get(); }
   base::WeakPtr<PaymentApp> test_app() { return test_app_->AsWeakPtr(); }
   base::WeakPtr<PaymentRequestDelegate> test_payment_request_delegate() {
     return test_payment_request_delegate_.GetWeakPtr();
@@ -100,7 +104,7 @@ class PaymentResponseHelperTest : public testing::Test,
   TestPaymentRequestDelegate test_payment_request_delegate_;
 
   // Test data.
-  autofill::AutofillProfile address_;
+  std::unique_ptr<autofill::AutofillProfile> address_;
   std::unique_ptr<PaymentApp> test_app_;
 
   base::WeakPtrFactory<PaymentResponseHelperTest> weak_ptr_factory_{this};
@@ -209,10 +213,10 @@ TEST_F(PaymentResponseHelperTest,
   EXPECT_EQ("+15152231234", response()->payer->phone.value());
 }
 
-// Tests the the generated PaymentResponse has phone number minimumly formatted
+// Tests the the generated PaymentResponse has phone number minimally formatted
 // (removing non-digit letters), if the number is invalid
 TEST_F(PaymentResponseHelperTest,
-       GeneratePaymentResponse_ContactPhoneIsMinimumlyFormattedWhenInvalid) {
+       GeneratePaymentResponse_ContactPhoneIsMinimallyFormattedWhenInvalid) {
   // Request one contact detail value.
   mojom::PaymentOptionsPtr options = mojom::PaymentOptions::New();
   options->request_payer_phone = true;
@@ -225,7 +229,7 @@ TEST_F(PaymentResponseHelperTest,
                                test_address(), GetWeakPtr());
 
   // Check that the phone was formatted.
-  EXPECT_EQ("5151231234", response()->payer->phone.value());
+  EXPECT_EQ("+15151231234", response()->payer->phone.value());
 }
 
 }  // namespace payments

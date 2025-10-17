@@ -13,7 +13,7 @@
 
 #include "rtc_base/socket_adapters.h"
 
-namespace rtc {
+namespace webrtc {
 
 // Interface for implementing proxy server sockets.
 class AsyncProxyServerSocket : public BufferedReadAdapter {
@@ -38,40 +38,15 @@ class AsyncSSLServerSocket : public BufferedReadAdapter {
   void ProcessInput(char* data, size_t* len) override;
 };
 
-// Implements a proxy server socket for the SOCKS protocol.
-class AsyncSocksProxyServerSocket : public AsyncProxyServerSocket {
- public:
-  explicit AsyncSocksProxyServerSocket(Socket* socket);
+}  //  namespace webrtc
 
-  AsyncSocksProxyServerSocket(const AsyncSocksProxyServerSocket&) = delete;
-  AsyncSocksProxyServerSocket& operator=(const AsyncSocksProxyServerSocket&) =
-      delete;
-
- private:
-  void ProcessInput(char* data, size_t* len) override;
-  void DirectSend(const ByteBufferWriter& buf);
-
-  void HandleHello(ByteBufferReader* request);
-  void SendHelloReply(uint8_t method);
-  void HandleAuth(ByteBufferReader* request);
-  void SendAuthReply(uint8_t result);
-  void HandleConnect(ByteBufferReader* request);
-  void SendConnectResult(int result, const SocketAddress& addr) override;
-
-  void Error(int error);
-
-  static const int kBufferSize = 1024;
-  enum State {
-    SS_HELLO,
-    SS_AUTH,
-    SS_CONNECT,
-    SS_CONNECT_PENDING,
-    SS_TUNNEL,
-    SS_ERROR
-  };
-  State state_;
-};
-
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::AsyncProxyServerSocket;
+using ::webrtc::AsyncSSLServerSocket;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SERVER_SOCKET_ADAPTERS_H_

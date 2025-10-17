@@ -46,20 +46,6 @@ typedef struct  {
 } DataHeader;
 
 typedef struct {
-    DataHeader hdr;
-    char padding[8];
-    uint32_t count, reserved;
-    /*
-    const struct {
-    const char *const name;
-    const void *const data;
-    } toc[1];
-    */
-   int   fakeNameAndData[4];       /* TODO:  Change this header type from */
-                                   /*        pointerTOC to OffsetTOC.     */
-} ICU_Data_Header;
-
-typedef struct {
     uint32_t nameOffset;
     uint32_t dataOffset;
 } UDataOffsetTOCEntry;

@@ -8,11 +8,14 @@
 #include "ash/ash_export.h"
 #include "ash/shelf/shelf_view.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace ash {
 
 class ASH_EXPORT ShelfContainerView : public views::View {
+  METADATA_HEADER(ShelfContainerView, views::View)
+
  public:
   explicit ShelfContainerView(ShelfView* shelf_view);
 
@@ -28,19 +31,19 @@ class ASH_EXPORT ShelfContainerView : public views::View {
   gfx::Size CalculateIdealSize(int button_size) const;
 
   // Translate |shelf_view_| by |offset|.
-  // TODO(https://crbug.com/973481): now we implement ShelfView scrolling
+  // TODO(crbug.com/40631809): now we implement ShelfView scrolling
   // through view translation, which is not as efficient as ScrollView. Redesign
   // this class with ScrollView.
   virtual void TranslateShelfView(const gfx::Vector2dF& offset);
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void ChildPreferredSizeChanged(views::View* child) override;
-  const char* GetClassName() const override;
 
  protected:
   // Owned by views hierarchy.
-  raw_ptr<ShelfView, ExperimentalAsh> shelf_view_ = nullptr;
+  raw_ptr<ShelfView> shelf_view_ = nullptr;
 };
 
 }  // namespace ash

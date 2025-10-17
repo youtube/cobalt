@@ -5,26 +5,24 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_PREINSTALLED_APP_INSTALL_FEATURES_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_PREINSTALLED_APP_INSTALL_FEATURES_H_
 
+#include <string_view>
+
 #include "base/auto_reset.h"
-#include "base/feature_list.h"
-#include "base/strings/string_piece_forward.h"
-#include "build/build_config.h"
 
 class Profile;
 
 namespace web_app {
 
-#if BUILDFLAG(IS_CHROMEOS)
-BASE_DECLARE_FEATURE(kCursiveManagedStylusPreinstall);
+// Returns whether preinstalled Google Docs, Sheets, and Slides apps should
+// display as standalone tabbed apps, and Drive as standalone but not
+// tabbed, by default. Always false on non-CrOS.
+bool IsPreinstalledDocsSheetsSlidesDriveStandaloneTabbed(Profile& profile);
 
-BASE_DECLARE_FEATURE(kMessagesPreinstall);
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-// Returns the base::Feature in |kPreinstalledAppInstallFeatures| that
-// corresponds to |feature_name|. Used by external app install configs to gate
-// installation on features listed in |kPreinstalledAppInstallFeatures|.
-bool IsPreinstalledAppInstallFeatureEnabled(base::StringPiece feature_name,
-                                            const Profile& profile);
+// Returns whether the feature in |kPreinstalledAppInstallFeatures| that
+// corresponds to `feature_name` is enabled. Used by external app install
+// configs to gate installation on features listed in
+// `kPreinstalledAppInstallFeatures`.
+bool IsPreinstalledAppInstallFeatureEnabled(std::string_view feature_name);
 
 base::AutoReset<bool> SetPreinstalledAppInstallFeatureAlwaysEnabledForTesting();
 

@@ -58,17 +58,17 @@ class FirstPartySetsPolicyInitializationTest : public LoginManagerTest {
   // FirstPartySetsOverrides policies with `true` and `overrides` respectively.
   //
   // If `overrides` is nullopt, this disables the FirstPartySetsEnabled policy.
-  void SetFirstPartySetsPolicies(absl::optional<base::Value::Dict> overrides) {
+  void SetFirstPartySetsPolicies(std::optional<base::Value::Dict> overrides) {
     policy_.Set(
         policy::key::kFirstPartySetsEnabled, policy::POLICY_LEVEL_MANDATORY,
         policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
-        absl::make_optional(base::Value(overrides.has_value())), nullptr);
+        std::make_optional(base::Value(overrides.has_value())), nullptr);
     if (overrides.has_value()) {
-      policy_.Set(
-          policy::key::kFirstPartySetsOverrides, policy::POLICY_LEVEL_MANDATORY,
-          policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
-          absl::make_optional(base::Value(std::move(overrides.value()))),
-          nullptr);
+      policy_.Set(policy::key::kFirstPartySetsOverrides,
+                  policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+                  policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
+                  std::make_optional(base::Value(std::move(overrides.value()))),
+                  nullptr);
     }
     policy_provider_.UpdateChromePolicy(policy_);
   }
@@ -85,17 +85,18 @@ class FirstPartySetsPolicyInitializationTest : public LoginManagerTest {
 // Verifies that policy defaults are used when not specified.
 IN_PROC_BROWSER_TEST_F(FirstPartySetsPolicyInitializationTest, PolicyDefaults) {
   base::RunLoop loop;
-  BrowserContextKeyedServiceFactory::TestingFactory factory =
-      base::BindLambdaForTesting([&](content::BrowserContext* context) {
+  ::first_party_sets::FirstPartySetsPolicyServiceFactory::GlobalTestingFactory
+      factory = base::BindLambdaForTesting([&](content::BrowserContext*
+                                                   context) {
         Profile* profile = Profile::FromBrowserContext(context);
-        EXPECT_TRUE(
-            profile->GetPrefs()
-                ->FindPreference(prefs::kPrivacySandboxFirstPartySetsEnabled)
-                ->IsDefaultValue());
-        EXPECT_TRUE(
-            profile->GetPrefs()
-                ->FindPreference(::first_party_sets::kFirstPartySetsOverrides)
-                ->IsDefaultValue());
+        EXPECT_TRUE(profile->GetPrefs()
+                        ->FindPreference(
+                            prefs::kPrivacySandboxRelatedWebsiteSetsEnabled)
+                        ->IsDefaultValue());
+        EXPECT_TRUE(profile->GetPrefs()
+                        ->FindPreference(
+                            ::first_party_sets::kRelatedWebsiteSetsOverrides)
+                        ->IsDefaultValue());
         loop.Quit();
         return base::WrapUnique<KeyedService>(
             new ::first_party_sets::FirstPartySetsPolicyService(context));
@@ -113,21 +114,22 @@ IN_PROC_BROWSER_TEST_F(FirstPartySetsPolicyInitializationTest, PolicyDefaults) {
 IN_PROC_BROWSER_TEST_F(FirstPartySetsPolicyInitializationTest,
                        EnabledPolicySetAndUsed) {
   base::RunLoop loop;
-  BrowserContextKeyedServiceFactory::TestingFactory factory =
-      base::BindLambdaForTesting([&](content::BrowserContext* context) {
+  ::first_party_sets::FirstPartySetsPolicyServiceFactory::GlobalTestingFactory
+      factory = base::BindLambdaForTesting([&](content::BrowserContext*
+                                                   context) {
         Profile* profile = Profile::FromBrowserContext(context);
         // Only the FirstPartySetsEnabled pref was set.
-        EXPECT_FALSE(
-            profile->GetPrefs()
-                ->FindPreference(prefs::kPrivacySandboxFirstPartySetsEnabled)
-                ->IsDefaultValue());
-        EXPECT_TRUE(
-            profile->GetPrefs()
-                ->FindPreference(::first_party_sets::kFirstPartySetsOverrides)
-                ->IsDefaultValue());
+        EXPECT_FALSE(profile->GetPrefs()
+                         ->FindPreference(
+                             prefs::kPrivacySandboxRelatedWebsiteSetsEnabled)
+                         ->IsDefaultValue());
+        EXPECT_TRUE(profile->GetPrefs()
+                        ->FindPreference(
+                            ::first_party_sets::kRelatedWebsiteSetsOverrides)
+                        ->IsDefaultValue());
         // Check the expected value of FirstPartySetsEnabled the pref.
         EXPECT_EQ(profile->GetPrefs()->GetBoolean(
-                      prefs::kPrivacySandboxFirstPartySetsEnabled),
+                      prefs::kPrivacySandboxRelatedWebsiteSetsEnabled),
                   false);
         loop.Quit();
         return base::WrapUnique<KeyedService>(
@@ -138,7 +140,7 @@ IN_PROC_BROWSER_TEST_F(FirstPartySetsPolicyInitializationTest,
       ->SetTestingFactoryForTesting(std::move(factory));
 
   SetFirstPartySetsPolicies(
-      /*overrides=*/absl::nullopt);
+      /*overrides=*/std::nullopt);
   LoginUser(test_account_id());
   loop.Run();
 }
@@ -155,24 +157,25 @@ IN_PROC_BROWSER_TEST_F(FirstPartySetsPolicyInitializationTest,
               }
             )")
                                        .value();
-  BrowserContextKeyedServiceFactory::TestingFactory factory =
-      base::BindLambdaForTesting([&](content::BrowserContext* context) {
+  ::first_party_sets::FirstPartySetsPolicyServiceFactory::GlobalTestingFactory
+      factory = base::BindLambdaForTesting([&](content::BrowserContext*
+                                                   context) {
         Profile* profile = Profile::FromBrowserContext(context);
         // Both prefs were set.
-        EXPECT_FALSE(
-            profile->GetPrefs()
-                ->FindPreference(prefs::kPrivacySandboxFirstPartySetsEnabled)
-                ->IsDefaultValue());
-        EXPECT_FALSE(
-            profile->GetPrefs()
-                ->FindPreference(::first_party_sets::kFirstPartySetsOverrides)
-                ->IsDefaultValue());
+        EXPECT_FALSE(profile->GetPrefs()
+                         ->FindPreference(
+                             prefs::kPrivacySandboxRelatedWebsiteSetsEnabled)
+                         ->IsDefaultValue());
+        EXPECT_FALSE(profile->GetPrefs()
+                         ->FindPreference(
+                             ::first_party_sets::kRelatedWebsiteSetsOverrides)
+                         ->IsDefaultValue());
         // Both prefs have the expected value.
         EXPECT_EQ(profile->GetPrefs()->GetBoolean(
-                      prefs::kPrivacySandboxFirstPartySetsEnabled),
+                      prefs::kPrivacySandboxRelatedWebsiteSetsEnabled),
                   true);
         EXPECT_TRUE(profile->GetPrefs()->GetDict(
-                        ::first_party_sets::kFirstPartySetsOverrides) ==
+                        ::first_party_sets::kRelatedWebsiteSetsOverrides) ==
                     expected_overrides.GetDict());
         loop.Quit();
         return base::WrapUnique<KeyedService>(

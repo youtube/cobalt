@@ -6,19 +6,21 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/containers/contains.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/json/json_file_value_serializer.h"
-#include "base/json/json_string_value_serializer.h"
+#include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -47,7 +49,7 @@ bool g_allow_gzipped_messages_for_test = false;
 // or there was parsing error we return null and set |error|. If
 // |gzip_permission| is kAllowForTrustedSource, this will also look for a .gz
 // version of the file and if found will decompresses it into a string first.
-std::unique_ptr<base::Value::Dict> LoadMessageFile(
+std::optional<base::Value::Dict> LoadMessageFile(
     const base::FilePath& locale_path,
     const std::string& locale,
     std::string* error,
@@ -55,14 +57,13 @@ std::unique_ptr<base::Value::Dict> LoadMessageFile(
   base::FilePath file_path =
       locale_path.AppendASCII(locale).Append(extensions::kMessagesFilename);
 
-  std::unique_ptr<base::Value::Dict> dictionary;
+  std::optional<base::Value::Dict> dictionary;
   if (base::PathExists(file_path)) {
     JSONFileValueDeserializer messages_deserializer(file_path);
     std::unique_ptr<base::Value> value =
         messages_deserializer.Deserialize(nullptr, error);
     if (value) {
-      dictionary =
-          std::make_unique<base::Value::Dict>(std::move(*value).TakeDict());
+      dictionary = std::move(*value).TakeDict();
     }
   } else if (gzip_permission == extension_l10n_util::GzippedMessagesPermission::
                                     kAllowForTrustedSource ||
@@ -83,12 +84,12 @@ std::unique_ptr<base::Value::Dict> LoadMessageFile(
                                     locale.c_str());
         return dictionary;
       }
-      JSONStringValueDeserializer messages_deserializer(data);
-      std::unique_ptr<base::Value> value =
-          messages_deserializer.Deserialize(nullptr, error);
-      if (value) {
-        dictionary =
-            std::make_unique<base::Value::Dict>(std::move(*value).TakeDict());
+      base::JSONReader::Result value =
+          base::JSONReader::ReadAndReturnValueWithError(data);
+      if (value.has_value()) {
+        dictionary = std::move(*value).TakeDict();
+      } else {
+        *error = value.error().message;
       }
     }
   } else {
@@ -385,7 +386,7 @@ bool AddLocale(const std::set<std::string>& chrome_locales,
   // locales.
   if (base::StartsWith(locale_name, ".", base::CompareCase::SENSITIVE))
     return true;
-  if (chrome_locales.find(locale_name) == chrome_locales.end()) {
+  if (!base::Contains(chrome_locales, locale_name)) {
     // Warn if there is an extension locale that's not in the Chrome list,
     // but don't fail.
     DLOG(WARNING) << base::StringPrintf("Supplied locale %s is not supported.",
@@ -416,9 +417,9 @@ void GetAllLocales(std::set<std::string>* all_locales) {
       l10n_util::GetAvailableICULocales();
   // Add all parents of the current locale to the available locales set.
   // I.e. for sr_Cyrl_RS we add sr_Cyrl_RS, sr_Cyrl and sr.
-  for (size_t i = 0; i < available_locales.size(); ++i) {
+  for (const auto& locale : available_locales) {
     std::vector<std::string> result;
-    l10n_util::GetParentLocales(available_locales[i], &result);
+    l10n_util::GetParentLocales(locale, &result);
     all_locales->insert(result.begin(), result.end());
   }
 }
@@ -457,8 +458,7 @@ bool GetValidLocales(const base::FilePath& locale_path,
   while (!(locale_folder = locales.Next()).empty()) {
     std::string locale_name = locale_folder.BaseName().MaybeAsASCII();
     if (locale_name.empty()) {
-      NOTREACHED();
-      continue;  // Not ASCII.
+      NOTREACHED();  // Not ASCII.
     }
     if (!AddLocale(
             chrome_locales, locale_folder, locale_name, valid_locales, error)) {
@@ -484,15 +484,14 @@ extensions::MessageBundle* LoadMessageCatalogs(
   GetAllFallbackLocales(default_locale, &all_fallback_locales);
 
   extensions::MessageBundle::CatalogVector catalogs;
-  for (size_t i = 0; i < all_fallback_locales.size(); ++i) {
+  for (const auto& fallback_locale : all_fallback_locales) {
     // Skip all parent locales that are not supplied.
-    base::FilePath this_locale_path =
-        locale_path.AppendASCII(all_fallback_locales[i]);
+    base::FilePath this_locale_path = locale_path.AppendASCII(fallback_locale);
     if (!base::PathExists(this_locale_path))
       continue;
-    std::unique_ptr<base::Value::Dict> catalog = LoadMessageFile(
-        locale_path, all_fallback_locales[i], error, gzip_permission);
-    if (!catalog.get()) {
+    std::optional<base::Value::Dict> catalog =
+        LoadMessageFile(locale_path, fallback_locale, error, gzip_permission);
+    if (!catalog.has_value()) {
       // If locale is valid, but messages.json is corrupted or missing, return
       // an error.
       return nullptr;
@@ -517,16 +516,26 @@ bool ValidateExtensionLocales(const base::FilePath& extension_path,
   if (!GetValidLocales(locale_path, &valid_locales, error))
     return false;
 
-  for (auto locale = valid_locales.cbegin(); locale != valid_locales.cend();
-       ++locale) {
+  // Load each available localization file and check for errors within. This
+  // entire method only gets used when reloading unpacked or packing extensions.
+  // Performance thus isn't of utmost importance here, but gathering all errors
+  // in all languages at once provides a comprehensive view to extension devs.
+  for (const auto& locale : valid_locales) {
     std::string locale_error;
-    LoadMessageFile(locale_path, *locale, &locale_error,
-                    GzippedMessagesPermission::kDisallow);
-    if (!locale_error.empty()) {
-      if (!error->empty())
-        error->append(" ");
-      error->append(locale_error);
+    std::unique_ptr<extensions::MessageBundle> bundle(LoadMessageCatalogs(
+        locale_path, locale, GzippedMessagesPermission::kDisallow,
+        &locale_error));
+    if (locale_error.empty()) {
+      continue;
     }
+    if (!error->empty()) {
+      *error += '\n';
+    }
+    base::FilePath file_path =
+        locale_path.AppendASCII(locale).Append(extensions::kMessagesFilename);
+    error->append(extensions::ErrorUtils::FormatErrorMessage(
+        errors::kLocalesInvalidLocale,
+        base::UTF16ToUTF8(file_path.LossyDisplayName()), locale_error));
   }
 
   return error->empty();
@@ -541,7 +550,6 @@ bool ShouldSkipValidation(const base::FilePath& locales_path,
   base::FilePath relative_path;
   if (!locales_path.AppendRelativePath(locale_path, &relative_path)) {
     NOTREACHED();
-    return true;
   }
   std::string subdir = relative_path.MaybeAsASCII();
   if (subdir.empty())
@@ -563,11 +571,11 @@ ScopedLocaleForTest::ScopedLocaleForTest()
     : process_locale_(GetProcessLocale()),
       preferred_locale_(GetPreferredLocale()) {}
 
-ScopedLocaleForTest::ScopedLocaleForTest(base::StringPiece locale)
+ScopedLocaleForTest::ScopedLocaleForTest(std::string_view locale)
     : ScopedLocaleForTest(locale, locale) {}
 
-ScopedLocaleForTest::ScopedLocaleForTest(base::StringPiece process_locale,
-                                         base::StringPiece preferred_locale)
+ScopedLocaleForTest::ScopedLocaleForTest(std::string_view process_locale,
+                                         std::string_view preferred_locale)
     : ScopedLocaleForTest() {
   SetProcessLocale(std::string(process_locale));
   SetPreferredLocale(std::string(preferred_locale));

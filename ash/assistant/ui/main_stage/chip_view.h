@@ -5,6 +5,8 @@
 #ifndef ASH_ASSISTANT_UI_MAIN_STAGE_CHIP_VIEW_H_
 #define ASH_ASSISTANT_UI_MAIN_STAGE_CHIP_VIEW_H_
 
+#include <string_view>
+
 #include "base/component_export.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/image/image_skia.h"
@@ -16,6 +18,8 @@
 namespace ash {
 
 class COMPONENT_EXPORT(ASSISTANT_UI) ChipView : public views::Button {
+  METADATA_HEADER(ChipView, views::Button)
+
  public:
   enum Type { kDefault, kLarge };
 
@@ -25,8 +29,8 @@ class COMPONENT_EXPORT(ASSISTANT_UI) ChipView : public views::Button {
   ~ChipView() override;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
-  int GetHeightForWidth(int width) const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void ChildVisibilityChanged(views::View* child) override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   void OnThemeChanged() override;
@@ -39,9 +43,7 @@ class COMPONENT_EXPORT(ASSISTANT_UI) ChipView : public views::Button {
   gfx::ImageSkia GetIcon() const;
 
   void SetText(const std::u16string& text);
-  const std::u16string& GetText() const;
-
-  METADATA_HEADER(ChipView);
+  std::u16string_view GetText() const;
 
  private:
   const Type type_;

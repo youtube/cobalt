@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "headless/lib/headless_content_main_delegate.h"
 
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <variant>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -39,7 +45,6 @@
 #include "headless/lib/utility/headless_content_utility_client.h"
 #include "headless/public/switches.h"
 #include "sandbox/policy/switches.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -47,6 +52,11 @@
 #include "ui/gfx/switches.h"
 #include "ui/gl/gl_switches.h"
 #include "ui/ozone/public/ozone_switches.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/win/dark_mode_support.h"
+#include "base/win/resource_exhaustion.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 #if defined(HEADLESS_USE_EMBEDDED_RESOURCES)
 #include "headless/embedded_resource_pack_data.h"     // nogncheck
@@ -65,6 +75,15 @@
 #include <signal.h>
 #endif
 
+#if defined(HEADLESS_USE_PREFS)
+#include "components/prefs/pref_service.h"
+#endif
+
+#if defined(HEADLESS_SUPPORT_FIELD_TRIALS)
+#include "content/public/app/initialize_mojo_core.h"
+#include "headless/lib/browser/headless_field_trials.h"
+#endif
+
 namespace headless {
 
 namespace features {
@@ -76,10 +95,6 @@ const base::FilePath::CharType kDefaultProfileName[] =
 
 namespace {
 
-// Keep in sync with content/common/content_constants_internal.h.
-// TODO(skyostil): Add a tracing test for this.
-const int kTraceEventBrowserProcessSortIndex = -6;
-
 HeadlessContentMainDelegate* g_current_headless_content_main_delegate = nullptr;
 
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -90,15 +105,26 @@ base::LazyInstance<HeadlessCrashReporterClient>::Leaky g_headless_crash_client =
 const char kLogFileName[] = "CHROME_LOG_FILE";
 const char kHeadlessCrashKey[] = "headless";
 
+#if BUILDFLAG(IS_WIN)
+void OnResourceExhausted() {
+  // RegisterClassEx will fail if the session's pool of ATOMs is exhausted. This
+  // appears to happen most often when the browser is being driven by automation
+  // tools, though the underlying reason for this remains a mystery
+  // (https://crbug.com/1470483). There is nothing that Chrome can do to
+  // meaningfully run until the user restarts their session by signing out of
+  // Windows or restarting their computer.
+  LOG(ERROR) << "Your computer has run out of resources. "
+                "Sign out of Windows or restart your computer and try again.";
+  base::Process::TerminateCurrentProcessImmediately(EXIT_FAILURE);
+}
+#endif  // BUILDFLAG(IS_WIN)
+
 void InitializeResourceBundle(const base::CommandLine& command_line) {
 #if defined(HEADLESS_USE_EMBEDDED_RESOURCES)
-  ui::ResourceBundle::InitSharedInstanceWithBuffer(
-      {kHeadlessResourcePackStrings.contents,
-       kHeadlessResourcePackStrings.length},
-      ui::kScaleFactorNone);
+  ui::ResourceBundle::InitSharedInstanceWithBuffer(kHeadlessResourcePackStrings,
+                                                   ui::kScaleFactorNone);
   ui::ResourceBundle::GetSharedInstance().AddDataPackFromBuffer(
-      {kHeadlessResourcePackData.contents, kHeadlessResourcePackData.length},
-      ui::k100Percent);
+      kHeadlessResourcePackData, ui::k100Percent);
 #else
   base::FilePath resource_dir;
   bool result = base::PathService::Get(base::DIR_ASSETS, &resource_dir);
@@ -156,6 +182,33 @@ void InitApplicationLocale(const base::CommandLine& command_line) {
       command_line.GetSwitchValueASCII(::switches::kLang));
 }
 
+void AddSwitchesForVirtualTime() {
+  // Only pass viz flags into the virtual time mode.
+  const char* const switches[] = {
+      // TODO(eseckler): Make --run-all-compositor-stages-before-draw a
+      // per-BeginFrame mode so that we can activate it for individual
+      // requests
+      // only. With surface sync becoming the default, we can then make
+      // virtual_time_enabled a per-request option, too.
+      // We control BeginFrames ourselves and need all compositing stages to
+      // run.
+      ::switches::kRunAllCompositorStagesBeforeDraw,
+      ::switches::kDisableNewContentRenderingTimeout,
+      ::switches::kDisableThreadedAnimation,
+      // Animtion-only BeginFrames are only supported when updates from the
+      // impl-thread are disabled, see go/headless-rendering.
+      ::switches::kDisableCheckerImaging,
+      // Ensure that image animations don't resync their animation timestamps
+      // when looping back around.
+      blink::switches::kDisableImageAnimationResync,
+  };
+
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  for (const auto* flag : switches) {
+    command_line->AppendSwitch(flag);
+  }
+}
+
 }  // namespace
 
 HeadlessContentMainDelegate::HeadlessContentMainDelegate(
@@ -170,21 +223,40 @@ HeadlessContentMainDelegate::~HeadlessContentMainDelegate() {
   g_current_headless_content_main_delegate = nullptr;
 }
 
-absl::optional<int> HeadlessContentMainDelegate::BasicStartupComplete() {
+std::optional<int> HeadlessContentMainDelegate::BasicStartupComplete() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
+  content::Profiling::ProcessStarted();
+
+  // Note that on platforms where zygotes are used, this method is invoked
+  // before the zygote fork, so whatever switches are modified here get
+  // overridden when zygote forks, potentially causing differences with
+  // regard to the platforms that don't use zygotes. Therefore, we don't
+  // want this method to ever alter command line in child processes and
+  // only rely on flags set in the browsers getting propagated to children
+  // via regular flag propagation means. See crbug.com/338414704 for context.
+  if (command_line->HasSwitch(::switches::kProcessType)) {
+    return std::nullopt;
+  }
   // The DevTools remote debugging pipe file descriptors need to be checked
   // before any other files are opened, see https://crbug.com/1423048.
-  const bool is_browser = !command_line->HasSwitch(::switches::kProcessType);
-  if (is_browser && command_line->HasSwitch(::switches::kRemoteDebuggingPipe) &&
+#if BUILDFLAG(IS_WIN)
+  const bool pipes_are_specified_explicitly =
+      command_line->HasSwitch(::switches::kRemoteDebuggingIoPipes);
+#else
+  const bool pipes_are_specified_explicitly = false;
+#endif
+  if (command_line->HasSwitch(::switches::kRemoteDebuggingPipe) &&
+      !pipes_are_specified_explicitly &&
       !devtools_pipe::AreFileDescriptorsOpen()) {
     LOG(ERROR) << "Remote debugging pipe file descriptors are not open.";
     return EXIT_FAILURE;
   }
 
   // Make sure all processes know that we're in headless mode.
-  if (!command_line->HasSwitch(::switches::kHeadless))
-    command_line->AppendSwitch(::switches::kHeadless);
+  if (!command_line->HasSwitch(::switches::kHeadless)) {
+    command_line->AppendSwitchASCII(::switches::kHeadless, "old");
+  }
 
   // Use software rendering by default, but don't mess with gl and angle
   // switches if user is overriding them.
@@ -213,9 +285,7 @@ absl::optional<int> HeadlessContentMainDelegate::BasicStartupComplete() {
   command_line->AppendSwitch(
       ::switches::kDisableGpuProcessForDX12InfoCollection);
 #endif
-
-  content::Profiling::ProcessStarted();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void HeadlessContentMainDelegate::InitLogging(
@@ -277,7 +347,7 @@ void HeadlessContentMainDelegate::InitLogging(
   // Otherwise we log to where the executable is.
   if (log_path.empty()) {
 #if BUILDFLAG(IS_FUCHSIA)
-    // TODO(crbug.com/1262330): Use the same solution as used for LOG_DIR.
+    // TODO(crbug.com/40202595): Use the same solution as used for LOG_DIR.
     // Use -1 to allow this to compile.
     if (base::PathService::Get(-1, &log_path)) {
 #else
@@ -289,10 +359,9 @@ void HeadlessContentMainDelegate::InitLogging(
     }
   }
 
-  std::string filename;
   std::unique_ptr<base::Environment> env(base::Environment::Create());
-  if (env->GetVar(kLogFileName, &filename) && !filename.empty()) {
-    log_path = base::FilePath::FromUTF8Unsafe(filename);
+  if (std::optional<std::string> filename = env->GetVar(kLogFileName)) {
+    log_path = base::FilePath::FromUTF8Unsafe(filename.value());
   }
 
   // On Windows, having non canonical forward slashes in log file name causes
@@ -327,7 +396,7 @@ void HeadlessContentMainDelegate::InitCrashReporter(
   }
 
 #if BUILDFLAG(IS_FUCHSIA)
-  // TODO(crbug.com/1226159): Implement this when crash reporting is available
+  // TODO(crbug.com/40188745): Implement this when crash reporting is available
   // for Fuchsia.
   NOTIMPLEMENTED();
 #else
@@ -371,7 +440,7 @@ void HeadlessContentMainDelegate::PreSandboxStartup() {
   InitApplicationLocale(command_line);
 }
 
-absl::variant<int, content::MainFunctionParams>
+std::variant<int, content::MainFunctionParams>
 HeadlessContentMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
@@ -380,8 +449,6 @@ HeadlessContentMainDelegate::RunProcess(
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
-  base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
-      kTraceEventBrowserProcessSortIndex);
 
   std::unique_ptr<content::BrowserMainRunner> browser_runner =
       content::BrowserMainRunner::Create();
@@ -394,12 +461,7 @@ HeadlessContentMainDelegate::RunProcess(
   browser_runner->Run();
   browser_runner->Shutdown();
 
-  int exit_code = browser_->exit_code();
-
-  browser_.reset();
-
-  // Return an int here to disable calling content::BrowserMain.
-  return exit_code;
+  return browser_->exit_code();
 }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -442,20 +504,32 @@ HeadlessContentMainDelegate* HeadlessContentMainDelegate::GetInstance() {
   return g_current_headless_content_main_delegate;
 }
 
-absl::optional<int> HeadlessContentMainDelegate::PreBrowserMain() {
-  HeadlessBrowser::Options::Builder builder;
-
+std::optional<int> HeadlessContentMainDelegate::PreBrowserMain() {
+  HeadlessBrowser::Options browser_options;
   if (!HandleCommandLineSwitches(*base::CommandLine::ForCurrentProcess(),
-                                 builder)) {
+                                 browser_options)) {
     return EXIT_FAILURE;
   }
-  browser_->SetOptions(builder.Build());
+  browser_->SetOptions(std::move(browser_options));
+
+#if BUILDFLAG(IS_WIN)
+  // Register callback to handle resource exhaustion.
+  base::win::SetOnResourceExhaustedFunction(&OnResourceExhausted);
+#endif
 
 #if BUILDFLAG(IS_MAC)
   PlatformPreBrowserMain();
 #endif
-  return absl::nullopt;
+  return std::nullopt;
 }
+
+#if BUILDFLAG(IS_WIN)
+bool HeadlessContentMainDelegate::ShouldHandleConsoleControlEvents() {
+  // Handle console control events so that orderly shutdown can be performed by
+  // HeadlessContentBrowserClient's override of SessionEnding.
+  return true;
+}
+#endif
 
 content::ContentClient* HeadlessContentMainDelegate::CreateContentClient() {
   return &content_client_;
@@ -481,37 +555,70 @@ HeadlessContentMainDelegate::CreateContentUtilityClient() {
   return utility_client_.get();
 }
 
-absl::optional<int> HeadlessContentMainDelegate::PostEarlyInitialization(
+std::optional<int> HeadlessContentMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
-  if (absl::holds_alternative<InvokedInChildProcess>(invoked_in))
-    return absl::nullopt;
-
-  if (base::FeatureList::IsEnabled(features::kVirtualTime)) {
-    // Only pass viz flags into the virtual time mode.
-    const char* const switches[] = {
-        // TODO(eseckler): Make --run-all-compositor-stages-before-draw a
-        // per-BeginFrame mode so that we can activate it for individual
-        // requests
-        // only. With surface sync becoming the default, we can then make
-        // virtual_time_enabled a per-request option, too.
-        // We control BeginFrames ourselves and need all compositing stages to
-        // run.
-        ::switches::kRunAllCompositorStagesBeforeDraw,
-        ::switches::kDisableNewContentRenderingTimeout,
-        cc::switches::kDisableThreadedAnimation,
-        // Animtion-only BeginFrames are only supported when updates from the
-        // impl-thread are disabled, see go/headless-rendering.
-        cc::switches::kDisableCheckerImaging,
-        blink::switches::kDisableThreadedScrolling,
-        // Ensure that image animations don't resync their animation timestamps
-        // when looping back around.
-        blink::switches::kDisableImageAnimationResync,
-    };
-    for (const auto* flag : switches)
-      base::CommandLine::ForCurrentProcess()->AppendSwitch(flag);
+  if (std::holds_alternative<InvokedInChildProcess>(invoked_in)) {
+    return std::nullopt;
   }
 
-  return absl::nullopt;
+#if defined(HEADLESS_USE_PREFS)
+  browser_->CreatePrefService();
+#endif
+
+#if defined(HEADLESS_SUPPORT_FIELD_TRIALS)
+  // Check if we're telling content to not to create the feature list and do it
+  // here if so. Content can create default feature list on its own however here
+  // we want the feature list to be created by field trial machinery.
+  if (!ShouldCreateFeatureList(invoked_in)) {
+    SetUpFieldTrials(browser()->GetPrefs(),
+                     browser()->options()->user_data_dir);
+    // Schedule a Local State write since the above function may have resulted
+    // in some prefs being updated. Headless shell runs are typically short and
+    // often end in crashes, so it helps to commit early.
+    browser_->GetPrefs()->CommitPendingWrite();
+  }
+
+  // Check if we're telling content to not to initialize Mojo and do it here
+  // since we want it do be done after the feature list is created.
+  if (!ShouldInitializeMojo(invoked_in)) {
+    content::InitializeMojoCore();
+  }
+#endif  // defined(HEADLESS_SUPPORT_FIELD_TRIALS)
+
+  if (base::FeatureList::IsEnabled(features::kVirtualTime)) {
+    AddSwitchesForVirtualTime();
+  }
+
+#if BUILDFLAG(IS_WIN)
+  // Make sure that 'uxtheme.dll' is pinned before blocking on the main thread
+  // is disallowed; see https://crbug.com/368388543#comment11.
+  base::win::IsDarkModeAvailable();
+#endif  // BUILDFLAG(IS_WIN)
+
+  return std::nullopt;
 }
+
+#if defined(HEADLESS_SUPPORT_FIELD_TRIALS)
+bool HeadlessContentMainDelegate::ShouldCreateFeatureList(
+    InvokedIn invoked_in) {
+  // The content layer is always responsible for creating the FeatureList in
+  // child processes.
+  if (std::holds_alternative<InvokedInChildProcess>(invoked_in)) {
+    return true;
+  }
+
+  // VariationsFieldTrialCreator::SetUpFieldTrials() instantiates its own
+  // feature list so prevent content from instantiating a default one if we're
+  // going to set up field trials.
+  return !ShouldEnableFieldTrials();
+}
+
+bool HeadlessContentMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
+  // Mojo cannot be initialized without a feature list instance available so
+  // postpone its initialization until after feature list is instantiated by
+  // field trials setup if field trials are enabled.
+  return ShouldCreateFeatureList(invoked_in);
+}
+#endif  // defined(HEADLESS_SUPPORT_FIELD_TRIALS)
 
 }  // namespace headless

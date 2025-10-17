@@ -8,6 +8,7 @@
 #include "chrome/browser/ui/browser_user_data.h"
 
 class Browser;
+class SidePanelEntryScope;
 class SidePanelRegistry;
 
 namespace views {
@@ -20,10 +21,6 @@ class ReadingListSidePanelCoordinator
     : public BrowserUserData<ReadingListSidePanelCoordinator> {
  public:
   explicit ReadingListSidePanelCoordinator(Browser* browser);
-  ReadingListSidePanelCoordinator(const ReadingListSidePanelCoordinator&) =
-      delete;
-  ReadingListSidePanelCoordinator& operator=(
-      const ReadingListSidePanelCoordinator&) = delete;
   ~ReadingListSidePanelCoordinator() override;
 
   void CreateAndRegisterEntry(SidePanelRegistry* global_registry);
@@ -31,7 +28,8 @@ class ReadingListSidePanelCoordinator
  private:
   friend class BrowserUserData<ReadingListSidePanelCoordinator>;
 
-  std::unique_ptr<views::View> CreateReadingListWebView();
+  std::unique_ptr<views::View> CreateReadingListWebView(
+      SidePanelEntryScope& scope);
 
   BROWSER_USER_DATA_KEY_DECL();
 };

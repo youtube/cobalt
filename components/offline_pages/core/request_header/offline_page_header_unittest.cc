@@ -11,16 +11,15 @@ namespace offline_pages {
 
 namespace {
 std::string Base64EncodeString(const std::string value) {
-  std::string encoded_value;
-  base::Base64Encode(value, &encoded_value);
-  return encoded_value;
+  return base::Base64Encode(value);
+  ;
 }
 }  // namespace
 
 class OfflinePageHeaderTest : public testing::Test {
  public:
-  OfflinePageHeaderTest() {}
-  ~OfflinePageHeaderTest() override {}
+  OfflinePageHeaderTest() = default;
+  ~OfflinePageHeaderTest() override = default;
 
   bool ParseFromHeaderValue(const std::string& header_value,
                             bool* need_to_persist,
@@ -157,6 +156,15 @@ TEST_F(OfflinePageHeaderTest, Parse) {
   EXPECT_EQ("", id);
   EXPECT_EQ(GURL("file://foo/Bar%20Test"), intent_url);
 
+  // Unsafe characters in content:// URL are escaped.
+  EXPECT_TRUE(ParseFromHeaderValue(
+      "intent_url=" + Base64EncodeString("content://foo/Bar%20%22\'\\Test"),
+      &need_to_persist, &reason, &id, &intent_url));
+  EXPECT_FALSE(need_to_persist);
+  EXPECT_EQ(OfflinePageHeader::Reason::NONE, reason);
+  EXPECT_EQ("", id);
+  EXPECT_EQ(GURL("content://foo/Bar%20%22\'\\Test"), intent_url);
+
   // Unsafe characters in content:// URL are NOT escaped.
   EXPECT_TRUE(ParseFromHeaderValue(
       "intent_url=" + Base64EncodeString("content://foo/Bar \"\'\\Test"),
@@ -189,15 +197,18 @@ TEST_F(OfflinePageHeaderTest, ToString) {
   header.need_to_persist = true;
   header.reason = OfflinePageHeader::Reason::DOWNLOAD;
   header.id = "a1b2";
-  header.intent_url = GURL("content://foo/Bar \"\'\\Test");
+  const char* url = "content://foo/Bar \"\'\\Test";
+  header.intent_url = GURL(url);
+  const char* url_spec = "content://foo/Bar%20%22\'\\Test";
+  EXPECT_EQ(GURL(url).spec(), "content://foo/Bar%20%22\'\\Test");
   EXPECT_EQ(
       "X-Chrome-offline: persist=1 reason=download id=a1b2 "
       "intent_url=" +
-          Base64EncodeString("content://foo/Bar \"\'\\Test"),
+          Base64EncodeString(url_spec),
       header.GetCompleteHeaderString());
   EXPECT_EQ("X-Chrome-offline", header.GetHeaderKeyString());
   EXPECT_EQ("persist=1 reason=download id=a1b2 intent_url=" +
-                Base64EncodeString("content://foo/Bar \"\'\\Test"),
+                Base64EncodeString(url_spec),
             header.GetHeaderValueString());
 }
 

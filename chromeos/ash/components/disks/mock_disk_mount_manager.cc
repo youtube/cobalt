@@ -21,37 +21,6 @@ using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::ReturnRef;
 
-const char kTestSystemPath[] = "/this/system/path";
-const char kTestStorageDevicePath[] = "/this/system";
-const char kTestDevicePath[] = "/this/device/path";
-const char kTestMountPath[] = "/media/foofoo";
-const char kTestFilePath[] = "/this/file/path";
-const char kTestDeviceLabel[] = "A label";
-const char kTestDriveLabel[] = "Another label";
-const char kTestVendorId[] = "0123";
-const char kTestVendorName[] = "A vendor";
-const char kTestProductId[] = "abcd";
-const char kTestProductName[] = "A product";
-const char kTestUuid[] = "FFFF-FFFF";
-const char kTestFileSystemType[] = "vfat";
-
-std::unique_ptr<Disk::Builder> MakeDiskBuilder() {
-  std::unique_ptr<Disk::Builder> builder = std::make_unique<Disk::Builder>();
-  builder->SetDevicePath(kTestDevicePath)
-      .SetFilePath(kTestFilePath)
-      .SetDriveLabel(kTestDriveLabel)
-      .SetVendorId(kTestVendorId)
-      .SetVendorName(kTestVendorName)
-      .SetProductId(kTestProductId)
-      .SetProductName(kTestProductName)
-      .SetFileSystemUUID(kTestUuid)
-      .SetStorageDevicePath(kTestStorageDevicePath)
-      .SetHasMedia(true)
-      .SetOnRemovableDevice(true)
-      .SetFileSystemType(kTestFileSystemType);
-  return builder;
-}
-
 }  // namespace
 
 void MockDiskMountManager::AddObserver(DiskMountManager::Observer* observer) {
@@ -80,47 +49,6 @@ MockDiskMountManager::MockDiskMountManager() {
 
 MockDiskMountManager::~MockDiskMountManager() = default;
 
-void MockDiskMountManager::NotifyDeviceInsertEvents() {
-  std::unique_ptr<Disk> disk1_ptr = MakeDiskBuilder()
-                                        ->SetDeviceType(DeviceType::kUSB)
-                                        .SetSizeInBytes(4294967295U)
-                                        .Build();
-  Disk* disk1 = disk1_ptr.get();
-
-  disks_.clear();
-  disks_.insert(std::move(disk1_ptr));
-
-  // Device Added
-  NotifyDeviceChanged(DEVICE_ADDED, kTestSystemPath);
-
-  // Disk Added
-  NotifyDiskChanged(DISK_ADDED, disk1);
-
-  // Disk Changed
-  std::unique_ptr<Disk> disk2_ptr = MakeDiskBuilder()
-                                        ->SetMountPath(kTestMountPath)
-                                        .SetDeviceType(DeviceType::kMobile)
-                                        .SetSizeInBytes(1073741824)
-                                        .Build();
-  Disk* disk2 = disk2_ptr.get();
-  disks_.clear();
-  disks_.insert(std::move(disk2_ptr));
-  NotifyDiskChanged(DISK_CHANGED, disk2);
-}
-
-void MockDiskMountManager::NotifyDeviceRemoveEvents() {
-  std::unique_ptr<Disk> disk_ptr = MakeDiskBuilder()
-                                       ->SetMountPath(kTestMountPath)
-                                       .SetDeviceLabel(kTestDeviceLabel)
-                                       .SetDeviceType(DeviceType::kSD)
-                                       .SetSizeInBytes(1073741824)
-                                       .Build();
-  Disk* disk = disk_ptr.get();
-  disks_.clear();
-  disks_.insert(std::move(disk_ptr));
-  NotifyDiskChanged(DISK_REMOVED, disk);
-}
-
 void MockDiskMountManager::NotifyMountEvent(MountEvent event,
                                             MountError error_code,
                                             const MountPoint& mount_info) {
@@ -135,15 +63,15 @@ void MockDiskMountManager::SetupDefaultReplies() {
   EXPECT_CALL(*this, EnsureMountInfoRefreshed(_, _)).Times(AnyNumber());
   EXPECT_CALL(*this, MountPath(_, _, _, _, _, _, _)).Times(AnyNumber());
   EXPECT_CALL(*this, UnmountPath(_, _)).Times(AnyNumber());
-  EXPECT_CALL(*this, RemountAllRemovableDrives(_)).Times(AnyNumber());
+  EXPECT_CALL(*this, RemountRemovableDrive(_, _)).Times(AnyNumber());
   EXPECT_CALL(*this, FormatMountedDevice(_, _, _)).Times(AnyNumber());
   EXPECT_CALL(*this, SinglePartitionFormatDevice(_, _, _)).Times(AnyNumber());
   EXPECT_CALL(*this, UnmountDeviceRecursively(_, _)).Times(AnyNumber());
 }
 
-void MockDiskMountManager::CreateDiskEntryForMountDevice(
-    std::unique_ptr<Disk> disk) {
-  disks_.insert(std::move(disk));
+bool MockDiskMountManager::AddDiskForTest(std::unique_ptr<Disk> disk) {
+  DCHECK(disk);
+  return disks_.insert(std::move(disk)).second;
 }
 
 void MockDiskMountManager::CreateDiskEntryForMountDevice(
@@ -176,7 +104,7 @@ void MockDiskMountManager::CreateDiskEntryForMountDevice(
           .SetOnRemovableDevice(on_removable_device)
           .SetFileSystemType(file_system_type)
           .Build();
-  CreateDiskEntryForMountDevice(std::move(disk_ptr));
+  AddDiskForTest(std::move(disk_ptr));
 }
 
 void MockDiskMountManager::RemoveDiskEntryForMountDevice(
@@ -192,23 +120,9 @@ const DiskMountManager::MountPoints& MockDiskMountManager::mountPointsInternal()
 }
 
 const Disk* MockDiskMountManager::FindDiskBySourcePathInternal(
-    const std::string& source_path) const {
+    std::string_view source_path) const {
   Disks::const_iterator disk_it = disks_.find(source_path);
   return disk_it == disks_.end() ? nullptr : disk_it->get();
-}
-
-void MockDiskMountManager::NotifyDiskChanged(DiskEvent event,
-                                             const Disk* disk) {
-  for (auto& observer : observers_) {
-    disk->is_auto_mountable() ? observer.OnAutoMountableDiskEvent(event, *disk)
-                              : observer.OnBootDeviceDiskEvent(event, *disk);
-  }
-}
-
-void MockDiskMountManager::NotifyDeviceChanged(DeviceEvent event,
-                                               const std::string& path) {
-  for (auto& observer : observers_)
-    observer.OnDeviceEvent(event, path);
 }
 
 }  // namespace disks

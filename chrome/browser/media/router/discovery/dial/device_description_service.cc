@@ -13,10 +13,10 @@
 #include <sstream>
 #endif
 
-#include "base/containers/cxx20_erase.h"
+#include <algorithm>
+
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/media/router/discovery/dial/device_description_fetcher.h"
 #include "chrome/browser/media/router/discovery/dial/safe_dial_device_description_parser.h"
 #include "net/base/ip_address.h"
@@ -82,7 +82,7 @@ void DeviceDescriptionService::GetDeviceDescriptions(
   for (auto& fetcher_it : device_description_fetcher_map_) {
     std::string device_label = fetcher_it.first;
     const auto& device_it =
-        base::ranges::find(devices, device_label, &DialDeviceData::label);
+        std::ranges::find(devices, device_label, &DialDeviceData::label);
     if (device_it == devices.end() ||
         device_it->device_description_url() ==
             fetcher_it.second->device_description_url()) {
@@ -116,7 +116,7 @@ void DeviceDescriptionService::GetDeviceDescriptions(
 void DeviceDescriptionService::CleanUpCacheEntries() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::Time now = GetNow();
-  base::EraseIf(description_cache_,
+  std::erase_if(description_cache_,
                 [&now](const std::pair<std::string, CacheEntry>& cache_pair) {
                   return cache_pair.second.expire_time < now;
                 });
@@ -131,16 +131,19 @@ void DeviceDescriptionService::FetchDeviceDescription(
 
   // Existing Fetcher.
   const auto& it = device_description_fetcher_map_.find(device_data.label());
-  if (it != device_description_fetcher_map_.end())
+  if (it != device_description_fetcher_map_.end()) {
     return;
+  }
 
-  auto device_description_fetcher = std::make_unique<DeviceDescriptionFetcher>(
-      device_data,
-      base::BindOnce(
-          &DeviceDescriptionService::OnDeviceDescriptionFetchComplete,
-          base::Unretained(this), device_data),
-      base::BindOnce(&DeviceDescriptionService::OnDeviceDescriptionFetchError,
-                     base::Unretained(this), device_data));
+  std::unique_ptr<DeviceDescriptionFetcher> device_description_fetcher =
+      CreateFetcher(
+          device_data,
+          base::BindOnce(
+              &DeviceDescriptionService::OnDeviceDescriptionFetchComplete,
+              base::Unretained(this), device_data),
+          base::BindOnce(
+              &DeviceDescriptionService::OnDeviceDescriptionFetchError,
+              base::Unretained(this), device_data));
 
   device_description_fetcher->Start();
   device_description_fetcher_map_.insert(std::make_pair(
@@ -158,12 +161,22 @@ void DeviceDescriptionService::ParseDeviceDescription(
                      base::Unretained(this), device_data));
 }
 
+std::unique_ptr<DeviceDescriptionFetcher>
+DeviceDescriptionService::CreateFetcher(
+    const DialDeviceData& device_data,
+    base::OnceCallback<void(const DialDeviceDescriptionData&)> success_cb,
+    base::OnceCallback<void(const std::string&)> error_cb) {
+  return std::make_unique<DeviceDescriptionFetcher>(
+      device_data, std::move(success_cb), std::move(error_cb));
+}
+
 const DeviceDescriptionService::CacheEntry*
 DeviceDescriptionService::CheckAndUpdateCache(
     const DialDeviceData& device_data) {
   const auto& it = description_cache_.find(device_data.label());
-  if (it == description_cache_.end())
+  if (it == description_cache_.end()) {
     return nullptr;
+  }
 
   // If the entry's config_id does not match, or it has expired, remove it.
   if (it->second.config_id != device_data.config_id() ||

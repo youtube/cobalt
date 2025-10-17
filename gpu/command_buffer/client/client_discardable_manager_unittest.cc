@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gpu/command_buffer/client/client_discardable_manager.h"
+
 #include "gpu/command_buffer/client/client_discardable_texture_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -13,37 +14,31 @@ class FakeCommandBuffer : public CommandBuffer {
   FakeCommandBuffer() = default;
   ~FakeCommandBuffer() override { EXPECT_TRUE(active_ids_.empty()); }
   // Overridden from CommandBuffer:
-  State GetLastState() override {
-    NOTREACHED();
-    return State();
-  }
+  State GetLastState() override { NOTREACHED(); }
   void Flush(int32_t put_offset) override { NOTREACHED(); }
   void OrderingBarrier(int32_t put_offset) override { NOTREACHED(); }
   State WaitForTokenInRange(int32_t start, int32_t end) override {
     NOTREACHED();
-
-    return State();
   }
   State WaitForGetOffsetInRange(uint32_t set_get_buffer_count,
                                 int32_t start,
                                 int32_t end) override {
     NOTREACHED();
-    return State();
   }
   void SetGetBuffer(int32_t transfer_buffer_id) override { NOTREACHED(); }
   scoped_refptr<gpu::Buffer> CreateTransferBuffer(
       uint32_t size,
       int32_t* id,
+      uint32_t alignment = 0,
       TransferBufferAllocationOption option =
           TransferBufferAllocationOption::kLoseContextOnOOM) override {
     *id = next_id_++;
     active_ids_.insert(*id);
-    return MakeMemoryBuffer(size);
+    return MakeMemoryBuffer(size, alignment);
   }
   void DestroyTransferBuffer(int32_t id) override {
-    auto found = active_ids_.find(id);
-    EXPECT_TRUE(found != active_ids_.end());
-    active_ids_.erase(found);
+    size_t erased_elements = active_ids_.erase(id);
+    EXPECT_TRUE(erased_elements > 0);
   }
   void ForceLostContext(error::ContextLostReason reason) override {
     // No-op; doesn't need to be exercised here.

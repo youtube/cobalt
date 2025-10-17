@@ -10,10 +10,14 @@
 
 #include "base/values.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
-#include "chrome/browser/web_applications/web_contents/web_app_url_loader.h"
+#include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/common/web_app_id.h"
+
+namespace webapps {
+enum class WebAppUrlLoaderResult;
+}
 
 namespace web_app {
 
@@ -38,11 +42,11 @@ class InstallErrorLogEntry {
 
   void LogUrlLoaderError(const char* stage,
                          const std::string& url,
-                         WebAppUrlLoader::Result result);
+                         webapps::WebAppUrlLoaderResult result);
   void LogExpectedAppIdError(const char* stage,
                              const std::string& url,
-                             const AppId& app_id,
-                             const AppId& expected_app_id);
+                             const webapps::AppId& app_id,
+                             const webapps::AppId& expected_app_id);
   void LogDownloadedIconsErrors(
       const WebAppInstallInfo& web_app_info,
       IconsDownloadedResult icons_downloaded_result,

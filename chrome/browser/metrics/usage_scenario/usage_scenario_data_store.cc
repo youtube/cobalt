@@ -115,16 +115,12 @@ void UsageScenarioDataStoreImpl::OnUserInteraction() {
 
 void UsageScenarioDataStoreImpl::OnFullScreenVideoStartsOnSingleMonitor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/1273251): Change CHECK to DCHECK in September 2022 after
-  // confirming that there are no crash reports.
   CHECK(is_playing_full_screen_video_single_monitor_since_.is_null());
   is_playing_full_screen_video_single_monitor_since_ = tick_clock_->NowTicks();
 }
 
 void UsageScenarioDataStoreImpl::OnFullScreenVideoEndsOnSingleMonitor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/1273251): Change CHECK to DCHECK in September 2022 after
-  // confirming that there are no crash reports.
   CHECK(!is_playing_full_screen_video_single_monitor_since_.is_null());
   interval_data_.time_playing_video_full_screen_single_monitor +=
       tick_clock_->NowTicks() -
@@ -188,7 +184,7 @@ void UsageScenarioDataStoreImpl::OnAudioStarts() {
   // Grab the current timestamp if there's no other tabs playing audio.
   if (tabs_playing_audio_ == 0) {
     DCHECK(playing_audio_since_.is_null());
-    playing_audio_since_ = base::TimeTicks::Now();
+    playing_audio_since_ = tick_clock_->NowTicks();
   }
   ++tabs_playing_audio_;
   DCHECK_GE(current_tab_count_, tabs_playing_audio_);
@@ -205,7 +201,7 @@ void UsageScenarioDataStoreImpl::OnAudioStops() {
   if (tabs_playing_audio_ == 0) {
     DCHECK(!playing_audio_since_.is_null());
     interval_data_.time_playing_audio +=
-        base::TimeTicks::Now() - playing_audio_since_;
+        tick_clock_->NowTicks() - playing_audio_since_;
     playing_audio_since_ = base::TimeTicks();
   }
 }
@@ -227,19 +223,29 @@ void UsageScenarioDataStoreImpl::OnVideoStopsInVisibleTab() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_GT(visible_tabs_playing_video_, 0U);
   --visible_tabs_playing_video_;
-  if (visible_tabs_playing_video_ == 0)
+
+  // If this was the last visible tab playing video then the interval data
+  // should be updated.
+  if (visible_tabs_playing_video_ == 0) {
+    DCHECK(!playing_video_in_active_tab_since_.is_null());
+    interval_data_.time_playing_video_in_visible_tab +=
+        tick_clock_->NowTicks() - playing_video_in_active_tab_since_;
     playing_video_in_active_tab_since_ = base::TimeTicks();
+  }
 }
 
 void UsageScenarioDataStoreImpl::OnUkmSourceBecameVisible(
     const ukm::SourceId& source,
-    const url::Origin& origin) {
+    const url::Origin& origin,
+    extensions::ExtensionIdSet extensions_with_content_scripts) {
   DCHECK_NE(ukm::kInvalidSourceId, source);
   auto& origin_map_iter = origin_info_map_[origin];
   auto& source_id_iter = origin_map_iter[source];
 
   DCHECK(source_id_iter.visible_timestamp.is_null());
   source_id_iter.visible_timestamp = tick_clock_->NowTicks();
+
+  extensions_with_content_scripts_.merge(extensions_with_content_scripts);
 }
 
 void UsageScenarioDataStoreImpl::OnUkmSourceBecameHidden(
@@ -267,6 +273,16 @@ UsageScenarioDataStoreImpl::GetVisibleSourceIdsForTesting() {
     }
   }
   return ret;
+}
+
+bool UsageScenarioDataStoreImpl::TrackingPlayingVideoInActiveTabForTesting()
+    const {
+  return !playing_video_in_active_tab_since_.is_null();
+}
+
+bool UsageScenarioDataStoreImpl::
+    TrackingPlayingFullScreenVideoSingleMonitorForTesting() const {
+  return !is_playing_full_screen_video_single_monitor_since_.is_null();
 }
 
 void UsageScenarioDataStoreImpl::FinalizeIntervalData(base::TimeTicks now) {
@@ -298,6 +314,10 @@ void UsageScenarioDataStoreImpl::FinalizeIntervalData(base::TimeTicks now) {
 
   interval_data_.time_since_last_user_interaction_with_browser =
       now - last_interaction_with_browser_timestamp_;
+
+  interval_data_.num_extensions_with_content_scripts =
+      extensions_with_content_scripts_.size();
+  extensions_with_content_scripts_.clear();
 
   base::TimeDelta origin_visible_for_longest_time_duration;
   // Finalize the interval data and find the origin that has been visible for

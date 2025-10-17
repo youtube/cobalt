@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
@@ -40,12 +40,7 @@ namespace history {
 class URLDatabase;
 }
 
-namespace prerender {
-class NoStatePrefetchHandle;
-}
-
 namespace predictors {
-
 // This class is responsible for determining the correct predictive network
 // action to take given for a given AutocompleteMatch and entered text. It can
 // be instantiated for both normal and incognito profiles.  For normal profiles,
@@ -59,16 +54,31 @@ namespace predictors {
 // This class can be accessed as a weak pointer so that it can safely use
 // PostTaskAndReply without fear of crashes if it is destroyed before the reply
 // triggers. This is necessary during initialization.
-class AutocompleteActionPredictor
-    : public KeyedService,
-      public history::HistoryServiceObserver,
-      public base::SupportsWeakPtr<AutocompleteActionPredictor> {
+class AutocompleteActionPredictor : public KeyedService,
+                                    public history::HistoryServiceObserver {
  public:
+  struct TransitionalMatch {
+    TransitionalMatch();
+    explicit TransitionalMatch(const std::u16string in_user_text);
+    TransitionalMatch(const TransitionalMatch& other);
+    ~TransitionalMatch();
+
+    std::u16string user_text;
+    std::vector<GURL> urls;
+  };
+
+  // An `Action` is a recommendation on what pre* technology to invoke on a
+  // given `AutocompleteMatch`.
   enum Action {
+    // Trigger Prerendering.
     ACTION_PRERENDER = 0,
+
+    // Invoke `LoadingPredictor::PrepareForPageLoad` to
+    // prefetch, preconnect, and preresolve.
     ACTION_PRECONNECT,
+
+    // The recommendation is to not perform any action.
     ACTION_NONE,
-    LAST_PREDICT_ACTION = ACTION_NONE
   };
 
   explicit AutocompleteActionPredictor(Profile* profile);
@@ -113,16 +123,10 @@ class AutocompleteActionPredictor
                          const AutocompleteMatch& match,
                          content::WebContents* web_contents) const;
 
-  // Begins prerendering or prefetch with `url`. The `size` gives the initial
-  // size for the target prefetch. The predictor will run at most one prerender
+  // The predictor will run at most one prerender
   // at a time, so launching a prerender will cancel our previous prerenders (if
   // any).
-  void StartPrerendering(const GURL& url,
-                         content::WebContents& web_contents,
-                         const gfx::Size& size);
-
-  // Cancels the current prerender, unless it has already been abandoned.
-  void CancelPrerender();
+  void StartPrerendering(const GURL& url, content::WebContents& web_contents);
 
   // Returns true if the suggestion type warrants a TCP/IP preconnection.
   // i.e., it is now quite likely that the user will select the related domain.
@@ -132,32 +136,17 @@ class AutocompleteActionPredictor
   void OnOmniboxOpenedUrl(const OmniboxLog& log);
 
   // Uses local caches to calculate an exact percentage prediction that the user
-  // will take a particular match given what they have typed. |is_in_db| is set
-  // to differentiate trivial zero results resulting from a match not being
-  // found from actual zero results where the calculation returns 0.0.
+  // will take a particular match given what they have typed.
   double CalculateConfidence(const std::u16string& user_text,
-                             const AutocompleteMatch& match,
-                             bool* is_in_db) const;
+                             const AutocompleteMatch& match) const;
 
   bool initialized() { return initialized_; }
+
+  static Action DecideActionByConfidence(double confidence);
 
  private:
   friend class AutocompleteActionPredictorTest;
   friend class ::PredictorsHandler;
-
-  struct TransitionalMatch {
-    TransitionalMatch();
-    explicit TransitionalMatch(const std::u16string in_user_text);
-    TransitionalMatch(const TransitionalMatch& other);
-    ~TransitionalMatch();
-
-    std::u16string user_text;
-    std::vector<GURL> urls;
-
-    bool operator==(const std::u16string& other_user_text) const {
-      return user_text == other_user_text;
-    }
-  };
 
   struct DBCacheKey {
     std::u16string user_text;
@@ -241,20 +230,20 @@ class AutocompleteActionPredictor
   void Shutdown() override;
 
   // history::HistoryServiceObserver:
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
   void OnHistoryServiceLoaded(
       history::HistoryService* history_service) override;
 
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile> profile_ = nullptr;
 
   // Set when this is a predictor for an incognito profile.
-  raw_ptr<AutocompleteActionPredictor> main_profile_predictor_;
+  raw_ptr<AutocompleteActionPredictor> main_profile_predictor_ = nullptr;
 
   // Set when this is a predictor for a non-incognito profile, and the incognito
   // profile creates a predictor.  If this is non-NULL when we finish
   // initialization, we should call CopyFromMainProfile() on it.
-  raw_ptr<AutocompleteActionPredictor> incognito_predictor_;
+  raw_ptr<AutocompleteActionPredictor> incognito_predictor_ = nullptr;
 
   // The backing data store.  This is nullptr for incognito-owned predictors.
   scoped_refptr<AutocompleteActionPredictorTable> table_;
@@ -266,9 +255,6 @@ class AutocompleteActionPredictor
   // This is used to limit the maximum size of |transitional_matches_|.
   size_t transitional_matches_size_ = 0;
 
-  std::unique_ptr<prerender::NoStatePrefetchHandle> no_state_prefetch_handle_;
-
-  base::WeakPtr<content::PrerenderHandle> search_prerender_handle_;
   base::WeakPtr<content::PrerenderHandle> direct_url_input_prerender_handle_;
 
   // Local caches of the data store.  For incognito-owned predictors this is the
@@ -276,13 +262,15 @@ class AutocompleteActionPredictor
   DBCacheMap db_cache_;
   DBIdCacheMap db_id_cache_;
 
-  bool initialized_;
+  bool initialized_ = false;
 
   base::ObserverList<Observer> observers_;
 
   base::ScopedObservation<history::HistoryService,
                           history::HistoryServiceObserver>
       history_service_observation_{this};
+
+  base::WeakPtrFactory<AutocompleteActionPredictor> weak_ptr_factory_{this};
 };
 
 }  // namespace predictors

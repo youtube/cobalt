@@ -9,6 +9,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -28,9 +29,18 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
+#include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
+#include "content/browser/btm/btm_service_impl.h"
+#include "content/browser/btm/btm_storage.h"
+#include "content/browser/btm/btm_test_utils.h"
+#include "content/browser/btm/btm_utils.h"
+#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -40,7 +50,9 @@
 #include "content/public/browser/cookie_store_factory.h"
 #include "content/public/browser/dom_storage_context.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/storage_usage_info.h"
+#include "content/public/common/content_client.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/browsing_data_remover_test_util.h"
 #include "content/public/test/mock_download_manager.h"
@@ -48,11 +60,11 @@
 #include "content/public/test/test_storage_partition.h"
 #include "content/public/test/test_utils.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/cookies/cookie_access_params.h"
 #include "net/cookies/cookie_deletion_info.h"
 #include "net/cookies/cookie_store.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
-#include "net/ssl/ssl_client_cert_type.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "services/network/cookie_manager.h"
 #include "services/network/public/cpp/features.h"
@@ -137,8 +149,7 @@ net::CanonicalCookie CreateCookieWithHost(const url::Origin& origin) {
       net::CanonicalCookie::CreateUnsafeCookieForTesting(
           "A", "1", origin.host(), "/", base::Time::Now(), base::Time::Now(),
           base::Time(), base::Time(), false, false,
-          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_MEDIUM,
-          false);
+          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_MEDIUM);
   EXPECT_TRUE(cookie);
   return *cookie;
 }
@@ -247,20 +258,22 @@ class ProbablySameFilterMatcher
           const base::RepeatingCallback<bool(const GURL&)>&> {
  public:
   explicit ProbablySameFilterMatcher(
-      const base::RepeatingCallback<bool(const GURL&)>& filter)
-      : to_match_(filter) {}
+      base::RepeatingCallback<bool(const GURL&)> filter)
+      : to_match_(std::move(filter)) {}
 
   bool MatchAndExplain(const base::RepeatingCallback<bool(const GURL&)>& filter,
                        MatchResultListener* listener) const override {
-    if (!filter && !*to_match_)
+    if (!filter && !to_match_) {
       return true;
-    if (!filter || !*to_match_)
+    }
+    if (!filter || !to_match_) {
       return false;
+    }
 
     const GURL urls_to_test_[] = {GURL("a.com"), GURL("b.com"), GURL("c.com"),
                                   GURL("invalid spec")};
     for (GURL url : urls_to_test_) {
-      if (filter.Run(url) != to_match_->Run(url)) {
+      if (filter.Run(url) != to_match_.Run(url)) {
         if (listener)
           *listener << "The filters differ on the URL " << url;
         return false;
@@ -270,20 +283,20 @@ class ProbablySameFilterMatcher
   }
 
   void DescribeTo(::std::ostream* os) const override {
-    *os << "is probably the same url filter as " << &*to_match_;
+    *os << "is probably the same url filter as " << &to_match_;
   }
 
   void DescribeNegationTo(::std::ostream* os) const override {
-    *os << "is definitely NOT the same url filter as " << &*to_match_;
+    *os << "is definitely NOT the same url filter as " << &to_match_;
   }
 
  private:
-  const raw_ref<const base::RepeatingCallback<bool(const GURL&)>> to_match_;
+  const base::RepeatingCallback<bool(const GURL&)> to_match_;
 };
 
 inline Matcher<const base::RepeatingCallback<bool(const GURL&)>&>
-ProbablySameFilter(const base::RepeatingCallback<bool(const GURL&)>& filter) {
-  return MakeMatcher(new ProbablySameFilterMatcher(filter));
+ProbablySameFilter(base::RepeatingCallback<bool(const GURL&)> filter) {
+  return MakeMatcher(new ProbablySameFilterMatcher(std::move(filter)));
 }
 
 base::Time AnHourAgo() {
@@ -293,10 +306,9 @@ base::Time AnHourAgo() {
 bool FilterMatchesCookie(const CookieDeletionFilterPtr& filter,
                          const net::CanonicalCookie& cookie) {
   return network::DeletionFilterToInfo(filter.Clone())
-      .Matches(cookie,
-               net::CookieAccessParams{
-                   net::CookieAccessSemantics::NONLEGACY, false,
-                   net::CookieSamePartyStatus::kNoSamePartyEnforcement});
+      .Matches(cookie, net::CookieAccessParams{
+                           net::CookieAccessSemantics::NONLEGACY,
+                           net::CookieScopeSemantics::UNKNOWN, false});
 }
 
 class TestBrowsingDataRemoverDelegate
@@ -304,6 +316,7 @@ class TestBrowsingDataRemoverDelegate
  public:
   // BrowsingDataRemoverDelegate:
   std::vector<std::string> GetDomainsForDeferredCookieDeletion(
+      StoragePartition* storage_partition,
       uint64_t remove_mask) override {
     return deferred_domains_;
   }
@@ -364,19 +377,36 @@ class RemoveDownloadsTester {
 
 class BrowsingDataRemoverImplTest : public testing::Test {
  public:
-  BrowsingDataRemoverImplTest() : browser_context_(new TestBrowserContext()) {
+  BrowsingDataRemoverImplTest() : BrowsingDataRemoverImplTest(nullptr) {}
+
+  explicit BrowsingDataRemoverImplTest(
+      std::unique_ptr<ContentBrowserClient> browser_client)
+      : browser_client_(std::move(browser_client)) {
+    if (browser_client_) {
+      browser_client_setting_.emplace(browser_client_.get());
+    }
+    browser_context_ = std::make_unique<TestBrowserContext>();
     remover_ = static_cast<BrowsingDataRemoverImpl*>(
         browser_context_->GetBrowsingDataRemover());
+
+    storage_partition_ =
+        std::make_unique<StoragePartitionRemovalTestStoragePartition>();
+    RegisterStoragePartition(
+        StoragePartitionConfig::CreateDefault(browser_context_.get()),
+        storage_partition_.get());
   }
 
   BrowsingDataRemoverImplTest(const BrowsingDataRemoverImplTest&) = delete;
   BrowsingDataRemoverImplTest& operator=(const BrowsingDataRemoverImplTest&) =
       delete;
 
-  ~BrowsingDataRemoverImplTest() override = default;
+  ~BrowsingDataRemoverImplTest() override {
+    remover_ = nullptr;
+  }
 
   void TearDown() override {
     mock_policy_ = nullptr;
+    remover_ = nullptr;
 
     // BrowserContext contains a DOMStorageContext. BrowserContext's
     // destructor posts a message to the WEBKIT thread to delete some of its
@@ -387,19 +417,15 @@ class BrowsingDataRemoverImplTest : public testing::Test {
     RunAllTasksUntilIdle();
   }
 
+  void RegisterStoragePartition(const StoragePartitionConfig& config,
+                                StoragePartition* storage_partition) {
+    remover_->OverrideStoragePartitionForTesting(config, storage_partition);
+  }
+
   void BlockUntilBrowsingDataRemoved(const base::Time& delete_begin,
                                      const base::Time& delete_end,
                                      uint64_t remove_mask,
                                      bool include_protected_origins) {
-    // TODO(msramek): Consider moving |storage_partition| to the test fixture.
-    StoragePartitionRemovalTestStoragePartition storage_partition;
-
-    if (network_context_override_) {
-      storage_partition.set_network_context(network_context_override_);
-    }
-
-    remover_->OverrideStoragePartitionForTesting(&storage_partition);
-
     uint64_t origin_type_mask =
         BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB;
     if (include_protected_origins)
@@ -412,7 +438,7 @@ class BrowsingDataRemoverImplTest : public testing::Test {
 
     // Save so we can verify later.
     storage_partition_removal_data_ =
-        storage_partition.GetStoragePartitionRemovalData();
+        storage_partition_->GetStoragePartitionRemovalData();
   }
 
   void BlockUntilOriginDataRemoved(
@@ -420,14 +446,6 @@ class BrowsingDataRemoverImplTest : public testing::Test {
       const base::Time& delete_end,
       uint64_t remove_mask,
       std::unique_ptr<BrowsingDataFilterBuilder> filter_builder) {
-    StoragePartitionRemovalTestStoragePartition storage_partition;
-
-    if (network_context_override_) {
-      storage_partition.set_network_context(network_context_override_);
-    }
-
-    remover_->OverrideStoragePartitionForTesting(&storage_partition);
-
     BrowsingDataRemoverCompletionObserver completion_observer(remover_);
     remover_->RemoveWithFilterAndReply(
         delete_begin, delete_end, remove_mask,
@@ -437,12 +455,15 @@ class BrowsingDataRemoverImplTest : public testing::Test {
 
     // Save so we can verify later.
     storage_partition_removal_data_ =
-        storage_partition.GetStoragePartitionRemovalData();
+        storage_partition_->GetStoragePartitionRemovalData();
   }
 
   BrowserContext* GetBrowserContext() { return browser_context_.get(); }
 
-  void DestroyBrowserContext() { browser_context_.reset(); }
+  void DestroyBrowserContext() {
+    remover_ = nullptr;
+    browser_context_.reset();
+  }
 
   const base::Time& GetBeginTime() {
     return remover_->GetLastUsedBeginTimeForTesting();
@@ -479,6 +500,10 @@ class BrowsingDataRemoverImplTest : public testing::Test {
 
   void set_network_context_override(network::mojom::NetworkContext* context) {
     network_context_override_ = context;
+
+    if (network_context_override_) {
+      storage_partition_->set_network_context(network_context_override_);
+    }
   }
 
   bool Match(const GURL& origin,
@@ -489,6 +514,11 @@ class BrowsingDataRemoverImplTest : public testing::Test {
   }
 
  private:
+  std::unique_ptr<ContentBrowserClient> browser_client_;
+  std::optional<ScopedContentBrowserClientSetting> browser_client_setting_;
+  std::unique_ptr<StoragePartitionRemovalTestStoragePartition>
+      storage_partition_;
+
   // Cached pointer to BrowsingDataRemoverImpl for access to testing methods.
   raw_ptr<BrowsingDataRemoverImpl> remover_;
 
@@ -516,7 +546,8 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveCookieForever) {
   StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
   EXPECT_EQ(removal_data.remove_mask,
             StoragePartition::REMOVE_DATA_MASK_COOKIES |
-                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS);
+                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
+                StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY);
   EXPECT_EQ(removal_data.quota_storage_remove_mask,
             StoragePartition::QUOTA_MANAGED_STORAGE_MASK_ALL);
   EXPECT_EQ(removal_data.remove_begin, GetBeginTime());
@@ -534,7 +565,8 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveCookieLastHour) {
   StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
   EXPECT_EQ(removal_data.remove_mask,
             StoragePartition::REMOVE_DATA_MASK_COOKIES |
-                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS);
+                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
+                StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY);
   EXPECT_EQ(removal_data.quota_storage_remove_mask,
             StoragePartition::QUOTA_MANAGED_STORAGE_MASK_ALL);
   EXPECT_EQ(removal_data.remove_begin, GetBeginTime());
@@ -560,7 +592,8 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveCookiesDomainPreserveList) {
   StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
   EXPECT_EQ(removal_data.remove_mask,
             StoragePartition::REMOVE_DATA_MASK_COOKIES |
-                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS);
+                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
+                StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY);
   EXPECT_EQ(removal_data.quota_storage_remove_mask,
             StoragePartition::QUOTA_MANAGED_STORAGE_MASK_ALL);
   EXPECT_EQ(removal_data.remove_begin, GetBeginTime());
@@ -737,7 +770,8 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveMultipleTypes) {
   StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
   EXPECT_EQ(removal_data.remove_mask,
             StoragePartition::REMOVE_DATA_MASK_COOKIES |
-                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS);
+                StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
+                StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY);
   EXPECT_EQ(removal_data.quota_storage_remove_mask,
             StoragePartition::QUOTA_MANAGED_STORAGE_MASK_ALL);
 }
@@ -1336,8 +1370,9 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveDownloadsByTimeOnly) {
   base::RepeatingCallback<bool(const GURL&)> filter =
       BrowsingDataFilterBuilder::BuildNoopFilter();
 
-  EXPECT_CALL(*tester.download_manager(),
-              RemoveDownloadsByURLAndTime(ProbablySameFilter(filter), _, _));
+  EXPECT_CALL(
+      *tester.download_manager(),
+      RemoveDownloadsByURLAndTime(ProbablySameFilter(std::move(filter)), _, _));
 
   BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
                                 BrowsingDataRemover::DATA_TYPE_DOWNLOADS,
@@ -1352,8 +1387,9 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveDownloadsByOrigin) {
   builder->AddRegisterableDomain("host1.com");
   base::RepeatingCallback<bool(const GURL&)> filter = builder->BuildUrlFilter();
 
-  EXPECT_CALL(*tester.download_manager(),
-              RemoveDownloadsByURLAndTime(ProbablySameFilter(filter), _, _));
+  EXPECT_CALL(
+      *tester.download_manager(),
+      RemoveDownloadsByURLAndTime(ProbablySameFilter(std::move(filter)), _, _));
 
   BlockUntilOriginDataRemoved(base::Time(), base::Time::Max(),
                               BrowsingDataRemover::DATA_TYPE_DOWNLOADS,
@@ -1370,8 +1406,7 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveCodeCache) {
   EXPECT_TRUE(removal_data[1].remove_code_cache);
 }
 
-TEST_F(BrowsingDataRemoverImplTest,
-       RemoveShaderCacheAndInterstGroupPermissionsCache) {
+TEST_F(BrowsingDataRemoverImplTest, RemoveCache) {
   BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
                                 BrowsingDataRemover::DATA_TYPE_CACHE, false);
   auto removal_data = GetStoragePartitionRemovalDataListAndReset();
@@ -1379,7 +1414,8 @@ TEST_F(BrowsingDataRemoverImplTest,
   EXPECT_EQ(
       removal_data[0].remove_mask,
       StoragePartition::REMOVE_DATA_MASK_SHADER_CACHE |
-          StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUP_PERMISSIONS_CACHE);
+          StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUP_PERMISSIONS_CACHE |
+          StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY);
 }
 
 TEST_F(BrowsingDataRemoverImplTest, RemoveAttributionReporting) {
@@ -1417,6 +1453,15 @@ TEST_F(BrowsingDataRemoverImplTest, RemovePrivateAggregationData) {
             StoragePartition::REMOVE_DATA_MASK_PRIVATE_AGGREGATION_INTERNAL);
 }
 
+TEST_F(BrowsingDataRemoverImplTest, RemoveDeviceBoundSessions) {
+  BlockUntilBrowsingDataRemoved(
+      base::Time(), base::Time::Max(),
+      BrowsingDataRemover::DATA_TYPE_DEVICE_BOUND_SESSIONS, false);
+  StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
+  EXPECT_EQ(removal_data.remove_mask,
+            StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS);
+}
+
 class MultipleTasksObserver {
  public:
   // A simple implementation of BrowsingDataRemover::Observer.
@@ -1446,7 +1491,8 @@ class MultipleTasksObserver {
 
   void ClearLastCalledTarget() { last_called_targets_.clear(); }
 
-  const std::vector<BrowsingDataRemover::Observer*> GetLastCalledTargets() {
+  const std::vector<raw_ptr<BrowsingDataRemover::Observer, VectorExperimental>>
+  GetLastCalledTargets() {
     return last_called_targets_;
   }
 
@@ -1456,7 +1502,8 @@ class MultipleTasksObserver {
  private:
   Target target_a_;
   Target target_b_;
-  std::vector<BrowsingDataRemover::Observer*> last_called_targets_;
+  std::vector<raw_ptr<BrowsingDataRemover::Observer, VectorExperimental>>
+      last_called_targets_;
 };
 
 TEST_F(BrowsingDataRemoverImplTest, MultipleTasks) {
@@ -1467,10 +1514,7 @@ TEST_F(BrowsingDataRemoverImplTest, MultipleTasks) {
   std::unique_ptr<BrowsingDataFilterBuilder> filter_builder_1(
       BrowsingDataFilterBuilder::Create(
           BrowsingDataFilterBuilder::Mode::kDelete));
-  std::unique_ptr<BrowsingDataFilterBuilder> filter_builder_2(
-      BrowsingDataFilterBuilder::Create(
-          BrowsingDataFilterBuilder::Mode::kPreserve));
-  filter_builder_2->AddRegisterableDomain("example.com");
+  filter_builder_1->AddRegisterableDomain("example.com");
 
   MultipleTasksObserver observer(remover);
   BrowsingDataRemoverCompletionInhibitor completion_inhibitor(remover);
@@ -1664,6 +1708,7 @@ TEST_F(BrowsingDataRemoverImplTest, ClearsTrustTokens) {
   BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
                                 BrowsingDataRemover::DATA_TYPE_TRUST_TOKENS,
                                 /*include_protected_origins=*/false);
+  set_network_context_override(nullptr);
 }
 
 TEST_F(BrowsingDataRemoverImplTest, PreservesTrustTokens) {
@@ -1677,6 +1722,7 @@ TEST_F(BrowsingDataRemoverImplTest, PreservesTrustTokens) {
       /*include_protected_origins=*/false);
 
   // (The strict mock will fail the test if its mocked method is called.)
+  set_network_context_override(nullptr);
 }
 
 TEST_F(BrowsingDataRemoverImplTest, ClearsTrustTokensForSite) {
@@ -1703,6 +1749,8 @@ TEST_F(BrowsingDataRemoverImplTest, ClearsTrustTokensForSite) {
   BlockUntilOriginDataRemoved(base::Time(), base::Time::Max(),
                               BrowsingDataRemover::DATA_TYPE_TRUST_TOKENS,
                               std::move(builder));
+
+  set_network_context_override(nullptr);
 }
 
 TEST_F(BrowsingDataRemoverImplTest, ClearsTrustTokensForSiteDespiteTimeRange) {
@@ -1732,6 +1780,8 @@ TEST_F(BrowsingDataRemoverImplTest, ClearsTrustTokensForSiteDespiteTimeRange) {
   BlockUntilOriginDataRemoved(base::Time(), base::Time() + base::Seconds(1),
                               BrowsingDataRemover::DATA_TYPE_TRUST_TOKENS,
                               std::move(builder));
+
+  set_network_context_override(nullptr);
 }
 
 TEST_F(BrowsingDataRemoverImplTest, DeferCookieDeletion) {
@@ -1747,7 +1797,8 @@ TEST_F(BrowsingDataRemoverImplTest, DeferCookieDeletion) {
       StoragePartition::REMOVE_DATA_MASK_INDEXEDDB;
   uint32_t dom_storage_and_cookie_mask =
       dom_storage_mask | StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
-      StoragePartition::REMOVE_DATA_MASK_COOKIES;
+      StoragePartition::REMOVE_DATA_MASK_COOKIES |
+      StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY;
   BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
                                 BrowsingDataRemover::DATA_TYPE_COOKIES |
                                     BrowsingDataRemover::DATA_TYPE_DOM_STORAGE,
@@ -1843,9 +1894,11 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveStorageBucketsAndReply) {
       BrowsingDataRemoverImpl remover =
           BrowsingDataRemoverImpl(&browser_context);
 
-      remover.OverrideStoragePartitionForTesting(&storage_partition);
+      remover.OverrideStoragePartitionForTesting(
+          StoragePartitionConfig::CreateDefault(&browser_context),
+          &storage_partition);
       remover.RemoveStorageBucketsAndReply(
-          storage_key, buckets,
+          std::nullopt, storage_key, buckets,
           base::BindOnce(&TestObserver::OnBrowsingDataRemoverDone,
                          base::Unretained(this), 0));
     }
@@ -1858,11 +1911,104 @@ TEST_F(BrowsingDataRemoverImplTest, RemoveStorageBucketsAndReply) {
   observer.RemoveBuckets();
 }
 
+TEST_F(BrowsingDataRemoverImplTest, NonDefaultStoragePartitionInFilter) {
+  // Create a second StoragePartition.
+  auto non_default_storage_partition_config = StoragePartitionConfig::Create(
+      GetBrowserContext(), "domain", "name", /*in_memory=*/false);
+  auto non_default_storage_partition =
+      std::make_unique<StoragePartitionRemovalTestStoragePartition>();
+  RegisterStoragePartition(non_default_storage_partition_config,
+                           non_default_storage_partition.get());
+
+  std::unique_ptr<BrowsingDataFilterBuilder> builder(
+      BrowsingDataFilterBuilder::Create(
+          BrowsingDataFilterBuilder::Mode::kDelete));
+  const GURL kTestUrl("http://host1.com");
+  builder->AddRegisterableDomain(kTestUrl.host());
+  builder->SetStoragePartitionConfig(non_default_storage_partition_config);
+
+  // Remove the test origin.
+  BlockUntilOriginDataRemoved(base::Time(), base::Time::Max(),
+                              BrowsingDataRemover::DATA_TYPE_SERVICE_WORKERS |
+                                  BrowsingDataRemover::DATA_TYPE_CACHE_STORAGE |
+                                  BrowsingDataRemover::DATA_TYPE_FILE_SYSTEMS |
+                                  BrowsingDataRemover::DATA_TYPE_INDEXED_DB |
+                                  BrowsingDataRemover::DATA_TYPE_WEB_SQL,
+                              std::move(builder));
+
+  EXPECT_EQ(BrowsingDataRemover::DATA_TYPE_SERVICE_WORKERS |
+                BrowsingDataRemover::DATA_TYPE_CACHE_STORAGE |
+                BrowsingDataRemover::DATA_TYPE_FILE_SYSTEMS |
+                BrowsingDataRemover::DATA_TYPE_INDEXED_DB |
+                BrowsingDataRemover::DATA_TYPE_WEB_SQL,
+            GetRemovalMask());
+  EXPECT_EQ(BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
+            GetOriginTypeMask());
+
+  // Check that data wasn't removed from the default StoragePartition.
+  std::vector<StoragePartitionRemovalData> all_default_removal_data =
+      GetStoragePartitionRemovalDataListAndReset();
+  EXPECT_TRUE(all_default_removal_data.empty());
+
+  // Check that the data removal was performed on the correct StoragePartition.
+  std::vector<StoragePartitionRemovalData> all_removal_data =
+      non_default_storage_partition->GetStoragePartitionRemovalData();
+  EXPECT_EQ(1UL, all_removal_data.size());
+  StoragePartitionRemovalData removal_data = all_removal_data.back();
+  EXPECT_EQ(removal_data.remove_mask,
+            StoragePartition::REMOVE_DATA_MASK_FILE_SYSTEMS |
+                StoragePartition::REMOVE_DATA_MASK_WEBSQL |
+                StoragePartition::REMOVE_DATA_MASK_SERVICE_WORKERS |
+                StoragePartition::REMOVE_DATA_MASK_CACHE_STORAGE |
+                StoragePartition::REMOVE_DATA_MASK_INDEXEDDB);
+  EXPECT_EQ(removal_data.quota_storage_remove_mask,
+            StoragePartition::QUOTA_MANAGED_STORAGE_MASK_ALL);
+  ASSERT_TRUE(removal_data.filter_builder);
+  EXPECT_EQ(non_default_storage_partition_config,
+            removal_data.filter_builder->GetStoragePartitionConfig());
+
+  RegisterStoragePartition(non_default_storage_partition_config, nullptr);
+}
+
+TEST_F(BrowsingDataRemoverImplTest, DeleteInterestGroupsWhenClearingCookies) {
+  BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
+                                BrowsingDataRemover::DATA_TYPE_COOKIES,
+                                /*include_protected_origins=*/false);
+
+  StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
+  EXPECT_EQ(
+      removal_data.remove_mask &
+          (StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
+           StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS_INTERNAL |
+           StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUP_PERMISSIONS_CACHE),
+      StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS);
+}
+
+TEST_F(BrowsingDataRemoverImplTest,
+       IfPartitionedCookiesOnlyDontDeleteInterestGroupsWhenClearingCookies) {
+  std::unique_ptr<BrowsingDataFilterBuilder> builder(
+      BrowsingDataFilterBuilder::Create(
+          BrowsingDataFilterBuilder::Mode::kPreserve));
+  builder->SetPartitionedCookiesOnly(true);
+
+  BlockUntilOriginDataRemoved(base::Time(), base::Time::Max(),
+                              BrowsingDataRemover::DATA_TYPE_COOKIES,
+                              std::move(builder));
+
+  StoragePartitionRemovalData removal_data = GetStoragePartitionRemovalData();
+  EXPECT_EQ(
+      removal_data.remove_mask &
+          (StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS |
+           StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS_INTERNAL |
+           StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUP_PERMISSIONS_CACHE),
+      0u);
+}
+
 class BrowsingDataRemoverImplSharedStorageTest
     : public BrowsingDataRemoverImplTest {
  public:
   BrowsingDataRemoverImplSharedStorageTest() {
-    feature_list_.InitAndEnableFeature(blink::features::kSharedStorageAPI);
+    feature_list_.InitAndEnableFeature(network::features::kSharedStorageAPI);
   }
 
  private:
@@ -1990,6 +2136,190 @@ TEST_F(BrowsingDataRemoverImplSharedStorageTest,
       blink::StorageKey::CreateFromStringForTesting(
           "chrome-extension://abcdefghijklmnopqrstuvwxyz/"),
       mock_policy()));
+}
+
+class RemoveBtmEventsTester {
+ public:
+  explicit RemoveBtmEventsTester(BrowserContext* browser_context) {
+    storage_ = BtmServiceImpl::Get(browser_context)->storage();
+  }
+
+  void WriteEventTimes(GURL url,
+                       std::optional<base::Time> storage_time,
+                       std::optional<base::Time> interaction_time) {
+    if (storage_time.has_value()) {
+      storage_->AsyncCall(&BtmStorage::RecordStorage)
+          .WithArgs(url, storage_time.value(), BtmCookieMode::kBlock3PC);
+    }
+    if (interaction_time.has_value()) {
+      storage_->AsyncCall(&BtmStorage::RecordUserActivation)
+          .WithArgs(url, interaction_time.value(), BtmCookieMode::kBlock3PC);
+    }
+    storage_->FlushPostedTasksForTesting();
+  }
+
+  std::optional<StateValue> ReadStateValue(GURL url) {
+    base::test::TestFuture<BtmState> btm_state;
+    storage_->AsyncCall(&BtmStorage::Read)
+        .WithArgs(url)
+        .Then(btm_state.GetCallback());
+
+    const BtmState& state = btm_state.Get();
+    if (!state.was_loaded()) {
+      return {};
+    }
+    return state.ToStateValue();
+  }
+
+ private:
+  raw_ptr<base::SequenceBound<BtmStorage>> storage_;
+};
+
+class BrowsingDataRemoverImplBtmTest : public BrowsingDataRemoverImplTest {
+ public:
+  BrowsingDataRemoverImplBtmTest()
+      : BrowsingDataRemoverImplTest(
+            std::make_unique<TpcBlockingBrowserClient>()) {}
+};
+
+TEST_F(BrowsingDataRemoverImplBtmTest, RemoveBtmEventsForLastHour) {
+  RemoveBtmEventsTester tester(GetBrowserContext());
+  GURL url1("https://example1.com");
+  GURL url2("https://example2.com");
+  base::Time two_hours_ago = base::Time::Now() - base::Hours(2);
+
+  tester.WriteEventTimes(url1, /*storage_time=*/base::Time::Now(),
+                         /*interaction_time=*/std::nullopt);
+  tester.WriteEventTimes(url2, /*storage_time=*/std::nullopt,
+                         /*interaction_time=*/two_hours_ago);
+
+  {
+    std::optional<StateValue> state_val1 = tester.ReadStateValue(url1);
+    std::optional<StateValue> state_val2 = tester.ReadStateValue(url2);
+
+    ASSERT_TRUE(state_val1.has_value());
+    EXPECT_TRUE(state_val1->site_storage_times.has_value());
+    ASSERT_TRUE(state_val2.has_value());
+    EXPECT_TRUE(state_val2->user_activation_times.has_value());
+  }
+
+  uint64_t remove_mask = TpcBlockingBrowserClient::DATA_TYPE_HISTORY |
+                         content::BrowsingDataRemover::DATA_TYPE_COOKIES;
+
+  BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(), remove_mask,
+                                false);
+
+  {
+    std::optional<StateValue> state_val1 = tester.ReadStateValue(url1);
+    std::optional<StateValue> state_val2 = tester.ReadStateValue(url2);
+
+    EXPECT_FALSE(state_val1.has_value());
+    ASSERT_TRUE(state_val2.has_value());
+    EXPECT_TRUE(state_val2->user_activation_times.has_value());
+  }
+
+  BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(), remove_mask,
+                                false);
+
+  {
+    std::optional<StateValue> state_val1 = tester.ReadStateValue(url1);
+    std::optional<StateValue> state_val2 = tester.ReadStateValue(url2);
+
+    EXPECT_FALSE(state_val1.has_value());
+    EXPECT_FALSE(state_val2.has_value());
+  }
+}
+
+TEST_F(BrowsingDataRemoverImplBtmTest, RemoveBtmEventsByType) {
+  RemoveBtmEventsTester tester(GetBrowserContext());
+  GURL url1("https://example1.com");
+  GURL url2("https://example2.com");
+  GURL url3("https://example3.com");
+  base::Time two_hours_ago = base::Time::Now() - base::Hours(2);
+
+  tester.WriteEventTimes(url1, /*storage_time=*/base::Time::Now(),
+                         /*interaction_time=*/std::nullopt);
+  tester.WriteEventTimes(url2, /*storage_time=*/std::nullopt,
+                         /*interaction_time=*/base::Time::Now());
+  tester.WriteEventTimes(url3, /*storage_time=*/base::Time::Now(),
+                         /*interaction_time=*/two_hours_ago);
+
+  {
+    std::optional<StateValue> state_val1 = tester.ReadStateValue(url1);
+    std::optional<StateValue> state_val2 = tester.ReadStateValue(url2);
+    std::optional<StateValue> state_val3 = tester.ReadStateValue(url3);
+
+    ASSERT_TRUE(state_val1.has_value());
+    EXPECT_TRUE(state_val1->site_storage_times.has_value());
+
+    ASSERT_TRUE(state_val2.has_value());
+    EXPECT_TRUE(state_val2->user_activation_times.has_value());
+
+    ASSERT_TRUE(state_val3.has_value());
+    EXPECT_TRUE(state_val3->site_storage_times.has_value());
+    EXPECT_TRUE(state_val3->user_activation_times.has_value());
+  }
+
+  // Remove interaction events from DIPS Storage.
+  BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(),
+                                TpcBlockingBrowserClient::DATA_TYPE_HISTORY,
+                                false);
+
+  // Verify the interaction event for url2 has been removed.
+  {
+    std::optional<StateValue> state_val1 = tester.ReadStateValue(url1);
+    std::optional<StateValue> state_val2 = tester.ReadStateValue(url2);
+    std::optional<StateValue> state_val3 = tester.ReadStateValue(url3);
+
+    ASSERT_TRUE(state_val1.has_value());
+    EXPECT_TRUE(state_val1->site_storage_times.has_value());
+
+    EXPECT_FALSE(state_val2.has_value());
+
+    ASSERT_TRUE(state_val3.has_value());
+    EXPECT_TRUE(state_val3->site_storage_times.has_value());
+    EXPECT_TRUE(state_val3->user_activation_times.has_value());
+  }
+
+  // Remove storage events from DIPS Storage.
+  BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(),
+                                content::BrowsingDataRemover::DATA_TYPE_COOKIES,
+                                false);
+
+  // Verify the storage events for url1 and url3 have been removed.
+  {
+    std::optional<StateValue> state_val1 = tester.ReadStateValue(url1);
+    std::optional<StateValue> state_val2 = tester.ReadStateValue(url2);
+    std::optional<StateValue> state_val3 = tester.ReadStateValue(url3);
+
+    EXPECT_FALSE(state_val1.has_value());
+
+    EXPECT_FALSE(state_val2.has_value());
+
+    ASSERT_TRUE(state_val3.has_value());
+    EXPECT_FALSE(state_val3->site_storage_times.has_value());
+    EXPECT_TRUE(state_val3->user_activation_times.has_value());
+  }
+}
+
+TEST_F(BrowsingDataRemoverImplTest,
+       RemoveBrowsingHistoryRegeneratesNoiseToken) {
+  base::test::ScopedFeatureList features(
+      fingerprinting_protection_interventions::features::kCanvasNoise);
+  uint64_t original_token =
+      content::CanvasNoiseTokenData::GetToken(GetBrowserContext());
+
+  BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
+                                content::BrowsingDataRemover::DATA_TYPE_COOKIES,
+                                false);
+
+  EXPECT_EQ(content::BrowsingDataRemover::DATA_TYPE_COOKIES, GetRemovalMask());
+  EXPECT_EQ(content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
+            GetOriginTypeMask());
+
+  uint64_t updated_token =
+      content::CanvasNoiseTokenData::GetToken(GetBrowserContext());
+  EXPECT_NE(original_token, updated_token);
 }
 
 }  // namespace content

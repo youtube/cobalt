@@ -4,9 +4,14 @@
 
 package org.chromium.chrome.browser.tab;
 
+import android.content.Context;
 import android.view.View;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -16,6 +21,7 @@ import java.lang.annotation.RetentionPolicy;
  * Refer to the Javadoc on {@link TabViewManager} to learn how to add a new {@link TabViewProvider}
  * to a {@link Tab}.
  */
+@NullMarked
 public interface TabViewProvider {
     /**
      * Represents each {@link TabViewProvider} implementer. Please note that the integer values
@@ -39,15 +45,17 @@ public interface TabViewProvider {
     /**
      * @return The {@link View} that {@link Tab} is supposed to show.
      */
-    View getView();
+    @Nullable View getView();
 
-    /**
-     * Called when the {@link View} provided by {@link #getView()} is provided to {@link Tab}.
-     * */
+    /** Called when the {@link View} provided by {@link #getView()} is provided to {@link Tab}. */
     default void onShown() {}
 
-    /**
-     * Called when the {@link View} provided by {@link #getView()} is removed from {@link Tab}.
-     * */
+    /** Called when the {@link View} provided by {@link #getView()} is removed from {@link Tab}. */
     default void onHidden() {}
+
+    /**
+     * @return The background color for the content to show.
+     */
+    @ColorInt
+    int getBackgroundColor(Context context);
 }

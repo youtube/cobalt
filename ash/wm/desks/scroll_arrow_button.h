@@ -6,9 +6,10 @@
 #define ASH_WM_DESKS_SCROLL_ARROW_BUTTON_H_
 
 #include "ash/ash_export.h"
-#include "ash/wm/desks/desk_mini_view.h"
+#include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
 #include "base/timer/timer.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/controls/button/button.h"
 
 namespace ash {
@@ -20,6 +21,8 @@ class DeskBarViewBase;
 // want to paint the button on arrow type and RTL layout differently, also
 // customize the icon's layout.
 class ASH_EXPORT ScrollArrowButton : public views::Button {
+  METADATA_HEADER(ScrollArrowButton, views::Button)
+
  public:
   ScrollArrowButton(base::RepeatingClosure on_scroll,
                     bool is_left_arrow,
@@ -31,7 +34,6 @@ class ASH_EXPORT ScrollArrowButton : public views::Button {
   // views::Button:
   void PaintButtonContents(gfx::Canvas* canvas) override;
   void OnThemeChanged() override;
-  const char* GetClassName() const override;
 
   // Called when a desk is being dragged and hovering on the button.
   void OnDeskHoverStart();
@@ -39,14 +41,19 @@ class ASH_EXPORT ScrollArrowButton : public views::Button {
   void OnDeskHoverEnd();
 
  private:
+  friend class DesksTestApi;
+
   void OnStateChanged();
+
+  static base::AutoReset<base::TimeDelta> SetScrollTimeIntervalForTest(
+      base::TimeDelta interval);
 
   // The callback of bar scroll method.
   base::RepeatingClosure on_scroll_;
   // The subscription of button state change callback.
   base::CallbackListSubscription state_change_subscription_;
   const bool is_left_arrow_;
-  const raw_ptr<DeskBarViewBase, ExperimentalAsh> bar_view_;  // Not owned.
+  const raw_ptr<DeskBarViewBase> bar_view_;  // Not owned.
   // If the button is kept pressed, trigger scroll every one second.
   base::RepeatingTimer timer_;
 };

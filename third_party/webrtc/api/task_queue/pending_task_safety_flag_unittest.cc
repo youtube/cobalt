@@ -11,17 +11,19 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 
 #include <memory>
+#include <utility>
 
+#include "api/scoped_refptr.h"
+#include "api/task_queue/task_queue_base.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/event.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 
 TEST(PendingTaskSafetyFlagTest, Basic) {
-  rtc::scoped_refptr<PendingTaskSafetyFlag> safety_flag;
+  scoped_refptr<PendingTaskSafetyFlag> safety_flag;
   {
     // Scope for the `owner` instance.
     class Owner {
@@ -29,7 +31,7 @@ TEST(PendingTaskSafetyFlagTest, Basic) {
       Owner() = default;
       ~Owner() { flag_->SetNotAlive(); }
 
-      rtc::scoped_refptr<PendingTaskSafetyFlag> flag_ =
+      scoped_refptr<PendingTaskSafetyFlag> flag_ =
           PendingTaskSafetyFlag::Create();
     } owner;
     EXPECT_TRUE(owner.flag_->alive());
@@ -41,7 +43,7 @@ TEST(PendingTaskSafetyFlagTest, Basic) {
 }
 
 TEST(PendingTaskSafetyFlagTest, BasicScoped) {
-  rtc::scoped_refptr<PendingTaskSafetyFlag> safety_flag;
+  scoped_refptr<PendingTaskSafetyFlag> safety_flag;
   {
     struct Owner {
       ScopedTaskSafety safety;
@@ -67,7 +69,7 @@ TEST(PendingTaskSafetyFlagTest, PendingTaskSuccess) {
 
     void DoStuff() {
       RTC_DCHECK(!tq_main_->IsCurrent());
-      rtc::scoped_refptr<PendingTaskSafetyFlag> safe = flag_;
+      scoped_refptr<PendingTaskSafetyFlag> safe = flag_;
       tq_main_->PostTask([safe = std::move(safe), this]() {
         if (!safe->alive())
           return;
@@ -80,7 +82,7 @@ TEST(PendingTaskSafetyFlagTest, PendingTaskSuccess) {
    private:
     TaskQueueBase* const tq_main_;
     bool stuff_done_ = false;
-    rtc::scoped_refptr<PendingTaskSafetyFlag> flag_ =
+    scoped_refptr<PendingTaskSafetyFlag> flag_ =
         PendingTaskSafetyFlag::Create();
   };
 
@@ -131,9 +133,9 @@ TEST(PendingTaskSafetyFlagTest, PendingTaskDropped) {
   ASSERT_TRUE(owner);
   // Queue up a task on tq1 that will execute before the 'DoStuff' task
   // can, and delete the `owner` before the 'stuff' task can execute.
-  rtc::Event blocker;
+  Event blocker;
   tq1.PostTask([&blocker, &owner]() {
-    blocker.Wait(rtc::Event::kForever);
+    blocker.Wait(Event::kForever);
     owner.reset();
   });
 
@@ -167,9 +169,19 @@ TEST(PendingTaskSafetyFlagTest, PendingTaskNotAliveInitialized) {
   EXPECT_TRUE(task_2_ran);
 }
 
+TEST(PendingTaskSafetyFlagTest, PendingTaskInitializedForTaskQueue) {
+  TaskQueueForTest tq("PendingTaskAliveInitializedForTaskQueue");
+
+  // Create a new flag that initially `alive`, attached to a specific TQ.
+  auto flag = PendingTaskSafetyFlag::CreateAttachedToTaskQueue(true, tq.Get());
+  tq.SendTask([&flag]() { EXPECT_TRUE(flag->alive()); });
+  // Repeat the same steps but initialize as inactive.
+  flag = PendingTaskSafetyFlag::CreateAttachedToTaskQueue(false, tq.Get());
+  tq.SendTask([&flag]() { EXPECT_FALSE(flag->alive()); });
+}
+
 TEST(PendingTaskSafetyFlagTest, SafeTask) {
-  rtc::scoped_refptr<PendingTaskSafetyFlag> flag =
-      PendingTaskSafetyFlag::Create();
+  scoped_refptr<PendingTaskSafetyFlag> flag = PendingTaskSafetyFlag::Create();
 
   int count = 0;
   // Create two identical tasks that increment the `count`.

@@ -3,12 +3,16 @@
 // found in the LICENSE file.
 
 #include "ash/system/phonehub/phone_hub_tray.h"
+
+#include <string>
 #include <utility>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/tray_background_view_catalog.h"
-#include "ash/focus_cycler.h"
+#include "ash/focus/focus_cycler.h"
+#include "ash/multi_device_setup/multi_device_notification_presenter.h"
+#include "ash/public/cpp/system/anchored_nudge_manager.h"
 #include "ash/public/cpp/system_tray_client.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/root_window_controller.h"
@@ -20,6 +24,7 @@
 #include "ash/system/eche/eche_icon_loading_indicator_view.h"
 #include "ash/system/eche/eche_tray.h"
 #include "ash/system/model/system_tray_model.h"
+#include "ash/system/phonehub/onboarding_nudge_controller.h"
 #include "ash/system/phonehub/phone_hub_content_view.h"
 #include "ash/system/phonehub/phone_hub_metrics.h"
 #include "ash/system/phonehub/quick_actions_view.h"
@@ -34,28 +39,46 @@
 #include "ash/system/tray/tray_utils.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/notreached.h"
+#include "base/power_monitor/power_monitor.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/default_clock.h"
+#include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/components/phonehub/icon_decoder.h"
 #include "chromeos/ash/components/phonehub/phone_hub_manager.h"
 #include "chromeos/ash/components/phonehub/phone_model.h"
+#include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_id.h"
+#include "ui/display/manager/display_manager.h"
 #include "ui/events/event.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/button/button_controller.h"
 #include "ui/views/controls/image_view.h"
 
 namespace ash {
 
 namespace {
 
+// Command ID for Phone Hub context menu
+constexpr int kHidePhoneHubIconCommandId = 1;
+
 // Padding for tray icons (dp; the button that shows the phone_hub menu).
 constexpr int kTrayIconMainAxisInset = 6;
 constexpr int kTrayIconCrossAxisInset = 0;
 constexpr int kEcheIconMinSize = 24;
 constexpr int kIconSpacing = 12;
+
+constexpr int kHidePhoneHubContexMenuIconSize = 20;
 
 constexpr auto kBubblePadding =
     gfx::Insets::TLBR(0, 0, kBubbleBottomPaddingDip, 0);
@@ -73,14 +96,12 @@ bool IsInUserSession() {
 PhoneHubTray::PhoneHubTray(Shelf* shelf)
     : TrayBackgroundView(shelf, TrayBackgroundViewCatalogName::kPhoneHub),
       ui_controller_(new PhoneHubUiController()),
-      phone_hub_nudge_controller_(
-          features::IsPhoneHubNudgeEnabled()
-              ? std::make_unique<PhoneHubNudgeController>()
-              : nullptr) {
+      last_unlocked_timestamp_(base::Time::NowFromSystemTime()) {
   // By default, if the individual buttons did not handle the event consider it
   // as a phone hub icon event.
-  SetPressedCallback(base::BindRepeating(&PhoneHubTray::PhoneHubIconActivated,
-                                         base::Unretained(this)));
+  SetCallback(base::BindRepeating(&PhoneHubTray::PhoneHubIconActivated,
+                                  base::Unretained(this)));
+
   observed_phone_hub_ui_controller_.Observe(ui_controller_.get());
   observed_session_.Observe(Shell::Get()->session_controller());
 
@@ -90,6 +111,11 @@ PhoneHubTray::PhoneHubTray(Shelf* shelf)
   if (features::IsEcheSWAEnabled()) {
     auto eche_icon = std::make_unique<views::ImageButton>(base::BindRepeating(
         &PhoneHubTray::EcheIconActivated, weak_factory_.GetWeakPtr()));
+    eche_icon->SetButtonController(std::make_unique<views::ButtonController>(
+        /*views::Button*=*/eche_icon.get(),
+        std::make_unique<TrayBackgroundView::TrayButtonControllerDelegate>(
+            /*views::Button*=*/eche_icon.get(),
+            TrayBackgroundViewCatalogName::kPhoneHub)));
     eche_icon->SetImageVerticalAlignment(
         views::ImageButton::VerticalAlignment::ALIGN_MIDDLE);
     eche_icon->SetImageHorizontalAlignment(
@@ -105,6 +131,11 @@ PhoneHubTray::PhoneHubTray(Shelf* shelf)
   }
   auto icon = std::make_unique<views::ImageButton>(base::BindRepeating(
       &PhoneHubTray::PhoneHubIconActivated, weak_factory_.GetWeakPtr()));
+  icon->SetButtonController(std::make_unique<views::ButtonController>(
+      /*views::Button*=*/icon.get(),
+      std::make_unique<TrayBackgroundView::TrayButtonControllerDelegate>(
+          /*views::Button*=*/icon.get(),
+          TrayBackgroundViewCatalogName::kPhoneHub)));
   icon->SetFocusBehavior(FocusBehavior::NEVER);
   icon->SetTooltipText(
       l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_TRAY_ACCESSIBLE_NAME));
@@ -112,11 +143,27 @@ PhoneHubTray::PhoneHubTray(Shelf* shelf)
       views::ImageButton::VerticalAlignment::ALIGN_MIDDLE);
   icon->SetImageHorizontalAlignment(
       views::ImageButton::HorizontalAlignment::ALIGN_CENTER);
-  icon->SetImageModel(views::ImageButton::STATE_NORMAL,
-                      ui::ImageModel::FromVectorIcon(
-                          kPhoneHubPhoneIcon, kColorAshIconColorPrimary));
   icon_ = tray_container()->AddChildView(std::move(icon));
-  Shell::Get()->window_tree_host_manager()->AddObserver(this);
+
+  UpdateTrayItemColor(is_active());
+
+  onboarding_nudge_controller_ =
+      features::IsPhoneHubOnboardingNotifierRevampEnabled()
+          ? std::make_unique<OnboardingNudgeController>(
+                /*phone_hub_tray=*/this,
+                /*animation_stop_callback=*/
+                base::BindRepeating(&PhoneHubTray::StopPulseAnimation,
+                                    weak_factory_.GetWeakPtr()),
+                /*start_animation_callback=*/
+                base::BindRepeating(&PhoneHubTray::StartPulseAnimation,
+                                    weak_factory_.GetWeakPtr()),
+                base::DefaultClock::GetInstance())
+          : nullptr;
+
+  Shell::Get()->display_manager()->AddDisplayManagerObserver(this);
+
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_TRAY_ACCESSIBLE_NAME));
 }
 
 PhoneHubTray::~PhoneHubTray() {
@@ -125,7 +172,12 @@ PhoneHubTray::~PhoneHubTray() {
   if (phone_hub_manager_) {
     phone_hub_manager_->GetAppStreamManager()->RemoveObserver(this);
   }
-  Shell::Get()->window_tree_host_manager()->RemoveObserver(this);
+  if (phone_hub_manager_ && IsInPhoneHubNudgeExperimentGroup() &&
+      onboarding_nudge_controller_) {
+    phone_hub_manager_->GetFeatureStatusProvider()->RemoveObserver(
+        onboarding_nudge_controller_.get());
+  }
+  Shell::Get()->display_manager()->RemoveDisplayManagerObserver(this);
 }
 
 void PhoneHubTray::SetPhoneHubManager(
@@ -138,14 +190,24 @@ void PhoneHubTray::SetPhoneHubManager(
     phone_hub_manager->GetAppStreamManager()->AddObserver(this);
   }
   phone_hub_manager_ = phone_hub_manager;
+  if (phone_hub_manager_ && IsInPhoneHubNudgeExperimentGroup() &&
+      onboarding_nudge_controller_) {
+    phone_hub_manager_->GetFeatureStatusProvider()->AddObserver(
+        onboarding_nudge_controller_.get());
+  }
 }
 
-void PhoneHubTray::ClickedOutsideBubble() {
+void PhoneHubTray::ClickedOutsideBubble(const ui::LocatedEvent& event) {
   CloseBubble();
 }
 
-std::u16string PhoneHubTray::GetAccessibleNameForTray() {
-  return l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_TRAY_ACCESSIBLE_NAME);
+void PhoneHubTray::UpdateTrayItemColor(bool is_active) {
+  icon_->SetImageModel(
+      views::ImageButton::STATE_NORMAL,
+      ui::ImageModel::FromVectorIcon(
+          kPhoneHubPhoneIcon,
+          is_active ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                    : cros_tokens::kCrosSysOnSurface));
 }
 
 void PhoneHubTray::HandleLocaleChange() {
@@ -159,7 +221,7 @@ void PhoneHubTray::HideBubbleWithView(const TrayBubbleView* bubble_view) {
 }
 
 std::u16string PhoneHubTray::GetAccessibleNameForBubble() {
-  return GetAccessibleNameForTray();
+  return l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_TRAY_ACCESSIBLE_NAME);
 }
 
 bool PhoneHubTray::ShouldEnableExtraKeyboardAccessibility() {
@@ -205,6 +267,10 @@ void PhoneHubTray::OnPhoneHubUiStateChanged() {
 
 void PhoneHubTray::OnSessionStateChanged(session_manager::SessionState state) {
   TemporarilyDisableAnimation();
+  if (state == session_manager::SessionState::ACTIVE) {
+    last_unlocked_timestamp_ = base::Time::NowFromSystemTime();
+    UpdateVisibility();
+  }
 }
 
 void PhoneHubTray::OnActiveUserSessionChanged(const AccountId& account_id) {
@@ -216,7 +282,19 @@ void PhoneHubTray::AnchorUpdated() {
     bubble_->bubble_view()->UpdateBubble();
 }
 
-void PhoneHubTray::OnDisplayConfigurationChanged() {
+void PhoneHubTray::OnVisibilityAnimationFinished(
+    bool should_log_visible_pod_count,
+    bool aborted) {
+  TrayBackgroundView::OnVisibilityAnimationFinished(
+      should_log_visible_pod_count, aborted);
+  if (IsInPhoneHubNudgeExperimentGroup() &&
+      ui_controller_->ui_state() ==
+          PhoneHubUiController::UiState::kOnboardingWithoutPhone) {
+    onboarding_nudge_controller_->ShowNudgeIfNeeded();
+  }
+}
+
+void PhoneHubTray::OnDidApplyDisplayChanges() {
   if (!bubble_ || !bubble_->GetBubbleView())
     return;
   bubble_->GetBubbleView()->ChangeAnchorRect(
@@ -241,21 +319,11 @@ void PhoneHubTray::ShowBubble() {
 
   ui_controller_->HandleBubbleOpened();
 
-  TrayBubbleView::InitParams init_params;
-  init_params.delegate = GetWeakPtr();
-  init_params.parent_window = GetBubbleWindowContainer();
-  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
-  init_params.anchor_rect = shelf()->GetSystemTrayAnchorRect();
-  init_params.insets = GetTrayBubbleInsets();
-  init_params.shelf_alignment = shelf()->alignment();
-  init_params.preferred_width = kTrayMenuWidth;
-  init_params.close_on_deactivate = true;
-  init_params.translucent = true;
-  init_params.reroute_event_handler = true;
-  init_params.corner_radius = kTrayItemCornerRadius;
-
-  auto bubble_view = std::make_unique<TrayBubbleView>(init_params);
+  auto bubble_view =
+      std::make_unique<TrayBubbleView>(CreateInitParamsForTrayBubble(
+          /*tray=*/this, /*anchor_to_shelf_corner=*/true));
   bubble_view->SetBorder(views::CreateEmptyBorder(kBubblePadding));
+  bubble_view->box_layout()->SetDefaultFlex(0);
 
   // Creates header view on top for displaying phone status and settings icon.
   auto phone_status = ui_controller_->CreateStatusHeaderView(this);
@@ -294,10 +362,6 @@ views::Widget* PhoneHubTray::GetBubbleWidget() const {
   return bubble_ ? bubble_->GetBubbleWidget() : nullptr;
 }
 
-const char* PhoneHubTray::GetClassName() const {
-  return "PhoneHubTray";
-}
-
 bool PhoneHubTray::CanOpenConnectedDeviceSettings() {
   return TrayPopupUtils::CanOpenWebUISettings();
 }
@@ -317,6 +381,10 @@ void PhoneHubTray::HideStatusHeaderView() {
 
   GetPhoneStatusView()->SetVisible(false);
   bubble_->bubble_view()->UpdateBubble();
+}
+
+bool PhoneHubTray::IsPhoneHubIconClickedWhenNudgeVisible() {
+  return is_icon_clicked_when_nudge_visible_;
 }
 
 void PhoneHubTray::OnAppStreamUpdate(
@@ -359,11 +427,11 @@ void PhoneHubTray::OnIconsDecoded(
 }
 
 void PhoneHubTray::SetEcheIconActivationCallback(
-    base::RepeatingCallback<bool(const ui::Event&)> callback) {
+    base::RepeatingCallback<void()> callback) {
   eche_icon_callback_ = std::move(callback);
 }
 
-void PhoneHubTray::CloseBubble() {
+void PhoneHubTray::CloseBubbleInternal() {
   if (!bubble_)
     return;
 
@@ -390,6 +458,9 @@ void PhoneHubTray::CloseBubble() {
   }
 
   bubble_.reset();
+  // Reset the value when bubble is closed so that next time when setup dialog
+  // is opened from Phone Hub bubble it will not be logged to wrong bucket.
+  is_icon_clicked_when_nudge_visible_ = false;
   SetIsActive(false);
   shelf()->UpdateAutoHideState();
 }
@@ -397,14 +468,42 @@ void PhoneHubTray::CloseBubble() {
 void PhoneHubTray::UpdateVisibility() {
   DCHECK(ui_controller_.get());
   auto ui_state = ui_controller_->ui_state();
+  // If the icon becomes visible for onboarding after 5 minutes of log in, we do
+  // not show the icon until next log in/unlock.
+  if (features::IsPhoneHubMonochromeNotificationIconsEnabled() &&
+      ui_state == PhoneHubUiController::UiState::kOnboardingWithoutPhone &&
+      !IsInsideUnlockWindow()) {
+    return;
+  }
+  icon_->set_context_menu_controller(
+      ui_state == PhoneHubUiController::UiState::kOnboardingWithPhone ||
+              ui_state == PhoneHubUiController::UiState::kOnboardingWithoutPhone
+          ? this
+          : nullptr);
+
   SetVisiblePreferred(ui_state != PhoneHubUiController::UiState::kHidden &&
                       IsInUserSession());
-  if (features::IsPhoneHubNudgeEnabled() && IsInUserSession()) {
-    if (ui_state == PhoneHubUiController::UiState::kOnboardingWithoutPhone) {
-      phone_hub_nudge_controller_->ShowNudge();
-      // TODO (b/266853434): Animation of icon.
-    }
+}
+
+std::unique_ptr<ui::SimpleMenuModel> PhoneHubTray::CreateContextMenuModel() {
+  auto context_menu_model = std::make_unique<ui::SimpleMenuModel>(this);
+
+  context_menu_model->AddItemWithIcon(
+      kHidePhoneHubIconCommandId,
+      l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_TRAY_ICON_DISMISS_TEXT),
+      ui::ImageModel::FromVectorIcon(vector_icons::kVisibilityOffIcon,
+                                     ui::kColorAshSystemUIMenuIcon,
+                                     kHidePhoneHubContexMenuIconSize));
+
+  return context_menu_model;
+}
+
+void PhoneHubTray::ExecuteCommand(int command_id, int event_flags) {
+  if (command_id == kHidePhoneHubIconCommandId) {
+    phone_hub_manager_->GetOnboardingUiTracker()->DismissSetupUi();
+    return;
   }
+  NOTREACHED();
 }
 
 void PhoneHubTray::UpdateHeaderVisibility() {
@@ -425,7 +524,7 @@ void PhoneHubTray::TemporarilyDisableAnimation() {
 }
 
 void PhoneHubTray::EcheIconActivated(const ui::Event& event) {
-  eche_icon_callback_.Run(event);
+  eche_icon_callback_.Run();
 }
 
 void PhoneHubTray::PhoneHubIconActivated(const ui::Event& event) {
@@ -434,9 +533,29 @@ void PhoneHubTray::PhoneHubIconActivated(const ui::Event& event) {
     CloseBubble();
     return;
   }
+
+  if (features::IsPhoneHubOnboardingNotifierRevampEnabled() &&
+      AnchoredNudgeManager::Get()->IsNudgeShown(
+          OnboardingNudgeController::kPhoneHubNudgeId)) {
+    is_icon_clicked_when_nudge_visible_ = true;
+    onboarding_nudge_controller_->HideNudge();
+    onboarding_nudge_controller_->MaybeRecordNudgeAction();
+  }
+
   ShowBubble();
-  if (features::IsPhoneHubNudgeEnabled()) {
-    phone_hub_nudge_controller_->HideNudge();
+
+  if (message_center::MessageCenter::Get()->FindPopupNotificationById(
+          MultiDeviceNotificationPresenter::kSetupNotificationId) &&
+      ui_controller_->ui_state() ==
+          PhoneHubUiController::UiState::kOnboardingWithoutPhone &&
+      !is_icon_clicked_when_setup_notification_visible_) {
+    Shell::Get()
+        ->multidevice_notification_presenter()
+        ->UpdateIsSetupNotificationInteracted(true);
+    phone_hub_metrics::LogMultiDeviceSetupNotificationInteraction();
+    // Set to true to prevent duplicate logging data if the icon is clicked
+    // multiple times when notification is visible.
+    is_icon_clicked_when_setup_notification_visible_ = true;
   }
 }
 
@@ -446,5 +565,18 @@ views::View* PhoneHubTray::GetPhoneStatusView() {
   }
   return phone_status_view_dont_use_;
 }
+
+bool PhoneHubTray::IsInsideUnlockWindow() {
+  return (base::Time::NowFromSystemTime() - last_unlocked_timestamp_) <=
+         features::kMultiDeviceSetupNotificationTimeLimit.Get();
+}
+
+bool PhoneHubTray::IsInPhoneHubNudgeExperimentGroup() {
+  return features::IsPhoneHubOnboardingNotifierRevampEnabled() &&
+         features::kPhoneHubOnboardingNotifierUseNudge.Get();
+}
+
+BEGIN_METADATA(PhoneHubTray)
+END_METADATA
 
 }  // namespace ash

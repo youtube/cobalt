@@ -7,7 +7,7 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/web_applications/externally_managed_app_manager_impl.h"
+#include "chrome/browser/web_applications/externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/test_web_app_url_loader.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -25,9 +25,9 @@ const char AppListTestBase::kPackagedApp1Id[] =
 const char AppListTestBase::kPackagedApp2Id[] =
     "jlklkagmeajbjiobondfhiekepofmljl";
 
-AppListTestBase::AppListTestBase() {}
+AppListTestBase::AppListTestBase() = default;
 
-AppListTestBase::~AppListTestBase() {}
+AppListTestBase::~AppListTestBase() = default;
 
 void AppListTestBase::SetUp() {
   SetUp(/*guest_mode=*/false);
@@ -45,7 +45,7 @@ void AppListTestBase::SetUp(bool guest_mode) {
   ASSERT_TRUE(
       params.ConfigureByTestDataDirectory(data_dir().AppendASCII("app_list")));
   params.profile_is_guest = guest_mode;
-  InitializeExtensionService(params);
+  InitializeExtensionService(std::move(params));
   service_->Init();
 
   ConfigureWebAppProvider();
@@ -57,15 +57,20 @@ void AppListTestBase::SetUp(bool guest_mode) {
   ASSERT_EQ(4U, registry()->enabled_extensions().size());
 }
 
+Profile* AppListTestBase::GetAppServiceProfile() {
+  return profile()->IsGuestSession()
+             ? profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true)
+             : profile();
+}
+
 void AppListTestBase::ConfigureWebAppProvider() {
-  Profile* testing_profile = profile();
+  Profile* testing_profile = GetAppServiceProfile();
 
   auto url_loader = std::make_unique<web_app::TestWebAppUrlLoader>();
   url_loader_ = url_loader.get();
 
   auto externally_managed_app_manager =
-      std::make_unique<web_app::ExternallyManagedAppManagerImpl>(
-          testing_profile);
+      std::make_unique<web_app::ExternallyManagedAppManager>(testing_profile);
   externally_managed_app_manager->SetUrlLoaderForTesting(std::move(url_loader));
 
   auto* const provider = web_app::FakeWebAppProvider::Get(testing_profile);
@@ -117,7 +122,8 @@ syncer::SyncData CreateAppRemoteData(
     const std::string& parent_id,
     const std::string& item_ordinal,
     const std::string& item_pin_ordinal,
-    sync_pb::AppListSpecifics_AppListItemType item_type) {
+    sync_pb::AppListSpecifics_AppListItemType item_type,
+    const std::string& promise_package_id) {
   sync_pb::EntitySpecifics specifics;
   sync_pb::AppListSpecifics* app_list = specifics.mutable_app_list();
   if (id != kUnset)
@@ -131,6 +137,9 @@ syncer::SyncData CreateAppRemoteData(
     app_list->set_item_ordinal(item_ordinal);
   if (item_pin_ordinal != kUnset)
     app_list->set_item_pin_ordinal(item_pin_ordinal);
+  if (promise_package_id != kUnset) {
+    app_list->set_promise_package_id(promise_package_id);
+  }
 
   return syncer::SyncData::CreateRemoteData(
       specifics, syncer::ClientTagHash::FromHashed("unused"));

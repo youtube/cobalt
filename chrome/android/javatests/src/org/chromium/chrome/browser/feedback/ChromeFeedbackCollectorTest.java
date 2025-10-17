@@ -9,20 +9,21 @@ import android.app.Activity;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.feedback.ChromeFeedbackCollector.InitParams;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.List;
 
@@ -31,29 +32,25 @@ import java.util.List;
 public class ChromeFeedbackCollectorTest {
     private static final String FEEDBACK_URL = "https://google.com";
     private static final String FEEDBACK_CONSTANT = "feedbackContext";
-    @Rule
-    public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
 
-    @Mock
-    Activity mActivity;
+    @Mock Activity mActivity;
 
     ChromeFeedbackCollector mCollector;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
 
     @Test
     @SmallTest
     @Feature({"Feedback"})
     public void testRegularProfile() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Profile profile = Profile.getLastUsedRegularProfile();
-            InitParams params = new InitParams(profile, FEEDBACK_URL, FEEDBACK_CONSTANT);
-            mCollector =
-                    new ChromeFeedbackCollector(mActivity, null, null, null, params, null, profile);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Profile profile = ProfileManager.getLastUsedRegularProfile();
+                    InitParams params = new InitParams(profile, FEEDBACK_URL, FEEDBACK_CONSTANT);
+                    mCollector =
+                            new ChromeFeedbackCollector(
+                                    mActivity, null, null, null, params, null, profile);
+                });
 
         Assert.assertTrue(
                 "FamilyInfoFeedbackSource should be present.", containsFamilyFeedbackSource());
@@ -63,12 +60,15 @@ public class ChromeFeedbackCollectorTest {
     @SmallTest
     @Feature({"Feedback"})
     public void testIncognitoProfile() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Profile profile = Profile.getLastUsedRegularProfile().getPrimaryOTRProfile(true);
-            InitParams params = new InitParams(profile, FEEDBACK_URL, FEEDBACK_CONSTANT);
-            mCollector =
-                    new ChromeFeedbackCollector(mActivity, null, null, null, params, null, profile);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Profile profile =
+                            ProfileManager.getLastUsedRegularProfile().getPrimaryOtrProfile(true);
+                    InitParams params = new InitParams(profile, FEEDBACK_URL, FEEDBACK_CONSTANT);
+                    mCollector =
+                            new ChromeFeedbackCollector(
+                                    mActivity, null, null, null, params, null, profile);
+                });
 
         // FamilyInfoFeedbackSource relies on IdentityManager which is not available for the
         // incognito profile. See https://crbug.com/1340320.

@@ -13,6 +13,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/image/image_skia.h"
@@ -31,6 +32,11 @@ std::unique_ptr<ClientView> CreateDefaultClientView(WidgetDelegate* delegate,
       widget, delegate->TransferOwnershipOfContentsView());
 }
 
+std::unique_ptr<NonClientFrameView> CreateDefaultNonClientFrameView(
+    Widget* widget) {
+  return nullptr;
+}
+
 std::unique_ptr<View> CreateDefaultOverlayView() {
   return nullptr;
 }
@@ -47,6 +53,8 @@ WidgetDelegate::WidgetDelegate()
     : widget_initialized_callbacks_(std::make_unique<ClosureVector>()),
       client_view_factory_(
           base::BindOnce(&CreateDefaultClientView, base::Unretained(this))),
+      non_client_frame_view_factory_(
+          base::BindRepeating(&CreateDefaultNonClientFrameView)),
       overlay_view_factory_(base::BindOnce(&CreateDefaultOverlayView)) {}
 
 WidgetDelegate::~WidgetDelegate() {
@@ -55,10 +63,6 @@ WidgetDelegate::~WidgetDelegate() {
       !default_contents_view_->parent()) {
     delete default_contents_view_;
     default_contents_view_ = nullptr;
-  }
-  if (destructor_ran_) {
-    DCHECK(!*destructor_ran_);
-    *destructor_ran_ = true;
   }
 }
 
@@ -104,11 +108,15 @@ bool WidgetDelegate::CanMinimize() const {
   return params_.can_minimize;
 }
 
+bool WidgetDelegate::CanFullscreen() const {
+  return params_.can_fullscreen;
+}
+
 bool WidgetDelegate::CanActivate() const {
   return can_activate_;
 }
 
-ui::ModalType WidgetDelegate::GetModalType() const {
+ui::mojom::ModalType WidgetDelegate::GetModalType() const {
   return params_.modal_type;
 }
 
@@ -137,14 +145,81 @@ bool WidgetDelegate::ShouldCenterWindowTitleText() const {
 #endif
 }
 
+// TODO(ffred): refactor this method.
+bool WidgetDelegate::RotatePaneFocusFromView(View* focused_view,
+                                             bool forward,
+                                             bool enable_wrapping) {
+  // Get the list of all accessible panes.
+  std::vector<View*> panes;
+  GetAccessiblePanes(&panes);
+
+  // Count the number of panes and set the default index if no pane
+  // is initially focused.
+  const size_t count = panes.size();
+  if (!count) {
+    return false;
+  }
+
+  // Initialize |index| to an appropriate starting index if nothing is
+  // focused initially.
+  size_t index = forward ? (count - 1) : 0;
+
+  // Check to see if a pane already has focus and update the index accordingly.
+  if (focused_view) {
+    const auto i =
+        std::ranges::find_if(panes, [focused_view](const auto* pane) {
+          return pane && pane->Contains(focused_view);
+        });
+    if (i != panes.cend()) {
+      index = static_cast<size_t>(i - panes.cbegin());
+    }
+  }
+
+  // Rotate focus.
+  for (const size_t start_index = index;;) {
+    index = (!forward ? (index + count - 1) : (index + 1)) % count;
+
+    if (!enable_wrapping && (index == (forward ? 0 : (count - 1)))) {
+      return false;
+    }
+
+    // Ensure that we don't loop more than once.
+    if (index == start_index) {
+      return false;
+    }
+
+    views::View* pane = panes[index];
+    DCHECK(pane);
+    if (pane->GetVisible()) {
+      pane->RequestFocus();
+      // |pane| may be in a different widget, so don't assume its focus manager
+      // is |this|.
+      focused_view = pane->GetWidget()->GetFocusManager()->GetFocusedView();
+      if (pane == focused_view || pane->Contains(focused_view)) {
+        return true;
+      }
+    }
+  }
+}
+
+void WidgetDelegate::SetTitleChangedCallback(TitleChangedCallback callback) {
+  title_changed_callback_ = std::move(callback);
+}
+
+void WidgetDelegate::SetAccessibleTitleChangedCallback(
+    AccessibleTitleChangedCallback callback) {
+  accessible_title_changed_callback_ = std::move(callback);
+}
+
 bool WidgetDelegate::ShouldShowCloseButton() const {
   return params_.show_close_button;
 }
 
 ui::ImageModel WidgetDelegate::GetWindowAppIcon() {
   // Prefer app icon if available.
-  if (!params_.app_icon.IsEmpty())
+  if (!params_.app_icon.IsEmpty()) {
     return params_.app_icon;
+  }
   // Fall back to the window icon.
   return GetWindowIcon();
 }
@@ -166,8 +241,9 @@ std::string WidgetDelegate::GetWindowName() const {
   return std::string();
 }
 
-void WidgetDelegate::SaveWindowPlacement(const gfx::Rect& bounds,
-                                         ui::WindowShowState show_state) {
+void WidgetDelegate::SaveWindowPlacement(
+    const gfx::Rect& bounds,
+    ui::mojom::WindowShowState show_state) {
   std::string window_name = GetWindowName();
   if (!window_name.empty()) {
     ViewsDelegate::GetInstance()->SaveWindowPlacement(GetWidget(), window_name,
@@ -182,25 +258,33 @@ bool WidgetDelegate::ShouldSaveWindowPlacement() const {
 bool WidgetDelegate::GetSavedWindowPlacement(
     const Widget* widget,
     gfx::Rect* bounds,
-    ui::WindowShowState* show_state) const {
+    ui::mojom::WindowShowState* show_state) const {
   std::string window_name = GetWindowName();
   if (window_name.empty() ||
       !ViewsDelegate::GetInstance()->GetSavedWindowPlacement(
-          widget, window_name, bounds, show_state))
+          widget, window_name, bounds, show_state)) {
     return false;
+  }
   // Try to find a display intersecting the saved bounds.
   const auto& display =
       display::Screen::GetScreen()->GetDisplayMatching(*bounds);
   return display.bounds().Intersects(*bounds);
 }
 
-void WidgetDelegate::WidgetInitializing(Widget* widget) {
+base::WeakPtr<WidgetDelegate> WidgetDelegate::AttachWidgetAndGetHandle(
+    Widget* widget) {
+  can_delete_this_ = false;
+
   widget_ = widget;
+  // This weak ptr is valid until `DeleteDelegate` is called. This
+  // will be called otherwise the dtor will CHECK on `can_delete_this_`.
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void WidgetDelegate::WidgetInitialized() {
-  for (auto&& callback : *widget_initialized_callbacks_)
+  for (auto&& callback : *widget_initialized_callbacks_) {
     std::move(callback).Run();
+  }
   widget_initialized_callbacks_.reset();
   OnWidgetInitialized();
 }
@@ -213,24 +297,33 @@ void WidgetDelegate::WindowWillClose() {
   // TODO(ellyjones): For this and the other callback methods, establish whether
   // any other code calls these methods. If not, DCHECK here and below that
   // these methods are only called once.
-  for (auto&& callback : window_will_close_callbacks_)
+  for (auto&& callback : window_will_close_callbacks_) {
     std::move(callback).Run();
+  }
 }
 
 void WidgetDelegate::WindowClosing() {
-  for (auto&& callback : window_closing_callbacks_)
+  for (auto&& callback : window_closing_callbacks_) {
     std::move(callback).Run();
+  }
 }
 
 void WidgetDelegate::DeleteDelegate() {
-  bool owned_by_widget = params_.owned_by_widget;
+  can_delete_this_ = true;
+
+  bool owned_by_widget = owned_by_widget_;
   ClosureVector delete_callbacks;
   delete_callbacks.swap(delete_delegate_callbacks_);
 
-  bool destructor_ran = false;
-  destructor_ran_ = &destructor_ran;
-  for (auto&& callback : delete_callbacks)
+  const auto weak_this = weak_ptr_factory_.GetWeakPtr();
+  for (auto&& callback : delete_callbacks) {
     std::move(callback).Run();
+  }
+
+  if (weak_this && !owned_by_widget && widget_ &&
+      widget_->ownership() == Widget::InitParams::CLIENT_OWNS_WIDGET) {
+    WidgetIsZombie(widget_.get());
+  }
 
   // TODO(kylixrd): Eventually the widget will never own the delegate, so much
   // of this code will need to be reworked.
@@ -239,21 +332,13 @@ void WidgetDelegate::DeleteDelegate() {
   // DeleteDelegate callbacks to destruct it; if it is not owned by the Widget,
   // the DeleteDelete callbacks are allowed but not required to destroy it.
   if (owned_by_widget) {
-    DCHECK(!destructor_ran);
+    DCHECK(weak_this);
     // TODO(kylxird): Rework this once the Widget stops being able to "own" the
     // delegate.
-    // Only delete this if this delegate was never actually initialized wth a
-    // Widget or the delegate isn't "owned" by the Widget.
-    if (can_delete_this_) {
-      delete this;
-      return;
-    }
-    destructor_ran_ = nullptr;
-  } else {
-    // If the destructor didn't get run, reset destructor_ran_ so that when it
-    // does run it doesn't try to scribble over where our stack was.
-    if (!destructor_ran)
-      destructor_ran_ = nullptr;
+    delete this;
+  } else if (weak_this) {
+    widget_ = nullptr;
+    weak_ptr_factory_.InvalidateWeakPtrs();
   }
 }
 
@@ -266,18 +351,21 @@ const Widget* WidgetDelegate::GetWidget() const {
 }
 
 View* WidgetDelegate::GetContentsView() {
-  if (unowned_contents_view_)
+  if (unowned_contents_view_) {
     return unowned_contents_view_;
-  if (!default_contents_view_)
+  }
+  if (!default_contents_view_) {
     default_contents_view_ = new View;
+  }
   return default_contents_view_;
 }
 
 View* WidgetDelegate::TransferOwnershipOfContentsView() {
   DCHECK(!contents_view_taken_);
   contents_view_taken_ = true;
-  if (owned_contents_view_)
+  if (owned_contents_view_) {
     owned_contents_view_.release();
+  }
   return GetContentsView();
 }
 
@@ -288,7 +376,8 @@ ClientView* WidgetDelegate::CreateClientView(Widget* widget) {
 
 std::unique_ptr<NonClientFrameView> WidgetDelegate::CreateNonClientFrameView(
     Widget* widget) {
-  return nullptr;
+  CHECK(non_client_frame_view_factory_);
+  return non_client_frame_view_factory_.Run(widget);
 }
 
 View* WidgetDelegate::CreateOverlayView() {
@@ -316,38 +405,43 @@ void WidgetDelegate::SetAccessibleWindowRole(ax::mojom::Role role) {
 
 void WidgetDelegate::SetAccessibleTitle(std::u16string title) {
   params_.accessible_title = std::move(title);
+
+  if (accessible_title_changed_callback_) {
+    accessible_title_changed_callback_.Run();
+  }
+}
+
+void WidgetDelegate::SetCanFullscreen(bool can_fullscreen) {
+  bool old_can_fullscreen =
+      std::exchange(params_.can_fullscreen, can_fullscreen);
+  if (GetWidget() && params_.can_fullscreen != old_can_fullscreen) {
+    GetWidget()->OnSizeConstraintsChanged();
+  }
 }
 
 void WidgetDelegate::SetCanMaximize(bool can_maximize) {
   bool old_can_maximize = std::exchange(params_.can_maximize, can_maximize);
-  if (GetWidget() && params_.can_maximize != old_can_maximize)
+  if (GetWidget() && params_.can_maximize != old_can_maximize) {
     GetWidget()->OnSizeConstraintsChanged();
+  }
 }
 
 void WidgetDelegate::SetCanMinimize(bool can_minimize) {
   bool old_can_minimize = std::exchange(params_.can_minimize, can_minimize);
-  if (GetWidget() && params_.can_minimize != old_can_minimize)
+  if (GetWidget() && params_.can_minimize != old_can_minimize) {
     GetWidget()->OnSizeConstraintsChanged();
+  }
 }
 
 void WidgetDelegate::SetCanResize(bool can_resize) {
   bool old_can_resize = std::exchange(params_.can_resize, can_resize);
-  if (GetWidget() && params_.can_resize != old_can_resize)
+  if (GetWidget() && params_.can_resize != old_can_resize) {
     GetWidget()->OnSizeConstraintsChanged();
+  }
 }
 
-// TODO (kylixrd): This will be removed once Widget no longer "owns" the
-// WidgetDelegate.
-void WidgetDelegate::SetOwnedByWidget(bool owned) {
-  if (params_.owned_by_widget == owned)
-    return;
-  params_.owned_by_widget = owned;
-  if (widget_ && widget_->widget_delegate_.get() == this) {
-    if (params_.owned_by_widget)
-      widget_->owned_widget_delegate_ = base::WrapUnique(this);
-    else
-      widget_->owned_widget_delegate_.release();
-  }
+void WidgetDelegate::SetOwnedByWidget(OwnedByWidgetPassKey) {
+  owned_by_widget_ = true;
 }
 
 void WidgetDelegate::SetFocusTraversesOut(bool focus_traverses_out) {
@@ -361,14 +455,16 @@ void WidgetDelegate::SetEnableArrowKeyTraversal(
 
 void WidgetDelegate::SetIcon(ui::ImageModel icon) {
   params_.icon = std::move(icon);
-  if (GetWidget())
+  if (GetWidget()) {
     GetWidget()->UpdateWindowIcon();
+  }
 }
 
 void WidgetDelegate::SetAppIcon(ui::ImageModel icon) {
   params_.app_icon = std::move(icon);
-  if (GetWidget())
+  if (GetWidget()) {
     GetWidget()->UpdateWindowIcon();
+  }
 }
 
 void WidgetDelegate::SetInitiallyFocusedView(View* initially_focused_view) {
@@ -376,7 +472,7 @@ void WidgetDelegate::SetInitiallyFocusedView(View* initially_focused_view) {
   params_.initially_focused_view = initially_focused_view;
 }
 
-void WidgetDelegate::SetModalType(ui::ModalType modal_type) {
+void WidgetDelegate::SetModalType(ui::mojom::ModalType modal_type) {
   DCHECK(!GetWidget());
   params_.modal_type = modal_type;
 }
@@ -387,8 +483,9 @@ void WidgetDelegate::SetShowCloseButton(bool show_close_button) {
 
 void WidgetDelegate::SetShowIcon(bool show_icon) {
   params_.show_icon = show_icon;
-  if (GetWidget())
+  if (GetWidget()) {
     GetWidget()->UpdateWindowIcon();
+  }
 }
 
 void WidgetDelegate::SetShowTitle(bool show_title) {
@@ -396,11 +493,17 @@ void WidgetDelegate::SetShowTitle(bool show_title) {
 }
 
 void WidgetDelegate::SetTitle(const std::u16string& title) {
-  if (params_.title == title)
+  if (params_.title == title) {
     return;
+  }
   params_.title = title;
-  if (GetWidget())
+  if (GetWidget()) {
     GetWidget()->UpdateWindowTitle();
+  }
+
+  if (title_changed_callback_) {
+    title_changed_callback_.Run();
+  }
 }
 
 void WidgetDelegate::SetTitle(int title_message_id) {
@@ -414,6 +517,7 @@ void WidgetDelegate::SetCenterTitle(bool center_title) {
 #endif
 
 void WidgetDelegate::SetHasWindowSizeControls(bool has_controls) {
+  SetCanFullscreen(has_controls);
   SetCanMaximize(has_controls);
   SetCanMinimize(has_controls);
   SetCanResize(has_controls);
@@ -425,16 +529,18 @@ void WidgetDelegate::RegisterWidgetInitializedCallback(
   widget_initialized_callbacks_->emplace_back(std::move(callback));
 }
 
-void WidgetDelegate::RegisterWindowWillCloseCallback(
-    base::OnceClosure callback) {
-  window_will_close_callbacks_.emplace_back(std::move(callback));
-}
-
 void WidgetDelegate::RegisterWindowClosingCallback(base::OnceClosure callback) {
   window_closing_callbacks_.emplace_back(std::move(callback));
 }
 
+void WidgetDelegate::RegisterWindowWillCloseCallback(
+    RegisterWillCloseCallbackPassKey,
+    base::OnceClosure callback) {
+  window_will_close_callbacks_.emplace_back(std::move(callback));
+}
+
 void WidgetDelegate::RegisterDeleteDelegateCallback(
+    RegisterDeleteCallbackPassKey,
     base::OnceClosure callback) {
   delete_delegate_callbacks_.emplace_back(std::move(callback));
 }
@@ -442,6 +548,12 @@ void WidgetDelegate::RegisterDeleteDelegateCallback(
 void WidgetDelegate::SetClientViewFactory(ClientViewFactory factory) {
   DCHECK(!GetWidget());
   client_view_factory_ = std::move(factory);
+}
+
+void WidgetDelegate::SetNonClientFrameViewFactory(
+    NonClientFrameViewFactory factory) {
+  DCHECK(!GetWidget());
+  non_client_frame_view_factory_ = std::move(factory);
 }
 
 void WidgetDelegate::SetOverlayViewFactory(OverlayViewFactory factory) {
@@ -456,14 +568,30 @@ void WidgetDelegate::SetContentsViewImpl(std::unique_ptr<View> contents) {
   unowned_contents_view_ = owned_contents_view_.get();
 }
 
+gfx::Rect WidgetDelegate::GetDesiredWidgetBounds() {
+  DCHECK(GetWidget());
+
+  if (has_desired_bounds_delegate()) {
+    const gfx::Rect desired_bounds = params_.desired_bounds_delegate.Run();
+    // This can for instance be empty during browser shutdown where the delegate
+    // fails to find the appropriate Widget native view to generate bounds. See
+    // GetModalDialogBounds in constrained_window which as of this commit return
+    // empty bounds if it can't find the the host widget. Ideally this Widget
+    // would go away or at least be "in shutdown" and probably avoid this code
+    // path before the underlying host Widget or native view goes away.
+    if (!desired_bounds.IsEmpty()) {
+      return desired_bounds;
+    }
+  }
+
+  return gfx::Rect(GetWidget()->GetWindowBoundsInScreen().origin(),
+                   GetWidget()->GetContentsView()->GetPreferredSize({}));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // WidgetDelegateView:
 
-WidgetDelegateView::WidgetDelegateView() {
-  // TODO (kylixrd): Remove once the Widget ceases to "own" the WidgetDelegate.
-  // A WidgetDelegate should be deleted on DeleteDelegate.
-  SetOwnedByWidget(true);
-}
+WidgetDelegateView::WidgetDelegateView() = default;
 
 WidgetDelegateView::~WidgetDelegateView() = default;
 
@@ -479,7 +607,7 @@ views::View* WidgetDelegateView::GetContentsView() {
   return this;
 }
 
-BEGIN_METADATA(WidgetDelegateView, View)
+BEGIN_METADATA(WidgetDelegateView)
 END_METADATA
 
 }  // namespace views

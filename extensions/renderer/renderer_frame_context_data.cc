@@ -4,6 +4,8 @@
 
 #include "extensions/renderer/renderer_frame_context_data.h"
 
+#include "extensions/renderer/renderer_context_data.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-forward.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/web/blink.h"
@@ -15,10 +17,6 @@
 
 namespace extensions {
 
-std::unique_ptr<ContextData> RendererFrameContextData::Clone() const {
-  return CloneFrameContextData();
-}
-
 std::unique_ptr<FrameContextData>
 RendererFrameContextData::CloneFrameContextData() const {
   // Note: Extension tests mock objects like ScriptContext and don't fill in
@@ -27,8 +25,14 @@ RendererFrameContextData::CloneFrameContextData() const {
   return std::make_unique<RendererFrameContextData>(frame_);
 }
 
-bool RendererFrameContextData::IsIsolatedApplication() const {
-  return blink::IsIsolatedContext();
+bool RendererFrameContextData::HasControlledFrameCapability() const {
+  CHECK(frame_);
+  // Checking admin policies happens in the browser process in
+  // BrowserFrameContextData.
+  return frame_->IsFeatureEnabled(
+             network::mojom::PermissionsPolicyFeature::kControlledFrame) &&
+         RendererContextData::IsIsolatedWebAppContextAndEnabled() &&
+         frame_->GetContentSettings()->allow_controlled_frame;
 }
 
 std::unique_ptr<FrameContextData>
@@ -57,7 +61,7 @@ GURL RendererFrameContextData::GetUrl() const {
   CHECK(frame_);
   if (frame_->GetDocument().Url().IsEmpty()) {
     // It's possible for URL to be empty when `frame_` is on the initial empty
-    // document. TODO(https://crbug.com/1197308): Consider making  `frame_`'s
+    // document. TODO(crbug.com/40176869): Consider making  `frame_`'s
     // document's URL about:blank instead of empty in that case.
     return GURL(url::kAboutBlankURL);
   }
@@ -92,7 +96,7 @@ bool RendererFrameContextData::CanAccess(const FrameContextData& target) const {
 
 uintptr_t RendererFrameContextData::GetId() const {
   CHECK(frame_);
-  return reinterpret_cast<uintptr_t>(frame_);
+  return reinterpret_cast<uintptr_t>(frame_.get());
 }
 
 }  // namespace extensions

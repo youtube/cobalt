@@ -6,33 +6,36 @@
 
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 
 #include "base/check.h"
 #include "base/containers/circular_deque.h"
 #include "base/containers/flat_map.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/types/optional_util.h"
+#include "base/types/optional_ref.h"
+#include "net/base/features.h"
 #include "net/base/schemeful_site.h"
 #include "net/first_party_sets/first_party_set_entry.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
 #include "net/first_party_sets/global_first_party_sets.h"
-#include "net/first_party_sets/same_party_context.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 
 FirstPartySetsManager::FirstPartySetsManager(bool enabled)
     : enabled_(enabled),
+      wait_for_init_(base::FeatureList::IsEnabled(
+          net::features::kWaitForFirstPartySetsInit)),
       pending_queries_(
-          enabled ? std::make_unique<base::circular_deque<base::OnceClosure>>()
-                  : nullptr) {
+          enabled && wait_for_init_
+              ? std::make_unique<base::circular_deque<base::OnceClosure>>()
+              : nullptr) {
   if (!enabled)
     SetCompleteSets(net::GlobalFirstPartySets());
 }
@@ -41,67 +44,59 @@ FirstPartySetsManager::~FirstPartySetsManager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-absl::optional<net::FirstPartySetMetadata>
+std::optional<net::FirstPartySetMetadata>
 FirstPartySetsManager::ComputeMetadata(
     const net::SchemefulSite& site,
-    const net::SchemefulSite* top_frame_site,
-    const std::set<net::SchemefulSite>& party_context,
+    base::optional_ref<const net::SchemefulSite> top_frame_site,
     const net::FirstPartySetsContextConfig& fps_context_config,
     base::OnceCallback<void(net::FirstPartySetMetadata)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!sets_.has_value()) {
+    if (!wait_for_init_) {
+      return net::FirstPartySetMetadata();
+    }
     EnqueuePendingQuery(base::BindOnce(
         &FirstPartySetsManager::ComputeMetadataAndInvoke,
-        weak_factory_.GetWeakPtr(), site, base::OptionalFromPtr(top_frame_site),
-        party_context, fps_context_config.Clone(), std::move(callback),
-        base::ElapsedTimer()));
-    return absl::nullopt;
+        weak_factory_.GetWeakPtr(), site, top_frame_site.CopyAsOptional(),
+        fps_context_config.Clone(), std::move(callback)));
+    return std::nullopt;
   }
 
-  return ComputeMetadataInternal(site, top_frame_site, party_context,
-                                 fps_context_config);
+  return ComputeMetadataInternal(site, top_frame_site, fps_context_config);
 }
 
 void FirstPartySetsManager::ComputeMetadataAndInvoke(
     const net::SchemefulSite& site,
-    const absl::optional<net::SchemefulSite> top_frame_site,
-    const std::set<net::SchemefulSite>& party_context,
+    base::optional_ref<const net::SchemefulSite> top_frame_site,
     const net::FirstPartySetsContextConfig& fps_context_config,
-    base::OnceCallback<void(net::FirstPartySetMetadata)> callback,
-    base::ElapsedTimer timer) const {
+    base::OnceCallback<void(net::FirstPartySetMetadata)> callback) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sets_.has_value());
 
-  UMA_HISTOGRAM_TIMES("Cookie.FirstPartySets.EnqueueingDelay.ComputeMetadata2",
-                      timer.Elapsed());
-
   std::move(callback).Run(
-      ComputeMetadataInternal(site, base::OptionalToPtr(top_frame_site),
-                              party_context, fps_context_config));
+      ComputeMetadataInternal(site, top_frame_site, fps_context_config));
 }
 
 net::FirstPartySetMetadata FirstPartySetsManager::ComputeMetadataInternal(
     const net::SchemefulSite& site,
-    const net::SchemefulSite* top_frame_site,
-    const std::set<net::SchemefulSite>& party_context,
+    base::optional_ref<const net::SchemefulSite> top_frame_site,
     const net::FirstPartySetsContextConfig& fps_context_config) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sets_.has_value());
 
-  return sets_->ComputeMetadata(site, top_frame_site, party_context,
-                                fps_context_config);
+  return sets_->ComputeMetadata(site, top_frame_site, fps_context_config);
 }
 
-absl::optional<net::FirstPartySetEntry> FirstPartySetsManager::FindEntry(
+std::optional<net::FirstPartySetEntry> FirstPartySetsManager::FindEntry(
     const net::SchemefulSite& site,
     const net::FirstPartySetsContextConfig& fps_context_config) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sets_.has_value());
   const base::ElapsedTimer timer;
 
-  absl::optional<net::FirstPartySetEntry> entry =
-      is_enabled() ? sets_->FindEntry(site, fps_context_config) : absl::nullopt;
+  std::optional<net::FirstPartySetEntry> entry =
+      is_enabled() ? sets_->FindEntry(site, fps_context_config) : std::nullopt;
 
   UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
       "Cookie.FirstPartySets.FindOwner.Latency", timer.Elapsed(),
@@ -109,7 +104,7 @@ absl::optional<net::FirstPartySetEntry> FirstPartySetsManager::FindEntry(
   return entry;
 }
 
-absl::optional<FirstPartySetsManager::EntriesResult>
+std::optional<FirstPartySetsManager::EntriesResult>
 FirstPartySetsManager::FindEntries(
     const base::flat_set<net::SchemefulSite>& sites,
     const net::FirstPartySetsContextConfig& fps_context_config,
@@ -117,11 +112,14 @@ FirstPartySetsManager::FindEntries(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!sets_.has_value()) {
-    EnqueuePendingQuery(base::BindOnce(
-        &FirstPartySetsManager::FindEntriesAndInvoke,
-        weak_factory_.GetWeakPtr(), sites, fps_context_config.Clone(),
-        std::move(callback), base::ElapsedTimer()));
-    return absl::nullopt;
+    if (!wait_for_init_) {
+      return FirstPartySetsManager::EntriesResult();
+    }
+    EnqueuePendingQuery(
+        base::BindOnce(&FirstPartySetsManager::FindEntriesAndInvoke,
+                       weak_factory_.GetWeakPtr(), sites,
+                       fps_context_config.Clone(), std::move(callback)));
+    return std::nullopt;
   }
 
   return FindEntriesInternal(sites, fps_context_config);
@@ -130,13 +128,10 @@ FirstPartySetsManager::FindEntries(
 void FirstPartySetsManager::FindEntriesAndInvoke(
     const base::flat_set<net::SchemefulSite>& sites,
     const net::FirstPartySetsContextConfig& fps_context_config,
-    base::OnceCallback<void(FirstPartySetsManager::EntriesResult)> callback,
-    base::ElapsedTimer timer) const {
+    base::OnceCallback<void(FirstPartySetsManager::EntriesResult)> callback)
+    const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sets_.has_value());
-
-  UMA_HISTOGRAM_TIMES("Cookie.FirstPartySets.EnqueueingDelay.FindOwners2",
-                      timer.Elapsed());
 
   std::move(callback).Run(FindEntriesInternal(sites, fps_context_config));
 }
@@ -157,15 +152,6 @@ void FirstPartySetsManager::InvokePendingQueries() {
   UmaHistogramTimes(
       "Cookie.FirstPartySets.InitializationDuration.ReadyToServeQueries2",
       construction_timer_.Elapsed());
-
-  base::UmaHistogramTimes("Cookie.FirstPartySets.Network.MostDelayedQueryDelta",
-                          first_async_query_timer_.has_value()
-                              ? first_async_query_timer_->Elapsed()
-                              : base::TimeDelta());
-
-  base::UmaHistogramCounts10000(
-      "Cookie.FirstPartySets.Network.DelayedQueriesCount",
-      pending_queries_ ? pending_queries_->size() : 0);
 
   if (!pending_queries_) {
     return;
@@ -192,9 +178,6 @@ void FirstPartySetsManager::EnqueuePendingQuery(base::OnceClosure run_query) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!sets_.has_value());
   CHECK(pending_queries_);
-
-  if (!first_async_query_timer_.has_value())
-    first_async_query_timer_ = {base::ElapsedTimer()};
 
   pending_queries_->push_back(std::move(run_query));
 }

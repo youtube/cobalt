@@ -6,15 +6,16 @@
 #define CHROMEOS_COMPONENTS_ONC_ONC_VALIDATOR_H_
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
 #include "base/values.h"
 #include "chromeos/components/onc/onc_mapper.h"
 #include "components/onc/onc_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos::onc {
 
@@ -120,7 +121,7 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
   // If any of these cases occurred, sets |result| to VALID_WITH_WARNINGS and
   // otherwise to VALID.
   // For details, see the class comment.
-  absl::optional<base::Value::Dict> ValidateAndRepairObject(
+  std::optional<base::Value::Dict> ValidateAndRepairObject(
       const OncValueSignature* object_signature,
       const base::Value::Dict& onc_object,
       Result* result);
@@ -186,6 +187,8 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
 
   bool ValidateToplevelConfiguration(base::Value::Dict* result);
   bool ValidateNetworkConfiguration(base::Value::Dict* result);
+  bool ValidateCellular(base::Value::Dict* result);
+  bool ValidateAPN(base::Value::Dict* result);
   bool ValidateEthernet(base::Value::Dict* result);
   bool ValidateIPConfig(base::Value::Dict* result, bool require_fields = true);
   bool ValidateNameServersConfig(base::Value::Dict* result);
@@ -217,8 +220,7 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
   bool IsValidValue(const std::string& field_value,
                     const std::vector<const char*>& valid_values);
 
-  bool IsInDevicePolicy(base::Value::Dict* result,
-                        const std::string& field_name);
+  bool IsInDevicePolicy(base::Value::Dict* result, std::string_view field_name);
 
   bool FieldExistsAndHasNoValidValue(
       const base::Value::Dict& object,
@@ -266,6 +268,15 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
                                     const std::string& kGUID,
                                     std::set<std::string>* guids);
 
+  // Returns true if the list of admin APN IDs provided by the |dict|'s
+  // |key_list_of_ids| field are all non-empty. The function also adds the IDs
+  // to |admin_assigned_apn_ids_|. |key_list_of_ids| must be either
+  // onc::cellular::kAdminAssignedAPNIds or
+  // onc::global_network_config::kPSIMAdminAssignedAPNIds.
+  bool CheckAdminAssignedAPNIdsAreNonEmptyAndAddToSet(
+      const base::Value::Dict& dict,
+      const std::string& key_list_of_ids);
+
   // Prohibit global network configuration in user ONC imports.
   bool IsGlobalNetworkConfigInUserImport(const base::Value::Dict& onc_object);
 
@@ -286,6 +297,11 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
   // Accumulates all network GUIDs during validation. Used to identify
   // duplicate GUIDs.
   std::set<std::string> network_guids_;
+
+  // Accumulates all admin assigned APN IDs during validation. Used to identify
+  // if the APNs provided by the admin at ::onc::toplevel_config::kAdminAPNList
+  // contains APNs for all admin APN IDs referenced.
+  std::set<std::string> admin_assigned_apn_ids_;
 
   // Accumulates all certificate GUIDs during validation. Used to identify
   // duplicate GUIDs.

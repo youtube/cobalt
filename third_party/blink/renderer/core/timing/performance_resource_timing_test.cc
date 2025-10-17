@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -54,6 +55,7 @@ class PerformanceResourceTimingTest : public testing::Test {
         dummy_page_holder->GetDocument().GetExecutionContext());
   }
 
+  test::TaskEnvironment task_environment_;
   Persistent<ScriptState> script_state_;
 };
 
@@ -62,8 +64,8 @@ TEST_F(PerformanceResourceTimingTest,
   V8TestingScope scope;
   Initialize(scope.GetScriptState());
 
-  AtomicString connection_info = "http/1.1";
-  AtomicString alpn_negotiated_protocol = "unknown";
+  AtomicString connection_info("http/1.1");
+  AtomicString alpn_negotiated_protocol("unknown");
   EXPECT_EQ(GetNextHopProtocol(alpn_negotiated_protocol, connection_info),
             connection_info);
 }
@@ -73,8 +75,8 @@ TEST_F(PerformanceResourceTimingTest,
   V8TestingScope scope;
   Initialize(scope.GetScriptState());
 
-  AtomicString connection_info = "unknown";
-  AtomicString alpn_negotiated_protocol = "unknown";
+  AtomicString connection_info("unknown");
+  AtomicString alpn_negotiated_protocol("unknown");
   EXPECT_EQ(GetNextHopProtocol(alpn_negotiated_protocol, connection_info), "");
 }
 
@@ -82,8 +84,8 @@ TEST_F(PerformanceResourceTimingTest, TestNoChangeWhenContainsQuic) {
   V8TestingScope scope;
   Initialize(scope.GetScriptState());
 
-  AtomicString connection_info = "http/1.1";
-  AtomicString alpn_negotiated_protocol = "http/2+quic/39";
+  AtomicString connection_info("http/1.1");
+  AtomicString alpn_negotiated_protocol("http/2+quic/39");
   EXPECT_EQ(GetNextHopProtocol(alpn_negotiated_protocol, connection_info),
             alpn_negotiated_protocol);
 }
@@ -92,8 +94,8 @@ TEST_F(PerformanceResourceTimingTest, TestNoChangeWhenOtherwise) {
   V8TestingScope scope;
   Initialize(scope.GetScriptState());
 
-  AtomicString connection_info = "http/1.1";
-  AtomicString alpn_negotiated_protocol = "RandomProtocol";
+  AtomicString connection_info("http/1.1");
+  AtomicString alpn_negotiated_protocol("RandomProtocol");
   EXPECT_EQ(GetNextHopProtocol(alpn_negotiated_protocol, connection_info),
             alpn_negotiated_protocol);
 }
@@ -102,8 +104,8 @@ TEST_F(PerformanceResourceTimingTest, TestNextHopProtocolIsGuardedByTao) {
   V8TestingScope scope;
   Initialize(scope.GetScriptState());
 
-  AtomicString connection_info = "http/1.1";
-  AtomicString alpn_negotiated_protocol = "RandomProtocol";
+  AtomicString connection_info("http/1.1");
+  AtomicString alpn_negotiated_protocol("RandomProtocol");
   EXPECT_EQ(
       GetNextHopProtocolWithoutTao(alpn_negotiated_protocol, connection_info),
       "");

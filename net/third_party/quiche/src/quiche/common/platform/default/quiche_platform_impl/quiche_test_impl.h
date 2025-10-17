@@ -12,6 +12,9 @@
 #define EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message) \
   EXPECT_DEBUG_DEATH(condition, message)
 
+#define EXPECT_QUICHE_DEATH_IMPL(condition, message) \
+  EXPECT_DEATH(condition, message)
+
 #define QUICHE_TEST_DISABLED_IN_CHROME_IMPL(name) name
 #define QUICHE_SLOW_TEST_IMPL(test) test
 
@@ -21,13 +24,14 @@ class QuicheFlagSaverImpl {
   ~QuicheFlagSaverImpl();
 
  private:
-#define QUIC_FLAG(flag, value) bool saved_##flag##_;
-#include "quiche/quic/core/quic_flags_list.h"
-#undef QUIC_FLAG
+#define QUICHE_FLAG(type, flag, internal_value, external_value, doc) \
+  type saved_##flag##_;
+#include "quiche/common/quiche_feature_flags_list.h"
+#undef QUICHE_FLAG
 
-#define QUIC_PROTOCOL_FLAG(type, flag, ...) type saved_##flag##_;
-#include "quiche/quic/core/quic_protocol_flags_list.h"
-#undef QUIC_PROTOCOL_FLAG
+#define QUICHE_PROTOCOL_FLAG(type, flag, ...) type saved_##flag##_;
+#include "quiche/common/quiche_protocol_flags_list.h"
+#undef QUICHE_PROTOCOL_FLAG
 };
 
 class ScopedEnvironmentForThreadsImpl {};
@@ -52,5 +56,7 @@ inline std::string QuicheGetCommonSourcePathImpl() { return "quiche/common"; }
 inline std::string QuicheGetTestMemoryCachePathImpl() {
   return "quiche/quic/test_tools/quic_http_response_cache_data";
 }
+
+class QuicheScopedDisableExitOnDFatalImpl {};
 
 #endif  // QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_TEST_IMPL_H_

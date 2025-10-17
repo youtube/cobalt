@@ -32,40 +32,6 @@ TEST(PaintPreviewHitTesterTest, TestBuildLinkData) {
   urls.clear();
   hit_tester.HitTest(gfx::Rect(1, 1, 1, 1), &urls);
   EXPECT_TRUE(urls.empty());
-
-  hit_tester.Reset();
-  urls.clear();
-  hit_tester.HitTest(gfx::Rect(75, 75, 1, 1), &urls);
-  EXPECT_TRUE(urls.empty());
-}
-
-TEST(PaintPreviewHitTesterTest, TestBuildLinkDataProto) {
-  HitTester hit_tester;
-  std::vector<LinkDataProto> links;
-  LinkDataProto proto;
-  proto.set_url("http://bar.org");
-  auto* rect = proto.mutable_rect();
-  rect->set_x(10);
-  rect->set_y(20);
-  rect->set_width(100);
-  rect->set_height(50);
-  links.push_back(proto);
-  hit_tester.Build(links);
-  EXPECT_TRUE(hit_tester.IsValid());
-
-  std::vector<const GURL*> urls;
-  hit_tester.HitTest(gfx::Rect(100, 25, 1, 1), &urls);
-  EXPECT_EQ(urls.size(), 1U);
-  EXPECT_EQ(*urls[0], GURL(proto.url()));
-
-  urls.clear();
-  hit_tester.HitTest(gfx::Rect(25, 100, 1, 1), &urls);
-  EXPECT_TRUE(urls.empty());
-
-  hit_tester.Reset();
-  urls.clear();
-  hit_tester.HitTest(gfx::Rect(100, 25, 1, 1), &urls);
-  EXPECT_TRUE(urls.empty());
 }
 
 TEST(PaintPreviewHitTesterTest, TestBuildPaintPreviewFrameProto) {
@@ -88,11 +54,6 @@ TEST(PaintPreviewHitTesterTest, TestBuildPaintPreviewFrameProto) {
 
   urls.clear();
   hit_tester.HitTest(gfx::Rect(0, 0, 1, 1), &urls);
-  EXPECT_TRUE(urls.empty());
-
-  hit_tester.Reset();
-  urls.clear();
-  hit_tester.HitTest(gfx::Rect(5, 5, 1, 1), &urls);
   EXPECT_TRUE(urls.empty());
 }
 

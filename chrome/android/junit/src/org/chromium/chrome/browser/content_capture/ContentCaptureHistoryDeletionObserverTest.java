@@ -4,40 +4,36 @@
 
 package org.chromium.chrome.browser.content_capture;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.history.HistoryDeletionInfo;
 import org.chromium.components.content_capture.PlatformContentCaptureController;
 
-/**
- * Unit tests for the ContentCaptureHistoryDeletionObserver.
- */
+/** Unit tests for the ContentCaptureHistoryDeletionObserver. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class ContentCaptureHistoryDeletionObserverTest {
-    @Mock
-    PlatformContentCaptureController mContentCaptureController;
-    @Mock
-    HistoryDeletionInfo mHistoryDeletionInfo;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock PlatformContentCaptureController mContentCaptureController;
+    @Mock HistoryDeletionInfo mHistoryDeletionInfo;
 
     ContentCaptureHistoryDeletionObserver mContentCaptureHistoryDeletionObserver;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         mContentCaptureHistoryDeletionObserver =
                 new ContentCaptureHistoryDeletionObserver(() -> mContentCaptureController);
@@ -82,11 +78,9 @@ public class ContentCaptureHistoryDeletionObserverTest {
         String[] urls = new String[] {"one", "two", "three"};
         doReturn(urls).when(mHistoryDeletionInfo).getDeletedURLs();
 
-        try {
-            mContentCaptureHistoryDeletionObserver.onURLsDeleted(mHistoryDeletionInfo);
-            fail("Expected exception to be thrown.");
-        } catch (RuntimeException e) {
-            assertTrue(e.toString().contains("Deleted URLs length: " + urls.length));
-        }
+        // Runtime exception should be caught and logged.
+        mContentCaptureHistoryDeletionObserver.onURLsDeleted(mHistoryDeletionInfo);
+        verify(mContentCaptureController).clearContentCaptureDataForURLs(urls);
+        verify(mContentCaptureController).clearAllContentCaptureData();
     }
 }

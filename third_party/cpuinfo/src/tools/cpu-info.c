@@ -1,10 +1,9 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <cpuinfo.h>
-
 
 static const char* vendor_to_string(enum cpuinfo_vendor vendor) {
 	switch (vendor) {
@@ -131,6 +130,10 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Zen 2";
 		case cpuinfo_uarch_zen3:
 			return "Zen 3";
+		case cpuinfo_uarch_zen4:
+			return "Zen 4";
+		case cpuinfo_uarch_zen5:
+			return "Zen 5";
 		case cpuinfo_uarch_geode:
 			return "Geode";
 		case cpuinfo_uarch_bobcat:
@@ -191,16 +194,24 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Cortex-A510";
 		case cpuinfo_uarch_cortex_a710:
 			return "Cortex-A710";
+		case cpuinfo_uarch_cortex_a715:
+			return "Cortex-A715";
 		case cpuinfo_uarch_cortex_x1:
 			return "Cortex-X1";
 		case cpuinfo_uarch_cortex_x2:
 			return "Cortex-X2";
+		case cpuinfo_uarch_cortex_x3:
+			return "Cortex-X3";
 		case cpuinfo_uarch_neoverse_n1:
-			return "Neoverse-N1";
+			return "Neoverse N1";
+		case cpuinfo_uarch_neoverse_e1:
+			return "Neoverse E1";
 		case cpuinfo_uarch_neoverse_v1:
-			return "Neoverse-V1";
+			return "Neoverse V1";
 		case cpuinfo_uarch_neoverse_n2:
-			return "Neoverse-N2";
+			return "Neoverse N2";
+		case cpuinfo_uarch_neoverse_v2:
+			return "Neoverse V2";
 		case cpuinfo_uarch_scorpion:
 			return "Scorpion";
 		case cpuinfo_uarch_krait:
@@ -211,6 +222,8 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Falkor";
 		case cpuinfo_uarch_saphira:
 			return "Saphira";
+		case cpuinfo_uarch_oryon:
+			return "Oryon";
 		case cpuinfo_uarch_denver:
 			return "Denver";
 		case cpuinfo_uarch_denver2:
@@ -253,6 +266,10 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Firestorm";
 		case cpuinfo_uarch_icestorm:
 			return "Icestorm";
+		case cpuinfo_uarch_avalanche:
+			return "Avalanche";
+		case cpuinfo_uarch_blizzard:
+			return "Blizzard";
 		case cpuinfo_uarch_thunderx:
 			return "ThunderX";
 		case cpuinfo_uarch_thunderx2:
@@ -279,65 +296,100 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "failed to initialize CPU information\n");
 		exit(EXIT_FAILURE);
 	}
-	#ifdef __ANDROID__
-		printf("SoC name: %s\n", cpuinfo_get_package(0)->name);
-	#else
-		printf("Packages:\n");
-		for (uint32_t i = 0; i < cpuinfo_get_packages_count(); i++) {
-			printf("\t%"PRIu32": %s\n", i, cpuinfo_get_package(i)->name);
-		}
-	#endif
+#ifdef __ANDROID__
+	printf("SoC name: %s\n", cpuinfo_get_package(0)->name);
+#else
+	printf("Packages:\n");
+	for (uint32_t i = 0; i < cpuinfo_get_packages_count(); i++) {
+		printf("\t%" PRIu32 ": %s\n", i, cpuinfo_get_package(i)->name);
+	}
+#endif
 	printf("Microarchitectures:\n");
 	for (uint32_t i = 0; i < cpuinfo_get_uarchs_count(); i++) {
 		const struct cpuinfo_uarch_info* uarch_info = cpuinfo_get_uarch(i);
 		const char* uarch_string = uarch_to_string(uarch_info->uarch);
 		if (uarch_string == NULL) {
-			printf("\t%"PRIu32"x Unknown (0x%08"PRIx32"\n",
-				uarch_info->core_count, (uint32_t) uarch_info->uarch);
+			printf("\t%" PRIu32 "x Unknown (0x%08" PRIx32 "\n",
+			       uarch_info->core_count,
+			       (uint32_t)uarch_info->uarch);
 		} else {
-			printf("\t%"PRIu32"x %s\n", uarch_info->core_count, uarch_string);
+			printf("\t%" PRIu32 "x %s\n", uarch_info->core_count, uarch_string);
 		}
 	}
 	printf("Cores:\n");
 	for (uint32_t i = 0; i < cpuinfo_get_cores_count(); i++) {
 		const struct cpuinfo_core* core = cpuinfo_get_core(i);
 		if (core->processor_count == 1) {
-			printf("\t%"PRIu32": 1 processor (%"PRIu32")", i, core->processor_start);
+			printf("\t%" PRIu32 ": 1 processor (%" PRIu32 ")", i, core->processor_start);
 		} else {
-			printf("\t%"PRIu32": %"PRIu32" processors (%"PRIu32"-%"PRIu32")",
-				i, core->processor_count, core->processor_start, core->processor_start + core->processor_count - 1);
+			printf("\t%" PRIu32 ": %" PRIu32 " processors (%" PRIu32 "-%" PRIu32 ")",
+			       i,
+			       core->processor_count,
+			       core->processor_start,
+			       core->processor_start + core->processor_count - 1);
 		}
 		const char* vendor_string = vendor_to_string(core->vendor);
 		const char* uarch_string = uarch_to_string(core->uarch);
 		if (vendor_string == NULL) {
-			printf(", vendor 0x%08"PRIx32" uarch 0x%08"PRIx32"\n",
-				(uint32_t) core->vendor, (uint32_t) core->uarch);
+			printf(", vendor 0x%08" PRIx32 " uarch 0x%08" PRIx32 "\n",
+			       (uint32_t)core->vendor,
+			       (uint32_t)core->uarch);
+		} else if (uarch_string == NULL) {
+			printf(", %s uarch 0x%08" PRIx32 "\n", vendor_string, (uint32_t)core->uarch);
+		} else {
+			printf(", %s %s\n", vendor_string, uarch_string);
 		}
-		else if (uarch_string == NULL) {
-			printf(", %s uarch 0x%08"PRIx32"\n",
-				vendor_string, (uint32_t) core->uarch);
+	}
+	printf("Clusters:\n");
+	for (uint32_t i = 0; i < cpuinfo_get_clusters_count(); i++) {
+		const struct cpuinfo_cluster* cluster = cpuinfo_get_cluster(i);
+		if (cluster->processor_count == 1) {
+			printf("\t%" PRIu32 ": 1 processor (%" PRIu32 ")", i, cluster->processor_start);
+		} else {
+			printf("\t%" PRIu32 ": %" PRIu32 " processors (%" PRIu32 "-%" PRIu32 ")",
+			       i,
+			       cluster->processor_count,
+			       cluster->processor_start,
+			       cluster->processor_start + cluster->processor_count - 1);
 		}
-		else {
+		if (cluster->core_count == 1) {
+			printf(",\t%" PRIu32 ": 1 core (%" PRIu32 ")", i, cluster->core_start);
+		} else {
+			printf(",\t%" PRIu32 ": %" PRIu32 " cores (%" PRIu32 "-%" PRIu32 ")",
+			       i,
+			       cluster->core_count,
+			       cluster->core_start,
+			       cluster->core_start + cluster->core_count - 1);
+		}
+		const char* vendor_string = vendor_to_string(cluster->vendor);
+		const char* uarch_string = uarch_to_string(cluster->uarch);
+		if (vendor_string == NULL) {
+			printf(", vendor 0x%08" PRIx32 " uarch 0x%08" PRIx32 "\n",
+			       (uint32_t)cluster->vendor,
+			       (uint32_t)cluster->uarch);
+		} else if (uarch_string == NULL) {
+			printf(", %s uarch 0x%08" PRIx32 "\n", vendor_string, (uint32_t)cluster->uarch);
+		} else {
 			printf(", %s %s\n", vendor_string, uarch_string);
 		}
 	}
 	printf("Logical processors");
-	#if defined(__linux__)
-		printf(" (System ID)");
-	#endif
+#if defined(__linux__)
+	printf(" (System ID)");
+#endif
 	printf(":\n");
 	for (uint32_t i = 0; i < cpuinfo_get_processors_count(); i++) {
 		const struct cpuinfo_processor* processor = cpuinfo_get_processor(i);
-		printf("\t%"PRIu32"", i);
+		printf("\t%" PRIu32 "", i);
 
-		#if defined(__linux__)
-			printf(" (%"PRId32")", processor->linux_id);
-		#endif
+#if defined(__linux__)
+		printf(" (%" PRId32 ")", processor->linux_id);
+#endif
 
-		#if CPUINFO_ARCH_X86 || CPUINFO_ARCH_X86_64
-			printf(": APIC ID 0x%08"PRIx32"\n", processor->apic_id);
-		#else
-			printf("\n");
-		#endif
+#if CPUINFO_ARCH_X86 || CPUINFO_ARCH_X86_64
+		printf(": APIC ID 0x%08" PRIx32 "\n", processor->apic_id);
+#else
+		printf("\n");
+#endif
 	}
 }

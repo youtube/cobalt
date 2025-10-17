@@ -4,14 +4,14 @@
 
 #include "third_party/blink/renderer/modules/webrtc/webrtc_audio_renderer.h"
 
+#include <algorithm>
 #include <utility>
+#include <vector>
 
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
@@ -29,6 +29,7 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_audio_renderer.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
@@ -42,9 +43,9 @@
 namespace WTF {
 
 template <typename T>
-struct CrossThreadCopier<rtc::scoped_refptr<T>> {
+struct CrossThreadCopier<webrtc::scoped_refptr<T>> {
   STATIC_ONLY(CrossThreadCopier);
-  using Type = rtc::scoped_refptr<T>;
+  using Type = webrtc::scoped_refptr<T>;
   static Type Copy(Type pointer) { return pointer; }
 };
 
@@ -101,7 +102,7 @@ const char* StateToString(WebRtcAudioRenderer::State state) {
 // and 'started' states to avoid problems related to incorrect usage which
 // might violate the implementation assumptions inside WebRtcAudioRenderer
 // (see the play reference count).
-class SharedAudioRenderer : public WebMediaStreamAudioRenderer {
+class SharedAudioRenderer : public MediaStreamAudioRenderer {
  public:
   // Callback definition for a callback that is called when when Play(), Pause()
   // or SetVolume are called (whenever the internal |playing_state_| changes).
@@ -114,11 +115,10 @@ class SharedAudioRenderer : public WebMediaStreamAudioRenderer {
   using OnPlayStateRemoved =
       base::OnceCallback<void(WebRtcAudioRenderer::PlayingState*)>;
 
-  SharedAudioRenderer(
-      const scoped_refptr<WebMediaStreamAudioRenderer>& delegate,
-      MediaStreamDescriptor* media_stream_descriptor,
-      const OnPlayStateChanged& on_play_state_changed,
-      OnPlayStateRemoved on_play_state_removed)
+  SharedAudioRenderer(const scoped_refptr<MediaStreamAudioRenderer>& delegate,
+                      MediaStreamDescriptor* media_stream_descriptor,
+                      const OnPlayStateChanged& on_play_state_changed,
+                      OnPlayStateRemoved on_play_state_removed)
       : delegate_(delegate),
         media_stream_descriptor_(media_stream_descriptor),
         started_(false),
@@ -187,14 +187,9 @@ class SharedAudioRenderer : public WebMediaStreamAudioRenderer {
     return delegate_->GetCurrentRenderTime();
   }
 
-  bool IsLocalRenderer() override {
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    return delegate_->IsLocalRenderer();
-  }
-
  private:
   THREAD_CHECKER(thread_checker_);
-  const scoped_refptr<WebMediaStreamAudioRenderer> delegate_;
+  const scoped_refptr<MediaStreamAudioRenderer> delegate_;
   Persistent<MediaStreamDescriptor> media_stream_descriptor_;
   bool started_;
   WebRtcAudioRenderer::PlayingState playing_state_;
@@ -307,11 +302,7 @@ WebRtcAudioRenderer::WebRtcAudioRenderer(
       on_render_error_callback_(std::move(on_render_error_callback)) {
   if (web_frame.Client()) {
     speech_recognition_client_ =
-        web_frame.Client()->CreateSpeechRecognitionClient(
-            base::BindPostTaskToCurrentDefault(
-                ConvertToBaseOnceCallback(CrossThreadBindOnce(
-                    &WebRtcAudioRenderer::EnableSpeechRecognition,
-                    weak_factory_.GetWeakPtr()))));
+        web_frame.Client()->CreateSpeechRecognitionClient();
   }
 
   SendLogMessage(
@@ -373,7 +364,7 @@ bool WebRtcAudioRenderer::Initialize(WebRtcAudioRendererSource* source) {
   return true;
 }
 
-scoped_refptr<WebMediaStreamAudioRenderer>
+scoped_refptr<MediaStreamAudioRenderer>
 WebRtcAudioRenderer::CreateSharedAudioRendererProxy(
     MediaStreamDescriptor* media_stream_descriptor) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -382,9 +373,9 @@ WebRtcAudioRenderer::CreateSharedAudioRendererProxy(
                          WrapRefCounted(this));
   SharedAudioRenderer::OnPlayStateRemoved on_play_state_removed = WTF::BindOnce(
       &WebRtcAudioRenderer::OnPlayStateRemoved, WrapRefCounted(this));
-  return new SharedAudioRenderer(this, media_stream_descriptor,
-                                 std::move(on_play_state_changed),
-                                 std::move(on_play_state_removed));
+  return base::MakeRefCounted<SharedAudioRenderer>(
+      this, media_stream_descriptor, std::move(on_play_state_changed),
+      std::move(on_play_state_removed));
 }
 
 bool WebRtcAudioRenderer::IsStarted() const {
@@ -526,10 +517,6 @@ base::TimeDelta WebRtcAudioRenderer::GetCurrentRenderTime() {
   return current_time_;
 }
 
-bool WebRtcAudioRenderer::IsLocalRenderer() {
-  return false;
-}
-
 void WebRtcAudioRenderer::SwitchOutputDevice(
     const std::string& device_id,
     media::OutputDeviceStatusCB callback) {
@@ -599,18 +586,13 @@ void WebRtcAudioRenderer::SwitchOutputDevice(
   std::move(callback).Run(media::OUTPUT_DEVICE_STATUS_OK);
 }
 
-void WebRtcAudioRenderer::TranscribeAudio(
-    std::unique_ptr<media::AudioBus> audio_bus,
-    int sample_rate,
-    media::ChannelLayout channel_layout) {
-  speech_recognition_client_->AddAudio(std::move(audio_bus), sample_rate,
-                                       channel_layout);
-}
-
 int WebRtcAudioRenderer::Render(base::TimeDelta delay,
                                 base::TimeTicks delay_timestamp,
                                 const media::AudioGlitchInfo& glitch_info,
                                 media::AudioBus* audio_bus) {
+  TRACE_EVENT("audio", "WebRtcAudioRenderer::Render", "playout_delay (ms)",
+              delay.InMillisecondsF(), "delay_timestamp (ms)",
+              (delay_timestamp - base::TimeTicks()).InMillisecondsF());
   DCHECK(sink_->CurrentThreadIsRenderingThread());
   DCHECK_LE(sink_params_.channels(), 8);
   base::AutoLock auto_lock(lock_);
@@ -632,13 +614,8 @@ int WebRtcAudioRenderer::Render(base::TimeDelta delay,
     audio_stream_tracker_->MeasurePower(*audio_bus, audio_bus->frames());
   }
 
-  if (transcribe_audio_callback_) {
-    auto audio_bus_copy =
-        media::AudioBus::Create(audio_bus->channels(), audio_bus->frames());
-    audio_bus->CopyTo(audio_bus_copy.get());
-    transcribe_audio_callback_.Run(std::move(audio_bus_copy),
-                                   sink_params_.sample_rate(),
-                                   sink_params_.channel_layout());
+  if (speech_recognition_client_) {
+    speech_recognition_client_->AddAudio(*audio_bus);
   }
 
   return (state_ == kPlaying) ? audio_bus->frames() : 0;
@@ -661,6 +638,8 @@ void WebRtcAudioRenderer::OnRenderErrorCrossThread() {
 // Called by AudioPullFifo when more data is necessary.
 void WebRtcAudioRenderer::SourceCallback(int fifo_frame_delay,
                                          media::AudioBus* audio_bus) {
+  TRACE_EVENT("audio", "WebRtcAudioRenderer::SourceCallback", "delay (frames)",
+              fifo_frame_delay);
   DCHECK(sink_->CurrentThreadIsRenderingThread());
   base::TimeTicks start_time = base::TimeTicks::Now();
   DVLOG(2) << "WRAR::SourceCallback(" << fifo_frame_delay << ", "
@@ -729,7 +708,8 @@ void WebRtcAudioRenderer::UpdateSourceVolume(
         *signaling_thread_, FROM_HERE,
         CrossThreadBindOnce(
             &webrtc::AudioSourceInterface::SetVolume,
-            rtc::scoped_refptr<webrtc::AudioSourceInterface>(source), volume));
+            webrtc::scoped_refptr<webrtc::AudioSourceInterface>(source),
+            volume));
   } else {
     source->SetVolume(volume);
   }
@@ -761,7 +741,7 @@ bool WebRtcAudioRenderer::RemovePlayingState(
     return false;
 
   PlayingStates& array = found->second;
-  auto state_it = base::ranges::find(array, state);
+  auto state_it = std::ranges::find(array, state);
   if (state_it == array.end())
     return false;
 
@@ -814,7 +794,7 @@ void WebRtcAudioRenderer::OnPlayStateRemoved(PlayingState* state) {
        it != source_playing_states_.end();) {
     PlayingStates& states = it->second;
     // We cannot use RemovePlayingState as it might invalidate |it|.
-    base::Erase(states, state);
+    std::erase(states, state);
     if (states.empty())
       it = source_playing_states_.erase(it);
     else
@@ -924,6 +904,13 @@ void WebRtcAudioRenderer::PrepareSink() {
   new_sink_params.set_latency_tag(
       Platform::Current()->GetAudioSourceLatencyType(
           WebAudioDeviceSourceType::kWebRtc));
+
+  // Reconfigure() is safe to call, since |sink_| has not started yet, so there
+  // are no AddAudio() calls coming from the rendering thread.
+  if (speech_recognition_client_) {
+    speech_recognition_client_->Reconfigure(new_sink_params);
+  }
+
   sink_->Initialize(new_sink_params, this);
 }
 
@@ -931,16 +918,6 @@ void WebRtcAudioRenderer::SendLogMessage(const WTF::String& message) {
   WebRtcLogMessage(String::Format("WRAR::%s [label=%s]", message.Utf8().c_str(),
                                   media_stream_descriptor_id_.Utf8().c_str())
                        .Utf8());
-}
-
-void WebRtcAudioRenderer::EnableSpeechRecognition() {
-  if (speech_recognition_client_ &&
-      speech_recognition_client_->IsSpeechRecognitionAvailable()) {
-    transcribe_audio_callback_ =
-        base::BindPostTaskToCurrentDefault(ConvertToBaseRepeatingCallback(
-            CrossThreadBindRepeating(&WebRtcAudioRenderer::TranscribeAudio,
-                                     weak_factory_.GetWeakPtr())));
-  }
 }
 
 }  // namespace blink

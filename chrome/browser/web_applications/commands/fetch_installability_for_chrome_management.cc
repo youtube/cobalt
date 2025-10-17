@@ -5,9 +5,11 @@
 #include "chrome/browser/web_applications/commands/fetch_installability_for_chrome_management.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
@@ -15,12 +17,12 @@
 #include "chrome/browser/web_applications/locks/web_app_lock_manager.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
-#include "chrome/browser/web_applications/web_contents/web_app_url_loader.h"
 #include "components/webapps/browser/installable/installable_logging.h"
+#include "components/webapps/browser/web_contents/web_app_url_loader.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace web_app {
@@ -28,99 +30,87 @@ namespace web_app {
 FetchInstallabilityForChromeManagement::FetchInstallabilityForChromeManagement(
     const GURL& url,
     base::WeakPtr<content::WebContents> web_contents,
-    std::unique_ptr<WebAppUrlLoader> url_loader,
+    std::unique_ptr<webapps::WebAppUrlLoader> url_loader,
     std::unique_ptr<WebAppDataRetriever> data_retriever,
     FetchInstallabilityForChromeManagementCallback callback)
-    : WebAppCommandTemplate<NoopLock>("FetchInstallabilityForChromeManagement"),
-      noop_lock_description_(std::make_unique<NoopLockDescription>()),
+    : WebAppCommand<NoopLock,
+                    InstallableCheckResult,
+                    std::optional<webapps::AppId>>(
+          "FetchInstallabilityForChromeManagement",
+          NoopLockDescription(),
+          std::move(callback),
+          /*args_for_shutdown=*/
+          std::make_tuple(InstallableCheckResult::kNotInstallable,
+                          std::nullopt)),
       url_(url),
       web_contents_(web_contents),
       url_loader_(std::move(url_loader)),
-      data_retriever_(std::move(data_retriever)),
-      callback_(std::move(callback)) {
-  DCHECK(web_contents_);
-  DCHECK(url_loader_);
-  DCHECK(data_retriever_);
-  DCHECK(callback_);
+      data_retriever_(std::move(data_retriever)) {
+  CHECK(url.is_valid());
+  CHECK(web_contents_);
+  CHECK(url_loader_);
+  CHECK(data_retriever_);
+  GetMutableDebugValue().Set("url", url.spec());
 }
 
 FetchInstallabilityForChromeManagement::
     ~FetchInstallabilityForChromeManagement() = default;
-
-const LockDescription&
-FetchInstallabilityForChromeManagement::lock_description() const {
-  DCHECK(noop_lock_description_ || app_lock_description_);
-  if (app_lock_description_)
-    return *app_lock_description_;
-  return *noop_lock_description_;
-}
 
 void FetchInstallabilityForChromeManagement::StartWithLock(
     std::unique_ptr<NoopLock> lock) {
   noop_lock_ = std::move(lock);
 
   if (IsWebContentsDestroyed()) {
-    error_log_.Append(base::Value("Web contents destroyed"));
-    Abort(InstallableCheckResult::kNotInstallable);
+    GetMutableDebugValue().Set("web_contents_destroyed", true);
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
 
-  url_loader_->LoadUrl(url_, web_contents_.get(),
-                       WebAppUrlLoader::UrlComparison::kIgnoreQueryParamsAndRef,
-                       base::BindOnce(&FetchInstallabilityForChromeManagement::
-                                          OnUrlLoadedCheckInstallability,
-                                      weak_factory_.GetWeakPtr()));
-}
-
-void FetchInstallabilityForChromeManagement::OnSyncSourceRemoved() {
-  // No action needed. Any changes to installation status will correctly be read
-  // & reflected in the command result.
-}
-
-void FetchInstallabilityForChromeManagement::OnShutdown() {
-  Abort(InstallableCheckResult::kNotInstallable);
-}
-
-base::Value FetchInstallabilityForChromeManagement::ToDebugValue() const {
-  base::Value::Dict debug_value;
-  debug_value.Set("url", url_.spec());
-  debug_value.Set("app_id", app_id_);
-  debug_value.Set("error_log", base::Value(error_log_.Clone()));
-  return base::Value(std::move(debug_value));
+  url_loader_->LoadUrl(
+      url_, web_contents_.get(),
+      webapps::WebAppUrlLoader::UrlComparison::kIgnoreQueryParamsAndRef,
+      base::BindOnce(&FetchInstallabilityForChromeManagement::
+                         OnUrlLoadedCheckInstallability,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void FetchInstallabilityForChromeManagement::OnUrlLoadedCheckInstallability(
-    WebAppUrlLoader::Result result) {
+    webapps::WebAppUrlLoaderResult result) {
   if (IsWebContentsDestroyed()) {
-    error_log_.Append(base::Value("Web contents destroyed"));
-    Abort(InstallableCheckResult::kNotInstallable);
+    GetMutableDebugValue().Set("web_contents_destroyed", true);
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
+    return;
+  }
+  GetMutableDebugValue().Set("WebAppUrlLoader::Result",
+                             ConvertUrlLoaderResultToString(result));
+
+  if (result == webapps::WebAppUrlLoaderResult::kRedirectedUrlLoaded) {
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
 
-  if (result != WebAppUrlLoader::Result::kUrlLoaded) {
-    base::Value::Dict url_loader_error;
-    url_loader_error.Set("WebAppUrlLoader::Result",
-                         ConvertUrlLoaderResultToString(result));
-    error_log_.Append(std::move(url_loader_error));
-  }
-
-  if (result == WebAppUrlLoader::Result::kRedirectedUrlLoaded) {
-    Abort(InstallableCheckResult::kNotInstallable);
+  if (result == webapps::WebAppUrlLoaderResult::kFailedPageTookTooLong) {
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
 
-  if (result == WebAppUrlLoader::Result::kFailedPageTookTooLong) {
-    Abort(InstallableCheckResult::kNotInstallable);
-    return;
-  }
-
-  if (result != WebAppUrlLoader::Result::kUrlLoaded) {
-    Abort(InstallableCheckResult::kNotInstallable);
+  if (result != webapps::WebAppUrlLoaderResult::kUrlLoaded) {
+    CompleteAndSelfDestruct(CommandResult::kFailure,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
 
   data_retriever_->CheckInstallabilityAndRetrieveManifest(
-      web_contents_.get(), /*bypass_service_worker_check=*/true,
+      web_contents_.get(),
       base::BindOnce(&FetchInstallabilityForChromeManagement::
                          OnWebAppInstallabilityChecked,
                      weak_factory_.GetWeakPtr()));
@@ -128,61 +118,60 @@ void FetchInstallabilityForChromeManagement::OnUrlLoadedCheckInstallability(
 
 void FetchInstallabilityForChromeManagement::OnWebAppInstallabilityChecked(
     blink::mojom::ManifestPtr opt_manifest,
-    const GURL& manifest_url,
     bool valid_manifest_for_web_app,
     webapps::InstallableStatusCode error_code) {
   if (IsWebContentsDestroyed()) {
-    error_log_.Append(base::Value("Web contents destroyed"));
-    Abort(InstallableCheckResult::kNotInstallable);
+    GetMutableDebugValue().Set("web_contents_destroyed", true);
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
   if (error_code != webapps::InstallableStatusCode::NO_ERROR_DETECTED) {
-    DCHECK(callback_);
-    SignalCompletionAndSelfDestruct(
-        CommandResult::kSuccess,
-        base::BindOnce(std::move(callback_),
-                       InstallableCheckResult::kNotInstallable, absl::nullopt));
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
   DCHECK(opt_manifest);
   app_id_ = GenerateAppIdFromManifest(*opt_manifest);
-
-  app_lock_description_ =
-      command_manager()->lock_manager().UpgradeAndAcquireLock(
-          std::move(noop_lock_), {app_id_},
-          base::BindOnce(
-              &FetchInstallabilityForChromeManagement::OnAppLockGranted,
-              weak_factory_.GetWeakPtr()));
+  GetMutableDebugValue().Set("app_id", app_id_);
+  app_lock_ = std::make_unique<AppLock>();
+  command_manager()->lock_manager().UpgradeAndAcquireLock(
+      std::move(noop_lock_), *app_lock_, {app_id_},
+      base::BindOnce(&FetchInstallabilityForChromeManagement::OnAppLockGranted,
+                     weak_factory_.GetWeakPtr()));
 }
 
-void FetchInstallabilityForChromeManagement::OnAppLockGranted(
-    std::unique_ptr<AppLock> app_lock) {
-  app_lock_ = std::move(app_lock);
+void FetchInstallabilityForChromeManagement::OnAppLockGranted() {
+  CHECK(app_lock_);
+  CHECK(app_lock_->IsGranted());
 
   if (IsWebContentsDestroyed()) {
-    error_log_.Append(base::Value("Web contents destroyed"));
-    Abort(InstallableCheckResult::kNotInstallable);
+    GetMutableDebugValue().Set("web_contents_destroyed", true);
+    CompleteAndSelfDestruct(CommandResult::kSuccess,
+                            InstallableCheckResult::kNotInstallable,
+                            std::nullopt);
     return;
   }
   DCHECK(!app_id_.empty());
-  InstallableCheckResult result;
-  if (app_lock_->registrar().IsInstalled(app_id_)) {
-    result = InstallableCheckResult::kAlreadyInstalled;
-  } else {
-    result = InstallableCheckResult::kInstallable;
-  }
-  DCHECK(callback_);
-  SignalCompletionAndSelfDestruct(
-      CommandResult::kFailure,
-      base::BindOnce(std::move(callback_), result, app_id_));
-}
 
-void FetchInstallabilityForChromeManagement::Abort(
-    InstallableCheckResult result) {
-  DCHECK(callback_);
-  SignalCompletionAndSelfDestruct(
-      CommandResult::kFailure,
-      base::BindOnce(std::move(callback_), result, absl::nullopt));
+  InstallableCheckResult result;
+  if (app_lock_->registrar().GetInstallState(app_id_) == std::nullopt) {
+    result = InstallableCheckResult::kInstallable;
+  } else {
+    switch (app_lock_->registrar().GetInstallState(app_id_).value()) {
+      case web_app::proto::SUGGESTED_FROM_ANOTHER_DEVICE:
+        result = InstallableCheckResult::kInstallable;
+        break;
+      case web_app::proto::INSTALLED_WITH_OS_INTEGRATION:
+      case web_app::proto::INSTALLED_WITHOUT_OS_INTEGRATION:
+        result = InstallableCheckResult::kAlreadyInstalled;
+        break;
+    }
+  }
+
+  CompleteAndSelfDestruct(CommandResult::kSuccess, result, app_id_);
 }
 
 bool FetchInstallabilityForChromeManagement::IsWebContentsDestroyed() {

@@ -26,8 +26,8 @@ import android.view.SurfaceView;
 import dev.cobalt.util.Log;
 import java.util.HashSet;
 import java.util.Set;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * A Surface view to be used by the video decoder. It informs the Starboard application when the

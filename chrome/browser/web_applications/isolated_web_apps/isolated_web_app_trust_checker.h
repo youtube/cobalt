@@ -10,14 +10,12 @@
 
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ref.h"
-#include "base/memory/weak_ptr.h"
 
 namespace web_package {
 class SignedWebBundleId;
-class SignedWebBundleIntegrityBlock;
 }  // namespace web_package
 
-class PrefService;
+class Profile;
 
 namespace web_app {
 
@@ -35,8 +33,8 @@ namespace web_app {
 // 1. The Web Bundle ID of an Isolated Web App is configured via enterprise
 //    policy to be trusted.
 // 2. Isolated Web App developer mode (`features::kIsolatedWebAppDevMode`) is
-//    enabled. This is used by developers to test their Isolated Web Apps during
-//    development.
+//    enabled and the app is a developer mode-installed app. This is used by
+//    developers to test their Isolated Web Apps during development.
 // 3. [Only in Tests] The Web Bundle ID of an Isolated Web App is configured as
 //    trusted via a call to `SetTrustedWebBundleIdsForTesting`.
 //
@@ -47,32 +45,10 @@ namespace web_app {
 // Apps that were countersigned by a trusted distributor/store.
 class IsolatedWebAppTrustChecker {
  public:
-  explicit IsolatedWebAppTrustChecker(const PrefService& pref_service);
-
-  virtual ~IsolatedWebAppTrustChecker();
-
-  struct Result;
-
-  // Checks whether the user agent trusts the Isolated Web App identified by the
-  // `expected_web_bundle_id` and the given `public_key_stack`. Returns with
-  // `Result::Type::kTrusted` if the Isolated Web App is trusted.
-  //
-  // This function also makes sure that the `expected_web_bundle_id` is actually
-  // derived from the `public_key_stack`.
-  //
-  // Important: This method does not verify the signatures themselves - it only
-  // checks whether the public keys associated with these signatures correspond
-  // to trusted parties.
-  virtual Result IsTrusted(
-      const web_package::SignedWebBundleId& expected_web_bundle_id,
-      const web_package::SignedWebBundleIntegrityBlock& integrity_block) const;
-
   struct Result {
     enum class Status {
       kTrusted,
       kErrorUnsupportedWebBundleIdType,
-      kErrorInvalidSignatureStackLength,
-      kErrorWebBundleIdNotDerivedFromFirstPublicKey,
       kErrorPublicKeysNotTrusted,
     };
 
@@ -80,27 +56,24 @@ class IsolatedWebAppTrustChecker {
     std::string message;
   };
 
- private:
-#if BUILDFLAG(IS_CHROMEOS)
-  // Returns `true` if trust for this Web Bundle ID is established via
-  // enterprise policy.
-  [[nodiscard]] bool IsTrustedViaPolicy(
-      const web_package::SignedWebBundleId& web_bundle_id) const;
-#endif
-
-  // Returns `true` if trust for this Web Bundle ID is established because
-  // Isolated Web App developer mode is enabled.
-  [[nodiscard]] bool IsTrustedViaDevMode(
-      const web_package::SignedWebBundleId& web_bundle_id) const;
-
-  base::raw_ref<const PrefService> pref_service_;
-
-  base::WeakPtrFactory<IsolatedWebAppTrustChecker> weak_ptr_factory_{this};
+  // Checks whether the user agent trusts the Isolated Web App identified by the
+  // `web_bundle_id`. Returns with `Result::Type::kTrusted` if the Isolated Web
+  // App is trusted.
+  //
+  // Whether or not Isolated Web App developer mode is enabled in the browser is
+  // only taken into account when `is_dev_mode_bundle` is set to `true`.
+  static Result IsTrusted(Profile& profile,
+                          const web_package::SignedWebBundleId& web_bundle_id,
+                          bool is_dev_mode_bundle);
 };
 
 // Used in tests to pretend that the given Web Bundle IDs are trusted.
 void SetTrustedWebBundleIdsForTesting(
     base::flat_set<web_package::SignedWebBundleId> trusted_web_bundle_ids);
+
+// Used in tests to pretend that a given Web Bundle ID is trusted.
+void AddTrustedWebBundleIdForTesting(
+    const web_package::SignedWebBundleId& trusted_web_bundle_id);
 
 }  // namespace web_app
 

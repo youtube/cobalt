@@ -4,10 +4,11 @@
 
 #include "chromeos/ash/components/system/factory_ping_embargo_check.h"
 
-#include "base/strings/stringprintf.h"
+#include "base/i18n/time_formatting.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 
 namespace ash::system {
 
@@ -22,12 +23,10 @@ namespace {
 // return value will be "2018-01-25". Similarly, if |days_offset| is -1, the
 // return value will be "2018-01-21".
 std::string GenerateEmbargoEndDate(int days_offset) {
-  base::Time::Exploded exploded;
   const base::Time target_time = base::Time::Now() + base::Days(days_offset);
-  target_time.UTCExplode(&exploded);
-
-  const std::string embargo_end_date_string = base::StringPrintf(
-      "%04d-%02d-%02d", exploded.year, exploded.month, exploded.day_of_month);
+  const std::string embargo_end_date_string =
+      base::UnlocalizedTimeFormatWithPattern(target_time, "yyyy-MM-dd",
+                                             icu::TimeZone::getGMT());
 
   // Sanity check that base::Time::FromUTCString can read back the format used
   // here.
@@ -48,59 +47,6 @@ class FactoryPingEmbargoCheckTest : public ::testing::Test {
  protected:
   FakeStatisticsProvider statistics_provider_;
 };
-
-// No initial state embargo end date in VPD.
-TEST_F(FactoryPingEmbargoCheckTest, EnterpriseManagementNoValue) {
-  EXPECT_EQ(FactoryPingEmbargoState::kMissingOrMalformed,
-            GetEnterpriseManagementPingEmbargoState(&statistics_provider_));
-}
-
-// There is a malformed initial state embargo end date in VPD.
-TEST_F(FactoryPingEmbargoCheckTest, EnterpriseManagementMalformedValue) {
-  statistics_provider_.SetMachineStatistic(
-      kEnterpriseManagementEmbargoEndDateKey, "blabla");
-  EXPECT_EQ(FactoryPingEmbargoState::kMissingOrMalformed,
-            GetEnterpriseManagementPingEmbargoState(&statistics_provider_));
-}
-
-// There is an initial state embargo end date in VPD which is too far in the
-// future to be plausible.
-TEST_F(FactoryPingEmbargoCheckTest, EnterpriseManagementInvalidValue) {
-  statistics_provider_.SetMachineStatistic(
-      kEnterpriseManagementEmbargoEndDateKey,
-      GenerateEmbargoEndDate(15 /* days_offset */));
-  EXPECT_EQ(FactoryPingEmbargoState::kInvalid,
-            GetEnterpriseManagementPingEmbargoState(&statistics_provider_));
-}
-
-// The current time is before a (valid and plausible) initial state embargo end
-// date.
-TEST_F(FactoryPingEmbargoCheckTest, EnterpriseManagementEmbargoNotPassed) {
-  statistics_provider_.SetMachineStatistic(
-      kEnterpriseManagementEmbargoEndDateKey,
-      GenerateEmbargoEndDate(1 /* days_offset */));
-  EXPECT_EQ(FactoryPingEmbargoState::kNotPassed,
-            GetEnterpriseManagementPingEmbargoState(&statistics_provider_));
-}
-
-// The current time is after a (valid and plausible) initial state embargo end
-// date.
-TEST_F(FactoryPingEmbargoCheckTest, EnterpriseManagementEmbargoPassed) {
-  statistics_provider_.SetMachineStatistic(
-      kEnterpriseManagementEmbargoEndDateKey,
-      GenerateEmbargoEndDate(-1 /* days_offset */));
-  EXPECT_EQ(FactoryPingEmbargoState::kPassed,
-            GetEnterpriseManagementPingEmbargoState(&statistics_provider_));
-}
-
-// Fallback to the RLZ embargo.
-TEST_F(FactoryPingEmbargoCheckTest,
-       EnterpriseManagementFallbackToRlzEmbargoPassed) {
-  statistics_provider_.SetMachineStatistic(
-      kRlzEmbargoEndDateKey, GenerateEmbargoEndDate(-1 /* days_offset */));
-  EXPECT_EQ(FactoryPingEmbargoState::kPassed,
-            GetEnterpriseManagementPingEmbargoState(&statistics_provider_));
-}
 
 // No RLZ embargo end date in VPD.
 TEST_F(FactoryPingEmbargoCheckTest, NoValue) {

@@ -12,9 +12,8 @@ owners:
 - poromov@chromium.org
 schema:
   type: string
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:26-
 tags: []
 type: string
+generate_device_proto: False

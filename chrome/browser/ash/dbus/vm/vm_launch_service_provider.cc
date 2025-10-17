@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/dbus/vm/vm_launch_service_provider.h"
 
 #include <dbus/dbus-protocol.h>
+
 #include <memory>
 #include <sstream>
 
@@ -12,7 +13,9 @@
 #include "base/logging.h"
 #include "chrome/browser/ash/borealis/borealis_app_launcher.h"
 #include "chrome/browser/ash/borealis/borealis_features.h"
+#include "chrome/browser/ash/borealis/borealis_metrics.h"
 #include "chrome/browser/ash/borealis/borealis_service.h"
+#include "chrome/browser/ash/borealis/borealis_service_factory.h"
 #include "chrome/browser/ash/borealis/borealis_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_launcher.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_wayland_server.h"
@@ -34,55 +37,53 @@ void OnExported(const std::string& interface_name,
                           << method_name;
 }
 
-void OnTokenChecked(Profile* profile,
+std::unique_ptr<dbus::Response> AllowStatusToResponse(
+    borealis::BorealisFeatures::AllowStatus status,
+    dbus::MethodCall* method_call) {
+  if (status != borealis::BorealisFeatures::AllowStatus::kAllowed) {
+    return dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
+                                               "");
+  }
+
+  std::unique_ptr<dbus::Response> response =
+      dbus::Response::FromMethodCall(method_call);
+  dbus::MessageWriter writer(response.get());
+  writer.AppendString("");
+  return response;
+}
+
+void OnAllowChecked(Profile* profile,
                     dbus::MethodCall* method_call,
                     dbus::ExportedObject::ResponseSender response_sender,
                     bool launch,
                     borealis::BorealisFeatures::AllowStatus new_allowed) {
-  // TODO(b/218403711): Remove these messages. These messages are shown to users
-  // of the Borealis Alpha based on the status of their device, however they are
-  // not translated, because this API is only a temporary measure put in place
-  // until borealis' installer UX is finalized.
-  if (new_allowed == borealis::BorealisFeatures::AllowStatus::kAllowed) {
-    if (launch) {
-      // When requested, setting the correct token should have the effect of
-      // running the client app, which will bring up the installer or launch the
-      // client as needed.
-      borealis::BorealisService::GetForProfile(profile)->AppLauncher().Launch(
-          borealis::kClientAppId, base::DoNothing());
-    }
-    std::unique_ptr<dbus::Response> response =
-        dbus::Response::FromMethodCall(method_call);
-    dbus::MessageWriter writer(response.get());
-    writer.AppendString(borealis::kInsertCoinSuccessMessage);
-    std::move(response_sender).Run(std::move(response));
-    return;
-  }
-  std::stringstream ss;
-  if (new_allowed == borealis::BorealisFeatures::AllowStatus::kIncorrectToken) {
-    ss << borealis::kInsertCoinRejectMessage;
-  } else {
-    ss << new_allowed;
+  if (launch) {
+    // When requested, setting the correct token should have the effect of
+    // running the client app, which will bring up the installer or launch the
+    // client as needed.
+    borealis::BorealisServiceFactory::GetForProfile(profile)
+        ->AppLauncher()
+        .Launch(borealis::kClientAppId,
+                borealis::BorealisLaunchSource::kInsertCoin, base::DoNothing());
   }
   std::move(response_sender)
-      .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
-                                               ss.str()));
+      .Run(AllowStatusToResponse(new_allowed, method_call));
 }
 
 template <typename T>
 void HandleReturn(dbus::MethodCall* method_call,
                   dbus::ExportedObject::ResponseSender response_sender,
-                  borealis::Expected<T, std::string> response) {
-  if (!response) {
+                  base::expected<T, std::string> response) {
+  if (!response.has_value()) {
     std::move(response_sender)
         .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
-                                                 response.Error()));
+                                                 response.error()));
     return;
   }
   std::unique_ptr<dbus::Response> dbus_response =
       dbus::Response::FromMethodCall(method_call);
   dbus::MessageWriter writer(dbus_response.get());
-  writer.AppendProtoAsArrayOfBytes(response.Value());
+  writer.AppendProtoAsArrayOfBytes(response.value());
   std::move(response_sender).Run(std::move(dbus_response));
 }
 
@@ -135,9 +136,12 @@ void VmLaunchServiceProvider::ProvideVmToken(
     return;
   }
 
-  borealis::BorealisService::GetForProfile(profile)->Features().SetVmToken(
-      token, base::BindOnce(&OnTokenChecked, profile, method_call,
-                            std::move(response_sender), launch));
+  // TODO(b/317157600): Tokens are no longer required so we have the option to
+  // remove this dbus method entirely.
+  borealis::BorealisServiceFactory::GetForProfile(profile)
+      ->Features()
+      .IsAllowed(base::BindOnce(&OnAllowChecked, profile, method_call,
+                                std::move(response_sender), launch));
 }
 
 void VmLaunchServiceProvider::EnsureVmLaunched(

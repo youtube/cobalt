@@ -20,7 +20,8 @@ Bundles provide three main advantages over monolithic `.apk` files:
 3. Feature splits can be downloaded on-demand, saving disk space for users that
    do not need the functionality they provide. These are known as
    "Dynamic feature modules", or "DFMs".
-   * E.g. Chrome's VR support is packaged in this way, via the `vr` module.
+   * **The install experience for DFMs is quite poor (5-30 seconds install times,
+     sometimes fails, sometimes [triggers a crash]).**
 
 You can inspect which `.apk` files are produced by a bundle target via:
 ```
@@ -29,17 +30,18 @@ unzip -l foo.apks
 ```
 
 *** note
-Adding new features vis feature splits is highly encouraged when it makes sense
+Adding new features via feature splits is highly encouraged when it makes sense
 to do so:
- * Has a non-trivial amount of Dex (>50kb)
+ * Has a non-trivial amount of Java code (after optimization). E.g. >150kb
  * Not needed on startup
  * Has a small integration surface (calls into it must be done with reflection)
- * Not used by WebView (WebView does not support DFMs)
+ * Not used by WebView
 ***
 
 [android_build_instructions.md#multiple-chrome-targets]: android_build_instructions.md#multiple-chrome-targets
 [Android App Bundles]: https://developer.android.com/guide/app-bundle
 [isolated splits]: android_isolated_splits.md
+[triggers a crash]: https://chromium.googlesource.com/chromium/src/+/main/docs/android_isolated_splits.md#Conflicting-ClassLoaders-2
 
 ### Declaring App Bundles with GN Templates
 
@@ -154,7 +156,7 @@ chrome_module_descs += [ foo_module_desc ]
 
 The next step is to add Foo to the list of feature modules for UMA recording.
 For this, add `foo` to the `AndroidFeatureModuleName` in
-`//tools/metrics/histograms/histograms.xml`:
+`//tools/metrics/histograms/metadata/histogram_suffixes_list.xml`:
 
 ```xml
 <histogram_suffixes name="AndroidFeatureModuleName" ...>
@@ -164,10 +166,6 @@ For this, add `foo` to the `AndroidFeatureModuleName` in
 </histogram_suffixes>
 ```
 
-See [below](#metrics) for what metrics will be automatically collected after
-this step.
-
-<!--- TODO(tiborg): Add info about install UI. -->
 Lastly, give your module a title that Chrome and Play can use for the install
 UI. To do this, add a string to
 `//chrome/browser/ui/android/strings/android_chrome_strings.grd`:
@@ -238,8 +236,8 @@ $ adb shell dumpsys package org.chromium.chrome | grep splits
 *** note
 The wrapper script's `install` command does approximately:
 ```sh
-java -jar third_party/android_build_tools/bundletool/bundletool.jar build-apks --output tmp.apks ...
-java -jar third_party/android_build_tools/bundletool/bundletool.jar install-apks --apks tmp.apks
+java -jar third_party/android_build_tools/bundletool/cipd/bundletool.jar build-apks --output tmp.apks ...
+java -jar third_party/android_build_tools/bundletool/cipd/bundletool.jar install-apks --apks tmp.apks
 ```
 
 The `install-apks` command uses `adb install-multiple` under-the-hood.
@@ -420,7 +418,7 @@ base module's native code (DFM native code can call base module code directly).
 
 #### JNI
 
-Read the `jni_generator` [docs](../base/android/jni_generator/README.md) before
+Read the `jni_generator` [docs](../third_party/jni_zero/README.md) before
 reading this section.
 
 There are some subtleties to how JNI registration works with DFMs:
@@ -453,13 +451,13 @@ First, build a module native interface. Supply a JNI method named
 on all Chrome build variants, including Monochrome (unlike base module JNI).
 
 ```c++
-#include "base/android/jni_generator/jni_generator_helper.h"
+#include "third_party/jni_zero/jni_zero_helper.h"
 #include "base/android/jni_utils.h"
 #include "chrome/android/modules/foo/internal/jni_registration.h"
 
 extern "C" {
 // This JNI registration method is found and called by module framework code.
-JNI_GENERATOR_EXPORT bool JNI_OnLoad_foo(JNIEnv* env) {
+JNI_ZERO_BOUNDARY_EXPORT bool JNI_OnLoad_foo(JNIEnv* env) {
   if (!foo::RegisterNatives(env)) {
     return false;
   }
@@ -602,7 +600,7 @@ pointer to a DFM-created object or factory (implemented by the feature), and
 call its virtual methods.
 
 Ideally, the interface to the feature will avoid feature-specific types. If a
-feature defines complex data types, and uses them in its own interface, then its
+feature defines complex data types, and uses them in its own interface, then it's
 likely the main library will utilize the code backing these types. That code,
 and anything it references, will in turn be pulled back into the main library,
 negating the intent to house code in the DFM.
@@ -645,10 +643,7 @@ follows:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<grit
-    current_release="1"
-    latest_public_release="0"
-    output_all_resource_defines="false">
+<grit current_release="1" latest_public_release="0">
   <outputs>
     <output
         filename="values-am/android_foo_strings.xml"
@@ -682,11 +677,6 @@ Then, create a new GRD target and add it as a dependency on `java_resources` in
 java_strings_grd("java_strings_grd") {
   defines = chrome_grit_defines
   grd_file = "android/resources/strings/android_foo_strings.grd"
-  outputs = [
-    "values-am/android_foo_strings.xml",
-    # Here, too, list output files for other supported languages.
-    ...
-  ]
 }
 ...
 android_resources("java_resources") {
@@ -937,44 +927,22 @@ of loading your module until its first use (true only on Android O+ where
 is supported. See [go/isolated-splits-dev-guide](http://go/isolated-splits-dev-guide)
 (googlers only).
 
-### Metrics
-
-After adding your module to `AndroidFeatureModuleName` (see
-[above](#create-dfm-target)) we will collect, among others, the following
-metrics:
-
-* `Android.FeatureModules.AvailabilityStatus.Foo`: Measures your module's
-  install penetration. That is, the share of users who eventually installed
-  the module after requesting it (once or multiple times).
-
-* `Android.FeatureModules.InstallStatus.Foo`: The result of an on-demand
-  install request. Can be success or one of several error conditions.
-
-* `Android.FeatureModules.UncachedAwakeInstallDuration.Foo`: The duration to
-  install your module successfully after on-demand requesting it.
-
-
 ### chrome_public_apk and Integration Tests
 
 To make the Foo feature available in the non-bundle `chrome_public_apk`
-target, add the `java` target to the `chrome_public_common_apk_or_module_tmpl`
-in `//chrome/android/chrome_public_apk_tmpl.gni` like so:
+target, add the `java` target to the template in
+`//chrome/android/chrome_public_apk_tmpl.gni` like so:
 
 ```gn
-template("chrome_public_common_apk_or_module_tmpl") {
-  ...
-  target(_target_type, target_name) {
-    ...
-    if (_target_type != "android_app_bundle_module") {
-      deps += [
-        "//chrome/browser/foo/internal:java",
-      ]
-    }
+  # Add to where "chrome_all_java" is added:
+  if (!_is_bundle) {
+    deps += [ "//chrome/browser/foo/internal:java" ]
   }
 }
 ```
 
-You may also have to add `java` as a dependency of `chrome_test_java` if you want
-to call into Foo from test code.
+You may also have to add `java` as a dependency of
+`//chrome/android/javatests/chrome_test_java_org.chromium.chrome.browser.foo`
+if you want to call into Foo from test code.
 
 [play-core-local-testing]: https://developer.android.com/guide/playcore/feature-delivery/on-demand#local-testing

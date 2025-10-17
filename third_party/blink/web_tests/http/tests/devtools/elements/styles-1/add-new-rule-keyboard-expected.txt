@@ -6,10 +6,11 @@ element.style { ()
 
 [expanded] 
 div#inspected { (inspector-stylesheet:1 -> inspector-stylesheet:1:16)
-    : ;
+: ;
 
 [expanded] 
 div { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 

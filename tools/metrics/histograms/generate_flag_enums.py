@@ -9,13 +9,12 @@ import os
 import re
 import subprocess
 import sys
+import typing
 
-# Import the UKM codegen library for its hashing function, which is the same
-# hashing function as used for flag names.
-# TODO(crbug.com/1371214) Move `codegen.HashName()` somewhere common so we don't
-#  depend on 'ukm'.
-sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, 'ukm'))
-import codegen
+# Import the shared codegen library for its hashing function, which is the
+# same hashing function as used for flag names.
+sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, 'common'))
+import codegen_shared
 
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
@@ -25,7 +24,7 @@ import path_utils
 import pretty_print
 
 
-def get_entries_from_unit_test(outdir: str) -> list[str]:
+def get_entries_from_unit_test(outdir: str) -> typing.List[str]:
   """Returns `<int>` entries reported missing by the 'CheckHistograms' unittest.
   """
   subprocess.run(['autoninja', '-C', outdir, 'unit_tests'])
@@ -38,18 +37,18 @@ def get_entries_from_unit_test(outdir: str) -> list[str]:
   return re.findall('<int [^>]*>', run_test_command.stdout)
 
 
-def get_entries_from_feature_string(feature: str) -> list[str]:
+def get_entries_from_feature_string(feature: str) -> typing.List[str]:
   """Generates entries for `feature`."""
   entries = []
   for suffix in ['disabled', 'enabled']:
     label = f'{feature}:{suffix}'
-    value_64 = codegen.HashName(label)
+    value_64 = codegen_shared.HashName(label)
     value_32 = ctypes.c_int32(value_64).value
     entries.append(f'<int value="{value_32}" label="{label}"/>')
   return entries
 
 
-def add_entries_to_xml(enums_xml: str, entries: list[str]) -> str:
+def add_entries_to_xml(enums_xml: str, entries: typing.List[str]) -> str:
   """Adds each of `entries` to `enums_xml` and pretty prints it."""
   # Only add entries not already present.
   entries = [entry for entry in entries if enums_xml.find(entry) == -1]
@@ -111,8 +110,24 @@ def main():
     fd.seek(0)
     fd.write(enums_xml)
 
-  # Print any changes.
-  subprocess.run(['git', 'diff', xml_path])
+  try:
+    # Print any changes.
+    completed_process = subprocess.run(
+        ['git', 'diff', xml_path],
+        capture_output=True,
+        encoding='utf-8',
+        check=True,
+    )
+    print(completed_process.stdout)
+  except subprocess.CalledProcessError:
+    # This may indicate that this is not a git repository. Output a success
+    # message instead (as the enums.xml file was updated above).
+    print(
+        'Successfully updated '
+        + xml_path
+        + '. Did not display a diff because this does not appear to be a git'
+        + 'repository.'
+    )
 
 
 if __name__ == '__main__':

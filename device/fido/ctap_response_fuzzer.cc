@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -37,7 +42,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   cbor::Reader::Config config;
   config.allow_invalid_utf8 = true;
   std::vector<uint8_t> input(data, data + size);
-  absl::optional<cbor::Value> input_cbor = cbor::Reader::Read(input, config);
+  std::optional<cbor::Value> input_cbor = cbor::Reader::Read(input, config);
   if (input_cbor) {
     input_cbor =
         FixInvalidUTF8(std::move(*input_cbor),
@@ -49,23 +54,26 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::array<uint8_t, 32> relying_party_id_hash = {};
   auto response = ReadCTAPMakeCredentialResponse(
       FidoTransportProtocol::kUsbHumanInterfaceDevice, input_cbor);
-  if (response)
+  if (response) {
     response->attestation_object.EraseAttestationStatement(
         AttestationObject::AAGUID::kErase);
+  }
 
   response = AuthenticatorMakeCredentialResponse::CreateFromU2fRegisterResponse(
       FidoTransportProtocol::kUsbHumanInterfaceDevice, relying_party_id_hash,
       input);
-  if (response)
+  if (response) {
     response->attestation_object.EraseAttestationStatement(
         AttestationObject::AAGUID::kErase);
+  }
 
   ReadCTAPGetAssertionResponse(FidoTransportProtocol::kUsbHumanInterfaceDevice,
                                input_cbor);
   std::vector<uint8_t> u2f_response_data(data, data + size);
   std::vector<uint8_t> key_handle(data, data + size);
   AuthenticatorGetAssertionResponse::CreateFromU2fSignResponse(
-      relying_party_id_hash, u2f_response_data, key_handle);
+      relying_party_id_hash, u2f_response_data, key_handle,
+      FidoTransportProtocol::kUsbHumanInterfaceDevice);
 
   ReadCTAPGetInfoResponse(input);
   return 0;

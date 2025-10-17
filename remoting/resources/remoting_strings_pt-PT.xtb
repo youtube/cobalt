@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Foi detetada uma versão de protocolo incompatível. Certifique-se de que tem a versão mais recente do software instalada em ambos os computadores e tente novamente.</translation>
 <translation id="1008557486741366299">Agora não</translation>
 <translation id="1201402288615127009">Seguinte</translation>
-<translation id="1296511125400541222">Copyright 2023 The Chromium Authors. Todos os direitos reservados.</translation>
 <translation id="1297009705180977556">Erro ao ligar a <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">O objeto solicitado não existe.</translation>
 <translation id="1480046233931937785">Créditos</translation>
@@ -29,7 +28,7 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="2329392777730037872">Falha ao abrir <ph name="URL" /> no cliente.</translation>
 <translation id="2359808026110333948">Continuar</translation>
 <translation id="2366718077645204424">Não é possível contactar o anfitrião. Provavelmente, isso deve-se à configuração da rede que está a utilizar.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Última atividade online <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. Todos os direitos reservados.</translation>
 <translation id="2504109125669302160">Conceda a autorização "Acessibilidade" ao <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Ligado a <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Quer partilhar este computador e permitir que outro utilizador o veja e controle?</translation>
@@ -41,6 +40,7 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="2758123043070977469">Ocorreu um problema na autenticação. Inicie sessão novamente.</translation>
 <translation id="2803375539583399270">Introduzir PIN</translation>
 <translation id="2919669478609886916">Está atualmente a partilhar este computador com outro utilizador. Quer continuar a partilhar?</translation>
+<translation id="2929683002824598593">Partilhar dispositivo</translation>
 <translation id="2939145106548231838">Autenticar para anfitrião</translation>
 <translation id="3027681561976217984">Modo tátil</translation>
 <translation id="3106379468611574572">O computador remoto não está a responder aos pedidos de ligação. Verifique se está online e tente novamente.</translation>
@@ -54,7 +54,6 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="3423542133075182604">Processo de comunicação remota da chave de segurança</translation>
 <translation id="3581045510967524389">Não foi possível estabelecer ligação à rede. Verifique se o dispositivo está online.</translation>
 <translation id="3596628256176442606">Este serviço permite receber ligações de clientes do Chromoting.</translation>
-<translation id="369442766917958684">Offline.</translation>
 <translation id="3695446226812920698">Saiba como</translation>
 <translation id="3776024066357219166">A sessão do Ambiente de Trabalho Remoto do Chrome terminou.</translation>
 <translation id="3858860766373142691">Nome</translation>
@@ -89,12 +88,12 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="4808503597364150972">Introduza o PIN para <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Anfitrião</translation>
 <translation id="4867841927763172006">Enviar PrtScn</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. Todos os direitos reservados.</translation>
 <translation id="4974476491460646149">Ligação a <ph name="HOSTNAME" /> fechada</translation>
 <translation id="4985296110227979402">Primeiro, tem de configurar o computador para acesso remoto</translation>
 <translation id="4987330545941822761">O Ambiente de Trabalho Remoto do Chrome não consegue determinar o navegador para abrir URLs localmente. Escolha-o na lista abaixo.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (offline)</translation>
 <translation id="507204348399810022">Tem a certeza de que quer desativar as ligações remotas a <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Relatórios de falhas</translation>
 <translation id="5170982930780719864">ID de anfitrião inválido.</translation>
 <translation id="5204575267916639804">Perguntas frequentes</translation>
 <translation id="5222676887888702881">Terminar sessão</translation>
@@ -107,7 +106,6 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">O seu ambiente de trabalho está a ser atualmente partilhado com <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Com sessão iniciada como <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Restabelecer ligação</translation>
 <translation id="5810269635982033450">O ecrã funciona como um trackpad</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> pediu acesso para ver o seu ecrã e controlar o teclado e o rato. Prima "<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />" se não estiver a contar com este pedido. Caso contrário, selecione ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' para permitir a ligação quando tiver tudo pronto.</translation>
@@ -121,10 +119,12 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="6178645564515549384">Anfitrião de mensagens nativo para assistência remota</translation>
 <translation id="618120821413932081">Atualizar resolução remota para corresponder à janela</translation>
 <translation id="6223301979382383752">Abrir as preferências Gravação de ecrã</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> pediu acesso para ver o seu ecrã e controlar o teclado e o rato. Quer partilhar o seu dispositivo?</translation>
 <translation id="6284412385303060032">O anfitrião em execução no ecrã de início de sessão da consola foi encerrado para suportar o modo de cortina ao alternar para um anfitrião em execução numa sessão específica de utilizador.</translation>
 <translation id="6542902059648396432">Comunicar um problema...</translation>
 <translation id="6583902294974160967">Apoio técnico</translation>
 <translation id="6612717000975622067">Enviar Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Se não tomar medidas, o seu dispositivo vai começar automaticamente a partilhar a localização dentro de # segundo.}other{Se não tomar medidas, o seu dispositivo vai começar automaticamente a partilhar a localização dentro de # segundos.}}</translation>
 <translation id="6654753848497929428">Partilhar</translation>
 <translation id="677755392401385740">O anfitrião começou para o utilizador: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Aplicação de ajuda para abrir um URL no cliente do <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Se "<ph name="SERVICE_SCRIPT_NAME" />" já estiver selecionado, desselecione-o e
 <translation id="7067321367069083429">O ecrã funciona como um ecrã tátil</translation>
 <translation id="7116737094673640201">Bem-vindo ao Ambiente de Trabalho Remoto do Chrome</translation>
 <translation id="7144878232160441200">Tentar novamente</translation>
+<translation id="7298392173540380852">Copyright 2025 The Chromium Authors. Todos os direitos reservados.</translation>
 <translation id="7312846573060934304">O anfitrião está offline.</translation>
 <translation id="7319983568955948908">Terminar Partilha</translation>
 <translation id="7359298090707901886">Não é possível utilizar o navegador escolhido para abrir URLs na máquina local.</translation>

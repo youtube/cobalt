@@ -9,6 +9,8 @@
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
+#include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 #include "chrome/browser/bitmap_fetcher/bitmap_fetcher.h"
 #include "chrome/browser/media/router/chrome_media_router_factory.h"
 #include "chrome/test/base/testing_profile.h"
@@ -18,6 +20,7 @@
 #include "components/media_router/common/media_route.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/test/browser_task_environment.h"
+#include "media/base/media_switches.h"
 #include "net/url_request/referrer_policy.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -59,7 +62,8 @@ class MockBitmapFetcher : public BitmapFetcher {
               (net::ReferrerPolicy referrer_policy,
                network::mojom::CredentialsMode credentials_mode,
                const net::HttpRequestHeaders& additional_headers,
-               const url::Origin& initiator),
+               const url::Origin& initiator,
+               bool is_same_site_request),
               (override));
   MOCK_METHOD(void,
               Start,
@@ -69,7 +73,7 @@ class MockBitmapFetcher : public BitmapFetcher {
 
 class MockSessionController : public CastMediaSessionController {
  public:
-  MockSessionController(
+  explicit MockSessionController(
       mojo::Remote<media_router::mojom::MediaController> remote)
       : CastMediaSessionController(std::move(remote)) {}
 
@@ -87,6 +91,9 @@ class MockSessionController : public CastMediaSessionController {
 class CastMediaNotificationItemTest : public testing::Test {
  public:
   void SetUp() override {
+#if !BUILDFLAG(IS_CHROMEOS)
+    feature_list_.InitAndEnableFeature(media::kGlobalMediaControlsUpdatedUI);
+#endif
     auto session_controller =
         std::make_unique<testing::NiceMock<MockSessionController>>(
             mojo::Remote<media_router::mojom::MediaController>());
@@ -102,7 +109,8 @@ class CastMediaNotificationItemTest : public testing::Test {
   void SetView() {
     EXPECT_CALL(view_, UpdateWithVectorIcon(_))
         .WillOnce([](const gfx::VectorIcon* vector_icon) {
-          EXPECT_EQ(vector_icons::kMediaRouterIdleIcon.reps, vector_icon->reps);
+          EXPECT_EQ(vector_icons::kMediaRouterIdleIcon.reps.data(),
+                    vector_icon->reps.data());
         });
     EXPECT_CALL(view_, UpdateWithMediaSessionInfo(_))
         .WillOnce([&](const MediaSessionInfoPtr& session_info) {
@@ -117,34 +125,45 @@ class CastMediaNotificationItemTest : public testing::Test {
         .WillOnce([&](const base::flat_set<MediaSessionAction>& actions) {
           EXPECT_EQ(0u, actions.size());
         });
+
+#if BUILDFLAG(IS_CHROMEOS)
     EXPECT_CALL(view_, UpdateWithMediaMetadata(_))
         .WillOnce([&](const media_session::MediaMetadata& metadata) {
           const std::string separator = " \xC2\xB7 ";
           EXPECT_EQ(base::UTF8ToUTF16(kRouteDesc + separator + kSinkName),
                     metadata.source_title);
         });
+#else
+    EXPECT_CALL(view_, UpdateWithMediaMetadata(_))
+        .WillOnce([&](const media_session::MediaMetadata& metadata) {
+          EXPECT_EQ(kRouteDesc, base::UTF16ToUTF8(metadata.source_title));
+        });
+#endif
+
     item_->SetView(&view_);
     testing::Mock::VerifyAndClearExpectations(&view_);
   }
 
  protected:
-  MOCK_METHOD3(CreateBitmapFetcher,
-               std::unique_ptr<BitmapFetcher>(
-                   const GURL& url,
-                   BitmapFetcherDelegate* delegate,
-                   const net::NetworkTrafficAnnotationTag& traffic_annotation));
+  MOCK_METHOD(std::unique_ptr<BitmapFetcher>,
+              CreateBitmapFetcher,
+              (const GURL& url,
+               BitmapFetcherDelegate* delegate,
+               const net::NetworkTrafficAnnotationTag& traffic_annotation));
 
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
   testing::NiceMock<global_media_controls::test::MockMediaItemManager>
       item_manager_;
-  raw_ptr<MockSessionController> session_controller_ = nullptr;
+  raw_ptr<MockSessionController, DanglingUntriaged> session_controller_ =
+      nullptr;
   // This needs to be a NiceMock, because the uninteresting mock function calls
   // slow down the tests enough to make
   // CastMediaNotificationItemTest.MediaPositionUpdate flaky.
   testing::NiceMock<media_message_center::test::MockMediaNotificationView>
       view_;
   std::unique_ptr<CastMediaNotificationItem> item_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(CastMediaNotificationItemTest, UpdateSessionInfo) {
@@ -304,7 +323,13 @@ TEST_F(CastMediaNotificationItemTest, DownloadImage) {
   bitmap_fetcher_delegate->OnFetchComplete(image_url, &bitmap);
 }
 
-TEST_F(CastMediaNotificationItemTest, MediaPositionUpdate) {
+// TODO(crbug.com/327498504): Fix the test flakiness on Win Arm64.
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+#define MAYBE_MediaPositionUpdate DISABLED_MediaPositionUpdate
+#else
+#define MAYBE_MediaPositionUpdate MediaPositionUpdate
+#endif
+TEST_F(CastMediaNotificationItemTest, MAYBE_MediaPositionUpdate) {
   SetView();
   const base::TimeDelta duration = base::Seconds(100);
   const base::TimeDelta current_time = base::Seconds(70);
@@ -376,6 +401,15 @@ TEST_F(CastMediaNotificationItemTest, StopCasting) {
 
   EXPECT_CALL(*mock_router, TerminateRoute(item_->route_id()));
   EXPECT_CALL(item_manager_, FocusDialog());
-  item_->StopCasting(
-      global_media_controls::GlobalMediaControlsEntryPoint::kPresentation);
+  item_->StopCasting();
+}
+
+TEST_F(CastMediaNotificationItemTest, UpdateMediaSinkName) {
+  EXPECT_EQ(kSinkName, item_->device_name());
+  media_router::MediaRoute route(
+      kRouteId, media_router::MediaSource("source_id"), "sink_id", kRouteDesc,
+      /*is_local=*/true);
+  route.set_media_sink_name("New Sink");
+  item_->OnRouteUpdated(route);
+  EXPECT_EQ(route.media_sink_name(), item_->device_name());
 }

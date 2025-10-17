@@ -24,7 +24,7 @@ class ExternalImageSiblingVk : public ExternalImageSiblingImpl
 
     virtual vk::ImageHelper *getImage() const = 0;
 
-    virtual void release(RendererVk *renderer) = 0;
+    virtual void release(vk::Renderer *renderer) = 0;
 };
 
 class ImageVk : public ImageImpl
@@ -39,6 +39,8 @@ class ImageVk : public ImageImpl
     angle::Result orphan(const gl::Context *context, egl::ImageSibling *sibling) override;
 
     egl::Error exportVkImage(void *vkImage, void *vkImageCreateInfo) override;
+
+    bool isFixedRatedCompression(const gl::Context *context) override;
 
     vk::ImageHelper *getImage() const { return mImage; }
     gl::TextureType getImageTextureType() const;

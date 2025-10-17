@@ -8,7 +8,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.json.JSONException;
 
-import org.chromium.android_webview.common.crash.CrashInfo;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo;
 import org.chromium.base.Log;
 
 import java.io.File;
@@ -18,9 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Parses WebView crash JSON log files which contain crash info keys extracted from crash minidump.
- */
+/** Parses WebView crash JSON log files which contain crash info keys extracted from crash minidump. */
 public class WebViewCrashLogParser extends CrashInfoLoader {
     private static final String TAG = "WebViewCrashUI";
 
@@ -28,11 +26,9 @@ public class WebViewCrashLogParser extends CrashInfoLoader {
     // max age.
     private static final long MAX_CRASH_REPORT_AGE_MILLIS = TimeUnit.DAYS.toMillis(30);
 
-    private File mLogDir;
+    private final File mLogDir;
 
-    /**
-     * @param logDir the directory where WebView store crash logs.
-     */
+    /** @param logDir the directory where WebView store crash logs. */
     public WebViewCrashLogParser(File logDir) {
         mLogDir = logDir;
     }

@@ -26,6 +26,7 @@
 #include "unicode/ures.h"
 #include "unicode/uloc.h"
 #include "unicode/locid.h"
+#include "unicode/normalizer2.h"
 #include "unicode/ubrk.h"
 #include "unicode/unistr.h"
 #include "unicode/ucasemap.h"
@@ -74,6 +75,8 @@ public:
 
 private:
     void assertGreekUpper(const char16_t *s, const char16_t *expected);
+    void assertGreekUpperNormalized(const UnicodeString &s16, const UnicodeString &expected16,
+                                    const char *form);
 
     Locale GREEK_LOCALE_;
 };
@@ -125,21 +128,21 @@ StringCaseTest::runIndexedTest(int32_t index, UBool exec, const char *&name, cha
 void
 StringCaseTest::TestCaseConversion()
 {
-    static const UChar uppercaseGreek[] =
+    static const char16_t uppercaseGreek[] =
         { 0x399, 0x395, 0x3a3, 0x3a5, 0x3a3, 0x20, 0x03a7, 0x3a1, 0x399, 0x3a3, 0x3a4,
         0x39f, 0x3a3, 0 };
         // "IESUS CHRISTOS"
 
-    static const UChar lowercaseGreek[] = 
+    static const char16_t lowercaseGreek[] =
         { 0x3b9, 0x3b5, 0x3c3, 0x3c5, 0x3c2, 0x20, 0x03c7, 0x3c1, 0x3b9, 0x3c3, 0x3c4,
         0x3bf, 0x3c2, 0 };
         // "iesus christos"
 
-    static const UChar lowercaseTurkish[] = 
+    static const char16_t lowercaseTurkish[] =
         { 0x69, 0x73, 0x74, 0x61, 0x6e, 0x62, 0x75, 0x6c, 0x2c, 0x20, 0x6e, 0x6f, 0x74, 0x20, 0x63, 0x6f, 
         0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x0131, 0x6e, 0x6f, 0x70, 0x6c, 0x65, 0x21, 0 };
 
-    static const UChar uppercaseTurkish[] = 
+    static const char16_t uppercaseTurkish[] =
         { 0x54, 0x4f, 0x50, 0x4b, 0x41, 0x50, 0x49, 0x20, 0x50, 0x41, 0x4c, 0x41, 0x43, 0x45, 0x2c, 0x20,
         0x0130, 0x53, 0x54, 0x41, 0x4e, 0x42, 0x55, 0x4c, 0 };
     
@@ -200,7 +203,7 @@ StringCaseTest::TestCaseConversion()
 
     // more string case mapping tests with the new implementation
     {
-        static const UChar
+        static const char16_t
 
         beforeLower[]= { 0x61, 0x42, 0x49,  0x3a3, 0xdf, 0x3a3, 0x2f, 0xd93f, 0xdfff },
         lowerRoot[]=   { 0x61, 0x62, 0x69,  0x3c3, 0xdf, 0x3c2, 0x2f, 0xd93f, 0xdfff },
@@ -440,7 +443,7 @@ StringCaseTest::TestCasingImpl(const UnicodeString &input,
 #if !UCONFIG_NO_BREAK_ITERATION
     case TEST_TITLE:
         name="toTitle";
-        result.toTitle((BreakIterator *)iter, locale, options);
+        result.toTitle(static_cast<BreakIterator *>(iter), locale, options);
         break;
 #endif
     case TEST_FOLD:
@@ -458,7 +461,7 @@ StringCaseTest::TestCasingImpl(const UnicodeString &input,
 #if !UCONFIG_NO_BREAK_ITERATION
     if(whichCase==TEST_TITLE && options==0) {
         result=input;
-        result.toTitle((BreakIterator *)iter, locale);
+        result.toTitle(static_cast<BreakIterator *>(iter), locale);
         if(result!=output) {
             dataerrln("error: UnicodeString.toTitle(options=0) got a wrong result for a test case from casing.res");
         }
@@ -468,14 +471,14 @@ StringCaseTest::TestCasingImpl(const UnicodeString &input,
     // UTF-8
     char utf8In[100], utf8Out[100];
     int32_t utf8InLength, utf8OutLength, resultLength;
-    UChar *buffer;
+    char16_t *buffer;
 
     IcuTestErrorCode errorCode(*this, "TestCasingImpl");
     LocalUCaseMapPointer csm(ucasemap_open(localeID, options, errorCode));
 #if !UCONFIG_NO_BREAK_ITERATION
-    if(iter!=NULL) {
+    if(iter!=nullptr) {
         // Clone the break iterator so that the UCaseMap can safely adopt it.
-        UBreakIterator *clone=ubrk_safeClone((UBreakIterator *)iter, NULL, NULL, errorCode);
+        UBreakIterator *clone=ubrk_safeClone(static_cast<UBreakIterator *>(iter), nullptr, nullptr, errorCode);
         ucasemap_setBreakIterator(csm.getAlias(), clone, errorCode);
     }
 #endif
@@ -549,7 +552,7 @@ StringCaseTest::TestCasing() {
                 errln("TestCasing failed to createTestData(%s) - %s", dataNames[whichCase], u_errorName(status));
                 break;
             }
-            const DataMap *myCase = NULL;
+            const DataMap *myCase = nullptr;
             while(casingTest->nextCase(myCase, status)) {
                 input = myCase->getString("Input", status);
                 output = myCase->getString("Output", status);
@@ -563,26 +566,26 @@ StringCaseTest::TestCasing() {
                 if(whichCase==TEST_TITLE) {
                     type = myCase->getInt("Type", status);
                     if(type>=0) {
-                        iter.adoptInstead(ubrk_open((UBreakIteratorType)type, cLocaleID, NULL, 0, &status));
+                        iter.adoptInstead(ubrk_open((UBreakIteratorType)type, cLocaleID, nullptr, 0, &status));
                     } else if(type==-2) {
                         // Open a trivial break iterator that only delivers { 0, length }
                         // or even just { 0 } as boundaries.
-                        static const UChar rules[] = { 0x2e, 0x2a, 0x3b };  // ".*;"
+                        static const char16_t rules[] = { 0x2e, 0x2a, 0x3b };  // ".*;"
                         UParseError parseError;
-                        iter.adoptInstead(ubrk_openRules(rules, UPRV_LENGTHOF(rules), NULL, 0, &parseError, &status));
+                        iter.adoptInstead(ubrk_openRules(rules, UPRV_LENGTHOF(rules), nullptr, 0, &parseError, &status));
                     }
                 }
 #endif
                 options = 0;
                 if(whichCase==TEST_TITLE || whichCase==TEST_FOLD) {
                     optionsString = myCase->getString("Options", status);
-                    if(optionsString.indexOf((UChar)0x54)>=0) {  // T
+                    if(optionsString.indexOf((char16_t)0x54)>=0) {  // T
                         options|=U_FOLD_CASE_EXCLUDE_SPECIAL_I;
                     }
-                    if(optionsString.indexOf((UChar)0x4c)>=0) {  // L
+                    if(optionsString.indexOf((char16_t)0x4c)>=0) {  // L
                         options|=U_TITLECASE_NO_LOWERCASE;
                     }
-                    if(optionsString.indexOf((UChar)0x41)>=0) {  // A
+                    if(optionsString.indexOf((char16_t)0x41)>=0) {  // A
                         options|=U_TITLECASE_NO_BREAK_ADJUSTMENT;
                     }
                 }
@@ -598,7 +601,7 @@ StringCaseTest::TestCasing() {
                 }
 
 #if !UCONFIG_NO_BREAK_ITERATION
-                iter.adoptInstead(NULL);
+                iter.adoptInstead(nullptr);
 #endif
             }
         }
@@ -608,9 +611,9 @@ StringCaseTest::TestCasing() {
     // more tests for API coverage
     status=U_ZERO_ERROR;
     input=UNICODE_STRING_SIMPLE("sTrA\\u00dfE").unescape();
-    (result=input).toTitle(NULL);
+    (result=input).toTitle(nullptr);
     if(result!=UNICODE_STRING_SIMPLE("Stra\\u00dfe").unescape()) {
-        dataerrln("UnicodeString::toTitle(NULL) failed.");
+        dataerrln("UnicodeString::toTitle(nullptr) failed.");
     }
 #endif
 }
@@ -806,16 +809,27 @@ StringCaseTest::TestFullCaseFoldingIterator() {
     }
 }
 
-void
-StringCaseTest::assertGreekUpper(const char16_t *s, const char16_t *expected) {
-    UnicodeString s16(s);
-    UnicodeString expected16(expected);
-    UnicodeString msg = UnicodeString("UnicodeString::toUpper/Greek(\"") + s16 + "\")";
+void StringCaseTest::assertGreekUpper(const char16_t *s, const char16_t *expected) {
+    UErrorCode errorCode = U_ZERO_ERROR;
+#if UCONFIG_NO_NORMALIZATION
+    assertGreekUpperNormalized(s, expected, "No normalization");
+#else
+    const Normalizer2 &nfc = *Normalizer2::getNFCInstance(errorCode);
+    const Normalizer2 &nfd = *Normalizer2::getNFDInstance(errorCode);
+    assertGreekUpperNormalized(nfc.normalize(s, errorCode), nfc.normalize(expected, errorCode), "NFC");
+    assertGreekUpperNormalized(nfd.normalize(s, errorCode), nfd.normalize(expected, errorCode), "NFD");
+#endif
+}
+
+void StringCaseTest::assertGreekUpperNormalized(const UnicodeString &s16,
+                                                const UnicodeString &expected16,
+                                                const char *form) {
+    UnicodeString msg = UnicodeString("UnicodeString::toUpper/Greek(\"") + s16 + "\" [" + form + "])";
     UnicodeString result16(s16);
     result16.toUpper(GREEK_LOCALE_);
     assertEquals(msg, expected16, result16);
 
-    msg = UnicodeString("u_strToUpper/Greek(\"") + s16 + "\") cap=";
+    msg = UnicodeString("u_strToUpper/Greek(\"") + s16 + "\" [" + form + "]) cap=";
     int32_t length = expected16.length();
     int32_t capacities[] = {
         // Keep in sync with the UTF-8 capacities near the bottom of this function.
@@ -823,7 +837,7 @@ StringCaseTest::assertGreekUpper(const char16_t *s, const char16_t *expected) {
     };
     for (int32_t i = 0; i < UPRV_LENGTHOF(capacities); ++i) {
         int32_t cap = capacities[i];
-        UChar *dest16 = result16.getBuffer(expected16.length() + 1);
+        char16_t *dest16 = result16.getBuffer(expected16.length() + 1);
         u_memset(dest16, 0x55AA, result16.getCapacity());
         UErrorCode errorCode = U_ZERO_ERROR;
         length = u_strToUpper(dest16, cap, s16.getBuffer(), s16.length(), "el", &errorCode);
@@ -849,7 +863,7 @@ StringCaseTest::assertGreekUpper(const char16_t *s, const char16_t *expected) {
     assertSuccess("ucasemap_open", errorCode);
     std::string s8;
     s16.toUTF8String(s8);
-    msg = UnicodeString("ucasemap_utf8ToUpper/Greek(\"") + s16 + "\")";
+    msg = UnicodeString("ucasemap_utf8ToUpper/Greek(\"") + s16 + "\" [" + form + "])";
     char dest8[1000];
     length = ucasemap_utf8ToUpper(csm.getAlias(), dest8, UPRV_LENGTHOF(dest8),
                                   s8.data(), static_cast<int32_t>(s8.length()), &errorCode);
@@ -901,22 +915,27 @@ StringCaseTest::TestGreekUpper() {
     assertGreekUpper(u"ΰ, Τηρώ, Μάιος", u"Ϋ, ΤΗΡΩ, ΜΑΪΟΣ");
     assertGreekUpper(u"άυλος", u"ΑΫΛΟΣ");
     assertGreekUpper(u"ΑΫΛΟΣ", u"ΑΫΛΟΣ");
-    assertGreekUpper(u"Άκλιτα ρήματα ή άκλιτες μετοχές", u"ΑΚΛΙΤΑ ΡΗΜΑΤΑ Ή ΑΚΛΙΤΕΣ ΜΕΤΟΧΕΣ");
+    assertGreekUpper(u"Άκλιτα ρήματα ή άκλιτες μετοχές", u"ΑΚΛΙΤΑ ΡΗΜΑΤΑ Ή ΑΚΛΙΤΕΣ ΜΕΤΟΧΕΣ");
     // http://www.unicode.org/udhr/d/udhr_ell_monotonic.html
     assertGreekUpper(u"Επειδή η αναγνώριση της αξιοπρέπειας", u"ΕΠΕΙΔΗ Η ΑΝΑΓΝΩΡΙΣΗ ΤΗΣ ΑΞΙΟΠΡΕΠΕΙΑΣ");
-    assertGreekUpper(u"νομικού ή διεθνούς", u"ΝΟΜΙΚΟΥ Ή ΔΙΕΘΝΟΥΣ");
+    assertGreekUpper(u"νομικού ή διεθνούς", u"ΝΟΜΙΚΟΥ Ή ΔΙΕΘΝΟΥΣ");
     // http://unicode.org/udhr/d/udhr_ell_polytonic.html
     assertGreekUpper(u"Ἐπειδὴ ἡ ἀναγνώριση", u"ΕΠΕΙΔΗ Η ΑΝΑΓΝΩΡΙΣΗ");
-    assertGreekUpper(u"νομικοῦ ἢ διεθνοῦς", u"ΝΟΜΙΚΟΥ Ή ΔΙΕΘΝΟΥΣ");
+    assertGreekUpper(u"νομικοῦ ἢ διεθνοῦς", u"ΝΟΜΙΚΟΥ Ή ΔΙΕΘΝΟΥΣ");
     // From Google bug report
     assertGreekUpper(u"Νέο, Δημιουργία", u"ΝΕΟ, ΔΗΜΙΟΥΡΓΙΑ");
     // http://crbug.com/234797
     assertGreekUpper(u"Ελάτε να φάτε τα καλύτερα παϊδάκια!", u"ΕΛΑΤΕ ΝΑ ΦΑΤΕ ΤΑ ΚΑΛΥΤΕΡΑ ΠΑΪΔΑΚΙΑ!");
     assertGreekUpper(u"Μαΐου, τρόλεϊ", u"ΜΑΪΟΥ, ΤΡΟΛΕΪ");
-    assertGreekUpper(u"Το ένα ή το άλλο.", u"ΤΟ ΕΝΑ Ή ΤΟ ΑΛΛΟ.");
+    assertGreekUpper(u"Το ένα ή το άλλο.", u"ΤΟ ΕΝΑ Ή ΤΟ ΑΛΛΟ.");
     // http://multilingualtypesetting.co.uk/blog/greek-typesetting-tips/
     assertGreekUpper(u"ρωμέικα", u"ΡΩΜΕΪΚΑ");
-    assertGreekUpper(u"ή.", u"Ή.");
+    assertGreekUpper(u"ή.", u"Ή.");
+
+    // The ὑπογεγραμμέναι become Ι as in default case conversion, but they are
+    // specially handled by the implementation.
+    assertGreekUpper(u"ᾠδή, -ήν, -ῆς, -ῇ", u"ΩΙΔΗ, -ΗΝ, -ΗΣ, -ΗΙ");
+    assertGreekUpper(u"ᾍδης", u"ΑΙΔΗΣ");
 }
 
 void StringCaseTest::TestArmenian() {
@@ -951,8 +970,8 @@ StringCaseTest::TestLongUpper() {
     int32_t length = 0x40000004;  // more than 1G UChars
     UnicodeString s(length, (UChar32)0x390, length);
     UnicodeString result;
-    UChar *dest = result.getBuffer(length + 1);
-    if (s.isBogus() || dest == NULL) {
+    char16_t *dest = result.getBuffer(length + 1);
+    if (s.isBogus() || dest == nullptr) {
         logln("Out of memory, unable to run this test on this machine.");
         return;
     }
@@ -1023,7 +1042,7 @@ void StringCaseTest::TestBufferOverflow() {
     UnicodeString data("hello world");
     int32_t result;
 #if !UCONFIG_NO_BREAK_ITERATION
-    result = ucasemap_toTitle(csm.getAlias(), NULL, 0, data.getBuffer(), data.length(), errorCode);
+    result = ucasemap_toTitle(csm.getAlias(), nullptr, 0, data.getBuffer(), data.length(), errorCode);
     if (errorCode.get() != U_BUFFER_OVERFLOW_ERROR || result != data.length()) {
         errln("%s:%d ucasemap_toTitle(\"hello world\") failed: "
               "expected (U_BUFFER_OVERFLOW_ERROR, %d), got (%s, %d)",
@@ -1035,7 +1054,7 @@ void StringCaseTest::TestBufferOverflow() {
     std::string data_utf8;
     data.toUTF8String(data_utf8);
 #if !UCONFIG_NO_BREAK_ITERATION
-    result = ucasemap_utf8ToTitle(csm.getAlias(), NULL, 0, data_utf8.c_str(), static_cast<int32_t>(data_utf8.length()), errorCode);
+    result = ucasemap_utf8ToTitle(csm.getAlias(), nullptr, 0, data_utf8.c_str(), static_cast<int32_t>(data_utf8.length()), errorCode);
     if (errorCode.get() != U_BUFFER_OVERFLOW_ERROR || result != (int32_t)data_utf8.length()) {
         errln("%s:%d ucasemap_toTitle(\"hello world\") failed: "
               "expected (U_BUFFER_OVERFLOW_ERROR, %d), got (%s, %d)",
@@ -1354,7 +1373,7 @@ void StringCaseTest::TestMergeEdits() {
 
 void StringCaseTest::TestCaseMapWithEdits() {
     IcuTestErrorCode errorCode(*this, "TestCaseMapWithEdits");
-    UChar dest[20];
+    char16_t dest[20];
     Edits edits;
 
     int32_t length = CaseMap::toLower("tr", U_OMIT_UNCHANGED_TEXT,
@@ -1526,7 +1545,7 @@ void StringCaseTest::TestCaseMapToString() {
     // It is a bit of a misnomer until we have CaseMap API that writes to
     // a UnicodeString, at which point we should change this code here.
     IcuTestErrorCode errorCode(*this, "TestCaseMapToString");
-    UChar dest[20];
+    char16_t dest[20];
 
     // Omit unchanged text.
     int32_t length = CaseMap::toLower("tr", U_OMIT_UNCHANGED_TEXT,
@@ -1628,7 +1647,7 @@ void StringCaseTest::TestLongUnicodeString() {
     // Code coverage for UnicodeString case mapping code handling
     // long strings or many changes in a string.
     UnicodeString s(true,
-        (const UChar *)
+        (const char16_t *)
         u"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeF"
         u"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeF"
         u"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeF"
@@ -1636,7 +1655,7 @@ void StringCaseTest::TestLongUnicodeString() {
         u"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeF"
         u"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeF", 6 * 51);
     UnicodeString expected(true,
-        (const UChar *)
+        (const char16_t *)
         u"AAAAAAAAAABBBBBBBBBBCCCCCCCCCCDDDDDDDDDDEEEEEEEEEEF"
         u"AAAAAAAAAABBBBBBBBBBCCCCCCCCCCDDDDDDDDDDEEEEEEEEEEF"
         u"AAAAAAAAAABBBBBBBBBBCCCCCCCCCCDDDDDDDDDDEEEEEEEEEEF"

@@ -4,6 +4,9 @@
 
 #include "base/task/current_thread.h"
 
+#include <utility>
+
+#include "base/callback_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/message_loop/message_pump_for_io.h"
@@ -68,8 +71,15 @@ bool CurrentThread::IsIdleForTesting() {
 }
 
 void CurrentThread::EnableMessagePumpTimeKeeperMetrics(
-    const char* thread_name) {
-  return current_->EnableMessagePumpTimeKeeperMetrics(thread_name);
+    const char* thread_name,
+    bool wall_time_based_metrics_enabled_for_testing) {
+  return current_->EnableMessagePumpTimeKeeperMetrics(
+      thread_name, wall_time_based_metrics_enabled_for_testing);
+}
+
+IOWatcher* CurrentThread::GetIOWatcher() {
+  DCHECK(current_->IsBoundToCurrentThread());
+  return current_->GetMessagePump()->GetIOWatcher();
 }
 
 void CurrentThread::AddTaskObserver(TaskObserver* task_observer) {
@@ -87,31 +97,29 @@ void CurrentThread::SetAddQueueTimeToTasks(bool enable) {
   current_->SetAddQueueTimeToTasks(enable);
 }
 
-void CurrentThread::RegisterOnNextIdleCallback(
+CallbackListSubscription CurrentThread::RegisterOnNextIdleCallback(
+    RegisterOnNextIdleCallbackPasskey,
     OnceClosure on_next_idle_callback) {
-  current_->RegisterOnNextIdleCallback(std::move(on_next_idle_callback));
+  return current_->RegisterOnNextIdleCallback(std::move(on_next_idle_callback));
 }
 
 CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop::
     ScopedAllowApplicationTasksInNativeNestedLoop()
     : sequence_manager_(GetCurrentSequenceManagerImpl()),
-      previous_state_(sequence_manager_->IsTaskExecutionAllowed()) {
+      previous_state_(
+          sequence_manager_->IsTaskExecutionAllowedInNativeNestedLoop()) {
   TRACE_EVENT_BEGIN0("base", "ScopedNestableTaskAllower");
-  sequence_manager_->SetTaskExecutionAllowed(true);
+  sequence_manager_->SetTaskExecutionAllowedInNativeNestedLoop(true);
 }
 
 CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop::
     ~ScopedAllowApplicationTasksInNativeNestedLoop() {
-  sequence_manager_->SetTaskExecutionAllowed(previous_state_);
+  sequence_manager_->SetTaskExecutionAllowedInNativeNestedLoop(previous_state_);
   TRACE_EVENT_END0("base", "ScopedNestableTaskAllower");
 }
 
 bool CurrentThread::ApplicationTasksAllowedInNativeNestedLoop() const {
-  return current_->IsTaskExecutionAllowed();
-}
-
-bool CurrentThread::operator==(const CurrentThread& other) const {
-  return current_ == other.current_;
+  return current_->IsTaskExecutionAllowedInNativeNestedLoop();
 }
 
 #if !BUILDFLAG(IS_NACL)
@@ -212,9 +220,8 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 #if !BUILDFLAG(IS_NACL)
 
 #if BUILDFLAG(IS_WIN)
-HRESULT CurrentIOThread::RegisterIOHandler(
-    HANDLE file,
-    MessagePumpForIO::IOHandler* handler) {
+bool CurrentIOThread::RegisterIOHandler(HANDLE file,
+                                        MessagePumpForIO::IOHandler* handler) {
   DCHECK(current_->IsBoundToCurrentThread());
   return GetMessagePumpForIO()->RegisterIOHandler(file, handler);
 }
@@ -238,7 +245,8 @@ bool CurrentIOThread::WatchFileDescriptor(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(CRONET_BUILD))
+#if BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_IOS) && !BUILDFLAG(CRONET_BUILD) && !BUILDFLAG(IS_IOS_TVOS))
 bool CurrentIOThread::WatchMachReceivePort(
     mach_port_t port,
     MessagePumpForIO::MachPortWatchController* controller,

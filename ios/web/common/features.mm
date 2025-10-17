@@ -5,10 +5,7 @@
 #import "ios/web/common/features.h"
 
 #import "base/metrics/field_trial_params.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "build/blink_buildflags.h"
 
 namespace web {
 namespace features {
@@ -33,10 +30,6 @@ BASE_FEATURE(kEnablePersistentDownloads,
              "EnablePersistentDownloads",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kRecordSnapshotSize,
-             "RecordSnapshotSize",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSetRequestAttribution,
              "SetRequestAttribution",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -45,33 +38,20 @@ BASE_FEATURE(kIOSSharedHighlightingColorChange,
              "IOSSharedHighlightingColorChange",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSynthesizedRestoreSession,
-             "SynthesizedRestoreSession",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableFullscreenAPI,
-             "EnableFullscreenAPI",
+BASE_FEATURE(kEnableMeasurements,
+             "EnableMeasurementsExperience",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kMediaPermissionsControl,
-             "MediaPermissionsControl",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUseLoadSimulatedRequestForOfflinePage,
-             "UseLoadSimulatedRequestForErrorPageNavigation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableEmails,
-             "EnableEmailsExperience",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnablePhoneNumbers,
-             "EnablePhoneNumbersExperience",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
+const char kOneTapForMapsConsentModeParamTitle[] =
+    "OneTapForMapsConsentModeParam";
+const char kOneTapForMapsConsentModeDefaultParam[] = "default";
+const char kOneTapForMapsConsentModeForcedParam[] = "forced";
+const char kOneTapForMapsConsentModeDisabledParam[] = "disabled";
+const char kOneTapForMapsConsentModeIPHParam[] = "iph";
+const char kOneTapForMapsConsentModeIPHForcedParam[] = "iphforced";
 BASE_FEATURE(kOneTapForMaps,
              "EnableOneTapForMaps",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kScrollViewProxyScrollEnabledWorkaround,
              "ScrollViewProxyScrollEnabledWorkaround",
@@ -81,42 +61,58 @@ BASE_FEATURE(kPreventNavigationWithoutUserInteraction,
              "PreventNavigationWithoutUserInteraction",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAllowCrossWindowExternalAppNavigation,
+             "kAllowCrossWindowExternalAppNavigation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableWebInspector,
              "EnableWebInspector",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSmoothScrollingDefault,
              "FullscreenSmoothScrollingDefault",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+#if BUILDFLAG(USE_BLINK)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
-BASE_FEATURE(kEnableSessionSerializationOptimizations,
-             "EnableSessionSerializationOptimizations",
+// This feature will always be disabled and will only be enabled by tests.
+BASE_FEATURE(kForceSynthesizedRestoreSession,
+             "ForceSynthesizedRestoreSession",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsMediaPermissionsControlEnabled() {
-  if (@available(iOS 15, *)) {
-    return base::FeatureList::IsEnabled(kMediaPermissionsControl);
+BASE_FEATURE(kDetectDestroyedNavigationContexts,
+             "DetectDestroyedNavigationContexts",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsWebInspectorSupportEnabled() {
+  if (@available(iOS 16.4, *)) {
+    return base::FeatureList::IsEnabled(kEnableWebInspector);
   }
   return false;
 }
 
-bool IsLoadSimulatedRequestAPIEnabled() {
-  if (@available(iOS 15, *)) {
-    return base::FeatureList::IsEnabled(kUseLoadSimulatedRequestForOfflinePage);
-  }
-  return false;
-}
+BASE_FEATURE(kDisableRaccoon,
+             "DisableRaccoon",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsFullscreenAPIEnabled() {
-  if (@available(iOS 16.0, *)) {
-    return base::FeatureList::IsEnabled(kEnableFullscreenAPI);
-  }
-  return false;
-}
+BASE_FEATURE(kUserAgentBugFixVersion,
+             "UserAgentBugFixVersion",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
-bool UseSessionSerializationOptimizations() {
-  return base::FeatureList::IsEnabled(kEnableSessionSerializationOptimizations);
-}
+BASE_FEATURE(kLogJavaScriptErrors,
+             "LogJavaScriptErrors",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebKitHandlesMarketplaceKitLinks,
+             "WebKitHandlesMarketplaceKitLinks",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kRestoreWKWebViewEditMenuHandler,
+             "RestoreWKWebViewEditMenuHandler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
 }  // namespace web

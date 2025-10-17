@@ -18,20 +18,14 @@ namespace performance_manager {
 
 namespace {
 
-void NotifyPageLoadTrackerDecoratorOnPMSequence(content::WebContents* contents,
-                                                void (*method)(PageNodeImpl*)) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  PerformanceManagerImpl::CallOnGraphImpl(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::WeakPtr<PageNode> node, void (*method)(PageNodeImpl*)) {
-            if (node) {
-              PageNodeImpl* page_node = PageNodeImpl::FromNode(node.get());
-              method(page_node);
-            }
-          },
-          PerformanceManager::GetPrimaryPageNodeForWebContents(contents),
-          method));
+void NotifyPageLoadTrackerDecorator(content::WebContents* contents,
+                                    void (*method)(PageNodeImpl*)) {
+  base::WeakPtr<PageNode> node =
+      PerformanceManager::GetPrimaryPageNodeForWebContents(contents);
+  CHECK(node);
+
+  PageNodeImpl* page_node = PageNodeImpl::FromNode(node.get());
+  method(page_node);
 }
 
 }  // namespace
@@ -74,15 +68,20 @@ class PageLoadTrackerDecoratorHelper::WebContentsObserver
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(web_contents()->IsLoading());
-    DCHECK_EQ(loading_state_, LoadingState::kNotLoading);
+
+    // May be called spuriously when the `WebContents` is already loading.
+    if (loading_state_ != LoadingState::kNotLoading) {
+      return;
+    }
 
     // Only observe top-level navigation to a different document.
-    if (!web_contents()->ShouldShowLoadingUI())
+    if (!web_contents()->ShouldShowLoadingUI()) {
       return;
+    }
 
     loading_state_ = LoadingState::kWaitingForNavigation;
-    NotifyPageLoadTrackerDecoratorOnPMSequence(
-        web_contents(), &PageLoadTrackerDecorator::DidStartLoading);
+    NotifyPageLoadTrackerDecorator(web_contents(),
+                                   &PageLoadTrackerDecorator::DidStartLoading);
   }
 
   void PrimaryPageChanged(content::Page& page) override {
@@ -106,12 +105,12 @@ class PageLoadTrackerDecoratorHelper::WebContentsObserver
     // completes). If that happened, emulate the DidStartLoading now before
     // notifying PrimaryPageChanged.
     if (loading_state_ != LoadingState::kWaitingForNavigation) {
-      NotifyPageLoadTrackerDecoratorOnPMSequence(
+      NotifyPageLoadTrackerDecorator(
           web_contents(), &PageLoadTrackerDecorator::DidStartLoading);
     }
 
     loading_state_ = LoadingState::kLoading;
-    NotifyPageLoadTrackerDecoratorOnPMSequence(
+    NotifyPageLoadTrackerDecorator(
         web_contents(), &PageLoadTrackerDecorator::PrimaryPageChanged);
   }
 
@@ -126,8 +125,8 @@ class PageLoadTrackerDecoratorHelper::WebContentsObserver
 
     loading_state_ = LoadingState::kNotLoading;
 
-    NotifyPageLoadTrackerDecoratorOnPMSequence(
-        web_contents(), &PageLoadTrackerDecorator::DidStopLoading);
+    NotifyPageLoadTrackerDecorator(web_contents(),
+                                   &PageLoadTrackerDecorator::DidStopLoading);
   }
 
   void WebContentsDestroyed() override {
@@ -157,7 +156,7 @@ class PageLoadTrackerDecoratorHelper::WebContentsObserver
   }
 
  private:
-  // TODO(https://crbug.com/1048719): Extract the logic to manage a linked list
+  // TODO(crbug.com/40117344): Extract the logic to manage a linked list
   // of WebContentsObservers to a helper class.
   const raw_ptr<PageLoadTrackerDecoratorHelper> outer_;
   raw_ptr<WebContentsObserver> prev_ GUARDED_BY_CONTEXT(sequence_checker_);

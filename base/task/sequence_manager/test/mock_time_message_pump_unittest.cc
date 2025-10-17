@@ -9,8 +9,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
-namespace sequence_manager {
+namespace base::sequence_manager {
 namespace {
 
 using ::testing::DoAll;
@@ -25,8 +24,9 @@ class MockMessagePumpDelegate : public MessagePump::Delegate {
   MOCK_METHOD0(OnBeginWorkItem, void());
   MOCK_METHOD1(OnEndWorkItem, void(int));
   MOCK_METHOD0(BeforeWait, void());
+  MOCK_METHOD0(BeginNativeWorkBeforeDoWork, void());
   MOCK_METHOD0(DoWork, NextWorkInfo());
-  MOCK_METHOD0(DoIdleWork, bool());
+  MOCK_METHOD0(DoIdleWork, void());
   MOCK_METHOD0(RunDepth, int());
 };
 
@@ -48,10 +48,7 @@ TEST(MockMessagePumpTest, KeepsRunningIfNotAllowedToAdvanceTime) {
       .WillOnce(Return(NextWorkInfo(TimeTicks())))
       .WillOnce(Return(NextWorkInfo(TimeTicks())))
       .WillOnce(Return(NextWorkInfo(kFutureTime)));
-  EXPECT_CALL(delegate, DoIdleWork).WillOnce(Invoke([&] {
-    pump.Quit();
-    return false;
-  }));
+  EXPECT_CALL(delegate, DoIdleWork).WillOnce(Invoke([&] { pump.Quit(); }));
 
   pump.Run(&delegate);
 
@@ -68,10 +65,10 @@ TEST(MockMessagePumpTest, AdvancesTimeAsAllowed) {
 
   pump.SetAllowTimeToAutoAdvanceUntil(kEndTime);
   pump.SetStopWhenMessagePumpIsIdle(true);
-  EXPECT_CALL(delegate, DoWork).Times(3).WillRepeatedly(Invoke([&]() {
+  EXPECT_CALL(delegate, DoWork).Times(3).WillRepeatedly(Invoke([&] {
     return NextWorkInfo(mock_clock.NowTicks() + Seconds(1));
   }));
-  EXPECT_CALL(delegate, DoIdleWork).Times(3).WillRepeatedly(Return(false));
+  EXPECT_CALL(delegate, DoIdleWork).Times(3);
 
   pump.Run(&delegate);
 
@@ -104,7 +101,7 @@ TEST(MockMessagePumpTest, AdvancesUntilAllowedTime) {
   EXPECT_CALL(delegate, DoWork)
       .Times(2)
       .WillRepeatedly(Return(NextWorkInfo(kNextDelayedWorkTime)));
-  EXPECT_CALL(delegate, DoIdleWork).Times(2).WillRepeatedly(Return(false));
+  EXPECT_CALL(delegate, DoIdleWork).Times(2);
 
   pump.Run(&delegate);
 
@@ -123,7 +120,7 @@ TEST(MockMessagePumpTest, StoresNextWakeUpTime) {
   pump.SetStopWhenMessagePumpIsIdle(true);
   EXPECT_CALL(delegate, DoWork)
       .WillOnce(Return(NextWorkInfo(kNextDelayedWorkTime)));
-  EXPECT_CALL(delegate, DoIdleWork).WillOnce(Return(false));
+  EXPECT_CALL(delegate, DoIdleWork);
 
   pump.Run(&delegate);
 
@@ -137,8 +134,8 @@ TEST(MockMessagePumpTest, StoresNextWakeUpTimeInScheduleDelayedWork) {
   const auto kStartTime = mock_clock.NowTicks();
   const auto kNextDelayedWorkTime = kStartTime + Seconds(2);
 
-  pump.ScheduleDelayedWork(
-      MessagePump::Delegate::NextWorkInfo{kNextDelayedWorkTime, kStartTime});
+  pump.ScheduleDelayedWork(MessagePump::Delegate::NextWorkInfo{
+      kNextDelayedWorkTime, TimeDelta(), kStartTime});
 
   EXPECT_THAT(pump.next_wake_up_time(), Eq(kNextDelayedWorkTime));
 }
@@ -157,7 +154,7 @@ TEST(MockMessagePumpTest, NextDelayedWorkTimeInThePastKeepsRunning) {
       .WillOnce(Return(NextWorkInfo(kNextDelayedWorkTime)))
       .WillOnce(Return(NextWorkInfo(kNextDelayedWorkTime)))
       .WillOnce(Return(NextWorkInfo(TimeTicks::Max())));
-  EXPECT_CALL(delegate, DoIdleWork).WillRepeatedly(Return(false));
+  EXPECT_CALL(delegate, DoIdleWork).Times(3);
 
   pump.Run(&delegate);
 }
@@ -174,7 +171,7 @@ TEST(MockMessagePumpTest,
   pump.SetAllowTimeToAutoAdvanceUntil(kAdvanceUntil);
   EXPECT_CALL(delegate, DoWork)
       .WillRepeatedly(Return(NextWorkInfo(TimeTicks::Max())));
-  EXPECT_CALL(delegate, DoIdleWork).WillRepeatedly(Return(false));
+  EXPECT_CALL(delegate, DoIdleWork).Times(2);
 
   pump.Run(&delegate);
 
@@ -182,5 +179,4 @@ TEST(MockMessagePumpTest,
 }
 
 }  // namespace
-}  // namespace sequence_manager
-}  // namespace base
+}  // namespace base::sequence_manager

@@ -5,28 +5,35 @@
 #include "chrome/browser/ui/views/webauthn/authenticator_client_pin_entry_view.h"
 
 #include <memory>
-#include <utility>
+#include <string>
 
+#include "base/check.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/grit/generated_resources.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/ime/text_input_type.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
-#include "ui/gfx/color_palette.h"
+#include "ui/events/event.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
-#include "ui/views/layout/layout_provider.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/layout/table_layout.h"
 #include "ui/views/style/typography.h"
 
 namespace {
 
 class PinTextfield : public views::Textfield {
+  METADATA_HEADER(PinTextfield, views::Textfield)
+
  public:
   PinTextfield(views::TextfieldController* controller, views::View* label) {
     SetTextInputType(ui::TextInputType::TEXT_INPUT_TYPE_PASSWORD);
@@ -34,7 +41,7 @@ class PinTextfield : public views::Textfield {
     SetDefaultWidthInChars(20);
 
     set_controller(controller);
-    SetAccessibleName(label);
+    GetViewAccessibility().SetName(*label);
   }
   PinTextfield(const PinTextfield&) = delete;
   PinTextfield& operator=(const PinTextfield&) = delete;
@@ -48,6 +55,9 @@ class PinTextfield : public views::Textfield {
         GetColorProvider()->GetColor(kColorWebAuthnPinTextfieldBottomBorder)));
   }
 };
+
+BEGIN_METADATA(PinTextfield)
+END_METADATA
 
 }  // namespace
 
@@ -89,8 +99,8 @@ AuthenticatorClientPinEntryView::AuthenticatorClientPinEntryView(
 
   if (show_confirmation_text_field_) {
     DCHECK(confirmation_label_);
-    confirmation_text_field_ = AddChildView(
-        std::make_unique<PinTextfield>(this, confirmation_label_));
+    confirmation_text_field_ =
+        AddChildView(std::make_unique<PinTextfield>(this, confirmation_label_));
   } else {
     AddChildView(std::make_unique<views::View>());
   }
@@ -107,8 +117,9 @@ void AuthenticatorClientPinEntryView::OnThemeChanged() {
   const auto* const color_provider = GetColorProvider();
   const SkColor label_color = color_provider->GetColor(ui::kColorAccent);
   pin_label_->SetEnabledColor(label_color);
-  if (confirmation_label_)
+  if (confirmation_label_) {
     confirmation_label_->SetEnabledColor(label_color);
+  }
 }
 
 void AuthenticatorClientPinEntryView::ContentsChanged(
@@ -131,5 +142,5 @@ bool AuthenticatorClientPinEntryView::HandleKeyEvent(
   return false;
 }
 
-BEGIN_METADATA(AuthenticatorClientPinEntryView, views::View)
+BEGIN_METADATA(AuthenticatorClientPinEntryView)
 END_METADATA

@@ -34,7 +34,7 @@ void PermissionsRepromptControllerAndroid::OnRepromptPermissionRequestDone(
     const RequestKey& request_key,
     bool success) {
   auto it = pending_callbacks_.find(request_key);
-  DCHECK(it != pending_callbacks_.end());
+  CHECK(it != pending_callbacks_.end());
 
   for (auto& callback : it->second.second) {
     std::move(callback).Run(success);

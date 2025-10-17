@@ -15,6 +15,7 @@
 #include "chromeos/services/machine_learning/public/mojom/grammar_checker.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/graph_executor.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/handwriting_recognizer.mojom.h"
+#include "chromeos/services/machine_learning/public/mojom/heatmap_palm_rejection.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/image_content_annotation.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/machine_learning_service.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/model.mojom.h"
@@ -23,7 +24,6 @@
 #include "chromeos/services/machine_learning/public/mojom/text_classifier.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/text_suggester.mojom.h"
 #include "chromeos/services/machine_learning/public/mojom/web_platform_handwriting.mojom.h"
-#include "components/ml/mojom/web_platform_model.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
@@ -54,9 +54,7 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
       public mojom::SodaRecognizer,
       public mojom::TextSuggester,
       public mojom::DocumentScanner,
-      public web_platform::mojom::HandwritingRecognizer,
-      public ml::model_loader::mojom::ModelLoader,
-      public ml::model_loader::mojom::Model {
+      public web_platform::mojom::HandwritingRecognizer {
  public:
   FakeServiceConnectionImpl();
 
@@ -137,19 +135,11 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
       mojom::MachineLearningService::LoadImageAnnotatorCallback callback)
       override;
 
-  void CreateWebPlatformModelLoader(
-      mojo::PendingReceiver<ml::model_loader::mojom::ModelLoader> receiver,
-      ml::model_loader::mojom::CreateModelLoaderOptionsPtr options,
-      mojom::MachineLearningService::CreateWebPlatformModelLoaderCallback
-          callback) override;
-
-  void Compute(
-      const base::flat_map<std::string, std::vector<uint8_t>>& input_tensors,
-      ml::model_loader::mojom::Model::ComputeCallback callback) override;
-
-  void Load(
-      mojo_base::BigBuffer model_content,
-      ml::model_loader::mojom::ModelLoader::LoadCallback callback) override;
+  void LoadHeatmapPalmRejection(
+      mojom::HeatmapPalmRejectionConfigPtr config,
+      mojo::PendingRemote<mojom::HeatmapPalmRejectionClient> client,
+      mojom::MachineLearningService::LoadHeatmapPalmRejectionCallback callback)
+      override;
 
   // mojom::Model:
   void REMOVED_0(mojo::PendingReceiver<mojom::GraphExecutor> receiver,
@@ -187,24 +177,8 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
   // (|LoadTextClassifier|, |Annotate|) but only
   // |LoadTextClassifier| can fail.
   void SetTextClassifierSuccess();
-  // Sets the status of `CreateWebPlatformModel`. Creation succeeds when
-  // `ml::model_loader::mojom::CreateModelLoaderResult::kOk` is set.
-  void SetCreateWebPlatformModelLoaderResult(
-      ml::model_loader::mojom::CreateModelLoaderResult result);
-  // Sets the status of `model_loader::mojom::ModelLoader::Load`. The load
-  // succeeds when `ml::model_loader::mojom::LoadModelResult::kOk` is set.
-  void SetLoadWebPlatformModelResult(
-      ml::model_loader::mojom::LoadModelResult result);
-  // Sets the model info returned by `model_loader::mojom::ModelLoader::Load`.
-  void SetWebPlatformModelInfo(
-      ml::model_loader::mojom::ModelInfoPtr model_info);
-  // Sets the status of `model_loader::mojom::Model::Compute`. The computation
-  // succeeds when `ml::model_loader::mojom::ComputeResult::kOk` is set.
-  void SetWebPlatformModelComputeResult(
-      ml::model_loader::mojom::ComputeResult result);
-  // Sets the output of `model_loader::mojom::Model::Compute`.
-  void SetOutputWebPlatformModelCompute(
-      absl::optional<base::flat_map<std::string, std::vector<uint8_t>>> output);
+  // Sends the event to `heatmap_palm_rejection_client_`.
+  void SendHeatmapPalmRejectionEvent(mojom::HeatmapProcessedEventPtr event);
 
   // Call SetOutputValue() before Execute() to set the output tensor.
   void SetOutputValue(const std::vector<int64_t>& shape,
@@ -393,6 +367,10 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
   void HandleLoadImageAnnotatorCall(
       mojo::PendingReceiver<mojom::ImageContentAnnotator> receiver,
       mojom::MachineLearningService::LoadImageAnnotatorCallback callback);
+  void HandleHeatmapPalmRejectionCall(
+      mojom::HeatmapPalmRejectionConfigPtr config,
+      mojo::PendingRemote<mojom::HeatmapPalmRejectionClient> client,
+      mojom::MachineLearningService::LoadHeatmapPalmRejectionCallback callback);
   void HandleDocumentScannerDetectNV12Call(
       base::ReadOnlySharedMemoryRegion nv12_image,
       mojom::DocumentScanner::DetectCornersFromNV12ImageCallback callback);
@@ -403,15 +381,6 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
       base::ReadOnlySharedMemoryRegion jpeg_image,
       const std::vector<gfx::PointF>& corners,
       mojom::DocumentScanner::DoPostProcessingCallback callback);
-  void HandleCreateWebPlatformModelLoaderCall(
-      mojo::PendingReceiver<ml::model_loader::mojom::ModelLoader> receiver,
-      ml::model_loader::mojom::CreateModelLoaderOptionsPtr options,
-      mojom::MachineLearningService::CreateWebPlatformModelLoaderCallback
-          callback);
-  void HandleComputeCall(
-      ml::model_loader::mojom::Model::ComputeCallback callback);
-  void HandleLoadCall(
-      ml::model_loader::mojom::ModelLoader::LoadCallback callback);
   void HandleAnnotateRawImageCall(
       base::ReadOnlySharedMemoryRegion rgb_bytes,
       uint32_t width,
@@ -441,18 +410,17 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
   mojo::ReceiverSet<mojom::SodaRecognizer> soda_recognizer_receivers_;
   mojo::ReceiverSet<mojom::TextSuggester> text_suggester_receivers_;
   mojo::ReceiverSet<mojom::DocumentScanner> document_scanner_receivers_;
-  mojo::ReceiverSet<ml::model_loader::mojom::ModelLoader>
-      web_platform_model_loader_receivers_;
-  mojo::ReceiverSet<ml::model_loader::mojom::Model>
-      web_platform_model_receivers_;
   mojo::ReceiverSet<mojom::ImageContentAnnotator> image_annotator_receivers_;
   mojo::RemoteSet<mojom::SodaClient> soda_client_remotes_;
+  mojo::Remote<mojom::HeatmapPalmRejectionClient>
+      heatmap_palm_rejection_client_;
   mojom::TensorPtr output_tensor_;
   mojom::LoadHandwritingModelResult load_handwriting_model_result_;
   mojom::LoadHandwritingModelResult load_web_platform_handwriting_model_result_;
   mojom::LoadModelResult load_model_result_;
   mojom::LoadModelResult load_text_classifier_result_;
   mojom::LoadModelResult load_soda_result_;
+  mojom::LoadHeatmapPalmRejectionResult load_heatmap_palm_rejection_result_;
   mojom::CreateGraphExecutorResult create_graph_executor_result_;
   mojom::ExecuteResult execute_result_;
   std::vector<mojom::TextAnnotationPtr> annotate_result_;
@@ -466,13 +434,6 @@ class COMPONENT_EXPORT(CHROMEOS_MLSERVICE) FakeServiceConnectionImpl
   mojom::DetectCornersResultPtr detect_corners_result_;
   mojom::DoPostProcessingResultPtr do_post_processing_result_;
   mojom::ImageAnnotationResultPtr image_annotation_result_;
-  ml::model_loader::mojom::CreateModelLoaderResult
-      create_web_platform_model_loader_result_;
-  ml::model_loader::mojom::LoadModelResult load_web_platform_model_result_;
-  ml::model_loader::mojom::ModelInfoPtr web_platform_model_info_;
-  ml::model_loader::mojom::ComputeResult web_platform_model_compute_result_;
-  absl::optional<base::flat_map<std::string, std::vector<uint8_t>>>
-      web_platform_model_compute_output_;
 
   bool async_mode_;
   std::vector<base::OnceClosure> pending_calls_;

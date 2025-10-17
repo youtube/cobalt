@@ -9,10 +9,6 @@
 #import "base/strings/sys_string_conversions.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 bool UrlHasWebScheme(const GURL& url) {
@@ -22,8 +18,9 @@ bool UrlHasWebScheme(const GURL& url) {
 
 bool UrlHasWebScheme(NSURL* url) {
   NSString* scheme = [url scheme];
-  if (![scheme length])
+  if (![scheme length]) {
     return false;
+  }
 
   // Use the GURL implementation, but with a scheme-only URL to avoid
   // unnecessary parsing in GURL construction.

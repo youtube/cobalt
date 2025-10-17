@@ -4,6 +4,7 @@
 
 package org.chromium.content_public.browser.test.util;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.WebContents;
@@ -14,9 +15,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * This class is used to provide callback hooks for tests and related classes.
- */
+/** This class is used to provide callback hooks for tests and related classes. */
 public class TestCallbackHelperContainer {
     private TestWebContentsObserver mTestWebContentsObserver;
 
@@ -24,54 +23,57 @@ public class TestCallbackHelperContainer {
         // TODO(yfriedman): Change callers to be executed on the UI thread. Unfortunately this is
         // super convenient as the caller is nearly always on the test thread which is fine to block
         // and it's cumbersome to keep bouncing to the UI thread.
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mTestWebContentsObserver = new TestWebContentsObserver(webContents); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mTestWebContentsObserver = new TestWebContentsObserver(webContents);
+                });
     }
 
-    /**
-     * CallbackHelper for OnPageCommitVisible.
-     */
+    /** CallbackHelper for OnPageCommitVisible. */
     public static class OnPageCommitVisibleHelper extends CallbackHelper {
         private String mUrl;
+
         public void notifyCalled(String url) {
             mUrl = url;
             notifyCalled();
         }
+
         public String getUrl() {
             assert getCallCount() > 0;
             return mUrl;
         }
     }
 
-    /**
-     * CallbackHelper for OnPageFinished.
-     */
+    /** CallbackHelper for OnPageFinished. */
     public static class OnPageFinishedHelper extends CallbackHelper {
-        private List<String> mUrlList = Collections.synchronizedList(new ArrayList<>());
+        private final List<String> mUrlList = Collections.synchronizedList(new ArrayList<>());
         private String mUrl;
+
         public void notifyCalled(String url) {
             mUrl = url;
             mUrlList.add(url);
             notifyCalled();
         }
+
         public String getUrl() {
             assert getCallCount() > 0;
             return mUrl;
         }
+
         public List<String> getUrlList() {
             return mUrlList;
         }
     }
 
-    /**
-     * CallbackHelper for OnPageStarted.
-     */
+    /** CallbackHelper for OnPageStarted. */
     public static class OnPageStartedHelper extends CallbackHelper {
         private String mUrl;
+
         public void notifyCalled(String url) {
             mUrl = url;
             notifyCalled();
         }
+
         public String getUrl() {
             assert getCallCount() > 0;
             return mUrl;
@@ -87,19 +89,40 @@ public class TestCallbackHelperContainer {
         private String mJsonResult;
 
         /**
+         * Starts evaluation of a given JavaScript code on a given webContents using production
+         * logic.
+         *
+         * @param webContents A WebContents instance to be used.
+         * @param code A JavaScript code to be evaluated.
+         */
+        public void evaluateJavaScript(WebContents webContents, String code) {
+            JavaScriptCallback callback =
+                    new JavaScriptCallback() {
+                        @Override
+                        public void handleJavaScriptResult(String jsonResult) {
+                            notifyCalled(jsonResult);
+                        }
+                    };
+            mJsonResult = null;
+            ThreadUtils.runOnUiThreadBlocking(() -> webContents.evaluateJavaScript(code, callback));
+        }
+
+        /**
          * Starts evaluation of a given JavaScript code on a given webContents.
+         *
          * @param webContents A WebContents instance to be used.
          * @param code A JavaScript code to be evaluated.
          */
         public void evaluateJavaScriptForTests(WebContents webContents, String code) {
-            JavaScriptCallback callback = new JavaScriptCallback() {
-                @Override
-                public void handleJavaScriptResult(String jsonResult) {
-                    notifyCalled(jsonResult);
-                }
-            };
+            JavaScriptCallback callback =
+                    new JavaScriptCallback() {
+                        @Override
+                        public void handleJavaScriptResult(String jsonResult) {
+                            notifyCalled(jsonResult);
+                        }
+                    };
             mJsonResult = null;
-            TestThreadUtils.runOnUiThreadBlocking(
+            ThreadUtils.runOnUiThreadBlocking(
                     () -> webContents.evaluateJavaScriptForTests(code, callback));
         }
 
@@ -111,19 +134,18 @@ public class TestCallbackHelperContainer {
          */
         public void evaluateJavaScriptWithUserGestureForTests(
                 WebContents webContents, String code) {
-            JavaScriptCallback callback = new JavaScriptCallback() {
-                @Override
-                public void handleJavaScriptResult(String jsonResult) {
-                    notifyCalled(jsonResult);
-                }
-            };
+            JavaScriptCallback callback =
+                    new JavaScriptCallback() {
+                        @Override
+                        public void handleJavaScriptResult(String jsonResult) {
+                            notifyCalled(jsonResult);
+                        }
+                    };
             mJsonResult = null;
             WebContentsUtils.evaluateJavaScriptWithUserGesture(webContents, code, callback);
         }
 
-        /**
-         * Returns true if a started JavaScript evaluation has completed.
-         */
+        /** Returns true if a started JavaScript evaluation has completed. */
         public boolean hasValue() {
             return mJsonResult != null;
         }

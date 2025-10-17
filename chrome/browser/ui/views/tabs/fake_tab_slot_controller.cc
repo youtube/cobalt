@@ -43,6 +43,10 @@ bool FakeTabSlotController::IsFocusInTabs() const {
   return false;
 }
 
+bool FakeTabSlotController::ShouldCompactLeadingEdge() const {
+  return true;
+}
+
 TabSlotController::Liveness FakeTabSlotController::ContinueDrag(
     views::View* view,
     const ui::LocatedEvent& event) {
@@ -57,12 +61,12 @@ Tab* FakeTabSlotController::GetTabAt(const gfx::Point& point) {
   return nullptr;
 }
 
-const Tab* FakeTabSlotController::GetAdjacentTab(const Tab* tab, int offset) {
+Tab* FakeTabSlotController::GetAdjacentTab(const Tab* tab, int offset) {
   return nullptr;
 }
 
-bool FakeTabSlotController::ShowDomainInHoverCards() const {
-  return true;
+std::vector<Tab*> FakeTabSlotController::GetTabsInSplit(const Tab* tab) {
+  return {};
 }
 
 bool FakeTabSlotController::HoverCardIsShowingForTab(Tab* tab) {
@@ -71,10 +75,6 @@ bool FakeTabSlotController::HoverCardIsShowingForTab(Tab* tab) {
 
 int FakeTabSlotController::GetBackgroundOffset() const {
   return 0;
-}
-
-bool FakeTabSlotController::ShouldPaintAsActiveFrame() const {
-  return true;
 }
 
 int FakeTabSlotController::GetStrokeThickness() const {
@@ -93,21 +93,14 @@ SkColor FakeTabSlotController::GetTabSeparatorColor() const {
   return SK_ColorBLACK;
 }
 
-SkColor FakeTabSlotController::GetTabBackgroundColor(
-    TabActive active,
-    BrowserFrameActiveState active_state) const {
-  return active == TabActive::kActive ? tab_bg_color_active_
-                                      : tab_bg_color_inactive_;
-}
-
 SkColor FakeTabSlotController::GetTabForegroundColor(TabActive active) const {
   return active == TabActive::kActive ? tab_fg_color_active_
                                       : tab_fg_color_inactive_;
 }
 
-absl::optional<int> FakeTabSlotController::GetCustomBackgroundId(
+std::optional<int> FakeTabSlotController::GetCustomBackgroundId(
     BrowserFrameActiveState active_state) const {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::u16string FakeTabSlotController::GetAccessibleTabName(
@@ -152,3 +145,18 @@ SkColor FakeTabSlotController::GetPaintedGroupColor(
 const Browser* FakeTabSlotController::GetBrowser() const {
   return nullptr;
 }
+
+bool FakeTabSlotController::IsFrameCondensed() const {
+  return false;
+}
+
+TabGroup* FakeTabSlotController::GetTabGroup(
+    const tab_groups::TabGroupId& group_id) const {
+  return nullptr;
+}
+
+#if BUILDFLAG(IS_CHROMEOS)
+bool FakeTabSlotController::IsLockedForOnTask() {
+  return on_task_locked_;
+}
+#endif

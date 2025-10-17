@@ -4,13 +4,21 @@
 //
 // This file declares util functions for setup project.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/setup/setup_util.h"
 
 #include <objbase.h>
-#include <stddef.h>
+
 #include <windows.h>
+
+#include <stddef.h>
 #include <wtsapi32.h>
 
+#include <algorithm>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
@@ -27,12 +35,10 @@
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/version.h"
@@ -41,7 +47,6 @@
 #include "base/win/windows_version.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/install_static/install_details.h"
 #include "chrome/install_static/install_modes.h"
 #include "chrome/install_static/install_util.h"
@@ -59,10 +64,7 @@
 #include "chrome/installer/util/util_constants.h"
 #include "chrome/installer/util/work_item.h"
 #include "chrome/installer/util/work_item_list.h"
-#include "components/zucchini/zucchini.h"
-#include "components/zucchini/zucchini_integration.h"
-#include "courgette/courgette.h"
-#include "courgette/third_party/bsdiff/bsdiff.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 namespace installer {
 
@@ -135,74 +137,6 @@ void RemoveLegacyChromeAppCommands(const InstallerState& installer_state) {
 }  // namespace
 
 const char kUnPackStatusMetricsName[] = "Setup.Install.LzmaUnPackStatus";
-
-int CourgettePatchFiles(const base::FilePath& src,
-                        const base::FilePath& patch,
-                        const base::FilePath& dest) {
-  VLOG(1) << "Applying Courgette patch " << patch.value() << " to file "
-          << src.value() << " and generating file " << dest.value();
-
-  if (src.empty() || patch.empty() || dest.empty())
-    return installer::PATCH_INVALID_ARGUMENTS;
-
-  const courgette::Status patch_status = courgette::ApplyEnsemblePatch(
-      src.value().c_str(), patch.value().c_str(), dest.value().c_str());
-  const int exit_code =
-      (patch_status != courgette::C_OK)
-          ? static_cast<int>(patch_status) + kCourgetteErrorOffset
-          : 0;
-
-  LOG_IF(ERROR, exit_code) << "Failed to apply Courgette patch "
-                           << patch.value() << " to file " << src.value()
-                           << " and generating file " << dest.value()
-                           << ". err=" << exit_code;
-
-  return exit_code;
-}
-
-int BsdiffPatchFiles(const base::FilePath& src,
-                     const base::FilePath& patch,
-                     const base::FilePath& dest) {
-  VLOG(1) << "Applying bsdiff patch " << patch.value() << " to file "
-          << src.value() << " and generating file " << dest.value();
-
-  if (src.empty() || patch.empty() || dest.empty())
-    return installer::PATCH_INVALID_ARGUMENTS;
-
-  const int patch_status = bsdiff::ApplyBinaryPatch(src, patch, dest);
-  const int exit_code =
-      patch_status != bsdiff::OK ? patch_status + kBsdiffErrorOffset : 0;
-
-  LOG_IF(ERROR, exit_code) << "Failed to apply bsdiff patch " << patch.value()
-                           << " to file " << src.value()
-                           << " and generating file " << dest.value()
-                           << ". err=" << exit_code;
-
-  return exit_code;
-}
-
-int ZucchiniPatchFiles(const base::FilePath& src,
-                       const base::FilePath& patch,
-                       const base::FilePath& dest) {
-  VLOG(1) << "Applying Zucchini patch " << patch.value() << " to file "
-          << src.value() << " and generating file " << dest.value();
-
-  if (src.empty() || patch.empty() || dest.empty())
-    return installer::PATCH_INVALID_ARGUMENTS;
-
-  const zucchini::status::Code patch_status = zucchini::Apply(src, patch, dest);
-  const int exit_code =
-      (patch_status != zucchini::status::kStatusSuccess)
-          ? static_cast<int>(patch_status) + kZucchiniErrorOffset
-          : 0;
-
-  LOG_IF(ERROR, exit_code) << "Failed to apply Zucchini patch " << patch.value()
-                           << " to file " << src.value()
-                           << " and generating file " << dest.value()
-                           << ". err=" << exit_code;
-
-  return exit_code;
-}
 
 base::Version* GetMaxVersionFromArchiveDir(const base::FilePath& chrome_path) {
   VLOG(1) << "Looking for Chrome version folder under " << chrome_path.value();
@@ -303,7 +237,6 @@ bool DeleteFileFromTempProcess(const base::FilePath& path,
           reinterpret_cast<PAPCFUNC>(::GetProcAddress(kernel32, "ExitProcess"));
       if (!sleep || !delete_file || !exit_process) {
         NOTREACHED();
-        ok = FALSE;
       } else {
         ::QueueUserAPC(sleep, pi.hThread, delay_before_delete_ms);
         ::QueueUserAPC(delete_file, pi.hThread,
@@ -322,12 +255,15 @@ bool DeleteFileFromTempProcess(const base::FilePath& path,
   return ok != FALSE;
 }
 
-bool AdjustProcessPriority() {
-  DWORD priority_class = ::GetPriorityClass(::GetCurrentProcess());
+bool AdjustThreadPriority() {
+  const DWORD priority_class = ::GetPriorityClass(::GetCurrentProcess());
   if (priority_class == BELOW_NORMAL_PRIORITY_CLASS ||
       priority_class == IDLE_PRIORITY_CLASS) {
-    BOOL result = ::SetPriorityClass(::GetCurrentProcess(),
-                                     PROCESS_MODE_BACKGROUND_BEGIN);
+    // Don't use SetPriorityClass with PROCESS_MODE_BACKGROUND_BEGIN because it
+    // will cap the process working set to 32 MiB. See
+    // https://crbug.com/1475179.
+    const BOOL result =
+        ::SetThreadPriority(::GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
     PLOG_IF(WARNING, !result) << "Failed to enter background mode.";
     return !!result;
   }
@@ -386,7 +322,7 @@ void DeleteRegistryKeyPartial(
     const std::vector<std::wstring>& keys_to_preserve) {
   // Downcase the list of keys to preserve (all must be ASCII strings).
   std::set<std::wstring> lowered_keys_to_preserve;
-  base::ranges::transform(
+  std::ranges::transform(
       keys_to_preserve,
       std::inserter(lowered_keys_to_preserve, lowered_keys_to_preserve.begin()),
       [](const std::wstring& str) {
@@ -651,8 +587,7 @@ base::Time GetConsoleSessionStartTime() {
                                     &buffer_size)) {
     return base::Time();
   }
-  base::ScopedClosureRunner wts_deleter(
-      base::BindOnce(&::WTSFreeMemory, base::Unretained(buffer)));
+  absl::Cleanup wts_deleter = [buffer] { ::WTSFreeMemory(buffer); };
 
   WTSINFO* wts_info = nullptr;
   if (buffer_size < sizeof(*wts_info))
@@ -664,11 +599,11 @@ base::Time GetConsoleSessionStartTime() {
   return base::Time::FromFileTime(filetime);
 }
 
-absl::optional<std::string> DecodeDMTokenSwitchValue(
+std::optional<std::string> DecodeDMTokenSwitchValue(
     const std::wstring& encoded_token) {
   if (encoded_token.empty()) {
     LOG(ERROR) << "Empty DMToken specified on the command line";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // The token passed on the command line is base64-encoded, but since this is
@@ -677,13 +612,13 @@ absl::optional<std::string> DecodeDMTokenSwitchValue(
   if (!base::IsStringASCII(encoded_token) ||
       !base::Base64Decode(base::WideToASCII(encoded_token), &token)) {
     LOG(ERROR) << "DMToken passed on the command line is not correctly encoded";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return token;
 }
 
-absl::optional<std::string> DecodeNonceSwitchValue(
+std::optional<std::string> DecodeNonceSwitchValue(
     const std::string& encoded_nonce) {
   if (encoded_nonce.empty()) {
     // The nonce command line argument is optional.  If none is specified use
@@ -695,7 +630,7 @@ absl::optional<std::string> DecodeNonceSwitchValue(
   std::string nonce;
   if (!base::Base64Decode(encoded_nonce, &nonce)) {
     LOG(ERROR) << "Nonce passed on the command line is not correctly encoded";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return nonce;
@@ -756,7 +691,7 @@ bool DeleteDMToken() {
 
     base::win::RegKey key;
     auto result = key.Open(HKEY_LOCAL_MACHINE, key_path.c_str(),
-                           KEY_SET_VALUE | wow_access);
+                           KEY_QUERY_VALUE | KEY_SET_VALUE | wow_access);
     if (result == ERROR_FILE_NOT_FOUND) {
       // The registry key which stores the DMToken value was not found, so
       // deletion is not necessary.
@@ -780,9 +715,10 @@ bool DeleteDMToken() {
       continue;
     }  // Else ignore the failure to write to the best-effort location.
 
-    // Delete the key if no other values are present.
-    base::win::RegKey(HKEY_LOCAL_MACHINE, L"", KEY_QUERY_VALUE | wow_access)
-        .DeleteEmptyKey(key_path.c_str());
+    // Delete the key if no other values or keys are present.
+    if (key.GetValueCount().value_or(1) == 0) {
+      key.DeleteKey(L"", base::win::RegKey::RecursiveDelete(false));
+    }
   }
 
   VLOG(1) << "Successfully deleted DMToken from the registry.";
@@ -809,6 +745,12 @@ base::FilePath GetElevationServicePath(const base::FilePath& target_path,
                                        const base::Version& version) {
   return target_path.AppendASCII(version.GetString())
       .Append(kElevationServiceExe);
+}
+
+base::FilePath GetTracingServicePath(const base::FilePath& target_path,
+                                     const base::Version& version) {
+  return target_path.AppendASCII(version.GetString())
+      .Append(kElevatedTracingServiceExe);
 }
 
 void AddUpdateDowngradeVersionItem(HKEY root,

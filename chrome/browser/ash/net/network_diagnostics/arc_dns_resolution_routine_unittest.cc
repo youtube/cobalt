@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/net/network_diagnostics/arc_dns_resolution_routine.h"
+
 #include <memory>
 
-#include "ash/components/arc/test/fake_net_instance.h"
 #include "base/test/task_environment.h"
-#include "chrome/browser/ash/net/network_diagnostics/arc_dns_resolution_routine.h"
+#include "chromeos/ash/experiences/arc/test/fake_net_instance.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/dns/public/dns_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,7 +27,7 @@ const int kVeryHighLatencyDelayMs = 550;
 
 class ArcDnsResolutionRoutineTest : public ::testing::Test {
  public:
-  ArcDnsResolutionRoutineTest() {}
+  ArcDnsResolutionRoutineTest() = default;
 
   ArcDnsResolutionRoutineTest(const ArcDnsResolutionRoutineTest&) = delete;
   ArcDnsResolutionRoutineTest& operator=(const ArcDnsResolutionRoutineTest&) =
@@ -59,7 +60,8 @@ class ArcDnsResolutionRoutineTest : public ::testing::Test {
     fake_net_instance_->set_dns_resolution_test_result(result);
 
     // Set up routine with fake NetworkInstance service.
-    arc_dns_resolution_routine_ = std::make_unique<ArcDnsResolutionRoutine>();
+    arc_dns_resolution_routine_ = std::make_unique<ArcDnsResolutionRoutine>(
+        mojom::RoutineCallSource::kDiagnosticsUI);
     arc_dns_resolution_routine_->set_net_instance_for_testing(
         fake_net_instance_.get());
   }

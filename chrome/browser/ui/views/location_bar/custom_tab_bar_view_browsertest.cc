@@ -13,7 +13,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -25,7 +25,6 @@
 #include "components/security_interstitials/core/metrics_helper.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
@@ -33,6 +32,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/clipboard/clipboard.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/views/controls/button/image_button.h"
 
 namespace {
@@ -45,14 +45,15 @@ class TestTitleObserver : public TabStripModelObserver {
   // |target_title|.
   TestTitleObserver(content::WebContents* contents, std::u16string target_title)
       : contents_(contents), target_title_(target_title) {
-    browser_ = chrome::FindBrowserWithWebContents(contents_);
+    browser_ = chrome::FindBrowserWithTab(contents_);
     browser_->tab_strip_model()->AddObserver(this);
   }
 
   // Run a loop, blocking until a tab has the title |target_title|.
   void Wait() {
-    if (seen_target_title_)
+    if (seen_target_title_) {
       return;
+    }
 
     awaiter_.Run();
   }
@@ -65,8 +66,9 @@ class TestTitleObserver : public TabStripModelObserver {
         contents->GetController().GetVisibleEntry();
     std::u16string title = entry ? entry->GetTitle() : std::u16string();
 
-    if (title != target_title_)
+    if (title != target_title_) {
       return;
+    }
 
     seen_target_title_ = true;
     awaiter_.Quit();
@@ -75,8 +77,8 @@ class TestTitleObserver : public TabStripModelObserver {
  private:
   bool seen_target_title_ = false;
 
-  raw_ptr<content::WebContents, DanglingUntriaged> contents_;
-  raw_ptr<Browser, DanglingUntriaged> browser_;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> contents_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_;
   std::u16string target_title_;
   base::RunLoop awaiter_;
 };
@@ -92,7 +94,7 @@ Browser* OpenPopup(content::WebContents* web_contents, const GURL& target_url) {
 
   std::string script = "window.open('" + target_url.spec() +
                        "', 'popup', 'width=400 height=400');";
-  EXPECT_TRUE(content::ExecuteScript(web_contents, script));
+  EXPECT_TRUE(content::ExecJs(web_contents, script));
   nav_observer.Wait();
 
   return browser_change_observer.Wait();
@@ -104,7 +106,7 @@ void NavigateAndWait(content::WebContents* web_contents,
   content::TestNavigationObserver nav_observer(web_contents);
 
   std::string script = "window.location = '" + target_url.spec() + "';";
-  EXPECT_TRUE(content::ExecuteScript(web_contents, script));
+  EXPECT_TRUE(content::ExecJs(web_contents, script));
   nav_observer.Wait();
 }
 
@@ -119,7 +121,7 @@ void SetTitleAndLocation(content::WebContents* web_contents,
   TestTitleObserver title_observer(web_contents, title);
 
   std::string script = "document.title = '" + base::UTF16ToASCII(title) + "';";
-  EXPECT_TRUE(content::ExecuteScript(web_contents, script));
+  EXPECT_TRUE(content::ExecJs(web_contents, script));
 
   title_observer.Wait();
 }
@@ -154,11 +156,12 @@ class UrlHidingInterstitialPage
 class UrlHidingWebContentsObserver : public content::WebContentsObserver {
  public:
   explicit UrlHidingWebContentsObserver(content::WebContents* contents)
-      : content::WebContentsObserver(contents), install_interstitial_(true) {}
+      : content::WebContentsObserver(contents) {}
 
   void DidFinishNavigation(content::NavigationHandle* handle) override {
-    if (!install_interstitial_)
+    if (!install_interstitial_) {
       return;
+    }
 
     security_interstitials::SecurityInterstitialTabHelper::
         AssociateBlockingPage(handle,
@@ -169,13 +172,12 @@ class UrlHidingWebContentsObserver : public content::WebContentsObserver {
   void StopBlocking() { install_interstitial_ = false; }
 
  private:
-  bool install_interstitial_;
+  bool install_interstitial_ = true;
 };
 
 }  // namespace
 
-class CustomTabBarViewBrowserTest
-    : public web_app::WebAppControllerBrowserTest {
+class CustomTabBarViewBrowserTest : public web_app::WebAppBrowserTestBase {
  public:
   CustomTabBarViewBrowserTest() = default;
 
@@ -186,9 +188,8 @@ class CustomTabBarViewBrowserTest
   ~CustomTabBarViewBrowserTest() override = default;
 
  protected:
-
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    web_app::WebAppControllerBrowserTest::SetUpCommandLine(command_line);
+    web_app::WebAppBrowserTestBase::SetUpCommandLine(command_line);
     // Browser will both run and display insecure content.
     command_line->AppendSwitch(switches::kAllowRunningInsecureContent);
   }
@@ -196,11 +197,11 @@ class CustomTabBarViewBrowserTest
   void SetUp() override {
     feature_list_.InitAndDisableFeature(
         blink::features::kMixedContentAutoupgrade);
-    web_app::WebAppControllerBrowserTest::SetUp();
+    web_app::WebAppBrowserTestBase::SetUp();
   }
 
   void SetUpOnMainThread() override {
-    web_app::WebAppControllerBrowserTest::SetUpOnMainThread();
+    web_app::WebAppBrowserTestBase::SetUpOnMainThread();
 
     browser_view_ = BrowserView::GetBrowserViewForBrowser(browser());
 
@@ -209,8 +210,8 @@ class CustomTabBarViewBrowserTest
   }
 
   void InstallPWA(const GURL& start_url) {
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
-    web_app_info->start_url = start_url;
+    auto web_app_info =
+        web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
     web_app_info->scope = start_url.GetWithoutFilename();
     web_app_info->user_display_mode =
         web_app::mojom::UserDisplayMode::kStandalone;
@@ -218,28 +219,27 @@ class CustomTabBarViewBrowserTest
   }
 
   void InstallBookmark(const GURL& start_url) {
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
-    web_app_info->start_url = start_url;
+    auto web_app_info =
+        web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
     web_app_info->scope = start_url.DeprecatedGetOriginAsURL();
     web_app_info->user_display_mode =
         web_app::mojom::UserDisplayMode::kStandalone;
     Install(std::move(web_app_info));
   }
 
-  raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
-  raw_ptr<LocationBarView, DanglingUntriaged> location_bar_;
-  raw_ptr<CustomTabBarView, DanglingUntriaged> custom_tab_bar_;
-  raw_ptr<Browser, DanglingUntriaged> app_browser_ = nullptr;
-  raw_ptr<web_app::AppBrowserController, DanglingUntriaged> app_controller_ =
-      nullptr;
+  raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_;
+  raw_ptr<LocationBarView, AcrossTasksDanglingUntriaged> location_bar_;
+  raw_ptr<CustomTabBarView, AcrossTasksDanglingUntriaged> custom_tab_bar_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> app_browser_ = nullptr;
+  raw_ptr<web_app::AppBrowserController, AcrossTasksDanglingUntriaged>
+      app_controller_ = nullptr;
 
  private:
-  void Install(std::unique_ptr<WebAppInstallInfo> web_app_info) {
-    const GURL start_url = web_app_info->start_url;
-    web_app::AppId app_id = InstallWebApp(std::move(web_app_info));
+  void Install(std::unique_ptr<web_app::WebAppInstallInfo> web_app_info) {
+    const GURL start_url = web_app_info->start_url();
+    webapps::AppId app_id = InstallWebApp(std::move(web_app_info));
 
-    ui_test_utils::UrlLoadObserver url_observer(
-        start_url, content::NotificationService::AllSources());
+    ui_test_utils::UrlLoadObserver url_observer(start_url);
     app_browser_ = LaunchWebAppBrowser(app_id);
     url_observer.Wait();
 
@@ -450,8 +450,8 @@ IN_PROC_BROWSER_TEST_F(CustomTabBarViewBrowserTest,
   EXPECT_TRUE(app_controller_->ShouldShowCustomTabBar());
 
   // Show the right-click context menu.
-  app_view->toolbar()->custom_tab_bar()->ShowContextMenu(gfx::Point(),
-                                                         ui::MENU_SOURCE_MOUSE);
+  app_view->toolbar()->custom_tab_bar()->ShowContextMenu(
+      gfx::Point(), ui::mojom::MenuSourceType::kMouse);
 
   content::BrowserTestClipboardScope test_clipboard_scope;
   // Activate the first and only context menu item: IDC_COPY_URL.
@@ -522,7 +522,7 @@ IN_PROC_BROWSER_TEST_F(
     // Do a state replacing navigation, so we don't have any in scope urls in
     // history.
     content::TestNavigationObserver nav_observer(web_contents);
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         web_contents, "window.location.replace('http://example.com');"));
     nav_observer.Wait();
     EXPECT_TRUE(app_controller_->ShouldShowCustomTabBar());
@@ -709,15 +709,16 @@ IN_PROC_BROWSER_TEST_F(CustomTabBarViewBrowserTest, BlobUrlLocation) {
   content::WebContents* web_contents =
       app_browser_->tab_strip_model()->GetActiveWebContents();
 
-  content::TestNavigationObserver nav_observer(web_contents,
-                                               /*number_of_navigations=*/1);
+  content::TestNavigationObserver nav_observer(
+      web_contents,
+      /*expected_number_of_navigations=*/1);
   std::string script =
       "window.open("
       "    URL.createObjectURL("
       "        new Blob([], {type: 'text/html'})"
       "    ),"
       "    '_self');";
-  EXPECT_TRUE(content::ExecuteScript(web_contents, script));
+  EXPECT_TRUE(content::ExecJs(web_contents, script));
   nav_observer.Wait();
 
   EXPECT_EQ(

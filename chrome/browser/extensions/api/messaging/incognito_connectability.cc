@@ -18,6 +18,7 @@
 #include "components/infobars/core/infobar.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace extensions {
@@ -53,8 +54,7 @@ IncognitoConnectability::IncognitoConnectability(
   CHECK(context->IsOffTheRecord());
 }
 
-IncognitoConnectability::~IncognitoConnectability() {
-}
+IncognitoConnectability::~IncognitoConnectability() = default;
 
 // static
 IncognitoConnectability* IncognitoConnectability::Get(
@@ -129,7 +129,7 @@ IncognitoConnectability::TabContext::TabContext() : infobar(nullptr) {
 IncognitoConnectability::TabContext::~TabContext() = default;
 
 void IncognitoConnectability::OnInteractiveResponse(
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     const GURL& origin,
     infobars::ContentInfoBarManager* infobar_manager,
     ScopedAlertTracker::Mode response) {
@@ -148,7 +148,7 @@ void IncognitoConnectability::OnInteractiveResponse(
 
   PendingOriginMap::iterator origin_it =
       pending_origins_.find(make_pair(extension_id, origin));
-  DCHECK(origin_it != pending_origins_.end());
+  CHECK(origin_it != pending_origins_.end());
   PendingOrigin& pending_origin = origin_it->second;
   DCHECK(base::Contains(pending_origin, infobar_manager));
 

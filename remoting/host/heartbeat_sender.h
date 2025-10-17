@@ -6,6 +6,7 @@
 #define REMOTING_HOST_HEARTBEAT_SENDER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -14,6 +15,7 @@
 #include "base/sequence_checker.h"
 #include "base/timer/timer.h"
 #include "net/base/backoff_entry.h"
+#include "remoting/host/heartbeat_service_client.h"
 #include "remoting/proto/remoting/v1/directory_messages.pb.h"
 #include "remoting/signaling/signal_strategy.h"
 
@@ -27,8 +29,8 @@ class SharedURLLoaderFactory;
 
 namespace remoting {
 
+class HttpStatus;
 class OAuthTokenGetter;
-class ProtobufHttpStatus;
 
 // HeartbeatSender periodically sends heartbeat to the directory service. See
 // the HeartbeatRequest message in directory_messages.proto for more details.
@@ -55,6 +57,12 @@ class HeartbeatSender final : public SignalStrategy::Listener {
 
     // Invoked after the first successful heartbeat.
     virtual void OnFirstHeartbeatSuccessful() = 0;
+
+    // Invoked when the host owner changes.
+    virtual void OnUpdateHostOwner(const std::string& host_owner) = 0;
+
+    // Invoked when |require_session_authorization| is set in HeartbeatResponse.
+    virtual void OnUpdateRequireSessionAuthorization(bool require) = 0;
 
     // Invoked when the host is not found in the directory.
     virtual void OnHostNotFound() = 0;
@@ -85,6 +93,7 @@ class HeartbeatSender final : public SignalStrategy::Listener {
       const std::string& host_id,
       SignalStrategy* signal_strategy,
       OAuthTokenGetter* oauth_token_getter,
+      std::unique_ptr<HeartbeatServiceClient> service_client,
       Observer* observer,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       bool is_googler);
@@ -108,20 +117,6 @@ class HeartbeatSender final : public SignalStrategy::Listener {
       base::OnceCallback<void(bool success)> ack_callback);
 
  private:
-  class HeartbeatClient {
-   public:
-    using HeartbeatResponseCallback =
-        base::OnceCallback<void(const ProtobufHttpStatus&,
-                                std::unique_ptr<apis::v1::HeartbeatResponse>)>;
-
-    virtual ~HeartbeatClient() = default;
-
-    virtual void Heartbeat(std::unique_ptr<apis::v1::HeartbeatRequest> request,
-                           HeartbeatResponseCallback callback) = 0;
-    virtual void CancelPendingRequests() = 0;
-  };
-
-  class HeartbeatClientImpl;
 
   friend class HeartbeatSenderTest;
 
@@ -130,22 +125,36 @@ class HeartbeatSender final : public SignalStrategy::Listener {
   bool OnSignalStrategyIncomingStanza(
       const jingle_xmpp::XmlElement* stanza) override;
 
-  void SendHeartbeat();
-  void OnResponse(const ProtobufHttpStatus& status,
-                  std::unique_ptr<apis::v1::HeartbeatResponse> response);
-
   // Handlers for host-offline-reason completion and timeout.
   void OnHostOfflineReasonTimeout();
   void OnHostOfflineReasonAck();
 
-  // Helper methods used by DoSendStanza() to generate heartbeat stanzas.
-  std::unique_ptr<apis::v1::HeartbeatRequest> CreateHeartbeatRequest();
+  void ClearHeartbeatTimer();
+  void SendFullHeartbeat();
+  void SendLiteHeartbeat(bool useLiteHeartbeat);
+
+  bool CheckHttpStatus(const HttpStatus& status);
+  base::TimeDelta CalculateDelay(const HttpStatus& status,
+                                 std::optional<base::TimeDelta> optMinDelay);
+
+  void OnLegacyHeartbeatResponse(
+      const HttpStatus& status,
+      std::optional<base::TimeDelta> wait_interval,
+      const std::string& primary_user_email,
+      std::optional<bool> require_session_authorization,
+      std::optional<bool> use_lite_heartbeat);
+  void OnSendHeartbeatResponse(
+      const HttpStatus& status,
+      std::optional<base::TimeDelta> wait_interval,
+      const std::string& primary_user_email,
+      std::optional<bool> require_session_authorization,
+      std::optional<bool> use_lite_heartbeat);
 
   raw_ptr<Delegate> delegate_;
   std::string host_id_;
   const raw_ptr<SignalStrategy> signal_strategy_;
-  std::unique_ptr<HeartbeatClient> client_;
   const raw_ptr<OAuthTokenGetter> oauth_token_getter_;
+  std::unique_ptr<HeartbeatServiceClient> service_client_;
   raw_ptr<Observer> observer_;
 
   base::OneShotTimer heartbeat_timer_;
@@ -154,7 +163,7 @@ class HeartbeatSender final : public SignalStrategy::Listener {
 
   bool initial_heartbeat_sent_ = false;
 
-  bool is_googler_ = false;
+  bool set_fqdn_ = false;
 
   // Fields to send and indicate completion of sending host-offline-reason.
   std::string host_offline_reason_;

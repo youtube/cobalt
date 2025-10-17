@@ -22,6 +22,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
@@ -51,7 +52,7 @@ class BackgroundBorderAdderImageSource : public gfx::CanvasImageSource {
  public:
   BackgroundBorderAdderImageSource(const gfx::ImageSkia& image,
                                    bool add_background,
-                                   absl::optional<SkColor> background_color,
+                                   std::optional<SkColor> background_color,
                                    SkColor border_color,
                                    int radius)
       : gfx::CanvasImageSource(gfx::Size(radius, radius)),
@@ -66,7 +67,7 @@ class BackgroundBorderAdderImageSource : public gfx::CanvasImageSource {
  private:
   const gfx::ImageSkia image_;
   const bool add_background_;
-  const absl::optional<SkColor> background_color_;
+  const std::optional<SkColor> background_color_;
   const SkColor border_color_;
 };
 
@@ -100,8 +101,9 @@ void BackgroundBorderAdderImageSource::Draw(gfx::Canvas* canvas) {
 // A class represting an image with a badge. By default, the image is the globe
 // icon. However, badge could be updated via the UpdateBadge() method.
 class ImageWithBadge : public views::ImageView {
+  METADATA_HEADER(ImageWithBadge, views::ImageView)
+
  public:
-  METADATA_HEADER(ImageWithBadge);
   // Constructs a View hierarchy with the a badge positioned in the bottom-right
   // corner of |main_image|. In RTL mode the badge is positioned in the
   // bottom-left corner.
@@ -120,8 +122,8 @@ class ImageWithBadge : public views::ImageView {
   void Render();
 
   raw_ptr<const gfx::VectorIcon> main_vector_icon_ = nullptr;
-  absl::optional<gfx::ImageSkia> main_image_skia_;
-  absl::optional<gfx::ImageSkia> badge_image_skia_;
+  std::optional<gfx::ImageSkia> main_image_skia_;
+  std::optional<gfx::ImageSkia> badge_image_skia_;
 };
 
 ImageWithBadge::ImageWithBadge(const gfx::ImageSkia& main_image)
@@ -141,16 +143,18 @@ void ImageWithBadge::UpdateBadge(const gfx::ImageSkia& badge_image) {
 }
 
 gfx::ImageSkia ImageWithBadge::GetMainImage() const {
-  if (main_image_skia_)
+  if (main_image_skia_) {
     return main_image_skia_.value();
+  }
   DCHECK(main_vector_icon_);
   const SkColor color = GetColorProvider()->GetColor(ui::kColorIcon);
   return gfx::CreateVectorIcon(*main_vector_icon_, kImageSize, color);
 }
 
 gfx::ImageSkia ImageWithBadge::GetBadge() const {
-  if (badge_image_skia_)
+  if (badge_image_skia_) {
     return badge_image_skia_.value();
+  }
   // If there is no badge set, fallback to the default globe icon.
   const SkColor color = GetColorProvider()->GetColor(ui::kColorIcon);
   return gfx::CreateVectorIcon(kGlobeIcon, gfx::kFaviconSize, color);
@@ -176,19 +180,22 @@ void ImageWithBadge::Render() {
   gfx::ImageSkia main_image_with_border =
       gfx::CanvasImageSource::MakeImageSkia<BackgroundBorderAdderImageSource>(
           GetMainImage(), /*add_background=*/false,
-          /*background_color=*/absl::nullopt, kBorderColor, kImageSize);
+          /*background_color=*/std::nullopt, kBorderColor, kImageSize);
 
   gfx::ImageSkia badged_image = gfx::ImageSkiaOperations::CreateIconWithBadge(
       main_image_with_border, rounded_badge_with_background_and_border);
-  SetImage(badged_image);
+  SetImage(ui::ImageModel::FromImageSkia(badged_image));
 }
 
-BEGIN_METADATA(ImageWithBadge, views::ImageView)
+BEGIN_METADATA(ImageWithBadge)
 END_METADATA
 
-std::unique_ptr<views::Label> CreateDescription() {
+std::unique_ptr<views::Label> CreateDescription(
+    const std::u16string& profile_email) {
   auto description = std::make_unique<views::Label>(
-      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MOVE_HINT),
+      l10n_util::GetStringFUTF16(
+          IDS_PASSWORD_MANAGER_SAVE_IN_ACCOUNT_BUBBLE_DESCRIPTION,
+          profile_email),
       views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_HINT);
   description->SetMultiLine(true);
   description->SetHorizontalAlignment(gfx::ALIGN_LEFT);
@@ -200,8 +207,9 @@ std::unique_ptr<views::Label> CreateDescription() {
 // A view that holds two badged images with an arrow between them to illustrate
 // that a password is being moved from the device to the account.
 class MoveToAccountStoreBubbleView::MovingBannerView : public views::View {
+  METADATA_HEADER(MovingBannerView, views::View)
+
  public:
-  METADATA_HEADER(MovingBannerView);
   MovingBannerView(std::unique_ptr<ImageWithBadge> from_image,
                    std::unique_ptr<ImageWithBadge> to_image);
   ~MovingBannerView() override = default;
@@ -243,7 +251,7 @@ void MoveToAccountStoreBubbleView::MovingBannerView::UpdateFavicon(
   to_view->UpdateBadge(favicon);
 }
 
-BEGIN_METADATA(MoveToAccountStoreBubbleView, MovingBannerView, views::View)
+BEGIN_METADATA(MoveToAccountStoreBubbleView, MovingBannerView)
 END_METADATA
 
 MoveToAccountStoreBubbleView::MoveToAccountStoreBubbleView(
@@ -251,7 +259,7 @@ MoveToAccountStoreBubbleView::MoveToAccountStoreBubbleView(
     views::View* anchor_view)
     : PasswordBubbleViewBase(web_contents,
                              anchor_view,
-                             /*auto_dismissable=*/false),
+                             /*easily_dismissable=*/false),
       controller_(PasswordsModelDelegateFromWebContents(web_contents)) {
   SetLayoutManager(std::make_unique<views::FlexLayout>())
       ->SetOrientation(views::LayoutOrientation::kVertical)
@@ -266,10 +274,10 @@ MoveToAccountStoreBubbleView::MoveToAccountStoreBubbleView(
       .SetDefault(
           views::kMarginsKey,
           gfx::Insets::VH(ChromeLayoutProvider::Get()->GetDistanceMetric(
-                              DISTANCE_CONTROL_LIST_VERTICAL),
+                              views::DISTANCE_CONTROL_LIST_VERTICAL),
                           0));
 
-  AddChildView(CreateDescription());
+  AddChildView(CreateDescription(controller_.GetProfileEmail()));
 
   auto computer_view =
       std::make_unique<ImageWithBadge>(kHardwareComputerSmallIcon);
@@ -280,10 +288,10 @@ MoveToAccountStoreBubbleView::MoveToAccountStoreBubbleView(
       /*from_view=*/std::move(computer_view),
       /*to_view=*/std::move(avatar_view)));
 
-  SetButtonLabel(
-      ui::DIALOG_BUTTON_OK,
-      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MOVE_BUBBLE_OK_BUTTON));
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 l10n_util::GetStringUTF16(
+                     IDS_PASSWORD_MANAGER_SAVE_IN_ACCOUNT_BUBBLE_SAVE_BUTTON));
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
                  l10n_util::GetStringUTF16(
                      IDS_PASSWORD_MANAGER_MOVE_BUBBLE_CANCEL_BUTTON));
   SetAcceptCallback(
@@ -307,7 +315,6 @@ MoveToAccountStoreBubbleView::~MoveToAccountStoreBubbleView() = default;
 void MoveToAccountStoreBubbleView::AddedToWidget() {
   static_cast<views::Label*>(GetBubbleFrameView()->title())
       ->SetAllowCharacterBreak(true);
-  SetBubbleHeader(IDR_SAVE_PASSWORD, IDR_SAVE_PASSWORD_DARK);
 }
 
 MoveToAccountStoreBubbleController*
@@ -330,3 +337,6 @@ void MoveToAccountStoreBubbleView::OnFaviconReady(const gfx::Image& favicon) {
     moving_banner_->UpdateFavicon(*favicon.ToImageSkia());
   }
 }
+
+BEGIN_METADATA(MoveToAccountStoreBubbleView)
+END_METADATA

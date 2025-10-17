@@ -19,7 +19,7 @@ namespace quic {
 // ProofVerifyDetails is an abstract class that acts as a container for any
 // implementation specific details that a ProofVerifier wishes to return. These
 // details are saved in the CachedState for the origin in question.
-class QUIC_EXPORT_PRIVATE ProofVerifyDetails {
+class QUICHE_EXPORT ProofVerifyDetails {
  public:
   virtual ~ProofVerifyDetails() {}
 
@@ -30,14 +30,14 @@ class QUIC_EXPORT_PRIVATE ProofVerifyDetails {
 
 // ProofVerifyContext is an abstract class that acts as a container for any
 // implementation specific context that a ProofVerifier needs.
-class QUIC_EXPORT_PRIVATE ProofVerifyContext {
+class QUICHE_EXPORT ProofVerifyContext {
  public:
   virtual ~ProofVerifyContext() {}
 };
 
 // ProofVerifierCallback provides a generic mechanism for a ProofVerifier to
 // call back after an asynchronous verification.
-class QUIC_EXPORT_PRIVATE ProofVerifierCallback {
+class QUICHE_EXPORT ProofVerifierCallback {
  public:
   virtual ~ProofVerifierCallback() {}
 
@@ -53,7 +53,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifierCallback {
 
 // A ProofVerifier checks the signature on a server config, and the certificate
 // chain that backs the public key.
-class QUIC_EXPORT_PRIVATE ProofVerifier {
+class QUICHE_EXPORT ProofVerifier {
  public:
   virtual ~ProofVerifier() {}
 
@@ -74,7 +74,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // The signature uses SHA-256 as the hash function and PSS padding in the
   // case of RSA.
   virtual QuicAsyncStatus VerifyProof(
-      const std::string& hostname, const uint16_t port,
+      const std::string& hostname, uint16_t port,
       const std::string& server_config, QuicTransportVersion transport_version,
       absl::string_view chlo_hash, const std::vector<std::string>& certs,
       const std::string& cert_sct, const std::string& signature,
@@ -100,7 +100,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // will call back, on the original thread, via |callback| when complete.
   // In this case, the ProofVerifier will take ownership of |callback|.
   virtual QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname, const uint16_t port,
+      const std::string& hostname, uint16_t port,
       const std::vector<std::string>& certs, const std::string& ocsp_response,
       const std::string& cert_sct, const ProofVerifyContext* context,
       std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,

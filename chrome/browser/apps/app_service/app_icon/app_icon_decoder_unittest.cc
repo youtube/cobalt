@@ -17,9 +17,10 @@
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_unittest_util.h"
 
 namespace apps {
 
@@ -46,15 +47,15 @@ class AppIconDecoderTest : public testing::Test {
                                   int size_dp,
                                   StoredIconType type,
                                   SkColor color) {
-    for (auto& scale_factor : ui::GetSupportedResourceScaleFactors()) {
+    for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
       int icon_size_in_px =
           gfx::ScaleToFlooredSize(gfx::Size(size_dp, size_dp), scale_factor)
               .width();
-      SkBitmap bitmap = CreateSquareIconBitmap(icon_size_in_px, color);
+      SkBitmap bitmap = gfx::test::CreateBitmap(icon_size_in_px, color);
 
-      std::vector<unsigned char> output;
-      gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false,
-                                        &output);
+      std::optional<std::vector<uint8_t>> output =
+          gfx::PNGCodec::EncodeBGRASkBitmap(bitmap,
+                                            /*discard_transparency=*/false);
 
       base::FilePath path;
       if (type == StoredIconType::kAdaptiveBackground) {
@@ -68,7 +69,7 @@ class AppIconDecoderTest : public testing::Test {
 
       base::ScopedAllowBlockingForTesting scoped_allow_blocking;
       ASSERT_TRUE(base::CreateDirectory(path.DirName()));
-      ASSERT_TRUE(base::WriteFile(path, output));
+      ASSERT_TRUE(base::WriteFile(path, output.value()));
     }
   }
 

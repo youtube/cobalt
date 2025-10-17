@@ -6,10 +6,11 @@
 #define CONTENT_RENDERER_PEPPER_PEPPER_PLUGIN_REGISTRY_H_
 
 #include <map>
+#include <optional>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "content/public/common/content_plugin_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace content {
@@ -40,7 +41,7 @@ class PepperPluginRegistry {
   // plugins matching the given name (and origin if supplied). Returns NULL if
   // the plugin hasn't been loaded.
   PluginModule* GetLiveModule(const base::FilePath& path,
-                              const absl::optional<url::Origin>& origin_lock);
+                              const std::optional<url::Origin>& origin_lock);
 
   // Notifies the registry that a new non-preloaded module has been created.
   // This is normally called for out-of-process plugins. Once this is called,
@@ -49,7 +50,7 @@ class PepperPluginRegistry {
   // |origin_lock| is used to segregate plugins by origin, omitted if the
   // plugin is to handle content from all origins.
   void AddLiveModule(const base::FilePath& path,
-                     const absl::optional<url::Origin>& origin_lock,
+                     const std::optional<url::Origin>& origin_lock,
                      PluginModule* module);
 
   void PluginModuleDead(PluginModule* dead_module);
@@ -74,8 +75,8 @@ class PepperPluginRegistry {
   // continue as long as there are WebKit references to it, but it will not
   // appear in this list.
   using NonOwningModuleMap =
-      std::map<std::pair<base::FilePath, absl::optional<url::Origin>>,
-               PluginModule*>;
+      std::map<std::pair<base::FilePath, std::optional<url::Origin>>,
+               raw_ptr<PluginModule, CtnExperimental>>;
   NonOwningModuleMap live_modules_;
 };
 

@@ -2,12 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/eche_app_ui/eche_uid_provider.h"
 
-#include <base/base64.h>
 #include <openssl/base64.h>
-#include <cstring>
 
+#include <cstring>
+#include <string_view>
+
+#include "base/base64.h"
 #include "base/check.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "components/prefs/pref_service.h"
@@ -37,7 +44,7 @@ void EcheUidProvider::GetUid(
   if (pref_seed.empty()) {
     GenerateKeyPair(public_key, private_key);
   } else {
-    absl::optional<std::vector<uint8_t>> result =
+    std::optional<std::vector<uint8_t>> result =
         ConvertStringToBinary(pref_seed, kSeedSizeInByte);
     if (!result) {
       PA_LOG(WARNING) << "Invalid encoded string, regenerate the keypair.";
@@ -59,11 +66,11 @@ void EcheUidProvider::GenerateKeyPair(
   // first 32 bytes of what BoringSSL calls the private key.
   pref_service_->SetString(
       kEcheAppSeedPref,
-      ConvertBinaryToString(base::make_span(private_key, kSeedSizeInByte)));
+      ConvertBinaryToString(base::span(private_key, kSeedSizeInByte)));
 }
 
-absl::optional<std::vector<uint8_t>> EcheUidProvider::ConvertStringToBinary(
-    base::StringPiece str,
+std::optional<std::vector<uint8_t>> EcheUidProvider::ConvertStringToBinary(
+    std::string_view str,
     size_t expected_len) {
   std::vector<uint8_t> decoded_data(str.size());
   size_t decoded_data_len = 0;
@@ -71,11 +78,11 @@ absl::optional<std::vector<uint8_t>> EcheUidProvider::ConvertStringToBinary(
           decoded_data.data(), &decoded_data_len, decoded_data.size(),
           reinterpret_cast<const uint8_t*>(str.data()), str.size())) {
     PA_LOG(ERROR) << "Attempting to decode string failed.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (decoded_data_len != expected_len) {
     PA_LOG(ERROR) << "Expected length is not match.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   decoded_data.resize(decoded_data_len);
   return decoded_data;

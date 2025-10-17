@@ -5,6 +5,8 @@
 #ifndef MEDIA_MOJO_MOJOM_VIDEO_FRAME_METADATA_MOJOM_TRAITS_H_
 #define MEDIA_MOJO_MOJOM_VIDEO_FRAME_METADATA_MOJOM_TRAITS_H_
 
+#include <optional>
+
 #include "media/base/ipc/media_param_traits_macros.h"
 #include "media/base/video_frame_metadata.h"
 #include "media/base/video_transformation.h"
@@ -12,12 +14,17 @@
 #include "media/mojo/mojom/media_types_enum_mojom_traits.h"
 #include "media/mojo/mojom/video_transformation_mojom_traits.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
+
+namespace intermediate {
+// A type to be used by mojo serialization, because the generated serialization
+// code makes it impossible to map an optional object to a non-optional enum.
+enum class EffectState { kUnknown, kDisabled, kEnabled };
+}  // namespace intermediate
 
 namespace mojo {
 
-// Creates a has_foo() and a foo() to serialize a foo absl::optional<>.
+// Creates a has_foo() and a foo() to serialize a foo std::optional<>.
 #define GENERATE_OPT_SERIALIZATION(type, field, default_value)      \
   static bool has_##field(const media::VideoFrameMetadata& input) { \
     return input.field.has_value();                                 \
@@ -26,6 +33,14 @@ namespace mojo {
   static type field(const media::VideoFrameMetadata& input) {       \
     return input.field.value_or(default_value);                     \
   }
+
+template <>
+struct EnumTraits<media::mojom::EffectState, intermediate::EffectState> {
+  static media::mojom::EffectState ToMojom(intermediate::EffectState input);
+
+  static bool FromMojom(media::mojom::EffectState input,
+                        intermediate::EffectState* output);
+};
 
 template <>
 struct StructTraits<media::mojom::VideoFrameMetadataDataView,
@@ -42,8 +57,8 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
     return input.end_of_stream;
   }
 
-  static bool texture_owner(const media::VideoFrameMetadata& input) {
-    return input.texture_owner;
+  static bool in_surface_view(const media::VideoFrameMetadata& input) {
+    return input.in_surface_view;
   }
 
   static bool wants_promotion_hint(const media::VideoFrameMetadata& input) {
@@ -56,6 +71,10 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
 
   static bool hw_protected(const media::VideoFrameMetadata& input) {
     return input.hw_protected;
+  }
+
+  static bool needs_detiling(const media::VideoFrameMetadata& input) {
+    return input.needs_detiling;
   }
 
   static bool is_webgpu_compatible(const media::VideoFrameMetadata& input) {
@@ -74,18 +93,14 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
     return input.interactive_content;
   }
 
-  static bool texture_origin_is_top_left(
+  static uint32_t sub_capture_target_version(
       const media::VideoFrameMetadata& input) {
-    return input.texture_origin_is_top_left;
-  }
-
-  static uint32_t crop_version(const media::VideoFrameMetadata& input) {
-    return input.crop_version;
+    return input.sub_capture_target_version;
   }
 
   GENERATE_OPT_SERIALIZATION(int, capture_counter, 0)
 
-  static const absl::optional<media::VideoTransformation>& transformation(
+  static const std::optional<media::VideoTransformation>& transformation(
       const media::VideoFrameMetadata& input) {
     return input.transformation;
   }
@@ -98,69 +113,90 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
   GENERATE_OPT_SERIALIZATION(double, frame_rate, 0.0)
   GENERATE_OPT_SERIALIZATION(double, rtp_timestamp, 0.0)
 
-  static const absl::optional<gfx::Rect>& capture_update_rect(
+  static const std::optional<gfx::Rect>& capture_update_rect(
       const media::VideoFrameMetadata& input) {
     return input.capture_update_rect;
   }
 
-  static const absl::optional<gfx::Size>& source_size(
+  static const std::optional<gfx::Size>& source_size(
       const media::VideoFrameMetadata& input) {
     return input.source_size;
   }
 
-  static const absl::optional<gfx::Rect>& region_capture_rect(
+  static const std::optional<gfx::Rect>& region_capture_rect(
       const media::VideoFrameMetadata& input) {
     return input.region_capture_rect;
   }
 
-  static const absl::optional<base::UnguessableToken>& overlay_plane_id(
+  static const std::optional<base::UnguessableToken>& tracking_token(
       const media::VideoFrameMetadata& input) {
-    return input.overlay_plane_id;
+    return input.tracking_token;
   }
 
-  static absl::optional<base::TimeTicks> receive_time(
+  static std::optional<base::TimeTicks> receive_time(
       const media::VideoFrameMetadata& input) {
     return input.receive_time;
   }
 
-  static absl::optional<base::TimeTicks> capture_begin_time(
+  static std::optional<base::TimeTicks> capture_begin_time(
       const media::VideoFrameMetadata& input) {
     return input.capture_begin_time;
   }
 
-  static absl::optional<base::TimeTicks> capture_end_time(
+  static std::optional<base::TimeTicks> capture_end_time(
       const media::VideoFrameMetadata& input) {
     return input.capture_end_time;
   }
 
-  static absl::optional<base::TimeTicks> decode_begin_time(
+  static std::optional<base::TimeTicks> decode_begin_time(
       const media::VideoFrameMetadata& input) {
     return input.decode_begin_time;
   }
 
-  static absl::optional<base::TimeTicks> decode_end_time(
+  static std::optional<base::TimeTicks> decode_end_time(
       const media::VideoFrameMetadata& input) {
     return input.decode_end_time;
   }
 
-  static absl::optional<base::TimeTicks> reference_time(
+  static std::optional<base::TimeTicks> reference_time(
       const media::VideoFrameMetadata& input) {
     return input.reference_time;
   }
 
-  static absl::optional<base::TimeDelta> processing_time(
+  static std::optional<base::TimeDelta> processing_time(
       const media::VideoFrameMetadata& input) {
     return input.processing_time;
   }
 
-  static absl::optional<base::TimeDelta> frame_duration(
+  static std::optional<base::TimeDelta> frame_duration(
       const media::VideoFrameMetadata& input) {
     return input.frame_duration;
   }
 
-  static absl::optional<base::TimeDelta> wallclock_frame_duration(
+  static std::optional<base::TimeDelta> wallclock_frame_duration(
       const media::VideoFrameMetadata& input) {
     return input.wallclock_frame_duration;
+  }
+
+  static std::optional<uint64_t> frame_sequence(
+      const media::VideoFrameMetadata& input) {
+    return input.frame_sequence;
+  }
+
+  static std::optional<uint64_t> source_id(
+      const media::VideoFrameMetadata& input) {
+    return input.source_id;
+  }
+
+  static intermediate::EffectState background_blur(
+      const media::VideoFrameMetadata& input) {
+    if (!input.background_blur) {
+      return intermediate::EffectState::kUnknown;
+    }
+
+    return input.background_blur->enabled
+               ? intermediate::EffectState::kEnabled
+               : intermediate::EffectState::kDisabled;
   }
 
   static bool Read(media::mojom::VideoFrameMetadataDataView input,

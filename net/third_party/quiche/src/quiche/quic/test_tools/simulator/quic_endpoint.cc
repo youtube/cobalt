@@ -4,7 +4,9 @@
 
 #include "quiche/quic/test_tools/simulator/quic_endpoint.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
@@ -72,7 +74,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator, std::string name,
   CryptoHandshakeMessage peer_hello;
   peer_hello.SetValue(kICSL,
                       static_cast<uint32_t>(kMaximumIdleTimeoutSecs - 1));
-  peer_hello.SetValue(kMIBS,
+  peer_hello.SetValue(kMIDS,
                       static_cast<uint32_t>(kDefaultMaxStreamsPerConnection));
   QuicConfig config;
   QuicErrorCode error_code = config.ProcessPeerHello(
@@ -169,9 +171,11 @@ bool QuicEndpoint::AllowSelfAddressChange() const { return false; }
 
 bool QuicEndpoint::OnFrameAcked(const QuicFrame& frame,
                                 QuicTime::Delta ack_delay_time,
-                                QuicTime receive_timestamp) {
+                                QuicTime receive_timestamp,
+                                bool is_retransmission) {
   if (notifier_ != nullptr) {
-    return notifier_->OnFrameAcked(frame, ack_delay_time, receive_timestamp);
+    return notifier_->OnFrameAcked(frame, ack_delay_time, receive_timestamp,
+                                   is_retransmission);
   }
   return false;
 }

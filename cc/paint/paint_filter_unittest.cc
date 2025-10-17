@@ -50,9 +50,8 @@ sk_sp<PaintFilter> CreateTestFilter(PaintFilter::Type filter_type,
   switch (filter_type) {
     case PaintFilter::Type::kNullFilter:
       NOTREACHED();
-      return nullptr;
     case PaintFilter::Type::kColorFilter:
-      return sk_make_sp<ColorFilterPaintFilter>(SkLumaColorFilter::Make(),
+      return sk_make_sp<ColorFilterPaintFilter>(ColorFilter::MakeLuma(),
                                                 image_filter, &crop_rect);
     case PaintFilter::Type::kBlur:
       return sk_make_sp<BlurPaintFilter>(0.1f, 0.2f, SkTileMode::kClamp,
@@ -63,14 +62,13 @@ sk_sp<PaintFilter> CreateTestFilter(PaintFilter::Type filter_type,
           DropShadowPaintFilter::ShadowMode::kDrawShadowOnly, image_filter,
           &crop_rect);
     case PaintFilter::Type::kMagnifier:
-      return sk_make_sp<MagnifierPaintFilter>(SkRect::MakeWH(100.f, 100.f),
+      return sk_make_sp<MagnifierPaintFilter>(SkRect::MakeWH(100.f, 100.f), 2.f,
                                               0.1f, record_filter, &crop_rect);
     case PaintFilter::Type::kCompose:
       return sk_make_sp<ComposePaintFilter>(image_filter, record_filter);
     case PaintFilter::Type::kAlphaThreshold:
       return sk_make_sp<AlphaThresholdPaintFilter>(
-          SkRegion(SkIRect::MakeWH(100, 100)), 0.1f, 0.2f, image_filter,
-          &crop_rect);
+          SkRegion(SkIRect::MakeWH(100, 100)), image_filter, &crop_rect);
     case PaintFilter::Type::kXfermode:
       return sk_make_sp<XfermodePaintFilter>(SkBlendMode::kSrc, image_filter,
                                              record_filter, &crop_rect);
@@ -94,7 +92,7 @@ sk_sp<PaintFilter> CreateTestFilter(PaintFilter::Type filter_type,
       return record_filter;
     case PaintFilter::Type::kMerge: {
       sk_sp<PaintFilter> filters[2] = {image_filter, record_filter};
-      return sk_make_sp<MergePaintFilter>(filters, 2, &crop_rect);
+      return sk_make_sp<MergePaintFilter>(filters, &crop_rect);
     }
     case PaintFilter::Type::kMorphology:
       return sk_make_sp<MorphologyPaintFilter>(
@@ -136,7 +134,6 @@ sk_sp<PaintFilter> CreateTestFilter(PaintFilter::Type filter_type,
           0.5f, 0.6f, image_filter, &crop_rect);
   }
   NOTREACHED();
-  return nullptr;
 }
 
 }  // namespace

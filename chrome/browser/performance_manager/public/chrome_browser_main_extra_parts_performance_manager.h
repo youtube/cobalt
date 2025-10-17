@@ -27,20 +27,26 @@ namespace content {
 class FeatureObserverClient;
 }
 
+namespace memory {
+class EnterpriseMemoryLimitPrefObserver;
+}  // namespace memory
+
 namespace performance_manager {
-class BrowserChildProcessWatcher;
 class Graph;
 class PageLiveStateDecoratorHelper;
 class PageLoadMetricsObserver;
 class PageLoadTrackerDecoratorHelper;
 class PerformanceManagerFeatureObserverClient;
 class PerformanceManagerLifetime;
+class ScopedGlobalScenarioMemory;
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 class ExtensionWatcher;
 #endif
 
 namespace user_tuning {
+class BatterySaverModeManager;
+class PerformanceDetectionManager;
 class ProfileDiscardOptOutListHelper;
 class UserPerformanceTuningManager;
 }  // namespace user_tuning
@@ -77,6 +83,7 @@ class ChromeBrowserMainExtraPartsPerformanceManager
 
   // ChromeBrowserMainExtraParts overrides.
   void PostCreateThreads() override;
+  void PostBrowserStart() override;
   void PreMainMessageLoopRun() override;
   void PostMainMessageLoopRun() override;
 
@@ -96,9 +103,6 @@ class ChromeBrowserMainExtraPartsPerformanceManager
       performance_manager::PerformanceManagerFeatureObserverClient>
       feature_observer_client_;
 
-  std::unique_ptr<performance_manager::BrowserChildProcessWatcher>
-      browser_child_process_watcher_;
-
   base::ScopedMultiSourceObservation<Profile, ProfileObserver>
       profile_observations_{this};
 
@@ -114,19 +118,36 @@ class ChromeBrowserMainExtraPartsPerformanceManager
   std::unique_ptr<performance_manager::PageLoadTrackerDecoratorHelper>
       page_load_tracker_decorator_helper_;
 
+  std::unique_ptr<performance_manager::ScopedGlobalScenarioMemory>
+      global_performance_scenario_memory_;
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   std::unique_ptr<performance_manager::ExtensionWatcher> extension_watcher_;
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<
-      performance_manager::user_tuning::UserPerformanceTuningManager>
-      user_performance_tuning_manager_;
   std::unique_ptr<
       performance_manager::user_tuning::ProfileDiscardOptOutListHelper>
       profile_discard_opt_out_list_helper_;
+
+#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<performance_manager::user_tuning::BatterySaverModeManager>
+      battery_saver_mode_manager_;
+  std::unique_ptr<
+      performance_manager::user_tuning::UserPerformanceTuningManager>
+      user_performance_tuning_manager_;
   std::unique_ptr<base::BatteryStateSampler> battery_state_sampler_;
+  std::unique_ptr<performance_manager::user_tuning::PerformanceDetectionManager>
+      performance_detection_manager_;
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Tracks changes to the MemoryLimitMbEnabled enterprise policy, and
+  // starts/stops the EnterpriseMemoryLimitEvaluator accordingly.
+  //
+  // Only supported on some platforms, see
+  // EnterpriseMemoryLimitPrefObserver::PlatformIsSupported for the list of
+  // supported platforms.
+  std::unique_ptr<memory::EnterpriseMemoryLimitPrefObserver>
+      memory_limit_pref_observer_;
 };
 
 #endif  // CHROME_BROWSER_PERFORMANCE_MANAGER_PUBLIC_CHROME_BROWSER_MAIN_EXTRA_PARTS_PERFORMANCE_MANAGER_H_

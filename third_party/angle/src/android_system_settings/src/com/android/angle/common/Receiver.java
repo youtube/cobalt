@@ -24,6 +24,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.preference.PreferenceManager;
@@ -34,18 +35,26 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.android.angle.R;
 
 public class Receiver extends BroadcastReceiver
 {
-
-    private static final String TAG              = "AngleReceiver";
-    private static final String ANGLE_RULES_FILE = "a4a_rules.json";
+    private static final String TAG = "AngleBroadcastReceiver";
+    private static final boolean DEBUG = false;
 
     @Override
     public void onReceive(Context context, Intent intent)
     {
-        String action = intent.getAction();
-        Log.v(TAG, "Received intent: '" + action + "'");
+        final String action = intent.getAction();
+        if (DEBUG)
+        {
+            Log.d(TAG, "Received intent: " + action);
+        }
 
         if (action.equals(context.getString(R.string.intent_angle_for_android_toast_message)))
         {
@@ -53,118 +62,45 @@ public class Receiver extends BroadcastReceiver
             results.putString(context.getString(R.string.intent_key_a4a_toast_message),
                     context.getString(R.string.angle_in_use_toast_message));
         }
-        else
+        else if (action.equals(Intent.ACTION_BOOT_COMPLETED) || action.equals(Intent.ACTION_MY_PACKAGE_REPLACED))
         {
-            String jsonStr      = loadRules(context);
-            String packageNames = parsePackageNames(jsonStr);
-
-            // Update the ANGLE allowlist
-            if (packageNames != null)
-            {
-                GlobalSettings.updateAngleAllowlist(context, packageNames);
-            }
-
+            AngleRuleHelper angleRuleHelper = new AngleRuleHelper(context);
+            updateGlobalSettings(context, angleRuleHelper);
             updateDeveloperOptionsWatcher(context);
         }
     }
 
-    /*
-     * Open the rules file and pull all the JSON into a string
-     */
-    private String loadRules(Context context)
+    /**
+     * Consume the results of rule parsing to populate global settings
+    */
+    private static void updateGlobalSettings(Context context, AngleRuleHelper angleRuleHelper)
     {
-        String jsonStr = null;
+        int count = 0;
+        String packages = "";
+        String choices = "";
 
-        try
-        {
-            InputStream rulesStream = context.getAssets().open(ANGLE_RULES_FILE);
-            int size                = rulesStream.available();
-            byte[] buffer           = new byte[size];
-            rulesStream.read(buffer);
-            rulesStream.close();
-            jsonStr = new String(buffer, "UTF-8");
-        }
-        catch (IOException ioe)
-        {
-            Log.e(TAG, "Failed to open " + ANGLE_RULES_FILE + ": ", ioe);
-        }
+        // Bring in the packages and choices and convert them to global settings format
+        final List<String> anglePackages = angleRuleHelper.getPackageNamesForAngle();
+        final List<String> nativePackages = angleRuleHelper.getPackageNamesForNative();
 
-        return jsonStr;
-    }
+        // packages = anglePackage1,anglePackage2,nativePackage1,nativePackage2
+        packages = Stream.concat(anglePackages.stream(), nativePackages.stream())
+                .collect(Collectors.joining(","));
 
-    /*
-     * Extract all app package names from the json file and return them comma separated
-     */
-    private String parsePackageNames(String rulesJSON)
-    {
-        StringBuilder packageNames = new StringBuilder();
+        // choices = angle,angle,native,native
+        choices = Stream.concat(
+                Collections.nCopies(
+                    anglePackages.size(), "angle")
+                .stream(),
+                Collections.nCopies(
+                    nativePackages.size(), "native")
+                .stream())
+                .collect(Collectors.joining(","));
 
-        try
-        {
-            JSONObject jsonObj = new JSONObject(rulesJSON);
-            JSONArray rules    = jsonObj.getJSONArray("Rules");
-            if (rules == null)
-            {
-                Log.e(TAG, "No Rules in " + ANGLE_RULES_FILE);
-                return null;
-            }
-            for (int i = 0; i < rules.length(); i++)
-            {
-                JSONObject rule = rules.getJSONObject(i);
-                JSONArray apps  = rule.optJSONArray("Applications");
-                if (apps == null)
-                {
-                    Log.v(TAG, "Skipping Rules entry with no Applications");
-                    continue;
-                }
-                for (int j = 0; j < apps.length(); j++)
-                {
-                    JSONObject app = apps.optJSONObject(j);
-                    String appName = app.optString("AppName");
-                    if ((appName == null) || appName.isEmpty())
-                    {
-                        Log.e(TAG, "Invalid AppName: '" + appName + "'");
-                    }
-                    if (!packageNames.toString().isEmpty())
-                    {
-                        packageNames.append(",");
-                    }
-                    packageNames.append(appName);
-                }
-            }
-            Log.v(TAG, "Parsed the following package names from " + ANGLE_RULES_FILE + ": "
-                               + packageNames);
-        }
-        catch (JSONException je)
-        {
-            Log.e(TAG, "Error when parsing angle JSON: ", je);
-            return null;
-        }
-
-        return packageNames.toString();
-    }
-
-    static void updateAllUseAngle(Context context)
-    {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        String allUseAngleKey   = context.getString(R.string.pref_key_all_angle);
-        boolean allUseAngle     = prefs.getBoolean(allUseAngleKey, false);
-
-        GlobalSettings.updateAllUseAngle(context, allUseAngle);
-
-        Log.v(TAG, "All PKGs use ANGLE set to: " + allUseAngle);
-    }
-
-    static void updateShowAngleInUseDialogBox(Context context)
-    {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        String showAngleInUseDialogBoxKey =
-                context.getString(R.string.pref_key_angle_in_use_dialog);
-        boolean showAngleInUseDialogBox = prefs.getBoolean(showAngleInUseDialogBoxKey, false);
-
-        GlobalSettings.updateShowAngleInUseDialog(context, showAngleInUseDialogBox);
-
-        Log.v(TAG, "Show 'ANGLE In Use' dialog box set to: " + showAngleInUseDialogBox);
+        Log.v(TAG, "Updating ANGLE global settings with:" +
+                " packages = " + packages +
+                " choices = " + choices);
+        GlobalSettings.writeGlobalSettings(context, packages, choices);
     }
 
     /**
@@ -172,15 +108,15 @@ public class Receiver extends BroadcastReceiver
      */
     private static void updateDeveloperOptionsWatcher(Context context)
     {
-        Uri settingUri = Settings.Global.getUriFor(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED);
+        final Uri settingUri = Settings.Global.getUriFor(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED);
 
-        ContentObserver developerOptionsObserver = new ContentObserver(new Handler()) {
+        final ContentObserver developerOptionsObserver = new ContentObserver(new Handler()) {
             @Override
             public void onChange(boolean selfChange)
             {
                 super.onChange(selfChange);
 
-                boolean developerOptionsEnabled =
+                final boolean developerOptionsEnabled =
                         (1
                                 == Settings.Global.getInt(context.getContentResolver(),
                                         Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0));
@@ -195,13 +131,12 @@ public class Receiver extends BroadcastReceiver
                             PreferenceManager.getDefaultSharedPreferences(context).edit();
                     editor.clear();
                     editor.apply();
-                    GlobalSettings.clearAllGlobalSettings(context);
+                    GlobalSettings.clearGlobalSettings(context);
                 }
             }
         };
 
         context.getContentResolver().registerContentObserver(
                 settingUri, false, developerOptionsObserver);
-        developerOptionsObserver.onChange(true);
     }
 }

@@ -33,10 +33,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char SemWaiter::kName[];
-#endif
-
 SemWaiter::SemWaiter() : wakeups_(0) {
   if (sem_init(&sem_, 0, 0) != 0) {
     ABSL_RAW_LOG(FATAL, "sem_init failed with errno %d\n", errno);
@@ -45,6 +41,8 @@ SemWaiter::SemWaiter() : wakeups_(0) {
 
 #if defined(__GLIBC__) && \
     (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 30))
+#define ABSL_INTERNAL_HAVE_SEM_CLOCKWAIT 1
+#elif defined(__ANDROID_API__) && __ANDROID_API__ >= 30
 #define ABSL_INTERNAL_HAVE_SEM_CLOCKWAIT 1
 #endif
 

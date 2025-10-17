@@ -54,6 +54,8 @@ struct RestrictionLevelAndUrl {
 class DlpContentRestrictionSet {
  public:
   DlpContentRestrictionSet();
+  // TODO(b/324549895): Remove this constructor. Content restrictions shouldn't
+  // be set without a url since it's used for reporting.
   DlpContentRestrictionSet(DlpContentRestriction restriction,
                            DlpRulesManager::Level level);
 
@@ -62,8 +64,8 @@ class DlpContentRestrictionSet {
 
   ~DlpContentRestrictionSet();
 
-  bool operator==(const DlpContentRestrictionSet& other) const;
-  bool operator!=(const DlpContentRestrictionSet& other) const;
+  friend bool operator==(const DlpContentRestrictionSet&,
+                         const DlpContentRestrictionSet&) = default;
 
   // Sets the |restriction| to the |level| if not set to a higher one yet and
   // remembers the |url| in this case.
@@ -102,6 +104,8 @@ class DlpContentRestrictionSet {
       const DlpContentRestrictionSet& restrictions);
 
  private:
+  friend class DlpContentManagerTestHelper;
+
   // The current level and url of each of the restrictions.
   std::array<RestrictionLevelAndUrl,
              static_cast<int>(DlpContentRestriction::kMaxValue) + 1>

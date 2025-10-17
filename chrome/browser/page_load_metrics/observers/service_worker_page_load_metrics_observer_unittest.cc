@@ -14,6 +14,10 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace {
 
 const char kDefaultTestUrl[] = "https://google.com/";
@@ -32,7 +36,7 @@ class ServiceWorkerPageLoadMetricsObserverTest
   void SimulateTimingWithoutPaint() {
     page_load_metrics::mojom::PageLoadTiming timing;
     page_load_metrics::InitPageLoadTimingForTest(&timing);
-    timing.navigation_start = base::Time::FromDoubleT(1);
+    timing.navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
     tester()->SimulateTimingUpdate(timing);
   }
 
@@ -111,7 +115,7 @@ class ServiceWorkerPageLoadMetricsObserverTest
   void InitializeTestPageLoadTiming(
       page_load_metrics::mojom::PageLoadTiming* timing) {
     page_load_metrics::InitPageLoadTimingForTest(timing);
-    timing->navigation_start = base::Time::FromDoubleT(1);
+    timing->navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
     timing->interactive_timing->first_input_delay = base::Milliseconds(50);
     timing->interactive_timing->first_input_timestamp = base::Milliseconds(712);
     timing->parse_timing->parse_start = base::Milliseconds(100);
@@ -235,7 +239,7 @@ TEST_F(ServiceWorkerPageLoadMetricsObserverTest, WithServiceWorker) {
   const auto& entries = tester()->test_ukm_recorder().GetEntriesByName(
       ukm::builders::PageLoad_ServiceWorkerControlled::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  for (const auto* entry : entries) {
+  for (const ukm::mojom::UkmEntry* entry : entries) {
     tester()->test_ukm_recorder().ExpectEntrySourceHasUrl(
         entry, GURL(kDefaultTestUrl));
   }
@@ -253,12 +257,12 @@ TEST_F(ServiceWorkerPageLoadMetricsObserverTest, WithServiceWorkerBackground) {
   metadata.behavior_flags |=
       blink::LoadingBehaviorFlag::kLoadingBehaviorServiceWorkerControlled;
 
+  // Background the tab, then foreground it (see below).
+  web_contents()->WasHidden();
   NavigateAndCommit(GURL(kDefaultTestUrl));
   tester()->SimulateTimingAndMetadataUpdate(timing, metadata);
 
-  // Background the tab, then foreground it.
-  web_contents()->WasHidden();
-  web_contents()->WasShown();
+  web_contents()->WasShown();  // Foreground the tab.
 
   InitializeTestPageLoadTiming(&timing);
   tester()->SimulateTimingAndMetadataUpdate(timing, metadata);
@@ -286,7 +290,7 @@ TEST_F(ServiceWorkerPageLoadMetricsObserverTest, WithServiceWorkerBackground) {
   const auto& entries = tester()->test_ukm_recorder().GetEntriesByName(
       ukm::builders::PageLoad_ServiceWorkerControlled::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  for (const auto* entry : entries) {
+  for (const ukm::mojom::UkmEntry* entry : entries) {
     tester()->test_ukm_recorder().ExpectEntrySourceHasUrl(
         entry, GURL(kDefaultTestUrl));
   }

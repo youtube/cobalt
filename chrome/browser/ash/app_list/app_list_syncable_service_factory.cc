@@ -7,12 +7,15 @@
 #include <set>
 
 #include "build/build_config.h"
+#include "chrome/browser/apps/app_preload_service/app_preload_service_factory.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs_factory.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
+#include "extensions/browser/extension_registrar_factory.h"
+#include "extensions/browser/extension_registry_factory.h"
 #include "extensions/browser/extension_system_provider.h"
 #include "extensions/browser/extensions_browser_client.h"
 
@@ -31,7 +34,8 @@ AppListSyncableService* AppListSyncableServiceFactory::GetForProfile(
 
 // static
 AppListSyncableServiceFactory* AppListSyncableServiceFactory::GetInstance() {
-  return base::Singleton<AppListSyncableServiceFactory>::get();
+  static base::NoDestructor<AppListSyncableServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -40,7 +44,7 @@ std::unique_ptr<KeyedService> AppListSyncableServiceFactory::BuildInstanceFor(
   Profile* profile = static_cast<Profile*>(browser_context);
   // This condition still needs to be explicitly stated here despite having
   // ProfileKeyedService logic implemented because `IsGuestSession()` and
-  // `IsRegularProfile()` are not yet mutually exclusive in ASH and Lacros.
+  // `IsRegularProfile()` are not yet mutually exclusive in ASH.
   // TODO(rsult): remove this condition when `IsGuestSession() is fixed.
   if (profile->IsGuestSession() && !profile->IsOffTheRecord())
     return nullptr;
@@ -73,18 +77,24 @@ AppListSyncableServiceFactory::AppListSyncableServiceFactory()
   dependent_factories.insert(
       extensions::ExtensionsBrowserClient::Get()->GetExtensionSystemFactory());
   dependent_factories.insert(ArcAppListPrefsFactory::GetInstance());
+  dependent_factories.insert(apps::AppPreloadServiceFactory::GetInstance());
   dependent_factories.insert(apps::AppServiceProxyFactory::GetInstance());
   dependent_factories.insert(
       ash::FileSuggestKeyedServiceFactory::GetInstance());
+  dependent_factories.insert(
+      extensions::ExtensionRegistrarFactory::GetInstance());
+  dependent_factories.insert(
+      extensions::ExtensionRegistryFactory::GetInstance());
   for (auto* dependent_factory : dependent_factories)
     DependsOn(dependent_factory);
 }
 
 AppListSyncableServiceFactory::~AppListSyncableServiceFactory() = default;
 
-KeyedService* AppListSyncableServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppListSyncableServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* browser_context) const {
-  return BuildInstanceFor(static_cast<Profile*>(browser_context)).release();
+  return BuildInstanceFor(static_cast<Profile*>(browser_context));
 }
 
 void AppListSyncableServiceFactory::RegisterProfilePrefs(

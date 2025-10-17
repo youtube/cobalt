@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
 
-#include "base/cxx17_backports.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
@@ -91,7 +96,11 @@ bool DoImagesMatch(const gfx::Image& a, const gfx::Image& b) {
       a_bitmap.height() != b_bitmap.height()) {
     return false;
   }
-  return memcmp(a_bitmap.getPixels(), b_bitmap.getPixels(),
+
+  // memcmp(nullptr, nullptr, 0) is undefined, so empty bitmaps must be
+  // special-cased.
+  return a_bitmap.computeByteSize() == 0 ||
+         memcmp(a_bitmap.getPixels(), b_bitmap.getPixels(),
                 a_bitmap.computeByteSize()) == 0;
 }
 
@@ -108,7 +117,6 @@ class MockPageBroadcast : public blink::mojom::PageBroadcast {
                SetPageLifecycleStateCallback callback),
               (override));
   MOCK_METHOD(void, AudioStateChanged, (bool is_audio_playing), (override));
-  MOCK_METHOD(void, SetInsidePortal, (bool is_inside_portal), (override));
   MOCK_METHOD(void,
               ActivatePrerenderedPage,
               (blink::mojom::PrerenderPageActivationParamsPtr
@@ -124,25 +132,40 @@ class MockPageBroadcast : public blink::mojom::PageBroadcast {
               (const ::blink::RendererPreferences& preferences),
               (override));
   MOCK_METHOD(void,
-              SetHistoryOffsetAndLength,
-              (int32_t offset, int32_t length),
+              SetHistoryIndexAndLength,
+              (int32_t index, int32_t length),
               (override));
   MOCK_METHOD(void,
               SetPageBaseBackgroundColor,
-              (absl::optional<SkColor> color),
+              (std::optional<SkColor> color),
+              (override));
+  MOCK_METHOD(void,
+              UpdateColorProviders,
+              (const ::blink::ColorProviderColorMaps& color_provider_colors),
               (override));
   MOCK_METHOD(
       void,
       CreateRemoteMainFrame,
       (const blink::RemoteFrameToken& token,
-       const absl::optional<blink::FrameToken>& opener_frame_token,
+       const std::optional<blink::FrameToken>& opener_frame_token,
        blink::mojom::FrameReplicationStatePtr replication_state,
        bool is_loading,
        const base::UnguessableToken& devtools_frame_token,
+       const std::optional<base::UnguessableToken>& navigation_metrics_token,
        blink::mojom::RemoteFrameInterfacesFromBrowserPtr
            remote_frame_interfaces,
        blink::mojom::RemoteMainFrameInterfacesPtr remote_main_frame_interfaces),
       (override));
+
+  MOCK_METHOD(void,
+              UpdatePageBrowsingContextGroup,
+              (const base::UnguessableToken& browsing_context_group_token),
+              (override));
+
+  MOCK_METHOD(void,
+              SetPageAttributionSupport,
+              (network::mojom::AttributionSupport support),
+              (override));
 
   mojo::PendingAssociatedRemote<blink::mojom::PageBroadcast> GetRemote() {
     return receiver_.BindNewEndpointAndPassDedicatedRemote();
@@ -423,13 +446,13 @@ TEST_F(NavigationControllerTest, GoToOffset) {
     NUM_TESTS = 5,
   };
 
-  const int test_offsets[NUM_TESTS] = {
+  const std::array<int, NUM_TESTS> test_offsets = {
       GO_TO_MIDDLE_PAGE, GO_FORWARDS, GO_BACKWARDS, GO_TO_BEGINNING, GO_TO_END};
 
   if (IsBackForwardCacheEnabled()) {
     // The `navigation_entry_committed_counter_` checks below currently fail on
     // the linux-bfcache-rel bot with bfcache enabled, so return early.
-    // TODO(https://crbug.com/1232883): re-enable this test.
+    // TODO(crbug.com/40780539): re-enable this test.
     return;
   }
 
@@ -500,9 +523,10 @@ TEST_F(NavigationControllerTest, LoadURL) {
   ASSERT_FALSE(controller.GetVisibleEntry()->IsInitialEntry());
   EXPECT_FALSE(controller.CanGoBack());
   EXPECT_FALSE(controller.CanGoForward());
-  EXPECT_EQ(0, controller.GetLastCommittedEntry()
-                   ->GetFrameEntry(root_ftn())
-                   ->bindings());
+  EXPECT_TRUE(controller.GetLastCommittedEntry()
+                  ->GetFrameEntry(root_ftn())
+                  ->bindings()
+                  ->empty());
 
   // The timestamp should have been set.
   EXPECT_FALSE(controller.GetVisibleEntry()->GetTimestamp().is_null());
@@ -603,8 +627,9 @@ void CheckNavigationEntryMatchLoadParams(
 
   EXPECT_EQ(load_params.is_renderer_initiated, entry->is_renderer_initiated());
   EXPECT_EQ(load_params.base_url_for_data_url, entry->GetBaseURLForDataURL());
-  if (!load_params.virtual_url_for_data_url.is_empty()) {
-    EXPECT_EQ(load_params.virtual_url_for_data_url, entry->GetVirtualURL());
+  if (!load_params.virtual_url_for_special_cases.is_empty()) {
+    EXPECT_EQ(load_params.virtual_url_for_special_cases,
+              entry->GetVirtualURL());
   }
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_EQ(load_params.data_url_as_string, entry->GetDataURLAsString());
@@ -687,7 +712,7 @@ TEST_F(NavigationControllerTest, LoadURLWithExtraParams_Data) {
   NavigationController::LoadURLParams load_url_params(url);
   load_url_params.load_type = NavigationController::LOAD_TYPE_DATA;
   load_url_params.base_url_for_data_url = GURL("http://foo");
-  load_url_params.virtual_url_for_data_url = GURL(url::kAboutBlankURL);
+  load_url_params.virtual_url_for_special_cases = GURL(url::kAboutBlankURL);
   load_url_params.override_user_agent = NavigationController::UA_OVERRIDE_FALSE;
   navigation->SetLoadURLParams(&load_url_params);
   navigation->Start();
@@ -706,9 +731,26 @@ TEST_F(NavigationControllerTest, LoadURLWithExtraParams_Data_Android) {
   NavigationController::LoadURLParams load_url_params(url);
   load_url_params.load_type = NavigationController::LOAD_TYPE_DATA;
   load_url_params.base_url_for_data_url = GURL("http://foo");
-  load_url_params.virtual_url_for_data_url = GURL(url::kAboutBlankURL);
+  load_url_params.virtual_url_for_special_cases = GURL(url::kAboutBlankURL);
   load_url_params.data_url_as_string =
       base::MakeRefCounted<base::RefCountedString>(std::string("data:,data"));
+  load_url_params.override_user_agent = NavigationController::UA_OVERRIDE_FALSE;
+  navigation->SetLoadURLParams(&load_url_params);
+  navigation->Start();
+
+  NavigationEntryImpl* entry = controller.GetPendingEntry();
+  CheckNavigationEntryMatchLoadParams(load_url_params, entry);
+}
+
+TEST_F(NavigationControllerTest, LoadURLWithExtraParams_Pdf_Android) {
+  NavigationControllerImpl& controller = controller_impl();
+  GURL url("chrome-native://pdf/link?url=https%3A%2F%2Ffoo");
+
+  auto navigation =
+      NavigationSimulatorImpl::CreateBrowserInitiated(url, contents());
+  NavigationController::LoadURLParams load_url_params(url);
+  load_url_params.load_type = NavigationController::LOAD_TYPE_PDF_ANDROID;
+  load_url_params.virtual_url_for_special_cases = GURL("https://foo");
   load_url_params.override_user_agent = NavigationController::UA_OVERRIDE_FALSE;
   navigation->SetLoadURLParams(&load_url_params);
   navigation->Start();
@@ -727,11 +769,11 @@ TEST_F(NavigationControllerTest, KeepReloadTypeWhenCancelRepost) {
   NavigationController::LoadURLParams load_url_params(url);
   load_url_params.transition_type = ui::PAGE_TRANSITION_TYPED;
   load_url_params.load_type = NavigationController::LOAD_TYPE_HTTP_POST;
-  const char* raw_data = "post\n\n\0data";
-  const int length = 11;
+  const char raw_data[] = "post\n\n\0data";
   const int64_t identifier = 1;
   load_url_params.post_data =
-      network::ResourceRequestBody::CreateFromBytes(raw_data, length);
+      network::ResourceRequestBody::CreateFromCopyOfBytes(
+          base::byte_span_from_cstring(raw_data));
   load_url_params.post_data->set_identifier(identifier);
   navigation->SetLoadURLParams(&load_url_params);
   navigation->Start();
@@ -762,10 +804,10 @@ TEST_F(NavigationControllerTest, LoadURLWithExtraParams_HttpPost) {
   load_url_params.transition_type = ui::PAGE_TRANSITION_TYPED;
   load_url_params.load_type = NavigationController::LOAD_TYPE_HTTP_POST;
   load_url_params.override_user_agent = NavigationController::UA_OVERRIDE_TRUE;
-  const char* raw_data = "d\n\0a2";
-  const int length = 5;
+  const char raw_data[] = "d\n\0a2";
   load_url_params.post_data =
-      network::ResourceRequestBody::CreateFromBytes(raw_data, length);
+      network::ResourceRequestBody::CreateFromCopyOfBytes(
+          base::byte_span_from_cstring(raw_data));
   navigation->SetLoadURLParams(&load_url_params);
   navigation->Start();
 
@@ -914,10 +956,7 @@ TEST_F(NavigationControllerTest, LoadURL_NewPending) {
   EXPECT_EQ(0U, navigation_entry_changed_counter_);
   EXPECT_EQ(0U, navigation_list_pruned_counter_);
 
-  // After the beforeunload but before it commits...
-  navigation->ReadyToCommit();
-
-  // ... Do a new navigation.
+  // After the navigation starts but before it commits, do a new navigation.
   const GURL kNewURL("http://see");
   NavigationSimulator::NavigateAndCommitFromDocument(kNewURL, main_test_rfh());
 
@@ -985,9 +1024,10 @@ TEST_F(NavigationControllerTest, LoadURL_PrivilegedPending) {
   NavigationSimulator::NavigateAndCommitFromBrowser(contents(), kExistingURL1);
   EXPECT_EQ(1U, navigation_entry_committed_counter_);
   navigation_entry_committed_counter_ = 0;
-  EXPECT_EQ(BINDINGS_POLICY_WEB_UI, controller.GetLastCommittedEntry()
-                                        ->GetFrameEntry(root_ftn())
-                                        ->bindings());
+  EXPECT_EQ(BindingsPolicySet({BindingsPolicyValue::kWebUi}),
+            controller.GetLastCommittedEntry()
+                ->GetFrameEntry(root_ftn())
+                ->bindings());
   // Simulate a user gesture so that the above entry is not marked to be skipped
   // on back.
   main_test_rfh()->frame_tree_node()->UpdateUserActivationState(
@@ -999,21 +1039,22 @@ TEST_F(NavigationControllerTest, LoadURL_PrivilegedPending) {
   NavigationSimulator::NavigateAndCommitFromBrowser(contents(), kExistingURL2);
   EXPECT_EQ(1U, navigation_entry_committed_counter_);
   navigation_entry_committed_counter_ = 0;
-  EXPECT_EQ(0, controller.GetLastCommittedEntry()
-                   ->GetFrameEntry(root_ftn())
-                   ->bindings());
+  EXPECT_TRUE(controller.GetLastCommittedEntry()
+                  ->GetFrameEntry(root_ftn())
+                  ->bindings()
+                  ->empty());
 
   // Now make a pending back/forward navigation to a privileged entry.
   // The zeroth entry should be pending.
   auto back_navigation = NavigationSimulator::CreateHistoryNavigation(
       -1, contents(), false /* is_renderer_initiated */);
-  back_navigation->ReadyToCommit();
+  back_navigation->Start();
   EXPECT_EQ(0U, navigation_entry_changed_counter_);
   EXPECT_EQ(0U, navigation_list_pruned_counter_);
   EXPECT_EQ(0, controller.GetPendingEntryIndex());
   EXPECT_EQ(1, controller.GetLastCommittedEntryIndex());
   EXPECT_EQ(
-      BINDINGS_POLICY_WEB_UI,
+      BindingsPolicySet({BindingsPolicyValue::kWebUi}),
       controller.GetPendingEntry()->GetFrameEntry(root_ftn())->bindings());
 
   // Before that commits, do a new navigation.
@@ -1027,9 +1068,10 @@ TEST_F(NavigationControllerTest, LoadURL_PrivilegedPending) {
   EXPECT_EQ(-1, controller.GetPendingEntryIndex());
   EXPECT_EQ(2, controller.GetLastCommittedEntryIndex());
   EXPECT_EQ(kNewURL, controller.GetVisibleEntry()->GetURL());
-  EXPECT_EQ(0, controller.GetLastCommittedEntry()
-                   ->GetFrameEntry(root_ftn())
-                   ->bindings());
+  EXPECT_TRUE(controller.GetLastCommittedEntry()
+                  ->GetFrameEntry(root_ftn())
+                  ->bindings()
+                  ->empty());
 }
 
 // Tests navigating to an existing URL when there is a pending new navigation.
@@ -1269,6 +1311,8 @@ TEST_F(NavigationControllerTest, Reload) {
   EXPECT_TRUE(controller.GetPendingEntry());
   EXPECT_FALSE(controller.CanGoBack());
   EXPECT_FALSE(controller.CanGoForward());
+  // So no committed reload in RFH yet.
+  EXPECT_EQ(ReloadType::NONE, main_test_rfh()->reload_type());
 
   navigation->Commit();
   EXPECT_EQ(1U, navigation_entry_committed_counter_);
@@ -1282,6 +1326,7 @@ TEST_F(NavigationControllerTest, Reload) {
   EXPECT_FALSE(controller.GetPendingEntry());
   EXPECT_FALSE(controller.CanGoBack());
   EXPECT_FALSE(controller.CanGoForward());
+  EXPECT_EQ(ReloadType::NORMAL, main_test_rfh()->reload_type());
 
   // The timestamp should have been updated.
   ASSERT_TRUE(controller.GetVisibleEntry());
@@ -1374,6 +1419,7 @@ TEST_F(NavigationControllerTest, ReloadOriginalRequestURL) {
   navigation->Commit();
   EXPECT_EQ(1U, navigation_entry_committed_counter_);
   navigation_entry_committed_counter_ = 0;
+  EXPECT_EQ(ReloadType::NONE, main_test_rfh()->reload_type());
 
   // The NavigationEntry should save both the original URL and the final
   // redirected URL.
@@ -1382,15 +1428,16 @@ TEST_F(NavigationControllerTest, ReloadOriginalRequestURL) {
   EXPECT_EQ(final_url, controller.GetVisibleEntry()->GetURL());
 
   // Reload using the original URL.
-  controller.Reload(ReloadType::ORIGINAL_REQUEST_URL, false);
+  controller.LoadOriginalRequestURL();
   EXPECT_EQ(0U, navigation_entry_changed_counter_);
   EXPECT_EQ(0U, navigation_list_pruned_counter_);
 
-  // The reload is pending. The request should point to the original URL.
+  // The reload is pending as a new pending entry with replacement. The request
+  // should point to the original URL.
   EXPECT_EQ(original_url, navigated_url());
   EXPECT_EQ(controller.GetEntryCount(), 1);
   EXPECT_EQ(controller.GetLastCommittedEntryIndex(), 0);
-  EXPECT_EQ(controller.GetPendingEntryIndex(), 0);
+  EXPECT_EQ(controller.GetPendingEntryIndex(), -1);
   EXPECT_TRUE(controller.GetLastCommittedEntry());
   EXPECT_TRUE(controller.GetPendingEntry());
   EXPECT_FALSE(controller.CanGoBack());
@@ -1412,6 +1459,7 @@ TEST_F(NavigationControllerTest, ReloadOriginalRequestURL) {
   EXPECT_FALSE(controller.GetPendingEntry());
   EXPECT_FALSE(controller.CanGoBack());
   EXPECT_FALSE(controller.CanGoForward());
+  EXPECT_EQ(ReloadType::NONE, main_test_rfh()->reload_type());
 }
 
 // Test that certain non-persisted NavigationEntryImpl values get reset after
@@ -1432,13 +1480,13 @@ TEST_F(NavigationControllerTest, ResetEntryValuesAfterCommit) {
   navigation->Start();
 
   // Set up some sample values.
-  const char* raw_data = "post\n\n\0data";
-  const int length = 11;
+  const char raw_data[] = "post\n\n\0data";
 
   // Set non-persisted values on the pending entry.
   NavigationEntryImpl* pending_entry = controller.GetPendingEntry();
   pending_entry->SetPostData(
-      network::ResourceRequestBody::CreateFromBytes(raw_data, length));
+      network::ResourceRequestBody::CreateFromCopyOfBytes(
+          base::byte_span_from_cstring(raw_data)));
   pending_entry->set_is_renderer_initiated(true);
   pending_entry->set_should_clear_history_list(true);
   EXPECT_TRUE(pending_entry->GetPostData());
@@ -1514,7 +1562,7 @@ TEST_F(NavigationControllerTest, GoBackWithUserAgentOverrideChange) {
   // Simulate the behavior of "Request Desktop Site" being checked in
   // NavigationControllerAndroid::SetUseDesktopUserAgent.
   controller.GetVisibleEntry()->SetIsOverridingUserAgent(true);
-  controller.Reload(ReloadType::ORIGINAL_REQUEST_URL, true);
+  controller.LoadOriginalRequestURL();
   auto reload =
       NavigationSimulator::CreateFromPending(contents()->GetController());
   reload->Commit();
@@ -1532,6 +1580,7 @@ TEST_F(NavigationControllerTest, GoBackWithUserAgentOverrideChange) {
   back_navigation->Commit();
 
   EXPECT_EQ(1, change_counter);
+  contents()->set_web_preferences_changed_counter(nullptr);
 }
 
 // Tests what happens when we navigate back successfully
@@ -1871,7 +1920,7 @@ TEST_F(NavigationControllerTest,
   // Before it can commit, start loading a different page...
   auto navigation2 =
       NavigationSimulator::CreateBrowserInitiated(url2, contents());
-  navigation2->ReadyToCommit();
+  navigation2->Start();
   int entry_id2 = controller.GetPendingEntry()->GetUniqueID();
   EXPECT_NE(entry_id1, entry_id2);
 
@@ -2382,16 +2431,15 @@ TEST_F(NavigationControllerTest, RestoreNavigate) {
   std::unique_ptr<NavigationEntryImpl> entry =
       NavigationEntryImpl::FromNavigationEntry(
           NavigationController::CreateNavigationEntry(
-              url, Referrer(), /* initiator_origin= */ absl::nullopt,
-              /* initiator_base_url= */ absl::nullopt,
+              url, Referrer(), /* initiator_origin= */ std::nullopt,
+              /* initiator_base_url= */ std::nullopt,
               ui::PAGE_TRANSITION_RELOAD, false, std::string(),
               browser_context(), nullptr /* blob_url_loader_factory */));
   entry->SetTitle(u"Title");
   const base::Time timestamp = base::Time::Now();
   entry->SetTimestamp(timestamp);
-  std::unique_ptr<NavigationEntryRestoreContextImpl> context =
-      std::make_unique<NavigationEntryRestoreContextImpl>();
-  entry->SetPageState(blink::PageState::CreateFromURL(url), context.get());
+  NavigationEntryRestoreContextImpl context;
+  entry->SetPageState(blink::PageState::CreateFromURL(url), &context);
   entries.push_back(std::move(entry));
 
   std::unique_ptr<WebContents> our_contents =
@@ -2430,16 +2478,16 @@ TEST_F(NavigationControllerTest, RestoreNavigate) {
   EXPECT_EQ(1, our_controller.GetEntryCount());
   EXPECT_EQ(0, our_controller.GetLastCommittedEntryIndex());
   EXPECT_FALSE(our_controller.GetPendingEntry());
-  if (AreDefaultSiteInstancesEnabled()) {
+  if (AreStrictSiteInstancesEnabled()) {
+    EXPECT_EQ(
+        url,
+        our_controller.GetLastCommittedEntry()->site_instance()->GetSiteURL());
+  } else {
     // Verify we get the default SiteInstance since |url| does not require a
     // dedicated process.
     EXPECT_TRUE(our_controller.GetLastCommittedEntry()
                     ->site_instance()
                     ->IsDefaultSiteInstance());
-  } else {
-    EXPECT_EQ(
-        url,
-        our_controller.GetLastCommittedEntry()->site_instance()->GetSiteURL());
   }
   EXPECT_EQ(RestoreType::kNotRestored,
             our_controller.GetEntryAtIndex(0)->restore_type());
@@ -2457,14 +2505,13 @@ TEST_F(NavigationControllerTest, RestoreNavigateAfterFailure) {
   std::unique_ptr<NavigationEntryImpl> new_entry =
       NavigationEntryImpl::FromNavigationEntry(
           NavigationController::CreateNavigationEntry(
-              url, Referrer(), /* initiator_origin= */ absl::nullopt,
-              /* initiator_base_url= */ absl::nullopt,
+              url, Referrer(), /* initiator_origin= */ std::nullopt,
+              /* initiator_base_url= */ std::nullopt,
               ui::PAGE_TRANSITION_RELOAD, false, std::string(),
               browser_context(), nullptr /* blob_url_loader_factory */));
   new_entry->SetTitle(u"Title");
-  std::unique_ptr<NavigationEntryRestoreContextImpl> context =
-      std::make_unique<NavigationEntryRestoreContextImpl>();
-  new_entry->SetPageState(blink::PageState::CreateFromURL(url), context.get());
+  NavigationEntryRestoreContextImpl context;
+  new_entry->SetPageState(blink::PageState::CreateFromURL(url), &context);
   entries.push_back(std::move(new_entry));
 
   std::unique_ptr<WebContents> our_contents =
@@ -2506,16 +2553,16 @@ TEST_F(NavigationControllerTest, RestoreNavigateAfterFailure) {
   EXPECT_EQ(1, our_controller.GetEntryCount());
   EXPECT_EQ(0, our_controller.GetLastCommittedEntryIndex());
   EXPECT_FALSE(our_controller.GetPendingEntry());
-  if (AreDefaultSiteInstancesEnabled()) {
+  if (AreStrictSiteInstancesEnabled()) {
+    EXPECT_EQ(
+        url,
+        our_controller.GetLastCommittedEntry()->site_instance()->GetSiteURL());
+  } else {
     // Verify we get the default SiteInstance since |url| does not require a
     // dedicated process.
     EXPECT_TRUE(our_controller.GetLastCommittedEntry()
                     ->site_instance()
                     ->IsDefaultSiteInstance());
-  } else {
-    EXPECT_EQ(
-        url,
-        our_controller.GetLastCommittedEntry()->site_instance()->GetSiteURL());
   }
   EXPECT_EQ(RestoreType::kNotRestored,
             our_controller.GetEntryAtIndex(0)->restore_type());
@@ -2763,7 +2810,8 @@ TEST_F(NavigationControllerTest, ShowBrowserURLAfterFailUntilModified) {
   // Suppose it aborts before committing, if it's a 204 or download or due to a
   // stop or a new navigation from the user.  The URL should remain visible.
   main_test_rfh()->frame_tree_node()->navigator().CancelNavigation(
-      main_test_rfh()->frame_tree_node(), NavigationDiscardReason::kCancelled);
+      main_test_rfh()->frame_tree_node(),
+      NavigationDiscardReason::kExplicitCancellation);
   EXPECT_EQ(url, controller.GetVisibleEntry()->GetURL());
 
   // If something else later modifies the contents of the about:blank page, then
@@ -3175,271 +3223,6 @@ TEST_F(NavigationControllerTest, CopyStateFrom) {
   }
 }
 
-// Tests CopyStateFromAndPrune with 2 urls in source, 1 in dest.
-TEST_F(NavigationControllerTest, CopyStateFromAndPrune) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo/1");
-  const GURL url2("http://foo/2");
-  const GURL url3("http://foo/3");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-
-  SiteInstance* instance1 = controller.GetEntryAtIndex(0)->site_instance();
-  SiteInstance* instance2 = controller.GetEntryAtIndex(1)->site_instance();
-  if (CanSameSiteMainFrameNavigationsChangeSiteInstances()) {
-    // If ProactivelySwapBrowsingInstance is enabled for same-site navigations,
-    // the same-site navigation from |url1| to |url2| should use different
-    // SiteInstances.
-    EXPECT_NE(instance1, instance2);
-  } else {
-    // Otherwise, the first two entries should have the same SiteInstance.
-    EXPECT_EQ(instance1, instance2);
-  }
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain the 3 urls: url1, url2 and url3.
-
-  ASSERT_EQ(3, other_controller.GetEntryCount());
-
-  ASSERT_EQ(2, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url2, other_controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(2)->GetURL());
-
-  // A new SiteInstance in a different BrowsingInstance should be used for the
-  // new tab.
-  SiteInstance* instance3 =
-      other_controller.GetEntryAtIndex(2)->site_instance();
-  EXPECT_NE(instance3, instance1);
-  EXPECT_FALSE(instance3->IsRelatedSiteInstance(instance1));
-}
-
-// Test CopyStateFromAndPrune with 2 urls, the first selected and 1 entry in
-// the target.
-TEST_F(NavigationControllerTest, CopyStateFromAndPrune2) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo1");
-  const GURL url2("http://foo2");
-  const GURL url3("http://foo3");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-  controller.GoBack();
-  contents()->CommitPendingNavigation();
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(1, 2));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain: url1, url3
-
-  ASSERT_EQ(2, other_controller.GetEntryCount());
-  ASSERT_EQ(1, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(1)->GetURL());
-}
-
-// Test CopyStateFromAndPrune with 2 urls, the last selected and 2 entries in
-// the target.
-TEST_F(NavigationControllerTest, CopyStateFromAndPrune3) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo1");
-  const GURL url2("http://foo2");
-  const GURL url3("http://foo3");
-  const GURL url4("http://foo4");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  other_contents->NavigateAndCommit(url4);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain: url1, url2, url4
-
-  ASSERT_EQ(3, other_controller.GetEntryCount());
-  ASSERT_EQ(2, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url2, other_controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(url4, other_controller.GetEntryAtIndex(2)->GetURL());
-}
-
-// Test CopyStateFromAndPrune with 2 urls, 2 entries in the target, with
-// not the last entry selected in the target.
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneNotLast) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo1");
-  const GURL url2("http://foo2");
-  const GURL url3("http://foo3");
-  const GURL url4("http://foo4");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  other_contents->NavigateAndCommit(url4);
-  other_controller.GoBack();
-  other_contents->CommitPendingNavigation();
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain: url1, url2, url3
-
-  ASSERT_EQ(3, other_controller.GetEntryCount());
-  ASSERT_EQ(2, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url2, other_controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(2)->GetURL());
-}
-
-// Test CopyStateFromAndPrune with 2 urls, the first selected and 1 entry plus
-// a pending entry in the target.
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneTargetPending) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo1");
-  const GURL url2("http://foo2");
-  const GURL url3("http://foo3");
-  const GURL url4("http://foo4");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-  controller.GoBack();
-  contents()->CommitPendingNavigation();
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  other_controller.LoadURL(url4, Referrer(), ui::PAGE_TRANSITION_TYPED,
-                           std::string());
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(1, 2));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain url1, url3, and a pending entry
-  // for url4.
-
-  ASSERT_EQ(2, other_controller.GetEntryCount());
-  EXPECT_EQ(1, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(1)->GetURL());
-
-  // And there should be a pending entry for url4.
-  ASSERT_TRUE(other_controller.GetPendingEntry());
-  EXPECT_EQ(url4, other_controller.GetPendingEntry()->GetURL());
-}
-
-// Test CopyStateFromAndPrune with 1 url in the source, 1 entry and a pending
-// client redirect entry in the target.  This used to crash
-// (http://crbug.com/234809).
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneTargetPending2) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo1");
-  const GURL url2a("http://foo2/a");
-  const GURL url2b("http://foo2/b");
-
-  NavigateAndCommit(url1);
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url2a);
-  // Simulate a client redirect, which has the same page ID as entry 2a.
-  other_controller.LoadURL(url2b, Referrer(), ui::PAGE_TRANSITION_LINK,
-                           std::string());
-
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(1, 2));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain url1, url2a, and a pending entry
-  // for url2b.
-
-  ASSERT_EQ(2, other_controller.GetEntryCount());
-  EXPECT_EQ(1, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url2a, other_controller.GetEntryAtIndex(1)->GetURL());
-
-  // And there should be a pending entry for url4.
-  ASSERT_TRUE(other_controller.GetPendingEntry());
-  EXPECT_EQ(url2b, other_controller.GetPendingEntry()->GetURL());
-
-  // Let the pending entry commit.
-  other_contents->GetPrimaryMainFrame()->SendNavigateWithTransition(
-      0, false, url2b, ui::PAGE_TRANSITION_LINK);
-}
-
-// Test CopyStateFromAndPrune with 2 urls, a back navigation pending in the
-// source, and 1 entry in the target. The back pending entry should be ignored.
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneSourcePending) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo1");
-  const GURL url2("http://foo2");
-  const GURL url3("http://foo3");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-  controller.GoBack();
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // other_controller should now contain: url1, url2, url3
-
-  ASSERT_EQ(3, other_controller.GetEntryCount());
-  ASSERT_EQ(2, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url2, other_controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(2)->GetURL());
-}
-
 // Tests DeleteNavigationEntries.
 TEST_F(NavigationControllerTest, DeleteNavigationEntries) {
   NavigationControllerImpl& controller = controller_impl();
@@ -3468,7 +3251,7 @@ TEST_F(NavigationControllerTest, DeleteNavigationEntries) {
     testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
     contents()->GetRenderViewHost()->BindPageBroadcast(
         mock_page_broadcast.GetRemote());
-    EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
+    EXPECT_CALL(mock_page_broadcast, SetHistoryIndexAndLength(2, 3));
     controller.DeleteNavigationEntries(
         base::BindLambdaForTesting([&](content::NavigationEntry* entry) {
           return entry->GetURL() == url2 || entry->GetURL() == url4;
@@ -3487,7 +3270,7 @@ TEST_F(NavigationControllerTest, DeleteNavigationEntries) {
     testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
     contents()->GetRenderViewHost()->BindPageBroadcast(
         mock_page_broadcast.GetRemote());
-    EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(0, 1));
+    EXPECT_CALL(mock_page_broadcast, SetHistoryIndexAndLength(0, 1));
     controller.DeleteNavigationEntries(base::BindRepeating(
         [](content::NavigationEntry* entry) { return true; }));
     EXPECT_EQ(2U, navigation_entries_deleted_counter_);
@@ -3499,211 +3282,6 @@ TEST_F(NavigationControllerTest, DeleteNavigationEntries) {
 
   // No pruned notifications should be send.
   EXPECT_EQ(0U, navigation_list_pruned_counter_);
-}
-
-// Tests CopyStateFromAndPrune with 3 urls in source, 1 in dest,
-// when the max entry count is 3.  We should prune one entry.
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneMaxEntries) {
-  NavigationControllerImpl& controller = controller_impl();
-  size_t original_count = NavigationControllerImpl::max_entry_count();
-  const int kMaxEntryCount = 3;
-
-  NavigationControllerImpl::set_max_entry_count_for_testing(kMaxEntryCount);
-
-  const GURL url1("http://foo/1");
-  const GURL url2("http://foo/2");
-  const GURL url3("http://foo/3");
-  const GURL url4("http://foo/4");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-  NavigateAndCommit(url3);
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url4);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-  other_controller.CopyStateFromAndPrune(&controller, false);
-
-  // We should have received a pruned notification.
-  EXPECT_EQ(1U, navigation_list_pruned_counter_);
-  EXPECT_EQ(0, last_navigation_entry_pruned_details_.index);
-  EXPECT_EQ(1, last_navigation_entry_pruned_details_.count);
-
-  // other_controller should now contain only 3 urls: url2, url3 and url4.
-
-  ASSERT_EQ(3, other_controller.GetEntryCount());
-
-  ASSERT_EQ(2, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url2, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(url4, other_controller.GetEntryAtIndex(2)->GetURL());
-
-  NavigationControllerImpl::set_max_entry_count_for_testing(original_count);
-}
-
-// Tests CopyStateFromAndPrune with 2 urls in source, 1 in dest, with
-// replace_entry set to true.
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneReplaceEntry) {
-  NavigationControllerImpl& controller = controller_impl();
-  const GURL url1("http://foo/1");
-  const GURL url2("http://foo/2");
-  const GURL url3("http://foo/3");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-
-  SiteInstance* instance1 = controller.GetEntryAtIndex(0)->site_instance();
-  SiteInstance* instance2 = controller.GetEntryAtIndex(1)->site_instance();
-  if (CanSameSiteMainFrameNavigationsChangeSiteInstances()) {
-    // If ProactivelySwapBrowsingInstance is enabled for same-site navigations,
-    // the same-site navigation from |url1| to |url2| should use different
-    // SiteInstances.
-    EXPECT_NE(instance1, instance2);
-  } else {
-    // Otherwise, the first two entries should have the same SiteInstance.
-    EXPECT_EQ(instance1, instance2);
-  }
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url3);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(1, 2));
-  other_controller.CopyStateFromAndPrune(&controller, true);
-
-  // other_controller should now contain the 2 urls: url1 and url3.
-
-  ASSERT_EQ(2, other_controller.GetEntryCount());
-
-  ASSERT_EQ(1, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url3, other_controller.GetEntryAtIndex(1)->GetURL());
-
-  // A new SiteInstance in a different BrowsingInstance should be used for the
-  // new tab.
-  SiteInstance* instance3 =
-      other_controller.GetEntryAtIndex(1)->site_instance();
-  EXPECT_NE(instance3, instance1);
-  EXPECT_FALSE(instance3->IsRelatedSiteInstance(instance1));
-}
-
-// Tests CopyStateFromAndPrune with 3 urls in source, 1 in dest, when the max
-// entry count is 3 and replace_entry is true.  We should not prune entries.
-TEST_F(NavigationControllerTest, CopyStateFromAndPruneMaxEntriesReplaceEntry) {
-  NavigationControllerImpl& controller = controller_impl();
-  size_t original_count = NavigationControllerImpl::max_entry_count();
-  const int kMaxEntryCount = 3;
-
-  NavigationControllerImpl::set_max_entry_count_for_testing(kMaxEntryCount);
-
-  const GURL url1("http://foo/1");
-  const GURL url2("http://foo/2");
-  const GURL url3("http://foo/3");
-  const GURL url4("http://foo/4");
-
-  NavigateAndCommit(url1);
-  NavigateAndCommit(url2);
-  NavigateAndCommit(url3);
-
-  std::unique_ptr<TestWebContents> other_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& other_controller = other_contents->GetController();
-  other_contents->NavigateAndCommit(url4);
-  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-  other_contents->GetRenderViewHost()->BindPageBroadcast(
-      mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-  other_controller.CopyStateFromAndPrune(&controller, true);
-
-  // We should have received no pruned notification.
-  EXPECT_EQ(0U, navigation_list_pruned_counter_);
-
-  // other_controller should now contain only 3 urls: url1, url2 and url4.
-
-  ASSERT_EQ(3, other_controller.GetEntryCount());
-
-  ASSERT_EQ(2, other_controller.GetCurrentEntryIndex());
-
-  EXPECT_EQ(url1, other_controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(url2, other_controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(url4, other_controller.GetEntryAtIndex(2)->GetURL());
-
-  NavigationControllerImpl::set_max_entry_count_for_testing(original_count);
-}
-
-// Tests that we can navigate to the restored entries
-// imported by CopyStateFromAndPrune.
-TEST_F(NavigationControllerTest, CopyRestoredStateAndNavigate) {
-  const GURL kRestoredUrls[] = {
-      GURL("http://site1.com"),
-      GURL("http://site2.com"),
-  };
-  const GURL kInitialUrl("http://site3.com");
-
-  std::unique_ptr<NavigationEntryRestoreContextImpl> context =
-      std::make_unique<NavigationEntryRestoreContextImpl>();
-  std::vector<std::unique_ptr<NavigationEntry>> entries;
-  for (const GURL& restoredUrl : kRestoredUrls) {
-    std::unique_ptr<NavigationEntryImpl> entry =
-        NavigationEntryImpl::FromNavigationEntry(
-            NavigationController::CreateNavigationEntry(
-                restoredUrl, Referrer(), absl::nullopt /* initiator_origin= */,
-                /* initiator_base_url= */ absl::nullopt,
-                ui::PAGE_TRANSITION_RELOAD, false, std::string(),
-                browser_context(), nullptr /* blob_url_loader_factory */));
-    entry->SetPageState(blink::PageState::CreateFromURL(restoredUrl),
-                        context.get());
-    entries.push_back(std::move(entry));
-  }
-
-  // Create a WebContents with restored entries.
-  std::unique_ptr<TestWebContents> source_contents(
-      static_cast<TestWebContents*>(CreateTestWebContents().release()));
-  NavigationControllerImpl& source_controller =
-      source_contents->GetController();
-  source_controller.Restore(entries.size() - 1, RestoreType::kRestored,
-                            &entries);
-  ASSERT_EQ(0u, entries.size());
-  source_controller.LoadIfNecessary();
-  source_contents->CommitPendingNavigation();
-
-  // Load a page, then copy state from |source_contents|.
-  {
-    NavigateAndCommit(kInitialUrl);
-    testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
-    contents()->GetRenderViewHost()->BindPageBroadcast(
-        mock_page_broadcast.GetRemote());
-    EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(2, 3));
-    controller_impl().CopyStateFromAndPrune(&source_controller, false);
-    ASSERT_EQ(3, controller_impl().GetEntryCount());
-  }
-
-  // Go back to the first entry one at a time and
-  // verify that it works as expected.
-  EXPECT_EQ(2, controller_impl().GetCurrentEntryIndex());
-  EXPECT_EQ(kInitialUrl, controller_impl().GetLastCommittedEntry()->GetURL());
-
-  controller_impl().GoBack();
-  contents()->CommitPendingNavigation();
-  EXPECT_EQ(1, controller_impl().GetCurrentEntryIndex());
-  EXPECT_EQ(kRestoredUrls[1],
-            controller_impl().GetLastCommittedEntry()->GetURL());
-
-  controller_impl().GoBack();
-  contents()->CommitPendingNavigation();
-  EXPECT_EQ(0, controller_impl().GetCurrentEntryIndex());
-  EXPECT_EQ(kRestoredUrls[0],
-            controller_impl().GetLastCommittedEntry()->GetURL());
 }
 
 // Tests that navigations initiated from the page (with the history object)
@@ -3722,7 +3300,7 @@ TEST_F(NavigationControllerTest, HistoryNavigate) {
   process()->sink().ClearMessages();
 
   // Simulate the page calling history.back(). It should create a pending entry.
-  main_test_rfh()->GoToEntryAtOffset(-1, false, absl::nullopt);
+  main_test_rfh()->GoToEntryAtOffset(-1, false, std::nullopt);
   EXPECT_EQ(0, controller.GetPendingEntryIndex());
 
   // Also make sure we told the page to navigate.
@@ -3732,7 +3310,7 @@ TEST_F(NavigationControllerTest, HistoryNavigate) {
   process()->sink().ClearMessages();
 
   // Now test history.forward()
-  main_test_rfh()->GoToEntryAtOffset(2, false, absl::nullopt);
+  main_test_rfh()->GoToEntryAtOffset(2, false, std::nullopt);
   EXPECT_EQ(2, controller.GetPendingEntryIndex());
 
   nav_url = GetLastNavigationURL();
@@ -3744,9 +3322,9 @@ TEST_F(NavigationControllerTest, HistoryNavigate) {
 
   // Make sure an extravagant history.go() doesn't break.
   main_test_rfh()->GoToEntryAtOffset(120, false,
-                                     absl::nullopt);  // Out of bounds.
+                                     std::nullopt);  // Out of bounds.
   EXPECT_EQ(-1, controller.GetPendingEntryIndex());
-  // TODO(https://crbug.com/1232883): Figure out why HasNavigationRequest() is
+  // TODO(crbug.com/40780539): Figure out why HasNavigationRequest() is
   // true when back/forward cache is enabled.
   EXPECT_EQ(IsBackForwardCacheEnabled(), HasNavigationRequest());
 }
@@ -3760,7 +3338,7 @@ TEST_F(NavigationControllerTest, PruneAllButLastCommittedForSingle) {
   testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
   contents()->GetRenderViewHost()->BindPageBroadcast(
       mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(0, 1));
+  EXPECT_CALL(mock_page_broadcast, SetHistoryIndexAndLength(0, 1));
   controller.PruneAllButLastCommitted();
 
   EXPECT_EQ(-1, controller.GetPendingEntryIndex());
@@ -3773,7 +3351,7 @@ TEST_F(NavigationControllerTest, PruneAllButLastCommittedForFirst) {
     // The PruneAllButLastCommitted() call below currently DCHECKS on the
     // linux-bfcache-rel bot with back/forward cache enabled because
     // CanPruneAllButLastCommitted() returns false, so just return early here.
-    // TODO(https://crbug.com/1232883): Figure out why the DCHECK happened and
+    // TODO(crbug.com/40780539): Figure out why the DCHECK happened and
     // re-enable this test.
     return;
   }
@@ -3793,7 +3371,7 @@ TEST_F(NavigationControllerTest, PruneAllButLastCommittedForFirst) {
   testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
   contents()->GetRenderViewHost()->BindPageBroadcast(
       mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(0, 1));
+  EXPECT_CALL(mock_page_broadcast, SetHistoryIndexAndLength(0, 1));
 
   controller.PruneAllButLastCommitted();
 
@@ -3817,7 +3395,7 @@ TEST_F(NavigationControllerTest, PruneAllButLastCommittedForIntermediate) {
   testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
   contents()->GetRenderViewHost()->BindPageBroadcast(
       mock_page_broadcast.GetRemote());
-  EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(0, 1));
+  EXPECT_CALL(mock_page_broadcast, SetHistoryIndexAndLength(0, 1));
 
   controller.PruneAllButLastCommitted();
 
@@ -3845,13 +3423,13 @@ TEST_F(NavigationControllerTest, PruneAllButLastCommittedForPendingNotInList) {
 
   {
     // Ensure that the PruneAllButLastCommitted() call will result in a
-    // SetHistoryOffsetAndLength() call. We put this into its own scope so that
+    // SetHistoryIndexAndLength() call. We put this into its own scope so that
     // other PageBroadcast calls (e.g. SetPageLifecycleState()) won't go through
     // the mock.
     testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
     contents()->GetRenderViewHost()->BindPageBroadcast(
         mock_page_broadcast.GetRemote());
-    EXPECT_CALL(mock_page_broadcast, SetHistoryOffsetAndLength(0, 1));
+    EXPECT_CALL(mock_page_broadcast, SetHistoryIndexAndLength(0, 1));
     controller.PruneAllButLastCommitted();
   }
 
@@ -4092,6 +3670,12 @@ TEST_F(NavigationControllerTest, ClearHistoryList) {
 // Tests that if a stale navigation comes back from the renderer, it is properly
 // resurrected.
 TEST_F(NavigationControllerTest, StaleNavigationsResurrected) {
+  if (ShouldQueueNavigationsWhenPendingCommitRFHExists()) {
+    GTEST_SKIP() << "When navigation queueing is enabled, there will be no "
+                    "stale navigations, as newer navigations will wait for "
+                    "pending commit navigations to finish";
+  }
+
   NavigationControllerImpl& controller = controller_impl();
   // When back/forward cache is enabled, the ReadyToCommit() call for the
   // forward navigation to B will commit the navigation immediately, making the
@@ -4099,7 +3683,6 @@ TEST_F(NavigationControllerTest, StaleNavigationsResurrected) {
   // to ensure that it doesn't get preserved in the cache.
   DisableBackForwardCacheForTesting(RenderViewHostTestHarness::web_contents(),
                                     BackForwardCache::TEST_REQUIRES_NO_CACHING);
-
   // Start on page A.
   const GURL url_a("http://foo.com/a");
   NavigationSimulator::NavigateAndCommitFromDocument(url_a, main_test_rfh());
@@ -4175,6 +3758,7 @@ TEST_F(NavigationControllerTest, MultipleNavigationsAndReload) {
   EXPECT_EQ(initial_url, controller.GetVisibleEntry()->GetURL());
   navigation1->Commit();
   EXPECT_EQ(ReloadType::NONE, last_reload_type_);
+  EXPECT_EQ(ReloadType::NONE, main_test_rfh()->reload_type());
 
   // Test 2.
   // A navigation to initial_url with the navigation commit delayed should be
@@ -4208,6 +3792,7 @@ TEST_F(NavigationControllerTest, MultipleNavigationsAndReload) {
   EXPECT_EQ(ReloadType::NONE, last_reload_type_);
 
   navigation2->Commit();
+  EXPECT_EQ(ReloadType::NORMAL, main_test_rfh()->reload_type());  // from nav2.
 
   // Test 5
   // A navigation to url_2 followed by a navigation to the previously pending
@@ -4226,6 +3811,7 @@ TEST_F(NavigationControllerTest, MultipleNavigationsAndReload) {
   EXPECT_EQ(url_1, controller.GetVisibleEntry()->GetURL());
   EXPECT_EQ(ReloadType::NONE, last_reload_type_);
   navigation6->Commit();
+  EXPECT_EQ(ReloadType::NONE, main_test_rfh()->reload_type());
 }
 
 // Tests that NavigationUIData has been passed to the NavigationHandle.
@@ -4258,6 +3844,7 @@ TEST_F(NavigationControllerTest, MainFrameNavigationReloadType) {
 
   EXPECT_TRUE(observer.is_main_frame());
   EXPECT_EQ(observer.reload_type(), ReloadType::BYPASSING_CACHE);
+  EXPECT_EQ(ReloadType::BYPASSING_CACHE, main_test_rfh()->reload_type());
 }
 
 // Tests calling LoadURLParams with NavigationUIData and for a sub frame.
@@ -4292,11 +3879,12 @@ TEST_F(NavigationControllerTest, SubFrameNavigationUIData) {
   LoadCommittedDetailsObserver observer(contents());
 
   // Navigate sub frame.
-  auto navigation =
-      NavigationSimulatorImpl::CreateBrowserInitiated(url1, contents());
   NavigationController::LoadURLParams load_url_params(url1);
   load_url_params.navigation_ui_data = std::make_unique<TestNavigationUIData>();
   load_url_params.frame_tree_node_id = subframe->GetFrameTreeNodeId();
+
+  auto navigation =
+      NavigationSimulatorImpl::CreateBrowserInitiated(url1, contents());
   navigation->SetLoadURLParams(&load_url_params);
 
   // We DCHECK to prevent misuse of the API.
@@ -4335,15 +3923,16 @@ TEST_F(NavigationControllerTest, NoURLRewriteForSubframes) {
       subframe_node->current_frame_host(), kSrcDoc,
       nullptr /* initiator_frame_token */,
       ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
-      url::Origin::Create(kUrl2), /* initiator_base_url= */ absl::nullopt,
+      url::Origin::Create(kUrl2), /* initiator_base_url= */ std::nullopt,
       true /* is_renderer_initiated */, main_test_rfh()->GetSiteInstance(),
       Referrer(), ui::PAGE_TRANSITION_LINK,
       false /* should_replace_current_entry */,
       blink::NavigationDownloadPolicy(), "GET", nullptr, "",
       network::mojom::SourceLocation::New(), nullptr,
-      false /*is_form_submission*/, absl::nullopt,
+      false /*is_form_submission*/, std::nullopt,
       blink::mojom::NavigationInitiatorActivationAndAdStatus::
           kDidNotStartWithTransientActivation,
+      base::TimeTicks::Now() /* actual_navigation_start_time */,
       base::TimeTicks::Now() /* navigation_start_time */);
 
   // Clean up the handler.
@@ -4380,14 +3969,15 @@ TEST_F(NavigationControllerTest,
   other_controller.NavigateFromFrameProxy(
       frame, other_contents_url, nullptr /* initiator_frame_token */,
       ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
-      url::Origin::Create(main_url), /* initiator_base_url= */ absl::nullopt,
+      url::Origin::Create(main_url), /* initiator_base_url= */ std::nullopt,
       true /* is_renderer_initiated */, main_test_rfh()->GetSiteInstance(),
       Referrer(), ui::PAGE_TRANSITION_LINK, should_replace_current_entry,
       blink::NavigationDownloadPolicy(), "GET", nullptr, "",
       network::mojom::SourceLocation::New(), nullptr,
-      false /*is_form_submission*/, absl::nullopt,
+      false /*is_form_submission*/, std::nullopt,
       blink::mojom::NavigationInitiatorActivationAndAdStatus::
           kDidNotStartWithTransientActivation,
+      base::TimeTicks::Now() /* actual_navigation_start_time */,
       base::TimeTicks::Now() /* navigation_start_time */);
   NavigationRequest* request = node->navigation_request();
   ASSERT_TRUE(request);
@@ -4517,7 +4107,8 @@ TEST_F(NavigationControllerTest,
   // NavigateToNavigationApiKey(). No navigation should occur.
   controller.NavigateToNavigationApiKey(
       main_test_rfh(),
-      /*soft_navigation_heuristics_task_id=*/absl::nullopt, first_key);
+      /*soft_navigation_heuristics_task_id=*/std::nullopt, first_key,
+      /*actual_navigation_start=*/base::TimeTicks::Now());
   EXPECT_FALSE(controller.GetPendingEntry());
 }
 
@@ -4553,22 +4144,24 @@ TEST_F(NavigationControllerTest, NavigateToNavigationApiKey_KeyForWrongFrame) {
       main_test_rfh()->frame_tree_node()->child_at(0);
   controller_impl().NavigateToNavigationApiKey(
       subframe_node->current_frame_host(),
-      /*soft_navigation_heuristics_task_id=*/absl::nullopt, first_main_key);
+      /*soft_navigation_heuristics_task_id=*/std::nullopt, first_main_key,
+      /*actual_navigation_start=*/base::TimeTicks::Now());
   EXPECT_FALSE(controller_impl().GetPendingEntry());
 
   // Call NavigateToNavigationApiKey() on the main frame with the key from the
   // main frame. This time a navigation should begin.
   controller_impl().NavigateToNavigationApiKey(
-      main_test_rfh(), /*soft_navigation_heuristics_task_id=*/absl::nullopt,
-      first_main_key);
+      main_test_rfh(), /*soft_navigation_heuristics_task_id=*/std::nullopt,
+      first_main_key, /*actual_navigation_start=*/base::TimeTicks::Now());
   EXPECT_TRUE(controller_impl().GetPendingEntry());
 }
 
 class FakeLocalFrameWithDisposedEntries : public content::FakeLocalFrame {
  public:
   explicit FakeLocalFrameWithDisposedEntries(RenderFrameHost* host) {
-    Init(static_cast<TestRenderFrameHost*>(host)
-             ->GetRemoteAssociatedInterfaces());
+    auto* test_host = static_cast<TestRenderFrameHost*>(host);
+    test_host->ResetLocalFrame();
+    Init(test_host->GetRemoteAssociatedInterfaces());
   }
 
   const std::vector<std::string>& disposed_keys() const {
@@ -4664,6 +4257,53 @@ TEST_F(NavigationControllerTest, NavigationApiDisposedEntries) {
   EXPECT_EQ(main_frame_disposed_keys[0], "3");
 }
 
+// Once instantiated, will insert `mock_page_broadcast` as the PageBroadcast on
+// a newly created RenderViewHost. This is important for listening for the
+// update to a RenderViewHost which was created for a proxy, as it swaps to a
+// local frame in a different browsing context group. Note that this this will
+// only work once, as MockPageBroadcast does not support multiple bindings.
+class PageBroadcastMockInserter : public WebContentsObserver {
+ public:
+  explicit PageBroadcastMockInserter(
+      content::WebContents* web_contents,
+      testing::NiceMock<MockPageBroadcast>* mock_page_broadcast)
+      : WebContentsObserver(web_contents),
+        mock_page_broadcast_(mock_page_broadcast) {}
+
+  void RenderViewHostChanged(RenderViewHost* old_host,
+                             RenderViewHost* new_host) override {
+    static_cast<TestRenderViewHost*>(new_host)->BindPageBroadcast(
+        mock_page_broadcast_->GetRemote());
+  }
+
+ private:
+  raw_ptr<testing::NiceMock<MockPageBroadcast>> mock_page_broadcast_;
+};
+
+// Test that navigations across browsing context groups trigger a page broadcast
+// with up to date browsing context group information.
+TEST_F(NavigationControllerTest, BrowsingContextGroupUpdate) {
+  const GURL url1("http://a/");
+  const GURL url2("chrome://ukm");
+
+  // Start on a first page.
+  NavigateAndCommit(url1);
+  SiteInstanceImpl* initial_instance = main_test_rfh()->GetSiteInstance();
+
+  // Setup the page broadcast expectations. We expect no call to be made, as the
+  // RenderViewHost for B will get its update through the local frame commit.
+  testing::NiceMock<MockPageBroadcast> mock_page_broadcast;
+  EXPECT_CALL(mock_page_broadcast, UpdatePageBrowsingContextGroup(testing::_))
+      .Times(0);
+  PageBroadcastMockInserter mock_inserter(contents(), &mock_page_broadcast);
+
+  // Navigate to a cross browsing context group page. The update function should
+  // not be called.
+  NavigateAndCommit(url2);
+  SiteInstanceImpl* final_instance = main_test_rfh()->GetSiteInstance();
+  EXPECT_FALSE(initial_instance->IsRelatedSiteInstance(final_instance));
+}
+
 class NavigationControllerFencedFrameTest : public NavigationControllerTest {
  public:
   NavigationControllerFencedFrameTest() {
@@ -4715,15 +4355,16 @@ TEST_F(NavigationControllerFencedFrameTest, NoURLRewriteForFencedFrames) {
       fenced_frame_root, GURL(kTestRewriteURL),
       nullptr /* initiator_frame_token */,
       ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
-      url::Origin::Create(kUrl2), /* initiator_base_url= */ absl::nullopt,
+      url::Origin::Create(kUrl2), /* initiator_base_url= */ std::nullopt,
       true /* is_renderer_initiated */, fenced_frame_root->GetSiteInstance(),
       Referrer(), ui::PAGE_TRANSITION_LINK,
       false /* should_replace_current_entry */,
       blink::NavigationDownloadPolicy(), "GET", nullptr, "",
       network::mojom::SourceLocation::New(), nullptr,
-      false /*is_form_submission*/, absl::nullopt,
+      false /*is_form_submission*/, std::nullopt,
       blink::mojom::NavigationInitiatorActivationAndAdStatus::
           kDidNotStartWithTransientActivation,
+      base::TimeTicks::Now() /* actual_navigation_start_time */,
       base::TimeTicks::Now() /* navigation_start_time */);
 
   NavigationRequest* request =

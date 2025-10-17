@@ -5,8 +5,9 @@
 #ifndef ASH_BUBBLE_SIMPLE_GRID_LAYOUT_H_
 #define ASH_BUBBLE_SIMPLE_GRID_LAYOUT_H_
 
+#include <optional>
+
 #include "ash/ash_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/layout/layout_manager_base.h"
 #include "ui/views/layout/proposed_layout.h"
@@ -18,7 +19,9 @@ namespace ash {
 // case difficult. `SimpleGridLayout` assumes all children have identical sizes.
 class ASH_EXPORT SimpleGridLayout : public views::LayoutManagerBase {
  public:
-  SimpleGridLayout(int column_count, int column_spacing, int row_spacing);
+  explicit SimpleGridLayout(int column_count,
+                            std::optional<int> column_spacing = std::nullopt,
+                            std::optional<int> row_spacing = std::nullopt);
   SimpleGridLayout(const SimpleGridLayout&) = delete;
   SimpleGridLayout& operator=(const SimpleGridLayout&) = delete;
   ~SimpleGridLayout() override;
@@ -28,16 +31,26 @@ class ASH_EXPORT SimpleGridLayout : public views::LayoutManagerBase {
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
   void OnLayoutChanged() override;
+  gfx::Size GetPreferredSize(
+      const views::View* host,
+      const views::SizeBounds& available_size) const override;
 
  private:
   gfx::Size GetChildPreferredSize() const;
-  gfx::Size CalculatePreferredSize() const;
+  gfx::Size CalculatePreferredSize(int row_spacing, int column_spacing) const;
 
-  mutable absl::optional<gfx::Size> cached_child_preferred_size_;
+  mutable std::optional<gfx::Size> cached_child_preferred_size_;
 
   const int column_count_;
-  const int column_spacing_;
-  const int row_spacing_;
+
+  // Vertical spacing between grid items. If unset, the items will be
+  // *   spaced out evenly within horizontally bounded bounds
+  // *   spaced out using default, 0 spacing.
+  const std::optional<int> column_spacing_;
+
+  // Horizontal spacing between grid items. If unset, the items will be spaced
+  // out using default, 0 spacing.
+  const std::optional<int> row_spacing_;
 };
 
 }  // namespace ash

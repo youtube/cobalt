@@ -1,24 +1,23 @@
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow DIV class='overlap'",
+      "name": "LayoutBlockFlow DIV class='overlap'",
       "bounds": [300, 500],
       "drawsContent": false,
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV class='item'",
-      "position": [15, 35],
-      "bounds": [100, 210],
-      "contentsOpaqueForText": true,
+      "name": "LayoutBlockFlow (positioned, children-inline) DIV class='item'",
+      "position": [14, 35],
+      "bounds": [101, 210],
       "invalidations": [
-        [0, 80, 40, 40]
+        [0, 80, 39, 40]
       ]
     }
   ],
@@ -37,25 +36,24 @@
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow DIV class='overlap'",
+      "name": "LayoutBlockFlow DIV class='overlap'",
       "bounds": [300, 500],
       "drawsContent": false,
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV class='item'",
-      "position": [15, 35],
-      "bounds": [100, 210],
-      "contentsOpaqueForText": true,
+      "name": "LayoutBlockFlow (positioned, children-inline) DIV class='item'",
+      "position": [14, 35],
+      "bounds": [101, 210],
       "invalidations": [
-        [0, 160, 40, 40],
-        [0, 80, 40, 40]
+        [0, 160, 39, 40],
+        [0, 80, 39, 40]
       ]
     }
   ],

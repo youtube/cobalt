@@ -5,11 +5,12 @@
 #include "chrome/browser/page_load_metrics/observers/core/amp_page_load_metrics_observer.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "components/page_load_metrics/browser/observers/core/largest_contentful_paint_handler.h"
@@ -23,7 +24,6 @@
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 
@@ -35,8 +35,6 @@ const char kHistogramAMPSubframeNavigationToInput[] =
     "Experimental.PageTiming.NavigationToInput.Subframe";
 const char kHistogramAMPSubframeInputToNavigation[] =
     "Experimental.PageTiming.InputToNavigation.Subframe";
-const char kHistogramAMPSubframeMainFrameToSubFrameNavigation[] =
-    "Experimental.PageTiming.MainFrameToSubFrameNavigationDelta.Subframe";
 const char kHistogramAMPSubframeFirstContentfulPaint[] =
     "PaintTiming.InputToFirstContentfulPaint.Subframe";
 const char kHistogramAMPSubframeFirstContentfulPaintFullNavigation[] =
@@ -47,27 +45,13 @@ const char kHistogramAMPSubframeLargestContentfulPaintFullNavigation[] =
     "PaintTiming.InputToLargestContentfulPaint.Subframe.FullNavigation";
 const char kHistogramAMPSubframeFirstInputDelay[] =
     "InteractiveTiming.FirstInputDelay4.Subframe";
-const char kHistogramAMPSubframeFirstInputDelayFullNavigation[] =
-    "InteractiveTiming.FirstInputDelay4.Subframe.FullNavigation";
 
 const char kHistogramAMPSubframeNumInteractions[] =
     "InteractiveTiming.NumInteractions.Subframe";
 const char
-    kHistogramAMPSubframeAverageUserInteractionLatencyOverBudgetMaxEventDuration
-        [] = "InteractiveTiming.AverageUserInteractionLatencyOverBudget."
-             "MaxEventDuration.Subframe";
-const char
-    kHistogramAMPSubframeSlowUserInteractionLatencyOverBudgetHighPercentile2MaxEventDuration
-        [] = "InteractiveTiming.SlowUserInteractionLatencyOverBudget."
-             "HighPercentile2.MaxEventDuration.Subframe";
-const char
     kHistogramAMPSubframeUserInteractionHighPercentile2MaxEventDuration[] =
         "InteractiveTiming.UserInteractionLatency."
         "HighPercentile2.MaxEventDuration.Subframe";
-const char
-    kHistogramAMPSubframeSumOfUserInteractionLatencyOverBudgetMaxEventDuration
-        [] = "InteractiveTiming.SumOfUserInteractionLatencyOverBudget."
-             "MaxEventDuration.Subframe";
 
 const char kHistogramAMPSubframeWorstUserInteractionLatencyMaxEventDuration[] =
     "InteractiveTiming.WorstUserInteractionLatency.MaxEventDuration.Subframe";
@@ -99,7 +83,7 @@ GURL GetViewerUrlFromCacheUrl(const GURL& url) {
   // (&viewerURL=<URL>). net::QueryIterator only operates on the query string,
   // so we copy the fragment into the query string, then iterate over the
   // parameters below.
-  base::StringPiece ref = url.ref_piece();
+  std::string_view ref = url.ref_piece();
   GURL::Replacements replacements;
   replacements.SetQueryStr(ref);
   GURL modified_url = url.ReplaceComponents(replacements);
@@ -107,7 +91,7 @@ GURL GetViewerUrlFromCacheUrl(const GURL& url) {
     if (it.GetKey() == "viewerUrl")
       return GURL(it.GetUnescapedValue());
   }
-  return GURL::EmptyGURL();
+  return GURL();
 }
 
 base::TimeDelta ClampToZero(base::TimeDelta t) {
@@ -122,9 +106,9 @@ bool IsInPrerenderingBeforeActivation(
          page_load_metrics::PrerenderingState::kInPrerendering;
 }
 
-AMPPageLoadMetricsObserver::AMPPageLoadMetricsObserver() {}
+AMPPageLoadMetricsObserver::AMPPageLoadMetricsObserver() = default;
 
-AMPPageLoadMetricsObserver::~AMPPageLoadMetricsObserver() {}
+AMPPageLoadMetricsObserver::~AMPPageLoadMetricsObserver() = default;
 
 AMPPageLoadMetricsObserver::SubFrameInfo::SubFrameInfo() = default;
 AMPPageLoadMetricsObserver::SubFrameInfo::~SubFrameInfo() = default;
@@ -443,15 +427,7 @@ void AMPPageLoadMetricsObserver::MaybeRecordAmpDocumentMetrics() {
   builder.SetSubFrame_MainFrameToSubFrameNavigationDelta(
       -navigation_input_delta.InMilliseconds());
 
-  if (!current_main_frame_nav_info_->is_same_document_navigation) {
-    // For non same document navigations, we expect the main frame navigation
-    // to be before the subframe navigation. This measures the time from main
-    // frame navigation to the time the AMP subframe is added to the document.
-    PAGE_LOAD_HISTOGRAM(
-        std::string(kHistogramPrefix)
-            .append(kHistogramAMPSubframeMainFrameToSubFrameNavigation),
-        -navigation_input_delta);
-  } else {
+  if (current_main_frame_nav_info_->is_same_document_navigation) {
     if (navigation_input_delta >= base::TimeDelta()) {
       // Prerender case: subframe navigation happens before main frame
       // navigation.
@@ -500,7 +476,7 @@ void AMPPageLoadMetricsObserver::MaybeRecordAmpDocumentMetrics() {
       }
     }
 
-    absl::optional<base::TimeDelta> largest_content_paint_time;
+    std::optional<base::TimeDelta> largest_content_paint_time;
     uint64_t largest_content_paint_size;
     page_load_metrics::ContentfulPaintTimingInfo::LargestContentTextOrImage
         largest_content_text_or_image;
@@ -538,15 +514,9 @@ void AMPPageLoadMetricsObserver::MaybeRecordAmpDocumentMetrics() {
               .InMilliseconds());
 
       if (current_main_frame_nav_info_->is_same_document_navigation) {
-        UMA_HISTOGRAM_CUSTOM_TIMES(
+        base::UmaHistogramCustomTimes(
             std::string(kHistogramPrefix)
                 .append(kHistogramAMPSubframeFirstInputDelay),
-            subframe_info.timing->interactive_timing->first_input_delay.value(),
-            base::Milliseconds(1), base::Seconds(60), 50);
-      } else {
-        UMA_HISTOGRAM_CUSTOM_TIMES(
-            std::string(kHistogramPrefix)
-                .append(kHistogramAMPSubframeFirstInputDelayFullNavigation),
             subframe_info.timing->interactive_timing->first_input_delay.value(),
             base::Milliseconds(1), base::Seconds(60), 50);
       }
@@ -602,82 +572,53 @@ void AMPPageLoadMetricsObserver::MaybeRecordAmpDocumentMetrics() {
   }
 
   RecordNormalizedResponsivenessMetrics(
-      subframe_info.responsiveness_metrics_normalization
-          .GetNormalizedResponsivenessMetrics(),
-      builder);
+      subframe_info.responsiveness_metrics_normalization, builder);
   builder.Record(ukm::UkmRecorder::Get());
 }
 
 void AMPPageLoadMetricsObserver::RecordNormalizedResponsivenessMetrics(
-    const page_load_metrics::NormalizedResponsivenessMetrics&
-        normalized_responsiveness_metrics,
+    const page_load_metrics::ResponsivenessMetricsNormalization&
+        responsiveness_metrics_normalization,
     ukm::builders::AmpPageLoad& builder) {
   DCHECK(!GetDelegate().IsInPrerenderingBeforeActivationStart());
 
-  if (!normalized_responsiveness_metrics.num_user_interactions)
+  if (!responsiveness_metrics_normalization.num_user_interactions()) {
     return;
+  }
 
   const std::string histogram_suffix =
       current_main_frame_nav_info_->is_same_document_navigation
           ? ""
           : ".FullNavigation";
-  auto& max_event_durations =
-      normalized_responsiveness_metrics.normalized_max_event_durations;
 
   builder
       .SetSubFrame_InteractiveTiming_WorstUserInteractionLatency_MaxEventDuration2(
-          max_event_durations.worst_latency.InMilliseconds());
+          responsiveness_metrics_normalization.worst_latency()
+              .value()
+              .interaction_latency.InMilliseconds());
   base::UmaHistogramCustomTimes(
       std::string(kHistogramPrefix)
           .append(
               kHistogramAMPSubframeWorstUserInteractionLatencyMaxEventDuration)
           .append(histogram_suffix),
-      max_event_durations.worst_latency, base::Milliseconds(1),
-      base::Seconds(60), 50);
+      responsiveness_metrics_normalization.worst_latency()
+          .value()
+          .interaction_latency,
+      base::Milliseconds(1), base::Seconds(60), 50);
 
-  base::TimeDelta high_percentile2_max_event_duration = page_load_metrics::
-      ResponsivenessMetricsNormalization::ApproximateHighPercentile(
-          normalized_responsiveness_metrics.num_user_interactions,
-          max_event_durations.worst_ten_latencies);
-  base::TimeDelta high_percentile2_max_event_duration_over_budget =
-      page_load_metrics::ResponsivenessMetricsNormalization::
-          ApproximateHighPercentile(
-              normalized_responsiveness_metrics.num_user_interactions,
-              max_event_durations.worst_ten_latencies_over_budget);
+  base::TimeDelta high_percentile2_max_event_duration =
+      responsiveness_metrics_normalization.ApproximateHighPercentile()
+          .value()
+          .interaction_latency;
 
-  builder
-      .SetSubFrame_InteractiveTiming_SumOfUserInteractionLatencyOverBudget_MaxEventDuration2(
-          max_event_durations.sum_of_latency_over_budget.InMilliseconds());
-  builder
-      .SetSubFrame_InteractiveTiming_AverageUserInteractionLatencyOverBudget_MaxEventDuration2(
-          max_event_durations.sum_of_latency_over_budget.InMilliseconds() /
-          normalized_responsiveness_metrics.num_user_interactions);
   builder
       .SetSubFrame_InteractiveTiming_UserInteractionLatency_HighPercentile2_MaxEventDuration(
           high_percentile2_max_event_duration.InMilliseconds());
-  builder
-      .SetSubFrame_InteractiveTiming_SlowUserInteractionLatencyOverBudget_HighPercentile2_MaxEventDuration2(
-          high_percentile2_max_event_duration_over_budget.InMilliseconds());
 
   builder.SetSubFrame_InteractiveTiming_NumInteractions(
       ukm::GetExponentialBucketMinForCounts1000(
-          normalized_responsiveness_metrics.num_user_interactions));
+          responsiveness_metrics_normalization.num_user_interactions()));
 
-  base::UmaHistogramCustomTimes(
-      std::string(kHistogramPrefix)
-          .append(
-              kHistogramAMPSubframeAverageUserInteractionLatencyOverBudgetMaxEventDuration)
-          .append(histogram_suffix),
-      max_event_durations.sum_of_latency_over_budget /
-          normalized_responsiveness_metrics.num_user_interactions,
-      base::Milliseconds(1), base::Seconds(60), 50);
-  base::UmaHistogramCustomTimes(
-      std::string(kHistogramPrefix)
-          .append(
-              kHistogramAMPSubframeSlowUserInteractionLatencyOverBudgetHighPercentile2MaxEventDuration)
-          .append(histogram_suffix),
-      high_percentile2_max_event_duration_over_budget, base::Milliseconds(1),
-      base::Seconds(60), 50);
   base::UmaHistogramCustomTimes(
       std::string(kHistogramPrefix)
           .append(
@@ -685,15 +626,8 @@ void AMPPageLoadMetricsObserver::RecordNormalizedResponsivenessMetrics(
           .append(histogram_suffix),
       high_percentile2_max_event_duration, base::Milliseconds(1),
       base::Seconds(60), 50);
-  base::UmaHistogramCustomTimes(
-      std::string(kHistogramPrefix)
-          .append(
-              kHistogramAMPSubframeSumOfUserInteractionLatencyOverBudgetMaxEventDuration)
-          .append(histogram_suffix),
-      max_event_durations.sum_of_latency_over_budget, base::Milliseconds(1),
-      base::Seconds(60), 50);
   base::UmaHistogramCounts1000(
       std::string(kHistogramPrefix)
           .append(kHistogramAMPSubframeNumInteractions),
-      normalized_responsiveness_metrics.num_user_interactions);
+      responsiveness_metrics_normalization.num_user_interactions());
 }

@@ -39,6 +39,11 @@ function getURLHttpSimpleB() {
   return getServerURL("extensions/api_test/webrequest/simpleLoad/b.html");
 }
 
+function getURLHttpNotCached() {
+  return getServerURL(
+    "extensions/api_test/webrequest/simpleLoad/not-cached.html");
+}
+
 function getURLHttpComplex() {
   return getServerURL(
       "extensions/api_test/webrequest/complexLoad/a.html");
@@ -471,7 +476,7 @@ let allTests = [
           event: "onBeforeRedirect",
           details: {
             url: getURLHttpWithHeaders(),
-            redirectUrl: getURLHttpSimple(),
+            redirectUrl: getURLHttpNotCached(),
             statusLine: "HTTP/1.1 302 Found",
             statusCode: 302,
             fromCache: false,
@@ -483,8 +488,8 @@ let allTests = [
           event: "onBeforeRequest",
           details: {
             type: "main_frame",
-            url: getURLHttpSimple(),
-            frameUrl: getURLHttpSimple(),
+            url: getURLHttpNotCached(),
+            frameUrl: getURLHttpNotCached(),
             initiator: getServerDomain(initiators.BROWSER_INITIATED)
           },
         },
@@ -492,7 +497,7 @@ let allTests = [
           event: "onCompleted",
           details: {
             ip: "127.0.0.1",
-            url: getURLHttpSimple(),
+            url: getURLHttpNotCached(),
             fromCache: false,
             statusCode: 200,
             statusLine: "HTTP/1.1 200 OK",
@@ -506,7 +511,7 @@ let allTests = [
     onRequest.addRules(
       [ {'conditions': [new RequestMatcher({'contentType': ["text/plain"]})],
          'actions': [
-             new RedirectRequest({'redirectUrl': getURLHttpSimple()})]}
+             new RedirectRequest({'redirectUrl': getURLHttpNotCached()})]}
       ],
       function() {navigateAndWait(getURLHttpWithHeaders());}
     );
@@ -577,12 +582,12 @@ let allTests = [
       function() {
         // Check the page content for our modified User-Agent string.
         navigateAndWait(getURLEchoUserAgent(), function() {
-          chrome.test.listenOnce(chrome.extension.onRequest, function(request) {
+          chrome.test.listenOnce(chrome.runtime.onMessage, function(request) {
             chrome.test.assertTrue(request.pass, "Request header was not set.");
           });
           chrome.tabs.executeScript(tabId,
             {
-              code: "chrome.extension.sendRequest(" +
+              code: "chrome.runtime.sendMessage(" +
                     "{pass: document.body.innerText.indexOf('FoobarUA') >= 0});"
             });
         });
@@ -695,7 +700,7 @@ let allTests = [
       ],
       function() {
         navigateAndWait(getURLEchoCookie(), function() {
-          chrome.test.listenOnce(chrome.extension.onRequest, function(request) {
+          chrome.test.listenOnce(chrome.runtime.onMessage, function(request) {
             chrome.test.assertTrue(request.pass, "Invalid cookies. " +
                 JSON.stringify(request.cookies));
           });
@@ -709,7 +714,7 @@ let allTests = [
               "              !hasCookie('requestCookie1', 'foo') && " +
               "              !hasCookie('requestCookie2', 'foo');" +
               "result.cookies = document.body.innerText;" +
-              "chrome.extension.sendRequest(result);"});
+              "chrome.runtime.sendMessage(result);"});
         });
       }
     );

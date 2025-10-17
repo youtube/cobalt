@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sandbox/linux/suid/client/setuid_sandbox_host.h"
 
 #include <fcntl.h>
@@ -10,7 +15,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -25,6 +32,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/launch.h"
 #include "base/process/process_metrics.h"
+#include "base/strings/cstring_view.h"
 #include "base/strings/string_number_conversions.h"
 #include "sandbox/linux/suid/common/sandbox.h"
 #include "sandbox/linux/suid/common/suid_unsafe_environment_variables.h"
@@ -45,11 +53,13 @@ void SetSandboxAPIEnvironmentVariable(base::Environment* env) {
 // inside another.
 void UnsetExpectedEnvironmentVariables(base::EnvironmentMap* env_map) {
   DCHECK(env_map);
-  const base::NativeEnvironmentString environment_vars[] = {
-      kSandboxDescriptorEnvironmentVarName, kSandboxHelperPidEnvironmentVarName,
-      kSandboxEnvironmentApiProvides,       kSandboxPIDNSEnvironmentVarName,
+  const auto environment_vars = std::to_array<base::NativeEnvironmentString>({
+      kSandboxDescriptorEnvironmentVarName,
+      kSandboxHelperPidEnvironmentVarName,
+      kSandboxEnvironmentApiProvides,
+      kSandboxPIDNSEnvironmentVarName,
       kSandboxNETNSEnvironmentVarName,
-  };
+  });
 
   for (size_t i = 0; i < std::size(environment_vars); ++i) {
     // Setting values in EnvironmentMap to an empty-string will make
@@ -61,8 +71,8 @@ void UnsetExpectedEnvironmentVariables(base::EnvironmentMap* env_map) {
 // Wrapper around a shared C function.
 // Returns the "saved" environment variable name corresponding to |envvar|
 // in a new string or NULL.
-std::string* CreateSavedVariableName(const char* env_var) {
-  char* const saved_env_var = SandboxSavedEnvironmentVariable(env_var);
+std::string* CreateSavedVariableName(base::cstring_view env_var) {
+  char* const saved_env_var = SandboxSavedEnvironmentVariable(env_var.c_str());
   if (!saved_env_var)
     return nullptr;
   std::string* saved_env_var_copy = new std::string(saved_env_var);
@@ -77,18 +87,19 @@ std::string* CreateSavedVariableName(const char* env_var) {
 // renderer.
 void SaveSUIDUnsafeEnvironmentVariables(base::Environment* env) {
   for (unsigned i = 0; kSUIDUnsafeEnvironmentVariables[i]; ++i) {
-    const char* env_var = kSUIDUnsafeEnvironmentVariables[i];
+    const base::cstring_view env_var(kSUIDUnsafeEnvironmentVariables[i]);
     // Get the saved environment variable corresponding to envvar.
     std::unique_ptr<std::string> saved_env_var(
         CreateSavedVariableName(env_var));
     if (!saved_env_var)
       continue;
 
-    std::string value;
-    if (env->GetVar(env_var, &value))
-      env->SetVar(*saved_env_var, value);
-    else
+    std::optional<std::string> value = env->GetVar(env_var);
+    if (value.has_value()) {
+      env->SetVar(*saved_env_var, *value);
+    } else {
       env->UnSetVar(*saved_env_var);
+    }
   }
 }
 

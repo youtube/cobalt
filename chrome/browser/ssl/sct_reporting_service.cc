@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ssl/sct_reporting_service.h"
 
+#include <utility>
+
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
@@ -21,7 +23,6 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 
 constexpr net::NetworkTrafficAnnotationTag kSCTAuditReportTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("sct_auditing", R"(
@@ -126,7 +127,7 @@ GURL& SCTReportingService::GetHashdanceLookupQueryURLInstance() {
 
 // static
 void SCTReportingService::ReconfigureAfterNetworkRestart() {
-  network::mojom::SCTAuditingConfigurationPtr configuration(absl::in_place);
+  network::mojom::SCTAuditingConfigurationPtr configuration(std::in_place);
   configuration->sampling_rate = features::kSCTAuditingSamplingRate.Get();
   configuration->log_expected_ingestion_delay =
       features::kSCTLogExpectedIngestionDelay.Get();
@@ -202,14 +203,6 @@ SCTReportingService::SCTReportingService(
 
 SCTReportingService::~SCTReportingService() = default;
 
-namespace {
-void SetSCTAuditingEnabledForStoragePartition(
-    network::mojom::SCTAuditingMode mode,
-    content::StoragePartition* storage_partition) {
-  storage_partition->GetNetworkContext()->SetSCTAuditingMode(mode);
-}
-}  // namespace
-
 network::mojom::SCTAuditingMode SCTReportingService::GetReportingMode() {
   if (profile_->IsOffTheRecord() ||
       !base::FeatureList::IsEnabled(features::kSCTAuditing)) {
@@ -232,7 +225,9 @@ void SCTReportingService::OnPreferenceChanged() {
   // Iterate over StoragePartitions for this Profile, and for each get the
   // NetworkContext and set the SCT auditing mode.
   profile_->ForEachLoadedStoragePartition(
-      base::BindRepeating(&SetSCTAuditingEnabledForStoragePartition, mode));
+      [mode](content::StoragePartition* partition) {
+        partition->GetNetworkContext()->SetSCTAuditingMode(mode);
+      });
 
   if (mode == network::mojom::SCTAuditingMode::kDisabled)
     content::GetNetworkService()->ClearSCTAuditingCache();

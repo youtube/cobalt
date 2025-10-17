@@ -5,9 +5,10 @@
 // clang-format off
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 
-import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
+import {isVisible} from 'chrome://webui-test/test_util.js';
 // clang-format on
 
 suite('cr-toast', function() {
@@ -26,33 +27,33 @@ suite('cr-toast', function() {
     mockTimer.uninstall();
   });
 
-  test('simple show/hide', function() {
+  test('simple show/hide', async function() {
     assertFalse(toast.open);
 
-    toast.show();
+    await toast.show();
     assertTrue(toast.open);
 
-    toast.hide();
+    await toast.hide();
     assertFalse(toast.open);
   });
 
-  test('auto hide with show()', function() {
+  test('auto hide with show()', async function() {
     const duration = 100;
     toast.duration = duration;
 
-    toast.show();
+    await toast.show();
     assertTrue(toast.open);
 
     mockTimer.tick(duration);
     assertFalse(toast.open);
   });
 
-  test('show() clears auto-hide', function() {
+  test('show() clears auto-hide', async function() {
     const duration = 70;
     toast.duration = duration;
-    toast.show();
+    await toast.show();
     mockTimer.tick(duration - 1);
-    toast.show();
+    await toast.show();
 
     // Auto-hide is cleared and toast should remain open.
     mockTimer.tick(1);
@@ -67,24 +68,26 @@ suite('cr-toast', function() {
   });
 
 
-  test('clearing duration clears timeout', function() {
+  test('clearing duration clears timeout', async function() {
     const nonZeroDuration = 30;
     toast.duration = nonZeroDuration;
-    toast.show();
+    await toast.show();
     assertTrue(toast.open);
 
     const zeroDuration = 0;
     toast.duration = zeroDuration;
+    await toast.updateComplete;
     mockTimer.tick(nonZeroDuration);
     assertTrue(toast.open);
   });
 
-  test('setting a duration starts new auto-hide', function() {
+  test('setting a duration starts new auto-hide', async function() {
     toast.duration = 0;
-    toast.show();
+    await toast.show();
 
     const nonZeroDuration = 50;
     toast.duration = nonZeroDuration;
+    await toast.updateComplete;
     mockTimer.tick(nonZeroDuration - 1);
     assertTrue(toast.open);
 
@@ -92,20 +95,68 @@ suite('cr-toast', function() {
     assertFalse(toast.open);
   });
 
-  test('setting duration clears auto-hide', function() {
+  test('setting duration clears auto-hide', async function() {
     const oldDuration = 30;
     toast.duration = oldDuration;
-    toast.show();
+    await toast.show();
 
     mockTimer.tick(oldDuration - 1);
     assertTrue(toast.open);
 
     const newDuration = 50;
     toast.duration = newDuration;
+    await toast.updateComplete;
     mockTimer.tick(newDuration - 1);
     assertTrue(toast.open);
 
     mockTimer.tick(1);
     assertFalse(toast.open);
   });
+
+  test('slotted items visibility with show/hide', async function() {
+    const slottedElement = document.createElement('p');
+    slottedElement.textContent = 'Test';
+    toast.appendChild(slottedElement);
+
+    assertFalse(isVisible(slottedElement));
+
+    await toast.show();
+    assertTrue(isVisible(slottedElement));
+
+    await toast.hide();
+    assertFalse(isVisible(slottedElement));
+  });
+
+  test(
+      'stop and restart auto-hide depending when toast focus changes',
+      async function() {
+        const duration = 100;
+        toast.duration = duration;
+
+        const button1 = document.createElement('button');
+        const button2 = document.createElement('button');
+        button1.textContent = 'Test 1';
+        button2.textContent = 'Test 2';
+        toast.appendChild(button1);
+        toast.appendChild(button2);
+
+        await toast.show();
+        button1.focus();
+        assertTrue(toast.open);
+
+        mockTimer.tick(duration);
+        assertTrue(toast.open);
+
+        button2.focus();
+        assertTrue(toast.open);
+
+        mockTimer.tick(duration);
+        assertTrue(toast.open);
+
+        button2.blur();
+        assertTrue(toast.open);
+
+        mockTimer.tick(duration);
+        assertFalse(toast.open);
+      });
 });

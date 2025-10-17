@@ -110,7 +110,6 @@ history::ClusterVisit GetHardcodedClusterVisit(history::VisitID visit_id,
 
   NOTREACHED() << "GetHardcodedClusterVisit() could not find visit_id: "
                << visit_id;
-  return {};
 }
 
 history::ClusterVisit AnnotatedVisitToClusterVisit(

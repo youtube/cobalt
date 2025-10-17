@@ -4,13 +4,14 @@
 
 #include "content/browser/download/save_file_manager.h"
 
+#include <string_view>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "components/download/public/common/download_task_runner.h"
@@ -33,12 +34,17 @@
 #include "content/public/browser/web_ui_url_loader_factory.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/url_constants.h"
+#include "net/base/isolation_info.h"
 #include "net/base/load_flags.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/cpp/simple_url_loader_stream_consumer.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "storage/browser/file_system/native_file_util.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -110,8 +116,9 @@ class SaveFileManager::SimpleURLLoaderHelper
                          const network::mojom::URLResponseHead& response_head) {
     std::string content_disposition;
     if (response_head.headers) {
-      response_head.headers->GetNormalizedHeader("Content-Disposition",
-                                                 &content_disposition);
+      content_disposition =
+          response_head.headers->GetNormalizedHeader("Content-Disposition")
+              .value_or(std::string());
     }
 
     auto info = std::make_unique<SaveFileCreateInfo>(
@@ -123,7 +130,7 @@ class SaveFileManager::SimpleURLLoaderHelper
   }
 
   // network::SimpleURLLoaderStreamConsumer implementation:
-  void OnDataReceived(base::StringPiece string_piece,
+  void OnDataReceived(std::string_view string_piece,
                       base::OnceClosure resume) override {
     // TODO(jcivelli): we should make threading sane and avoid copying
     // |string_piece| bytes.
@@ -201,6 +208,9 @@ void SaveFileManager::SaveURL(
     SaveItemId save_item_id,
     const GURL& url,
     const Referrer& referrer,
+    const net::IsolationInfo& isolation_info,
+    network::mojom::RequestMode request_mode,
+    bool is_outermost_main_frame,
     int render_process_host_id,
     int render_view_routing_id,
     int render_frame_routing_id,
@@ -214,7 +224,7 @@ void SaveFileManager::SaveURL(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // Insert started saving job to tracking list.
-  DCHECK(packages_.find(save_item_id) == packages_.end());
+  DCHECK(!base::Contains(packages_, save_item_id));
   packages_[save_item_id] = save_package;
 
   // Register a saving job.
@@ -255,18 +265,26 @@ void SaveFileManager::SaveURL(
     request->referrer = referrer.url;
     request->priority = net::DEFAULT_PRIORITY;
     request->load_flags = net::LOAD_SKIP_CACHE_VALIDATION;
-
-    // To avoid https://crbug.com/974312, downloads initiated by Save-Page-As
-    // should be treated as navigations. This definitely makes sense for the
-    // top-level page (e.g. in SAVE_PAGE_TYPE_AS_ONLY_HTML mode). This is
-    // probably also okay for subresources downloaded in
-    // SAVE_PAGE_TYPE_AS_COMPLETE_HTML mode.
-    request->mode = network::mojom::RequestMode::kNavigate;
+    request->mode = request_mode;
+    if (request_mode == network::mojom::RequestMode::kNavigate) {
+      request->update_first_party_url_on_redirect = true;
+    }
+    request->is_outermost_main_frame = is_outermost_main_frame;
+    request->trusted_params = network::ResourceRequest::TrustedParams();
+    request->trusted_params->isolation_info = isolation_info;
+    request->site_for_cookies = isolation_info.site_for_cookies();
 
     network::mojom::URLLoaderFactory* factory = nullptr;
     mojo::Remote<network::mojom::URLLoaderFactory> factory_remote;
     auto* rfh = RenderFrameHostImpl::FromID(render_process_host_id,
                                             render_frame_routing_id);
+
+    // TODO(crbug.com/382291442): Remove feature guarding once launched.
+    if (base::FeatureList::IsEnabled(
+            network::features::kPopulatePermissionsPolicyOnRequest) &&
+        rfh && rfh->GetPermissionsPolicy()) {
+      request->permissions_policy = *rfh->GetPermissionsPolicy();
+    }
 
     // TODO(qinmin): should this match the if statements in
     // DownloadManagerImpl::BeginResourceDownloadOnChecksComplete so that it
@@ -286,9 +304,9 @@ void SaveFileManager::SaveURL(
       auto partition_domain =
           rfh->GetSiteInstance()->GetPartitionDomain(storage_partition_impl);
       factory_remote.Bind(CreateFileSystemURLLoaderFactory(
-          rfh->GetProcess()->GetID(), rfh->GetFrameTreeNodeId(),
+          rfh->GetProcess()->GetDeprecatedID(), rfh->GetFrameTreeNodeId(),
           storage_partition->GetFileSystemContext(), partition_domain,
-          static_cast<RenderFrameHostImpl*>(rfh)->storage_key()));
+          static_cast<RenderFrameHostImpl*>(rfh)->GetStorageKey()));
       factory = factory_remote.get();
     } else if (rfh && url.SchemeIs(content::kChromeUIScheme)) {
       factory_remote.Bind(CreateWebUIURLLoaderFactory(rfh, url.scheme(), {}));
@@ -548,8 +566,12 @@ void SaveFileManager::RenameAllFiles(const FinalNamesMap& final_names,
                                      SavePackageId save_package_id) {
   DCHECK(download::GetDownloadTaskRunner()->RunsTasksInCurrentSequence());
 
-  if (!resource_dir.empty() && !base::PathExists(resource_dir))
-    base::CreateDirectory(resource_dir);
+  if (!resource_dir.empty() && !base::PathExists(resource_dir)) {
+    // Use `NativeFileUtil::CreateDirectory` instead of `base::CreateDirectory`
+    // to set the correct permissions on ChromeOS.
+    storage::NativeFileUtil::CreateDirectory(resource_dir, /*exclusive=*/false,
+                                             /*recursive=*/true);
+  }
 
   for (const auto& i : final_names) {
     SaveItemId save_item_id = i.first;

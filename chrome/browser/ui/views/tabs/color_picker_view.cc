@@ -26,8 +26,10 @@
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/favicon_size.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/border.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/layout/box_layout.h"
@@ -60,9 +62,9 @@ class ColorPickerHighlightPathGenerator : public views::HighlightPathGenerator {
 // Represents one of the colors the user can pick from. Displayed as a solid
 // circle of the given color.
 class ColorPickerElementView : public views::Button {
- public:
-  METADATA_HEADER(ColorPickerElementView);
+  METADATA_HEADER(ColorPickerElementView, views::Button)
 
+ public:
   ColorPickerElementView(
       base::RepeatingCallback<void(ColorPickerElementView*)> selected_callback,
       const views::BubbleDialogDelegateView* bubble_view,
@@ -76,7 +78,7 @@ class ColorPickerElementView : public views::Button {
         color_name_(color_name) {
     DCHECK(selected_callback_);
 
-    SetAccessibleName(color_name);
+    GetViewAccessibility().SetName(color_name);
     SetInstallFocusRingOnFocus(true);
     views::HighlightPathGenerator::Install(
         this, std::make_unique<ColorPickerHighlightPathGenerator>());
@@ -95,18 +97,35 @@ class ColorPickerElementView : public views::Button {
 
     views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
     SetAnimateOnStateChange(true);
+    GetViewAccessibility().SetRole(ax::mojom::Role::kRadioButton);
+    GetViewAccessibility().SetCheckedState(
+        selected_ ? ax::mojom::CheckedState::kTrue
+                  : ax::mojom::CheckedState::kFalse);
+
+    UpdateCachedTooltipText();
   }
 
+  ~ColorPickerElementView() override = default;
+
   void SetSelected(bool selected) {
-    if (selected_ == selected)
+    if (selected_ == selected) {
       return;
+    }
     selected_ = selected;
+    UpdateAccessibleCheckedState();
     SchedulePaint();
   }
 
   bool GetSelected() const { return selected_; }
 
   // views::Button:
+
+  void UpdateAccessibleCheckedState() override {
+    GetViewAccessibility().SetCheckedState(
+        selected_ ? ax::mojom::CheckedState::kTrue
+                  : ax::mojom::CheckedState::kFalse);
+  }
+
   bool IsGroupFocusTraversable() const override {
     // Tab should only focus the selected element.
     return false;
@@ -117,18 +136,10 @@ class ColorPickerElementView : public views::Button {
     return parent()->GetSelectedViewForGroup(group);
   }
 
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override {
-    views::Button::GetAccessibleNodeData(node_data);
-    node_data->role = ax::mojom::Role::kRadioButton;
-    node_data->SetCheckedState(GetSelected() ? ax::mojom::CheckedState::kTrue
-                                             : ax::mojom::CheckedState::kFalse);
-  }
+  void UpdateCachedTooltipText() { SetTooltipText(color_name_); }
 
-  std::u16string GetTooltipText(const gfx::Point& p) const override {
-    return color_name_;
-  }
-
-  gfx::Size CalculatePreferredSize() const override {
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
     const gfx::Insets insets = GetInsets();
     // The size of the color element circle is adaptive, to improve the hit
     // target size on touch devices.
@@ -139,8 +150,6 @@ class ColorPickerElementView : public views::Button {
     size.Enlarge(insets.width(), insets.height());
     return size;
   }
-
-  int GetHeightForWidth(int width) const override { return width; }
 
   void PaintButtonContents(gfx::Canvas* canvas) override {
     // Paint a colored circle surrounded by a bit of empty space.
@@ -162,6 +171,7 @@ class ColorPickerElementView : public views::Button {
   }
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(ColorPickerViewTest, TooltipText);
   // Paints a ring in our color circle to indicate selection or mouse hover.
   // Does nothing if not selected or hovered.
   void PaintSelectionIndicator(gfx::Canvas* canvas) {
@@ -176,7 +186,8 @@ class ColorPickerElementView : public views::Button {
     flags.setStyle(cc::PaintFlags::kStroke_Style);
     flags.setStrokeWidth(kThickness);
     flags.setAntiAlias(true);
-    flags.setColor(bubble_view_->color());
+    flags.setColor(bubble_view_->background_color().ResolveToSkColor(
+        bubble_view_->GetColorProvider()));
 
     gfx::RectF indicator_bounds(GetContentsBounds());
     indicator_bounds.Inset(gfx::InsetsF(kInset));
@@ -188,7 +199,7 @@ class ColorPickerElementView : public views::Button {
   void ButtonPressed() {
     // Pressing this a second time shouldn't do anything.
     if (!selected_) {
-      selected_ = true;
+      SetSelected(true);
       SchedulePaint();
       selected_callback_.Run(this);
     }
@@ -202,7 +213,7 @@ class ColorPickerElementView : public views::Button {
   bool selected_ = false;
 };
 
-BEGIN_METADATA(ColorPickerElementView, views::Button)
+BEGIN_METADATA(ColorPickerElementView)
 ADD_PROPERTY_METADATA(bool, Selected)
 END_METADATA
 
@@ -223,8 +234,9 @@ ColorPickerView::ColorPickerView(
         base::BindRepeating(&ColorPickerView::OnColorSelected,
                             base::Unretained(this)),
         bubble_view, color.first, color.second)));
-    if (initial_color_id == color.first)
+    if (initial_color_id == color.first) {
       elements_.back()->SetSelected(true);
+    }
   }
 
   // Set the internal padding to be equal to the horizontal insets of a color
@@ -244,32 +256,27 @@ ColorPickerView::ColorPickerView(
 
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal)
-      .SetDefault(
-          views::kFlexBehaviorKey,
-          views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
-                                   views::MaximumFlexSizeRule::kUnbounded)
-              .WithAlignment(views::LayoutAlignment::kCenter)
-              .WithWeight(1));
+      .SetDefault(views::kFlexBehaviorKey,
+                  views::FlexSpecification().WithAlignment(
+                      views::LayoutAlignment::kCenter));
 }
 
-ColorPickerView::~ColorPickerView() {
-  // Remove child views early since they have references to us through a
-  // callback.
-  RemoveAllChildViews();
-}
+ColorPickerView::~ColorPickerView() = default;
 
-absl::optional<int> ColorPickerView::GetSelectedElement() const {
+std::optional<int> ColorPickerView::GetSelectedElement() const {
   for (size_t i = 0; i < elements_.size(); ++i) {
-    if (elements_[i]->GetSelected())
+    if (elements_[i]->GetSelected()) {
       return static_cast<int>(i);
+    }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 views::View* ColorPickerView::GetSelectedViewForGroup(int group) {
   for (ColorPickerElementView* element : elements_) {
-    if (element->GetSelected())
+    if (element->GetSelected()) {
       return element;
+    }
   }
   return nullptr;
 }
@@ -283,14 +290,16 @@ views::Button* ColorPickerView::GetElementAtIndexForTesting(int index) {
 void ColorPickerView::OnColorSelected(ColorPickerElementView* element) {
   // Unselect all other elements so that only one can be selected at a time.
   for (ColorPickerElementView* other_element : elements_) {
-    if (other_element != element)
+    if (other_element != element) {
       other_element->SetSelected(false);
+    }
   }
 
-  if (callback_)
+  if (callback_) {
     callback_.Run();
+  }
 }
 
-BEGIN_METADATA(ColorPickerView, views::View)
-ADD_READONLY_PROPERTY_METADATA(absl::optional<int>, SelectedElement)
+BEGIN_METADATA(ColorPickerView)
+ADD_READONLY_PROPERTY_METADATA(std::optional<int>, SelectedElement)
 END_METADATA

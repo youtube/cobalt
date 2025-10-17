@@ -21,25 +21,23 @@
 //   pt pt-PT ro ru sk sv th tr uk vi zh-CN zh-TW
 
 #import <Foundation/Foundation.h>
-
 #import <stdio.h>
+
 #import <map>
 #import <set>
 #import <string>
+#import <string_view>
 #import <utility>
 #import <vector>
 
+#import "base/apple/foundation_util.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
-#import "base/strings/string_piece.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/tools/strings/grit_header_parsing.h"
 #import "ui/base/resource/data_pack.h"
 #import "ui/base/resource/resource_handle.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ui/base/resource/resource_scale_factor.h"
 
 namespace {
 
@@ -53,19 +51,22 @@ std::unique_ptr<ui::DataPack> LoadResourceDataPack(
       [NSString stringWithFormat:@"%@/%@.lproj/locale.pak",
                                  packed_data_pack_dir, locale_name];
 
-  if (!resource_path)
+  if (!resource_path) {
     return resource_data_pack;
+  }
 
   // FilePath may contain components that references parent directory
   // (".."). DataPack disallows paths with ".." for security reasons.
   base::FilePath resources_pak_path([resource_path fileSystemRepresentation]);
   resources_pak_path = base::MakeAbsoluteFilePath(resources_pak_path);
-  if (!base::PathExists(resources_pak_path))
+  if (!base::PathExists(resources_pak_path)) {
     return resource_data_pack;
+  }
 
   resource_data_pack.reset(new ui::DataPack(ui::k100Percent));
-  if (!resource_data_pack->LoadFromPath(resources_pak_path))
+  if (!resource_data_pack->LoadFromPath(resources_pak_path)) {
     resource_data_pack.reset();
+  }
 
   return resource_data_pack;
 }
@@ -74,18 +75,19 @@ std::unique_ptr<ui::DataPack> LoadResourceDataPack(
 // Return nil if none is found.
 NSString* GetStringFromDataPack(const ui::DataPack& data_pack,
                                 uint16_t resource_id) {
-  base::StringPiece data;
-  if (!data_pack.GetStringPiece(resource_id, &data))
+  std::optional<std::string_view> data = data_pack.GetStringView(resource_id);
+  if (!data.has_value()) {
     return nil;
+  }
 
   // Data pack encodes strings as either UTF8 or UTF16.
   if (data_pack.GetTextEncodingType() == ui::DataPack::UTF8) {
-    return [[NSString alloc] initWithBytes:data.data()
-                                    length:data.length()
+    return [[NSString alloc] initWithBytes:data->data()
+                                    length:data->length()
                                   encoding:NSUTF8StringEncoding];
   } else if (data_pack.GetTextEncodingType() == ui::DataPack::UTF16) {
-    return [[NSString alloc] initWithBytes:data.data()
-                                    length:data.length()
+    return [[NSString alloc] initWithBytes:data->data()
+                                    length:data->length()
                                   encoding:NSUTF16LittleEndianStringEncoding];
   }
   return nil;
@@ -144,11 +146,11 @@ NSDictionary* LoadResourcesListFromHeaders(NSArray* header_list,
 
   std::vector<base::FilePath> headers;
   for (NSString* header in header_list) {
-    headers.push_back(base::FilePath(base::SysNSStringToUTF8(
-        [root_header_dir stringByAppendingPathComponent:header])));
+    headers.push_back(base::apple::NSStringToFilePath(
+        [root_header_dir stringByAppendingPathComponent:header]));
   }
 
-  absl::optional<ResourceMap> resource_map =
+  std::optional<ResourceMap> resource_map =
       LoadResourcesFromGritHeaders(headers);
   if (!resource_map) {
     return nil;

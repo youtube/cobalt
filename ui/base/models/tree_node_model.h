@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
@@ -15,7 +16,6 @@
 #include "base/check_op.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "ui/base/models/tree_model.h"
 
 namespace ui {
@@ -134,13 +134,13 @@ class TreeNode : public TreeModelNode {
   }
 
   // Returns the index of |node|, or nullopt if |node| is not a child of this.
-  absl::optional<size_t> GetIndexOf(const NodeType* node) const {
+  std::optional<size_t> GetIndexOf(const NodeType* node) const {
     DCHECK(node);
     const auto i =
-        base::ranges::find(children_, node, &std::unique_ptr<NodeType>::get);
+        std::ranges::find(children_, node, &std::unique_ptr<NodeType>::get);
     return i != children_.end()
-               ? absl::make_optional(static_cast<size_t>(i - children_.begin()))
-               : absl::nullopt;
+               ? std::make_optional(static_cast<size_t>(i - children_.begin()))
+               : std::nullopt;
   }
 
   // Sets the title of the node.
@@ -263,7 +263,7 @@ class TreeNodeModel : public TreeModel {
     DCHECK(parent);
     DCHECK(node);
     NodeType* node_ptr = parent->Add(std::move(node), index);
-    NotifyObserverTreeNodesAdded(parent, index, 1);
+    NotifyObserverTreeNodeAdded(parent, index);
     return node_ptr;
   }
 
@@ -275,7 +275,7 @@ class TreeNodeModel : public TreeModel {
   std::unique_ptr<NodeType> Remove(NodeType* parent, size_t index) {
     DCHECK(parent);
     std::unique_ptr<NodeType> owned_node = parent->Remove(index);
-    NotifyObserverTreeNodesRemoved(parent, index, 1);
+    NotifyObserverTreeNodeRemoved(parent, index);
     return owned_node;
   }
 
@@ -284,23 +284,18 @@ class TreeNodeModel : public TreeModel {
     return Remove(parent, parent->GetIndexOf(node).value());
   }
 
-  void NotifyObserverTreeNodesAdded(NodeType* parent,
-                                    size_t start,
-                                    size_t count) {
-    for (TreeModelObserver& observer : observer_list_)
-      observer.TreeNodesAdded(this, parent, start, count);
+  void NotifyObserverTreeNodeAdded(NodeType* parent, size_t index) {
+    observer_list_.Notify(&TreeModelObserver::TreeNodeAdded, this, parent,
+                          index);
   }
 
-  void NotifyObserverTreeNodesRemoved(NodeType* parent,
-                                      size_t start,
-                                      size_t count) {
-    for (TreeModelObserver& observer : observer_list_)
-      observer.TreeNodesRemoved(this, parent, start, count);
+  void NotifyObserverTreeNodeRemoved(NodeType* parent, size_t index) {
+    observer_list_.Notify(&TreeModelObserver::TreeNodeRemoved, this, parent,
+                          index);
   }
 
   void NotifyObserverTreeNodeChanged(TreeModelNode* node) {
-    for (TreeModelObserver& observer : observer_list_)
-      observer.TreeNodeChanged(this, node);
+    observer_list_.Notify(&TreeModelObserver::TreeNodeChanged, this, node);
   }
 
   // TreeModel:
@@ -322,13 +317,13 @@ class TreeNodeModel : public TreeModel {
     const auto& children = AsNode(parent)->children();
     Nodes nodes;
     nodes.reserve(children.size());
-    base::ranges::transform(children, std::back_inserter(nodes),
-                            &TreeNode<NodeType>::TreeNodes::value_type::get);
+    std::ranges::transform(children, std::back_inserter(nodes),
+                           &TreeNode<NodeType>::TreeNodes::value_type::get);
     return nodes;
   }
 
-  absl::optional<size_t> GetIndexOf(TreeModelNode* parent,
-                                    TreeModelNode* child) const override {
+  std::optional<size_t> GetIndexOf(TreeModelNode* parent,
+                                   TreeModelNode* child) const override {
     DCHECK(parent);
     return AsNode(parent)->GetIndexOf(AsNode(child));
   }

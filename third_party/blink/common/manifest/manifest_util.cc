@@ -7,8 +7,8 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/mojom/manifest/capture_links.mojom.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
@@ -25,6 +25,35 @@ bool IsEmptyManifest(const mojom::Manifest& manifest) {
 
 bool IsEmptyManifest(const mojom::ManifestPtr& manifest) {
   return !manifest || IsEmptyManifest(*manifest);
+}
+
+bool IsDefaultManifest(const mojom::Manifest& manifest,
+                       const GURL& document_url) {
+  blink::mojom::ManifestPtr expected_manifest = blink::mojom::Manifest::New();
+  expected_manifest->start_url = document_url;
+  expected_manifest->id = document_url.GetWithoutRef();
+  expected_manifest->scope = document_url.GetWithoutFilename();
+  return manifest == *expected_manifest;
+}
+
+bool IsDefaultManifest(const mojom::ManifestPtr& manifest,
+                       const GURL& document_url) {
+  return manifest && IsDefaultManifest(*manifest, document_url);
+}
+
+std::optional<blink::mojom::Manifest_TextDirection> TextDirectionFromString(
+    const std::string& dir) {
+  using TextDirection = blink::mojom::Manifest_TextDirection;
+  if (base::EqualsCaseInsensitiveASCII(dir, "auto")) {
+    return TextDirection::kAuto;
+  }
+  if (base::EqualsCaseInsensitiveASCII(dir, "ltr")) {
+    return TextDirection::kLTR;
+  }
+  if (base::EqualsCaseInsensitiveASCII(dir, "rtl")) {
+    return TextDirection::kRTL;
+  }
+  return std::nullopt;
 }
 
 std::string DisplayModeToString(blink::mojom::DisplayMode display) {
@@ -45,6 +74,8 @@ std::string DisplayModeToString(blink::mojom::DisplayMode display) {
       return "tabbed";
     case blink::mojom::DisplayMode::kBorderless:
       return "borderless";
+    case blink::mojom::DisplayMode::kPictureInPicture:
+      return "picture-in-picture";
   }
   return "";
 }
@@ -64,6 +95,9 @@ blink::mojom::DisplayMode DisplayModeFromString(const std::string& display) {
     return blink::mojom::DisplayMode::kTabbed;
   if (base::EqualsCaseInsensitiveASCII(display, "borderless"))
     return blink::mojom::DisplayMode::kBorderless;
+  if (base::EqualsCaseInsensitiveASCII(display, "picture-in-picture")) {
+    return blink::mojom::DisplayMode::kPictureInPicture;
+  }
   return blink::mojom::DisplayMode::kUndefined;
 }
 
@@ -135,7 +169,7 @@ mojom::CaptureLinks CaptureLinksFromString(const std::string& capture_links) {
   return mojom::CaptureLinks::kUndefined;
 }
 
-absl::optional<mojom::ManifestLaunchHandler::ClientMode> ClientModeFromString(
+std::optional<mojom::ManifestLaunchHandler::ClientMode> ClientModeFromString(
     const std::string& client_mode) {
   using ClientMode = Manifest::LaunchHandler::ClientMode;
   if (base::EqualsCaseInsensitiveASCII(client_mode, "auto"))
@@ -146,18 +180,7 @@ absl::optional<mojom::ManifestLaunchHandler::ClientMode> ClientModeFromString(
     return ClientMode::kNavigateExisting;
   if (base::EqualsCaseInsensitiveASCII(client_mode, "focus-existing"))
     return ClientMode::kFocusExisting;
-  return absl::nullopt;
-}
-
-GURL GetIdFromManifest(const mojom::Manifest& manifest) {
-  if (manifest.id.has_value()) {
-    // Generate the formatted id by <start_url_origin>/<manifest_id>.
-    GURL manifest_id(manifest.start_url.DeprecatedGetOriginAsURL().spec() +
-                     base::UTF16ToUTF8(manifest.id.value()));
-    DCHECK(manifest_id.is_valid());
-    return manifest_id;
-  }
-  return manifest.start_url;
+  return std::nullopt;
 }
 
 }  // namespace blink

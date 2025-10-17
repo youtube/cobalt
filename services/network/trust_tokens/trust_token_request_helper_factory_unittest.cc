@@ -4,6 +4,9 @@
 
 #include "services/network/trust_tokens/trust_token_request_helper_factory.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/no_destructor.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
@@ -20,7 +23,6 @@
 #include "services/network/trust_tokens/pending_trust_token_store.h"
 #include "services/network/trust_tokens/trust_token_parameterization.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace network {
@@ -61,6 +63,7 @@ class TrustTokenRequestHelperFactoryTest : public ::testing::Test {
     suitable_params_->operation = mojom::TrustTokenOperationType::kSigning;
     suitable_params_->issuers.push_back(
         url::Origin::Create(GURL("https://issuer.example")));
+    store_.OnStoreReady(TrustTokenStore::CreateForTesting());
   }
 
  protected:
@@ -90,13 +93,9 @@ class TrustTokenRequestHelperFactoryTest : public ::testing::Test {
       const mojom::TrustTokenParams& params) {
     base::RunLoop run_loop;
     TrustTokenStatusOrRequestHelper obtained_result;
-    PendingTrustTokenStore store;
-
-    store.OnStoreReady(TrustTokenStore::CreateForTesting());
-    NoopTrustTokenKeyCommitmentGetter getter;
 
     TrustTokenRequestHelperFactory(
-        &store, &getter,
+        &store_, &getter_,
         base::BindRepeating(
             []() -> mojom::NetworkContextClient* { return nullptr; }),
         base::BindRepeating([]() { return true; }))
@@ -118,6 +117,8 @@ class TrustTokenRequestHelperFactoryTest : public ::testing::Test {
   TestURLRequestMaker maker_;
   std::unique_ptr<net::URLRequest> suitable_request_;
   mojom::TrustTokenParamsPtr suitable_params_;
+  PendingTrustTokenStore store_;
+  NoopTrustTokenKeyCommitmentGetter getter_;
 };
 
 TEST_F(TrustTokenRequestHelperFactoryTest, MissingTopFrameOrigin) {
@@ -157,7 +158,7 @@ TEST_F(TrustTokenRequestHelperFactoryTest, UnsuitableTopFrameOrigin) {
 
 TEST_F(TrustTokenRequestHelperFactoryTest, ForbiddenHeaders) {
   base::HistogramTester histogram_tester;
-  for (const base::StringPiece& header : TrustTokensRequestHeaders()) {
+  for (const std::string_view& header : TrustTokensRequestHeaders()) {
     std::unique_ptr<net::URLRequest> my_request = CreateSuitableRequest();
     my_request->SetExtraRequestHeaderByName(std::string(header), " ",
                                             /*overwrite=*/true);

@@ -22,7 +22,7 @@
 #include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(IS_WIN)
-#include "base/types/expected.h"
+#include "base/test/gmock_expected_support.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace printing {
@@ -36,22 +36,15 @@ constexpr char kAccessDeniedPrinterName[] = "access-denied-test-printer";
 constexpr char kInvalidPrinterName[] = "invalid-test-printer";
 constexpr char kInvalidDataPrinterName[] = "invalid-data-test-printer";
 
-constexpr int kDefaultPrinterStatus = 0;
-constexpr int kAlternatePrinterStatus = 1;
-
 const PrinterBasicInfo kDefaultPrinterInfo(
     /*printer_name=*/kDefaultPrinterName,
     /*display_name=*/"default test printer",
     /*printer_description=*/"Default printer for testing.",
-    /*printer_status=*/kDefaultPrinterStatus,
-    /*is_default=*/true,
     /*options=*/PrinterBasicInfoOptions{});
 const PrinterBasicInfo kAlternatePrinterInfo(
     /*printer_name=*/kAlternatePrinterName,
     /*display_name=*/"alternate test printer",
     /*printer_description=*/"Alternate printer for testing.",
-    /*printer_status=*/kAlternatePrinterStatus,
-    /*is_default=*/false,
     /*options=*/PrinterBasicInfoOptions{});
 
 constexpr int32_t kDefaultCopiesMax = 123;
@@ -132,11 +125,11 @@ TEST_F(TestPrintBackendTest, DefaultPrinterName) {
             mojom::ResultCode::kSuccess);
   EXPECT_TRUE(default_printer.empty());
 
-  // Once printers are available, should be a default.
+  // Once printers are available, not automatically marked as default.
   AddPrinters();
   ASSERT_EQ(GetPrintBackend()->GetDefaultPrinterName(default_printer),
             mojom::ResultCode::kSuccess);
-  EXPECT_EQ(default_printer, kDefaultPrinterName);
+  EXPECT_TRUE(default_printer.empty());
 
   // Changing default should be reflected on next query.
   GetPrintBackend()->SetDefaultPrinterName(kAlternatePrinterName);
@@ -144,15 +137,15 @@ TEST_F(TestPrintBackendTest, DefaultPrinterName) {
             mojom::ResultCode::kSuccess);
   EXPECT_EQ(default_printer, kAlternatePrinterName);
 
-  // Adding a new printer to environment which is marked as default should
-  // automatically make it the new default.
+  // Adding a new printer to environment and marking it as default should
+  // reflect it as the new default.
   static constexpr char kNewDefaultPrinterName[] = "new-default-test-printer";
   auto caps = std::make_unique<PrinterSemanticCapsAndDefaults>();
   auto printer_info = std::make_unique<PrinterBasicInfo>();
   printer_info->printer_name = kNewDefaultPrinterName;
-  printer_info->is_default = true;
   GetPrintBackend()->AddValidPrinter(kNewDefaultPrinterName, std::move(caps),
                                      std::move(printer_info));
+  GetPrintBackend()->SetDefaultPrinterName(kNewDefaultPrinterName);
   ASSERT_EQ(GetPrintBackend()->GetDefaultPrinterName(default_printer),
             mojom::ResultCode::kSuccess);
   EXPECT_EQ(default_printer, kNewDefaultPrinterName);
@@ -181,30 +174,15 @@ TEST_F(TestPrintBackendTest, PrinterBasicInfo) {
                                                    &printer_info),
             mojom::ResultCode::kSuccess);
   EXPECT_EQ(printer_info.printer_name, kDefaultPrinterName);
-  EXPECT_EQ(printer_info.printer_status, kDefaultPrinterStatus);
-  EXPECT_TRUE(printer_info.is_default);
 
   EXPECT_EQ(GetPrintBackend()->GetPrinterBasicInfo(kAlternatePrinterName,
                                                    &printer_info),
             mojom::ResultCode::kSuccess);
   EXPECT_EQ(printer_info.printer_name, kAlternatePrinterName);
-  EXPECT_EQ(printer_info.printer_status, kAlternatePrinterStatus);
-  EXPECT_FALSE(printer_info.is_default);
 
   EXPECT_EQ(GetPrintBackend()->GetPrinterBasicInfo(kInvalidPrinterName,
                                                    &printer_info),
             mojom::ResultCode::kFailed);
-
-  // Changing default should be reflected on next query.
-  GetPrintBackend()->SetDefaultPrinterName(kAlternatePrinterName);
-  EXPECT_EQ(GetPrintBackend()->GetPrinterBasicInfo(kAlternatePrinterName,
-                                                   &printer_info),
-            mojom::ResultCode::kSuccess);
-  EXPECT_TRUE(printer_info.is_default);
-  EXPECT_EQ(GetPrintBackend()->GetPrinterBasicInfo(kDefaultPrinterName,
-                                                   &printer_info),
-            mojom::ResultCode::kSuccess);
-  EXPECT_FALSE(printer_info.is_default);
 
   // Printers added with null basic info fail to get data on a query.
   EXPECT_EQ(GetPrintBackend()->GetPrinterBasicInfo(kNullDataPrinterName,
@@ -321,11 +299,9 @@ TEST_F(TestPrintBackendTest, IsValidPrinter) {
 #if BUILDFLAG(IS_WIN)
 TEST_F(TestPrintBackendTest, GetXmlPrinterCapabilitiesForXpsDriver) {
   // Should fail when there are no printers in the environment.
-  base::expected<std::string, mojom::ResultCode> result =
-      GetPrintBackend()->GetXmlPrinterCapabilitiesForXpsDriver(
-          kDefaultPrinterName);
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), mojom::ResultCode::kFailed);
+  EXPECT_THAT(GetPrintBackend()->GetXmlPrinterCapabilitiesForXpsDriver(
+                  kDefaultPrinterName),
+              base::test::ErrorIs(mojom::ResultCode::kFailed));
 
   AddPrinters();
 
@@ -335,17 +311,15 @@ TEST_F(TestPrintBackendTest, GetXmlPrinterCapabilitiesForXpsDriver) {
                   ->GetXmlPrinterCapabilitiesForXpsDriver(kDefaultPrinterName)
                   .has_value());
 
-  result = GetPrintBackend()->GetXmlPrinterCapabilitiesForXpsDriver(
-      kInvalidPrinterName);
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), mojom::ResultCode::kFailed);
+  EXPECT_THAT(GetPrintBackend()->GetXmlPrinterCapabilitiesForXpsDriver(
+                  kInvalidPrinterName),
+              base::test::ErrorIs(mojom::ResultCode::kFailed));
 
   // Printers set with invalid XML should return failure. Invalid XML is
   // considered an empty string for these tests.
-  result = GetPrintBackend()->GetXmlPrinterCapabilitiesForXpsDriver(
-      kNullDataPrinterName);
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), mojom::ResultCode::kFailed);
+  EXPECT_THAT(GetPrintBackend()->GetXmlPrinterCapabilitiesForXpsDriver(
+                  kNullDataPrinterName),
+              base::test::ErrorIs(mojom::ResultCode::kFailed));
 }
 #endif  // BUILDFLAG(IS_WIN)
 

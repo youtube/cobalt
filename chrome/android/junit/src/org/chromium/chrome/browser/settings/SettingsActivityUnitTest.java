@@ -5,11 +5,16 @@
 package org.chromium.chrome.browser.settings;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Rect;
+import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.View;
 
 import androidx.lifecycle.Lifecycle.State;
 import androidx.recyclerview.widget.RecyclerView;
@@ -27,25 +32,26 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.flags.CachedFeatureFlags;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
 import org.chromium.chrome.browser.settings.SettingsActivityUnitTest.ShadowProfileManagerUtils;
 import org.chromium.components.browser_ui.settings.CustomDividerFragment;
-import org.chromium.components.browser_ui.settings.PaddedDividerItemDecoration;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.components.browser_ui.settings.PaddedItemDecorationWithDivider;
 
-import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Unit tests for {@link SettingsActivity}.
- */
+/** Unit tests for {@link SettingsActivity}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(shadows = ShadowProfileManagerUtils.class)
 public class SettingsActivityUnitTest {
@@ -56,21 +62,18 @@ public class SettingsActivityUnitTest {
         protected static void flushPersistentDataForAllProfiles() {}
     }
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     private ActivityScenario<SettingsActivity> mActivityScenario;
     private SettingsActivity mSettingsActivity;
 
-    @Mock
-    public ChromeBrowserInitializer mInitializer;
-    @Mock
-    public Profile mProfile;
+    @Mock public ChromeBrowserInitializer mInitializer;
+    @Mock public Profile mProfile;
 
     @Before
     public void setup() {
         ChromeBrowserInitializer.setForTesting(mInitializer);
-        Profile.setLastUsedProfileForTesting(mProfile);
+        ProfileManager.setLastUsedProfileForTesting(mProfile);
     }
 
     @After
@@ -79,77 +82,186 @@ public class SettingsActivityUnitTest {
             mActivityScenario.close();
             mActivityScenario = null;
         }
-        ChromeBrowserInitializer.setForTesting(null);
-        Profile.setLastUsedProfileForTesting(null);
     }
 
     @Test
+    @DisableFeatures({ChromeFeatureList.SETTINGS_SINGLE_ACTIVITY})
     public void testDefaultLaunchProcess() {
-        launchSettingsActivity(TestSettingsFragment.class.getName());
+        startSettings(TestEmbeddableFragment.class.getName());
         mActivityScenario.moveToState(State.CREATED);
 
-        assertTrue("SettingsActivity is using a wrong fragment.",
-                mSettingsActivity.getMainFragment() instanceof TestSettingsFragment);
+        assertTrue(
+                "SettingsActivity is using a wrong fragment.",
+                mSettingsActivity.getMainFragment() instanceof TestEmbeddableFragment);
+        assertNotNull(mSettingsActivity.getIntentRequestTracker());
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.SETTINGS_SINGLE_ACTIVITY})
+    public void testDefaultLaunchProcessSingleActivity() {
+        startSettings(TestEmbeddableFragment.class.getName());
+        mActivityScenario.moveToState(State.CREATED);
+
+        assertTrue(
+                "SettingsActivity is using a wrong fragment.",
+                mSettingsActivity.getMainFragment() instanceof TestEmbeddableFragment);
+        assertNotNull(mSettingsActivity.getIntentRequestTracker());
+    }
+
+    @Test
+    @DisableFeatures({ChromeFeatureList.SETTINGS_SINGLE_ACTIVITY})
+    public void testUpdateTitle() {
+        startSettings(TestEmbeddableFragment.class.getName());
+        mActivityScenario.moveToState(State.RESUMED);
+
+        assertEquals("Activity title is not set.", "test title", mSettingsActivity.getTitle());
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.SETTINGS_SINGLE_ACTIVITY})
+    public void testUpdateTitleSingleActivity() {
+        startSettings(TestEmbeddableFragment.class.getName());
+        mActivityScenario.moveToState(State.RESUMED);
+
+        // Simulate opening a new fragment.
+        Bundle args = new Bundle();
+        args.putString(TestEmbeddableFragment.EXTRA_TITLE, "new title");
+        Intent intent =
+                SettingsIntentUtil.createIntent(
+                        mSettingsActivity, TestEmbeddableFragment.class.getName(), args);
+
+        // Android temporarily pauses an activity while delivering a new intent.
+        mActivityScenario.moveToState(State.STARTED);
+        mSettingsActivity.onNewIntent(intent);
+        mActivityScenario.moveToState(State.RESUMED);
+
+        // Wait for the UI update.
+        ShadowLooper.runUiThreadTasks();
+
+        assertEquals("Activity title is not updated.", "new title", mSettingsActivity.getTitle());
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.SETTINGS_SINGLE_ACTIVITY})
+    public void testIntentFlags() {
+        startSettings(TestEmbeddableFragment.class.getName());
+        mActivityScenario.moveToState(State.RESUMED);
+
+        Intent embeddableFragmentIntent =
+                SettingsIntentUtil.createIntent(
+                        mSettingsActivity, TestEmbeddableFragment.class.getName(), null);
+        assertEquals(
+                "Incorrect intent flags for embeddable fragments",
+                Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                embeddableFragmentIntent.getFlags());
+
+        Intent standaloneFragmentIntent =
+                SettingsIntentUtil.createIntent(
+                        mSettingsActivity, TestStandaloneFragment.class.getName(), null);
+        assertEquals(
+                "Incorrect intent flags for standalone fragments",
+                0,
+                standaloneFragmentIntent.getFlags());
     }
 
     @Test
     public void testBackPress() throws TimeoutException {
-        CachedFeatureFlags.setFeaturesForTesting(
-                Map.of(ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY, true));
-        launchSettingsActivity(TestSettingsFragment.class.getName());
-        assertTrue("SettingsActivity is using a wrong fragment.",
-                mSettingsActivity.getMainFragment() instanceof TestSettingsFragment);
-        TestSettingsFragment mainFragment =
-                (TestSettingsFragment) mSettingsActivity.getMainFragment();
+        startSettings(TestStandaloneFragment.class.getName());
+        assertTrue(
+                "SettingsActivity is using a wrong fragment.",
+                mSettingsActivity.getMainFragment() instanceof TestStandaloneFragment);
+        TestStandaloneFragment mainFragment =
+                (TestStandaloneFragment) mSettingsActivity.getMainFragment();
         mainFragment.getHandleBackPressChangedSupplier().set(true);
-        Assert.assertTrue("TestSettingsFragment will handle back press",
+        Assert.assertTrue(
+                "TestStandaloneFragment will handle back press",
                 mSettingsActivity.getOnBackPressedDispatcher().hasEnabledCallbacks());
 
         // Simulate back press.
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 mSettingsActivity.getOnBackPressedDispatcher()::onBackPressed);
-        mainFragment.getBackPressCallback().waitForFirst();
+        mainFragment.getBackPressCallback().waitForOnly();
 
         mainFragment.getHandleBackPressChangedSupplier().set(false);
-        Assert.assertFalse("TestSettingsFragment will not handle back press",
+        Assert.assertFalse(
+                "TestStandaloneFragment will not handle back press",
                 mSettingsActivity.getOnBackPressedDispatcher().hasEnabledCallbacks());
+    }
+
+    @Test
+    public void testEscapeKey() throws TimeoutException {
+        startSettings(TestStandaloneFragment.class.getName());
+        assertTrue(
+                "SettingsActivity is using a wrong fragment.",
+                mSettingsActivity.getMainFragment() instanceof TestStandaloneFragment);
+        assertFalse(mSettingsActivity.isFinishing());
+
+        // Simulate escape key press.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE);
+                    assertTrue(mSettingsActivity.dispatchKeyEvent(event));
+                });
+        assertTrue(mSettingsActivity.isFinishing());
     }
 
     @Test
     @Config(qualifiers = "w720dp-h1024dp")
     public void addPaddingToContentOnWideDisplay() {
-        launchSettingsActivity(TestSettingsFragment.class.getName());
+        startSettings(TestEmbeddableFragment.class.getName());
         mActivityScenario.moveToState(State.CREATED);
         mActivityScenario.moveToState(State.STARTED);
         mActivityScenario.moveToState(State.RESUMED);
 
         RecyclerView recyclerView = mSettingsActivity.findViewById(R.id.recycler_view);
-        PaddedDividerItemDecoration decoration = getPaddedDividerDecoration(recyclerView);
-        assertNotNull("PaddedDividerItemDecoration should exists.", decoration);
+        PaddedItemDecorationWithDivider decoration = getPaddedDecoration(recyclerView);
+        assertNotNull("PaddedItemDecorationWithDivider should exists.", decoration);
         int parentPadding =
                 60; // (720 - UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) / 2 = (720 - 600) / 2
-        assertEquals("Divider start padding is wrong.", parentPadding,
-                decoration.getDividerPaddingStart());
-        assertEquals(
-                "Divider end padding is wrong.", parentPadding, decoration.getDividerPaddingEnd());
+        int itemOffset = decoration.getItemOffsetForTesting();
+        assertEquals("Item offset is wrong.", parentPadding, itemOffset);
+        assertEquals("Divider start padding is wrong.", 0, decoration.getDividerPaddingStart());
+        assertEquals("Divider end padding is wrong.", 0, decoration.getDividerPaddingEnd());
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h1024dp")
+    public void addPaddingToContentOnNarrowDisplay() {
+        startSettings(TestEmbeddableFragment.class.getName());
+        mActivityScenario.moveToState(State.CREATED);
+        mActivityScenario.moveToState(State.STARTED);
+        mActivityScenario.moveToState(State.RESUMED);
+
+        RecyclerView recyclerView = mSettingsActivity.findViewById(R.id.recycler_view);
+        PaddedItemDecorationWithDivider decoration = getPaddedDecoration(recyclerView);
+        assertNotNull("PaddedItemDecorationWithDivider should exists.", decoration);
+        int itemOffset = decoration.getItemOffsetForTesting();
+        assertEquals("Item offset is wrong.", 0, itemOffset);
+        assertEquals("Divider start padding is wrong.", 0, decoration.getDividerPaddingStart());
+        assertEquals("Divider end padding is wrong.", 0, decoration.getDividerPaddingEnd());
     }
 
     @Test
     @Config(qualifiers = "w720dp-h1024dp")
     public void addPaddingToContentOnWideDisplay_NoDivider() {
         CustomDividerTestSettingsFragment.sHasDivider = false;
-        launchSettingsActivity(CustomDividerTestSettingsFragment.class.getName());
+        startSettings(CustomDividerTestSettingsFragment.class.getName());
         mActivityScenario.moveToState(State.CREATED);
         mActivityScenario.moveToState(State.STARTED);
         mActivityScenario.moveToState(State.RESUMED);
 
-        int padding = 60; // (720 - UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) / 2 = (720 - 600) / 2
         RecyclerView recyclerView = mSettingsActivity.findViewById(R.id.recycler_view);
-        assertEquals("Padding start is wrong.", padding, recyclerView.getPaddingStart());
-        assertEquals("Padding end is wrong.", padding, recyclerView.getPaddingEnd());
+        PaddedItemDecorationWithDivider decoration = getPaddedDecoration(recyclerView);
+        assertNotNull("PaddedItemDecorationWithDivider should exists.", decoration);
+        int parentPadding =
+                60; // (720 - UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) / 2 = (720 - 600) / 2
 
-        assertNull("PaddedDividerItemDecoration should not exist when no divider is in use.",
-                getPaddedDividerDecoration(recyclerView));
+        int itemOffset = decoration.getItemOffsetForTesting();
+        assertEquals("Item offset is wrong.", parentPadding, itemOffset);
+        assertEquals(
+                "Divider start padding should not be set.", 0, decoration.getDividerPaddingStart());
+        assertEquals(
+                "Divider end padding should not be set.", 0, decoration.getDividerPaddingEnd());
     }
 
     @Test
@@ -157,47 +269,61 @@ public class SettingsActivityUnitTest {
     public void addPaddingToContentOnWideDisplay_HasCustomDivider() {
         CustomDividerTestSettingsFragment.sHasDivider = true;
 
-        launchSettingsActivity(CustomDividerTestSettingsFragment.class.getName());
+        startSettings(CustomDividerTestSettingsFragment.class.getName());
         mActivityScenario.moveToState(State.CREATED);
         mActivityScenario.moveToState(State.STARTED);
         mActivityScenario.moveToState(State.RESUMED);
 
         RecyclerView recyclerView = mSettingsActivity.findViewById(R.id.recycler_view);
-        PaddedDividerItemDecoration decoration = getPaddedDividerDecoration(recyclerView);
-        assertNotNull("PaddedDividerItemDecoration should exists.", decoration);
+        PaddedItemDecorationWithDivider decoration = getPaddedDecoration(recyclerView);
+
+        assertNotNull("PaddedItemDecorationWithDivider should exists.", decoration);
         int parentPadding =
                 60; // (720 - UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) / 2 = (720 - 600) / 2
-        assertEquals("Divider start padding is wrong.",
-                parentPadding + CustomDividerTestSettingsFragment.DIVIDER_START_PADDING,
+        int itemOffset = decoration.getItemOffsetForTesting();
+        assertEquals("Item offset is wrong.", parentPadding, itemOffset);
+        assertEquals(
+                "Divider start padding is wrong.",
+                CustomDividerTestSettingsFragment.DIVIDER_START_PADDING,
                 decoration.getDividerPaddingStart());
-        assertEquals("Divider end padding is wrong.",
-                parentPadding + CustomDividerTestSettingsFragment.DIVIDER_END_PADDING,
+        assertEquals(
+                "Divider end padding is wrong.",
+                CustomDividerTestSettingsFragment.DIVIDER_END_PADDING,
                 decoration.getDividerPaddingEnd());
+
+        // simulate onDraw() call and verify padding
+        RecyclerView.State state = new RecyclerView.State();
+        decoration.onDraw(new Canvas(), recyclerView, state);
+        for (int index = 0; index < recyclerView.getChildCount(); index++) {
+            View view = recyclerView.getChildAt(index);
+            Rect outRect = new Rect();
+            decoration.getItemOffsets(outRect, view, recyclerView, state);
+            assertEquals("Recycler view item offset padding is wrong", parentPadding, outRect.left);
+            assertEquals("Recycler view item end offset is wrong", parentPadding, outRect.right);
+        }
     }
 
-    private void launchSettingsActivity(String fragmentName) {
+    private void startSettings(String fragmentName) {
         assert mActivityScenario == null : "Should be called once per test.";
-        Intent intent = new Intent();
-        intent.setClass(ContextUtils.getApplicationContext(), SettingsActivity.class);
-        intent.putExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT, fragmentName);
+        Intent intent =
+                SettingsIntentUtil.createIntent(
+                        ContextUtils.getApplicationContext(), fragmentName, null);
         mActivityScenario = ActivityScenario.launch(intent);
         mActivityScenario.onActivity(activity -> mSettingsActivity = activity);
     }
 
-    private PaddedDividerItemDecoration getPaddedDividerDecoration(RecyclerView recyclerView) {
+    private PaddedItemDecorationWithDivider getPaddedDecoration(RecyclerView recyclerView) {
         for (int i = 0; i < recyclerView.getItemDecorationCount(); ++i) {
-            if (recyclerView.getItemDecorationAt(i) instanceof PaddedDividerItemDecoration) {
-                return (PaddedDividerItemDecoration) recyclerView.getItemDecorationAt(i);
+            if (recyclerView.getItemDecorationAt(i) instanceof PaddedItemDecorationWithDivider) {
+                return (PaddedItemDecorationWithDivider) recyclerView.getItemDecorationAt(i);
             }
         }
         return null;
     }
 
-    /**
-     * Class that override the divider behavior.
-     */
-    public static class CustomDividerTestSettingsFragment
-            extends TestSettingsFragment implements CustomDividerFragment {
+    /** Class that override the divider behavior. */
+    public static class CustomDividerTestSettingsFragment extends TestEmbeddableFragment
+            implements CustomDividerFragment {
         static final int DIVIDER_START_PADDING = 10;
         static final int DIVIDER_END_PADDING = 15;
 

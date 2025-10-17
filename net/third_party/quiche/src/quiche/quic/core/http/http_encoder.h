@@ -19,7 +19,7 @@ class QuicDataWriter;
 
 // A class for encoding the HTTP frames that are exchanged in an HTTP over QUIC
 // session.
-class QUIC_EXPORT_PRIVATE HttpEncoder {
+class QUICHE_EXPORT HttpEncoder {
  public:
   HttpEncoder() = delete;
 
@@ -46,6 +46,9 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
 
   // Serializes an ACCEPT_CH frame.
   static std::string SerializeAcceptChFrame(const AcceptChFrame& accept_ch);
+
+  // Serializes an ORIGIN frame.
+  static std::string SerializeOriginFrame(const OriginFrame& origin);
 
   // Serializes a frame with reserved frame type specified in
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.9.

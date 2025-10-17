@@ -2,6 +2,19 @@
 
 This is a list of changes to [Largest Contentful Paint](https://web.dev/lcp).
 
+* Chrome 133
+  * Implementation optimizations: [Expose coarsened cross-origin renderTime in element timing/LCP (regardless of TAO)](2025_02_lcp.md)
+* Chrome 130
+  * Launch feature: [Exclude transparent text from being LCP eligible](2024_10_lcp.md)
+* Chrome 126
+  * Launch feature: [Enable NewPresentationFeedbackTimeStamps on Mac to improve the accuracy of the frame display time](2024_06_inp_lcp_fcp.md)
+* Chrome 118
+  * Implementation optimizations: [Image loading prioritizations](2023_10_image_loading_optimizations.md)
+* Chrome 117
+  * Bug: [Spurious LCP entries after user interaction](2023_10_lcp.md)
+* Chrome 116
+  * Metric definition improvement: [Changes to how LCP handles videos and animated images](2023_08_lcp.md)
+  * Implementation optimizations: [Optimizing image load scheduling](2023_08_image_loading.md)
 * Chrome 112
   * Metric definition improvement: [Largest Contentful Paint ignores low-entropy images](2023_04_lcp.md)
 * Chrome 111

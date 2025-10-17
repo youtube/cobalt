@@ -22,10 +22,10 @@ class QuicStreamSequencerPeer;
 
 // Buffers frames until we have something which can be passed
 // up to the next layer.
-class QUIC_EXPORT_PRIVATE QuicStreamSequencer final {
+class QUICHE_EXPORT QuicStreamSequencer final {
  public:
   // Interface that thie Sequencer uses to communicate with the Stream.
-  class QUIC_EXPORT_PRIVATE StreamInterface {
+  class QUICHE_EXPORT StreamInterface {
    public:
     virtual ~StreamInterface() = default;
 
@@ -74,6 +74,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer final {
   // unconsumed data will be buffered. If the frame is not the next in line, it
   // will be buffered.
   void OnCryptoFrame(const QuicCryptoFrame& frame);
+
+  // Notify the sequencer of a RESET_STREAM_AT so it can verify that any FIN is
+  // consistent.
+  void OnReliableReset(QuicStreamOffset reliable_size);
 
   // Once data is buffered, it's up to the stream to read it when the stream
   // can handle more data.  The following three functions make that possible.
@@ -196,6 +200,9 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer final {
   // The offset, if any, we got a stream termination for.  When this many bytes
   // have been processed, the sequencer will be closed.
   QuicStreamOffset close_offset_;
+
+  // The offset at which the stream can be reset.
+  QuicStreamOffset reliable_offset_;
 
   // If true, the sequencer is blocked from passing data to the stream and will
   // buffer all new incoming data until FlushBufferedFrames is called.

@@ -29,21 +29,21 @@ import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-/**
- * End-to-end tests for testing WebXR for AR's depth sensing behavior.
- */
+/** End-to-end tests for testing WebXR for AR's depth sensing behavior. */
 @RunWith(ParameterizedRunner.class)
 @UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
-@CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
-        "enable-features=WebXR,WebXRARModule,WebXRIncubations,LogJsConsoleMessages"})
+@CommandLineFlags.Add({
+    ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
+    "enable-features=WebXR,WebXRARModule,WebXRIncubations,LogJsConsoleMessages"
+})
 public class WebXrArDepthSensingTest {
     @ClassParameter
-    private static List<ParameterSet> sClassParams =
+    private static final List<ParameterSet> sClassParams =
             ArTestRuleUtils.generateDefaultTestRuleParameters();
-    @Rule
-    public RuleChain mRuleChain;
 
-    private ChromeActivityTestRule mTestRule;
+    @Rule public RuleChain mRuleChain;
+
+    private final ChromeActivityTestRule mTestRule;
     private WebXrArTestFramework mWebXrArTestFramework;
 
     public WebXrArDepthSensingTest(Callable<ChromeActivityTestRule> callable) throws Exception {
@@ -56,9 +56,7 @@ public class WebXrArDepthSensingTest {
         mWebXrArTestFramework = new WebXrArTestFramework(mTestRule);
     }
 
-    /**
-     * Tests that depth sensing API returns results that can be queried for depth.
-     */
+    /** Tests that depth sensing API returns results that can be queried for depth. */
     @Test
     @MediumTest
     @XrActivityRestriction({XrActivityRestriction.SupportedActivity.ALL})

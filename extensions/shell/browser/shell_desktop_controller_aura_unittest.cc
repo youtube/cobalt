@@ -8,6 +8,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -36,7 +37,7 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/rect.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #endif
 
@@ -69,7 +70,7 @@ class ShellDesktopControllerAuraTest : public ShellTestBaseAura {
     display::Screen::SetScreenInstance(screen_.get());
     ShellTestBaseAura::SetUp();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     chromeos::PowerManagerClient::InitializeFake();
 #endif
 
@@ -79,7 +80,7 @@ class ShellDesktopControllerAuraTest : public ShellTestBaseAura {
 
   void TearDown() override {
     controller_.reset();
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     chromeos::PowerManagerClient::Shutdown();
 #endif
     ShellTestBaseAura::TearDown();
@@ -100,7 +101,7 @@ class ShellDesktopControllerAuraTest : public ShellTestBaseAura {
   std::unique_ptr<ShellDesktopControllerAura> controller_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Tests that a shutdown request is sent to the power manager when the power
 // button is pressed.
 TEST_F(ShellDesktopControllerAuraTest, PowerButton) {
@@ -119,7 +120,13 @@ TEST_F(ShellDesktopControllerAuraTest, PowerButton) {
 
 // Tests that basic input events are handled and forwarded to the host.
 // TODO(michaelpg): Test other types of input.
-TEST_F(ShellDesktopControllerAuraTest, InputEvents) {
+// Flaky on Linux dbg.  http://crbug.com/1516907
+#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
+#define MAYBE_InputEvents DISABLED_InputEvents
+#else
+#define MAYBE_InputEvents InputEvents
+#endif
+TEST_F(ShellDesktopControllerAuraTest, MAYBE_InputEvents) {
   scoped_refptr<const Extension> extension = ExtensionBuilder("Test").Build();
   CreateAppWindow(extension.get());
 
@@ -133,7 +140,8 @@ TEST_F(ShellDesktopControllerAuraTest, InputEvents) {
   EXPECT_EQ(0, client.insert_char_count());
 
   // Dispatch a keypress on the window tree host to verify it is processed.
-  ui::KeyEvent key_press(u'a', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
+  ui::KeyEvent key_press = ui::KeyEvent::FromCharacter(
+      u'a', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
 #if BUILDFLAG(IS_OZONE)
   // Mark IME ignoring flag for ozone platform to be just a key event skipping
   // IME handling, which is referred in some IME handling code based on ozone.

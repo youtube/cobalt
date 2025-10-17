@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "third_party/blink/renderer/modules/mediastream/low_latency_video_renderer_algorithm.h"
+
+#include <array>
 #include <queue>
 
 #include "base/time/time.h"
 #include "media/base/video_frame_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/modules/mediastream/low_latency_video_renderer_algorithm.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -85,7 +88,7 @@ class LowLatencyVideoRendererAlgorithmTest : public testing::Test {
 
   void StepUntilJustBeforeNextFrameIsRendered(
       base::TimeDelta render_interval,
-      absl::optional<media::VideoFrame::ID> expected_id = absl::nullopt) {
+      std::optional<media::VideoFrame::ID> expected_id = std::nullopt) {
     // No frame will be rendered until the total render time that has passed is
     // greater than the frame duration of a frame.
     base::TimeTicks start_time = current_render_time_;
@@ -108,6 +111,7 @@ class LowLatencyVideoRendererAlgorithmTest : public testing::Test {
   }
 
  protected:
+  test::TaskEnvironment task_environment_;
   media::VideoFramePool frame_pool_;
   LowLatencyVideoRendererAlgorithm algorithm_;
   base::TimeTicks current_render_time_;
@@ -553,8 +557,10 @@ TEST_F(LowLatencyVideoRendererAlgorithmTest,
 TEST_F(LowLatencyVideoRendererAlgorithmTest, NormalModeWithGlitch60Hz) {
   constexpr int kNumberOfFrames = 5;
   constexpr int kMaxCompositionDelayInFrames = 6;
-  constexpr double kDeadlineBeginErrorRate[] = {0.01, 0.03, -0.01, -0.02, 0.02};
-  constexpr double kDeadlineEndErrorRate[] = {0.02, -0.03, -0.02, 0.03, 0.01};
+  constexpr const auto kDeadlineBeginErrorRate =
+      std::to_array<double>({0.01, 0.03, -0.01, -0.02, 0.02});
+  constexpr const auto kDeadlineEndErrorRate =
+      std::to_array<double>({0.02, -0.03, -0.02, 0.03, 0.01});
   for (int i = 0; i < kNumberOfFrames; ++i) {
     media::VideoFrame::ID frame_id =
         CreateAndEnqueueFrame(kMaxCompositionDelayInFrames);
@@ -574,8 +580,10 @@ TEST_F(LowLatencyVideoRendererAlgorithmTest, NormalModeWithGlitch120Hz) {
   constexpr base::TimeDelta kRenderInterval =
       base::Milliseconds(1000.0 / 120.0);  // 120Hz.
   constexpr int kMaxCompositionDelayInFrames = 6;
-  constexpr double kDeadlineBeginErrorRate[] = {0.01, 0.03, -0.01, -0.02, 0.02};
-  constexpr double kDeadlineEndErrorRate[] = {0.02, -0.03, -0.02, 0.03, 0.01};
+  constexpr const auto kDeadlineBeginErrorRate =
+      std::to_array<double>({0.01, 0.03, -0.01, -0.02, 0.02});
+  constexpr const auto kDeadlineEndErrorRate =
+      std::to_array<double>({0.02, -0.03, -0.02, 0.03, 0.01});
 
   // Add one initial frame.
   media::VideoFrame::ID last_id =

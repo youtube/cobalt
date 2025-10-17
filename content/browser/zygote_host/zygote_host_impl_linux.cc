@@ -2,21 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "content/browser/zygote_host/zygote_host_impl_linux.h"
 
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "base/allocator/allocator_extension.h"
 #include "base/files/file_enumerator.h"
 #include "base/logging.h"
 #include "base/posix/unix_domain_socket.h"
 #include "base/process/kill.h"
 #include "base/process/memory.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/types/fixed_array.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/common/zygote/zygote_commands_linux.h"
 #include "content/common/zygote/zygote_communication_linux.h"
 #include "content/common/zygote/zygote_handle_impl_linux.h"
@@ -46,15 +50,16 @@ bool ReceiveFixedMessage(int fd,
                          base::ProcessId* sender_pid) {
   // Allocate an extra byte of buffer space so we can check that we received
   // exactly |expect_len| bytes, and the message wasn't just truncated to fit.
-  char buf[expect_len + 1];
+  base::FixedArray<char> buf(expect_len + 1);
   std::vector<base::ScopedFD> fds_vec;
 
   const ssize_t len = base::UnixDomainSocket::RecvMsgWithPid(
-      fd, buf, sizeof(buf), &fds_vec, sender_pid);
+      fd, buf.data(), buf.memsize(), &fds_vec, sender_pid);
   if (static_cast<size_t>(len) != expect_len)
     return false;
-  if (memcmp(buf, expect_msg, expect_len) != 0)
+  if (memcmp(buf.data(), expect_msg, expect_len) != 0) {
     return false;
+  }
   if (!fds_vec.empty())
     return false;
   return true;
@@ -125,10 +130,14 @@ void ZygoteHostImpl::Init(const base::CommandLine& command_line) {
     use_suid_sandbox_for_adj_oom_score_ = use_suid_sandbox_;
   } else {
     LOG(FATAL)
-        << "No usable sandbox! Update your kernel or see "
+        << "No usable sandbox! If you are running on Ubuntu 23.10+ or another "
+           "Linux distro that has disabled unprivileged user namespaces with "
+           "AppArmor, see "
+           "https://chromium.googlesource.com/chromium/src/+/main/"
+           "docs/security/apparmor-userns-restrictions.md. Otherwise see "
            "https://chromium.googlesource.com/chromium/src/+/main/"
            "docs/linux/suid_sandbox_development.md for more information on "
-           "developing with the SUID sandbox. "
+           "developing with the (older) SUID sandbox. "
            "If you want to live dangerously and need an immediate workaround, "
            "you can try using --"
         << sandbox::policy::switches::kNoSandbox << ".";
@@ -158,12 +167,13 @@ pid_t ZygoteHostImpl::LaunchZygote(
     base::ScopedFD* control_fd,
     base::FileHandleMappingVector additional_remapped_fds) {
   int fds[2];
-  CHECK_EQ(0, socketpair(AF_UNIX, SOCK_SEQPACKET, 0, fds));
+  CHECK_EQ(0, socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, fds));
   CHECK(base::UnixDomainSocket::EnableReceiveProcessId(fds[0]));
 
   base::LaunchOptions options;
   options.fds_to_remap = std::move(additional_remapped_fds);
   options.fds_to_remap.emplace_back(fds[1], kZygoteSocketPairFd);
+  options.fds_to_remove_cloexec.push_back(fds[1]);
 
   const bool is_sandboxed_zygote =
       !cmd_line->HasSwitch(sandbox::policy::switches::kNoZygoteSandbox);
@@ -197,8 +207,8 @@ pid_t ZygoteHostImpl::LaunchZygote(
 
     // First we receive a message from the zygote boot process.
     base::ProcessId boot_pid;
-    CHECK(ReceiveFixedMessage(fds[0], kZygoteBootMessage,
-                              sizeof(kZygoteBootMessage), &boot_pid));
+    PCHECK(ReceiveFixedMessage(fds[0], kZygoteBootMessage,
+                               sizeof(kZygoteBootMessage), &boot_pid));
 
     // Within the PID namespace, the zygote boot process thinks it's PID 1,
     // but its real PID can never be 1. This gives us a reliable test that
@@ -211,8 +221,8 @@ pid_t ZygoteHostImpl::LaunchZygote(
     // Now receive the message that the zygote's ready to go, along with the
     // main zygote process's ID.
     pid_t real_pid;
-    CHECK(ReceiveFixedMessage(fds[0], kZygoteHelloMessage,
-                              sizeof(kZygoteHelloMessage), &real_pid));
+    PCHECK(ReceiveFixedMessage(fds[0], kZygoteHelloMessage,
+                               sizeof(kZygoteHelloMessage), &real_pid));
     CHECK_GT(real_pid, 1);
 
     if (real_pid != pid) {
@@ -297,13 +307,18 @@ void ZygoteHostImpl::AdjustRendererOOMScore(base::ProcessHandle pid,
 #if BUILDFLAG(IS_CHROMEOS)
 void ZygoteHostImpl::ReinitializeLogging(uint32_t logging_dest,
                                          base::PlatformFile log_file_fd) {
+  if (!HasZygote()) {
+    return;
+  }
+
   content::ZygoteCommunication* generic_zygote = content::GetGenericZygote();
   content::ZygoteCommunication* unsandboxed_zygote =
       content::GetUnsandboxedZygote();
-  if (generic_zygote)
-    generic_zygote->ReinitializeLogging(logging_dest, log_file_fd);
-  if (unsandboxed_zygote)
+
+  generic_zygote->ReinitializeLogging(logging_dest, log_file_fd);
+  if (unsandboxed_zygote) {
     unsandboxed_zygote->ReinitializeLogging(logging_dest, log_file_fd);
+  }
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

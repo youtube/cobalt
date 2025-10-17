@@ -6,19 +6,20 @@
 
 #include <memory>
 
+#include "ash/ambient/metrics/managed_screensaver_metrics.h"
 #include "ash/ambient/model/ambient_backend_model.h"
 #include "ash/ambient/model/ambient_photo_config.h"
 #include "ash/ambient/model/ambient_slideshow_photo_config.h"
 #include "ash/ambient/test/ambient_ash_test_base.h"
 #include "ash/ambient/test/mock_ambient_backend_model_observer.h"
-#include "ash/ambient/test/test_ambient_managed_photo_source.h"
-#include "ash/constants/ash_features.h"
+#include "ash/constants/ash_paths.h"
 #include "ash/public/cpp/ambient/proto/photo_cache_entry.pb.h"
-#include "ash/public/cpp/test/in_process_image_decoder.h"
+#include "ash/public/cpp/test/in_process_data_decoder.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -45,12 +46,23 @@ MATCHER_P(BackedBySameImageAs, photo_with_details, "") {
   return AreBackedBySameImage(arg, photo_with_details);
 }
 
+// This limit is specified in the policy definition for the policies
+// ScreensaverLockScreenImages and DeviceScreensaverLoginScreenImages.
+constexpr size_t kMaxUrlsToProcessFromPolicy = 25u;
+
 }  // namespace
 
 class AmbientManagedPhotoControllerTest : public AmbientAshTestBase {
  public:
-  AmbientManagedPhotoControllerTest()
-      : photo_source_(std::make_unique<TestAmbientManagedPhotoSource>()) {}
+  AmbientManagedPhotoControllerTest() {
+    CreateTestData();
+
+    // Required as otherwise the PathService::CheckedGet fails in the
+    // screensaver images policy handler.
+    device_policy_screensaver_folder_override_ =
+        std::make_unique<base::ScopedPathOverride>(
+            ash::DIR_DEVICE_POLICY_SCREENSAVER_DATA, temp_dir_.GetPath());
+  }
 
   void CreateTestData() {
     bool success = temp_dir_.CreateUniqueTempDir();
@@ -73,20 +85,13 @@ class AmbientManagedPhotoControllerTest : public AmbientAshTestBase {
     image_file_paths_.push_back(image_4);
   }
 
-  void CleanUpTestData() {
-    ASSERT_TRUE(temp_dir_.Delete());
-    image_file_paths_.clear();
-  }
+  void CleanUpTestData() { image_file_paths_.clear(); }
 
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(
-        ash::features::kAmbientModeManagedScreensaver);
-
     AmbientAshTestBase::SetUp();
     photo_controller_ = std::make_unique<AmbientManagedPhotoController>(
         *ambient_controller()->ambient_view_delegate(),
         CreateAmbientManagedSlideshowPhotoConfig());
-    CreateTestData();
   }
 
   void TearDown() override {
@@ -154,11 +159,11 @@ class AmbientManagedPhotoControllerTest : public AmbientAshTestBase {
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-  InProcessImageDecoder decoder_;
+  InProcessDataDecoder decoder_;
   std::vector<base::FilePath> image_file_paths_;
   base::ScopedTempDir temp_dir_;
-  std::unique_ptr<TestAmbientManagedPhotoSource> photo_source_;
+  std::unique_ptr<base::ScopedPathOverride>
+      device_policy_screensaver_folder_override_;
   std::unique_ptr<AmbientManagedPhotoController> photo_controller_;
 };
 
@@ -450,6 +455,48 @@ TEST_F(AmbientManagedPhotoControllerTest, AddingEmptyImagesIsANoOP) {
                 ->all_decoded_topics()
                 .size(),
             2u);
+}
+
+TEST_F(AmbientManagedPhotoControllerTest, VerifyImageCountHistogram) {
+  base::HistogramTester histogram_tester;
+  std::vector<base::FilePath> images;
+
+  // Update image list to empty list
+  managed_photo_controller()->UpdateImageFilePaths(images);
+
+  const std::string& histogram_name =
+      GetManagedScreensaverHistogram(kManagedScreensaverImageCountUMA);
+
+  // Update list to max - 1
+  for (unsigned int i = 0; i < kMaxUrlsToProcessFromPolicy - 1; ++i) {
+    images.emplace_back(FILE_PATH_LITERAL("IMAGE_1.jpg"));
+  }
+  managed_photo_controller()->UpdateImageFilePaths(images);
+
+  // Update list to max
+  images.emplace_back(FILE_PATH_LITERAL("IMAGE_1.jpg"));
+  managed_photo_controller()->UpdateImageFilePaths(images);
+
+  // Update list to max + 1
+  images.emplace_back(FILE_PATH_LITERAL("IMAGE_1.jpg"));
+  managed_photo_controller()->UpdateImageFilePaths(images);
+
+  histogram_tester.ExpectTotalCount(histogram_name, 4);
+
+  histogram_tester.ExpectBucketCount(histogram_name,
+                                     /*sample=*/0, /*expected_count=*/1);
+
+  histogram_tester.ExpectBucketCount(histogram_name,
+                                     /*sample=*/kMaxUrlsToProcessFromPolicy - 1,
+                                     /*expected_count=*/1);
+
+  histogram_tester.ExpectBucketCount(histogram_name,
+                                     /*sample=*/kMaxUrlsToProcessFromPolicy + 1,
+                                     /*expected_count=*/1);
+
+  histogram_tester.ExpectBucketCount(histogram_name,
+                                     /*sample=*/kMaxUrlsToProcessFromPolicy + 1,
+                                     /*expected_count=*/1);
 }
 
 }  // namespace ash

@@ -16,17 +16,18 @@
 
 DROP VIEW IF EXISTS chrome_slice_names_output;
 
-CREATE VIEW chrome_slice_names_output AS
+CREATE PERFETTO VIEW chrome_slice_names_output AS
 SELECT ChromeSliceNames(
   'chrome_version_code', (
     SELECT RepeatedField(int_value)
     FROM metadata
-    WHERE name = 'cr-playstore_version_code'
+    WHERE name GLOB 'cr-*playstore_version_code'
     ORDER BY int_value
   ),
   'slice_name', (
     SELECT RepeatedField(DISTINCT(name))
     FROM slice
+    WHERE name IS NOT NULL
     ORDER BY name
   )
 );

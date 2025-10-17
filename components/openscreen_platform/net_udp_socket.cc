@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/openscreen_platform/net_udp_socket.h"
 
 #include <algorithm>
@@ -15,7 +20,7 @@ namespace openscreen {
 
 // static
 ErrorOr<std::unique_ptr<UdpSocket>> UdpSocket::Create(
-    TaskRunner* task_runner,
+    TaskRunner& task_runner,
     Client* client,
     const IPEndpoint& local_endpoint) {
   return ErrorOr<std::unique_ptr<UdpSocket>>(
@@ -34,7 +39,7 @@ NetUdpSocket::NetUdpSocket(openscreen::UdpSocket::Client* client,
       udp_socket_(net::DatagramSocket::DEFAULT_BIND,
                   nullptr /* net_log */,
                   net::NetLogSource()),
-      read_buffer_(base::MakeRefCounted<net::IOBuffer>(
+      read_buffer_(base::MakeRefCounted<net::IOBufferWithSize>(
           openscreen::UdpPacket::kUdpMaxPacketSize)) {
   DVLOG(1) << __func__;
   DCHECK(client_);
@@ -77,7 +82,6 @@ bool NetUdpSocket::HandleRecvFromResult(int result) {
 
   openscreen::UdpPacket packet(read_buffer_->data(),
                                read_buffer_->data() + result);
-  packet.set_socket(this);
   packet.set_source(openscreen_platform::ToOpenScreenEndPoint(from_address_));
   client_->OnRead(this, std::move(packet));
   return true;
@@ -164,8 +168,7 @@ void NetUdpSocket::JoinMulticastGroup(
   }
 }
 
-void NetUdpSocket::SendMessage(const void* data,
-                               size_t length,
+void NetUdpSocket::SendMessage(openscreen::ByteView data,
                                const openscreen::IPEndpoint& dest) {
   DVLOG(3) << __func__;
 
@@ -175,11 +178,11 @@ void NetUdpSocket::SendMessage(const void* data,
     return;
   }
 
-  auto buffer = base::MakeRefCounted<net::IOBuffer>(length);
-  memcpy(buffer->data(), data, length);
+  auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(data.size());
+  memcpy(buffer->data(), data.data(), data.size());
 
   const int result = udp_socket_.SendTo(
-      buffer.get(), length, openscreen_platform::ToNetEndPoint(dest),
+      buffer.get(), data.size(), openscreen_platform::ToNetEndPoint(dest),
       base::BindOnce(&NetUdpSocket::OnSendToCompleted, base::Unretained(this)));
   send_pending_ = true;
 

@@ -4,6 +4,8 @@
 
 #include "ash/login/ui/login_auth_factors_view.h"
 
+#include <algorithm>
+
 #include "ash/login/resources/grit/login_resources.h"
 #include "ash/login/ui/animated_auth_factors_label_wrapper.h"
 #include "ash/login/ui/arrow_button_view.h"
@@ -11,18 +13,24 @@
 #include "ash/login/ui/lock_screen.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
-#include "ash/style/ash_color_provider.h"
+#include "ash/style/ash_color_id.h"
 #include "ash/style/dark_light_mode_controller_impl.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
+#include "ui/base/resource/resource_bundle.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
@@ -41,8 +49,7 @@ constexpr int kSpacingBetweenIconsAndLabelDp = 8;
 constexpr int kIconTopSpacingDp = 10;
 constexpr int kArrowButtonSizeDp = 32;
 constexpr base::TimeDelta kErrorTimeout = base::Seconds(3);
-constexpr base::TimeDelta kCheckmarkAnimationDuration = base::Milliseconds(450);
-constexpr int kCheckmarkAnimationNumFrames = 13;
+constexpr float kCheckmarkAnimationPlaybackSpeed = 2.25;
 
 // The values of this enum should be nearly the same as the values of
 // AuthFactorState, except instead of kErrorTemporary and kErrorPermanent, we
@@ -134,6 +141,32 @@ AuthFactorModel* GetHighestPriorityAuthFactor(
   return max.get();
 }
 
+std::unique_ptr<lottie::Animation> GetCheckmarkAnimation(
+    ui::ColorProvider* color_provider) {
+  std::optional<std::vector<uint8_t>> lottie_data =
+      ui::ResourceBundle::GetSharedInstance().GetLottieData(
+          IDR_LOGIN_ARROW_CHECKMARK_ANIMATION);
+  CHECK(lottie_data.has_value());
+
+  cc::SkottieColorMap color_map = cc::SkottieColorMap{
+      cc::SkottieMapColor("cros.sys.illo.color2",
+                          color_provider->GetColor(AuthIconView::GetColorId(
+                              AuthIconView::Status::kPositive))),
+      cc::SkottieMapColor("cros.sys.app_base_shaded",
+                          color_provider->GetColor(AuthIconView::GetColorId(
+                              AuthIconView::Status::kPrimary))),
+  };
+
+  std::unique_ptr<lottie::Animation> animation =
+      std::make_unique<lottie::Animation>(
+          cc::SkottieWrapper::UnsafeCreateSerializable(lottie_data.value()),
+          std::move(color_map));
+
+  animation->SetPlaybackSpeed(kCheckmarkAnimationPlaybackSpeed);
+
+  return animation;
+}
+
 }  // namespace
 
 LoginAuthFactorsView::TestApi::TestApi(LoginAuthFactorsView* view)
@@ -212,16 +245,11 @@ LoginAuthFactorsView::LoginAuthFactorsView(
           kArrowButtonSizeDp));
   arrow_button_->SetInstallFocusRingOnFocus(true);
   views::InstallCircleHighlightPathGenerator(arrow_button_);
-  arrow_button_->SetAccessibleName(
+  arrow_button_->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_AUTH_FACTOR_LABEL_CLICK_TO_ENTER));
 
   arrow_nudge_animation_ =
       arrow_icon_container_->AddChildView(std::make_unique<AuthIconView>());
-  arrow_nudge_animation_->SetCircleImage(
-      kArrowButtonSizeDp / 2,
-      AshColorProvider::Get()->GetControlsLayerColor(
-          AshColorProvider::ControlsLayerType::kHairlineBorderColor));
-
   arrow_nudge_animation_->set_on_tap_or_click_callback(base::BindRepeating(
       &LoginAuthFactorsView::RelayArrowButtonPressed, base::Unretained(this)));
 
@@ -230,8 +258,6 @@ LoginAuthFactorsView::LoginAuthFactorsView(
   // TODO(crbug.com/1233614): Rename kLockScreenFingerprintSuccessIcon once the
   // feature flag is removed and FingerprintView no longer needs this.
   checkmark_icon_ = AddChildView(std::make_unique<AuthIconView>());
-  checkmark_icon_->SetIcon(kLockScreenFingerprintSuccessIcon,
-                           AuthIconView::Color::kPositive);
   checkmark_icon_->SetVisible(false);
 
   label_wrapper_ =
@@ -239,6 +265,7 @@ LoginAuthFactorsView::LoginAuthFactorsView(
   label_wrapper_->SetProperty(
       views::kMarginsKey,
       gfx::Insets::TLBR(kSpacingBetweenIconsAndLabelDp, 0, 0, 0));
+  label_wrapper_->label()->SetEnabledColor(cros_tokens::kCrosSysOnSurface);
 }
 
 LoginAuthFactorsView::~LoginAuthFactorsView() = default;
@@ -369,7 +396,7 @@ void LoginAuthFactorsView::UpdateState() {
       // their password.
       ShowReadyAndDisabledAuthFactors();
 
-      num_factors_in_error_background_state = base::ranges::count(
+      num_factors_in_error_background_state = std::ranges::count(
           auth_factors_, PrioritizedAuthFactorViewState::kErrorBackground,
           [](const auto& factor) {
             return GetPrioritizedAuthFactorViewState(*factor);
@@ -386,7 +413,6 @@ void LoginAuthFactorsView::UpdateState() {
       return;
     case PrioritizedAuthFactorViewState::kUnavailable:
       NOTREACHED();
-      return;
   }
 }
 
@@ -422,19 +448,15 @@ void LoginAuthFactorsView::ShowReadyAndDisabledAuthFactors() {
 void LoginAuthFactorsView::ShowCheckmark() {
   const bool arrow_button_was_visible = arrow_button_->GetVisible();
   auth_factor_icon_row_->SetVisible(false);
-  checkmark_icon_->SetVisible(true);
   SetArrowVisibility(false);
   if (arrow_button_was_visible) {
-    const auto& resource =
-        DarkLightModeControllerImpl::Get()->IsDarkModeEnabled()
-            ? IDR_LOGIN_ARROW_CHECKMARK_SPINNER_DARKMODE
-            : IDR_LOGIN_ARROW_CHECKMARK_SPINNER_LIGHTMODE;
-    checkmark_icon_->SetAnimation(resource, kCheckmarkAnimationDuration,
-                                  kCheckmarkAnimationNumFrames);
+    checkmark_icon_->SetLottieAnimation(
+        GetCheckmarkAnimation(GetColorProvider()));
   } else {
     checkmark_icon_->SetIcon(kLockScreenFingerprintSuccessIcon,
-                             AuthIconView::Color::kPositive);
+                             AuthIconView::Status::kPositive);
   }
+  checkmark_icon_->SetVisible(true);
 }
 
 int LoginAuthFactorsView::GetReadyLabelId() const {
@@ -452,7 +474,6 @@ int LoginAuthFactorsView::GetReadyLabelId() const {
   if (ready_factor_count == 0u) {
     LOG(ERROR) << "GetReadyLabelId() called without any ready auth factors.";
     NOTREACHED();
-    return GetDefaultLabelId();
   }
 
   if (ready_factor_count == 1u) {
@@ -466,7 +487,6 @@ int LoginAuthFactorsView::GetReadyLabelId() const {
   }
 
   NOTREACHED();
-  return GetDefaultLabelId();
 }
 
 int LoginAuthFactorsView::GetDefaultLabelId() const {
@@ -476,8 +496,11 @@ int LoginAuthFactorsView::GetDefaultLabelId() const {
 }
 
 // views::View:
-gfx::Size LoginAuthFactorsView::CalculatePreferredSize() const {
-  gfx::Size size = views::View::CalculatePreferredSize();
+gfx::Size LoginAuthFactorsView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  views::SizeBounds content_available_size(available_size);
+  content_available_size.set_width(kAuthFactorsViewWidthDp);
+  gfx::Size size = views::View::CalculatePreferredSize(content_available_size);
   size.set_width(kAuthFactorsViewWidthDp);
   return size;
 }
@@ -489,11 +512,16 @@ void LoginAuthFactorsView::OnThemeChanged() {
   for (const auto& factor : auth_factors_) {
     factor->OnThemeChanged();
   }
+
+  arrow_nudge_animation_->SetCircleImage(
+      kArrowButtonSizeDp / 2,
+      GetColorProvider()->GetColor(kColorAshHairlineBorderColor));
 }
 
 void LoginAuthFactorsView::FireAlert() {
-  label_wrapper_->label()->NotifyAccessibilityEvent(ax::mojom::Event::kAlert,
-                                                    /*send_native_event=*/true);
+  label_wrapper_->label()->NotifyAccessibilityEventDeprecated(
+      ax::mojom::Event::kAlert,
+      /*send_native_event=*/true);
 }
 
 void LoginAuthFactorsView::ArrowButtonPressed(const ui::Event& event) {
@@ -509,9 +537,9 @@ void LoginAuthFactorsView::ArrowButtonPressed(const ui::Event& event) {
 
 void LoginAuthFactorsView::RelayArrowButtonPressed() {
   if (arrow_button_) {
-    ArrowButtonPressed(ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(),
-                                      gfx::Point(), base::TimeTicks::Now(), 0,
-                                      0));
+    ArrowButtonPressed(ui::MouseEvent(ui::EventType::kMousePressed,
+                                      gfx::Point(), gfx::Point(),
+                                      base::TimeTicks::Now(), 0, 0));
   }
 }
 
@@ -574,5 +602,8 @@ void LoginAuthFactorsView::UpdateShouldHidePasswordField(
   on_auth_factor_is_hiding_password_changed_callback_.Run(
       should_hide_password_field);
 }
+
+BEGIN_METADATA(LoginAuthFactorsView)
+END_METADATA
 
 }  // namespace ash

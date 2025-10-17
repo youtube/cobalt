@@ -18,8 +18,9 @@ void FlushPendingTasks(TestSimpleTaskRunner* task_runner) {
   // TestSimpleTaskRunner::RunPendingTasks(), as its overridden
   // SingleThreadTaskRunner::CurrentDefaultHandle causes unexpected side
   // effects.
-  for (TestPendingTask& task : task_runner->TakePendingTasks())
+  for (TestPendingTask& task : task_runner->TakePendingTasks()) {
     std::move(task.task).Run();
+  }
 }
 
 }  // namespace
@@ -40,6 +41,11 @@ void MockOneShotTimer::SetTaskRunner(
 void MockOneShotTimer::Fire() {
   DCHECK(IsRunning());
   clock_.Advance(std::max(TimeDelta(), desired_run_time() - clock_.NowTicks()));
+  FlushPendingTasks(test_task_runner_.get());
+}
+
+void MockOneShotTimer::FireNow() {
+  DCHECK(IsRunning());
   FlushPendingTasks(test_task_runner_.get());
 }
 

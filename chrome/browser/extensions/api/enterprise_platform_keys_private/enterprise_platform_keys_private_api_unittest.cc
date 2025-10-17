@@ -10,14 +10,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "chrome/browser/ash/attestation/mock_tpm_challenge_key.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
-#include "components/user_manager/scoped_user_manager.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/common/extension_builder.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -35,11 +33,7 @@ const char kUserEmail[] = "test@google.com";
 
 class EPKPChallengeKeyTestBase : public BrowserWithTestWindowTest {
  protected:
-  EPKPChallengeKeyTestBase()
-      : fake_user_manager_(new ash::FakeChromeUserManager()),
-        user_manager_enabler_(base::WrapUnique(fake_user_manager_.get())) {
-    extension_ = ExtensionBuilder("Test").Build();
-  }
+  EPKPChallengeKeyTestBase() : extension_(ExtensionBuilder("Test").Build()) {}
 
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
@@ -56,10 +50,12 @@ class EPKPChallengeKeyTestBase : public BrowserWithTestWindowTest {
   }
 
   // This will be called by BrowserWithTestWindowTest::SetUp();
-  TestingProfile* CreateProfile() override {
-    fake_user_manager_->AddUserWithAffiliation(
-        AccountId::FromUserEmail(kUserEmail), true);
-    return profile_manager()->CreateTestingProfile(kUserEmail);
+  void LogIn(std::string_view email, const GaiaId& gaia_id) override {
+    BrowserWithTestWindowTest::LogIn(email, gaia_id);
+    user_manager()->SetUserPolicyStatus(
+        AccountId::FromUserEmailGaiaId(email, gaia_id),
+        /*is_managed=*/true,
+        /*is_affiliated=*/true);
   }
 
   // Derived classes can override this method to set the required authenticated
@@ -72,11 +68,7 @@ class EPKPChallengeKeyTestBase : public BrowserWithTestWindowTest {
   }
 
   scoped_refptr<const Extension> extension_;
-  // fake_user_manager_ is owned by user_manager_enabler_.
-  raw_ptr<ash::FakeChromeUserManager, ExperimentalAsh> fake_user_manager_ =
-      nullptr;
-  user_manager::ScopedUserManager user_manager_enabler_;
-  raw_ptr<PrefService, ExperimentalAsh> prefs_ = nullptr;
+  raw_ptr<PrefService, DanglingUntriaged> prefs_ = nullptr;
 };
 
 class EPKPChallengeMachineKeyTest : public EPKPChallengeKeyTestBase {
@@ -112,7 +104,7 @@ TEST_F(EPKPChallengeMachineKeyTest, Success) {
   allowlist.Append(extension_->id());
   prefs_->SetList(prefs::kAttestationExtensionAllowlist, std::move(allowlist));
 
-  absl::optional<base::Value> value = utils::RunFunctionAndReturnSingleResult(
+  std::optional<base::Value> value = utils::RunFunctionAndReturnSingleResult(
       func_.get(), kFuncArgs, browser()->profile(),
       extensions::api_test_utils::FunctionMode::kNone);
 
@@ -154,7 +146,7 @@ TEST_F(EPKPChallengeUserKeyTest, Success) {
   allowlist.Append(extension_->id());
   prefs_->SetList(prefs::kAttestationExtensionAllowlist, std::move(allowlist));
 
-  absl::optional<base::Value> value = utils::RunFunctionAndReturnSingleResult(
+  std::optional<base::Value> value = utils::RunFunctionAndReturnSingleResult(
       func_.get(), kFuncArgs, browser()->profile(),
       extensions::api_test_utils::FunctionMode::kNone);
 

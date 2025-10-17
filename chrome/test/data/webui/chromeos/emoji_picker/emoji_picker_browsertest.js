@@ -7,7 +7,7 @@
  */
 
 GEN_INCLUDE([
-  '//chrome/test/data/webui/polymer_browser_test_base.js',
+  '//chrome/test/data/webui/chromeos/polymer_browser_test_base.js',
 ]);
 
 GEN('#include "ash/constants/ash_features.h"');
@@ -18,11 +18,6 @@ class EmojiPickerBrowserTest extends PolymerTest {
   /** @override */
   get browsePreload() {
     return 'chrome://emoji-picker';
-  }
-
-  /** @override */
-  get featureList() {
-    return {enabled: ['ash::features::kImeSystemEmojiPickerClipboard']};
   }
 }
 
@@ -36,7 +31,7 @@ var EmojiPickerMainTest = class extends EmojiPickerBrowserTest {
 };
 
 
-// TODO(https://crbug.com/1179762): Re-enable once flakiness is fixed.
+// TODO(crbug.com/40749899): Re-enable once flakiness is fixed.
 TEST_F('EmojiPickerMainTest', 'DISABLED_All', function() {
   mocha.run();
 });
@@ -46,6 +41,12 @@ var EmojiPickerExtensionBrowserTest = class extends PolymerTest {
   get browsePreload() {
     return 'chrome://emoji-picker/test_loader.html?module=' +
         'chromeos/emoji_picker/emoji_picker_extension_test.js';
+  }
+
+  // TODO(b/295426497): Make tests work with GIF support on.
+  /** @override */
+  get featureList() {
+    return {disabled: ['ash::features::kImeSystemEmojiPickerGIFSupport']};
   }
 };
 
@@ -95,6 +96,15 @@ var EmojiPickerExtensionSearchTest = class extends PolymerTest {
     return 'chrome://emoji-picker/test_loader.html?module=' +
         'chromeos/emoji_picker/emoji_picker_search_test.js';
   }
+
+  // TODO(b/295426497): Make tests work with GIF support on.
+  /** @override */
+  get featureList() {
+    return {
+      enabled: ['ash::features::kImeSystemEmojiPickerVariantGrouping'],
+      disabled: ['ash::features::kImeSystemEmojiPickerGIFSupport'],
+    };
+  }
 };
 
 TEST_F('EmojiPickerExtensionSearchTest', 'All', function() {
@@ -102,12 +112,6 @@ TEST_F('EmojiPickerExtensionSearchTest', 'All', function() {
 });
 
 var EmojiPickerTrieTest = class extends PolymerTest {
-  /** @override */
-  get featureList() {
-    return {
-      enabled: ['ash::features::kImeSystemEmojiPickerSearchExtension'],
-    };
-  }
   /** @override */
   get browsePreload() {
     return 'chrome://emoji-picker/test_loader.html?module=' +
@@ -214,5 +218,63 @@ var EmojiPickerGifHttpErrorTest = class extends PolymerTest {
 };
 
 TEST_F('EmojiPickerGifHttpErrorTest', 'All', function() {
+  mocha.run();
+});
+
+var EmojiPickerGlobalVariantsTest = class extends PolymerTest {
+  /** @override */
+  get featureList() {
+    return {enabled: ['ash::features::kImeSystemEmojiPickerVariantGrouping']};
+  }
+
+  /** @override */
+  get browsePreload() {
+    return 'chrome://emoji-picker/test_loader.html?module=' +
+        'chromeos/emoji_picker/emoji_picker_global_variants_test.js';
+  }
+};
+
+TEST_F('EmojiPickerGlobalVariantsTest', 'All', function() {
+  mocha.run();
+});
+
+var EmojiPickerPreferenceStorageTest = class extends PolymerTest {
+  /** @override */
+  get featureList() {
+    return {enabled: ['ash::features::kImeSystemEmojiPickerVariantGrouping']};
+  }
+
+  /** @override */
+  get browsePreload() {
+    return 'chrome://emoji-picker/test_loader.html?module=' +
+        'chromeos/emoji_picker/emoji_picker_preference_storage_test.js';
+  }
+};
+
+TEST_F('EmojiPickerPreferenceStorageTest', 'All', function() {
+  mocha.run();
+});
+
+var EmojiPickerScrollTest = class extends PolymerTest {
+  /** @override */
+  get browsePreload() {
+    return 'chrome://emoji-picker/test_loader.html?module=' +
+        'chromeos/emoji_picker/emoji_picker_scroll_test.js';
+  }
+};
+
+TEST_F('EmojiPickerScrollTest', 'All', function() {
+  mocha.run();
+});
+
+var EmojiPickerLoadTest = class extends PolymerTest {
+  /** @override */
+  get browsePreload() {
+    return 'chrome://emoji-picker/test_loader.html?module=' +
+        'chromeos/emoji_picker/emoji_picker_load_test.js';
+  }
+};
+
+TEST_F('EmojiPickerLoadTest', 'All', function() {
   mocha.run();
 });

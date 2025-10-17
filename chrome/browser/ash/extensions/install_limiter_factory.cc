@@ -19,26 +19,26 @@ InstallLimiter* InstallLimiterFactory::GetForProfile(Profile* profile) {
 
 // static
 InstallLimiterFactory* InstallLimiterFactory::GetInstance() {
-  return base::Singleton<InstallLimiterFactory>::get();
+  static base::NoDestructor<InstallLimiterFactory> instance;
+  return instance.get();
 }
 
 InstallLimiterFactory::InstallLimiterFactory()
-    : ProfileKeyedServiceFactory(
-          "InstallLimiter",
-          ProfileSelections::Builder()
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-              // Use OTR profile for Guest Session.
-              .WithGuest(ProfileSelection::kOffTheRecordOnly)
-#endif
-              .Build()) {
+    : ProfileKeyedServiceFactory("InstallLimiter",
+                                 ProfileSelections::Builder()
+                                     // Guest Session won't download extensions.
+                                     .WithGuest(ProfileSelection::kNone)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {
   DependsOn(ExtensionsBrowserClient::Get()->GetExtensionSystemFactory());
 }
 
 InstallLimiterFactory::~InstallLimiterFactory() = default;
 
-KeyedService* InstallLimiterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+InstallLimiterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
-  return new InstallLimiter();
+  return std::make_unique<InstallLimiter>();
 }
 
 }  // namespace extensions

@@ -34,8 +34,6 @@ class CrostiniPackageService : public KeyedService,
   using StateChangeCallback =
       base::RepeatingCallback<void(PackageOperationStatus)>;
 
-  static CrostiniPackageService* GetForProfile(Profile* profile);
-
   explicit CrostiniPackageService(Profile* profile);
 
   CrostiniPackageService(const CrostiniPackageService&) = delete;
@@ -87,8 +85,6 @@ class CrostiniPackageService : public KeyedService,
   void QueueUninstallApplication(const std::string& app_id);
 
   CrostiniManager::RestartId GetRestartIdForTesting();
-
-  static void EnsureFactoryBuilt();
 
  private:
   // The user can request new operations while a different operation is in
@@ -175,7 +171,7 @@ class CrostiniPackageService : public KeyedService,
 
   std::string GetUniqueNotificationId();
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   // The notifications in the RUNNING state for each container.
   std::map<guest_os::GuestId, std::unique_ptr<CrostiniPackageNotification>>

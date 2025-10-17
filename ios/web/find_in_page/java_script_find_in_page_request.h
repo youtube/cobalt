@@ -5,11 +5,11 @@
 #ifndef IOS_WEB_FIND_IN_PAGE_JAVA_SCRIPT_FIND_IN_PAGE_REQUEST_H_
 #define IOS_WEB_FIND_IN_PAGE_JAVA_SCRIPT_FIND_IN_PAGE_REQUEST_H_
 
+#import <Foundation/Foundation.h>
+
 #include <list>
 #include <map>
 #include <string>
-
-#import <Foundation/Foundation.h>
 
 @class NSString;
 
@@ -114,4 +114,4 @@ class JavaScriptFindInPageRequest {
 
 }  // namespace web
 
-#endif  // IOS_WEB_FIND_IN_PAGE_FIND_IN_PAGE_REQUEST_H_
+#endif  // IOS_WEB_FIND_IN_PAGE_JAVA_SCRIPT_FIND_IN_PAGE_REQUEST_H_

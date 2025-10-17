@@ -4,23 +4,24 @@
 
 package org.chromium.chrome.browser.feed;
 
-import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedListContentManager.FeedContent;
 import org.chromium.chrome.browser.xsurface.HybridListRenderer;
-import org.chromium.chrome.browser.xsurface.SurfaceScope;
+import org.chromium.chrome.browser.xsurface.feed.FeedSurfaceScope;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
 
 import java.util.List;
 
 /** Interface used for interacting with the Stream library in order to render a stream of cards. */
+@NullMarked
 public interface Stream {
-    /**
-     * The mediator of multiple Streams.
-     */
+    /** The mediator of multiple Streams. */
     public interface StreamsMediator {
         /**
          * Allows the switching to another Stream.
@@ -28,16 +29,13 @@ public interface Stream {
          */
         default void switchToStreamKind(@StreamKind int streamKind) {}
 
-        /**
-         * Request the immediate refresh of the contents of the active stream.
-         */
+        /** Request the immediate refresh of the contents of the active stream. */
         default void refreshStream() {}
 
-        /**
-         * Disable the follow button, used in case of an error scenario.
-         */
+        /** Disable the follow button, used in case of an error scenario. */
         default void disableFollowButton() {}
     }
+
     /** Called when the Stream is no longer needed. */
     default void destroy() {}
 
@@ -77,16 +75,6 @@ public interface Stream {
      */
     void triggerRefresh(Callback<Boolean> callback);
 
-    /**
-     * @return Whether the placeholder is shown.
-     */
-    boolean isPlaceholderShown();
-
-    /**
-     * Called when the placeholder is shown and the first batch of articles are about to show.
-     */
-    void hidePlaceholder();
-
     /** Whether activity logging is enabled for this feed. */
     default boolean isActivityLoggingEnabled() {
         return false;
@@ -112,26 +100,30 @@ public interface Stream {
      * @param manager The {@link FeedListContentManager} to which we should make updates to.
      * @param savedInstanceState A previously saved instance state to restore to after loading
      *         content.
-     * @param surfaceScope The {@link SurfaceScope} that is hosting the renderer.
+     * @param surfaceScope The {@link FeedSurfaceScope} that is hosting the renderer.
      * @param renderer The {@link HybridListRenderer} that is rendering the feed.
      * @param reliabilityLogger Logger for feed reliability.
      * @param headerCount The number of headers in the RecyclerView that the feed shouldn't touch.
      */
-    void bind(RecyclerView view, FeedListContentManager manager, FeedScrollState savedInstanceState,
-            SurfaceScope surfaceScope, HybridListRenderer renderer,
-            @Nullable FeedReliabilityLogger reliabilityLogger, int headerCount);
+    void bind(
+            RecyclerView view,
+            FeedListContentManager manager,
+            @Nullable FeedScrollState savedInstanceState,
+            @Nullable FeedSurfaceScope surfaceScope,
+            HybridListRenderer renderer,
+            @Nullable FeedReliabilityLogger reliabilityLogger,
+            int headerCount);
 
     /**
      * Unbinds the feed. Stops this feed from updating the RecyclerView.
      *
      * @param shouldPlaceSpacer Whether this feed should place a spacer at the end to
      *     prevent abrupt scroll jumps.
+     * @param switchingStream Whether another feed is going to be bound right after this.
      */
-    void unbind(boolean shouldPlaceSpacer);
+    void unbind(boolean shouldPlaceSpacer, boolean switchingStream);
 
-    /**
-     * Whether this stream supports alternate sort options.
-     */
+    /** Whether this stream supports alternate sort options. */
     default boolean supportsOptions() {
         return false;
     }
@@ -150,9 +142,15 @@ public interface Stream {
         /**
          * Called by Stream when content being shown has changed. This could be new cards being
          * created, the content of a card changing, etc...
+         *
          * @param feedContents the list of feed contents after the change. Null if the contents are
-         *         not available.
+         *     not available.
          */
         void onContentChanged(@Nullable List<FeedContent> feedContents);
+    }
+
+    /** Returns a reason to describe how the stream is closed. */
+    default @ClosedReason int getClosedReason() {
+        return ClosedReason.LEAVE_FEED;
     }
 }

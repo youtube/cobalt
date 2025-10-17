@@ -8,7 +8,7 @@ The Cronet native API is cross-platform, usable on multiple desktop and mobile
 platforms.
 
 TODO(caraitto): Add mobile test information for the native API in the
-Android and iOS pages as instructions for testing vary by platform.
+Android page as instructions for testing vary by platform.
 
 ## Checkout and build
 
@@ -21,7 +21,7 @@ To run Cronet native API unit and integration tests:
 
 ```shell
 $ gn gen out/Default  # Generate Ninja build files.
-$ ninja -C out/Default cronet_unittests cronet_tests  # Build both test suites.
+$ autoninja -C out/Default cronet_unittests cronet_tests  # Build both test suites.
 $ ./out/Default/cronet_unittests  # Run unit tests.
 $ ./out/Default/cronet_tests  # Run the integration tests.
 ```

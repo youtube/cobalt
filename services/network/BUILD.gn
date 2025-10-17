@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//net/features.gni")
@@ -11,14 +10,16 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 
 component("network_service") {
   sources = [
-    "brokered_client_socket_factory.cc",
-    "brokered_client_socket_factory.h",
-    "cache_transparency_settings.cc",
-    "cache_transparency_settings.h",
+    "accept_ch_frame_interceptor.cc",
+    "accept_ch_frame_interceptor.h",
+    "ad_heuristic_cookie_overrides.cc",
+    "ad_heuristic_cookie_overrides.h",
     "chunked_data_pipe_upload_data_stream.cc",
     "chunked_data_pipe_upload_data_stream.h",
     "conditional_cache_deletion_helper.cc",
     "conditional_cache_deletion_helper.h",
+    "connection_change_observer.cc",
+    "connection_change_observer.h",
     "cookie_access_delegate_impl.cc",
     "cookie_access_delegate_impl.h",
     "cookie_manager.cc",
@@ -39,12 +40,18 @@ component("network_service") {
     "cors/preflight_result.h",
     "data_pipe_element_reader.cc",
     "data_pipe_element_reader.h",
+    "data_remover_util.cc",
+    "data_remover_util.h",
+    "device_bound_session_manager.cc",
+    "device_bound_session_manager.h",
     "disk_cache/mojo_backend_file_operations.cc",
     "disk_cache/mojo_backend_file_operations.h",
     "disk_cache/mojo_backend_file_operations_factory.cc",
     "disk_cache/mojo_backend_file_operations_factory.h",
     "dns_config_change_manager.cc",
     "dns_config_change_manager.h",
+    "file_opener_for_upload.cc",
+    "file_opener_for_upload.h",
     "host_resolver.cc",
     "host_resolver.h",
     "host_resolver_mdns_listener.cc",
@@ -62,8 +69,8 @@ component("network_service") {
     "is_browser_initiated.h",
     "keepalive_statistics_recorder.cc",
     "keepalive_statistics_recorder.h",
-    "local_network_access_checker.cc",
-    "local_network_access_checker.h",
+    "known_legacy_scope_domains_delegate.cc",
+    "known_legacy_scope_domains_delegate.h",
     "mojo_host_resolver_impl.cc",
     "mojo_host_resolver_impl.h",
     "net_log_exporter.cc",
@@ -80,20 +87,36 @@ component("network_service") {
     "network_quality_estimator_manager.h",
     "network_service.cc",
     "network_service.h",
-    "network_service_memory_cache.cc",
-    "network_service_memory_cache.h",
-    "network_service_memory_cache_url_loader.cc",
-    "network_service_memory_cache_url_loader.h",
-    "network_service_memory_cache_writer.cc",
-    "network_service_memory_cache_writer.h",
     "network_service_network_delegate.cc",
     "network_service_network_delegate.h",
     "network_service_proxy_delegate.cc",
     "network_service_proxy_delegate.h",
     "oblivious_http_request_handler.cc",
     "oblivious_http_request_handler.h",
+    "observer_wrapper.h",
+    "orb/orb_api.cc",
+    "orb/orb_impl.cc",
+    "orb/orb_impl.h",
+    "orb/orb_mimetypes.cc",
+    "orb/orb_mimetypes.h",
+    "orb/orb_sniffers.cc",
+    "orb/orb_sniffers.h",
+    "partial_decoder.cc",
+    "partial_decoder.h",
     "pending_callback_chain.cc",
     "pending_callback_chain.h",
+    "prefetch_cache.cc",
+    "prefetch_cache.h",
+    "prefetch_matches.cc",
+    "prefetch_matches.h",
+    "prefetch_matching_url_loader_factory.cc",
+    "prefetch_matching_url_loader_factory.h",
+    "prefetch_url_loader_client.cc",
+    "prefetch_url_loader_client.h",
+    "private_network_access_checker.cc",
+    "private_network_access_checker.h",
+    "private_network_access_url_loader_interceptor.cc",
+    "private_network_access_url_loader_interceptor.h",
     "proxy_auto_config_library.cc",
     "proxy_auto_config_library.h",
     "proxy_config_service_mojo.cc",
@@ -128,7 +151,10 @@ component("network_service") {
     "sec_header_helpers.h",
     "session_cleanup_cookie_store.cc",
     "session_cleanup_cookie_store.h",
-    "shared_dictionary/shared_dictionary.h",
+    "shared_dictionary/shared_dictionary_access_checker.cc",
+    "shared_dictionary/shared_dictionary_access_checker.h",
+    "shared_dictionary/shared_dictionary_cache.cc",
+    "shared_dictionary/shared_dictionary_cache.h",
     "shared_dictionary/shared_dictionary_constants.cc",
     "shared_dictionary/shared_dictionary_constants.h",
     "shared_dictionary/shared_dictionary_data_pipe_writer.cc",
@@ -141,17 +167,27 @@ component("network_service") {
     "shared_dictionary/shared_dictionary_manager.h",
     "shared_dictionary/shared_dictionary_manager_in_memory.cc",
     "shared_dictionary/shared_dictionary_manager_in_memory.h",
+    "shared_dictionary/shared_dictionary_manager_on_disk.cc",
+    "shared_dictionary/shared_dictionary_manager_on_disk.h",
+    "shared_dictionary/shared_dictionary_on_disk.cc",
+    "shared_dictionary/shared_dictionary_on_disk.h",
     "shared_dictionary/shared_dictionary_storage.cc",
     "shared_dictionary/shared_dictionary_storage.h",
     "shared_dictionary/shared_dictionary_storage_in_memory.cc",
     "shared_dictionary/shared_dictionary_storage_in_memory.h",
-    "shared_dictionary/shared_dictionary_storage_isolation_key.cc",
-    "shared_dictionary/shared_dictionary_storage_isolation_key.h",
+    "shared_dictionary/shared_dictionary_storage_on_disk.cc",
+    "shared_dictionary/shared_dictionary_storage_on_disk.h",
     "shared_dictionary/shared_dictionary_writer.h",
     "shared_dictionary/shared_dictionary_writer_in_memory.cc",
     "shared_dictionary/shared_dictionary_writer_in_memory.h",
     "shared_dictionary/shared_dictionary_writer_on_disk.cc",
     "shared_dictionary/shared_dictionary_writer_on_disk.h",
+    "shared_dictionary/simple_url_pattern_matcher.cc",
+    "shared_dictionary/simple_url_pattern_matcher.h",
+    "shared_resource_checker.cc",
+    "shared_resource_checker.h",
+    "slop_bucket.cc",
+    "slop_bucket.h",
     "socket_data_pump.cc",
     "socket_data_pump.h",
     "socket_factory.cc",
@@ -160,10 +196,11 @@ component("network_service") {
     "ssl_config_service_mojo.h",
     "ssl_config_type_converter.cc",
     "ssl_config_type_converter.h",
+    "ssl_private_key_proxy.cc",
+    "ssl_private_key_proxy.h",
+    "stringify_enum.h",
     "tcp_bound_socket.cc",
     "tcp_bound_socket.h",
-    "tcp_client_socket_brokered.cc",
-    "tcp_client_socket_brokered.h",
     "tcp_connected_socket.cc",
     "tcp_connected_socket.h",
     "tcp_server_socket.cc",
@@ -197,6 +234,8 @@ component("network_service") {
     "url_loader_context.h",
     "url_loader_factory.cc",
     "url_loader_factory.h",
+    "url_loader_util.cc",
+    "url_loader_util.h",
     "url_request_context_builder_mojo.cc",
     "url_request_context_builder_mojo.h",
     "url_request_context_owner.cc",
@@ -224,6 +263,8 @@ component("network_service") {
       "p2p/socket_throttler.h",
       "p2p/socket_udp.cc",
       "p2p/socket_udp.h",
+      "throttling/throttling_p2p_network_interceptor.cc",
+      "throttling/throttling_p2p_network_interceptor.h",
     ]
   }
 
@@ -234,7 +275,7 @@ component("network_service") {
     ]
   }
 
-  if (!is_ios) {
+  if (enable_websockets) {
     sources += [
       "websocket.cc",
       "websocket.h",
@@ -249,13 +290,6 @@ component("network_service") {
 
   if (is_chromeos) {
     sources += [
-      "cert_verifier_with_trust_anchors.cc",
-      "cert_verifier_with_trust_anchors.h",
-    ]
-  }
-
-  if (is_chromeos_ash) {
-    sources += [
       "dhcp_pac_file_fetcher_mojo.cc",
       "dhcp_pac_file_fetcher_mojo.h",
     ]
@@ -265,6 +299,12 @@ component("network_service") {
     sources += [
       "broker_helper_win.cc",
       "broker_helper_win.h",
+      "brokered_client_socket_factory.cc",
+      "brokered_client_socket_factory.h",
+      "brokered_tcp_client_socket.cc",
+      "brokered_tcp_client_socket.h",
+      "brokered_udp_client_socket.cc",
+      "brokered_udp_client_socket.h",
       "windows_system_proxy_resolver_mojo.cc",
       "windows_system_proxy_resolver_mojo.h",
     ]
@@ -282,21 +322,34 @@ component("network_service") {
   deps = [
     "//base",
     "//build:chromecast_buildflags",
-    "//build:chromeos_buildflags",
     "//components/content_settings/core/common",
     "//components/cookie_config",
     "//components/domain_reliability",
+    "//components/ip_protection/common:ip_protection_core_host_remote",
+    "//components/ip_protection/common:ip_protection_core_impl",
+    "//components/ip_protection/common:ip_protection_core_impl_mojo",
+    "//components/ip_protection/common:ip_protection_proxy_delegate",
+    "//components/ip_protection/common:ip_protection_telemetry_uma",
+    "//components/ip_protection/common:masked_domain_list_manager",
+    "//components/ip_protection/common:probabilistic_reveal_token_registry",
+    "//components/miracle_parameter/common",
     "//components/network_session_configurator/browser",
     "//components/network_session_configurator/common",
+    "//components/os_crypt/async/common",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/privacy_sandbox/masked_domain_list:masked_domain_list_proto",
     "//components/url_matcher",
+    "//components/url_pattern",
     "//components/web_package",
     "//components/webrtc:fake_ssl_socket",
+    "//mojo/public/cpp/base",
+    "//mojo/public/cpp/base:protobuf_support",
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/system",
     "//net",
     "//net:extras",
+    "//services/network/ad_auction",
     "//services/network/attribution",
     "//services/network/first_party_sets:first_party_sets_manager",
     "//services/network/public/cpp",
@@ -304,16 +357,20 @@ component("network_service") {
     "//services/network/public/cpp/cert_verifier:mojo_cert_verifier",
     "//services/network/public/mojom",
     "//services/network/public/proto",
+    "//services/network/shared_storage",
+    "//services/network/tpcd/metadata:manager",
     "//services/network/trust_tokens",
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
+    "//third_party/liburlpattern",
+    "//third_party/re2",
     "//url",
   ]
 
   if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       ":network_sandbox_hook",
-      "//sandbox/linux:sandbox_services",  # TODO(crbug.com/1312224): remove.
+      "//sandbox/linux:sandbox_services",  # TODO(crbug.com/40220505): remove.
     ]
   }
 
@@ -321,8 +378,6 @@ component("network_service") {
 
   if (is_ct_supported) {
     sources += [
-      "ct_log_list_distributor.cc",
-      "ct_log_list_distributor.h",
       "sct_auditing/sct_auditing_cache.cc",
       "sct_auditing/sct_auditing_cache.h",
       "sct_auditing/sct_auditing_handler.cc",
@@ -365,6 +420,7 @@ if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
       "//sandbox/linux:sandbox_services",
       "//sandbox/policy:policy",
     ]
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
   }
 }
 
@@ -373,6 +429,7 @@ source_set("tests") {
 
   sources = [
     "chunked_data_pipe_upload_data_stream_unittest.cc",
+    "connection_change_observer_unittest.cc",
     "cookie_access_delegate_impl_unittest.cc",
     "cookie_manager_unittest.cc",
     "cookie_settings_unittest.cc",
@@ -388,24 +445,32 @@ source_set("tests") {
     "cors/preflight_controller_unittest.cc",
     "cors/preflight_result_unittest.cc",
     "data_pipe_element_reader_unittest.cc",
+    "data_remover_util_unittest.cc",
     "dns_config_change_manager_unittest.cc",
     "host_resolver_unittest.cc",
     "http_cache_data_counter_unittest.cc",
     "http_cache_data_remover_unittest.cc",
     "ignore_errors_cert_verifier_unittest.cc",
     "keepalive_statistics_recorder_unittest.cc",
-    "local_network_access_checker_unittest.cc",
+    "known_legacy_scope_domains_delegate_unittest.cc",
     "mojo_host_resolver_impl_unittest.cc",
     "net_log_proxy_sink_unittest.cc",
     "network_change_manager_unittest.cc",
     "network_context_unittest.cc",
     "network_qualities_pref_delegate_unittest.cc",
     "network_quality_estimator_manager_unittest.cc",
-    "network_service_memory_cache_unittest.cc",
     "network_service_proxy_delegate_unittest.cc",
     "network_service_unittest.cc",
     "oblivious_http_request_handler_unittest.cc",
+    "orb/orb_impl_unittest.cc",
+    "orb/orb_mimetypes_unittest.cc",
+    "orb/orb_sniffers_unittest.cc",
+    "partial_decoder_unittest.cc",
     "pending_callback_chain_unittest.cc",
+    "prefetch_cache_unittest.cc",
+    "prefetch_matches_unittest.cc",
+    "prefetch_url_loader_client_unittest.cc",
+    "private_network_access_checker_unittest.cc",
     "proxy_auto_config_library_unittest.cc",
     "proxy_config_service_mojo_unittest.cc",
     "proxy_resolving_client_socket_unittest.cc",
@@ -417,14 +482,17 @@ source_set("tests") {
     "session_cleanup_cookie_store_unittest.cc",
     "shared_dictionary/shared_dictionary_data_pipe_writer_unittest.cc",
     "shared_dictionary/shared_dictionary_disk_cache_unittest.cc",
+    "shared_dictionary/shared_dictionary_manager_on_disk_unittest.cc",
     "shared_dictionary/shared_dictionary_manager_unittest.cc",
-    "shared_dictionary/shared_dictionary_storage_isolation_key_unittest.cc",
+    "shared_dictionary/shared_dictionary_on_disk_unittest.cc",
     "shared_dictionary/shared_dictionary_writer_in_memory_unittest.cc",
     "shared_dictionary/shared_dictionary_writer_on_disk_unittest.cc",
+    "shared_dictionary/simple_url_pattern_matcher_unittest.cc",
+    "shared_resource_checker_unittest.cc",
     "socket_data_pump_unittest.cc",
     "ssl_config_service_mojo_unittest.cc",
+    "stringify_enum_unittest.cc",
     "tcp_bound_socket_unittest.cc",
-    "tcp_client_socket_brokered_unittest.cc",
     "tcp_socket_unittest.cc",
     "test/test_url_loader_factory_unittest.cc",
     "test_chunked_data_pipe_getter.cc",
@@ -455,7 +523,7 @@ source_set("tests") {
     sources += [ "mdns_responder_unittest.cc" ]
   }
 
-  if (!is_ios) {
+  if (enable_websockets) {
     sources += [
       "proxy_resolver_factory_mojo_unittest.cc",
       "proxy_service_mojo_unittest.cc",
@@ -473,31 +541,41 @@ source_set("tests") {
     ]
   }
 
-  if (is_chromeos_ash) {
-    sources += [
-      "cert_verifier_with_trust_anchors_unittest.cc",
-      "dhcp_pac_file_fetcher_mojo_unittest.cc",
-    ]
+  if (is_chromeos) {
+    sources += [ "dhcp_pac_file_fetcher_mojo_unittest.cc" ]
   }
 
   if (is_win) {
     sources += [
       "broker_helper_win_unittest.cc",
+      "brokered_tcp_client_socket_unittest.cc",
+      "brokered_udp_client_socket_unittest.cc",
       "windows_system_proxy_resolver_mojo_unittest.cc",
     ]
+  }
+
+  if (enable_device_bound_sessions) {
+    sources += [ "device_bound_session_manager_unittest.cc" ]
   }
 
   deps = [
     ":network_service",
     ":test_support",
     "//base",
-    "//build:chromeos_buildflags",
+    "//components/ip_protection/common:ip_protection_telemetry_uma",
+    "//components/ip_protection/common:masked_domain_list_manager",
+    "//components/ip_protection/common:probabilistic_reveal_token_registry",
     "//components/network_session_configurator/browser",
+    "//components/os_crypt/async/browser:test_support",
+    "//components/os_crypt/sync:test_support",
     "//components/prefs:test_support",
+    "//components/privacy_sandbox:features",
+    "//components/privacy_sandbox/masked_domain_list:masked_domain_list_proto",
     "//components/variations:test_support",
     "//components/web_package",
     "//components/webrtc:fake_ssl_socket",
     "//crypto",
+    "//crypto:test_support",
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/system",
     "//mojo/public/cpp/test_support:test_utils",
@@ -515,17 +593,22 @@ source_set("tests") {
     "//services/network/public/cpp:buildflags",
     "//services/network/public/mojom",
     "//services/network/public/proto",
+    "//services/network/shared_storage",
+    "//services/network/shared_storage:test_support",
+    "//services/network/shared_storage:tests",
+    "//services/network/tpcd/metadata:manager",
+    "//services/network/tpcd/metadata:unit_tests",
     "//services/network/trust_tokens",
     "//services/network/trust_tokens:tests",
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/cpp/test:test_support",
+    "//sql:test_support",
     "//testing/gmock",
     "//testing/gtest",
   ]
 
   if (is_ct_supported) {
     sources += [
-      "ct_log_list_distributor_unittest.cc",
       "sct_auditing/sct_auditing_cache_unittest.cc",
       "sct_auditing/sct_auditing_handler_unittest.cc",
       "sct_auditing/sct_auditing_reporter_unittest.cc",
@@ -534,7 +617,10 @@ source_set("tests") {
   }
 
   if (use_blink) {
-    deps += [ "//services/proxy_resolver:lib" ]
+    deps += [
+      "//services/proxy_resolver:lib",
+      "//third_party/blink/public/common:preloading_headers",
+    ]
   }
 }
 
@@ -548,8 +634,14 @@ source_set("test_support") {
     "test/client_security_state_builder.h",
     "test/fake_test_cert_verifier_params_factory.cc",
     "test/fake_test_cert_verifier_params_factory.h",
+    "test/mock_device_bound_session_manager.cc",
+    "test/mock_device_bound_session_manager.h",
     "test/mock_devtools_observer.cc",
     "test/mock_devtools_observer.h",
+    "test/mock_url_loader_client.cc",
+    "test/mock_url_loader_client.h",
+    "test/oblivious_http_request_test_helper.cc",
+    "test/oblivious_http_request_test_helper.h",
     "test/test_cookie_manager.cc",
     "test/test_cookie_manager.h",
     "test/test_data_pipe_getter.cc",
@@ -565,7 +657,6 @@ source_set("test_support") {
     "test/test_network_context_with_host_resolver.h",
     "test/test_network_quality_tracker.cc",
     "test/test_network_quality_tracker.h",
-    "test/test_resource_scheduler.h",
     "test/test_restricted_udp_socket.cc",
     "test/test_restricted_udp_socket.h",
     "test/test_shared_url_loader_factory.cc",
@@ -594,7 +685,7 @@ source_set("test_support") {
     "test/url_loader_context_for_tests.h",
   ]
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [
       "mock_mojo_dhcp_wpad_url_client.cc",
       "mock_mojo_dhcp_wpad_url_client.h",
@@ -611,7 +702,6 @@ source_set("test_support") {
 
   deps = [
     "//base",
-    "//build:chromeos_buildflags",
     "//components/cbor:cbor",
     "//mojo/public/cpp/bindings",
     "//net",

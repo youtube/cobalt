@@ -4,6 +4,7 @@
 
 #import "ios/chrome/app/application_delegate/metric_kit_subscriber.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
 #import "base/metrics/histogram_base.h"
@@ -18,11 +19,7 @@
 #import "components/crash/core/common/reporter_running_ios.h"
 #import "components/previous_session_info/previous_session_info.h"
 #import "components/version_info/version_info.h"
-#import "ios/chrome/browser/crash_report/features.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/crash_report/model/features.h"
 
 // The different causes of app exit as reported by MetricKit.
 // This enum is used in UMA. Do not change the order.
@@ -100,8 +97,7 @@ void SendDiagnostic(MXDiagnostic* diagnostic, const std::string& type) {
   }
 
   if (crash_reporter::IsCrashpadRunning()) {
-    base::span<const uint8_t> spanpayload(
-        reinterpret_cast<const uint8_t*>(payload.bytes), payload.length);
+    base::span<const uint8_t> spanpayload = base::apple::NSDataToSpan(payload);
 
     std::map<std::string, std::string> override_annotations = {
         {"ver",
@@ -115,8 +111,14 @@ void SendDiagnostic(MXDiagnostic* diagnostic, const std::string& type) {
           {base::SysNSStringToUTF8(key),
            base::SysNSStringToUTF8(previous_session.reportParameters[key])});
     }
-
-    crash_reporter::ProcessExternalDump("MetricKit", spanpayload,
+    if (previous_session.breadcrumbs) {
+      override_annotations.insert(
+          {"breadcrumbs",
+           base::SysNSStringToUTF8(previous_session.breadcrumbs)});
+    }
+    const std::string source =
+        type == "crash" ? "MetricKit" : "MetricKit_Diagnostics";
+    crash_reporter::ProcessExternalDump(source, spanpayload,
                                         override_annotations);
   }
 }
@@ -137,6 +139,10 @@ void ProcessDiagnosticPayloads(NSArray<MXDiagnosticPayload*>* payloads) {
       for (MXDiskWriteExceptionDiagnostic* diagnostic in payload
                .diskWriteExceptionDiagnostics) {
         SendDiagnostic(diagnostic, "diskwrite-exception");
+      }
+      for (MXCPUExceptionDiagnostic* diagnostic in payload
+               .appLaunchDiagnostics) {
+        SendDiagnostic(diagnostic, "app-launch");
       }
     }
   }
@@ -162,21 +168,13 @@ std::string HistogramPrefix(bool include_mismatch) {
 }
 
 + (void)createExtendedLaunchTask {
-#if defined(__IPHONE_16_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_16_0
-  if (@available(iOS 16.0, *)) {
-    [MXMetricManager extendLaunchMeasurementForTaskID:kMainLaunchTaskId
-                                                error:nil];
-  }
-#endif
+  [MXMetricManager extendLaunchMeasurementForTaskID:kMainLaunchTaskId
+                                              error:nil];
 }
 
 + (void)endExtendedLaunchTask {
-#if defined(__IPHONE_16_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_16_0
-  if (@available(iOS 16.0, *)) {
-    [MXMetricManager finishExtendedLaunchMeasurementForTaskID:kMainLaunchTaskId
-                                                        error:nil];
-  }
-#endif
+  [MXMetricManager finishExtendedLaunchMeasurementForTaskID:kMainLaunchTaskId
+                                                      error:nil];
 }
 
 - (void)setEnabled:(BOOL)enable {
@@ -228,7 +226,7 @@ std::string HistogramPrefix(bool include_mismatch) {
     DCHECK_LE(end - start, 10);
     double sample = (end + start) / 2;
     histogramUMA->AddCount(
-        base::saturated_cast<base::HistogramBase::Sample>(sample),
+        base::saturated_cast<base::HistogramBase::Sample32>(sample),
         bucket.bucketCount);
   }
 }
@@ -296,6 +294,8 @@ std::string HistogramPrefix(bool include_mismatch) {
                      payload.applicationTimeMetrics.cumulativeForegroundTime);
   ReportLongDuration(prefix + "BackgroundTimePerDay",
                      payload.applicationTimeMetrics.cumulativeBackgroundTime);
+  ReportLongDuration(prefix + "CPUTimePerDay",
+                     payload.cpuMetrics.cumulativeCPUTime);
   ReportMemory(prefix + "AverageSuspendedMemory",
                payload.memoryMetrics.averageSuspendedMemory.averageMeasurement);
   ReportMemory(prefix + "PeakMemoryUsage",
@@ -311,19 +311,15 @@ std::string HistogramPrefix(bool include_mismatch) {
   [self logStartupDurationMXHistogram:histogrammedTimeToFirstDraw
                        toUMAHistogram:prefix + "TimeToFirstDraw"];
 
-#if defined(__IPHONE_16_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_16_0
-  if (@available(iOS 16.0, *)) {
-    MXHistogram* histogrammedOptimizedTimeToFirstDraw =
-        payload.applicationLaunchMetrics.histogrammedOptimizedTimeToFirstDraw;
-    [self logStartupDurationMXHistogram:histogrammedOptimizedTimeToFirstDraw
-                         toUMAHistogram:prefix + "OptimizedTimeToFirstDraw"];
+  MXHistogram* histogrammedOptimizedTimeToFirstDraw =
+      payload.applicationLaunchMetrics.histogrammedOptimizedTimeToFirstDraw;
+  [self logStartupDurationMXHistogram:histogrammedOptimizedTimeToFirstDraw
+                       toUMAHistogram:prefix + "OptimizedTimeToFirstDraw"];
 
-    MXHistogram* histogrammedExtendedLaunch =
-        payload.applicationLaunchMetrics.histogrammedExtendedLaunch;
-    [self logStartupDurationMXHistogram:histogrammedExtendedLaunch
-                         toUMAHistogram:prefix + "ExtendedLaunch"];
-  }
-#endif
+  MXHistogram* histogrammedExtendedLaunch =
+      payload.applicationLaunchMetrics.histogrammedExtendedLaunch;
+  [self logStartupDurationMXHistogram:histogrammedExtendedLaunch
+                       toUMAHistogram:prefix + "ExtendedLaunch"];
 
   MXHistogram* histogrammedApplicationHangTime =
       payload.applicationResponsivenessMetrics.histogrammedApplicationHangTime;

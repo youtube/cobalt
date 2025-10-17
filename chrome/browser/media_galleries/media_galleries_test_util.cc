@@ -18,23 +18,23 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/crx_file/id_util.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/common/manifest_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/test/test_reg_util_win.h"
 #include "base/win/registry.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -79,13 +79,11 @@ scoped_refptr<extensions::Extension> AddMediaGalleriesApp(
 
   extension_prefs->OnExtensionInstalled(
       extension.get(),
-      extensions::Extension::ENABLED,
-      syncer::StringOrdinal::CreateInitialOrdinal(),
+      /*disable_reasons=*/{}, syncer::StringOrdinal::CreateInitialOrdinal(),
       std::string());
-  extensions::ExtensionService* extension_service =
-      extensions::ExtensionSystem::Get(profile)->extension_service();
-  extension_service->AddExtension(extension.get());
-  extension_service->EnableExtension(extension->id());
+  auto* registrar = extensions::ExtensionRegistrar::Get(profile);
+  registrar->AddExtension(extension);
+  registrar->EnableExtension(extension->id());
 
   return extension;
 }
@@ -146,20 +144,20 @@ base::FilePath EnsureMediaDirectoriesExists::GetFakeLocalAppDataPath() const {
 #endif  // BUILDFLAG(IS_WIN)
 
 void EnsureMediaDirectoriesExists::Init() {
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   return;
 #else
 
   ASSERT_TRUE(fake_dir_.CreateUniqueTempDir());
 
   ChangeMediaPathOverrides();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 }
 
 base::FilePath MakeMediaGalleriesTestingPath(const std::string& dir) {
 #if BUILDFLAG(IS_WIN)
   return base::FilePath(FILE_PATH_LITERAL("C:\\")).AppendASCII(dir);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
   return base::FilePath(FILE_PATH_LITERAL("/")).Append(dir);
 #else
 #error Unknown platform.

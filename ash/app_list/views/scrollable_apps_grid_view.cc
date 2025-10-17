@@ -23,7 +23,7 @@
 namespace ash {
 namespace {
 
-// TODO(crbug.com/1211608): Add this to AppListConfig.
+// TODO(crbug.com/40182999): Add this to AppListConfig.
 const int kVerticalTilePadding = 8;
 
 // Vertical margin in DIPs inside the top and bottom of scroll view where
@@ -66,14 +66,14 @@ void ScrollableAppsGridView::SetMaxColumns(int max_cols) {
   SetMaxColumnsInternal(max_cols);
 }
 
-void ScrollableAppsGridView::Layout() {
+void ScrollableAppsGridView::Layout(PassKey) {
   if (ignore_layout())
     return;
 
   if (GetContentsBounds().IsEmpty())
     return;
 
-  // TODO(crbug.com/1211608): Use FillLayout on the items container.
+  // TODO(crbug.com/40182999): Use FillLayout on the items container.
   items_container()->SetBoundsRect(GetContentsBounds());
 
   CalculateIdealBounds();
@@ -106,6 +106,19 @@ gfx::Insets ScrollableAppsGridView::GetTilePadding(int page) const {
   const int horizontal_tile_padding =
       width_to_distribute / (spaces_between_items * 2);
   return gfx::Insets::VH(-kVerticalTilePadding, -horizontal_tile_padding);
+}
+
+bool ScrollableAppsGridView::ShouldContainerHandleDragEvents() {
+  // Apps grid folder view handles its own drag and drop events, otherwise, it
+  // should delegate to the apps grid container.
+  return !IsInFolder();
+}
+
+bool ScrollableAppsGridView::IsAboveTheFold(AppListItemView* item_view) {
+  gfx::Rect item_bounds_in_scroll_view = views::View::ConvertRectToTarget(
+      item_view, scroll_view_->contents(), item_view->GetLocalBounds());
+  return item_bounds_in_scroll_view.bottom() <
+         scroll_view_->GetVisibleRect().height();
 }
 
 gfx::Size ScrollableAppsGridView::GetTileGridSize() const {
@@ -290,8 +303,8 @@ void ScrollableAppsGridView::RecordAppMovingTypeMetrics(
                             kMaxAppListAppMovingType);
 }
 
-absl::optional<int> ScrollableAppsGridView::GetMaxRowsInPage(int page) const {
-  return absl::nullopt;
+std::optional<int> ScrollableAppsGridView::GetMaxRowsInPage(int page) const {
+  return std::nullopt;
 }
 
 gfx::Vector2d ScrollableAppsGridView::GetGridCenteringOffset(int page) const {
@@ -308,13 +321,13 @@ void ScrollableAppsGridView::EnsureViewVisible(const GridIndex& index) {
     view->ScrollViewToVisible();
 }
 
-absl::optional<ScrollableAppsGridView::VisibleItemIndexRange>
+std::optional<ScrollableAppsGridView::VisibleItemIndexRange>
 ScrollableAppsGridView::GetVisibleItemIndexRange() const {
   // Indicate the first row on which item views are visible.
-  absl::optional<int> first_visible_row;
+  std::optional<int> first_visible_row;
 
   // Indicate the first invisible row that is right after the last visible row.
-  absl::optional<int> first_invisible_row;
+  std::optional<int> first_invisible_row;
 
   const gfx::Rect scroll_view_visible_rect = scroll_view_->GetVisibleRect();
   for (size_t view_index = 0; view_index < view_model()->view_size();
@@ -351,7 +364,7 @@ ScrollableAppsGridView::GetVisibleItemIndexRange() const {
   }
 
   if (!first_visible_row)
-    return absl::nullopt;
+    return std::nullopt;
 
   VisibleItemIndexRange result;
   result.first_index = *first_visible_row * cols();
@@ -364,18 +377,13 @@ ScrollableAppsGridView::GetVisibleItemIndexRange() const {
   return result;
 }
 
-base::ScopedClosureRunner ScrollableAppsGridView::LockAppsGridOpacity() {
-  // Do nothing.
-  return base::ScopedClosureRunner();
-}
-
 const gfx::Vector2d ScrollableAppsGridView::CalculateTransitionOffset(
     int page_of_view) const {
   // The ScrollableAppsGridView has no page transitions.
   return gfx::Vector2d();
 }
 
-BEGIN_METADATA(ScrollableAppsGridView, AppsGridView)
+BEGIN_METADATA(ScrollableAppsGridView)
 END_METADATA
 
 }  // namespace ash

@@ -4,8 +4,9 @@
 
 #include "ash/webui/help_app_ui/help_app_kids_magazine_untrusted_ui.h"
 
+#include <string_view>
+
 #include "ash/webui/help_app_ui/url_constants.h"
-#include "base/strings/string_piece.h"
 #include "chromeos/grit/chromeos_help_app_kids_magazine_bundle_resources.h"
 #include "chromeos/grit/chromeos_help_app_kids_magazine_bundle_resources_map.h"
 #include "content/public/browser/web_contents.h"
@@ -21,8 +22,7 @@ const char kKidsMagazinePathPrefix[] = "kids_magazine/";
 
 // Function to remove a prefix from an input string. Does nothing if the string
 // does not begin with the prefix.
-base::StringPiece StripPrefix(base::StringPiece input,
-                              base::StringPiece prefix) {
+std::string_view StripPrefix(std::string_view input, std::string_view prefix) {
   if (input.find(prefix) == 0) {
     return input.substr(prefix.size());
   }
@@ -38,14 +38,12 @@ void CreateAndAddHelpAppKidsMagazineUntrustedDataSource(
   source->SetDefaultResource(IDR_HELP_APP_KIDS_MAGAZINE_INDEX_HTML);
   source->DisableTrustedTypesCSP();
 
-  for (size_t i = 0; i < kChromeosHelpAppKidsMagazineBundleResourcesSize; i++) {
+  for (const auto& resource : kChromeosHelpAppKidsMagazineBundleResources) {
     // While the JS and CSS file are stored in /kids_magazine/static/..., the
     // HTML file references /static/... directly. We need to strip the
     // "kids_magazine" prefix from the path.
-    source->AddResourcePath(
-        StripPrefix(kChromeosHelpAppKidsMagazineBundleResources[i].path,
-                    kKidsMagazinePathPrefix),
-        kChromeosHelpAppKidsMagazineBundleResources[i].id);
+    source->AddResourcePath(StripPrefix(resource.path, kKidsMagazinePathPrefix),
+                            resource.id);
   }
 
   // Add chrome://help-app and chrome-untrusted://help-app as frame ancestors.
@@ -61,18 +59,11 @@ void CreateAndAddHelpAppKidsMagazineUntrustedDataSource(
 }  // namespace
 
 HelpAppKidsMagazineUntrustedUIConfig::HelpAppKidsMagazineUntrustedUIConfig()
-    : WebUIConfig(content::kChromeUIUntrustedScheme,
-                  kChromeUIHelpAppKidsMagazineHost) {}
+    : DefaultWebUIConfig(content::kChromeUIUntrustedScheme,
+                         kChromeUIHelpAppKidsMagazineHost) {}
 
 HelpAppKidsMagazineUntrustedUIConfig::~HelpAppKidsMagazineUntrustedUIConfig() =
     default;
-
-std::unique_ptr<content::WebUIController>
-HelpAppKidsMagazineUntrustedUIConfig::CreateWebUIController(
-    content::WebUI* web_ui,
-    const GURL& url) {
-  return std::make_unique<HelpAppKidsMagazineUntrustedUI>(web_ui);
-}
 
 HelpAppKidsMagazineUntrustedUI::HelpAppKidsMagazineUntrustedUI(
     content::WebUI* web_ui)

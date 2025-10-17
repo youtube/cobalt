@@ -13,9 +13,10 @@ import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatTextView;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.R;
 
 /**
@@ -24,29 +25,32 @@ import org.chromium.components.browser_ui.widget.R;
  * To specify the drawable size, use the {@code drawableWidth} and {@code drawableHeight}
  * attributes. To specify the drawable tint, use the {@code chromeDrawableTint} attribute.
  */
+@NullMarked
 public class TextViewWithCompoundDrawables extends AppCompatTextView {
     private int mDrawableWidth;
     private int mDrawableHeight;
-    private ColorStateList mDrawableTint;
+    private @Nullable ColorStateList mDrawableTint;
 
     public TextViewWithCompoundDrawables(Context context) {
         this(context, null);
     }
 
-    public TextViewWithCompoundDrawables(Context context, AttributeSet attrs) {
+    public TextViewWithCompoundDrawables(Context context, @Nullable AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public TextViewWithCompoundDrawables(Context context, AttributeSet attrs, int defStyleAttr) {
+    public TextViewWithCompoundDrawables(
+            Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init(context, attrs, defStyleAttr);
     }
 
     /**
      * Set the tint color of the compound drawables.
-     * @param color The tint color.
+     *
+     * @param color The tint color. May be null to clear the tint color.
      */
-    public void setDrawableTintColor(ColorStateList color) {
+    public void setDrawableTintColor(@Nullable ColorStateList color) {
         mDrawableTint = color;
         setDrawableTint(getCompoundDrawablesRelative());
     }
@@ -79,8 +83,11 @@ public class TextViewWithCompoundDrawables extends AppCompatTextView {
     }
 
     @Override
-    public void setCompoundDrawablesRelative(@Nullable Drawable start, @Nullable Drawable top,
-            @Nullable Drawable end, @Nullable Drawable bottom) {
+    public void setCompoundDrawablesRelative(
+            @Nullable Drawable start,
+            @Nullable Drawable top,
+            @Nullable Drawable end,
+            @Nullable Drawable bottom) {
         Drawable[] drawables = {start, top, end, bottom};
         setDrawableBounds(drawables);
 
@@ -91,16 +98,20 @@ public class TextViewWithCompoundDrawables extends AppCompatTextView {
         super.setCompoundDrawablesRelative(drawables[0], drawables[1], drawables[2], drawables[3]);
     }
 
-    private void init(Context context, AttributeSet attrs, int defStyleAttr) {
-        TypedArray array = context.obtainStyledAttributes(
-                attrs, R.styleable.TextViewWithCompoundDrawables, defStyleAttr, 0);
+    private void init(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+        TypedArray array =
+                context.obtainStyledAttributes(
+                        attrs, R.styleable.TextViewWithCompoundDrawables, defStyleAttr, 0);
 
-        mDrawableWidth = array.getDimensionPixelSize(
-                R.styleable.TextViewWithCompoundDrawables_drawableWidth, -1);
-        mDrawableHeight = array.getDimensionPixelSize(
-                R.styleable.TextViewWithCompoundDrawables_drawableHeight, -1);
-        mDrawableTint = array.getColorStateList(
-                R.styleable.TextViewWithCompoundDrawables_chromeDrawableTint);
+        mDrawableWidth =
+                array.getDimensionPixelSize(
+                        R.styleable.TextViewWithCompoundDrawables_drawableWidth, -1);
+        mDrawableHeight =
+                array.getDimensionPixelSize(
+                        R.styleable.TextViewWithCompoundDrawables_drawableHeight, -1);
+        mDrawableTint =
+                array.getColorStateList(
+                        R.styleable.TextViewWithCompoundDrawables_chromeDrawableTint);
 
         array.recycle();
 
@@ -120,8 +131,13 @@ public class TextViewWithCompoundDrawables extends AppCompatTextView {
             if (drawable == null) continue;
 
             drawable.mutate();
-            drawable.setColorFilter(
-                    mDrawableTint.getColorForState(getDrawableState(), 0), PorterDuff.Mode.SRC_IN);
+            if (mDrawableTint == null) {
+                drawable.clearColorFilter();
+            } else {
+                drawable.setColorFilter(
+                        mDrawableTint.getColorForState(getDrawableState(), 0),
+                        PorterDuff.Mode.SRC_IN);
+            }
         }
     }
 

@@ -6,15 +6,17 @@
 
 #include <array>
 #include <string>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
+#include "chrome/browser/ash/login/test/user_auth_config.h"
 #include "chrome/browser/ash/platform_keys/platform_keys_service_factory.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_test_helper.h"
 #include "chrome/browser/extensions/mixin_based_extension_apitest.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -28,6 +30,7 @@
 #include "crypto/scoped_test_system_nss_key_slot.h"
 #include "extensions/test/result_catcher.h"
 #include "google_apis/gaia/gaia_constants.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "net/dns/mock_host_resolver.h"
@@ -55,9 +58,12 @@ PlatformKeysTestBase::PlatformKeysTestBase(
   // We log in without running browser.
   set_exit_when_last_browser_closes(false);
   cryptohome_mixin_.MarkUserAsExisting(account_id_);
+  cryptohome_mixin_.ApplyAuthConfig(
+      account_id_,
+      ash::test::UserAuthConfig::Create(ash::test::kDefaultAuthSetup));
 }
 
-PlatformKeysTestBase::~PlatformKeysTestBase() {}
+PlatformKeysTestBase::~PlatformKeysTestBase() = default;
 
 void PlatformKeysTestBase::SetUp() {
   base::FilePath test_data_dir;
@@ -113,7 +119,7 @@ void PlatformKeysTestBase::SetUpInProcessBrowserTestFixture() {
   if (enrollment_status() == EnrollmentStatus::ENROLLED) {
     ASSERT_NO_FATAL_FAILURE(affiliation_helper.SetDeviceAffiliationIDs(
         &device_policy_test_helper_,
-        std::array{base::StringPiece(kAffiliationID)}));
+        std::array{std::string_view(kAffiliationID)}));
     device_policy_test_helper_.InstallOwnerKey();
     install_attributes_.Get()->SetCloudManaged(
         policy::PolicyBuilder::kFakeDomain,
@@ -124,7 +130,7 @@ void PlatformKeysTestBase::SetUpInProcessBrowserTestFixture() {
     policy::UserPolicyBuilder user_policy;
     ASSERT_NO_FATAL_FAILURE(affiliation_helper.SetUserAffiliationIDs(
         &user_policy, account_id_,
-        std::array{base::StringPiece(kAffiliationID)}));
+        std::array{std::string_view(kAffiliationID)}));
   }
 
   mock_policy_provider_.SetDefaultReturns(

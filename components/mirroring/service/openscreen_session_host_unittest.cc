@@ -6,11 +6,14 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -20,11 +23,13 @@
 #include "components/mirroring/service/fake_video_capture_host.h"
 #include "components/mirroring/service/mirror_settings.h"
 #include "components/mirroring/service/mirroring_features.h"
-#include "components/mirroring/service/receiver_response.h"
-#include "components/mirroring/service/value_util.h"
+#include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
+#include "media/base/video_codecs.h"
+#include "media/cast/cast_config.h"
+#include "media/cast/common/openscreen_conversion_helpers.h"
+#include "media/cast/encoding/encoding_support.h"
 #include "media/cast/test/utility/default_config.h"
-#include "media/cast/test/utility/net_utility.h"
 #include "media/video/video_decode_accelerator.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -38,13 +43,12 @@
 #include "third_party/jsoncpp/source/include/json/reader.h"
 #include "third_party/jsoncpp/source/include/json/writer.h"
 #include "third_party/openscreen/src/cast/streaming/message_fields.h"
-#include "third_party/openscreen/src/cast/streaming/offer_messages.h"
+#include "third_party/openscreen/src/cast/streaming/public/offer_messages.h"
 #include "third_party/openscreen/src/cast/streaming/remoting_capabilities.h"
 #include "third_party/openscreen/src/cast/streaming/sender_message.h"
 #include "third_party/openscreen/src/cast/streaming/ssrc.h"
 
 using media::cast::FrameSenderConfig;
-using media::cast::Packet;
 using media::mojom::RemotingSinkMetadata;
 using media::mojom::RemotingSinkMetadataPtr;
 using media::mojom::RemotingStartFailReason;
@@ -52,7 +56,9 @@ using media::mojom::RemotingStopReason;
 using mirroring::mojom::SessionError;
 using mirroring::mojom::SessionType;
 using openscreen::ErrorOr;
+using openscreen::cast::Offer;
 using openscreen::cast::SenderMessage;
+using openscreen::cast::VideoStream;
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
@@ -62,8 +68,6 @@ using ::testing::NiceMock;
 namespace mirroring {
 
 namespace {
-
-constexpr int kDefaultPlayoutDelay = 400;  // ms
 
 const openscreen::cast::Answer kAnswerWithConstraints{
     1234,
@@ -115,7 +119,7 @@ class MockRemotingSource : public media::mojom::RemotingSource {
   base::WeakPtrFactory<MockRemotingSource> weak_factory_{this};
 };
 
-Json::Value ParseAsJsoncppValue(absl::string_view document) {
+Json::Value ParseAsJsoncppValue(std::string_view document) {
   Json::CharReaderBuilder builder;
   Json::CharReaderBuilder::strictMode(&builder.settings_);
   EXPECT_FALSE(document.empty());
@@ -123,8 +127,8 @@ Json::Value ParseAsJsoncppValue(absl::string_view document) {
   Json::Value root_node;
   std::string error_msg;
   std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-  EXPECT_TRUE(
-      reader->parse(document.begin(), document.end(), &root_node, &error_msg));
+  EXPECT_TRUE(reader->parse(&*document.begin(), &*document.end(), &root_node,
+                            &error_msg));
 
   return root_node;
 }
@@ -142,6 +146,14 @@ std::string Stringify(const Json::Value& value) {
   return stream.str();
 }
 
+openscreen::cast::SenderStats ConstructDefaultSenderStats() {
+  return openscreen::cast::SenderStats{
+      .audio_statistics = openscreen::cast::SenderStats::StatisticsList(),
+      .audio_histograms = openscreen::cast::SenderStats::HistogramsList(),
+      .video_statistics = openscreen::cast::SenderStats::StatisticsList(),
+      .video_histograms = openscreen::cast::SenderStats::HistogramsList()};
+}
+
 }  // namespace
 
 class OpenscreenSessionHostTest : public mojom::ResourceProvider,
@@ -149,21 +161,36 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
                                   public mojom::CastMessageChannel,
                                   public ::testing::Test {
  public:
-  OpenscreenSessionHostTest()
-      : feature_list_(media::kOpenscreenCastStreamingSession) {}
+  OpenscreenSessionHostTest() = default;
 
   OpenscreenSessionHostTest(const OpenscreenSessionHostTest&) = delete;
   OpenscreenSessionHostTest& operator=(const OpenscreenSessionHostTest&) =
       delete;
 
-  ~OpenscreenSessionHostTest() override { task_environment_.RunUntilIdle(); }
+  void TearDown() override {
+    media::cast::encoding_support::ClearHardwareCodecDenyListForTesting();
+  }
+
+  void OnSessionHostDeletion() {
+    ASSERT_TRUE(session_host_deletion_cb_);
+    if (session_host_deletion_cb_) {
+      std::move(session_host_deletion_cb_).Run();
+    }
+  }
+
+  ~OpenscreenSessionHostTest() override {
+    // We may have already deleted the session host if the session was stopped.
+    if (session_host_) {
+      DeleteSessionHost();
+    }
+  }
 
  protected:
   // mojom::SessionObserver implementation.
   MOCK_METHOD(void, OnError, (SessionError));
   MOCK_METHOD(void, DidStart, ());
   MOCK_METHOD(void, DidStop, ());
-  MOCK_METHOD(void, LogInfoMessage, (const std::string&));
+  void LogInfoMessage(const std::string&) override {}
   MOCK_METHOD(void, LogErrorMessage, (const std::string&));
   MOCK_METHOD(void, OnSourceChanged, ());
   MOCK_METHOD(void, OnRemotingStateChanged, (bool is_remoting));
@@ -191,16 +218,19 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     last_sent_offer_ = parsed_message.value();
     if (parsed_message.value().type == SenderMessage::Type::kOffer) {
       EXPECT_GT(parsed_message.value().sequence_number, 0);
-      const auto offer =
-          absl::get<openscreen::cast::Offer>(parsed_message.value().body);
+      const auto offer = std::get<Offer>(parsed_message.value().body);
 
       for (const openscreen::cast::AudioStream& stream : offer.audio_streams) {
-        EXPECT_EQ(std::chrono::milliseconds(stream.stream.target_delay).count(),
-                  target_playout_delay_ms_);
+        EXPECT_EQ(
+            base::Milliseconds(
+                std::chrono::milliseconds(stream.stream.target_delay).count()),
+            target_playout_delay_);
       }
-      for (const openscreen::cast::VideoStream& stream : offer.video_streams) {
-        EXPECT_EQ(std::chrono::milliseconds(stream.stream.target_delay).count(),
-                  target_playout_delay_ms_);
+      for (const VideoStream& stream : offer.video_streams) {
+        EXPECT_EQ(
+            base::Milliseconds(
+                std::chrono::milliseconds(stream.stream.target_delay).count()),
+            target_playout_delay_);
       }
     } else if (parsed_message.value().type ==
                SenderMessage::Type::kGetCapabilities) {
@@ -218,6 +248,10 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
         std::make_unique<NiceMock<FakeVideoCaptureHost>>(std::move(receiver));
     OnGetVideoCaptureHost();
   }
+
+  void GetVideoEncoderMetricsProvider(
+      mojo::PendingReceiver<media::mojom::VideoEncoderMetricsProvider> receiver)
+      override {}
 
   void GetNetworkContext(
       mojo::PendingReceiver<network::mojom::NetworkContext> receiver) override {
@@ -247,8 +281,7 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     ASSERT_TRUE(session_host_);
     ASSERT_TRUE(last_sent_offer_);
 
-    const openscreen::cast::Offer& offer =
-        absl::get<openscreen::cast::Offer>(last_sent_offer_->body);
+    const Offer& offer = std::get<Offer>(last_sent_offer_->body);
     openscreen::cast::Answer answer{.udp_port = 1234};
 
     if (!offer.audio_streams.empty()) {
@@ -282,22 +315,25 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
 
   // Create a mirroring session. Expect to send OFFER message.
   void CreateSession(SessionType session_type,
-                     bool is_remote_playback = false) {
+                     bool is_remote_playback = false,
+                     bool enable_rtcp_reporting = false) {
     session_type_ = session_type;
     is_remote_playback_ = is_remote_playback;
     mojom::SessionParametersPtr session_params =
         mojom::SessionParameters::New();
     session_params->type = session_type_;
     session_params->receiver_address = receiver_endpoint_.address();
-    session_params->receiver_model_name = "Chromecast";
+    session_params->receiver_friendly_name = "Chromecast Ultra";
     session_params->source_id = "sender-123";
     session_params->destination_id = "receiver-456";
-    if (target_playout_delay_ms_ != kDefaultPlayoutDelay) {
-      session_params->target_playout_delay =
-          base::Milliseconds(target_playout_delay_ms_);
+    if (target_playout_delay_ != kDefaultPlayoutDelay) {
+      session_params->target_playout_delay = target_playout_delay_;
     }
     if (force_letterboxing_) {
       session_params->force_letterboxing = true;
+    }
+    if (enable_rtcp_reporting) {
+      session_params->enable_rtcp_reporting = true;
     }
     session_params->is_remote_playback = is_remote_playback_;
     cast_mode_ = "mirroring";
@@ -320,21 +356,32 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
         std::move(session_params), gfx::Size(1920, 1080),
         std::move(session_observer_remote), std::move(resource_provider_remote),
         std::move(outbound_channel_remote),
-        inbound_channel_.BindNewPipeAndPassReceiver(), nullptr);
+        inbound_channel_.BindNewPipeAndPassReceiver(), nullptr,
+        // NOTE: unretained used is safe since we wait for this task to complete
+        // before deleting `this`.
+        base::BindOnce(&OpenscreenSessionHostTest::OnSessionHostDeletion,
+                       base::Unretained(this)));
     session_host_->AsyncInitialize(MakeOnInitializedCallback());
     task_environment_.RunUntilIdle();
     Mock::VerifyAndClear(this);
   }
 
+  void ExpectStreamsToStart() {
+    const int get_video_host_call_count =
+        session_type_ == SessionType::AUDIO_ONLY ? 0 : 1;
+    EXPECT_CALL(*this, OnGetVideoCaptureHost())
+        .Times(get_video_host_call_count);
+
+    const int create_audio_stream_call_count =
+        session_type_ == SessionType::VIDEO_ONLY ? 0 : 1;
+    EXPECT_CALL(*this, OnCreateAudioStream())
+        .Times(create_audio_stream_call_count);
+  }
+
   // Negotiates a mirroring session.
   void StartSession() {
     ASSERT_EQ(cast_mode_, "mirroring");
-    const int num_to_get_video_host =
-        session_type_ == SessionType::AUDIO_ONLY ? 0 : 1;
-    const int num_to_create_audio_stream =
-        session_type_ == SessionType::VIDEO_ONLY ? 0 : 1;
-    EXPECT_CALL(*this, OnGetVideoCaptureHost()).Times(num_to_get_video_host);
-    EXPECT_CALL(*this, OnCreateAudioStream()).Times(num_to_create_audio_stream);
+    ExpectStreamsToStart();
     EXPECT_CALL(*this, OnError(_)).Times(0);
     if (!is_remote_playback_) {
       EXPECT_CALL(*this,
@@ -346,11 +393,22 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     Mock::VerifyAndClear(this);
   }
 
-  void StopSession() {
-    if (video_host_)
-      EXPECT_CALL(*video_host_, OnStopped());
-    EXPECT_CALL(*this, DidStop());
+  // Negotiate mirroring.
+  void NegotiateMirroring() { session_host_->NegotiateMirroring(); }
+
+  void DeleteSessionHost() {
+    ASSERT_TRUE(session_host_);
+    session_host_deletion_cb_ = task_environment_.QuitClosure();
     session_host_.reset();
+    task_environment_.RunUntilQuit();
+  }
+
+  void StopSession() {
+    if (video_host_) {
+      EXPECT_CALL(*video_host_, OnStopped());
+    }
+    EXPECT_CALL(*this, DidStop());
+    DeleteSessionHost();
     task_environment_.RunUntilIdle();
     Mock::VerifyAndClear(this);
   }
@@ -483,8 +541,9 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     ASSERT_EQ(cast_mode_, "remoting");
     const RemotingStopReason reason = RemotingStopReason::LOCAL_PLAYBACK;
     EXPECT_CALL(remoting_source_, OnStopped(reason));
-    if (video_host_)
+    if (video_host_) {
       EXPECT_CALL(*video_host_, OnStopped());
+    }
     EXPECT_CALL(*this, DidStop());
     remoter_->Stop(reason);
     task_environment_.RunUntilIdle();
@@ -493,15 +552,8 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
   }
 
   void SwitchSourceTab() {
-    const int get_video_host_call_count =
-        session_type_ == SessionType::AUDIO_ONLY ? 0 : 1;
-    const int create_audio_stream_call_count =
-        session_type_ == SessionType::VIDEO_ONLY ? 0 : 1;
+    ExpectStreamsToStart();
     EXPECT_CALL(*video_host_, OnStopped());
-    EXPECT_CALL(*this, OnGetVideoCaptureHost())
-        .Times(get_video_host_call_count);
-    EXPECT_CALL(*this, OnCreateAudioStream())
-        .Times(create_audio_stream_call_count);
     EXPECT_CALL(*this, OnConnectToRemotingSource());
     EXPECT_CALL(*this, OnSourceChanged());
 
@@ -532,8 +584,65 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     Mock::VerifyAndClear(&remoting_source_);
   }
 
+  void PushNonFatalAudioCaptureError() {
+    ASSERT_TRUE(session_host_->state_ !=
+                OpenscreenSessionHost::State::kStopped);
+
+    FrameSenderConfig config;
+    config.audio_codec_params =
+        media::cast::AudioCodecParams{media::AudioCodec::kOpus};
+
+    PushAudioEncoderStatus(
+        config, media::cast::OperationalStatus::STATUS_CODEC_REINIT_PENDING);
+
+    // An ignored status should not stop the session or pause capture.
+    ASSERT_NE(session_host_->state_, OpenscreenSessionHost::State::kStopped);
+  }
+
+  void PushFatalAudioCaptureError() {
+    ASSERT_TRUE(session_host_->state_ !=
+                OpenscreenSessionHost::State::kStopped);
+
+    FrameSenderConfig config;
+    config.audio_codec_params =
+        media::cast::AudioCodecParams{media::AudioCodec::kOpus};
+
+    PushAudioEncoderStatus(
+        config, media::cast::OperationalStatus::STATUS_UNSUPPORTED_CODEC);
+
+    // A fatal encoder status update should stop the session.
+    ASSERT_EQ(session_host_->state_, OpenscreenSessionHost::State::kStopped);
+  }
+
+  void RestartVideoEncoderDueToError() {
+    ASSERT_TRUE(session_host_->state_ !=
+                OpenscreenSessionHost::State::kStopped);
+
+    // Uh oh! The encoder has a pending reinitialization.
+    FrameSenderConfig config;
+    config.use_hardware_encoder = false;
+    config.video_codec_params =
+        media::cast::VideoCodecParams{media::VideoCodec::kVP8};
+
+    PushVideoEncoderStatus(
+        config, media::cast::OperationalStatus::STATUS_CODEC_REINIT_PENDING);
+
+    // A pending reinitialization should not stop the session entirely.
+    ASSERT_NE(session_host_->state_, OpenscreenSessionHost::State::kStopped);
+    ASSERT_TRUE(session_host_->is_video_capture_paused_);
+
+    // Then restart the encoder.
+    PushVideoEncoderStatus(config,
+                           media::cast::OperationalStatus::STATUS_INITIALIZED);
+
+    // The session should be still going and the video encoder should be
+    // started.
+    ASSERT_NE(session_host_->state_, OpenscreenSessionHost::State::kStopped);
+    ASSERT_FALSE(session_host_->is_video_capture_paused_);
+  }
+
   void SetTargetPlayoutDelay(int target_playout_delay_ms) {
-    target_playout_delay_ms_ = target_playout_delay_ms;
+    target_playout_delay_ = base::Milliseconds(target_playout_delay_ms);
   }
 
   void ForceLetterboxing() { force_letterboxing_ = true; }
@@ -551,15 +660,53 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
 
   base::test::TaskEnvironment& task_environment() { return task_environment_; }
 
+  void PushAudioEncoderStatus(const media::cast::FrameSenderConfig& config,
+                              media::cast::OperationalStatus status) {
+    session_host_->OnAudioEncoderStatus(config, status);
+  }
+
+  void PushVideoEncoderStatus(const media::cast::FrameSenderConfig& config,
+                              media::cast::OperationalStatus status) {
+    session_host_->OnVideoEncoderStatus(config, status);
+  }
+
+  const std::vector<media::cast::FrameSenderConfig>& LastOfferedVideoConfigs() {
+    return session_host_->last_offered_video_configs_;
+  }
+
+  void SetSupportedProfiles(
+      media::VideoEncodeAccelerator::SupportedProfiles profiles) {
+    session_host_->supported_profiles_ = std::move(profiles);
+  }
+
+  void AssertCodecWasOffered(media::VideoCodec codec,
+                             bool use_hardware_encoder = false) {
+    // First check that is was actually included in the offer.
+    const auto& offer = std::get<Offer>(last_sent_offer().body);
+    ASSERT_TRUE(std::any_of(
+        offer.video_streams.begin(), offer.video_streams.end(),
+        [codec](const VideoStream& stream) {
+          return stream.codec == media::cast::ToOpenscreenVideoCodec(codec);
+        }));
+
+    // Ensure that we recorded it as a last offered video config, with the right
+    // selection of hardware or software encoding.
+    ASSERT_TRUE(std::any_of(
+        LastOfferedVideoConfigs().begin(), LastOfferedVideoConfigs().end(),
+        [codec,
+         use_hardware_encoder](const media::cast::FrameSenderConfig& config) {
+          return config.video_codec() == codec &&
+                 config.use_hardware_encoder == use_hardware_encoder;
+        }));
+  }
+
  protected:
   std::unique_ptr<FakeVideoCaptureHost> video_host_;
 
  private:
-  base::test::ScopedFeatureList feature_list_;
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  const net::IPEndPoint receiver_endpoint_ =
-      media::cast::test::GetFreeLocalPort();
+  const net::IPEndPoint receiver_endpoint_ = GetFreeLocalPort();
   mojo::Receiver<mojom::ResourceProvider> resource_provider_receiver_{this};
   mojo::Receiver<mojom::SessionObserver> session_observer_receiver_{this};
   mojo::Receiver<mojom::CastMessageChannel> outbound_channel_receiver_{this};
@@ -569,15 +716,16 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
   mojo::Remote<media::mojom::Remoter> remoter_;
   NiceMock<MockRemotingSource> remoting_source_;
   std::string cast_mode_;
-  int32_t target_playout_delay_ms_{kDefaultPlayoutDelay};
+  base::TimeDelta target_playout_delay_{kDefaultPlayoutDelay};
   bool force_letterboxing_{false};
 
   std::unique_ptr<OpenscreenSessionHost> session_host_;
+  base::OnceClosure session_host_deletion_cb_;
   std::unique_ptr<MockNetworkContext> network_context_;
   std::unique_ptr<openscreen::cast::Answer> answer_;
 
   int next_receiver_ssrc_{35336};
-  absl::optional<openscreen::cast::SenderMessage> last_sent_offer_;
+  std::optional<openscreen::cast::SenderMessage> last_sent_offer_;
 };
 
 TEST_F(OpenscreenSessionHostTest, AudioOnlyMirroring) {
@@ -615,21 +763,6 @@ TEST_F(OpenscreenSessionHostTest, AnswerWithConstraints) {
             expected_constraints);
 }
 
-TEST_F(OpenscreenSessionHostTest, AnswerWithConstraintsLetterboxDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kCastDisableLetterboxing);
-  SetAnswer(std::make_unique<openscreen::cast::Answer>(kAnswerWithConstraints));
-  media::VideoCaptureParams::SuggestedConstraints expected_constraints = {
-      .min_frame_size = gfx::Size(2, 2),
-      .max_frame_size = gfx::Size(1920, 1080),
-      .fixed_aspect_ratio = false};
-  CreateSession(SessionType::AUDIO_AND_VIDEO);
-  StartSession();
-  StopSession();
-  EXPECT_EQ(video_host_->GetVideoCaptureParams().SuggestConstraints(),
-            expected_constraints);
-}
-
 // TODO(crbug.com/1363512): Remove support for sender side letterboxing.
 TEST_F(OpenscreenSessionHostTest, AnswerWithConstraintsLetterboxForced) {
   ForceLetterboxing();
@@ -648,6 +781,26 @@ TEST_F(OpenscreenSessionHostTest, AnswerWithConstraintsLetterboxForced) {
 TEST_F(OpenscreenSessionHostTest, AnswerTimeout) {
   CreateSession(SessionType::AUDIO_AND_VIDEO);
   SignalAnswerTimeout();
+}
+
+TEST_F(OpenscreenSessionHostTest, IgnoresNonFatalAudioCaptureErrors) {
+  CreateSession(SessionType::AUDIO_AND_VIDEO);
+  StartSession();
+  PushNonFatalAudioCaptureError();
+}
+
+TEST_F(OpenscreenSessionHostTest, StopsSessionOnAudioCaptureError) {
+  CreateSession(SessionType::AUDIO_AND_VIDEO);
+  StartSession();
+  PushFatalAudioCaptureError();
+}
+
+TEST_F(OpenscreenSessionHostTest,
+       PauseAndUnpauseDueToVideoEncoderStatusChange) {
+  CreateSession(SessionType::AUDIO_AND_VIDEO);
+  StartSession();
+  RestartVideoEncoderDueToError();
+  StopSession();
 }
 
 TEST_F(OpenscreenSessionHostTest, SwitchToAndFromRemoting) {
@@ -721,18 +874,18 @@ TEST_F(OpenscreenSessionHostTest, StartRemotePlaybackTimeOut) {
   RemotePlaybackSessionTimeOut();
 }
 
-// TODO(https://crbug.com/1363017): reenable adaptive playout delay.
+// TODO(crbug.com/40238532): reenable adaptive playout delay.
 TEST_F(OpenscreenSessionHostTest, ChangeTargetPlayoutDelay) {
   CreateSession(SessionType::AUDIO_AND_VIDEO);
   StartSession();
 
-  // Currently new delays are ignored due to the playout delay
-  // being bounded by a min-max of (400, 400).
+  // Currently new delays are ignored due to the playout delay being bounded by
+  // the minimum and maximum both being set to the default value.
   session_host().SetTargetPlayoutDelay(base::Milliseconds(300));
   EXPECT_EQ(session_host().audio_stream_->GetTargetPlayoutDelay(),
-            base::Milliseconds(400));
+            kDefaultPlayoutDelay);
   EXPECT_EQ(session_host().audio_stream_->GetTargetPlayoutDelay(),
-            base::Milliseconds(400));
+            kDefaultPlayoutDelay);
 
   StopSession();
 }
@@ -744,30 +897,25 @@ TEST_F(OpenscreenSessionHostTest, UpdateBandwidthEstimate) {
   constexpr int kMinVideoBitrate = 393216;
   constexpr int kMaxVideoBitrate = 1250000;
   // Default bitrate should be twice the minimum.
-  EXPECT_EQ(786432, session_host().GetSuggestedVideoBitrate(kMinVideoBitrate,
-                                                            kMaxVideoBitrate));
+  EXPECT_EQ(786432, session_host().GetVideoNetworkBandwidth());
 
   // If the estimate is below the minimum, it should stay at the minimum.
   session_host().forced_bandwidth_estimate_for_testing_ = 1000;
   session_host().UpdateBandwidthEstimate();
-  EXPECT_EQ(kMinVideoBitrate, session_host().GetSuggestedVideoBitrate(
-                                  kMinVideoBitrate, kMaxVideoBitrate));
+  EXPECT_EQ(kMinVideoBitrate, session_host().GetVideoNetworkBandwidth());
 
   // It should gradually reach the max bandwidth estimate when raised.
   session_host().forced_bandwidth_estimate_for_testing_ = 1000000;
   session_host().UpdateBandwidthEstimate();
-  EXPECT_EQ(432537, session_host().GetSuggestedVideoBitrate(kMinVideoBitrate,
-                                                            kMaxVideoBitrate));
+  EXPECT_EQ(432537, session_host().GetVideoNetworkBandwidth());
 
   session_host().UpdateBandwidthEstimate();
-  EXPECT_EQ(475790, session_host().GetSuggestedVideoBitrate(kMinVideoBitrate,
-                                                            kMaxVideoBitrate));
+  EXPECT_EQ(475790, session_host().GetVideoNetworkBandwidth());
   for (int i = 0; i < 20; ++i) {
     session_host().UpdateBandwidthEstimate();
   }
   // The max should be 80% of `forced_bandwidth_estimate_for_testing_`.
-  EXPECT_EQ(800000, session_host().GetSuggestedVideoBitrate(kMinVideoBitrate,
-                                                            kMaxVideoBitrate));
+  EXPECT_EQ(800000, session_host().GetVideoNetworkBandwidth());
 
   // The video bitrate should stay saturated at the cap when reached.
   session_host().forced_bandwidth_estimate_for_testing_ = kMaxVideoBitrate + 1;
@@ -775,8 +923,7 @@ TEST_F(OpenscreenSessionHostTest, UpdateBandwidthEstimate) {
     session_host().UpdateBandwidthEstimate();
   }
   // The max should be 80% of `kMaxVideoBitrate`.
-  EXPECT_EQ(1000000, session_host().GetSuggestedVideoBitrate(kMinVideoBitrate,
-                                                             kMaxVideoBitrate));
+  EXPECT_EQ(1000000, session_host().GetVideoNetworkBandwidth());
 
   StopSession();
 }
@@ -791,16 +938,7 @@ TEST_F(OpenscreenSessionHostTest, CanRequestRefresh) {
 TEST_F(OpenscreenSessionHostTest, Vp9CodecEnabledInOffer) {
   base::test::ScopedFeatureList feature_list(media::kCastStreamingVp9);
   CreateSession(SessionType::VIDEO_ONLY);
-
-  const openscreen::cast::Offer& offer =
-      absl::get<openscreen::cast::Offer>(last_sent_offer().body);
-
-  // We should have offered VP9.
-  EXPECT_TRUE(
-      std::any_of(offer.video_streams.begin(), offer.video_streams.end(),
-                  [](const openscreen::cast::VideoStream& stream) {
-                    return stream.codec == openscreen::cast::VideoCodec::kVp9;
-                  }));
+  AssertCodecWasOffered(media::VideoCodec::kVP9);
 }
 
 TEST_F(OpenscreenSessionHostTest, Av1CodecEnabledInOffer) {
@@ -808,87 +946,79 @@ TEST_F(OpenscreenSessionHostTest, Av1CodecEnabledInOffer) {
 #if !BUILDFLAG(IS_ANDROID) && defined(ENABLE_LIBAOM)
   base::test::ScopedFeatureList feature_list(media::kCastStreamingAv1);
   CreateSession(SessionType::VIDEO_ONLY);
-
-  const openscreen::cast::Offer& offer =
-      absl::get<openscreen::cast::Offer>(last_sent_offer().body);
-
-  // We should have offered AV1.
-  EXPECT_TRUE(
-      std::any_of(offer.video_streams.begin(), offer.video_streams.end(),
-                  [](const openscreen::cast::VideoStream& stream) {
-                    return stream.codec == openscreen::cast::VideoCodec::kAv1;
-                  }));
+  AssertCodecWasOffered(media::VideoCodec::kAV1);
 #endif
 }
 
 TEST_F(OpenscreenSessionHostTest, ShouldEnableHardwareVp8EncodingIfSupported) {
-#if !BUILDFLAG(IS_CHROMEOS)
   CreateSession(SessionType::VIDEO_ONLY);
 
   // Mock the profiles to enable VP8 hardware encode.
-  session_host().supported_profiles_ =
+  SetSupportedProfiles(
       std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
           media::VideoEncodeAccelerator::SupportedProfile(
-              media::VideoCodecProfile::VP8PROFILE_ANY, gfx::Size{1920, 1080})};
-  session_host().NegotiateMirroring();
+              media::VideoCodecProfile::VP8PROFILE_ANY,
+              gfx::Size{1920, 1080})});
+  NegotiateMirroring();
   task_environment().RunUntilIdle();
 
-  const openscreen::cast::Offer& offer =
-      absl::get<openscreen::cast::Offer>(last_sent_offer().body);
+  AssertCodecWasOffered(media::VideoCodec::kVP8, true);
+}
 
-  // We should have offered VP8.
-  EXPECT_TRUE(
-      std::any_of(offer.video_streams.begin(), offer.video_streams.end(),
-                  [](const openscreen::cast::VideoStream& stream) {
-                    return stream.codec == openscreen::cast::VideoCodec::kVp8;
-                  }));
+TEST_F(OpenscreenSessionHostTest,
+       ShouldDisableHardwareEncodingIfEncoderReportsAnIssue) {
+  CreateSession(SessionType::VIDEO_ONLY);
 
-  // We should have put a video config for VP8 with hardware enabled in the last
-  // offered configs.
-  EXPECT_TRUE(std::any_of(session_host().last_offered_video_configs_.begin(),
-                          session_host().last_offered_video_configs_.end(),
+  // Mock the profiles to enable VP8 hardware encode.
+  SetSupportedProfiles(
+      std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
+          media::VideoEncodeAccelerator::SupportedProfile(
+              media::VideoCodecProfile::VP8PROFILE_ANY,
+              gfx::Size{1920, 1080})});
+  NegotiateMirroring();
+  task_environment().RunUntilIdle();
 
-                          [](const media::cast::FrameSenderConfig& config) {
-                            return config.codec ==
-                                       media::cast::Codec::kVideoVp8 &&
-                                   config.use_hardware_encoder;
-                          }));
-#endif
+  // We should have offered VP8 with hardware ENABLED.
+  AssertCodecWasOffered(media::VideoCodec::kVP8, true);
+
+  // Oh no! The encoder had a problem.
+  FrameSenderConfig config;
+  config.use_hardware_encoder = true;
+  config.video_codec_params =
+      media::cast::VideoCodecParams{media::VideoCodec::kVP8};
+  PushVideoEncoderStatus(
+      config, media::cast::OperationalStatus::STATUS_CODEC_INIT_FAILED);
+
+  // This should have forced a renegotiation with hardware DISABLED.
+  AssertCodecWasOffered(media::VideoCodec::kVP8, false);
 }
 
 TEST_F(OpenscreenSessionHostTest, ShouldEnableHardwareH264EncodingIfSupported) {
-#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_WIN)
   CreateSession(SessionType::VIDEO_ONLY);
 
-  session_host().supported_profiles_ =
+  SetSupportedProfiles(
       std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
           media::VideoEncodeAccelerator::SupportedProfile(
               media::VideoCodecProfile::H264PROFILE_MIN,
-              gfx::Size{1920, 1080})};
-  session_host().NegotiateMirroring();
+              gfx::Size{1920, 1080})});
+  NegotiateMirroring();
   task_environment().RunUntilIdle();
 
-  const openscreen::cast::Offer& offer =
-      absl::get<openscreen::cast::Offer>(last_sent_offer().body);
-
-  // We should have offered H264.
-  EXPECT_TRUE(
-      std::any_of(offer.video_streams.begin(), offer.video_streams.end(),
-                  [](const openscreen::cast::VideoStream& stream) {
-                    return stream.codec == openscreen::cast::VideoCodec::kH264;
-                  }));
-
-  // We should have put a video config for H264 with hardware enabled in the
-  // last offered configs.
-  EXPECT_TRUE(std::any_of(session_host().last_offered_video_configs_.begin(),
-                          session_host().last_offered_video_configs_.end(),
-
-                          [](const media::cast::FrameSenderConfig& config) {
-                            return config.codec ==
-                                       media::cast::Codec::kVideoH264 &&
-                                   config.use_hardware_encoder;
-                          }));
+  AssertCodecWasOffered(media::VideoCodec::kH264, true);
 #endif
+}
+
+TEST_F(OpenscreenSessionHostTest, GetStatsDefault) {
+  CreateSession(SessionType::AUDIO_AND_VIDEO);
+  EXPECT_TRUE(session_host().GetMirroringStats().empty());
+}
+
+TEST_F(OpenscreenSessionHostTest, GetStatsEnabled) {
+  CreateSession(SessionType::AUDIO_AND_VIDEO, /* remote_playback */ false,
+                /* rtcp_reporting */ true);
+  session_host().SetSenderStatsForTest(ConstructDefaultSenderStats());
+  EXPECT_FALSE(session_host().GetMirroringStats().empty());
 }
 
 }  // namespace mirroring

@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 #include <memory>
+
+#include "base/strings/to_string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
+#include "third_party/blink/renderer/core/dom/has_invalidation_flags.h"
+#include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
@@ -26,8 +29,7 @@ class AffectedByPseudoTest : public PageTestBase {
   };
 
   void SetHtmlInnerHTML(const char* html_content);
-  void CheckElementsForFocus(ElementResult expected[],
-                             unsigned expected_count) const;
+  void CheckElementsForFocus(const base::span<ElementResult> expected) const;
 
   enum AffectedByFlagName {
     kAffectedBySubjectHas,
@@ -43,6 +45,18 @@ class AffectedByPseudoTest : public PageTestBase {
   void CheckAffectedByFlagsForHas(
       const char* element_id,
       std::map<AffectedByFlagName, bool> expected) const;
+  void CheckAffectedByFlagsForHasInShadowTree(
+      const char* shadow_host_id,
+      const char* element_id,
+      std::map<AffectedByFlagName, bool> expected) const;
+  Element* GetShadowTreeElementById(const char* shadow_host_id,
+                                    const char* element_id) const;
+
+ private:
+  void CheckAffectedByFlagsForHasInternal(
+      const char* shadow_host_id,
+      const char* element_id,
+      std::map<AffectedByFlagName, bool> expected) const;
 };
 
 void AffectedByPseudoTest::SetHtmlInnerHTML(const char* html_content) {
@@ -51,73 +65,92 @@ void AffectedByPseudoTest::SetHtmlInnerHTML(const char* html_content) {
 }
 
 void AffectedByPseudoTest::CheckElementsForFocus(
-    ElementResult expected[],
-    unsigned expected_count) const {
-  unsigned i = 0;
+    const base::span<ElementResult> expected) const {
   HTMLElement* element = GetDocument().body();
 
-  for (; element && i < expected_count;
-       element = Traversal<HTMLElement>::Next(*element), ++i) {
-    ASSERT_TRUE(element->HasTagName(expected[i].tag));
-    DCHECK(element->GetComputedStyle());
-    ASSERT_EQ(expected[i].children_or_siblings_affected_by,
+  for (const ElementResult& result : expected) {
+    ASSERT_TRUE(element);
+    EXPECT_TRUE(element->HasTagName(result.tag));
+    EXPECT_TRUE(element->GetComputedStyle());
+    EXPECT_EQ(result.children_or_siblings_affected_by,
               element->ChildrenOrSiblingsAffectedByFocus());
+    element = Traversal<HTMLElement>::Next(*element);
   }
+}
 
-  DCHECK(!element);
-  DCHECK_EQ(i, expected_count);
+Element* AffectedByPseudoTest::GetShadowTreeElementById(
+    const char* shadow_host_id,
+    const char* element_id) const {
+  ShadowRoot* shadow_root = GetElementById(shadow_host_id)->GetShadowRoot();
+  DCHECK(shadow_root) << "#" << shadow_host_id << " must have shadow root";
+  return shadow_root->getElementById(AtomicString(element_id));
 }
 
 void AffectedByPseudoTest::CheckAffectedByFlagsForHas(
     const char* element_id,
     std::map<AffectedByFlagName, bool> expected) const {
+  CheckAffectedByFlagsForHasInternal(/* shadow_host_id */ nullptr, element_id,
+                                     std::move(expected));
+}
+
+void AffectedByPseudoTest::CheckAffectedByFlagsForHasInShadowTree(
+    const char* shadow_host_id,
+    const char* element_id,
+    std::map<AffectedByFlagName, bool> expected) const {
+  CheckAffectedByFlagsForHasInternal(shadow_host_id, element_id,
+                                     std::move(expected));
+}
+
+void AffectedByPseudoTest::CheckAffectedByFlagsForHasInternal(
+    const char* shadow_host_id,
+    const char* element_id,
+    std::map<AffectedByFlagName, bool> expected) const {
+  Element* element;
+  if (shadow_host_id) {
+    element = GetShadowTreeElementById(shadow_host_id, element_id);
+  } else {
+    element = GetElementById(element_id);
+  }
   bool actual;
   const char* flag_name = nullptr;
   for (auto iter : expected) {
     switch (iter.first) {
       case kAffectedBySubjectHas:
-        actual = GetElementById(element_id)->AffectedBySubjectHas();
+        actual = element->AffectedBySubjectHas();
         flag_name = "AffectedBySubjectHas";
         break;
       case kAffectedByNonSubjectHas:
-        actual = GetElementById(element_id)->AffectedByNonSubjectHas();
+        actual = element->AffectedByNonSubjectHas();
         flag_name = "AffectedByNonSubjectHas";
         break;
       case kAncestorsOrAncestorSiblingsAffectedByHas:
-        actual = GetElementById(element_id)
-                     ->AncestorsOrAncestorSiblingsAffectedByHas();
+        actual = element->AncestorsOrAncestorSiblingsAffectedByHas();
         flag_name = "AncestorsOrAncestorSiblingsAffectedByHas";
         break;
       case kSiblingsAffectedByHas:
-        actual = GetElementById(element_id)->GetSiblingsAffectedByHasFlags();
+        actual = element->GetSiblingsAffectedByHasFlags();
         flag_name = "SiblingsAffectedByHas";
         break;
       case kSiblingsAffectedByHasForSiblingRelationship:
-        actual =
-            GetElementById(element_id)
-                ->HasSiblingsAffectedByHasFlags(
-                    SiblingsAffectedByHasFlags::kFlagForSiblingRelationship);
+        actual = element->HasSiblingsAffectedByHasFlags(
+            SiblingsAffectedByHasFlags::kFlagForSiblingRelationship);
         flag_name = "SiblingsAffectedByHasForSiblingRelationship";
         break;
       case kSiblingsAffectedByHasForSiblingDescendantRelationship:
-        actual = GetElementById(element_id)
-                     ->HasSiblingsAffectedByHasFlags(
-                         SiblingsAffectedByHasFlags::
-                             kFlagForSiblingDescendantRelationship);
+        actual = element->HasSiblingsAffectedByHasFlags(
+            SiblingsAffectedByHasFlags::kFlagForSiblingDescendantRelationship);
         flag_name = "SiblingsAffectedByHasForSiblingDescendantRelationship";
         break;
       case kAffectedByPseudoInHas:
-        actual = GetElementById(element_id)->AffectedByPseudoInHas();
+        actual = element->AffectedByPseudoInHas();
         flag_name = "AffectedByPseudoInHas";
         break;
       case kAncestorsOrSiblingsAffectedByHoverInHas:
-        actual = GetElementById(element_id)
-                     ->AncestorsOrSiblingsAffectedByHoverInHas();
+        actual = element->AncestorsOrSiblingsAffectedByHoverInHas();
         flag_name = "AncestorsOrSiblingsAffectedByHoverInHas";
         break;
       case kAffectedByLogicalCombinationsInHas:
-        actual =
-            GetElementById(element_id)->AffectedByLogicalCombinationsInHas();
+        actual = element->AffectedByLogicalCombinationsInHas();
         flag_name = "AffectedByLogicalCombinationsInHas";
         break;
     }
@@ -127,8 +160,8 @@ void AffectedByPseudoTest::CheckAffectedByFlagsForHas(
     }
 
     ADD_FAILURE() << "#" << element_id << " : " << flag_name << " should be "
-                  << (iter.second ? "true" : "false") << " but "
-                  << (actual ? "true" : "false");
+                  << base::ToString(iter.second) << " but is "
+                  << base::ToString(actual);
   }
 }
 
@@ -151,7 +184,7 @@ TEST_F(AffectedByPseudoTest, FocusedAscendant) {
     </body>
   )HTML");
 
-  CheckElementsForFocus(expected, sizeof(expected) / sizeof(ElementResult));
+  CheckElementsForFocus(expected);
 }
 
 // "body:focus div" will mark the body element with
@@ -173,7 +206,7 @@ TEST_F(AffectedByPseudoTest, FocusedAscendantWithType) {
     </body>
   )HTML");
 
-  CheckElementsForFocus(expected, sizeof(expected) / sizeof(ElementResult));
+  CheckElementsForFocus(expected);
 }
 
 // ":not(body):focus div" should not mark the body element with
@@ -198,7 +231,7 @@ TEST_F(AffectedByPseudoTest, FocusedAscendantWithNegatedType) {
     </body>
   )HTML");
 
-  CheckElementsForFocus(expected, sizeof(expected) / sizeof(ElementResult));
+  CheckElementsForFocus(expected);
 }
 
 // Checking current behavior for ":focus + div", but this is a BUG or at best
@@ -225,7 +258,7 @@ TEST_F(AffectedByPseudoTest, FocusedSibling) {
     </body>
   )HTML");
 
-  CheckElementsForFocus(expected, sizeof(expected) / sizeof(ElementResult));
+  CheckElementsForFocus(expected);
 }
 
 TEST_F(AffectedByPseudoTest, AffectedByFocusUpdate) {
@@ -462,32 +495,35 @@ TEST_F(AffectedByPseudoTest,
                 {kAncestorsOrAncestorSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div10")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div10")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div6")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div6")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div6")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div6")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div7")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div7")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -587,7 +623,8 @@ TEST_F(AffectedByPseudoTest,
   UpdateAllLifecyclePhasesForTest();
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -603,7 +640,8 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrSiblingsAffectedByHoverInHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div3")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div3")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -635,7 +673,7 @@ TEST_F(AffectedByPseudoTest,
   UpdateAllLifecyclePhasesForTest();
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div3")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div3")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -651,7 +689,7 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrSiblingsAffectedByHoverInHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -803,7 +841,8 @@ TEST_F(AffectedByPseudoTest,
   UpdateAllLifecyclePhasesForTest();
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -819,7 +858,8 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrSiblingsAffectedByHoverInHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div3")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div3")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -851,7 +891,7 @@ TEST_F(AffectedByPseudoTest,
   UpdateAllLifecyclePhasesForTest();
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div3")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div3")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -867,7 +907,7 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrSiblingsAffectedByHoverInHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -972,7 +1012,8 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrAncestorSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div7")->setAttribute(html_names::kClassAttr, "c");
+  GetElementById("div7")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("c"));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -1001,7 +1042,7 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div6")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div6")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -1029,7 +1070,8 @@ TEST_F(AffectedByPseudoTest,
                {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div5")->setAttribute(html_names::kClassAttr, "b");
+  GetElementById("div5")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -1098,7 +1140,8 @@ TEST_F(AffectedByPseudoTest,
                {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div3")->setAttribute(html_names::kClassAttr, "c");
+  GetElementById("div3")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("c"));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -1131,7 +1174,7 @@ TEST_F(AffectedByPseudoTest,
                {kSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div5")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div5")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -1202,7 +1245,7 @@ TEST_F(AffectedByPseudoTest, AffectedBySubjectHasComplexCase1) {
                               {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div8")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div8")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -1328,7 +1371,7 @@ TEST_F(AffectedByPseudoTest, AffectedBySubjectHasComplexCase2) {
                               {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div6")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div6")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -1471,7 +1514,7 @@ TEST_F(AffectedByPseudoTest, AffectedBySubjectHasComplexCase3) {
                               {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div8")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div8")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -1637,7 +1680,7 @@ TEST_F(AffectedByPseudoTest, AffectedBySubjectHasComplexCase4) {
                               {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div6")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div6")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -2071,7 +2114,8 @@ TEST_F(AffectedByPseudoTest, AffectedByNonSubjectHasComplexCase1) {
                {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div3")->setAttribute(html_names::kClassAttr, "d");
+  GetElementById("div3")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("d"));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -2124,7 +2168,7 @@ TEST_F(AffectedByPseudoTest, AffectedByNonSubjectHasComplexCase1) {
                               {kSiblingsAffectedByHas, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div9")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div9")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -2244,7 +2288,8 @@ TEST_F(AffectedByPseudoTest, AffectedByNonSubjectHasComplexCase2) {
                {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "d");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("d"));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -2297,7 +2342,7 @@ TEST_F(AffectedByPseudoTest, AffectedByNonSubjectHasComplexCase2) {
                               {kSiblingsAffectedByHas, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div9")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div9")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -2424,7 +2469,8 @@ TEST_F(AffectedByPseudoTest, AffectedByNonSubjectHasComplexCase3) {
                 {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div4")->setAttribute(html_names::kClassAttr, "e");
+  GetElementById("div4")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("e"));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -2482,7 +2528,7 @@ TEST_F(AffectedByPseudoTest, AffectedByNonSubjectHasComplexCase3) {
                 {kSiblingsAffectedByHas, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div8")->setAttribute(html_names::kClassAttr, "");
+  GetElementById("div8")->setAttribute(html_names::kClassAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -2612,8 +2658,8 @@ TEST_F(AffectedByPseudoTest, AffectedBySelectorQuery) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
                 {kSiblingsAffectedByHas, false}});
 
-  StaticElementList* result =
-      GetDocument().QuerySelectorAll(".a:has(~ .b > .c > .d) ~ .e");
+  StaticElementList* result = GetDocument().QuerySelectorAll(
+      AtomicString(".a:has(~ .b > .c > .d) ~ .e"));
   ASSERT_EQ(1U, result->length());
   EXPECT_EQ(result->item(0)->GetIdAttribute(), "div4");
 
@@ -2739,7 +2785,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion1) {
                 {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div21")->setAttribute(html_names::kClassAttr, "a");
+  GetElementById("div21")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -2791,10 +2838,10 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion1) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   auto* subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div12");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div12"));
   subtree_root->setInnerHTML(
       String::FromUTF8(R"HTML(<div id=div121></div>)HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(2U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -2982,7 +3029,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion2) {
                 {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div21")->setAttribute(html_names::kClassAttr, "a");
+  GetElementById("div21")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3066,7 +3114,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion2) {
 
   // There can be some inefficiency for fixed depth :has() argument
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div11111")->setAttribute(html_names::kClassAttr, "c");
+  GetElementById("div11111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("c"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3194,7 +3243,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion3) {
                 {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div22")->setAttribute(html_names::kClassAttr, "a");
+  GetElementById("div22")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3277,7 +3327,7 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion3) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   auto* subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div12");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div12"));
   subtree_root->setInnerHTML(String::FromUTF8(R"HTML(
       <div id=div121>
         <div id=div1211></div>
@@ -3289,7 +3339,7 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion3) {
         <div id=div1215></div>
       </div>
   )HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(8U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3438,10 +3488,12 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion4) {
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
   auto* element = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  element->setAttribute(html_names::kIdAttr, "div12");
-  element->setAttribute(html_names::kClassAttr, "a");
-  GetDocument().getElementById("div1")->InsertBefore(
-      element, GetDocument().getElementById("div13"));
+  element->setAttribute(html_names::kIdAttr, AtomicString("div12"));
+  element->setAttribute(html_names::kClassAttr, AtomicString("a"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->InsertBefore(element,
+                     GetDocument().getElementById(AtomicString("div13")));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3486,10 +3538,12 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion4) {
   // There can be some inefficiency for fixed adjacent distance :has() argument
   start_count = GetStyleEngine().StyleForElementCount();
   element = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  element->setAttribute(html_names::kIdAttr, "div16");
-  element->setAttribute(html_names::kClassAttr, "b c");
-  GetDocument().getElementById("div1")->InsertBefore(
-      element, GetDocument().getElementById("div17"));
+  element->setAttribute(html_names::kIdAttr, AtomicString("div16"));
+  element->setAttribute(html_names::kClassAttr, AtomicString("b c"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->InsertBefore(element,
+                     GetDocument().getElementById(AtomicString("div17")));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(2U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3513,7 +3567,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion4) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div14")->setAttribute(html_names::kClassAttr, "c");
+  GetElementById("div14")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("c"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3538,10 +3593,12 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion4) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   element = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  element->setAttribute(html_names::kIdAttr, "div15");
-  element->setAttribute(html_names::kClassAttr, "a");
-  GetDocument().getElementById("div1")->InsertBefore(
-      element, GetDocument().getElementById("div16"));
+  element->setAttribute(html_names::kIdAttr, AtomicString("div15"));
+  element->setAttribute(html_names::kClassAttr, AtomicString("a"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->InsertBefore(element,
+                     GetDocument().getElementById(AtomicString("div16")));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(2U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3583,9 +3640,11 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion4) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   element = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  element->setAttribute(html_names::kIdAttr, "div15.5");
-  GetDocument().getElementById("div1")->InsertBefore(
-      element, GetDocument().getElementById("div16"));
+  element->setAttribute(html_names::kIdAttr, AtomicString("div15.5"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->InsertBefore(element,
+                     GetDocument().getElementById(AtomicString("div16")));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(3U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3612,7 +3671,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion4) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div22")->setAttribute(html_names::kClassAttr, "a");
+  GetElementById("div22")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3799,14 +3859,14 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion5) {
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
   auto* subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div12");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div12"));
   subtree_root->setInnerHTML(String::FromUTF8(R"HTML(
       <div id=div121>
         <div id=div1211></div>
         <div id=div1212></div>
       </div>
   )HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(4U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3845,15 +3905,15 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion5) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div13");
-  subtree_root->setAttribute(html_names::kClassAttr, "b");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div13"));
+  subtree_root->setAttribute(html_names::kClassAttr, AtomicString("b"));
   subtree_root->setInnerHTML(String::FromUTF8(R"HTML(
       <div id=div131>
         <div id=div1311 class='c'></div>
         <div id=div1312></div>
       </div>
   )HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(5U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -3920,12 +3980,14 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion5) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div2222");
-  subtree_root->setAttribute(html_names::kClassAttr, "a");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div2222"));
+  subtree_root->setAttribute(html_names::kClassAttr, AtomicString("a"));
   subtree_root->setInnerHTML(
       String::FromUTF8(R"HTML(<div id=div22221></div>)HTML"));
-  GetDocument().getElementById("div222")->InsertBefore(
-      subtree_root, GetDocument().getElementById("div2223"));
+  GetDocument()
+      .getElementById(AtomicString("div222"))
+      ->InsertBefore(subtree_root,
+                     GetDocument().getElementById(AtomicString("div2223")));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(2U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -4046,13 +4108,13 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion6) {
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
   auto* subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div12");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div12"));
   subtree_root->setInnerHTML(String::FromUTF8(R"HTML(
       <div id=div121></div>
   )HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(2U, GetStyleEngine().StyleForElementCount() - start_count);
+  EXPECT_EQ(3U, GetStyleEngine().StyleForElementCount() - start_count);
 
   CheckAffectedByFlagsForHas(
       "div12",
@@ -4071,13 +4133,13 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion6) {
 
   start_count = GetStyleEngine().StyleForElementCount();
   subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div13");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div13"));
   subtree_root->setInnerHTML(String::FromUTF8(R"HTML(
       <div id=div131></div>
   )HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(2U, GetStyleEngine().StyleForElementCount() - start_count);
+  EXPECT_EQ(3U, GetStyleEngine().StyleForElementCount() - start_count);
 
   CheckAffectedByFlagsForHas(
       "div13",
@@ -4101,11 +4163,11 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion6) {
   // There can be some inefficiency for fixed adjacent distance :has() argument
   start_count = GetStyleEngine().StyleForElementCount();
   subtree_root = MakeGarbageCollected<HTMLDivElement>(GetDocument());
-  subtree_root->setAttribute(html_names::kIdAttr, "div14");
+  subtree_root->setAttribute(html_names::kIdAttr, AtomicString("div14"));
   subtree_root->setInnerHTML(String::FromUTF8(R"HTML(
       <div id=div141 class='d'></div>
   )HTML"));
-  GetDocument().getElementById("div1")->AppendChild(subtree_root);
+  GetDocument().getElementById(AtomicString("div1"))->AppendChild(subtree_root);
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(3U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -4129,7 +4191,8 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterInsertion6) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div22")->setAttribute(html_names::kClassAttr, "a");
+  GetElementById("div22")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -4281,8 +4344,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterWiping) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->setInnerHTML(
-      String::FromUTF8(R"HTML(div11)HTML"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->setInnerHTML(String::FromUTF8(R"HTML(div11)HTML"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -4306,8 +4370,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterWiping) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div12")->setInnerHTML(
-      String::FromUTF8(R"HTML(div12)HTML"));
+  GetDocument()
+      .getElementById(AtomicString("div12"))
+      ->setInnerHTML(String::FromUTF8(R"HTML(div12)HTML"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -4328,8 +4393,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterWiping) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div2")->setInnerHTML(
-      String::FromUTF8(R"HTML(div2)HTML"));
+  GetDocument()
+      .getElementById(AtomicString("div2"))
+      ->setInnerHTML(String::FromUTF8(R"HTML(div2)HTML"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0U, GetStyleEngine().StyleForElementCount() - start_count);
 
@@ -4405,22 +4471,26 @@ TEST_F(AffectedByPseudoTest, AffectedByLogicalCombinationsInHas) {
                               {kSiblingsAffectedByHas, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div11")->setAttribute(html_names::kClassAttr, "a b");
+  GetElementById("div11")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a b"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div11")->setAttribute(html_names::kClassAttr, "a");
+  GetElementById("div11")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(1U, GetStyleEngine().StyleForElementCount() - start_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div11")->setAttribute(html_names::kClassAttr, "a invalid");
+  GetElementById("div11")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("a invalid"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0U, GetStyleEngine().StyleForElementCount() - start_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetElementById("div12")->setAttribute(html_names::kClassAttr, "d e");
+  GetElementById("div12")->setAttribute(html_names::kClassAttr,
+                                        AtomicString("d e"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0U, GetStyleEngine().StyleForElementCount() - start_count);
 }
@@ -4514,8 +4584,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval1) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div12")->RemoveChild(
-      GetDocument().getElementById("div121"));
+  GetDocument()
+      .getElementById(AtomicString("div12"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div121")));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
@@ -4535,8 +4606,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval1) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div12"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div12")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
@@ -4552,8 +4624,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval1) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div14"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div14")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -4566,8 +4639,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval1) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div13"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div13")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -4634,30 +4708,34 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval2) {
                 {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div14"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div14")));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div13")->RemoveChild(
-      GetDocument().getElementById("div134"));
+  GetDocument()
+      .getElementById(AtomicString("div13"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div134")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div13")->RemoveChild(
-      GetDocument().getElementById("div131"));
+  GetDocument()
+      .getElementById(AtomicString("div13"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div131")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div13")->RemoveChild(
-      GetDocument().getElementById("div133"));
+  GetDocument()
+      .getElementById(AtomicString("div13"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div133")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -4685,8 +4763,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval2) {
                  {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div13"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div13")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -4708,8 +4787,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval2) {
                  {kAncestorsOrAncestorSiblingsAffectedByHas, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div12")->RemoveChild(
-      GetDocument().getElementById("div121"));
+  GetDocument()
+      .getElementById(AtomicString("div12"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div121")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
@@ -4773,44 +4853,50 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval3) {
                  {kSiblingsAffectedByHasForSiblingRelationship, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div114"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div114")));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div112"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div112")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div113"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div113")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div12")->RemoveChild(
-      GetDocument().getElementById("div122"));
+  GetDocument()
+      .getElementById(AtomicString("div12"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div122")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div13"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div13")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div12"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div12")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -4860,16 +4946,18 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval4) {
                  {kSiblingsAffectedByHasForSiblingRelationship, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div115"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div115")));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div113"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div113")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -4882,15 +4970,17 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval4) {
                  {kSiblingsAffectedByHasForSiblingRelationship, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div116"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div116")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div114"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div114")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -5015,30 +5105,34 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval5) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div11")->RemoveChild(
-      GetDocument().getElementById("div111"));
+  GetDocument()
+      .getElementById(AtomicString("div11"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div111")));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div12")->RemoveChild(
-      GetDocument().getElementById("div122"));
+  GetDocument()
+      .getElementById(AtomicString("div12"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div122")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div12"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div12")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div13"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div13")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -5100,8 +5194,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval5) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div16"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div16")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -5128,15 +5223,17 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval5) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div15")->RemoveChild(
-      GetDocument().getElementById("div152"));
+  GetDocument()
+      .getElementById(AtomicString("div15"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div152")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div15")->RemoveChild(
-      GetDocument().getElementById("div151"));
+  GetDocument()
+      .getElementById(AtomicString("div15"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div151")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -5168,8 +5265,9 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval5) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, true}});
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div14")->RemoveChild(
-      GetDocument().getElementById("div142"));
+  GetDocument()
+      .getElementById(AtomicString("div14"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div142")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
@@ -5243,16 +5341,18 @@ TEST_F(AffectedByPseudoTest, AffectedByHasAfterRemoval6) {
        {kSiblingsAffectedByHasForSiblingDescendantRelationship, false}});
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div122")->RemoveChild(
-      GetDocument().getElementById("div1221"));
+  GetDocument()
+      .getElementById(AtomicString("div122"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div1221")));
   UpdateAllLifecyclePhasesForTest();
   unsigned element_count =
       GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(0U, element_count);
 
   start_count = GetStyleEngine().StyleForElementCount();
-  GetDocument().getElementById("div1")->RemoveChild(
-      GetDocument().getElementById("div12"));
+  GetDocument()
+      .getElementById(AtomicString("div1"))
+      ->RemoveChild(GetDocument().getElementById(AtomicString("div12")));
   UpdateAllLifecyclePhasesForTest();
   element_count = GetStyleEngine().StyleForElementCount() - start_count;
   ASSERT_EQ(1U, element_count);
@@ -5317,11 +5417,794 @@ TEST_F(AffectedByPseudoTest, AffectedByHasWithoutNth) {
 
   unsigned start_count = GetStyleEngine().StyleForElementCount();
   Element* foo = GetElementById("foo");
-  foo->setAttribute(html_names::kClassAttr, "foo");
+  foo->setAttribute(html_names::kClassAttr, AtomicString("foo"));
 
   UpdateAllLifecyclePhasesForTest();
 
   ASSERT_EQ(GetStyleEngine().StyleForElementCount() - start_count, 1U);
+}
+
+TEST_F(AffectedByPseudoTest, AffectedByPseudoInHasWithNestingParent) {
+  SetHtmlInnerHTML(R"HTML(
+    <style>
+      .b:hover {
+        .a:has(~ &) { background-color: green; }
+      }
+    </style>
+    <div id=div1></div>
+    <div id=div2 class='a'></div>
+    <div id=div3></div>
+    <div id=div4 class='b'></div>
+    <div id=div5></div>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kSiblingsAffectedByHasForSiblingRelationship, false},
+               {kAncestorsOrSiblingsAffectedByHoverInHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div2", {{kAffectedBySubjectHas, true},
+               {kAffectedByPseudoInHas, true},
+               {kSiblingsAffectedByHasForSiblingRelationship, true},
+               {kAncestorsOrSiblingsAffectedByHoverInHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div3", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kSiblingsAffectedByHasForSiblingRelationship, true},
+               {kAncestorsOrSiblingsAffectedByHoverInHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div4", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kSiblingsAffectedByHasForSiblingRelationship, true},
+               {kAncestorsOrSiblingsAffectedByHoverInHas, true}});
+  CheckAffectedByFlagsForHas(
+      "div5", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kSiblingsAffectedByHasForSiblingRelationship, true},
+               {kAncestorsOrSiblingsAffectedByHoverInHas, false}});
+
+  unsigned start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div3")->SetHovered(true);
+  UpdateAllLifecyclePhasesForTest();
+  unsigned element_count =
+      GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(0U, element_count);
+  GetElementById("div3")->SetHovered(false);
+  UpdateAllLifecyclePhasesForTest();
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div4")->SetHovered(true);
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(2U, element_count);
+  GetElementById("div4")->SetHovered(false);
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(AffectedByPseudoTest, AffectedByPseudoInHasWithNestingComplexParent) {
+  SetHtmlInnerHTML(R"HTML(
+    <style>
+      .b .c {
+        .a:has(> &) { background-color: green; }
+      }
+    </style>
+    <div id=div1></div>
+    <div id=div2>
+      <div id=div3></div>
+      <div id=div4 class='a'>
+        <div id=div5 class='c'></div>
+      </div>
+    </div>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kAffectedByLogicalCombinationsInHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div2", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kAffectedByLogicalCombinationsInHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div3", {{kAffectedBySubjectHas, false},
+               {kAffectedByPseudoInHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kAffectedByLogicalCombinationsInHas, false}});
+  CheckAffectedByFlagsForHas("div4",
+                             {{kAffectedBySubjectHas, true},
+                              {kAffectedByPseudoInHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kAffectedByLogicalCombinationsInHas, true}});
+  CheckAffectedByFlagsForHas("div5",
+                             {{kAffectedBySubjectHas, false},
+                              {kAffectedByPseudoInHas, false},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kAffectedByLogicalCombinationsInHas, false}});
+
+  unsigned start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div1")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  unsigned element_count =
+      GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(0U, element_count);
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div3")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(0U, element_count);
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div2")->setAttribute(html_names::kClassAttr,
+                                       AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(2U, element_count);
+}
+
+TEST_F(AffectedByPseudoTest,
+       ShadowHostAffectedByFollowingNonSubjectHasInShadowTreeStyle) {
+  GetDocument().body()->setHTMLUnsafe(R"HTML(
+    <div id="div1">
+      <div id="div11">
+        <template shadowrootmode="open">
+          <style>
+            :host:has(.a) .b { background-color: lime; }
+            :host:has(~ .a) .c { background-color: lime; }
+          </style>
+          <div id="div111">
+            <div id="div1111">
+              <div id="div11111"></div>
+            </div>
+            <div id="div1112" class="a"></div>
+          </div>
+          <div id="div112"></div>
+        </template>
+        <div id="div113">
+          <div id="div1131"></div>
+          <div id="div1132" class="a"></div>
+        </div>
+      </div>
+      <div id="div12" class="a"></div>
+    </div>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div11", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  unsigned start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div112")
+      ->setAttribute(html_names::kClassAttr, AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  unsigned element_count =
+      GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div1111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("c"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div1112")
+      ->setAttribute(html_names::kClassAttr, g_empty_atom);
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(3U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div1111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("a"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(3U, element_count);
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div12")->setAttribute(html_names::kClassAttr, g_empty_atom);
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(0U, element_count);
+}
+
+TEST_F(AffectedByPseudoTest,
+       ShadowHostAffectedByPrecedingNonSubjectHasInShadowTreeStyle) {
+  GetDocument().body()->setHTMLUnsafe(R"HTML(
+    <div id="div1">
+      <div id="div11">
+        <template shadowrootmode="open">
+          <style>
+            :has(.a):host .b { background-color: lime; }
+            :has(~ .a):host .c { background-color: lime; }
+          </style>
+          <div id="div111">
+            <div id="div1111">
+              <div id="div11111"></div>
+            </div>
+            <div id="div1112" class="a"></div>
+          </div>
+          <div id="div112"></div>
+        </template>
+        <div id="div113">
+          <div id="div1131"></div>
+          <div id="div1132" class="a"></div>
+        </div>
+      </div>
+      <div id="div12" class="a"></div>
+    </div>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div11", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  unsigned start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div112")
+      ->setAttribute(html_names::kClassAttr, AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  unsigned element_count =
+      GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div1111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("c"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, true},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, true},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div1112")
+      ->setAttribute(html_names::kClassAttr, g_empty_atom);
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(3U, element_count);
+
+  CheckAffectedByFlagsForHas(
+      "div1", {{kAffectedByNonSubjectHas, false},
+               {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+               {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas("div11",
+                             {{kAffectedByNonSubjectHas, true},
+                              {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+                              {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div111",
+      {{kAffectedByNonSubjectHas, true},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div11111",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div1112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHasInShadowTree(
+      "div11", "div112",
+      {{kAffectedByNonSubjectHas, false},
+       {kAncestorsOrAncestorSiblingsAffectedByHas, true},
+       {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div113", {{kAffectedByNonSubjectHas, false},
+                 {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                 {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1131", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div1132", {{kAffectedByNonSubjectHas, false},
+                  {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                  {kSiblingsAffectedByHas, false}});
+  CheckAffectedByFlagsForHas(
+      "div12", {{kAffectedByNonSubjectHas, false},
+                {kAncestorsOrAncestorSiblingsAffectedByHas, false},
+                {kSiblingsAffectedByHas, false}});
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div1111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("b"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(1U, element_count);
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetShadowTreeElementById("div11", "div111")
+      ->setAttribute(html_names::kClassAttr, AtomicString("a"));
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(3U, element_count);
+
+  start_count = GetStyleEngine().StyleForElementCount();
+  GetElementById("div12")->setAttribute(html_names::kClassAttr, g_empty_atom);
+  UpdateAllLifecyclePhasesForTest();
+  element_count = GetStyleEngine().StyleForElementCount() - start_count;
+  ASSERT_EQ(0U, element_count);
 }
 
 }  // namespace blink

@@ -4,12 +4,18 @@
 
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
 
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -48,13 +54,9 @@ void QuicSpdyServerStreamBase::StopReading() {
   QuicSpdyStream::StopReading();
 }
 
-bool QuicSpdyServerStreamBase::AreHeadersValid(
-    const QuicHeaderList& header_list) const {
-  if (!GetQuicReloadableFlag(quic_verify_request_headers_2)) {
-    return true;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers_2, 2, 3);
-  if (!QuicSpdyStream::AreHeadersValid(header_list)) {
+bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
+    const QuicHeaderList& header_list) {
+  if (!QuicSpdyStream::ValidateReceivedHeaders(header_list)) {
     return false;
   }
 
@@ -63,7 +65,8 @@ bool QuicSpdyServerStreamBase::AreHeadersValid(
   bool saw_path = false;
   bool saw_scheme = false;
   bool saw_method = false;
-  bool saw_authority = false;
+  std::optional<std::string> authority;
+  std::optional<std::string> host;
   bool is_extended_connect = false;
   // Check if it is missing any required headers and if there is any disallowed
   // ones.
@@ -86,48 +89,75 @@ bool QuicSpdyServerStreamBase::AreHeadersValid(
     } else if (pair.first == ":path") {
       saw_path = true;
     } else if (pair.first == ":authority") {
-      saw_authority = true;
+      authority = pair.second;
     } else if (absl::StrContains(pair.first, ":")) {
-      QUIC_DLOG(ERROR) << "Unexpected ':' in header " << pair.first << ".";
+      set_invalid_request_details(
+          absl::StrCat("Unexpected ':' in header ", pair.first, "."));
+      QUIC_DLOG(ERROR) << invalid_request_details();
       return false;
+    } else if (pair.first == "host") {
+      host = pair.second;
     }
     if (is_extended_connect) {
       if (!spdy_session()->allow_extended_connect()) {
-        QUIC_DLOG(ERROR)
-            << "Received extended-CONNECT request while it is disabled.";
+        set_invalid_request_details(
+            "Received extended-CONNECT request while it is disabled.");
+        QUIC_DLOG(ERROR) << invalid_request_details();
         return false;
       }
     } else if (saw_method && !saw_connect) {
       if (saw_protocol) {
+        set_invalid_request_details(
+            "Received non-CONNECT request with :protocol header.");
         QUIC_DLOG(ERROR) << "Receive non-CONNECT request with :protocol.";
         return false;
       }
     }
   }
 
+  // If the :scheme pseudo-header field identifies a scheme that has a
+  // mandatory authority component (including "http" and "https"), the
+  // request MUST contain either an :authority pseudo-header field or a
+  // Host header field. If these fields are present, they MUST NOT be
+  // empty. If both fields are present, they MUST contain the same value.
+  // If the scheme does not have a mandatory authority component and none
+  // is provided in the request target, the request MUST NOT contain the
+  // :authority pseudo-header or Host header fields.
+  //
+  // https://datatracker.ietf.org/doc/html/rfc9114#section-4.3.1
+  if (host && (!authority || *authority != *host)) {
+    QUIC_CODE_COUNT(http3_host_header_does_not_match_authority);
+    set_invalid_request_details("Host header does not match authority");
+    return false;
+  }
+
   if (is_extended_connect) {
-    if (saw_scheme && saw_path && saw_authority) {
+    if (saw_scheme && saw_path && authority) {
       // Saw all the required pseudo headers.
       return true;
     }
-    QUIC_DLOG(ERROR) << "Missing required pseudo headers for extended-CONNECT.";
+    set_invalid_request_details(
+        "Missing required pseudo headers for extended-CONNECT.");
+    QUIC_DLOG(ERROR) << invalid_request_details();
     return false;
   }
   // This is a vanilla CONNECT or non-CONNECT request.
   if (saw_connect) {
     // Check vanilla CONNECT.
     if (saw_path || saw_scheme) {
-      QUIC_DLOG(ERROR)
-          << "Received invalid CONNECT request with disallowed pseudo header.";
+      set_invalid_request_details(
+          "Received invalid CONNECT request with disallowed pseudo header.");
+      QUIC_DLOG(ERROR) << invalid_request_details();
       return false;
     }
     return true;
   }
   // Check non-CONNECT request.
-  if (saw_method && saw_authority && saw_path && saw_scheme) {
+  if (saw_method && authority && saw_path && saw_scheme) {
     return true;
   }
-  QUIC_LOG(ERROR) << "Missing required pseudo headers.";
+  set_invalid_request_details("Missing required pseudo headers.");
+  QUIC_DLOG(ERROR) << invalid_request_details();
   return false;
 }
 

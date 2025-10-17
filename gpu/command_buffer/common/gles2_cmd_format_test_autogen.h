@@ -8,6 +8,11 @@
 //    clang-format -i -style=chromium filename
 // DO NOT EDIT!
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 // This file contains unit tests for gles2 commands
 // It is included by gles2_cmd_format_test.cc
 
@@ -4364,18 +4369,6 @@ TEST_F(GLES2FormatTest, MemoryBarrierByRegion) {
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
-TEST_F(GLES2FormatTest, SwapBuffers) {
-  cmds::SwapBuffers& cmd = *GetBufferAs<cmds::SwapBuffers>();
-  void* next_cmd =
-      cmd.Set(&cmd, static_cast<GLuint64>(11), static_cast<GLbitfield>(12));
-  EXPECT_EQ(static_cast<uint32_t>(cmds::SwapBuffers::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLuint64>(11), cmd.swap_id());
-  EXPECT_EQ(static_cast<GLbitfield>(12), cmd.flags);
-  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
-}
-
 TEST_F(GLES2FormatTest, GetMaxValueInBufferCHROMIUM) {
   cmds::GetMaxValueInBufferCHROMIUM& cmd =
       *GetBufferAs<cmds::GetMaxValueInBufferCHROMIUM>();
@@ -4453,25 +4446,6 @@ TEST_F(GLES2FormatTest, FlushMappedBufferRange) {
   EXPECT_EQ(static_cast<GLenum>(11), cmd.target);
   EXPECT_EQ(static_cast<GLintptr>(12), cmd.offset);
   EXPECT_EQ(static_cast<GLsizeiptr>(13), cmd.size);
-  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
-}
-
-TEST_F(GLES2FormatTest, ResizeCHROMIUM) {
-  cmds::ResizeCHROMIUM& cmd = *GetBufferAs<cmds::ResizeCHROMIUM>();
-  void* next_cmd = cmd.Set(&cmd, static_cast<GLint>(11), static_cast<GLint>(12),
-                           static_cast<GLfloat>(13), static_cast<GLboolean>(14),
-                           static_cast<GLuint>(15), static_cast<GLuint>(16),
-                           static_cast<GLsizei>(17));
-  EXPECT_EQ(static_cast<uint32_t>(cmds::ResizeCHROMIUM::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLint>(11), cmd.width);
-  EXPECT_EQ(static_cast<GLint>(12), cmd.height);
-  EXPECT_EQ(static_cast<GLfloat>(13), cmd.scale_factor);
-  EXPECT_EQ(static_cast<GLboolean>(14), cmd.alpha);
-  EXPECT_EQ(static_cast<GLuint>(15), cmd.shm_id);
-  EXPECT_EQ(static_cast<GLuint>(16), cmd.shm_offset);
-  EXPECT_EQ(static_cast<GLsizei>(17), cmd.color_space_size);
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
@@ -4714,72 +4688,6 @@ TEST_F(GLES2FormatTest, VertexAttribDivisorANGLE) {
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
-TEST_F(GLES2FormatTest, ProduceTextureDirectCHROMIUMImmediate) {
-  const int kSomeBaseValueToTestWith = 51;
-  static GLbyte data[] = {
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 0),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 1),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 2),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 3),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 4),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 5),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 6),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 7),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 8),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 9),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 10),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 11),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 12),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 13),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 14),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 15),
-  };
-  cmds::ProduceTextureDirectCHROMIUMImmediate& cmd =
-      *GetBufferAs<cmds::ProduceTextureDirectCHROMIUMImmediate>();
-  void* next_cmd = cmd.Set(&cmd, static_cast<GLuint>(11), data);
-  EXPECT_EQ(static_cast<uint32_t>(
-                cmds::ProduceTextureDirectCHROMIUMImmediate::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)),
-            cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLuint>(11), cmd.texture);
-  CheckBytesWrittenMatchesExpectedSize(
-      next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
-}
-
-TEST_F(GLES2FormatTest, CreateAndConsumeTextureINTERNALImmediate) {
-  const int kSomeBaseValueToTestWith = 51;
-  static GLbyte data[] = {
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 0),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 1),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 2),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 3),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 4),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 5),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 6),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 7),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 8),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 9),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 10),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 11),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 12),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 13),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 14),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 15),
-  };
-  cmds::CreateAndConsumeTextureINTERNALImmediate& cmd =
-      *GetBufferAs<cmds::CreateAndConsumeTextureINTERNALImmediate>();
-  void* next_cmd = cmd.Set(&cmd, static_cast<GLuint>(11), data);
-  EXPECT_EQ(static_cast<uint32_t>(
-                cmds::CreateAndConsumeTextureINTERNALImmediate::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)),
-            cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLuint>(11), cmd.texture);
-  CheckBytesWrittenMatchesExpectedSize(
-      next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
-}
-
 TEST_F(GLES2FormatTest, BindUniformLocationCHROMIUMBucket) {
   cmds::BindUniformLocationCHROMIUMBucket& cmd =
       *GetBufferAs<cmds::BindUniformLocationCHROMIUMBucket>();
@@ -4867,16 +4775,6 @@ TEST_F(GLES2FormatTest, DrawBuffersEXTImmediate) {
   EXPECT_EQ(static_cast<GLsizei>(1), cmd.count);
   CheckBytesWrittenMatchesExpectedSize(
       next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
-}
-
-TEST_F(GLES2FormatTest, DiscardBackbufferCHROMIUM) {
-  cmds::DiscardBackbufferCHROMIUM& cmd =
-      *GetBufferAs<cmds::DiscardBackbufferCHROMIUM>();
-  void* next_cmd = cmd.Set(&cmd);
-  EXPECT_EQ(static_cast<uint32_t>(cmds::DiscardBackbufferCHROMIUM::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
-  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
 TEST_F(GLES2FormatTest, FlushDriverCachesCHROMIUM) {
@@ -5171,272 +5069,6 @@ TEST_F(GLES2FormatTest, EndSharedImageAccessDirectCHROMIUM) {
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
-TEST_F(GLES2FormatTest, ConvertRGBAToYUVAMailboxesINTERNALImmediate) {
-  const int kSomeBaseValueToTestWith = 51;
-  static GLbyte data[] = {
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 0),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 1),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 2),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 3),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 4),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 5),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 6),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 7),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 8),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 9),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 10),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 11),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 12),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 13),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 14),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 15),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 16),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 17),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 18),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 19),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 20),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 21),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 22),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 23),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 24),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 25),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 26),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 27),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 28),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 29),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 30),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 31),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 32),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 33),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 34),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 35),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 36),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 37),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 38),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 39),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 40),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 41),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 42),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 43),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 44),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 45),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 46),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 47),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 48),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 49),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 50),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 51),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 52),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 53),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 54),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 55),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 56),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 57),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 58),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 59),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 60),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 61),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 62),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 63),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 64),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 65),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 66),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 67),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 68),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 69),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 70),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 71),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 72),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 73),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 74),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 75),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 76),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 77),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 78),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 79),
-  };
-  cmds::ConvertRGBAToYUVAMailboxesINTERNALImmediate& cmd =
-      *GetBufferAs<cmds::ConvertRGBAToYUVAMailboxesINTERNALImmediate>();
-  void* next_cmd =
-      cmd.Set(&cmd, static_cast<GLenum>(11), static_cast<GLenum>(12),
-              static_cast<GLenum>(13), data);
-  EXPECT_EQ(static_cast<uint32_t>(
-                cmds::ConvertRGBAToYUVAMailboxesINTERNALImmediate::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)),
-            cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLenum>(11), cmd.planes_yuv_color_space);
-  EXPECT_EQ(static_cast<GLenum>(12), cmd.plane_config);
-  EXPECT_EQ(static_cast<GLenum>(13), cmd.subsampling);
-  CheckBytesWrittenMatchesExpectedSize(
-      next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
-}
-
-TEST_F(GLES2FormatTest, ConvertYUVAMailboxesToRGBINTERNALImmediate) {
-  const int kSomeBaseValueToTestWith = 51;
-  static GLbyte data[] = {
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 0),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 1),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 2),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 3),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 4),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 5),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 6),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 7),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 8),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 9),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 10),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 11),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 12),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 13),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 14),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 15),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 16),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 17),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 18),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 19),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 20),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 21),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 22),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 23),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 24),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 25),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 26),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 27),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 28),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 29),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 30),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 31),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 32),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 33),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 34),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 35),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 36),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 37),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 38),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 39),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 40),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 41),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 42),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 43),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 44),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 45),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 46),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 47),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 48),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 49),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 50),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 51),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 52),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 53),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 54),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 55),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 56),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 57),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 58),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 59),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 60),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 61),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 62),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 63),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 64),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 65),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 66),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 67),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 68),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 69),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 70),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 71),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 72),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 73),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 74),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 75),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 76),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 77),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 78),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 79),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 80),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 81),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 82),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 83),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 84),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 85),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 86),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 87),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 88),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 89),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 90),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 91),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 92),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 93),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 94),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 95),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 96),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 97),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 98),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 99),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 100),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 101),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 102),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 103),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 104),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 105),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 106),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 107),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 108),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 109),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 110),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 111),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 112),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 113),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 114),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 115),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 116),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 117),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 118),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 119),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 120),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 121),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 122),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 123),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 124),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 125),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 126),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 127),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 128),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 129),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 130),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 131),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 132),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 133),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 134),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 135),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 136),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 137),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 138),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 139),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 140),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 141),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 142),
-      static_cast<GLbyte>(kSomeBaseValueToTestWith + 143),
-  };
-  cmds::ConvertYUVAMailboxesToRGBINTERNALImmediate& cmd =
-      *GetBufferAs<cmds::ConvertYUVAMailboxesToRGBINTERNALImmediate>();
-  void* next_cmd =
-      cmd.Set(&cmd, static_cast<GLenum>(11), static_cast<GLenum>(12),
-              static_cast<GLenum>(13), data);
-  EXPECT_EQ(static_cast<uint32_t>(
-                cmds::ConvertYUVAMailboxesToRGBINTERNALImmediate::kCmdId),
-            cmd.header.command);
-  EXPECT_EQ(sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)),
-            cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLenum>(11), cmd.planes_yuv_color_space);
-  EXPECT_EQ(static_cast<GLenum>(12), cmd.plane_config);
-  EXPECT_EQ(static_cast<GLenum>(13), cmd.subsampling);
-  CheckBytesWrittenMatchesExpectedSize(
-      next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
-}
-
 TEST_F(GLES2FormatTest, CopySharedImageINTERNALImmediate) {
   const int kSomeBaseValueToTestWith = 51;
   static GLbyte data[] = {
@@ -5475,10 +5107,10 @@ TEST_F(GLES2FormatTest, CopySharedImageINTERNALImmediate) {
   };
   cmds::CopySharedImageINTERNALImmediate& cmd =
       *GetBufferAs<cmds::CopySharedImageINTERNALImmediate>();
-  void* next_cmd = cmd.Set(&cmd, static_cast<GLint>(11), static_cast<GLint>(12),
-                           static_cast<GLint>(13), static_cast<GLint>(14),
-                           static_cast<GLsizei>(15), static_cast<GLsizei>(16),
-                           static_cast<GLboolean>(17), data);
+  void* next_cmd =
+      cmd.Set(&cmd, static_cast<GLint>(11), static_cast<GLint>(12),
+              static_cast<GLint>(13), static_cast<GLint>(14),
+              static_cast<GLsizei>(15), static_cast<GLsizei>(16), data);
   EXPECT_EQ(
       static_cast<uint32_t>(cmds::CopySharedImageINTERNALImmediate::kCmdId),
       cmd.header.command);
@@ -5490,7 +5122,6 @@ TEST_F(GLES2FormatTest, CopySharedImageINTERNALImmediate) {
   EXPECT_EQ(static_cast<GLint>(14), cmd.y);
   EXPECT_EQ(static_cast<GLsizei>(15), cmd.width);
   EXPECT_EQ(static_cast<GLsizei>(16), cmd.height);
-  EXPECT_EQ(static_cast<GLboolean>(17), cmd.unpack_flip_y);
   CheckBytesWrittenMatchesExpectedSize(
       next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
 }
@@ -5535,7 +5166,7 @@ TEST_F(GLES2FormatTest, CopySharedImageToTextureINTERNALImmediate) {
   EXPECT_EQ(static_cast<GLint>(16), cmd.src_y);
   EXPECT_EQ(static_cast<GLsizei>(17), cmd.width);
   EXPECT_EQ(static_cast<GLsizei>(18), cmd.height);
-  EXPECT_EQ(static_cast<GLboolean>(19), cmd.flip_y);
+  EXPECT_EQ(static_cast<GLboolean>(19), cmd.is_dst_origin_top_left);
   CheckBytesWrittenMatchesExpectedSize(
       next_cmd, sizeof(cmd) + RoundSizeToMultipleOfEntries(sizeof(data)));
 }
@@ -5569,29 +5200,34 @@ TEST_F(GLES2FormatTest, ReadbackARGBImagePixelsINTERNAL) {
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
-TEST_F(GLES2FormatTest, WritePixelsINTERNAL) {
-  cmds::WritePixelsINTERNAL& cmd = *GetBufferAs<cmds::WritePixelsINTERNAL>();
-  void* next_cmd = cmd.Set(&cmd, static_cast<GLint>(11), static_cast<GLint>(12),
-                           static_cast<GLint>(13), static_cast<GLuint>(14),
-                           static_cast<GLuint>(15), static_cast<GLuint>(16),
-                           static_cast<GLuint>(17), static_cast<GLuint>(18),
-                           static_cast<GLint>(19), static_cast<GLuint>(20),
-                           static_cast<GLuint>(21), static_cast<GLuint>(22));
-  EXPECT_EQ(static_cast<uint32_t>(cmds::WritePixelsINTERNAL::kCmdId),
+TEST_F(GLES2FormatTest, WritePixelsYUVINTERNAL) {
+  cmds::WritePixelsYUVINTERNAL& cmd =
+      *GetBufferAs<cmds::WritePixelsYUVINTERNAL>();
+  void* next_cmd = cmd.Set(
+      &cmd, static_cast<GLuint>(11), static_cast<GLuint>(12),
+      static_cast<GLuint>(13), static_cast<GLuint>(14), static_cast<GLuint>(15),
+      static_cast<GLuint>(16), static_cast<GLuint>(17), static_cast<GLuint>(18),
+      static_cast<GLuint>(19), static_cast<GLint>(20), static_cast<GLuint>(21),
+      static_cast<GLuint>(22), static_cast<GLuint>(23), static_cast<GLuint>(24),
+      static_cast<GLuint>(25));
+  EXPECT_EQ(static_cast<uint32_t>(cmds::WritePixelsYUVINTERNAL::kCmdId),
             cmd.header.command);
   EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
-  EXPECT_EQ(static_cast<GLint>(11), cmd.x_offset);
-  EXPECT_EQ(static_cast<GLint>(12), cmd.y_offset);
-  EXPECT_EQ(static_cast<GLint>(13), cmd.plane_index);
-  EXPECT_EQ(static_cast<GLuint>(14), cmd.src_width);
-  EXPECT_EQ(static_cast<GLuint>(15), cmd.src_height);
-  EXPECT_EQ(static_cast<GLuint>(16), cmd.src_row_bytes);
-  EXPECT_EQ(static_cast<GLuint>(17), cmd.src_sk_color_type);
-  EXPECT_EQ(static_cast<GLuint>(18), cmd.src_sk_alpha_type);
-  EXPECT_EQ(static_cast<GLint>(19), cmd.shm_id);
-  EXPECT_EQ(static_cast<GLuint>(20), cmd.shm_offset);
-  EXPECT_EQ(static_cast<GLuint>(21), cmd.pixels_offset);
-  EXPECT_EQ(static_cast<GLuint>(22), cmd.mailbox_offset);
+  EXPECT_EQ(static_cast<GLuint>(11), cmd.src_width);
+  EXPECT_EQ(static_cast<GLuint>(12), cmd.src_height);
+  EXPECT_EQ(static_cast<GLuint>(13), cmd.src_row_bytes_plane1);
+  EXPECT_EQ(static_cast<GLuint>(14), cmd.src_row_bytes_plane2);
+  EXPECT_EQ(static_cast<GLuint>(15), cmd.src_row_bytes_plane3);
+  EXPECT_EQ(static_cast<GLuint>(16), cmd.src_row_bytes_plane4);
+  EXPECT_EQ(static_cast<GLuint>(17), cmd.src_yuv_plane_config);
+  EXPECT_EQ(static_cast<GLuint>(18), cmd.src_yuv_subsampling);
+  EXPECT_EQ(static_cast<GLuint>(19), cmd.src_yuv_datatype);
+  EXPECT_EQ(static_cast<GLint>(20), cmd.shm_id);
+  EXPECT_EQ(static_cast<GLuint>(21), cmd.shm_offset);
+  EXPECT_EQ(static_cast<GLuint>(22), cmd.pixels_offset_plane1);
+  EXPECT_EQ(static_cast<GLuint>(23), cmd.pixels_offset_plane2);
+  EXPECT_EQ(static_cast<GLuint>(24), cmd.pixels_offset_plane3);
+  EXPECT_EQ(static_cast<GLuint>(25), cmd.pixels_offset_plane4);
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
@@ -5914,6 +5550,44 @@ TEST_F(GLES2FormatTest, GetFramebufferPixelLocalStorageParameterivANGLE) {
   EXPECT_EQ(static_cast<GLenum>(12), cmd.pname);
   EXPECT_EQ(static_cast<uint32_t>(13), cmd.params_shm_id);
   EXPECT_EQ(static_cast<uint32_t>(14), cmd.params_shm_offset);
+  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
+}
+
+TEST_F(GLES2FormatTest, ClipControlEXT) {
+  cmds::ClipControlEXT& cmd = *GetBufferAs<cmds::ClipControlEXT>();
+  void* next_cmd =
+      cmd.Set(&cmd, static_cast<GLenum>(11), static_cast<GLenum>(12));
+  EXPECT_EQ(static_cast<uint32_t>(cmds::ClipControlEXT::kCmdId),
+            cmd.header.command);
+  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
+  EXPECT_EQ(static_cast<GLenum>(11), cmd.origin);
+  EXPECT_EQ(static_cast<GLenum>(12), cmd.depth);
+  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
+}
+
+TEST_F(GLES2FormatTest, PolygonModeANGLE) {
+  cmds::PolygonModeANGLE& cmd = *GetBufferAs<cmds::PolygonModeANGLE>();
+  void* next_cmd =
+      cmd.Set(&cmd, static_cast<GLenum>(11), static_cast<GLenum>(12));
+  EXPECT_EQ(static_cast<uint32_t>(cmds::PolygonModeANGLE::kCmdId),
+            cmd.header.command);
+  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
+  EXPECT_EQ(static_cast<GLenum>(11), cmd.face);
+  EXPECT_EQ(static_cast<GLenum>(12), cmd.mode);
+  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
+}
+
+TEST_F(GLES2FormatTest, PolygonOffsetClampEXT) {
+  cmds::PolygonOffsetClampEXT& cmd =
+      *GetBufferAs<cmds::PolygonOffsetClampEXT>();
+  void* next_cmd = cmd.Set(&cmd, static_cast<GLfloat>(11),
+                           static_cast<GLfloat>(12), static_cast<GLfloat>(13));
+  EXPECT_EQ(static_cast<uint32_t>(cmds::PolygonOffsetClampEXT::kCmdId),
+            cmd.header.command);
+  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
+  EXPECT_EQ(static_cast<GLfloat>(11), cmd.factor);
+  EXPECT_EQ(static_cast<GLfloat>(12), cmd.units);
+  EXPECT_EQ(static_cast<GLfloat>(13), cmd.clamp);
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 

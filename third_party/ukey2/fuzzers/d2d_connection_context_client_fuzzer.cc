@@ -11,17 +11,13 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
-#include "third_party/protobuf/src/google/protobuf/stubs/logging.h"
 #include "third_party/ukey2/fuzzers/d2d_connection_context_factory.h"
-
-// Disable noisy logging in protobuf.
-google::protobuf::LogSilencer log_silencer;
 
 struct Environment {
   Environment() {
     // Disable noisy logging as per "libFuzzer in Chrome" documentation:
     // testing/libfuzzer/getting_started.md#Disable-noisy-error-message-logging.
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
     // Disable noisy logging in securemessage.
     std::cerr.setstate(std::ios_base::failbit);
 

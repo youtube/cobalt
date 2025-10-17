@@ -40,22 +40,32 @@ class CORE_EXPORT PropertyRegistration final
   static const PropertyRegistration* From(const ExecutionContext*,
                                           const AtomicString& property_name);
 
+  static std::optional<CSSSyntaxDefinition> ConvertSyntax(
+      const CSSValue* value);
+  static std::optional<bool> ConvertInherits(const CSSValue* value);
+  static std::optional<const CSSValue*> ConvertInitial(
+      const CSSValue* value,
+      const CSSSyntaxDefinition& syntax,
+      const CSSParserContext& parser_context);
+
   PropertyRegistration(const AtomicString& name,
                        const CSSSyntaxDefinition&,
                        bool inherits,
-                       const CSSValue* initial);
+                       const CSSValue* initial,
+                       StyleRuleProperty* property_rule = nullptr);
   ~PropertyRegistration();
 
   const CSSSyntaxDefinition& Syntax() const { return syntax_; }
   bool Inherits() const { return inherits_; }
-  const CSSValue* Initial() const { return initial_; }
-  const InterpolationTypes& GetInterpolationTypes() const {
+  const CSSValue* Initial() const { return initial_.Get(); }
+  StyleRuleProperty* PropertyRule() const { return property_rule_.Get(); }
+  const InterpolationTypes* GetInterpolationTypes() const {
     return interpolation_types_;
   }
   // See `ViewportUnitFlag`.
   unsigned GetViewportUnitFlags() const;
 
-  void Trace(Visitor* visitor) const { visitor->Trace(initial_); }
+  void Trace(Visitor* visitor) const;
 
  private:
   friend class ::blink::PropertyRegistry;
@@ -63,7 +73,8 @@ class CORE_EXPORT PropertyRegistration final
   const CSSSyntaxDefinition syntax_;
   const bool inherits_;
   const Member<const CSSValue> initial_;
-  const InterpolationTypes interpolation_types_;
+  Member<StyleRuleProperty> property_rule_;
+  Member<const InterpolationTypes> interpolation_types_;
   mutable bool referenced_;
 };
 

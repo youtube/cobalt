@@ -5,10 +5,12 @@
 package org.chromium.chrome.browser.tab;
 
 import org.chromium.build.annotations.MockedInTests;
+import org.chromium.build.annotations.NullMarked;
 
 /**
  */
 @MockedInTests
+@NullMarked
 public interface TabLifecycle {
     /**
      * @return Whether or not this Tab has a live native component.  This will be true prior to
@@ -25,14 +27,13 @@ public interface TabLifecycle {
      * Prepares the tab to be shown. This method is supposed to be called before the tab is
      * displayed. It restores the ContentView if it is not available after the cold start and
      * reloads the tab if its renderer has crashed.
+     *
      * @param type Specifies how the tab was selected.
      * @param caller The caller of this method.
      */
-    void show(@TabSelectionType int type, int caller);
+    void show(@TabSelectionType int type, @TabLoadIfNeededCaller int caller);
 
-    /**
-     * Triggers the hiding logic for the view backing the tab.
-     */
+    /** Triggers the hiding logic for the view backing the tab. */
     void hide(@TabHidingType int type);
 
     /**

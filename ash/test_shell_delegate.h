@@ -6,17 +6,25 @@
 #define ASH_TEST_SHELL_DELEGATE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 
+#include "ash/public/cpp/tab_strip_delegate.h"
 #include "ash/shell_delegate.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "chromeos/ash/services/multidevice_setup/public/mojom/multidevice_setup.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "services/network/test/test_shared_url_loader_factory.h"
 #include "url/gurl.h"
+
+class PrefService;
 
 namespace ash {
 
 class UserEducationDelegate;
+class WindowState;
 
 class TestShellDelegate : public ShellDelegate {
  public:
@@ -26,6 +34,10 @@ class TestShellDelegate : public ShellDelegate {
   TestShellDelegate& operator=(const TestShellDelegate&) = delete;
 
   ~TestShellDelegate() override;
+
+  int open_feedback_dialog_call_count() const {
+    return open_feedback_dialog_call_count_;
+  }
 
   // Allows tests to override the MultiDeviceSetup binding behavior for this
   // TestShellDelegate.
@@ -43,14 +55,34 @@ class TestShellDelegate : public ShellDelegate {
     user_education_delegate_factory_ = std::move(factory);
   }
 
+  // Allows tests to override and mock `SendSpecializedFeatureFeedback`.
+  // For example:
+  //     base::MockCallback<
+  //         TestShellDelegate::SendSpecializedFeatureFeedbackCallback> cb;
+  //     EXPECT_CALL(cb, Run(_, kProductId, _, _, _));
+  //     shell_delegate.SetSendSpecializedFeatureFeedbackCallback(cb.Get());
+  using SendSpecializedFeatureFeedbackCallback =
+      base::RepeatingCallback<bool(const AccountId& account_id,
+                                   int product_id,
+                                   std::string description,
+                                   std::optional<std::string> image,
+                                   std::optional<std::string> image_mime_type)>;
+  void SetSendSpecializedFeatureFeedbackCallback(
+      SendSpecializedFeatureFeedbackCallback cb) {
+    send_specialized_feature_feedback_callback_ = std::move(cb);
+  }
+
   // Overridden from ShellDelegate:
   bool CanShowWindowForUser(const aura::Window* window) const override;
-  std::unique_ptr<CaptureModeDelegate> CreateCaptureModeDelegate()
-      const override;
+  std::unique_ptr<CaptureModeDelegate> CreateCaptureModeDelegate(
+      PrefService* local_state) const override;
+  std::unique_ptr<ClipboardHistoryControllerDelegate>
+  CreateClipboardHistoryControllerDelegate() const override;
+  std::unique_ptr<CoralDelegate> CreateCoralDelegate() const override;
   std::unique_ptr<GameDashboardDelegate> CreateGameDashboardDelegate()
       const override;
-  std::unique_ptr<GlanceablesDelegate> CreateGlanceablesDelegate(
-      GlanceablesController* controller) const override;
+  std::unique_ptr<AcceleratorPrefsDelegate> CreateAcceleratorPrefsDelegate()
+      const override;
   AccessibilityDelegate* CreateAccessibilityDelegate() override;
   std::unique_ptr<BackGestureContextualNudgeDelegate>
   CreateBackGestureContextualNudgeDelegate(
@@ -62,27 +94,31 @@ class TestShellDelegate : public ShellDelegate {
   std::unique_ptr<SavedDeskDelegate> CreateSavedDeskDelegate() const override;
   std::unique_ptr<SystemSoundsDelegate> CreateSystemSoundsDelegate()
       const override;
+  std::unique_ptr<api::TasksDelegate> CreateTasksDelegate() const override;
+  std::unique_ptr<TabStripDelegate> CreateTabStripDelegate() const override;
+  std::unique_ptr<FocusModeDelegate> CreateFocusModeDelegate() const override;
   std::unique_ptr<UserEducationDelegate> CreateUserEducationDelegate()
       const override;
+  std::unique_ptr<ash::ScannerDelegate> CreateScannerDelegate() const override;
   scoped_refptr<network::SharedURLLoaderFactory>
-  GetGeolocationUrlLoaderFactory() const override;
+  GetBrowserProcessUrlLoaderFactory() const override;
   bool CanGoBack(gfx::NativeWindow window) const override;
-  void SetTabScrubberChromeOSEnabled(bool enabled) override;
+  void SetTabScrubberEnabled(bool enabled) override;
   void ShouldExitFullscreenBeforeLock(
       ShouldExitFullscreenCallback callback) override;
   bool ShouldWaitForTouchPressAck(gfx::NativeWindow window) override;
   int GetBrowserWebUITabStripHeight() override;
+  void OpenMultitaskingSettings() override;
   void BindMultiDeviceSetup(
       mojo::PendingReceiver<multidevice_setup::mojom::MultiDeviceSetup>
           receiver) override;
-  void BindMultiCaptureService(
-      mojo::PendingReceiver<video_capture::mojom::MultiCaptureService> receiver)
-      override;
   bool IsSessionRestoreInProgress() const override;
-  void SetUpEnvironmentForLockedFullscreen(bool locked) override {}
+  void SetUpEnvironmentForLockedFullscreen(
+      const WindowState& window_state) override {}
   const GURL& GetLastCommittedURLForWindowIfAny(aura::Window* window) override;
   void ForceSkipWarningUserOnClose(
-      const std::vector<aura::Window*>& windows) override {}
+      const std::vector<raw_ptr<aura::Window, VectorExperimental>>& windows)
+      override {}
 
   void SetCanGoBack(bool can_go_back);
   void SetShouldExitFullscreenBeforeLock(
@@ -92,7 +128,15 @@ class TestShellDelegate : public ShellDelegate {
   bool IsLoggingRedirectDisabled() const override;
   base::FilePath GetPrimaryUserDownloadsFolder() const override;
   void OpenFeedbackDialog(FeedbackSource source,
-                          const std::string& description_template) override {}
+                          const std::string& description_template,
+                          const std::string& category_tag) override;
+  bool SendSpecializedFeatureFeedback(
+      const AccountId& account_id,
+      int product_id,
+      std::string description,
+      std::optional<std::string> image,
+      std::optional<std::string> image_mime_type) override;
+  void OpenProfileManager() override {}
   void SetLastCommittedURLForWindow(const GURL& url);
   version_info::Channel GetChannel() override;
   std::string GetVersionString() override;
@@ -124,12 +168,18 @@ class TestShellDelegate : public ShellDelegate {
 
   MultiDeviceSetupBinder multidevice_setup_binder_;
   UserEducationDelegateFactory user_education_delegate_factory_;
+  SendSpecializedFeatureFeedbackCallback
+      send_specialized_feature_feedback_callback_;
 
-  GURL last_committed_url_ = GURL::EmptyGURL();
+  scoped_refptr<network::TestSharedURLLoaderFactory> url_loader_factory_;
+
+  GURL last_committed_url_;
 
   version_info::Channel channel_ = version_info::Channel::UNKNOWN;
 
   std::string version_string_;
+
+  int open_feedback_dialog_call_count_ = 0;
 };
 
 }  // namespace ash

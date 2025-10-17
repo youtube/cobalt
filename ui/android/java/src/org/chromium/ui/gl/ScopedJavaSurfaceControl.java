@@ -9,13 +9,14 @@ import android.view.SurfaceControl;
 
 import androidx.annotation.RequiresApi;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @JNINamespace("gl")
-@MainDex
+@NullMarked
 class ScopedJavaSurfaceControl {
     @CalledByNative
     private static void releaseSurfaceControl(SurfaceControl surfaceControl) {

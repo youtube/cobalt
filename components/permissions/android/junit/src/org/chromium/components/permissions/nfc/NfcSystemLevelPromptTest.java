@@ -33,22 +33,18 @@ import org.chromium.ui.modelutil.PropertyModel;
 
 import java.lang.ref.WeakReference;
 
-/**
- * Tests for the {@link NfcSystemLevelPrompt} class.
- */
+/** Tests for the {@link NfcSystemLevelPrompt} class. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class NfcSystemLevelPromptTest {
     private NfcSystemLevelPrompt mNfcSystemLevelPrompt;
     private Activity mActivity;
-    @Mock
-    private WindowAndroid mWindowAndroid;
-    @Mock
-    private WindowAndroid.IntentCallback mWindowAndroidIntentCallback;
-    private CallbackHelper mDialogCallback = new CallbackHelper();
-    private CallbackHelper mIntentCallback = new CallbackHelper();
-    private MockModalDialogManager mModalDialogManager = new MockModalDialogManager();
+    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private WindowAndroid.IntentCallback mWindowAndroidIntentCallback;
+    private final CallbackHelper mDialogCallback = new CallbackHelper();
+    private final CallbackHelper mIntentCallback = new CallbackHelper();
+    private final MockModalDialogManager mModalDialogManager = new MockModalDialogManager();
 
-    private class MockModalDialogManager extends ModalDialogManager {
+    private static class MockModalDialogManager extends ModalDialogManager {
         private PropertyModel mShownDialogModel;
 
         public MockModalDialogManager() {
@@ -78,39 +74,39 @@ public class NfcSystemLevelPromptTest {
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
         doReturn(new WeakReference<>(mActivity)).when(mWindowAndroid).getActivity();
 
-        doAnswer(invocation -> {
-            Object intent = invocation.getArguments()[0];
-            String intentAction = ((Intent) intent).getAction();
-            Assert.assertEquals(intentAction, Settings.ACTION_NFC_SETTINGS);
+        doAnswer(
+                        invocation -> {
+                            Object intent = invocation.getArguments()[0];
+                            String intentAction = ((Intent) intent).getAction();
+                            Assert.assertEquals(Settings.ACTION_NFC_SETTINGS, intentAction);
 
-            Object intentCallback = invocation.getArguments()[1];
-            mWindowAndroidIntentCallback = (WindowAndroid.IntentCallback) intentCallback;
-
-            mIntentCallback.notifyCalled();
-            return null;
-        })
+                            mIntentCallback.notifyCalled();
+                            return null;
+                        })
                 .when(mWindowAndroid)
                 .showIntent(any(Intent.class), any(WindowAndroid.IntentCallback.class), isNull());
 
-        doAnswer(invocation -> {
-            mDialogCallback.notifyCalled();
-            return null;
-        })
+        doAnswer(
+                        invocation -> {
+                            mDialogCallback.notifyCalled();
+                            return null;
+                        })
                 .when(mWindowAndroidIntentCallback)
                 .onIntentCompleted(anyInt(), any(Intent.class));
 
         mNfcSystemLevelPrompt = new NfcSystemLevelPrompt();
-        mNfcSystemLevelPrompt.show(mWindowAndroid, mModalDialogManager, new Runnable() {
-            @Override
-            public void run() {
-                mDialogCallback.notifyCalled();
-            }
-        });
+        mNfcSystemLevelPrompt.show(
+                mWindowAndroid,
+                mModalDialogManager,
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        mDialogCallback.notifyCalled();
+                    }
+                });
     }
 
-    /**
-     * Tests whether callback for dismissal functions correctly.
-     */
+    /** Tests whether callback for dismissal functions correctly. */
     @Test
     public void testDismissCallback() {
         PropertyModel shownDialogModel = mModalDialogManager.getShownDialogModel();
@@ -118,15 +114,14 @@ public class NfcSystemLevelPromptTest {
         Assert.assertEquals(0, mDialogCallback.getCallCount());
         Assert.assertEquals(0, mIntentCallback.getCallCount());
 
-        shownDialogModel.get(ModalDialogProperties.CONTROLLER)
+        shownDialogModel
+                .get(ModalDialogProperties.CONTROLLER)
                 .onClick(shownDialogModel, ModalDialogProperties.ButtonType.NEGATIVE);
         Assert.assertEquals(1, mDialogCallback.getCallCount());
         Assert.assertEquals(0, mIntentCallback.getCallCount());
     }
 
-    /**
-     * Tests whether intent and callback for clicking on the 'Turn on' button functions correctly.
-     */
+    /** Tests whether intent and callback for clicking on the 'Turn on' button functions correctly. */
     @Test
     public void testTurnOnCallback() {
         PropertyModel shownDialogModel = mModalDialogManager.getShownDialogModel();
@@ -134,12 +129,13 @@ public class NfcSystemLevelPromptTest {
         Assert.assertEquals(0, mDialogCallback.getCallCount());
         Assert.assertEquals(0, mIntentCallback.getCallCount());
 
-        shownDialogModel.get(ModalDialogProperties.CONTROLLER)
+        shownDialogModel
+                .get(ModalDialogProperties.CONTROLLER)
                 .onClick(shownDialogModel, ModalDialogProperties.ButtonType.POSITIVE);
         Assert.assertEquals(0, mDialogCallback.getCallCount());
         Assert.assertEquals(1, mIntentCallback.getCallCount());
 
-        mWindowAndroidIntentCallback.onIntentCompleted(0 /* resultCode */, new Intent());
+        mWindowAndroidIntentCallback.onIntentCompleted(/* resultCode= */ 0, new Intent());
         Assert.assertEquals(1, mDialogCallback.getCallCount());
         Assert.assertEquals(1, mIntentCallback.getCallCount());
     }

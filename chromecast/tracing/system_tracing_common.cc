@@ -4,11 +4,14 @@
 
 #include "chromecast/tracing/system_tracing_common.h"
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <string.h>
 
 #include <iterator>
-
-#include "base/trace_event/common/trace_event_common.h"
 
 namespace chromecast {
 namespace tracing {
@@ -17,12 +20,6 @@ namespace {
 const char kSocketPath[] = "/dev/socket/tracing/tracing";
 
 }  // namespace
-
-const char* const kCategories[] = {
-    "gfx",   "input", TRACE_DISABLED_BY_DEFAULT("irq"),
-    "power", "sched", "workq"};
-
-const size_t kCategoryCount = std::size(kCategories);
 
 sockaddr_un GetSystemTracingSocketAddress() {
   struct sockaddr_un addr;

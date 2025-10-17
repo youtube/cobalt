@@ -5,8 +5,12 @@
 #ifndef SERVICES_METRICS_PUBLIC_CPP_UKM_RECORDER_H_
 #define SERVICES_METRICS_PUBLIC_CPP_UKM_RECORDER_H_
 
+#include <set>
+
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/threading/thread_checker.h"
 #include "base/types/pass_key.h"
 #include "services/metrics/public/cpp/metrics_export.h"
@@ -15,10 +19,11 @@
 #include "services/metrics/public/mojom/ukm_interface.mojom-forward.h"
 #include "url/gurl.h"
 
-class DIPSNavigationHandle;
-class DIPSService;
+class ChromePermissionsClient;
 class PermissionUmaUtil;
-class WebApkUkmRecorder;
+class PlatformNotificationServiceImpl;
+class PersistentNotificationHandler;
+class NonPersistentNotificationHandler;
 
 namespace apps {
 class WebsiteMetrics;
@@ -29,25 +34,20 @@ class UkmRecorderInterface;
 }  // namespace metrics
 
 namespace content {
+class BtmNavigationHandle;
+class BtmServiceImpl;
 class FedCmMetrics;
 class PaymentAppProviderUtil;
 class RenderFrameHostImpl;
 }  // namespace content
 
-namespace web_app {
-class DesktopWebAppUkmRecorder;
-}
-
 namespace extensions {
 class ExtensionMessagePort;
+class ManifestV2ExperimentManager;
 }
 
 namespace weblayer {
 class BackgroundSyncDelegateImpl;
-}
-
-namespace page_load_metrics {
-class PageLoadTracker;
 }
 
 namespace ukm {
@@ -79,6 +79,19 @@ METRICS_EXPORT BASE_DECLARE_FEATURE(kUkmReduceAddEntryIPC);
 // Interface for recording UKM
 class METRICS_EXPORT UkmRecorder {
  public:
+  // Currently is used for AppKM on ChromeOS only.
+  class Observer : public base::CheckedObserver {
+   public:
+    // Can be used to save some metrics locally before shutting down. Do not
+    // call blocking methods as this might significantly increase the shutdown
+    // time. Do not use async methods as there is no guarantee the `UkmRecorder`
+    // will still be there.
+    virtual void OnStartingShutdown() = 0;
+
+   protected:
+    ~Observer() override = default;
+  };
+
   UkmRecorder();
 
   UkmRecorder(const UkmRecorder&) = delete;
@@ -87,7 +100,7 @@ class METRICS_EXPORT UkmRecorder {
   virtual ~UkmRecorder();
 
   // Provides access to a global UkmRecorder instance for recording metrics.
-  // This is typically passed to the Record() method of a entry object from
+  // This is typically passed to the Record() method of an entry object from
   // ukm_builders.h.
   // Use TestAutoSetUkmRecorder for capturing data written this way in tests.
   static UkmRecorder* Get();
@@ -96,49 +109,41 @@ class METRICS_EXPORT UkmRecorder {
   // session.
   static SourceId GetNewSourceID();
 
-  // Gets new source Id for WEBAPK_ID type and updates the manifest url. This
-  // method should only be called by WebApkUkmRecorder class.
-  static SourceId GetSourceIdForWebApkManifestUrl(
-      base::PassKey<WebApkUkmRecorder>,
-      const GURL& manifest_url);
-
-  // Gets new source ID for a desktop web app, using the start_url from the web
-  // app manifest. This method should only be called by DailyMetricsHelper.
-  static SourceId GetSourceIdForDesktopWebAppStartUrl(
-      base::PassKey<web_app::DesktopWebAppUkmRecorder>,
-      const GURL& start_url);
-
-  // Gets new source Id for PAYMENT_APP_ID type and updates the source url to
+  // Gets new source Id for PAYMENT_APP_ID type and updates the source URL to
   // the scope of the app. This method should only be called by
   // PaymentAppProviderUtil class when the payment app window is opened.
   static SourceId GetSourceIdForPaymentAppFromScope(
       base::PassKey<content::PaymentAppProviderUtil>,
       const GURL& payment_app_from_scope_url);
 
-  // Gets a new SourceId for WEB_IDENTITY_ID type and updates the source url
+  // Gets a new SourceId for WEB_IDENTITY_ID type and updates the source URL
   // from the identity provider. This method should only be called in the
   // FedCmMetrics class.
   static SourceId GetSourceIdForWebIdentityFromScope(
       base::PassKey<content::FedCmMetrics>,
       const GURL& provider_url);
 
-  // Gets a new SourceId of REDIRECT_ID type and updates the source url
+  // Gets a new SourceId of REDIRECT_ID type and updates the source URL
   // from the redirect chain. This method should only be called in the
-  // DIPSNavigationHandle class.
-  static SourceId GetSourceIdForRedirectUrl(base::PassKey<DIPSNavigationHandle>,
-                                            const GURL& redirect_url);
+  // BtmNavigationHandle class.
+  static SourceId GetSourceIdForRedirectUrl(
+      base::PassKey<content::BtmNavigationHandle>,
+      const GURL& redirect_url);
 
-  // Gets a new SourceId of EXTENSION_ID type and updates the source url
-  // from the extension message port. This method should only be called in the
-  // ExtensionMessagePort class.
+  // Gets a new SourceId of EXTENSION_ID type and updates the source URL
+  // from the extension message port. This method should only be called by
+  // approved cases, indicated by the PassKeys.
   static SourceId GetSourceIdForExtensionUrl(
       base::PassKey<extensions::ExtensionMessagePort>,
       const GURL& extension_url);
+  static SourceId GetSourceIdForExtensionUrl(
+      base::PassKey<extensions::ManifestV2ExperimentManager>,
+      const GURL& extension_url);
 
   // Gets a new SourceId of REDIRECT_ID type and updates the source URL to the
-  // given domain. This method should only be called in the DIPSService class
-  // for sites in the DIPS database. `site` must be a registrable domain.
-  static SourceId GetSourceIdForDipsSite(base::PassKey<DIPSService>,
+  // given domain. This method should only be called in the BtmServiceImpl
+  // class for sites in the DIPS database. `site` must be a registrable domain.
+  static SourceId GetSourceIdForDipsSite(base::PassKey<content::BtmServiceImpl>,
                                          const std::string& site);
 
   // Gets a new SourceId of CHROMEOS_WEBSITE_ID type. This should be only
@@ -147,8 +152,53 @@ class METRICS_EXPORT UkmRecorder {
       base::PassKey<apps::WebsiteMetrics>,
       const GURL& chromeos_website_url);
 
+  // Gets a new SourceId of NOTIFICATION_ID type. This should only be
+  // used for recording Permission UKM events related to persistent and
+  // nonpersistent notifications. `url` is the domain that uses the Push API.
+  static SourceId GetSourceIdForNotificationPermission(
+      base::PassKey<ChromePermissionsClient>,
+      const GURL& url);
+
+  // Gets a new SourceId of NOTIFICATION_ID type. This should only be used
+  // for recording persistent and nonpersistent notification UKM events.
+  static SourceId GetSourceIdForNotificationEvent(
+      base::PassKey<PlatformNotificationServiceImpl>,
+      const GURL& url);
+
+  // Gets a new SourceId of NOTIFICATION_ID type. This should only be used
+  // for recording persistent notification UKM events.
+  static SourceId GetSourceIdForNotificationEvent(
+      base::PassKey<PersistentNotificationHandler>,
+      const GURL& url);
+
+  // Gets a new SourceId of NOTIFICATION_ID type. This should only be used
+  // for recording nonpersistent notification UKM events.
+  static SourceId GetSourceIdForNotificationEvent(
+      base::PassKey<NonPersistentNotificationHandler>,
+      const GURL& url);
+
+  // This method should be called when the system is about to shutdown, but
+  // `UkmRecorder` is still available to record metrics.
+  // Calls `OnStartingShutdown` on each observer from `observers_`.
+  void NotifyStartShutdown();
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+
   // Add an entry to the UkmEntry list.
   virtual void AddEntry(mojom::UkmEntryPtr entry) = 0;
+
+  // Associates web feature usage data with the UkmSource keyed by `source_id`.
+  // This function can be called more than once for a given `source_id`. The
+  // effects are additive. For example, after the following calls, where the
+  // value of each of {a, b, c} is <= 2:
+  //   RecordWebDXFeature(100, {a, b}, 2);
+  //   RecordWebDXFeature(100, {b, c}, 2);
+  // The UKM recorder understands that the source identified by `source_id` 100
+  // is using features {a, b, c}.
+  virtual void RecordWebDXFeatures(SourceId source_id,
+                                   const std::set<int32_t>& features,
+                                   const size_t max_feature_value) = 0;
 
   // Controls sampling for testing purposes. Sampling is 1-in-N (N==rate).
   virtual void SetSamplingForTesting(int rate) {}
@@ -172,12 +222,11 @@ class METRICS_EXPORT UkmRecorder {
   friend metrics::UkmRecorderInterface;
   friend PermissionUmaUtil;
   friend content::RenderFrameHostImpl;
-  friend page_load_metrics::PageLoadTracker;
 
   // Associates the SourceId with a URL. Most UKM recording code should prefer
   // to use a shared SourceId that is already associated with a URL, rather
   // than using this API directly. New uses of this API must be audited to
-  // maintain privacy constraints.
+  // maintain privacy constraints. See go/ukm-api.
   virtual void UpdateSourceURL(SourceId source_id, const GURL& url) = 0;
 
   // Associates the SourceId with an app URL for APP_ID sources. This method
@@ -193,10 +242,15 @@ class METRICS_EXPORT UkmRecorder {
       SourceId source_id,
       const UkmSource::NavigationData& navigation_data) = 0;
 
-  // Marks a source as no longer needed to kept alive in memory. Called by
-  // SourceUrlRecorderWebContentsObserver when a browser tab or its WebContents
-  // are no longer alive. Not to be used through mojo interface.
+  // Marks a source as no longer needed to keep alive in memory. Called by
+  // SourceUrlRecorderWebContentsObserver and AppSourceUrlRecorder (and possibly
+  // others in the future) when a browser tab, its WebContents, or a ChromeOS
+  // app is no longer alive, implying that no more metrics will be recorded for
+  // this source. This reduces UkmRecorder's memory usage. Not to be used
+  // through mojo interface.
   virtual void MarkSourceForDeletion(ukm::SourceId source_id) = 0;
+
+  base::ObserverList<Observer> observers_;
 };
 
 }  // namespace ukm

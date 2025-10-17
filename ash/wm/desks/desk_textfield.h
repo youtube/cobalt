@@ -7,20 +7,16 @@
 
 #include "ash/ash_export.h"
 #include "ash/style/system_textfield.h"
-#include "ash/wm/overview/overview_highlightable_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
 namespace ash {
 
 // Defines a textfield styled so when it's not focused, it looks like a normal
-// label. It can be highlighted and activated by the
-// `OverviewHighlightController`.
+// label.
+class ASH_EXPORT DeskTextfield : public SystemTextfield {
+  METADATA_HEADER(DeskTextfield, SystemTextfield)
 
-class ASH_EXPORT DeskTextfield : public SystemTextfield,
-                                 public OverviewHighlightableView {
  public:
-  METADATA_HEADER(DeskTextfield);
-
   DeskTextfield();
   explicit DeskTextfield(Type type);
   DeskTextfield(const DeskTextfield&) = delete;
@@ -36,23 +32,21 @@ class ASH_EXPORT DeskTextfield : public SystemTextfield,
   static void CommitChanges(views::Widget* widget);
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   bool SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) override;
-  std::u16string GetTooltipText(const gfx::Point& p) const override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   ui::Cursor GetCursor(const ui::MouseEvent& event) override;
   void OnFocus() override;
   void OnBlur() override;
   void OnDragEntered(const ui::DropTargetEvent& event) override;
   void OnDragExited() override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+  void PreferredSizeChanged() override;
 
-  // OverviewHighlightableView:
-  views::View* GetView() override;
-  void MaybeActivateHighlightedView() override;
-  void MaybeCloseHighlightedView(bool primary_action) override;
-  void MaybeSwapHighlightedView(bool right) override;
-  void OnViewHighlighted() override;
-  void OnViewUnhighlighted() override;
+  void UpdateTooltipText();
+
+ private:
+  base::CallbackListSubscription text_changed_subscription_;
 };
 
 BEGIN_VIEW_BUILDER(/* no export */, DeskTextfield, views::Textfield)

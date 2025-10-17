@@ -16,10 +16,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace image_fetcher {
 
 class IOSImageDecoderImpl : public ImageDecoder {
@@ -39,9 +35,9 @@ class IOSImageDecoderImpl : public ImageDecoder {
                    ImageDecodedCallback callback) override;
 };
 
-IOSImageDecoderImpl::IOSImageDecoderImpl() {}
+IOSImageDecoderImpl::IOSImageDecoderImpl() = default;
 
-IOSImageDecoderImpl::~IOSImageDecoderImpl() {}
+IOSImageDecoderImpl::~IOSImageDecoderImpl() = default;
 
 void IOSImageDecoderImpl::DecodeImage(const std::string& image_data,
                                       const gfx::Size& desired_image_frame_size,

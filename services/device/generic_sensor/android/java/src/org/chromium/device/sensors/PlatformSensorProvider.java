@@ -11,41 +11,40 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.device.mojom.SensorType;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Lifetime is controlled by device::PlatformSensorProviderAndroid.
- */
+/** Lifetime is controlled by device::PlatformSensorProviderAndroid. */
 @JNINamespace("device")
+@NullMarked
 class PlatformSensorProvider {
     /**
      * SensorManager that is shared among PlatformSensor objects. It is used for Sensor object
      * creation and @see android.hardware.SensorEventListener registration.
+     *
      * @see android.hardware.SensorManager
      */
-    private SensorManager mSensorManager;
+    private @Nullable SensorManager mSensorManager;
+
+    /** Thread that is handling all sensor events. */
+    private @Nullable HandlerThread mSensorsThread;
 
     /**
-     * Thread that is handling all sensor events.
+     * Processes messages on #mSensorsThread message queue. Provided to #mSensorManager when sensor
+     * should start polling for data.
      */
-    private HandlerThread mSensorsThread;
+    private @Nullable Handler mHandler;
 
-    /**
-     * Processes messages on #mSensorsThread message queue. Provided to #mSensorManager when
-     * sensor should start polling for data.
-     */
-    private Handler mHandler;
-
-    /**
-     * Set of currently active PlatformSensor objects.
-     */
+    /** Set of currently active PlatformSensor objects. */
     private final Set<PlatformSensor> mActiveSensors = new HashSet<PlatformSensor>();
 
     /**
@@ -53,22 +52,25 @@ class PlatformSensorProvider {
      *
      * @return Handler thread handler.
      */
-    public Handler getHandler() {
+    public @Nullable Handler getHandler() {
         return mHandler;
     }
 
-    /**
-     * Returns shared SensorManager.
-     *
-     * @return SensorManager sensor manager.
-     */
-    public SensorManager getSensorManager() {
+    /** Returns shared SensorManager. Might be null. */
+    public @Nullable SensorManager getSensorManager() {
         return mSensorManager;
     }
 
+    /** Returns shared SensorManager. Asserts that its non-null. */
+    public final SensorManager getSensorManagerNonNull() {
+        SensorManager ret = getSensorManager();
+        assert ret != null;
+        return ret;
+    }
+
     /**
-     * Notifies PlatformSensorProvider that sensor started polling for data. Adds sensor to
-     * a set of active sensors, creates and starts new thread if needed.
+     * Notifies PlatformSensorProvider that sensor started polling for data. Adds sensor to a set of
+     * active sensors, creates and starts new thread if needed.
      */
     public void sensorStarted(PlatformSensor sensor) {
         synchronized (mActiveSensors) {
@@ -88,9 +90,7 @@ class PlatformSensorProvider {
         }
     }
 
-    /**
-     * Starts sensor handler thread.
-     */
+    /** Starts sensor handler thread. */
     protected void startSensorThread() {
         if (mSensorsThread == null) {
             mSensorsThread = new HandlerThread("SensorsHandlerThread");
@@ -99,9 +99,7 @@ class PlatformSensorProvider {
         }
     }
 
-    /**
-     * Stops sensor handler thread.
-     */
+    /** Stops sensor handler thread. */
     protected void stopSensorThread() {
         if (mSensorsThread != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -114,9 +112,7 @@ class PlatformSensorProvider {
         }
     }
 
-    /**
-     * Constructor.
-     */
+    /** Constructor. */
     protected PlatformSensorProvider(Context context) {
         mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
     }
@@ -140,9 +136,7 @@ class PlatformSensorProvider {
         return new PlatformSensorProvider(ContextUtils.getApplicationContext());
     }
 
-    /**
-     * Sets |mSensorManager| to null for testing purposes.
-     */
+    /** Sets |mSensorManager| to null for testing purposes. */
     @CalledByNative
     protected void setSensorManagerToNullForTesting() {
         mSensorManager = null;

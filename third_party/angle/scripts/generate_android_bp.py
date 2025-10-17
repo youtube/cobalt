@@ -13,6 +13,8 @@ import os
 import argparse
 import functools
 import collections
+import textwrap
+from typing import List, Tuple
 
 ROOT_TARGETS = [
     "//:libGLESv2",
@@ -20,12 +22,17 @@ ROOT_TARGETS = [
     "//:libEGL",
 ]
 
-CODEGEN_TARGETS = [
-    "//:libEGL",
-]
+END2END_TEST_TARGET = "//src/tests:angle_end2end_tests__library"
 
+# Used only in generated Android.bp file for DMA-BUF-enabled builds on Android.
+# See b/353262025 for details.
+DMA_BUF_TARGET = "//src/libANGLE/renderer/vulkan:angle_android_vulkan_dma_buf"
+
+BLUEPRINT_COMMENT_PROPERTY = '__android_bp_comment'
+
+CURRENT_SDK_VERSION = 'current'
 MIN_SDK_VERSION = '28'
-TARGET_SDK_VERSION = '33'
+TARGET_SDK_VERSION = '35'
 STL = 'libc++_static'
 
 ABI_ARM = 'arm'
@@ -76,6 +83,8 @@ def write_blueprint_key_value(output, name, value, indent=1):
 
     if isinstance(value, set) or isinstance(value, list):
         value = list(sorted(set(value)))
+        if name == 'cflags':
+            fix_fortify_source_cflags(value)
 
     if isinstance(value, list):
         output.append(tabs(indent) + '%s: [' % name)
@@ -116,9 +125,15 @@ def write_blueprint(output, target_type, values):
 // See: http://go/android-license-faq"""
         output.append(comment)
 
+    output.append('')
+    blueprint_comment = values.get(BLUEPRINT_COMMENT_PROPERTY)
+    if blueprint_comment:
+        for comment_line in textwrap.wrap(blueprint_comment, width=70):
+            output.append('// %s' % comment_line)
     output.append('%s {' % target_type)
     for (key, value) in values.items():
-        write_blueprint_key_value(output, key, value)
+        if key != BLUEPRINT_COMMENT_PROPERTY:
+            write_blueprint_key_value(output, key, value)
     output.append('}')
 
 
@@ -126,10 +141,15 @@ def gn_target_to_blueprint_target(target, target_info):
     if 'output_name' in target_info:
         return target_info['output_name']
 
+    if target_info.get('type') == 'shared_library':
+        # Deduce name from the shared library path
+        # end2end tests lib and libangle_util.so don't have output_name set for the early return above
+        return os.path.splitext(os.path.basename(target_info['outputs'][0]))[0]
+
     # Split the gn target name (in the form of //gn_file_path:target_name) into gn_file_path and
     # target_name
     match = re.match(r"^//([a-zA-Z0-9\-\+_/]*):([a-zA-Z0-9\-\+_.]+)$", target)
-    assert match is not None
+    assert match is not None, target
 
     gn_file_path = match.group(1)
     target_name = match.group(2)
@@ -196,23 +216,45 @@ def gn_sources_to_blueprint_sources(sources):
 
 target_blockist = [
     '//build/config:shared_library_deps',
-    '//third_party/vulkan-validation-layers/src:vulkan_clean_old_validation_layer_objects',
     '//third_party/zlib:zlib',
     '//third_party/zlib/google:compression_utils_portable',
+
+    # end2end tests: -> platform libgtest, libgmock
+    '//testing/gtest:gtest',
+    '//testing/gmock:gmock',
+    '//third_party/googletest:gtest',
+    '//third_party/googletest:gmock',
 ]
 
 third_party_target_allowlist = [
     '//third_party/abseil-cpp',
-    '//third_party/vulkan-deps',
+    '//third_party/glslang/src',
+    '//third_party/spirv-cross/src',
+    '//third_party/spirv-headers/src',
+    '//third_party/spirv-tools/src',
+    '//third_party/vulkan-headers/src',
+    '//third_party/vulkan-loader/src',
+    '//third_party/vulkan-tools/src',
+    '//third_party/vulkan-utility-libraries/src',
+    '//third_party/vulkan-validation-layers/src',
     '//third_party/vulkan_memory_allocator',
 ]
 
 include_blocklist = [
     '//buildtools/third_party/libc++/',
-    '//out/Android/gen/third_party/vulkan-deps/glslang/src/include/',
-    '//third_party/android_ndk/sources/android/cpufeatures/',
+    '//third_party/libc++/src/',
+    '//out/Android/gen/third_party/glslang/src/include/',
     '//third_party/zlib/',
     '//third_party/zlib/google/',
+    # end2end tests: -> platform libgtest, libgmock
+    '//third_party/googletest/custom/',
+    '//third_party/googletest/src/googletest/include/',
+    '//third_party/googletest/src/googlemock/include/',
+]
+
+targets_using_jni = [
+    '//src/tests:native_test_support_android',
+    '//util:angle_util',
 ]
 
 
@@ -224,12 +266,10 @@ def gn_deps_to_blueprint_deps(abi, target, build_info):
     defaults = []
     generated_headers = []
     header_libs = []
+    if target in targets_using_jni:
+        header_libs.append('jni_headers')
     if 'deps' not in target_info:
         return static_libs, defaults
-
-    if target in CODEGEN_TARGETS:
-        target_name = gn_target_to_blueprint_target(target, target_info)
-        defaults.append(target_name + '_android_codegen')
 
     for dep in target_info['deps']:
         if dep not in target_blockist and (not dep.startswith('//third_party') or any(
@@ -246,6 +286,14 @@ def gn_deps_to_blueprint_deps(abi, target, build_info):
             elif gn_dep_type == 'source_set' or gn_dep_type == 'group':
                 defaults.append(blueprint_dep_name)
             elif gn_dep_type == 'action':
+                # ANGLE in Android repo does not depend on
+                # angle_commit_id target to get ANGLE git has. See b/348044346.
+                # Files include angle_commit.h will be able to find this
+                # header file generated by roll_aosp.sh during ANGLE to
+                # Android roll, instead of the version that is generated
+                # by angle_commit_id build target at compile time.
+                if blueprint_dep_name == 'angle_commit_id':
+                    continue
                 generated_headers.append(blueprint_dep_name)
 
             # Blueprints do not chain linking of static libraries.
@@ -261,8 +309,12 @@ def gn_deps_to_blueprint_deps(abi, target, build_info):
             generated_headers += child_generated_headers
         elif dep == '//third_party/zlib/google:compression_utils_portable':
             # Replace zlib by Android's zlib, compression_utils_portable is the root dependency
-            static_libs.extend(
-                ['zlib_google_compression_utils_portable', 'libz_static', 'cpufeatures'])
+            shared_libs.append('libz')
+            static_libs.extend(['zlib_google_compression_utils_portable', 'cpufeatures'])
+        elif dep == '//testing/gtest:gtest':
+            static_libs.append('libgtest_ndk_c++')
+        elif dep == '//testing/gmock:gmock':
+            static_libs.append('libgmock_ndk')
 
     return static_libs, shared_libs, defaults, generated_headers, header_libs
 
@@ -276,7 +328,7 @@ def gn_libs_to_blueprint_shared_libraries(target_info):
     result = []
     if 'libs' in target_info:
         for lib in target_info['libs']:
-            if lib not in lib_blockist:
+            if lib not in lib_blockist and not lib.startswith('//'):
                 android_lib = lib if '@' in lib else 'lib' + lib
                 result.append(android_lib)
     return result
@@ -301,6 +353,7 @@ def gn_cflags_to_blueprint_cflags(target_info):
     # regexs of allowlisted cflags
     cflag_allowlist = [
         r'^-Wno-.*$',  # forward cflags that disable warnings
+        r'^-fvisibility.*$',  # forward visibility (https://gcc.gnu.org/wiki/Visibility) flags for better perf on x86
         r'-mpclmul'  # forward "-mpclmul" (used by zlib)
     ]
 
@@ -381,11 +434,12 @@ def library_target_to_blueprint(target, build_info):
 
         bp['defaults'].append('angle_common_library_cflags')
 
-        bp['sdk_version'] = MIN_SDK_VERSION
+        bp['sdk_version'] = CURRENT_SDK_VERSION
+
         bp['stl'] = STL
         if target in ROOT_TARGETS:
-            bp['vendor'] = True
-            bp['target'] = {'android': {'relative_install_path': 'egl'}}
+            bp['defaults'].append('angle_vendor_cc_defaults')
+            bp['defaults'].append('angle_dma_buf_cc_defaults')
         bps_for_abis[abi] = bp
 
     common_bp = merge_bps(bps_for_abis)
@@ -398,12 +452,23 @@ def gn_action_args_to_blueprint_args(blueprint_inputs, blueprint_outputs, args):
     # path. b/150457277
     remap_folders = [
         # Specific special-cases first, since the other will strip the prefixes.
-        ('gen/third_party/vulkan-deps/glslang/src/include/glslang/build_info.h',
-         'glslang/build_info.h'),
-        ('third_party/vulkan-deps/glslang/src',
-         'external/angle/third_party/vulkan-deps/glslang/src'),
+        ('gen/third_party/glslang/src/include/glslang/build_info.h', 'glslang/build_info.h'),
+        ('third_party/glslang/src', 'external/angle/third_party/glslang/src'),
         ('../../', ''),
         ('gen/', ''),
+    ]
+
+    # some args have special prefix added in front of the file name, we need to
+    # take them out before transforming the file path, and then add them back:
+    # e.g.
+    # transform
+    # --extinst=,../../third_party/spirv-headers/src/include/spirv/unified1/extinst.debuginfo.grammar.json
+    # to
+    # --extinst=,$(location third_party/spirv-headers/src/include/spirv/unified1/extinst.debuginfo.grammar.json)
+    special_prefixs = [
+        '--extinst=,',
+        '--extinst=SHDEBUG100_,',
+        '--extinst=CLDEBUG100_,',
     ]
 
     result_args = []
@@ -414,12 +479,23 @@ def gn_action_args_to_blueprint_args(blueprint_inputs, blueprint_outputs, args):
         remapped_path_arg = arg
         for (remap_source, remap_dest) in remap_folders:
             remapped_path_arg = remapped_path_arg.replace(remap_source, remap_dest)
+        special_prefix = ''
+        for special_item in special_prefixs:
+            if remapped_path_arg.startswith(special_item):
+                special_prefix = special_item
+                break
+        if special_prefix != '':
+            remapped_path_arg = remapped_path_arg[len(special_prefix):]
 
         if remapped_path_arg in blueprint_inputs or remapped_path_arg in blueprint_outputs:
-            result_args.append('$(location %s)' % remapped_path_arg)
+            remapped_path_arg = remapped_path_arg
+            result_args.append('%s$(location %s)' % (special_prefix, remapped_path_arg))
         elif os.path.basename(remapped_path_arg) in blueprint_outputs:
-            result_args.append('$(location %s)' % os.path.basename(remapped_path_arg))
+            remapped_path_arg = remapped_path_arg
+            result_args.append('%s$(location %s)' %
+                               (special_prefix, os.path.basename(remapped_path_arg)))
         else:
+            remapped_path_arg = special_prefix + remapped_path_arg
             result_args.append(remapped_path_arg)
 
     return result_args
@@ -441,6 +517,19 @@ outputs_remap = {
 
 def is_input_in_tool_files(tool_files, input):
     return input in tool_files
+
+
+def separate_py_files_from_bp_srcs_entry(input_list):
+    bp_tools_list = []  # Initialize the new list for ".py" items
+    remaining_gn_input_list = []  # Initialize the list for the items that are not ".py"
+
+    for item in input_list:
+        if item.endswith(".py"):
+            bp_tools_list.append(item)
+        else:
+            remaining_gn_input_list.append(item)
+
+    return remaining_gn_input_list, bp_tools_list
 
 
 # special handling the {{response_file_name}} args in GN:
@@ -491,7 +580,15 @@ def action_target_to_blueprint(abi, target, build_info):
             if not is_input_in_tool_files(target_info['script'], input)
         ]
 
-    bp_srcs = gn_paths_to_blueprint_paths(gn_inputs)
+    # Take "*.py" out from gn_inputs, they need to be listed in tool_files entry
+    # in Android.bp.
+    gn_inputs_without_python_script = gn_inputs
+    extra_tool_files = []
+    if 'script' in target_info:
+        gn_inputs_without_python_script, extra_tool_files = separate_py_files_from_bp_srcs_entry(
+            gn_inputs)
+
+    bp_srcs = gn_paths_to_blueprint_paths(gn_inputs_without_python_script)
 
     bp['srcs'] = bp_srcs
 
@@ -507,6 +604,17 @@ def action_target_to_blueprint(abi, target, build_info):
     bp['out'] = bp_outputs
 
     bp['tool_files'] = [gn_path_to_blueprint_path(target_info['script'])]
+    if 'script' in target_info:
+        # if there are more than 1 python script listed in "tool_files" entry in
+        # Android.bp action target, we need to specify which script we are
+        # invoking.
+        if len(extra_tool_files) > 0:
+            location = '$(location ' + target_info['script'].lstrip('/') + ')'
+        else:
+            location = '$(location)'
+        bp['tool_files'] += gn_paths_to_blueprint_paths(extra_tool_files)
+    else:
+        location = '$(location)'
 
     new_temporary_gn_response_file, updated_args = handle_gn_build_arg_response_file_name(
         target_info['args'])
@@ -514,15 +622,15 @@ def action_target_to_blueprint(abi, target, build_info):
     if new_temporary_gn_response_file:
         # add the command 'echo $(in) > $(genDir)/gn_response_file' to
         # write $response_file_contents into the new_temporary_gn_response_file.
-        cmd = ['echo $(in) >', new_temporary_gn_response_file, '&&', '$(location)'
+        cmd = ['echo $(in) >', new_temporary_gn_response_file, '&&', location
               ] + gn_action_args_to_blueprint_args(bp_srcs, bp_outputs, updated_args)
     else:
-        cmd = ['$(location)'] + gn_action_args_to_blueprint_args(bp_srcs, bp_outputs,
-                                                                 target_info['args'])
+        cmd = [location] + gn_action_args_to_blueprint_args(bp_srcs, bp_outputs,
+                                                            target_info['args'])
 
     bp['cmd'] = ' '.join(cmd)
 
-    bp['sdk_version'] = MIN_SDK_VERSION
+    bp['sdk_version'] = CURRENT_SDK_VERSION
 
     return blueprint_type, bp
 
@@ -558,6 +666,148 @@ def get_gn_target_dependencies(abi, target, build_info):
     return result
 
 
+def get_angle_in_vendor_flag_config():
+    blueprint_results = []
+
+    blueprint_results.append(('soong_config_module_type', {
+        'name': 'angle_config_cc_defaults',
+        'module_type': 'cc_defaults',
+        'config_namespace': 'angle',
+        'bool_variables': ['angle_in_vendor',],
+        'properties': [
+            'target.android.relative_install_path',
+            'vendor',
+        ],
+    }))
+
+    blueprint_results.append(('soong_config_bool_variable', {
+        'name': 'angle_in_vendor',
+    }))
+
+    blueprint_results.append((
+        'angle_config_cc_defaults',
+        {
+            'name': 'angle_vendor_cc_defaults',
+            'vendor': False,
+            'target': {
+                'android': {
+                    # Android EGL loader can not load from /system/egl/${LIB}
+                    # path and hence don't set the relative path so that ANGLE
+                    # libraries get built into /system/${LIB}
+                    'relative_install_path': '',
+                },
+            },
+            'soong_config_variables': {
+                'angle_in_vendor': {
+                    'vendor': True,
+                    'target': {
+                        'android': {
+                            'relative_install_path': 'egl',
+                        },
+                    },
+                },
+            },
+        }))
+
+    return blueprint_results
+
+
+def get_angle_android_dma_buf_flag_config(build_info):
+    """
+    Generates a list of Android.bp definitions for angle_android_dma_buf flag.
+    """
+
+    blueprint_results = []
+
+    blueprint_results.append(('soong_config_module_type', {
+        'name': 'angle_dma_buf_config_cc_defaults',
+        'module_type': 'cc_defaults',
+        'config_namespace': 'angle',
+        'bool_variables': ['angle_android_dma_buf'],
+        'properties': ['defaults']
+    }))
+
+    blueprint_results.append(('soong_config_bool_variable', {
+        'name': 'angle_android_dma_buf',
+    }))
+
+    blueprint_results.append(('angle_dma_buf_config_cc_defaults', {
+        BLUEPRINT_COMMENT_PROPERTY:
+            ('Note: this is a no-op for most builds, only applies to products that explicitly '
+             'enable the angle_android_dma_buf config flag. See b/353262025 for details of the '
+             'products that use it.'),
+        'name': 'angle_dma_buf_cc_defaults',
+        'soong_config_variables': {
+            'angle_android_dma_buf': {
+                'defaults': [gn_target_to_blueprint_target(DMA_BUF_TARGET, {})],
+            }
+        },
+    }))
+
+    return blueprint_results
+
+
+# returns list of (blueprint module type, dict with contents)
+def get_blueprint_targets_from_build_info(build_info: BuildInfo) -> List[Tuple[str, dict]]:
+    targets_to_write = collections.OrderedDict()
+    for abi in ABI_TARGETS:
+        for root_target in ROOT_TARGETS + [END2END_TEST_TARGET, DMA_BUF_TARGET]:
+
+            targets_to_write.update(get_gn_target_dependencies(abi, root_target, build_info))
+
+    generated_targets = []
+    for target in reversed(targets_to_write.keys()):
+        # Do not export angle_commit_id target in Android.bp, because the script
+        # src/commit_id.py invoked by this target  can't guarantee to generate a
+        # meaningful ANGLE git hash during compile time, see b/348044346.
+        # The script src/commit_id.py will be invoked by roll_aosp.h during
+        # ANGLE to Android roll time, and the ANGLE git hash will be output in
+        # {AndroidANGLERoot}/angle_commmit.h.
+        if target == '//:angle_commit_id':
+            continue
+        generated_targets.append(gn_target_to_blueprint(target, build_info))
+
+    return generated_targets
+
+
+def handle_angle_non_conformant_extensions_and_versions(
+    generated_targets: List[Tuple[str, dict]],
+    blueprint_targets: List[dict],
+):
+    """Replace the non conformant cflags with a separate cc_defaults.
+
+    The downstream can custom the cflags easier.
+    """
+    non_conform_cflag = '-DANGLE_EXPOSE_NON_CONFORMANT_EXTENSIONS_AND_VERSIONS'
+    non_conform_defaults = 'angle_non_conformant_extensions_and_versions_cflags'
+
+    blueprint_targets.append(('cc_defaults', {
+        'name': non_conform_defaults,
+        'cflags': [non_conform_cflag],
+    }))
+
+    for _, bp in generated_targets:
+        if 'cflags' in bp and non_conform_cflag in bp['cflags']:
+            bp['cflags'] = list(set(bp['cflags']) - {non_conform_cflag})
+            bp['defaults'].append(non_conform_defaults)
+
+
+def fix_fortify_source_cflags(cflags):
+    # search if there is any cflag starts with '-D_FORTIFY_SOURCE'
+    d_fortify_source_flag = [cflag for cflag in cflags if '-D_FORTIFY_SOURCE' in cflag]
+    # Insert -U_FORTIFY_SOURCE before the first -D_FORTIFY_SOURCE flag.
+    # In case a default mode for FORTIFY_SOURCE is predefined for a compiler,
+    # and the -D_FORTIFY_SOURCE mode we set is different from the default mode,
+    # the compiler will warn about "redefining FORTIFY_SOURCE macro".
+    # To fix this compiler warning, we unset the default mode with
+    # -U_FORTIFY_SOURCE before setting the desired FORTIFY_SOURCE mode in our
+    # cflags.
+    # reference:
+    # https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++#tldr-what-compiler-options-should-i-use
+    if d_fortify_source_flag:
+        cflags.insert(cflags.index(d_fortify_source_flag[0]), '-U_FORTIFY_SOURCE')
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Generate Android blueprints from gn descriptions.')
@@ -568,6 +818,7 @@ def main():
             help=gn_abi(abi) +
             ' gn desc file in json format. Generated with \'gn desc <out_dir> --format=json "*"\'.',
             required=True)
+    parser.add_argument('--output', help='output file (e.g. Android.bp)')
     args = vars(parser.parse_args())
 
     infos = {}
@@ -576,23 +827,11 @@ def main():
             infos[abi] = json.load(f)
 
     build_info = BuildInfo(infos)
-    targets_to_write = collections.OrderedDict()
-    for abi in ABI_TARGETS:
-        for root_target in ROOT_TARGETS:
-            targets_to_write.update(get_gn_target_dependencies(abi, root_target, build_info))
 
     blueprint_targets = []
 
-    blueprint_targets.append(('bootstrap_go_package', {
-        'name': 'soong-angle-codegen',
-        'pkgPath': 'android/soong/external/angle',
-        'deps': [
-            'blueprint', 'blueprint-pathtools', 'soong', 'soong-android', 'soong-cc',
-            'soong-genrule'
-        ],
-        'srcs': ['scripts/angle_android_codegen.go'],
-        'pluginFor': ['soong_build'],
-    }))
+    blueprint_targets.extend(get_angle_in_vendor_flag_config())
+    blueprint_targets.extend(get_angle_android_dma_buf_flag_config(build_info))
 
     blueprint_targets.append((
         'cc_defaults',
@@ -603,19 +842,34 @@ def main():
                 # Chrome and Android use different versions of Clang which support differnt warning options.
                 # Ignore errors about unrecognized warning flags.
                 '-Wno-unknown-warning-option',
-                '-Os',
+                '-O2',
                 # Override AOSP build flags to match ANGLE's CQ testing and reduce binary size
                 '-fno-unwind-tables',
+                # Disable stack protector to reduce cpu overhead.
+                '-fno-stack-protector',
             ],
         }))
 
-    for target in reversed(targets_to_write.keys()):
-        blueprint_type, bp = gn_target_to_blueprint(target, build_info)
-        if target in CODEGEN_TARGETS:
-            blueprint_targets.append(('angle_android_codegen', {
-                'name': bp['name'] + '_android_codegen',
-            }))
-        blueprint_targets.append((blueprint_type, bp))
+    generated_targets = get_blueprint_targets_from_build_info(build_info)
+
+    # Will modify generated_targets and blueprint_targets in-place to handle the
+    # angle_expose_non_conformant_extensions_and_versions gn argument.
+    handle_angle_non_conformant_extensions_and_versions(generated_targets, blueprint_targets)
+
+    # Move cflags that are repeated in each target to cc_defaults
+    all_cflags = [set(bp['cflags']) for _, bp in generated_targets if 'cflags' in bp]
+    all_target_cflags = set.intersection(*all_cflags)
+
+    for _, bp in generated_targets:
+        if 'cflags' in bp:
+            bp['cflags'] = list(set(bp['cflags']) - all_target_cflags)
+            bp['defaults'].append('angle_common_auto_cflags')
+
+    blueprint_targets.append(('cc_defaults', {
+        'name': 'angle_common_auto_cflags',
+        'cflags': list(all_target_cflags),
+    }))
+    blueprint_targets.extend(generated_targets)
 
     # Add license build rules
     blueprint_targets.append(('package', {
@@ -644,22 +898,15 @@ def main():
             'src/third_party/libXNVCtrl/LICENSE',
             'src/third_party/volk/LICENSE.md',
             'third_party/abseil-cpp/LICENSE',
-            'third_party/android_system_sdk/LICENSE',
-            'third_party/bazel/LICENSE',
-            'third_party/colorama/LICENSE',
-            'third_party/proguard/LICENSE',
-            'third_party/r8/LICENSE',
-            'third_party/turbine/LICENSE',
-            'third_party/vulkan-deps/glslang/LICENSE',
-            'third_party/vulkan-deps/glslang/src/LICENSE.txt',
-            'third_party/vulkan-deps/LICENSE',
-            'third_party/vulkan-deps/spirv-headers/LICENSE',
-            'third_party/vulkan-deps/spirv-headers/src/LICENSE',
-            'third_party/vulkan-deps/spirv-tools/LICENSE',
-            'third_party/vulkan-deps/spirv-tools/src/LICENSE',
-            'third_party/vulkan-deps/spirv-tools/src/utils/vscode/src/lsp/LICENSE',
-            'third_party/vulkan-deps/vulkan-headers/LICENSE.txt',
-            'third_party/vulkan-deps/vulkan-headers/src/LICENSE.txt',
+            'third_party/glslang/LICENSE',
+            'third_party/glslang/src/LICENSE.txt',
+            'third_party/spirv-headers/LICENSE',
+            'third_party/spirv-headers/src/LICENSE',
+            'third_party/spirv-tools/LICENSE',
+            'third_party/spirv-tools/src/LICENSE',
+            'third_party/spirv-tools/src/utils/vscode/src/lsp/LICENSE',
+            'third_party/vulkan-headers/LICENSE.txt',
+            'third_party/vulkan-headers/src/LICENSE.md',
             'third_party/vulkan_memory_allocator/LICENSE.txt',
             'tools/flex-bison/third_party/m4sugar/LICENSE',
             'tools/flex-bison/third_party/skeletons/LICENSE',
@@ -667,7 +914,7 @@ def main():
         ],
     }))
 
-    # Add APKs with all of the root libraries
+    # Add APKs with all of the root libraries and permissions xml
     blueprint_targets.append((
         'filegroup',
         {
@@ -678,12 +925,21 @@ def main():
             # However, the internal branch currently uses these files with patches in that branch.
             'srcs': [
                 'src/android_system_settings/src/com/android/angle/MainActivity.java',
+                'src/android_system_settings/src/com/android/angle/common/AngleRuleHelper.java',
                 'src/android_system_settings/src/com/android/angle/common/GlobalSettings.java',
                 'src/android_system_settings/src/com/android/angle/common/MainFragment.java',
                 'src/android_system_settings/src/com/android/angle/common/Receiver.java',
                 'src/android_system_settings/src/com/android/angle/common/SearchProvider.java',
             ],
         }))
+
+    blueprint_targets.append(('prebuilt_etc', {
+        'name': 'android.software.angle.xml',
+        'src': 'android/android.software.angle.xml',
+        'product_specific': True,
+        'sub_dir': 'permissions',
+    }))
+
     blueprint_targets.append((
         'java_defaults',
         {
@@ -706,6 +962,7 @@ def main():
             'privileged': True,
             'product_specific': True,
             'owner': 'google',
+            'required': ['android.software.angle.xml'],
         }))
 
     blueprint_targets.append(('android_library', {
@@ -733,6 +990,39 @@ def main():
         'asset_dirs': ['src/android_system_settings/assets',],
     }))
 
+    blueprint_targets.append((
+        'java_defaults',
+        {
+            'name': 'ANGLE_java_settings_defaults',
+            'sdk_version': 'system_current',
+            'target_sdk_version': TARGET_SDK_VERSION,
+            'min_sdk_version': MIN_SDK_VERSION,
+            'compile_multilib': 'both',
+            'use_embedded_native_libs': True,
+            'aaptflags': [
+                '-0 .json',  # Don't compress *.json files
+                "--extra-packages com.android.angle.common",
+            ],
+            'srcs': [':ANGLE_srcs'],
+            'privileged': True,
+            'product_specific': True,
+            'owner': 'google',
+            'required': ['android.software.angle.xml'],
+        }))
+
+    blueprint_targets.append(('android_app', {
+        'name': 'ANGLE_settings',
+        'defaults': ['ANGLE_java_settings_defaults'],
+        'manifest': 'src/android_system_settings/src/com/android/angle/AndroidManifest.xml',
+        'static_libs': ['ANGLE_library'],
+        'optimize': {
+            'enabled': True,
+            'shrink': True,
+            'proguard_compatibility': False,
+        },
+        'asset_dirs': ['src/android_system_settings/assets',],
+    }))
+
     output = [
         """// GENERATED FILE - DO NOT EDIT.
 // Generated by %s
@@ -740,13 +1030,13 @@ def main():
 // Copyright 2020 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-""" % sys.argv[0]
+//""" % sys.argv[0]
     ]
     for (blueprint_type, blueprint_data) in blueprint_targets:
         write_blueprint(output, blueprint_type, blueprint_data)
 
-    print('\n'.join(output))
+    with open(args['output'], 'w') as f:
+        f.write('\n'.join(output) + '\n')
 
 
 if __name__ == '__main__':

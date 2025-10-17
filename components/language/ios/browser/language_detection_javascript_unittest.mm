@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #import "base/test/ios/wait_util.h"
 #import "components/language/ios/browser/ios_language_detection_tab_helper.h"
 #import "ios/web/public/test/javascript_test.h"
 #import "ios/web/public/test/js_test_util.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
@@ -57,7 +58,7 @@ class LanguageDetectionJavascriptTest : public web::JavascriptTest {
         addScriptMessageHandler:handler_
                            name:@"LanguageDetectionTextCaptured"];
   }
-  ~LanguageDetectionJavascriptTest() override {}
+  ~LanguageDetectionJavascriptTest() override = default;
 
   void SetUp() override {
     web::JavascriptTest::SetUp();
@@ -183,7 +184,6 @@ TEST_F(LanguageDetectionJavascriptTest,
   NSDictionary* body = handler().lastReceivedMessage.body;
   ASSERT_TRUE(body);
   ASSERT_TRUE([body isKindOfClass:[NSDictionary class]]);
-  EXPECT_TRUE(body[@"captureTextTime"]);
   EXPECT_TRUE(body[@"frameId"]);
   EXPECT_TRUE(body[@"hasNoTranslate"]);
   EXPECT_TRUE(body[@"htmlLang"]);
@@ -206,6 +206,43 @@ TEST_F(LanguageDetectionJavascriptTest, DetectLanguageWithNoTranslateMeta) {
               handler().lastReceivedMessage.body[@"httpContentLanguage"]);
   ASSERT_TRUE(handler().lastReceivedMessage.body[@"hasNoTranslate"]);
   EXPECT_TRUE(
+      [handler().lastReceivedMessage.body[@"hasNoTranslate"] boolValue]);
+}
+
+// Tests if `__gCrWeb.languageDetection.detectLanguage` correctly informs the
+// native side when the notranslate html attribute is specified
+TEST_F(LanguageDetectionJavascriptTest, DetectLanguageWithHTMLNoTranslate) {
+  // A simple page using the notranslate meta tag.
+  NSString* html = @"<html translate='no'><head>"
+                   @"<meta http-equiv='content-language' content='foo'>"
+                   @"</head></html>";
+  LoadHtml(html);
+  ASSERT_TRUE(TriggerLanguageDetection());
+
+  ASSERT_TRUE(handler().lastReceivedMessage.body[@"httpContentLanguage"]);
+  EXPECT_NSEQ(@"foo",
+              handler().lastReceivedMessage.body[@"httpContentLanguage"]);
+  ASSERT_TRUE(handler().lastReceivedMessage.body[@"hasNoTranslate"]);
+  EXPECT_TRUE(
+      [handler().lastReceivedMessage.body[@"hasNoTranslate"] boolValue]);
+}
+
+// Tests if `__gCrWeb.languageDetection.detectLanguage` does not confuse a body
+// or div language='no' for a page wide translate disabling.
+TEST_F(LanguageDetectionJavascriptTest, DetectLanguageWithDIVNoTranslate) {
+  // A simple page using the notranslate meta tag.
+  NSString* html = @"<html><head>"
+                   @"<meta http-equiv='content-language' content='foo'>"
+                   @"</head><body translate='no'>"
+                   @"<div translate='no'>test</div></html>";
+  LoadHtml(html);
+  ASSERT_TRUE(TriggerLanguageDetection());
+
+  ASSERT_TRUE(handler().lastReceivedMessage.body[@"httpContentLanguage"]);
+  EXPECT_NSEQ(@"foo",
+              handler().lastReceivedMessage.body[@"httpContentLanguage"]);
+  ASSERT_TRUE(handler().lastReceivedMessage.body[@"hasNoTranslate"]);
+  EXPECT_FALSE(
       [handler().lastReceivedMessage.body[@"hasNoTranslate"] boolValue]);
 }
 

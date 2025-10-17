@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cc/tiles/gpu_image_decode_cache.h"
+
 #include <memory>
 #include <vector>
 
@@ -9,7 +11,6 @@
 #include "cc/paint/draw_image.h"
 #include "cc/paint/paint_image_builder.h"
 #include "cc/raster/tile_task.h"
-#include "cc/tiles/gpu_image_decode_cache.h"
 #include "components/viz/test/test_in_process_context_provider.h"
 #include "gpu/command_buffer/client/raster_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,7 +23,8 @@
 #include "third_party/skia/include/core/SkSize.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GpuTypes.h"
-#include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
 
 namespace cc {
 namespace {
@@ -59,6 +61,8 @@ class GpuImageDecodeCachePerfTest
 
   void SetUp() override {
     gpu::ContextResult result = context_provider_->BindToCurrentSequence();
+    max_texture_size_ =
+        context_provider_->ContextCapabilities().max_texture_size;
     ASSERT_EQ(result, gpu::ContextResult::kSuccess);
     cache_ = std::make_unique<GpuImageDecodeCache>(
         context_provider_.get(), UseTransferCache(), kRGBA_8888_SkColorType,
@@ -86,6 +90,18 @@ class GpuImageDecodeCachePerfTest
     }
   }
 
+  // Returns dimensions for an image that will fit in GPU memory.
+  gfx::Size GetNormalImageSize() const {
+    TestMode mode = GetParam();
+    int dimension = std::min(100, max_texture_size_ - 1);
+    switch (mode) {
+      case TestMode::kGpu:
+        return gfx::Size(dimension, dimension);
+      case TestMode::kSw:
+        return gfx::Size(1, max_texture_size_ + 1);
+    }
+  }
+
   viz::TestContextType ParamToTestContextType(TestMode mode) {
     switch (mode) {
       case TestMode::kGpu:
@@ -106,6 +122,7 @@ class GpuImageDecodeCachePerfTest
   base::LapTimer timer_;
   scoped_refptr<viz::TestInProcessContextProvider> context_provider_;
   std::unique_ptr<GpuImageDecodeCache> cache_;
+  int max_texture_size_ = 0;
 };
 
 INSTANTIATE_TEST_SUITE_P(P,
@@ -114,13 +131,16 @@ INSTANTIATE_TEST_SUITE_P(P,
 
 TEST_P(GpuImageDecodeCachePerfTest, DecodeWithColorConversion) {
   timer_.Reset();
+  auto gfx_size = GetNormalImageSize();
   do {
     DrawImage image(
         PaintImageBuilder::WithDefault()
             .set_id(PaintImage::GetNextId())
-            .set_image(CreateImage(1024, 2048), PaintImage::GetNextContentId())
+            .set_image(CreateImage(gfx_size.width(), gfx_size.height()),
+                       PaintImage::GetNextContentId())
             .TakePaintImage(),
-        false, SkIRect::MakeWH(1024, 2048), PaintFlags::FilterQuality::kMedium,
+        false, SkIRect::MakeWH(gfx_size.width(), gfx_size.height()),
+        PaintFlags::FilterQuality::kMedium,
         CreateMatrix(SkSize::Make(1.0f, 1.0f)), 0u,
         TargetColorParams(gfx::ColorSpace::CreateXYZD50()));
 
@@ -141,18 +161,20 @@ INSTANTIATE_TEST_SUITE_P(P,
 
 TEST_P(GpuImageDecodeCachePerfTestNoSw, DecodeWithMips) {
   // Surface to render into.
-  auto surface = SkSurface::MakeRenderTarget(
+  auto surface = SkSurfaces::RenderTarget(
       context_provider_->GrContext(), skgpu::Budgeted::kNo,
       SkImageInfo::MakeN32Premul(2048, 2048));
-
+  auto gfx_size = GetNormalImageSize();
   timer_.Reset();
   do {
     DrawImage image(
         PaintImageBuilder::WithDefault()
             .set_id(PaintImage::GetNextId())
-            .set_image(CreateImage(1024, 2048), PaintImage::GetNextContentId())
+            .set_image(CreateImage(gfx_size.width(), gfx_size.height()),
+                       PaintImage::GetNextContentId())
             .TakePaintImage(),
-        false, SkIRect::MakeWH(1024, 2048), PaintFlags::FilterQuality::kMedium,
+        false, SkIRect::MakeWH(gfx_size.width(), gfx_size.height()),
+        PaintFlags::FilterQuality::kMedium,
         CreateMatrix(SkSize::Make(0.6f, 0.6f)), 0u, TargetColorParams());
 
     DecodedDrawImage decoded_image = cache_->GetDecodedImageForDraw(image);
@@ -167,12 +189,15 @@ TEST_P(GpuImageDecodeCachePerfTestNoSw, DecodeWithMips) {
 
 TEST_P(GpuImageDecodeCachePerfTest, AcquireExistingImages) {
   timer_.Reset();
+  auto gfx_size = GetNormalImageSize();
   DrawImage image(
       PaintImageBuilder::WithDefault()
           .set_id(PaintImage::GetNextId())
-          .set_image(CreateImage(1024, 2048), PaintImage::GetNextContentId())
+          .set_image(CreateImage(gfx_size.width(), gfx_size.height()),
+                     PaintImage::GetNextContentId())
           .TakePaintImage(),
-      false, SkIRect::MakeWH(1024, 2048), PaintFlags::FilterQuality::kMedium,
+      false, SkIRect::MakeWH(gfx_size.width(), gfx_size.height()),
+      PaintFlags::FilterQuality::kMedium,
       CreateMatrix(SkSize::Make(1.0f, 1.0f)), 0u,
       TargetColorParams(gfx::ColorSpace::CreateXYZD50()));
 

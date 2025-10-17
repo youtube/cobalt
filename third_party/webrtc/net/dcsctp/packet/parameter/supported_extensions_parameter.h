@@ -41,8 +41,8 @@ class SupportedExtensionsParameter
   explicit SupportedExtensionsParameter(std::vector<uint8_t> chunk_types)
       : chunk_types_(std::move(chunk_types)) {}
 
-  static absl::optional<SupportedExtensionsParameter> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<SupportedExtensionsParameter> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;
@@ -52,7 +52,7 @@ class SupportedExtensionsParameter
            chunk_types_.end();
   }
 
-  rtc::ArrayView<const uint8_t> chunk_types() const { return chunk_types_; }
+  webrtc::ArrayView<const uint8_t> chunk_types() const { return chunk_types_; }
 
  private:
   std::vector<uint8_t> chunk_types_;

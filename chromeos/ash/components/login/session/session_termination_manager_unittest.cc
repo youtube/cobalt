@@ -33,7 +33,7 @@ class SessionTerminationManagerTest : public testing::Test {
   }
 
  protected:
-  raw_ptr<chromeos::FakePowerManagerClient, ExperimentalAsh> power_client_;
+  raw_ptr<chromeos::FakePowerManagerClient, DanglingUntriaged> power_client_;
   SessionTerminationManager session_termination_manager_;
 };
 

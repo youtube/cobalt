@@ -8,11 +8,10 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_list/app_list_metrics.h"
-#include "ash/system/federated/federated_service_controller.h"
+#include "ash/system/federated/test_federated_service_controller.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "chrome/browser/ash/app_list/app_list_notifier_impl.h"
@@ -33,43 +32,15 @@ using ash::FederatedClient;
 using ash::federated::FakeServiceConnectionImpl;
 using ash::federated::ScopedFakeServiceConnectionForTest;
 using ash::federated::ServiceConnection;
+using ash::federated::TestFederatedServiceController;
 using federated::FederatedMetricsManager;
 using testing::HasSubstr;
 
-class TestFederatedServiceController
-    : public ash::federated::FederatedServiceController {
- public:
-  TestFederatedServiceController() = default;
-  TestFederatedServiceController(const TestFederatedServiceController&) =
-      delete;
-  TestFederatedServiceController& operator=(
-      const TestFederatedServiceController&) = delete;
-
-  // ash::federated::FederatedServiceController:
-  bool IsServiceAvailable() const override { return true; }
-};
-
-// Parameterized by feature kLauncherQueryFederatedAnalyticsPHH.
-class FederatedMetricsManagerTest : public testing::Test,
-                                    public ::testing::WithParamInterface<bool> {
+class FederatedMetricsManagerTest : public testing::Test {
  public:
   FederatedMetricsManagerTest()
       : scoped_fake_for_test_(&fake_service_connection_),
-        app_list_notifier_(&app_list_controller_) {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        ash::features::kFederatedService};
-    std::vector<base::test::FeatureRef> disabled_features;
-
-    if (GetParam()) {
-      enabled_features.push_back(
-          search_features::kLauncherQueryFederatedAnalyticsPHH);
-    } else {
-      disabled_features.push_back(
-          search_features::kLauncherQueryFederatedAnalyticsPHH);
-    }
-
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
-  }
+        app_list_notifier_(&app_list_controller_) {}
 
   FederatedMetricsManagerTest(const FederatedMetricsManagerTest&) = delete;
   FederatedMetricsManagerTest& operator=(const FederatedMetricsManagerTest&) =
@@ -96,241 +67,273 @@ class FederatedMetricsManagerTest : public testing::Test,
   void InitFederatedMetricsManager() {
     metrics_manager_ = std::make_unique<FederatedMetricsManager>(
         &app_list_notifier_, &federated_service_controller_);
+    metrics_manager_->OnDefaultSearchIsGoogleSet(true);
   }
 
-  void ExpectNoFederatedLogs() {
+  void ExpectInitLogsOk() {
+    histogram_tester()->ExpectUniqueSample(
+        app_list::federated::kHistogramInitStatus,
+        app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
+  }
+
+  void ExpectUmaBucketValueForQueryLength(int expected_bucket_value,
+                                          int query_length) {
+    histogram_tester()->ExpectBucketCount(
+        app_list::federated::kHistogramQueryLengthOnStorageSuccess,
+        std::min(query_length,
+                 app_list::federated::kMaxLoggedQueryLengthOnStorageSuccess),
+        expected_bucket_value);
+  }
+
+  void ExpectNoFederatedLogsOnUserAction() {
     const std::string histograms =
         histogram_tester()->GetAllHistogramsRecorded();
     EXPECT_THAT(
         histograms,
         Not(AnyOf(
-            HasSubstr(app_list::federated::kHistogramInitStatus),
             HasSubstr(app_list::federated::kHistogramSearchSessionConclusion),
-            HasSubstr(app_list::federated::kHistogramReportStatus))));
+            HasSubstr(app_list::federated::kHistogramReportStatus),
+            HasSubstr(
+                app_list::federated::kHistogramQueryLengthOnStorageSuccess))));
     // TODO(b/262611120): Check emptiness of federated service storage, once
     // this functionality is available.
   }
 
  protected:
+  FederatedMetricsManager* metrics_manager() { return metrics_manager_.get(); }
+
   std::unique_ptr<base::HistogramTester> histogram_tester_;
-  std::unique_ptr<FederatedMetricsManager> metrics_manager_;
 
  private:
   base::test::TaskEnvironment task_environment_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   FakeServiceConnectionImpl fake_service_connection_;
   ScopedFakeServiceConnectionForTest scoped_fake_for_test_;
 
   ::test::TestAppListController app_list_controller_;
   AppListNotifierImpl app_list_notifier_;
+  std::unique_ptr<FederatedMetricsManager> metrics_manager_;
   TestFederatedServiceController federated_service_controller_;
 
   bool chrome_metrics_enabled_;
 };
-INSTANTIATE_TEST_SUITE_P(LauncherQueryFA,
-                         FederatedMetricsManagerTest,
-                         testing::Bool());
 
-TEST_P(FederatedMetricsManagerTest, ChromeMetricsConsentDisabled) {
+TEST_F(FederatedMetricsManagerTest, ChromeMetricsConsentDisabled) {
   SetChromeMetricsEnabled(false);
   InitFederatedMetricsManager();
 
-  // Simulate various user search activities.
-  metrics_manager_->OnSearchSessionStarted();
-  metrics_manager_->OnSearchSessionEnded(u"fake_query");
+  ExpectInitLogsOk();
 
-  metrics_manager_->OnSearchSessionStarted();
+  // Simulate various user search activities.
+  metrics_manager()->OnSearchSessionStarted();
+  metrics_manager()->OnSearchSessionEnded(u"fake_query");
+
+  metrics_manager()->OnSearchSessionStarted();
   std::vector<Result> shown_results;
   Result launched_result = CreateFakeResult(Type::EXTENSION_APP, "fake_id");
   std::u16string query = u"fake_query";
-  metrics_manager_->OnSeen(Location::kAnswerCard, shown_results, query);
-  metrics_manager_->OnLaunch(Location::kList, launched_result, shown_results,
-                             query);
-  metrics_manager_->OnSearchSessionEnded(u"fake_query");
+  metrics_manager()->OnSeen(Location::kAnswerCard, shown_results, query);
+  metrics_manager()->OnLaunch(Location::kList, launched_result, shown_results,
+                              query);
+  metrics_manager()->OnSearchSessionEnded(u"fake_query");
 
-  ExpectNoFederatedLogs();
+  ExpectNoFederatedLogsOnUserAction();
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
 
-TEST_P(FederatedMetricsManagerTest, Quit) {
+TEST_F(FederatedMetricsManagerTest, DefaultSearchEngineNonGoogle) {
   SetChromeMetricsEnabled(true);
   InitFederatedMetricsManager();
 
-  metrics_manager_->OnSearchSessionStarted();
+  ExpectInitLogsOk();
+
+  // Expect no logging on user action when default search engine is non-Google
+  // search.
+  metrics_manager()->OnDefaultSearchIsGoogleSet(false);
+
+  // Simulate various user search activities.
+  metrics_manager()->OnSearchSessionStarted();
+  metrics_manager()->OnSearchSessionEnded(u"fake_query");
+
+  metrics_manager()->OnSearchSessionStarted();
+  std::vector<Result> shown_results;
+  Result launched_result = CreateFakeResult(Type::EXTENSION_APP, "fake_id");
+  std::u16string query = u"fake_query";
+  metrics_manager()->OnSeen(Location::kAnswerCard, shown_results, query);
+  metrics_manager()->OnLaunch(Location::kList, launched_result, shown_results,
+                              query);
+  metrics_manager()->OnSearchSessionEnded(u"fake_query");
+
+  ExpectNoFederatedLogsOnUserAction();
+  ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
+}
+
+TEST_F(FederatedMetricsManagerTest, SessionQuit) {
+  SetChromeMetricsEnabled(true);
+  InitFederatedMetricsManager();
+
+  ExpectInitLogsOk();
+
+  metrics_manager()->OnSearchSessionStarted();
   // Search session ends without user taking other action (e.g. without
   // launching a result).
-  metrics_manager_->OnSearchSessionEnded(u"fake_query");
+  std::u16string query = u"fake_query";
+  metrics_manager()->OnSearchSessionEnded(query);
   base::RunLoop().RunUntilIdle();
 
-  const bool launcher_fa_enabled = GetParam();
-  if (launcher_fa_enabled) {
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramInitStatus,
-        app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramInitStatus,
+      app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramSearchSessionConclusion,
-        ash::SearchSessionConclusion::kQuit, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramSearchSessionConclusion,
+      ash::SearchSessionConclusion::kQuit, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramReportStatus,
-        app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramReportStatus,
+      app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
 
-    // TODO(b/262611120): Check contents of logged example, once this
-    // functionality is available.
-  } else {
-    ExpectNoFederatedLogs();
-  }
+  ExpectUmaBucketValueForQueryLength(/*expected_bucket_value*/ 1,
+                                     query.length());
+
+  // TODO(b/262611120): Check contents of logged example, once this
+  // functionality is available.
+
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
 
-TEST_P(FederatedMetricsManagerTest, Launch) {
+TEST_F(FederatedMetricsManagerTest, Launch) {
   SetChromeMetricsEnabled(true);
   InitFederatedMetricsManager();
 
-  metrics_manager_->OnSearchSessionStarted();
+  ExpectInitLogsOk();
+
+  metrics_manager()->OnSearchSessionStarted();
   std::vector<Result> shown_results;
   Result launched_result = CreateFakeResult(Type::EXTENSION_APP, "fake_id");
   std::u16string query = u"fake_query";
 
-  metrics_manager_->OnLaunch(Location::kList, launched_result, shown_results,
-                             query);
-  metrics_manager_->OnSearchSessionEnded(query);
+  metrics_manager()->OnLaunch(Location::kList, launched_result, shown_results,
+                              query);
+  metrics_manager()->OnSearchSessionEnded(query);
   base::RunLoop().RunUntilIdle();
 
-  const bool launcher_fa_enabled = GetParam();
-  if (launcher_fa_enabled) {
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramInitStatus,
-        app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramSearchSessionConclusion,
+      ash::SearchSessionConclusion::kLaunch, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramSearchSessionConclusion,
-        ash::SearchSessionConclusion::kLaunch, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramReportStatus,
+      app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramReportStatus,
-        app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
-    // TODO(b/262611120): Check contents of logged example, once this
-    // functionality is available.
-  } else {
-    ExpectNoFederatedLogs();
-  }
+  ExpectUmaBucketValueForQueryLength(/*expected_bucket_value*/ 1,
+                                     query.length());
+
+  // TODO(b/262611120): Check contents of logged example, once this
+  // functionality is available.
+
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
 
-TEST_P(FederatedMetricsManagerTest, AnswerCardSeen) {
+TEST_F(FederatedMetricsManagerTest, AnswerCardSeen) {
   SetChromeMetricsEnabled(true);
   InitFederatedMetricsManager();
 
-  metrics_manager_->OnSearchSessionStarted();
+  ExpectInitLogsOk();
+
+  metrics_manager()->OnSearchSessionStarted();
   std::vector<Result> shown_results;
   std::u16string query = u"fake_query";
 
-  metrics_manager_->OnSeen(Location::kAnswerCard, shown_results, query);
-  metrics_manager_->OnSearchSessionEnded(query);
+  metrics_manager()->OnSeen(Location::kAnswerCard, shown_results, query);
+  metrics_manager()->OnSearchSessionEnded(query);
   base::RunLoop().RunUntilIdle();
 
-  const bool launcher_fa_enabled = GetParam();
-  if (launcher_fa_enabled) {
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramInitStatus,
-        app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramSearchSessionConclusion,
+      ash::SearchSessionConclusion::kAnswerCardSeen, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramSearchSessionConclusion,
-        ash::SearchSessionConclusion::kAnswerCardSeen, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramReportStatus,
+      app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramReportStatus,
-        app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
-    // TODO(b/262611120): Check contents of logged example, once this
-    // functionality is available.
-  } else {
-    ExpectNoFederatedLogs();
-  }
+  ExpectUmaBucketValueForQueryLength(/*expected_bucket_value*/ 1,
+                                     query.length());
+
+  // TODO(b/262611120): Check contents of logged example, once this
+  // functionality is available.
+
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
 
-TEST_P(FederatedMetricsManagerTest, AnswerCardSeenThenListResultLaunched) {
+TEST_F(FederatedMetricsManagerTest, AnswerCardSeenThenListResultLaunched) {
   SetChromeMetricsEnabled(true);
   InitFederatedMetricsManager();
+
+  ExpectInitLogsOk();
 
   // Tests that a Launch event takes precedence over an AnswerCardSeen event,
   // within the same search session.
-  metrics_manager_->OnSearchSessionStarted();
+  metrics_manager()->OnSearchSessionStarted();
   std::vector<Result> shown_results;
   std::u16string query = u"fake_query";
 
-  metrics_manager_->OnSeen(Location::kAnswerCard, shown_results, query);
+  metrics_manager()->OnSeen(Location::kAnswerCard, shown_results, query);
 
   Result launched_result = CreateFakeResult(Type::EXTENSION_APP, "fake_id");
-  metrics_manager_->OnLaunch(Location::kList, launched_result, shown_results,
-                             query);
+  metrics_manager()->OnLaunch(Location::kList, launched_result, shown_results,
+                              query);
 
-  metrics_manager_->OnSearchSessionEnded(query);
+  metrics_manager()->OnSearchSessionEnded(query);
   base::RunLoop().RunUntilIdle();
 
-  const bool launcher_fa_enabled = GetParam();
-  if (launcher_fa_enabled) {
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramInitStatus,
-        app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramSearchSessionConclusion,
+      ash::SearchSessionConclusion::kLaunch, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramSearchSessionConclusion,
-        ash::SearchSessionConclusion::kLaunch, 1);
+  histogram_tester()->ExpectUniqueSample(
+      app_list::federated::kHistogramReportStatus,
+      app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
 
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramReportStatus,
-        app_list::federated::FederatedMetricsManager::ReportStatus::kOk, 1);
-    // TODO(b/262611120): Check contents of logged example, once this
-    // functionality is available.
-  } else {
-    ExpectNoFederatedLogs();
-  }
+  ExpectUmaBucketValueForQueryLength(/*expected_bucket_value*/ 1,
+                                     query.length());
+
+  // TODO(b/262611120): Check contents of logged example, once this
+  // functionality is available.
+
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
 
-TEST_P(FederatedMetricsManagerTest, ZeroState) {
+TEST_F(FederatedMetricsManagerTest, ZeroStateDoesNotLogOnUserAction) {
   SetChromeMetricsEnabled(true);
   InitFederatedMetricsManager();
 
-  // Note: metrics_manager_->OnSearchSession{Started,Ended}() are not expected
+  ExpectInitLogsOk();
+
+  // Note: metrics_manager()->OnSearchSession{Started,Ended}() are not expected
   // to be called during zero state search.
+  //
+  // Zero state search should not trigger any logging on user action.
 
   // Simulate a series of user actions in zero state search. An empty query
   // indicates zero state search.
   std::vector<Result> shown_results;
   std::u16string empty_query = u"";
 
-  metrics_manager_->OnSeen(Location::kContinue, shown_results, empty_query);
-  metrics_manager_->OnSeen(Location::kRecentApps, shown_results, empty_query);
+  metrics_manager()->OnSeen(Location::kContinue, shown_results, empty_query);
+  metrics_manager()->OnSeen(Location::kRecentApps, shown_results, empty_query);
 
   Result launched_result = CreateFakeResult(Type::EXTENSION_APP, "fake_id");
-  metrics_manager_->OnLaunch(Location::kRecentApps, launched_result,
-                             shown_results, empty_query);
+  metrics_manager()->OnLaunch(Location::kRecentApps, launched_result,
+                              shown_results, empty_query);
   base::RunLoop().RunUntilIdle();
 
-  const bool launcher_fa_enabled = GetParam();
-  if (launcher_fa_enabled) {
-    histogram_tester()->ExpectUniqueSample(
-        app_list::federated::kHistogramInitStatus,
-        app_list::federated::FederatedMetricsManager::InitStatus::kOk, 1);
+  ExpectNoFederatedLogsOnUserAction();
 
-    // Zero state search should not trigger any logging on user action.
-    histogram_tester()->ExpectTotalCount(
-        app_list::federated::kHistogramSearchSessionConclusion, 0);
-    histogram_tester()->ExpectTotalCount(
-        app_list::federated::kHistogramReportStatus, 0);
+  // Expect that no examples were logged to the federated service.
+  // TODO(b/262611120): Check contents of federated service storage, once this
+  // functionality is available.
 
-    // Do not expect that any examples were logged to the federated service.
-    // TODO(b/262611120): Check contents of federated service storage, once this
-    // functionality is available.
-  } else {
-    ExpectNoFederatedLogs();
-  }
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
 

@@ -85,6 +85,8 @@ class BalancedMediaTaskRunnerTest : public testing::Test {
   // For each media task runner, keep a track of which task has already been
   // scheduled.
   std::vector<MediaTaskRunnerTestContext> contexts_;
+
+  base::OnceClosure quit_closure_;
 };
 
 BalancedMediaTaskRunnerTest::BalancedMediaTaskRunnerTest() {
@@ -134,6 +136,9 @@ void BalancedMediaTaskRunnerTest::ProcessAllTasks() {
                      base::Unretained(this)),
       base::Seconds(5));
   ScheduleTask();
+  base::RunLoop loop;
+  quit_closure_ = loop.QuitWhenIdleClosure();
+  loop.Run();
 }
 
 void BalancedMediaTaskRunnerTest::ScheduleTask() {
@@ -143,7 +148,7 @@ void BalancedMediaTaskRunnerTest::ScheduleTask() {
       has_task = true;
   }
   if (!has_task) {
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+    std::move(quit_closure_).Run();
     return;
   }
 
@@ -207,8 +212,7 @@ void BalancedMediaTaskRunnerTest::Task(
 
 void BalancedMediaTaskRunnerTest::OnTestTimeout() {
   ADD_FAILURE() << "Test timed out";
-  if (base::CurrentThread::Get())
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+  std::move(quit_closure_).Run();
 }
 
 TEST_F(BalancedMediaTaskRunnerTest, OneTaskRunner) {
@@ -217,8 +221,8 @@ TEST_F(BalancedMediaTaskRunnerTest, OneTaskRunner) {
   // Timestamps of tasks for the single task runner.
   int timestamps0_ms[] = {0, 10, 20, 30, 40, 30, 50, 60, 20, 30, 70};
   std::vector<std::vector<int> > timestamps_ms(1);
-  timestamps_ms[0] = std::vector<int>(
-      timestamps0_ms, timestamps0_ms + std::size(timestamps0_ms));
+  timestamps_ms[0] =
+      std::vector<int>(std::begin(timestamps0_ms), std::end(timestamps0_ms));
 
   // Scheduling pattern.
   std::vector<size_t> scheduling_pattern(1);
@@ -226,14 +230,12 @@ TEST_F(BalancedMediaTaskRunnerTest, OneTaskRunner) {
 
   // Expected results.
   int expected_timestamps[] = {0, 10, 20, 30, 40, 50, 60, 70};
-  std::vector<int> expected_timestamps_ms(
-      std::vector<int>(expected_timestamps,
-                       expected_timestamps + std::size(expected_timestamps)));
+  std::vector<int> expected_timestamps_ms(std::begin(expected_timestamps),
+                                          std::end(expected_timestamps));
 
   SetupTest(base::Milliseconds(30), timestamps_ms, scheduling_pattern,
             expected_timestamps_ms);
   ProcessAllTasks();
-  base::RunLoop().Run();
   EXPECT_TRUE(expected_task_timestamps_.empty());
 }
 
@@ -244,27 +246,25 @@ TEST_F(BalancedMediaTaskRunnerTest, TwoTaskRunnerUnbalanced) {
   int timestamps0_ms[] = {0, 10, 20, 30, 40, 30, 50, 60, 20, 30, 70};
   int timestamps1_ms[] = {5, 15, 25, 35, 45, 35, 55, 65, 25, 35, 75};
   std::vector<std::vector<int> > timestamps_ms(2);
-  timestamps_ms[0] = std::vector<int>(
-      timestamps0_ms, timestamps0_ms + std::size(timestamps0_ms));
-  timestamps_ms[1] = std::vector<int>(
-      timestamps1_ms, timestamps1_ms + std::size(timestamps1_ms));
+  timestamps_ms[0] =
+      std::vector<int>(std::begin(timestamps0_ms), std::end(timestamps0_ms));
+  timestamps_ms[1] =
+      std::vector<int>(std::begin(timestamps1_ms), std::end(timestamps1_ms));
 
   // Scheduling pattern.
   size_t pattern[] = {1, 0, 0, 0, 0};
   std::vector<size_t> scheduling_pattern =
-      std::vector<size_t>(pattern, pattern + std::size(pattern));
+      std::vector<size_t>(std::begin(pattern), std::end(pattern));
 
   // Expected results.
   int expected_timestamps[] = {
     5, 0, 10, 20, 30, 15, 40, 25, 50, 35, 60, 45, 70, 55, 65, 75 };
-  std::vector<int> expected_timestamps_ms(
-      std::vector<int>(expected_timestamps,
-                       expected_timestamps + std::size(expected_timestamps)));
+  std::vector<int> expected_timestamps_ms(std::begin(expected_timestamps),
+                                          std::end(expected_timestamps));
 
   SetupTest(base::Milliseconds(30), timestamps_ms, scheduling_pattern,
             expected_timestamps_ms);
   ProcessAllTasks();
-  base::RunLoop().Run();
   EXPECT_TRUE(expected_task_timestamps_.empty());
 }
 
@@ -288,7 +288,6 @@ TEST_F(BalancedMediaTaskRunnerTest, TwoStreamsOfDifferentLength) {
   SetupTest(base::Milliseconds(30), timestamps, scheduling_pattern,
             expected_timestamps);
   ProcessAllTasks();
-  base::RunLoop().Run();
   EXPECT_TRUE(expected_task_timestamps_.empty());
 }
 

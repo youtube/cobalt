@@ -8,10 +8,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece_forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/strings/cstring_view.h"
+#include "sql/database.h"
 
 // Collection of test-only convenience functions.
 
@@ -19,14 +21,14 @@ namespace base {
 class FilePath;
 }
 
-namespace sql {
-class Database;
-}
-
 namespace sql::test {
 
+// A convenience tag to use in tests as an argument to sql::Database
+// constructors.
+inline constexpr sql::Database::Tag kTestTag{"Test"};
+
 // Read a database's page size. Returns nullopt in case of error.
-absl::optional<int> ReadDatabasePageSize(const base::FilePath& db_path);
+std::optional<int> ReadDatabasePageSize(const base::FilePath& db_path);
 
 // SQLite stores the database size in the header, and if the actual
 // OS-derived size is smaller, the database is considered corrupt.
@@ -54,7 +56,7 @@ absl::optional<int> ReadDatabasePageSize(const base::FilePath& db_path);
 // However, any query that accesses the index will fail with SQLITE_CORRUPT.
 // DROPping the table or the index will fail.
 [[nodiscard]] bool CorruptIndexRootPage(const base::FilePath& db_path,
-                                        base::StringPiece index_name);
+                                        std::string_view index_name);
 
 // Return the number of tables in sqlite_schema.
 [[nodiscard]] size_t CountSQLTables(sql::Database* db);
@@ -95,11 +97,11 @@ bool CountTableRows(sql::Database* db, const char* table, size_t* count);
 //   EXPECT_EQ("<NULL>", ExecuteWithResult(
 //       db, "SELECT c || '<NULL>' FROM t WHERE id = 1"));
 // To test blobs use the HEX() function.
-std::string ExecuteWithResult(sql::Database* db, const char* sql);
+std::string ExecuteWithResult(sql::Database* db, const base::cstring_view sql);
 std::string ExecuteWithResults(sql::Database* db,
-                               const char* sql,
-                               const char* column_sep,
-                               const char* row_sep);
+                               const base::cstring_view sql,
+                               const base::cstring_view column_sep,
+                               const base::cstring_view row_sep);
 
 // Returns the database size, in pages. Crashes on SQLite errors.
 int GetPageCount(sql::Database* db);

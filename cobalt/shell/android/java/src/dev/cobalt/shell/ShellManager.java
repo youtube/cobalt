@@ -16,11 +16,13 @@ package dev.cobalt.shell;
 
 import android.content.Context;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.components.embedder_support.view.ContentViewRenderView;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * Copied from org.chromium.content_shell.ShellManager.
@@ -145,7 +147,7 @@ public class ShellManager {
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
             mContentViewRenderView.setCurrentWebContents(webContents);
-            webContents.onShow();
+            webContents.updateWebContentsVisibility(Visibility.VISIBLE);
         }
     }
 

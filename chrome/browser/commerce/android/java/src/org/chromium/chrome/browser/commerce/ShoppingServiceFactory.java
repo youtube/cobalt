@@ -6,15 +6,21 @@ package org.chromium.chrome.browser.commerce;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.commerce.core.ShoppingService;
 
 /** A means of acquiring a handle to the ShoppingService. */
 @JNINamespace("commerce")
+@NullMarked
 public final class ShoppingServiceFactory {
-    private static ShoppingService sShoppingServiceForTesting;
+    private static @Nullable ShoppingService sShoppingServiceForTesting;
 
     /** Make it impossible to build an instance of this class. */
     private ShoppingServiceFactory() {}
@@ -31,13 +37,14 @@ public final class ShoppingServiceFactory {
         return ShoppingServiceFactoryJni.get().getForProfile(profile);
     }
 
-    @VisibleForTesting
     public static void setShoppingServiceForTesting(ShoppingService shoppingService) {
         sShoppingServiceForTesting = shoppingService;
+        ResettersForTesting.register(() -> sShoppingServiceForTesting = null);
     }
 
     @NativeMethods
-    interface Natives {
-        ShoppingService getForProfile(Profile profile);
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public interface Natives {
+        ShoppingService getForProfile(@JniType("Profile*") Profile profile);
     }
 }

@@ -7,6 +7,8 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/password_manager/core/browser/password_manager_setting.h"
 
+namespace password_manager {
+
 // Service used to access the password manager settings.
 class PasswordManagerSettingsService : public KeyedService {
  public:
@@ -26,4 +28,6 @@ class PasswordManagerSettingsService : public KeyedService {
   ~PasswordManagerSettingsService() override = default;
 };
 
-#endif  // COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_PASSWORD_SETTINGS_SERVICE_H_
+}  // namespace password_manager
+
+#endif  // COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_PASSWORD_MANAGER_SETTINGS_SERVICE_H_

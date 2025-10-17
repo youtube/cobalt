@@ -4,21 +4,24 @@
 
 #include "extensions/browser/api/declarative_net_request/utils.h"
 
+#include <algorithm>
 #include <memory>
 #include <set>
+#include <string_view>
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/hash/hash.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "components/url_pattern_index/url_pattern_index.h"
+#include "components/version_info/channel.h"
 #include "components/web_cache/browser/web_cache_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/api/declarative_net_request/composite_matcher.h"
@@ -31,12 +34,13 @@
 #include "extensions/common/api/declarative_net_request/constants.h"
 #include "extensions/common/api/declarative_net_request/dnr_manifest_data.h"
 #include "extensions/common/error_utils.h"
+#include "extensions/common/extension_features.h"
+#include "extensions/common/features/feature_channel.h"
 #include "extensions/common/permissions/api_permission.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "third_party/flatbuffers/src/include/flatbuffers/flatbuffers.h"
 
-namespace extensions {
-namespace declarative_net_request {
+namespace extensions::declarative_net_request {
 namespace {
 
 namespace dnr_api = api::declarative_net_request;
@@ -47,7 +51,7 @@ namespace flat_rule = url_pattern_index::flat;
 // url_pattern_index.fbs. Whenever an extension with an indexed ruleset format
 // version different from the one currently used by Chrome is loaded, the
 // extension ruleset will be reindexed.
-constexpr int kIndexedRulesetFormatVersion = 28;
+constexpr int kIndexedRulesetFormatVersion = 34;
 
 // This static assert is meant to catch cases where
 // url_pattern_index::kUrlPatternIndexFormatVersion is incremented without
@@ -67,7 +71,10 @@ constexpr int kInvalidRuleLimit = -1;
 int g_static_guaranteed_minimum_for_testing = kInvalidRuleLimit;
 int g_global_static_rule_limit_for_testing = kInvalidRuleLimit;
 int g_regex_rule_limit_for_testing = kInvalidRuleLimit;
-int g_dynamic_and_session_rule_limit_for_testing = kInvalidRuleLimit;
+int g_dynamic_rule_limit_for_testing = kInvalidRuleLimit;
+int g_unsafe_dynamic_rule_limit_for_testing = kInvalidRuleLimit;
+int g_session_rule_limit_for_testing = kInvalidRuleLimit;
+int g_unsafe_session_rule_limit_for_testing = kInvalidRuleLimit;
 int g_disabled_static_rule_limit_for_testing = kInvalidRuleLimit;
 
 int GetIndexedRulesetFormatVersion() {
@@ -87,9 +94,10 @@ std::string GetVersionHeader() {
 // Helper to ensure pointers to string literals can be used with
 // base::JoinString.
 std::string JoinString(base::span<const char* const> parts) {
-  std::vector<base::StringPiece> parts_piece;
-  for (const char* part : parts)
+  std::vector<std::string_view> parts_piece;
+  for (const char* part : parts) {
     parts_piece.push_back(part);
+  }
   return base::JoinString(parts_piece, ", ");
 }
 
@@ -123,10 +131,11 @@ bool StripVersionHeaderAndParseVersion(std::string* ruleset_data) {
 }
 
 int GetChecksum(base::span<const uint8_t> data) {
-  if (g_override_checksum_for_test != kInvalidOverrideChecksumForTest)
+  if (g_override_checksum_for_test != kInvalidOverrideChecksumForTest) {
     return g_override_checksum_for_test;
+  }
 
-  uint32_t hash = base::PersistentHash(data.data(), data.size());
+  uint32_t hash = base::PersistentHash(data);
 
   // Strip off the sign bit since this needs to be persisted in preferences
   // which don't support unsigned ints.
@@ -140,15 +149,16 @@ void OverrideGetChecksumForTest(int checksum) {
 std::string GetIndexedRulesetData(base::span<const uint8_t> data) {
   return base::StrCat(
       {GetVersionHeader(),
-       base::StringPiece(reinterpret_cast<const char*>(data.data()),
-                         data.size())});
+       std::string_view(reinterpret_cast<const char*>(data.data()),
+                        data.size())});
 }
 
 bool PersistIndexedRuleset(const base::FilePath& path,
                            base::span<const uint8_t> data) {
   // Create the directory corresponding to |path| if it does not exist.
-  if (!base::CreateDirectory(path.DirName()))
+  if (!base::CreateDirectory(path.DirName())) {
     return false;
+  }
 
   // Unlike for dynamic rules, we don't use `ImportantFileWriter` here since it
   // can be quite slow (and this will be called for the extension's indexed
@@ -157,23 +167,18 @@ bool PersistIndexedRuleset(const base::FilePath& path,
   // and keep them in sync.
   base::File ruleset_file(
       path, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-  if (!ruleset_file.IsValid())
+  if (!ruleset_file.IsValid()) {
     return false;
+  }
 
   // Write the version header.
-  std::string version_header = GetVersionHeader();
-  int version_header_size = static_cast<int>(version_header.size());
-  if (ruleset_file.WriteAtCurrentPos(
-          version_header.data(), version_header_size) != version_header_size) {
+  if (!ruleset_file.WriteAtCurrentPosAndCheck(
+          base::as_byte_span(GetVersionHeader()))) {
     return false;
   }
 
   // Write the flatbuffer ruleset.
-  if (!base::IsValueInRangeForNumericType<int>(data.size()))
-    return false;
-  int data_size = static_cast<int>(data.size());
-  if (ruleset_file.WriteAtCurrentPos(reinterpret_cast<const char*>(data.data()),
-                                     data_size) != data_size) {
+  if (!ruleset_file.WriteAtCurrentPosAndCheck(data)) {
     return false;
   }
 
@@ -225,7 +230,6 @@ dnr_api::ResourceType GetDNRResourceType(WebRequestResourceType resource_type) {
       return dnr_api::ResourceType::kWebbundle;
   }
   NOTREACHED();
-  return dnr_api::ResourceType::kOther;
 }
 
 // Maps dnr_api::ResourceType to WebRequestResourceType.
@@ -264,10 +268,8 @@ WebRequestResourceType GetWebRequestResourceType(
       return WebRequestResourceType::WEBBUNDLE;
     case dnr_api::ResourceType::kNone:
       NOTREACHED();
-      return WebRequestResourceType::OTHER;
   }
   NOTREACHED();
-  return WebRequestResourceType::OTHER;
 }
 
 dnr_api::RequestDetails CreateRequestDetails(const WebRequestInfo& request) {
@@ -312,9 +314,8 @@ re2::RE2::Options CreateRE2Options(bool is_case_sensitive,
 
   options.set_log_errors(false);
 
-  // Limit the maximum memory per regex to 2 Kb. This means given 1024 rules,
-  // the total usage would be 2 Mb.
-  options.set_max_mem(2 << 10);
+  // Limit the maximum memory per regex.
+  options.set_max_mem(kRegexMaxMemKb << 10);
 
   return options;
 }
@@ -337,15 +338,16 @@ flat::ActionType ConvertToFlatActionType(dnr_api::RuleActionType action_type) {
       break;
   }
   NOTREACHED();
-  return flat::ActionType_block;
 }
 
 std::string GetPublicRulesetID(const Extension& extension,
                                RulesetID ruleset_id) {
-  if (ruleset_id == kDynamicRulesetID)
+  if (ruleset_id == kDynamicRulesetID) {
     return dnr_api::DYNAMIC_RULESET_ID;
-  if (ruleset_id == kSessionRulesetID)
+  }
+  if (ruleset_id == kSessionRulesetID) {
     return dnr_api::SESSION_RULESET_ID;
+  }
 
   DCHECK_GE(ruleset_id, kMinValidStaticRulesetID);
   return DNRManifestData::GetRuleset(extension, ruleset_id).manifest_id;
@@ -378,10 +380,38 @@ int GetMaximumRulesPerRuleset() {
   return GetStaticGuaranteedMinimumRuleCount() + GetGlobalStaticRuleLimit();
 }
 
-int GetDynamicAndSessionRuleLimit() {
-  return g_dynamic_and_session_rule_limit_for_testing == kInvalidRuleLimit
-             ? dnr_api::MAX_NUMBER_OF_DYNAMIC_AND_SESSION_RULES
-             : g_dynamic_and_session_rule_limit_for_testing;
+int GetDynamicRuleLimit() {
+  if (!base::FeatureList::IsEnabled(
+          extensions_features::kDeclarativeNetRequestSafeRuleLimits)) {
+    return GetUnsafeDynamicRuleLimit();
+  }
+
+  return g_dynamic_rule_limit_for_testing == kInvalidRuleLimit
+             ? dnr_api::MAX_NUMBER_OF_DYNAMIC_RULES
+             : g_dynamic_rule_limit_for_testing;
+}
+
+int GetUnsafeDynamicRuleLimit() {
+  return g_unsafe_dynamic_rule_limit_for_testing == kInvalidRuleLimit
+             ? dnr_api::MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES
+             : g_unsafe_dynamic_rule_limit_for_testing;
+}
+
+int GetSessionRuleLimit() {
+  if (!base::FeatureList::IsEnabled(
+          extensions_features::kDeclarativeNetRequestSafeRuleLimits)) {
+    return GetUnsafeSessionRuleLimit();
+  }
+
+  return g_session_rule_limit_for_testing == kInvalidRuleLimit
+             ? dnr_api::MAX_NUMBER_OF_SESSION_RULES
+             : g_session_rule_limit_for_testing;
+}
+
+int GetUnsafeSessionRuleLimit() {
+  return g_unsafe_session_rule_limit_for_testing == kInvalidRuleLimit
+             ? dnr_api::MAX_NUMBER_OF_UNSAFE_SESSION_RULES
+             : g_unsafe_session_rule_limit_for_testing;
 }
 
 int GetRegexRuleLimit() {
@@ -413,9 +443,27 @@ ScopedRuleLimitOverride CreateScopedRegexRuleLimitOverrideForTesting(
 }
 
 ScopedRuleLimitOverride
-CreateScopedDynamicAndSessionRuleLimitOverrideForTesting(int limit) {
-  return base::AutoReset<int>(&g_dynamic_and_session_rule_limit_for_testing,
-                              limit);
+CreateScopedDynamicRuleLimitOverrideForTesting(  // IN-TEST
+    int limit) {
+  return base::AutoReset<int>(&g_dynamic_rule_limit_for_testing, limit);
+}
+
+ScopedRuleLimitOverride
+CreateScopedUnsafeDynamicRuleLimitOverrideForTesting(  // IN-TEST
+    int limit) {
+  return base::AutoReset<int>(&g_unsafe_dynamic_rule_limit_for_testing, limit);
+}
+
+ScopedRuleLimitOverride
+CreateScopedSessionRuleLimitOverrideForTesting(  // IN-TEST
+    int limit) {
+  return base::AutoReset<int>(&g_session_rule_limit_for_testing, limit);
+}
+
+ScopedRuleLimitOverride
+CreateScopedUnsafeSessionRuleLimitOverrideForTesting(  // IN-TEST
+    int limit) {
+  return base::AutoReset<int>(&g_unsafe_session_rule_limit_for_testing, limit);
 }
 
 ScopedRuleLimitOverride CreateScopedDisabledStaticRuleLimitOverrideForTesting(
@@ -424,14 +472,16 @@ ScopedRuleLimitOverride CreateScopedDisabledStaticRuleLimitOverrideForTesting(
 }
 
 size_t GetEnabledStaticRuleCount(const CompositeMatcher* composite_matcher) {
-  if (!composite_matcher)
+  if (!composite_matcher) {
     return 0;
+  }
 
   size_t enabled_static_rule_count = 0;
   for (const std::unique_ptr<RulesetMatcher>& matcher :
        composite_matcher->matchers()) {
-    if (matcher->id() == kDynamicRulesetID)
+    if (matcher->id() == kDynamicRulesetID) {
       continue;
+    }
 
     enabled_static_rule_count += matcher->GetRulesCount();
   }
@@ -439,8 +489,16 @@ size_t GetEnabledStaticRuleCount(const CompositeMatcher* composite_matcher) {
   return enabled_static_rule_count;
 }
 
+bool HasAnyDNRPermission(const Extension& extension) {
+  const PermissionsData* permissions = extension.permissions_data();
+  return permissions->HasAPIPermission(
+             mojom::APIPermissionID::kDeclarativeNetRequest) ||
+         permissions->HasAPIPermission(
+             mojom::APIPermissionID::kDeclarativeNetRequestWithHostAccess);
+}
+
 bool HasDNRFeedbackPermission(const Extension* extension,
-                              const absl::optional<int>& tab_id) {
+                              const std::optional<int>& tab_id) {
   const PermissionsData* permissions_data = extension->permissions_data();
   return tab_id.has_value()
              ? permissions_data->HasAPIPermissionForTab(
@@ -450,7 +508,7 @@ bool HasDNRFeedbackPermission(const Extension* extension,
                    mojom::APIPermissionID::kDeclarativeNetRequestFeedback);
 }
 
-// TODO(crbug.com/1370166): Add a parameter that allows more specific strings
+// TODO(crbug.com/40869593): Add a parameter that allows more specific strings
 // for error messages that can pinpoint the error within a single rule.
 std::string GetParseError(ParseResult error_reason, int rule_id) {
   switch (error_reason) {
@@ -575,21 +633,23 @@ std::string GetParseError(ParseResult error_reason, int rule_id) {
     case ParseResult::ERROR_INVALID_REGEX_FILTER:
       return ErrorUtils::FormatErrorMessage(
           kErrorInvalidKey, base::NumberToString(rule_id), kRegexFilterKey);
-    case ParseResult::ERROR_NO_HEADERS_SPECIFIED:
+    case ParseResult::ERROR_NO_HEADERS_TO_MODIFY_SPECIFIED:
       return ErrorUtils::FormatErrorMessage(
           kErrorNoHeaderListsSpecified, base::NumberToString(rule_id),
-          kRequestHeadersPath, kResponseHeadersPath);
-    case ParseResult::ERROR_EMPTY_REQUEST_HEADERS_LIST:
-      return ErrorUtils::FormatErrorMessage(
-          kErrorEmptyList, base::NumberToString(rule_id), kRequestHeadersPath);
-    case ParseResult::ERROR_EMPTY_RESPONSE_HEADERS_LIST:
-      return ErrorUtils::FormatErrorMessage(
-          kErrorEmptyList, base::NumberToString(rule_id), kResponseHeadersPath);
-    case ParseResult::ERROR_INVALID_HEADER_NAME:
-      return ErrorUtils::FormatErrorMessage(kErrorInvalidHeaderName,
+          kModifyRequestHeadersPath, kModifyResponseHeadersPath);
+    case ParseResult::ERROR_EMPTY_MODIFY_REQUEST_HEADERS_LIST:
+      return ErrorUtils::FormatErrorMessage(kErrorEmptyList,
+                                            base::NumberToString(rule_id),
+                                            kModifyRequestHeadersPath);
+    case ParseResult::ERROR_EMPTY_MODIFY_RESPONSE_HEADERS_LIST:
+      return ErrorUtils::FormatErrorMessage(kErrorEmptyList,
+                                            base::NumberToString(rule_id),
+                                            kModifyResponseHeadersPath);
+    case ParseResult::ERROR_INVALID_HEADER_TO_MODIFY_NAME:
+      return ErrorUtils::FormatErrorMessage(kErrorInvalidModifyHeaderName,
                                             base::NumberToString(rule_id));
-    case ParseResult::ERROR_INVALID_HEADER_VALUE:
-      return ErrorUtils::FormatErrorMessage(kErrorInvalidHeaderValue,
+    case ParseResult::ERROR_INVALID_HEADER_TO_MODIFY_VALUE:
+      return ErrorUtils::FormatErrorMessage(kErrorInvalidModifyHeaderValue,
                                             base::NumberToString(rule_id));
     case ParseResult::ERROR_HEADER_VALUE_NOT_SPECIFIED:
       return ErrorUtils::FormatErrorMessage(kErrorNoHeaderValueSpecified,
@@ -629,9 +689,35 @@ std::string GetParseError(ParseResult error_reason, int rule_id) {
     case ParseResult::ERROR_TAB_ID_DUPLICATED:
       return ErrorUtils::FormatErrorMessage(kErrorTabIdDuplicated,
                                             base::NumberToString(rule_id));
+    case ParseResult::ERROR_EMPTY_RESPONSE_HEADER_MATCHING_LIST:
+      return ErrorUtils::FormatErrorMessage(kErrorEmptyList,
+                                            base::NumberToString(rule_id),
+                                            kMatchResponseHeadersPath);
+    case ParseResult::ERROR_EMPTY_EXCLUDED_RESPONSE_HEADER_MATCHING_LIST:
+      return ErrorUtils::FormatErrorMessage(kErrorEmptyList,
+                                            base::NumberToString(rule_id),
+                                            kMatchExcludedResponseHeadersPath);
+    case ParseResult::ERROR_INVALID_MATCHING_RESPONSE_HEADER_NAME:
+      return ErrorUtils::FormatErrorMessage(kErrorInvalidMatchingHeaderName,
+                                            base::NumberToString(rule_id),
+                                            kMatchResponseHeadersPath);
+    case ParseResult::ERROR_INVALID_MATCHING_EXCLUDED_RESPONSE_HEADER_NAME:
+      return ErrorUtils::FormatErrorMessage(kErrorInvalidMatchingHeaderName,
+                                            base::NumberToString(rule_id),
+                                            kMatchExcludedResponseHeadersPath);
+    case ParseResult::ERROR_INVALID_MATCHING_RESPONSE_HEADER_VALUE:
+      return ErrorUtils::FormatErrorMessage(kErrorInvalidMatchingHeaderValue,
+                                            base::NumberToString(rule_id),
+                                            kMatchResponseHeadersPath);
+    case ParseResult::ERROR_MATCHING_RESPONSE_HEADER_DUPLICATED:
+      return ErrorUtils::FormatErrorMessage(kErrorResponseHeaderDuplicated,
+                                            base::NumberToString(rule_id));
+    case ParseResult::ERROR_RESPONSE_HEADER_RULE_CANNOT_MODIFY_REQUEST_HEADERS:
+      return ErrorUtils::FormatErrorMessage(
+          kErrorResponseHeaderRuleCannotModifyRequestHeaders,
+          base::NumberToString(rule_id));
   }
   NOTREACHED();
-  return std::string();
 }
 
 flat_rule::ElementType GetElementType(WebRequestResourceType web_request_type) {
@@ -668,7 +754,6 @@ flat_rule::ElementType GetElementType(WebRequestResourceType web_request_type) {
       return flat_rule::ElementType_WEBTRANSPORT;
   }
   NOTREACHED();
-  return flat_rule::ElementType_OTHER;
 }
 
 flat_rule::ElementType GetElementType(dnr_api::ResourceType resource_type) {
@@ -707,7 +792,6 @@ flat_rule::ElementType GetElementType(dnr_api::ResourceType resource_type) {
       return flat_rule::ElementType_OTHER;
   }
   NOTREACHED();
-  return flat_rule::ElementType_NONE;
 }
 
 // Maps an HTTP request method string to flat_rule::RequestMethod.
@@ -716,12 +800,13 @@ flat_rule::ElementType GetElementType(dnr_api::ResourceType resource_type) {
 // request method.
 flat_rule::RequestMethod GetRequestMethod(bool http_or_https,
                                           const std::string& method) {
-  if (!http_or_https)
+  if (!http_or_https) {
     return flat_rule::RequestMethod_NON_HTTP;
+  }
 
   using net::HttpRequestHeaders;
   static const base::NoDestructor<
-      base::flat_map<base::StringPiece, flat_rule::RequestMethod>>
+      base::flat_map<std::string_view, flat_rule::RequestMethod>>
       kRequestMethods(
           {{HttpRequestHeaders::kDeleteMethod, flat_rule::RequestMethod_DELETE},
            {HttpRequestHeaders::kGetMethod, flat_rule::RequestMethod_GET},
@@ -734,8 +819,8 @@ flat_rule::RequestMethod GetRequestMethod(bool http_or_https,
            {HttpRequestHeaders::kConnectMethod,
             flat_rule::RequestMethod_CONNECT}});
 
-  DCHECK(base::ranges::all_of(*kRequestMethods, [](const auto& key_value) {
-    return base::ranges::none_of(key_value.first, base::IsAsciiLower<char>);
+  DCHECK(std::ranges::all_of(*kRequestMethods, [](const auto& key_value) {
+    return std::ranges::none_of(key_value.first, base::IsAsciiLower<char>);
   }));
 
   std::string normalized_method = base::ToUpperASCII(method);
@@ -751,7 +836,6 @@ flat_rule::RequestMethod GetRequestMethod(
   switch (request_method) {
     case dnr_api::RequestMethod::kNone:
       NOTREACHED();
-      return flat_rule::RequestMethod_NONE;
     case dnr_api::RequestMethod::kConnect:
       return flat_rule::RequestMethod_CONNECT;
     case dnr_api::RequestMethod::kDelete:
@@ -772,17 +856,49 @@ flat_rule::RequestMethod GetRequestMethod(
       return flat_rule::RequestMethod_PUT;
   }
   NOTREACHED();
-  return flat_rule::RequestMethod_NONE;
 }
 
 flat_rule::RequestMethod GetRequestMethod(
     bool http_or_https,
     dnr_api::RequestMethod request_method) {
-  if (!http_or_https)
+  if (!http_or_https) {
     return flat_rule::RequestMethod_NON_HTTP;
+  }
 
   return GetRequestMethod(request_method);
 }
 
-}  // namespace declarative_net_request
-}  // namespace extensions
+bool IsRuleSafe(const api::declarative_net_request::Rule& rule) {
+  // Each `dnr_api::RuleActionType` maps 1:1 to a corresponding
+  // `flat::ActionType` so both versions of IsRuleSafe must be kept in sync.
+  dnr_api::RuleActionType action_type = rule.action.type;
+  return action_type == dnr_api::RuleActionType::kBlock ||
+         action_type == dnr_api::RuleActionType::kAllow ||
+         action_type == dnr_api::RuleActionType::kAllowAllRequests ||
+         action_type == dnr_api::RuleActionType::kUpgradeScheme;
+}
+
+bool IsRuleSafe(const flat::UrlRuleMetadata& url_rule_metadata) {
+  // Each `flat::RuleActionType` maps 1:1 to a corresponding
+  // `dnr_api::ActionType` so both versions of IsRuleSafe must be kept in sync.
+  flat::ActionType action_type = url_rule_metadata.action();
+  return action_type == flat::ActionType_block ||
+         action_type == flat::ActionType_allow ||
+         action_type == flat::ActionType_allow_all_requests ||
+         action_type == flat::ActionType_upgrade_scheme;
+}
+
+bool IsResponseHeaderMatchingEnabled() {
+  // Response header matching is enabled if the feature flag is enabled.
+  // Note: This function still remains in case additional checks may need to be
+  // added back such as channel restrictions.
+  return base::FeatureList::IsEnabled(
+      extensions_features::kDeclarativeNetRequestResponseHeaderMatching);
+}
+
+bool IsHeaderSubstitutionEnabled() {
+  return base::FeatureList::IsEnabled(
+      extensions_features::kDeclarativeNetRequestHeaderSubstitution);
+}
+
+}  // namespace extensions::declarative_net_request

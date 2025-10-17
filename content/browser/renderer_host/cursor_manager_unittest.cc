@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/renderer_host/cursor_manager.h"
-#include <memory>
+#include "components/input/cursor_manager.h"
 
-#include "base/memory/raw_ptr.h"
+#include <memory>
+#include <utility>
+
 #include "build/build_config.h"
 #include "content/browser/renderer_host/mock_render_widget_host.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
@@ -16,8 +17,10 @@
 #include "content/test/mock_render_widget_host_delegate.h"
 #include "content/test/test_render_view_host.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
+#include "ui/gfx/geometry/point.h"
 
 // CursorManager is only instantiated on Aura and Mac.
 #if defined(USE_AURA) || BUILDFLAG(IS_MAC)
@@ -29,27 +32,40 @@ namespace {
 const ui::Cursor kCursorHand(ui::mojom::CursorType::kHand);
 const ui::Cursor kCursorCross(ui::mojom::CursorType::kCross);
 const ui::Cursor kCursorPointer(ui::mojom::CursorType::kPointer);
-const ui::Cursor kCursorCustom(ui::mojom::CursorType::kCustom);
+
+ui::Cursor CreateCustomCursor(int width, int height) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(width, height);
+  bitmap.eraseColor(SK_ColorRED);
+
+  return ui::Cursor::NewCustom(std::move(bitmap), /*hotspot=*/gfx::Point(0, 0),
+                               /*image_scale_factor=*/1.0f);
+}
+
+const ui::Cursor kCursorCustom = CreateCustomCursor(0, 0);
 
 class MockRenderWidgetHostViewForCursors : public TestRenderWidgetHostView {
  public:
   MockRenderWidgetHostViewForCursors(RenderWidgetHost* host, bool top_view)
       : TestRenderWidgetHostView(host) {
-    if (top_view)
-      cursor_manager_ = std::make_unique<CursorManager>(this);
+    if (top_view) {
+      cursor_manager_ = std::make_unique<input::CursorManager>(this);
+    }
   }
 
   void DisplayCursor(const ui::Cursor& cursor) override {
     current_cursor_ = cursor;
   }
 
-  CursorManager* GetCursorManager() override { return cursor_manager_.get(); }
+  input::CursorManager* GetCursorManager() override {
+    return cursor_manager_.get();
+  }
 
   const ui::Cursor& cursor() { return current_cursor_; }
 
  private:
   ui::Cursor current_cursor_;
-  std::unique_ptr<CursorManager> cursor_manager_;
+  std::unique_ptr<input::CursorManager> cursor_manager_;
 };
 
 class CursorManagerTest : public testing::Test {
@@ -67,8 +83,8 @@ class CursorManagerTest : public testing::Test {
         base::WrapRefCounted(SiteInstanceGroup::CreateForTesting(
             browser_context_.get(), process_host_.get()));
     widget_host_ = MakeNewWidgetHost();
-    top_view_ =
-        new MockRenderWidgetHostViewForCursors(widget_host_.get(), true);
+    top_view_ = std::make_unique<MockRenderWidgetHostViewForCursors>(
+        widget_host_.get(), true);
   }
 
   std::unique_ptr<RenderWidgetHostImpl> MakeNewWidgetHost() {
@@ -79,9 +95,7 @@ class CursorManagerTest : public testing::Test {
   }
 
   void TearDown() override {
-    if (top_view_)
-      delete top_view_;
-
+    top_view_.reset();
     widget_host_ = nullptr;
     process_host_->Cleanup();
     site_instance_group_.reset();
@@ -95,10 +109,7 @@ class CursorManagerTest : public testing::Test {
   std::unique_ptr<MockRenderProcessHost> process_host_;
   scoped_refptr<SiteInstanceGroup> site_instance_group_;
   std::unique_ptr<RenderWidgetHostImpl> widget_host_;
-
-  // Tests should set this to nullptr if they've already triggered its
-  // destruction.
-  raw_ptr<MockRenderWidgetHostViewForCursors> top_view_;
+  std::unique_ptr<MockRenderWidgetHostViewForCursors> top_view_;
 
   MockRenderWidgetHostDelegate delegate_;
 };
@@ -108,13 +119,13 @@ class CursorManagerTest : public testing::Test {
 // Verify basic CursorManager functionality when no OOPIFs are present.
 TEST_F(CursorManagerTest, CursorOnSingleView) {
   // Simulate mouse over the top-level frame without an UpdateCursor message.
-  top_view_->GetCursorManager()->UpdateViewUnderCursor(top_view_);
+  top_view_->GetCursorManager()->UpdateViewUnderCursor(top_view_.get());
 
   // The view should be using the default cursor.
   EXPECT_EQ(top_view_->cursor(), ui::Cursor());
 
   // Update the view with a non-default cursor.
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
 
   // Verify the RenderWidgetHostView now uses the correct cursor.
   EXPECT_EQ(top_view_->cursor(), kCursorHand);
@@ -153,7 +164,7 @@ TEST_F(CursorManagerTest, CursorOverMultipleChildViews) {
       new MockRenderWidgetHostViewForCursors(widget_host2.get(), false));
 
   // Initialize each View to a different cursor.
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
   top_view_->GetCursorManager()->UpdateCursor(child_view1.get(), kCursorCross);
   top_view_->GetCursorManager()->UpdateCursor(child_view2.get(),
                                               kCursorPointer);
@@ -172,7 +183,7 @@ TEST_F(CursorManagerTest, CursorOverMultipleChildViews) {
   EXPECT_EQ(top_view_->cursor(), kCursorPointer);
   top_view_->GetCursorManager()->UpdateCursor(child_view2.get(), kCursorCross);
   EXPECT_EQ(top_view_->cursor(), kCursorCross);
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
   EXPECT_EQ(top_view_->cursor(), kCursorCross);
 
   // Similarly, destroying child_view1 should have no effect on the cursor,
@@ -185,12 +196,13 @@ TEST_F(CursorManagerTest, CursorOverMultipleChildViews) {
 
 TEST_F(CursorManagerTest,
        CustomCursorDisallowedScope_CustomCursorsAreNotAllowed) {
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorCustom);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorCustom);
   EXPECT_EQ(top_view_->cursor(), kCursorCustom);
 
   {
     auto disallow_scope =
-        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/0);
     EXPECT_EQ(top_view_->cursor(), kCursorPointer);
   }
 
@@ -198,13 +210,78 @@ TEST_F(CursorManagerTest,
 }
 
 TEST_F(CursorManagerTest,
+       CustomCursorDisallowedScope_CustomCursorsAreNotAllowedAboveSizeLimit) {
+  const ui::Cursor kCursorCustomLarge = CreateCustomCursor(20, 50);
+
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(),
+                                              kCursorCustomLarge);
+  EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+
+  {
+    auto disallow_scope =
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/40);
+    EXPECT_EQ(top_view_->cursor(), kCursorPointer);
+  }
+
+  EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+}
+
+TEST_F(CursorManagerTest,
+       CustomCursorDisallowedScope_CustomCursorsAreAllowedBelowSizeLimit) {
+  const ui::Cursor kCursorCustomLarge = CreateCustomCursor(20, 35);
+
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(),
+                                              kCursorCustomLarge);
+  EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+
+  {
+    auto disallow_scope =
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/40);
+    EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+  }
+
+  EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+}
+
+TEST_F(CursorManagerTest,
+       CustomCursorDisallowedScope_CustomCursorSubjectToMultipleSizeLimits) {
+  const ui::Cursor kCursorCustomLarge = CreateCustomCursor(20, 35);
+
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(),
+                                              kCursorCustomLarge);
+  EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+
+  {
+    auto disallow_scope1 =
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/40);
+    EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+
+    auto disallow_scope2 =
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/30);
+    EXPECT_EQ(top_view_->cursor(), kCursorPointer);
+
+    // Running the first closure leaves the restriction from the second closure
+    // in place.
+    disallow_scope1.RunAndReset();
+    EXPECT_EQ(top_view_->cursor(), kCursorPointer);
+  }
+
+  EXPECT_EQ(top_view_->cursor(), kCursorCustomLarge);
+}
+
+TEST_F(CursorManagerTest,
        CustomCursorDisallowedScope_OtherCursorsStillAllowed) {
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
   EXPECT_EQ(top_view_->cursor(), kCursorHand);
 
   {
     auto disallow_scope =
-        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/0);
     EXPECT_EQ(top_view_->cursor(), kCursorHand);
   }
 
@@ -213,15 +290,16 @@ TEST_F(CursorManagerTest,
 
 TEST_F(CursorManagerTest,
        CustomCursorDisallowedScope_CustomCursorSetDuringScope) {
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
   EXPECT_EQ(top_view_->cursor(), kCursorHand);
 
   {
     auto disallow_scope =
-        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/0);
     EXPECT_EQ(top_view_->cursor(), kCursorHand);
 
-    top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorCustom);
+    top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorCustom);
     EXPECT_EQ(top_view_->cursor(), kCursorPointer);
   }
 
@@ -230,15 +308,16 @@ TEST_F(CursorManagerTest,
 
 TEST_F(CursorManagerTest,
        CustomCursorDisallowedScope_CustomCursorRemovedDuringScope) {
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorCustom);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorCustom);
   EXPECT_EQ(top_view_->cursor(), kCursorCustom);
 
   {
     auto disallow_scope =
-        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/0);
     EXPECT_EQ(top_view_->cursor(), kCursorPointer);
 
-    top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+    top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
     EXPECT_EQ(top_view_->cursor(), kCursorHand);
   }
 
@@ -246,20 +325,23 @@ TEST_F(CursorManagerTest,
 }
 
 TEST_F(CursorManagerTest, CustomCursorDisallowedScope_MultipleScopes) {
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorCustom);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorCustom);
   EXPECT_EQ(top_view_->cursor(), kCursorCustom);
 
   auto disallow_scope1 =
-      top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+      top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+          /*max_dimension_dips=*/0);
   auto disallow_scope2 =
-      top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+      top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+          /*max_dimension_dips=*/0);
   EXPECT_EQ(top_view_->cursor(), kCursorPointer);
 
   disallow_scope1.RunAndReset();
   EXPECT_EQ(top_view_->cursor(), kCursorPointer);
 
   auto disallow_scope3 =
-      top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+      top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+          /*max_dimension_dips=*/0);
   disallow_scope2.RunAndReset();
   EXPECT_EQ(top_view_->cursor(), kCursorPointer);
 
@@ -272,13 +354,14 @@ TEST_F(CursorManagerTest, CustomCursorDisallowedScope_CustomCursorViewFocused) {
   std::unique_ptr<MockRenderWidgetHostViewForCursors> child_view(
       new MockRenderWidgetHostViewForCursors(widget_host.get(), false));
 
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
   top_view_->GetCursorManager()->UpdateCursor(child_view.get(), kCursorCustom);
   EXPECT_EQ(top_view_->cursor(), kCursorHand);
 
   {
     auto disallow_scope =
-        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/0);
     EXPECT_EQ(top_view_->cursor(), kCursorHand);
 
     top_view_->GetCursorManager()->UpdateViewUnderCursor(child_view.get());
@@ -286,6 +369,7 @@ TEST_F(CursorManagerTest, CustomCursorDisallowedScope_CustomCursorViewFocused) {
   }
 
   EXPECT_EQ(top_view_->cursor(), kCursorCustom);
+  top_view_->GetCursorManager()->ViewBeingDestroyed(child_view.get());
 }
 
 TEST_F(CursorManagerTest,
@@ -294,17 +378,18 @@ TEST_F(CursorManagerTest,
   std::unique_ptr<MockRenderWidgetHostViewForCursors> child_view(
       new MockRenderWidgetHostViewForCursors(widget_host.get(), false));
 
-  top_view_->GetCursorManager()->UpdateCursor(top_view_, kCursorHand);
+  top_view_->GetCursorManager()->UpdateCursor(top_view_.get(), kCursorHand);
   top_view_->GetCursorManager()->UpdateCursor(child_view.get(), kCursorCustom);
   top_view_->GetCursorManager()->UpdateViewUnderCursor(child_view.get());
   EXPECT_EQ(top_view_->cursor(), kCursorCustom);
 
   {
     auto disallow_scope =
-        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope();
+        top_view_->GetCursorManager()->CreateDisallowCustomCursorScope(
+            /*max_dimension_dips=*/0);
     EXPECT_EQ(top_view_->cursor(), kCursorPointer);
 
-    top_view_->GetCursorManager()->UpdateViewUnderCursor(top_view_);
+    top_view_->GetCursorManager()->UpdateViewUnderCursor(top_view_.get());
     EXPECT_EQ(top_view_->cursor(), kCursorHand);
   }
 

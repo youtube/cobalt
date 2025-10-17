@@ -37,7 +37,8 @@ class ASH_EXPORT DisplayChangeDialog : public views::DialogDelegateView {
   DisplayChangeDialog& operator=(const DisplayChangeDialog&) = delete;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   base::WeakPtr<DisplayChangeDialog> GetWeakPtr();
 
@@ -62,7 +63,7 @@ class ASH_EXPORT DisplayChangeDialog : public views::DialogDelegateView {
 
   const std::u16string timeout_message_with_placeholder_;
 
-  raw_ptr<views::Label, ExperimentalAsh> label_ = nullptr;  // Not owned.
+  raw_ptr<views::Label> label_ = nullptr;  // Not owned.
   base::OnceClosure on_accept_callback_;
   CancelCallback on_cancel_callback_;
 

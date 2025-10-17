@@ -21,8 +21,7 @@ namespace blink {
 class RenderBlockingResourceManagerTest : public SimTest {
  public:
   static Vector<char> ReadAhemWoff2() {
-    return test::ReadFromFile(test::CoreTestDataPath("Ahem.woff2"))
-        ->CopyAs<Vector<char>>();
+    return *test::ReadFromFile(test::CoreTestDataPath("Ahem.woff2"));
   }
 
  protected:
@@ -44,10 +43,12 @@ class RenderBlockingResourceManagerTest : public SimTest {
     return GetRenderBlockingResourceManager().FontPreloadTimerIsActiveForTest();
   }
 
-  Element* GetTarget() { return GetDocument().getElementById("target"); }
+  Element* GetTarget() {
+    return GetDocument().getElementById(AtomicString("target"));
+  }
 
   const Font& GetTargetFont() {
-    return GetTarget()->GetLayoutObject()->Style()->GetFont();
+    return *GetTarget()->GetLayoutObject()->Style()->GetFont();
   }
 };
 
@@ -369,7 +370,7 @@ TEST_F(RenderBlockingResourceManagerTest, OptionalFontRemoveAndReadd) {
 
   font_resource.Complete(ReadAhemWoff2());
 
-  Element* style = GetDocument().QuerySelector("style");
+  Element* style = GetDocument().QuerySelector(AtomicString("style"));
   style->remove();
   GetDocument().head()->appendChild(style);
 
@@ -576,7 +577,7 @@ TEST_F(RenderBlockingResourceManagerTest, ScriptInsertedBodyUnblocksRendering) {
     <link rel="stylesheet" href="sheet.css">
   )HTML");
 
-  Element* body = GetDocument().CreateElementForBinding("body");
+  Element* body = GetDocument().CreateElementForBinding(AtomicString("body"));
   GetDocument().setBody(To<HTMLElement>(body), ASSERT_NO_EXCEPTION);
 
   // Rendering should be blocked by the pending stylesheet.
@@ -621,7 +622,7 @@ TEST_F(RenderBlockingResourceManagerTest, ParserBlockingScriptBeforeFont) {
   EXPECT_TRUE(Compositor().DeferMainFrameUpdate());
 
   // Parser is blocked by the synchronous script, so <link> isn't inserted yet.
-  EXPECT_FALSE(GetDocument().QuerySelector("link"));
+  EXPECT_FALSE(GetDocument().QuerySelector(AtomicString("link")));
 
   // Preload scanner should have started font preloading and also the timer.
   // This should happen before the parser sets up the preload link element.

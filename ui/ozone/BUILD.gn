@@ -65,11 +65,6 @@ if (ozone_platform_x11) {
   ozone_platform_ui_test_support_deps += [ "platform/x11:test_support" ]
 }
 
-if (ozone_platform_scenic) {
-  ozone_platforms += [ "scenic" ]
-  ozone_platform_deps += [ "platform/scenic" ]
-}
-
 if (ozone_platform_flatland) {
   ozone_platforms += [ "flatland" ]
   ozone_platform_deps += [ "platform/flatland" ]
@@ -88,8 +83,8 @@ component("ozone_base") {
     "public/gl_ozone.h",
     "public/gpu_platform_support_host.cc",
     "public/gpu_platform_support_host.h",
+    "public/hardware_capabilities.cc",
     "public/hardware_capabilities.h",
-    "public/input_controller.cc",
     "public/input_controller.h",
     "public/native_pixmap_gl_binding.cc",
     "public/native_pixmap_gl_binding.h",
@@ -113,10 +108,13 @@ component("ozone_base") {
     "public/platform_menu_utils.h",
     "public/platform_screen.cc",
     "public/platform_screen.h",
+    "public/platform_session_manager.h",
     "public/platform_user_input_monitor.cc",
     "public/platform_user_input_monitor.h",
     "public/platform_utils.h",
     "public/platform_window_surface.h",
+    "public/stub_input_controller.cc",
+    "public/stub_input_controller.h",
     "public/surface_factory_ozone.cc",
     "public/surface_factory_ozone.h",
     "public/surface_ozone_canvas.cc",
@@ -128,11 +126,13 @@ component("ozone_base") {
   defines = [ "IS_OZONE_BASE_IMPL" ]
 
   public_deps = [
+    ":drm_modifiers_filter",
     ":ozone_switches",
     "//base",
     "//gpu/vulkan:buildflags",
     "//ipc",
     "//skia",
+    "//ui/base:types",
     "//ui/base/clipboard:clipboard_types",
     "//ui/display",
     "//ui/display/types",
@@ -160,6 +160,10 @@ component("ozone_base") {
     ]
   }
 
+  if (is_linux) {
+    public_deps += [ "//ui/linux:linux_ui" ]
+  }
+
   visibility += [
     # Everyone should depend on //ui/ozone instead except a handful of
     # things that would otherwise create a cycle.
@@ -168,8 +172,6 @@ component("ozone_base") {
     "//ui/ozone/common/*",
     "//ui/ozone/platform/*",
   ]
-
-  configs += [ "//third_party/khronos:khronos_headers" ]
 
   # Out of tree platforms can depend on this.
   visibility += ozone_external_platform_visibility
@@ -223,8 +225,11 @@ source_set("platform") {
   # Platforms are always linked into //ui/ozone and can include our headers.
   allow_circular_includes_from = ozone_platform_deps
 
-  # This is used for platform tests.
-  visibility += [ "//ui/ozone/platform/*" ]
+  # This is used for platform and clipboard tests.
+  visibility += [
+    "//ui/base/clipboard:clipboard_test",
+    "//ui/ozone/platform/*",
+  ]
 
   # This can be used for out of tree platforms tests.
   visibility += ozone_external_platform_visibility
@@ -243,6 +248,7 @@ source_set("ozone_switches") {
   visibility += [
     "//chrome/test:browser_tests_runner",
     "//media/mojo/services",
+    "//ui/base/clipboard:clipboard_test",
     "//ui/display:display_unittests",
   ]
 
@@ -256,10 +262,18 @@ source_set("ozone_switches") {
 component("ozone") {
   visibility = []
   visibility = [ "*" ]
-  public_deps = [
-    ":buildflags",
-    ":platform",
+  public_deps = [ ":platform" ]
+}
+
+source_set("drm_modifiers_filter") {
+  sources = [ "public/drm_modifiers_filter.h" ]
+
+  deps = [
+    "//base",
+    "//ui/gfx/ipc/buffer_types",
   ]
+
+  visibility += [ "//gpu/vulkan" ]
 }
 
 source_set("test_support_internal") {
@@ -407,10 +421,6 @@ action("generate_test_support_constructor_list") {
 }
 
 test("ozone_unittests") {
-  if (is_chromeos_lacros && is_chromeos_device) {
-    configs += [ "//build/lacros:optional_shared_libgcc" ]
-  }
-
   deps = [
     ":test_support",
     "//mojo/core/test:run_all_unittests",
@@ -464,15 +474,6 @@ test("ozone_integration_tests") {
   ]
 
   deps += ozone_platform_integration_test_deps
-}
-
-buildflag_header("buildflags") {
-  header = "buildflags.h"
-  flags = [
-    "OZONE_PLATFORM_WAYLAND=$ozone_platform_wayland",
-    "OZONE_PLATFORM_X11=$ozone_platform_x11",
-  ]
-  visibility += [ "*" ]
 }
 
 group("unittests") {

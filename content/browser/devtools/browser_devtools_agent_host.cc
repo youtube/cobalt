@@ -4,6 +4,7 @@
 
 #include "content/browser/devtools/browser_devtools_agent_host.h"
 
+#include "base/auto_reset.h"
 #include "base/clang_profiling_buildflags.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -30,11 +31,15 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 
+#ifdef ENABLE_BLUETOOTH_EMULATION
+#include "content/browser/devtools/protocol/bluetooth_emulation_handler.h"
+#endif
+
 #if BUILDFLAG(USE_VIZ_DEBUGGER)
 #include "content/browser/devtools/protocol/visual_debugger_handler.h"
 #endif
 
-#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
+#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO_PROFILING)
 #include "content/browser/devtools/protocol/native_profiling_handler.h"
 #endif
 
@@ -118,11 +123,10 @@ class BrowserDevToolsAgentHost::BrowserAutoAttacher final
   // DevToolsAgentHostObserver overrides.
   void DevToolsAgentHostCreated(DevToolsAgentHost* host) override {
     DCHECK(auto_attach());
-    // In the top level target handler auto-attach to pages as soon as they
+    // In the top level target handler, auto-attach to pages as soon as they
     // are created, otherwise if they don't incur any network activity we'll
     // never get a chance to throttle them (and auto-attach there).
-
-    if (IsMainFrameHost(host) || IsSharedWorkerHost(host)) {
+    if (ShouldAttachToTarget(host)) {
       DispatchAutoAttach(
           host, wait_for_debugger_on_start() && !processing_existent_targets_);
     }
@@ -130,8 +134,17 @@ class BrowserDevToolsAgentHost::BrowserAutoAttacher final
 
   bool ShouldForceDevToolsAgentHostCreation() override { return true; }
 
-  static bool IsSharedWorkerHost(DevToolsAgentHost* host) {
-    return host->GetType() == DevToolsAgentHost::kTypeSharedWorker;
+  static bool ShouldAttachToTarget(DevToolsAgentHost* host) {
+    if (host->GetType() == DevToolsAgentHost::kTypeSharedWorker) {
+      return true;
+    }
+    if (host->GetType() == DevToolsAgentHost::kTypeSharedStorageWorklet) {
+      return true;
+    }
+    if (host->GetType() == DevToolsAgentHost::kTypeTab) {
+      return true;
+    }
+    return IsMainFrameHost(host);
   }
 
   static bool IsMainFrameHost(DevToolsAgentHost* host) {
@@ -172,8 +185,7 @@ BrowserDevToolsAgentHost::~BrowserDevToolsAgentHost() {
   BrowserDevToolsAgentHostInstances().erase(this);
 }
 
-bool BrowserDevToolsAgentHost::AttachSession(DevToolsSession* session,
-                                             bool acquire_wake_lock) {
+bool BrowserDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   if (!session->GetClient()->IsTrusted())
     return false;
 
@@ -184,6 +196,9 @@ bool BrowserDevToolsAgentHost::AttachSession(DevToolsSession* session,
   if (only_discovery_)
     return true;
 
+#ifdef ENABLE_BLUETOOTH_EMULATION
+  session->CreateAndAddHandler<protocol::BluetoothEmulationHandler>();
+#endif
   session->CreateAndAddHandler<protocol::BrowserHandler>(
       session->GetClient()->MayWriteLocalFiles());
 #if BUILDFLAG(USE_VIZ_DEBUGGER)
@@ -195,17 +210,17 @@ bool BrowserDevToolsAgentHost::AttachSession(DevToolsSession* session,
       base::BindRepeating([](base::OnceClosure cb) { std::move(cb).Run(); }));
   session->CreateAndAddHandler<protocol::MemoryHandler>();
   session->CreateAndAddHandler<protocol::SecurityHandler>();
-  session->CreateAndAddHandler<protocol::StorageHandler>(
-      session->GetClient()->IsTrusted());
+  session->CreateAndAddHandler<protocol::StorageHandler>(session->GetClient());
   session->CreateAndAddHandler<protocol::SystemInfoHandler>(
       /* is_browser_sessoin= */ true);
   if (tethering_task_runner_) {
     session->CreateAndAddHandler<protocol::TetheringHandler>(
         socket_callback_, tethering_task_runner_);
   }
-  session->CreateAndAddHandler<protocol::TracingHandler>(GetIOContext());
+  session->CreateAndAddHandler<protocol::TracingHandler>(
+      this, GetIOContext(), /* root_session */ nullptr);
 
-#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
+#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO_PROFILING)
   session->CreateAndAddHandler<protocol::NativeProfilingHandler>();
 #endif
 

@@ -4,10 +4,12 @@
 
 #include "chromeos/ash/components/login/auth/public/sync_trusted_vault_keys.h"
 
+#include <optional>
+
 #include "base/values.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 namespace {
@@ -67,9 +69,9 @@ TEST(SyncTrustedVaultKeysTest, FromJsWithInvalidDictionary) {
 }
 
 TEST(SyncTrustedVaultKeysTest, FromJsWithGaiaId) {
-  const std::string kGaiaId = "user1";
+  const GaiaId kGaiaId("user1");
   base::Value::Dict value;
-  value.Set("obfuscatedGaiaId", kGaiaId);
+  value.Set("obfuscatedGaiaId", kGaiaId.ToString());
   EXPECT_THAT(SyncTrustedVaultKeys::FromJs(value).gaia_id(), Eq(kGaiaId));
 }
 

@@ -5,14 +5,16 @@
 #ifndef CHROME_BROWSER_READING_LIST_READING_LIST_MODEL_FACTORY_H_
 #define CHROME_BROWSER_READING_LIST_READING_LIST_MODEL_FACTORY_H_
 
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
+#include "components/reading_list/core/dual_reading_list_model.h"
+#include "components/reading_list/core/reading_list_model.h"
+#include "content/public/browser/browser_context.h"
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
-
-class ReadingListModel;
 
 // Singleton that owns all ReadingListModels and associates them with
 // BrowserContexts.
@@ -22,7 +24,15 @@ class ReadingListModelFactory : public ProfileKeyedServiceFactory {
   ReadingListModelFactory& operator=(const ReadingListModelFactory&) = delete;
 
   static ReadingListModel* GetForBrowserContext(
-      content::BrowserContext* browser_context);
+      content::BrowserContext* context);
+
+  static reading_list::DualReadingListModel*
+  GetAsDualReadingListForBrowserContext(content::BrowserContext* context);
+
+  // Returns whether a ReadingListModel was created for `profile`.
+  // GetForBrowserContext() can't be used because it creates the model if one
+  // doesn't exist yet.
+  static bool HasModel(content::BrowserContext* context);
 
   static ReadingListModelFactory* GetInstance();
 
@@ -30,13 +40,13 @@ class ReadingListModelFactory : public ProfileKeyedServiceFactory {
   GetDefaultFactoryForTesting();
 
  private:
-  friend struct base::DefaultSingletonTraits<ReadingListModelFactory>;
+  friend base::NoDestructor<ReadingListModelFactory>;
 
   ReadingListModelFactory();
   ~ReadingListModelFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   void RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable* registry) override;

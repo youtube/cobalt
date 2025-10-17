@@ -27,27 +27,35 @@ class CONTENT_EXPORT FileSystemAccessEntryFactory
                                         BrowserThread::DeleteOnUIThread> {
  public:
   using UserAction = FileSystemAccessPermissionContext::UserAction;
-  using PathType = FileSystemAccessPermissionContext::PathType;
 
   // Context from which a created handle is going to be used. This is used for
   // security and permission checks. Pass in the URL most relevant as the url
   // parameter. This url will be used for verifications later for SafeBrowsing
   // and Quarantine Service if used for writes.
   struct CONTENT_EXPORT BindingContext {
+    // Used for frames that have an associated rfh (e.g. Dedicated Workers,
+    // Render Frame Host).
     BindingContext(const blink::StorageKey& storage_key,
                    const GURL& url,
-                   GlobalRenderFrameHostId frame_id)
-        : storage_key(storage_key), url(url), frame_id(frame_id) {}
+                   GlobalRenderFrameHostId frame_id,
+                   bool is_worker = false)
+        : storage_key(storage_key),
+          url(url),
+          frame_id(frame_id),
+          is_worker(is_worker) {}
+    // Used for frames that don't have an associated rfh (e.g. Service Workers,
+    // Shared Workers).
     BindingContext(const blink::StorageKey& storage_key,
                    const GURL& url,
                    int worker_process_id)
         : storage_key(storage_key),
           url(url),
-          frame_id(worker_process_id, MSG_ROUTING_NONE) {}
+          frame_id(worker_process_id, MSG_ROUTING_NONE),
+          is_worker(true) {}
     blink::StorageKey storage_key;
     GURL url;
     GlobalRenderFrameHostId frame_id;
-    bool is_worker() const { return !frame_id; }
+    bool is_worker;
     int process_id() const { return frame_id.child_id; }
   };
 
@@ -55,23 +63,21 @@ class CONTENT_EXPORT FileSystemAccessEntryFactory
   // passed in path is valid and represents a file.
   virtual blink::mojom::FileSystemAccessEntryPtr CreateFileEntryFromPath(
       const BindingContext& binding_context,
-      PathType path_type,
-      const base::FilePath& file_path,
+      const content::PathInfo& path_info,
       UserAction user_action) = 0;
 
   // Creates a new FileSystemAccessEntryPtr from the path to a directory.
   // Assumes the passed in path is valid and represents a directory.
   virtual blink::mojom::FileSystemAccessEntryPtr CreateDirectoryEntryFromPath(
       const BindingContext& binding_context,
-      PathType path_type,
-      const base::FilePath& directory_path,
+      const content::PathInfo& path_info,
       UserAction user_action) = 0;
 
   // Resolve a FileSystemAccessTransferToken to its FileSystemURL. Invokes the
-  // callback with a absl::nullopt if the token isn't valid or can't be found
+  // callback with a std::nullopt if the token isn't valid or can't be found
   // (e.g. a compromised renderer crafts an invalid token).
   using ResolveTransferTokenCallback =
-      base::OnceCallback<void(absl::optional<storage::FileSystemURL>)>;
+      base::OnceCallback<void(std::optional<storage::FileSystemURL>)>;
   virtual void ResolveTransferToken(
       mojo::PendingRemote<blink::mojom::FileSystemAccessTransferToken>
           transfer_token,

@@ -6,6 +6,7 @@
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 #include <windows.h>
+
 #include <wrl/client.h>
 
 #include <tuple>
@@ -55,15 +56,17 @@ std::tuple<bool, int, int> RunRecoveryCRXElevated(
   HRESULT hr = CoCreateInstance(
       install_static::GetElevatorClsid(), nullptr, CLSCTX_LOCAL_SERVER,
       install_static::GetElevatorIid(), IID_PPV_ARGS_Helper(&elevator));
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return {false, static_cast<int>(hr), 0};
+  }
 
   hr = CoSetProxyBlanket(
       elevator.Get(), RPC_C_AUTHN_DEFAULT, RPC_C_AUTHZ_DEFAULT,
       COLE_DEFAULT_PRINCIPAL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
       RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_DYNAMIC_CLOAKING);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return {false, static_cast<int>(hr), 0};
+  }
 
   ULONG_PTR proc_handle = 0;
   hr = elevator->RunRecoveryCRXElevated(
@@ -71,8 +74,9 @@ std::tuple<bool, int, int> RunRecoveryCRXElevated(
       base::UTF8ToWide(browser_version).c_str(),
       base::UTF8ToWide(session_id).c_str(), base::Process::Current().Pid(),
       &proc_handle);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return {false, static_cast<int>(hr), 0};
+  }
 
   int exit_code = 0;
   const base::TimeDelta kMaxWaitTime = base::Seconds(600);
@@ -113,8 +117,9 @@ base::CommandLine RecoveryComponentActionHandlerWin::MakeCommandLine(
   command_line.AppendSwitchASCII("browser-version", GetBrowserVersion());
   command_line.AppendSwitchASCII("sessionid", session_id());
   const auto app_guid = GetBrowserAppId();
-  if (!app_guid.empty())
+  if (!app_guid.empty()) {
     command_line.AppendSwitchASCII("appguid", app_guid);
+  }
   return command_line;
 }
 

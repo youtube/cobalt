@@ -7,10 +7,10 @@
 
 #include <memory>
 #include <set>
+#include <string_view>
 
 #include "base/memory/scoped_refptr.h"
 #include "remoting/protocol/port_allocator_factory.h"
-#include "third_party/abseil-cpp/absl/strings/string_view.h"
 #include "third_party/webrtc/p2p/client/basic_port_allocator.h"
 
 namespace remoting {
@@ -18,11 +18,11 @@ namespace remoting {
 class FakeNetworkDispatcher;
 class FakePacketSocketFactory;
 
-class FakePortAllocator : public cricket::BasicPortAllocator {
+class FakePortAllocator : public webrtc::BasicPortAllocator {
  public:
   FakePortAllocator(
-      rtc::NetworkManager* network_manager,
-      rtc::PacketSocketFactory* socket_factory,
+      webrtc::NetworkManager* network_manager,
+      webrtc::PacketSocketFactory* socket_factory,
       scoped_refptr<protocol::TransportContext> transport_context_);
 
   FakePortAllocator(const FakePortAllocator&) = delete;
@@ -30,12 +30,12 @@ class FakePortAllocator : public cricket::BasicPortAllocator {
 
   ~FakePortAllocator() override;
 
-  // cricket::BasicPortAllocator overrides.
-  cricket::PortAllocatorSession* CreateSessionInternal(
-      absl::string_view content_name,
+  // webrtc::BasicPortAllocator overrides.
+  webrtc::PortAllocatorSession* CreateSessionInternal(
+      std::string_view content_name,
       int component,
-      absl::string_view ice_username_fragment,
-      absl::string_view ice_password) override;
+      std::string_view ice_username_fragment,
+      std::string_view ice_password) override;
 
  private:
   scoped_refptr<protocol::TransportContext> transport_context_;
@@ -54,13 +54,13 @@ class FakePortAllocatorFactory : public protocol::PortAllocatorFactory {
   FakePacketSocketFactory* socket_factory() { return socket_factory_.get(); }
 
   // PortAllocatorFactory interface.
-  std::unique_ptr<cricket::PortAllocator> CreatePortAllocator(
+  CreatePortAllocatorResult CreatePortAllocator(
       scoped_refptr<protocol::TransportContext> transport_context,
       base::WeakPtr<protocol::SessionOptionsProvider> session_options_provider)
       override;
 
  private:
-  std::unique_ptr<rtc::NetworkManager> network_manager_;
+  std::unique_ptr<webrtc::NetworkManager> network_manager_;
   std::unique_ptr<FakePacketSocketFactory> socket_factory_;
 };
 

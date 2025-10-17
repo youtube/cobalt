@@ -5,7 +5,10 @@
 #ifndef COMPONENTS_DOWNLOAD_PUBLIC_COMMON_DOWNLOAD_UTILS_H_
 #define COMPONENTS_DOWNLOAD_PUBLIC_COMMON_DOWNLOAD_UTILS_H_
 
+#include <stddef.h>
+
 #include <memory>
+#include <optional>
 
 #include "components/download/database/download_db_entry.h"
 #include "components/download/database/in_progress/download_entry.h"
@@ -18,7 +21,7 @@
 #include "net/base/net_errors.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/http/http_response_headers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 
 namespace net {
 class HttpRequestHeaders;
@@ -79,7 +82,7 @@ CreateDownloadDBEntryFromItem(const DownloadItemImpl& item);
 // Helper function to convert DownloadDBEntry to DownloadEntry.
 // TODO(qinmin): remove this function after DownloadEntry is deprecated.
 COMPONENTS_DOWNLOAD_EXPORT std::unique_ptr<DownloadEntry>
-CreateDownloadEntryFromDownloadDBEntry(absl::optional<DownloadDBEntry> entry);
+CreateDownloadEntryFromDownloadDBEntry(std::optional<DownloadDBEntry> entry);
 
 COMPONENTS_DOWNLOAD_EXPORT uint64_t GetUniqueDownloadId();
 
@@ -126,6 +129,14 @@ void DetermineLocalPath(DownloadItem* download,
                         const base::FilePath& virtual_path,
                         LocalPathCallback callback);
 
+#if BUILDFLAG(IS_ANDROID)
+// Determine the file path for the save package file given the `suggested_path`.
+COMPONENTS_DOWNLOAD_EXPORT
+void DetermineSavePackagePath(const GURL& url,
+                              const base::FilePath& suggested_path,
+                              LocalPathCallback callback);
+#endif
+
 // Finch parameter key value for number of bytes used for content validation
 // during resumption.
 constexpr char kDownloadContentValidationLengthFinchKey[] =
@@ -152,7 +163,20 @@ COMPONENTS_DOWNLOAD_EXPORT base::TimeDelta GetExpiredDownloadDeleteTime();
 COMPONENTS_DOWNLOAD_EXPORT base::TimeDelta GetOverwrittenDownloadDeleteTime();
 
 // Returns the size of the file buffer that reads data from the data pipe.
-COMPONENTS_DOWNLOAD_EXPORT int GetDownloadFileBufferSize();
+COMPONENTS_DOWNLOAD_EXPORT size_t GetDownloadFileBufferSize();
+
+// Utility function to determine whether an interrupted download should be
+// auto-resumable.
+COMPONENTS_DOWNLOAD_EXPORT
+bool IsInterruptedDownloadAutoResumable(download::DownloadItem* download_item,
+                                        int auto_resumption_size_limit);
+
+// Utility method to determine whether the response head contains
+// content-disposition: attachment.
+COMPONENTS_DOWNLOAD_EXPORT
+bool IsContentDispositionAttachmentInHead(
+    const network::mojom::URLResponseHead& response_head);
+
 }  // namespace download
 
 #endif  // COMPONENTS_DOWNLOAD_PUBLIC_COMMON_DOWNLOAD_UTILS_H_

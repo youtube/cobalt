@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_SERVICES_APP_SERVICE_PUBLIC_CPP_INTENT_FILTER_H_
 #define COMPONENTS_SERVICES_APP_SERVICE_PUBLIC_CPP_INTENT_FILTER_H_
 
+#include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -13,7 +15,6 @@
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "components/services/app_service/public/cpp/macros.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace apps {
 
@@ -25,7 +26,7 @@ namespace apps {
 enum class IntentFilterMatchLevel {
   kNone = 0,
   kScheme = 1,
-  kHost = 2,
+  kAuthority = 2,
   kPath = 4,
   kMimeType = 8,
 };
@@ -37,8 +38,13 @@ enum class IntentFilterMatchLevel {
 enum class ConditionType {
   // Matches the URL scheme (e.g. https, tel).
   kScheme = 0,
-  // Matches the URL host (e.g. www.google.com).
-  kHost = 1,
+  // Matches the URL host and optional port (e.g. www.google.com:443).
+  // ConditionValue strings should be set using AuthorityView::Encode() however
+  // it is acceptable to supply just a host name; an absence of port will match
+  // on any port.
+  // PatternMatchType will only apply to the host part, the port if present will
+  // use kLiteral matching.
+  kAuthority = 1,
   // Matches the URL path (e.g. /abc/*). Does not include the URL query or
   // hash.
   kPath = 2,
@@ -101,8 +107,8 @@ struct COMPONENT_EXPORT(APP_TYPES) ConditionValue {
   ConditionValue& operator=(const ConditionValue&) = delete;
   ~ConditionValue();
 
-  bool operator==(const ConditionValue& other) const;
-  bool operator!=(const ConditionValue& other) const;
+  friend bool operator==(const ConditionValue&,
+                         const ConditionValue&) = default;
 
   std::string ToString() const;
 
@@ -124,7 +130,6 @@ struct COMPONENT_EXPORT(APP_TYPES) Condition {
   ~Condition();
 
   bool operator==(const Condition& other) const;
-  bool operator!=(const Condition& other) const;
 
   std::unique_ptr<Condition> Clone() const;
 
@@ -148,7 +153,6 @@ struct COMPONENT_EXPORT(APP_TYPES) IntentFilter {
   ~IntentFilter();
 
   bool operator==(const IntentFilter& other) const;
-  bool operator!=(const IntentFilter& other) const;
 
   std::unique_ptr<IntentFilter> Clone() const;
 
@@ -168,10 +172,6 @@ struct COMPONENT_EXPORT(APP_TYPES) IntentFilter {
   void GetMimeTypesAndExtensions(std::set<std::string>& mime_types,
                                  std::set<std::string>& file_extensions);
 
-  // Returns all of the links that this intent filter would accept, to be used
-  // in listing all of the supported links for a given app.
-  std::set<std::string> GetSupportedLinksForAppManagement();
-
   // Returns true if the filter is a browser filter, i.e. can handle all https
   // or http scheme.
   bool IsBrowserFilter();
@@ -190,10 +190,10 @@ struct COMPONENT_EXPORT(APP_TYPES) IntentFilter {
   // Publisher-specific identifier for the activity which registered this
   // filter. Used to determine what action to take when Intents are launched
   // through this filter.
-  absl::optional<std::string> activity_name;
+  std::optional<std::string> activity_name;
 
   // The label shown to the user for this activity.
-  absl::optional<std::string> activity_label;
+  std::optional<std::string> activity_label;
 };
 
 using IntentFilterPtr = std::unique_ptr<IntentFilter>;

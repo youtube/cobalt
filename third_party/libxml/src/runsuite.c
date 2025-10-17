@@ -8,15 +8,17 @@
 
 #include "libxml.h"
 #include <stdio.h>
-
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
+#include <libxml/catalog.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
 #include <libxml/uri.h>
-#if defined(LIBXML_SCHEMAS_ENABLED) && defined(LIBXML_XPATH_ENABLED)
+#if (defined(LIBXML_RELAXNG_ENABLED) || defined(LIBXML_SCHEMAS_ENABLED)) && \
+    defined(LIBXML_XPATH_ENABLED)
 #include <libxml/xmlreader.h>
 
 #include <libxml/xpath.h>
@@ -54,16 +56,6 @@ static int checkTestFile(const char *filename) {
     return(1);
 }
 
-static xmlChar *composeDir(const xmlChar *dir, const xmlChar *path) {
-    char buf[500];
-
-    if (dir == NULL) return(xmlStrdup(path));
-    if (path == NULL) return(NULL);
-
-    snprintf(buf, 500, "%s/%s", (const char *) dir, (const char *) path);
-    return(xmlStrdup((const xmlChar *) buf));
-}
-
 /************************************************************************
  *									*
  *		Libxml2 specific routines				*
@@ -76,80 +68,6 @@ static int nb_internals = 0;
 static int nb_schematas = 0;
 static int nb_unimplemented = 0;
 static int nb_leaks = 0;
-static int extraMemoryFromResolver = 0;
-
-static int
-fatalError(void) {
-    fprintf(stderr, "Exitting tests on fatal error\n");
-    exit(1);
-}
-
-/*
- * that's needed to implement <resource>
- */
-#define MAX_ENTITIES 20
-static char *testEntitiesName[MAX_ENTITIES];
-static char *testEntitiesValue[MAX_ENTITIES];
-static int nb_entities = 0;
-static void resetEntities(void) {
-    int i;
-
-    for (i = 0;i < nb_entities;i++) {
-        if (testEntitiesName[i] != NULL)
-	    xmlFree(testEntitiesName[i]);
-        if (testEntitiesValue[i] != NULL)
-	    xmlFree(testEntitiesValue[i]);
-    }
-    nb_entities = 0;
-}
-static int addEntity(char *name, char *content) {
-    if (nb_entities >= MAX_ENTITIES) {
-	fprintf(stderr, "Too many entities defined\n");
-	return(-1);
-    }
-    testEntitiesName[nb_entities] = name;
-    testEntitiesValue[nb_entities] = content;
-    nb_entities++;
-    return(0);
-}
-
-/*
- * We need to trap calls to the resolver to not account memory for the catalog
- * which is shared to the current running test. We also don't want to have
- * network downloads modifying tests.
- */
-static xmlParserInputPtr
-testExternalEntityLoader(const char *URL, const char *ID,
-			 xmlParserCtxtPtr ctxt) {
-    xmlParserInputPtr ret;
-    int i;
-
-    for (i = 0;i < nb_entities;i++) {
-        if (!strcmp(testEntitiesName[i], URL)) {
-	    ret = xmlNewStringInputStream(ctxt,
-	                (const xmlChar *) testEntitiesValue[i]);
-	    if (ret != NULL) {
-	        ret->filename = (const char *)
-		                xmlStrdup((xmlChar *)testEntitiesName[i]);
-	    }
-	    return(ret);
-	}
-    }
-    if (checkTestFile(URL)) {
-	ret = xmlNoNetExternalEntityLoader(URL, ID, ctxt);
-    } else {
-	int memused = xmlMemUsed();
-	ret = xmlNoNetExternalEntityLoader(URL, ID, ctxt);
-	extraMemoryFromResolver += xmlMemUsed() - memused;
-    }
-#if 0
-    if (ret == NULL) {
-        fprintf(stderr, "Failed to find resource %s\n", URL);
-    }
-#endif
-
-    return(ret);
-}
 
 /*
  * Trapping the error messages at the generic level to grab the equivalent of
@@ -201,12 +119,8 @@ static xmlXPathContextPtr ctxtXPath;
 
 static void
 initializeLibxml2(void) {
-    xmlGetWarningsDefaultValue = 0;
-    xmlPedanticParserDefault(0);
-
     xmlMemSetup(xmlMemFree, xmlMemMalloc, xmlMemRealloc, xmlMemoryStrdup);
     xmlInitParser();
-    xmlSetExternalEntityLoader(testExternalEntityLoader);
     ctxtXPath = xmlXPathNewContext(NULL);
     /*
     * Deactivate the cache if created; otherwise we have to create/free it
@@ -223,8 +137,14 @@ initializeLibxml2(void) {
     xmlXPathRegisterNs(ctxtXPath, BAD_CAST "xlink",
                        BAD_CAST "http://www.w3.org/1999/xlink");
     xmlSetGenericErrorFunc(NULL, testErrorHandler);
+#ifdef LIBXML_CATALOG_ENABLED
+    xmlInitializeCatalog();
+    xmlCatalogSetDefaults(XML_CATA_ALLOW_NONE);
+#endif
 #ifdef LIBXML_SCHEMAS_ENABLED
     xmlSchemaInitTypes();
+#endif
+#ifdef LIBXML_RELAXNG_ENABLED
     xmlRelaxNGInitTypes();
 #endif
 }
@@ -290,6 +210,63 @@ getString(xmlNodePtr cur, const char *xpath) {
  *									*
  ************************************************************************/
 
+#ifdef LIBXML_RELAXNG_ENABLED
+
+/*
+ * that's needed to implement <resource>
+ */
+#define MAX_ENTITIES 20
+static char *testEntitiesName[MAX_ENTITIES];
+static char *testEntitiesValue[MAX_ENTITIES];
+static int nb_entities = 0;
+static void resetEntities(void) {
+    int i;
+
+    for (i = 0;i < nb_entities;i++) {
+        if (testEntitiesName[i] != NULL)
+	    xmlFree(testEntitiesName[i]);
+        if (testEntitiesValue[i] != NULL)
+	    xmlFree(testEntitiesValue[i]);
+    }
+    nb_entities = 0;
+}
+static int addEntity(char *name, char *content) {
+    if (nb_entities >= MAX_ENTITIES) {
+	fprintf(stderr, "Too many entities defined\n");
+	return(-1);
+    }
+    testEntitiesName[nb_entities] = name;
+    testEntitiesValue[nb_entities] = content;
+    nb_entities++;
+    return(0);
+}
+
+static xmlParserErrors
+testResourceLoader(void *vctxt ATTRIBUTE_UNUSED, const char *URL,
+                   const char *ID ATTRIBUTE_UNUSED,
+                   xmlResourceType type ATTRIBUTE_UNUSED,
+                   xmlParserInputFlags flags ATTRIBUTE_UNUSED,
+                   xmlParserInputPtr *out) {
+    int i;
+
+    for (i = 0; i < nb_entities; i++) {
+        if (!strcmp(testEntitiesName[i], URL)) {
+	    *out = xmlNewInputFromString(testEntitiesName[i],
+                                        testEntitiesValue[i],
+                                        XML_INPUT_BUF_STATIC);
+	    return(XML_ERR_OK);
+	}
+    }
+
+    return(xmlNewInputFromUrl(URL, 0, out));
+}
+
+static int
+fatalError(void) {
+    fprintf(stderr, "Exitting tests on fatal error\n");
+    exit(1);
+}
+
 static int
 xsdIncorrectTestCase(xmlNodePtr cur) {
     xmlNodePtr test;
@@ -311,7 +288,6 @@ xsdIncorrectTestCase(xmlNodePtr cur) {
     }
 
     memt = xmlMemUsed();
-    extraMemoryFromResolver = 0;
     /*
      * dump the schemas to a buffer, then reparse it and compile the schemas
      */
@@ -322,9 +298,11 @@ xsdIncorrectTestCase(xmlNodePtr cur) {
     }
     xmlBufferSetAllocationScheme(buf, XML_BUFFER_ALLOC_DOUBLEIT);
     xmlNodeDump(buf, test->doc, test, 0, 0);
-    pctxt = xmlRelaxNGNewMemParserCtxt((const char *)buf->content, buf->use);
+    pctxt = xmlRelaxNGNewMemParserCtxt(
+            (const char *) xmlBufferContent(buf), xmlBufferLength(buf));
     xmlRelaxNGSetParserErrors(pctxt, testErrorHandler, testErrorHandler,
             pctxt);
+    xmlRelaxNGSetResourceLoader(pctxt, testResourceLoader, NULL);
     rng = xmlRelaxNGParse(pctxt);
     xmlRelaxNGFreeParserCtxt(pctxt);
     if (rng != NULL) {
@@ -340,12 +318,22 @@ done:
     if (rng != NULL)
         xmlRelaxNGFree(rng);
     xmlResetLastError();
-    if ((memt < xmlMemUsed()) && (extraMemoryFromResolver == 0)) {
+    if (memt != xmlMemUsed()) {
 	test_log("Validation of tests starting line %ld leaked %d\n",
 		xmlGetLineNo(cur), xmlMemUsed() - memt);
 	nb_leaks++;
     }
     return(ret);
+}
+
+static xmlChar *composeDir(const xmlChar *dir, const xmlChar *path) {
+    char buf[500];
+
+    if (dir == NULL) return(xmlStrdup(path));
+    if (path == NULL) return(NULL);
+
+    snprintf(buf, 500, "%s/%s", (const char *) dir, (const char *) path);
+    return(xmlStrdup((const xmlChar *) buf));
 }
 
 static void
@@ -368,7 +356,7 @@ installResources(xmlNodePtr tst, const xmlChar *base) {
 	    xmlBufferEmpty(buf);
 	    xmlNodeDump(buf, test->doc, test, 0, 0);
 	    name = getString(tst, "string(@name)");
-	    content = xmlStrdup(buf->content);
+	    content = xmlStrdup(xmlBufferContent(buf));
 	    if ((name != NULL) && (content != NULL)) {
 	        res = composeDir(base, name);
 		xmlFree(name);
@@ -446,7 +434,6 @@ xsdTestCase(xmlNodePtr tst) {
     }
 
     memt = xmlMemUsed();
-    extraMemoryFromResolver = 0;
     /*
      * dump the schemas to a buffer, then reparse it and compile the schemas
      */
@@ -457,13 +444,13 @@ xsdTestCase(xmlNodePtr tst) {
     }
     xmlBufferSetAllocationScheme(buf, XML_BUFFER_ALLOC_DOUBLEIT);
     xmlNodeDump(buf, test->doc, test, 0, 0);
-    pctxt = xmlRelaxNGNewMemParserCtxt((const char *)buf->content, buf->use);
+    pctxt = xmlRelaxNGNewMemParserCtxt(
+            (const char *) xmlBufferContent(buf), xmlBufferLength(buf));
     xmlRelaxNGSetParserErrors(pctxt, testErrorHandler, testErrorHandler,
             pctxt);
+    xmlRelaxNGSetResourceLoader(pctxt, testResourceLoader, NULL);
     rng = xmlRelaxNGParse(pctxt);
     xmlRelaxNGFreeParserCtxt(pctxt);
-    if (extraMemoryFromResolver)
-        memt = 0;
 
     if (rng == NULL) {
         test_log("Failed to parse RNGtest line %ld\n",
@@ -493,9 +480,8 @@ xsdTestCase(xmlNodePtr tst) {
 	     * We are ready to run the test
 	     */
 	    mem = xmlMemUsed();
-	    extraMemoryFromResolver = 0;
-            doc = xmlReadMemory((const char *)buf->content, buf->use,
-	                        "test", NULL, 0);
+            doc = xmlReadMemory((const char *) xmlBufferContent(buf),
+                                xmlBufferLength(buf), "test", NULL, 0);
 	    if (doc == NULL) {
 		test_log("Failed to parse valid instance line %ld\n",
 			xmlGetLineNo(tmp));
@@ -519,10 +505,9 @@ xsdTestCase(xmlNodePtr tst) {
 		xmlFreeDoc(doc);
 	    }
 	    xmlResetLastError();
-	    if ((mem != xmlMemUsed()) && (extraMemoryFromResolver == 0)) {
+	    if (mem != xmlMemUsed()) {
 	        test_log("Validation of instance line %ld leaked %d\n",
 		        xmlGetLineNo(tmp), xmlMemUsed() - mem);
-		xmlMemoryDump();
 	        nb_leaks++;
 	    }
 	}
@@ -548,9 +533,8 @@ xsdTestCase(xmlNodePtr tst) {
 	     * We are ready to run the test
 	     */
 	    mem = xmlMemUsed();
-	    extraMemoryFromResolver = 0;
-            doc = xmlReadMemory((const char *)buf->content, buf->use,
-	                        "test", NULL, 0);
+            doc = xmlReadMemory((const char *) xmlBufferContent(buf),
+                                xmlBufferLength(buf), "test", NULL, 0);
 	    if (doc == NULL) {
 		test_log("Failed to parse valid instance line %ld\n",
 			xmlGetLineNo(tmp));
@@ -574,10 +558,9 @@ xsdTestCase(xmlNodePtr tst) {
 		xmlFreeDoc(doc);
 	    }
 	    xmlResetLastError();
-	    if ((mem != xmlMemUsed()) && (extraMemoryFromResolver == 0)) {
+	    if (mem != xmlMemUsed()) {
 	        test_log("Validation of instance line %ld leaked %d\n",
 		        xmlGetLineNo(tmp), xmlMemUsed() - mem);
-		xmlMemoryDump();
 	        nb_leaks++;
 	    }
 	}
@@ -755,6 +738,7 @@ done:
 	xmlFreeDoc(doc);
     return(ret);
 }
+#endif /* LIBXML_RELAXNG_ENABLED */
 
 /************************************************************************
  *									*
@@ -762,6 +746,7 @@ done:
  *									*
  ************************************************************************/
 
+#ifdef LIBXML_SCHEMAS_ENABLED
 static int
 xstcTestInstance(xmlNodePtr cur, xmlSchemaPtr schemas,
                  const xmlChar *spath, const char *base) {
@@ -967,7 +952,7 @@ done:
     if (validity != NULL) xmlFree(validity);
     if (schemas != NULL) xmlSchemaFree(schemas);
     xmlResetLastError();
-    if ((mem != xmlMemUsed()) && (extraMemoryFromResolver == 0)) {
+    if (mem != xmlMemUsed()) {
 	test_log("Processing test line %ld %s leaked %d\n",
 		xmlGetLineNo(cur), path, xmlMemUsed() - mem);
 	nb_leaks++;
@@ -1021,6 +1006,7 @@ done:
     xmlFreeDoc(doc);
     return(ret);
 }
+#endif /* LIBXML_SCHEMAS_ENABLED */
 
 /************************************************************************
  *									*
@@ -1032,8 +1018,11 @@ int
 main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
     int ret = 0;
     int old_errors, old_tests, old_leaks;
+#ifdef LIBXML_RELAXNG_ENABLED
+    int expected_errors;
+#endif
 
-    logfile = fopen(LOGFILE, "w");
+    logfile = fopen(LOGFILE, "wb");
     if (logfile == NULL) {
         fprintf(stderr,
 	        "Could not open the log file, running in verbose mode\n");
@@ -1044,21 +1033,22 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
     if ((argc >= 2) && (!strcmp(argv[1], "-v")))
         verbose = 1;
 
-
+#ifdef LIBXML_RELAXNG_ENABLED
     old_errors = nb_errors;
     old_tests = nb_tests;
     old_leaks = nb_leaks;
     xsdTest();
+    expected_errors = 3;
     printf("Ran %d tests, %d errors, %d leaks\n",
            nb_tests - old_tests,
            nb_errors - old_errors,
            nb_leaks - old_leaks);
-    if (nb_errors - old_errors == 10) {
-        printf("10 errors were expected\n");
+    if (nb_errors - old_errors == expected_errors) {
+        printf("%d errors were expected\n", expected_errors);
         nb_errors = old_errors;
     } else {
-        printf("10 errors were expected, got %d errors\n",
-               nb_errors - old_errors);
+        printf("%d errors were expected, got %d errors\n",
+               expected_errors, nb_errors - old_errors);
         nb_errors = old_errors + 1;
     }
 
@@ -1085,7 +1075,9 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
 	       nb_tests - old_tests,
 	       nb_errors - old_errors,
 	       nb_leaks - old_leaks);
+#endif /* LIBXML_RELAXNG_ENABLED */
 
+#ifdef LIBXML_SCHEMAS_ENABLED
     old_errors = nb_errors;
     old_tests = nb_tests;
     old_leaks = nb_leaks;
@@ -1145,6 +1137,7 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
         printf("Some errors were expected.\n");
         nb_errors = old_errors;
     }
+#endif /* LIBXML_SCHEMAS_ENABLED */
 
     if ((nb_errors == 0) && (nb_leaks == 0)) {
         ret = 0;
@@ -1157,13 +1150,12 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
     }
     xmlXPathFreeContext(ctxtXPath);
     xmlCleanupParser();
-    xmlMemoryDump();
 
     if (logfile != NULL)
         fclose(logfile);
     return(ret);
 }
-#else /* !SCHEMAS */
+#else /* !RELAXNG && !SCHEMAS */
 int
 main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
     fprintf(stderr, "runsuite requires support for schemas and xpath in libxml2\n");

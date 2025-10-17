@@ -57,7 +57,7 @@ bool PredictionModelFetcherImpl::FetchOptimizationGuideServiceModels(
 
   // If there are no models to request, do not make a GetModelsRequest.
   if (models_request_info.empty()) {
-    std::move(models_fetched_callback).Run(absl::nullopt);
+    std::move(models_fetched_callback).Run(std::nullopt);
     return false;
   }
 
@@ -138,11 +138,13 @@ void PredictionModelFetcherImpl::HandleResponse(
       get_models_response =
           std::make_unique<optimization_guide::proto::GetModelsResponse>();
 
-  UMA_HISTOGRAM_ENUMERATION(
-      "OptimizationGuide.PredictionModelFetcher."
-      "GetModelsResponse.Status",
-      static_cast<net::HttpStatusCode>(response_code),
-      net::HTTP_VERSION_NOT_SUPPORTED);
+  if (response_code >= 0 && response_code <= net::HTTP_VERSION_NOT_SUPPORTED) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "OptimizationGuide.PredictionModelFetcher."
+        "GetModelsResponse.Status",
+        static_cast<net::HttpStatusCode>(response_code),
+        net::HTTP_VERSION_NOT_SUPPORTED);
+  }
   // Net error codes are negative but histogram enums must be positive.
   base::UmaHistogramSparse(
       "OptimizationGuide.PredictionModelFetcher."
@@ -173,7 +175,7 @@ void PredictionModelFetcherImpl::HandleResponse(
       get_models_response->ParseFromString(get_models_response_data)) {
     std::move(models_fetched_callback_).Run(std::move(get_models_response));
   } else {
-    std::move(models_fetched_callback_).Run(absl::nullopt);
+    std::move(models_fetched_callback_).Run(std::nullopt);
   }
 }
 

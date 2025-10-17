@@ -11,17 +11,19 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
-#include "base/containers/stack_container.h"
 #include "base/files/file.h"
 #include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/read_only_shared_memory_region.h"
@@ -34,7 +36,7 @@
 #include "build/build_config.h"
 #include "ipc/ipc_buildflags.h"
 #include "ipc/ipc_param_traits.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_hardware_buffer_handle.h"
@@ -115,7 +117,7 @@ struct CheckedTuple {
 template <class P>
 inline void WriteParam(base::Pickle* m, const P& p) {
   typedef typename SimilarTypeTraits<P>::Type Type;
-  ParamTraits<Type>::Write(m, static_cast<const Type& >(p));
+  ParamTraits<Type>::Write(m, static_cast<const Type&>(p));
 }
 
 template <class P>
@@ -330,7 +332,7 @@ struct ParamTraits<P[Size]> {
 template <>
 struct ParamTraits<std::string> {
   typedef std::string param_type;
-  static void Write(base::Pickle* m, const param_type& p) { m->WriteString(p); }
+  static void Write(base::Pickle* m, std::string_view p) { m->WriteString(p); }
   static bool Read(const base::Pickle* m,
                    base::PickleIterator* iter,
                    param_type* r) {
@@ -339,10 +341,18 @@ struct ParamTraits<std::string> {
   COMPONENT_EXPORT(IPC) static void Log(const param_type& p, std::string* l);
 };
 
+// Allow calling `WriteParam()` directly with a `std::string_view` argument
+// instead of forcing callers to explicitly construct a `std::string` just to
+// have the `Write()` specialization above turn it back into a
+// `std::string_view`.
+inline void WriteParam(base::Pickle* m, std::string_view sv) {
+  ParamTraits<std::string>::Write(m, sv);
+}
+
 template <>
 struct ParamTraits<std::u16string> {
   typedef std::u16string param_type;
-  static void Write(base::Pickle* m, const param_type& p) {
+  static void Write(base::Pickle* m, std::u16string_view p) {
     m->WriteString16(p);
   }
   static bool Read(const base::Pickle* m,
@@ -352,6 +362,14 @@ struct ParamTraits<std::u16string> {
   }
   COMPONENT_EXPORT(IPC) static void Log(const param_type& p, std::string* l);
 };
+
+// Allow calling `WriteParam()` directly with a `std::u16string_view` argument
+// instead of forcing callers to explicitly construct a `std::u16string` just to
+// have the `Write()` specialization above turn it back into a
+// `std::u16string_view`.
+inline void WriteParam(base::Pickle* m, std::u16string_view sv) {
+  ParamTraits<std::u16string>::Write(m, sv);
+}
 
 #if BUILDFLAG(IS_WIN)
 template <>
@@ -858,34 +876,39 @@ struct ParamTraits<std::tuple<Args...>> {
 };
 
 template <class P, size_t stack_capacity>
-struct ParamTraits<base::StackVector<P, stack_capacity> > {
-  typedef base::StackVector<P, stack_capacity> param_type;
+struct ParamTraits<absl::InlinedVector<P, stack_capacity>> {
+  typedef absl::InlinedVector<P, stack_capacity> param_type;
   static void Write(base::Pickle* m, const param_type& p) {
-    WriteParam(m, base::checked_cast<int>(p->size()));
-    for (size_t i = 0; i < p->size(); i++)
+    WriteParam(m, base::checked_cast<int>(p.size()));
+    for (size_t i = 0; i < p.size(); i++) {
       WriteParam(m, p[i]);
+    }
   }
   static bool Read(const base::Pickle* m,
                    base::PickleIterator* iter,
                    param_type* r) {
     size_t size;
-    if (!iter->ReadLength(&size))
+    if (!iter->ReadLength(&size)) {
       return false;
+    }
     // Sanity check for the vector size.
-    if (size > INT_MAX / sizeof(P))
+    if (size > INT_MAX / sizeof(P)) {
       return false;
+    }
     P value;
     for (size_t i = 0; i < size; i++) {
-      if (!ReadParam(m, iter, &value))
+      if (!ReadParam(m, iter, &value)) {
         return false;
-      (*r)->push_back(value);
+      }
+      r->push_back(value);
     }
     return true;
   }
   static void Log(const param_type& p, std::string* l) {
-    for (size_t i = 0; i < p->size(); ++i) {
-      if (i != 0)
+    for (size_t i = 0; i < p.size(); ++i) {
+      if (i != 0) {
         l->append(" ");
+      }
       LogParam((p[i]), l);
     }
   }
@@ -968,8 +991,8 @@ struct ParamTraits<std::unique_ptr<P>> {
 // absl types ParamTraits
 
 template <class P>
-struct ParamTraits<absl::optional<P>> {
-  typedef absl::optional<P> param_type;
+struct ParamTraits<std::optional<P>> {
+  typedef std::optional<P> param_type;
   static void Write(base::Pickle* m, const param_type& p) {
     const bool is_set = static_cast<bool>(p);
     WriteParam(m, is_set);
@@ -999,8 +1022,8 @@ struct ParamTraits<absl::optional<P>> {
 };
 
 template <>
-struct ParamTraits<absl::monostate> {
-  typedef absl::monostate param_type;
+struct ParamTraits<std::monostate> {
+  typedef std::monostate param_type;
   static void Write(base::Pickle* m, const param_type& p) {}
   static bool Read(const base::Pickle* m,
                    base::PickleIterator* iter,

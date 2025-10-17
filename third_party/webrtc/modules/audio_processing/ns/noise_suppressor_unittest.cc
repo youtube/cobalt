@@ -26,7 +26,7 @@ namespace {
 std::string ProduceDebugText(int sample_rate_hz,
                              size_t num_channels,
                              NsConfig::SuppressionLevel level) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << "Sample rate: " << sample_rate_hz << ", num_channels: " << num_channels
      << ", level: " << static_cast<int>(level);
   return ss.Release();
@@ -48,7 +48,7 @@ void PopulateInputFrameWithIdenticalChannels(size_t num_channels,
 
 void VerifyIdenticalChannels(size_t num_channels,
                              size_t num_bands,
-                             size_t frame_index,
+                             size_t /* frame_index */,
                              const AudioBuffer& audio) {
   EXPECT_GT(num_channels, 1u);
   for (size_t ch = 1; ch < num_channels; ++ch) {
@@ -74,7 +74,7 @@ TEST(NoiseSuppressor, IdenticalChannelEffects) {
         SCOPED_TRACE(ProduceDebugText(rate, num_channels, level));
 
         const size_t num_bands = rate / 16000;
-        // const int frame_length = rtc::CheckedDivExact(rate, 100);
+        // const int frame_length = webrtc::CheckedDivExact(rate, 100);
         AudioBuffer audio(rate, num_channels, rate, num_channels, rate,
                           num_channels);
         NsConfig cfg;

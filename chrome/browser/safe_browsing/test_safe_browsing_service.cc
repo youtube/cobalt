@@ -16,9 +16,12 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 #include "chrome/browser/safe_browsing/download_protection/download_protection_service.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
+#endif
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 #include "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service.h"
 #endif
 
@@ -27,14 +30,13 @@ namespace safe_browsing {
 // TestSafeBrowsingService functions:
 TestSafeBrowsingService::TestSafeBrowsingService()
     : test_shared_loader_factory_(
-          base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-              &test_url_loader_factory_)) {
+          test_url_loader_factory_.GetSafeWeakWrapper()) {
 #if BUILDFLAG(FULL_SAFE_BROWSING)
   services_delegate_ = ServicesDelegate::CreateForTest(this, this);
 #endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 }
 
-TestSafeBrowsingService::~TestSafeBrowsingService() {}
+TestSafeBrowsingService::~TestSafeBrowsingService() = default;
 
 V4ProtocolConfig TestSafeBrowsingService::GetV4ProtocolConfig() const {
   if (v4_protocol_config_)
@@ -65,7 +67,7 @@ base::CallbackListSubscription TestSafeBrowsingService::RegisterStateCallback(
   return {};
 }
 
-std::string TestSafeBrowsingService::serilized_download_report() {
+std::string TestSafeBrowsingService::serialized_download_report() {
   return serialized_download_report_;
 }
 
@@ -89,12 +91,12 @@ SafeBrowsingUIManager* TestSafeBrowsingService::CreateUIManager() {
   return SafeBrowsingService::CreateUIManager();
 }
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
-bool TestSafeBrowsingService::SendDownloadReport(
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
+void TestSafeBrowsingService::SendDownloadReport(
     download::DownloadItem* download,
     ClientSafeBrowsingReportRequest::ReportType report_type,
     bool did_proceed,
-    absl::optional<bool> show_download_in_folder) {
+    std::optional<bool> show_download_in_folder) {
   auto report = std::make_unique<ClientSafeBrowsingReportRequest>();
   report->set_type(report_type);
   report->set_download_verdict(
@@ -110,7 +112,7 @@ bool TestSafeBrowsingService::SendDownloadReport(
     report->set_token(token);
   }
   report->SerializeToString(&serialized_download_report_);
-  return true;
+  return;
 }
 #endif
 
@@ -129,7 +131,7 @@ void TestSafeBrowsingService::SetV4ProtocolConfig(
 bool TestSafeBrowsingService::CanCreateDatabaseManager() {
   return !use_v4_local_db_manager_;
 }
-#if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 bool TestSafeBrowsingService::CanCreateDownloadProtectionService() {
   return false;
 }
@@ -142,14 +144,14 @@ SafeBrowsingDatabaseManager* TestSafeBrowsingService::CreateDatabaseManager() {
   DCHECK(!use_v4_local_db_manager_);
 #if BUILDFLAG(FULL_SAFE_BROWSING)
   return new TestSafeBrowsingDatabaseManager(
-      content::GetUIThreadTaskRunner({}), content::GetIOThreadTaskRunner({}));
+      content::GetUIThreadTaskRunner({}));
 #else
   NOTIMPLEMENTED();
   return nullptr;
 #endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 }
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 DownloadProtectionService*
 TestSafeBrowsingService::CreateDownloadProtectionService() {
   NOTIMPLEMENTED();
@@ -178,7 +180,7 @@ TestSafeBrowsingService::GetURLLoaderFactory(
 TestSafeBrowsingServiceFactory::TestSafeBrowsingServiceFactory()
     : test_safe_browsing_service_(nullptr), use_v4_local_db_manager_(false) {}
 
-TestSafeBrowsingServiceFactory::~TestSafeBrowsingServiceFactory() {}
+TestSafeBrowsingServiceFactory::~TestSafeBrowsingServiceFactory() = default;
 
 SafeBrowsingService*
 TestSafeBrowsingServiceFactory::CreateSafeBrowsingService() {
@@ -240,5 +242,5 @@ std::list<std::string>* TestSafeBrowsingUIManager::GetThreatDetails() {
   return &details_;
 }
 
-TestSafeBrowsingUIManager::~TestSafeBrowsingUIManager() {}
+TestSafeBrowsingUIManager::~TestSafeBrowsingUIManager() = default;
 }  // namespace safe_browsing

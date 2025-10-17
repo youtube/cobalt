@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,35 +18,50 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/system/sys_info.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
+#include "chrome/browser/ash/file_manager/copy_or_move_encrypted_hook_delegate.h"
 #include "chrome/browser/ash/file_manager/file_manager_copy_or_move_hook_delegate.h"
-#include "chrome/browser/ash/file_manager/file_tasks.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/filesystem_api_util.h"
 #include "chrome/browser/ash/file_manager/io_task.h"
 #include "chrome/browser/ash/file_manager/io_task_util.h"
+#include "chrome/browser/ash/file_manager/office_file_tasks.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager.h"
+#include "chrome/browser/policy/profile_policy_connector.h"
+#include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_dialog.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "google_apis/common/task_util.h"
+#include "storage/browser/file_system/copy_or_move_hook_delegate_composite.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
 #include "storage/browser/file_system/file_system_url.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/constants/cryptohome.h"
 
 namespace file_manager::io_task {
-
 namespace {
+
+std::string Redact(const storage::FileSystemURL& url) {
+  return LOG_IS_ON(INFO) ? url.DebugString() : "(redacted)";
+}
+
+bool* DestinationNoSpace() {
+  static bool destination_no_space = false;
+  return &destination_no_space;
+}
 
 // Starts the copy operation via FileSystemOperationRunner.
 storage::FileSystemOperationRunner::OperationID StartCopyOnIOThread(
@@ -77,14 +93,10 @@ storage::FileSystemOperationRunner::OperationID StartMoveOnIOThread(
       std::move(copy_or_move_hook_delegate), std::move(complete_callback));
 }
 
-// Helper function for copy or move tasks that determines whether or not
-// entries identified by their URLs should be considered as being on the
-// different file systems or not. The entries are seen as being on different
-// filesystems if either:
-// - the entries are not on the same volume OR
-// - one entry is in My files, and the other one in Downloads.
-// crbug.com/1200251
-bool IsCrossFileSystem(Profile* profile,
+// Helper function for copy or move tasks that determines whether or not entries
+// identified by their URLs should be considered as being on the different file
+// systems or not.
+bool IsCrossFileSystem(Profile* const profile,
                        const storage::FileSystemURL& source_url,
                        const storage::FileSystemURL& destination_url) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -92,44 +104,24 @@ bool IsCrossFileSystem(Profile* profile,
   file_manager::VolumeManager* const volume_manager =
       file_manager::VolumeManager::Get(profile);
 
-  base::WeakPtr<file_manager::Volume> source_volume =
+  const base::WeakPtr<const file_manager::Volume> source_volume =
       volume_manager->FindVolumeFromPath(source_url.path());
-  base::WeakPtr<file_manager::Volume> destination_volume =
+  const base::WeakPtr<const file_manager::Volume> destination_volume =
       volume_manager->FindVolumeFromPath(destination_url.path());
 
-  if (!(source_volume && destination_volume)) {
-    // When either volume is unavailable, fallback to only checking the
-    // filesystem_id, which uniquely maps a URL to its ExternalMountPoints
-    // instance. NOTE: different volumes (e.g. for removables), might share the
-    // same ExternalMountPoints. NOTE 2: if either volume is unavailable, the
-    // operation itself is likely to fail.
+  // When either volume is unavailable, fall back to only checking the
+  // filesystem ID, which uniquely maps a URL to its ExternalMountPoints
+  // instance. NOTE 1: different volumes (e.g. for removables) might share the
+  // same ExternalMountPoints. NOTE 2: if either volume is unavailable, the
+  // operation itself is likely to fail.
+  if (!source_volume || !destination_volume) {
     return source_url.filesystem_id() != destination_url.filesystem_id();
   }
 
-  if (source_volume->volume_id() != destination_volume->volume_id()) {
-    return true;
-  }
+  VLOG(1) << "IsCrossFileSystem: " << source_volume->volume_id() << " -> "
+          << destination_volume->volume_id();
 
-  // On volumes other than DOWNLOADS, I/O operations within volumes that have
-  // the same ID are considered same-filesystem.
-  if (source_volume->type() != file_manager::VOLUME_TYPE_DOWNLOADS_DIRECTORY) {
-    return false;
-  }
-
-  // The Downloads folder being bind mounted in My files, I/O operations within
-  // My files may need to be considered cross-filesystem (if one path is in
-  // Downloads and the other is not).
-  base::FilePath my_files_path =
-      file_manager::util::GetMyFilesFolderForProfile(profile);
-  base::FilePath downloads_path = my_files_path.Append("Downloads");
-
-  bool source_in_downloads = downloads_path.IsParent(source_url.path());
-  // The destination_url can be the destination folder, so Downloads is a valid
-  // destination.
-  bool destination_in_downloads =
-      downloads_path == destination_url.path() ||
-      downloads_path.IsParent(destination_url.path());
-  return source_in_downloads != destination_in_downloads;
+  return source_volume->volume_id() != destination_volume->volume_id();
 }
 
 }  // namespace
@@ -179,6 +171,12 @@ bool CopyOrMoveIOTaskImpl::IsCrossFileSystemForTesting(
   return IsCrossFileSystem(profile, source_url, destination_url);
 }
 
+// static
+void CopyOrMoveIOTaskImpl::SetDestinationNoSpaceForTesting(
+    bool destination_no_space) {
+  *DestinationNoSpace() = destination_no_space;
+}
+
 void CopyOrMoveIOTaskImpl::Execute(IOTask::ProgressCallback progress_callback,
                                    IOTask::CompleteCallback complete_callback) {
   progress_callback_ = std::move(progress_callback);
@@ -192,17 +190,28 @@ void CopyOrMoveIOTaskImpl::Execute(IOTask::ProgressCallback progress_callback,
   VerifyTransfer();
 }
 
-void CopyOrMoveIOTaskImpl::VerifyTransfer() {
-  // No checks, just start the transfer.
-  StartTransfer();
+void CopyOrMoveIOTaskImpl::Pause(PauseParams params) {
+  progress_->state = State::kPaused;
+  progress_->pause_params = params;
+  progress_callback_.Run(*progress_);
 }
 
-void CopyOrMoveIOTaskImpl::StartTransfer() {
-  progress_->state = State::kInProgress;
+void CopyOrMoveIOTaskImpl::Resume(ResumeParams params) {
+  if (params.policy_params.has_value()) {
+    LOG(ERROR)
+        << "Policy resume should be handled by CopyOrMoveIOTaskPolicyImpl";
+    Complete(State::kError);
+    return;
+  }
+  if (!params.conflict_params.has_value()) {
+    LOG(ERROR) << "Missing resume conflict params";
+    Complete(State::kError);
+  }
 
-  // Start the transfer by getting the file size.
-  for (size_t i = 0; i < progress_->sources.size(); i++) {
-    GetFileSize(i);
+  LOG_IF(ERROR, !resume_callback_) << "Resume but no resume_callback_";
+
+  if (resume_callback_) {
+    std::move(resume_callback_).Run(std::move(params));
   }
 }
 
@@ -221,6 +230,42 @@ void CopyOrMoveIOTaskImpl::Complete(State state) {
       base::BindOnce(std::move(complete_callback_), std::move(*progress_)));
 }
 
+void CopyOrMoveIOTaskImpl::CompleteWithError(PolicyError policy_error) {
+  progress_->state = State::kError;
+  progress_->policy_error.emplace(std::move(policy_error));
+}
+
+void CopyOrMoveIOTaskImpl::VerifyTransfer() {
+  // TODO(b/280947989) remove this code once Multi-user sign-in is deprecated.
+  // Prevent files being copied or moved to ODFS if there is a managed user
+  // present amongst other logged in users. Ensures managed user's files can't
+  // be leaked to a non-managed user's ODFS b/278644796.
+  if (ash::cloud_upload::UrlIsOnODFS(progress_->GetDestinationFolder()) &&
+      user_manager::UserManager::Get()->GetLoggedInUsers().size() > 1) {
+    // Check none of the logged in users are managed.
+    for (user_manager::User* user :
+         user_manager::UserManager::Get()->GetLoggedInUsers()) {
+      Profile* user_profile = Profile::FromBrowserContext(
+          ash::BrowserContextHelper::Get()->GetBrowserContextByUser(user));
+      if (user_profile->GetProfilePolicyConnector()->IsManaged()) {
+        Complete(State::kError);
+        return;
+      }
+    }
+  }
+
+  StartTransfer();
+}
+
+void CopyOrMoveIOTaskImpl::StartTransfer() {
+  progress_->state = State::kInProgress;
+
+  // Start the transfer by getting the file size.
+  for (size_t i = 0; i < progress_->sources.size(); i++) {
+    GetFileSize(i);
+  }
+}
+
 // Computes the total size of all source files and stores it in
 // |progress_.total_bytes|.
 void CopyOrMoveIOTaskImpl::GetFileSize(size_t idx) {
@@ -229,10 +274,10 @@ void CopyOrMoveIOTaskImpl::GetFileSize(size_t idx) {
   const base::FilePath& source = progress_->sources[idx].url.path();
   const base::FilePath& destination = progress_->GetDestinationFolder().path();
 
-  constexpr auto metadata_fields =
-      storage::FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY |
-      storage::FileSystemOperation::GET_METADATA_FIELD_SIZE |
-      storage::FileSystemOperation::GET_METADATA_FIELD_TOTAL_SIZE;
+  constexpr storage::FileSystemOperation::GetMetadataFieldSet metadata_fields =
+      {storage::FileSystemOperation::GetMetadataField::kIsDirectory,
+       storage::FileSystemOperation::GetMetadataField::kSize,
+       storage::FileSystemOperation::GetMetadataField::kRecursiveSize};
 
   auto get_metadata_callback =
       base::BindOnce(&GetFileMetadataOnIOThread, file_system_context_,
@@ -301,8 +346,7 @@ void CopyOrMoveIOTaskImpl::GotFileSize(size_t idx,
   // Got file size for all files at this point!
   speedometer_.SetTotalBytes(progress_->total_bytes);
 
-  if (util::IsNonNativeFileSystemType(
-          progress_->GetDestinationFolder().type())) {
+  if (!progress_->GetDestinationFolder().TypeImpliesPathIsReal()) {
     // Destination is a virtual filesystem, so skip checking free space.
     GenerateDestinationURL(0);
   } else {
@@ -349,7 +393,7 @@ void CopyOrMoveIOTaskImpl::GotFreeDiskSpace(int64_t free_space) {
     }
   }
 
-  if (required_bytes > free_space) {
+  if (required_bytes > free_space || *DestinationNoSpace()) {
     progress_->outputs.emplace_back(progress_->GetDestinationFolder(),
                                     base::File::FILE_ERROR_NO_SPACE);
     LOG(ERROR) << "Insufficient free space in destination";
@@ -379,8 +423,7 @@ void CopyOrMoveIOTaskImpl::GotDrivePooledQuota(
     // Log the error if we couldn't fetch the quota (probably because we are
     // offline), but continue the operation and we will show an error later
     // when we come back online and try to sync.
-    LOG(ERROR) << "Error fetching drive quota: "
-               << drive::FileErrorToString(error);
+    LOG(ERROR) << "Error fetching drive quota: " << error;
   } else {
     bool org_exceeded =
         usage->user_type == drivefs::mojom::UserType::kOrganization &&
@@ -421,8 +464,7 @@ void CopyOrMoveIOTaskImpl::GotSharedDriveMetadata(
     // Log the error if we couldn't fetch the metadata (probably because we are
     // offline), but continue the operation and we will show an error later
     // when we come back online and try to sync.
-    LOG(ERROR) << "Error fetching shared drive metadata: "
-               << drive::FileErrorToString(error);
+    LOG(ERROR) << "Error fetching shared drive metadata: " << error;
   } else if (metadata->shared_drive_quota) {
     const auto& quota = metadata->shared_drive_quota;
     if ((quota->individual_quota_bytes_total -
@@ -465,12 +507,12 @@ void CopyOrMoveIOTaskImpl::CopyOrMoveFile(
 
   if (!destination_result.has_value()) {
     progress_->outputs.emplace_back(progress_->GetDestinationFolder(),
-                                    absl::nullopt);
+                                    std::nullopt);
     OnCopyOrMoveComplete(idx, destination_result.error());
     return;
   }
 
-  progress_->outputs.emplace_back(destination_result.value(), absl::nullopt);
+  progress_->outputs.emplace_back(destination_result.value(), std::nullopt);
   DCHECK_EQ(idx + 1, progress_->outputs.size());
 
   const storage::FileSystemURL& source_url = progress_->sources[idx].url;
@@ -512,8 +554,9 @@ void CopyOrMoveIOTaskImpl::CopyOrMoveFile(
   // Use it to automatically resolve the conflict (no need to ask the UI).
   if (!conflict_resolve_.empty()) {
     ResumeParams params;
-    params.conflict_resolve = conflict_resolve_;
-    params.conflict_apply_to_all = true;
+    params.conflict_params.emplace();
+    params.conflict_params->conflict_resolve = conflict_resolve_;
+    params.conflict_params->conflict_apply_to_all = true;
     ResumeCopyOrMoveFile(idx, std::move(replace_url),
                          std::move(destination_url), std::move(params));
     return;
@@ -521,7 +564,7 @@ void CopyOrMoveIOTaskImpl::CopyOrMoveFile(
 
   // Setup the resume callback prior to entering state::PAUSED. ResumeIOTask
   // will invoke this callback, once the user has resolved the conflict. See
-  // CopyOrMoveIOTaskImpl::Resume() below.
+  // CopyOrMoveIOTaskImpl::Resume().
   DCHECK(!resume_callback_);
   resume_callback_ = google_apis::CreateRelayCallback(
       base::BindOnce(&CopyOrMoveIOTaskImpl::ResumeCopyOrMoveFile,
@@ -530,27 +573,21 @@ void CopyOrMoveIOTaskImpl::CopyOrMoveFile(
 
   // Enter state PAUSED: send pause params to the UI, to ask the user how to
   // resolve the file name conflict.
-  progress_->state = State::kPaused;
-  progress_->pause_params.conflict_name = basename.AsUTF8Unsafe();
-  progress_->pause_params.conflict_multiple =
-      (idx < progress_->sources.size() - 1) ? true : false;
-  progress_->pause_params.conflict_is_directory =
-      progress_->sources[idx].is_directory;
   auto destination_folder = file_system_context_->CreateCrackedFileSystemURL(
       progress_->GetDestinationFolder().storage_key(),
       progress_->GetDestinationFolder().mount_type(),
       progress_->GetDestinationFolder().virtual_path());
-  progress_->pause_params.conflict_target_url =
+  progress_->state = State::kPaused;
+  progress_->pause_params.conflict_params.emplace();
+  progress_->pause_params.conflict_params->conflict_name =
+      basename.AsUTF8Unsafe();
+  progress_->pause_params.conflict_params->conflict_is_directory =
+      progress_->sources[idx].is_directory;
+  progress_->pause_params.conflict_params->conflict_multiple =
+      (idx < progress_->sources.size() - 1);
+  progress_->pause_params.conflict_params->conflict_target_url =
       destination_folder.ToGURL().spec();
   progress_callback_.Run(*progress_);
-}
-
-void CopyOrMoveIOTaskImpl::Resume(ResumeParams params) {
-  LOG_IF(ERROR, !resume_callback_) << "Resume but no resume_callback_";
-
-  if (resume_callback_) {
-    std::move(resume_callback_).Run(std::move(params));
-  }
 }
 
 void CopyOrMoveIOTaskImpl::ResumeCopyOrMoveFile(
@@ -568,7 +605,8 @@ void CopyOrMoveIOTaskImpl::ResumeCopyOrMoveFile(
   }
 
   // Get the user's conflict resolve choice.
-  const std::string& conflict_resolve = params.conflict_resolve;
+  const std::string& conflict_resolve =
+      params.conflict_params->conflict_resolve;
   const bool resolve_keepboth = conflict_resolve == "keepboth";
   const bool resolve_replace = conflict_resolve == "replace";
 
@@ -580,7 +618,8 @@ void CopyOrMoveIOTaskImpl::ResumeCopyOrMoveFile(
   }
 
   // Remember the 'ApplyToAll' choice for future conflict handling.
-  if (conflict_resolve_.empty() && params.conflict_apply_to_all) {
+  if (conflict_resolve_.empty() &&
+      params.conflict_params->conflict_apply_to_all) {
     conflict_resolve_ = conflict_resolve;
   }
 
@@ -640,15 +679,13 @@ void CopyOrMoveIOTaskImpl::ContinueCopyOrMoveFile(
 
   // File browsers generally default to preserving mtimes on copy/move so we
   // should do the same.
-  storage::FileSystemOperation::CopyOrMoveOptionSet options =
-      storage::FileSystemOperation::CopyOrMoveOptionSet(
-          storage::FileSystemOperation::CopyOrMoveOption::kPreserveLastModified,
-          storage::FileSystemOperation::CopyOrMoveOption::
-              kRemovePartiallyCopiedFilesOnError);
+  storage::FileSystemOperation::CopyOrMoveOptionSet options = {
+      storage::FileSystemOperation::CopyOrMoveOption::kPreserveLastModified,
+      storage::FileSystemOperation::CopyOrMoveOption::
+          kRemovePartiallyCopiedFilesOnError};
 
   // To ensure progress updates, force cross-filesystem I/O operations when the
-  // source and the destination are on different volumes, or between My files
-  // and Downloads.
+  // source and the destination are on different volumes.
   if (IsCrossFileSystem(profile_, source_url, destination_url)) {
     options.Put(
         storage::FileSystemOperation::CopyOrMoveOption::kForceCrossFilesystem);
@@ -678,6 +715,21 @@ CopyOrMoveIOTaskImpl::GetErrorBehavior() {
   return storage::FileSystemOperation::ERROR_BEHAVIOR_ABORT;
 }
 
+bool CopyOrMoveIOTaskImpl::ShouldSkipEncryptedFiles() {
+  if (!base::FeatureList::IsEnabled(ash::features::kDriveFsShowCSEFiles)) {
+    return false;
+  }
+  auto* drive_integration_service =
+      drive::util::GetIntegrationServiceByProfile(profile_);
+  if (!drive_integration_service) {
+    return false;
+  }
+  if (!drive_integration_service->IsMounted()) {
+    return false;
+  }
+  return true;
+}
+
 std::unique_ptr<storage::CopyOrMoveHookDelegate>
 CopyOrMoveIOTaskImpl::GetHookDelegate(size_t idx) {
   // Using CreateRelayCallback to ensure that the callbacks are executed on the
@@ -685,7 +737,19 @@ CopyOrMoveIOTaskImpl::GetHookDelegate(size_t idx) {
   auto progress_callback = google_apis::CreateRelayCallback(
       base::BindRepeating(&CopyOrMoveIOTaskImpl::OnCopyOrMoveProgress,
                           weak_ptr_factory_.GetWeakPtr(), idx));
-  return std::make_unique<FileManagerCopyOrMoveHookDelegate>(progress_callback);
+  auto hook = std::make_unique<FileManagerCopyOrMoveHookDelegate>(
+      std::move(progress_callback));
+
+  if (ShouldSkipEncryptedFiles()) {
+    auto encryptedHook = std::make_unique<CopyOrMoveEncryptedHookDelegate>(
+        profile_,
+        base::BindRepeating(&CopyOrMoveIOTaskImpl::OnEncryptedFileSkipped,
+                            weak_ptr_factory_.GetWeakPtr(), idx));
+    auto combinedHook = storage::CopyOrMoveHookDelegateComposite::CreateOrAdd(
+        std::move(hook), std::move(encryptedHook));
+    return combinedHook;
+  }
+  return hook;
 }
 
 void CopyOrMoveIOTaskImpl::OnCopyOrMoveProgress(
@@ -725,7 +789,6 @@ void CopyOrMoveIOTaskImpl::OnCopyOrMoveProgress(
         return;
       default:
         NOTREACHED() << "Unknown ProgressType: " << int(type);
-        return;
     }
   }
 
@@ -734,19 +797,27 @@ void CopyOrMoveIOTaskImpl::OnCopyOrMoveProgress(
   int64_t& last_size = individual_progress.at(destination_path);
   int64_t delta = size - last_size;
   last_size = size;
-
   aggregate_progress += delta;
-  progress_->bytes_transferred += delta;
-  speedometer_.Update(progress_->bytes_transferred);
 
-  // Speedometer can produce infinite result which can't be serialized to JSON
-  // when sending the status via private API.
-  double remaining_seconds = speedometer_.GetRemainingSeconds();
-  if (std::isfinite(remaining_seconds)) {
-    progress_->remaining_seconds = remaining_seconds;
+  if (speedometer_.Update(progress_->bytes_transferred += delta)) {
+    const base::TimeDelta remaining_time = speedometer_.GetRemainingTime();
+
+    // Speedometer can produce infinite result which can't be serialized to JSON
+    // when sending the status via private API.
+    if (!remaining_time.is_inf()) {
+      progress_->remaining_seconds = remaining_time.InSecondsF();
+    }
   }
 
   progress_callback_.Run(*progress_);
+}
+
+void CopyOrMoveIOTaskImpl::OnEncryptedFileSkipped(size_t idx,
+                                                  storage::FileSystemURL url) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  progress_->skipped_encrypted_files.emplace_back(std::move(url));
+  progress_->sources[idx].error = base::File::FILE_ERROR_FAILED;
+  progress_->outputs[idx].error = base::File::FILE_ERROR_FAILED;
 }
 
 void CopyOrMoveIOTaskImpl::OnCopyOrMoveComplete(size_t idx,
@@ -756,8 +827,12 @@ void CopyOrMoveIOTaskImpl::OnCopyOrMoveComplete(size_t idx,
 
   operation_id_.reset();
 
-  progress_->sources[idx].error = error;
-  progress_->outputs[idx].error = error;
+  if (!progress_->sources[idx].error) {
+    progress_->sources[idx].error = error;
+  }
+  if (!progress_->outputs[idx].error) {
+    progress_->outputs[idx].error = error;
+  }
 
   auto& [individual_progress, aggregate_progress] = item_progresses[idx];
   individual_progress.clear();
@@ -782,8 +857,8 @@ void CopyOrMoveIOTaskImpl::OnCopyOrMoveComplete(size_t idx,
   // source errors are found.
   for (const auto& source : progress_->sources) {
     DCHECK(source.error.has_value());
-    if (source.error != base::File::FILE_OK) {
-      LOG(ERROR) << "Error on complete: error " << source.error.value() << " "
+    if (source.error.value() != base::File::FILE_OK) {
+      LOG(ERROR) << "Cannot copy or move " << Redact(source.url) << ": "
                  << base::File::ErrorToString(source.error.value());
       complete_state = State::kError;
       break;

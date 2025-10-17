@@ -19,7 +19,6 @@ bool PrefetchProbeResultIsSuccess(PrefetchProbeResult result) {
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace content

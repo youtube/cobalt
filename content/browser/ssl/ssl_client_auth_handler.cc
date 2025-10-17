@@ -51,67 +51,23 @@ class SSLClientAuthHandler::ClientCertificateDelegateImpl
   bool continue_called_ = false;
 };
 
-// A reference-counted core to allow the ClientCertStore and SSLCertRequestInfo
-// to outlive SSLClientAuthHandler if needbe.
-//
-// TODO(davidben): Fix ClientCertStore's lifetime contract. See
-// https://crbug.com/1011579.
-class SSLClientAuthHandler::Core : public base::RefCountedThreadSafe<Core> {
- public:
-  Core(const base::WeakPtr<SSLClientAuthHandler>& handler,
-       std::unique_ptr<net::ClientCertStore> client_cert_store,
-       net::SSLCertRequestInfo* cert_request_info)
-      : handler_(handler),
-        client_cert_store_(std::move(client_cert_store)),
-        cert_request_info_(cert_request_info) {}
-
-  bool has_client_cert_store() const { return !!client_cert_store_; }
-
-  void GetClientCerts() {
-    if (client_cert_store_) {
-      // TODO(davidben): This is still a cyclical ownership where
-      // GetClientCerts' requirement that |client_cert_store_| remains alive
-      // until the call completes is maintained by the reference held in the
-      // callback.
-      client_cert_store_->GetClientCerts(
-          *cert_request_info_,
-          base::BindOnce(&SSLClientAuthHandler::Core::DidGetClientCerts, this));
-    } else {
-      DidGetClientCerts(net::ClientCertIdentityList());
-    }
-  }
-
- private:
-  friend class base::RefCountedThreadSafe<Core>;
-
-  ~Core() {}
-
-  // Called when |client_cert_store_| is done retrieving the cert list.
-  void DidGetClientCerts(net::ClientCertIdentityList client_certs) {
-    // Run this on a PostTask to avoid reentrancy problems.
-    GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&SSLClientAuthHandler::DidGetClientCerts,
-                       std::move(handler_), std::move(client_certs)));
-  }
-
-  base::WeakPtr<SSLClientAuthHandler> handler_;
-  std::unique_ptr<net::ClientCertStore> client_cert_store_;
-  scoped_refptr<net::SSLCertRequestInfo> cert_request_info_;
-};
-
 SSLClientAuthHandler::SSLClientAuthHandler(
     std::unique_ptr<net::ClientCertStore> client_cert_store,
-    WebContents::Getter web_contents_getter,
+    base::WeakPtr<BrowserContext> browser_context,
+    int process_id,
+    base::WeakPtr<WebContents> web_contents,
     net::SSLCertRequestInfo* cert_request_info,
     Delegate* delegate)
-    : web_contents_getter_(std::move(web_contents_getter)),
+    : browser_context_(browser_context),
+      process_id_(process_id),
+      web_contents_(web_contents),
       cert_request_info_(cert_request_info),
+      client_cert_store_(std::move(client_cert_store)),
       delegate_(delegate) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  core_ = new Core(weak_factory_.GetWeakPtr(), std::move(client_cert_store),
-                   cert_request_info_.get());
+  if (web_contents_) {
+    CHECK_EQ(web_contents_->GetBrowserContext(), browser_context_.get());
+  }
 }
 
 SSLClientAuthHandler::~SSLClientAuthHandler() {
@@ -126,27 +82,31 @@ SSLClientAuthHandler::~SSLClientAuthHandler() {
 void SSLClientAuthHandler::SelectCertificate() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  // |core_| will call DidGetClientCerts when done.
-  core_->GetClientCerts();
+  if (client_cert_store_) {
+    client_cert_store_->GetClientCerts(
+        cert_request_info_,
+        base::BindOnce(&SSLClientAuthHandler::DidGetClientCerts,
+                       weak_factory_.GetWeakPtr()));
+  } else {
+    DidGetClientCerts(net::ClientCertIdentityList());
+  }
 }
 
 void SSLClientAuthHandler::DidGetClientCerts(
     net::ClientCertIdentityList client_certs) {
+  // Run this on a PostTask to avoid reentrancy problems.
+  GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SSLClientAuthHandler::DidGetClientCertsOnPostTask,
+                     weak_factory_.GetWeakPtr(), std::move(client_certs)));
+}
+
+void SSLClientAuthHandler::DidGetClientCertsOnPostTask(
+    net::ClientCertIdentityList client_certs) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  WebContents* web_contents = web_contents_getter_.Run();
-  if (!web_contents) {
+  if (!browser_context_) {
     delegate_->CancelCertificateSelection();
-    return;
-  }
-
-  // Note that if |client_cert_store_| is NULL, we intentionally fall through to
-  // SelectClientCertificate(). This is for platforms where the client cert
-  // matching is not performed by Chrome. Those platforms handle the cert
-  // matching before showing the dialog.
-  if (core_->has_client_cert_store() && client_certs.empty()) {
-    // No need to query the user if there are no certs to choose from.
-    delegate_->ContinueWithCertificate(nullptr, nullptr);
     return;
   }
 
@@ -155,7 +115,8 @@ void SSLClientAuthHandler::DidGetClientCerts(
   base::WeakPtr<SSLClientAuthHandler> weak_self = weak_factory_.GetWeakPtr();
   base::OnceClosure cancellation_callback =
       GetContentClient()->browser()->SelectClientCertificate(
-          web_contents, cert_request_info_.get(), std::move(client_certs),
+          browser_context_.get(), process_id_, web_contents_.get(),
+          cert_request_info_.get(), std::move(client_certs),
           std::make_unique<ClientCertificateDelegateImpl>(weak_self));
   if (weak_self) {
     cancellation_callback_ = std::move(cancellation_callback);

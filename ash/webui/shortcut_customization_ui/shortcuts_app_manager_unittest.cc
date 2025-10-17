@@ -12,6 +12,7 @@
 #include "ash/public/cpp/accelerator_configuration.h"
 #include "ash/public/mojom/accelerator_info.mojom-shared.h"
 #include "ash/public/mojom/accelerator_info.mojom.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/webui/shortcut_customization_ui/backend/accelerator_configuration_provider.h"
@@ -35,8 +36,6 @@ class ShortcutsAppManagerTest : public AshTestBase {
 
   // AshTestBase:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({features::kSearchInShortcutsApp},
-                                          {});
     ui::ResourceBundle::CleanupSharedInstance();
     AshTestSuite::LoadTestResources();
     AshTestBase::SetUp();
@@ -46,7 +45,8 @@ class ShortcutsAppManagerTest : public AshTestBase {
             /*for_testing=*/true);
 
     manager_ = std::make_unique<ShortcutsAppManager>(
-        local_search_service_proxy_.get());
+        local_search_service_proxy_.get(),
+        Shell::Get()->session_controller()->GetActivePrefService());
 
     // Let the RunLoop so that the AshAcceleratorConfiguration can load its
     // default accelerators.
@@ -83,12 +83,15 @@ TEST_F(ShortcutsAppManagerTest, SetSearchConcepts) {
   AcceleratorConfigurationProvider::ActionIdToAcceleratorsInfoMap ash_info_map;
   ash_info_map.insert({fake_search_data::FakeActionIds::kAction1,
                        fake_search_data::CreateFakeAcceleratorInfoList()});
+  ash_info_map.insert({fake_search_data::FakeActionIds::kAction2,
+                       fake_search_data::CreateFakeAcceleratorInfoList(
+                           ash::mojom::AcceleratorState::kDisabledByUser)});
 
   AcceleratorConfigurationProvider::ActionIdToAcceleratorsInfoMap
       browser_info_map;
-  browser_info_map.insert({fake_search_data::FakeActionIds::kAction2,
-                           fake_search_data::CreateFakeAcceleratorInfoList()});
   browser_info_map.insert({fake_search_data::FakeActionIds::kAction3,
+                           fake_search_data::CreateFakeAcceleratorInfoList()});
+  browser_info_map.insert({fake_search_data::FakeActionIds::kAction4,
                            fake_search_data::CreateFakeAcceleratorInfoList()});
 
   // Create the fake config.
@@ -105,12 +108,16 @@ TEST_F(ShortcutsAppManagerTest, SetSearchConcepts) {
       fake_search_data::FakeActionIds::kAction1,
       ash::mojom::AcceleratorLayoutStyle::kDefault));
   fake_layout_infos.push_back(fake_search_data::CreateFakeAcceleratorLayoutInfo(
-      u"Open new tab", ash::mojom::AcceleratorSource::kBrowser,
+      u"Open/close calendar", ash::mojom::AcceleratorSource::kAsh,
       fake_search_data::FakeActionIds::kAction2,
       ash::mojom::AcceleratorLayoutStyle::kDefault));
   fake_layout_infos.push_back(fake_search_data::CreateFakeAcceleratorLayoutInfo(
-      u"Close tab", ash::mojom::AcceleratorSource::kBrowser,
+      u"Open new tab", ash::mojom::AcceleratorSource::kBrowser,
       fake_search_data::FakeActionIds::kAction3,
+      ash::mojom::AcceleratorLayoutStyle::kDefault));
+  fake_layout_infos.push_back(fake_search_data::CreateFakeAcceleratorLayoutInfo(
+      u"Close tab", ash::mojom::AcceleratorSource::kBrowser,
+      fake_search_data::FakeActionIds::kAction4,
       ash::mojom::AcceleratorLayoutStyle::kDefault));
 
   auto& registry_search_concepts =
@@ -126,7 +133,10 @@ TEST_F(ShortcutsAppManagerTest, SetSearchConcepts) {
                               std::move(fake_layout_infos));
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(registry_search_concepts.size(), 3u);
+  // Disabled accelerator info is included, which will be displayed as 'No
+  // shortcut assigned' in the frontend.
+  EXPECT_EQ(registry_search_concepts.size(), 4u);
+
   // Test that the expected search concepts are present and check a few
   // attributes to be sure.
   ValidateSearchConceptById(/*search_concepts_map=*/registry_search_concepts,
@@ -135,14 +145,19 @@ TEST_F(ShortcutsAppManagerTest, SetSearchConcepts) {
                             /*expected_action=*/fake_search_data::kAction1);
   ValidateSearchConceptById(
       /*search_concepts_map=*/registry_search_concepts,
-      /*search_concept_id=*/"2-2",
-      /*expected_source=*/mojom::AcceleratorSource::kBrowser,
+      /*search_concept_id=*/"0-2",
+      /*expected_source=*/mojom::AcceleratorSource::kAsh,
       /*expected_action=*/fake_search_data::kAction2);
   ValidateSearchConceptById(
       /*search_concepts_map=*/registry_search_concepts,
       /*search_concept_id=*/"2-3",
       /*expected_source=*/mojom::AcceleratorSource::kBrowser,
       /*expected_action=*/fake_search_data::kAction3);
+  ValidateSearchConceptById(
+      /*search_concepts_map=*/registry_search_concepts,
+      /*search_concept_id=*/"2-4",
+      /*expected_source=*/mojom::AcceleratorSource::kBrowser,
+      /*expected_action=*/fake_search_data::kAction4);
 }
 
 }  // namespace ash::shortcut_ui

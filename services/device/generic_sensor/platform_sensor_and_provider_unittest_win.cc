@@ -6,9 +6,11 @@
 #include <sensors.h>
 #include <wrl/implements.h>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/shared_memory_mapping.h"
+#include "base/numerics/angle_conversions.h"
 #include "base/numerics/math_constants.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
@@ -19,10 +21,10 @@
 #include "services/device/generic_sensor/generic_sensor_consts.h"
 #include "services/device/generic_sensor/platform_sensor_provider_win.h"
 #include "services/device/generic_sensor/platform_sensor_util.h"
+#include "services/device/public/cpp/generic_sensor/sensor_reading_shared_buffer.h"
 #include "services/device/public/mojom/sensor_provider.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/angle_conversions.h"
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -399,10 +401,8 @@ double RoundGyroscopeValue(double value) {
 // Tests that PlatformSensorManager returns null sensor when sensor
 // is not implemented.
 TEST_F(PlatformSensorAndProviderTestWin, SensorIsNotImplemented) {
-  EXPECT_CALL(*(sensor_manager_.Get()),
-              GetSensorsByType(SENSOR_TYPE_PRESSURE, _))
-      .Times(0);
-  EXPECT_FALSE(CreateSensor(SensorType::PRESSURE));
+  EXPECT_CALL(*(sensor_manager_.Get()), GetSensorsByType(_, _)).Times(0);
+  EXPECT_FALSE(CreateSensor(SensorType::RELATIVE_ORIENTATION_EULER_ANGLES));
 }
 
 // Tests that PlatformSensorManager returns null sensor when sensor
@@ -544,7 +544,7 @@ TEST_F(PlatformSensorAndProviderTestWin, CheckAccelerometerReadingConversion) {
   base::ReadOnlySharedMemoryRegion region =
       provider_->CloneSharedMemoryRegion();
   base::ReadOnlySharedMemoryMapping mapping = region.MapAt(
-      SensorReadingSharedBuffer::GetOffset(SensorType::ACCELEROMETER),
+      GetSensorReadingSharedBufferOffset(SensorType::ACCELEROMETER),
       sizeof(SensorReadingSharedBuffer));
 
   SetSupportedSensor(SENSOR_TYPE_ACCELEROMETER_3D);
@@ -586,7 +586,7 @@ TEST_F(PlatformSensorAndProviderTestWin, CheckGyroscopeReadingConversion) {
   base::ReadOnlySharedMemoryRegion region =
       provider_->CloneSharedMemoryRegion();
   base::ReadOnlySharedMemoryMapping mapping =
-      region.MapAt(SensorReadingSharedBuffer::GetOffset(SensorType::GYROSCOPE),
+      region.MapAt(GetSensorReadingSharedBufferOffset(SensorType::GYROSCOPE),
                    sizeof(SensorReadingSharedBuffer));
 
   SetSupportedSensor(SENSOR_TYPE_GYROMETER_3D);
@@ -616,11 +616,11 @@ TEST_F(PlatformSensorAndProviderTestWin, CheckGyroscopeReadingConversion) {
   const SensorReadingSharedBuffer* buffer =
       static_cast<const SensorReadingSharedBuffer*>(mapping.memory());
   EXPECT_THAT(buffer->reading.gyro.x,
-              RoundGyroscopeValue(gfx::DegToRad(x_ang_accel)));
+              RoundGyroscopeValue(base::DegToRad(x_ang_accel)));
   EXPECT_THAT(buffer->reading.gyro.y,
-              RoundGyroscopeValue(gfx::DegToRad(y_ang_accel)));
+              RoundGyroscopeValue(base::DegToRad(y_ang_accel)));
   EXPECT_THAT(buffer->reading.gyro.z,
-              RoundGyroscopeValue(gfx::DegToRad(z_ang_accel)));
+              RoundGyroscopeValue(base::DegToRad(z_ang_accel)));
   EXPECT_TRUE(sensor->StopListening(client.get(), configuration));
 }
 
@@ -628,9 +628,9 @@ TEST_F(PlatformSensorAndProviderTestWin, CheckGyroscopeReadingConversion) {
 TEST_F(PlatformSensorAndProviderTestWin, CheckMagnetometerReadingConversion) {
   base::ReadOnlySharedMemoryRegion region =
       provider_->CloneSharedMemoryRegion();
-  base::ReadOnlySharedMemoryMapping mapping = region.MapAt(
-      SensorReadingSharedBuffer::GetOffset(SensorType::MAGNETOMETER),
-      sizeof(SensorReadingSharedBuffer));
+  base::ReadOnlySharedMemoryMapping mapping =
+      region.MapAt(GetSensorReadingSharedBufferOffset(SensorType::MAGNETOMETER),
+                   sizeof(SensorReadingSharedBuffer));
 
   SetSupportedSensor(SENSOR_TYPE_COMPASS_3D);
   auto sensor = CreateSensor(SensorType::MAGNETOMETER);
@@ -671,7 +671,7 @@ TEST_F(PlatformSensorAndProviderTestWin,
   base::ReadOnlySharedMemoryRegion region =
       provider_->CloneSharedMemoryRegion();
   base::ReadOnlySharedMemoryMapping mapping =
-      region.MapAt(SensorReadingSharedBuffer::GetOffset(
+      region.MapAt(GetSensorReadingSharedBufferOffset(
                        SensorType::ABSOLUTE_ORIENTATION_EULER_ANGLES),
                    sizeof(SensorReadingSharedBuffer));
 
@@ -714,7 +714,7 @@ TEST_F(PlatformSensorAndProviderTestWin,
   base::ReadOnlySharedMemoryRegion region =
       provider_->CloneSharedMemoryRegion();
   base::ReadOnlySharedMemoryMapping mapping =
-      region.MapAt(SensorReadingSharedBuffer::GetOffset(
+      region.MapAt(GetSensorReadingSharedBufferOffset(
                        SensorType::ABSOLUTE_ORIENTATION_QUATERNION),
                    sizeof(SensorReadingSharedBuffer));
 
@@ -748,7 +748,8 @@ TEST_F(PlatformSensorAndProviderTestWin,
   // InitPropVariantFromGUIDAsBuffer with quaternion format GUID.
   InitPropVariantFromGUIDAsBuffer(SENSOR_DATA_TYPE_QUATERNION.fmtid,
                                   pvQuat.Receive());
-  memcpy(pvQuat.get().caub.pElems, &quat_elements, sizeof(quat_elements));
+  UNSAFE_TODO(
+      memcpy(pvQuat.get().caub.pElems, &quat_elements, sizeof(quat_elements)));
   GenerateDataUpdatedEvent({{SENSOR_DATA_TYPE_QUATERNION, pvQuat.ptr()}});
 
   base::RunLoop().RunUntilIdle();

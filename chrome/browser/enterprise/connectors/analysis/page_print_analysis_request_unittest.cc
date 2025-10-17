@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "chrome/browser/enterprise/connectors/analysis/page_print_analysis_request.h"
 
 #include "base/functional/callback_helpers.h"
@@ -63,11 +68,8 @@ TEST_P(PagePrintAnalysisRequestTest, CloudSizes) {
 
         ASSERT_EQ(result, expected_result());
         ASSERT_EQ(data.size, page_size());
-        if (expected_result() ==
-            safe_browsing::BinaryUploadService::Result::SUCCESS) {
-          ASSERT_EQ(data.page.GetSize(), page_size());
-          ASSERT_TRUE(data.page.IsValid());
-        }
+        ASSERT_EQ(data.page.GetSize(), page_size());
+        ASSERT_TRUE(data.page.IsValid());
 
         run_loop.Quit();
       }));

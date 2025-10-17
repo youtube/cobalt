@@ -2,19 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ntstatus.h>
-#include <stdlib.h>
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <windows.h>
 #include <winternl.h>
+
+#include <ntstatus.h>
+#include <stdlib.h>
 
 #include <memory>
 
 #include "base/memory/page_size.h"
-#include "base/win/win_util.h"
+#include "base/win/windows_handle_util.h"
 #include "sandbox/win/src/crosscall_client.h"
 #include "sandbox/win/src/filesystem_interception.h"
 #include "sandbox/win/src/ipc_tags.h"
-#include "sandbox/win/src/named_pipe_interception.h"
 #include "sandbox/win/src/policy_engine_processor.h"
 #include "sandbox/win/src/policy_low_level.h"
 #include "sandbox/win/src/policy_params.h"
@@ -33,7 +38,6 @@ enum TestId {
   TESTIPC_NTOPENFILE,
   TESTIPC_NTCREATEFILE,
   TESTIPC_CREATETHREAD,
-  TESTIPC_CREATENAMEDPIPEW,
   TESTIPC_LAST
 };
 
@@ -46,30 +50,6 @@ PolicyGlobal* MakePolicyMemory() {
   PolicyGlobal* policy = reinterpret_cast<PolicyGlobal*>(mem);
   policy->data_size = kTotalPolicySz - sizeof(PolicyGlobal);
   return policy;
-}
-
-// CreateNamedPipeW
-HANDLE WINAPI DummyCreateNamedPipeW(LPCWSTR pipe_name,
-                                    DWORD open_mode,
-                                    DWORD pipe_mode,
-                                    DWORD max_instance,
-                                    DWORD out_buffer_size,
-                                    DWORD in_buffer_size,
-                                    DWORD default_timeout,
-                                    LPSECURITY_ATTRIBUTES security_attributes) {
-  return INVALID_HANDLE_VALUE;
-}
-
-void TestCreateNamedPipeW() {
-  HANDLE handle;
-
-  handle = TargetCreateNamedPipeW(
-      reinterpret_cast<CreateNamedPipeWFunction>(DummyCreateNamedPipeW),
-      L"\\??\\leak", PIPE_ACCESS_DUPLEX,
-      PIPE_TYPE_MESSAGE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 0x1000,
-      0x1000, 100, nullptr);
-  if (handle != INVALID_HANDLE_VALUE)
-    CloseHandle(handle);
 }
 
 // NtCreateFile
@@ -159,8 +139,7 @@ PolicyGlobal* GenerateBlankPolicy() {
 
   LowLevelPolicy policy_maker(policy);
 
-  for (int i = static_cast<int>(IpcTag::UNUSED);
-       i < static_cast<int>(IpcTag::LAST); i++) {
+  for (size_t i = 0; i < kSandboxIpcCount; i++) {
     IpcTag service = static_cast<IpcTag>(i);
     PolicyRule ask_broker(ASK_BROKER);
     ask_broker.Done();
@@ -182,7 +161,7 @@ void CopyPolicyToTarget(const void* source, size_t size, void* dest) {
 
   size_t offset = reinterpret_cast<size_t>(source);
 
-  for (size_t i = 0; i < sandbox::kMaxServiceCount; i++) {
+  for (size_t i = 0; i < kSandboxIpcCount; i++) {
     size_t buffer = reinterpret_cast<size_t>(policy->entry[i]);
     if (buffer) {
       buffer -= offset;
@@ -224,9 +203,6 @@ SBOX_TESTS_COMMAND int IPC_Leak(int argc, wchar_t** argv) {
     case TESTIPC_CREATETHREAD:
       TestCreateThread();
       break;
-    case TESTIPC_CREATENAMEDPIPEW:
-      TestCreateNamedPipeW();
-      break;
     case TESTIPC_LAST:
       NOTREACHED_NT();
       break;
@@ -264,17 +240,14 @@ TEST(IPCTest, IPCLeak) {
     HANDLE expected_result;
   } test_data[] = {{TESTIPC_NTOPENFILE, "TESTIPC_NTOPENFILE", nullptr},
                    {TESTIPC_NTCREATEFILE, "TESTIPC_NTCREATEFILE", nullptr},
-                   {TESTIPC_CREATETHREAD, "TESTIPC_CREATETHREAD", nullptr},
-                   {TESTIPC_CREATENAMEDPIPEW, "TESTIPC_CREATENAMEDPIPEW",
-                    INVALID_HANDLE_VALUE}};
+                   {TESTIPC_CREATETHREAD, "TESTIPC_CREATETHREAD", nullptr}};
 
   static_assert(std::size(test_data) == TESTIPC_LAST, "Not enough tests.");
   for (auto test : test_data) {
     TestRunner runner;
     // There has to be a policy allocated for the child to have one to replace.
-    runner.AddRule(sandbox::SubSystem::kFiles,
-                   sandbox::Semantics::kFilesAllowReadonly,
-                   L"c:\\Windows\\System32\\Nothing.txt");
+    runner.AllowFileAccess(sandbox::FileSemantics::kAllowReadonly,
+                           L"c:\\Windows\\System32\\Nothing.txt");
     std::wstring command = std::wstring(L"IPC_Leak ");
     command += std::to_wstring(test.test_id);
     EXPECT_EQ(test.expected_result,

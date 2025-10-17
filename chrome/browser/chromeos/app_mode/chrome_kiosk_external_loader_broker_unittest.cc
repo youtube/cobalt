@@ -10,7 +10,7 @@
 #include "extensions/common/extension_urls.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
+namespace chromeos {
 
 namespace {
 
@@ -135,7 +135,7 @@ TEST_F(ChromeKioskExternalLoaderBrokerTest,
   broker.RegisterSecondaryAppInstallDataObserver(
       secondary_observer.GetCallback());
 
-  broker.TriggerSecondaryAppInstall({"secondary-app", "other-secondary-app"});
+  broker.UpdateSecondaryAppList({"secondary-app", "other-secondary-app"});
 
   EXPECT_EQ(secondary_observer.Take(),
             base::Value::Dict()  //
@@ -147,7 +147,7 @@ TEST_F(ChromeKioskExternalLoaderBrokerTest,
        ShouldInvokeSecondaryObserverWhenAppsWereAlreadyInstalled) {
   ChromeKioskExternalLoaderBroker broker;
 
-  broker.TriggerSecondaryAppInstall({"secondary-app"});
+  broker.UpdateSecondaryAppList({"secondary-app"});
 
   // Install the observer after the secondary app was installed.
   Observer secondary_observer;
@@ -158,4 +158,4 @@ TEST_F(ChromeKioskExternalLoaderBrokerTest,
             base::Value::Dict().Set("secondary-app", SecondaryAppData()));
 }
 
-}  // namespace ash
+}  // namespace chromeos

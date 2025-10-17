@@ -21,7 +21,6 @@ class WebFakeThreadScheduler : public WebThreadScheduler {
 
   // RendererScheduler implementation.
   std::unique_ptr<MainThread> CreateMainThread() override;
-  scoped_refptr<base::SingleThreadTaskRunner> CompositorTaskRunner() override;
   std::unique_ptr<WebAgentGroupScheduler> CreateWebAgentGroupScheduler()
       override;
   void SetRendererHidden(bool hidden) override;
@@ -31,7 +30,6 @@ class WebFakeThreadScheduler : public WebThreadScheduler {
   void ResumeTimersForAndroidWebView() override;
 #endif
   void Shutdown() override;
-  void SetRendererProcessType(WebRendererProcessType type) override;
 };
 
 }  // namespace scheduler

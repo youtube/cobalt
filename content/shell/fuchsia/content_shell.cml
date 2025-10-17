@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 {
   include: [
-    "syslog/client.shard.cml",
-    "vulkan/client.shard.cml",
-    "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml",
-    "//build/config/fuchsia/test/chromium_test_facet.shard.test-cml",
+    "//build/config/fuchsia/test/elf_test_runner.shard.test-cml",
+    "//build/config/fuchsia/test/chromium_system_test_facet.shard.test-cml",
     "//build/config/fuchsia/test/test_fonts.shard.test-cml",
+    "vulkan/client.shard.cml",
   ],
   program: {
     binary: "content_shell",
@@ -27,7 +26,7 @@
         "fuchsia.media.ProfileProvider",
         "fuchsia.media.SessionAudioConsumerFactory",
         // Only needed in enable_widevine=true builds.
-        // TODO(crbug.com/1379411): Move to a shard.
+        // TODO(crbug.com/40875562): Move to a shard.
         "fuchsia.media.drm.Widevine",
         "fuchsia.mediacodec.CodecFactory",
         "fuchsia.memorypressure.Provider",
@@ -35,10 +34,10 @@
         "fuchsia.net.name.Lookup",
         "fuchsia.posix.socket.Provider",
         "fuchsia.process.Launcher",
+        "fuchsia.scheduler.RoleManager",
         "fuchsia.ui.composition.Allocator",
         "fuchsia.ui.composition.Flatland",
         "fuchsia.ui.input3.Keyboard",
-        "fuchsia.ui.scenic.Scenic",
       ],
     },
     {
@@ -57,6 +56,11 @@
       directory: "root-ssl-certificates",
       rights: [ "r*" ],
       path: "/config/ssl",
+    },
+    {
+      directory: "tzdata-icu",
+      rights: [ "r*" ],
+      path: "/config/tzdata/icu",
     },
   ],
 }

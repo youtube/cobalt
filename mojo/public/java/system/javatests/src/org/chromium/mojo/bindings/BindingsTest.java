@@ -24,7 +24,6 @@ import org.chromium.mojo.bindings.test.mojom.sample.Foo;
 import org.chromium.mojo.bindings.test.mojom.sample.InterfaceConstants;
 import org.chromium.mojo.bindings.test.mojom.sample.SampleServiceConstants;
 import org.chromium.mojo.bindings.test.mojom.test_structs.EmptyStruct;
-import org.chromium.mojo.bindings.test.mojom.test_structs.Rect;
 import org.chromium.mojo.system.DataPipe.ConsumerHandle;
 import org.chromium.mojo.system.DataPipe.ProducerHandle;
 import org.chromium.mojo.system.MessagePipeHandle;
@@ -32,14 +31,10 @@ import org.chromium.mojo.system.MessagePipeHandle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-/**
- * Testing generated classes and associated features.
- */
+/** Testing generated classes and associated features. */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class BindingsTest {
-    /**
-     * Create a new typical Bar instance.
-     */
+    /** Create a new typical Bar instance. */
     private static Bar newBar() {
         Bar bar = new Bar();
         bar.alpha = (byte) 0x01;
@@ -49,9 +44,7 @@ public class BindingsTest {
         return bar;
     }
 
-    /**
-     * Create a new typical Foo instance.
-     */
+    /** Create a new typical Foo instance. */
     private static Foo createFoo() {
         Foo foo = new Foo();
         foo.name = "HELLO WORLD";
@@ -84,15 +77,6 @@ public class BindingsTest {
         return foo;
     }
 
-    private static Rect createRect(int x, int y, int width, int height) {
-        Rect rect = new Rect();
-        rect.x = x;
-        rect.y = y;
-        rect.width = width;
-        rect.height = height;
-        return rect;
-    }
-
     private static <T> void checkConstantField(Field field, Class<T> expectedClass, T value)
             throws IllegalAccessException {
         Assert.assertEquals(expectedClass, field.getType());
@@ -109,9 +93,7 @@ public class BindingsTest {
         Assert.assertEquals(value, field.get(object));
     }
 
-    /**
-     * Testing constants are correctly generated.
-     */
+    /** Testing constants are correctly generated. */
     @Test
     @SmallTest
     public void testConstants()
@@ -120,9 +102,7 @@ public class BindingsTest {
         checkConstantField(InterfaceConstants.class.getField("LONG"), long.class, 4405L);
     }
 
-    /**
-     * Testing enums are correctly generated.
-     */
+    /** Testing enums are correctly generated. */
     @Test
     @SmallTest
     public void testEnums() throws NoSuchFieldException, SecurityException, IllegalAccessException {
@@ -136,16 +116,14 @@ public class BindingsTest {
         checkConstantField(Shape.class.getField("TRIANGLE"), int.class, 3);
     }
 
-    /**
-     * Testing default values on structs.
-     *
-     * @throws IllegalAccessException
-     * @throws IllegalArgumentException
-     */
+    /** Testing default values on structs. */
     @Test
     @SmallTest
-    public void testStructDefaults() throws NoSuchFieldException, SecurityException,
-                                            IllegalArgumentException, IllegalAccessException {
+    public void testStructDefaults()
+            throws NoSuchFieldException,
+                    SecurityException,
+                    IllegalArgumentException,
+                    IllegalAccessException {
         // Check default values.
         DefaultsTest test = new DefaultsTest();
 
@@ -180,11 +158,7 @@ public class BindingsTest {
         checkField(DefaultsTest.class.getField("a25"), long.class, test, -0x123456789L);
     }
 
-    /**
-     * Testing generation of the Foo class.
-     *
-     * @throws IllegalAccessException
-     */
+    /** Testing generation of the Foo class. */
     @Test
     @SmallTest
     public void testFooGeneration()
@@ -201,9 +175,7 @@ public class BindingsTest {
         checkField(Foo.class.getField("source"), MessagePipeHandle.class, foo, foo.source);
     }
 
-    /**
-     * Testing serialization of the Foo class.
-     */
+    /** Testing serialization of the Foo class. */
     @Test
     @SmallTest
     public void testFooSerialization() {
@@ -214,9 +186,7 @@ public class BindingsTest {
         Assert.assertTrue(BindingsTestUtils.structsEqual(typicalFoo, deserializedFoo));
     }
 
-    /**
-     * Testing serialization of the EmptyStruct class.
-     */
+    /** Testing serialization of the EmptyStruct class. */
     @Test
     @SmallTest
     public void testEmptyStructSerialization() {

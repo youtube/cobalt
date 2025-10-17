@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/login_screen_test_api.h"
 #include "chrome/browser/ash/login/app_mode/test/kiosk_apps_mixin.h"
@@ -11,11 +10,14 @@
 #include "chrome/browser/ash/login/test/embedded_test_server_setup_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_auth_page_waiter.h"
+#include "chrome/browser/ash/login/test/oobe_base_test.h"
+#include "chrome/browser/ash/login/test/oobe_screen_exit_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
+#include "chrome/browser/ash/login/test/scoped_policy_update.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "chrome/browser/ui/webui/ash/login/os_install_screen_handler.h"
@@ -25,6 +27,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "content/public/test/browser_test.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/dns/mock_host_resolver.h"
 
 namespace ash {
@@ -32,10 +35,9 @@ namespace ash {
 namespace {
 
 constexpr char kExistingUserEmail[] = "existing@gmail.com";
-constexpr char kExistingUserGaiaId[] = "9876543210";
+constexpr GaiaId::Literal kExistingUserGaiaId("9876543210");
 
 constexpr char kNewUserEmail[] = "new@gmail.com";
-constexpr char kNewUserGaiaId[] = "0123456789";
 
 class LoginUIShelfVisibilityTest : public MixinBasedInProcessBrowserTest {
  public:
@@ -61,12 +63,12 @@ class LoginUIShelfVisibilityTest : public MixinBasedInProcessBrowserTest {
     LoginDisplayHost::default_host()
         ->GetOobeUI()
         ->GetView<GaiaScreenHandler>()
-        ->ShowSigninScreenForTest(kNewUserEmail, kNewUserGaiaId,
+        ->ShowSigninScreenForTest(kNewUserEmail, "FakePassword",
                                   FakeGaiaMixin::kEmptyUserServices);
 
-    // Consolidated consent is the first post-login screen shown when a new user
-    // signs in.
-    OobeScreenWaiter(ConsolidatedConsentScreenView::kScreenId).Wait();
+    // Wait for the exiting of the sign-in screen which will be followed
+    // by the showing of the first onboarding screen.
+    OobeScreenExitWaiter(OobeBaseTest::GetFirstSigninScreen()).Wait();
   }
 
  private:
@@ -186,8 +188,6 @@ class KioskSkuVisibilityTest : public LoginUIShelfVisibilityTest {
  public:
   KioskSkuVisibilityTest() {
     device_state_.set_skip_initial_policy_setup(true);
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kEnableKioskLoginScreen);
   }
   ~KioskSkuVisibilityTest() override = default;
   KioskSkuVisibilityTest(const KioskSkuVisibilityTest&) = delete;
@@ -202,7 +202,6 @@ class KioskSkuVisibilityTest : public LoginUIShelfVisibilityTest {
   DeviceStateMixin device_state_{
       &mixin_host_, DeviceStateMixin::State::OOBE_COMPLETED_CLOUD_ENROLLED};
   policy::DevicePolicyCrosTestHelper policy_helper_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Verifies that shelf buttons of Guest mode and Add user are shown, and kiosk

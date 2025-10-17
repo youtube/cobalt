@@ -17,6 +17,12 @@
 
 namespace blink {
 
+namespace {
+constexpr const char kNullCallbackErrorMessage[] =
+    " The MutationObserver should have been deactivated if callback_ was set "
+    "to null. See http://crbug.com/40842164";
+}
+
 class WebFormElementObserverImpl::ObserverCallback
     : public MutationObserver::Delegate {
  public:
@@ -76,16 +82,21 @@ void WebFormElementObserverImpl::ObserverCallback::Deliver(
         if (removed_node != element_ && !parents_.Contains(removed_node)) {
           continue;
         }
-        std::move(callback_).Run();
+        DCHECK(callback_) << kNullCallbackErrorMessage;
+        if (callback_) {
+          std::move(callback_).Run();
+        }
         Disconnect();
         return;
       }
-    } else {
+    } else if (auto* element = DynamicTo<Element>(record->target())) {
       // Either "style" or "class" was modified. Check the computed style.
-      auto* style =
-          MakeGarbageCollected<CSSComputedStyleDeclaration>(record->target());
+      auto* style = MakeGarbageCollected<CSSComputedStyleDeclaration>(element);
       if (style->GetPropertyValue(CSSPropertyID::kDisplay) == "none") {
-        std::move(callback_).Run();
+        DCHECK(callback_) << kNullCallbackErrorMessage;
+        if (callback_) {
+          std::move(callback_).Run();
+        }
         Disconnect();
         return;
       }

@@ -10,12 +10,12 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/autofill/core/browser/autofill_data_util.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_quality/autofill_data_util.h"
+#include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
-#include "components/autofill/core/browser/validation.h"
 #include "components/payments/core/method_strings.h"
 #include "components/payments/core/payment_method_data.h"
 #include "components/payments/core/payments_validators.h"
@@ -58,7 +58,7 @@ mojom::PaymentAddressPtr GetPaymentAddressFromAutofillProfile(
   payment_address->recipient =
       base::UTF16ToUTF8(profile.GetInfo(autofill::NAME_FULL, app_locale));
 
-  // TODO(crbug.com/705945): Format phone number according to spec.
+  // TODO(crbug.com/40512882): Format phone number according to spec.
   payment_address->phone =
       base::UTF16ToUTF8(profile.GetRawInfo(autofill::PHONE_HOME_WHOLE_NUMBER));
 

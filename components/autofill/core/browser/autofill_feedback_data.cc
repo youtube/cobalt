@@ -4,12 +4,15 @@
 
 #include "components/autofill/core/browser/autofill_feedback_data.h"
 
+#include <variant>
+
 #include "components/autofill/core/browser/autofill_field.h"
-#include "components/autofill/core/browser/browser_autofill_manager.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
 #include "components/autofill/core/common/autofill_clock.h"
 
 namespace autofill::data_logs {
+
 namespace {
 // Time limit within which the last autofill event is considered related to the
 // feedback report.
@@ -23,12 +26,16 @@ std::string FillDataTypeToStr(FillDataType type) {
       return "AutofillProfile";
     case FillDataType::kCreditCard:
       return "CreditCard";
-    case FillDataType::kSingleFieldFormFillerAutocomplete:
-      return "SingleFieldFormFillerAutocomplete";
-    case FillDataType::kSingleFieldFormFillerIban:
-      return "SingleFieldFormFillerIban";
-    case FillDataType::kSingleFieldFormFillerPromoCode:
-      return "SingleFieldFormFillerPromoCode";
+    case FillDataType::kSingleFieldFillerAutocomplete:
+      return "SingleFieldFillerAutocomplete";
+    case FillDataType::kSingleFieldFillerIban:
+      return "SingleFieldFillerIban";
+    case FillDataType::kSingleFieldFillerPromoCode:
+      return "SingleFieldFillerPromoCode";
+    case FillDataType::kAutofillAi:
+      return "AutofillAi";
+    case FillDataType::kSingleFieldFillerLoyaltyCard:
+      return "SingleFieldFillerLoyaltyCard";
   }
 }
 
@@ -37,20 +44,20 @@ base::Value::Dict BuildFieldDataLogs(AutofillField* field) {
   field_data.Set("fieldSignature",
                  base::NumberToString(field->GetFieldSignature().value()));
   field_data.Set("hostFormSignature",
-                 base::NumberToString(field->host_form_signature.value()));
-  field_data.Set("idAttribute", field->id_attribute);
-  field_data.Set("parseableNameAttribute", field->name_attribute);
-  field_data.Set("autocompleteAttribute", field->autocomplete_attribute);
-  field_data.Set("labelAttribute", field->label);
-  field_data.Set("placeholderAttribute", field->placeholder);
-  field_data.Set("fieldType", field->Type().ToString());
+                 base::NumberToString(field->host_form_signature().value()));
+  field_data.Set("idAttribute", field->id_attribute());
+  field_data.Set("parseableNameAttribute", field->name_attribute());
+  field_data.Set("autocompleteAttribute", field->autocomplete_attribute());
+  field_data.Set("labelAttribute", field->label());
+  field_data.Set("placeholderAttribute", field->placeholder());
+  field_data.Set("fieldType", field->Type().ToStringView());
   field_data.Set("heuristicType",
-                 AutofillType(field->heuristic_type()).ToString());
-  field_data.Set("serverType", AutofillType(field->server_type()).ToString());
+                 FieldTypeToStringView(field->heuristic_type()));
+  field_data.Set("serverType", FieldTypeToStringView(field->server_type()));
   field_data.Set("serverTypeIsOverride",
                  field->server_type_prediction_is_override());
-  field_data.Set("htmlType", FieldTypeToStringPiece(field->html_type()));
-  field_data.Set("section", field->section.ToString());
+  field_data.Set("htmlType", FieldTypeToStringView(field->html_type()));
+  field_data.Set("section", field->section().ToString());
   field_data.Set("rank", base::NumberToString(field->rank()));
   field_data.Set("rankInSignatureGroup",
                  base::NumberToString(field->rank_in_signature_group()));
@@ -60,9 +67,9 @@ base::Value::Dict BuildFieldDataLogs(AutofillField* field) {
       "rankInHostFormSignatureGroup",
       base::NumberToString(field->rank_in_host_form_signature_group()));
 
-  field_data.Set("isEmpty", field->IsEmpty());
+  field_data.Set("isEmpty", field->value().empty());
   field_data.Set("isFocusable", field->IsFocusable());
-  field_data.Set("isVisible", field->is_visible);
+  field_data.Set("isVisible", field->is_visible());
   return field_data;
 }
 
@@ -76,8 +83,8 @@ base::Value::Dict BuildLastAutofillEventLogs(AutofillManager* manager) {
   for (const auto& [form_id, form] : manager->form_structures()) {
     for (const auto& field : form->fields()) {
       for (const auto& field_log_event : field->field_log_events()) {
-        if (const autofill::TriggerFillFieldLogEvent* trigger_event =
-                absl::get_if<TriggerFillFieldLogEvent>(&field_log_event)) {
+        if (const TriggerFillFieldLogEvent* trigger_event =
+                std::get_if<TriggerFillFieldLogEvent>(&field_log_event)) {
           had_trigger_event = true;
           if (trigger_event->timestamp > last_autofill_event_timestamp) {
             last_autofill_event_timestamp = trigger_event->timestamp;

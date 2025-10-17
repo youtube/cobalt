@@ -7,10 +7,11 @@
 #include <utility>
 
 #include "base/task/single_thread_task_runner.h"
+#include "media/base/audio_glitch_info.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/audio_renderer_sink.h"
+#include "third_party/blink/public/platform/web_audio_source_provider_impl.h"
 #include "third_party/blink/public/platform/web_media_player.h"
-#include "third_party/blink/public/platform/webaudiosourceprovider_impl.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -101,7 +102,8 @@ void HtmlAudioElementCapturerSource::OnAudioBus(
     last_bus_frames_ = audio_bus->frames();
   }
 
-  blink::MediaStreamAudioSource::DeliverDataToTracks(*audio_bus, capture_time);
+  blink::MediaStreamAudioSource::DeliverDataToTracks(*audio_bus, capture_time,
+                                                     {});
 }
 
 }  // namespace blink

@@ -15,7 +15,6 @@ namespace viz {
 
 class VIZ_COMMON_EXPORT TileDrawQuad : public ContentDrawQuadBase {
  public:
-  static const size_t kResourceIdIndex = 0;
   static constexpr Material kMaterial = Material::kTiledContent;
 
   TileDrawQuad();
@@ -31,7 +30,6 @@ class VIZ_COMMON_EXPORT TileDrawQuad : public ContentDrawQuadBase {
               // coordinates consistent across all quad types: crbug.com/487370
               const gfx::RectF& tex_coord_rect,
               const gfx::Size& texture_size,
-              bool is_premultiplied,
               bool nearest_neighbor,
               bool force_anti_aliasing_off);
 
@@ -45,13 +43,10 @@ class VIZ_COMMON_EXPORT TileDrawQuad : public ContentDrawQuadBase {
               // coordinates consistent across all quad types: crbug.com/487370
               const gfx::RectF& tex_coord_rect,
               const gfx::Size& texture_size,
-              bool is_premultiplied,
               bool nearest_neighbor,
               bool force_anti_aliasing_off);
 
   static const TileDrawQuad* MaterialCast(const DrawQuad*);
-
-  ResourceId resource_id() const { return resources.ids[kResourceIdIndex]; }
 
  private:
   void ExtendValue(base::trace_event::TracedValue* value) const override;

@@ -4,12 +4,14 @@
 
 #include "ash/display/display_alignment_controller.h"
 
+#include <algorithm>
+
 #include "ash/constants/ash_features.h"
 #include "ash/display/display_alignment_indicator.h"
+#include "ash/display/window_tree_host_manager.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/timer/mock_timer.h"
 #include "ui/display/display_layout_builder.h"
@@ -126,8 +128,8 @@ class DisplayAlignmentControllerTest : public AshTestBase {
         display_alignment_controller()->GetActiveIndicatorsForTesting();
 
     const auto& iter =
-        base::ranges::find(active_indicators_, target_display_id,
-                           &DisplayAlignmentIndicator::display_id);
+        std::ranges::find(active_indicators_, target_display_id,
+                          &DisplayAlignmentIndicator::display_id);
 
     if (iter == active_indicators_.end()) {
       EXPECT_FALSE(is_visible);
@@ -149,7 +151,7 @@ class DisplayAlignmentControllerTest : public AshTestBase {
     EXPECT_TRUE(indicator_widget.IsVisible());
   }
 
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> mock_timer_ptr_ = nullptr;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged> mock_timer_ptr_ = nullptr;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;

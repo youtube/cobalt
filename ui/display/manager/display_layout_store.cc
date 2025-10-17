@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ui/display/manager/display_layout_store.h"
+
 #include <stdio.h>
 
 #include <string>
@@ -9,11 +11,11 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/notreached.h"
 #include "ui/display/display.h"
 #include "ui/display/display_switches.h"
-#include "ui/display/manager/display_layout_store.h"
-#include "ui/display/manager/display_manager_utilities.h"
+#include "ui/display/manager/util/display_manager_util.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/util/display_util.h"
 
@@ -27,7 +29,7 @@ DisplayLayoutStore::DisplayLayoutStore()
         command_line->GetSwitchValueASCII(switches::kSecondaryDisplayLayout);
     char layout;
     int offset = 0;
-    if (sscanf(value.c_str(), "%c,%d", &layout, &offset) == 2) {
+    if (UNSAFE_TODO(sscanf(value.c_str(), "%c,%d", &layout, &offset)) == 2) {
       if (layout == 't')
         default_display_placement_.position = DisplayPlacement::TOP;
       else if (layout == 'b')
@@ -79,10 +81,6 @@ void DisplayLayoutStore::RegisterLayoutForDisplayIdList(
     NOTREACHED() << "Attempting to register an invalid layout: ids="
                  << DisplayIdListToString(list)
                  << ", layout=" << layout->ToString();
-    // We never allow to register an invalid layout, instead, we revert back to
-    // a default layout.
-    CreateDefaultDisplayLayout(list);
-    return;
   }
 
   layouts_[list] = std::move(layout);

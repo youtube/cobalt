@@ -23,6 +23,14 @@ CLONE_VFORK = 0x00004000
 CLONE_VM = 0x00000100
 
 
+# For compatibility with older pb module versions.
+def get_message_class(pool, msg):
+  if hasattr(message_factory, "GetMessageClass"):
+    return message_factory.GetMessageClass(msg)
+  else:
+    return message_factory.MessageFactory(pool).GetPrototype(msg)
+
+
 def ms_to_ns(time_in_ms):
   return int(time_in_ms * 1000000)
 
@@ -190,6 +198,25 @@ class Trace(object):
   def add_atrace_instant(self, ts, tid, pid, buf):
     self.add_print(ts, tid, 'I|{}|{}'.format(pid, buf))
 
+  def add_atrace_instant_for_track(self, ts, tid, pid, track_name, buf):
+    self.add_print(ts, tid, 'N|{}|{}|{}'.format(pid, track_name, buf))
+
+  def add_atrace_for_thread(self, ts, ts_end, buf, tid, pid):
+    self.add_atrace_begin(ts=ts, tid=tid, pid=pid, buf=buf)
+    self.add_atrace_end(ts=ts_end, tid=tid, pid=pid)
+
+  def add_async_atrace_for_thread(self, ts, ts_end, buf, tid, pid):
+    self.add_atrace_async_begin(ts=ts, tid=tid, pid=pid, buf=buf)
+    self.add_atrace_async_end(ts=ts_end, tid=tid, pid=pid, buf=buf)
+
+  def add_frame(self, vsync, ts_do_frame, ts_end_do_frame, tid, pid):
+    self.add_atrace_for_thread(
+        ts=ts_do_frame,
+        ts_end=ts_end_do_frame,
+        buf="Choreographer#doFrame %d" % vsync,
+        tid=tid,
+        pid=pid)
+
   def add_process(self, pid, ppid, cmdline, uid=None):
     process = self.packet.process_tree.processes.add()
     process.pid = pid
@@ -207,8 +234,8 @@ class Trace(object):
       thread.name = name
     self.proc_map[tid] = cmdline
 
-  def add_battery_counters(self, ts, charge_uah, cap_prct, curr_ua,
-                           curr_avg_ua):
+  def add_battery_counters(self, ts, charge_uah, cap_prct, curr_ua, curr_avg_ua,
+                           voltage_uv):
     self.packet = self.trace.packet.add()
     self.packet.timestamp = ts
     battery_count = self.packet.battery
@@ -216,6 +243,7 @@ class Trace(object):
     battery_count.capacity_percent = cap_prct
     battery_count.current_ua = curr_ua
     battery_count.current_avg_ua = curr_avg_ua
+    battery_count.voltage_uv = voltage_uv
 
   def add_binder_transaction(self, transaction_id, ts_start, ts_end, tid, pid,
                              reply_id, reply_ts_start, reply_ts_end, reply_tid,
@@ -247,13 +275,14 @@ class Trace(object):
     reply_binder_transaction_received.debug_id = reply_id
 
   def add_battery_counters_no_curr_ua(self, ts, charge_uah, cap_prct,
-                                      curr_avg_ua):
+                                      curr_avg_ua, voltage_uv):
     self.packet = self.trace.packet.add()
     self.packet.timestamp = ts
     battery_count = self.packet.battery
     battery_count.charge_counter_uah = charge_uah
     battery_count.capacity_percent = cap_prct
     battery_count.current_avg_ua = curr_avg_ua
+    battery_count.voltage_uv = voltage_uv
 
   def add_power_rails_desc(self, index_val, name):
     power_rails = self.packet.power_rails
@@ -490,9 +519,15 @@ class Trace(object):
       track_descriptor.parent_uuid = parent
     return packet
 
-  def add_process_track_descriptor(self, process_track, pid=None):
+  def add_process_track_descriptor(self,
+                                   process_track,
+                                   pid=None,
+                                   process_name=None):
     packet = self.add_track_descriptor(process_track)
-    packet.track_descriptor.process.pid = pid
+    if pid is not None:
+      packet.track_descriptor.process.pid = pid
+    if process_name is not None:
+      packet.track_descriptor.process.process_name = process_name
     return packet
 
   def add_chrome_process_track_descriptor(
@@ -517,11 +552,17 @@ class Trace(object):
                                   thread_track,
                                   trusted_packet_sequence_id=None,
                                   pid=None,
-                                  tid=None):
+                                  tid=None,
+                                  thread_name=None):
     packet = self.add_track_descriptor(thread_track, parent=process_track)
-    packet.trusted_packet_sequence_id = trusted_packet_sequence_id
-    packet.track_descriptor.thread.pid = pid
-    packet.track_descriptor.thread.tid = tid
+    if trusted_packet_sequence_id is not None:
+      packet.trusted_packet_sequence_id = trusted_packet_sequence_id
+    if pid is not None:
+      packet.track_descriptor.thread.pid = pid
+    if tid is not None:
+      packet.track_descriptor.thread.tid = tid
+    if thread_name is not None:
+      packet.track_descriptor.thread.thread_name = thread_name
     return packet
 
   def add_chrome_thread_track_descriptor(self,
@@ -751,11 +792,19 @@ class Trace(object):
       event.pid = pid
       event.layer_name = layer_name
 
-  def add_actual_surface_frame_start_event(self, ts, cookie, token,
-                                           display_frame_token, pid, layer_name,
-                                           present_type, on_time_finish,
-                                           gpu_composition, jank_type,
-                                           prediction_type):
+  def add_actual_surface_frame_start_event(self,
+                                           ts,
+                                           cookie,
+                                           token,
+                                           display_frame_token,
+                                           pid,
+                                           layer_name,
+                                           present_type,
+                                           on_time_finish,
+                                           gpu_composition,
+                                           jank_type,
+                                           prediction_type,
+                                           jank_severity_type=None):
     packet = self.add_packet()
     packet.timestamp = ts
     event = packet.frame_timeline_event.actual_surface_frame_start
@@ -769,6 +818,12 @@ class Trace(object):
       event.on_time_finish = on_time_finish
       event.gpu_composition = gpu_composition
       event.jank_type = jank_type
+      # jank severity type is not available on every trace.
+      # When not set, default to none if no jank; otherwise default to unknown
+      if jank_severity_type is None:
+        event.jank_severity_type = 1 if event.jank_type == 1 else 0
+      else:
+        event.jank_severity_type = jank_severity_type
       event.prediction_type = prediction_type
 
   def add_frame_end_event(self, ts, cookie):
@@ -805,9 +860,8 @@ def create_trace():
   args = parser.parse_args()
 
   pool = create_pool(args)
-  factory = message_factory.MessageFactory(pool)
-  ProtoTrace = factory.GetPrototype(
-      pool.FindMessageTypeByName('perfetto.protos.Trace'))
+  ProtoTrace = get_message_class(
+      pool, pool.FindMessageTypeByName('perfetto.protos.Trace'))
 
   class EnumPrototype(object):
 
@@ -840,17 +894,19 @@ def create_trace():
   )
 
   prototypes = Prototypes(
-      TrackEvent=factory.GetPrototype(
-          pool.FindMessageTypeByName('perfetto.protos.TrackEvent')),
+      TrackEvent=get_message_class(
+          pool, pool.FindMessageTypeByName('perfetto.protos.TrackEvent')),
       ChromeRAILMode=EnumPrototype.from_descriptor(
           pool.FindEnumTypeByName('perfetto.protos.ChromeRAILMode')),
       ChromeLatencyInfo=chrome_latency_info_prototypes,
-      ChromeProcessDescriptor=factory.GetPrototype(
+      ChromeProcessDescriptor=get_message_class(
+          pool,
           pool.FindMessageTypeByName(
               'perfetto.protos.ChromeProcessDescriptor')),
-      CounterDescriptor=factory.GetPrototype(
+      CounterDescriptor=get_message_class(
+          pool,
           pool.FindMessageTypeByName('perfetto.protos.CounterDescriptor')),
-      ThreadDescriptor=factory.GetPrototype(
-          pool.FindMessageTypeByName('perfetto.protos.ThreadDescriptor')),
+      ThreadDescriptor=get_message_class(
+          pool, pool.FindMessageTypeByName('perfetto.protos.ThreadDescriptor')),
   )
   return Trace(ProtoTrace(), prototypes)

@@ -20,6 +20,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <memory>
+
 #include "perfetto/ext/base/file_utils.h"
 #include "src/traced/probes/ftrace/compact_sched.h"
 #include "src/traced/probes/ftrace/cpu_reader.h"
@@ -57,6 +59,17 @@ namespace {
 
 constexpr char kFooEnablePath[] = "/root/events/group/foo/enable";
 constexpr char kBarEnablePath[] = "/root/events/group/bar/enable";
+
+std::string PageSizeKb() {
+  return std::to_string(base::GetSysPageSize() / 1024);
+}
+
+FtraceConfig CreateFtraceConfig(const std::set<std::string>& names) {
+  FtraceConfig config;
+  for (const std::string& name : names)
+    *config.add_ftrace_events() = name;
+  return config;
+}
 
 class MockTaskRunner : public base::TaskRunner {
  public:
@@ -98,9 +111,11 @@ std::unique_ptr<Table> FakeTable(FtraceProcfs* ftrace) {
 }
 
 std::unique_ptr<FtraceConfigMuxer> FakeMuxer(FtraceProcfs* ftrace,
+                                             AtraceWrapper* atrace_wrapper,
                                              ProtoTranslationTable* table) {
   return std::unique_ptr<FtraceConfigMuxer>(
-      new FtraceConfigMuxer(ftrace, table, SyscallTable(kUnknown), {}));
+      new FtraceConfigMuxer(ftrace, atrace_wrapper, table,
+                            SyscallTable(Architecture::kUnknown), {}, {}));
 }
 
 class MockFtraceProcfs : public FtraceProcfs {
@@ -145,6 +160,11 @@ class MockFtraceProcfs : public FtraceProcfs {
     ON_CALL(*this, ReadFileIntoString(root + "current_tracer"))
         .WillByDefault(Invoke(this, &MockFtraceProcfs::ReadCurrentTracer));
     EXPECT_CALL(*this, ReadFileIntoString(root + "current_tracer"))
+        .Times(AnyNumber());
+
+    ON_CALL(*this, ReadFileIntoString(root + "buffer_percent"))
+        .WillByDefault(Return("50\n"));
+    EXPECT_CALL(*this, ReadFileIntoString(root + "buffer_percent"))
         .Times(AnyNumber());
   }
 
@@ -192,6 +212,13 @@ class MockFtraceProcfs : public FtraceProcfs {
   std::string current_tracer_ = "nop";
 };
 
+class MockAtraceWrapper : public AtraceWrapper {
+ public:
+  MOCK_METHOD(bool, RunAtrace, (const std::vector<std::string>&, std::string*));
+  MOCK_METHOD(bool, SupportsUserspaceOnly, ());
+  MOCK_METHOD(bool, SupportsPreferSdk, ());
+};
+
 }  // namespace
 
 class TestFtraceController : public FtraceController,
@@ -199,11 +226,13 @@ class TestFtraceController : public FtraceController,
  public:
   TestFtraceController(std::unique_ptr<MockFtraceProcfs> ftrace_procfs,
                        std::unique_ptr<Table> table,
+                       std::unique_ptr<AtraceWrapper> atrace_wrapper,
                        std::unique_ptr<FtraceConfigMuxer> muxer,
                        std::unique_ptr<MockTaskRunner> runner,
                        MockFtraceProcfs* raw_procfs)
       : FtraceController(std::move(ftrace_procfs),
                          std::move(table),
+                         std::move(atrace_wrapper),
                          std::move(muxer),
                          runner.get(),
                          /*observer=*/this),
@@ -212,7 +241,7 @@ class TestFtraceController : public FtraceController,
 
   MockTaskRunner* runner() { return runner_.get(); }
   MockFtraceProcfs* procfs() { return primary_procfs_; }
-  uint32_t drain_period_ms() { return GetDrainPeriodMs(); }
+  uint32_t tick_period_ms() { return GetTickPeriodMs(); }
 
   std::unique_ptr<FtraceDataSource> AddFakeDataSource(const FtraceConfig& cfg) {
     std::unique_ptr<FtraceDataSource> data_source(new FtraceDataSource(
@@ -247,7 +276,7 @@ class TestFtraceController : public FtraceController,
     PERFETTO_CHECK(ftrace_procfs);
 
     auto table = FakeTable(ftrace_procfs.get());
-    auto muxer = FakeMuxer(ftrace_procfs.get(), table.get());
+    auto muxer = FakeMuxer(ftrace_procfs.get(), atrace_wrapper(), table.get());
     return std::unique_ptr<FtraceController::FtraceInstanceState>(
         new FtraceController::FtraceInstanceState(
             std::move(ftrace_procfs), std::move(table), std::move(muxer)));
@@ -280,14 +309,17 @@ std::unique_ptr<TestFtraceController> CreateTestController(
         new MockFtraceProcfs("/root/", cpu_count));
   }
 
+  auto atrace_wrapper = std::make_unique<NiceMock<MockAtraceWrapper>>();
+
   auto table = FakeTable(ftrace_procfs.get());
 
-  auto muxer = FakeMuxer(ftrace_procfs.get(), table.get());
+  auto muxer =
+      FakeMuxer(ftrace_procfs.get(), atrace_wrapper.get(), table.get());
 
   MockFtraceProcfs* raw_procfs = ftrace_procfs.get();
   return std::unique_ptr<TestFtraceController>(new TestFtraceController(
-      std::move(ftrace_procfs), std::move(table), std::move(muxer),
-      std::move(runner), raw_procfs));
+      std::move(ftrace_procfs), std::move(table), std::move(atrace_wrapper),
+      std::move(muxer), std::move(runner), raw_procfs));
 }
 
 }  // namespace
@@ -335,8 +367,10 @@ TEST(FtraceControllerTest, OneSink) {
   // a single recurring read task will be posted as part of starting the data
   // source.
   Mock::VerifyAndClearExpectations(controller->runner());
-  EXPECT_CALL(*controller->runner(), PostDelayedTask(_, _)).Times(1);
+  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_percent", _))
+      .WillRepeatedly(Return(true));
 
+  EXPECT_CALL(*controller->runner(), PostDelayedTask(_, _)).Times(1);
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "1"));
   ASSERT_TRUE(controller->StartDataSource(data_source.get()));
 
@@ -346,7 +380,8 @@ TEST(FtraceControllerTest, OneSink) {
   // State clearing on tracing teardown.
   EXPECT_CALL(*controller->procfs(), WriteToFile(kFooEnablePath, "0"));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "0"));
-  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_size_kb", "4"));
+  EXPECT_CALL(*controller->procfs(),
+              WriteToFile("/root/buffer_size_kb", PageSizeKb()));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/events/enable", "0"));
   EXPECT_CALL(*controller->procfs(), ClearFile("/root/trace"))
       .WillOnce(Return(true));
@@ -385,8 +420,10 @@ TEST(FtraceControllerTest, MultipleSinks) {
   // a single recurring read task will be posted as part of starting the data
   // sources.
   Mock::VerifyAndClearExpectations(controller->runner());
-  EXPECT_CALL(*controller->runner(), PostDelayedTask(_, _)).Times(1);
+  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_percent", _))
+      .WillRepeatedly(Return(true));
 
+  EXPECT_CALL(*controller->runner(), PostDelayedTask(_, _)).Times(1);
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "1"));
   ASSERT_TRUE(controller->StartDataSource(data_sourceA.get()));
   ASSERT_TRUE(controller->StartDataSource(data_sourceB.get()));
@@ -401,7 +438,8 @@ TEST(FtraceControllerTest, MultipleSinks) {
   EXPECT_CALL(*controller->procfs(), WriteToFile(kFooEnablePath, "0"));
   EXPECT_CALL(*controller->procfs(), WriteToFile(kBarEnablePath, "0"));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "0"));
-  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_size_kb", "4"));
+  EXPECT_CALL(*controller->procfs(),
+              WriteToFile("/root/buffer_size_kb", PageSizeKb()));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/events/enable", "0"));
   EXPECT_CALL(*controller->procfs(), ClearFile("/root/trace"))
       .WillOnce(Return(true));
@@ -427,6 +465,8 @@ TEST(FtraceControllerTest, ControllerMayDieFirst) {
       .WillRepeatedly(Return(true));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_size_kb", _));
   EXPECT_CALL(*controller->procfs(), WriteToFile(kFooEnablePath, "1"));
+  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_percent", _))
+      .WillRepeatedly(Return(true));
   auto data_source = controller->AddFakeDataSource(config);
 
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "1"));
@@ -435,7 +475,8 @@ TEST(FtraceControllerTest, ControllerMayDieFirst) {
   // State clearing on tracing teardown.
   EXPECT_CALL(*controller->procfs(), WriteToFile(kFooEnablePath, "0"));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "0"));
-  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_size_kb", "4"));
+  EXPECT_CALL(*controller->procfs(),
+              WriteToFile("/root/buffer_size_kb", PageSizeKb()));
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/events/enable", "0"));
   EXPECT_CALL(*controller->procfs(), ClearFile("/root/trace"))
       .WillOnce(Return(true));
@@ -456,35 +497,17 @@ TEST(FtraceControllerTest, BufferSize) {
 
   // Every time a fake data source is destroyed, the controller will reset the
   // buffer size to a single page.
-  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_size_kb", "4"))
+  EXPECT_CALL(*controller->procfs(),
+              WriteToFile("/root/buffer_size_kb", PageSizeKb()))
       .Times(AnyNumber());
 
   {
-    // No buffer size -> good default.
-    EXPECT_CALL(*controller->procfs(),
-                WriteToFile("/root/buffer_size_kb", "2048"));
+    // No buffer size -> good default (exact value depends on the ram size of
+    // the machine running this test).
+    EXPECT_CALL(
+        *controller->procfs(),
+        WriteToFile("/root/buffer_size_kb", testing::AnyOf("2048", "8192")));
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
-    auto data_source = controller->AddFakeDataSource(config);
-    ASSERT_TRUE(controller->StartDataSource(data_source.get()));
-  }
-
-  {
-    // Way too big buffer size -> max size.
-    EXPECT_CALL(*controller->procfs(),
-                WriteToFile("/root/buffer_size_kb", "65536"));
-    FtraceConfig config = CreateFtraceConfig({"group/foo"});
-    config.set_buffer_size_kb(10 * 1024 * 1024);
-    auto data_source = controller->AddFakeDataSource(config);
-    ASSERT_TRUE(controller->StartDataSource(data_source.get()));
-  }
-
-  {
-    // The limit is 64mb, 65mb is too much.
-    EXPECT_CALL(*controller->procfs(),
-                WriteToFile("/root/buffer_size_kb", "65536"));
-    FtraceConfig config = CreateFtraceConfig({"group/foo"});
-    ON_CALL(*controller->procfs(), NumberOfCpus()).WillByDefault(Return(2));
-    config.set_buffer_size_kb(65 * 1024);
     auto data_source = controller->AddFakeDataSource(config);
     ASSERT_TRUE(controller->StartDataSource(data_source.get()));
   }
@@ -501,9 +524,9 @@ TEST(FtraceControllerTest, BufferSize) {
   {
     // You picked a good size -> your size rounded to nearest page.
     EXPECT_CALL(*controller->procfs(),
-                WriteToFile("/root/buffer_size_kb", "40"));
+                WriteToFile("/root/buffer_size_kb", "64"));
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
-    config.set_buffer_size_kb(42);
+    config.set_buffer_size_kb(65);
     auto data_source = controller->AddFakeDataSource(config);
     ASSERT_TRUE(controller->StartDataSource(data_source.get()));
   }
@@ -511,10 +534,22 @@ TEST(FtraceControllerTest, BufferSize) {
   {
     // You picked a good size -> your size rounded to nearest page.
     EXPECT_CALL(*controller->procfs(),
-                WriteToFile("/root/buffer_size_kb", "40"));
+                WriteToFile("/root/buffer_size_kb", "64"));
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
     ON_CALL(*controller->procfs(), NumberOfCpus()).WillByDefault(Return(2));
-    config.set_buffer_size_kb(42);
+    config.set_buffer_size_kb(65);
+    auto data_source = controller->AddFakeDataSource(config);
+    ASSERT_TRUE(controller->StartDataSource(data_source.get()));
+  }
+
+  {
+    // buffer_size_lower_bound -> default size no less than given.
+    EXPECT_CALL(
+        *controller->procfs(),
+        WriteToFile("/root/buffer_size_kb", testing::AnyOf("4096", "8192")));
+    FtraceConfig config = CreateFtraceConfig({"group/foo"});
+    config.set_buffer_size_kb(4096);
+    config.set_buffer_size_lower_bound(true);
     auto data_source = controller->AddFakeDataSource(config);
     ASSERT_TRUE(controller->StartDataSource(data_source.get()));
   }
@@ -531,7 +566,8 @@ TEST(FtraceControllerTest, PeriodicDrainConfig) {
     // No period -> good default.
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
     auto data_source = controller->AddFakeDataSource(config);
-    EXPECT_EQ(100u, controller->drain_period_ms());
+    controller->StartDataSource(data_source.get());
+    EXPECT_EQ(100u, controller->tick_period_ms());
   }
 
   {
@@ -539,7 +575,8 @@ TEST(FtraceControllerTest, PeriodicDrainConfig) {
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
     config.set_drain_period_ms(0);
     auto data_source = controller->AddFakeDataSource(config);
-    EXPECT_EQ(100u, controller->drain_period_ms());
+    controller->StartDataSource(data_source.get());
+    EXPECT_EQ(100u, controller->tick_period_ms());
   }
 
   {
@@ -547,15 +584,17 @@ TEST(FtraceControllerTest, PeriodicDrainConfig) {
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
     config.set_drain_period_ms(1000 * 60 * 60);
     auto data_source = controller->AddFakeDataSource(config);
-    EXPECT_EQ(100u, controller->drain_period_ms());
+    controller->StartDataSource(data_source.get());
+    EXPECT_EQ(100u, controller->tick_period_ms());
   }
 
   {
-    // Pick a resonable value -> get that value.
+    // Pick a reasonable value -> get that value.
     FtraceConfig config = CreateFtraceConfig({"group/foo"});
     config.set_drain_period_ms(200);
     auto data_source = controller->AddFakeDataSource(config);
-    EXPECT_EQ(200u, controller->drain_period_ms());
+    controller->StartDataSource(data_source.get());
+    EXPECT_EQ(200u, controller->tick_period_ms());
   }
 }
 
@@ -627,6 +666,72 @@ TEST(FtraceStatsTest, Write) {
   EXPECT_EQ(result.cpu(), 0u);
   EXPECT_EQ(result.entries(), 1u);
   EXPECT_EQ(result.overrun(), 2u);
+  auto kprobe_stats = result_packet.ftrace_stats().kprobe_stats();
+  EXPECT_EQ(kprobe_stats.hits(), 0u);
+  EXPECT_EQ(kprobe_stats.misses(), 0u);
+}
+
+TEST(FtraceStatsTest, WriteKprobeStats) {
+  FtraceStats stats{};
+  FtraceKprobeStats kprobe_stats{};
+  kprobe_stats.hits = 1;
+  kprobe_stats.misses = 2;
+  stats.kprobe_stats = kprobe_stats;
+
+  std::unique_ptr<TraceWriterForTesting> writer =
+      std::make_unique<TraceWriterForTesting>();
+  {
+    auto packet = writer->NewTracePacket();
+    auto* out = packet->set_ftrace_stats();
+    stats.Write(out);
+  }
+
+  protos::gen::TracePacket result_packet = writer->GetOnlyTracePacket();
+  auto result = result_packet.ftrace_stats();
+  EXPECT_EQ(result.kprobe_stats().hits(), 1u);
+  EXPECT_EQ(result.kprobe_stats().misses(), 2u);
+}
+
+TEST(FtraceStatsTest, KprobeProfileParseEmpty) {
+  std::string text;
+
+  FtraceStats stats{};
+  EXPECT_TRUE(DumpKprobeStats(text, &stats));
+}
+
+TEST(FtraceStatsTest, KprobeProfileParseEmptyLines) {
+  std::string text = R"(
+
+)";
+
+  FtraceStats stats{};
+  EXPECT_TRUE(DumpKprobeStats(text, &stats));
+}
+
+TEST(FtraceStatsTest, KprobeProfileParseValid) {
+  std::string text = R"(  _binder_inner_proc_lock  1   8
+  _binder_inner_proc_unlock                        2   9
+  _binder_node_inner_unlock                        3  10
+  _binder_node_unlock                              4  11
+)";
+
+  FtraceStats stats{};
+  EXPECT_TRUE(DumpKprobeStats(text, &stats));
+
+  EXPECT_EQ(stats.kprobe_stats.hits, 10u);
+  EXPECT_EQ(stats.kprobe_stats.misses, 38u);
+}
+
+TEST(FtraceStatsTest, KprobeProfileMissingValuesParseInvalid) {
+  std::string text = R"(  _binder_inner_proc_lock  1   8
+  _binder_inner_proc_unlock                        2
+)";
+
+  FtraceStats stats{};
+  EXPECT_FALSE(DumpKprobeStats(text, &stats));
+
+  EXPECT_EQ(stats.kprobe_stats.hits, 0u);
+  EXPECT_EQ(stats.kprobe_stats.misses, 0u);
 }
 
 TEST(FtraceControllerTest, OnlySecondaryInstance) {
@@ -636,8 +741,12 @@ TEST(FtraceControllerTest, OnlySecondaryInstance) {
   config.set_instance_name("secondary");
 
   // Primary instance won't be touched throughout the entire test.
-  EXPECT_CALL(*controller->procfs(), WriteToFile(_, _)).Times(0);
+  // Exception: allow testing for kernel support of buffer_percent.
   EXPECT_CALL(*controller->procfs(), ClearFile(_)).Times(0);
+  EXPECT_CALL(*controller->procfs(), WriteToFile(_, _)).Times(0);
+  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_percent", _))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(true));
 
   // AddDataSource will initialise the tracefs instance, enable the event
   // through the muxer, but not yet enable tracing_on.
@@ -681,8 +790,9 @@ TEST(FtraceControllerTest, OnlySecondaryInstance) {
   EXPECT_CALL(
       *controller->GetInstanceMockProcfs("secondary"),
       WriteToFile("/root/instances/secondary/events/group/foo/enable", "0"));
-  EXPECT_CALL(*controller->GetInstanceMockProcfs("secondary"),
-              WriteToFile("/root/instances/secondary/buffer_size_kb", "4"));
+  EXPECT_CALL(
+      *controller->GetInstanceMockProcfs("secondary"),
+      WriteToFile("/root/instances/secondary/buffer_size_kb", PageSizeKb()));
 
   controller->RemoveDataSource(data_source.get());
 
@@ -737,6 +847,8 @@ TEST(FtraceControllerTest, DefaultAndSecondaryInstance) {
   EXPECT_CALL(*controller->procfs(), WriteToFile("/root/tracing_on", "1"));
   EXPECT_CALL(*controller->GetInstanceMockProcfs("secondary"),
               WriteToFile("/root/instances/secondary/tracing_on", "1"));
+  EXPECT_CALL(*controller->procfs(), WriteToFile("/root/buffer_percent", _))
+      .WillRepeatedly(Return(true));
   EXPECT_CALL(*controller->runner(), PostDelayedTask(_, _)).Times(2);
 
   ASSERT_TRUE(controller->StartDataSource(primary_ds.get()));
@@ -780,6 +892,30 @@ TEST(FtraceControllerTest, TracefsInstanceFilepaths) {
   // special-cased pkvm path
   path = FtraceController::AbsolutePathForInstance("/root/", "hyp");
   EXPECT_EQ(*path, "/root/hyp/");
+}
+
+TEST(FtraceControllerTest, PollSupportedOnKernelVersion) {
+  auto test = [](auto s) {
+    return FtraceController::PollSupportedOnKernelVersion(s);
+  };
+  // Linux 6.9 or above are ok
+  EXPECT_TRUE(test("6.9.13-1-amd64"));
+  EXPECT_TRUE(test("6.9.0-1-amd64"));
+  EXPECT_TRUE(test("6.9.25-android14-11-g"));
+  // before 6.9
+  EXPECT_FALSE(test("5.15.200-1-amd"));
+
+  // Android: check allowlisted GKI versions
+
+  // sublevel matters:
+  EXPECT_TRUE(test("6.1.87-android14-4-0"));
+  EXPECT_FALSE(test("6.1.80-android14-4-0"));
+  // sublevel matters:
+  EXPECT_TRUE(test("6.6.27-android15-8-suffix"));
+  EXPECT_FALSE(test("6.6.26-android15-8-suffix"));
+  // android13 instead of android14 (clarification: this is part of the kernel
+  // version, and is unrelated to the system image version).
+  EXPECT_FALSE(test("6.1.87-android13-4-0"));
 }
 
 }  // namespace perfetto

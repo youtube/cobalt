@@ -7,7 +7,6 @@
 #include "base/containers/span.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/notification_tester/notification_tester_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/browser_resources.h"
@@ -17,6 +16,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/webui/web_ui_util.h"
+#include "ui/webui/webui_util.h"
 
 namespace ash {
 
@@ -28,9 +28,7 @@ NotificationTesterUI::NotificationTesterUI(content::WebUI* web_ui)
           Profile::FromWebUI(web_ui), chrome::kChromeUINotificationTesterHost);
 
   // Add required resources.
-  webui::SetupWebUIDataSource(html_source,
-                              base::make_span(kNotificationTesterResources,
-                                              kNotificationTesterResourcesSize),
+  webui::SetupWebUIDataSource(html_source, kNotificationTesterResources,
                               IDR_NOTIFICATION_TESTER_INDEX_HTML);
 
   // Add message handler.

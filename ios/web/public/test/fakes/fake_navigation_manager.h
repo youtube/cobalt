@@ -5,7 +5,10 @@
 #ifndef IOS_WEB_PUBLIC_TEST_FAKES_FAKE_NAVIGATION_MANAGER_H_
 #define IOS_WEB_PUBLIC_TEST_FAKES_FAKE_NAVIGATION_MANAGER_H_
 
+#import <optional>
+
 #include "base/functional/callback.h"
+#import "base/memory/raw_ptr.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #include "ui/base/page_transition_types.h"
@@ -45,8 +48,6 @@ class FakeNavigationManager : public NavigationManager {
   std::vector<NavigationItem*> GetForwardItems() const override;
   void Restore(int last_committed_item_index,
                std::vector<std::unique_ptr<NavigationItem>> items) override;
-  bool IsRestoreSessionInProgress() const override;
-  void AddRestoreCompletionCallback(base::OnceClosure callback) override;
 
   // Setters for test data.
   // Sets a value for last committed item that will be returned by
@@ -76,6 +77,9 @@ class FakeNavigationManager : public NavigationManager {
   // Returns whether LoadURLWithParams has been called.
   bool LoadURLWithParamsWasCalled();
 
+  // Returns the last WebLoadParams passed to LoadURLWithParams.
+  std::optional<NavigationManager::WebLoadParams> GetLastLoadURLWithParams();
+
   // Returns whether LoadIfNecessary has been called.
   bool LoadIfNecessaryWasCalled();
 
@@ -91,18 +95,20 @@ class FakeNavigationManager : public NavigationManager {
  private:
   // A list of items constructed by calling AddItem().
   std::vector<std::unique_ptr<NavigationItem>> items_;
-  int items_index_;
+  int items_index_ = -1;
   // Individual backing instance variables for Set* test set up methods.
-  NavigationItem* pending_item_;
-  int pending_item_index_;
-  NavigationItem* last_committed_item_;
-  NavigationItem* visible_item_;
-  web::BrowserState* browser_state_;
-  bool load_url_with_params_was_called_;
-  bool load_if_necessary_was_called_;
-  bool reload_was_called_;
-  bool request_desktop_site_was_called_;
-  bool request_mobile_site_was_called_;
+  raw_ptr<NavigationItem> pending_item_ = nullptr;
+  int pending_item_index_ = -1;
+  raw_ptr<NavigationItem> last_committed_item_ = nullptr;
+  raw_ptr<NavigationItem> visible_item_ = nullptr;
+  raw_ptr<web::BrowserState> browser_state_ = nullptr;
+  bool load_url_with_params_was_called_ = false;
+  // Copy of the last WebLoadParams passed to LoadURLWithParams.
+  std::optional<NavigationManager::WebLoadParams> load_URL_params_;
+  bool load_if_necessary_was_called_ = false;
+  bool reload_was_called_ = false;
+  bool request_desktop_site_was_called_ = false;
+  bool request_mobile_site_was_called_ = false;
 };
 
 }  // namespace web

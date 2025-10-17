@@ -111,8 +111,7 @@ class MediaPerceptionAPIManager::MediaPerceptionControllerClient
 
  private:
   // Provides access to methods for talking to core Chrome code.
-  raw_ptr<MediaPerceptionAPIDelegate, DanglingUntriaged | ExperimentalAsh>
-      delegate_;
+  raw_ptr<MediaPerceptionAPIDelegate, DanglingUntriaged> delegate_;
 
   // Receiver of the MediaPerceptionControllerClient to the message pipe.
   mojo::Receiver<
@@ -140,12 +139,20 @@ MediaPerceptionAPIManager::MediaPerceptionAPIManager(
     content::BrowserContext* context)
     : browser_context_(context),
       analytics_process_state_(AnalyticsProcessState::IDLE) {
-  scoped_observation_.Observe(ash::MediaAnalyticsClient::Get());
+  // `MediaAnalyticsClient` can be null in tests (browser_tests or
+  // extensions_browsertests).
+  if (auto* client = ash::MediaAnalyticsClient::Get()) {
+    scoped_observation_.Observe(client);
+  }
 }
 
 MediaPerceptionAPIManager::~MediaPerceptionAPIManager() {
   // Stop the separate media analytics process.
-  ash::UpstartClient::Get()->StopMediaAnalytics();
+  // `UpstartClient` can be null in tests (browser_tests or
+  // extensions_browsertests).
+  if (auto* client = ash::UpstartClient::Get()) {
+    client->StopMediaAnalytics();
+  }
 }
 
 void MediaPerceptionAPIManager::ActivateMediaPerception(
@@ -333,8 +340,8 @@ void MediaPerceptionAPIManager::SetState(
     // callback. StartMediaAnalytics is still called, however, in the case that
     // the old CrOS deployment path for the media analytics process is still in
     // use.
-    // TODO(crbug.com/789376): When the old deployment path is no longer in use,
-    // only start media analytics if the mount point is set.
+    // TODO(crbug.com/40552021): When the old deployment path is no longer in
+    // use, only start media analytics if the mount point is set.
     if (!mount_point_.empty())
       upstart_env.push_back(std::string("mount_point=") + mount_point_);
 
@@ -385,7 +392,7 @@ void MediaPerceptionAPIManager::UpstartStartProcessCallback(
     return;
   }
 
-  // TODO(crbug.com/1003968): Look into using
+  // TODO(crbug.com/40098825): Look into using
   // ObjectProxy::WaitForServiceToBeAvailable instead, since a timeout is
   // inherently not deterministic, even if it works in practice.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -555,7 +562,7 @@ void MediaPerceptionAPIManager::UpstartRestartCallback(
 
 void MediaPerceptionAPIManager::StateCallback(
     APIStateCallback callback,
-    absl::optional<mri::State> result) {
+    std::optional<mri::State> result) {
   if (!result.has_value()) {
     std::move(callback).Run(
         GetStateForServiceError(extensions::api::media_perception_private::
@@ -569,7 +576,7 @@ void MediaPerceptionAPIManager::StateCallback(
 
 void MediaPerceptionAPIManager::GetDiagnosticsCallback(
     APIGetDiagnosticsCallback callback,
-    absl::optional<mri::Diagnostics> result) {
+    std::optional<mri::Diagnostics> result) {
   if (!result.has_value()) {
     std::move(callback).Run(GetDiagnosticsForServiceError(
         extensions::api::media_perception_private::ServiceError::

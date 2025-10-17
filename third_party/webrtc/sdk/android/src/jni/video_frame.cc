@@ -25,14 +25,14 @@ namespace {
 class AndroidVideoBuffer : public VideoFrameBuffer {
  public:
   // Creates a native VideoFrameBuffer from a Java VideoFrame.Buffer.
-  static rtc::scoped_refptr<AndroidVideoBuffer> Create(
+  static scoped_refptr<AndroidVideoBuffer> Create(
       JNIEnv* jni,
       const JavaRef<jobject>& j_video_frame_buffer);
 
   // Similar to the Create() above, but adopts and takes ownership of the Java
   // VideoFrame.Buffer. I.e. retain() will not be called, but release() will be
   // called when the returned AndroidVideoBuffer is destroyed.
-  static rtc::scoped_refptr<AndroidVideoBuffer> Adopt(
+  static scoped_refptr<AndroidVideoBuffer> Adopt(
       JNIEnv* jni,
       const JavaRef<jobject>& j_video_frame_buffer);
 
@@ -42,12 +42,12 @@ class AndroidVideoBuffer : public VideoFrameBuffer {
 
   // Crops a region defined by `crop_x`, `crop_y`, `crop_width` and
   // `crop_height`. Scales it to size `scale_width` x `scale_height`.
-  rtc::scoped_refptr<VideoFrameBuffer> CropAndScale(int crop_x,
-                                                    int crop_y,
-                                                    int crop_width,
-                                                    int crop_height,
-                                                    int scale_width,
-                                                    int scale_height) override;
+  scoped_refptr<VideoFrameBuffer> CropAndScale(int crop_x,
+                                               int crop_y,
+                                               int crop_width,
+                                               int crop_height,
+                                               int scale_width,
+                                               int scale_height) override;
 
  protected:
   // Should not be called directly. Adopts the Java VideoFrame.Buffer. Use
@@ -59,7 +59,7 @@ class AndroidVideoBuffer : public VideoFrameBuffer {
   int width() const override;
   int height() const override;
 
-  rtc::scoped_refptr<I420BufferInterface> ToI420() override;
+  scoped_refptr<I420BufferInterface> ToI420() override;
 
   const int width_;
   const int height_;
@@ -70,7 +70,7 @@ class AndroidVideoBuffer : public VideoFrameBuffer {
 class AndroidVideoI420Buffer : public I420BufferInterface {
  public:
   // Creates a native VideoFrameBuffer from a Java VideoFrame.I420Buffer.
-  static rtc::scoped_refptr<AndroidVideoI420Buffer> Create(
+  static scoped_refptr<AndroidVideoI420Buffer> Create(
       JNIEnv* jni,
       int width,
       int height,
@@ -79,7 +79,7 @@ class AndroidVideoI420Buffer : public I420BufferInterface {
   // Adopts and takes ownership of the Java VideoFrame.Buffer. I.e. retain()
   // will not be called, but release() will be called when the returned
   // AndroidVideoBuffer is destroyed.
-  static rtc::scoped_refptr<AndroidVideoI420Buffer> Adopt(
+  static scoped_refptr<AndroidVideoI420Buffer> Adopt(
       JNIEnv* jni,
       int width,
       int height,
@@ -119,7 +119,7 @@ class AndroidVideoI420Buffer : public I420BufferInterface {
   int stride_v_;
 };
 
-rtc::scoped_refptr<AndroidVideoI420Buffer> AndroidVideoI420Buffer::Create(
+scoped_refptr<AndroidVideoI420Buffer> AndroidVideoI420Buffer::Create(
     JNIEnv* jni,
     int width,
     int height,
@@ -129,7 +129,7 @@ rtc::scoped_refptr<AndroidVideoI420Buffer> AndroidVideoI420Buffer::Create(
                                        j_video_frame_buffer);
 }
 
-rtc::scoped_refptr<AndroidVideoI420Buffer> AndroidVideoI420Buffer::Adopt(
+scoped_refptr<AndroidVideoI420Buffer> AndroidVideoI420Buffer::Adopt(
     JNIEnv* jni,
     int width,
     int height,
@@ -137,8 +137,8 @@ rtc::scoped_refptr<AndroidVideoI420Buffer> AndroidVideoI420Buffer::Adopt(
   RTC_DCHECK_EQ(
       static_cast<Type>(Java_Buffer_getBufferType(jni, j_video_frame_buffer)),
       Type::kI420);
-  return rtc::make_ref_counted<AndroidVideoI420Buffer>(jni, width, height,
-                                                       j_video_frame_buffer);
+  return make_ref_counted<AndroidVideoI420Buffer>(jni, width, height,
+                                                  j_video_frame_buffer);
 }
 
 AndroidVideoI420Buffer::AndroidVideoI420Buffer(
@@ -180,16 +180,16 @@ int64_t GetJavaVideoFrameTimestampNs(JNIEnv* jni,
   return Java_VideoFrame_getTimestampNs(jni, j_video_frame);
 }
 
-rtc::scoped_refptr<AndroidVideoBuffer> AndroidVideoBuffer::Adopt(
+scoped_refptr<AndroidVideoBuffer> AndroidVideoBuffer::Adopt(
     JNIEnv* jni,
     const JavaRef<jobject>& j_video_frame_buffer) {
   RTC_DCHECK_EQ(
       static_cast<Type>(Java_Buffer_getBufferType(jni, j_video_frame_buffer)),
       Type::kNative);
-  return rtc::make_ref_counted<AndroidVideoBuffer>(jni, j_video_frame_buffer);
+  return make_ref_counted<AndroidVideoBuffer>(jni, j_video_frame_buffer);
 }
 
-rtc::scoped_refptr<AndroidVideoBuffer> AndroidVideoBuffer::Create(
+scoped_refptr<AndroidVideoBuffer> AndroidVideoBuffer::Create(
     JNIEnv* jni,
     const JavaRef<jobject>& j_video_frame_buffer) {
   Java_Buffer_retain(jni, j_video_frame_buffer);
@@ -213,7 +213,7 @@ const ScopedJavaGlobalRef<jobject>& AndroidVideoBuffer::video_frame_buffer()
   return j_video_frame_buffer_;
 }
 
-rtc::scoped_refptr<VideoFrameBuffer> AndroidVideoBuffer::CropAndScale(
+scoped_refptr<VideoFrameBuffer> AndroidVideoBuffer::CropAndScale(
     int crop_x,
     int crop_y,
     int crop_width,
@@ -238,7 +238,7 @@ int AndroidVideoBuffer::height() const {
   return height_;
 }
 
-rtc::scoped_refptr<I420BufferInterface> AndroidVideoBuffer::ToI420() {
+scoped_refptr<I420BufferInterface> AndroidVideoBuffer::ToI420() {
   JNIEnv* jni = AttachCurrentThreadIfNeeded();
   ScopedJavaLocalRef<jobject> j_i420_buffer =
       Java_Buffer_toI420(jni, j_video_frame_buffer_);
@@ -252,7 +252,7 @@ rtc::scoped_refptr<I420BufferInterface> AndroidVideoBuffer::ToI420() {
   return AndroidVideoI420Buffer::Adopt(jni, width_, height_, j_i420_buffer);
 }
 
-rtc::scoped_refptr<VideoFrameBuffer> JavaToNativeFrameBuffer(
+scoped_refptr<VideoFrameBuffer> JavaToNativeFrameBuffer(
     JNIEnv* jni,
     const JavaRef<jobject>& j_video_frame_buffer) {
   VideoFrameBuffer::Type type = static_cast<VideoFrameBuffer::Type>(
@@ -278,19 +278,19 @@ VideoFrame JavaToNativeFrame(JNIEnv* jni,
       Java_VideoFrame_getBuffer(jni, j_video_frame);
   int rotation = Java_VideoFrame_getRotation(jni, j_video_frame);
   int64_t timestamp_ns = Java_VideoFrame_getTimestampNs(jni, j_video_frame);
-  rtc::scoped_refptr<VideoFrameBuffer> buffer =
+  scoped_refptr<VideoFrameBuffer> buffer =
       JavaToNativeFrameBuffer(jni, j_video_frame_buffer);
   return VideoFrame::Builder()
       .set_video_frame_buffer(buffer)
-      .set_timestamp_rtp(timestamp_rtp)
-      .set_timestamp_ms(timestamp_ns / rtc::kNumNanosecsPerMillisec)
+      .set_rtp_timestamp(timestamp_rtp)
+      .set_timestamp_ms(timestamp_ns / kNumNanosecsPerMillisec)
       .set_rotation(static_cast<VideoRotation>(rotation))
       .build();
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaVideoFrame(JNIEnv* jni,
                                                    const VideoFrame& frame) {
-  rtc::scoped_refptr<VideoFrameBuffer> buffer = frame.video_frame_buffer();
+  scoped_refptr<VideoFrameBuffer> buffer = frame.video_frame_buffer();
 
   if (buffer->type() == VideoFrameBuffer::Type::kNative) {
     AndroidVideoBuffer* android_buffer =
@@ -300,14 +300,12 @@ ScopedJavaLocalRef<jobject> NativeToJavaVideoFrame(JNIEnv* jni,
     Java_Buffer_retain(jni, j_video_frame_buffer);
     return Java_VideoFrame_Constructor(
         jni, j_video_frame_buffer, static_cast<jint>(frame.rotation()),
-        static_cast<jlong>(frame.timestamp_us() *
-                           rtc::kNumNanosecsPerMicrosec));
+        static_cast<jlong>(frame.timestamp_us() * kNumNanosecsPerMicrosec));
   } else {
     return Java_VideoFrame_Constructor(
         jni, WrapI420Buffer(jni, buffer->ToI420()),
         static_cast<jint>(frame.rotation()),
-        static_cast<jlong>(frame.timestamp_us() *
-                           rtc::kNumNanosecsPerMicrosec));
+        static_cast<jlong>(frame.timestamp_us() * kNumNanosecsPerMicrosec));
   }
 }
 

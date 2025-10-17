@@ -32,13 +32,18 @@ class RssLinksFetcherTest : public AndroidBrowserTest {
 class RssLinksFetcherTest : public InProcessBrowserTest {
 #endif
  public:
-  RssLinksFetcherTest() { features_.InitAndEnableFeature(kWebFeed); }
+  RssLinksFetcherTest() {
+    scoped_feature_list_.InitAndDisableFeature(feed::kWebFeedKillSwitch);
+  }
+
   // AndroidBrowserTest:
   void SetUpOnMainThread() override {
     embedded_test_server()->ServeFilesFromSourceDirectory("content/test/data");
     ASSERT_TRUE(embedded_test_server()->Start());
   }
-  base::test::ScopedFeatureList features_;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(RssLinksFetcherTest, FetchSuccessfulFromHead) {

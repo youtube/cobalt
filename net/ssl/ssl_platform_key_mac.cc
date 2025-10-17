@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ssl/ssl_platform_key_mac.h"
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -11,15 +16,16 @@
 #include <Security/SecKey.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/containers/span.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_policy.h"
 #include "base/numerics/safe_conversions.h"
 #include "crypto/openssl_util.h"
@@ -29,7 +35,6 @@
 #include "net/ssl/ssl_platform_key_util.h"
 #include "net/ssl/ssl_private_key.h"
 #include "net/ssl/threaded_ssl_private_key.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #include "third_party/boringssl/src/include/openssl/nid.h"
@@ -90,7 +95,7 @@ class SSLPlatformKeySecKey : public ThreadedSSLPrivateKey::Delegate {
   ~SSLPlatformKeySecKey() override = default;
 
   std::string GetProviderName() override {
-    // TODO(https://crbug.com/900721): Is there a more descriptive name to
+    // TODO(crbug.com/41423739): Is there a more descriptive name to
     // return?
     return "SecKey";
   }
@@ -121,9 +126,9 @@ class SSLPlatformKeySecKey : public ThreadedSSLPrivateKey::Delegate {
                            md, nullptr)) {
       return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
     }
-    base::span<const uint8_t> digest = base::make_span(digest_buf, digest_len);
+    base::span<const uint8_t> digest = base::span(digest_buf, digest_len);
 
-    absl::optional<std::vector<uint8_t>> pss_storage;
+    std::optional<std::vector<uint8_t>> pss_storage;
     if (pss_fallback) {
       // Implement RSA-PSS by adding the padding manually and then using
       // kSecKeyAlgorithmRSASignatureRaw.
@@ -136,21 +141,20 @@ class SSLPlatformKeySecKey : public ThreadedSSLPrivateKey::Delegate {
       digest = *pss_storage;
     }
 
-    base::ScopedCFTypeRef<CFDataRef> digest_ref(
+    base::apple::ScopedCFTypeRef<CFDataRef> digest_ref(
         CFDataCreate(kCFAllocatorDefault, digest.data(),
                      base::checked_cast<CFIndex>(digest.size())));
 
-    base::ScopedCFTypeRef<CFErrorRef> error;
-    base::ScopedCFTypeRef<CFDataRef> signature_ref(SecKeyCreateSignature(
-        key_, sec_algorithm, digest_ref, error.InitializeInto()));
+    base::apple::ScopedCFTypeRef<CFErrorRef> error;
+    base::apple::ScopedCFTypeRef<CFDataRef> signature_ref(SecKeyCreateSignature(
+        key_.get(), sec_algorithm, digest_ref.get(), error.InitializeInto()));
     if (!signature_ref) {
-      LOG(ERROR) << error;
+      LOG(ERROR) << error.get();
       return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
     }
 
-    signature->assign(
-        CFDataGetBytePtr(signature_ref),
-        CFDataGetBytePtr(signature_ref) + CFDataGetLength(signature_ref));
+    auto signature_span = base::apple::CFDataToSpan(signature_ref.get());
+    signature->assign(signature_span.begin(), signature_span.end());
     return OK;
   }
 
@@ -180,7 +184,7 @@ class SSLPlatformKeySecKey : public ThreadedSSLPrivateKey::Delegate {
 
   std::vector<uint16_t> preferences_;
   bssl::UniquePtr<EVP_PKEY> pubkey_;
-  base::ScopedCFTypeRef<SecKeyRef> key_;
+  base::apple::ScopedCFTypeRef<SecKeyRef> key_;
 };
 
 }  // namespace
@@ -194,6 +198,20 @@ scoped_refptr<SSLPrivateKey> CreateSSLPrivateKeyForSecKey(
 
   return base::MakeRefCounted<ThreadedSSLPrivateKey>(
       std::make_unique<SSLPlatformKeySecKey>(std::move(pubkey), key),
+      GetSSLPlatformKeyTaskRunner());
+}
+
+scoped_refptr<SSLPrivateKey> WrapUnexportableKey(
+    const crypto::UnexportableSigningKey& unexportable_key) {
+  bssl::UniquePtr<EVP_PKEY> pubkey =
+      ParseSpki(unexportable_key.GetSubjectPublicKeyInfo());
+  if (!pubkey) {
+    return nullptr;
+  }
+
+  return base::MakeRefCounted<ThreadedSSLPrivateKey>(
+      std::make_unique<SSLPlatformKeySecKey>(std::move(pubkey),
+                                             unexportable_key.GetSecKeyRef()),
       GetSSLPlatformKeyTaskRunner());
 }
 

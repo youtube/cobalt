@@ -6,7 +6,6 @@
 #define IOS_CHROME_TEST_EARL_GREY_CHROME_EGTEST_PLUGIN_CLIENT_H_
 
 #import <Foundation/Foundation.h>
-
 #import <grpc/grpc.h>
 #import <grpcpp/grpcpp.h>
 
@@ -25,19 +24,14 @@ class TestPluginClient {
  public:
   TestPluginClient(std::shared_ptr<Channel> channel);
   ~TestPluginClient();
-  void TestCaseWillStart(std::string test_name);
-  void TestCaseDidFail(std::string test_name);
-  void TestCaseDidFinish(std::string test_name);
+  void TestCaseWillStart(std::string test_name, std::string device_name);
+  void TestCaseDidFail(std::string test_name, std::string device_name);
+  void TestCaseDidFinish(std::string test_name, std::string device_name);
+  void TestBundleWillFinish(std::string device_name);
   std::vector<std::string> ListEnabledPlugins();
-  void set_is_service_enabled(bool is_service_enabled);
-
-  // always check if the service is enabled before making any
-  // grpc calls.
-  bool is_service_enabled();
 
  private:
   std::unique_ptr<TestPluginService::Stub> stub_;
-  bool is_service_enabled_;
 };
 }  // namespace chrome_egtest_plugin
 

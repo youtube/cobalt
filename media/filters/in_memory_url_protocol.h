@@ -8,6 +8,9 @@
 #include <stdint.h>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_span.h"
 #include "media/filters/ffmpeg_glue.h"
 
 namespace media {
@@ -21,7 +24,7 @@ class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
  public:
   InMemoryUrlProtocol() = delete;
 
-  InMemoryUrlProtocol(const uint8_t* buf, int64_t size, bool streaming);
+  InMemoryUrlProtocol(base::span<const uint8_t> buf, bool streaming);
 
   InMemoryUrlProtocol(const InMemoryUrlProtocol&) = delete;
   InMemoryUrlProtocol& operator=(const InMemoryUrlProtocol&) = delete;
@@ -36,8 +39,7 @@ class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
   bool IsStreaming() override;
 
  private:
-  const uint8_t* data_;
-  int64_t size_;
+  base::raw_span<const uint8_t, DanglingUntriaged> data_;
   int64_t position_;
   bool streaming_;
 };

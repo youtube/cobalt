@@ -8,8 +8,8 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 
-#include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
@@ -22,12 +22,14 @@
 #include "mojo/public/cpp/system/buffer.h"
 #include "services/device/public/cpp/generic_sensor/sensor_reading.h"
 #include "services/device/public/mojom/sensor.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
 class PlatformSensorProvider;
 class PlatformSensorConfiguration;
+template <class T>
+struct SensorReadingSharedBufferImpl;
+using SensorReadingSharedBuffer = SensorReadingSharedBufferImpl<void>;
 
 // Base class for the sensors provided by the platform. Concrete instances of
 // this class are created by platform specific PlatformSensorProvider.
@@ -105,7 +107,7 @@ class PlatformSensor : public base::RefCountedThreadSafe<PlatformSensor> {
   virtual ~PlatformSensor();
   PlatformSensor(mojom::SensorType type,
                  SensorReadingSharedBuffer* reading_buffer,
-                 PlatformSensorProvider* provider);
+                 base::WeakPtr<PlatformSensorProvider> provider);
 
   using ReadingBuffer = SensorReadingSharedBuffer;
 
@@ -133,33 +135,41 @@ class PlatformSensor : public base::RefCountedThreadSafe<PlatformSensor> {
 
   base::ObserverList<Client, true>::Unchecked clients_;
 
+  base::WeakPtr<PlatformSensor> AsWeakPtr();
+
  private:
   friend class base::RefCountedThreadSafe<PlatformSensor>;
 
-  // Updates shared buffer with provided SensorReading. If
-  // |do_significance_check| is true then |last_raw_reading_| and
-  // |reading_buffer_| are only updated if |reading| is significantly different
-  // from |last_raw_reading_|. Returns true if |reading_buffer_| has been
-  // updated, and false otherwise.
+  // Updates shared buffer with provided SensorReading. For sensors whose
+  // reporting mode is ON_CHANGE, |reading_buffer_| is updated only if
+  // |reading| and its rounded version pass the required threshold and
+  // significance checks. Returns true if |reading_buffer_| has been updated,
+  // and false otherwise.
   // Note: this method is thread-safe.
-  bool UpdateSharedBuffer(const SensorReading& reading,
-                          bool do_significance_check)
+  bool UpdateSharedBuffer(const SensorReading& reading)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  // Check if multiple instances of PlatformSensor can exist at once. It weas
-  // first suggested in crbug.com/1383180.
-  static base::flat_set<mojom::SensorType>& GetInitializedSensors();
+  // Stores an empty reading into the shared buffer and resets
+  // |last_{raw,rounded}_reading|.
+  void ResetSharedBuffer() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Writes the given reading to |reading_buffer_|. Requires |is_active_| to be
+  // true.
+  void WriteToSharedBuffer(const SensorReading&)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
 
-  raw_ptr<SensorReadingSharedBuffer>
-      reading_buffer_;  // NOTE: Owned by |provider_|.
+  // Pointer to the buffer where sensor readings will be written. The buffer is
+  // owned by `provider_` and must not be accessed if `provider_` is null.
+  raw_ptr<SensorReadingSharedBuffer> reading_buffer_;
+
   mojom::SensorType type_;
   ConfigMap config_map_;
-  raw_ptr<PlatformSensorProvider> provider_;
+  base::WeakPtr<PlatformSensorProvider> provider_;
   bool is_active_ GUARDED_BY(lock_);
-  absl::optional<SensorReading> last_raw_reading_ GUARDED_BY(lock_);
-  absl::optional<SensorReading> last_rounded_reading_ GUARDED_BY(lock_);
+  std::optional<SensorReading> last_raw_reading_ GUARDED_BY(lock_);
+  std::optional<SensorReading> last_rounded_reading_ GUARDED_BY(lock_);
   // Protect last_raw_reading_ & last_rounded_reading_.
   mutable base::Lock lock_;
   base::WeakPtrFactory<PlatformSensor> weak_factory_{this};

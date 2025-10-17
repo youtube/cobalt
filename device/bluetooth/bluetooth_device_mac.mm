@@ -16,8 +16,7 @@ namespace device {
 BluetoothDeviceMac::BluetoothDeviceMac(BluetoothAdapter* adapter)
     : BluetoothDevice(adapter) {}
 
-BluetoothDeviceMac::~BluetoothDeviceMac() {
-}
+BluetoothDeviceMac::~BluetoothDeviceMac() = default;
 
 NSError* BluetoothDeviceMac::GetNSErrorFromConnectErrorCode(
     BluetoothDevice::ConnectErrorCode error_code) {
@@ -64,7 +63,6 @@ BluetoothDeviceMac::GetGattErrorCodeFromNSError(NSError* error) {
       return gatt_error_code;
     }
     NOTREACHED();
-    return BluetoothGattService::GattErrorCode::kFailed;
   }
   // TODO(http://crbug.com/619595): Need to convert the error code from
   // CoreBluetooth to a GattErrorCode value.

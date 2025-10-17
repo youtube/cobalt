@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "fuchsia_web/webengine/renderer/web_engine_audio_renderer.h"
 
 #include <lib/sys/cpp/component_context.h>
@@ -23,7 +28,7 @@ namespace {
 
 // nullopt is returned in case the codec is not supported. nullptr is returned
 // for uncompressed PCM streams.
-absl::optional<std::unique_ptr<fuchsia::media::Compression>>
+std::optional<std::unique_ptr<fuchsia::media::Compression>>
 GetFuchsiaCompressionFromDecoderConfig(media::AudioDecoderConfig config) {
   auto compression = std::make_unique<fuchsia::media::Compression>();
   switch (config.codec()) {
@@ -49,7 +54,7 @@ GetFuchsiaCompressionFromDecoderConfig(media::AudioDecoderConfig config) {
       break;
 
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 
   if (!config.extra_data().empty()) {
@@ -59,7 +64,7 @@ GetFuchsiaCompressionFromDecoderConfig(media::AudioDecoderConfig config) {
   return std::move(compression);
 }
 
-absl::optional<fuchsia::media::AudioSampleFormat>
+std::optional<fuchsia::media::AudioSampleFormat>
 GetFuchsiaSampleFormatFromSampleFormat(media::SampleFormat sample_format) {
   switch (sample_format) {
     case media::kSampleFormatU8:
@@ -72,7 +77,7 @@ GetFuchsiaSampleFormatFromSampleFormat(media::SampleFormat sample_format) {
       return fuchsia::media::AudioSampleFormat::FLOAT;
 
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
@@ -83,18 +88,19 @@ scoped_refptr<media::DecoderBuffer> PreparePcm24Buffer(
   static_assert(ARCH_CPU_LITTLE_ENDIAN,
                 "Only little-endian CPUs are supported.");
 
-  size_t samples = buffer->data_size() / 3;
+  auto buffer_span = base::span(*buffer);
+  size_t samples = buffer_span.size() / 3;
   scoped_refptr<media::DecoderBuffer> result =
       base::MakeRefCounted<media::DecoderBuffer>(samples * 4);
   for (size_t i = 0; i < samples - 1; ++i) {
     reinterpret_cast<uint32_t*>(result->writable_data())[i] =
-        *reinterpret_cast<const uint32_t*>(buffer->data() + i * 3) & 0x00ffffff;
+        *reinterpret_cast<const uint32_t*>(buffer_span.subspan(i * 3).data()) &
+        0x00ffffff;
   }
   size_t last_sample = samples - 1;
   reinterpret_cast<uint32_t*>(result->writable_data())[last_sample] =
-      buffer->data()[last_sample * 3] |
-      (buffer->data()[last_sample * 3 + 1] << 8) |
-      (buffer->data()[last_sample * 3 + 2] << 16);
+      buffer_span[last_sample * 3] | (buffer_span[last_sample * 3 + 1] << 8) |
+      (buffer_span[last_sample * 3 + 2] << 16);
 
   result->set_timestamp(buffer->timestamp());
   result->set_duration(buffer->duration());
@@ -163,7 +169,7 @@ void WebEngineAudioRenderer::InitializeStream() {
   // AAC streams require bitstream conversion. Without it the demuxer may
   // produce decoded stream without ADTS headers which are required for AAC
   // streams in AudioConsumer.
-  // TODO(crbug.com/1120095): Reconsider this logic.
+  // TODO(crbug.com/40145747): Reconsider this logic.
   if (demuxer_stream_->audio_decoder_config().codec() ==
       media::AudioCodec::kAAC) {
     demuxer_stream_->EnableBitstreamConverter();
@@ -210,7 +216,7 @@ void WebEngineAudioRenderer::UpdateVolume() {
 
 void WebEngineAudioRenderer::OnBuffersAcquired(
     std::vector<media::VmoBuffer> buffers,
-    const fuchsia::sysmem::SingleBufferSettings&) {
+    const fuchsia::sysmem2::SingleBufferSettings&) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   input_buffers_ = std::move(buffers);
@@ -253,7 +259,7 @@ void WebEngineAudioRenderer::InitializeStreamSink() {
 
   // Set sample_format for uncompressed streams.
   if (!compression.value()) {
-    absl::optional<fuchsia::media::AudioSampleFormat> sample_format =
+    std::optional<fuchsia::media::AudioSampleFormat> sample_format =
         GetFuchsiaSampleFormatFromSampleFormat(config.sample_format());
     if (!sample_format) {
       LOG(ERROR) << "Unsupported sample format: "
@@ -330,19 +336,20 @@ void WebEngineAudioRenderer::SetVolume(float volume) {
 }
 
 void WebEngineAudioRenderer::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
-  // TODO(crbug.com/1131116): Implement at some later date after we've vetted
+    std::optional<base::TimeDelta> latency_hint) {
+  // TODO(crbug.com/40150050): Implement at some later date after we've vetted
   // the API shape and usefulness outside of fuchsia.
   NOTIMPLEMENTED();
 }
 
 void WebEngineAudioRenderer::SetPreservesPitch(bool preserves_pitch) {
-  // TODO(crbug.com/1368392): Implement this.
+  // TODO(crbug.com/40868390): Implement this.
   NOTIMPLEMENTED();
 }
 
-void WebEngineAudioRenderer::SetWasPlayedWithUserActivation(
-    bool was_played_with_user_activation) {
+void WebEngineAudioRenderer::
+    SetWasPlayedWithUserActivationAndHighMediaEngagement(
+        bool was_played_with_user_activation_and_high_media_engagement) {
   // WebEngine does not use this signal. This is currently only used by the Live
   // Caption feature.
   NOTIMPLEMENTED_LOG_ONCE();
@@ -361,7 +368,7 @@ void WebEngineAudioRenderer::StartTicking() {
     case PlaybackState::kStartPending:
     case PlaybackState::kStarting:
     case PlaybackState::kPlaying:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
 
     case PlaybackState::kPaused: {
       // If the stream was paused then we can unpause it without restarting
@@ -413,7 +420,6 @@ void WebEngineAudioRenderer::StopTicking() {
     case PlaybackState::kStopped:
     case PlaybackState::kPaused:
       NOTREACHED();
-      break;
 
     case PlaybackState::kStartPending: {
       base::AutoLock lock(timeline_lock_);
@@ -719,9 +725,9 @@ void WebEngineAudioRenderer::OnDemuxerStreamReadDone(
   if (buffer->end_of_stream()) {
     is_at_end_of_stream_ = true;
   } else {
-    if (buffer->data_size() > kBufferSize) {
+    if (buffer->size() > kBufferSize) {
       DLOG(ERROR) << "Demuxer returned buffer that is too big: "
-                  << buffer->data_size();
+                  << buffer->size();
       OnError(media::AUDIO_RENDERER_ERROR);
       return;
     }
@@ -835,7 +841,7 @@ base::TimeDelta WebEngineAudioRenderer::CurrentMediaTimeLocked() {
 }
 
 void WebEngineAudioRenderer::OnSysmemBufferStreamBufferCollectionToken(
-    fuchsia::sysmem::BufferCollectionTokenPtr token) {
+    fuchsia::sysmem2::BufferCollectionTokenPtr token) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Drop old buffers.
@@ -845,7 +851,7 @@ void WebEngineAudioRenderer::OnSysmemBufferStreamBufferCollectionToken(
   // Acquire buffers for the new buffer collection.
   input_buffer_collection_ =
       sysmem_allocator_.BindSharedCollection(std::move(token));
-  fuchsia::sysmem::BufferCollectionConstraints buffer_constraints =
+  fuchsia::sysmem2::BufferCollectionConstraints buffer_constraints =
       media::VmoBuffer::GetRecommendedConstraints(kNumBuffers, kBufferSize,
                                                   /*writable=*/false);
   input_buffer_collection_->Initialize(std::move(buffer_constraints),

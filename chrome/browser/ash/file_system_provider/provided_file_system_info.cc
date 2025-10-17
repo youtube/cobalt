@@ -6,8 +6,7 @@
 
 #include "base/check_op.h"
 
-namespace ash {
-namespace file_system_provider {
+namespace ash::file_system_provider {
 
 ProviderId::ProviderId(const std::string& internal_id,
                        ProviderType provider_type)
@@ -63,14 +62,6 @@ std::string ProviderId::ToString() const {
   }
 }
 
-bool ProviderId::operator==(const ProviderId& other) const {
-  return type_ == other.type_ && internal_id_ == other.internal_id_;
-}
-
-bool ProviderId::operator!=(const ProviderId& other) const {
-  return !operator==(other);
-}
-
 bool ProviderId::operator<(const ProviderId& other) const {
   return std::tie(type_, internal_id_) <
          std::tie(other.type_, other.internal_id_);
@@ -100,7 +91,8 @@ ProvidedFileSystemInfo::ProvidedFileSystemInfo()
       supports_notify_tag_(false),
       configurable_(false),
       watchable_(false),
-      source_(extensions::SOURCE_FILE) {}
+      source_(extensions::SOURCE_FILE),
+      cache_type_(CacheType::NONE) {}
 
 ProvidedFileSystemInfo::ProvidedFileSystemInfo(
     const ProviderId& provider_id,
@@ -109,7 +101,8 @@ ProvidedFileSystemInfo::ProvidedFileSystemInfo(
     bool configurable,
     bool watchable,
     extensions::FileSystemProviderSource source,
-    const IconSet& icon_set)
+    const IconSet& icon_set,
+    CacheType cache_type)
     : provider_id_(provider_id),
       file_system_id_(mount_options.file_system_id),
       display_name_(mount_options.display_name),
@@ -120,7 +113,8 @@ ProvidedFileSystemInfo::ProvidedFileSystemInfo(
       configurable_(configurable),
       watchable_(watchable),
       source_(source),
-      icon_set_(icon_set) {
+      icon_set_(icon_set),
+      cache_type_(cache_type) {
   DCHECK_LE(0, mount_options.opened_files_limit);
 }
 
@@ -131,19 +125,34 @@ ProvidedFileSystemInfo::ProvidedFileSystemInfo(
     bool configurable,
     bool watchable,
     extensions::FileSystemProviderSource source,
-    const IconSet& icon_set)
+    const IconSet& icon_set,
+    CacheType cache_type)
     : ProvidedFileSystemInfo(ProviderId::CreateFromExtensionId(extension_id),
                              mount_options,
                              mount_path,
                              configurable,
                              watchable,
                              source,
-                             icon_set) {}
+                             icon_set,
+                             cache_type) {}
 
 ProvidedFileSystemInfo::ProvidedFileSystemInfo(
     const ProvidedFileSystemInfo& other) = default;
 
-ProvidedFileSystemInfo::~ProvidedFileSystemInfo() {}
+ProvidedFileSystemInfo::~ProvidedFileSystemInfo() = default;
 
-}  // namespace file_system_provider
-}  // namespace ash
+bool ProvidedFileSystemInfo::operator==(
+    const ProvidedFileSystemInfo& other) const {
+  return provider_id() == other.provider_id() &&
+         file_system_id() == other.file_system_id() &&
+         display_name() == other.display_name() &&
+         writable() == other.writable() &&
+         supports_notify_tag() == other.supports_notify_tag() &&
+         opened_files_limit() == other.opened_files_limit() &&
+         mount_path() == other.mount_path() &&
+         configurable() == other.configurable() &&
+         watchable() == other.watchable() && source() == other.source() &&
+         icon_set() == other.icon_set() && cache_type() == other.cache_type();
+}
+
+}  // namespace ash::file_system_provider

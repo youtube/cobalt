@@ -4,11 +4,13 @@
 
 #include "android_webview/browser/aw_client_hints_controller_delegate.h"
 
+#include "android_webview/browser/aw_browser_process.h"
 #include "android_webview/browser/aw_contents.h"
 #include "android_webview/browser/aw_cookie_access_policy.h"
 #include "base/notreached.h"
 #include "base/values.h"
 #include "components/embedder_support/user_agent_utils.h"
+#include "components/version_info/version_info.h"
 #include "content/public/browser/client_hints_controller_delegate.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -22,16 +24,49 @@
 
 namespace android_webview {
 
+// Android WebView product name for building the default user agent string.
+const char kAndroidWebViewProductName[] = "Android WebView";
+
 namespace prefs {
 const char kClientHintsCachedPerOriginMap[] =
     "aw_client_hints_cached_per_origin_map";
 }  // namespace prefs
 
 AwClientHintsControllerDelegate::AwClientHintsControllerDelegate(
-    PrefService* pref_service)
-    : pref_service_(pref_service) {}
+    PrefService* context_pref_service)
+    : context_pref_service_(context_pref_service) {}
 
 AwClientHintsControllerDelegate::~AwClientHintsControllerDelegate() = default;
+
+blink::UserAgentMetadata
+AwClientHintsControllerDelegate::GetUserAgentMetadataOverrideBrand(
+    bool only_low_entropy_ch) {
+  // embedder_support::GetUserAgentMetadata() can accept a browser local_state
+  // PrefService argument, but doesn't need one. Either way, it shouldn't be the
+  // context_pref_service_ that this class holds.
+  auto metadata = embedder_support::GetUserAgentMetadata(only_low_entropy_ch);
+  std::string major_version = version_info::GetMajorVersionNumber();
+
+  // Use the major version number as a greasing seed
+  int major_version_number;
+  bool parse_result = base::StringToInt(major_version, &major_version_number);
+  DCHECK(parse_result);
+
+  // Regenerate the brand version lists with Android WebView product name.
+  metadata.brand_version_list = embedder_support::GenerateBrandVersionList(
+      major_version_number, kAndroidWebViewProductName, major_version,
+      blink::UserAgentBrandVersionType::kMajorVersion);
+
+  if (!only_low_entropy_ch) {
+    metadata.brand_full_version_list =
+        embedder_support::GenerateBrandVersionList(
+            major_version_number, kAndroidWebViewProductName,
+            metadata.full_version,
+            blink::UserAgentBrandVersionType::kFullVersion);
+  }
+
+  return metadata;
+}
 
 network::NetworkQualityTracker*
 AwClientHintsControllerDelegate::GetNetworkQualityTracker() {
@@ -49,9 +84,10 @@ void AwClientHintsControllerDelegate::GetAllowedClientHintsFromSource(
   }
 
   // Add stored hints to the enabled list.
-  if (pref_service_->HasPrefPath(prefs::kClientHintsCachedPerOriginMap)) {
+  if (context_pref_service_->HasPrefPath(
+          prefs::kClientHintsCachedPerOriginMap)) {
     auto* const client_hints_list =
-        pref_service_->GetDict(prefs::kClientHintsCachedPerOriginMap)
+        context_pref_service_->GetDict(prefs::kClientHintsCachedPerOriginMap)
             .FindList(origin.Serialize());
     if (client_hints_list) {
       for (const auto& client_hint : *client_hints_list) {
@@ -93,18 +129,9 @@ bool AwClientHintsControllerDelegate::IsJavaScriptAllowed(
   return aw_contents->IsJavaScriptAllowed();
 }
 
-bool AwClientHintsControllerDelegate::AreThirdPartyCookiesBlocked(
-    const GURL& url,
-    content::RenderFrameHost* rfh) {
-  // This function is related to an OT for the Sec-CH-UA-Reduced client hint
-  // and as this doesn't affect WebView at the moment, we have no reason to
-  // implement it.
-  return false;
-}
-
 blink::UserAgentMetadata
 AwClientHintsControllerDelegate::GetUserAgentMetadata() {
-  return embedder_support::GetUserAgentMetadata(pref_service_);
+  return GetUserAgentMetadataOverrideBrand();
 }
 
 void AwClientHintsControllerDelegate::PersistClientHints(
@@ -134,13 +161,15 @@ void AwClientHintsControllerDelegate::PersistClientHints(
     client_hints_list.Append(static_cast<int>(entry));
   }
   base::Value::Dict ch_per_origin;
-  if (pref_service_->HasPrefPath(prefs::kClientHintsCachedPerOriginMap)) {
+  if (context_pref_service_->HasPrefPath(
+          prefs::kClientHintsCachedPerOriginMap)) {
     ch_per_origin =
-        pref_service_->GetDict(prefs::kClientHintsCachedPerOriginMap).Clone();
+        context_pref_service_->GetDict(prefs::kClientHintsCachedPerOriginMap)
+            .Clone();
   }
   ch_per_origin.Set(primary_origin.Serialize(), std::move(client_hints_list));
-  pref_service_->SetDict(prefs::kClientHintsCachedPerOriginMap,
-                         std::move(ch_per_origin));
+  context_pref_service_->SetDict(prefs::kClientHintsCachedPerOriginMap,
+                                 std::move(ch_per_origin));
   network::LogClientHintsPersistenceMetrics(persistence_started,
                                             client_hints.size());
 }

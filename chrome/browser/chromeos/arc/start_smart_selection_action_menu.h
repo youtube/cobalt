@@ -10,7 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "components/arc/common/intent_helper/arc_intent_helper_mojo_delegate.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_mojo_delegate.h"
 #include "components/renderer_context_menu/render_view_context_menu_observer.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
@@ -42,6 +42,8 @@ class StartSmartSelectionActionMenu : public RenderViewContextMenuObserver {
   bool IsCommandIdChecked(int command_id) override;
   bool IsCommandIdEnabled(int command_id) override;
   void ExecuteCommand(int command_id) override;
+  void OnContextMenuShown(const content::ContextMenuParams& params,
+                          const gfx::Rect& bounds_in_screen) override;
 
  private:
   void HandleTextSelectionActions(

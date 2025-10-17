@@ -39,8 +39,16 @@ enum RenderBlockingStatusType {
 interface PerformanceResourceTiming : PerformanceEntry {
     [MeasureAs=PerformanceResourceTimingInitiatorType] readonly attribute DOMString initiatorType;
     readonly attribute DOMString nextHopProtocol;
-    [RuntimeEnabled=DeliveryType, Measure] readonly attribute DOMString deliveryType;
+    [Measure] readonly attribute DOMString deliveryType;
     readonly attribute DOMHighResTimeStamp workerStart;
+    [RuntimeEnabled=ServiceWorkerStaticRouterTimingInfo, Measure]
+        readonly attribute DOMHighResTimeStamp workerRouterEvaluationStart;
+    [RuntimeEnabled=ServiceWorkerStaticRouterTimingInfo, Measure]
+        readonly attribute DOMHighResTimeStamp workerCacheLookupStart;
+    [RuntimeEnabled=ServiceWorkerStaticRouterTimingInfo, Measure]
+        readonly attribute DOMString workerMatchedSourceType;
+    [RuntimeEnabled=ServiceWorkerStaticRouterTimingInfo, Measure]
+        readonly attribute DOMString workerFinalSourceType;
     readonly attribute DOMHighResTimeStamp redirectStart;
     readonly attribute DOMHighResTimeStamp redirectEnd;
     readonly attribute DOMHighResTimeStamp fetchStart;
@@ -62,15 +70,21 @@ interface PerformanceResourceTiming : PerformanceEntry {
         readonly attribute RenderBlockingStatusType renderBlockingStatus;
     // PerformanceResourceTiming#responseStatus
     // See: https://github.com/abinpaul1/resource-timing/blob/explainer-resource-response-status/Explainers/Response_Status_Code.md
-    [RuntimeEnabled=ResourceTimingResponseStatus]
-        readonly attribute short responseStatus;
+    readonly attribute short responseStatus;
+
     // PerformanceResourceTiming#contentType
     // See: https://github.com/abinpaul1/resource-timing/blob/explainer-content-type/Explainers/Content-Type.md
     [RuntimeEnabled=ResourceTimingContentType]
         readonly attribute DOMString contentType;
 
-    [RuntimeEnabled=ResourceTimingInterimResponseTimes]
-        readonly attribute DOMHighResTimeStamp firstInterimResponseStart;
+    // PerformanceResourceTiming#contentEncoding
+    // see: https://github.com/guohuideng2024/resource-timing/blob/gh-pages/Explainers/Content_Encoding.md
+    [RuntimeEnabled=ResourceTimingContentEncoding]
+        readonly attribute DOMString contentEncoding;
+
+    [RuntimeEnabled=ResourceTimingFinalResponseHeadersStart]
+    readonly attribute DOMHighResTimeStamp finalResponseHeadersStart;
+    readonly attribute DOMHighResTimeStamp firstInterimResponseStart;
 
     [CallWith=ScriptState, ImplementedAs=toJSONForBinding] object toJSON();
 };

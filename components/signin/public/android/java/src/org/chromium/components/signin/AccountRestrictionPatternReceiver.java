@@ -18,24 +18,29 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.Promise;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** Receiver of the RestrictAccountsToPatterns policy. */
+@NullMarked
 final class AccountRestrictionPatternReceiver {
     private static final String TAG = "AccountRestriction";
     private static final String ACCOUNT_RESTRICTION_PATTERNS_KEY = "RestrictAccountsToPatterns";
 
     AccountRestrictionPatternReceiver(Callback<List<PatternMatcher>> onPatternsUpdated) {
-        BroadcastReceiver receiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                getRestrictionPatternsAsync().then(onPatternsUpdated);
-            }
-        };
-        ContextUtils.registerProtectedBroadcastReceiver(ContextUtils.getApplicationContext(),
-                receiver, new IntentFilter(Intent.ACTION_APPLICATION_RESTRICTIONS_CHANGED));
+        BroadcastReceiver receiver =
+                new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        getRestrictionPatternsAsync().then(onPatternsUpdated);
+                    }
+                };
+        ContextUtils.registerProtectedBroadcastReceiver(
+                ContextUtils.getApplicationContext(),
+                receiver,
+                new IntentFilter(Intent.ACTION_APPLICATION_RESTRICTIONS_CHANGED));
         getRestrictionPatternsAsync().then(onPatternsUpdated);
     }
 

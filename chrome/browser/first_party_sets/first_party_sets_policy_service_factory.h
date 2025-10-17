@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_FIRST_PARTY_SETS_FIRST_PARTY_SETS_POLICY_SERVICE_FACTORY_H_
 #define CHROME_BROWSER_FIRST_PARTY_SETS_FIRST_PARTY_SETS_POLICY_SERVICE_FACTORY_H_
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 
@@ -27,6 +27,12 @@ class FirstPartySetsPolicyService;
 // associated FirstPartySetsPolicyService.
 class FirstPartySetsPolicyServiceFactory : public ProfileKeyedServiceFactory {
  public:
+  // A repeating factory that can be installed globally for all `context`
+  // objects (thus needs to be repeating factory).
+  using GlobalTestingFactory =
+      base::RepeatingCallback<std::unique_ptr<KeyedService>(
+          content::BrowserContext*)>;
+
   FirstPartySetsPolicyServiceFactory(
       const FirstPartySetsPolicyServiceFactory&) = delete;
   FirstPartySetsPolicyServiceFactory& operator=(
@@ -38,17 +44,16 @@ class FirstPartySetsPolicyServiceFactory : public ProfileKeyedServiceFactory {
   static FirstPartySetsPolicyServiceFactory* GetInstance();
 
   // Stores `test_factory` to inject test logic into BuildServiceInstanceFor.
-  void SetTestingFactoryForTesting(TestingFactory test_factory);
+  void SetTestingFactoryForTesting(GlobalTestingFactory test_factory);
 
  private:
-  friend struct base::DefaultSingletonTraits<
-      FirstPartySetsPolicyServiceFactory>;
+  friend base::NoDestructor<FirstPartySetsPolicyServiceFactory>;
 
   FirstPartySetsPolicyServiceFactory();
   ~FirstPartySetsPolicyServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   bool ServiceIsCreatedWithBrowserContext() const override;
   void RegisterProfilePrefs(

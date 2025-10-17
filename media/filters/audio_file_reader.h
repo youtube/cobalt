@@ -101,13 +101,14 @@ class MEDIA_EXPORT AudioFileReader {
   bool OnNewFrame(int* total_frames,
                   std::vector<std::unique_ptr<AudioBus>>* decoded_audio_packets,
                   AVFrame* frame);
+  bool IsMp3File();
 
   // Destruct |glue_| after |codec_context_|.
   std::unique_ptr<FFmpegGlue> glue_;
   std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext> codec_context_;
 
   int stream_index_;
-  raw_ptr<FFmpegURLProtocol> protocol_;
+  raw_ptr<FFmpegURLProtocol, DanglingUntriaged> protocol_;
   AudioCodec audio_codec_;
   int channels_;
   int sample_rate_;

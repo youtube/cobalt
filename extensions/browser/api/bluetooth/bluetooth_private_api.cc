@@ -6,13 +6,13 @@
 
 #include <stdint.h>
 
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/lazy_instance.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/chromeos_buildflags.h"
@@ -26,9 +26,9 @@
 #include "extensions/browser/api/bluetooth/bluetooth_event_router.h"
 #include "extensions/common/api/bluetooth.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "device/bluetooth/chromeos/bluetooth_utils.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace bt = extensions::api::bluetooth;
 namespace bt_private = extensions::api::bluetooth_private;
@@ -41,7 +41,7 @@ static base::LazyInstance<BrowserContextKeyedAPIFactory<BluetoothPrivateAPI>>::
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 device::BluetoothTransport GetBluetoothTransport(bt::Transport transport) {
   switch (transport) {
     case bt::Transport::kClassic:
@@ -70,7 +70,7 @@ bool IsActualConnectionFailure(bt_private::ConnectResultType result) {
   }
 }
 
-absl::optional<device::ConnectionFailureReason> GetConnectionFailureReason(
+std::optional<device::ConnectionFailureReason> GetConnectionFailureReason(
     bt_private::ConnectResultType result) {
   DCHECK(IsActualConnectionFailure(result));
 
@@ -87,11 +87,43 @@ absl::optional<device::ConnectionFailureReason> GetConnectionFailureReason(
       return device::ConnectionFailureReason::kUnknownConnectionError;
     case bt_private::ConnectResultType::kUnsupportedDevice:
       return device::ConnectionFailureReason::kUnsupportedDevice;
-    default:
-      return device::ConnectionFailureReason::kUnknownError;
+    case bt_private::ConnectResultType::kNotReady:
+      return device::ConnectionFailureReason::kDeviceNotReady;
+    case bt_private::ConnectResultType::kAlreadyExists:
+      return device::ConnectionFailureReason::kDeviceAlreadyExists;
+    case bt_private::ConnectResultType::kNotConnected:
+      return device::ConnectionFailureReason::kNotConnectable;
+    case bt_private::ConnectResultType::kDoesNotExist:
+      return device::ConnectionFailureReason::kNotFound;
+    case bt_private::ConnectResultType::kInvalidArgs:
+      return device::ConnectionFailureReason::kInvalidArgs;
+    case bt_private::ConnectResultType::kNonAuthTimeout:
+      return device::ConnectionFailureReason::kNonAuthTimeout;
+    case bt_private::ConnectResultType::kNoMemory:
+      return device::ConnectionFailureReason::kNoMemory;
+    case bt_private::ConnectResultType::kJniEnvironment:
+      return device::ConnectionFailureReason::kJniEnvironment;
+    case bt_private::ConnectResultType::kJniThreadAttach:
+      return device::ConnectionFailureReason::kJniThreadAttach;
+    case bt_private::ConnectResultType::kWakelock:
+      return device::ConnectionFailureReason::kWakelock;
+    case bt_private::ConnectResultType::kAlreadyConnected:
+      return device::ConnectionFailureReason::kAlreadyConnected;
+    case bt_private::ConnectResultType::kUnexpectedState:
+      return device::ConnectionFailureReason::kUnexpectedState;
+    case bt_private::ConnectResultType::kSocketError:
+      return device::ConnectionFailureReason::kSocketError;
+    case bt_private::ConnectResultType::kInProgress:
+      [[fallthrough]];
+    case bt_private::ConnectResultType::kAuthRejected:
+      [[fallthrough]];
+    case bt_private::ConnectResultType::kAuthCanceled:
+      [[fallthrough]];
+    case bt_private::ConnectResultType::kSuccess:
+      NOTREACHED();
   }
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 std::string GetListenerId(const EventListenerInfo& details) {
   return !details.extension_id.empty() ? details.extension_id
@@ -129,9 +161,22 @@ bt_private::ConnectResultType DeviceConnectErrorToConnectResult(
       return bt_private::ConnectResultType::kDoesNotExist;
     case device::BluetoothDevice::ERROR_INVALID_ARGS:
       return bt_private::ConnectResultType::kInvalidArgs;
+    case device::BluetoothDevice::ERROR_NON_AUTH_TIMEOUT:
+      return bt_private::ConnectResultType::kNonAuthTimeout;
+    case device::BluetoothDevice::ERROR_NO_MEMORY:
+      return bt_private::ConnectResultType::kNoMemory;
+    case device::BluetoothDevice::ERROR_JNI_ENVIRONMENT:
+      return bt_private::ConnectResultType::kJniEnvironment;
+    case device::BluetoothDevice::ERROR_JNI_THREAD_ATTACH:
+      return bt_private::ConnectResultType::kJniThreadAttach;
+    case device::BluetoothDevice::ERROR_WAKELOCK:
+      return bt_private::ConnectResultType::kWakelock;
+    case device::BluetoothDevice::ERROR_UNEXPECTED_STATE:
+      return bt_private::ConnectResultType::kUnexpectedState;
+    case device::BluetoothDevice::ERROR_SOCKET:
+      return bt_private::ConnectResultType::kSocketError;
     case device::BluetoothDevice::NUM_CONNECT_ERROR_CODES:
       NOTREACHED();
-      break;
   }
   return bt_private::ConnectResultType::kNone;
 }
@@ -338,8 +383,8 @@ void BluetoothPrivateSetAdapterStateFunction::SendError() {
   DCHECK(pending_properties_.empty());
   DCHECK(!failed_properties_.empty());
 
-  std::vector<base::StringPiece> failed_vector(failed_properties_.begin(),
-                                               failed_properties_.end());
+  std::vector<std::string_view> failed_vector(failed_properties_.begin(),
+                                              failed_properties_.end());
 
   std::vector<std::string> replacements(1);
   replacements[0] = base::JoinString(failed_vector, ", ");
@@ -612,7 +657,7 @@ void BluetoothPrivateConnectFunction::DoWork(
 }
 
 void BluetoothPrivateConnectFunction::OnConnect(
-    absl::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
+    std::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
   if (error_code.has_value()) {
     // Set the result type and respond with true (success).
     Respond(ArgumentList(bt_private::Connect::Results::Create(
@@ -658,7 +703,7 @@ void BluetoothPrivatePairFunction::DoWork(
 }
 
 void BluetoothPrivatePairFunction::OnPair(
-    absl::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
+    std::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
   if (error_code.has_value()) {
     Respond(Error(kPairingFailed));
     return;
@@ -681,18 +726,18 @@ bool BluetoothPrivateRecordPairingFunction::CreateParams() {
 
 void BluetoothPrivateRecordPairingFunction::DoWork(
     scoped_refptr<device::BluetoothAdapter> adapter) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   bt_private::ConnectResultType result = params_->result;
   bool success = (result == bt_private::ConnectResultType::kSuccess);
 
   // Only emit metrics if this is a success or a true connection failure.
   if (success || IsActualConnectionFailure(result)) {
     device::RecordPairingResult(
-        success ? absl::nullopt : GetConnectionFailureReason(result),
+        success ? std::nullopt : GetConnectionFailureReason(result),
         GetBluetoothTransport(params_->transport),
         base::Milliseconds(params_->pairing_duration_ms));
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   Respond(NoArguments());
 }
@@ -712,17 +757,17 @@ bool BluetoothPrivateRecordReconnectionFunction::CreateParams() {
 
 void BluetoothPrivateRecordReconnectionFunction::DoWork(
     scoped_refptr<device::BluetoothAdapter> adapter) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   bt_private::ConnectResultType result = params_->result;
   bool success = (result == bt_private::ConnectResultType::kSuccess);
 
   // Only emit metrics if this is a success or a true connection failure.
   if (success || IsActualConnectionFailure(result)) {
     device::RecordUserInitiatedReconnectionAttemptResult(
-        success ? absl::nullopt : GetConnectionFailureReason(result),
+        success ? std::nullopt : GetConnectionFailureReason(result),
         device::UserInitiatedReconnectionUISurfaces::kSettings);
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   Respond(NoArguments());
 }
@@ -742,12 +787,12 @@ bool BluetoothPrivateRecordDeviceSelectionFunction::CreateParams() {
 
 void BluetoothPrivateRecordDeviceSelectionFunction::DoWork(
     scoped_refptr<device::BluetoothAdapter> adapter) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   device::RecordDeviceSelectionDuration(
       base::Milliseconds(params_->selection_duration_ms),
       device::DeviceSelectionUISurfaces::kSettings, params_->was_paired,
       GetBluetoothTransport(params_->transport));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   Respond(NoArguments());
 }

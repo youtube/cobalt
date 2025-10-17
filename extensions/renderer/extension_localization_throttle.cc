@@ -4,12 +4,15 @@
 
 #include "extensions/renderer/extension_localization_throttle.h"
 
+#include "base/containers/span.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "extensions/common/constants.h"
+#include "extensions/common/extension_id.h"
+#include "extensions/renderer/extension_frame_helper.h"
 #include "extensions/renderer/shared_l10n_map.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -20,6 +23,7 @@
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "third_party/blink/public/platform/web_url.h"
+#include "third_party/blink/public/web/web_local_frame.h"
 #include "url/gurl.h"
 
 namespace extensions {
@@ -33,10 +37,12 @@ class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
                                        public mojo::DataPipeDrainer::Client {
  public:
   ExtensionLocalizationURLLoader(
-      const std::string& extension_id,
+      const std::optional<blink::LocalFrameToken>& frame_token,
+      const ExtensionId& extension_id,
       mojo::PendingRemote<network::mojom::URLLoaderClient>
           destination_url_loader_client)
-      : extension_id_(extension_id),
+      : frame_token_(frame_token),
+        extension_id_(extension_id),
         destination_url_loader_client_(
             std::move(destination_url_loader_client)) {}
   ~ExtensionLocalizationURLLoader() override = default;
@@ -68,7 +74,7 @@ class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr response_head,
       mojo::ScopedDataPipeConsumerHandle body,
-      absl::optional<mojo_base::BigBuffer> cached_metadata) override {
+      std::optional<mojo_base::BigBuffer> cached_metadata) override {
     // OnReceiveResponse() shouldn't be called because
     // ExtensionLocalizationURLLoader is
     // created by ExtensionLocalizationThrottle::WillProcessResponse(), which is
@@ -107,7 +113,7 @@ class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_headers,
       const net::HttpRequestHeaders& modified_cors_exempt_headers,
-      const absl::optional<GURL>& new_url) override {
+      const std::optional<GURL>& new_url) override {
     // ExtensionLocalizationURLLoader starts handling the request after
     // OnReceivedResponse(). A redirect response is not expected.
     NOTREACHED();
@@ -116,16 +122,10 @@ class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
                    int32_t intra_priority_value) override {
     source_url_loader_->SetPriority(priority, intra_priority_value);
   }
-  void PauseReadingBodyFromNet() override {
-    source_url_loader_->PauseReadingBodyFromNet();
-  }
-  void ResumeReadingBodyFromNet() override {
-    source_url_loader_->ResumeReadingBodyFromNet();
-  }
 
   // mojo::DataPipeDrainer
-  void OnDataAvailable(const void* data, size_t num_bytes) override {
-    data_.append(static_cast<const char*>(data), num_bytes);
+  void OnDataAvailable(base::span<const uint8_t> data) override {
+    data_.append(base::as_string_view(data));
   }
   void OnDataComplete() override {
     data_drainer_.reset();
@@ -176,18 +176,34 @@ class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
   }
 
   void ReplaceMessages() {
-    IPC::Sender* message_sender = content::RenderThread::Get();
+    extensions::SharedL10nMap::IPCTarget* ipc_target = nullptr;
+    // TODO(dtapuska): content::RenderThread::Get() returns nullptr so the old
+    // version will never send it to the browser. Figure out why we are even
+    // doing this on worker threads.
+    if (content::RenderThread::IsMainThread()) {
+      content::RenderFrame* render_frame = nullptr;
+      if (frame_token_) {
+        if (auto* web_frame =
+                blink::WebLocalFrame::FromFrameToken(frame_token_.value())) {
+          render_frame = content::RenderFrame::FromWebFrame(web_frame);
+        }
+      }
+      if (render_frame) {
+        ipc_target = ExtensionFrameHelper::Get(render_frame)->GetRendererHost();
+      }
+    }
     extensions::SharedL10nMap::GetInstance().ReplaceMessages(
-        extension_id_, &data_, message_sender);
+        extension_id_, &data_, ipc_target);
   }
 
-  const std::string extension_id_;
+  const std::optional<blink::LocalFrameToken> frame_token_;
+  const ExtensionId extension_id_;
   std::unique_ptr<mojo::DataPipeDrainer> data_drainer_;
   mojo::ScopedDataPipeProducerHandle producer_handle_;
   std::string data_;
 
-  absl::optional<network::URLLoaderCompletionStatus> original_complete_status_;
-  absl::optional<MojoResult> data_write_result_;
+  std::optional<network::URLLoaderCompletionStatus> original_complete_status_;
+  std::optional<MojoResult> data_write_result_;
 
   mojo::Receiver<network::mojom::URLLoaderClient> source_url_client_receiver_{
       this};
@@ -200,14 +216,18 @@ class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
 
 // static
 std::unique_ptr<ExtensionLocalizationThrottle>
-ExtensionLocalizationThrottle::MaybeCreate(const blink::WebURL& request_url) {
-  if (!request_url.ProtocolIs(extensions::kExtensionScheme)) {
+ExtensionLocalizationThrottle::MaybeCreate(
+    base::optional_ref<const blink::LocalFrameToken> local_frame_token,
+    const GURL& request_url) {
+  if (!request_url.SchemeIs(extensions::kExtensionScheme)) {
     return nullptr;
   }
-  return base::WrapUnique(new ExtensionLocalizationThrottle());
+  return base::WrapUnique(new ExtensionLocalizationThrottle(local_frame_token));
 }
 
-ExtensionLocalizationThrottle::ExtensionLocalizationThrottle() = default;
+ExtensionLocalizationThrottle::ExtensionLocalizationThrottle(
+    base::optional_ref<const blink::LocalFrameToken> local_frame_token)
+    : frame_token_(local_frame_token.CopyAsOptional()) {}
 
 ExtensionLocalizationThrottle::~ExtensionLocalizationThrottle() = default;
 
@@ -217,9 +237,11 @@ void ExtensionLocalizationThrottle::WillProcessResponse(
     const GURL& response_url,
     network::mojom::URLResponseHead* response_head,
     bool* defer) {
-  // ExtensionURLLoader can only redirect requests within the
-  // chrome-extension:// scheme.
-  DCHECK(response_url.SchemeIs(extensions::kExtensionScheme));
+  if (!response_url.SchemeIs(extensions::kExtensionScheme)) {
+    // The chrome-extension:// URL resource request was redirected by
+    // webRequest API. In that case, we don't process the response.
+    return;
+  }
   if (!base::StartsWith(response_head->mime_type, "text/css",
                         base::CompareCase::INSENSITIVE_ASCII)) {
     return;
@@ -250,7 +272,7 @@ void ExtensionLocalizationThrottle::WillProcessResponse(
   mojo::PendingReceiver<network::mojom::URLLoaderClient> source_client_receiver;
 
   auto loader = std::make_unique<ExtensionLocalizationURLLoader>(
-      response_url.host(), std::move(url_loader_client));
+      frame_token_, response_url.host(), std::move(url_loader_client));
 
   ExtensionLocalizationURLLoader* loader_rawptr = loader.get();
   // `loader` will be deleted when `new_remote` is disconnected.

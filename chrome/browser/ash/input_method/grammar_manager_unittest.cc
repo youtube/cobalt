@@ -38,7 +38,7 @@ const char16_t kIgnoreButtonMessage[] =
 
 class TestGrammarServiceClient : public GrammarServiceClient {
  public:
-  TestGrammarServiceClient() {}
+  TestGrammarServiceClient() = default;
   ~TestGrammarServiceClient() override = default;
 
   bool RequestTextCheck(Profile* profile,
@@ -56,8 +56,8 @@ class TestGrammarServiceClient : public GrammarServiceClient {
 };
 
 ui::KeyEvent CreateKeyEvent(const ui::DomCode& code) {
-  return ui::KeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_UNKNOWN, code, ui::EF_NONE,
-                      ui::DomKey::NONE, ui::EventTimeForNow());
+  return ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_UNKNOWN, code,
+                      ui::EF_NONE, ui::DomKey::NONE, ui::EventTimeForNow());
 }
 
 class MockSuggestionHandler : public SuggestionHandlerInterface {

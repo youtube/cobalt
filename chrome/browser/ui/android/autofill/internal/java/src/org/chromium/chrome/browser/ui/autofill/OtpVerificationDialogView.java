@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.ui.autofill;
 import static org.chromium.chrome.browser.ui.autofill.OtpVerificationDialogProperties.ANIMATION_DURATION_MS;
 
 import android.content.Context;
-import android.text.Editable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
@@ -17,15 +16,18 @@ import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.autofill.OtpVerificationDialogProperties.ViewDelegate;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
-import org.chromium.ui.text.NoUnderlineClickableSpan;
+import org.chromium.ui.text.ChromeClickableSpan;
+import org.chromium.ui.text.EmptyTextWatcher;
 import org.chromium.ui.text.SpanApplier;
 import org.chromium.ui.text.SpanApplier.SpanInfo;
 
 import java.util.Optional;
 
 /** Dialog shown to the user for credit card unmasking using OTP-based verification. */
+@NullMarked
 public class OtpVerificationDialogView extends RelativeLayout {
     private View mProgressBarOverlayView;
     private View mOtpVerificationDialogViewContents;
@@ -83,6 +85,11 @@ public class OtpVerificationDialogView extends RelativeLayout {
         mProgressBarOverlayView.setAlpha(0f);
         mProgressBarOverlayView.animate().alpha(1f).setDuration(ANIMATION_DURATION_MS);
         mOtpVerificationDialogViewContents.animate().alpha(0f).setDuration(ANIMATION_DURATION_MS);
+        String progressMessage =
+                getContext()
+                        .getString(R.string.autofill_card_unmask_otp_input_dialog_pending_message);
+        ((TextView) mProgressBarOverlayView.findViewById(R.id.progress_bar_message))
+                .setText(progressMessage);
     }
 
     /**
@@ -131,28 +138,27 @@ public class OtpVerificationDialogView extends RelativeLayout {
     }
 
     private TextWatcher buildTextWatcher(ViewDelegate viewDelegate) {
-        return new TextWatcher() {
+        return new EmptyTextWatcher() {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 viewDelegate.onTextChanged(s);
             }
-
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {}
         };
     }
 
-    /** Builds Otp Resend Message Link **/
+    /** Builds Otp Resend Message Link */
     private SpannableString buildOtpResendMessageLink(Context context, ViewDelegate viewDelegate) {
         return SpanApplier.applySpans(
-                context.getResources().getString(
+                context.getString(
                         org.chromium.chrome.browser.ui.autofill.internal.R.string
                                 .autofill_payments_otp_verification_dialog_cant_find_code_message),
-                new SpanInfo("<link>", "</link>",
-                        new NoUnderlineClickableSpan(
-                                context, textView -> { viewDelegate.onResendLinkClicked(); })));
+                new SpanInfo(
+                        "<link>",
+                        "</link>",
+                        new ChromeClickableSpan(
+                                context,
+                                textView -> {
+                                    viewDelegate.onResendLinkClicked();
+                                })));
     }
 }

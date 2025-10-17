@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_INPUT_ELASTIC_OVERSCROLL_CONTROLLER_H_
 
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "cc/input/overscroll_behavior.h"
 #include "cc/input/scroll_elasticity_helper.h"
@@ -117,6 +118,10 @@ class PLATFORM_EXPORT ElasticOverscrollController {
                            VerifyInitialStretchDelta);
   FRIEND_TEST_ALL_PREFIXES(ElasticOverscrollControllerBezierTest,
                            NoSyntheticEventsOverscroll);
+  FRIEND_TEST_ALL_PREFIXES(ElasticOverscrollControllerBezierTest,
+                           VerifyDifferentDurationForwardAnimations);
+  FRIEND_TEST_ALL_PREFIXES(ElasticOverscrollControllerBezierTest,
+                           VerifyOneAxisForwardAnimation);
 
   enum State {
     // The initial state, during which the overscroll amount is zero and
@@ -161,7 +166,7 @@ class PLATFORM_EXPORT ElasticOverscrollController {
   bool CanScrollVertically() const;
 
   base::TimeTicks momentum_animation_start_time_;
-  cc::ScrollElasticityHelper* helper_;
+  raw_ptr<cc::ScrollElasticityHelper> helper_;
   State state_;
 
   // If there is no overscroll, require a minimum overscroll delta before

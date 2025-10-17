@@ -24,10 +24,10 @@ size_t ServiceShaderTransferCacheEntry::CachedSize() const {
 
 bool ServiceShaderTransferCacheEntry::Deserialize(
     GrDirectContext* context,
+    skgpu::graphite::Recorder* graphite_recorder,
     base::span<const uint8_t> data) {
   // These entries must be created directly via CreateLocalEntry.
   NOTREACHED();
-  return false;
 }
 
 }  // namespace cc

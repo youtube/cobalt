@@ -28,7 +28,7 @@ namespace payments {
 class PaymentManifestWebDataServiceAndroid : public WebDataServiceConsumer {
  public:
   PaymentManifestWebDataServiceAndroid(JNIEnv* env,
-                                       jobject obj,
+                                       const jni_zero::JavaRef<jobject>& obj,
                                        content::WebContents* web_contents);
 
   PaymentManifestWebDataServiceAndroid(
@@ -81,10 +81,11 @@ class PaymentManifestWebDataServiceAndroid : public WebDataServiceConsumer {
  private:
   void OnWebAppManifestRequestDone(JNIEnv* env,
                                    WebDataServiceBase::Handle h,
-                                   WDTypedResult* result);
-  void OnPaymentMethodManifestRequestDone(JNIEnv* env,
-                                          WebDataServiceBase::Handle h,
-                                          WDTypedResult* result);
+                                   std::unique_ptr<WDTypedResult> result);
+  void OnPaymentMethodManifestRequestDone(
+      JNIEnv* env,
+      WebDataServiceBase::Handle h,
+      std::unique_ptr<WDTypedResult> result);
   scoped_refptr<PaymentManifestWebDataService>
   GetPaymentManifestWebDataService();
 

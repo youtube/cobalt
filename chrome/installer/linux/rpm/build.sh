@@ -130,7 +130,7 @@ usage() {
   echo "usage: $(basename $0) [-a target_arch] -c channel -d branding"
   echo "                      [-f] [-o 'dir'] -t target_os"
   echo "-a arch     rpm package architecture"
-  echo "-c channel  the package channel (unstable, beta, stable)"
+  echo "-c channel  the package channel (canary, unstable, beta, stable)"
   echo "-d brand    either chromium or google_chrome"
   echo "-f          indicates that this is an official build"
   echo "-h          this help message"
@@ -149,6 +149,9 @@ verify_channel() {
       ;;
     testing|beta )
       CHANNEL=beta
+      ;;
+    canary )
+      CHANNEL=canary
       ;;
     * )
       echo
@@ -231,12 +234,18 @@ if [ "$BRANDING" = "google_chrome" ]; then
 else
   source "${OUTPUTDIR}/installer/common/chromium-browser.info"
 fi
-eval $(sed -e "s/^\([^=]\+\)=\(.*\)$/export \1='\2'/" \
+if [ "$CHANNEL" != "stable" ]; then
+  RDN_DESKTOP="${RDN}.${CHANNEL}"
+else
+  RDN_DESKTOP="${RDN}"
+fi
+eval $(sed -e "s/^\([^=]\+\)=\(.*\)$/\1='\2'/" \
   "${OUTPUTDIR}/installer/theme/BRANDING")
 
 REPOCONFIG="https://dl.google.com/linux/${PACKAGE#google-}/rpm/stable"
+REPOCONFIGREGEX=
 verify_channel
-export USR_BIN_SYMLINK_NAME="${PACKAGE}-${CHANNEL}"
+USR_BIN_SYMLINK_NAME="${PACKAGE}-${CHANNEL}"
 
 stage_install_rpm
 do_package

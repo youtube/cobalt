@@ -29,16 +29,17 @@ class LockWindowState : public WindowState::State {
 
   ~LockWindowState() override;
 
-  // WindowState::State overrides:
+  // WindowState::State:
   void OnWMEvent(WindowState* window_state, const WMEvent* event) override;
   chromeos::WindowStateType GetType() const override;
   void AttachState(WindowState* window_state,
                    WindowState::State* previous_state) override;
   void DetachState(WindowState* window_state) override;
 
-  // Creates new LockWindowState instance and attaches it to |window|.
-  static WindowState* SetLockWindowState(aura::Window* window);
-  static WindowState* SetLockWindowStateWithShelfExcluded(aura::Window* window);
+  // Creates new LockWindowState instance and attaches it to `window`. See
+  // constructor comment for more info about the `shelf_excluded` parameter.
+  static WindowState* SetLockWindowState(aura::Window* window,
+                                         bool shelf_excluded);
 
  private:
   // Updates the window to |new_state_type| and resulting bounds:
@@ -47,10 +48,10 @@ class LockWindowState : public WindowState::State {
   void UpdateWindow(WindowState* window_state,
                     chromeos::WindowStateType new_state_type);
 
-  // Depending on the capabilities of the window we either return
-  // |WindowStateType::kMaximized| or |WindowStateType::kNormal|.
-  chromeos::WindowStateType GetMaximizedOrCenteredWindowType(
-      WindowState* window_state);
+  // Used in locked screen to get window state type depends on whether the
+  // window is maximizable.
+  chromeos::WindowStateType GetWindowTypeOnMaximizable(
+      WindowState* window_state) const;
 
   // Returns boudns to be used for the provided window.
   gfx::Rect GetWindowBounds(aura::Window* window);

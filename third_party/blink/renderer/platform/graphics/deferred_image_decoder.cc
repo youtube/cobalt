@@ -26,15 +26,15 @@
 #include "third_party/blink/renderer/platform/graphics/deferred_image_decoder.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/graphics/decoding_image_generator.h"
 #include "third_party/blink/renderer/platform/graphics/image_decoding_store.h"
 #include "third_party/blink/renderer/platform/graphics/image_frame_generator.h"
@@ -48,39 +48,6 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 
 namespace blink {
-
-namespace {
-
-// Do not rename entries or reuse numeric values to ensure the histogram is
-// consistent over time.
-enum class IncrementalDecodePerImageType {
-  kJpegIncrementalNeeded = 0,
-  kJpegAllDataReceivedInitially = 1,
-  kWebPIncrementalNeeded = 2,
-  kWebPAllDataReceivedInitially = 3,
-  kMaxValue = kWebPAllDataReceivedInitially,
-};
-
-void ReportIncrementalDecodeNeeded(bool all_data_received,
-                                   const String& image_type) {
-  DCHECK(IsMainThread());
-  absl::optional<IncrementalDecodePerImageType> status;
-  if (image_type == "jpg") {
-    status = all_data_received
-                 ? IncrementalDecodePerImageType::kJpegAllDataReceivedInitially
-                 : IncrementalDecodePerImageType::kJpegIncrementalNeeded;
-  } else if (image_type == "webp") {
-    status = all_data_received
-                 ? IncrementalDecodePerImageType::kWebPAllDataReceivedInitially
-                 : IncrementalDecodePerImageType::kWebPIncrementalNeeded;
-  }
-  if (status) {
-    UMA_HISTOGRAM_ENUMERATION("Blink.ImageDecoders.IncrementalDecodeNeeded",
-                              *status);
-  }
-}
-
-}  // namespace
 
 struct DeferredFrameData {
   DISALLOW_NEW();
@@ -101,10 +68,11 @@ std::unique_ptr<DeferredImageDecoder> DeferredImageDecoder::Create(
     scoped_refptr<SharedBuffer> data,
     bool data_complete,
     ImageDecoder::AlphaOption alpha_option,
-    const ColorBehavior& color_behavior) {
-  std::unique_ptr<ImageDecoder> metadata_decoder =
-      ImageDecoder::Create(data, data_complete, alpha_option,
-                           ImageDecoder::kDefaultBitDepth, color_behavior);
+    ColorBehavior color_behavior) {
+  std::unique_ptr<ImageDecoder> metadata_decoder = ImageDecoder::Create(
+      data, data_complete, alpha_option, ImageDecoder::kDefaultBitDepth,
+      color_behavior, cc::AuxImage::kDefault,
+      Platform::GetMaxDecodedImageBytes());
   if (!metadata_decoder)
     return nullptr;
 
@@ -133,8 +101,8 @@ DeferredImageDecoder::DeferredImageDecoder(
       can_yuv_decode_(false),
       has_hot_spot_(false),
       image_is_high_bit_depth_(false),
-      complete_frame_content_id_(PaintImage::GetNextContentId()) {
-}
+      has_c2pa_manifest_(false),
+      complete_frame_content_id_(PaintImage::GetNextContentId()) {}
 
 DeferredImageDecoder::~DeferredImageDecoder() {
 }
@@ -169,20 +137,15 @@ sk_sp<PaintImageGenerator> DeferredImageDecoder::CreateGenerator() {
   if (image_is_high_bit_depth_)
     info = info.makeColorType(kRGBA_F16_SkColorType);
 
-  WebVector<FrameMetadata> frames(frame_data_.size());
+  std::vector<FrameMetadata> frames(frame_data_.size());
   for (wtf_size_t i = 0; i < frame_data_.size(); ++i) {
     frames[i].complete = frame_data_[i].is_received_;
     frames[i].duration = FrameDurationAtIndex(i);
   }
 
-  // Report UMA about whether incremental decoding is done for JPEG/WebP images.
-  const String image_type = FilenameExtension();
   if (!first_decoding_generator_created_) {
     DCHECK(!incremental_decode_needed_.has_value());
     incremental_decode_needed_ = !all_data_received_;
-    if (image_type == "jpg" || image_type == "webp") {
-      ReportIncrementalDecodeNeeded(all_data_received_, image_type);
-    }
   }
   DCHECK(incremental_decode_needed_.has_value());
 
@@ -215,7 +178,7 @@ bool DeferredImageDecoder::CreateGainmapGenerator(
   if (!gainmap_) {
     return false;
   }
-  WebVector<FrameMetadata> frames;
+  std::vector<FrameMetadata> frames;
 
   SkImageInfo gainmap_image_info =
       SkImageInfo::Make(gainmap_->frame_generator->GetFullSize(),
@@ -295,6 +258,11 @@ wtf_size_t DeferredImageDecoder::FrameCount() {
                            : frame_data_.size();
 }
 
+bool DeferredImageDecoder::HasC2PAManifest() const {
+  return metadata_decoder_ ? metadata_decoder_->HasC2PAManifest()
+                           : has_c2pa_manifest_;
+}
+
 int DeferredImageDecoder::RepetitionCount() const {
   return metadata_decoder_ ? metadata_decoder_->RepetitionCount()
                            : repetition_count_;
@@ -369,6 +337,7 @@ void DeferredImageDecoder::ActivateLazyDecoding() {
 
   size_ = metadata_decoder_->Size();
   image_is_high_bit_depth_ = metadata_decoder_->ImageIsHighBitDepth();
+  has_c2pa_manifest_ = metadata_decoder_->HasC2PAManifest();
   has_hot_spot_ = metadata_decoder_->HotSpot(hot_spot_);
   filename_extension_ = metadata_decoder_->FilenameExtension();
   mime_type_ = metadata_decoder_->MimeType();
@@ -382,17 +351,10 @@ void DeferredImageDecoder::ActivateLazyDecoding() {
       gfx::SizeToSkISize(metadata_decoder_->DecodedSize());
   frame_generator_ = ImageFrameGenerator::Create(
       decoded_size, !is_single_frame, metadata_decoder_->GetColorBehavior(),
-      metadata_decoder_->GetSupportedDecodeSizes());
+      cc::AuxImage::kDefault, metadata_decoder_->GetSupportedDecodeSizes());
 }
 
 void DeferredImageDecoder::ActivateLazyGainmapDecoding() {
-  // Gate this behind a feature flag.
-  static bool feature_enabled =
-      base::FeatureList::IsEnabled(blink::features::kGainmapHdrImages);
-  if (!feature_enabled) {
-    return;
-  }
-
   // Early-out if we have excluded the possibility that this image has a
   // gainmap, or if we have already created the gainmap frame generator.
   if (!might_have_gainmap_ || gainmap_) {
@@ -416,7 +378,8 @@ void DeferredImageDecoder::ActivateLazyGainmapDecoding() {
   // Extract metadata from the gainmap's data.
   auto gainmap_metadata_decoder = ImageDecoder::Create(
       gainmap->data, all_data_received_, ImageDecoder::kAlphaNotPremultiplied,
-      ImageDecoder::kDefaultBitDepth, ColorBehavior::Ignore());
+      ImageDecoder::kDefaultBitDepth, ColorBehavior::kIgnore,
+      cc::AuxImage::kGainmap, Platform::GetMaxDecodedImageBytes());
   if (!gainmap_metadata_decoder) {
     DLOG(ERROR) << "Failed to create gainmap image decoder.";
     might_have_gainmap_ = false;
@@ -434,7 +397,7 @@ void DeferredImageDecoder::ActivateLazyGainmapDecoding() {
   // Create the result frame generator and metadata.
   gainmap->frame_generator = ImageFrameGenerator::Create(
       gfx::SizeToSkISize(gainmap_metadata_decoder->DecodedSize()),
-      kIsMultiFrame, ColorBehavior::Ignore(),
+      kIsMultiFrame, ColorBehavior::kIgnore, cc::AuxImage::kGainmap,
       gainmap_metadata_decoder->GetSupportedDecodeSizes());
 
   // Populate metadata and save to the `gainmap_` member.

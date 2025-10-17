@@ -48,7 +48,6 @@ class TestSharedURLLoaderFactory : public network::TestURLLoaderFactory,
 
   std::unique_ptr<network::PendingSharedURLLoaderFactory> Clone() override {
     NOTREACHED();
-    return nullptr;
   }
 
  private:
@@ -79,7 +78,7 @@ class MockResourceRequestSender : public ResourceRequestSender {
   }
 
   void DeletePendingRequest(
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner) override {
+      scoped_refptr<base::SequencedTaskRunner> task_runner) override {
     client_.reset();
   }
 
@@ -109,7 +108,7 @@ class SyncLoadContextTest : public testing::Test {
             &SyncLoadContext::StartAsyncWithWaitableEvent, std::move(request),
             loading_thread_.task_runner(), TRAFFIC_ANNOTATION_FOR_TESTS,
             0 /* loader_options */, std::move(pending_factory),
-            WebVector<std::unique_ptr<URLLoaderThrottle>>(), out_response,
+            std::vector<std::unique_ptr<URLLoaderThrottle>>(), out_response,
             context_for_redirect, redirect_or_response_event,
             nullptr /* terminate_sync_load_event */,
             base::Seconds(60) /* timeout */,
@@ -140,15 +139,16 @@ class SyncLoadContextTest : public testing::Test {
     mock_resource_request_sender->CreatePendingRequest(context);
     context->resource_request_sender_ = std::move(mock_resource_request_sender);
 
-    // Simulate the response.
-    context->OnReceivedResponse(network::mojom::URLResponseHead::New(),
-                                base::TimeTicks());
     mojo::ScopedDataPipeProducerHandle producer_handle;
     mojo::ScopedDataPipeConsumerHandle consumer_handle;
     EXPECT_EQ(MOJO_RESULT_OK,
               mojo::CreateDataPipe(nullptr /* options */, producer_handle,
                                    consumer_handle));
-    context->OnStartLoadingResponseBody(std::move(consumer_handle));
+
+    // Simulate the response.
+    context->OnReceivedResponse(network::mojom::URLResponseHead::New(),
+                                std::move(consumer_handle),
+                                /*cached_metadata=*/std::nullopt);
     context->OnCompletedRequest(network::URLLoaderCompletionStatus(net::OK));
 
     mojo::BlockingCopyFromString(expected_data, producer_handle);

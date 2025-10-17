@@ -16,9 +16,12 @@
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
+
+#if defined(__SSE2__) || defined(__ARM_NEON__)
 
 class CSSLazyParsingTest : public testing::Test {
  public:
@@ -31,6 +34,7 @@ class CSSLazyParsingTest : public testing::Test {
   }
 
  protected:
+  test::TaskEnvironment task_environment_;
   Persistent<StyleSheetContents> cached_contents_;
 };
 
@@ -39,7 +43,7 @@ TEST_F(CSSLazyParsingTest, Simple) {
       kHTMLStandardMode, SecureContextMode::kInsecureContext);
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(context);
 
-  String sheet_text = "body { background-color: red; }";
+  String sheet_text = "body { background-color: red; }/*padding1234567890*/";
   CSSParser::ParseSheet(context, style_sheet, sheet_text,
                         CSSDeferPropertyParsing::kYes);
   StyleRule* rule = RuleAt(style_sheet, 0);
@@ -54,7 +58,8 @@ TEST_F(CSSLazyParsingTest, LazyParseBeforeAfter) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(context);
 
   String sheet_text =
-      "p::before { content: 'foo' } p .class::after { content: 'bar' } ";
+      "p::before { content: 'foo' } p .class::after { content: 'bar' } "
+      "/*padding1234567890*/";
   CSSParser::ParseSheet(context, style_sheet, sheet_text,
                         CSSDeferPropertyParsing::kYes);
 
@@ -71,14 +76,16 @@ TEST_F(CSSLazyParsingTest, ChangeDocuments) {
 
   auto* context = MakeGarbageCollected<CSSParserContext>(
       kHTMLStandardMode, SecureContextMode::kInsecureContext,
-      CSSParserContext::kLiveProfile, &dummy_holder->GetDocument());
+      &dummy_holder->GetDocument());
   cached_contents_ = MakeGarbageCollected<StyleSheetContents>(context);
   {
     auto* sheet = MakeGarbageCollected<CSSStyleSheet>(
         cached_contents_, dummy_holder->GetDocument());
     DCHECK(sheet);
 
-    String sheet_text = "body { background-color: red; } p { color: orange;  }";
+    String sheet_text =
+        "body { background-color: red; } p { color: orange;  "
+        "}/*padding1234567890*/";
     CSSParser::ParseSheet(context, cached_contents_, sheet_text,
                           CSSDeferPropertyParsing::kYes);
 
@@ -135,7 +142,7 @@ TEST_F(CSSLazyParsingTest, NoLazyParsingForNestedRules) {
       kHTMLStandardMode, SecureContextMode::kInsecureContext);
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(context);
 
-  String sheet_text = "body { & div { color: red; } color: green; }";
+  String sheet_text = "body { color: green; & div { color: red; } }";
   CSSParser::ParseSheet(context, style_sheet, sheet_text,
                         CSSDeferPropertyParsing::kYes);
   StyleRule* rule = RuleAt(style_sheet, 0);
@@ -143,5 +150,7 @@ TEST_F(CSSLazyParsingTest, NoLazyParsingForNestedRules) {
   EXPECT_EQ("color: green;", rule->Properties().AsText());
   EXPECT_TRUE(HasParsedProperties(rule));
 }
+
+#endif  // SIMD
 
 }  // namespace blink

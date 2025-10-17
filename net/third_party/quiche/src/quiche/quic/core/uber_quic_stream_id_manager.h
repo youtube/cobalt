@@ -19,7 +19,7 @@ class QuicSession;
 
 // This class comprises two QuicStreamIdManagers, which manage bidirectional and
 // unidirectional stream IDs, respectively.
-class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
+class QUICHE_EXPORT UberQuicStreamIdManager {
  public:
   UberQuicStreamIdManager(
       Perspective perspective, ParsedQuicVersion version,
@@ -67,6 +67,13 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
 
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
+
+  // Once called, the incoming max streams limit will never be increased.
+  void StopIncreasingIncomingMaxStreams();
+
+  // Check whether the MAX_STREAMS window has opened up enough and, if so,
+  // generate and send a MAX_STREAMS frame.
+  void MaybeSendMaxStreamsFrame();
 
   QuicStreamCount GetMaxAllowdIncomingBidirectionalStreams() const;
 

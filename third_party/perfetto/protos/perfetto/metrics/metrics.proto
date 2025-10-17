@@ -18,9 +18,22 @@ syntax = "proto2";
 
 package perfetto.protos;
 
+import "protos/perfetto/metrics/android/ad_services_metric.proto";
+import "protos/perfetto/metrics/android/android_boot.proto";
+import "protos/perfetto/metrics/android/android_boot_unagg.proto";
+import "protos/perfetto/metrics/android/android_garbage_collection_stats.proto";
+import "protos/perfetto/metrics/android/android_garbage_collection_unagg_metric.proto";
+import "protos/perfetto/metrics/android/auto_metric.proto";
+import "protos/perfetto/metrics/android/sysui_notif_shade_list_builder_metric.proto";
+import "protos/perfetto/metrics/android/sysui_update_notif_on_ui_mode_changed_metric.proto";
 import "protos/perfetto/metrics/android/android_frame_timeline_metric.proto";
+import "protos/perfetto/metrics/android/anr_metric.proto";
 import "protos/perfetto/metrics/android/batt_metric.proto";
+import "protos/perfetto/metrics/android/android_sysui_notifications_blocking_calls_metric.proto";
 import "protos/perfetto/metrics/android/android_blocking_calls_cuj_metric.proto";
+import "protos/perfetto/metrics/android/android_blocking_calls_cuj_per_frame_metric.proto";
+import "protos/perfetto/metrics/android/android_blocking_calls_unagg.proto";
+import "protos/perfetto/metrics/android/codec_metrics.proto";
 import "protos/perfetto/metrics/android/cpu_metric.proto";
 import "protos/perfetto/metrics/android/camera_metric.proto";
 import "protos/perfetto/metrics/android/camera_unagg_metric.proto";
@@ -32,10 +45,13 @@ import "protos/perfetto/metrics/android/g2d_metric.proto";
 import "protos/perfetto/metrics/android/gpu_metric.proto";
 import "protos/perfetto/metrics/android/hwcomposer.proto";
 import "protos/perfetto/metrics/android/hwui_metric.proto";
+import "protos/perfetto/metrics/android/io_metric.proto";
+import "protos/perfetto/metrics/android/io_unagg_metric.proto";
 import "protos/perfetto/metrics/android/ion_metric.proto";
 import "protos/perfetto/metrics/android/irq_runtime_metric.proto";
 import "protos/perfetto/metrics/android/jank_cuj_metric.proto";
 import "protos/perfetto/metrics/android/java_heap_histogram.proto";
+import "protos/perfetto/metrics/android/java_heap_class_stats.proto";
 import "protos/perfetto/metrics/android/java_heap_stats.proto";
 import "protos/perfetto/metrics/android/lmk_metric.proto";
 import "protos/perfetto/metrics/android/lmk_reason_metric.proto";
@@ -43,7 +59,6 @@ import "protos/perfetto/metrics/android/mem_metric.proto";
 import "protos/perfetto/metrics/android/mem_unagg_metric.proto";
 import "protos/perfetto/metrics/android/multiuser_metric.proto";
 import "protos/perfetto/metrics/android/network_metric.proto";
-import "protos/perfetto/metrics/android/other_traces.proto";
 import "protos/perfetto/metrics/android/package_list.proto";
 import "protos/perfetto/metrics/android/powrails_metric.proto";
 import "protos/perfetto/metrics/android/profiler_smaps.proto";
@@ -53,23 +68,40 @@ import "protos/perfetto/metrics/android/startup_metric.proto";
 import "protos/perfetto/metrics/android/surfaceflinger.proto";
 import "protos/perfetto/metrics/android/task_names.proto";
 import "protos/perfetto/metrics/android/trace_quality.proto";
-import "protos/perfetto/metrics/android/android_trusty_workqueues.proto";
 import "protos/perfetto/metrics/android/unsymbolized_frames.proto";
 import "protos/perfetto/metrics/android/binder_metric.proto";
 import "protos/perfetto/metrics/android/monitor_contention_metric.proto";
+import "protos/perfetto/metrics/android/monitor_contention_agg_metric.proto";
+import "protos/perfetto/metrics/android/app_process_starts_metric.proto";
+import "protos/perfetto/metrics/android/android_oom_adjuster_metric.proto";
+import "protos/perfetto/metrics/android/android_broadcasts_metric.proto";
+import "protos/perfetto/metrics/android/wattson_in_time_period.proto";
+import "protos/perfetto/metrics/android/android_anomaly_metric.proto";
+import "protos/perfetto/metrics/android/wattson_tasks_attribution.proto";
+import "protos/perfetto/metrics/common/clone_duration.proto";
 
 // Trace processor metadata
+// Next id: 20
 message TraceMetadata {
   reserved 1;
   optional int64 trace_duration_ns = 2;
   optional string trace_uuid = 3;
   optional string android_build_fingerprint = 4;
+  optional string android_device_manufacturer = 16;
+  optional int64 android_profile_boot_classpath = 18;
+  optional int64 android_profile_system_server = 19;
   optional int64 statsd_triggering_subscription_id = 5;
   optional int64 trace_size_bytes = 6;
   repeated string trace_trigger = 7;
+  optional string trace_causal_trigger = 17;
   optional string unique_session_name = 8;
   optional string trace_config_pbtxt = 9;
   optional int64 sched_duration_ns = 10;
+  optional int64 tracing_started_ns = 11;
+  optional int64 android_sdk_version = 12;
+  optional int64 suspend_count = 13;
+  optional int64 data_loss_count = 14;
+  optional int64 error_count = 15;
 }
 
 // Stats counters for the trace.
@@ -100,10 +132,15 @@ message TraceAnalysisStats {
   repeated Stat stat = 1;
 }
 
-// Root message for all Perfetto-based metrics.
+// Root message for all Perfetto-based metrics (v1 metrics only).
 //
-// Next id: 50
+// NOTE: the v1 system is "soft" deprecated: no new metrics are allowed but
+// we still fully support any existing metrics written using this system.
+//
+// DO NOT ADD ANY OTHER FIELDS HERE. ADDITION OF NEW v1 METRICS WITH
+// IS NO LONGER ALLOWED. PLEASE USE METRICS v2 INSTEAD.
 message TraceMetrics {
+  // Metrics which were later removed.
   reserved 4, 10, 13, 14, 16, 19;
 
   // Battery counters metric on Android.
@@ -153,6 +190,9 @@ message TraceMetrics {
 
   // If the trace contains a heap graph, output histogram.
   optional JavaHeapHistogram java_heap_histogram = 21;
+
+  // If the trace contains a heap graph, output stats per heap class.
+  optional JavaHeapClassStats java_heap_class_stats = 67;
 
   // Metrics used to find potential culprits of low-memory kills.
   optional AndroidLmkReasonMetric android_lmk_reason = 18;
@@ -222,11 +262,13 @@ message TraceMetrics {
   // Metrics for IRQ runtime.
   optional AndroidIrqRuntimeMetric android_irq_runtime = 43;
 
-  // Metrics for the Trusty team.
-  optional AndroidTrustyWorkqueues android_trusty_workqueues = 44;
+  // Was metrics for the Trusty team.
+  reserved 44;
+  reserved 'android_trusty_workqueues';
 
-  // Summary of other concurrent trace recording.
-  optional AndroidOtherTracesMetric android_other_traces = 45;
+  // Was summary of concurrent trace recording.
+  reserved 45;
+  reserved 'android_other_traces';
 
   // Per-process Binder transaction metrics.
   optional AndroidBinderMetric android_binder = 46;
@@ -239,6 +281,101 @@ message TraceMetrics {
 
   optional AndroidMonitorContentionMetric android_monitor_contention = 50;
 
+  optional AndroidSysUINotificationsBlockingCallsMetric
+      android_sysui_notifications_blocking_calls_metric = 51;
+
+  // Metrics to track codec framework.
+  optional AndroidCodecMetrics codec_metrics = 52;
+
+  // Metric to track Android IO.
+  optional AndroidIo android_io = 53;
+
+  // IO metrics on Android in unaggregated form.
+  // Note: this generates a lot of data so should not be requested unless it
+  // is clear that this data is necessary.
+  optional AndroidIoUnaggregated android_io_unagg = 54;
+
+  // Metrics for App Not Responding (ANR) errors.
+  optional AndroidAnrMetric android_anr = 55;
+
+  // Aggregated Android Monitor Contention metrics
+  optional AndroidMonitorContentionAggMetric android_monitor_contention_agg =
+      56;
+
+  optional AndroidBootMetric android_boot = 57;
+
+  // Metric for AdServices module.
+  optional AdServicesMetric ad_services_metric = 58;
+
+  optional SysuiNotifShadeListBuilderMetric
+      sysui_notif_shade_list_builder_metric = 59;
+
+  optional SysuiUpdateNotifOnUiModeChangedMetric
+      sysui_update_notif_on_ui_mode_changed_metric = 60;
+
+  // Metrics for Process starts.
+  optional AndroidAppProcessStartsMetric android_app_process_starts = 61;
+
+  // Android boot unaggregated metrics.
+  optional AndroidBootUnagg android_boot_unagg = 62;
+
+  // Android garbage collection metrics
+  optional AndroidGarbageCollectionUnaggMetric
+      android_garbage_collection_unagg = 63;
+
+  // Multiuser - metrics for switching users.
+  // Specific for Android Auto
+  optional AndroidAutoMultiuserMetric android_auto_multiuser = 64;
+
+  // All blocking calls (e.g. binder calls) for a trace.
+  optional AndroidBlockingCallsUnagg android_blocking_calls_unagg = 65;
+
+  // Android OOM unaggregated metrics.
+  optional AndroidOomAdjusterMetric android_oom_adjuster = 66;
+
+  // Android Broadcasts aggregated metrics
+  optional AndroidBroadcastsMetric android_broadcasts = 68;
+
+  // Android Wattson rail estimate for each app startup.
+  optional AndroidWattsonTimePeriodMetric wattson_app_startup_rails = 69;
+
+  // Android Wattson rail estimate for duration of entire trace.
+  optional AndroidWattsonTimePeriodMetric wattson_trace_rails = 70;
+
+  // Android Anomaly metric
+  optional AndroidAnomalyMetric android_anomaly = 71;
+
+  // Android Wattson app startup metrics.
+  optional AndroidWattsonTasksAttributionMetric wattson_trace_threads = 72;
+
+  // Android Wattson thread attribution during markers time window.
+  optional AndroidWattsonTasksAttributionMetric wattson_markers_threads = 73;
+
+  // Android Wattson estimate during markers time window.
+  optional AndroidWattsonTimePeriodMetric wattson_markers_rails = 74;
+
+  // Android Wattson estimate during time windows defined by atrace apps.
+  optional AndroidWattsonTimePeriodMetric wattson_atrace_apps_rails = 75;
+
+  // Android GC stats.
+  optional AndroidGarbageCollectionStats android_garbage_collection_stats = 76;
+
+  optional CloneDuration clone_duration = 77;
+
+  // Per-frame blocking calls (e.g. binder calls) during CUJs (important UI
+  // transitions).
+  optional AndroidCujBlockingCallsPerFrameMetric
+      android_blocking_calls_cuj_per_frame_metric = 78;
+
+  // Android Wattson thread attribution during app startups.
+  optional AndroidWattsonTasksAttributionMetric wattson_app_startup_threads =
+      79;
+
+  // Android Wattson thread attribution during atrace app windows.
+  optional AndroidWattsonTasksAttributionMetric wattson_atrace_apps_threads =
+      80;
+
+  // Android
   // Demo extensions.
   extensions 450 to 499;
 
@@ -250,4 +387,10 @@ message TraceMetrics {
 
   // WebView metrics.
   extensions 2001 to 2500;
+
+  // AndroidXR metrics.
+  extensions 2501 to 3000;
+
+  // DO NOT ADD ANY OTHER FIELDS HERE. ADDITION OF NEW v1 METRICS IS NO LONGER
+  // ALLOWED. PLEASE USE METRICS v2 INSTEAD.
 }

@@ -66,12 +66,12 @@ std::string GetDCIMDeviceId(const std::string& unique_id) {
 // A test version of StorageMonitorCros that exposes protected methods to tests.
 class TestStorageMonitorCros : public StorageMonitorCros {
  public:
-  TestStorageMonitorCros() {}
+  TestStorageMonitorCros() = default;
 
   TestStorageMonitorCros(const TestStorageMonitorCros&) = delete;
   TestStorageMonitorCros& operator=(const TestStorageMonitorCros&) = delete;
 
-  ~TestStorageMonitorCros() override {}
+  ~TestStorageMonitorCros() override = default;
 
   void Init() override {
     mojo::PendingRemote<device::mojom::MtpManager> pending_fake_mtp_manager;
@@ -147,11 +147,10 @@ class StorageMonitorCrosTest : public testing::Test {
     return *mock_storage_observer_;
   }
 
-  raw_ptr<TestStorageMonitorCros, ExperimentalAsh> monitor_ = nullptr;
+  raw_ptr<TestStorageMonitorCros> monitor_ = nullptr;
 
   // Owned by DiskMountManager.
-  raw_ptr<ash::disks::MockDiskMountManager, ExperimentalAsh>
-      disk_mount_manager_mock_ = nullptr;
+  raw_ptr<ash::disks::MockDiskMountManager> disk_mount_manager_mock_ = nullptr;
 
   StorageMonitor::EjectStatus status_ = StorageMonitor::EJECT_FAILURE;
 

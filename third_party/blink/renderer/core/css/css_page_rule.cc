@@ -34,7 +34,7 @@
 namespace blink {
 
 CSSPageRule::CSSPageRule(StyleRulePage* page_rule, CSSStyleSheet* parent)
-    : CSSRule(parent), page_rule_(page_rule) {}
+    : CSSGroupingRule(page_rule, parent), page_rule_(page_rule) {}
 
 CSSPageRule::~CSSPageRule() = default;
 
@@ -77,6 +77,8 @@ void CSSPageRule::setSelectorText(const ExecutionContext* execution_context,
 }
 
 String CSSPageRule::cssText() const {
+  // TODO(mstensho): Serialization needs to be specced:
+  // https://github.com/w3c/csswg-drafts/issues/9953
   StringBuilder result;
   result.Append("@page ");
   String page_selectors = selectorText();
@@ -90,6 +92,13 @@ String CSSPageRule::cssText() const {
   if (!decls.empty()) {
     result.Append(' ');
   }
+
+  unsigned size = length();
+  for (unsigned i = 0; i < size; i++) {
+    result.Append(ItemInternal(i)->cssText());
+    result.Append(" ");
+  }
+
   result.Append('}');
   return result.ReleaseString();
 }
@@ -100,12 +109,13 @@ void CSSPageRule::Reattach(StyleRuleBase* rule) {
   if (properties_cssom_wrapper_) {
     properties_cssom_wrapper_->Reattach(page_rule_->MutableProperties());
   }
+  CSSGroupingRule::Reattach(rule);
 }
 
 void CSSPageRule::Trace(Visitor* visitor) const {
   visitor->Trace(page_rule_);
   visitor->Trace(properties_cssom_wrapper_);
-  CSSRule::Trace(visitor);
+  CSSGroupingRule::Trace(visitor);
 }
 
 }  // namespace blink

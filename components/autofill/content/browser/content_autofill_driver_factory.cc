@@ -6,13 +6,15 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/feature_list.h"
-#include "base/functional/bind.h"
-#include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
-#include "components/autofill/core/browser/browser_autofill_manager.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/navigation_handle.h"
@@ -23,31 +25,30 @@
 
 namespace autofill {
 
-namespace {
+class ScopedAutofillManagersObservation;
 
-bool ShouldEnableHeavyFormDataScraping(const version_info::Channel channel) {
-  switch (channel) {
-    case version_info::Channel::CANARY:
-    case version_info::Channel::DEV:
-      return true;
-    case version_info::Channel::STABLE:
-    case version_info::Channel::BETA:
-    case version_info::Channel::UNKNOWN:
-      return false;
-  }
-  NOTREACHED();
-  return false;
+void ContentAutofillDriverFactory::Observer::OnAutofillDriverFactoryDestroyed(
+    AutofillDriverFactory& factory) {
+  OnContentAutofillDriverFactoryDestroyed(
+      static_cast<ContentAutofillDriverFactory&>(factory));
 }
 
-}  // namespace
+void ContentAutofillDriverFactory::Observer::OnAutofillDriverCreated(
+    AutofillDriverFactory& factory,
+    AutofillDriver& driver) {
+  OnContentAutofillDriverCreated(
+      static_cast<ContentAutofillDriverFactory&>(factory),
+      static_cast<ContentAutofillDriver&>(driver));
+}
 
-void BrowserDriverInitHook(AutofillClient* client,
-                           const std::string& app_locale,
-                           ContentAutofillDriver* driver) {
-  driver->set_autofill_manager(
-      std::make_unique<BrowserAutofillManager>(driver, client, app_locale));
-  if (client && ShouldEnableHeavyFormDataScraping(client->GetChannel()))
-    driver->GetAutofillAgent()->EnableHeavyFormDataScraping();
+void ContentAutofillDriverFactory::Observer::OnAutofillDriverStateChanged(
+    AutofillDriverFactory& factory,
+    AutofillDriver& driver,
+    LifecycleState old_state,
+    LifecycleState new_state) {
+  OnContentAutofillDriverStateChanged(
+      static_cast<ContentAutofillDriverFactory&>(factory),
+      static_cast<ContentAutofillDriver&>(driver), old_state, new_state);
 }
 
 // static
@@ -58,13 +59,13 @@ ContentAutofillDriverFactory* ContentAutofillDriverFactory::FromWebContents(
   if (!client) {
     return nullptr;
   }
-  return client->GetAutofillDriverFactory();
+  return &client->GetAutofillDriverFactory();
 }
 
 // static
 void ContentAutofillDriverFactory::BindAutofillDriver(
-    mojo::PendingAssociatedReceiver<mojom::AutofillDriver> pending_receiver,
-    content::RenderFrameHost* render_frame_host) {
+    content::RenderFrameHost* render_frame_host,
+    mojo::PendingAssociatedReceiver<mojom::AutofillDriver> pending_receiver) {
   DCHECK(render_frame_host);
 
   content::WebContents* web_contents =
@@ -84,23 +85,15 @@ void ContentAutofillDriverFactory::BindAutofillDriver(
 
 ContentAutofillDriverFactory::ContentAutofillDriverFactory(
     content::WebContents* web_contents,
-    AutofillClient* client,
-    DriverInitCallback driver_init_hook)
-    : content::WebContentsObserver(web_contents),
-      client_(client),
-      driver_init_hook_(std::move(driver_init_hook)) {}
+    ContentAutofillClient* client)
+    : content::WebContentsObserver(web_contents), client_(*client) {}
 
 ContentAutofillDriverFactory::~ContentAutofillDriverFactory() {
-  for (Observer& observer : observers_) {
-    observer.OnContentAutofillDriverFactoryDestroyed(*this);
+  for (auto& observer : observers()) {
+    observer.OnAutofillDriverFactoryDestroyed(*this);
   }
-}
-
-std::unique_ptr<ContentAutofillDriver>
-ContentAutofillDriverFactory::CreateDriver(content::RenderFrameHost* rfh) {
-  auto driver = std::make_unique<ContentAutofillDriver>(rfh, &router_);
-  driver_init_hook_.Run(driver.get());
-  return driver;
+  base::UmaHistogramCounts1000("Autofill.NumberOfDriversPerFactory",
+                               max_drivers_);
 }
 
 ContentAutofillDriver* ContentAutofillDriverFactory::DriverForFrame(
@@ -108,10 +101,7 @@ ContentAutofillDriver* ContentAutofillDriverFactory::DriverForFrame(
   // Within fenced frames and their descendants, Password Manager should for now
   // be disabled (crbug.com/1294378).
   if (render_frame_host->IsNestedWithinFencedFrame() &&
-      !(base::FeatureList::IsEnabled(
-            features::kAutofillEnableWithinFencedFrame) &&
-        base::FeatureList::IsEnabled(
-            blink::features::kFencedFramesAPIChanges))) {
+      !base::FeatureList::IsEnabled(blink::features::kFencedFramesAPIChanges)) {
     return nullptr;
   }
 
@@ -131,20 +121,25 @@ ContentAutofillDriver* ContentAutofillDriverFactory::DriverForFrame(
     // 3. `SomeOtherWebContentsObserver::RenderFrameDeleted(render_frame_host)`
     //    calls `DriverForFrame(render_frame_host)`.
     // 5. `render_frame_host->~RenderFrameHostImpl()` finishes.
-    if (render_frame_host->IsRenderFrameLive()) {
-      driver = CreateDriver(render_frame_host);
-      for (Observer& observer : observers_) {
-        observer.OnContentAutofillDriverCreated(*this, *driver);
-      }
-      DCHECK_EQ(driver_map_.find(render_frame_host)->second.get(),
-                driver.get());
-    } else {
+    if (!render_frame_host->IsRenderFrameLive()) {
       driver_map_.erase(iter);
       DCHECK_EQ(driver_map_.count(render_frame_host), 0u);
       return nullptr;
     }
+    driver = std::make_unique<ContentAutofillDriver>(render_frame_host, this);
+    DCHECK_EQ(driver->GetLifecycleState(), LifecycleState::kInactive);
+    for (auto& observer : observers()) {
+      observer.OnAutofillDriverCreated(*this, *driver);
+    }
+    // TODO: crbug.com/342132628 - `driver->IsActive()` is guaranteed once
+    // prerendered CADs are deferred.
+    SetLifecycleStateAndNotifyObservers(
+        *driver, driver->IsActive() ? LifecycleState::kActive
+                                    : LifecycleState::kInactive);
+    DCHECK_EQ(&driver_map_[render_frame_host], &driver);
   }
   DCHECK(driver.get());
+  max_drivers_ = std::max(max_drivers_, driver_map_.size());
   return driver.get();
 }
 
@@ -158,98 +153,104 @@ void ContentAutofillDriverFactory::RenderFrameDeleted(
   DCHECK(driver);
 
   if (!render_frame_host->IsInLifecycleState(
-          content::RenderFrameHost::LifecycleState::kPrerendering) &&
-      driver->autofill_manager()) {
-    driver->autofill_manager()->ReportAutofillWebOTPMetrics(
+          content::RenderFrameHost::LifecycleState::kPrerendering)) {
+    // TODO: crbug.com/354043809 - Move out of CADF.
+    driver->GetAutofillManager().ReportAutofillWebOTPMetrics(
         render_frame_host->DocumentUsedWebOTP());
   }
 
-  // If the popup menu has been triggered from within an iframe and that
-  // frame is deleted, hide the popup. This is necessary because the popup
-  // may actually be shown by the AutofillExternalDelegate of an ancestor
-  // frame, which is not notified about |render_frame_host|'s destruction
-  // and therefore won't close the popup.
-  bool is_iframe = !driver->IsInAnyMainFrame();
-  if (is_iframe && router_.last_queried_source() == driver) {
-    DCHECK(!render_frame_host->IsInLifecycleState(
-        content::RenderFrameHost::LifecycleState::kPrerendering));
-    driver->renderer_events().HidePopup();
-  }
-
-  for (Observer& observer : observers_) {
-    observer.OnContentAutofillDriverWillBeDeleted(*this, *driver);
-  }
+  SetLifecycleStateAndNotifyObservers(*driver,
+                                      LifecycleState::kPendingDeletion);
   driver_map_.erase(it);
 }
 
-void ContentAutofillDriverFactory::DidStartNavigation(
-    content::NavigationHandle* navigation_handle) {
-  // TODO(crbug/1117451): Clean up experiment code.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillProbableFormSubmissionInBrowser) &&
-      navigation_handle->IsRendererInitiated() &&
-      !navigation_handle->WasInitiatedByLinkClick() &&
-      navigation_handle->IsInPrimaryMainFrame()) {
-    content::GlobalRenderFrameHostId id =
-        navigation_handle->GetPreviousRenderFrameHostId();
-    content::RenderFrameHost* render_frame_host =
-        content::RenderFrameHost::FromID(id);
-    if (render_frame_host) {
-      if (auto* driver = DriverForFrame(render_frame_host))
-        driver->ProbablyFormSubmitted({});
+void ContentAutofillDriverFactory::RenderFrameHostStateChanged(
+    content::RenderFrameHost* render_frame_host,
+    content::RenderFrameHost::LifecycleState old_state,
+    content::RenderFrameHost::LifecycleState new_state) {
+  auto* driver = DriverForFrame(render_frame_host);
+  if (!driver) {
+    return;
+  }
+  auto state =
+      [new_state]() -> std::optional<ContentAutofillDriver::LifecycleState> {
+    using RFH = content::RenderFrameHost::LifecycleState;
+    using CAD = ContentAutofillDriver::LifecycleState;
+    switch (new_state) {
+      case RFH::kPendingCommit:  // Handled in DidFinishNavigation().
+        return std::nullopt;
+
+      case RFH::kActive:  // Potentially redundant with DriverForFrame().
+        return CAD::kActive;
+
+      case RFH::kPrerendering:
+        // TODO: crbug.com/342132628 - Unreachable once prerendered CADs are
+        // deferred.
+      case RFH::kInBackForwardCache:
+        return CAD::kInactive;
+
+      case RFH::kPendingDeletion:  // Handled in RenderFrameDeleted().
+        return std::nullopt;
     }
+    NOTREACHED();
+  }();
+  if (state) {
+    SetLifecycleStateAndNotifyObservers(*driver, *state);
   }
 }
 
 void ContentAutofillDriverFactory::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (!navigation_handle->HasCommitted()) {
+  if (!navigation_handle->HasCommitted() ||
+      navigation_handle->IsSameDocument()) {
     return;
   }
-  // TODO(crbug.com/1064709): Should we really return early?
-  if (!navigation_handle->IsInMainFrame() &&
-      !navigation_handle->HasSubframeNavigationEntryCommitted()) {
-    return;
-  }
-
   auto* driver = DriverForFrame(navigation_handle->GetRenderFrameHost());
   if (!driver) {
     return;
   }
-  if (!navigation_handle->IsInPrerenderedMainFrame()) {
-    client_->HideAutofillPopup(PopupHidingReason::kNavigation);
-    if (client_->IsTouchToFillCreditCardSupported()) {
-      client_->HideTouchToFillCreditCard();
-    }
-  }
 
-  if (navigation_handle->IsSameDocument()) {
-    return;
-  }
-
-  // If the navigation happened in the main frame and the BrowserAutofillManager
-  // exists (not in Android Webview), and the AutofillOfferManager exists (not
-  // in Incognito windows), notifies the navigation event.
   if (navigation_handle->IsInPrimaryMainFrame() &&
-      client()->GetAutofillOfferManager()) {
-    client()->GetAutofillOfferManager()->OnDidNavigateFrame(client());
+      client().GetPaymentsAutofillClient() &&
+      client().GetPaymentsAutofillClient()->GetAutofillOfferManager()) {
+    // If the navigation happened in the main frame and the AutofillOfferManager
+    // exists (not in Incognito windows, not in WebView), notify it about the
+    // navigation event.
+    // TODO: crbug.com/40178290 - Move out of CADF. Perhaps use the
+    // LifecycleState changes to recognize navigations.
+    client()
+        .GetPaymentsAutofillClient()
+        ->GetAutofillOfferManager()
+        ->OnDidNavigateFrame(client());
   }
 
-  // When IsServedFromBackForwardCache or IsPrerendererdPageActivation, the form
-  // data is not parsed again. So, we should keep and use the autofill manager's
-  // FormStructures from BFCache or prerendering page for form submit.
+  // If the navigation is served from BFCache, then the pre-navigation RFH is
+  // swapped with a post-navigation RFH, along with their associated CADs. We do
+  // not reset the swapped-in CAD's state so that its state continues where we
+  // left off when the CAD was swapped out. Similarly for prerendering.
   if (navigation_handle->IsServedFromBackForwardCache() ||
       navigation_handle->IsPrerenderedPageActivation()) {
     return;
   }
-  driver->Reset();
+
+  SetLifecycleStateAndNotifyObservers(*driver, LifecycleState::kPendingReset);
+  driver->Reset(/*pass_key=*/{});
+  // TODO: crbug.com/342132628 - `driver->IsActive()` is guaranteed once
+  // prerendered CADs are deferred.
+  SetLifecycleStateAndNotifyObservers(
+      *driver, driver->IsActive() ? AutofillDriver::LifecycleState::kActive
+                                  : AutofillDriver::LifecycleState::kInactive);
 }
 
-void ContentAutofillDriverFactory::OnVisibilityChanged(
-    content::Visibility visibility) {
-  if (visibility == content::Visibility::HIDDEN) {
-    client_->HideAutofillPopup(PopupHidingReason::kTabGone);
+std::vector<ContentAutofillDriver*>
+ContentAutofillDriverFactory::GetExistingDrivers(
+    base::PassKey<ScopedAutofillManagersObservation>) {
+  std::vector<ContentAutofillDriver*> drivers;
+  drivers.reserve(driver_map_.size());
+  for (const auto& [rfh, driver] : driver_map_) {
+    drivers.push_back(driver.get());
   }
+  return drivers;
 }
 
 }  // namespace autofill

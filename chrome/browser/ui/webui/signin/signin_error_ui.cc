@@ -18,13 +18,12 @@
 #include "chrome/browser/signin/account_consistency_mode_manager.h"
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/browser/ui/webui/signin/signin_error_handler.h"
 #include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/browser/ui/webui/signin/signin_url_utils.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/signin_resources.h"
@@ -38,6 +37,13 @@
 #include "ui/base/webui/resource_path.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/gfx/text_elider.h"
+#include "ui/webui/webui_util.h"
+
+bool SigninErrorUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return !profile->IsOffTheRecord() || profile->IsSystemProfile();
+}
 
 SigninErrorUI::SigninErrorUI(content::WebUI* web_ui)
     : SigninWebDialogUI(web_ui) {
@@ -71,6 +77,8 @@ void SigninErrorUI::Initialize(Browser* browser, bool from_profile_picker) {
       {"signin_error_app.js", IDR_SIGNIN_SIGNIN_ERROR_SIGNIN_ERROR_APP_JS},
       {"signin_error_app.html.js",
        IDR_SIGNIN_SIGNIN_ERROR_SIGNIN_ERROR_APP_HTML_JS},
+      {"signin_error_app.css.js",
+       IDR_SIGNIN_SIGNIN_ERROR_SIGNIN_ERROR_APP_CSS_JS},
       {"signin_error.js", IDR_SIGNIN_SIGNIN_ERROR_SIGNIN_ERROR_JS},
       {"signin_shared.css.js", IDR_SIGNIN_SIGNIN_SHARED_CSS_JS},
       {"signin_vars.css.js", IDR_SIGNIN_SIGNIN_VARS_CSS_JS},
@@ -88,17 +96,13 @@ void SigninErrorUI::Initialize(Browser* browser, bool from_profile_picker) {
     source->AddLocalizedString("signinErrorTitle",
                                IDS_OLD_PROFILES_DISABLED_TITLE);
   } else if (last_login_error.email().empty()) {
-    // TODO(https://crbug.com/1133189): investigate whether an empty email
+    // TODO(crbug.com/40150925): investigate whether an empty email
     // string is ever passed and possibly add a DCHECK.
     source->AddLocalizedString("signinErrorTitle", IDS_SIGNIN_ERROR_TITLE);
   } else {
-    int title_string_id =
-        AccountConsistencyModeManager::IsDiceEnabledForProfile(webui_profile)
-            ? IDS_SIGNIN_ERROR_DICE_EMAIL_TITLE
-            : IDS_SIGNIN_ERROR_EMAIL_TITLE;
-    source->AddString(
-        "signinErrorTitle",
-        l10n_util::GetStringFUTF16(title_string_id, last_login_error.email()));
+    source->AddString("signinErrorTitle",
+                      l10n_util::GetStringFUTF16(IDS_SIGNIN_ERROR_EMAIL_TITLE,
+                                                 last_login_error.email()));
   }
 
   source->AddString("signinErrorMessage", std::u16string());
@@ -138,7 +142,7 @@ void SigninErrorUI::Initialize(Browser* browser, bool from_profile_picker) {
             .GetProfileAttributesWithPath(
                 last_login_error.another_profile_path());
     DCHECK(entry);
-    DCHECK(entry->IsAuthenticated());
+    DCHECK(entry->IsAuthenticated() || entry->CanBeManaged());
     handler->set_duplicate_profile_path(entry->GetPath());
     existing_name = entry->GetName();
     source->AddString("signinErrorMessage",

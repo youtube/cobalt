@@ -13,14 +13,15 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <memory>
 #include <utility>
-#include <vector>
 
-#include "absl/algorithm/container.h"
-#include "api/video_codecs/video_codec.h"
+#include "api/field_trials_view.h"
+#include "api/sequence_checker.h"
+#include "api/video/encoded_frame.h"
 #include "api/video_codecs/video_decoder.h"
+#include "common_video/include/corruption_score_calculator.h"
 #include "modules/video_coding/decoder_database.h"
-#include "modules/video_coding/encoded_frame.h"
 #include "modules/video_coding/generic_decoder.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/timing.h"
@@ -30,11 +31,16 @@
 
 namespace webrtc {
 
-VideoReceiver2::VideoReceiver2(Clock* clock,
-                               VCMTiming* timing,
-                               const FieldTrialsView& field_trials)
+VideoReceiver2::VideoReceiver2(
+    Clock* clock,
+    VCMTiming* timing,
+    const FieldTrialsView& field_trials,
+    CorruptionScoreCalculator* corruption_score_calculator)
     : clock_(clock),
-      decoded_frame_callback_(timing, clock_, field_trials),
+      decoded_frame_callback_(timing,
+                              clock_,
+                              field_trials,
+                              corruption_score_calculator),
       codec_database_() {
   decoder_sequence_checker_.Detach();
 }
@@ -74,7 +80,7 @@ bool VideoReceiver2::IsExternalDecoderRegistered(uint8_t payload_type) const {
 }
 
 // Must be called from inside the receive side critical section.
-int32_t VideoReceiver2::Decode(const VCMEncodedFrame* frame) {
+int32_t VideoReceiver2::Decode(const EncodedFrame* frame) {
   RTC_DCHECK_RUN_ON(&decoder_sequence_checker_);
   TRACE_EVENT0("webrtc", "VideoReceiver2::Decode");
   // Change decoder if payload type has changed.

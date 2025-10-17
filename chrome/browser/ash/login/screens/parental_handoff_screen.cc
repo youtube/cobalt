@@ -6,13 +6,12 @@
 
 #include <string>
 
-#include "chrome/browser/ash/child_accounts/family_features.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/login/parental_handoff_screen_handler.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/user_manager/user.h"
@@ -38,12 +37,14 @@ std::u16string GetActiveUserName() {
 // static
 std::string ParentalHandoffScreen::GetResultString(
     ParentalHandoffScreen::Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
-    case ParentalHandoffScreen::Result::DONE:
+    case ParentalHandoffScreen::Result::kDone:
       return "Done";
-    case ParentalHandoffScreen::Result::SKIPPED:
+    case ParentalHandoffScreen::Result::kSkipped:
       return BaseScreen::kNotApplicable;
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
 ParentalHandoffScreen::ParentalHandoffScreen(
@@ -57,15 +58,14 @@ ParentalHandoffScreen::ParentalHandoffScreen(
 ParentalHandoffScreen::~ParentalHandoffScreen() = default;
 
 bool ParentalHandoffScreen::MaybeSkip(WizardContext& context) {
-  if (context.skip_post_login_screens_for_tests ||
-      !IsFamilyLinkOobeHandoffEnabled()) {
-    exit_callback_.Run(Result::SKIPPED);
+  if (context.skip_post_login_screens_for_tests) {
+    exit_callback_.Run(Result::kSkipped);
     return true;
   }
 
   const Profile* profile = ProfileManager::GetActiveUserProfile();
   if (!profile->IsChild()) {
-    exit_callback_.Run(Result::SKIPPED);
+    exit_callback_.Run(Result::kSkipped);
     return true;
   }
 
@@ -84,7 +84,7 @@ void ParentalHandoffScreen::HideImpl() {}
 void ParentalHandoffScreen::OnUserAction(const base::Value::List& args) {
   const std::string& action_id = args[0].GetString();
   if (action_id == kUserActionNext) {
-    exit_callback_.Run(Result::DONE);
+    exit_callback_.Run(Result::kDone);
   } else {
     BaseScreen::OnUserAction(args);
   }

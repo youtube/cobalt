@@ -9,7 +9,7 @@ assert(!is_android && !is_ios)
 build_webui("build") {
   grd_prefix = "cr_components_page_image_service"
 
-  non_web_component_files = [ "browser_proxy.ts" ]
+  ts_files = [ "browser_proxy.ts" ]
 
   mojo_files_deps =
       [ "//components/page_image_service/mojom:mojo_bindings_ts__generator" ]
@@ -19,6 +19,7 @@ build_webui("build") {
       "$root_gen_dir/ui/webui/resources/tsc/cr_components/page_image_service"
   ts_deps = [ "//ui/webui/resources/mojo:build_ts" ]
   ts_composite = true
+  webui_context_type = "relative"
   generate_grdp = true
   grd_resource_path_prefix = rebase_path(".", "//ui/webui/resources")
 }

@@ -11,12 +11,18 @@
 #include "modules/congestion_controller/goog_cc/loss_based_bandwidth_estimation.h"
 
 #include <algorithm>
-#include <string>
+#include <cmath>
 #include <vector>
 
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
+#include "api/field_trials_view.h"
+#include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 
 namespace webrtc {
 namespace {
@@ -75,7 +81,7 @@ double ExponentialUpdate(TimeDelta window, TimeDelta interval) {
   return 1.0f - exp(interval / window * -1.0);
 }
 
-bool IsEnabled(const webrtc::FieldTrialsView& key_value_config,
+bool IsEnabled(const FieldTrialsView& key_value_config,
                absl::string_view name) {
   return absl::StartsWith(key_value_config.Lookup(name), "Enabled");
 }

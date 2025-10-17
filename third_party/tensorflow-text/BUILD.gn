@@ -5,7 +5,10 @@
 import("//build/config/sanitizers/sanitizers.gni")
 
 config("tensorflow-text-config") {
-  include_dirs = [ "src" ]
+  include_dirs = [
+    "src",
+    "shims",
+  ]
 }
 
 config("tensorflow-text-flags") {
@@ -14,6 +17,8 @@ config("tensorflow-text-flags") {
 
 static_library("tensorflow-text") {
   sources = [
+    "src/tensorflow_text/core/kernels/disjoint_set_forest.h",
+    "src/tensorflow_text/core/kernels/mst_solver.h",
     "src/tensorflow_text/core/kernels/regex_split.cc",
     "src/tensorflow_text/core/kernels/regex_split.h",
     "src/tensorflow_text/core/kernels/wordpiece_tokenizer.cc",

@@ -4,8 +4,9 @@
 
 #include "components/autofill/core/browser/form_structure_test_api.h"
 
-#include "components/autofill/core/browser/autofill_test_utils.h"
+#include "base/types/zip.h"
 #include "components/autofill/core/browser/form_parsing/field_candidates.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -18,46 +19,44 @@ using ::testing::Pair;
 using FieldPrediction =
     AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction;
 
-// static
 void FormStructureTestApi::SetFieldTypes(
-    const std::vector<std::vector<std::pair<PatternSource, ServerFieldType>>>&
+    const std::vector<std::vector<std::pair<HeuristicSource, FieldType>>>&
         heuristic_types,
     const std::vector<FieldPrediction>& server_types) {
   ASSERT_EQ(form_structure_->field_count(), heuristic_types.size());
   ASSERT_EQ(form_structure_->field_count(), server_types.size());
   ASSERT_THAT(heuristic_types,
-              Each(Contains(Pair(GetActivePatternSource(), _))))
+              Each(Contains(Pair(GetActiveHeuristicSource(), _))))
       << "There must be a default heuristic prediction for every field.";
 
-  for (size_t i = 0; i < form_structure_->field_count(); ++i) {
-    AutofillField* form_field = form_structure_->field(i);
-    ASSERT_TRUE(form_field);
-
-    for (const auto& [source, type] : heuristic_types[i])
-      form_field->set_heuristic_type(source, type);
-    form_field->set_server_predictions({server_types[i]});
+  for (auto [field, heuristic_type, server_type] :
+       base::zip(form_structure_->fields(), heuristic_types, server_types)) {
+    for (const auto& [source, type] : heuristic_type) {
+      field->set_heuristic_type(source, type);
+    }
+    field->set_server_predictions({server_type});
   }
-
-  form_structure_->UpdateAutofillCount();
 }
 
 void FormStructureTestApi::SetFieldTypes(
-    const std::vector<std::vector<std::pair<PatternSource, ServerFieldType>>>&
+    const std::vector<std::vector<std::pair<HeuristicSource, FieldType>>>&
         heuristic_types,
-    const std::vector<ServerFieldType>& server_types) {
+    const std::vector<FieldType>& server_types) {
   std::vector<FieldPrediction> server_predictions;
-  for (ServerFieldType type : server_types)
-    server_predictions.push_back(::autofill::test::CreateFieldPrediction(type));
+  for (FieldType type : server_types) {
+    server_predictions.push_back(test::CreateFieldPrediction(type));
+  }
   SetFieldTypes(heuristic_types, server_predictions);
 }
 
 void FormStructureTestApi::SetFieldTypes(
-    const std::vector<ServerFieldType>& heuristic_types,
-    const std::vector<ServerFieldType>& server_types) {
-  std::vector<std::vector<std::pair<PatternSource, ServerFieldType>>>
+    const std::vector<FieldType>& heuristic_types,
+    const std::vector<FieldType>& server_types) {
+  std::vector<std::vector<std::pair<HeuristicSource, FieldType>>>
       all_heuristic_types;
-  for (ServerFieldType type : heuristic_types)
-    all_heuristic_types.push_back({{GetActivePatternSource(), type}});
+  for (FieldType type : heuristic_types) {
+    all_heuristic_types.push_back({{GetActiveHeuristicSource(), type}});
+  }
   SetFieldTypes(all_heuristic_types, server_types);
 }
 

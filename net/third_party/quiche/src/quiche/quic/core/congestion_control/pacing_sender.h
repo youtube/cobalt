@@ -28,7 +28,7 @@ namespace test {
 class QuicSentPacketManagerPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE PacingSender {
+class QUICHE_EXPORT PacingSender {
  public:
   PacingSender();
   PacingSender(const PacingSender&) = delete;
@@ -44,9 +44,20 @@ class QUIC_EXPORT_PRIVATE PacingSender {
     max_pacing_rate_ = max_pacing_rate;
   }
 
-  void set_alarm_granularity(QuicTime::Delta alarm_granularity) {
-    alarm_granularity_ = alarm_granularity;
+  void set_application_driven_pacing_rate(
+      QuicBandwidth application_driven_pacing_rate) {
+    // Soft pacing suggestion from application layer. Experimental, see
+    // b/364614652 for more context.
+
+    application_driven_pacing_rate_ = application_driven_pacing_rate;
+    sender_->SetApplicationDrivenPacingRate(application_driven_pacing_rate_);
   }
+
+  QuicBandwidth application_driven_pacing_rate() const {
+    return application_driven_pacing_rate_;
+  }
+
+  void set_remove_non_initial_burst() { remove_non_initial_burst_ = true; }
 
   QuicBandwidth max_pacing_rate() const { return max_pacing_rate_; }
 
@@ -90,6 +101,12 @@ class QUIC_EXPORT_PRIVATE PacingSender {
   // If not QuicBandidth::Zero, the maximum rate the PacingSender will use.
   QuicBandwidth max_pacing_rate_;
 
+  // Keep track of the application driven pacing rate used by sender_.
+  // Experimental, see b/364614652 for more context. This signals application
+  // bandwidth needs to the underlying BBR sender, so that we can back off
+  // accordingly when congestion is detected.
+  QuicBandwidth application_driven_pacing_rate_;
+
   // Number of unpaced packets to be sent before packets are delayed.
   uint32_t burst_tokens_;
   QuicTime ideal_next_packet_send_time_;  // When can the next packet be sent.
@@ -99,14 +116,12 @@ class QUIC_EXPORT_PRIVATE PacingSender {
   // is consumed after burst_tokens_ ran out.
   uint32_t lumpy_tokens_;
 
-  // If the next send time is within alarm_granularity_, send immediately.
-  // TODO(fayang): Remove alarm_granularity_ when deprecating
-  // quic_offload_pacing_to_usps2 flag.
-  QuicTime::Delta alarm_granularity_;
-
   // Indicates whether pacing throttles the sending. If true, make up for lost
   // time.
   bool pacing_limited_;
+
+  bool remove_non_initial_burst_ =
+      GetQuicReloadableFlag(quic_pacing_remove_non_initial_burst);
 };
 
 }  // namespace quic

@@ -43,14 +43,14 @@ BlockType GetBlockType(TQualifier qualifier)
     switch (qualifier)
     {
         case EvqUniform:
-            return BlockType::BLOCK_UNIFORM;
+            return BlockType::kBlockUniform;
         case EvqBuffer:
-            return BlockType::BLOCK_BUFFER;
+            return BlockType::kBlockBuffer;
         case EvqPixelLocalEXT:
-            return BlockType::PIXEL_LOCAL_EXT;
+            return BlockType::kPixelLocalExt;
         default:
             UNREACHABLE();
-            return BlockType::BLOCK_UNIFORM;
+            return BlockType::kBlockUniform;
     }
 }
 
@@ -746,7 +746,9 @@ void CollectVariablesTraverser::setFieldOrVariableProperties(const TType &type,
     {
         // Structures use a NONE type that isn't exposed outside ANGLE.
         variableOut->type = GL_NONE;
-        if (structure->symbolType() != SymbolType::Empty)
+        // Anonymous structs are given name from AngleInternal namespace.
+        if (structure->symbolType() != SymbolType::Empty &&
+            structure->symbolType() != SymbolType::AngleInternal)
         {
             variableOut->structOrBlockName = structure->name().data();
         }
@@ -791,7 +793,7 @@ void CollectVariablesTraverser::setFieldOrVariableProperties(const TType &type,
         variableOut->precision = GLVariablePrecision(type);
     }
 
-    const TSpan<const unsigned int> &arraySizes = type.getArraySizes();
+    const angle::Span<const unsigned int> &arraySizes = type.getArraySizes();
     if (!arraySizes.empty())
     {
         variableOut->arraySizes.assign(arraySizes.begin(), arraySizes.end());
@@ -1019,8 +1021,8 @@ void CollectVariablesTraverser::recordInterfaceBlock(const char *instanceName,
         interfaceBlockType.isArray() ? interfaceBlockType.getOutermostArraySize() : 0;
 
     interfaceBlock->blockType = GetBlockType(interfaceBlockType.getQualifier());
-    if (interfaceBlock->blockType == BlockType::BLOCK_UNIFORM ||
-        interfaceBlock->blockType == BlockType::BLOCK_BUFFER)
+    if (interfaceBlock->blockType == BlockType::kBlockUniform ||
+        interfaceBlock->blockType == BlockType::kBlockBuffer)
     {
         // TODO(oetuaho): Remove setting isRowMajorLayout.
         interfaceBlock->isRowMajorLayout = false;
@@ -1073,7 +1075,7 @@ void CollectVariablesTraverser::recordInterfaceBlock(const char *instanceName,
     {
         interfaceBlock->staticUse = true;
     }
-    if (interfaceBlock->blockType == BlockType::BLOCK_BUFFER)
+    if (interfaceBlock->blockType == BlockType::kBlockBuffer)
     {
         interfaceBlock->isReadOnly = isReadOnly;
     }
@@ -1274,8 +1276,8 @@ bool CollectVariablesTraverser::visitBinary(Visit, TIntermBinary *binaryNode)
             ASSERT(fieldIndex < namedBlock->fields.size());
             // TODO(oetuaho): Would be nicer to record static use of fields of named interface
             // blocks more accurately at parse time - now we only mark the fields statically used if
-            // they are active. http://anglebug.com/2440 We need to mark this field and all of its
-            // sub-fields, as static/active
+            // they are active. http://anglebug.com/42261150 We need to mark this field and all of
+            // its sub-fields, as static/active
             MarkActive(&namedBlock->fields[fieldIndex]);
         }
 

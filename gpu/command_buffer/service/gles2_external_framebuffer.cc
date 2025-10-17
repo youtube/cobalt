@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "gpu/command_buffer/service/gles2_external_framebuffer.h"
 
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
+#include "gpu/command_buffer/service/texture_base.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_restore_texture.h"
@@ -428,7 +430,7 @@ bool GLES2ExternalFramebuffer::AttachSharedImage(const Mailbox& mailbox,
   if (clear_flags) {
     gl::ScopedCapability scoped_scissor(GL_SCISSOR_TEST, GL_FALSE);
 
-    absl::optional<ScopedRestoreWindowRectangles> window_rectangles_restore;
+    std::optional<ScopedRestoreWindowRectangles> window_rectangles_restore;
     if (supports_window_rectangles_) {
       window_rectangles_restore.emplace(api);
       api->glWindowRectanglesEXTFn(GL_EXCLUSIVE_EXT, 0, nullptr);
@@ -513,7 +515,7 @@ void GLES2ExternalFramebuffer::ResolveAndDetach() {
       ScopedRestoreWriteMasks write_mask_restore(api);
       api->glColorMaskFn(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-      absl::optional<ScopedRestoreWindowRectangles> window_rectangles_restore;
+      std::optional<ScopedRestoreWindowRectangles> window_rectangles_restore;
       if (supports_window_rectangles_) {
         window_rectangles_restore.emplace(api);
         api->glWindowRectanglesEXTFn(GL_EXCLUSIVE_EXT, 0, nullptr);
@@ -571,7 +573,7 @@ gfx::Size GLES2ExternalFramebuffer::GetSize() const {
 GLenum GLES2ExternalFramebuffer::GetColorFormat() const {
   DCHECK(IsSharedImageAttached());
   auto it = attachments_.find(GL_COLOR_ATTACHMENT0);
-  DCHECK(it != attachments_.end());
+  CHECK(it != attachments_.end());
   return it->second->format();
 }
 
@@ -609,14 +611,14 @@ GLenum GLES2ExternalFramebuffer::GetStencilFormat() const {
 int GLES2ExternalFramebuffer::GetSamplesCount() const {
   DCHECK(IsSharedImageAttached());
   auto it = attachments_.find(GL_COLOR_ATTACHMENT0);
-  DCHECK(it != attachments_.end());
+  CHECK(it != attachments_.end());
   return it->second->samples_count();
 }
 
 bool GLES2ExternalFramebuffer::HasAlpha() const {
   DCHECK(IsSharedImageAttached());
   auto it = attachments_.find(GL_COLOR_ATTACHMENT0);
-  DCHECK(it != attachments_.end());
+  CHECK(it != attachments_.end());
   return it->second->format() == GL_RGBA8;
 }
 

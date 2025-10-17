@@ -6,13 +6,13 @@
 
 #include <utility>
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
 #include "chrome/browser/ui/views/payments/contact_info_editor_view_controller.h"
 #include "chrome/browser/ui/views/payments/error_message_view_controller.h"
 #include "chrome/browser/ui/views/payments/order_summary_view_controller.h"
@@ -23,19 +23,19 @@
 #include "chrome/browser/ui/views/payments/profile_list_view_controller.h"
 #include "chrome/browser/ui/views/payments/shipping_address_editor_view_controller.h"
 #include "chrome/browser/ui/views/payments/shipping_option_view_controller.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/payments/content/payment_request.h"
-#include "components/payments/core/features.h"
-#include "components/payments/core/payments_experimental_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_id.h"
+#include "ui/compositor/layer.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/label.h"
@@ -94,8 +94,9 @@ void PaymentRequestDialogView::OnDialogClosed() {
   controller_map_.clear();
   request_->OnUserCancelled();
 
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnDialogClosed();
+  }
 }
 
 bool PaymentRequestDialogView::ShouldShowCloseButton() const {
@@ -109,7 +110,10 @@ bool PaymentRequestDialogView::ShouldShowCloseButton() const {
 }
 
 void PaymentRequestDialogView::ShowDialog() {
-  constrained_window::ShowWebModalDialogViews(this, request_->web_contents());
+  views::Widget* widget = constrained_window::ShowWebModalDialogViews(
+      this, request_->web_contents());
+  extensions::SecurityDialogTracker::GetInstance()->AddSecurityDialog(widget);
+  occlusion_observation_.Observe(widget);
 }
 
 void PaymentRequestDialogView::CloseDialog() {
@@ -119,8 +123,9 @@ void PaymentRequestDialogView::CloseDialog() {
 }
 
 void PaymentRequestDialogView::ShowErrorMessage() {
-  if (being_closed_ || !request_->spec())
+  if (being_closed_ || !request_->spec()) {
     return;
+  }
 
   view_stack_->Push(CreateViewAndInstallController(
                         std::make_unique<ErrorMessageViewController>(
@@ -130,17 +135,19 @@ void PaymentRequestDialogView::ShowErrorMessage() {
                     /* animate = */ false);
   HideProcessingSpinner();
 
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnErrorMessageShown();
+  }
 }
 
 void PaymentRequestDialogView::ShowProcessingSpinner() {
   throbber_->Start();
   throbber_overlay_->SetVisible(true);
-  throbber_overlay_->GetViewAccessibility().OverrideIsIgnored(false);
-  throbber_overlay_->GetViewAccessibility().OverrideIsLeaf(false);
-  if (observer_for_testing_)
+  throbber_overlay_->GetViewAccessibility().SetIsIgnored(false);
+  throbber_overlay_->GetViewAccessibility().SetIsLeaf(false);
+  if (observer_for_testing_) {
     observer_for_testing_->OnProcessingSpinnerShown();
+  }
 }
 
 bool PaymentRequestDialogView::IsInteractive() const {
@@ -150,24 +157,24 @@ bool PaymentRequestDialogView::IsInteractive() const {
 void PaymentRequestDialogView::ShowPaymentHandlerScreen(
     const GURL& url,
     PaymentHandlerOpenWindowCallback callback) {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
-
-  if (PaymentsExperimentalFeatures::IsEnabled(
-          features::kPaymentHandlerPopUpSizeWindow)) {
-    is_showing_large_payment_handler_window_ = true;
-
-    // Calculate |payment_handler_window_height_|
-    auto* browser =
-        chrome::FindBrowserWithWebContents(request_->web_contents());
-    int browser_window_content_height =
-        browser->window()->GetContentsSize().height();
-    payment_handler_window_height_ =
-        std::max(kDialogHeight, std::min(kPreferredPaymentHandlerDialogHeight,
-                                         browser_window_content_height));
-
-    ResizeDialogWindow();
   }
+
+  // The Payment Handler window is larger than the Payment Request sheet, which
+  // causes us to make different decisions when e.g. animating it.
+  is_showing_large_payment_handler_window_ = true;
+
+  // Calculate |payment_handler_window_height_|
+  auto* browser = chrome::FindBrowserWithTab(request_->web_contents());
+  int browser_window_content_height =
+      browser->window()->GetContentsSize().height();
+  payment_handler_window_height_ =
+      std::max(kDialogHeight, std::min(kPreferredPaymentHandlerDialogHeight,
+                                       browser_window_content_height));
+
+  ResizeDialogWindow();
+
   view_stack_->Push(
       CreateViewAndInstallController(
           std::make_unique<PaymentHandlerWebFlowViewController>(
@@ -181,13 +188,15 @@ void PaymentRequestDialogView::ShowPaymentHandlerScreen(
           !request_->skipped_payment_request_ui());
   request_->OnPaymentHandlerOpenWindowCalled();
   HideProcessingSpinner();
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnPaymentHandlerWindowOpened();
+  }
 }
 
 void PaymentRequestDialogView::RetryDialog() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   HideProcessingSpinner();
   GoBackToPaymentSheet(false /* animate */);
@@ -232,28 +241,32 @@ void PaymentRequestDialogView::OnStartUpdating(
 }
 
 void PaymentRequestDialogView::OnSpecUpdated() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   if (request_->spec()->current_update_reason() !=
       PaymentRequestSpec::UpdateReason::NONE) {
     HideProcessingSpinner();
   }
 
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnSpecDoneUpdating();
+  }
 }
 
 void PaymentRequestDialogView::OnInitialized(
     InitializationTask* initialization_task) {
   initialization_task->RemoveInitializationObserver(this);
-  if (--number_of_initialization_tasks_ > 0)
+  if (--number_of_initialization_tasks_ > 0) {
     return;
+  }
 
   HideProcessingSpinner();
 
-  if (request_->state()->are_requested_methods_supported())
+  if (request_->state()->are_requested_methods_supported()) {
     OnDialogOpened();
+  }
 }
 
 void PaymentRequestDialogView::Pay() {
@@ -277,8 +290,9 @@ void PaymentRequestDialogView::GoBack() {
     is_showing_large_payment_handler_window_ = false;
     ResizeDialogWindow();
   }
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnBackNavigation();
+  }
 }
 
 void PaymentRequestDialogView::GoBackToPaymentSheet(bool animate) {
@@ -295,13 +309,15 @@ void PaymentRequestDialogView::GoBackToPaymentSheet(bool animate) {
       is_showing_large_payment_handler_window_ = false;
     }
   }
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnBackToPaymentSheetNavigation();
+  }
 }
 
 void PaymentRequestDialogView::ShowContactProfileSheet() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(
       CreateViewAndInstallController(
@@ -310,13 +326,15 @@ void PaymentRequestDialogView::ShowContactProfileSheet() {
               weak_ptr_factory_.GetWeakPtr()),
           &controller_map_),
       /* animate */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnContactInfoOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowOrderSummary() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(CreateViewAndInstallController(
                         std::make_unique<OrderSummaryViewController>(
@@ -324,13 +342,15 @@ void PaymentRequestDialogView::ShowOrderSummary() {
                             weak_ptr_factory_.GetWeakPtr()),
                         &controller_map_),
                     /* animate = */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnOrderSummaryOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowPaymentMethodSheet() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(CreateViewAndInstallController(
                         std::make_unique<PaymentMethodViewController>(
@@ -338,13 +358,15 @@ void PaymentRequestDialogView::ShowPaymentMethodSheet() {
                             weak_ptr_factory_.GetWeakPtr()),
                         &controller_map_),
                     /* animate = */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnPaymentMethodOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowShippingProfileSheet() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(
       CreateViewAndInstallController(
@@ -353,13 +375,15 @@ void PaymentRequestDialogView::ShowShippingProfileSheet() {
               weak_ptr_factory_.GetWeakPtr()),
           &controller_map_),
       /* animate = */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnShippingAddressSectionOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowShippingOptionSheet() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(CreateViewAndInstallController(
                         std::make_unique<ShippingOptionViewController>(
@@ -367,8 +391,9 @@ void PaymentRequestDialogView::ShowShippingOptionSheet() {
                             weak_ptr_factory_.GetWeakPtr()),
                         &controller_map_),
                     /* animate = */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnShippingOptionSectionOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowShippingAddressEditor(
@@ -376,8 +401,9 @@ void PaymentRequestDialogView::ShowShippingAddressEditor(
     base::OnceClosure on_edited,
     base::OnceCallback<void(const autofill::AutofillProfile&)> on_added,
     autofill::AutofillProfile* profile) {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(
       CreateViewAndInstallController(
@@ -388,8 +414,9 @@ void PaymentRequestDialogView::ShowShippingAddressEditor(
               request_->IsOffTheRecord()),
           &controller_map_),
       /* animate = */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnShippingAddressEditorOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowContactInfoEditor(
@@ -397,8 +424,9 @@ void PaymentRequestDialogView::ShowContactInfoEditor(
     base::OnceClosure on_edited,
     base::OnceCallback<void(const autofill::AutofillProfile&)> on_added,
     autofill::AutofillProfile* profile) {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(
       CreateViewAndInstallController(
@@ -409,27 +437,30 @@ void PaymentRequestDialogView::ShowContactInfoEditor(
               request_->IsOffTheRecord()),
           &controller_map_),
       /* animate = */ true);
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnContactInfoEditorOpened();
+  }
 }
 
 void PaymentRequestDialogView::EditorViewUpdated() {
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnEditorViewUpdated();
+  }
 }
 
 void PaymentRequestDialogView::HideProcessingSpinner() {
   throbber_->Stop();
-  // TODO(crbug.com/1418659): Instead of setting the throbber to invisible, can
+  // TODO(crbug.com/40894873): Instead of setting the throbber to invisible, can
   // we destroy and remove it from the view when it's not being used?
   throbber_overlay_->SetVisible(false);
   // Screen readers do not ignore invisible elements, so force the screen
   // reader to skip the invisible throbber by making it an ignored leaf node in
   // the accessibility tree.
-  throbber_overlay_->GetViewAccessibility().OverrideIsIgnored(true);
-  throbber_overlay_->GetViewAccessibility().OverrideIsLeaf(true);
-  if (observer_for_testing_)
+  throbber_overlay_->GetViewAccessibility().SetIsIgnored(true);
+  throbber_overlay_->GetViewAccessibility().SetIsLeaf(true);
+  if (observer_for_testing_) {
     observer_for_testing_->OnProcessingSpinnerHidden();
+  }
 }
 
 Profile* PaymentRequestDialogView::GetProfile() {
@@ -445,8 +476,8 @@ PaymentRequestDialogView::PaymentRequestDialogView(
   DCHECK(request);
   DCHECK(request->spec());
 
-  SetButtons(ui::DIALOG_BUTTON_NONE);
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+  SetModalType(ui::mojom::ModalType::kChild);
 
   SetCloseCallback(base::BindOnce(&PaymentRequestDialogView::OnDialogClosed,
                                   weak_ptr_factory_.GetWeakPtr()));
@@ -460,6 +491,13 @@ PaymentRequestDialogView::PaymentRequestDialogView(
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
   view_stack_ = AddChildView(std::make_unique<ViewStack>());
+  // ViewStack paints to a layer, and currently layers don't clip to the bounds
+  // of the window opaque layer. Until this is fixed, we have to set rounded
+  // corners directly here.
+  //
+  // TODO(crbug.com/358379367): Remove once layers obey the clip by default.
+  view_stack_->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(GetCornerRadius()));
 
   SetupSpinnerOverlay();
 
@@ -488,16 +526,19 @@ PaymentRequestDialogView::PaymentRequestDialogView(
 PaymentRequestDialogView::~PaymentRequestDialogView() = default;
 
 void PaymentRequestDialogView::OnDialogOpened() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnDialogOpened();
+  }
 }
 
 void PaymentRequestDialogView::ShowInitialPaymentSheet() {
-  if (!request_->spec())
+  if (!request_->spec()) {
     return;
+  }
 
   view_stack_->Push(CreateViewAndInstallController(
                         std::make_unique<PaymentSheetViewController>(
@@ -506,22 +547,30 @@ void PaymentRequestDialogView::ShowInitialPaymentSheet() {
                         &controller_map_),
                     /* animate = */ false);
 
-  if (number_of_initialization_tasks_ > 0)
+  if (number_of_initialization_tasks_ > 0) {
     return;
+  }
 
-  if (request_->state()->are_requested_methods_supported())
+  if (request_->state()->are_requested_methods_supported()) {
     OnDialogOpened();
+  }
 }
 
 void PaymentRequestDialogView::SetupSpinnerOverlay() {
   throbber_overlay_ = AddChildView(std::make_unique<views::View>());
 
   throbber_overlay_->SetPaintToLayer();
+  // Currently layers don't clip to the bounds of the parent window opaque
+  // layer. Until this is fixed, we have to set rounded corners directly here.
+  //
+  // TODO(crbug.com/358379367): Remove once layers obey the clip by default.
+  throbber_overlay_->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(GetCornerRadius()));
   throbber_overlay_->SetVisible(false);
   // The throbber overlay has to have a solid white background to hide whatever
   // would be under it.
   throbber_overlay_->SetBackground(
-      views::CreateThemedSolidBackground(ui::kColorDialogBackground));
+      views::CreateSolidBackground(ui::kColorDialogBackground));
 
   views::BoxLayout* layout =
       throbber_overlay_->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -536,7 +585,8 @@ void PaymentRequestDialogView::SetupSpinnerOverlay() {
       l10n_util::GetStringUTF16(IDS_PAYMENTS_PROCESSING_MESSAGE)));
 }
 
-gfx::Size PaymentRequestDialogView::CalculatePreferredSize() const {
+gfx::Size PaymentRequestDialogView::CalculatePreferredSize(
+    const views::SizeBounds& /*available_size*/) const {
   if (is_showing_large_payment_handler_window_) {
     return gfx::Size(GetActualDialogWidth(),
                      GetActualPaymentHandlerDialogHeight());
@@ -545,11 +595,6 @@ gfx::Size PaymentRequestDialogView::CalculatePreferredSize() const {
 }
 
 int PaymentRequestDialogView::GetActualPaymentHandlerDialogHeight() const {
-  if (!PaymentsExperimentalFeatures::IsEnabled(
-          features::kPaymentHandlerPopUpSizeWindow)) {
-    return kDialogHeight;
-  }
-
   DCHECK_NE(0, payment_handler_window_height_);
   return payment_handler_window_height_ > 0 ? payment_handler_window_height_
                                             : kDialogHeight;
@@ -564,14 +609,16 @@ int PaymentRequestDialogView::GetActualDialogWidth() const {
 }
 
 void PaymentRequestDialogView::OnPaymentHandlerTitleSet() {
-  if (observer_for_testing_)
+  if (observer_for_testing_) {
     observer_for_testing_->OnPaymentHandlerTitleSet();
+  }
 }
 
 void PaymentRequestDialogView::ViewHierarchyChanged(
     const views::ViewHierarchyChangedDetails& details) {
-  if (being_closed_)
+  if (being_closed_) {
     return;
+  }
 
   // When a view that is associated with a controller is removed from this
   // view's descendants, dispose of the controller.
@@ -579,6 +626,15 @@ void PaymentRequestDialogView::ViewHierarchyChanged(
       controller_map_.find(details.child) != controller_map_.end()) {
     DCHECK(!details.move_view);
     controller_map_.erase(details.child);
+  }
+}
+
+void PaymentRequestDialogView::OnOcclusionStateChanged(bool occluded) {
+  if (occluded) {
+    SetEnabled(false);
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&PaymentRequestDialogView::CloseDialog,
+                                  weak_ptr_factory_.GetWeakPtr()));
   }
 }
 
@@ -592,7 +648,7 @@ void PaymentRequestDialogView::ResizeDialogWindow() {
   }
 }
 
-BEGIN_METADATA(PaymentRequestDialogView, views::DialogDelegateView)
+BEGIN_METADATA(PaymentRequestDialogView)
 ADD_READONLY_PROPERTY_METADATA(int, ActualPaymentHandlerDialogHeight)
 ADD_READONLY_PROPERTY_METADATA(int, ActualDialogWidth)
 END_METADATA

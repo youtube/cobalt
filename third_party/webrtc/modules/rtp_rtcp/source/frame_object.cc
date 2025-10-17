@@ -10,13 +10,23 @@
 
 #include "modules/rtp_rtcp/source/frame_object.h"
 
-#include <string.h>
-
+#include <cstdint>
+#include <optional>
 #include <utility>
+#include <variant>
 
+#include "api/rtp_packet_infos.h"
+#include "api/scoped_refptr.h"
+#include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_content_type.h"
+#include "api/video/video_frame_metadata.h"
+#include "api/video/video_frame_type.h"
+#include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
-#include "rtc_base/checks.h"
+#include "common_video/frame_instrumentation_data.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
 
 namespace webrtc {
 RtpFrameObject::RtpFrameObject(
@@ -34,9 +44,12 @@ RtpFrameObject::RtpFrameObject(
     VideoRotation rotation,
     VideoContentType content_type,
     const RTPVideoHeader& video_header,
-    const absl::optional<webrtc::ColorSpace>& color_space,
+    const std::optional<webrtc::ColorSpace>& color_space,
+    const std::optional<
+        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>&
+        frame_instrumentation_data,
     RtpPacketInfos packet_infos,
-    rtc::scoped_refptr<EncodedImageBuffer> image_buffer)
+    scoped_refptr<EncodedImageBuffer> image_buffer)
     : image_buffer_(image_buffer),
       first_seq_num_(first_seq_num),
       last_seq_num_(last_seq_num),
@@ -49,9 +62,10 @@ RtpFrameObject::RtpFrameObject(
 
   // TODO(philipel): Remove when encoded image is replaced by EncodedFrame.
   // VCMEncodedFrame members
+  _codecSpecificInfo.frame_instrumentation_data = frame_instrumentation_data;
   CopyCodecSpecific(&rtp_video_header_);
   _payloadType = payload_type;
-  SetTimestamp(rtp_timestamp);
+  SetRtpTimestamp(rtp_timestamp);
   ntp_time_ms_ = ntp_time_ms;
   _frameType = rtp_video_header_.frame_type;
 
@@ -131,4 +145,7 @@ const RTPVideoHeader& RtpFrameObject::GetRtpVideoHeader() const {
   return rtp_video_header_;
 }
 
+void RtpFrameObject::SetHeaderFromMetadata(const VideoFrameMetadata& metadata) {
+  rtp_video_header_.SetFromMetadata(metadata);
+}
 }  // namespace webrtc

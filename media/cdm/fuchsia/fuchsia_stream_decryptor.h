@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "media/base/decryptor.h"
 #include "media/base/media_export.h"
@@ -69,7 +70,7 @@ class MEDIA_EXPORT FuchsiaStreamDecryptor
 
   void OnInputBuffersAcquired(
       std::vector<VmoBuffer> buffers,
-      const fuchsia::sysmem::SingleBufferSettings& buffer_settings);
+      const fuchsia::sysmem2::SingleBufferSettings& buffer_settings);
   void SendInputPacket(const DecoderBuffer* buffer,
                        StreamProcessorHelper::IoPacket packet);
   void ProcessEndOfStream();
@@ -82,7 +83,7 @@ class MEDIA_EXPORT FuchsiaStreamDecryptor
 
   SysmemAllocatorClient allocator_;
 
-  Sink* sink_ = nullptr;
+  raw_ptr<Sink> sink_ = nullptr;
 
   size_t min_buffer_size_ = 0;
   size_t min_buffer_count_ = 0;

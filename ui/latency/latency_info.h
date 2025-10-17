@@ -5,19 +5,39 @@
 #ifndef UI_LATENCY_LATENCY_INFO_H_
 #define UI_LATENCY_LATENCY_INFO_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/time/time.h"
 #include "build/blink_buildflags.h"
 #include "build/build_config.h"
-#include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_latency_info.pbzero.h"
 
 #if BUILDFLAG(USE_BLINK)
 #include "ipc/ipc_param_traits.h"  // nogncheck
 #include "mojo/public/cpp/bindings/struct_traits.h"  // nogncheck
 #endif
+
+namespace perfetto {
+class EventContext;
+
+// These enums are somewhat arduous to forward-declare, but it's worth it
+// because the header which defines them is enormous and this header is widely
+// used.
+namespace protos::pbzero {
+namespace perfetto_pbzero_enum_ChromeLatencyInfo2 {
+enum InputResultState : int32_t;
+enum InputType : int32_t;
+enum Step : int32_t;
+}  // namespace perfetto_pbzero_enum_ChromeLatencyInfo2
+class ChromeLatencyInfo2;
+using ChromeLatencyInfo2_InputResultState =
+    perfetto_pbzero_enum_ChromeLatencyInfo2::InputResultState;
+using ChromeLatencyInfo2_InputType =
+    perfetto_pbzero_enum_ChromeLatencyInfo2::InputType;
+using ChromeLatencyInfo2_Step = perfetto_pbzero_enum_ChromeLatencyInfo2::Step;
+}  // namespace protos::pbzero
+}  // namespace perfetto
 
 namespace ui {
 
@@ -73,20 +93,6 @@ enum LatencyComponentType {
   LATENCY_COMPONENT_TYPE_LAST = INPUT_EVENT_LATENCY_FRAME_SWAP_COMPONENT,
 };
 
-enum class SourceEventType {
-  UNKNOWN,
-  WHEEL,
-  MOUSE,
-  TOUCH,
-  INERTIAL,
-  KEY_PRESS,
-  // TODO(crbug.com/868056) Touchpad scrolling latency report as WHEEL.
-  TOUCHPAD,
-  SCROLLBAR,
-  OTHER,
-  LAST = OTHER,
-};
-
 class LatencyInfo {
  public:
   // Map a Latency Component (with a component-specific int64_t id) to a
@@ -96,7 +102,6 @@ class LatencyInfo {
   LatencyInfo();
   LatencyInfo(const LatencyInfo& other);
   LatencyInfo(LatencyInfo&& other);
-  LatencyInfo(SourceEventType type);
   ~LatencyInfo();
 
   // For test only.
@@ -114,10 +119,23 @@ class LatencyInfo {
   static bool Verify(const std::vector<LatencyInfo>& latency_info,
                      const char* referring_msg);
 
-  // Adds trace flow events only to LatencyInfos that are being traced.
-  static void TraceIntermediateFlowEvents(
-      const std::vector<LatencyInfo>& latency_info,
-      perfetto::protos::pbzero::ChromeLatencyInfo::Step step);
+  // Populates fields for the `LatencyInfo.Flow` event in a flow, for
+  // `latency_trace_id` with `ctx`. Returns a pointer to the created
+  // `ChromeLatencyInfo2` message.
+  //
+  // NOTE: Due to ProtoZero write semantics, if the caller wants to modify the
+  //       returned `ChromeLatencyInfo2`, they should do it immediately after
+  //       `FillTraceEvent` returns, and before writes to any other fields or
+  //       submessages.
+  static perfetto::protos::pbzero::ChromeLatencyInfo2* FillTraceEvent(
+      perfetto::EventContext& ctx,
+      int64_t latency_trace_id,
+      perfetto::protos::pbzero::ChromeLatencyInfo2_Step step,
+      std::optional<perfetto::protos::pbzero::ChromeLatencyInfo2_InputType>
+          input_type = std::nullopt,
+      std::optional<
+          perfetto::protos::pbzero::ChromeLatencyInfo2_InputResultState>
+          input_result_state = std::nullopt);
 
   // Add timestamps for components that are in |other| but not in |this|.
   void AddNewLatencyFrom(const LatencyInfo& other);
@@ -148,21 +166,12 @@ class LatencyInfo {
 
   const LatencyMap& latency_components() const { return latency_components_; }
 
-  const SourceEventType& source_event_type() const {
-    return source_event_type_;
-  }
-  void set_source_event_type(SourceEventType type) {
-    source_event_type_ = type;
-  }
-
   bool began() const { return began_; }
   bool terminated() const { return terminated_; }
   void set_coalesced() { coalesced_ = true; }
   bool coalesced() const { return coalesced_; }
   int64_t trace_id() const { return trace_id_; }
   void set_trace_id(int64_t trace_id) { trace_id_ = trace_id; }
-  ukm::SourceId ukm_source_id() const { return ukm_source_id_; }
-  void set_ukm_source_id(ukm::SourceId id) { ukm_source_id_ = id; }
   int64_t gesture_scroll_id() const { return gesture_scroll_id_; }
   void set_gesture_scroll_id(int64_t id) { gesture_scroll_id_ = id; }
   int64_t touch_trace_id() const { return touch_trace_id_; }
@@ -177,17 +186,12 @@ class LatencyInfo {
 
   // The unique id for matching the ASYNC_BEGIN/END trace event.
   int64_t trace_id_ = -1;
-  // UKM Source id to be used for recording UKM metrics associated with this
-  // event.
-  ukm::SourceId ukm_source_id_ = ukm::kInvalidSourceId;
   // Whether this event has been coalesced into another event.
   bool coalesced_ = false;
   // Whether a begin component has been added.
   bool began_ = false;
   // Whether a terminal component has been added.
   bool terminated_ = false;
-  // Stores the type of the first source event.
-  SourceEventType source_event_type_ = SourceEventType::UNKNOWN;
 
   // The unique id for denoting a scroll gesture. This is only set for
   // GestureScrollBegin, GestureScrollUpdate, and GestureScrollEnd events, and

@@ -4,12 +4,15 @@
 
 package org.chromium.components.payments;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.WebContents;
 
 /** The navigation throttle of the payment handler pages. */
 @JNINamespace("payments::android")
+@NullMarked
 public class PaymentHandlerNavigationThrottle {
     /**
      * Marks the given WebContents as a payment handler WebContents. This will allow the callers of

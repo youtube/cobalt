@@ -9,6 +9,8 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_delegate_view.h"
@@ -30,6 +32,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/filename_util.h"
 #include "skia/ext/skia_utils_base.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/page/drag_operation.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/skia_conversions.h"
@@ -77,26 +80,12 @@ class RenderViewHostTest : public RenderViewHostImplTestHarness {
   raw_ptr<ContentBrowserClient> old_browser_client_;
 };
 
-// Ensure we do not grant bindings to a process shared with unprivileged views.
-TEST_F(RenderViewHostTest, DontGrantBindingsToSharedProcess) {
-  // This test does not make sense when AllowBindings checks for WebUIs is
-  // enabled as it explicitly violates what the check is supposed to prevent.
-  if (base::FeatureList::IsEnabled(kEnsureAllowBindingsIsAlwaysForWebUI)) {
-    GTEST_SKIP();
-  }
-  // Create another view in the same process.
-  std::unique_ptr<TestWebContents> new_web_contents(TestWebContents::Create(
-      browser_context(), main_rfh()->GetSiteInstance()));
-
-  main_rfh()->AllowBindings(BINDINGS_POLICY_WEB_UI);
-  EXPECT_FALSE(main_rfh()->GetEnabledBindings() & BINDINGS_POLICY_WEB_UI);
-}
-
 class MockDraggingRenderViewHostDelegateView
     : public RenderViewHostDelegateView {
  public:
   ~MockDraggingRenderViewHostDelegateView() override {}
   void StartDragging(const DropData& drop_data,
+                     const url::Origin& source_origin,
                      blink::DragOperationsMask allowed_ops,
                      const gfx::ImageSkia& image,
                      const gfx::Vector2d& cursor_offset,
@@ -183,7 +172,7 @@ TEST_F(RenderViewHostTest, DragEnteredFileURLsStillBlocked) {
       dropped_data, client_point, screen_point, blink::kDragOperationNone, 0,
       base::DoNothing());
 
-  int id = process()->GetID();
+  int id = process()->GetDeprecatedID();
   ChildProcessSecurityPolicyImpl* policy =
       ChildProcessSecurityPolicyImpl::GetInstance();
 
@@ -205,7 +194,7 @@ TEST_F(RenderViewHostTest, MessageWithBadHistoryItemFiles) {
   EXPECT_EQ(1, process()->bad_msg_count());
 
   ChildProcessSecurityPolicyImpl::GetInstance()->GrantReadFile(
-      process()->GetID(), file_path);
+      process()->GetDeprecatedID(), file_path);
   test_rvh()->TestOnUpdateStateWithFile(file_path);
   EXPECT_EQ(1, process()->bad_msg_count());
 }
@@ -225,7 +214,7 @@ TEST_F(RenderViewHostTest, NavigationWithBadHistoryItemFiles) {
   EXPECT_EQ(1, process()->bad_msg_count());
 
   ChildProcessSecurityPolicyImpl::GetInstance()->GrantReadFile(
-      process()->GetID(), file_path);
+      process()->GetDeprecatedID(), file_path);
   auto navigation2 =
       NavigationSimulatorImpl::CreateRendererInitiated(url, main_test_rfh());
   navigation2->set_page_state(
@@ -240,6 +229,27 @@ TEST_F(RenderViewHostTest, RoutingIdSane) {
   EXPECT_EQ(contents()->GetPrimaryMainFrame(), root_rfh);
   EXPECT_EQ(test_rvh()->GetProcess(), root_rfh->GetProcess());
   EXPECT_NE(test_rvh()->GetRoutingID(), root_rfh->GetRoutingID());
+}
+
+class RenderViewHostTestIgnoringKeyboardEvents
+    : public RenderViewHostTest,
+      public testing::WithParamInterface<blink::WebInputEvent::Type> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    RenderViewHostTest,
+    RenderViewHostTestIgnoringKeyboardEvents,
+    testing::Values(blink::WebInputEvent::Type::kKeyDown,
+                    blink::WebInputEvent::Type::kRawKeyDown));
+
+TEST_P(RenderViewHostTestIgnoringKeyboardEvents, EventTriggersCallback) {
+  const content::WebContents::ScopedIgnoreInputEvents scoped_ignore =
+      contents()->IgnoreInputEvents({});
+  const int no_modifiers = 0;
+  const base::TimeTicks dummy_timestamp = {};
+  const input::NativeWebKeyboardEvent event{GetParam(), no_modifiers,
+                                            dummy_timestamp};
+  test_rvh()->MayRenderWidgetForwardKeyboardEvent(event);
+  EXPECT_TRUE(contents()->GetIgnoredUIEventCalled());
 }
 
 }  // namespace content

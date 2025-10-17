@@ -84,7 +84,6 @@ SampleFormat ToSampleFormat(const ::media::SampleFormat sample_format) {
       return kSampleFormatPlanarS32;
   }
   NOTREACHED();
-  return kUnknownSampleFormat;
 }
 
 ::media::SampleFormat ToMediaSampleFormat(const SampleFormat sample_format) {
@@ -111,7 +110,6 @@ SampleFormat ToSampleFormat(const ::media::SampleFormat sample_format) {
       return ::media::kSampleFormatPlanarS32;
     default:
       NOTREACHED();
-      return ::media::kUnknownSampleFormat;
   }
 }
 
@@ -161,7 +159,6 @@ EncryptionScheme ToEncryptionScheme(::media::EncryptionScheme scheme) {
       return EncryptionScheme::kAesCbc;
     default:
       NOTREACHED();
-      return EncryptionScheme::kUnencrypted;
   }
 }
 
@@ -175,7 +172,6 @@ EncryptionScheme ToEncryptionScheme(::media::EncryptionScheme scheme) {
       return ::media::EncryptionScheme::kCbcs;
     default:
       NOTREACHED();
-      return ::media::EncryptionScheme::kUnencrypted;
   }
 }
 
@@ -201,7 +197,6 @@ ChannelLayout DecoderConfigAdapter::ToChannelLayout(
 
     default:
       NOTREACHED();
-      return ChannelLayout::UNSUPPORTED;
   }
 }
 
@@ -224,7 +219,6 @@ ChannelLayout DecoderConfigAdapter::ToChannelLayout(
 
     default:
       NOTREACHED();
-      return ::media::ChannelLayout::CHANNEL_LAYOUT_UNSUPPORTED;
   }
 }
 
@@ -233,8 +227,9 @@ AudioConfig DecoderConfigAdapter::ToCastAudioConfig(
     StreamId id,
     const ::media::AudioDecoderConfig& config) {
   AudioConfig audio_config;
-  if (!config.IsValidConfig())
+  if (!config.IsValidConfig()) {
     return audio_config;
+  }
 
   audio_config.id = id;
   audio_config.codec = ToAudioCodec(config.codec());
@@ -250,8 +245,9 @@ AudioConfig DecoderConfigAdapter::ToCastAudioConfig(
 #if BUILDFLAG(IS_ANDROID)
   // On Android, Chromium's mp4 parser adds extra data for AAC, but we don't
   // need this with CMA.
-  if (audio_config.codec == kCodecAAC)
+  if (audio_config.codec == kCodecAAC) {
     audio_config.extra_data.clear();
+  }
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return audio_config;
@@ -319,16 +315,18 @@ STATIC_ASSERT_MATCHING_ENUM(MatrixID::YCOCG, MatrixID::YCOCG);
 STATIC_ASSERT_MATCHING_ENUM(MatrixID::BT2020_NCL, MatrixID::BT2020_NCL);
 STATIC_ASSERT_MATCHING_ENUM(MatrixID::BT2020_CL, MatrixID::BT2020_CL);
 STATIC_ASSERT_MATCHING_ENUM(MatrixID::YDZDX, MatrixID::YDZDX);
+#undef STATIC_ASSERT_MATCHING_ENUM
 
-#define STATIC_ASSERT_MATCHING_ENUM2(chromium_name, chromecast_name)        \
+#define STATIC_ASSERT_MATCHING_ENUM(chromium_name, chromecast_name)        \
   static_assert(static_cast<int>(::gfx::ColorSpace::chromium_name) ==       \
                     static_cast<int>(::chromecast::media::chromecast_name), \
                 "mismatching status enum values: " #chromium_name)
 
-STATIC_ASSERT_MATCHING_ENUM2(RangeID::INVALID, RangeID::INVALID);
-STATIC_ASSERT_MATCHING_ENUM2(RangeID::LIMITED, RangeID::LIMITED);
-STATIC_ASSERT_MATCHING_ENUM2(RangeID::FULL, RangeID::FULL);
-STATIC_ASSERT_MATCHING_ENUM2(RangeID::DERIVED, RangeID::DERIVED);
+STATIC_ASSERT_MATCHING_ENUM(RangeID::INVALID, RangeID::INVALID);
+STATIC_ASSERT_MATCHING_ENUM(RangeID::LIMITED, RangeID::LIMITED);
+STATIC_ASSERT_MATCHING_ENUM(RangeID::FULL, RangeID::FULL);
+STATIC_ASSERT_MATCHING_ENUM(RangeID::DERIVED, RangeID::DERIVED);
+#undef STATIC_ASSERT_MATCHING_ENUM
 
 VideoConfig DecoderConfigAdapter::ToCastVideoConfig(
     StreamId id,
@@ -341,9 +339,10 @@ VideoConfig DecoderConfigAdapter::ToCastVideoConfig(
   video_config.id = id;
   video_config.codec = ToCastVideoCodec(config.codec(), config.profile());
   video_config.profile = ToCastVideoProfile(config.profile());
+  video_config.codec_profile_level = config.level();
   video_config.extra_data = config.extra_data();
-  video_config.encryption_scheme = ToEncryptionScheme(
-      config.encryption_scheme());
+  video_config.encryption_scheme =
+      ToEncryptionScheme(config.encryption_scheme());
 
   video_config.primaries =
       static_cast<PrimaryID>(config.color_space_info().primaries);
@@ -352,30 +351,33 @@ VideoConfig DecoderConfigAdapter::ToCastVideoConfig(
   video_config.matrix = static_cast<MatrixID>(config.color_space_info().matrix);
   video_config.range = static_cast<RangeID>(config.color_space_info().range);
 
-  absl::optional<::gfx::HDRMetadata> hdr_metadata = config.hdr_metadata();
+  std::optional<::gfx::HDRMetadata> hdr_metadata = config.hdr_metadata();
   if (hdr_metadata) {
     video_config.have_hdr_metadata = true;
-    video_config.hdr_metadata.max_content_light_level =
-        hdr_metadata->max_content_light_level;
-    video_config.hdr_metadata.max_frame_average_light_level =
-        hdr_metadata->max_frame_average_light_level;
 
-    const auto& mm1 = hdr_metadata->color_volume_metadata;
-    auto& mm2 = video_config.hdr_metadata.color_volume_metadata;
-    mm2.primary_r_chromaticity_x = mm1.primaries.fRX;
-    mm2.primary_r_chromaticity_y = mm1.primaries.fRY;
-    mm2.primary_g_chromaticity_x = mm1.primaries.fGX;
-    mm2.primary_g_chromaticity_y = mm1.primaries.fGY;
-    mm2.primary_b_chromaticity_x = mm1.primaries.fBX;
-    mm2.primary_b_chromaticity_y = mm1.primaries.fBY;
-    mm2.white_point_chromaticity_x = mm1.primaries.fWX;
-    mm2.white_point_chromaticity_y = mm1.primaries.fWY;
-    mm2.luminance_max = mm1.luminance_max;
-    mm2.luminance_min = mm1.luminance_min;
+    if (const auto& cta_861_3 = hdr_metadata->cta_861_3) {
+      video_config.hdr_metadata.max_content_light_level =
+          cta_861_3->max_content_light_level;
+      video_config.hdr_metadata.max_frame_average_light_level =
+          cta_861_3->max_frame_average_light_level;
+    }
+
+    if (const auto& mm1 = hdr_metadata->smpte_st_2086) {
+      auto& mm2 = video_config.hdr_metadata.color_volume_metadata;
+      mm2.primary_r_chromaticity_x = mm1->primaries.fRX;
+      mm2.primary_r_chromaticity_y = mm1->primaries.fRY;
+      mm2.primary_g_chromaticity_x = mm1->primaries.fGX;
+      mm2.primary_g_chromaticity_y = mm1->primaries.fGY;
+      mm2.primary_b_chromaticity_x = mm1->primaries.fBX;
+      mm2.primary_b_chromaticity_y = mm1->primaries.fBY;
+      mm2.white_point_chromaticity_x = mm1->primaries.fWX;
+      mm2.white_point_chromaticity_y = mm1->primaries.fWY;
+      mm2.luminance_max = mm1->luminance_max;
+      mm2.luminance_min = mm1->luminance_min;
+    }
   }
 
-  const gfx::Size aspect_ratio =
-      config.aspect_ratio().GetNaturalSize(config.visible_rect());
+  const gfx::Size aspect_ratio = config.coded_size();
   video_config.width = aspect_ratio.width();
   video_config.height = aspect_ratio.height();
 

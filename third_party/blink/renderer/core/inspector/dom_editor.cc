@@ -252,7 +252,7 @@ class DOMEditor::SetOuterHTMLAction final : public InspectorHistory::Action {
     return history_->Redo(exception_state);
   }
 
-  Node* NewNode() { return new_node_; }
+  Node* NewNode() { return new_node_.Get(); }
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(node_);
@@ -411,7 +411,8 @@ bool DOMEditor::SetNodeValue(Node* node,
       MakeGarbageCollected<SetNodeValueAction>(node, value), exception_state);
 }
 
-static protocol::Response ToResponse(ExceptionState& exception_state) {
+static protocol::Response ToResponse(
+    DummyExceptionStateForTesting& exception_state) {
   if (exception_state.HadException()) {
     String name_prefix = IsDOMExceptionCode(exception_state.Code())
                              ? DOMException::GetErrorName(

@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/credential_provider/gaiacp/user_policies_manager.h"
 
 #include <limits>
+#include <string_view>
 
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
@@ -22,6 +28,7 @@
 #include "chrome/credential_provider/common/gcp_strings.h"
 #include "chrome/credential_provider/gaiacp/gcp_utils.h"
 #include "chrome/credential_provider/gaiacp/gcpw_strings.h"
+#include "chrome/credential_provider/gaiacp/internet_availability_checker.h"
 #include "chrome/credential_provider/gaiacp/logging.h"
 #include "chrome/credential_provider/gaiacp/os_user_manager.h"
 #include "chrome/credential_provider/gaiacp/reg_utils.h"
@@ -217,7 +224,7 @@ HRESULT UserPoliciesManager::FetchAndStorePolicies(
   }
 
   // Make the fetch policies HTTP request.
-  absl::optional<base::Value> request_result;
+  std::optional<base::Value::Dict> request_result;
   HRESULT hr = WinHttpUrlFetcher::BuildRequestAndFetchResultFromHttpService(
       user_policies_url, access_token, {}, {},
       kDefaultFetchPoliciesRequestTimeout, kMaxNumHttpRetries, &request_result);
@@ -229,7 +236,7 @@ HRESULT UserPoliciesManager::FetchAndStorePolicies(
   }
 
   std::string policy_data;
-  if (request_result && request_result->is_dict()) {
+  if (request_result) {
     if (!base::JSONWriter::Write(*request_result, &policy_data)) {
       LOGFN(ERROR) << "base::JSONWriter::Write failed";
       return (fetch_status_ = E_FAIL);
@@ -285,16 +292,16 @@ bool UserPoliciesManager::GetUserPolicies(const std::wstring& sid,
   policy_file->Read(0, buffer.data(), buffer.size());
   policy_file.reset();
 
-  absl::optional<base::Value> policy_data =
-      base::JSONReader::Read(base::StringPiece(buffer.data(), buffer.size()),
-                             base::JSON_ALLOW_TRAILING_COMMAS);
-  if (!policy_data || !policy_data->is_dict()) {
+  std::optional<base::Value::Dict> policy_data =
+      base::JSONReader::ReadDict(std::string_view(buffer.data(), buffer.size()),
+                                 base::JSON_ALLOW_TRAILING_COMMAS);
+  if (!policy_data) {
     LOGFN(ERROR) << "Failed to read policy data from file!";
     return false;
   }
 
   const base::Value::Dict* policies =
-      policy_data->GetDict().FindDict(kPolicyFetchResponseKeyName);
+      policy_data->FindDict(kPolicyFetchResponseKeyName);
   if (!policies) {
     LOGFN(ERROR) << "User policies not found!";
     return false;
@@ -310,11 +317,22 @@ bool UserPoliciesManager::IsUserPolicyStaleOrMissing(
     const std::wstring& sid) const {
   UserPolicies user_policies;
   if (!GetUserPolicies(sid, &user_policies)) {
+    LOGFN(VERBOSE) << "User policy file doesn't exist";
     return true;
   }
 
+  // if the policy file exists but is stale, check the internet connection and
+  // try to fetch the new policy file. If there's no internet connection, will
+  // return false and GCPW will continue to use the stale policy information.
   if (GetTimeDeltaSinceLastFetch(sid, kLastUserPolicyRefreshTimeRegKey) >
       kMaxTimeDeltaSinceLastUserPolicyRefresh) {
+    if (!InternetAvailabilityChecker::Get()->HasInternetConnection()) {
+      LOGFN(VERBOSE)
+          << "There's no internet connection to update stale policy file.";
+      return false;
+    }
+
+    LOGFN(VERBOSE) << "User policy file is stale";
     return true;
   }
 
@@ -336,6 +354,10 @@ void UserPoliciesManager::SetFakesForTesting(FakesForTesting* fakes) {
       fakes->fake_win_http_url_fetcher_creator);
   if (fakes->os_user_manager_for_testing) {
     OSUserManager::SetInstanceForTesting(fakes->os_user_manager_for_testing);
+  }
+  if (fakes->internet_availability_checker_for_testing) {
+    InternetAvailabilityChecker::SetInstanceForTesting(
+        fakes->internet_availability_checker_for_testing);
   }
 }
 

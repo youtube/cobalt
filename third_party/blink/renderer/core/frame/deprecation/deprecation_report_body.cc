@@ -4,21 +4,19 @@
 
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation_report_body.h"
 
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/platform/text/date_components.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-ScriptValue DeprecationReportBody::anticipatedRemoval(
+ScriptObject DeprecationReportBody::anticipatedRemoval(
     ScriptState* script_state) const {
-  v8::Isolate* isolate = script_state->GetIsolate();
-  if (!anticipated_removal_)
-    return ScriptValue::CreateNull(isolate);
-  return ScriptValue(isolate, ToV8(*anticipated_removal_, script_state));
+  return ToV8FromDate(script_state, anticipated_removal_);
 }
 
-absl::optional<base::Time> DeprecationReportBody::AnticipatedRemoval() const {
+std::optional<base::Time> DeprecationReportBody::AnticipatedRemoval() const {
   return anticipated_removal_;
 }
 
@@ -33,16 +31,17 @@ void DeprecationReportBody::BuildJSONValue(V8ObjectBuilder& builder) const {
     DateComponents anticipated_removal_date;
     bool is_valid =
         anticipated_removal_date.SetMillisecondsSinceEpochForDateTimeLocal(
-            anticipated_removal_->ToJsTimeIgnoringNull());
+            anticipated_removal_->InMillisecondsFSinceUnixEpochIgnoringNull());
     if (!is_valid) {
       builder.AddNull("anticipatedRemoval");
     } else {
       // Adding extra 'Z' here to ensure that the string gives the same result
       // as JSON.stringify(anticipatedRemoval) in javascript. Note here
       // anticipatedRemoval will become a Date object in javascript.
-      String iso8601_date = anticipated_removal_date.ToString(
-                                DateComponents::SecondFormat::kMillisecond) +
-                            "Z";
+      String iso8601_date =
+          WTF::StrCat({anticipated_removal_date.ToString(
+                           DateComponents::SecondFormat::kMillisecond),
+                       "Z"});
       builder.AddString("anticipatedRemoval", iso8601_date);
     }
   }

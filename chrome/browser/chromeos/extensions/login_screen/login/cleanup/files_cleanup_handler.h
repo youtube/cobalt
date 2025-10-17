@@ -14,11 +14,12 @@ class Profile;
 
 namespace chromeos {
 
-// A cleanup handler which clears the profile's My Files and Downloads
+// A cleanup handler which clears the profile's MyFiles and Downloads
 // directories.
 class FilesCleanupHandler : public CleanupHandler {
  public:
   FilesCleanupHandler();
+  explicit FilesCleanupHandler(scoped_refptr<base::TaskRunner> task_runner);
   ~FilesCleanupHandler() override;
 
   // CleanupHandler:
@@ -34,4 +35,4 @@ class FilesCleanupHandler : public CleanupHandler {
 
 }  // namespace chromeos
 
-#endif  //  CHROME_BROWSER_CHROMEOS_EXTENSIONS_LOGIN_SCREEN_LOGIN_CLEANUP_FILES_CLEANUP_HANDLER_H_
+#endif  // CHROME_BROWSER_CHROMEOS_EXTENSIONS_LOGIN_SCREEN_LOGIN_CLEANUP_FILES_CLEANUP_HANDLER_H_

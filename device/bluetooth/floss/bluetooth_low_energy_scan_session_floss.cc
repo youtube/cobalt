@@ -36,7 +36,7 @@ void BluetoothLowEnergyScanSessionFloss::OnActivate(uint8_t scanner_id,
   }
 
   has_activated_ = true;
-  delegate_->OnSessionStarted(this, /*error_code=*/absl::nullopt);
+  delegate_->OnSessionStarted(this, /*error_code=*/std::nullopt);
 }
 
 void BluetoothLowEnergyScanSessionFloss::OnRelease() {
@@ -76,10 +76,10 @@ void BluetoothLowEnergyScanSessionFloss::OnRegistered(
   uuid_ = uuid;
 }
 
-absl::optional<ScanFilter>
+std::optional<ScanFilter>
 BluetoothLowEnergyScanSessionFloss::GetFlossScanFilter() {
   if (!filter_)
-    return absl::nullopt;
+    return std::nullopt;
 
   ScanFilter filter;
   filter.rssi_high_threshold = filter_->device_found_rssi_threshold();
@@ -88,6 +88,10 @@ BluetoothLowEnergyScanSessionFloss::GetFlossScanFilter() {
   if (filter_->rssi_sampling_period().has_value()) {
     filter.rssi_sampling_period =
         filter_->rssi_sampling_period().value().InMilliseconds() / 100;
+  } else {
+    // If no given value, use default value of reporting only one advertisement
+    // per device during monitoring period
+    filter.rssi_sampling_period = 0xFF;
   }
 
   for (auto& pattern : filter_->patterns()) {

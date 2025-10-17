@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/gcm_driver/gcm_driver_desktop.h"
-
 #include <stdint.h>
 
 #include "base/base64.h"
@@ -20,6 +18,7 @@
 #include "components/gcm_driver/crypto/gcm_encryption_result.h"
 #include "components/gcm_driver/fake_gcm_client_factory.h"
 #include "components/gcm_driver/gcm_client_factory.h"
+#include "components/gcm_driver/gcm_driver_desktop.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "crypto/ec_private_key.h"
@@ -30,7 +29,6 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gcm {
 
@@ -153,8 +151,7 @@ void GCMDriverBaseTest::CreateDriver() {
       std::make_unique<FakeGCMClientFactory>(
           base::SingleThreadTaskRunner::GetCurrentDefault(),
           io_thread_.task_runner()),
-      chrome_build_info, &prefs_, temp_dir_.GetPath(),
-      /*remove_account_mappings_with_email_key=*/true, base::DoNothing(),
+      chrome_build_info, &prefs_, temp_dir_.GetPath(), base::DoNothing(),
       base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
           &test_url_loader_factory_),
       network::TestNetworkConnectionTracker::GetInstance(),

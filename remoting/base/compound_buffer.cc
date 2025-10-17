@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/base/compound_buffer.h"
 
 #include <algorithm>
@@ -81,15 +86,13 @@ void CompoundBuffer::Prepend(const CompoundBuffer& buffer) {
   }
 }
 void CompoundBuffer::AppendCopyOf(const char* data, int size) {
-  scoped_refptr<net::IOBuffer> buffer =
-      base::MakeRefCounted<net::IOBuffer>(size);
+  auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
   memcpy(buffer->data(), data, size);
   Append(std::move(buffer), size);
 }
 
 void CompoundBuffer::PrependCopyOf(const char* data, int size) {
-  scoped_refptr<net::IOBuffer> buffer =
-      base::MakeRefCounted<net::IOBuffer>(size);
+  auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
   memcpy(buffer->data(), data, size);
   Prepend(std::move(buffer), size);
 }

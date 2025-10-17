@@ -7,7 +7,6 @@
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/testing/editing_test_base.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -59,7 +58,7 @@ class VisibleUnitsWordTest : public EditingTestBase {
   std::string DoMiddleOfWord(const std::string& selection_text) {
     SelectionInDOMTree selection = SetSelectionTextToBody(selection_text);
     return GetCaretTextFromBody(
-        MiddleOfWordPosition(selection.Base(), selection.Extent()));
+        MiddleOfWordPosition(selection.Anchor(), selection.Focus()));
   }
 
   // To avoid name conflict in jumbo build, following functions should be here.
@@ -174,12 +173,14 @@ TEST_F(VisibleUnitsWordTest, StartOfWordShadowDOM) {
   SetBodyContent(body_content);
   ShadowRoot* shadow_root = SetShadowContent(shadow_content, "host");
 
-  Node* one = GetDocument().getElementById("one")->firstChild();
-  Node* two = GetDocument().getElementById("two")->firstChild();
-  Node* three = GetDocument().getElementById("three")->firstChild();
-  Node* four = shadow_root->getElementById("four")->firstChild();
-  Node* five = shadow_root->getElementById("five")->firstChild();
-  Node* space = shadow_root->getElementById("space")->firstChild();
+  Node* one = GetDocument().getElementById(AtomicString("one"))->firstChild();
+  Node* two = GetDocument().getElementById(AtomicString("two"))->firstChild();
+  Node* three =
+      GetDocument().getElementById(AtomicString("three"))->firstChild();
+  Node* four = shadow_root->getElementById(AtomicString("four"))->firstChild();
+  Node* five = shadow_root->getElementById(AtomicString("five"))->firstChild();
+  Node* space =
+      shadow_root->getElementById(AtomicString("space"))->firstChild();
 
   EXPECT_EQ(Position(one, 0),
             CreateVisiblePosition(
@@ -395,11 +396,12 @@ TEST_F(VisibleUnitsWordTest, EndOfWordShadowDOM) {
   SetBodyContent(body_content);
   ShadowRoot* shadow_root = SetShadowContent(shadow_content, "host");
 
-  Node* one = GetDocument().getElementById("one")->firstChild();
-  Node* two = GetDocument().getElementById("two")->firstChild();
-  Node* three = GetDocument().getElementById("three")->firstChild();
-  Node* four = shadow_root->getElementById("four")->firstChild();
-  Node* five = shadow_root->getElementById("five")->firstChild();
+  Node* one = GetDocument().getElementById(AtomicString("one"))->firstChild();
+  Node* two = GetDocument().getElementById(AtomicString("two"))->firstChild();
+  Node* three =
+      GetDocument().getElementById(AtomicString("three"))->firstChild();
+  Node* four = shadow_root->getElementById(AtomicString("four"))->firstChild();
+  Node* five = shadow_root->getElementById(AtomicString("five"))->firstChild();
 
   EXPECT_EQ(Position(five, 5), EndOfWordPosition(Position(*one, 0)));
   EXPECT_EQ(PositionInFlatTree(five, 5),

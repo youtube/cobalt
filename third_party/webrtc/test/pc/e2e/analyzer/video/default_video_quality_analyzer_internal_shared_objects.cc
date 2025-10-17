@@ -15,7 +15,7 @@
 namespace webrtc {
 
 std::string InternalStatsKey::ToString() const {
-  rtc::StringBuilder out;
+  StringBuilder out;
   out << "stream=" << stream << "_sender=" << sender
       << "_receiver=" << receiver;
   return out.str();
@@ -37,8 +37,8 @@ bool operator==(const InternalStatsKey& a, const InternalStatsKey& b) {
 }
 
 FrameComparison::FrameComparison(InternalStatsKey stats_key,
-                                 absl::optional<VideoFrame> captured,
-                                 absl::optional<VideoFrame> rendered,
+                                 std::optional<VideoFrame> captured,
+                                 std::optional<VideoFrame> rendered,
                                  FrameComparisonType type,
                                  FrameStats frame_stats,
                                  OverloadReason overload_reason)

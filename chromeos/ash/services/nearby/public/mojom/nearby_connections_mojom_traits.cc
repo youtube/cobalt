@@ -24,7 +24,6 @@ EnumTraits<nearby::connections::mojom::LogSeverity,
   }
 
   NOTREACHED();
-  return nearby::connections::mojom::LogSeverity::kInfo;
 }
 
 bool EnumTraits<nearby::connections::mojom::LogSeverity,
@@ -50,7 +49,6 @@ bool EnumTraits<nearby::connections::mojom::LogSeverity,
   }
 
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

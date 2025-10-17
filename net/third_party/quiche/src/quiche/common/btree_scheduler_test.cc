@@ -4,9 +4,13 @@
 
 #include "quiche/common/btree_scheduler.h"
 
+#include <optional>
+#include <ostream>
+#include <string>
+#include <tuple>
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -49,7 +53,7 @@ TEST(BTreeSchedulerTest, SimplePop) {
 
   EXPECT_THAT(scheduler.GetPriorityFor(1), Optional(100));
   EXPECT_THAT(scheduler.GetPriorityFor(3), Optional(102));
-  EXPECT_EQ(scheduler.GetPriorityFor(5), absl::nullopt);
+  EXPECT_EQ(scheduler.GetPriorityFor(5), std::nullopt);
 
   EXPECT_EQ(scheduler.NumScheduled(), 0u);
   EXPECT_FALSE(scheduler.HasScheduled());
@@ -113,7 +117,7 @@ TEST(BTreeSchedulerTest, NumEntriesInRange) {
   QUICHE_EXPECT_OK(scheduler.Register(9, 64));
 
   EXPECT_EQ(scheduler.NumScheduled(), 0u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(absl::nullopt, absl::nullopt),
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(std::nullopt, std::nullopt),
             0u);
   EXPECT_EQ(scheduler.NumScheduledInPriorityRange(-1, 1), 0u);
 
@@ -122,11 +126,11 @@ TEST(BTreeSchedulerTest, NumEntriesInRange) {
   }
 
   EXPECT_EQ(scheduler.NumScheduled(), 9u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(absl::nullopt, absl::nullopt),
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(std::nullopt, std::nullopt),
             9u);
   EXPECT_EQ(scheduler.NumScheduledInPriorityRange(0, 0), 3u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(absl::nullopt, -1), 2u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(1, absl::nullopt), 4u);
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(std::nullopt, -1), 2u);
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(1, std::nullopt), 4u);
 }
 
 TEST(BTreeSchedulerTest, Registration) {
@@ -218,6 +222,23 @@ TEST(BTreeSchedulerTest, ShouldYield) {
   EXPECT_THAT(scheduler.ShouldYield(20), IsOkAndHolds(false));
   EXPECT_THAT(scheduler.ShouldYield(21), IsOkAndHolds(true));
   EXPECT_THAT(scheduler.ShouldYield(30), IsOkAndHolds(false));
+}
+
+TEST(BTreeSchedulerTest, Deschedule) {
+  BTreeScheduler<int, int> scheduler;
+  QUICHE_EXPECT_OK(scheduler.Register(10, 100));
+  QUICHE_EXPECT_OK(scheduler.Register(20, 101));
+
+  EXPECT_THAT(scheduler.Deschedule(10),
+              StatusIs(absl::StatusCode::kFailedPrecondition));
+  EXPECT_THAT(scheduler.Deschedule(11), StatusIs(absl::StatusCode::kNotFound));
+
+  EXPECT_FALSE(scheduler.IsScheduled(10));
+  QUICHE_EXPECT_OK(scheduler.Schedule(10));
+  EXPECT_TRUE(scheduler.IsScheduled(10));
+  QUICHE_EXPECT_OK(scheduler.Deschedule(10));
+  EXPECT_FALSE(scheduler.IsScheduled(10));
+  QUICHE_EXPECT_OK(scheduler.Unregister(10));
 }
 
 struct CustomPriority {

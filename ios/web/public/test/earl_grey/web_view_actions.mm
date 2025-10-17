@@ -6,9 +6,9 @@
 
 #import <WebKit/WebKit.h>
 
+#import "base/apple/foundation_util.h"
 #import "base/functional/bind.h"
 #import "base/logging.h"
-#import "base/mac/foundation_util.h"
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
@@ -22,10 +22,6 @@
 #import "ios/web/public/web_state.h"
 #import "ios/web/web_state/ui/crw_web_controller.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using web::test::ExecuteJavaScript;
 
 namespace {
@@ -34,8 +30,8 @@ namespace {
 constexpr base::TimeDelta kContextMenuLongPressDuration = base::Seconds(1);
 
 // Duration to wait for verification of JavaScript action.
-// TODO(crbug.com/670910): Reduce duration if the time required for verification
-// is reduced on devices.
+// TODO(crbug.com/41289402): Reduce duration if the time required for
+// verification is reduced on devices.
 constexpr base::TimeDelta kWaitForVerificationTimeout = base::Seconds(8);
 
 // Returns a no element found error.
@@ -63,8 +59,8 @@ bool IsRectVisibleInView(CGRect rect, UIView* view) {
   CGPoint point_in_view = CGPointMake(CGRectGetMidX(rect), CGRectGetMidY(rect));
 
   // Converts its coordinates to window coordinates.
-  CGPoint point_in_window =
-      [view convertPoint:point_in_view toView:view.window];
+  CGPoint point_in_window = [view convertPoint:point_in_view
+                                        toView:view.window];
 
   // Check if this point is actually on screen.
   if (!CGRectContainsPoint(view.window.frame, point_in_window)) {
@@ -123,21 +119,20 @@ id<GREYAction> WebViewVerifiedActionOnElement(WebState* state,
       WKWebView* web_view =
           [web::test::GetWebController(state) ensureWebViewCreated];
 
-      [web_view
-          callAsyncJavaScript:verifier_script
-                    arguments:nil
-                      inFrame:nil
-               inContentWorld:[WKContentWorld pageWorld]
-            completionHandler:^(id result, NSError* async_error) {
-              if (!async_error) {
-                if ([result isKindOfClass:[NSString class]]) {
-                  DLOG(ERROR) << base::SysNSStringToUTF8(result);
-                } else if ([result isKindOfClass:[NSNumber class]]) {
-                  verified = [result boolValue];
-                }
-              }
-              async_call_complete = true;
-            }];
+      [web_view callAsyncJavaScript:verifier_script
+                          arguments:nil
+                            inFrame:nil
+                     inContentWorld:[WKContentWorld pageWorld]
+                  completionHandler:^(id result, NSError* async_error) {
+                    if (!async_error) {
+                      if ([result isKindOfClass:[NSString class]]) {
+                        DLOG(ERROR) << base::SysNSStringToUTF8(result);
+                      } else if ([result isKindOfClass:[NSNumber class]]) {
+                        verified = [result boolValue];
+                      }
+                    }
+                    async_call_complete = true;
+                  }];
     });
 
     // Run the action and wait for the UI to settle.
@@ -232,7 +227,7 @@ id<GREYAction> WebViewScrollElementToVisible(WebState* state,
          constraints:WebViewInWebState(state)
         performBlock:^BOOL(id element, __strong NSError** error_or_nil) {
           // Checks that the element is indeed a WKWebView.
-          WKWebView* web_view = base::mac::ObjCCast<WKWebView>(element);
+          WKWebView* web_view = base::apple::ObjCCast<WKWebView>(element);
           if (!web_view) {
             *error_or_nil = error_block(@"WebView not found.");
             return NO;

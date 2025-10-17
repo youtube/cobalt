@@ -9,6 +9,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/referrer.h"
 
 namespace prerender {
@@ -37,7 +38,7 @@ void NoStatePrefetchProcessorImpl::Create(
     std::unique_ptr<NoStatePrefetchProcessorImplDelegate> delegate) {
   // NoStatePrefetchProcessorImpl is a self-owned object. This deletes itself on
   // the mojo disconnect handler.
-  new NoStatePrefetchProcessorImpl(frame_host->GetProcess()->GetID(),
+  new NoStatePrefetchProcessorImpl(frame_host->GetProcess()->GetDeprecatedID(),
                                    frame_host->GetRoutingID(),
                                    frame_host->GetLastCommittedOrigin(),
                                    std::move(receiver), std::move(delegate));
@@ -45,9 +46,16 @@ void NoStatePrefetchProcessorImpl::Create(
 
 void NoStatePrefetchProcessorImpl::Start(
     blink::mojom::PrerenderAttributesPtr attributes) {
-  if (!initiator_origin_.opaque() &&
-      !content::ChildProcessSecurityPolicy::GetInstance()
-           ->CanAccessDataForOrigin(render_process_id_, initiator_origin_)) {
+  // TODO(crbug.com/40109437): Remove the exception for opaque origins below and
+  // allow HostsOrigin() to always verify them, including checking their
+  // precursor. This verification is currently enabled behind a kill switch.
+  bool should_skip_checks_for_opaque_origin =
+      initiator_origin_.opaque() &&
+      !base::FeatureList::IsEnabled(
+          features::kAdditionalOpaqueOriginEnforcements);
+  if (!should_skip_checks_for_opaque_origin &&
+      !content::ChildProcessSecurityPolicy::GetInstance()->HostsOrigin(
+          render_process_id_, initiator_origin_)) {
     receiver_.ReportBadMessage("NSPPI_INVALID_INITIATOR_ORIGIN");
     // The above ReportBadMessage() closes |receiver_| but does not trigger its
     // disconnect handler, so we need to call the handler explicitly
@@ -68,12 +76,14 @@ void NoStatePrefetchProcessorImpl::Start(
 
   auto* render_frame_host =
       content::RenderFrameHost::FromID(render_process_id_, render_frame_id_);
-  if (!render_frame_host)
+  if (!render_frame_host) {
     return;
+  }
 
   auto* link_manager = GetNoStatePrefetchLinkManager();
-  if (!link_manager)
+  if (!link_manager) {
     return;
+  }
 
   DCHECK(!link_trigger_id_);
   link_trigger_id_ = link_manager->OnStartLinkTrigger(
@@ -83,18 +93,21 @@ void NoStatePrefetchProcessorImpl::Start(
 }
 
 void NoStatePrefetchProcessorImpl::Cancel() {
-  if (!link_trigger_id_)
+  if (!link_trigger_id_) {
     return;
+  }
   auto* link_manager = GetNoStatePrefetchLinkManager();
-  if (link_manager)
+  if (link_manager) {
     link_manager->OnCancelLinkTrigger(*link_trigger_id_);
+  }
 }
 
 void NoStatePrefetchProcessorImpl::Abandon() {
   if (link_trigger_id_) {
     auto* link_manager = GetNoStatePrefetchLinkManager();
-    if (link_manager)
+    if (link_manager) {
       link_manager->OnAbandonLinkTrigger(*link_trigger_id_);
+    }
   }
   delete this;
 }
@@ -103,8 +116,9 @@ NoStatePrefetchLinkManager*
 NoStatePrefetchProcessorImpl::GetNoStatePrefetchLinkManager() {
   auto* render_frame_host =
       content::RenderFrameHost::FromID(render_process_id_, render_frame_id_);
-  if (!render_frame_host)
+  if (!render_frame_host) {
     return nullptr;
+  }
   return delegate_->GetNoStatePrefetchLinkManager(
       render_frame_host->GetProcess()->GetBrowserContext());
 }

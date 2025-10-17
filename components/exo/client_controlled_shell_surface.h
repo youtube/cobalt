@@ -17,6 +17,7 @@
 #include "components/exo/client_controlled_accelerators.h"
 #include "components/exo/shell_surface_base.h"
 #include "ui/base/hit_test.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/compositor/compositor_lock.h"
 
 namespace ash {
@@ -54,7 +55,8 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
                                  int64_t display_id,
                                  const gfx::Rect& bounds_in_display,
                                  bool is_resize,
-                                 int bounds_change) = 0;
+                                 int bounds_change,
+                                 bool is_adjusted_bounds) = 0;
     virtual void OnDragStarted(int component) = 0;
     virtual void OnDragFinished(int x, int y, bool canceled) = 0;
     virtual void OnZoomLevelChanged(ZoomChange zoom_change) = 0;
@@ -99,8 +101,11 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // Called when the client was restored.
   void SetRestored();
 
-  // Called when the client changed the fullscreen state.
-  void SetFullscreen(bool fullscreen);
+  // Called when the client changed the fullscreen state. When `fullscreen` is
+  // true, `display_id` indicates the id of the display where the surface should
+  // be shown, otherwise it is ignored. When `display::kInvalidDisplayId` is
+  // specified, the current display may be used.
+  void SetFullscreen(bool fullscreen, int64_t display_id);
 
   // Returns true if this shell surface is currently being dragged.
   bool IsDragging();
@@ -124,13 +129,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // Set the pending scale.
   void SetScale(double scale);
 
-  // Commit the pending scale if it was changed. The scale set by SetScale() is
-  // otherwise committed by OnPostWidgetCommit().
-  void CommitPendingScale();
-
-  // Set top inset for surface.
-  void SetTopInset(int height);
-
   // Sends the request to change the zoom level to the client.
   void ChangeZoomLevel(ZoomChange change);
 
@@ -147,7 +145,8 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
                            chromeos::WindowStateType requested_state,
                            int64_t display_id,
                            const gfx::Rect& bounds,
-                           int drag_bounds_change);
+                           int drag_bounds_change,
+                           bool is_adjusted_bounds);
 
   // Sends the window drag events to client.
   void OnDragStarted(int component);
@@ -175,12 +174,13 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   void RebindRootSurface(Surface* root_surface,
                          bool can_minimize,
                          int container,
-                         bool default_scale_cancellation);
+                         bool default_scale_cancellation,
+                         bool supports_floated_state);
 
-  // Overridden from SurfaceTreeHost:
+  // SurfaceTreeHost:
   void DidReceiveCompositorFrameAck() override;
 
-  // Overridden from SurfaceDelegate:
+  // ShellSurfaceBase:
   bool IsInputEnabled(Surface* surface) const override;
   void OnSetFrame(SurfaceFrameType type) override;
   void OnSetFrameColors(SkColor active_color, SkColor inactive_color) override;
@@ -188,32 +188,33 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   void SetSnapSecondary(float snap_ratio) override;
   void SetPip() override;
   void UnsetPip() override;
-  void SetFloat() override;
+  void SetFloatToLocation(
+      chromeos::FloatStartLocation float_start_location) override;
+  void OnDidProcessDisplayChanges(
+      const DisplayConfigurationChange& configuration_change) override;
 
-  // Overridden from views::WidgetDelegate:
+  // views::WidgetDelegate:
+  void WindowClosing() override;
   bool CanMaximize() const override;
   std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
       views::Widget* widget) override;
   bool ShouldSaveWindowPlacement() const override;
   void SaveWindowPlacement(const gfx::Rect& bounds,
-                           ui::WindowShowState show_state) override;
-  bool GetSavedWindowPlacement(const views::Widget* widget,
-                               gfx::Rect* bounds,
-                               ui::WindowShowState* show_state) const override;
+                           ui::mojom::WindowShowState show_state) override;
+  bool GetSavedWindowPlacement(
+      const views::Widget* widget,
+      gfx::Rect* bounds,
+      ui::mojom::WindowShowState* show_state) const override;
 
-  // Overridden from views::View:
+  // views::View:
   gfx::Size GetMaximumSize() const override;
   void OnDeviceScaleFactorChanged(float old_dsf, float new_dsf) override;
 
-  // Overridden from aura::WindowObserver:
+  // aura::WindowObserver:
   void OnWindowDestroying(aura::Window* window) override;
   void OnWindowAddedToRootWindow(aura::Window* window) override;
 
-  // Overridden from display::DisplayObserver:
-  void OnDisplayMetricsChanged(const display::Display& display,
-                               uint32_t changed_metrics) override;
-
-  // Overridden from ui::CompositorLockClient:
+  // ui::CompositorLockClient:
   void CompositorLockTimedOut() override;
 
   // A factory callback to create ClientControlledState::Delegate.
@@ -225,10 +226,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
       const DelegateFactoryCallback& callback);
 
   ash::WideFrameView* wide_frame_for_test() { return wide_frame_.get(); }
-
-  // Exposed for testing. Returns the effective scale as opposed to
-  // |pending_scale_|.
-  double scale() const { return scale_; }
 
   // Used to scale incoming coordinates from the client to DP.
   float GetClientToDpScale() const;
@@ -243,30 +240,35 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // Update the resizability based on the resize lock type.
   void UpdateResizability() override;
 
-  // Overridden from exo::ShellSurfaceBase
+  // exo::ShellSurfaceBase
   void SetSystemModal(bool system_modal) override;
 
  protected:
-  // Overridden from ShellSurfaceBase:
+  // ShellSurfaceBase:
   float GetScale() const override;
+
+  // SurfaceTreeHost:
+  float GetScaleFactor() const override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ClientControlledShellSurfaceTest,
                            OverlayShadowBounds);
   class ScopedSetBoundsLocally;
   class ScopedLockedToRoot;
+  class ScopedDeferWindowStateUpdate;
 
-  // Overridden from ShellSurfaceBase:
+  // ShellSurfaceBase:
   void SetWidgetBounds(const gfx::Rect& bounds,
                        bool adjusted_by_server) override;
+  gfx::Rect GetVisibleBounds() const override;
   gfx::Rect GetShadowBounds() const override;
   void InitializeWindowState(ash::WindowState* window_state) override;
-  absl::optional<gfx::Rect> GetWidgetBounds() const override;
+  std::optional<gfx::Rect> GetWidgetBounds() const override;
   gfx::Point GetSurfaceOrigin() const override;
   bool OnPreWidgetCommit() override;
+  void ShowWidget(bool activate) override;
   void OnPostWidgetCommit() override;
   void OnSurfaceDestroying(Surface* surface) override;
-  void OnContentSizeChanged(Surface* surface) override;
 
   // Update frame status. This may create (or destroy) a wide frame
   // that spans the full work area width if the surface didn't cover
@@ -301,14 +303,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
       const gfx::Rect& window_bounds,
       chromeos::WindowStateType window_state) const;
 
-  int top_inset_height_ = 0;
-  int pending_top_inset_height_ = 0;
-
-  double scale_ = 1.0;
-  // The pending scale is initialized to 0.0 to indicate that the scale is not
-  // yet initialized.
-  double pending_scale_ = 0.0;
-
   uint32_t frame_visible_button_mask_ = 0;
   uint32_t frame_enabled_button_mask_ = 0;
 
@@ -319,8 +313,7 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   Orientation orientation_ = Orientation::LANDSCAPE;
   Orientation expected_orientation_ = Orientation::LANDSCAPE;
 
-  raw_ptr<ash::ClientControlledState, ExperimentalAsh>
-      client_controlled_state_ = nullptr;
+  raw_ptr<ash::ClientControlledState> client_controlled_state_ = nullptr;
 
   chromeos::WindowStateType pending_window_state_ =
       chromeos::WindowStateType::kNormal;
@@ -354,8 +347,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // TODO(oshima): Remove this once all boards are migrated to P or above.
   bool server_reparent_window_ = false;
 
-  bool ignore_bounds_change_request_ = false;
-
   bool display_rotating_with_pip_ = false;
 
   // True if the window state has changed during the commit.
@@ -372,8 +363,11 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   ash::ArcResizeLockType pending_resize_lock_type_ =
       ash::ArcResizeLockType::NONE;
 
+  std::unique_ptr<ScopedDeferWindowStateUpdate>
+      scoped_defer_window_state_update_;
+
   // True if the window supports the floated state.
-  const bool supports_floated_state_;
+  bool supports_floated_state_;
 };
 
 }  // namespace exo

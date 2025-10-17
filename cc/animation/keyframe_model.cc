@@ -12,7 +12,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/strings/string_util.h"
+#include "base/strings/span_printf.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/trees/target_property.h"
@@ -93,7 +93,9 @@ std::unique_ptr<KeyframeModel> KeyframeModel::CreateImplInstance(
   to_return->ForceRunState(initial_run_state);
   to_return->set_iterations(iterations());
   to_return->set_iteration_start(iteration_start());
-  to_return->set_start_time(start_time());
+  if (has_set_start_time()) {
+    to_return->set_start_time(start_time());
+  }
   to_return->set_pause_time(pause_time());
   to_return->set_total_paused_duration(total_paused_duration());
   to_return->set_time_offset(time_offset());
@@ -126,6 +128,7 @@ KeyframeModel::KeyframeModel(std::unique_ptr<gfx::AnimationCurve> curve,
       is_impl_only_(false),
       affects_active_elements_(true),
       affects_pending_elements_(true) {
+  CHECK_NE(group_, kInvalidGroup);
 }
 
 KeyframeModel::~KeyframeModel() = default;
@@ -137,8 +140,8 @@ int KeyframeModel::TargetProperty() const {
 void KeyframeModel::SetRunState(RunState new_run_state,
                                 base::TimeTicks monotonic_time) {
   char name_buffer[256];
-  base::snprintf(name_buffer, sizeof(name_buffer), "%s-%d-%d",
-                 curve()->TypeName(), TargetProperty(), group_);
+  base::SpanPrintf(name_buffer, "%s-%d-%d", curve()->TypeName(),
+                   TargetProperty(), group_);
 
   bool is_waiting_to_start =
       run_state() == WAITING_FOR_TARGET_AVAILABILITY || run_state() == STARTING;
@@ -162,8 +165,8 @@ void KeyframeModel::SetRunState(RunState new_run_state,
   }
 
   char state_buffer[256];
-  base::snprintf(state_buffer, sizeof(state_buffer), "%s->%s",
-                 old_run_state_name.c_str(), new_run_state_name.c_str());
+  base::SpanPrintf(state_buffer, "%s->%s", old_run_state_name.c_str(),
+                   new_run_state_name.c_str());
 
   TRACE_EVENT_INSTANT2(
       "cc", "ElementAnimations::SetRunState", TRACE_EVENT_SCOPE_THREAD, "Name",

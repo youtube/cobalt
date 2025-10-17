@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/ts_packet.h"
 
 #include <memory>
 
 #include "base/logging.h"
+#include "base/numerics/safe_conversions.h"
 #include "media/base/bit_reader.h"
 #include "media/formats/mp2t/mp2t_common.h"
 
@@ -45,11 +51,11 @@ int TsPacket::Sync(const uint8_t* buf, int size) {
 }
 
 // static
-TsPacket* TsPacket::Parse(const uint8_t* buf, int size) {
+TsPacket* TsPacket::Parse(const uint8_t* buf, size_t size) {
   if (size < kPacketSize) {
     DVLOG(1) << "Buffer does not hold one full TS packet:"
              << " buffer_size=" << size;
-    return NULL;
+    return nullptr;
   }
 
   DCHECK_EQ(buf[0], kTsHeaderSyncword);
@@ -57,14 +63,14 @@ TsPacket* TsPacket::Parse(const uint8_t* buf, int size) {
     DVLOG(1) << "Not on a TS syncword:"
              << " buf[0]="
              << std::hex << static_cast<int>(buf[0]) << std::dec;
-    return NULL;
+    return nullptr;
   }
 
   std::unique_ptr<TsPacket> ts_packet(new TsPacket());
   bool status = ts_packet->ParseHeader(buf);
   if (!status) {
     DVLOG(1) << "Parsing header failed";
-    return NULL;
+    return nullptr;
   }
   return ts_packet.release();
 }
@@ -77,8 +83,7 @@ TsPacket::~TsPacket() {
 
 bool TsPacket::ParseHeader(const uint8_t* buf) {
   BitReader bit_reader(buf, kPacketSize);
-  payload_ = buf;
-  payload_size_ = kPacketSize;
+  payload_ = {buf, kPacketSize};
 
   // Read the TS header: 4 bytes.
   int syncword;
@@ -96,8 +101,7 @@ bool TsPacket::ParseHeader(const uint8_t* buf) {
   RCHECK(bit_reader.ReadBits(2, &adaptation_field_control));
   RCHECK(bit_reader.ReadBits(4, &continuity_counter_));
   payload_unit_start_indicator_ = (payload_unit_start_indicator != 0);
-  payload_ += 4;
-  payload_size_ -= 4;
+  payload_ = payload_.subspan<4>();
 
   // Default values when no adaptation field.
   discontinuity_indicator_ = false;
@@ -108,11 +112,10 @@ bool TsPacket::ParseHeader(const uint8_t* buf) {
     return true;
 
   // Read the adaptation field if needed.
-  int adaptation_field_length;
+  size_t adaptation_field_length;
   RCHECK(bit_reader.ReadBits(8, &adaptation_field_length));
   DVLOG(LOG_LEVEL_TS) << "adaptation_field_length=" << adaptation_field_length;
-  payload_ += 1;
-  payload_size_ -= 1;
+  payload_ = payload_.subspan<1>();
   if ((adaptation_field_control & 0x1) == 0 &&
        adaptation_field_length != 183) {
     DVLOG(1) << "adaptation_field_length=" << adaptation_field_length;
@@ -133,14 +136,13 @@ bool TsPacket::ParseHeader(const uint8_t* buf) {
     return true;
 
   bool status = ParseAdaptationField(&bit_reader, adaptation_field_length);
-  payload_ += adaptation_field_length;
-  payload_size_ -= adaptation_field_length;
+  payload_ = payload_.subspan(adaptation_field_length);
   return status;
 }
 
 bool TsPacket::ParseAdaptationField(BitReader* bit_reader,
-                                    int adaptation_field_length) {
-  DCHECK_GT(adaptation_field_length, 0);
+                                    size_t adaptation_field_length) {
+  DCHECK_GT(adaptation_field_length, 0u);
   int adaptation_field_start_marker = bit_reader->bits_available() / 8;
 
   int discontinuity_indicator;
@@ -199,10 +201,10 @@ bool TsPacket::ParseAdaptationField(BitReader* bit_reader,
   }
 
   // The rest of the adaptation field should be stuffing bytes.
-  int adaptation_field_remaining_size = adaptation_field_length -
-      (adaptation_field_start_marker - bit_reader->bits_available() / 8);
-  RCHECK(adaptation_field_remaining_size >= 0);
-  for (int k = 0; k < adaptation_field_remaining_size; k++) {
+  const auto bits_used = base::checked_cast<size_t>(
+      adaptation_field_start_marker - bit_reader->bits_available() / 8);
+  RCHECK(adaptation_field_length >= bits_used);
+  for (size_t k = 0; k < adaptation_field_length - bits_used; ++k) {
     int stuffing_byte;
     RCHECK(bit_reader->ReadBits(8, &stuffing_byte));
     // Unfortunately, a lot of streams exist in the field that do not fill

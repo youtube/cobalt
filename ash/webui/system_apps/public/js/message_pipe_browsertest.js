@@ -62,6 +62,7 @@ var MessagePipeBrowserTest = class extends testing.Test {
 };
 
 TEST_F('MessagePipeBrowserTest', 'ReceivesSuccessResponse', async () => {
+  const {assertDeepEquals} = await import('chrome://webui-test/chai_assert.js');
   const request = {'foo': 'bar'};
   const response = await sendTestMessage('success-message', request);
   assertDeepEquals(response, {'success': true, 'request': request});
@@ -69,6 +70,7 @@ TEST_F('MessagePipeBrowserTest', 'ReceivesSuccessResponse', async () => {
 });
 
 TEST_F('MessagePipeBrowserTest', 'IgnoresMessagesWithNoType', async () => {
+  const {assertEquals} = await import('chrome://webui-test/chai_assert.js');
   await sendTestMessage('install-generic-responder');
 
   let messageCount = 0;
@@ -96,6 +98,7 @@ TEST_F('MessagePipeBrowserTest', 'IgnoresMessagesWithNoType', async () => {
 
 // Tests that we receive an error if our message is unhandled.
 TEST_F('MessagePipeBrowserTest', 'ReceivesNoHandlerError', async () => {
+  const {assertEquals} = await import('chrome://webui-test/chai_assert.js');
   window['untrustedMessagePipe'].logClientError = error =>
       console.log(JSON.stringify(error));
   let caughtError = {};
@@ -119,13 +122,14 @@ TEST_F('MessagePipeBrowserTest', 'ReceivesNoHandlerError', async () => {
     'Error from chrome-untrusted://system-app-test',
     'Error: No handler registered for message type \'unknown-message\'',
     'at MessagePipe.receiveMessage_ \\(chrome-untrusted://system-app-test/',
-    'at MessagePipe.messageListener_ \\(chrome-untrusted://system-app-test/',
+    'at messageListener_ \\(chrome-untrusted://system-app-test/',
   ]);
   testDone();
 });
 
 // Tests that we receive an error if the handler fails.
 TEST_F('MessagePipeBrowserTest', 'ReceivesProxiedError', async () => {
+  const {assertEquals} = await import('chrome://webui-test/chai_assert.js');
   window['untrustedMessagePipe'].logClientError = error =>
       console.log(JSON.stringify(error));
   let caughtError = {};
@@ -150,7 +154,7 @@ TEST_F('MessagePipeBrowserTest', 'ReceivesProxiedError', async () => {
     'at chrome-untrusted://system-app-test/test_data/message_pipe_browsertest_untrusted.js',
     'at MessagePipe.callHandlerForMessageType_ \\(chrome-untrusted://system-app-test/',
     'at MessagePipe.receiveMessage_ \\(chrome-untrusted://system-app-test/',
-    'at MessagePipe.messageListener_ \\(chrome-untrusted://system-app-test/',
+    'at messageListener_ \\(chrome-untrusted://system-app-test/',
   ]);
   testDone();
 });
@@ -158,6 +162,7 @@ TEST_F('MessagePipeBrowserTest', 'ReceivesProxiedError', async () => {
 // Tests `MessagePipe.sendMessage()` properly propagates errors and appends
 // stacktraces.
 TEST_F('MessagePipeBrowserTest', 'CrossContextErrors', async () => {
+  const {assertEquals} = await import('chrome://webui-test/chai_assert.js');
   const untrustedMessagePipe = window['untrustedMessagePipe'];
 
   untrustedMessagePipe.logClientError = error =>
@@ -196,7 +201,7 @@ TEST_F('MessagePipeBrowserTest', 'CrossContextErrors', async () => {
     'at .*message_pipe_browsertest.js',
     'at MessagePipe.callHandlerForMessageType_',
     'at MessagePipe.receiveMessage_',
-    'at MessagePipe.messageListener_',
+    'at messageListener_',
   ]);
   testDone();
 });

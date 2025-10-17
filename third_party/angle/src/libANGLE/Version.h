@@ -9,26 +9,61 @@
 #ifndef LIBANGLE_VERSION_H_
 #define LIBANGLE_VERSION_H_
 
+#include <cstdint>
+
 namespace gl
 {
 
-struct Version
+struct alignas(uint16_t) Version
 {
-    constexpr Version();
-    constexpr Version(unsigned int major, unsigned int minor);
+    // Avoid conflicts with linux system defines
+#undef major
+#undef minor
 
-    unsigned int major;
-    unsigned int minor;
+    constexpr Version() = default;
+    constexpr Version(uint8_t major, uint8_t minor) : value((major << 8) | minor) {}
+
+    constexpr bool operator==(const Version &other) const { return value == other.value; }
+    constexpr bool operator!=(const Version &other) const { return value != other.value; }
+    constexpr bool operator>=(const Version &other) const { return value >= other.value; }
+    constexpr bool operator<=(const Version &other) const { return value <= other.value; }
+    constexpr bool operator<(const Version &other) const { return value < other.value; }
+    constexpr bool operator>(const Version &other) const { return value > other.value; }
+
+    // These functions should not be used for compare operations.
+    constexpr uint32_t getMajor() const { return value >> 8; }
+    constexpr uint32_t getMinor() const { return value & 0xFF; }
+
+  private:
+    uint16_t value = 0;
 };
+static_assert(sizeof(Version) == 2);
 
-bool operator==(const Version &a, const Version &b);
-bool operator!=(const Version &a, const Version &b);
-bool operator>=(const Version &a, const Version &b);
-bool operator<=(const Version &a, const Version &b);
-bool operator<(const Version &a, const Version &b);
-bool operator>(const Version &a, const Version &b);
+static_assert(Version().getMajor() == 0);
+static_assert(Version().getMinor() == 0);
+static_assert(Version(0, 255).getMajor() == 0);
+static_assert(Version(0, 255).getMinor() == 255);
+static_assert(Version(255, 0).getMajor() == 255);
+static_assert(Version(255, 0).getMinor() == 0);
+static_assert(Version(4, 5).getMajor() == 4);
+static_assert(Version(4, 5).getMinor() == 5);
+static_assert(Version(4, 6) == Version(4, 6));
+static_assert(Version(1, 0) != Version(1, 1));
+static_assert(Version(1, 0) != Version(2, 0));
+static_assert(Version(2, 0) > Version(1, 0));
+static_assert(Version(3, 1) > Version(3, 0));
+static_assert(Version(3, 0) > Version(1, 1));
+static_assert(Version(2, 0) < Version(3, 0));
+static_assert(Version(3, 1) < Version(3, 2));
+static_assert(Version(1, 1) < Version(2, 0));
+
+static constexpr Version ES_1_0 = Version(1, 0);
+static constexpr Version ES_1_1 = Version(1, 1);
+static constexpr Version ES_2_0 = Version(2, 0);
+static constexpr Version ES_3_0 = Version(3, 0);
+static constexpr Version ES_3_1 = Version(3, 1);
+static constexpr Version ES_3_2 = Version(3, 2);
+
 }  // namespace gl
-
-#include "Version.inc"
 
 #endif  // LIBANGLE_VERSION_H_

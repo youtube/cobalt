@@ -6,37 +6,43 @@
 #define CHROME_BROWSER_SYNC_TEST_INTEGRATION_CONTACT_INFO_HELPER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
-#include "components/autofill/core/browser/personal_data_manager_observer.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace autofill {
+class PersonalDataManager;
+}  // namespace autofill
 
 namespace contact_info_helper {
 
 autofill::AutofillProfile BuildTestAccountProfile();
 
+autofill::AddressDataManager* GetAddressDataManager(Profile* profile);
+
 autofill::PersonalDataManager* GetPersonalDataManager(Profile* profile);
 
-// Helper class to wait until the PersonalDataManager's profiles match a given
+// Helper class to wait until the AddressDataManager's profiles match a given
 // predicate.
-class PersonalDataManagerProfileChecker
+class AddressDataManagerProfileChecker
     : public StatusChangeChecker,
-      public autofill::PersonalDataManagerObserver {
+      public autofill::AddressDataManager::Observer {
  public:
-  PersonalDataManagerProfileChecker(
-      autofill::PersonalDataManager* pdm,
+  AddressDataManagerProfileChecker(
+      autofill::AddressDataManager* adm,
       const testing::Matcher<std::vector<autofill::AutofillProfile>>& matcher);
-  ~PersonalDataManagerProfileChecker() override;
+  ~AddressDataManagerProfileChecker() override;
 
   // StatusChangeChecker overrides.
   bool IsExitConditionSatisfied(std::ostream* os) override;
 
-  // PersonalDataManagerObserver overrides.
-  void OnPersonalDataChanged() override;
+  // AddressDataManager::Observer overrides.
+  void OnAddressDataChanged() override;
 
  private:
-  const base::raw_ptr<autofill::PersonalDataManager> pdm_;
+  const raw_ptr<autofill::AddressDataManager> adm_;
   const testing::Matcher<std::vector<autofill::AutofillProfile>> matcher_;
 };
 

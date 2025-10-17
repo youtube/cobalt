@@ -26,7 +26,6 @@ EnumTraits<ash::local_search_service::mojom::IndexId,
       return ash::local_search_service::mojom::IndexId::kShortcutsApp;
   }
   NOTREACHED();
-  return ash::local_search_service::mojom::IndexId::kCrosSettings;
 }
 
 // static
@@ -52,7 +51,6 @@ bool EnumTraits<ash::local_search_service::mojom::IndexId,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -67,7 +65,6 @@ EnumTraits<ash::local_search_service::mojom::Backend,
       return ash::local_search_service::mojom::Backend::kInvertedIndex;
   }
   NOTREACHED();
-  return ash::local_search_service::mojom::Backend::kLinearMap;
 }
 
 // static
@@ -84,7 +81,6 @@ bool EnumTraits<ash::local_search_service::mojom::Backend,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -176,7 +172,6 @@ EnumTraits<ash::local_search_service::mojom::ResponseStatus,
       return ash::local_search_service::mojom::ResponseStatus::kEmptyIndex;
   }
   NOTREACHED();
-  return ash::local_search_service::mojom::ResponseStatus::kUnknownError;
 }
 
 // static
@@ -199,7 +194,6 @@ bool EnumTraits<ash::local_search_service::mojom::ResponseStatus,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

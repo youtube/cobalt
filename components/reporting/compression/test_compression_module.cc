@@ -4,15 +4,14 @@
 
 #include "components/reporting/compression/test_compression_module.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/resources/resource_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::Invoke;
 
@@ -30,9 +29,9 @@ TestCompressionModuleStrict::TestCompressionModuleStrict()
           [](std::string record,
              scoped_refptr<ResourceManager> resource_manager,
              base::OnceCallback<void(
-                 std::string, absl::optional<CompressionInformation>)> cb) {
+                 std::string, std::optional<CompressionInformation>)> cb) {
             // compression_info is not set.
-            std::move(cb).Run(record, absl::nullopt);
+            std::move(cb).Run(record, std::nullopt);
           }));
 }
 

@@ -40,7 +40,7 @@ class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
   // if warnings or other messages need to be printed. It's useful to know what
   // the AudioParam represents.  The name should include the node type and the
   // name of the AudioParam.
-  enum AudioParamType {
+  enum class AudioParamType {
     kParamTypeAudioBufferSourcePlaybackRate,
     kParamTypeAudioBufferSourceDetune,
     kParamTypeBiquadFilterFrequency,
@@ -123,8 +123,12 @@ class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
   float Value();
   void SetValue(float);
 
-  AutomationRate GetAutomationRate() const { return automation_rate_; }
+  AutomationRate GetAutomationRate() const {
+    base::AutoLock rate_locker(RateLock());
+    return automation_rate_;
+  }
   void SetAutomationRate(AutomationRate automation_rate) {
+    base::AutoLock rate_locker(RateLock());
     automation_rate_ = automation_rate;
   }
 
@@ -157,11 +161,13 @@ class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
   // Calculates numberOfValues parameter values starting at the context's
   // current time.
   // Must be called in the context's render thread.
-  void CalculateSampleAccurateValues(float* values, unsigned number_of_values);
+  void CalculateSampleAccurateValues(base::span<float> values);
 
   float IntrinsicValue() const {
     return intrinsic_value_.load(std::memory_order_relaxed);
   }
+
+  base::Lock& RateLock() const { return rate_lock_; }
 
  private:
   AudioParamHandler(BaseAudioContext&,
@@ -174,10 +180,8 @@ class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
 
   // sampleAccurate corresponds to a-rate (audio rate) vs. k-rate in the Web
   // Audio specification.
-  void CalculateFinalValues(float* values,
-                            unsigned number_of_values,
-                            bool sample_accurate);
-  void CalculateTimelineValues(float* values, unsigned number_of_values);
+  void CalculateFinalValues(base::span<float> values, bool sample_accurate);
+  void CalculateTimelineValues(base::span<float> values);
 
   // The type of AudioParam, indicating what this AudioParam represents and what
   // node it belongs to.  Mostly for informational purposes and doesn't affect
@@ -195,8 +199,12 @@ class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
 
   float default_value_;
 
+  // Protects `automation_rate_`.
+  mutable base::Lock rate_lock_;
+
   // The automation rate of the AudioParam (k-rate or a-rate)
   AutomationRate automation_rate_;
+
   // `rate_mode_` determines if the user can change the automation rate to a
   // different value.
   const AutomationRateMode rate_mode_;

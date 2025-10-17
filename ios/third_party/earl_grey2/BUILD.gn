@@ -10,9 +10,11 @@ config("config") {
   include_dirs = [
     "//ios/third_party/earl_grey2/src",
     "//ios/third_party/earl_grey2/src/AppFramework/Action",
+    "//ios/third_party/earl_grey2/src/AppFramework/Additions",
     "//ios/third_party/earl_grey2/src/AppFramework/Assertion",
     "//ios/third_party/earl_grey2/src/AppFramework/Config",
     "//ios/third_party/earl_grey2/src/AppFramework/Core",
+    "//ios/third_party/earl_grey2/src/AppFramework/Delegate",
     "//ios/third_party/earl_grey2/src/AppFramework/DistantObject",
     "//ios/third_party/earl_grey2/src/AppFramework/Error",
     "//ios/third_party/earl_grey2/src/AppFramework/Event",
@@ -44,6 +46,7 @@ config("config") {
     "//ios/third_party/earl_grey2/src/TestLib/Condition",
     "//ios/third_party/earl_grey2/src/TestLib/Config",
     "//ios/third_party/earl_grey2/src/TestLib/DistantObject",
+    "//ios/third_party/earl_grey2/src/TestLib/EarlGreyImpl",
     "//ios/third_party/earl_grey2/src/TestLib/Exception",
     "//ios/third_party/earl_grey2/src/TestLib/Execution",
     "//ios/third_party/earl_grey2/src/TestLib/FailureHandler",
@@ -170,7 +173,6 @@ source_set("common_lib") {
   ]
   configs += [
     "//build/config/compiler:no_chromium_code",
-    "//build/config/compiler:enable_arc",
     "//build/config/gcc:symbol_visibility_default",
   ]
 }
@@ -244,7 +246,6 @@ source_set("ui_lib") {
   ]
   configs += [
     "//build/config/compiler:no_chromium_code",
-    "//build/config/compiler:enable_arc",
     "//build/config/gcc:symbol_visibility_default",
   ]
 }
@@ -254,8 +255,10 @@ source_set("app_framework_shared_headers") {
 
   sources = [
     "src/AppFramework/Action/GREYAction.h",
+    "src/AppFramework/Action/GREYActionBlock.h",
     "src/AppFramework/Action/GREYActions.h",
     "src/AppFramework/Action/GREYActionsShorthand.h",
+    "src/AppFramework/Action/GREYBaseAction.h",
     "src/AppFramework/Additions/UITextSelectionView+GREYApp.h",
     "src/AppFramework/Config/GREYAppConfiguration.h",
     "src/AppFramework/Core/GREYElementInteraction.h",
@@ -283,11 +286,9 @@ ios_framework_bundle("app_framework") {
 
   sources = [
     "src/AppFramework/Action/GREYActionBlock+Private.h",
-    "src/AppFramework/Action/GREYActionBlock.h",
     "src/AppFramework/Action/GREYActionBlock.m",
     "src/AppFramework/Action/GREYActions.m",
     "src/AppFramework/Action/GREYActionsShorthand.m",
-    "src/AppFramework/Action/GREYBaseAction.h",
     "src/AppFramework/Action/GREYBaseAction.m",
     "src/AppFramework/Action/GREYChangeStepperAction.h",
     "src/AppFramework/Action/GREYChangeStepperAction.m",
@@ -453,7 +454,6 @@ ios_framework_bundle("app_framework") {
   ]
   configs += [
     "//build/config/compiler:no_chromium_code",
-    "//build/config/compiler:enable_arc",
     "//build/config/gcc:symbol_visibility_default",
   ]
 }
@@ -548,7 +548,6 @@ source_set("test_lib") {
   ]
   configs += [
     "//build/config/compiler:no_chromium_code",
-    "//build/config/compiler:enable_arc",
     "//build/config/gcc:symbol_visibility_default",
   ]
 }

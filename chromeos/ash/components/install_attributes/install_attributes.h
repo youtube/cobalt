@@ -6,6 +6,7 @@
 #define CHROMEOS_ASH_COMPONENTS_INSTALL_ATTRIBUTES_INSTALL_ATTRIBUTES_H_
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -15,10 +16,9 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chromeos/ash/components/dbus/userdataauth/install_attributes_client.h"
+#include "chromeos/ash/components/dbus/device_management/install_attributes_client.h"
 #include "chromeos/dbus/tpm_manager/tpm_manager.pb.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -86,7 +86,7 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
   void SetBlockDevmodeInTpm(
       bool block_devmode,
       chromeos::DBusMethodCallback<
-          user_data_auth::SetFirmwareManagementParametersReply> callback);
+          device_management::SetFirmwareManagementParametersReply> callback);
 
   // Locks the device into |device_mode|.  Depending on |device_mode|, a
   // specific subset of |domain|, |realm| and |device_id| must be set.  Can also
@@ -106,15 +106,8 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
   // Checks whether this is a cloud (DM server) managed enterprise device.
   bool IsCloudManaged() const;
 
-  // Checks whether this is an Active Directory managed enterprise device.
-  // In theory, this can still yield true for a few left-over AD devices.
-  // However, starting in M114, it is considered safe to assume that this
-  // function always returns false.
-  // TODO(b/279364186) Remove.
-  bool IsActiveDirectoryManaged() const;
-
-  // Checks whether this is a consumer kiosk enabled device.
-  bool IsConsumerKioskDeviceWithAutoLaunch();
+  // Whether the device is set up to run demo sessions.
+  bool IsDeviceInDemoMode() const;
 
   // Return the mode the device was enrolled to. The return value for devices
   // that are not locked yet is DEVICE_MODE_UNKNOWN.
@@ -161,6 +154,7 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
   FRIEND_TEST_ALL_PREFIXES(InstallAttributesTest, DeviceLockedFromOlderVersion);
   FRIEND_TEST_ALL_PREFIXES(InstallAttributesTest, Init);
   FRIEND_TEST_ALL_PREFIXES(InstallAttributesTest, InitForConsumerKiosk);
+  FRIEND_TEST_ALL_PREFIXES(InstallAttributesTest, InitForEnterpriseDemo);
   FRIEND_TEST_ALL_PREFIXES(InstallAttributesTest, LockCanonicalize);
   FRIEND_TEST_ALL_PREFIXES(InstallAttributesTest,
                            VerifyFakeInstallAttributesCache);
@@ -168,9 +162,8 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
   // Constants for the possible device modes that can be stored in the lockbox.
   static const char kConsumerDeviceMode[];
   static const char kEnterpriseDeviceMode[];
-  static const char kEnterpriseADDeviceMode[];
   static const char kLegacyRetailDeviceMode[];
-  static const char kConsumerKioskDeviceMode[];
+  static const char kLegacyConsumerKioskDeviceMode[];
   static const char kDemoDeviceMode[];
 
   // Field names in the lockbox.
@@ -201,7 +194,7 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
   // Helper for ReadImmutableAttributes.
   void ReadAttributesIfReady(
       base::OnceClosure callback,
-      absl::optional<user_data_auth::InstallAttributesGetStatusReply> reply);
+      std::optional<device_management::InstallAttributesGetStatusReply> reply);
 
   // Helper for LockDevice(). Handles the result of InstallAttributesIsReady()
   // and continue processing LockDevice if the result is true.
@@ -211,7 +204,7 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
       const std::string& realm,
       const std::string& device_id,
       LockResultCallback callback,
-      absl::optional<user_data_auth::InstallAttributesGetStatusReply> reply);
+      std::optional<device_management::InstallAttributesGetStatusReply> reply);
 
   // Confirms the registered user and invoke the callback.
   void OnReadImmutableAttributes(policy::DeviceMode mode,
@@ -236,7 +229,7 @@ class COMPONENT_EXPORT(ASH_INSTALL_ATTRIBUTES) InstallAttributes {
   void OnClearStoredOwnerPassword(
       const ::tpm_manager::ClearStoredOwnerPasswordReply& reply);
 
-  raw_ptr<InstallAttributesClient, DanglingUntriaged | ExperimentalAsh>
+  raw_ptr<InstallAttributesClient, DanglingUntriaged>
       install_attributes_client_;
 
   base::WeakPtrFactory<InstallAttributes> weak_ptr_factory_{this};

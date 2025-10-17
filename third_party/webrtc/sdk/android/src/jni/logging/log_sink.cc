@@ -24,13 +24,13 @@ void JNILogSink::OnLogMessage(const std::string& msg) {
 }
 
 void JNILogSink::OnLogMessage(const std::string& msg,
-                              rtc::LoggingSeverity severity,
+                              LoggingSeverity severity,
                               const char* tag) {
   OnLogMessage(absl::string_view{msg}, severity, tag);
 }
 
 void JNILogSink::OnLogMessage(absl::string_view msg,
-                              rtc::LoggingSeverity severity,
+                              LoggingSeverity severity,
                               const char* tag) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_JNILogging_logToInjectable(

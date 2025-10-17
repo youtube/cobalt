@@ -4,6 +4,7 @@
 
 #include "base/metrics/histogram_delta_serialization.h"
 
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_snapshot_manager.h"
@@ -20,8 +21,9 @@ namespace {
 // Silently returns when seeing any data problem in the pickle.
 void DeserializeHistogramAndAddSamples(PickleIterator* iter) {
   HistogramBase* histogram = DeserializeHistogramInfo(iter);
-  if (!histogram)
+  if (!histogram) {
     return;
+  }
 
   if (histogram->HasFlags(HistogramBase::kIPCSerializationSourceFlag)) {
     DVLOG(1) << "Single process mode, histogram observed and not copied: "
@@ -57,9 +59,8 @@ void HistogramDeltaSerialization::PrepareAndSerializeDeltas(
 // static
 void HistogramDeltaSerialization::DeserializeAndAddSamples(
     const std::vector<std::string>& serialized_deltas) {
-  for (auto it = serialized_deltas.begin(); it != serialized_deltas.end();
-       ++it) {
-    Pickle pickle(it->data(), it->size());
+  for (const std::string& serialized_delta : serialized_deltas) {
+    Pickle pickle = Pickle::WithUnownedBuffer(as_byte_span(serialized_delta));
     PickleIterator iter(pickle);
     DeserializeHistogramAndAddSamples(&iter);
   }

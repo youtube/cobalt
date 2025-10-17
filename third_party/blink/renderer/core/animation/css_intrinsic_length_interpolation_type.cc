@@ -9,6 +9,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/core/animation/interpolable_length.h"
+#include "third_party/blink/renderer/core/animation/underlying_value_owner.h"
 #include "third_party/blink/renderer/core/css/resolver/style_builder_converter.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_state.h"
@@ -20,35 +21,41 @@ namespace blink {
 class CSSIntrinsicLengthNonInterpolableValue final
     : public NonInterpolableValue {
  public:
+  enum EType { kNone, kAutoAndLength, kLength, kAutoAndNone };
+
+  explicit CSSIntrinsicLengthNonInterpolableValue(EType type) : type_(type) {}
   ~CSSIntrinsicLengthNonInterpolableValue() final = default;
 
-  enum EType { kNone, kAutoAndLength, kLength };
-
-  static scoped_refptr<CSSIntrinsicLengthNonInterpolableValue> Create(
-      absl::optional<StyleIntrinsicLength> intrinsic_dimension) {
-    EType type = kLength;
-    if (!intrinsic_dimension)
-      type = kNone;
-    else if (intrinsic_dimension->HasAuto())
+  static CSSIntrinsicLengthNonInterpolableValue* Create(
+      const StyleIntrinsicLength& intrinsic_dimension) {
+    EType type = kNone;
+    if (intrinsic_dimension.HasAuto() &&
+        intrinsic_dimension.GetLength().has_value()) {
       type = kAutoAndLength;
-    return base::AdoptRef(new CSSIntrinsicLengthNonInterpolableValue(type));
+    } else if (intrinsic_dimension.HasAuto()) {
+      type = kAutoAndNone;
+    } else if (intrinsic_dimension.GetLength().has_value()) {
+      type = kLength;
+    }
+    return MakeGarbageCollected<CSSIntrinsicLengthNonInterpolableValue>(type);
   }
 
-  bool IsNone() const { return type_ == kNone; }
-  bool HasAuto() const { return type_ == kAutoAndLength; }
+  bool HasNone() const { return type_ == kNone || type_ == kAutoAndNone; }
+  bool HasAuto() const {
+    return type_ == kAutoAndLength || type_ == kAutoAndNone;
+  }
 
   bool IsCompatibleWith(
       const CSSIntrinsicLengthNonInterpolableValue& other) const {
-    if (IsNone() || other.IsNone() || (HasAuto() != other.HasAuto()))
+    if (HasNone() || other.HasNone() || (HasAuto() != other.HasAuto())) {
       return false;
+    }
     return true;
   }
 
   DECLARE_NON_INTERPOLABLE_VALUE_TYPE();
 
  private:
-  explicit CSSIntrinsicLengthNonInterpolableValue(EType type) : type_(type) {}
-
   EType type_;
 };
 
@@ -69,7 +76,7 @@ class InheritedIntrinsicDimensionChecker
  public:
   explicit InheritedIntrinsicDimensionChecker(
       bool is_width,
-      absl::optional<StyleIntrinsicLength> intrinsic_dimension)
+      const StyleIntrinsicLength& intrinsic_dimension)
       : is_width_(is_width), intrinsic_dimension_(intrinsic_dimension) {}
 
  private:
@@ -84,18 +91,21 @@ class InheritedIntrinsicDimensionChecker
   }
 
   bool is_width_;
-  const absl::optional<StyleIntrinsicLength> intrinsic_dimension_;
+  const StyleIntrinsicLength intrinsic_dimension_;
 };
 
-std::unique_ptr<InterpolableValue>
+InterpolableValue*
 CSSIntrinsicLengthInterpolationType::CreateInterpolableIntrinsicDimension(
-    const absl::optional<StyleIntrinsicLength>& intrinsic_dimension) {
-  if (!intrinsic_dimension)
+    const StyleIntrinsicLength& intrinsic_dimension,
+    float zoom) {
+  const auto& length = intrinsic_dimension.GetLength();
+  if (!length) {
     return nullptr;
+  }
 
-  DCHECK(intrinsic_dimension->GetLength().IsFixed());
-  return InterpolableLength::CreatePixels(
-      intrinsic_dimension->GetLength().Value());
+  DCHECK(length->IsFixed());
+  CHECK_GT(zoom, 0.f);
+  return InterpolableLength::CreatePixels(length->Pixels() / zoom);
 }
 
 PairwiseInterpolationValue
@@ -112,8 +122,7 @@ CSSIntrinsicLengthInterpolationType::MaybeMergeSingles(
                                     std::move(start.non_interpolable_value));
 }
 
-absl::optional<StyleIntrinsicLength>
-CSSIntrinsicLengthInterpolationType::GetIntrinsicDimension(
+StyleIntrinsicLength CSSIntrinsicLengthInterpolationType::GetIntrinsicDimension(
     const ComputedStyle& style) const {
   return CssProperty().PropertyID() == CSSPropertyID::kContainIntrinsicWidth
              ? style.ContainIntrinsicWidth()
@@ -122,7 +131,7 @@ CSSIntrinsicLengthInterpolationType::GetIntrinsicDimension(
 
 void CSSIntrinsicLengthInterpolationType::SetIntrinsicDimension(
     ComputedStyleBuilder& builder,
-    const absl::optional<StyleIntrinsicLength>& dimension) const {
+    const StyleIntrinsicLength& dimension) const {
   if (CssProperty().PropertyID() == CSSPropertyID::kContainIntrinsicWidth)
     builder.SetContainIntrinsicWidth(dimension);
   else
@@ -139,11 +148,10 @@ InterpolationValue CSSIntrinsicLengthInterpolationType::MaybeConvertNeutral(
 InterpolationValue CSSIntrinsicLengthInterpolationType::MaybeConvertInitial(
     const StyleResolverState& state,
     ConversionCheckers& conversion_checkers) const {
-  absl::optional<StyleIntrinsicLength> initial_dimension =
-      GetIntrinsicDimension(
-          state.GetDocument().GetStyleResolver().InitialStyle());
+  StyleIntrinsicLength initial_dimension = GetIntrinsicDimension(
+      state.GetDocument().GetStyleResolver().InitialStyle());
   return InterpolationValue(
-      CreateInterpolableIntrinsicDimension(initial_dimension),
+      CreateInterpolableIntrinsicDimension(initial_dimension, 1.f),
       CSSIntrinsicLengthNonInterpolableValue::Create(initial_dimension));
 }
 
@@ -153,17 +161,19 @@ InterpolationValue CSSIntrinsicLengthInterpolationType::MaybeConvertInherit(
   if (!state.ParentStyle())
     return nullptr;
 
-  absl::optional<StyleIntrinsicLength> inherited_intrinsic_dimension =
+  StyleIntrinsicLength inherited_intrinsic_dimension =
       GetIntrinsicDimension(*state.ParentStyle());
   conversion_checkers.push_back(
-      std::make_unique<InheritedIntrinsicDimensionChecker>(
+      MakeGarbageCollected<InheritedIntrinsicDimensionChecker>(
           CssProperty().PropertyID() == CSSPropertyID::kContainIntrinsicWidth,
           inherited_intrinsic_dimension));
-  if (!inherited_intrinsic_dimension)
+  if (inherited_intrinsic_dimension.IsNoOp()) {
     return nullptr;
+  }
 
   return InterpolationValue(
-      CreateInterpolableIntrinsicDimension(inherited_intrinsic_dimension),
+      CreateInterpolableIntrinsicDimension(
+          inherited_intrinsic_dimension, state.ParentStyle()->EffectiveZoom()),
       CSSIntrinsicLengthNonInterpolableValue::Create(
           inherited_intrinsic_dimension));
 }
@@ -171,20 +181,21 @@ InterpolationValue CSSIntrinsicLengthInterpolationType::MaybeConvertInherit(
 InterpolationValue CSSIntrinsicLengthInterpolationType::
     MaybeConvertStandardPropertyUnderlyingValue(
         const ComputedStyle& style) const {
-  absl::optional<StyleIntrinsicLength> dimension = GetIntrinsicDimension(style);
+  StyleIntrinsicLength dimension = GetIntrinsicDimension(style);
   return InterpolationValue(
-      CreateInterpolableIntrinsicDimension(dimension),
+      CreateInterpolableIntrinsicDimension(dimension, style.EffectiveZoom()),
       CSSIntrinsicLengthNonInterpolableValue::Create(dimension));
 }
 
 InterpolationValue CSSIntrinsicLengthInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState* state,
+    const StyleResolverState& state,
     ConversionCheckers&) const {
-  absl::optional<StyleIntrinsicLength> dimension =
-      StyleBuilderConverter::ConvertIntrinsicDimension(*state, value);
+  const StyleIntrinsicLength& dimension =
+      StyleBuilderConverter::ConvertIntrinsicDimension(state, value);
   return InterpolationValue(
-      CreateInterpolableIntrinsicDimension(dimension),
+      CreateInterpolableIntrinsicDimension(
+          dimension, state.StyleBuilder().EffectiveZoom()),
       CSSIntrinsicLengthNonInterpolableValue::Create(dimension));
 }
 
@@ -195,8 +206,10 @@ void CSSIntrinsicLengthInterpolationType::ApplyStandardPropertyValue(
   const auto& interpolable = To<InterpolableLength>(interpolable_value);
   const auto* non_interpolable =
       To<CSSIntrinsicLengthNonInterpolableValue>(non_interpolable_value);
-  if (non_interpolable->IsNone()) {
-    SetIntrinsicDimension(state.StyleBuilder(), absl::nullopt);
+  if (non_interpolable->HasNone()) {
+    SetIntrinsicDimension(
+        state.StyleBuilder(),
+        StyleIntrinsicLength(non_interpolable->HasAuto(), std::nullopt));
   } else {
     SetIntrinsicDimension(
         state.StyleBuilder(),

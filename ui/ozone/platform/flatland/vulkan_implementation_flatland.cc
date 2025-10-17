@@ -60,7 +60,6 @@ gpu::VulkanInstance* VulkanImplementationFlatland::GetVulkanInstance() {
 std::unique_ptr<gpu::VulkanSurface>
 VulkanImplementationFlatland::CreateViewSurface(gfx::AcceleratedWidget window) {
   NOTREACHED();
-  return nullptr;
 }
 
 bool VulkanImplementationFlatland::GetPhysicalDevicePresentationSupport(
@@ -110,29 +109,9 @@ VulkanImplementationFlatland::ExportVkFenceToGpuFence(VkDevice vk_device,
   return nullptr;
 }
 
-VkSemaphore VulkanImplementationFlatland::CreateExternalSemaphore(
-    VkDevice vk_device) {
-  return gpu::CreateExternalVkSemaphore(
-      vk_device, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_ZIRCON_EVENT_BIT_FUCHSIA);
-}
-
-VkSemaphore VulkanImplementationFlatland::ImportSemaphoreHandle(
-    VkDevice vk_device,
-    gpu::SemaphoreHandle handle) {
-  return gpu::ImportVkSemaphoreHandle(vk_device, std::move(handle));
-}
-
-gpu::SemaphoreHandle VulkanImplementationFlatland::GetSemaphoreHandle(
-    VkDevice vk_device,
-    VkSemaphore vk_semaphore) {
-  return gpu::GetVkSemaphoreHandle(
-      vk_device, vk_semaphore,
-      VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_ZIRCON_EVENT_BIT_FUCHSIA);
-}
-
-VkExternalMemoryHandleTypeFlagBits
-VulkanImplementationFlatland::GetExternalImageHandleType() {
-  return VK_EXTERNAL_MEMORY_HANDLE_TYPE_ZIRCON_VMO_BIT_FUCHSIA;
+VkExternalSemaphoreHandleTypeFlagBits
+VulkanImplementationFlatland::GetExternalSemaphoreHandleType() {
+  return VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_ZIRCON_EVENT_BIT_FUCHSIA;
 }
 
 bool VulkanImplementationFlatland::CanImportGpuMemoryBuffer(
@@ -151,13 +130,13 @@ VulkanImplementationFlatland::CreateImageFromGpuMemoryHandle(
   if (gmb_handle.type != gfx::NATIVE_PIXMAP)
     return nullptr;
 
-  if (!gmb_handle.native_pixmap_handle.buffer_collection_handle) {
+  if (!gmb_handle.native_pixmap_handle().buffer_collection_handle) {
     DLOG(ERROR) << "NativePixmapHandle.buffer_collection_handle is not set.";
     return nullptr;
   }
 
   auto collection = flatland_sysmem_buffer_manager_->GetCollectionByHandle(
-      gmb_handle.native_pixmap_handle.buffer_collection_handle);
+      gmb_handle.native_pixmap_handle().buffer_collection_handle);
   if (!collection) {
     DLOG(ERROR) << "Tried to use an unknown buffer collection ID.";
     return nullptr;
@@ -166,7 +145,7 @@ VulkanImplementationFlatland::CreateImageFromGpuMemoryHandle(
   VkImageCreateInfo vk_image_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
   VkDeviceMemory vk_device_memory = VK_NULL_HANDLE;
   VkDeviceSize vk_device_size = 0;
-  if (!collection->CreateVkImage(gmb_handle.native_pixmap_handle.buffer_index,
+  if (!collection->CreateVkImage(gmb_handle.native_pixmap_handle().buffer_index,
                                  device_queue->GetVulkanDevice(), size,
                                  &vk_image, &vk_image_info, &vk_device_memory,
                                  &vk_device_size)) {
@@ -174,7 +153,7 @@ VulkanImplementationFlatland::CreateImageFromGpuMemoryHandle(
     return nullptr;
   }
 
-  absl::optional<gpu::VulkanYCbCrInfo> ycbcr_info;
+  std::optional<gpu::VulkanYCbCrInfo> ycbcr_info;
   if (collection->format() == gfx::BufferFormat::YUV_420_BIPLANAR) {
     VkSamplerYcbcrModelConversion ycbcr_conversion =
         (color_space.GetMatrixID() == gfx::ColorSpace::MatrixID::BT709)
@@ -206,7 +185,7 @@ VulkanImplementationFlatland::CreateImageFromGpuMemoryHandle(
 
   image->set_queue_family_index(VK_QUEUE_FAMILY_EXTERNAL);
   image->set_native_pixmap(collection->CreateNativePixmap(
-      std::move(gmb_handle.native_pixmap_handle), size));
+      std::move(gmb_handle).native_pixmap_handle(), size));
   return image;
 }
 

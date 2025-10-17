@@ -10,9 +10,8 @@ namespace ash::video_conference {
 // IDs used for the main views that comprise the video conference bubble view.
 // Use these for easy access to the views during the unittests. Note that these
 // IDs are only guaranteed to be unique inside the bubble view.
-// TODO(b/273786662): `kToggleEffectsButton` and `kSetValueButtonMin` belongs to
-// multiple buttons, and one id should only belong to one view, so we should
-// remove these.
+// TODO(b/273786662): `kToggleEffectsButton` belongs to multiple buttons, and
+// one id should only belong to one view, so we should remove it.
 enum BubbleViewID {
   // Main outermost bubble view, what's actually launched from the tray. Start
   // from 1 because 0 is the default view ID.
@@ -39,16 +38,57 @@ enum BubbleViewID {
   // Icon which is a child of an individual "toggle" VC effect.
   kToggleEffectIcon,
 
-  // Buttons for setting an individual value of a "set-value" VC effect,
-  // children of `kSetValueEffectsContainer`. Since the number of values for a
-  // given effect can't be known at compile-time, an allowable range of IDs
-  // [`kSetValueButtonMin`..`kSetValueButtonMax`] is allocated, with IDs clamped
-  // at kSetValueButtonMax. If a specific ID doesn't matter, then just use
-  // `kSetValueButton`.
-  kSetValueButtonMin = kToggleEffectsButton + 1,
-  kSetValueButton = kSetValueButtonMin,
-  kSetValueButtonMax = kSetValueButtonMin + 100,
-  kNextAvailableId = kSetValueButtonMax + 1,
+  // Label which is a child of an individual "toggle" VC effect.
+  kToggleEffectLabel,
+
+  // The view with a warning icon and label, indicating that effects are not
+  // available
+  // for linux apps.
+  kLinuxAppWarningView,
+
+  // The view with a warning icon and a custom label for each DLC which had an
+  // error installing.
+  kDLCDownloadsInErrorView,
+
+  // The label in the generic warning view which is either
+  // `kLinuxAppWarningView` or `kDLCDownloadsInErrorView`.
+  kWarningViewLabel,
+
+  // The VC bubble that will be displayed when all the running media apps are
+  // Linux apps.
+  kLinuxAppBubbleView,
+
+  // The view that contains elements for setting camera background.
+  kSetCameraBackgroundView,
+
+  // Background blur off button.
+  kBackgroundBlurOffButton,
+
+  // Background blur light button.
+  kBackgroundBlurLightButton,
+
+  // Background blur full button.
+  kBackgroundBlurFullButton,
+
+  // Background blur image button.
+  kBackgroundBlurImageButton,
+
+  // The first recently used background image.
+  kBackgroundImage0,
+
+  // The second recently used background image.
+  kBackgroundImage1,
+
+  // The third recently used background image.
+  kBackgroundImage2,
+
+  // The fourth recently used background image.
+  kBackgroundImage3,
+
+  // The create with AI button.
+  kCreateWithAiButton,
+
+  kNextAvailableId = kCreateWithAiButton + 1,
 };
 
 }  // namespace ash::video_conference

@@ -9,9 +9,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "ash/components/arc/mojom/screen_capture.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker.h"
+#include "chromeos/ash/experiences/arc/mojom/screen_capture.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/desktop_media_id.h"
 
@@ -78,7 +78,7 @@ class ArcScreenCaptureBridge : public KeyedService,
   void PermissionPromptCallback(const std::string& package_name,
                                 content::DesktopMediaID desktop_id);
 
-  const raw_ptr<ArcBridgeService, ExperimentalAsh>
+  const raw_ptr<ArcBridgeService>
       arc_bridge_service_;  // Owned by ArcServiceManager.
 
   // The string in this map corresponds to the passed in package_name when

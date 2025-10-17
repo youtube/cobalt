@@ -12,9 +12,9 @@
 #include "pdf/pdfium/pdfium_engine.h"
 #include "pdf/pdfium/pdfium_test_base.h"
 #include "pdf/test/test_client.h"
+#include "pdf/test/test_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
-#include "third_party/blink/public/web/blink.h"
 #include "third_party/pdfium/public/fpdf_annot.h"
 #include "third_party/pdfium/public/fpdf_formfill.h"
 #include "ui/gfx/geometry/point.h"
@@ -36,7 +36,7 @@ class FormFillerTestClient : public TestClient {
   FormFillerTestClient(const FormFillerTestClient&) = delete;
   FormFillerTestClient& operator=(const FormFillerTestClient&) = delete;
 
-  // Mock PDFEngine::Client methods.
+  // Mock PDFiumEngineClient methods.
   MOCK_METHOD(void, Beep, (), (override));
   MOCK_METHOD(std::string, GetURL, (), (override));
   MOCK_METHOD(void, ScrollToX, (int), (override));
@@ -192,18 +192,26 @@ INSTANTIATE_TEST_SUITE_P(All, FormFillerTest, testing::Bool());
 #if defined(PDF_ENABLE_V8)
 class FormFillerJavaScriptTest : public FormFillerTest {
  public:
-  FormFillerJavaScriptTest() {
+  void SetUp() override {
     // Needed for setting up V8.
-    InitializeSDK(/*enable_v8=*/true, FontMappingMode::kNoMapping);
+    //
+    // Note that this does not call FormFillerTest::SetUp() to avoid double SDK
+    // initialization.
+    InitializeSDK(/*enable_v8=*/true, /*use_skia=*/GetParam(),
+                  FontMappingMode::kNoMapping);
   }
 
-  ~FormFillerJavaScriptTest() override { ShutdownSDK(); }
+  void TearDown() override {
+    // Note that this does not call FormFillerTest::TearDown() to avoid double
+    // SDK destruction.
+    ShutdownSDK();
+  }
 };
 
 TEST_P(FormFillerJavaScriptTest, IsolateScoping) {
   // Enter the embedder's isolate so it can be captured when the
   // `PDFiumFormFiller` is created.
-  v8::Isolate* embedder_isolate = blink::MainThreadIsolate();
+  v8::Isolate* embedder_isolate = GetBlinkIsolate();
   v8::Isolate::Scope embedder_isolate_scope(embedder_isolate);
 
   FormFillerTestClient client;

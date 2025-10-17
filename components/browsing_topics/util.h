@@ -8,21 +8,30 @@
 #include "base/containers/span.h"
 #include "base/time/time.h"
 #include "components/browsing_topics/common/common_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace browsing_topics {
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class CalculatorResultStatus {
+  kSuccess = 0,
+  kFailurePermissionDenied = 1,
+  kFailureApiUsageContextQueryError = 2,
+  kFailureAnnotationExecutionError = 3,
+  kFailureTaxonomyVersionNotSupportedInBinary = 4,
+  kHangingAfterApiUsageRequested = 5,
+  kHangingAfterHistoryRequested = 6,
+  kHangingAfterModelRequested = 7,
+  kHangingAfterAnnotationRequested = 8,
+  kTerminated = 9,
+
+  kMaxValue = kTerminated,
+};
+
+bool DoesCalculationFailDueToHanging(CalculatorResultStatus status);
+
 using HmacKey = std::array<uint8_t, 32>;
 using ReadOnlyHmacKey = base::span<const uint8_t, 32>;
-
-// Get the size of the taxonomy. This is used for generating random topics from
-// [1, `GetTaxonomySize()`]. It returns nullopt if this Chrome binary does not
-// support the finch configured taxonomy version
-// `kBrowsingTopicsTaxonomyVersion`.
-//
-// TODO(yaoxia): this should be maintained by UX along with the string mappings.
-// Consider moving to a UX component.
-absl::optional<size_t> GetTaxonomySize();
 
 // Generate a 256 bit random hmac key.
 HmacKey GenerateRandomHmacKey();
@@ -51,10 +60,21 @@ uint64_t HashTopDomainForTopTopicIndexDecision(
     base::Time epoch_calculation_time,
     const std::string& top_domain);
 
-// Returns a per-user hash of `top_domain` for the purpose of deciding the epoch
-// switch-over time. The `hmac_key` is per-user.
-uint64_t HashTopDomainForEpochSwitchTimeDecision(ReadOnlyHmacKey hmac_key,
-                                                 const std::string& top_domain);
+// Returns a per-user, per-epoch hash of `top_domain` for the purpose of
+// deciding the epoch introduction time. The `hmac_key` is per-user and
+// `epoch_calculation_time` represents the epoch.
+uint64_t HashTopDomainForEpochIntroductionTimeDecision(
+    ReadOnlyHmacKey hmac_key,
+    base::Time epoch_calculation_time,
+    const std::string& top_domain);
+
+// Returns a per-user, per-epoch hash of `top_domain` for the purpose of
+// deciding the epoch phase out time. The `hmac_key` is per-user and
+// `epoch_calculation_time` represents the epoch.
+uint64_t HashTopDomainForEpochPhaseOutTimeDecision(
+    ReadOnlyHmacKey hmac_key,
+    base::Time epoch_calculation_time,
+    const std::string& top_domain);
 
 // Returns a per-user hash of `context_domain` to be stored more efficiently in
 // disk and memory. The `hmac_key` is per-user. A per-user hash is necessary to

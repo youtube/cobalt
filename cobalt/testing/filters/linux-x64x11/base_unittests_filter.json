@@ -102,6 +102,13 @@
     "ProcessUtilTest.FDRemappingIncludesStdio",
     "ImmediateCrashTest.ExpectedOpcodeSequence",
     "PostTaskAndReplyImplTest.PostTaskToStoppedTaskRunnerWithoutSequencedContext",
-    "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock"
+    "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock",
+    "TransliteratorTest.*",
+    "LaunchTest.GetAppOutputWithInvalidExecutableShouldFail",
+    "All/HistogramSharedMemoryTest*",
+    "All/SharedMemorySwitchTest*",
+    "DriveInfoTest.GetFileDriveInfo",
+    "SequencedTaskRunnerCurrentDefaultHandleTest.OverrideWithNull",
+    "SingleThreadTaskRunnerCurrentDefaultHandleTest.OverrideWithNull"
   ]
 }

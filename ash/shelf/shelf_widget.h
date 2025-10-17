@@ -12,6 +12,7 @@
 #include "ash/controls/contextual_tooltip.h"
 #include "ash/public/cpp/session/session_observer.h"
 #include "ash/public/cpp/shelf_types.h"
+#include "ash/shelf/desk_button_widget.h"
 #include "ash/shelf/hotseat_transition_animator.h"
 #include "ash/shelf/hotseat_widget.h"
 #include "ash/shelf/shelf.h"
@@ -19,21 +20,21 @@
 #include "ash/shelf/shelf_component.h"
 #include "ash/shelf/shelf_layout_manager_observer.h"
 #include "ash/shelf/shelf_observer.h"
+#include "ash/wm/overview/overview_observer.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
 enum class AnimationChangeType;
-class ApplicationDragAndDropHost;
 class DragHandle;
-class FocusCycler;
 class HotseatWidget;
 class LoginShelfView;
 class Shelf;
 class ShelfLayoutManager;
 class ShelfNavigationWidget;
 class ShelfView;
+class ShelfWidgetDelegateView;
 class StatusAreaWidget;
 
 // The ShelfWidget manages the shelf view (which contains the shelf icons) and
@@ -43,7 +44,8 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
                                public ShelfComponent,
                                public ShelfLayoutManagerObserver,
                                public ShelfObserver,
-                               public views::Widget {
+                               public views::Widget,
+                               public OverviewObserver {
  public:
   explicit ShelfWidget(Shelf* shelf);
 
@@ -61,8 +63,6 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   // Clean up prior to deletion.
   void Shutdown();
 
-  ShelfBackgroundType GetBackgroundType() const;
-
   const Shelf* shelf() const { return shelf_; }
   void RegisterHotseatWidget(HotseatWidget* hotseat_widget);
   ShelfLayoutManager* shelf_layout_manager() { return shelf_layout_manager_; }
@@ -73,16 +73,15 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
     return shelf_->navigation_widget();
   }
   HotseatWidget* hotseat_widget() const { return shelf_->hotseat_widget(); }
+  DeskButtonWidget* desk_button_widget() const {
+    return shelf_->desk_button_widget();
+  }
   StatusAreaWidget* status_area_widget() const {
     return shelf_->status_area_widget();
   }
   void PostCreateShelf();
 
   bool IsShowingMenu() const;
-
-  // Sets the focus cycler. Also adds the shelf to the cycle.
-  void SetFocusCycler(FocusCycler* focus_cycler);
-  FocusCycler* GetFocusCycler();
 
   // See Shelf::GetScreenBoundsOfItemIconForWindow().
   gfx::Rect GetScreenBoundsOfItemIconForWindow(aura::Window* window);
@@ -92,15 +91,10 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   // as those are not visible to the user.
   gfx::Rect GetVisibleShelfBounds() const;
 
-  // Returns the ApplicationDragAndDropHost for this shelf.
-  ApplicationDragAndDropHost* GetDragAndDropHostForAppList();
-
   // Fetch the LoginShelfView instance.
   // TODO(https://crbug.com/1343114): remove this method after the login shelf
   // is moved to its own widget.
   LoginShelfView* GetLoginShelfView();
-
-  void set_default_last_focusable_child(bool default_last_focusable_child);
 
   // views::Widget:
   void OnMouseEvent(ui::MouseEvent* event) override;
@@ -114,8 +108,9 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   void UpdateLayout(bool animate) override;
   void UpdateTargetBoundsForGesture(int shelf_position) override;
 
-  // Called when shelf layout manager detects a locale change.
-  void HandleLocaleChange();
+  // OverviewObserver:
+  void OnOverviewModeStarting() override;
+  void OnOverviewModeEnding(OverviewSession* overview_session) override;
 
   // TODO(manucornet): Remove this method when all this widget's layout
   // logic is part of this class.
@@ -137,9 +132,6 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   void OnUserSessionAdded(const AccountId& account_id) override;
 
   SkColor GetShelfBackgroundColor() const;
-  bool GetHitTestRects(aura::Window* target,
-                       gfx::Rect* hit_test_rect_mouse,
-                       gfx::Rect* hit_test_rect_touch);
 
   // Force to show hotseat in tablet mode. When the returned closure runner is
   // called or goes out of scope, it removes the caller as an instance to force
@@ -187,8 +179,7 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   }
 
  private:
-  class DelegateView;
-  friend class DelegateView;
+  friend class ShelfWidgetDelegateView;
 
   // Hides shelf widget if IsVisible() returns true.
   void HideIfShown();
@@ -202,7 +193,7 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   // Callback returned by ForceShowHotseatInTabletMode().
   void ResetForceShowHotseat();
 
-  raw_ptr<Shelf, ExperimentalAsh> shelf_;
+  raw_ptr<Shelf> shelf_;
   gfx::Rect target_bounds_;
   ShelfBackgroundAnimator background_animator_;
 
@@ -210,14 +201,14 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
   std::unique_ptr<ShelfLayoutManager> shelf_layout_manager_owned_;
 
   // Owned by the shelf container's window.
-  raw_ptr<ShelfLayoutManager, ExperimentalAsh> shelf_layout_manager_;
+  raw_ptr<ShelfLayoutManager> shelf_layout_manager_;
 
   // Sets shelf opacity to 0 after all animations have completed.
   std::unique_ptr<ui::ImplicitAnimationObserver> hide_animation_observer_;
 
   // |delegate_view_| is the contents view of this widget and is cleaned up
   // during CloseChildWindows of the associated RootWindowController.
-  raw_ptr<DelegateView, DanglingUntriaged | ExperimentalAsh> delegate_view_;
+  raw_ptr<ShelfWidgetDelegateView, DanglingUntriaged> delegate_view_;
 
   // Animates the shelf background to/from the hotseat background during hotseat
   // transitions.
@@ -225,7 +216,7 @@ class ASH_EXPORT ShelfWidget : public SessionObserver,
 
   // View containing the shelf items for Login/Lock/OOBE/Add User screens.
   // Owned by the views hierarchy.
-  raw_ptr<LoginShelfView, ExperimentalAsh> login_shelf_view_;
+  raw_ptr<LoginShelfView> login_shelf_view_;
 
   ScopedSessionObserver scoped_session_observer_;
 

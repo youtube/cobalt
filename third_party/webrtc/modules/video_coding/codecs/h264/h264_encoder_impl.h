@@ -40,7 +40,7 @@ class ISVCEncoder;
 
 namespace webrtc {
 
-class H264EncoderImpl : public H264Encoder {
+class H264EncoderImpl : public VideoEncoder {
  public:
   struct LayerConfig {
     int simulcast_idx = 0;
@@ -58,8 +58,8 @@ class H264EncoderImpl : public H264Encoder {
     void SetStreamState(bool send_stream);
   };
 
- public:
-  explicit H264EncoderImpl(const cricket::VideoCodec& codec);
+  H264EncoderImpl(const Environment& env, H264EncoderSettings settings);
+
   ~H264EncoderImpl() override;
 
   // `settings.max_payload_size` is ignored.
@@ -99,18 +99,19 @@ class H264EncoderImpl : public H264Encoder {
 
   std::vector<ISVCEncoder*> encoders_;
   std::vector<SSourcePicture> pictures_;
-  std::vector<rtc::scoped_refptr<I420Buffer>> downscaled_buffers_;
+  std::vector<webrtc::scoped_refptr<I420Buffer>> downscaled_buffers_;
   std::vector<LayerConfig> configurations_;
   std::vector<EncodedImage> encoded_images_;
   std::vector<std::unique_ptr<ScalableVideoController>> svc_controllers_;
-  absl::InlinedVector<absl::optional<ScalabilityMode>, kMaxSimulcastStreams>
+  absl::InlinedVector<std::optional<ScalabilityMode>, kMaxSimulcastStreams>
       scalability_modes_;
 
+  const Environment env_;
   VideoCodec codec_;
   H264PacketizationMode packetization_mode_;
   size_t max_payload_size_;
   int32_t number_of_cores_;
-  absl::optional<int> encoder_thread_limit_;
+  std::optional<int> encoder_thread_limit_;
   EncodedImageCallback* encoded_image_callback_;
 
   bool has_reported_init_;

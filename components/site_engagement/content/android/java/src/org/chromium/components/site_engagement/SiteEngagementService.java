@@ -4,10 +4,12 @@
 
 package org.chromium.components.site_engagement;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.BrowserContextHandle;
 
 /**
@@ -17,6 +19,7 @@ import org.chromium.content_public.browser.BrowserContextHandle;
  * allows Java to retrieve and modify engagement scores for URLs.
  */
 @JNINamespace("site_engagement")
+@NullMarked
 public class SiteEngagementService {
     /** Pointer to the native side SiteEngagementServiceAndroid shim. */
     private long mNativePointer;
@@ -27,8 +30,8 @@ public class SiteEngagementService {
      */
     public static SiteEngagementService getForBrowserContext(BrowserContextHandle browserContext) {
         assert ThreadUtils.runningOnUiThread();
-        return SiteEngagementServiceJni.get().siteEngagementServiceForBrowserContext(
-                browserContext);
+        return SiteEngagementServiceJni.get()
+                .siteEngagementServiceForBrowserContext(browserContext);
     }
 
     /**
@@ -38,8 +41,8 @@ public class SiteEngagementService {
     public double getScore(String url) {
         assert ThreadUtils.runningOnUiThread();
         if (mNativePointer == 0) return 0.0;
-        return SiteEngagementServiceJni.get().getScore(
-                mNativePointer, SiteEngagementService.this, url);
+        return SiteEngagementServiceJni.get()
+                .getScore(mNativePointer, SiteEngagementService.this, url);
     }
 
     /**
@@ -49,13 +52,11 @@ public class SiteEngagementService {
     public void resetBaseScoreForUrl(String url, double score) {
         assert ThreadUtils.runningOnUiThread();
         if (mNativePointer == 0) return;
-        SiteEngagementServiceJni.get().resetBaseScoreForURL(
-                mNativePointer, SiteEngagementService.this, url, score);
+        SiteEngagementServiceJni.get()
+                .resetBaseScoreForURL(mNativePointer, SiteEngagementService.this, url, score);
     }
 
-    /**
-     * Sets site engagement param values to constants for testing.
-     */
+    /** Sets site engagement param values to constants for testing. */
     public static void setParamValuesForTesting() {
         SiteEngagementServiceJni.get().setParamValuesForTesting();
     }
@@ -79,10 +80,16 @@ public class SiteEngagementService {
     interface Natives {
         SiteEngagementService siteEngagementServiceForBrowserContext(
                 BrowserContextHandle browserContext);
+
         void setParamValuesForTesting();
+
         double getScore(
                 long nativeSiteEngagementServiceAndroid, SiteEngagementService caller, String url);
-        void resetBaseScoreForURL(long nativeSiteEngagementServiceAndroid,
-                SiteEngagementService caller, String url, double score);
+
+        void resetBaseScoreForURL(
+                long nativeSiteEngagementServiceAndroid,
+                SiteEngagementService caller,
+                String url,
+                double score);
     }
 }

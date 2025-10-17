@@ -8,7 +8,7 @@
 
 namespace media {
 
-absl::optional<VideoPixelFormat> GfxBufferFormatToVideoPixelFormat(
+std::optional<VideoPixelFormat> GfxBufferFormatToVideoPixelFormat(
     gfx::BufferFormat format) {
   switch (format) {
     case gfx::BufferFormat::BGRX_8888:
@@ -38,16 +38,19 @@ absl::optional<VideoPixelFormat> GfxBufferFormatToVideoPixelFormat(
       return PIXEL_FORMAT_NV12A;
 
     case gfx::BufferFormat::P010:
-      return PIXEL_FORMAT_P016LE;
+      return PIXEL_FORMAT_P010LE;
+
+    case gfx::BufferFormat::RGBA_1010102:
+      return PIXEL_FORMAT_XR30;
 
     default:
       DLOG(WARNING) << "Unsupported BufferFormat: "
                     << gfx::BufferFormatToString(format);
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-absl::optional<gfx::BufferFormat> VideoPixelFormatToGfxBufferFormat(
+std::optional<gfx::BufferFormat> VideoPixelFormatToGfxBufferFormat(
     VideoPixelFormat pixel_format) {
   switch (pixel_format) {
     case PIXEL_FORMAT_ARGB:
@@ -71,12 +74,15 @@ absl::optional<gfx::BufferFormat> VideoPixelFormatToGfxBufferFormat(
     case PIXEL_FORMAT_XBGR:
       return gfx::BufferFormat::RGBX_8888;
 
-    case PIXEL_FORMAT_P016LE:
+    case PIXEL_FORMAT_P010LE:
       return gfx::BufferFormat::P010;
+
+    case PIXEL_FORMAT_XR30:
+      return gfx::BufferFormat::RGBA_1010102;
 
     default:
       DLOG(WARNING) << "Unsupported VideoPixelFormat: " << pixel_format;
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 

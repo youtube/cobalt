@@ -5,6 +5,7 @@
 #include "chromecast/common/cast_resource_delegate.h"
 
 #include <ostream>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/notreached.h"
@@ -62,21 +63,25 @@ gfx::Image CastResourceDelegate::GetNativeImageNamed(int resource_id) {
   return gfx::Image();
 }
 
+bool CastResourceDelegate::HasDataResource(int resource_id) const {
+  return false;
+}
+
 base::RefCountedStaticMemory* CastResourceDelegate::LoadDataResourceBytes(
     int resource_id,
     ui::ResourceScaleFactor scale_factor) {
   return NULL;
 }
 
-absl::optional<std::string> CastResourceDelegate::LoadDataResourceString(
+std::optional<std::string> CastResourceDelegate::LoadDataResourceString(
     int resource_id) {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool CastResourceDelegate::GetRawDataResource(
     int resource_id,
     ui::ResourceScaleFactor scale_factor,
-    base::StringPiece* value) const {
+    std::string_view* value) const {
   return false;
 }
 

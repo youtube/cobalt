@@ -4,9 +4,11 @@
 
 #include "chrome/browser/usb/usb_blocklist.h"
 
+#include <string_view>
+
 #include "base/memory/raw_ref.h"
-#include "base/strings/string_piece.h"
-#include "components/variations/variations_params_manager.h"
+#include "base/test/scoped_feature_list.h"
+#include "services/device/public/cpp/device_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class UsbBlocklistTest : public testing::Test {
@@ -15,13 +17,13 @@ class UsbBlocklistTest : public testing::Test {
 
   const UsbBlocklist& list() { return *blocklist_; }
 
-  void SetDynamicBlocklist(base::StringPiece list) {
-    params_manager_.ClearAllVariationParams();
+  void SetDynamicBlocklist(std::string_view list) {
+    feature_list_.Reset();
 
     std::map<std::string, std::string> params;
     params["blocklist_additions"] = std::string(list);
-    params_manager_.SetVariationParams("WebUSBBlocklist", params);
-
+    feature_list_.InitAndEnableFeatureWithParameters(features::kWebUsbBlocklist,
+                                                     params);
     blocklist_->ResetToDefaultValuesForTest();
   }
 
@@ -29,11 +31,11 @@ class UsbBlocklistTest : public testing::Test {
   void TearDown() override {
     // Because UsbBlocklist is a singleton it must be cleared after tests run
     // to prevent leakage between tests.
-    params_manager_.ClearAllVariationParams();
+    feature_list_.Reset();
     blocklist_->ResetToDefaultValuesForTest();
   }
 
-  variations::testing::VariationParamsManager params_manager_;
+  base::test::ScopedFeatureList feature_list_;
   const raw_ref<UsbBlocklist> blocklist_;
 };
 

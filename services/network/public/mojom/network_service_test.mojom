@@ -20,7 +20,7 @@ import "services/network/public/mojom/transferable_socket.mojom";
 
 // Maps to net::RuleBasedHostResolverProc::Rule::ResolverType.
 //
-// TODO(https://crbug.com/1298106) Deduplicate this enum's definition.
+// TODO(crbug.com/40822747) Deduplicate this enum's definition.
 enum ResolverType {
   kResolverTypeFail,
   kResolverTypeFailTimeout,
@@ -151,15 +151,6 @@ interface NetworkServiceTest {
       CertVerifyResult verify_result,
       int32 rv) => ();
 
-  // Toggles requiring CT for testing
-  enum RequireCT {
-    DEFAULT = 0,
-    REQUIRE = 1,
-  };
-
-  [Sync]
-  SetRequireCT(RequireCT required) => ();
-
   // Set the global transport security state preloaded static data source to
   // the unittest_default source, with the reporting URIs rewritten to use
   // |reporting_port|.  If |reporting_port| is 0, the source will be reset to
@@ -249,7 +240,26 @@ interface NetworkServiceTest {
   ResolveOwnHostnameWithSystemDns()
       => (network.mojom.AddressList addr_list, int32 os_error, int32 net_error);
 
+  // Sets the last IPv6 probe result.
+  SetIPv6ProbeResult(bool success) => ();
+
+  // Get the network service's cached AddressMap, which contains a list of
+  // network interfaces on the user's machine.
   [Sync, EnableIf=use_network_interface_change_listener]
   GetAddressMapCacheLinux()
       => (network.mojom.AddressMap addr_map, network.mojom.OnlineLinks links);
+
+  // Returns true if the network service is allowed to load a GSSAPI library.
+  // Only relevant on ChromeOS and Linux.
+  [Sync]
+  AllowsGSSAPILibraryLoad() => (bool allow_gssapi_library_load);
+
+  // Disable exclusive locking of the cookie database for testing.
+  // TODO(crbug.com/377940976): Remove this once the background sequence runner
+  // can be fully drained of tasks during network context shutdown.
+  [EnableIf=is_win]
+  DisableExclusiveCookieDatabaseLockingForTesting() => ();
+
+  // Returns true if the HappyEyeballs V3 is enabled for testing.
+  IsHappyEyeballsV3Enabled() => (bool is_happy_eyeballs_v3_enabled);
 };

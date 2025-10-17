@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "headless/public/headless_browser.h"
+
 #include <memory>
 #include <string>
 #include <tuple>
@@ -14,26 +16,35 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/devtools/simple_devtools_protocol_client/simple_devtools_protocol_client.h"
+#include "components/headless/select_file_dialog/headless_select_file_dialog.h"
+#include "components/infobars/content/content_infobar_manager.h"
+#include "components/infobars/core/confirm_infobar_delegate.h"
+#include "components/infobars/core/infobar.h"
+#include "components/infobars/core/infobars_switches.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/permission_controller_delegate.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/no_renderer_crashes_assertion.h"
+#include "content/public/test/prerender_test_util.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "headless/lib/browser/headless_browser_context_impl.h"
 #include "headless/lib/browser/headless_browser_impl.h"
-#include "headless/lib/browser/headless_select_file_dialog_factory.h"
 #include "headless/lib/browser/headless_web_contents_impl.h"
-#include "headless/public/headless_browser.h"
 #include "headless/public/headless_web_contents.h"
 #include "headless/public/switches.h"
 #include "headless/test/headless_browser_test.h"
@@ -51,6 +62,7 @@
 #include "third_party/blink/public/resources/grit/blink_resources.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "ui/base/clipboard/clipboard.h"
+#include "ui/base/clipboard/clipboard_non_backed.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/geometry/size.h"
@@ -69,6 +81,8 @@ using simple_devtools_protocol_client::SimpleDevToolsProtocolClient;
 using testing::UnorderedElementsAre;
 
 namespace headless {
+
+namespace {
 
 IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, CreateAndDestroyBrowserContext) {
   HeadlessBrowserContext* browser_context =
@@ -233,9 +247,8 @@ class HeadlessBrowserTestWithProxy : public HeadlessBrowserTest {
   net::EmbeddedTestServer proxy_server_;
 };
 
-#if (BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)) || BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1086872): Disabled due to flakiness on Mac ASAN.
-// TODO(crbug.com/1090933): Fix this test on Fuchsia and re-enable.
+#if BUILDFLAG(IS_FUCHSIA)
+// TODO(crbug.com/40697469): Fix this test on Fuchsia and re-enable.
 #define MAYBE_SetProxyConfig DISABLED_SetProxyConfig
 #else
 #define MAYBE_SetProxyConfig SetProxyConfig
@@ -250,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTestWithProxy, MAYBE_SetProxyConfig) {
           .SetProxyConfig(std::move(proxy_config))
           .Build();
 
-  // Load a page which doesn't actually exist, but for which the our proxy
+  // Load a page which doesn't actually exist, but for which our proxy
   // returns valid content anyway.
   HeadlessWebContents* web_contents =
       browser_context->CreateWebContentsBuilder()
@@ -278,7 +291,9 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, WebGLSupported) {
   if (base::mac::GetCPUType() == base::mac::CPUType::kArm) {
     expected_support = false;
   }
-#endif
+#elif BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+  expected_support = false;
+#endif  // BUILDFLAG(IS_APPLE)
 
   EXPECT_THAT(
       EvaluateScript(web_contents,
@@ -289,17 +304,35 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, WebGLSupported) {
 
 IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, ClipboardCopyPasteText) {
   // Tests copy-pasting text with the clipboard in headless mode.
-  ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
+  ui::Clipboard* clipboard = ui::ClipboardNonBacked::GetForCurrentThread();
   ASSERT_TRUE(clipboard);
-  std::u16string paste_text = u"Clippy!";
-  for (ui::ClipboardBuffer buffer :
-       {ui::ClipboardBuffer::kCopyPaste, ui::ClipboardBuffer::kSelection,
-        ui::ClipboardBuffer::kDrag}) {
+
+  static const struct ClipboardBufferInfo {
+    ui::ClipboardBuffer buffer;
+    std::u16string paste_text;
+  } clipboard_buffers[] = {
+      {ui::ClipboardBuffer::kCopyPaste, u"kCopyPaste"},
+      {ui::ClipboardBuffer::kSelection, u"kSelection"},
+      {ui::ClipboardBuffer::kDrag, u"kDrag"},
+  };
+
+  // Check basic write/read ops into each buffer type.
+  for (const auto& [buffer, paste_text] : clipboard_buffers) {
     if (!ui::Clipboard::IsSupportedClipboardBuffer(buffer))
       continue;
     {
       ui::ScopedClipboardWriter writer(buffer);
       writer.WriteText(paste_text);
+    }
+    std::u16string copy_text;
+    clipboard->ReadText(buffer, /* data_dst = */ nullptr, &copy_text);
+    EXPECT_EQ(paste_text, copy_text);
+  }
+
+  // Verify that different clipboard buffer data is independent.
+  for (const auto& [buffer, paste_text] : clipboard_buffers) {
+    if (!ui::Clipboard::IsSupportedClipboardBuffer(buffer)) {
+      continue;
     }
     std::u16string copy_text;
     clipboard->ReadText(buffer, /* data_dst = */ nullptr, &copy_text);
@@ -314,25 +347,25 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, DefaultSizes) {
   HeadlessWebContents* web_contents =
       browser_context->CreateWebContentsBuilder().Build();
 
-  HeadlessBrowser::Options::Builder builder;
-  const HeadlessBrowser::Options kDefaultOptions = builder.Build();
+  const HeadlessBrowser::Options kDefaultOptions;
 
-#if !BUILDFLAG(IS_MAC)
-  // On Mac headless does not override the screen dimensions, so they are
-  // left with the actual screen values.
-  EXPECT_THAT(
-      EvaluateScript(web_contents, "screen.width"),
-      DictHasValue("result.result.value", kDefaultOptions.window_size.width()));
+  const int expected_width = kDefaultOptions.window_size.width();
+  const int expected_height = kDefaultOptions.window_size.height();
+
+  EXPECT_THAT(EvaluateScript(web_contents, "screen.width"),
+              DictHasValue("result.result.value", expected_width));
   EXPECT_THAT(EvaluateScript(web_contents, "screen.height"),
-              DictHasValue("result.result.value",
-                           kDefaultOptions.window_size.height()));
-#endif  // !BUILDFLAG(IS_MAC)
-  EXPECT_THAT(
-      EvaluateScript(web_contents, "window.innerWidth"),
-      DictHasValue("result.result.value", kDefaultOptions.window_size.width()));
+              DictHasValue("result.result.value", expected_height));
+
+  EXPECT_THAT(EvaluateScript(web_contents, "window.outerWidth"),
+              DictHasValue("result.result.value", expected_width));
+  EXPECT_THAT(EvaluateScript(web_contents, "window.outerHeight"),
+              DictHasValue("result.result.value", expected_height));
+
+  EXPECT_THAT(EvaluateScript(web_contents, "window.innerWidth"),
+              DictHasValue("result.result.value", expected_width));
   EXPECT_THAT(EvaluateScript(web_contents, "window.innerHeight"),
-              DictHasValue("result.result.value",
-                           kDefaultOptions.window_size.height()));
+              DictHasValue("result.result.value", expected_height));
 }
 
 // TODO(skyostil): This test currently relies on being able to run a shell
@@ -400,7 +433,7 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserRendererCommandPrefixTest, Prefix) {
 #endif  // BUILDFLAG(IS_POSIX)
 
 class CrashReporterTest : public HeadlessBrowserTest,
-                          public HeadlessWebContents::Observer {
+                          public content::WebContentsObserver {
  public:
   CrashReporterTest() {}
   ~CrashReporterTest() override = default;
@@ -417,10 +450,14 @@ class CrashReporterTest : public HeadlessBrowserTest,
     base::DeleteFile(crash_dumps_dir_);
   }
 
-  // HeadlessWebContents::Observer implementation:
-  void DevToolsTargetReady() override {
-    devtools_client_.AttachToWebContents(
-        HeadlessWebContentsImpl::From(web_contents_)->web_contents());
+  // content::WebContentsObserver implementation:
+  void RenderViewReady() override {
+    if (had_render_view_ready_) {
+      return;
+    }
+    had_render_view_ready_ = true;
+
+    devtools_client_.AttachToWebContents(web_contents_);
 
     devtools_client_.AddEventHandler(
         "Inspector.targetCrashed",
@@ -431,8 +468,8 @@ class CrashReporterTest : public HeadlessBrowserTest,
   void OnTargetCrashed(const base::Value::Dict&) { FinishAsynchronousTest(); }
 
  protected:
-  raw_ptr<HeadlessBrowserContext, DanglingUntriaged> browser_context_ = nullptr;
-  raw_ptr<HeadlessWebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<content::WebContents> web_contents_ = nullptr;
+  bool had_render_view_ready_ = false;
   SimpleDevToolsProtocolClient devtools_client_;
   base::FilePath crash_dumps_dir_;
 };
@@ -447,13 +484,18 @@ IN_PROC_BROWSER_TEST_F(CrashReporterTest, GenerateMinidump) {
   //
   // The case where crash reporting is disabled is covered by
   // HeadlessCrashObserverTest.
-  browser_context_ = browser()->CreateBrowserContextBuilder().Build();
+  raw_ptr<HeadlessBrowserContext> browser_context =
+      browser()->CreateBrowserContextBuilder().Build();
 
-  web_contents_ = browser_context_->CreateWebContentsBuilder()
-                      .SetInitialURL(GURL(blink::kChromeUICrashURL))
-                      .Build();
+  raw_ptr<HeadlessWebContents> headless_web_contents =
+      browser_context->CreateWebContentsBuilder()
+          .SetInitialURL(GURL(blink::kChromeUICrashURL))
+          .Build();
 
-  web_contents_->AddObserver(this);
+  web_contents_ =
+      HeadlessWebContentsImpl::From(headless_web_contents)->web_contents();
+
+  Observe(web_contents_);
   RunAsynchronousTest();
 
   // Check that one minidump got created.
@@ -467,12 +509,19 @@ IN_PROC_BROWSER_TEST_F(CrashReporterTest, GenerateMinidump) {
     EXPECT_EQ(reports.size(), 1u);
   }
 
-  web_contents_->RemoveObserver(this);
-  web_contents_->Close();
   web_contents_ = nullptr;
-
-  browser_context_->Close();
-  browser_context_ = nullptr;
+  Observe(nullptr);
+  {
+    HeadlessWebContents& wc = *headless_web_contents;
+    // Keep raw_ptr<> happy, as WC is about to die.
+    headless_web_contents = nullptr;
+    wc.Close();
+  }
+  {
+    HeadlessBrowserContext& bc = *browser_context;
+    browser_context = nullptr;
+    bc.Close();
+  }
 }
 #endif  // !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_WIN)
 
@@ -496,7 +545,10 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, PermissionManagerAlwaysASK) {
   // Check that the permission manager returns ASK for a given permission type.
   EXPECT_EQ(blink::mojom::PermissionStatus::ASK,
             permission_controller_delegate->GetPermissionStatus(
-                blink::PermissionType::NOTIFICATIONS, url, url));
+                content::PermissionDescriptorUtil::
+                    CreatePermissionDescriptorForPermissionType(
+                        blink::PermissionType::NOTIFICATIONS),
+                url, url));
 }
 
 class BrowserTargetTracingTest : public HeadlessBrowserTest {
@@ -605,7 +657,7 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserAllowInsecureLocalhostTest,
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1090933): Fix this test on Fuchsia and re-enable.
+// TODO(crbug.com/40697469): Fix this test on Fuchsia and re-enable.
 #define MAYBE_ServerWantsClientCertificate DISABLED_ServerWantsClientCertificate
 #else
 #define MAYBE_ServerWantsClientCertificate ServerWantsClientCertificate
@@ -665,6 +717,76 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, BadgingAPI) {
       browser_context->CreateWebContentsBuilder().SetInitialURL(url).Build();
 
   EXPECT_TRUE(WaitForLoad(web_contents));
+}
+
+class PrerenderHeadlessBrowserTest : public HeadlessBrowserTest {
+ public:
+  PrerenderHeadlessBrowserTest()
+      : prerender_helper_(
+            base::BindRepeating(&PrerenderHeadlessBrowserTest::web_contents,
+                                base::Unretained(this))) {}
+
+  void SetUp() override {
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
+    HeadlessBrowserTest::SetUp();
+  }
+
+  void SetUpOnMainThread() override {
+    headless_browser_context_ =
+        browser()->CreateBrowserContextBuilder().Build();
+    headless_web_contents_ =
+        headless_browser_context_->CreateWebContentsBuilder().Build();
+    HeadlessBrowserTest::SetUpOnMainThread();
+  }
+
+  void TearDownOnMainThread() override {
+    ASSERT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+    headless_browser_context_ = nullptr;
+    headless_web_contents_ = nullptr;
+    HeadlessBrowserTest::TearDownOnMainThread();
+  }
+
+  content::WebContents* web_contents() {
+    return HeadlessWebContentsImpl::From(headless_web_contents_)
+        ->web_contents();
+  }
+
+  content::test::PrerenderTestHelper& prerender_helper() {
+    return prerender_helper_;
+  }
+
+ private:
+  raw_ptr<HeadlessBrowserContext> headless_browser_context_ = nullptr;
+  raw_ptr<HeadlessWebContents> headless_web_contents_ = nullptr;
+  content::test::PrerenderTestHelper prerender_helper_;
+};
+
+// Test that prerendering works with the headless mode.
+IN_PROC_BROWSER_TEST_F(PrerenderHeadlessBrowserTest, PrerenderAndActivate) {
+  base::HistogramTester histogram_tester;
+
+  EXPECT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to an initial page.
+  GURL url = embedded_test_server()->GetURL("/blank.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  // Start a prerender.
+  GURL prerender_url = embedded_test_server()->GetURL("/blank.html?prerender");
+  prerender_helper().AddPrerender(prerender_url);
+
+  // Activate.
+  content::TestActivationManager activation_manager(web_contents(),
+                                                    prerender_url);
+  ASSERT_TRUE(
+      content::ExecJs(web_contents()->GetPrimaryMainFrame(),
+                      content::JsReplace("location = $1", prerender_url)));
+  activation_manager.WaitForNavigationFinished();
+  EXPECT_TRUE(activation_manager.was_activated());
+
+  histogram_tester.ExpectUniqueSample(
+      "Prerender.Experimental.PrerenderHostFinalStatus.SpeculationRule",
+      /* kFinalStatusActivated */ 0, 1);
 }
 
 class HeadlessBrowserTestWithExplicitlyAllowedPorts
@@ -822,7 +944,8 @@ IN_PROC_BROWSER_TEST_P(SelectFileDialogHeadlessBrowserTest, SelectFileDialog) {
   EXPECT_EQ(select_file_dialog_type_, expected_type());
 }
 
-IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, NetworkServiceCrash) {
+// TODO(crbug.com/40285755): Flaky on all builders.
+IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, DISABLED_NetworkServiceCrash) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   HeadlessBrowserContext* browser_context =
@@ -852,5 +975,89 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, NetworkServiceCrash) {
     nav_observer.Wait();
   } while (wc->GetController().GetLastCommittedEntry()->GetURL() != new_url);
 }
+
+IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, HasValidBluetoothDelegate) {
+  auto* delegate =
+      content::GetContentClientForTesting()->browser()->GetBluetoothDelegate();
+  EXPECT_TRUE(delegate);
+}
+
+// Infobar tests -------------------------------------------------------------
+
+class TestInfoBarDelegate : public ConfirmInfoBarDelegate {
+ public:
+  explicit TestInfoBarDelegate(int buttons) : buttons_(buttons) {}
+
+  TestInfoBarDelegate(const TestInfoBarDelegate&) = delete;
+  TestInfoBarDelegate& operator=(const TestInfoBarDelegate&) = delete;
+
+  ~TestInfoBarDelegate() override = default;
+
+  static void Create(infobars::ContentInfoBarManager* infobar_manager,
+                     int buttons) {
+    infobar_manager->AddInfoBar(std::make_unique<infobars::InfoBar>(
+        std::make_unique<TestInfoBarDelegate>(buttons)));
+  }
+
+  // ConfirmInfoBarDelegate:
+  infobars::InfoBarDelegate::InfoBarIdentifier GetIdentifier() const override {
+    return TEST_INFOBAR;
+  }
+  std::u16string GetMessageText() const override {
+    return buttons_ ? u"BUTTON" : u"";
+  }
+  int GetButtons() const override { return buttons_; }
+
+ private:
+  int buttons_;
+};
+
+class HeadlessInfobarBrowserTest : public HeadlessBrowserTest,
+                                   public testing::WithParamInterface<bool> {
+ public:
+  HeadlessInfobarBrowserTest() = default;
+  ~HeadlessInfobarBrowserTest() override = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    HeadlessBrowserTest::SetUpCommandLine(command_line);
+    if (disable_infobars()) {
+      command_line->AppendSwitch(::switches::kDisableInfoBars);
+    }
+  }
+
+  bool disable_infobars() const { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(/* no prefix */,
+                         HeadlessInfobarBrowserTest,
+                         ::testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(HeadlessInfobarBrowserTest, InfoBarsCanBeDisabled) {
+  HeadlessBrowserContext* browser_context =
+      browser()->CreateBrowserContextBuilder().Build();
+
+  HeadlessWebContents* headless_web_contents =
+      browser_context->CreateWebContentsBuilder().Build();
+  ASSERT_TRUE(WaitForLoad(headless_web_contents));
+
+  content::WebContents* web_contents =
+      HeadlessWebContentsImpl::From(headless_web_contents)->web_contents();
+  ASSERT_TRUE(web_contents);
+
+  auto infobar_manager =
+      std::make_unique<infobars::ContentInfoBarManager>(web_contents);
+  ASSERT_THAT(infobar_manager->infobars(), testing::IsEmpty());
+
+  TestInfoBarDelegate::Create(infobar_manager.get(),
+                              ConfirmInfoBarDelegate::BUTTON_NONE);
+  TestInfoBarDelegate::Create(infobar_manager.get(),
+                              ConfirmInfoBarDelegate::BUTTON_OK);
+
+  // The infobar with a button should appear even if infobars are disabled.
+  EXPECT_THAT(infobar_manager->infobars(),
+              testing::SizeIs(disable_infobars() ? 1 : 2));
+}
+
+}  // namespace
 
 }  // namespace headless

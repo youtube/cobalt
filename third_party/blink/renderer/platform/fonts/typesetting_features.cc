@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/platform/fonts/typesetting_features.h"
 
+#include <array>
+
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -11,7 +13,7 @@ namespace blink {
 
 namespace {
 
-const char* kFeatureNames[kMaxTypesettingFeatureIndex + 1] = {
+std::array<const char*, kMaxTypesettingFeatureIndex + 1> kFeatureNames = {
     "Kerning", "Ligatures", "Caps"};
 
 }  // namespace

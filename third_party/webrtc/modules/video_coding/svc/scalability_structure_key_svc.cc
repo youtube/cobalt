@@ -10,16 +10,15 @@
 #include "modules/video_coding/svc/scalability_structure_key_svc.h"
 
 #include <bitset>
-#include <utility>
+#include <cstdint>
+#include <optional>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/transport/rtp/dependency_descriptor.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "common_video/generic_frame_descriptor/generic_frame_info.h"
 #include "modules/video_coding/svc/scalable_video_controller.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -90,7 +89,7 @@ std::vector<ScalableVideoController::LayerFrameConfig>
 ScalabilityStructureKeySvc::KeyframeConfig() {
   std::vector<LayerFrameConfig> configs;
   configs.reserve(num_spatial_layers_);
-  absl::optional<int> spatial_dependency_buffer_id;
+  std::optional<int> spatial_dependency_buffer_id;
   spatial_id_is_enabled_.reset();
   // Disallow temporal references cross T0 on higher temporal layers.
   can_reference_t1_frame_for_spatial_id_.reset();

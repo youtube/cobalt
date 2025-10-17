@@ -46,33 +46,35 @@ with properties for each feature.
 
 ### Simple and Complex Features
 
-Most features are known as "simple" features. These are features whose
-definition is a single object that contains the properties describing the
-criteria for availability. A simple feature might look like this:
+Most features are classified as "simple" features. These have a single feature
+definition, represented as an object that specifies a set of attributes and
+constraints defining the feature's criteria for availability and inheritance
+behavior. A simple feature might look like this:
 ```
 "feature1": {
   "dependencies": ["permission:feature1"],
-  "contexts": ["blessed_extension"]
+  "contexts": ["privileged_extension"]
 }
 ```
 `feature1` has a single definition, which says for it to be available, a
-permission must be present and it must be executed from a blessed context.
+permission must be present and it must be executed from a privileged context.
 (These concepts are covered more later in this document.)
 
-Features can also be "complex". A complex feature has a list of objects to
-specify multiple groups of possible properties. A complex feature could look
+Features can also be categorized as "complex." A complex feature consists of
+multiple feature definitions, each of which specifies a distinct group of
+potential attributes or constraints. For example, a complex feature might look
 like this:
 ```
 "feature1": [{
   "dependencies": ["permission:feature1"],
-  "contexts": ["blessed_extension"]
+  "contexts": ["privileged_extension"]
 }, {
   "dependencies": ["permission:otherPermission"],
-  "contexts": ["blessed_extension", "unblessed_extension"]
+  "contexts": ["privileged_extension", "unprivileged_extension"]
 }]
 ```
 
-With complex features, if either of the definitions are matched, the feature
+With complex features, if any of the definitions are matched, the feature
 is available (in other words, the feature definitions are logically OR'd
 together). Complex features should frequently be avoided, as it makes the
 logic more involved and slower.
@@ -85,15 +87,15 @@ child's name. That is, `feature1.child` is the child of `feature1`. Inheritance
 can carry for multiple levels (e.g. `feature1.child.child`), but this is rarely
 (if ever) useful.
 
-A child feature inherits all the properties of its parent, but can choose to
-override them or add additional properties. Take the example:
+A child feature inherits all the properties of its parent feature definition,
+but can choose to override them or add additional properties. Take the example:
 ```
 "feature1": {
   "dependencies": ["permission:feature1"],
-  "contexts": ["blessed_extension"]
+  "contexts": ["privileged_extension"]
 },
 "feature1.child": {
-  "contexts": ["unblessed_extension"],
+  "contexts": ["unprivileged_extension"],
   "extension_types": ["extension"]
 }
 ```
@@ -101,7 +103,7 @@ override them or add additional properties. Take the example:
 In this case, `feature1.child` will effectively have the properties
 ```
 "dependencies": ["permission:feature1"], # inherited from feature1
-"contexts": ["unblessed_extension"],     # inherited value overridden by child
+"contexts": ["unprivileged_extension"],     # inherited value overridden by child
 "extension_types": ["extension]          # specified by child
 ```
 
@@ -113,7 +115,8 @@ prefixed API name that isn't dependent on the prefix, such as app.window
 If the parent of a feature is a complex feature, the feature system needs to
 know which parent to inherit from. To do this, add the property
 `"default_parent": true` to one of the feature definitions in the parent
-feature.
+feature. All child feature definitions will inherit from this default parent
+definition.
 
 ## Properties
 
@@ -132,12 +135,12 @@ feature named `featureAlias` for API `feature`:
 ```none
 {
   "feature": {
-    "contexts": ["blessed_extension"],
+    "contexts": ["privileged_extension"],
     "channel": "dev",
     "alias": "featureAlias"
   },
   "featureAlias": {
-   "contexts": ["blessed_extension"],
+   "contexts": ["privileged_extension"],
    "channel": "dev",
    "source": "feature"
   }
@@ -215,15 +218,14 @@ features can specify contexts. The only exception to this are dummy namespaces
 like `manifestTypes` etc. which can specify an empty list as its `contexts`
 property.
 
-Accepted values are a list of strings from `blessed_extension`,
-`blessed_web_page`, `content_script`, `extension_service_worker`,
-`lock_screen_extension`, `web_page`, `webui`, `webui_untrusted`, and
-`unblessed_extension`.
+Accepted values are a list of strings from `privileged_extension`,
+`privileged_web_page`, `content_script`, `extension_service_worker`,
+`web_page`, `webui`, `webui_untrusted`, and `unprivileged_extension`.
 
-The `lock_screen_extension` context is used instead of `blessed_extension`
+The `lock_screen_extension` context is used instead of `privileged_extension`
 context for extensions on the Chrome OS lock screen. Other extensions related
-contexts (`blessed_web_page`, `content_script`, `extension_service_worker`,
-`unblessed_extension`) are not expected to be present on the lock screen.
+contexts (`privileged_web_page`, `content_script`, `extension_service_worker`,
+`unprivileged_extension`) are not expected to be present on the lock screen.
 
 ### default\_parent
 
@@ -314,8 +316,8 @@ The only accepted value is the bool `true`.
 The `platforms` property specifies the properties the feature should be
 available on.
 
-The accepted values are lists of strings from `chromeos`, `fuchsia`, `lacros`,
-`linux`, `mac`, and `win`.
+The accepted values are lists of strings from `chromeos`, `linux`, `mac`, and
+`win`.
 
 ### requires\_delegated\_availability\_check
 
@@ -405,26 +407,26 @@ of extensions.
 For each of these contexts, an "extension" context can refer to a context of
 either an app or an extension.
 
-### Blessed Extension Contexts
+### Privileged Extension Contexts
 
-The `blessed_extension` context refers to a JavaScript context running from an
+The `privileged_extension` context refers to a JavaScript context running from an
 extension process. These are typically the most secure JavaScript contexts, as
 it reduces the likelihood that a compromised web page renderer will have access
 to secure APIs.
 
 Traditionally, only pages with a top-level extension frame (with a
-`chrome-extension://` scheme), extension popups, and app windows were blessed
+`chrome-extension://` scheme), extension popups, and app windows were privileged
 extension contexts. With [site isolation](https://www.chromium.org/developers/design-documents/site-isolation),
-extension frames running in web pages are also considered blessed extension
+extension frames running in web pages are also considered privileged extension
 contexts, since they are running in the extension process (rather than in the
 same process as the web page).
 
-### Blessed Web Page Contexts
+### Privileged Web Page Contexts
 
-The `blessed_web_page` context refers to a JavaScript context running from a
-hosted app. These are similar to blessed extension contexts in that they are
+The `privileged_web_page` context refers to a JavaScript context running from a
+hosted app. These are similar to privileged extension contexts in that they are
 (partially) isolated from other processes, but are typically more restricted
-than blessed extension processes, since hosted apps generally have fewer
+than privileged extension processes, since hosted apps generally have fewer
 permissions. Note that these contexts are unaffected by the `matches` property.
 
 ### Content Script Contexts
@@ -439,7 +441,7 @@ features should be exposed to these contexts.
 The `extension_service_worker` context refers to a JavaScript context for an
 extension's service worker. An extension can only register a service worker for
 it's own domain, and these should only be run within an extension process. Thus,
-these have similar privilege levels to blessed extension processes.
+these have similar privilege levels to privileged extension processes.
 
 ### Web Page Contexts
 
@@ -457,15 +459,15 @@ chrome://extensions. These are considered secure contexts, since they are
 an internal part of chrome. When specifying this context, an accompanying URL
 pattern should be provided with the `matches` property.
 
-### Unblessed Extension Contexts
+### Unprivileged Extension Contexts
 
-The `unblessed_extension` context refers to a JavaScript context for an
+The `unprivileged_extension` context refers to a JavaScript context for an
 extension frame that is embedded in an external page, like a web page, and
 runs in the same process as the embedder. Given the limited separation between
 the (untrusted) embedder and the extension frame, relatively few features are
 exposed in these contexts. Note that with [site isolation](https://www.chromium.org/developers/design-documents/site-isolation),
 extension frames (even those embedded in web pages) run in the trusted
-extension process, and become blessed extension contexts.
+extension process, and become privileged extension contexts.
 
 ## Compilation
 

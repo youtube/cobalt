@@ -7,6 +7,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/devtools_session.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
@@ -119,7 +120,7 @@ class ServiceWorkerAutoAttacher
   }
 
   bool have_observer_ = false;
-  ServiceWorkerDevToolsAgentHost* host_;
+  raw_ptr<ServiceWorkerDevToolsAgentHost> host_;
 };
 
 }  // namespace
@@ -153,6 +154,8 @@ ServiceWorkerDevToolsAgentHost::ServiceWorkerDevToolsAgentHost(
     network::mojom::ClientSecurityStatePtr client_security_state,
     mojo::PendingRemote<network::mojom::CrossOriginEmbedderPolicyReporter>
         coep_reporter,
+    mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter>
+        dip_reporter,
     const base::UnguessableToken& devtools_worker_token)
     : DevToolsAgentHostImpl(devtools_worker_token.ToString()),
       auto_attacher_(
@@ -169,7 +172,8 @@ ServiceWorkerDevToolsAgentHost::ServiceWorkerDevToolsAgentHost(
       version_installed_time_(is_installed_version ? base::Time::Now()
                                                    : base::Time()),
       client_security_state_(std::move(client_security_state)),
-      coep_reporter_(std::move(coep_reporter)) {
+      coep_reporter_(std::move(coep_reporter)),
+      dip_reporter_(std::move(dip_reporter)) {
   UpdateProcessHost();
   NotifyCreated();
 }
@@ -224,13 +228,12 @@ ServiceWorkerDevToolsAgentHost::~ServiceWorkerDevToolsAgentHost() {
   ServiceWorkerDevToolsManager::GetInstance()->AgentHostDestroyed(this);
 }
 
-bool ServiceWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session,
-                                                   bool acquire_wake_lock) {
+bool ServiceWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::IOHandler>(GetIOContext());
   session->CreateAndAddHandler<protocol::InspectorHandler>();
   session->CreateAndAddHandler<protocol::NetworkHandler>(
       GetId(), devtools_worker_token_, GetIOContext(), base::DoNothing(),
-      session->GetClient()->MayReadLocalFiles());
+      session->GetClient());
 
   session->CreateAndAddHandler<protocol::FetchHandler>(
       GetIOContext(),
@@ -276,10 +279,13 @@ void ServiceWorkerDevToolsAgentHost::WorkerReadyForInspection(
 void ServiceWorkerDevToolsAgentHost::UpdateClientSecurityState(
     network::mojom::ClientSecurityStatePtr client_security_state,
     mojo::PendingRemote<network::mojom::CrossOriginEmbedderPolicyReporter>
-        coep_reporter) {
+        coep_reporter,
+    mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter>
+        dip_reporter) {
   DCHECK(client_security_state);
   client_security_state_ = std::move(client_security_state);
   coep_reporter_.Bind(std::move(coep_reporter));
+  dip_reporter_.Bind(std::move(dip_reporter));
 }
 
 void ServiceWorkerDevToolsAgentHost::WorkerStarted(int worker_process_id,
@@ -355,6 +361,14 @@ void ServiceWorkerDevToolsAgentHost::UpdateLoaderFactories(
         coep_reporter_for_subresource_loader.InitWithNewPipeAndPassReceiver());
   }
 
+  // There should never be a DIP reporter without a client security state.
+  DCHECK(!dip_reporter_ || client_security_state_);
+  mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter>
+      dip_reporter;
+  if (dip_reporter_) {
+    dip_reporter_->Clone(dip_reporter.InitWithNewPipeAndPassReceiver());
+  }
+
   auto* version = context_wrapper_->GetLiveVersion(version_id_);
   if (!version) {
     std::move(callback).Run();
@@ -362,13 +376,14 @@ void ServiceWorkerDevToolsAgentHost::UpdateLoaderFactories(
   }
 
   auto script_bundle = EmbeddedWorkerInstance::CreateFactoryBundle(
-      rph, worker_route_id_, origin, client_security_state_.Clone(),
+      rph, worker_route_id_, version->key(), client_security_state_.Clone(),
       std::move(coep_reporter_for_script_loader),
+      /*dip_reporter=*/mojo::NullRemote(),
       ContentBrowserClient::URLLoaderFactoryType::kServiceWorkerScript,
       GetId());
   auto subresource_bundle = EmbeddedWorkerInstance::CreateFactoryBundle(
-      rph, worker_route_id_, origin, client_security_state_.Clone(),
-      std::move(coep_reporter_for_subresource_loader),
+      rph, worker_route_id_, version->key(), client_security_state_.Clone(),
+      std::move(coep_reporter_for_subresource_loader), std::move(dip_reporter),
       ContentBrowserClient::URLLoaderFactoryType::kServiceWorkerSubResource,
       GetId());
 
@@ -382,19 +397,21 @@ DevToolsAgentHostImpl::NetworkLoaderFactoryParamsAndInfo
 ServiceWorkerDevToolsAgentHost::CreateNetworkFactoryParamsForDevTools() {
   RenderProcessHost* rph = RenderProcessHost::FromID(worker_process_id_);
   const url::Origin origin = url::Origin::Create(url_);
-  // TODO(crbug.com/1231019): make sure client_security_state is no longer
+  const auto* version = context_wrapper_->GetLiveVersion(version_id_);
+  // TODO(crbug.com/40190528): make sure client_security_state is no longer
   // nullptr anywhere.
   auto factory = URLLoaderFactoryParamsHelper::CreateForWorker(
-      rph, origin,
-      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
-                                 origin, origin,
-                                 net::SiteForCookies::FromOrigin(origin)),
+      rph, origin, version->key().ToPartialNetIsolationInfo(),
       /*coep_reporter=*/mojo::NullRemote(),
+      /*dip_reporter=*/mojo::NullRemote(),
       static_cast<StoragePartitionImpl*>(rph->GetStoragePartition())
-          ->CreateAuthCertObserverForServiceWorker(),
+          ->CreateURLLoaderNetworkObserverForServiceWorker(
+              rph->GetDeprecatedID(), origin),
       NetworkServiceDevToolsObserver::MakeSelfOwned(GetId()),
       /*client_security_state=*/nullptr,
-      /*debug_tag=*/"SWDTAH::CreateNetworkFactoryParamsForDevTools");
+      /*debug_tag=*/"SWDTAH::CreateNetworkFactoryParamsForDevTools",
+      /*require_cross_site_request_for_cookies=*/false,
+      /*is_for_service_worker_=*/false);
   return {url::Origin::Create(GetURL()), net::SiteForCookies::FromUrl(GetURL()),
           std::move(factory)};
 }
@@ -403,11 +420,11 @@ RenderProcessHost* ServiceWorkerDevToolsAgentHost::GetProcessHost() {
   return RenderProcessHost::FromID(worker_process_id_);
 }
 
-absl::optional<network::CrossOriginEmbedderPolicy>
+std::optional<network::CrossOriginEmbedderPolicy>
 ServiceWorkerDevToolsAgentHost::cross_origin_embedder_policy(
     const std::string&) {
   if (!client_security_state_) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return client_security_state_->cross_origin_embedder_policy;
 }

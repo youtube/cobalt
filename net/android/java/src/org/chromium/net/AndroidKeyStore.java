@@ -4,9 +4,12 @@
 
 package org.chromium.net;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -16,10 +19,9 @@ import java.security.Signature;
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 
-/**
- * Specifies all the dependencies from the native OpenSSL engine on an Android KeyStore.
- */
+/** Specifies all the dependencies from the native OpenSSL engine on an Android KeyStore. */
 @JNINamespace("net::android")
+@NullMarked
 public class AndroidKeyStore {
     private static final String TAG = "AndroidKeyStore";
 
@@ -79,7 +81,7 @@ public class AndroidKeyStore {
      * @return signature as a byte buffer.
      */
     @CalledByNative
-    private static byte[] signWithPrivateKey(
+    private static byte @Nullable [] signWithPrivateKey(
             PrivateKey privateKey, String algorithm, byte[] message) {
         // Hint: Algorithm names come from:
         // http://docs.oracle.com/javase/6/docs/technotes/guides/security/StandardNames.html
@@ -96,10 +98,16 @@ public class AndroidKeyStore {
             signature.update(message);
             return signature.sign();
         } catch (Exception e) {
-            Log.e(TAG,
-                    "Exception while signing message with " + algorithm + " and "
-                            + privateKey.getAlgorithm() + " private key ("
-                            + privateKey.getClass().getName() + "): " + e);
+            Log.e(
+                    TAG,
+                    "Exception while signing message with "
+                            + algorithm
+                            + " and "
+                            + privateKey.getAlgorithm()
+                            + " private key ("
+                            + privateKey.getClass().getName()
+                            + "): "
+                            + e);
             return null;
         }
     }
@@ -109,11 +117,11 @@ public class AndroidKeyStore {
      *
      * @param privateKey The PrivateKey handle.
      * @param algorithm The cipher to use.
-     * @param input The input to encrypt.
+     * @param message The input to encrypt.
      * @return ciphertext as a byte buffer.
      */
     @CalledByNative
-    private static byte[] encryptWithPrivateKey(
+    private static byte @Nullable [] encryptWithPrivateKey(
             PrivateKey privateKey, String algorithm, byte[] message) {
         Cipher cipher = null;
         try {
@@ -127,10 +135,16 @@ public class AndroidKeyStore {
             cipher.init(Cipher.ENCRYPT_MODE, privateKey);
             return cipher.doFinal(message);
         } catch (Exception e) {
-            Log.e(TAG,
-                    "Exception while encrypting input with " + algorithm + " and "
-                            + privateKey.getAlgorithm() + " private key ("
-                            + privateKey.getClass().getName() + "): " + e);
+            Log.e(
+                    TAG,
+                    "Exception while encrypting input with "
+                            + algorithm
+                            + " and "
+                            + privateKey.getAlgorithm()
+                            + " private key ("
+                            + privateKey.getClass().getName()
+                            + "): "
+                            + e);
             return null;
         }
     }

@@ -5,6 +5,7 @@
 #ifndef CC_LAYERS_MIRROR_LAYER_IMPL_H_
 #define CC_LAYERS_MIRROR_LAYER_IMPL_H_
 
+#include <cstdint>
 #include <memory>
 
 #include "base/memory/ptr_util.h"
@@ -42,9 +43,11 @@ class CC_EXPORT MirrorLayerImpl : public LayerImpl {
   int mirrored_layer_id() const { return mirrored_layer_id_; }
 
   // LayerImpl overrides.
+  mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
-  void AppendQuads(viz::CompositorRenderPass* render_pass,
+  void AppendQuads(const AppendQuadsContext& context,
+                   viz::CompositorRenderPass* render_pass,
                    AppendQuadsData* append_quads_data) override;
   void PushPropertiesTo(LayerImpl* layer) override;
   gfx::Rect GetDamageRect() const override;
@@ -54,9 +57,9 @@ class CC_EXPORT MirrorLayerImpl : public LayerImpl {
   MirrorLayerImpl(LayerTreeImpl* tree_impl, int id);
 
  private:
-  const char* LayerTypeAsString() const override;
   viz::CompositorRenderPassId mirrored_layer_render_pass_id() const {
-    return viz::CompositorRenderPassId{mirrored_layer_id()};
+    return viz::CompositorRenderPassId{
+        static_cast<uint64_t>(mirrored_layer_id())};
   }
 
   int mirrored_layer_id_ = 0;

@@ -8,27 +8,29 @@
 namespace lens {
 
 // Histogram for recording ambient search queries.
-constexpr char kAmbientSearchQueryHistogramName[] = "Search.Ambient.Query";
+inline constexpr char kAmbientSearchQueryHistogramName[] =
+    "Search.Ambient.Query";
 
 // Histogram for recording camera open events.
-constexpr char kSearchCameraOpenHistogramName[] = "Search.Image.Camera.Open";
+inline constexpr char kSearchCameraOpenHistogramName[] =
+    "Search.Image.Camera.Open";
 
 // Histogram for recording camera result events.
-constexpr char kSearchCameraResultHistogramName[] =
+inline constexpr char kSearchCameraResultHistogramName[] =
     "Search.Image.Camera.Result";
 
 // Histogram for recording the capture result of Lens Region Search. See enum
 // below for types of results.
-constexpr char kLensRegionSearchCaptureResultHistogramName[] =
+inline constexpr char kLensRegionSearchCaptureResultHistogramName[] =
     "Search.RegionSearch.Lens.Result";
 
 // Histogram for recording the viewport proportion in relation to region
 // selected for the Lens Region Search feature.
-constexpr char kLensRegionSearchRegionViewportProportionHistogramName[] =
+inline constexpr char kLensRegionSearchRegionViewportProportionHistogramName[] =
     "Search.RegionSearch.Lens.RegionViewportProportion";
 
 // Histogram for recording the aspect ratio of the captured region.
-constexpr char kLensRegionSearchRegionAspectRatioHistogramName[] =
+inline constexpr char kLensRegionSearchRegionAspectRatioHistogramName[] =
     "Search.RegionSearch.Lens.RegionAspectRatio";
 
 // Needs to be kept in sync with CameraOpenEntryPoint enum in
@@ -39,7 +41,15 @@ enum class CameraOpenEntryPoint {
   WIDGET = 2,
   TASKS_SURFACE = 3,
   KEYBOARD = 4,
-  kMaxValue = KEYBOARD
+  SPOTLIGHT = 5,
+  APP_ICON_LONG_PRESS = 6,
+  PLUS_BUTTON = 7,
+  WEB_SEARCH_BAR = 8,
+  TRANSLATE_ONEBOX = 9,
+  INTENTS = 10,
+  WEB_IMAGES_SEARCH_BAR = 11,
+  WHATS_NEW_PROMO = 12,
+  kMaxValue = WHATS_NEW_PROMO
 };
 
 // Needs to be kept in sync with CameraResult enum in
@@ -64,7 +74,27 @@ enum class AmbientSearchEntryPoint {
   NEW_TAB_PAGE = 6,
   QUICK_ACTION_SEARCH_WIDGET = 7,
   KEYBOARD = 8,
-  kMaxValue = KEYBOARD
+  APP_ICON_LONG_PRESS = 9,
+  SPOTLIGHT = 10,
+  PLUS_BUTTON = 11,
+  WEB_SEARCH_BAR = 12,
+  COMPANION_REGION_SEARCH = 13,
+  TRANSLATE_ONEBOX = 14,
+  INTENTS = 15,
+  WEB_IMAGES_SEARCH_BAR = 16,
+  WHATS_NEW_PROMO = 17,
+  CONTEXT_MENU_SEARCH_VIDEO_FRAME_WITH_GOOGLE_LENS = 18,
+  CONTEXT_MENU_SEARCH_VIDEO_FRAME_WITH_WEB = 19,
+  LENS_OVERLAY_LOCATION_BAR = 20,
+  LENS_OVERLAY_OVERFLOW_MENU = 21,
+  CONTEXT_MENU_SEARCH_IMAGE_WITH_LENS_OVERLAY = 22,
+  CONTEXT_MENU_SEARCH_REGION_WITH_LENS_OVERLAY = 23,
+  CONTEXT_MENU_SEARCH_VIDEO_FRAME_WITH_LENS_OVERLAY = 24,
+  CONTEXT_MENU_SEARCH_IMAGE_WITH_LENS_OVERLAY_ACCESSIBILITY_FALLBACK = 25,
+  CONTEXT_MENU_SEARCH_REGION_WITH_LENS_OVERLAY_ACCESSIBILITY_FALLBACK = 26,
+  CONTEXT_MENU_SEARCH_VIDEO_WITH_LENS_OVERLAY_ACCESSIBILITY_FALLBACK = 27,
+  LENS_OVERLAY_LOCATION_BAR_ACCESSIBILITY_FALLBACK = 28,
+  kMaxValue = LENS_OVERLAY_LOCATION_BAR_ACCESSIBILITY_FALLBACK
 };
 
 // This should be kept in sync with the LensRegionSearchAspectRatio enum
@@ -97,13 +127,13 @@ enum class LensRegionSearchCaptureResult {
 };
 
 // Record an ambient search query along with the entry point that initiated.
-extern void RecordAmbientSearchQuery(AmbientSearchEntryPoint entry_point);
+void RecordAmbientSearchQuery(AmbientSearchEntryPoint entry_point);
 
 // Record a camera open event with the entry point.
-extern void RecordCameraOpen(CameraOpenEntryPoint entry_point);
+void RecordCameraOpen(CameraOpenEntryPoint entry_point);
 
 // Record a camera result.
-extern void RecordCameraResult(CameraResult result);
+void RecordCameraResult(CameraResult result);
 
 }  // namespace lens
 

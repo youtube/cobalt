@@ -6,16 +6,19 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/json/values_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
@@ -45,9 +48,11 @@
 #include "extensions/browser/app_window/app_window_registry.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_util.h"
+#include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/granted_file_entry.h"
 #include "extensions/browser/path_util.h"
 #include "extensions/common/api/file_system.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/permissions/api_permission.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "net/base/mime_util.h"
@@ -64,12 +69,12 @@
 
 #if BUILDFLAG(IS_MAC)
 #include <CoreFoundation/CoreFoundation.h>
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "extensions/browser/api/file_handlers/non_native_file_system_delegate.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 using storage::IsolatedContext;
 
@@ -102,22 +107,6 @@ namespace file_system = api::file_system;
 namespace ChooseEntry = file_system::ChooseEntry;
 
 namespace {
-
-bool g_skip_picker_for_test = false;
-bool g_use_suggested_path_for_test = false;
-const base::FilePath* g_path_to_be_picked_for_test = nullptr;
-const std::vector<base::FilePath>* g_paths_to_be_picked_for_test = nullptr;
-bool g_skip_directory_confirmation_for_test = false;
-bool g_allow_directory_access_for_test = false;
-
-void ResetTestValuesToDefaults() {
-  g_skip_picker_for_test = false;
-  g_use_suggested_path_for_test = false;
-  g_path_to_be_picked_for_test = nullptr;
-  g_paths_to_be_picked_for_test = nullptr;
-  g_skip_directory_confirmation_for_test = false;
-  g_allow_directory_access_for_test = false;
-}
 
 // Expand the mime-types and extensions provided in an AcceptOption, returning
 // them within the passed extension vector. Returns false if no valid types
@@ -177,16 +166,16 @@ bool GetFileTypesFromAcceptOption(
 
 // Key for the path of the directory of the file last chosen by the user in
 // response to a chrome.fileSystem.chooseEntry() call.
-const char kLastChooseEntryDirectory[] = "last_choose_file_directory";
+constexpr char kLastChooseEntryDirectory[] = "last_choose_file_directory";
 
-const int kGraylistedPaths[] = {
+constexpr auto kGraylistedPaths = std::to_array<int>({
     base::DIR_HOME,
 #if BUILDFLAG(IS_WIN)
     base::DIR_PROGRAM_FILES,
     base::DIR_PROGRAM_FILESX86,
     base::DIR_WINDOWS,
 #endif
-};
+});
 
 using FileInfoOptCallback =
     base::OnceCallback<void(std::unique_ptr<base::File::Info>)>;
@@ -240,13 +229,9 @@ base::FilePath GenerateUniqueSavePath(const base::FilePath& path) {
       // Try a timestamp suffix.
       // Generate an ISO8601 compliant local timestamp suffix that avoids
       // reserved characters that are forbidden on some OSes like Windows.
-      base::Time::Exploded exploded;
-      base::Time::Now().LocalExplode(&exploded);
-      std::string suffix = base::StringPrintf(
-          " - %04d-%02d-%02dT%02d%02d%02d.%03d", exploded.year, exploded.month,
-          exploded.day_of_month, exploded.hour, exploded.minute,
-          exploded.second, exploded.millisecond);
-      unique_path = path.InsertBeforeExtensionASCII(suffix);
+      unique_path = path.InsertBeforeExtensionASCII(
+          base::UnlocalizedTimeFormatWithPattern(base::Time::Now(),
+                                                 " - yyyy-MM-dd'T'HHmmss.SSS"));
     }
     if (!filename_generation::TruncateFilename(&unique_path, limit))
       return base::FilePath();
@@ -263,7 +248,7 @@ base::FilePath GenerateUniqueSavePath(const base::FilePath& path) {
 namespace file_system_api {
 
 base::FilePath GetLastChooseEntryDirectory(const ExtensionPrefs* prefs,
-                                           const std::string& extension_id) {
+                                           const ExtensionId& extension_id) {
   base::FilePath path;
   std::string string_path;
   if (prefs->ReadPrefAsString(extension_id, kLastChooseEntryDirectory,
@@ -274,7 +259,7 @@ base::FilePath GetLastChooseEntryDirectory(const ExtensionPrefs* prefs,
 }
 
 void SetLastChooseEntryDirectory(ExtensionPrefs* prefs,
-                                 const std::string& extension_id,
+                                 const ExtensionId& extension_id,
                                  const base::FilePath& path) {
   prefs->UpdateExtensionPref(extension_id, kLastChooseEntryDirectory,
                              ::base::FilePathToValue(path));
@@ -443,21 +428,32 @@ ExtensionFunction::ResponseAction FileSystemIsWritableEntryFunction::Run() {
   return RespondNow(WithArguments(is_writable));
 }
 
+const FileSystemChooseEntryFunction::TestOptions*
+    FileSystemChooseEntryFunction::g_test_options = nullptr;
+
+base::AutoReset<const FileSystemChooseEntryFunction::TestOptions*>
+FileSystemChooseEntryFunction::SetOptionsForTesting(
+    const TestOptions& options) {
+  CHECK_EQ(nullptr, g_test_options);
+  return base::AutoReset<const TestOptions*>(&g_test_options, &options);
+}
+
 void FileSystemChooseEntryFunction::ShowPicker(
     const ui::SelectFileDialog::FileTypeInfo& file_type_info,
     ui::SelectFileDialog::Type picker_type,
     const base::FilePath& initial_path) {
-  // TODO(michaelpg): Use the FileSystemDelegate to override functionality for
-  // tests instead of using global variables.
-  if (g_skip_picker_for_test) {
+  if (g_test_options) {
     std::vector<base::FilePath> test_paths;
-    if (g_use_suggested_path_for_test)
+    if (g_test_options->use_suggested_path) {
+      CHECK(!g_test_options->path_to_be_picked &&
+            !g_test_options->paths_to_be_picked);
       test_paths.push_back(initial_path);
-    else if (g_path_to_be_picked_for_test)
-      test_paths.push_back(*g_path_to_be_picked_for_test);
-    else if (g_paths_to_be_picked_for_test)
-      test_paths = *g_paths_to_be_picked_for_test;
-
+    } else if (g_test_options->path_to_be_picked) {
+      CHECK(!g_test_options->paths_to_be_picked);
+      test_paths.push_back(*g_test_options->path_to_be_picked);
+    } else if (g_test_options->paths_to_be_picked) {
+      test_paths = *g_test_options->paths_to_be_picked;
+    }
     content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
         test_paths.size() > 0
@@ -467,7 +463,6 @@ void FileSystemChooseEntryFunction::ShowPicker(
                   &FileSystemChooseEntryFunction::FileSelectionCanceled, this));
     return;
   }
-
   FileSystemDelegate* delegate =
       ExtensionsAPIClient::Get()->GetFileSystemDelegate();
   DCHECK(delegate);
@@ -483,59 +478,6 @@ void FileSystemChooseEntryFunction::ShowPicker(
                          this))) {
     Respond(Error(kInvalidCallingPage));
   }
-}
-
-FileSystemChooseEntryFunction::SkipPickerBaseForTest*
-    FileSystemChooseEntryFunction::SkipPickerBaseForTest::g_picker = nullptr;
-
-FileSystemChooseEntryFunction::SkipPickerBaseForTest::SkipPickerBaseForTest() {
-  CHECK(!g_picker);
-  g_picker = this;
-}
-
-FileSystemChooseEntryFunction::SkipPickerBaseForTest::~SkipPickerBaseForTest() {
-  DCHECK_EQ(this, g_picker);
-  ResetTestValuesToDefaults();
-  g_picker = nullptr;
-}
-
-FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathForTest::
-    SkipPickerAndAlwaysSelectPathForTest(const base::FilePath& path,
-                                         bool skip_dir_confirmation,
-                                         bool allow_directory_access)
-    : path_(path) {
-  g_skip_picker_for_test = true;
-  g_path_to_be_picked_for_test = &path_;
-  g_skip_directory_confirmation_for_test = skip_dir_confirmation;
-  g_allow_directory_access_for_test = allow_directory_access;
-}
-
-FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathForTest::
-    ~SkipPickerAndAlwaysSelectPathForTest() = default;
-
-FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathsForTest::
-    SkipPickerAndAlwaysSelectPathsForTest(
-        const std::vector<base::FilePath>& paths)
-    : paths_(paths) {
-  g_skip_picker_for_test = true;
-  g_paths_to_be_picked_for_test = &paths_;
-}
-
-FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathsForTest::
-    ~SkipPickerAndAlwaysSelectPathsForTest() = default;
-
-FileSystemChooseEntryFunction::SkipPickerAndSelectSuggestedPathForTest::
-    SkipPickerAndSelectSuggestedPathForTest() {
-  g_skip_picker_for_test = true;
-  g_use_suggested_path_for_test = true;
-}
-
-FileSystemChooseEntryFunction::SkipPickerAndAlwaysCancelForTest::
-    ~SkipPickerAndAlwaysCancelForTest() = default;
-
-FileSystemChooseEntryFunction::SkipPickerAndAlwaysCancelForTest::
-    SkipPickerAndAlwaysCancelForTest() {
-  g_skip_picker_for_test = true;
 }
 
 // static
@@ -572,7 +514,7 @@ void FileSystemChooseEntryFunction::FilesSelected(
   if (is_directory_) {
     DCHECK_EQ(paths.size(), 1u);
     bool non_native_path = false;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     NonNativeFileSystemDelegate* delegate =
         ExtensionsAPIClient::Get()->GetNonNativeFileSystemDelegate();
     non_native_path = delegate && delegate->IsUnderNonNativeLocalPath(
@@ -607,16 +549,20 @@ void FileSystemChooseEntryFunction::ConfirmDirectoryAccessAsync(
     return;
   }
 
-  for (size_t i = 0; i < std::size(kGraylistedPaths); i++) {
+  for (const int graylisted_path_key : kGraylistedPaths) {
     base::FilePath graylisted_path;
-    if (!base::PathService::Get(kGraylistedPaths[i], &graylisted_path))
+    if (!base::PathService::Get(graylisted_path_key, &graylisted_path)) {
       continue;
-    if (check_path != graylisted_path && !check_path.IsParent(graylisted_path))
+    }
+    if (check_path != graylisted_path &&
+        !check_path.IsParent(graylisted_path)) {
       continue;
+    }
 
-    if (g_skip_directory_confirmation_for_test) {
-      if (g_allow_directory_access_for_test)
+    if (g_test_options && g_test_options->skip_directory_confirmation) {
+      if (g_test_options->allow_directory_access) {
         break;
+      }
       content::GetUIThreadTaskRunner({})->PostTask(
           FROM_HERE,
           base::BindOnce(&FileSystemChooseEntryFunction::FileSelectionCanceled,
@@ -682,8 +628,8 @@ void FileSystemChooseEntryFunction::OnDirectoryAccessConfirmed(
 void FileSystemChooseEntryFunction::BuildFileTypeInfo(
     ui::SelectFileDialog::FileTypeInfo* file_type_info,
     const base::FilePath::StringType& suggested_extension,
-    const absl::optional<AcceptOptions>& accepts,
-    const absl::optional<bool>& accepts_all_types) {
+    const std::optional<AcceptOptions>& accepts,
+    const std::optional<bool>& accepts_all_types) {
   file_type_info->include_all_files = accepts_all_types.value_or(true);
 
   bool need_suggestion =
@@ -715,7 +661,7 @@ void FileSystemChooseEntryFunction::BuildFileTypeInfo(
 }
 
 void FileSystemChooseEntryFunction::BuildSuggestion(
-    const absl::optional<std::string>& opt_name,
+    const std::optional<std::string>& opt_name,
     base::FilePath* suggested_name,
     base::FilePath::StringType* suggested_extension) {
   if (opt_name) {
@@ -772,7 +718,7 @@ void FileSystemChooseEntryFunction::MaybeUseManagedSavePath(
 FileSystemChooseEntryFunction::~FileSystemChooseEntryFunction() = default;
 
 ExtensionFunction::ResponseAction FileSystemChooseEntryFunction::Run() {
-  absl::optional<ChooseEntry::Params> params =
+  std::optional<ChooseEntry::Params> params =
       ChooseEntry::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -867,7 +813,7 @@ ExtensionFunction::ResponseAction FileSystemChooseEntryFunction::Run() {
       previous_path, suggested_name, file_type_info, picker_type);
 
 // Check whether the |previous_path| is a non-native directory.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   NonNativeFileSystemDelegate* delegate =
       ExtensionsAPIClient::Get()->GetNonNativeFileSystemDelegate();
   if (delegate &&
@@ -947,7 +893,8 @@ ExtensionFunction::ResponseAction FileSystemRetainEntryFunction::Run() {
             base::IgnoreResult(
                 &storage::FileSystemOperationRunner::GetMetadata),
             base::Unretained(file_system_context->operation_runner()), url,
-            storage::FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY,
+            storage::FileSystemOperation::GetMetadataFieldSet(
+                {storage::FileSystemOperation::GetMetadataField::kIsDirectory}),
             base::BindOnce(
                 &PassFileInfoToUIThread,
                 base::BindOnce(&FileSystemRetainEntryFunction::RetainFileEntry,
@@ -1046,7 +993,7 @@ FileSystemRequestFileSystemFunction::~FileSystemRequestFileSystemFunction() =
 
 ExtensionFunction::ResponseAction FileSystemRequestFileSystemFunction::Run() {
   using file_system::RequestFileSystem::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   consent_provider_ =
@@ -1127,7 +1074,7 @@ FileSystemRequestFileSystemFunction::~FileSystemRequestFileSystemFunction() =
 
 ExtensionFunction::ResponseAction FileSystemRequestFileSystemFunction::Run() {
   using file_system::RequestFileSystem::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   NOTIMPLEMENTED();

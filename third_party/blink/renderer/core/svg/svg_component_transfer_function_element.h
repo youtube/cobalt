@@ -59,6 +59,10 @@ class SVGComponentTransferFunctionElement : public SVGElement {
   }
 
  private:
+  SVGAnimatedPropertyBase* PropertyFromAttribute(
+      const QualifiedName& attribute_name) const override;
+  void SynchronizeAllSVGAttributes() const override;
+
   Member<SVGAnimatedNumberList> table_values_;
   Member<SVGAnimatedNumber> slope_;
   Member<SVGAnimatedNumber> intercept_;
@@ -66,6 +70,16 @@ class SVGComponentTransferFunctionElement : public SVGElement {
   Member<SVGAnimatedNumber> exponent_;
   Member<SVGAnimatedNumber> offset_;
   Member<SVGAnimatedEnumeration<ComponentTransferType>> type_;
+};
+
+template <>
+struct DowncastTraits<SVGComponentTransferFunctionElement> {
+  static bool AllowFrom(const SVGElement& svg_element) {
+    return svg_element.HasTagName(svg_names::kFEFuncATag) ||
+           svg_element.HasTagName(svg_names::kFEFuncBTag) ||
+           svg_element.HasTagName(svg_names::kFEFuncGTag) ||
+           svg_element.HasTagName(svg_names::kFEFuncRTag);
+  }
 };
 
 }  // namespace blink

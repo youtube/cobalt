@@ -227,7 +227,7 @@ void SystemMonitor::NotifyObservers(SystemMonitor::MetricVector metrics) {
       continue;
     for (auto& observer : observers_) {
       const auto& iter = observer_metrics_.find(&observer);
-      DCHECK(iter != observer_metrics_.end());
+      CHECK(iter != observer_metrics_.end());
       if (metric_evaluators_metadata_[static_cast<size_t>(metric->type())]
               .get_refresh_frequency_field_function(iter->second) !=
           SystemMonitor::SamplingFrequency::kNoSampling) {
@@ -244,10 +244,6 @@ SystemMonitor::CreateMetricEvaluatorsHelper() {
   return base::WrapUnique(new MetricEvaluatorsHelperWin());
 #elif BUILDFLAG(IS_POSIX)
   return std::make_unique<MetricEvaluatorsHelperPosix>();
-#elif BUILDFLAG(IS_FUCHSIA)
-  // TODO(crbug.com/1166873): Implement this in support of tracing.
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
 #else
 #error Unsupported platform
 #endif
@@ -259,7 +255,7 @@ SystemMonitor::MetricEvaluator::~MetricEvaluator() = default;
 template <typename T>
 SystemMonitor::MetricEvaluatorImpl<T>::MetricEvaluatorImpl(
     Type type,
-    base::OnceCallback<absl::optional<T>()> evaluate_function,
+    base::OnceCallback<std::optional<T>()> evaluate_function,
     void (SystemObserver::*notify_function)(ObserverArgType))
     : MetricEvaluator(type),
       evaluate_function_(std::move(evaluate_function)),
@@ -289,7 +285,7 @@ void SystemMonitor::MetricEvaluatorImpl<T>::Evaluate() {
   value_ = std::move(evaluate_function_).Run();
 }
 
-absl::optional<base::SystemMetrics>
+std::optional<base::SystemMetrics>
 MetricEvaluatorsHelper::GetSystemMetricsStruct() {
   return base::SystemMetrics::Sample();
 }

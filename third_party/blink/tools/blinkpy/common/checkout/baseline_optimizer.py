@@ -28,58 +28,45 @@
 
 import collections
 import contextlib
+import hashlib
 import logging
+import uuid
+from pathlib import PurePosixPath
 from typing import (
     Collection,
     Dict,
     FrozenSet,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Set,
     Tuple,
 )
+from urllib.parse import urlparse
 
 from blinkpy.common.host import Host
 from blinkpy.common.memoized import memoized
 from blinkpy.common.path_finder import PathFinder
-from blinkpy.web_tests.models.testharness_results import is_all_pass_testharness_result
+from blinkpy.web_tests.models.testharness_results import (
+    is_all_pass_test_result,
+    is_testharness_output,
+    is_wdspec_output,
+)
 from blinkpy.web_tests.models.test_expectations import TestExpectationsCache
 from blinkpy.web_tests.models.typ_types import ResultType
-from blinkpy.web_tests.port.base import Port
+from blinkpy.web_tests.port.base import BaselineLocation, Port
 
 _log = logging.getLogger(__name__)
-
-
-class BaselineLocation(NamedTuple):
-    """A representation of a baseline that may exist on disk."""
-    virtual_suite: str = ''
-    platform: str = ''
-    flag_specific: str = ''
-
-    @property
-    def root(self) -> bool:
-        # Also check that this baseline is not flag-specific. A flag-specific
-        # suite implies a platform, even without `platform/*/` in its path.
-        return not self.platform and not self.flag_specific
-
-    def __str__(self) -> str:
-        parts = []
-        if self.virtual_suite:
-            parts.append('virtual/%s' % self.virtual_suite)
-        if self.platform:
-            parts.append(self.platform)
-        elif self.flag_specific:
-            parts.append(self.flag_specific)
-        if not parts:
-            parts.append('(generic)')
-        return ':'.join(parts)
 
 
 # Sentinel node to force removal of all-pass nonvirtual baselines without
 # implementing a special case.
 BaselineLocation.ALL_PASS = BaselineLocation(platform='<all-pass>')
+# Sentinel node to block optimization between a virtual and nonvirtual tree.
+# Used for not deduplicating `virtual/stable/**/webexposed/` with their
+# nonvirtual counterparts.
+BaselineLocation.BLOCK = BaselineLocation(platform='<block>')
+
 SearchPath = List[BaselineLocation]
 DigestMap = Dict[BaselineLocation, 'ResultDigest']
 # An adjacency list.
@@ -124,6 +111,8 @@ class BaselineOptimizer:
              port_name: str,
              flag_specific: Optional[str] = None) -> Port:
         port = self._host.port_factory.get(port_name)
+        # Avoid an update race between `optimize-baselines` workers.
+        port.set_option_default('manifest_update', False)
         if flag_specific:
             port.set_option_default('flag_specific', flag_specific)
         return port
@@ -205,25 +194,36 @@ class BaselineOptimizer:
             all of them.
           * Ports where a test is skipped will not generate corresponding paths.
         """
+        is_webexposed = 'webexposed' in _test_path(nonvirtual_test).parts
         # Group ports to write less verbose output.
         skipped_ports_by_test = collections.defaultdict(list)
         for port in self._ports:
-            if self._skips_test(port, nonvirtual_test):
-                skipped_ports_by_test[nonvirtual_test].append(port)
-                continue
             search_path = self._baseline_search_path(port)
             nonvirtual_locations = [
                 self.location(path) for path in search_path
             ]
-            yield nonvirtual_locations
+            if not self.skips_test(port, nonvirtual_test):
+                yield nonvirtual_locations
+            else:
+                skipped_ports_by_test[nonvirtual_test].append(port)
             for virtual_test in virtual_tests:
-                if self._skips_test(port, virtual_test):
+                if self.skips_test(port, virtual_test):
                     skipped_ports_by_test[virtual_test].append(port)
                     continue
                 virtual_locations = [
                     self.location(self._filesystem.join(path, virtual_test))
                     for path in search_path
                 ]
+                test_abs_path = self._finder.path_from_web_tests(virtual_test)
+                virtual_suite = self.location(test_abs_path).virtual_suite
+                # Virtual suite was parsed correctly from all baseline/test
+                # paths.
+                assert {
+                    location.virtual_suite
+                    for location in virtual_locations
+                } == {virtual_suite}, virtual_locations
+                if virtual_suite == 'stable' and is_webexposed:
+                    virtual_locations.append(BaselineLocation.BLOCK)
                 yield virtual_locations + nonvirtual_locations
         for test, ports in skipped_ports_by_test.items():
             port_names = [
@@ -233,7 +233,7 @@ class BaselineOptimizer:
             _log.debug('Excluding ports that skip "%s": %s', test,
                        ', '.join(port_names))
 
-    def _skips_test(self, port: Port, test: str) -> bool:
+    def skips_test(self, port: Port, test: str) -> bool:
         expectations = self._exp_cache.load(port)
         results = expectations.get_expectations(test).results
         return ResultType.Skip in results or port.skips_test(test)
@@ -271,7 +271,9 @@ class BaselineOptimizer:
         digests = {}
         for location in locations:
             path = self.path(location, baseline_name)
-            if self._filesystem.exists(path):
+            if location == BaselineLocation.BLOCK:
+                digests[location] = random_digest()
+            elif self._filesystem.exists(path):
                 digests[location] = ResultDigest.from_file(
                     self._filesystem, path, is_reftest)
         return digests
@@ -327,8 +329,8 @@ class BaselineOptimizer:
             self._filesystem.maybe_make_directory(
                 self._filesystem.dirname(dest))
             self._filesystem.copyfile(source, dest)
-            _log.info('Promoted %s from %s', root,
-                      ', '.join(map(str, sorted(predecessors))))
+            _log.debug('Promoted %s from %s', root,
+                       ', '.join(map(str, sorted(predecessors))))
 
     def _remove(
         self,
@@ -342,7 +344,7 @@ class BaselineOptimizer:
             _log.info('Can remove %s (%s)', path, explanation)
         else:
             self._filesystem.remove(path)
-            _log.info('Removed %s (%s)', location, explanation)
+            _log.debug('Removed %s (%s)', location, explanation)
 
     @memoized
     def path(self, location: BaselineLocation, baseline_name: str) -> str:
@@ -368,24 +370,9 @@ class BaselineOptimizer:
 
     @memoized
     def location(self, filename: str) -> BaselineLocation:
-        """Guess a baseline location's parameters from a path.
-
-        Arguments:
-            filename: Either a baseline or test filename. Must be an absolute
-                path.
-        """
-        parts = self._filesystem.relpath(
-            filename,
-            self._default_port.web_tests_dir()).split(self._filesystem.sep)
-        platform = flag_specific = virtual_suite = ''
-        if len(parts) >= 2:
-            if parts[0] == 'platform':
-                platform, parts = parts[1], parts[2:]
-            elif parts[0] == 'flag-specific':
-                flag_specific, parts = parts[1], parts[2:]
-        if len(parts) >= 2 and parts[0] == 'virtual':
-            virtual_suite = parts[1]
-        return BaselineLocation(virtual_suite, platform, flag_specific)
+        """Guess a baseline location's parameters from a path."""
+        location, _ = self._default_port.parse_output_filename(filename)
+        return location
 
     def _baseline_root(self) -> str:
         """Returns the name of the root (generic) baseline directory."""
@@ -446,25 +433,38 @@ class ResultDigest:
         """
         if path is None:
             return cls(cls._IMPLICIT_EXTRA_RESULT, path, is_extra_result=True)
-
-        assert fs.exists(path), path + " does not exist"
-        if path.endswith('.txt'):
-            try:
-                content = fs.read_text_file(path)
-                is_extra_result = not content or is_all_pass_testharness_result(
-                    content)
-            except UnicodeDecodeError as e:
-                is_extra_result = False
-            # Unfortunately, we may read the file twice, once in text mode
-            # and once in binary mode.
-            return cls(fs.sha1(path), path, is_extra_result)
-
-        if path.endswith('.png') and is_reftest:
+        assert fs.exists(path), f'{path!r} does not exist'
+        if path.endswith(f'.png') and is_reftest:
             return cls('', path, is_extra_result=True)
 
-        return cls(fs.sha1(path),
-                   path,
-                   is_extra_result=(not fs.read_binary_file(path)))
+        with fs.open_binary_file_for_reading(path) as baseline_file:
+            contents = baseline_file.read()
+
+        is_extra_result = not contents
+        if path.endswith('.txt'):
+            try:
+                contents_text = contents.decode()
+                if is_testharness_output(contents_text) or is_wdspec_output(
+                        contents_text):
+                    # Canonicalize the representation of a testharness/wdspec
+                    # baselines with insignificant whitespace.
+                    #
+                    # TODO(crbug.com/1482887): Digest the parsed testharness
+                    # results to be fully independent of formatting.
+                    #
+                    # TODO(crbug.com/1482887): Consider making the serialized
+                    # representation between `run_web_tests.py`'s
+                    # `testharnessreport.js` and `format_testharness_baseline()`
+                    # consistent.
+                    contents_text = contents_text.strip()
+                if is_all_pass_test_result(contents_text):
+                    is_extra_result = True
+                contents = contents_text.encode()
+            except UnicodeDecodeError:
+                is_extra_result = False
+
+        digest = hashlib.sha1(contents).hexdigest()
+        return cls(digest, path, is_extra_result)
 
     def __eq__(self, other):
         if other is None:
@@ -528,20 +528,44 @@ def find_redundant_locations(paths: List[SearchPath],
         * Virtual 'linux' is removed on the next iteration because it now has
           nonvirtual 'linux' as a successor.
     """
-    redundant_locations, digests, converged = set(), dict(digests), False
-    removal_order = list(_visit_in_removal_order(_predecessors(paths)))
+    predecessors = _predecessors(paths)
+    # The deletion order is significant because, on each deletion, the deleted
+    # baseline's predecessors may become "critical" (i.e., should no longer be
+    # deleted), and the number of those predecessors can vary based on past
+    # deletions.
+    #
+    # Try two orders: DFS post- and pre-order deletions from the all-pass node.
+    # In the event both orders remove the same number of files, favor
+    # postorder, which generally favors deleting older OS or virtual baselines
+    # first. See crbug.com/1512264 for an example where preorder deletion would
+    # be better.
+    return max(
+        _find_redundant_locations_with_order(
+            paths, digests, list(_visit_postorder(predecessors))),
+        _find_redundant_locations_with_order(
+            paths, digests, list(_visit_preorder(predecessors))),
+        key=len,
+    )
+
+
+def _find_redundant_locations_with_order(
+    paths: List[SearchPath],
+    digests: DigestMap,
+    removal_order: List[BaselineLocation],
+) -> Set[BaselineLocation]:
+    redundant_locations, digests = set(), dict(digests)
     # Because `_find_new_redundant_location(...)` returns a member of `digests`,
     # and that member is removed from `digests` to simulate file removal,
     # `digests` can only shrink in each iteration. At some point, the map will
     # stop shrinking, possibly becoming empty, which guarantees termination.
-    while not converged:
+    while digests:
         new_redundant_location = _find_new_redundant_location(
             paths, digests, removal_order)
         if new_redundant_location:
             digests.pop(new_redundant_location)
             redundant_locations.add(new_redundant_location)
         else:
-            converged = True
+            break
     return redundant_locations
 
 
@@ -595,7 +619,21 @@ def _find_new_redundant_location(
     return None
 
 
-def _visit_in_removal_order(
+def _visit_preorder(
+    predecessors: PredecessorMap,
+    current: BaselineLocation = BaselineLocation.ALL_PASS,
+    visited: Optional[Set[BaselineLocation]] = None,
+) -> Iterator[BaselineLocation]:
+    visited = visited or set()
+    if current in visited:
+        return
+    visited.add(current)
+    yield current
+    for predecessor in predecessors[current]:
+        yield from _visit_preorder(predecessors, predecessor, visited)
+
+
+def _visit_postorder(
     predecessors: PredecessorMap,
     current: BaselineLocation = BaselineLocation.ALL_PASS,
     visited: Optional[Set[BaselineLocation]] = None,
@@ -605,7 +643,7 @@ def _visit_in_removal_order(
         return
     visited.add(current)
     for predecessor in predecessors[current]:
-        yield from _visit_in_removal_order(predecessors, predecessor, visited)
+        yield from _visit_postorder(predecessors, predecessor, visited)
     yield current
 
 
@@ -662,3 +700,16 @@ def _indent_log(prefix: str = ' ' * 2) -> Iterator[None]:
         yield
     finally:
         logging.setLogRecordFactory(record_factory)
+
+
+def _test_path(test: str) -> PurePosixPath:
+    return PurePosixPath(urlparse(test).path)
+
+
+def random_digest() -> ResultDigest:
+    """Synthesize a digest that is guaranteed to not equal any other.
+
+    The purpose of this digest is to simulate a baseline that prevents
+    predecessors from being removed.
+    """
+    return ResultDigest(uuid.uuid4().hex)

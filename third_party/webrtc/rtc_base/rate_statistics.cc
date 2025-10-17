@@ -57,8 +57,17 @@ void RateStatistics::Reset() {
 void RateStatistics::Update(int64_t count, int64_t now_ms) {
   RTC_DCHECK_GE(count, 0);
 
+  // Don't reset `first_timestamp_` if the last sample removed by EraseOld() was
+  // recent. This ensures that the window maintains its intended duration even
+  // when samples are received near the boundary. Use a margin of 50% of the
+  // current window size.
+  const int64_t recent_sample_time_margin = 1.5 * current_window_size_ms_;
+  bool last_sample_is_recent =
+      !buckets_.empty() &&
+      buckets_.back().timestamp > now_ms - recent_sample_time_margin;
+
   EraseOld(now_ms);
-  if (first_timestamp_ == -1 || num_samples_ == 0) {
+  if (first_timestamp_ == -1 || (num_samples_ == 0 && !last_sample_is_recent)) {
     first_timestamp_ = now_ms;
   }
 
@@ -84,7 +93,7 @@ void RateStatistics::Update(int64_t count, int64_t now_ms) {
   ++num_samples_;
 }
 
-absl::optional<int64_t> RateStatistics::Rate(int64_t now_ms) const {
+std::optional<int64_t> RateStatistics::Rate(int64_t now_ms) const {
   // Yeah, this const_cast ain't pretty, but the alternative is to declare most
   // of the members as mutable...
   const_cast<RateStatistics*>(this)->EraseOld(now_ms);
@@ -107,9 +116,9 @@ absl::optional<int64_t> RateStatistics::Rate(int64_t now_ms) const {
   // overflowed, treat this as rate unavailable.
   if (num_samples_ == 0 || active_window_size <= 1 ||
       (num_samples_ <= 1 &&
-       rtc::SafeLt(active_window_size, current_window_size_ms_)) ||
+       SafeLt(active_window_size, current_window_size_ms_)) ||
       overflow_) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   float scale = static_cast<float>(scale_) / active_window_size;
@@ -117,9 +126,9 @@ absl::optional<int64_t> RateStatistics::Rate(int64_t now_ms) const {
 
   // Better return unavailable rate than garbage value (undefined behavior).
   if (result > static_cast<float>(std::numeric_limits<int64_t>::max())) {
-    return absl::nullopt;
+    return std::nullopt;
   }
-  return rtc::dchecked_cast<int64_t>(result);
+  return dchecked_cast<int64_t>(result);
 }
 
 void RateStatistics::EraseOld(int64_t now_ms) {

@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank(
     `Verifies that mixed content issue is created from mixed content css.\n`);
 
@@ -23,6 +23,9 @@
 
   // We expect to receive two issues, one for a speculative prefetch and another for the actual fetch.
   dp.Audits.onIssueAdded(issue => {
+    if (issue.params.issue.code !== 'MixedContentIssue') {
+      return;
+    }
     issues.push(issue.params);
     eventReceived();
   });

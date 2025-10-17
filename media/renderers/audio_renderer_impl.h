@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -40,7 +41,6 @@
 #include "media/filters/audio_renderer_algorithm.h"
 #include "media/filters/decoder_stream.h"
 #include "media/renderers/renderer_impl_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class TickClock;
@@ -76,7 +76,7 @@ class MEDIA_EXPORT AudioRendererImpl
   // |decoders| contains the AudioDecoders to use when initializing.
   AudioRendererImpl(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      AudioRendererSink* sink,
+      scoped_refptr<AudioRendererSink> sink,
       const CreateAudioDecodersCB& create_audio_decoders_cb,
       MediaLog* media_log,
       MediaPlayerLoggingID media_player_id,
@@ -106,10 +106,11 @@ class MEDIA_EXPORT AudioRendererImpl
   void Flush(base::OnceClosure callback) override;
   void StartPlaying() override;
   void SetVolume(float volume) override;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override;
   void SetPreservesPitch(bool preserves_pitch) override;
-  void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) override;
+  void SetRenderMutedAudio(bool render_muted_audio) override;
+  void SetWasPlayedWithUserActivationAndHighMediaEngagement(
+      bool was_played_with_user_activation_and_high_media_engagement) override;
 
   // base::PowerSuspendObserver implementation.
   void OnSuspend() override;
@@ -206,7 +207,7 @@ class MEDIA_EXPORT AudioRendererImpl
 
   // Called upon AudioDecoderStream initialization, or failure thereof
   // (indicated by the value of |success|).
-  void OnAudioDecoderStreamInitialized(bool succes);
+  void OnAudioDecoderStreamInitialized(bool success);
 
   void FinishInitialization(PipelineStatus status);
   void FinishFlush();
@@ -240,6 +241,13 @@ class MEDIA_EXPORT AudioRendererImpl
   void EnableSpeechRecognition();
   void TranscribeAudio(scoped_refptr<media::AudioBuffer> buffer);
 
+  void MaybeStartRealSink();
+  void SuspendRealSink();
+
+  // Returns the delta between AudioClock::back_timestamp() and
+  // AudioRendererAlgorithm::FrontTimestamp().
+  base::TimeDelta CalculateClockAndAlgorithmDrift() const;
+
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   std::unique_ptr<AudioBufferConverter> buffer_converter_;
@@ -269,7 +277,10 @@ class MEDIA_EXPORT AudioRendererImpl
 
   std::unique_ptr<AudioDecoderStream> audio_decoder_stream_;
 
-  raw_ptr<MediaLog> media_log_;
+  // This dangling raw_ptr occurred in:
+  // Webkit_unit_tests: WebMediaPlayerImplTest.MediaPositionState_Playing
+  // https://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1425332/test-results?q=ExactID%3Aninja%3A%2F%2Fthird_party%2Fblink%2Frenderer%2Fcontroller%3Ablink_unittests%2FWebMediaPlayerImplTest.MediaPositionState_Playing+VHash%3A896f1103f2d1008d
+  raw_ptr<MediaLog, FlakyDanglingUntriaged> media_log_;
 
   MediaPlayerLoggingID player_id_;
 
@@ -325,13 +336,13 @@ class MEDIA_EXPORT AudioRendererImpl
 
   // Stored value from last call to SetLatencyHint(). Passed to |algorithm_|
   // during Initialize().
-  absl::optional<base::TimeDelta> latency_hint_;
+  std::optional<base::TimeDelta> latency_hint_;
 
   // Passed to |algorithm_|. Indicates whether |algorithm_| should or should not
   // make pitch adjustments at playbacks other than 1.0.
   bool preserves_pitch_ = true;
 
-  bool was_played_with_user_activation_ = false;
+  bool was_played_with_user_activation_and_high_media_engagement_ = false;
 
   // Simple state tracking variable.
   State state_;
@@ -391,9 +402,15 @@ class MEDIA_EXPORT AudioRendererImpl
   // End variables which must be accessed under |lock_|. ----------------------
 
 #if !BUILDFLAG(IS_ANDROID)
-  raw_ptr<SpeechRecognitionClient> speech_recognition_client_;
+  raw_ptr<SpeechRecognitionClient, DanglingUntriaged>
+      speech_recognition_client_;
   TranscribeAudioCallback transcribe_audio_callback_;
 #endif
+
+  // Ensures we don't issue log spam when absurd delay values are encountered.
+  int num_absurd_delay_warnings_ = 0;
+
+  bool render_muted_audio_ = false;
 
   // NOTE: Weak pointers must be invalidated before all other member variables.
   base::WeakPtrFactory<AudioRendererImpl> weak_factory_{this};

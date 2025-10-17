@@ -4,6 +4,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -14,6 +15,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/test_future.h"
@@ -27,14 +29,15 @@
 #include "chrome/browser/ash/login/test/network_portal_detector_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/chrome_extension_test_notification_observer.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
@@ -64,10 +67,10 @@
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -79,13 +82,12 @@ using ::net::test_server::HttpResponse;
 using ::net::test_server::HungResponse;
 
 // Email of owner account for test.
-const char kTestGaiaId[] = "12345";
+const GaiaId::Literal kTestGaiaId("12345");
 const char kTestEmail[] = "username@gmail.com";
 const char kTestRawEmail[] = "User.Name@gmail.com";
 const char kTestAccountPassword[] = "fake-password";
 const char kTestAccountServices[] = "[]";
 const char kTestAuthCode[] = "fake-auth-code";
-const char kTestGaiaUberToken[] = "fake-uber-token";
 const char kTestAuthLoginAccessToken[] = "fake-access-token";
 const char kTestRefreshToken[] = "fake-refresh-token";
 const char kTestAuthSIDCookie[] = "fake-auth-SID-cookie";
@@ -109,19 +111,14 @@ constexpr char kRandomPageContent[] =
     "<html><title>SomthingElse</title><body>I am SomethingElse</body></html>";
 constexpr char kHelloPagePath[] = "/hello_google";
 constexpr char kRandomPagePath[] = "/non_google_page";
-constexpr char kMergeSessionPath[] = "/MergeSession";
 constexpr char kMultiLoginPath[] = "/oauth/multilogin";
 
 CoreAccountId PickAccountId(Profile* profile,
-                            const std::string& gaia_id,
+                            const GaiaId& gaia_id,
                             const std::string& email) {
   return IdentityManagerFactory::GetInstance()
       ->GetForProfile(profile)
       ->PickAccountIdForAccount(gaia_id, email);
-}
-
-const char* BoolToString(bool value) {
-  return value ? "true" : "false";
 }
 
 class OAuth2LoginManagerStateWaiter : public OAuth2LoginManager::Observer {
@@ -170,7 +167,7 @@ class OAuth2LoginManagerStateWaiter : public OAuth2LoginManager::Observer {
     signal_->SetValue();
   }
 
-  const base::raw_ptr<Profile> profile_;
+  const raw_ptr<Profile> profile_;
   std::set<OAuth2LoginManager::SessionRestoreState> states_;
   bool waiting_for_state_ = false;
   OAuth2LoginManager::SessionRestoreState final_state_ =
@@ -201,7 +198,7 @@ class ThreadBlocker {
   static void BlockThreadOnThread(base::WaitableEvent* event) { event->Wait(); }
 
   // `unblock_event_` is deleted after BlockThreadOnThread returns.
-  const raw_ptr<base::WaitableEvent, ExperimentalAsh> unblock_event_;
+  const raw_ptr<base::WaitableEvent> unblock_event_;
 };
 
 // Helper class that is added as a RequestMonitor of embedded test server to
@@ -280,19 +277,18 @@ class OAuth2Test : public OobeBaseTest {
   }
 
   void SetupGaiaServerForNewAccount(bool is_under_advanced_protection) {
-    FakeGaia::MergeSessionParams params;
+    FakeGaia::Configuration params;
     params.auth_sid_cookie = kTestAuthSIDCookie;
     params.auth_lsid_cookie = kTestAuthLSIDCookie;
     params.auth_code = kTestAuthCode;
     params.refresh_token = kTestRefreshToken;
     params.access_token = kTestAuthLoginAccessToken;
-    params.gaia_uber_token = kTestGaiaUberToken;
     params.session_sid_cookie = kTestSessionSIDCookie;
     params.session_lsid_cookie = kTestSessionLSIDCookie;
     params.id_token = is_under_advanced_protection
                           ? kTestIdTokenAdvancedProtectionEnabled
                           : kTestIdTokenAdvancedProtectionDisabled;
-    fake_gaia_.fake_gaia()->SetMergeSessionParams(params);
+    fake_gaia_.fake_gaia()->SetConfiguration(params);
     fake_gaia_.SetupFakeGaiaForLogin(kTestEmail, kTestGaiaId,
                                      kTestRefreshToken);
   }
@@ -307,19 +303,18 @@ class OAuth2Test : public OobeBaseTest {
   }
 
   void SetupGaiaServerForUnexpiredAccount() {
-    FakeGaia::MergeSessionParams params;
+    FakeGaia::Configuration params;
     params.email = kTestEmail;
-    fake_gaia_.fake_gaia()->SetMergeSessionParams(params);
+    fake_gaia_.fake_gaia()->SetConfiguration(params);
     fake_gaia_.SetupFakeGaiaForLogin(kTestEmail, kTestGaiaId,
                                      kTestRefreshToken);
   }
 
   void SetupGaiaServerForExpiredAccount() {
-    FakeGaia::MergeSessionParams params;
-    params.gaia_uber_token = kTestGaiaUberToken;
+    FakeGaia::Configuration params;
     params.session_sid_cookie = kTestSession2SIDCookie;
     params.session_lsid_cookie = kTestSession2LSIDCookie;
-    fake_gaia_.fake_gaia()->SetMergeSessionParams(params);
+    fake_gaia_.fake_gaia()->SetConfiguration(params);
     fake_gaia_.SetupFakeGaiaForLogin(kTestEmail, kTestGaiaId,
                                      kTestRefreshToken);
   }
@@ -372,7 +367,7 @@ class OAuth2Test : public OobeBaseTest {
     const base::Value::Dict& prefs_oauth_status =
         local_state->GetDict("OAuthTokenStatus");
 
-    absl::optional<int> oauth_token_status = prefs_oauth_status.FindInt(email);
+    std::optional<int> oauth_token_status = prefs_oauth_status.FindInt(email);
     if (!oauth_token_status.has_value())
       return user_manager::User::OAUTH_TOKEN_STATUS_UNKNOWN;
 
@@ -404,8 +399,7 @@ class OAuth2Test : public OobeBaseTest {
       return false;
     }
 
-    UserContext user_context(user_manager::UserType::USER_TYPE_REGULAR,
-                             account_id);
+    UserContext user_context(user_manager::UserType::kRegular, account_id);
     user_context.SetKey(Key(password));
     controller->Login(user_context, SigninSpecifics());
     test::WaitForPrimaryUserSessionStart();
@@ -482,7 +476,7 @@ class OAuth2Test : public OobeBaseTest {
 
   void SimulateNetworkOnline() {
     network_portal_detector_.SimulateDefaultNetworkState(
-        NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_ONLINE);
+        NetworkPortalDetectorMixin::NetworkStatus::kOnline);
   }
 
   FakeGaiaMixin fake_gaia_{&mixin_host_};
@@ -490,7 +484,11 @@ class OAuth2Test : public OobeBaseTest {
 
  private:
   base::FilePath test_data_dir_;
-  std::map<std::string, RequestDeferrer*> request_deferers_;
+  std::map<std::string, raw_ptr<RequestDeferrer, CtnExperimental>>
+      request_deferers_;
+
+  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
+  extensions::ScopedTestMV2Enabler mv2_enabler;
 };
 
 class CookieReader {
@@ -584,7 +582,7 @@ IN_PROC_BROWSER_TEST_F(OAuth2Test, PRE_MergeSession) {
 // MergeSession test is attempting to merge session for an existing profile
 // that was generated in PRE_PRE_MergeSession test. This attempt should fail
 // since FakeGaia instance isn't configured to return relevant tokens/cookies.
-// TODO(crbug.com/1249863): Test is flaky on chromeos
+// TODO(crbug.com/40791508): Test is flaky on chromeos
 IN_PROC_BROWSER_TEST_F(OAuth2Test, DISABLED_MergeSession) {
   SimulateNetworkOnline();
 
@@ -601,7 +599,7 @@ IN_PROC_BROWSER_TEST_F(OAuth2Test, DISABLED_MergeSession) {
 
   CoreAccountId account_id =
       PickAccountId(GetProfile(), kTestGaiaId, kTestEmail);
-  ASSERT_EQ(kTestGaiaId, account_id.ToString());
+  ASSERT_EQ(CoreAccountId::FromGaiaId(kTestGaiaId), account_id);
 
   // Wait for the session merge to finish.
   WaitForMergeSessionCompletion(OAuth2LoginManager::SESSION_RESTORE_DONE);
@@ -671,13 +669,13 @@ IN_PROC_BROWSER_TEST_F(OAuth2Test, TerminateOnBadMergeSessionAfterOnlineAuth) {
       browser_shutdown::AddAppTerminatingCallback(signal.GetCallback());
 
   // Configure FakeGaia so that online auth succeeds but merge session fails.
-  FakeGaia::MergeSessionParams params;
+  FakeGaia::Configuration params;
   params.auth_sid_cookie = kTestAuthSIDCookie;
   params.auth_lsid_cookie = kTestAuthLSIDCookie;
   params.auth_code = kTestAuthCode;
   params.refresh_token = kTestRefreshToken;
   params.access_token = kTestAuthLoginAccessToken;
-  fake_gaia_.fake_gaia()->SetMergeSessionParams(params);
+  fake_gaia_.fake_gaia()->SetConfiguration(params);
 
   // Simulate an online sign-in.
   LoginDisplayHost::default_host()
@@ -753,8 +751,7 @@ class FakeGoogle {
       http_response->set_code(net::HTTP_OK);
       http_response->set_content_type("text/html");
       http_response->set_content(kRandomPageContent);
-    } else if (hang_merge_session_ && (request_path == kMergeSessionPath ||
-                                       request_path == kMultiLoginPath)) {
+    } else if (hang_multilogin_ && request_path == kMultiLoginPath) {
       merge_session_event_.Signal();
       content::GetUIThreadTaskRunner({})->PostTask(
           FROM_HERE, base::BindOnce(&FakeGoogle::NotifyMergeSessionSignal,
@@ -790,7 +787,7 @@ class FakeGoogle {
     EXPECT_TRUE(merge_session_signal_->Wait());
   }
 
-  void set_hang_merge_session() { hang_merge_session_ = true; }
+  void set_hang_multilogin() { hang_multilogin_ = true; }
 
  private:
   void NotifyPageRequestSignal() {
@@ -812,7 +809,7 @@ class FakeGoogle {
   base::WaitableEvent merge_session_event_;
   std::unique_ptr<base::test::TestFuture<void>> page_request_signal_;
   std::unique_ptr<base::test::TestFuture<void>> merge_session_signal_;
-  bool hang_merge_session_ = false;
+  bool hang_multilogin_ = false;
 };
 
 class MergeSessionTest : public OAuth2Test,
@@ -843,28 +840,24 @@ class MergeSessionTest : public OAuth2Test,
 
   void RegisterAdditionalRequestHandlers() override {
     OAuth2Test::RegisterAdditionalRequestHandlers();
-    AddRequestDeferer(kMergeSessionPath, &merge_session_deferer_);
-    AddRequestDeferer(kMultiLoginPath, &merge_session_deferer_);
+    AddRequestDeferer(kMultiLoginPath, &multilogin_deferer_);
 
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         &FakeGoogle::HandleRequest, base::Unretained(&fake_google_)));
   }
 
  protected:
-  void UnblockMergeSession() { merge_session_deferer_.UnblockRequest(); }
+  void UnblockMergeSession() { multilogin_deferer_.UnblockRequest(); }
 
   virtual void WaitForMergeSessionToStart() {
-    merge_session_deferer_.WaitForRequestToStart();
+    multilogin_deferer_.WaitForRequestToStart();
   }
 
   bool do_async_xhr() const { return GetParam(); }
 
   void JsExpectAsync(content::WebContents* web_contents,
                      const std::string& expression) {
-    content::DOMMessageQueue dom_message_queue(web_contents);
-    content::ExecuteScriptAsync(
-        web_contents,
-        "window.domAutomationController.send(!!(" + expression + "));");
+    content::ExecuteScriptAsync(web_contents, "!!(" + expression + ");");
   }
 
   void JsExpectOnBackgroundPageAsync(const std::string& extension_id,
@@ -883,12 +876,8 @@ class MergeSessionTest : public OAuth2Test,
   }
 
   void JsExpect(content::WebContents* contents, const std::string& expression) {
-    bool result;
-    ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-        contents,
-        "window.domAutomationController.send(!!(" + expression + "));",
-        &result));
-    ASSERT_TRUE(result) << expression;
+    ASSERT_EQ(true, content::EvalJs(contents, "!!(" + expression + ");"))
+        << expression;
   }
 
   const GURL& GetBackGroundPageUrl(const std::string& extension_id) {
@@ -915,7 +904,7 @@ class MergeSessionTest : public OAuth2Test,
   }
 
   FakeGoogle fake_google_;
-  RequestDeferrer merge_session_deferer_;
+  RequestDeferrer multilogin_deferer_;
   GURL fake_google_page_url_;
   GURL non_google_page_url_;
 };
@@ -936,7 +925,7 @@ IN_PROC_BROWSER_TEST_P(MergeSessionTest, PageThrottle) {
   Browser* browser = FindOrCreateVisibleBrowser(GetProfile());
   ui_test_utils::NavigateToURLWithDisposition(
       browser, fake_google_page_url_, WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // JavaScript dialog wait setup.
   content::WebContents* tab =
@@ -997,11 +986,10 @@ IN_PROC_BROWSER_TEST_P(MergeSessionTest, Throttle) {
 
   // Kick off XHR request from the extension.
   JsExpectOnBackgroundPageAsync(
-      ext->id(), base::StringPrintf("startThrottledTests('%s', '%s', %s, %s)",
+      ext->id(), base::StringPrintf("startThrottledTests('%s', '%s', %s)",
                                     fake_google_page_url_.spec().c_str(),
                                     non_google_page_url_.spec().c_str(),
-                                    BoolToString(do_async_xhr()),
-                                    BoolToString(/*should_throttle=*/true)));
+                                    base::ToString(do_async_xhr())));
   ExtensionTestMessageListener listener("Both XHR's Opened");
   ASSERT_TRUE(listener.WaitUntilSatisfied());
 
@@ -1066,11 +1054,10 @@ IN_PROC_BROWSER_TEST_P(MergeSessionTest, MAYBE_XHRNotThrottled) {
 
   // Kick off XHR request from the extension.
   JsExpectOnBackgroundPage(
-      ext->id(),
-      base::StringPrintf("startThrottledTests('%s', '%s', %s, %s)",
-                         fake_google_page_url_.spec().c_str(),
-                         non_google_page_url_.spec().c_str(),
-                         BoolToString(do_async_xhr()), BoolToString(false)));
+      ext->id(), base::StringPrintf("startThrottledTests('%s', '%s', %s)",
+                                    fake_google_page_url_.spec().c_str(),
+                                    non_google_page_url_.spec().c_str(),
+                                    base::ToString(do_async_xhr())));
 
   if (do_async_xhr()) {
     // Verify that we've sent XHR request from the extension side...
@@ -1117,8 +1104,14 @@ class MergeSessionTimeoutTest : public MergeSessionTest {
   }
 };
 
+// TODO(b/320482170) - Consider splitting this test into 2 - one for Google web
+// properties, and one for non-Google web properties. It is not possible right
+// now because chrome/test/data/extensions/api_test/merge_session/background.js
+// has a bunch of hidden assumptions about the ordering of Google and non-Google
+// web requests and doesn't really allow firing Google requests without
+// non-Google requests (and vice versa).
 IN_PROC_BROWSER_TEST_P(MergeSessionTimeoutTest, XHRMergeTimeout) {
-  fake_google_.set_hang_merge_session();
+  fake_google_.set_hang_multilogin();
 
   StartNewUserSession(/*wait_for_merge=*/false,
                       /*is_under_advanced_protection=*/false);
@@ -1131,6 +1124,8 @@ IN_PROC_BROWSER_TEST_P(MergeSessionTimeoutTest, XHRMergeTimeout) {
 
   std::unique_ptr<ExtensionTestMessageListener> non_google_xhr_listener(
       new ExtensionTestMessageListener("non-google-xhr-received"));
+  std::unique_ptr<ExtensionTestMessageListener> google_xhr_listener(
+      new ExtensionTestMessageListener("google-xhr-received"));
 
   // Load extension with a background page. The background page will
   // attempt to load `fake_google_page_url_` via XHR.
@@ -1141,21 +1136,22 @@ IN_PROC_BROWSER_TEST_P(MergeSessionTimeoutTest, XHRMergeTimeout) {
 
   // Kick off XHR request from the extension.
   JsExpectOnBackgroundPageAsync(
-      ext->id(),
-      base::StringPrintf("startThrottledTests('%s', '%s', %s, %s)",
-                         fake_google_page_url_.spec().c_str(),
-                         non_google_page_url_.spec().c_str(),
-                         BoolToString(do_async_xhr()), BoolToString(true)));
+      ext->id(), base::StringPrintf("startThrottledTests('%s', '%s', %s)",
+                                    fake_google_page_url_.spec().c_str(),
+                                    non_google_page_url_.spec().c_str(),
+                                    base::ToString(do_async_xhr())));
 
   if (do_async_xhr()) {
-    // Verify that we've sent XHR request from the extension side...
+    // Verify that we've sent XHR requests from the extension side...
     JsExpectOnBackgroundPage(ext->id(),
                              "googleRequestSent && !googleResponseReceived");
+    JsExpectOnBackgroundPage(ext->id(), "nonGoogleRequestSent");
 
     // ...but didn't see it on the server side yet.
     EXPECT_FALSE(fake_google_.IsPageRequested());
 
-    // Wait until the last XHR load completes.
+    // Wait until all the XHR loads complete.
+    ASSERT_TRUE(google_xhr_listener->WaitUntilSatisfied());
     ASSERT_TRUE(non_google_xhr_listener->WaitUntilSatisfied());
 
     // If the test runs in less than the test timeout (1 second) then we know

@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/ime/linux/composition_text_util_pango.h"
 
 #include <pango/pango-attributes.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <string>
 #include <utility>
 
@@ -38,7 +44,7 @@ struct TestData {
   const ImeTextSpan ime_text_spans[10];
 };
 
-const TestData kTestData[] = {
+constexpr auto kTestData = std::to_array<TestData>({
     // Normal case
     {"One Two Three",
      {{PANGO_ATTR_UNDERLINE, PANGO_UNDERLINE_SINGLE, 0, 3},
@@ -106,7 +112,7 @@ const TestData kTestData[] = {
       {9, 15, SK_ColorTRANSPARENT, ui::ImeTextSpan::Thickness::kThin,
        SK_ColorTRANSPARENT},
       {0, 0, 0, ui::ImeTextSpan::Thickness::kThin, SK_ColorTRANSPARENT}}},
-};
+});
 
 void CompareImeTextSpan(const ImeTextSpan& a, const ui::ImeTextSpan& b) {
   EXPECT_EQ(a.start_offset, b.start_offset);

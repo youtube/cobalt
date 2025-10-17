@@ -32,7 +32,7 @@ class CursorWindowDelegate;
 // When cursor compositing is disabled, draw nothing as the native cursor is
 // shown.
 // When cursor compositing is enabled, just draw the cursor as-is.
-class ASH_EXPORT CursorWindowController {
+class ASH_EXPORT CursorWindowController : public aura::WindowObserver {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -47,7 +47,7 @@ class ASH_EXPORT CursorWindowController {
   CursorWindowController(const CursorWindowController&) = delete;
   CursorWindowController& operator=(const CursorWindowController&) = delete;
 
-  ~CursorWindowController();
+  ~CursorWindowController() override;
 
   bool is_cursor_compositing_enabled() const {
     return is_cursor_compositing_enabled_;
@@ -71,7 +71,6 @@ class ASH_EXPORT CursorWindowController {
   void UpdateContainer();
 
   // Sets the display on which to draw cursor.
-  // Only applicable when cursor compositing is enabled.
   void SetDisplay(const display::Display& display);
 
   // When the mouse starts or stops hovering/resizing the docked magnifier
@@ -81,16 +80,28 @@ class ASH_EXPORT CursorWindowController {
   // |is_active| is false when user stops hovering and is no longer resizing.
   void OnDockedMagnifierResizingStateChanged(bool is_active);
 
+  // When entering/exiting fullscreen magnifier, reset the container and
+  // switch between cursor view and cursor aura window depends on the status.
+  void OnFullscreenMagnifierEnabled(bool enabled);
+
   // Sets cursor location, shape, set and visibility.
   void UpdateLocation();
   void SetCursor(gfx::NativeCursor cursor);
   void SetCursorSize(ui::CursorSize cursor_size);
   void SetVisibility(bool visible);
 
+  // aura::WindowObserver:
+  void OnWindowBoundsChanged(aura::Window* window,
+                             const gfx::Rect& old_bounds,
+                             const gfx::Rect& new_bounds,
+                             ui::PropertyChangeReason reason) override;
+  void OnWindowDestroying(aura::Window* window) override;
+
   // Gets the cursor container for testing purposes.
   const aura::Window* GetContainerForTest() const;
   SkColor GetCursorColorForTest() const;
-  gfx::Rect GetBoundsForTest() const;
+  gfx::Rect GetCursorBoundsInScreenForTest() const;
+  const aura::Window* GetCursorHostWindowForTest() const;
 
  private:
   friend class CursorWindowControllerTest;
@@ -113,11 +124,21 @@ class ASH_EXPORT CursorWindowController {
   // Updates cursor view based on current cursor state.
   void UpdateCursorView();
 
+  // Update cursor aura window.
+  void UpdateCursorWindow();
+
   const gfx::ImageSkia& GetCursorImageForTest() const;
+
+  // Determines if fast ink cursor should be used.
+  bool ShouldUseFastInk() const;
+
+  // If using fast ink, create `cursor_view_widget_`; otherwise,
+  // create `cursor_window_`.
+  void UpdateCursorMode();
 
   base::ObserverList<Observer> observers_;
 
-  raw_ptr<aura::Window, ExperimentalAsh> container_ = nullptr;
+  raw_ptr<aura::Window, DanglingUntriaged> container_ = nullptr;
 
   // The current cursor-compositing state.
   bool is_cursor_compositing_enabled_ = false;
@@ -138,17 +159,22 @@ class ASH_EXPORT CursorWindowController {
   gfx::Point hot_point_;
 
   int large_cursor_size_in_dip_ = kDefaultLargeCursorSize;
-  SkColor cursor_color_ = kDefaultCursorColor;
+  SkColor cursor_color_ = ui::kDefaultCursorColor;
 
   // The display on which the cursor is drawn.
   // For mirroring mode, the display is always the primary display.
   display::Display display_;
 
+  // When using software compositing, cursor_window_ will be used to paint
+  // cursor and composited with other elements by ui compositor.
   std::unique_ptr<aura::Window> cursor_window_;
   std::unique_ptr<CursorWindowDelegate> delegate_;
+  // When using fast ink, cursor_view_widget_ draws cursor image
+  // directly to the front buffer that is overlay candidate.
   views::UniqueWidgetPtr cursor_view_widget_;
 
-  const bool is_cursor_motion_blur_enabled_;
+  base::ScopedObservation<aura::Window, aura::WindowObserver>
+      scoped_container_observer_{this};
 };
 
 }  // namespace ash

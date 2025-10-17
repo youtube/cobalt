@@ -8,9 +8,9 @@
 #define CHROME_BROWSER_ASH_EXTENSIONS_FILE_MANAGER_PRIVATE_API_UTIL_H_
 
 #include <memory>
-#include <set>
 #include <vector>
 
+#include "base/files/file_error_or.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -31,10 +31,6 @@ namespace base {
 class File;
 class FilePath;
 }  // namespace base
-
-namespace content {
-class RenderFrameHost;
-}
 
 namespace drive {
 class EventLogger;
@@ -73,14 +69,10 @@ class SingleEntryPropertiesGetterForDriveFs {
       base::File::Error error)>;
 
   // Creates an instance and starts the process.
-  // To request specific properties, pass the requested_properties set.
-  // Note: Passing an empty set retrieves all available properties.
-  static void Start(
-      const storage::FileSystemURL& file_system_url,
+  static void Start(const storage::FileSystemURL& file_system_url,
       Profile* const profile,
-      const std::set<extensions::api::file_manager_private::EntryPropertyName>
-          requested_properties,
       ResultCallback callback);
+
   ~SingleEntryPropertiesGetterForDriveFs();
 
   SingleEntryPropertiesGetterForDriveFs(
@@ -92,8 +84,6 @@ class SingleEntryPropertiesGetterForDriveFs {
   SingleEntryPropertiesGetterForDriveFs(
       const storage::FileSystemURL& file_system_url,
       Profile* const profile,
-      const std::set<extensions::api::file_manager_private::EntryPropertyName>
-          requested_properties,
       ResultCallback callback);
   void StartProcess();
   void OnGetFileInfo(drive::FileError error,
@@ -103,16 +93,8 @@ class SingleEntryPropertiesGetterForDriveFs {
   // Given parameters.
   ResultCallback callback_;
   const storage::FileSystemURL file_system_url_;
-  const raw_ptr<Profile, ExperimentalAsh> running_profile_;
-  // Note: when empty, all properties are returned.
-  const std::set<extensions::api::file_manager_private::EntryPropertyName>
-      requested_properties_;
-  // If only some of these properties are being requested, we don't need to get
-  // metadata from DriveFS as they are already cached in the SyncStatusTracker.
-  const std::set<extensions::api::file_manager_private::EntryPropertyName>
-      locally_available_properties_ = {
-          extensions::api::file_manager_private::ENTRY_PROPERTY_NAME_SYNCSTATUS,
-          extensions::api::file_manager_private::ENTRY_PROPERTY_NAME_PROGRESS};
+  base::FilePath relative_path_;
+  const raw_ptr<Profile> running_profile_;
 
   // Values used in the process.
   std::unique_ptr<extensions::api::file_manager_private::EntryProperties>
@@ -134,15 +116,13 @@ void VolumeToVolumeMetadata(
     extensions::api::file_manager_private::VolumeMetadata* volume_metadata);
 
 // Returns the local FilePath associated with |url|. If the file isn't of the
-// type FileSystemBackend handles, returns an empty
-// FilePath. |render_frame_host| and |profile| are needed to obtain the
-// FileSystemContext currently in use.
+// type FileSystemBackend handles, returns an empty FilePath.
 //
-// Local paths will look like "/home/chronos/user/Downloads/foo/bar.txt" or
-// "/special/drive/foo/bar.txt".
-base::FilePath GetLocalPathFromURL(content::RenderFrameHost* render_frame_host,
-                                   Profile* profile,
-                                   const GURL& url);
+// Local paths will look like "/home/chronos/user/MyFiles/Downloads/foo/bar.txt"
+// or "/special/drive/foo/bar.txt".
+base::FilePath GetLocalPathFromURL(
+    scoped_refptr<storage::FileSystemContext> file_system_context,
+    const GURL& url);
 
 // The callback type is used for GetSelectedFileInfo().
 typedef base::OnceCallback<void(const std::vector<ui::SelectedFileInfo>&)>
@@ -185,6 +165,16 @@ bool ToRecentSourceFileType(
 // pinning to its file manager private equivalent.
 extensions::api::file_manager_private::BulkPinProgress BulkPinProgressToJs(
     const drivefs::pinning::Progress& progress);
+
+// Converts the given GURL into an EntryData struct that can be returned by
+// fileManagerPrivate.
+void GURLToEntryData(
+    Profile* profile,
+    scoped_refptr<storage::FileSystemContext> file_system_context,
+    const GURL& url,
+    base::OnceCallback<void(
+        base::FileErrorOr<extensions::api::file_manager_private::EntryData>)>
+        callback);
 
 }  // namespace util
 }  // namespace file_manager

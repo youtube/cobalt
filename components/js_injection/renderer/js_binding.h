@@ -5,9 +5,11 @@
 #ifndef COMPONENTS_JS_INJECTION_RENDERER_JS_BINDING_H_
 #define COMPONENTS_JS_INJECTION_RENDERER_JS_BINDING_H_
 
+#include <algorithm>
 #include <string>
 
 #include "base/auto_reset.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/js_injection/common/interfaces.mojom.h"
 #include "gin/arguments.h"
@@ -15,6 +17,7 @@
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
+#include "v8/include/v8.h"
 
 namespace v8 {
 template <typename T>
@@ -43,12 +46,17 @@ class JsBinding final : public gin::Wrappable<JsBinding>,
   static base::WeakPtr<JsBinding> Install(
       content::RenderFrame* render_frame,
       const std::u16string& js_object_name,
-      base::WeakPtr<JsCommunication> js_communication);
+      base::WeakPtr<JsCommunication> js_communication,
+      v8::Isolate* isolate,
+      v8::Local<v8::Context> context);
 
   // mojom::BrowserToJsMessaging implementation.
   void OnPostMessage(blink::WebMessagePayload message) override;
 
   void ReleaseV8GlobalObjects();
+
+  void Bind(
+      mojo::PendingAssociatedReceiver<mojom::BrowserToJsMessaging> receiver);
 
  protected:
   ~JsBinding() override;
@@ -62,6 +70,17 @@ class JsBinding final : public gin::Wrappable<JsBinding>,
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) override;
 
+  auto find_listener(v8::Local<v8::Function> listener) {
+    // Can't just use `find(listeners_, listener)` because `v8::Global<T>` and
+    // `v8::Local<T>` do not have a common reference type and thus do not
+    // satisfy `std::equality_comparable_with<>`. We could project using
+    // `v8::Global<T>::Get()`, but that's less efficient.
+    return std::ranges::find_if(listeners_,
+                                [listener](const auto& global_listener) {
+                                  return global_listener == listener;
+                                });
+  }
+
   // For jsObject.postMessage(message[, ports]) JavaScript API.
   void PostMessage(gin::Arguments* args);
   // For jsObject.addEventListener("message", listener) JavaScript API.
@@ -73,7 +92,7 @@ class JsBinding final : public gin::Wrappable<JsBinding>,
   // For set jsObject.onmessage.
   void SetOnMessage(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
-  content::RenderFrame* render_frame_;
+  raw_ptr<content::RenderFrame> render_frame_;
   std::u16string js_object_name_;
   v8::Global<v8::Function> on_message_;
   std::vector<v8::Global<v8::Function>> listeners_;

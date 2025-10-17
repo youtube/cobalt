@@ -10,9 +10,8 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "components/sync/base/features.h"
-#include "components/sync/base/time.h"
 #include "components/trusted_vault/proto/local_trusted_vault.pb.h"
+#include "components/trusted_vault/proto_time_conversion.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
 #include "components/trusted_vault/trusted_vault_histograms.h"
 
@@ -43,7 +42,7 @@ MakeDegradedRecoverabilityState(
   degraded_recoverability_state.set_degraded_recoverability_value(
       degraded_recoverability_value);
   degraded_recoverability_state.set_last_refresh_time_millis_since_unix_epoch(
-      syncer::TimeToProtoTime(last_refresh_time));
+      TimeToProtoTime(last_refresh_time));
   return degraded_recoverability_state;
 }
 
@@ -63,19 +62,15 @@ TrustedVaultDegradedRecoverabilityHandler::
       degraded_recoverability_state.degraded_recoverability_value();
   if (degraded_recoverability_state
           .has_last_refresh_time_millis_since_unix_epoch()) {
-    base::Time last_refresh_time = syncer::ProtoTimeToTime(
-        degraded_recoverability_state
-            .last_refresh_time_millis_since_unix_epoch());
+    base::Time last_refresh_time =
+        ProtoTimeToTime(degraded_recoverability_state
+                            .last_refresh_time_millis_since_unix_epoch());
     if (base::Time::Now() >= last_refresh_time) {
       last_refresh_time_ =
           base::TimeTicks::Now() - (base::Time::Now() - last_refresh_time);
     }
   }
 
-  long_degraded_recoverability_refresh_period_ =
-      syncer::kSyncTrustedVaultLongPeriodDegradedRecoverabilityPolling.Get();
-  short_degraded_recoverability_refresh_period_ =
-      syncer::kSyncTrustedVaultShortPeriodDegradedRecoverabilityPolling.Get();
   UpdateCurrentRefreshPeriod();
 }
 
@@ -108,15 +103,15 @@ void TrustedVaultDegradedRecoverabilityHandler::GetIsRecoverabilityDegraded(
 void TrustedVaultDegradedRecoverabilityHandler::UpdateCurrentRefreshPeriod() {
   if (degraded_recoverability_value_ ==
       trusted_vault_pb::DegradedRecoverabilityValue::kDegraded) {
-    current_refresh_period_ = short_degraded_recoverability_refresh_period_;
+    current_refresh_period_ = kShortDegradedRecoverabilityRefreshPeriod;
     return;
   }
-  current_refresh_period_ = long_degraded_recoverability_refresh_period_;
+  current_refresh_period_ = kLongDegradedRecoverabilityRefreshPeriod;
 }
 
 void TrustedVaultDegradedRecoverabilityHandler::Start() {
   base::UmaHistogramExactLinear(
-      "Sync.TrustedVaultDegradedRecoverabilityValue2",
+      "TrustedVault.TrustedVaultDegradedRecoverabilityValue",
       degraded_recoverability_value_,
       trusted_vault_pb::DegradedRecoverabilityValue_ARRAYSIZE);
   next_refresh_timer_.Start(
@@ -140,7 +135,7 @@ void TrustedVaultDegradedRecoverabilityHandler::
     OnRecoverabilityIsDegradedDownloaded(
         TrustedVaultRecoverabilityStatus status) {
   base::UmaHistogramEnumeration(
-      "Sync.TrustedVaultRecoverabilityStatusOnRequestCompletion", status);
+      "TrustedVault.RecoverabilityStatusOnRequestCompletion", status);
   trusted_vault_pb::DegradedRecoverabilityValue
       old_degraded_recoverability_value = degraded_recoverability_value_;
   switch (status) {
@@ -153,7 +148,7 @@ void TrustedVaultDegradedRecoverabilityHandler::
           trusted_vault_pb::DegradedRecoverabilityValue::kNotDegraded;
       break;
     case TrustedVaultRecoverabilityStatus::kError:
-      // TODO(crbug.com/1247990): To be handled.
+      // TODO(crbug.com/40790270): To be handled.
       break;
   }
   if (!pending_get_is_recoverability_degraded_callback_.is_null()) {

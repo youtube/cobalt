@@ -6,6 +6,7 @@
 #define COMPONENTS_VIZ_SERVICE_DISPLAY_EMBEDDER_SKIA_OUTPUT_DEVICE_VULKAN_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -15,7 +16,6 @@
 #include "components/viz/service/display_embedder/skia_output_device.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "gpu/vulkan/vulkan_swap_chain.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gpu {
 class VulkanSurface;
@@ -49,13 +49,11 @@ class SkiaOutputDeviceVulkan final : public SkiaOutputDevice {
   gpu::SurfaceHandle GetChildSurfaceHandle();
 #endif
   // SkiaOutputDevice implementation:
-  void Submit(bool sync_cpu, base::OnceClosure callback) override;
-  bool Reshape(const SkImageInfo& image_info,
-               const gfx::ColorSpace& color_space,
-               int sample_count,
-               float device_scale_factor,
-               gfx::OverlayTransform transform) override;
-  void Present(const absl::optional<gfx::Rect>& update_rect,
+  void Submit(scoped_refptr<gpu::SharedContextState> context_state,
+              bool sync_cpu,
+              base::OnceClosure callback) override;
+  bool Reshape(const ReshapeParams& params) override;
+  void Present(const std::optional<gfx::Rect>& update_rect,
                BufferPresentedCallback feedback,
                OutputSurfaceFrame frame) override;
   SkSurface* BeginPaint(
@@ -84,7 +82,7 @@ class SkiaOutputDeviceVulkan final : public SkiaOutputDevice {
   const gpu::SurfaceHandle surface_handle_;
   std::unique_ptr<gpu::VulkanSurface> vulkan_surface_;
 
-  absl::optional<gpu::VulkanSwapChain::ScopedWrite> scoped_write_;
+  std::optional<gpu::VulkanSwapChain::ScopedWrite> scoped_write_;
 
 #if DCHECK_IS_ON()
   bool image_modified_ = false;

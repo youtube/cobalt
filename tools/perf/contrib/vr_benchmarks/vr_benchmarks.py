@@ -29,74 +29,44 @@ class _BaseVRBenchmark(perf_benchmark.PerfBenchmark):
 
   @classmethod
   def AddBenchmarkCommandLineArgs(cls, parser):
-    parser.add_option(
-        '--shared-prefs-file',
-        help='The path relative to the Chromium source root '
-        'to a file containing a JSON list of shared '
-        'preference files to edit and how to do so. '
-        'See examples in //chrome/android/'
-        'shared_preference_files/test/')
-    parser.add_option(
+    parser.add_argument(
         '--disable-screen-reset',
         action='store_true',
         default=False,
-        help='Disables turning screen off and on after each story. '
-        'This is useful for local testing when turning off the '
-        'screen leads to locking the phone, which makes Telemetry '
-        'not produce valid results.')
-    parser.add_option(
-        '--disable-vrcore-install',
-        action='store_true',
-        default=False,
-        help='Disables the automatic installation of VrCore during pre-test '
-             'setup. This is useful for local testing on Pixel devices that '
-             'haven\'t had VrCore removed as a system app.')
-    parser.add_option(
-        '--disable-keyboard-install',
-        action='store_true',
-        default=False,
-        help='Disables the automatic installation of the VR keybaord during '
-             'pre-test setup. This is useful for local testing if you want '
-             'to use whatever version is already installed on the device '
-             'instead of installing whatever is in the test APKs directory.')
-    parser.add_option(
-        '--remove-system-vrcore',
-        action='store_true',
-        default=False,
-        help='Removes the system version of VrCore if it is installed. This '
-             'is required if the system version is not already removed and '
-             '--disable-vrcore-install is not passed.')
-    parser.add_option(
+        help=('Disables turning screen off and on after each story. '
+              'This is useful for local testing when turning off the '
+              'screen leads to locking the phone, which makes Telemetry '
+              'not produce valid results.'))
+    parser.add_argument(
         '--recording-wpr',
         action='store_true',
         default=False,
-        help='Modifies benchmark behavior slightly while recording WPR files '
-             'for it. This largely boils down to adding waits/sleeps in order '
-             'to ensure that enough streaming data is recorded for the '
-             'benchmark to run without issues.')
-    parser.add_option(
+        help=('Modifies benchmark behavior slightly while recording WPR files '
+              'for it. This largely boils down to adding waits/sleeps in order '
+              'to ensure that enough streaming data is recorded for the '
+              'benchmark to run without issues.'))
+    parser.add_argument(
         '--desktop-runtime',
         default='openxr',
         choices=list(vr_state.WindowsSharedVrPageState.DESKTOP_RUNTIMES.keys()),
-        help='Which VR runtime to use on Windows. Defaults to %default')
-    parser.add_option(
+        help='Which VR runtime to use on Windows. Defaults to %(default)s')
+    parser.add_argument(
         '--use-real-runtime',
         action='store_true',
         default=False,
-        help='Use the real runtime instead of a mock implementation. This '
-             'requires the runtime to be installed on the system.')
-    parser.add_option(
+        help=('Use the real runtime instead of a mock implementation. This '
+              'requires the runtime to be installed on the system.'))
+    parser.add_argument(
         '--mock-runtime-directory',
-        help='The directory containing the mock runtime implementation to be '
-             'used. Defaults to the "mock_vr_clients" subdirectory of the '
-             'output directory.')
+        help=('The directory containing the mock runtime implementation to be '
+              'used. Defaults to the "mock_vr_clients" subdirectory of the '
+              'output directory.'))
 
 
 class _BaseWebVRWebXRBenchmark(_BaseVRBenchmark):
 
-  # TODO(rmhasan): Remove the SUPPORTED_PLATFORMS lists.
-  # SUPPORTED_PLATFORMS is deprecated, please put system specifier tags
-  # from expectations.config in SUPPORTED_PLATFORM_TAGS.
+  # TODO(johnchen): Remove either the SUPPORTED_PLATFORMS or
+  # SUPPORTED_PLATFORMS_TAGS lists. Only one is necessary.
   SUPPORTED_PLATFORM_TAGS = [platforms.ANDROID, platforms.WIN10]
   SUPPORTED_PLATFORMS = [
       story.expectations.ALL_ANDROID,
@@ -145,9 +115,8 @@ class XrWebXrStatic(_BaseWebXRBenchmark):
 
 class _BaseBrowsingBenchmark(_BaseVRBenchmark):
 
-  # TODO(rmhasan): Remove the SUPPORTED_PLATFORMS lists.
-  # SUPPORTED_PLATFORMS is deprecated, please put system specifier tags
-  # from expectations.config in SUPPORTED_PLATFORM_TAGS.
+  # TODO(johnchen): Remove either the SUPPORTED_PLATFORMS or
+  # SUPPORTED_PLATFORMS_TAGS lists. Only one is necessary.
   SUPPORTED_PLATFORM_TAGS = [platforms.ANDROID]
   SUPPORTED_PLATFORMS = [story.expectations.ALL_ANDROID]
 

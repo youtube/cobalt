@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/common_decoder.h"
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <algorithm>
 
 #include "base/numerics/safe_math.h"
+#include "base/pickle.h"
 #include "gpu/command_buffer/service/command_buffer_service.h"
 #include "gpu/command_buffer/service/decoder_client.h"
 #include "ui/gfx/ipc/color/gfx_param_traits.h"
@@ -17,7 +24,18 @@
 namespace gpu {
 namespace {
 static const size_t kDefaultMaxBucketSize = 1u << 30;  // 1 GB
+
+uint32_t LoadU32Unaligned(const void* ptr) {
+  uint32_t ret;
+  memcpy(&ret, ptr, sizeof(uint32_t));
+  return ret;
 }
+
+void StoreU32Unaligned(uint32_t v, void* ptr) {
+  memcpy(ptr, &v, sizeof(uint32_t));
+}
+
+}  // namespace
 
 const CommonDecoder::CommandInfo CommonDecoder::command_info[] = {
 #define COMMON_COMMAND_BUFFER_CMD_OP(name)                       \
@@ -319,8 +337,10 @@ error::Error CommonDecoder::HandleGetBucketStart(
   const volatile cmd::GetBucketStart& args =
       *static_cast<const volatile cmd::GetBucketStart*>(cmd_data);
   uint32_t bucket_id = args.bucket_id;
-  uint32_t* result = GetSharedMemoryAs<uint32_t*>(
-      args.result_memory_id, args.result_memory_offset, sizeof(*result));
+  // `result` may not be aligned, so cast to `void*` and use `memcpy` to load
+  // and store.
+  void* result = GetSharedMemoryAs<void*>(
+      args.result_memory_id, args.result_memory_offset, sizeof(uint32_t));
   int32_t data_memory_id = args.data_memory_id;
   uint32_t data_memory_offset = args.data_memory_offset;
   uint32_t data_memory_size = args.data_memory_size;
@@ -336,7 +356,7 @@ error::Error CommonDecoder::HandleGetBucketStart(
     return error::kInvalidArguments;
   }
   // Check that the client initialized the result.
-  if (*result != 0) {
+  if (LoadU32Unaligned(result) != 0) {
     return error::kInvalidArguments;
   }
   Bucket* bucket = GetBucket(bucket_id);
@@ -344,7 +364,7 @@ error::Error CommonDecoder::HandleGetBucketStart(
     return error::kInvalidArguments;
   }
   uint32_t bucket_size = bucket->size();
-  *result = bucket_size;
+  StoreU32Unaligned(bucket_size, result);
   if (data) {
     uint32_t size = std::min(data_memory_size, bucket_size);
     memcpy(data, bucket->GetData(0, size), size);
@@ -401,15 +421,15 @@ bool CommonDecoder::ReadColorSpace(uint32_t shm_id,
     return true;
   }
 
-  const char* data = static_cast<const char*>(
+  const uint8_t* data = static_cast<const uint8_t*>(
       GetAddressAndCheckSize(shm_id, shm_offset, color_space_size));
   if (!data) {
     return false;
   }
 
-  // Make a copy to reduce the risk of a time of check to time of use attack.
-  std::vector<char> color_space_data(data, data + color_space_size);
-  base::Pickle color_space_pickle(color_space_data.data(), color_space_size);
+  base::span<const uint8_t> color_space_data(data, data + color_space_size);
+  base::Pickle color_space_pickle =
+      base::Pickle::WithUnownedBuffer(color_space_data);
   base::PickleIterator iterator(color_space_pickle);
   if (!IPC::ParamTraits<gfx::ColorSpace>::Read(&color_space_pickle, &iterator,
                                                color_space)) {

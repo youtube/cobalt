@@ -51,8 +51,8 @@ TestNetworkQualityEstimator::TestNetworkQualityEstimator(
     : NetworkQualityEstimator(
           std::make_unique<NetworkQualityEstimatorParams>(variation_params),
           NetLog::Get()),
-      embedded_test_server_(base::FilePath(kTestFilePath)),
-      suppress_notifications_for_testing_(suppress_notifications_for_testing) {
+      suppress_notifications_for_testing_(suppress_notifications_for_testing),
+      embedded_test_server_(base::FilePath(kTestFilePath)) {
   SetUseLocalHostRequestsForTesting(allow_local_host_requests_for_tests);
   SetUseSmallResponsesForTesting(allow_smaller_responses_for_tests);
 }
@@ -60,8 +60,8 @@ TestNetworkQualityEstimator::TestNetworkQualityEstimator(
 TestNetworkQualityEstimator::TestNetworkQualityEstimator(
     std::unique_ptr<NetworkQualityEstimatorParams> params)
     : NetworkQualityEstimator(std::move(params), NetLog::Get()),
-      embedded_test_server_(base::FilePath(kTestFilePath)),
-      suppress_notifications_for_testing_(false) {}
+      suppress_notifications_for_testing_(false),
+      embedded_test_server_(base::FilePath(kTestFilePath)) {}
 
 TestNetworkQualityEstimator::~TestNetworkQualityEstimator() = default;
 
@@ -80,7 +80,7 @@ void TestNetworkQualityEstimator::RunOneRequest() {
                              TRAFFIC_ANNOTATION_FOR_TESTS));
   request->SetLoadFlags(request->load_flags() | LOAD_MAIN_FRAME_DEPRECATED);
   request->Start();
-  base::RunLoop().Run();
+  test_delegate.RunUntilComplete();
 }
 
 void TestNetworkQualityEstimator::SimulateNetworkChange(
@@ -191,7 +191,7 @@ bool TestNetworkQualityEstimator::GetRecentRTT(
                                                rtt, observations_count);
 }
 
-absl::optional<base::TimeDelta> TestNetworkQualityEstimator::GetTransportRTT()
+std::optional<base::TimeDelta> TestNetworkQualityEstimator::GetTransportRTT()
     const {
   if (start_time_null_transport_rtt_)
     return start_time_null_transport_rtt_;
@@ -282,7 +282,7 @@ void TestNetworkQualityEstimator::
     observer.OnEffectiveConnectionTypeChanged(type);
 }
 
-absl::optional<net::EffectiveConnectionType>
+std::optional<net::EffectiveConnectionType>
 TestNetworkQualityEstimator::GetOverrideECT() const {
   return effective_connection_type_;
 }

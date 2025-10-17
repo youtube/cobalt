@@ -10,15 +10,18 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.StrictModeContext;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.File;
 
 /**
  * Manages the directory where tab state is saved.
  *
- * TODO(crbug.com/1097396): Deduplicate code between tabbed mode and custom tabs.
+ * <p>TODO(crbug.com/40136597): Deduplicate code between tabbed mode and custom tabs.
  */
+@NullMarked
 public class TabStateDirectory {
     private static final String TAG = "tabpersistence";
 
@@ -26,8 +29,7 @@ public class TabStateDirectory {
     private static final String BASE_STATE_FOLDER = "tabs";
 
     /** The name of the directory where the state for tabbed mode is saved. */
-    @VisibleForTesting
-    public static final String TABBED_MODE_DIRECTORY = "0";
+    @VisibleForTesting public static final String TABBED_MODE_DIRECTORY = "0";
 
     /** The name of the directory where the state for custom tabs is saved. */
     public static final String CUSTOM_TABS_DIRECTORY = "custom_tabs";
@@ -38,8 +40,8 @@ public class TabStateDirectory {
     /** Prevents two state directories from getting created simultaneously. */
     private static final Object CUSTOM_TABS_DIR_CREATION_LOCK = new Object();
 
-    private static File sTabbedModeStateDirectory;
-    private static File sCustomTabsStateDirectory;
+    private static @Nullable File sTabbedModeStateDirectory;
+    private static @Nullable File sCustomTabsStateDirectory;
 
     /**
      * The folder where the state should be saved to.
@@ -50,11 +52,8 @@ public class TabStateDirectory {
             if (sTabbedModeStateDirectory == null) {
                 sTabbedModeStateDirectory =
                         new File(getOrCreateBaseStateDirectory(), TABBED_MODE_DIRECTORY);
-                try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
-                    if (!sTabbedModeStateDirectory.exists()
-                            && !sTabbedModeStateDirectory.mkdirs()) {
-                        Log.e(TAG, "Failed to create state folder: " + sTabbedModeStateDirectory);
-                    }
+                if (!sTabbedModeStateDirectory.exists() && !sTabbedModeStateDirectory.mkdirs()) {
+                    Log.e(TAG, "Failed to create state folder: " + sTabbedModeStateDirectory);
                 }
             }
         }
@@ -70,11 +69,8 @@ public class TabStateDirectory {
             if (sCustomTabsStateDirectory == null) {
                 sCustomTabsStateDirectory =
                         new File(getOrCreateBaseStateDirectory(), CUSTOM_TABS_DIRECTORY);
-                try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
-                    if (!sCustomTabsStateDirectory.exists()
-                            && !sCustomTabsStateDirectory.mkdirs()) {
-                        Log.e(TAG, "Failed to create state folder: " + sCustomTabsStateDirectory);
-                    }
+                if (!sCustomTabsStateDirectory.exists() && !sCustomTabsStateDirectory.mkdirs()) {
+                    Log.e(TAG, "Failed to create state folder: " + sCustomTabsStateDirectory);
                 }
             }
         }
@@ -86,8 +82,9 @@ public class TabStateDirectory {
         private static File sDirectory;
 
         static {
-            sDirectory = ContextUtils.getApplicationContext().getDir(
-                    BASE_STATE_FOLDER, Context.MODE_PRIVATE);
+            sDirectory =
+                    ContextUtils.getApplicationContext()
+                            .getDir(BASE_STATE_FOLDER, Context.MODE_PRIVATE);
         }
     }
 
@@ -102,15 +99,13 @@ public class TabStateDirectory {
         return BaseStateDirectoryHolder.sDirectory;
     }
 
-    /**
-     * Sets where the base state directory is in tests.
-     */
-    @VisibleForTesting
+    /** Sets where the base state directory is in tests. */
     public static void setBaseStateDirectoryForTests(File directory) {
+        var oldValue = BaseStateDirectoryHolder.sDirectory;
         BaseStateDirectoryHolder.sDirectory = directory;
+        ResettersForTesting.register(() -> BaseStateDirectoryHolder.sDirectory = oldValue);
     }
 
-    @VisibleForTesting
     public static void resetTabbedModeStateDirectoryForTesting() {
         sTabbedModeStateDirectory = null;
     }

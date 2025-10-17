@@ -4,38 +4,25 @@
 
 #include "chrome/browser/new_tab_page/chrome_colors/chrome_colors_service.h"
 
+#include <algorithm>
+
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "chrome/browser/new_tab_page/chrome_colors/generated_colors_info.h"
 #include "chrome/browser/new_tab_page/chrome_colors/selected_colors_info.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/webui/cr_components/theme_color_picker/customize_chrome_colors.h"
+#include "ui/base/mojom/themes.mojom.h"
 
 namespace chrome_colors {
 
-const int kDefaultColorId = -1;
-const int kOtherColorId = 0;
+namespace {
+
+}  // namespace
 
 ChromeColorsService::ChromeColorsService(Profile* profile)
     : theme_service_(ThemeServiceFactory::GetForProfile(profile)) {}
 
 ChromeColorsService::~ChromeColorsService() = default;
-
-// static
-int ChromeColorsService::GetColorId(const SkColor color) {
-  for (chrome_colors::ColorInfo color_info :
-       chrome_colors::kGeneratedColorsInfo) {
-    if (color == color_info.color)
-      return color_info.id;
-  }
-
-  return kOtherColorId;
-}
-
-// static
-void ChromeColorsService::RecordColorOnLoadHistogram(SkColor color) {
-  UMA_HISTOGRAM_ENUMERATION("ChromeColors.ColorOnLoad", GetColorId(color),
-                            kNumColorsInfo);
-}
 
 void ChromeColorsService::ApplyDefaultTheme(content::WebContents* tab) {
   SaveThemeRevertState(tab);
@@ -72,7 +59,7 @@ void ChromeColorsService::RevertThemeChangesInternal() {
 }
 
 void ChromeColorsService::SaveThemeRevertState(content::WebContents* tab) {
-  // TODO(crbug.com/980745): Support theme reverting for multiple tabs.
+  // TODO(crbug.com/41468999): Support theme reverting for multiple tabs.
   if (!prev_theme_reinstaller_) {
     prev_theme_reinstaller_ = theme_service_->BuildReinstallerForCurrentTheme();
     dialog_tab_ = tab;

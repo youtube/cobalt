@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/paint/fragment_data_iterator.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
@@ -227,7 +228,7 @@ TEST_F(PaintLayerClipperTest, ControlClipSelect) {
 
   PhysicalRect content_box_rect = target->PhysicalContentBoxRect();
   EXPECT_GT(foreground_rect.Rect().X(),
-            content_box_rect.X() + target->Location().X());
+            content_box_rect.X() + target->PhysicalLocation().left);
   EXPECT_LE(foreground_rect.Rect().Width(), content_box_rect.Width());
 }
 
@@ -335,7 +336,7 @@ TEST_F(PaintLayerClipperTest, CSSClip) {
 
   PaintLayer* target = GetPaintLayerByElementId("target");
   ClipRectsContext context(target, &target->GetLayoutObject().FirstFragment());
-  PhysicalRect infinite_rect(LayoutRect::InfiniteIntRect());
+  PhysicalRect infinite_rect(InfiniteIntRect());
   PhysicalOffset layer_offset = infinite_rect.offset;
   ClipRect background_rect(infinite_rect);
   ClipRect foreground_rect(infinite_rect);
@@ -363,7 +364,7 @@ TEST_F(PaintLayerClipperTest, Filter) {
 
   // First test clip rects in the target layer itself.
   ClipRectsContext context(target, &target->GetLayoutObject().FirstFragment());
-  PhysicalRect infinite_rect(LayoutRect::InfiniteIntRect());
+  PhysicalRect infinite_rect(InfiniteIntRect());
   PhysicalOffset layer_offset = infinite_rect.offset;
   ClipRect background_rect(infinite_rect);
   ClipRect foreground_rect(infinite_rect);
@@ -413,7 +414,7 @@ TEST_F(PaintLayerClipperTest, IgnoreRootLayerClipWithCSSClip) {
   PaintLayer* target = GetPaintLayerByElementId("target");
   ClipRectsContext context(root, &root->GetLayoutObject().FirstFragment(),
                            kIgnoreOverlayScrollbarSize, kIgnoreOverflowClip);
-  PhysicalRect infinite_rect(LayoutRect::InfiniteIntRect());
+  PhysicalRect infinite_rect(InfiniteIntRect());
   PhysicalOffset layer_offset = infinite_rect.offset;
   ClipRect background_rect(infinite_rect);
   ClipRect foreground_rect(infinite_rect);
@@ -445,7 +446,7 @@ TEST_F(PaintLayerClipperTest, IgnoreRootLayerClipWithOverflowClip) {
   PaintLayer* target = GetPaintLayerByElementId("target");
   ClipRectsContext context(root, &root->GetLayoutObject().FirstFragment(),
                            kIgnoreOverlayScrollbarSize, kIgnoreOverflowClip);
-  PhysicalOffset layer_offset(LayoutRect::InfiniteIntRect().origin());
+  PhysicalOffset layer_offset(InfiniteIntRect().origin());
   ClipRect background_rect;
   ClipRect foreground_rect;
   target->Clipper().CalculateRects(
@@ -477,7 +478,7 @@ TEST_F(PaintLayerClipperTest, IgnoreRootLayerClipWithBothClip) {
   PaintLayer* target = GetPaintLayerByElementId("target");
   ClipRectsContext context(root, &root->GetLayoutObject().FirstFragment(),
                            kIgnoreOverlayScrollbarSize, kIgnoreOverflowClip);
-  PhysicalRect infinite_rect(LayoutRect::InfiniteIntRect());
+  PhysicalRect infinite_rect(InfiniteIntRect());
   PhysicalOffset layer_offset = infinite_rect.offset;
   ClipRect background_rect(infinite_rect);
   ClipRect foreground_rect(infinite_rect);
@@ -508,12 +509,10 @@ TEST_F(PaintLayerClipperTest, Fragmentation) {
   ClipRect background_rect, foreground_rect;
 
   PaintLayer* target_paint_layer = GetPaintLayerByElementId("target");
-  EXPECT_TRUE(
-      target_paint_layer->GetLayoutObject().FirstFragment().NextFragment());
-  EXPECT_FALSE(target_paint_layer->GetLayoutObject()
-                   .FirstFragment()
-                   .NextFragment()
-                   ->NextFragment());
+  FragmentDataIterator iterator(target_paint_layer->GetLayoutObject());
+  ASSERT_TRUE(iterator.Advance());
+  const FragmentData* second_fragment = iterator.GetFragmentData();
+  EXPECT_FALSE(iterator.Advance());
 
   target_paint_layer->Clipper().CalculateRects(
       context, target_paint_layer->GetLayoutObject().FirstFragment(),
@@ -523,10 +522,9 @@ TEST_F(PaintLayerClipperTest, Fragmentation) {
   EXPECT_TRUE(foreground_rect.IsInfinite());
   EXPECT_EQ(PhysicalOffset(), layer_offset);
 
-  target_paint_layer->Clipper().CalculateRects(
-      context,
-      *target_paint_layer->GetLayoutObject().FirstFragment().NextFragment(),
-      layer_offset, background_rect, foreground_rect);
+  target_paint_layer->Clipper().CalculateRects(context, *second_fragment,
+                                               layer_offset, background_rect,
+                                               foreground_rect);
 
   EXPECT_TRUE(background_rect.IsInfinite());
   EXPECT_TRUE(foreground_rect.IsInfinite());
@@ -546,6 +544,8 @@ TEST_F(PaintLayerClipperTest, ScrollbarClipBehaviorChild) {
 
   PaintLayer* parent_paint_layer = GetPaintLayerByElementId("parent");
   PaintLayer* child_paint_layer = GetPaintLayerByElementId("child");
+  parent_paint_layer->GetScrollableArea()->SetScrollbarsHiddenIfOverlay(false);
+  UpdateAllLifecyclePhasesForTest();
 
   ClipRectsContext context(
       parent_paint_layer,
@@ -575,10 +575,12 @@ TEST_F(PaintLayerClipperTest, ScrollbarClipBehaviorChildScrollBetween) {
     </div>
   )HTML");
 
-  Element* parent = GetDocument().getElementById("parent");
+  Element* parent = GetDocument().getElementById(AtomicString("parent"));
   PaintLayer* root_paint_layer = parent->GetLayoutObject()->View()->Layer();
-
   PaintLayer* child_paint_layer = GetPaintLayerByElementId("child");
+  parent->GetLayoutBox()->GetScrollableArea()->SetScrollbarsHiddenIfOverlay(
+      false);
+  UpdateAllLifecyclePhasesForTest();
 
   ClipRectsContext context(root_paint_layer,
                            &root_paint_layer->GetLayoutObject().FirstFragment(),
@@ -608,6 +610,8 @@ TEST_F(PaintLayerClipperTest, ScrollbarClipBehaviorParent) {
   )HTML");
 
   PaintLayer* parent_paint_layer = GetPaintLayerByElementId("parent");
+  parent_paint_layer->GetScrollableArea()->SetScrollbarsHiddenIfOverlay(false);
+  UpdateAllLifecyclePhasesForTest();
 
   ClipRectsContext context(
       parent_paint_layer,

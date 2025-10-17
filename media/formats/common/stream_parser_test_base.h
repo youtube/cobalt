@@ -14,7 +14,6 @@
 #include "media/base/media_util.h"
 #include "media/base/stream_parser.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
 
 namespace media {
@@ -48,9 +47,8 @@ class StreamParserTestBase {
   //
   std::string ParseFile(const std::string& filename, int append_bytes);
 
-  // Similar to ParseFile() except parses the given |data| in a single append of
-  // size |length|.
-  std::string ParseData(const uint8_t* data, size_t length);
+  // Similar to ParseFile() except parses the given |data| in a single append.
+  std::string ParseData(base::span<const uint8_t> data);
 
   // The last AudioDecoderConfig handed to OnNewConfig().
   const AudioDecoderConfig& last_audio_config() const {
@@ -58,12 +56,10 @@ class StreamParserTestBase {
   }
 
  private:
-  bool AppendAllDataThenParseInPieces(const uint8_t* data,
-                                      size_t length,
+  bool AppendAllDataThenParseInPieces(base::span<const uint8_t> data,
                                       size_t piece_size);
   void OnInitDone(const StreamParser::InitParameters& params);
-  bool OnNewConfig(std::unique_ptr<MediaTracks> tracks,
-                   const StreamParser::TextTrackConfigMap& text_config);
+  bool OnNewConfig(std::unique_ptr<MediaTracks> tracks);
   bool OnNewBuffers(const StreamParser::BufferQueueMap& buffer_queue_map);
   void OnKeyNeeded(EmeInitDataType type, const std::vector<uint8_t>& init_data);
   void OnNewSegment();

@@ -5,22 +5,16 @@
 #ifndef MEDIA_GPU_V4L2_TEST_VP9_DECODER_H_
 #define MEDIA_GPU_V4L2_TEST_VP9_DECODER_H_
 
-#include "media/gpu/v4l2/test/v4l2_ioctl_shim.h"
-
 #include <linux/v4l2-controls.h>
-
-// ChromeOS specific header; does not exist upstream
-#if BUILDFLAG(IS_CHROMEOS)
-#include <linux/media/vp9-ctrls-upstream.h>
-#endif
 
 #include <set>
 
 #include "base/files/memory_mapped_file.h"
 #include "media/base/video_types.h"
-#include "media/filters/ivf_parser.h"
-#include "media/filters/vp9_parser.h"
+#include "media/gpu/v4l2/test/v4l2_ioctl_shim.h"
 #include "media/gpu/v4l2/test/video_decoder.h"
+#include "media/parsers/ivf_parser.h"
+#include "media/parsers/vp9_parser.h"
 
 namespace media {
 namespace v4l2_test {
@@ -40,11 +34,12 @@ class Vp9Decoder : public VideoDecoder {
   // Parses next frame from IVF stream and decodes the frame. This method will
   // place the Y, U, and V values into the respective vectors and update the
   // size with the display area size of the decoded frame.
-  VideoDecoder::Result DecodeNextFrame(std::vector<uint8_t>& y_plane,
+  VideoDecoder::Result DecodeNextFrame(const int frame_number,
+                                       std::vector<uint8_t>& y_plane,
                                        std::vector<uint8_t>& u_plane,
                                        std::vector<uint8_t>& v_plane,
                                        gfx::Size& size,
-                                       const int frame_number) override;
+                                       BitDepth& bit_depth) override;
 
  private:
   Vp9Decoder(std::unique_ptr<IvfParser> ivf_parser,
@@ -77,9 +72,6 @@ class Vp9Decoder : public VideoDecoder {
 
   // VP9-specific data.
   const std::unique_ptr<Vp9Parser> vp9_parser_;
-
-  // Supports parsed compressed headers
-  const bool supports_compressed_headers_;
 
   // Reference frames currently in use.
   std::array<scoped_refptr<MmappedBuffer>, kVp9NumRefFrames> ref_frames_;

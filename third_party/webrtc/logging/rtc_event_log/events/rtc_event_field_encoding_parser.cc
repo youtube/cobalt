@@ -11,16 +11,24 @@
 
 #include "logging/rtc_event_log/events/rtc_event_field_encoding_parser.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <tuple>
+
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
+#include "api/array_view.h"
 #include "logging/rtc_event_log/encoder/var_int.h"
+#include "logging/rtc_event_log/events/fixed_length_encoding_parameters_v3.h"
 #include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
+#include "logging/rtc_event_log/events/rtc_event_field_extraction.h"
 #include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
 #include "rtc_base/bitstream_reader.h"
 #include "rtc_base/checks.h"
 
 namespace {
-absl::optional<webrtc::FieldType> ConvertFieldType(uint64_t value) {
+std::optional<webrtc::FieldType> ConvertFieldType(uint64_t value) {
   switch (value) {
     case static_cast<uint64_t>(webrtc::FieldType::kFixed8):
       return webrtc::FieldType::kFixed8;
@@ -33,7 +41,7 @@ absl::optional<webrtc::FieldType> ConvertFieldType(uint64_t value) {
     case static_cast<uint64_t>(webrtc::FieldType::kString):
       return webrtc::FieldType::kString;
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 }  // namespace
@@ -201,7 +209,7 @@ RtcEventLogParseStatus EventParser::ParseNumericFieldInternal(
                                            __FILE__, __LINE__);
     // NB: value_bit_width may be incorrect for the field, if this isn't the
     // field we are looking for.
-    absl::optional<FixedLengthEncodingParametersV3> delta_header =
+    std::optional<FixedLengthEncodingParametersV3> delta_header =
         FixedLengthEncodingParametersV3::ParseDeltaHeader(header_value,
                                                           value_bit_width);
     if (!delta_header.has_value()) {
@@ -310,7 +318,7 @@ RtcEventLogParseStatus EventParser::ParseField(const FieldParameters& params) {
                                              __FILE__, __LINE__);
       // Split tag into field ID and field type.
       field_id = field_tag >> 3;
-      absl::optional<FieldType> conversion = ConvertFieldType(field_tag & 7u);
+      std::optional<FieldType> conversion = ConvertFieldType(field_tag & 7u);
       if (!conversion.has_value())
         return RtcEventLogParseStatus::Error("Failed to parse field type",
                                              __FILE__, __LINE__);
@@ -348,15 +356,15 @@ RtcEventLogParseStatus EventParser::ParseField(const FieldParameters& params) {
   return RtcEventLogParseStatus::Success();
 }
 
-RtcEventLogParseStatusOr<rtc::ArrayView<absl::string_view>>
+RtcEventLogParseStatusOr<ArrayView<absl::string_view>>
 EventParser::ParseStringField(const FieldParameters& params,
                               bool required_field) {
-  using StatusOr = RtcEventLogParseStatusOr<rtc::ArrayView<absl::string_view>>;
+  using StatusOr = RtcEventLogParseStatusOr<ArrayView<absl::string_view>>;
   RTC_DCHECK_EQ(params.field_type, FieldType::kString);
   auto status = ParseField(params);
   if (!status.ok())
     return StatusOr(status);
-  rtc::ArrayView<absl::string_view> strings = GetStrings();
+  ArrayView<absl::string_view> strings = GetStrings();
   if (required_field && strings.size() != NumEventsInBatch()) {
     return StatusOr::Error("Required string field not found", __FILE__,
                            __LINE__);
@@ -364,15 +372,15 @@ EventParser::ParseStringField(const FieldParameters& params,
   return StatusOr(strings);
 }
 
-RtcEventLogParseStatusOr<rtc::ArrayView<uint64_t>>
-EventParser::ParseNumericField(const FieldParameters& params,
-                               bool required_field) {
-  using StatusOr = RtcEventLogParseStatusOr<rtc::ArrayView<uint64_t>>;
+RtcEventLogParseStatusOr<ArrayView<uint64_t>> EventParser::ParseNumericField(
+    const FieldParameters& params,
+    bool required_field) {
+  using StatusOr = RtcEventLogParseStatusOr<ArrayView<uint64_t>>;
   RTC_DCHECK_NE(params.field_type, FieldType::kString);
   auto status = ParseField(params);
   if (!status.ok())
     return StatusOr(status);
-  rtc::ArrayView<uint64_t> values = GetValues();
+  ArrayView<uint64_t> values = GetValues();
   if (required_field && values.size() != NumEventsInBatch()) {
     return StatusOr::Error("Required numerical field not found", __FILE__,
                            __LINE__);

@@ -3,53 +3,30 @@
 # found in the LICENSE file.
 
 import("//build/config/chrome_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
 
-assert(is_chromeos)
-
-static_library("structured") {
-  sources = [
-    "chrome_structured_metrics_recorder.cc",
-    "chrome_structured_metrics_recorder.h",
-    "cros_events_processor.cc",
-    "cros_events_processor.h",
-    "event_logging_features.cc",
-    "event_logging_features.h",
-  ]
+source_set("structured") {
+  sources = []
 
   deps = [
-    "//base",
-    "//build:chromeos_buildflags",
-    "//chromeos/crosapi/mojom",
+    "//components/metrics",
     "//components/metrics/structured",
-    "//components/metrics/structured:structured_events",
-    "//components/prefs",
+    "//components/metrics/structured:structured_metrics_validator",
+    "//components/metrics/structured/lib",
   ]
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
+    deps += [ "//components/metrics/structured:external_metrics" ]
+  } else if (is_win || is_linux || is_mac) {
     sources += [
-      "ash_structured_metrics_recorder.cc",
-      "ash_structured_metrics_recorder.h",
-      "structured_metrics_key_events_observer.cc",
-      "structured_metrics_key_events_observer.h",
+      "chrome_event_storage.cc",
+      "chrome_event_storage.h",
+      "chrome_structured_metrics_recorder.cc",
+      "chrome_structured_metrics_recorder.h",
+      "key_data_provider_chrome.cc",
+      "key_data_provider_chrome.h",
     ]
 
-    deps += [
-      "//chrome/browser:browser_process",
-      "//chrome/browser/ash/crosapi",
-      "//chromeos/ash/components/login/session:session",
-      "//chromeos/dbus/power:power",
-      "//components/user_manager:user_manager",
-    ]
-  }
-
-  if (is_chromeos_lacros) {
-    sources += [
-      "lacros_structured_metrics_recorder.cc",
-      "lacros_structured_metrics_recorder.h",
-    ]
-
-    deps += [ "//chromeos/lacros" ]
+    deps += [ "//components/prefs" ]
   }
 }
 
@@ -61,6 +38,9 @@ static_library("test_support") {
   ]
   deps = [
     "//chrome/test:test_support",
+    "//components/metrics/structured",
+    "//components/metrics/structured:structured_metrics_features",
     "//components/metrics/structured:test_support",
+    "//components/metrics_services_manager",
   ]
 }

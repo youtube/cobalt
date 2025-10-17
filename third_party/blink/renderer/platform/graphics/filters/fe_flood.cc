@@ -24,7 +24,7 @@
 #include "third_party/blink/renderer/platform/graphics/filters/fe_flood.h"
 
 #include "base/types/optional_util.h"
-#include "third_party/blink/renderer/platform/wtf/text/text_stream.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder_stream.h"
 #include "third_party/skia/include/core/SkColorFilter.h"
 
 namespace blink {
@@ -63,16 +63,14 @@ bool FEFlood::SetFloodOpacity(float flood_opacity) {
 sk_sp<PaintFilter> FEFlood::CreateImageFilter() {
   SkColor4f color = flood_color_;
   color.fA *= flood_opacity_;
-  absl::optional<PaintFilter::CropRect> crop_rect = GetCropRect();
+  std::optional<PaintFilter::CropRect> crop_rect = GetCropRect();
   return sk_make_sp<ColorFilterPaintFilter>(
-      // TODO(crbug.com/1308932): SkColorFilters::Blend to SkColor4f
-      SkColorFilters::Blend(Color::FromSkColor4f(color).Rgb(),
-                            SkBlendMode::kSrc),
-      nullptr, base::OptionalToPtr(crop_rect));
+      cc::ColorFilter::MakeBlend(color, SkBlendMode::kSrc), nullptr,
+      base::OptionalToPtr(crop_rect));
 }
 
-WTF::TextStream& FEFlood::ExternalRepresentation(WTF::TextStream& ts,
-                                                 int indent) const {
+StringBuilder& FEFlood::ExternalRepresentation(StringBuilder& ts,
+                                               wtf_size_t indent) const {
   WriteIndent(ts, indent);
   ts << "[feFlood";
   FilterEffect::ExternalRepresentation(ts);

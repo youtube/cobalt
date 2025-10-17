@@ -39,14 +39,28 @@ if (enable_perfetto_platform_services) {
   if (enable_perfetto_traced_probes) {
     all_targets += [ "src/traced/probes:traced_probes" ]
   }
+  if (enable_perfetto_traced_relay) {
+    all_targets += [ "src/traced_relay:traced_relay" ]
+  }
 }
 
 if (enable_perfetto_trace_processor && enable_perfetto_trace_processor_sqlite) {
+  if (enable_perfetto_grpc) {
+    all_targets += [ "src/bigtrace/orchestrator:orchestrator_main" ]
+    all_targets += [ "src/bigtrace/worker:worker_main" ]
+  }
   all_targets += [ "src/trace_processor:trace_processor_shell" ]
 }
 
+if (enable_perfetto_trace_processor) {
+  all_targets += [ "src/trace_redaction:trace_redactor" ]
+}
+
 if (enable_perfetto_traceconv) {
-  all_targets += [ "src/traceconv" ]
+  all_targets += [
+    "src/traceconv",
+    "src/trace_config_utils",
+  ]
   if (is_cross_compiling) {
     # In many cross-compilation scenarios (typically Android) developers expect
     # the host version of traceconv to be available somewhere in out/, so
@@ -55,7 +69,10 @@ if (enable_perfetto_traceconv) {
     # cc_binary_host("traceconv") target in Android.bp.
     # Note that when cross-compiling the host executable will be available in
     # out/xxx/gcc_like_host/traceconv NOT just out/xxx/traceconv.
-    all_targets += [ "src/traceconv($host_toolchain)" ]
+    all_targets += [
+      "src/traceconv($host_toolchain)",
+      "src/trace_config_utils($host_toolchain)",
+    ]
   }
 }
 
@@ -95,7 +112,7 @@ if (enable_perfetto_unittests) {
   test("perfetto_unittests") {
     if (is_fuchsia) {
       additional_manifest_fragments =
-          [ "//build/config/fuchsia/test/network.shard.test-cml" ]
+          [ "//build/config/fuchsia/test/network.shard.test-cml" ]  # nogncheck
     }
     deps = perfetto_unittests_targets
   }
@@ -105,7 +122,11 @@ if (enable_perfetto_unittests) {
 if (enable_perfetto_integration_tests) {
   import("gn/perfetto_integrationtests.gni")
   test("perfetto_integrationtests") {
-    deps = perfetto_integrationtests_targets
+    deps = [
+      "gn:default_deps",
+      "test:integrationtest_main",
+    ]
+    deps += perfetto_integrationtests_targets
   }
   all_targets += [
     ":perfetto_integrationtests",
@@ -114,8 +135,22 @@ if (enable_perfetto_integration_tests) {
     "test/stress_test",
   ]
   if (!is_win && !is_mac) {
-    all_targets += [ "examples/shared_lib:example_shlib_data_source" ]
+    all_targets += [
+      "examples/shared_lib:example_shlib_data_source",
+      "examples/shared_lib:example_shlib_track_event",
+    ]
   }
+}
+
+if (enable_perfetto_android_java_sdk) {
+  all_targets += [
+    "src/java_sdk/main:perfetto_java_sdk_app",
+    "src/java_sdk/test:perfetto_java_sdk_test_app",
+    "src/java_sdk/test:perfetto_java_sdk_instrumentation_test",
+    "src/android_sdk/jni:libperfetto_jni",
+    "src/android_sdk/java/main:perfetto_trace_lib",
+    "src/android_sdk/java/test:perfetto_trace_instrumentation_test",
+  ]
 }
 
 if (enable_perfetto_trace_processor_json) {
@@ -156,9 +191,6 @@ if (perfetto_build_standalone) {
     # Used to evaluate the Python folder for Bazel script generation.
     "python:trace_processor_py",
 
-    # For syntax-checking the protos.
-    "protos/perfetto/trace:merged_trace_lite",
-
     # For checking all generated xxx.gen.{cc,h} files without waiting for
     # embedders to try to use them and fail.
     "protos/perfetto/config:cpp",
@@ -173,6 +205,11 @@ if (perfetto_build_standalone) {
   if (is_linux || is_android || is_mac) {
     all_targets += [ "src/tracebox" ]
   }
+}
+
+if (enable_perfetto_merged_protos_check) {
+  # For syntax-checking the protos.
+  all_targets += [ "protos/perfetto/trace:merged_trace_lite" ]
 }
 
 # The CTS code is built (but not ran) also in standalone builds. This is to
@@ -257,10 +294,9 @@ if (!build_with_chromium) {
     public_deps = [
       "gn:default_deps",
       "src/tracing:client_api",
-      "src/tracing:platform_impl",
     ]
     sources = [ "include/perfetto/tracing.h" ]
-    assert_no_deps = [ "//gn:protobuf_lite" ]
+    assert_no_deps = [ "gn:protobuf_lite" ]
   }
 }
 
@@ -275,12 +311,9 @@ if (build_with_chromium) {
       "src/trace_processor/importers/memory_tracker:graph_processor",
       "src/tracing:client_api",
       "src/tracing/core",
-
-      # TODO(eseckler): Create a platform for chrome and hook it up somehow.
-      "src/tracing:platform_fake",
     ]
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]  # nogncheck
+    configs += [ "//build/config/compiler:no_chromium_code" ]  # nogncheck
     public_deps = [
       "include/perfetto/ext/trace_processor/importers/memory_tracker",
       "include/perfetto/ext/tracing/core",
@@ -288,6 +321,7 @@ if (build_with_chromium) {
       "protos/perfetto/common:zero",
       "protos/perfetto/trace:zero",
       "protos/perfetto/trace/chrome:zero",
+      "protos/perfetto/trace/etw:zero",
       "protos/perfetto/trace/interned_data:zero",
       "protos/perfetto/trace/profiling:zero",
       "protos/perfetto/trace/ps:zero",
@@ -300,7 +334,7 @@ if (build_with_chromium) {
       ]
       public_deps += [ "include/perfetto/ext/tracing/ipc:ipc" ]
     }
-    if (!is_nacl) {
+    if (perfetto_libperfetto_includes_json) {
       deps += [
         "src/trace_processor:export_json",
         "src/trace_processor:storage_minimal",
@@ -311,18 +345,31 @@ if (build_with_chromium) {
       ]
     }
   }
-  component("libtrace_processor") {
+
+  # TODO(altimin): this is a temp workaround around very strange link failures
+  # on win-dbg-ng buildbot.
+  if (!is_win) {
+    libtrace_processor_target_type = "source_set"
+  } else {
+    libtrace_processor_target_type = "component"
+  }
+
+  # In Chromium, we want to ensure that we don't link dynamically against sqlite
+  # (as Chromium also uses a more restricted version of sqlite which is actually
+  # shipped to the users).
+  # source_set helps us to achieve that.
+  target(libtrace_processor_target_type, "libtrace_processor") {
     public_configs = [ "gn:public_config" ]
     deps = [ "src/trace_processor:lib" ]
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]  # nogncheck
+    configs += [ "//build/config/compiler:no_chromium_code" ]  # nogncheck
     public_deps = [ "include/perfetto/trace_processor" ]
   }
   component("perfetto_test_support") {
     testonly = true
     public_configs = [ "gn:public_config" ]
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]  # nogncheck
+    configs += [ "//build/config/compiler:no_chromium_code" ]  # nogncheck
     public_deps = [ "include/perfetto/test:test_support" ]
     deps = [ "src/tracing/test:test_support" ]
   }

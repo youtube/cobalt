@@ -6,11 +6,11 @@
 #define COMPONENTS_PERMISSIONS_CONTEXTS_BLUETOOTH_CHOOSER_CONTEXT_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "components/permissions/object_permission_context_base.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/bluetooth/web_bluetooth_device_id.h"
 #include "third_party/blink/public/mojom/bluetooth/web_bluetooth.mojom-forward.h"
 
@@ -89,17 +89,20 @@ class BluetoothChooserContext : public ObjectPermissionContextBase {
       uint16_t manufacturer_code);
 
   static blink::WebBluetoothDeviceId GetObjectDeviceId(
-      const base::Value& object);
+      const base::Value::Dict& object);
 
   // ObjectPermissionContextBase;
-  std::string GetKeyForObject(const base::Value& object) override;
-  bool IsValidObject(const base::Value& object) override;
-  std::u16string GetObjectDisplayName(const base::Value& object) override;
+  std::string GetKeyForObject(const base::Value::Dict& object) override;
+  bool IsValidObject(const base::Value::Dict& object) override;
+  std::u16string GetObjectDisplayName(const base::Value::Dict& object) override;
+
+  // KeyedService:
+  void Shutdown() override;
 
  private:
   static bool IsValidDict(const base::Value::Dict& dict);
 
-  absl::optional<base::Value::Dict> FindDeviceObject(
+  std::optional<base::Value::Dict> FindDeviceObject(
       const url::Origin& origin,
       const blink::WebBluetoothDeviceId& device_id);
 

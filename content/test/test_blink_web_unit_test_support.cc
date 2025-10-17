@@ -43,8 +43,8 @@
 #include "v8/include/v8.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
@@ -74,9 +74,10 @@ content::TestBlinkWebUnitTestSupport* g_test_platform = nullptr;
 namespace content {
 
 TestBlinkWebUnitTestSupport::TestBlinkWebUnitTestSupport(
-    TestBlinkWebUnitTestSupport::SchedulerType scheduler_type) {
+    SchedulerType scheduler_type,
+    std::string additional_v8_flags) {
 #if BUILDFLAG(IS_APPLE)
-  base::mac::ScopedNSAutoreleasePool autorelease_pool;
+  base::apple::ScopedNSAutoreleasePool autorelease_pool;
 #endif
 
 #if defined(V8_USE_EXTERNAL_STARTUP_DATA)
@@ -86,6 +87,7 @@ TestBlinkWebUnitTestSupport::TestBlinkWebUnitTestSupport(
   // Test shell always exposes the GC, and some tests need to modify flags so do
   // not freeze them on initialization.
   std::string v8_flags("--expose-gc --no-freeze-flags-after-init");
+  v8_flags += additional_v8_flags;
 
   blink::Platform::InitializeBlink();
   scoped_refptr<base::SingleThreadTaskRunner> dummy_task_runner;
@@ -105,8 +107,6 @@ TestBlinkWebUnitTestSupport::TestBlinkWebUnitTestSupport(
     dummy_task_runner_handle =
         std::make_unique<base::SingleThreadTaskRunner::CurrentDefaultHandle>(
             dummy_task_runner);
-    // Force V8 to run single threaded.
-    v8_flags += " --single-threaded";
   } else {
     DCHECK_EQ(scheduler_type, SchedulerType::kRealScheduler);
     main_thread_scheduler_ =
@@ -124,10 +124,10 @@ TestBlinkWebUnitTestSupport::TestBlinkWebUnitTestSupport(
   blink::WebRuntimeFeatures::EnableAndroidDownloadableFontsMatching(false);
 
   mojo::BinderMap binders;
-  blink::Initialize(this, &binders, main_thread_scheduler_.get());
+  blink::InitializeWithoutIsolateForTesting(this, &binders,
+                                            main_thread_scheduler_.get());
   g_test_platform = this;
   blink::SetWebTestMode(true);
-  blink::WebRuntimeFeatures::EnableDatabase(true);
   blink::WebRuntimeFeatures::EnableNotifications(true);
   blink::WebRuntimeFeatures::EnableTouchEventFeatureDetection(true);
 
@@ -147,14 +147,6 @@ TestBlinkWebUnitTestSupport::~TestBlinkWebUnitTestSupport() {
 }
 
 blink::WebString TestBlinkWebUnitTestSupport::UserAgent() {
-  return blink::WebString::FromUTF8("test_runner/0.0.0.0");
-}
-
-blink::WebString TestBlinkWebUnitTestSupport::FullUserAgent() {
-  return blink::WebString::FromUTF8("test_runner/0.0.0.0");
-}
-
-blink::WebString TestBlinkWebUnitTestSupport::ReducedUserAgent() {
   return blink::WebString::FromUTF8("test_runner/0.0.0.0");
 }
 

@@ -102,7 +102,7 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
 
   Node* condition = branch->InputAt(0);
   BranchSemantics semantics = SemanticsOf(branch);
-  Graph* graph = jsgraph()->graph();
+  TFGraph* graph = jsgraph()->graph();
   base::SmallVector<Node*, 2> phi_inputs;
 
   Node::Inputs inputs = merge->inputs();
@@ -117,8 +117,7 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
     bool condition_value = branch_condition.is_true;
 
     if (semantics == BranchSemantics::kJS) {
-      phi_inputs.emplace_back(condition_value ? jsgraph()->TrueConstant()
-                                              : jsgraph()->FalseConstant());
+      phi_inputs.emplace_back(jsgraph()->BooleanConstant(condition_value));
     } else {
       DCHECK_EQ(semantics, BranchSemantics::kMachine);
       phi_inputs.emplace_back(
@@ -181,7 +180,7 @@ bool BranchElimination::TryEliminateBranchWithPhiCondition(Node* branch,
   Node* predecessor0 = merge_inputs[0];
   Node* predecessor1 = merge_inputs[1];
   DCHECK_EQ(branch->op()->ControlOutputCount(), 2);
-  Node** projections = zone()->NewArray<Node*>(2);
+  Node** projections = zone()->AllocateArray<Node*>(2);
   NodeProperties::CollectControlProjections(branch, projections, 2);
   Node* branch_true = projections[0];
   Node* branch_false = projections[1];
@@ -279,8 +278,7 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
       // graph()->end().
       ReplaceWithValue(node, dead(), dead(), dead());
       Node* control = graph()->NewNode(common()->Throw(), node, node);
-      NodeProperties::MergeControlToEnd(graph(), common(), control);
-      Revisit(graph()->end());
+      MergeControlToEnd(graph(), common(), control);
       return Changed(node);
     } else {
       // This will not trap, remove it by relaxing effect/control.
@@ -322,9 +320,7 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
     } else {
       control = graph()->NewNode(common()->Deoptimize(p.reason(), p.feedback()),
                                  frame_state, effect, control);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), control);
-      Revisit(graph()->end());
+      MergeControlToEnd(graph(), common(), control);
     }
     return Replace(dead());
   }
@@ -391,7 +387,7 @@ Reduction BranchElimination::ReduceOtherControl(Node* node) {
   return TakeStatesFromFirstControl(node);
 }
 
-Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
+TFGraph* BranchElimination::graph() const { return jsgraph()->graph(); }
 
 Isolate* BranchElimination::isolate() const { return jsgraph()->isolate(); }
 

@@ -154,18 +154,24 @@ def Main():
   AdbCall('shell', 'test -d "%s" || mkdir -p "%s"' % (2 * (trace_dir,)))
   AdbCall('shell', 'rm -rf "%s/*";  ' % trace_dir)
   AdbCall('shell', 'mkdir -p /data/nativetest')
-  AdbCall('shell', 'echo 0 > /d/tracing/tracing_on')
+  AdbCall(
+      'shell', 'test -f /sys/kernel/tracing/tracing_on ' +
+      '&& echo 0 > /sys/kernel/tracing/tracing_on || true')
+  AdbCall(
+      'shell', 'test -f /sys/kernel/debug/tracing/tracing_on ' +
+      '&& echo 0 > /sys/kernel/debug/tracing/tracing_on || true')
 
   # This needs to go into /data/nativetest in order to have the system linker
   # namespace applied, which we need in order to link libdexfile.so.
   # This gets linked into our tests via libundwindstack.so.
   #
-  # See https://android.googlesource.com/platform/system/core/+/master/rootdir/etc/ld.config.txt.
+  # See https://android.googlesource.com/platform/system/core/+/main/rootdir/etc/ld.config.txt.
   AdbPush(test_bin, "/data/nativetest")
 
   # These two binaries are required to run perfetto_integrationtests.
-  AdbPush(os.path.join(args.out_dir, "perfetto"), "/data/nativetest")
-  AdbPush(os.path.join(args.out_dir, "trigger_perfetto"), "/data/nativetest")
+  if "perfetto_integrationtest" in args.test_name:
+    AdbPush(os.path.join(args.out_dir, "perfetto"), "/data/nativetest")
+    AdbPush(os.path.join(args.out_dir, "trigger_perfetto"), "/data/nativetest")
 
   if not args.no_data_deps:
     for dep in EnumerateDataDeps():

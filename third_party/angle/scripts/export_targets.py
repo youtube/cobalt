@@ -115,7 +115,7 @@ def dag_traverse(root_keys: Sequence[str], pre_recurse_func: Callable[[str], lis
 print('Importing graph', file=sys.stderr)
 
 try:
-    p = run_checked('gn', 'desc', '--format=json', str(OUT_DIR), '*', stdout=subprocess.PIPE,
+    p = run_checked(sys.executable, 'third_party/depot_tools/gn.py', 'desc', '--format=json', str(OUT_DIR), '*', stdout=subprocess.PIPE,
                 env=GN_ENV, shell=(True if sys.platform == 'win32' else False))
 except subprocess.CalledProcessError:
     sys.stderr.buffer.write(b'"gn desc" failed. Is depot_tools in your PATH?\n')
@@ -156,21 +156,27 @@ def flattened_target(target_name: str, descs: dict, stop_at_lib: bool =True) -> 
                     existing = flattened.get(k, [])
                     if isinstance(existing, str):
                       existing = [existing]
-                    flattened[k] = sortedi(set(existing + v))
+                    # Use temporary sets then sort them to avoid a bottleneck here
+                    if not isinstance(existing, set):
+                        flattened[k] = set(existing)
+                    flattened[k].update(v)
                 else:
                     #flattened.setdefault(k, v)
                     pass
         return (deps,)
 
     dag_traverse(descs[target_name]['deps'], pre)
+
+    for k, v in flattened.items():
+        if isinstance(v, set):
+            flattened[k] = sortedi(v)
     return flattened
 
 # ------------------------------------------------------------------------------
 # Check that includes are valid. (gn's version of this check doesn't seem to work!)
 
-INCLUDE_REGEX = re.compile(b'(?:^|\\n) *# *include +([<"])([^>"]+)[>"]')
-assert INCLUDE_REGEX.match(b'#include "foo"')
-assert INCLUDE_REGEX.match(b'\n#include "foo"')
+INCLUDE_REGEX = re.compile(b'^ *# *include +([<"])([^>"]+)[>"].*$', re.MULTILINE)
+assert INCLUDE_REGEX.findall(b' #  include <foo>  //comment\n#include "bar"') == [(b'<', b'foo'), (b'"', b'bar')]
 
 # Most of these are ignored because this script does not currently handle
 # #includes in #ifdefs properly, so they will erroneously be marked as being
@@ -178,26 +184,27 @@ assert INCLUDE_REGEX.match(b'\n#include "foo"')
 IGNORED_INCLUDES = {
     b'absl/container/flat_hash_map.h',
     b'absl/container/flat_hash_set.h',
-    b'compiler/translator/TranslatorESSL.h',
-    b'compiler/translator/TranslatorGLSL.h',
-    b'compiler/translator/TranslatorHLSL.h',
-    b'compiler/translator/TranslatorMetal.h',
-    b'compiler/translator/TranslatorMetalDirect.h',
-    b'compiler/translator/TranslatorVulkan.h',
+    b'compiler/translator/glsl/TranslatorESSL.h',
+    b'compiler/translator/glsl/TranslatorGLSL.h',
+    b'compiler/translator/hlsl/TranslatorHLSL.h',
+    b'compiler/translator/msl/TranslatorMSL.h',
+    b'compiler/translator/null/TranslatorNULL.h',
+    b'compiler/translator/spirv/TranslatorSPIRV.h',
+    b'compiler/translator/wgsl/TranslatorWGSL.h',
     b'contrib/optimizations/slide_hash_neon.h',
     b'dirent_on_windows.h',
     b'dlopen_fuchsia.h',
     b'kernel/image.h',
+    b'libANGLE/renderer/d3d/d3d11/Device11.h',
     b'libANGLE/renderer/d3d/d3d11/winrt/NativeWindow11WinRT.h',
-    b'libANGLE/renderer/d3d/DeviceD3D.h',
     b'libANGLE/renderer/d3d/DisplayD3D.h',
     b'libANGLE/renderer/d3d/RenderTargetD3D.h',
     b'libANGLE/renderer/gl/cgl/DisplayCGL.h',
-    b'libANGLE/renderer/gl/eagl/DisplayEAGL.h',
     b'libANGLE/renderer/gl/egl/android/DisplayAndroid.h',
     b'libANGLE/renderer/gl/egl/DisplayEGL.h',
     b'libANGLE/renderer/gl/egl/gbm/DisplayGbm.h',
     b'libANGLE/renderer/gl/glx/DisplayGLX.h',
+    b'libANGLE/renderer/gl/glx/DisplayGLX_api.h',
     b'libANGLE/renderer/gl/wgl/DisplayWGL.h',
     b'libANGLE/renderer/metal/DisplayMtl_api.h',
     b'libANGLE/renderer/null/DisplayNULL.h',
@@ -205,7 +212,6 @@ IGNORED_INCLUDES = {
     b'libANGLE/renderer/vulkan/android/DisplayVkAndroid.h',
     b'libANGLE/renderer/vulkan/DisplayVk_api.h',
     b'libANGLE/renderer/vulkan/fuchsia/DisplayVkFuchsia.h',
-    b'libANGLE/renderer/vulkan/ggp/DisplayVkGGP.h',
     b'libANGLE/renderer/vulkan/mac/DisplayVkMac.h',
     b'libANGLE/renderer/vulkan/win32/DisplayVkWin32.h',
     b'libANGLE/renderer/vulkan/xcb/DisplayVkXcb.h',
@@ -237,24 +243,21 @@ IGNORED_INCLUDES = {
     # comments. Since the script doesn't skip comments they are
     # erroneously marked as valid includes
     b'rapidjson/...',
-    # Validation layers support building with robin hood hashing, but we are not enabling that
-    # See http://anglebug.com/5791
-    b'robin_hood.h',
+    # Conditionally included in http://github.com/KhronosGroup/Vulkan-ValidationLayers/pull/9790
+    b'parallel_hashmap/phmap.h',
     # Validation layers optionally use mimalloc
     b'mimalloc-new-delete.h',
     # From the Vulkan-Loader
     b'winres.h',
-    # From the ANGLE desktop GL frontend, since it is only enabled conditionally
-    b'libGLESv2/entry_points_gl_1_autogen.h',
-    b'libGLESv2/entry_points_gl_2_autogen.h',
-    b'libGLESv2/entry_points_gl_3_autogen.h',
-    b'libGLESv2/entry_points_gl_4_autogen.h',
-    b'libGLESv2/entry_points_wgl.h',
     # From a comment in vulkan-validation-layers/src/layers/vk_mem_alloc.h
     b'my_custom_assert.h',
     b'my_custom_min.h',
     # https://bugs.chromium.org/p/gn/issues/detail?id=311
     b'spirv/unified1/spirv.hpp11',
+    # Behind #if defined(QAT_COMPRESSION_ENABLED) in third_party/zlib/deflate.c
+    b'contrib/qat/deflate_qat.h',
+    # Behind #if defined(TRACY_ENABLE) in third_party/vulkan-validation-layers/src/layers/vulkan/generated/chassis.cpp
+    b'profiling/profiling.h',
 }
 
 IGNORED_INCLUDE_PREFIXES = {
@@ -274,8 +277,10 @@ IGNORED_INCLUDE_PREFIXES = {
 
 IGNORED_DIRECTORIES = {
     '//buildtools/third_party/libc++',
+    '//third_party/libc++/src',
     '//third_party/abseil-cpp',
     '//third_party/SwiftShader',
+    '//third_party/dawn',
 }
 
 def has_all_includes(target_name: str, descs: dict) -> bool:

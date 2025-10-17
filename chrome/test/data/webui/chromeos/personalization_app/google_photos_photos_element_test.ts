@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'chrome://personalization/strings.m.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
 
-import {fetchGooglePhotosEnabled, fetchGooglePhotosPhotos, getNumberOfGridItemsPerRow, GooglePhotosPhoto, GooglePhotosPhotos, GooglePhotosPhotosSection, PersonalizationActionName, SetErrorAction, WallpaperGridItem, WallpaperLayout, WallpaperType} from 'chrome://personalization/js/personalization_app.js';
-import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
-import {assertDeepEquals, assertEquals, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
+import type {GooglePhotosPhoto, GooglePhotosPhotosSection, SetErrorAction, WallpaperGridItemElement} from 'chrome://personalization/js/personalization_app.js';
+import {fetchGooglePhotosEnabled, fetchGooglePhotosPhotos, getNumberOfGridItemsPerRow, GooglePhotosPhotosElement, PersonalizationActionName, WallpaperLayout, WallpaperType} from 'chrome://personalization/js/personalization_app.js';
+import {mojoString16ToString, stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
+import {assertDeepEquals, assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
-import {baseSetup, createSvgDataUrl, dispatchKeydown, getActiveElement, initElement, teardownElement, toString16, waitForActiveElement} from './personalization_app_test_utils.js';
-import {TestPersonalizationStore} from './test_personalization_store.js';
-import {TestWallpaperProvider} from './test_wallpaper_interface_provider.js';
+import {baseSetup, createSvgDataUrl, dispatchKeydown, getActiveElement, initElement, teardownElement, waitForActiveElement} from './personalization_app_test_utils.js';
+import type {TestPersonalizationStore} from './test_personalization_store.js';
+import type {TestWallpaperProvider} from './test_wallpaper_interface_provider.js';
 
-suite('GooglePhotosPhotosTest', function() {
-  let googlePhotosPhotosElement: GooglePhotosPhotos|null;
+suite('GooglePhotosPhotosElementTest', function() {
+  let googlePhotosPhotosElement: GooglePhotosPhotosElement|null;
   let personalizationStore: TestPersonalizationStore;
   let wallpaperProvider: TestWallpaperProvider;
 
@@ -51,7 +51,7 @@ suite('GooglePhotosPhotosTest', function() {
     const sections: GooglePhotosPhotosSection[] = [];
 
     photos.forEach((photo, i) => {
-      const date = toString(photo.date);
+      const date = mojoString16ToString(photo.date);
 
       // Find/create the appropriate |section| in which to insert |photo|.
       let section = sections[sections.length - 1];
@@ -75,11 +75,6 @@ suite('GooglePhotosPhotosTest', function() {
     });
 
     return sections;
-  }
-
-  /** Returns a |string| from the specified |value|. */
-  function toString(value: String16): string {
-    return value.data.map(c => String.fromCodePoint(c)).join('');
   }
 
   setup(() => {
@@ -108,7 +103,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '1',
         dedupKey: '1',
         name: '1',
-        date: toString16('First row'),
+        date: stringToMojoString16('First row'),
         url: {url: createSvgDataUrl('1')},
         location: '1',
       },
@@ -117,7 +112,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '2',
         dedupKey: '2',
         name: '2',
-        date: toString16('Second row'),
+        date: stringToMojoString16('Second row'),
         url: {url: createSvgDataUrl('2')},
         location: '2',
       },
@@ -125,7 +120,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '3',
         dedupKey: '3',
         name: '3',
-        date: toString16('Second row'),
+        date: stringToMojoString16('Second row'),
         url: {url: createSvgDataUrl('3')},
         location: '3',
       },
@@ -134,7 +129,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '4',
         dedupKey: '4',
         name: '4',
-        date: toString16('Third row'),
+        date: stringToMojoString16('Third row'),
         url: {url: createSvgDataUrl('4')},
         location: '4',
       },
@@ -149,7 +144,7 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // Focus the first photo.
@@ -158,79 +153,79 @@ suite('GooglePhotosPhotosTest', function() {
     const photoEls = querySelectorAll(photoSelector);
     assertEquals(photoEls?.length, 4);
     ((photoEls?.[0] as HTMLElement).closest('.row') as HTMLElement).focus();
-    await waitForActiveElement(photoEls?.[0]!, googlePhotosPhotosElement!);
+    await waitForActiveElement(photoEls?.[0]!, googlePhotosPhotosElement);
 
     // Use the right arrow key to traverse to the last photo. Focus should pass
     // through all the photos in between.
     for (let i = 1; i <= 3; ++i) {
       dispatchKeydown(
-          getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+          getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
           'ArrowRight');
-      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement!);
+      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement);
     }
 
     // Use the left arrow key to traverse to the first photo. Focus should pass
     // through all the photos in between.
     for (let i = 2; i >= 0; --i) {
       dispatchKeydown(
-          getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+          getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
           'ArrowLeft');
-      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement!);
+      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement);
     }
 
     // Use the down arrow key to traverse to the last photo. Focus should only
     // pass through the photos in between which are in the same column.
     for (let i = 1; i <= 3; i = i + 2) {
       dispatchKeydown(
-          getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+          getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
           'ArrowDown');
-      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement!);
+      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement);
     }
 
     // Use the up arrow key to traverse to the first photo. Focus should only
     // pass through the photos in between which are in the same column.
     for (let i = 1; i >= 0; --i) {
       dispatchKeydown(
-          getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+          getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
           'ArrowUp');
-      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement!);
+      await waitForActiveElement(photoEls?.[i]!, googlePhotosPhotosElement);
     }
 
     // Focus the third photo.
     dispatchKeydown(
-        getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+        getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
         'ArrowRight');
     dispatchKeydown(
-        getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+        getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
         'ArrowRight');
-    await waitForActiveElement(photoEls?.[2]!, googlePhotosPhotosElement!);
+    await waitForActiveElement(photoEls?.[2]!, googlePhotosPhotosElement);
 
     // Because no photo exists directly below the third photo, the down arrow
     // key should do nothing.
     dispatchKeydown(
-        getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+        getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
         'ArrowDown');
     await new Promise<void>(resolve => setTimeout(resolve, 100));
-    assertEquals(getActiveElement(googlePhotosPhotosElement!), photoEls?.[2]);
+    assertEquals(getActiveElement(googlePhotosPhotosElement), photoEls?.[2]);
 
     // Because no photo exists directly above the third photo, the up arrow key
     // should do nothing.
     dispatchKeydown(
-        getActiveElement(googlePhotosPhotosElement!)?.closest('.row')!,
+        getActiveElement(googlePhotosPhotosElement)?.closest('.row')!,
         'ArrowUp');
     await new Promise<void>(resolve => setTimeout(resolve, 100));
-    assertEquals(getActiveElement(googlePhotosPhotosElement!), photoEls?.[2]);
+    assertEquals(getActiveElement(googlePhotosPhotosElement), photoEls?.[2]);
   });
 
   [true, false].forEach(
       (dismissFromUser:
            boolean) => test('displays error when photos fail to load', async () => {
         // Set values returned by |wallpaperProvider|.
-        wallpaperProvider.setGooglePhotosPhotos(undefined);
+        wallpaperProvider.setGooglePhotosPhotos(null);
 
         // Initialize |googlePhotosPhotosElement|.
         googlePhotosPhotosElement =
-            initElement(GooglePhotosPhotos, {hidden: false});
+            initElement(GooglePhotosPhotosElement, {hidden: false});
         await waitAfterNextRender(googlePhotosPhotosElement);
 
         // Initialize Google Photos data in the |personalizationStore| and
@@ -280,16 +275,16 @@ suite('GooglePhotosPhotosTest', function() {
         id: '9bd1d7a3-f995-4445-be47-53c5b58ce1cb',
         dedupKey: '2d0d1595-14af-4471-b2db-b9c8eae3a491',
         name: 'foo',
-        date: toString16('Wednesday, February 16, 2022'),
+        date: stringToMojoString16('Wednesday, February 16, 2022'),
         url: {url: createSvgDataUrl('svg-0')},
-        location: undefined,
+        location: null,
       },
       // Section of photos with one location.
       {
         id: '0ec40478-9712-42e1-b5bf-3e75870ca042',
         dedupKey: '2cb1b955-0b7e-4f59-b9d0-802227aeeb28',
         name: 'bar',
-        date: toString16('Friday, November 12, 2021'),
+        date: stringToMojoString16('Friday, November 12, 2021'),
         url: {url: createSvgDataUrl('svg-1')},
         location: 'home1',
       },
@@ -297,7 +292,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '0a268a37-877a-4936-81d4-38cc84b0f596',
         dedupKey: 'd99eedfa-43e5-4bca-8882-b881222b8db9',
         name: 'baz',
-        date: toString16('Friday, November 12, 2021'),
+        date: stringToMojoString16('Friday, November 12, 2021'),
         url: {url: createSvgDataUrl('svg-2')},
         location: 'home1',
       },
@@ -306,7 +301,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '0a5231as-97a2-42e1-bdbf-3e75870ca042',
         dedupKey: 'ef8795ae-e6c8-4580-8184-0bcad20fd013',
         name: 'bare',
-        date: toString16('Friday, July 16, 2021'),
+        date: stringToMojoString16('Friday, July 16, 2021'),
         url: {url: createSvgDataUrl('svg-3')},
         location: 'home2',
       },
@@ -314,7 +309,7 @@ suite('GooglePhotosPhotosTest', function() {
         id: '0a268a11-877a-4936-81d4-38cc8s9dn396',
         dedupKey: 'c8817402-822f-4ee8-9716-1f4b36c3263f',
         name: 'baze',
-        date: toString16('Friday, July 16, 2021'),
+        date: stringToMojoString16('Friday, July 16, 2021'),
         url: {url: createSvgDataUrl('svg-4')},
         location: 'home3',
       },
@@ -328,7 +323,7 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // The |personalizationStore| should be empty, so no info or |photos|
@@ -382,15 +377,12 @@ suite('GooglePhotosPhotosTest', function() {
 
         // Verify that the expected |photos| are rendered.
         row.forEach((photo, photoIndex) => {
-          const photoEl =
-              rowEl!.querySelector(
-                  `${photoSelector}:nth-of-type(${photoIndex + 1})`) as
-                  WallpaperGridItem |
-              null;
-          assertNotEquals(photoEl, null);
-          assertDeepEquals(photoEl!.src, photo.url);
-          assertEquals(photoEl!.primaryText, undefined);
-          assertEquals(photoEl!.secondaryText, undefined);
+          const photoEl = rowEl!.querySelector<WallpaperGridItemElement>(
+              `${photoSelector}:nth-of-type(${photoIndex + 1})`);
+          assertTrue(!!photoEl);
+          assertDeepEquals(photoEl.src, photo.url);
+          assertEquals(photoEl.primaryText, undefined);
+          assertEquals(photoEl.secondaryText, undefined);
         });
 
         ++absoluteRowIndex;
@@ -441,12 +433,13 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // Verify that the expected photos are rendered.
     const photoSelector = 'wallpaper-grid-item:not([hidden]).photo';
-    const photoEls = querySelectorAll(photoSelector) as WallpaperGridItem[];
+    const photoEls =
+        querySelectorAll(photoSelector) as WallpaperGridItemElement[];
     assertEquals(photoEls.length, 3);
 
     // Verify selected states.
@@ -467,9 +460,9 @@ suite('GooglePhotosPhotosTest', function() {
     // Complete the pending selection.
     personalizationStore.data.wallpaper.pendingSelected = null;
     personalizationStore.data.wallpaper.currentSelected = {
-      attribution: [],
       descriptionContent: '',
       descriptionTitle: '',
+      actionUrl: null,
       key: photo.id,
       layout: WallpaperLayout.kCenter,
       type: WallpaperType.kOnceGooglePhotos,
@@ -494,9 +487,9 @@ suite('GooglePhotosPhotosTest', function() {
     // Complete the pending selection.
     personalizationStore.data.wallpaper.pendingSelected = null;
     personalizationStore.data.wallpaper.currentSelected = {
-      attribution: [],
       descriptionContent: '',
       descriptionTitle: '',
+      actionUrl: null,
       key: anotherPhoto.dedupKey!,
       layout: WallpaperLayout.kCenter,
       type: WallpaperType.kOnceGooglePhotos,
@@ -522,9 +515,9 @@ suite('GooglePhotosPhotosTest', function() {
     // Complete the pending selection.
     personalizationStore.data.wallpaper.pendingSelected = null;
     personalizationStore.data.wallpaper.currentSelected = {
-      attribution: [],
       descriptionContent: '',
       descriptionTitle: '',
+      actionUrl: null,
       key: '//foo',
       layout: WallpaperLayout.kCenter,
       type: WallpaperType.kCustomized,
@@ -553,7 +546,7 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // Initially only placeholders should be present.
@@ -659,8 +652,8 @@ suite('GooglePhotosPhotosTest', function() {
         }));
 
     // Set the next photos resume token returned by |wallpaperProvider|. When
-    // resume token is undefined, it indicates no additional photos exist.
-    wallpaperProvider.setGooglePhotosPhotosResumeToken(undefined);
+    // resume token is null, it indicates no additional photos exist.
+    wallpaperProvider.setGooglePhotosPhotosResumeToken(null);
 
     // Restrict the viewport so that |googlePhotosPhotosElement| will lazily
     // create photos instead of creating them all at once.
@@ -676,7 +669,7 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // Scroll to the bottom of the grid.
@@ -704,7 +697,7 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     const rowSelector = '.row:not([hidden])';
@@ -719,7 +712,7 @@ suite('GooglePhotosPhotosTest', function() {
     const placeholderSelector = `${selector}[placeholder]`;
     assertEquals(querySelectorAll(placeholderSelector)!.length % 4, 0);
     querySelectorAll(rowSelector)!.forEach(rowEl => {
-      assertEquals(rowEl.querySelectorAll(placeholderSelector)!.length, 4);
+      assertEquals(rowEl.querySelectorAll(placeholderSelector).length, 4);
     });
 
     // Mock |window.innerWidth| and dispatch a resize event.
@@ -734,13 +727,13 @@ suite('GooglePhotosPhotosTest', function() {
     // placeholders per row given the mocked |window.innerWidth|.
     assertEquals(querySelectorAll(placeholderSelector)!.length % 3, 0);
     querySelectorAll(rowSelector)!.forEach(rowEl => {
-      assertEquals(rowEl.querySelectorAll(placeholderSelector)!.length, 3);
+      assertEquals(rowEl.querySelectorAll(placeholderSelector).length, 3);
     });
   });
 
   test('reattempts failed photos load on show', async () => {
     // Set values returned by |wallpaperProvider|.
-    wallpaperProvider.setGooglePhotosPhotos(undefined);
+    wallpaperProvider.setGooglePhotosPhotos(null);
 
     // Initialize Google Photos data in the |personalizationStore|.
     await fetchGooglePhotosEnabled(wallpaperProvider, personalizationStore);
@@ -748,7 +741,8 @@ suite('GooglePhotosPhotosTest', function() {
     wallpaperProvider.reset();
 
     // Initialize |googlePhotosPhotosElement| in hidden state.
-    googlePhotosPhotosElement = initElement(GooglePhotosPhotos, {hidden: true});
+    googlePhotosPhotosElement =
+        initElement(GooglePhotosPhotosElement, {hidden: true});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // Verify that showing |googlePhotosPhotosElement| results in an automatic
@@ -790,12 +784,13 @@ suite('GooglePhotosPhotosTest', function() {
 
     // Initialize |googlePhotosPhotosElement|.
     googlePhotosPhotosElement =
-        initElement(GooglePhotosPhotos, {hidden: false});
+        initElement(GooglePhotosPhotosElement, {hidden: false});
     await waitAfterNextRender(googlePhotosPhotosElement);
 
     // Verify that the expected |photo| is rendered.
     const photoSelector = 'wallpaper-grid-item:not([hidden]).photo';
-    const photoEls = querySelectorAll(photoSelector) as WallpaperGridItem[];
+    const photoEls =
+        querySelectorAll(photoSelector) as WallpaperGridItemElement[];
     assertEquals(photoEls.length, 1);
     assertDeepEquals(photoEls[0]!.src, photo.url);
     assertEquals(photoEls[0]!.primaryText, undefined);
@@ -804,7 +799,8 @@ suite('GooglePhotosPhotosTest', function() {
     // Select |photo| and verify selection started.
     photoEls[0]!.click();
     assertEquals(personalizationStore.data.wallpaper.loading.setImage, 1);
-    assertEquals(personalizationStore.data.wallpaper.loading.selected, true);
+    assertEquals(
+        personalizationStore.data.wallpaper.loading.selected.image, true);
     assertDeepEquals(
         personalizationStore.data.wallpaper.pendingSelected,
         {...photo, index: 0});
@@ -815,7 +811,63 @@ suite('GooglePhotosPhotosTest', function() {
     assertEquals(await wallpaperProvider.whenCalled(methodName), photo.id);
     await waitAfterNextRender(googlePhotosPhotosElement);
     assertEquals(personalizationStore.data.wallpaper.loading.setImage, 0);
-    assertEquals(personalizationStore.data.wallpaper.loading.selected, false);
+    assertEquals(
+        personalizationStore.data.wallpaper.loading.selected.image, false);
     assertEquals(personalizationStore.data.wallpaper.pendingSelected, null);
+  });
+
+  test('sets row id and aria-describedby', async () => {
+    const photos: GooglePhotosPhoto[] = [
+      // Section of photos with different locations.
+      {
+        id: 'id0',
+        dedupKey: 'ef8795ae-e6c8-4580-8184-0bcad20fd013',
+        name: 'bare',
+        date: stringToMojoString16('Friday, July 16, 2021'),
+        url: {url: createSvgDataUrl('svg-3')},
+        location: 'home2',
+      },
+      {
+        id: 'id1',
+        dedupKey: 'c8817402-822f-4ee8-9716-1f4b36c3263f',
+        name: 'baze',
+        date: stringToMojoString16('Friday, July 16, 2021'),
+        url: {url: createSvgDataUrl('svg-4')},
+        location: 'home3',
+      },
+    ];
+
+    // Set values returned by |wallpaperProvider|.
+    wallpaperProvider.setGooglePhotosPhotos(photos);
+
+    // Initialize Google Photos data in the |personalizationStore|.
+    await fetchGooglePhotosEnabled(wallpaperProvider, personalizationStore);
+    await fetchGooglePhotosPhotos(wallpaperProvider, personalizationStore);
+
+    googlePhotosPhotosElement =
+        initElement(GooglePhotosPhotosElement, {hidden: false});
+    await waitAfterNextRender(googlePhotosPhotosElement);
+
+    const photoElements = querySelectorAll(
+        `wallpaper-grid-item:not([hidden]).photo:not([placeholder])`);
+
+    assertDeepEquals(
+        ['bare', 'baze'], photoElements?.map(item => item.ariaLabel),
+        'expected aria labels not found');
+
+    const expectedAriaDescriptionIds =
+        ['photo-id0-description', 'photo-id1-description'];
+
+    assertDeepEquals(
+        expectedAriaDescriptionIds,
+        photoElements?.map(item => item.getAttribute('aria-describedby')),
+        'expected aria-describedby ids not found');
+
+    assertDeepEquals(
+        ['Friday, July 16, 2021home2', 'Friday, July 16, 2021home3'],
+        expectedAriaDescriptionIds.map(
+            id => googlePhotosPhotosElement?.shadowRoot?.getElementById(id)
+                      ?.innerText),
+        'expected aria descriptions not found');
   });
 });

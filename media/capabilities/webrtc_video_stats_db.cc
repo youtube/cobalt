@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/capabilities/webrtc_video_stats_db.h"
 
 #include "base/check_op.h"
@@ -93,7 +98,7 @@ std::string WebrtcVideoStatsDB::VideoDescKey::ToLogStringForDebug() const {
 }
 
 // static
-absl::optional<int> WebrtcVideoStatsDB::VideoDescKey::ParsePixelsFromKey(
+std::optional<int> WebrtcVideoStatsDB::VideoDescKey::ParsePixelsFromKey(
     std::string key) {
   constexpr size_t kMinimumIndexOfLastSeparator = 5;
   size_t last_separator_index = key.rfind("|");
@@ -105,7 +110,7 @@ absl::optional<int> WebrtcVideoStatsDB::VideoDescKey::ParsePixelsFromKey(
                           &parsed_pixels))
       return parsed_pixels;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 WebrtcVideoStatsDB::VideoStats::VideoStats(double timestamp,

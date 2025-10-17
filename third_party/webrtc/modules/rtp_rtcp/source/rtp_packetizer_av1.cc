@@ -13,10 +13,13 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cstring>
+#include <vector>
 
 #include "api/array_view.h"
 #include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/source/leb128.h"
+#include "modules/rtp_rtcp/source/rtp_format.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
@@ -33,6 +36,12 @@ constexpr int kObuTypeSequenceHeader = 1;
 constexpr int kObuTypeTemporalDelimiter = 2;
 constexpr int kObuTypeTileList = 8;
 constexpr int kObuTypePadding = 15;
+
+// Overhead introduced by "even distribution" of packet sizes.
+constexpr size_t kBytesOverheadEvenDistribution = 1;
+// Experimentally determined minimum amount of potential savings per packet to
+// make "even distribution" of packet sizes worthwhile.
+constexpr size_t kMinBytesSavedPerPacketWithEvenDistribution = 10;
 
 bool ObuHasExtension(uint8_t obu_header) {
   return obu_header & 0b0'0000'100;
@@ -62,7 +71,7 @@ int MaxFragmentSize(int remaining_bytes) {
 
 }  // namespace
 
-RtpPacketizerAv1::RtpPacketizerAv1(rtc::ArrayView<const uint8_t> payload,
+RtpPacketizerAv1::RtpPacketizerAv1(ArrayView<const uint8_t> payload,
                                    RtpPacketizer::PayloadSizeLimits limits,
                                    VideoFrameType frame_type,
                                    bool is_last_frame_in_picture)
@@ -72,10 +81,9 @@ RtpPacketizerAv1::RtpPacketizerAv1(rtc::ArrayView<const uint8_t> payload,
       is_last_frame_in_picture_(is_last_frame_in_picture) {}
 
 std::vector<RtpPacketizerAv1::Obu> RtpPacketizerAv1::ParseObus(
-    rtc::ArrayView<const uint8_t> payload) {
+    ArrayView<const uint8_t> payload) {
   std::vector<Obu> result;
-  rtc::ByteBufferReader payload_reader(
-      reinterpret_cast<const char*>(payload.data()), payload.size());
+  ByteBufferReader payload_reader(payload);
   while (payload_reader.Length() > 0) {
     Obu obu;
     payload_reader.ReadUInt8(&obu.header);
@@ -91,9 +99,9 @@ std::vector<RtpPacketizerAv1::Obu> RtpPacketizerAv1::ParseObus(
       ++obu.size;
     }
     if (!ObuHasSize(obu.header)) {
-      obu.payload = rtc::MakeArrayView(
-          reinterpret_cast<const uint8_t*>(payload_reader.Data()),
-          payload_reader.Length());
+      obu.payload =
+          MakeArrayView(reinterpret_cast<const uint8_t*>(payload_reader.Data()),
+                        payload_reader.Length());
       payload_reader.Consume(payload_reader.Length());
     } else {
       uint64_t size = 0;
@@ -104,7 +112,7 @@ std::vector<RtpPacketizerAv1::Obu> RtpPacketizerAv1::ParseObus(
                            << payload_reader.Length();
         return {};
       }
-      obu.payload = rtc::MakeArrayView(
+      obu.payload = MakeArrayView(
           reinterpret_cast<const uint8_t*>(payload_reader.Data()), size);
       payload_reader.Consume(size);
     }
@@ -139,8 +147,8 @@ int RtpPacketizerAv1::AdditionalBytesForPreviousObuElement(
   return Leb128Size(packet.last_obu_size);
 }
 
-std::vector<RtpPacketizerAv1::Packet> RtpPacketizerAv1::Packetize(
-    rtc::ArrayView<const Obu> obus,
+std::vector<RtpPacketizerAv1::Packet> RtpPacketizerAv1::PacketizeInternal(
+    ArrayView<const Obu> obus,
     PayloadSizeLimits limits) {
   std::vector<Packet> packets;
   if (obus.empty()) {
@@ -244,12 +252,12 @@ std::vector<RtpPacketizerAv1::Packet> RtpPacketizerAv1::Packetize(
          obu_offset + limits.max_payload_len < obu.size;
          obu_offset += limits.max_payload_len) {
       packets.emplace_back(/*first_obu_index=*/obu_index);
-      Packet& packet = packets.back();
-      packet.num_obu_elements = 1;
-      packet.first_obu_offset = obu_offset;
+      Packet& middle_packet = packets.back();
+      middle_packet.num_obu_elements = 1;
+      middle_packet.first_obu_offset = obu_offset;
       int middle_fragment_size = limits.max_payload_len;
-      packet.last_obu_size = middle_fragment_size;
-      packet.packet_size = middle_fragment_size;
+      middle_packet.last_obu_size = middle_fragment_size;
+      middle_packet.packet_size = middle_fragment_size;
     }
 
     // Add the last fragment of the obu.
@@ -274,11 +282,11 @@ std::vector<RtpPacketizerAv1::Packet> RtpPacketizerAv1::Packetize(
       last_fragment_size -= semi_last_fragment_size;
 
       packets.emplace_back(/*first_obu_index=*/obu_index);
-      Packet& packet = packets.back();
-      packet.num_obu_elements = 1;
-      packet.first_obu_offset = obu_offset;
-      packet.last_obu_size = semi_last_fragment_size;
-      packet.packet_size = semi_last_fragment_size;
+      Packet& second_last_packet = packets.back();
+      second_last_packet.num_obu_elements = 1;
+      second_last_packet.first_obu_offset = obu_offset;
+      second_last_packet.last_obu_size = semi_last_fragment_size;
+      second_last_packet.packet_size = semi_last_fragment_size;
       obu_offset += semi_last_fragment_size;
     }
     packets.emplace_back(/*first_obu_index=*/obu_index);
@@ -288,6 +296,54 @@ std::vector<RtpPacketizerAv1::Packet> RtpPacketizerAv1::Packetize(
     last_packet.last_obu_size = last_fragment_size;
     last_packet.packet_size = last_fragment_size;
     packet_remaining_bytes = limits.max_payload_len - last_fragment_size;
+  }
+  return packets;
+}
+
+std::vector<RtpPacketizerAv1::Packet> RtpPacketizerAv1::Packetize(
+    ArrayView<const Obu> obus,
+    PayloadSizeLimits limits) {
+  std::vector<Packet> packets = PacketizeInternal(obus, limits);
+  if (packets.size() <= 1) {
+    return packets;
+  }
+  size_t packet_index = 0;
+  size_t packet_size_left_unused = 0;
+  for (const auto& packet : packets) {
+    // Every packet has to have an aggregation header of size
+    // kAggregationHeaderSize.
+    int available_bytes = limits.max_payload_len - kAggregationHeaderSize;
+
+    if (packet_index == 0) {
+      available_bytes -= limits.first_packet_reduction_len;
+    } else if (packet_index == packets.size() - 1) {
+      available_bytes -= limits.last_packet_reduction_len;
+    }
+    if (available_bytes >= packet.packet_size) {
+      packet_size_left_unused += (available_bytes - packet.packet_size);
+    }
+    packet_index++;
+  }
+  if (packet_size_left_unused >
+      packets.size() * kMinBytesSavedPerPacketWithEvenDistribution) {
+    // Calculate new limits with a reduced max_payload_len.
+    size_t size_reduction = packet_size_left_unused / packets.size();
+    RTC_DCHECK_GT(limits.max_payload_len, size_reduction);
+    RTC_DCHECK_GT(size_reduction, kBytesOverheadEvenDistribution);
+    limits.max_payload_len -= (size_reduction - kBytesOverheadEvenDistribution);
+    if (limits.max_payload_len - limits.last_packet_reduction_len < 3 ||
+        limits.max_payload_len - limits.first_packet_reduction_len < 3) {
+      return packets;
+    }
+    std::vector<Packet> packets_even = PacketizeInternal(obus, limits);
+    // The number of packets should not change in the second pass. If it does,
+    // conservatively return the original packets.
+    if (packets_even.size() == packets.size()) {
+      return packets_even;
+    }
+    RTC_LOG(LS_WARNING) << "AV1 even distribution caused a regression in "
+                           "number of packets from "
+                        << packets.size() << " to " << packets_even.size();
   }
   return packets;
 }

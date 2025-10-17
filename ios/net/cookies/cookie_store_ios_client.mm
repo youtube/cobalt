@@ -2,12 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ios/net/cookies/cookie_store_ios_client.h"
-#import "base/task/sequenced_task_runner.h"
+#import "ios/net/cookies/cookie_store_ios_client.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "base/task/sequenced_task_runner.h"
 
 namespace {
 // The CookieStoreIOSClient.
@@ -28,8 +25,8 @@ CookieStoreIOSClient::CookieStoreIOSClient() {}
 
 CookieStoreIOSClient::~CookieStoreIOSClient() {}
 
-scoped_refptr<base::SequencedTaskRunner>
-CookieStoreIOSClient::GetTaskRunner() const {
+scoped_refptr<base::SequencedTaskRunner> CookieStoreIOSClient::GetTaskRunner()
+    const {
   return scoped_refptr<base::SequencedTaskRunner>();
 }
 

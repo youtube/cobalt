@@ -12,12 +12,12 @@
 #include <string>
 #include <vector>
 
+#include "components/search_engines/keyword_web_data_service.h"
 #include "components/search_engines/template_url_service.h"
 
 class KeywordWebDataService;
 class PrefService;
 class TemplateURL;
-class WDTypedResult;
 
 // Returns the short name of the default search engine, or the empty string if
 // none is set.
@@ -147,44 +147,56 @@ void ApplyActionsFromCurrentData(
     TemplateURL* default_search_provider,
     std::set<std::string>* removed_keyword_guids);
 
+// Returns the GUID of the default search provider.
+// Migrates `kSyncedDefaultSearchProviderGUID` to `kDefaultSearchProviderGUID`
+// if the latter is empty and the search engine choice feature is enabled.
+// Gets the value of the corresponding preference based on the search engine
+// choice feature flag.
+const std::string& GetDefaultSearchProviderGuidFromPrefs(PrefService& prefs);
+
+// Sets the corresponding default search provider preference based on the search
+// engine choice feature flag.
+void SetDefaultSearchProviderGuidToPrefs(PrefService& prefs,
+                                         const std::string& value);
+
 // Processes the results of KeywordWebDataService::GetKeywords, combining it
 // with prepopulated search providers to result in:
 //  * a set of template_urls (search providers). The caller owns the
 //    TemplateURL* returned in template_urls.
-//  * whether there is a new resource keyword version (and the value).
-//    |*new_resource_keyword_version| is set to 0 if no new value. Otherwise,
-//    it is the new value.
+//  * `out_updated_keywords_metadata` indicating whether the set of search
+//    providers required some updates from built-in data. When that is the case,
+//    individual fields will be set to the new associated metadata and
+//    `HasBuiltinKeywordData()` and `HasStarterPackData()` will indicate this.
 // Only pass in a non-NULL value for service if the KeywordWebDataService should
-// be updated. If |removed_keyword_guids| is not NULL, any TemplateURLs removed
+// be updated. If `removed_keyword_guids` is not NULL, any TemplateURLs removed
 // from the keyword table in the KeywordWebDataService will have their Sync
-// GUIDs added to it. |default_search_provider| will be used to prevent removing
+// GUIDs added to it. `default_search_provider` will be used to prevent removing
 // the current user-selected DSE, regardless of changes in prepopulate data.
 void GetSearchProvidersUsingKeywordResult(
-    const WDTypedResult& result,
+    const WDKeywordsResult& result,
     KeywordWebDataService* service,
     PrefService* prefs,
+    const TemplateURLPrepopulateData::Resolver& template_url_data_resolver,
     TemplateURLService::OwnedTemplateURLVector* template_urls,
     TemplateURL* default_search_provider,
     const SearchTermsData& search_terms_data,
-    int* new_resource_keyword_version,
-    int* new_resource_starter_pack_version,
+    WDKeywordsResult::Metadata& out_updated_keywords_metadata,
     std::set<std::string>* removed_keyword_guids);
 
 // Like GetSearchProvidersUsingKeywordResult(), but allows the caller to pass in
 // engines in |template_urls| instead of getting them via processing a web data
 // service request.
-// |resource_keyword_version| should contain the version number of the current
-// keyword data, i.e. the version number of the most recent prepopulate data
-// that has been merged into the current keyword data.  On exit, this will be
+// |in_out_keywords_metadata| should contain the metadata associated with the
+// incoming keyword data (version numbers, etc). On exit, this will be
 // set as in GetSearchProvidersUsingKeywordResult().
 void GetSearchProvidersUsingLoadedEngines(
     KeywordWebDataService* service,
     PrefService* prefs,
+    const TemplateURLPrepopulateData::Resolver& template_url_data_resolver,
     TemplateURLService::OwnedTemplateURLVector* template_urls,
     TemplateURL* default_search_provider,
     const SearchTermsData& search_terms_data,
-    int* resource_keyword_version,
-    int* resource_starter_pack_version,
+    WDKeywordsResult::Metadata& in_out_keywords_metadata,
     std::set<std::string>* removed_keyword_guids);
 
 // Due to a bug, the |input_encodings| field of TemplateURLData could have

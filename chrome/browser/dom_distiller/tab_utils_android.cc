@@ -5,7 +5,6 @@
 #include <string>
 
 #include "base/android/jni_string.h"
-#include "chrome/android/chrome_jni_headers/DomDistillerTabUtils_jni.h"
 #include "chrome/browser/dom_distiller/tab_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/dom_distiller/core/experiments.h"
@@ -15,6 +14,9 @@
 #include "content/public/common/content_constants.h"
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/DomDistillerTabUtils_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -48,11 +50,10 @@ void JNI_DomDistillerTabUtils_DistillAndView(
   ::DistillAndView(source_web_contents, destination_web_contents);
 }
 
-ScopedJavaLocalRef<jstring>
-JNI_DomDistillerTabUtils_GetFormattedUrlFromOriginalDistillerUrl(
+std::u16string JNI_DomDistillerTabUtils_GetFormattedUrlFromOriginalDistillerUrl(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_url) {
-  auto url = *url::GURLAndroid::ToNativeGURL(env, j_url);
+  GURL url = url::GURLAndroid::ToNativeGURL(env, j_url);
 
   if (url.spec().length() > content::kMaxURLDisplayChars)
     url = url.IsStandard() ? url.DeprecatedGetOriginAsURL()
@@ -61,10 +62,9 @@ JNI_DomDistillerTabUtils_GetFormattedUrlFromOriginalDistillerUrl(
   // Note that we can't unescape spaces here, because if the user copies this
   // and pastes it into another program, that program may think the URL ends at
   // the space.
-  return base::android::ConvertUTF16ToJavaString(
-      env, url_formatter::FormatUrl(url, url_formatter::kFormatUrlOmitDefaults,
-                                    base::UnescapeRule::NORMAL, nullptr,
-                                    nullptr, nullptr));
+  return url_formatter::FormatUrl(url, url_formatter::kFormatUrlOmitDefaults,
+                                  base::UnescapeRule::NORMAL, nullptr, nullptr,
+                                  nullptr);
 }
 
 jint JNI_DomDistillerTabUtils_GetDistillerHeuristics(JNIEnv* env) {

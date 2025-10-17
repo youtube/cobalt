@@ -9,13 +9,11 @@
 #include <utility>
 #include <vector>
 
-#include "base/strings/utf_string_conversions.h"
-#include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/sync/base/time.h"
-#include "components/sync/protocol/bookmark_model_metadata.pb.h"
+#include "components/sync/base/unique_position.h"
+#include "components/sync_bookmarks/bookmark_model_view.h"
 #include "components/sync_bookmarks/bookmark_specifics_conversions.h"
-#include "components/sync_bookmarks/switches.h"
 #include "components/sync_bookmarks/synced_bookmark_tracker.h"
 #include "components/sync_bookmarks/synced_bookmark_tracker_entity.h"
 
@@ -23,7 +21,7 @@ namespace sync_bookmarks {
 
 BookmarkLocalChangesBuilder::BookmarkLocalChangesBuilder(
     SyncedBookmarkTracker* const bookmark_tracker,
-    bookmarks::BookmarkModel* bookmark_model)
+    BookmarkModelView* bookmark_model)
     : bookmark_tracker_(bookmark_tracker), bookmark_model_(bookmark_model) {
   DCHECK(bookmark_tracker);
   DCHECK(bookmark_model);
@@ -63,7 +61,15 @@ syncer::CommitRequestDataList BookmarkLocalChangesBuilder::BuildCommitRequests(
                    syncer::BOOKMARKS,
                    entity->bookmark_node()->uuid().AsLowercaseString()));
 
-    if (!metadata.is_deleted()) {
+    if (metadata.is_deleted()) {
+      // Absence of deletion origin is primarily needed for pre-existing
+      // tombstones in storage before this field was introduced. Nevertheless,
+      // it seems best to treat it as optional here, in case some codepaths
+      // don't provide it in the future.
+      if (metadata.has_deletion_origin()) {
+        data->deletion_origin = metadata.deletion_origin();
+      }
+    } else {
       const bookmarks::BookmarkNode* node = entity->bookmark_node();
       DCHECK(!node->is_permanent_node());
 
@@ -93,7 +99,7 @@ syncer::CommitRequestDataList BookmarkLocalChangesBuilder::BuildCommitRequests(
       data->specifics = CreateSpecificsFromBookmarkNode(
           node, bookmark_model_, metadata.unique_position(),
           /*force_favicon_load=*/true);
-      // TODO(crbug.com/1058376): check after finishing if we need to use full
+      // TODO(crbug.com/40677937): check after finishing if we need to use full
       // title instead of legacy canonicalized one.
       data->name = data->specifics.bookmark().legacy_canonicalized_title();
     }
@@ -105,6 +111,14 @@ syncer::CommitRequestDataList BookmarkLocalChangesBuilder::BuildCommitRequests(
     // Specifics hash has been computed in the tracker when this entity has been
     // added/updated.
     request->specifics_hash = metadata.specifics_hash();
+
+    if (!metadata.is_deleted()) {
+      const bookmarks::BookmarkNode* node = entity->bookmark_node();
+      CHECK(node);
+      request->deprecated_bookmark_folder = node->is_folder();
+      request->deprecated_bookmark_unique_position =
+          syncer::UniquePosition::FromProto(metadata.unique_position());
+    }
 
     bookmark_tracker_->MarkCommitMayHaveStarted(entity);
 

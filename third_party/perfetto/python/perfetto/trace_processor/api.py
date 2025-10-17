@@ -16,6 +16,8 @@ import dataclasses as dc
 from urllib.parse import urlparse
 from typing import List, Optional
 
+from perfetto.common.exceptions import PerfettoException
+from perfetto.common.query_result_iterator import QueryResultIterator
 from perfetto.trace_processor.http import TraceProcessorHttp
 from perfetto.trace_processor.platform import PlatformDelegate
 from perfetto.trace_processor.protos import ProtoFactory
@@ -34,10 +36,7 @@ TraceReference = registry.TraceReference
 
 # Custom exception raised if any trace_processor functions return a
 # response with an error defined
-class TraceProcessorException(Exception):
-
-  def __init__(self, message):
-    super().__init__(message)
+TraceProcessorException = PerfettoException
 
 
 @dc.dataclass
@@ -48,6 +47,8 @@ class TraceProcessorConfig:
   ingest_ftrace_in_raw: bool
   enable_dev_features: bool
   resolver_registry: Optional[ResolverRegistry]
+  load_timeout: int
+  extra_flags: Optional[List[str]]
 
   def __init__(self,
                bin_path: Optional[str] = None,
@@ -55,161 +56,22 @@ class TraceProcessorConfig:
                verbose: bool = False,
                ingest_ftrace_in_raw: bool = False,
                enable_dev_features=False,
-               resolver_registry: Optional[ResolverRegistry] = None):
+               resolver_registry: Optional[ResolverRegistry] = None,
+               load_timeout: int = 2,
+               extra_flags: Optional[List[str]] = None):
     self.bin_path = bin_path
     self.unique_port = unique_port
     self.verbose = verbose
     self.ingest_ftrace_in_raw = ingest_ftrace_in_raw
     self.enable_dev_features = enable_dev_features
     self.resolver_registry = resolver_registry
+    self.load_timeout = load_timeout
+    self.extra_flags = extra_flags
 
 
 class TraceProcessor:
-
-  # Values of these constants correspond to the QueryResponse message at
-  # protos/perfetto/trace_processor/trace_processor.proto
-  QUERY_CELL_INVALID_FIELD_ID = 0
-  QUERY_CELL_NULL_FIELD_ID = 1
-  QUERY_CELL_VARINT_FIELD_ID = 2
-  QUERY_CELL_FLOAT64_FIELD_ID = 3
-  QUERY_CELL_STRING_FIELD_ID = 4
-  QUERY_CELL_BLOB_FIELD_ID = 5
-
-  # This is the class returned to the user and contains one row of the
-  # resultant query. Each column name is stored as an attribute of this
-  # class, with the value corresponding to the column name and row in
-  # the query results table.
-  class Row(object):
-    # Required for pytype to correctly infer attributes from Row objects
-    _HAS_DYNAMIC_ATTRIBUTES = True
-
-    def __str__(self):
-      return str(self.__dict__)
-
-    def __repr__(self):
-      return self.__dict__
-
-  class QueryResultIterator:
-
-    def __init__(self, column_names, batches):
-      self.__column_names = list(column_names)
-      self.__column_count = 0
-      self.__count = 0
-      self.__cells = []
-      self.__data_lists = [[], [], [], [], [], []]
-      self.__data_lists_index = [0, 0, 0, 0, 0, 0]
-      self.__current_index = 0
-
-      # Iterate over all the batches and collect their
-      # contents into lists based on the type of the batch
-      batch_index = 0
-      while True:
-        # It's possible on some occasions that there are non UTF-8 characters
-        # in the string_cells field. If this is the case, string_cells is
-        # a bytestring which needs to be decoded (but passing ignore so that
-        # we don't fail in decoding).
-        strings_batch_str = batches[batch_index].string_cells
-        try:
-          strings_batch_str = strings_batch_str.decode('utf-8', 'ignore')
-        except AttributeError:
-          # AttributeError can occur when |strings_batch_str| is an str which
-          # happens when everything in it is UTF-8 (protobuf automatically
-          # does the conversion if it can).
-          pass
-
-        # Null-terminated strings in a batch are concatenated
-        # into a single large byte array, so we split on the
-        # null-terminator to get the individual strings
-        strings_batch = strings_batch_str.split('\0')[:-1]
-        self.__data_lists[TraceProcessor.QUERY_CELL_STRING_FIELD_ID].extend(
-            strings_batch)
-        self.__data_lists[TraceProcessor.QUERY_CELL_VARINT_FIELD_ID].extend(
-            batches[batch_index].varint_cells)
-        self.__data_lists[TraceProcessor.QUERY_CELL_FLOAT64_FIELD_ID].extend(
-            batches[batch_index].float64_cells)
-        self.__data_lists[TraceProcessor.QUERY_CELL_BLOB_FIELD_ID].extend(
-            batches[batch_index].blob_cells)
-        self.__cells.extend(batches[batch_index].cells)
-
-        if batches[batch_index].is_last_batch:
-          break
-        batch_index += 1
-
-      # If there are no rows in the query result, don't bother updating the
-      # counts to avoid dealing with / 0 errors.
-      if len(self.__cells) == 0:
-        return
-
-      # The count we collected so far was a count of all individual columns
-      # in the query result, so we divide by the number of columns in a row
-      # to get the number of rows
-      self.__column_count = len(self.__column_names)
-      self.__count = int(len(self.__cells) / self.__column_count)
-
-      # Data integrity check - see that we have the expected amount of cells
-      # for the number of rows that we need to return
-      if len(self.__cells) % self.__column_count != 0:
-        raise TraceProcessorException("Cell count " + str(len(self.__cells)) +
-                                      " is not a multiple of column count " +
-                                      str(len(self.__column_names)))
-
-    # To use the query result as a populated Pandas dataframe, this
-    # function must be called directly after calling query inside
-    # TraceProcesor.
-    def as_pandas_dataframe(self):
-      try:
-        import pandas as pd
-
-        # Populate the dataframe with the query results
-        rows = []
-        for i in range(0, self.__count):
-          row = []
-          base_cell_index = i * self.__column_count
-          for num in range(len(self.__column_names)):
-            col_type = self.__cells[base_cell_index + num]
-            if col_type == TraceProcessor.QUERY_CELL_INVALID_FIELD_ID:
-              raise TraceProcessorException('Invalid cell type')
-
-            if col_type == TraceProcessor.QUERY_CELL_NULL_FIELD_ID:
-              row.append(None)
-            else:
-              col_index = self.__data_lists_index[col_type]
-              self.__data_lists_index[col_type] += 1
-              row.append(self.__data_lists[col_type][col_index])
-          rows.append(row)
-
-        df = pd.DataFrame(rows, columns=self.__column_names)
-        return df.astype(object).where(df.notnull(),
-                                       None).reset_index(drop=True)
-
-      except ModuleNotFoundError:
-        raise TraceProcessorException(
-            'Python dependencies missing. Please pip3 install pandas numpy')
-
-    def __len__(self):
-      return self.__count
-
-    def __iter__(self):
-      return self
-
-    def __next__(self):
-      if self.__current_index == self.__count:
-        raise StopIteration
-      result = TraceProcessor.Row()
-      base_cell_index = self.__current_index * self.__column_count
-      for num, column_name in enumerate(self.__column_names):
-        col_type = self.__cells[base_cell_index + num]
-        if col_type == TraceProcessor.QUERY_CELL_INVALID_FIELD_ID:
-          raise TraceProcessorException('Invalid cell type')
-        if col_type != TraceProcessor.QUERY_CELL_NULL_FIELD_ID:
-          col_index = self.__data_lists_index[col_type]
-          self.__data_lists_index[col_type] += 1
-          setattr(result, column_name, self.__data_lists[col_type][col_index])
-        else:
-          setattr(result, column_name, None)
-
-      self.__current_index += 1
-      return result
+  QueryResultIterator = QueryResultIterator
+  Row = QueryResultIterator.Row
 
   def __init__(self,
                trace: Optional[TraceReference] = None,
@@ -304,6 +166,30 @@ class TraceProcessor:
     metrics.ParseFromString(response.metrics)
     return metrics
 
+  def trace_summary(self,
+                    metric_ids: List[str],
+                    specs: List[str],
+                    metadata_query_id: Optional[str] = None):
+    """Returns the trace summary data corresponding to the passed in metric
+    IDs and specs. Raises TraceProcessorException if the response returns with
+    an error.
+
+    Args:
+      metric_ids: A list of metric IDs as defined in TraceMetrics
+      specs: A list of textproto specs to be used for the summary
+      metadata_query_id: Optional query ID for metadata
+
+    Returns:
+      The trace summary data as a proto message
+    """
+    response = self.http.trace_summary(metric_ids, specs, metadata_query_id)
+    if response.error:
+      raise TraceProcessorException(response.error)
+
+    summary = self.protos.TraceSummary()
+    summary.ParseFromString(response.proto_summary)
+    return summary
+
   def enable_metatrace(self):
     """Enable metatrace for the currently running trace_processor.
     """
@@ -327,12 +213,11 @@ class TraceProcessor:
       parsed = p.netloc if p.netloc else p.path
       return TraceProcessorHttp(parsed, protos=self.protos)
 
-    url, self.subprocess = load_shell(self.config.bin_path,
-                                      self.config.unique_port,
-                                      self.config.verbose,
-                                      self.config.ingest_ftrace_in_raw,
-                                      self.config.enable_dev_features,
-                                      self.platform_delegate)
+    url, self.subprocess = load_shell(
+        self.config.bin_path, self.config.unique_port, self.config.verbose,
+        self.config.ingest_ftrace_in_raw, self.config.enable_dev_features,
+        self.platform_delegate, self.config.load_timeout,
+        self.config.extra_flags)
     return TraceProcessorHttp(url, protos=self.protos)
 
   def _parse_trace(self, trace: TraceReference):

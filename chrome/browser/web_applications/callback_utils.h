@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_CALLBACK_UTILS_H_
 
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 
 namespace web_app {
 
@@ -40,7 +41,7 @@ namespace web_app {
 //   void WriteCounter(base::OnceClosure next_step_callback, size_t count);
 //   void ReleaseFileLock(base::OnceClosure next_step_callback);
 //
-//   absl::optional<FileLock> lock_;
+//   std::optional<FileLock> lock_;
 //   base::WeakPtrFactory<CounterStorage> weak_ptr_factory_{this};
 // };
 //
@@ -84,6 +85,12 @@ decltype(auto) ChainCallbacks(FirstCallback&& first_callback,
 template <typename... Callbacks>
 decltype(auto) RunChainedCallbacks(Callbacks&&... callbacks) {
   return ChainCallbacks(std::forward<Callbacks>(callbacks)...).Run();
+}
+
+template <typename T, typename... Funcs>
+decltype(auto) RunChainedWeakCallbacks(base::WeakPtr<T> weak_ptr,
+                                       Funcs... funcs) {
+  return RunChainedCallbacks(base::BindOnce(funcs, weak_ptr)...);
 }
 
 }  // namespace web_app

@@ -19,13 +19,13 @@ TEST(FirstPartySetEntryOverrideTest, IsDeletion_false) {
   EXPECT_FALSE(
       FirstPartySetEntryOverride(
           FirstPartySetEntry(SchemefulSite(GURL("https://example.test")),
-                             SiteType::kPrimary, absl::nullopt))
+                             SiteType::kPrimary))
           .IsDeletion());
 }
 
 TEST(FirstPartySetEntryOverrideTest, GetEntry) {
   FirstPartySetEntry entry(SchemefulSite(GURL("https://example.test")),
-                           SiteType::kPrimary, absl::nullopt);
+                           SiteType::kPrimary);
   EXPECT_EQ(FirstPartySetEntryOverride(entry).GetEntry(), entry);
 }
 

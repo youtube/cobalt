@@ -8,10 +8,19 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "chromeos/crosapi/mojom/video_conference.mojom-forward.h"
 
 namespace ash {
+
+constexpr int kVideoConferenceBubbleHorizontalPadding = 16;
+
+const int kReturnToAppIconSize = 20;
+
+// The duration for the gradient animation on the Image and Create with AI
+// buttons.
+const base::TimeDelta kGradientAnimationDuration = base::Milliseconds(3120);
 
 // This struct provides aggregated attributes of media apps
 // from one or more clients.
@@ -50,6 +59,12 @@ class VideoConferenceManagerBase {
   virtual void SetSystemMediaDeviceStatus(
       crosapi::mojom::VideoConferenceMediaDevice device,
       bool disabled) = 0;
+
+  // Stops all screen sharing.
+  virtual void StopAllScreenShare() = 0;
+
+  // Called when CreateBackgroundImage button is clicked on.
+  virtual void CreateBackgroundImage() = 0;
 
   virtual ~VideoConferenceManagerBase() = default;
 };

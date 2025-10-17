@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 import {assert, assertNotReached} from '../../assert.js';
-import {ClearableAsyncJobQueue} from '../../async_job_queue.js';
-import * as Comlink from '../../lib/comlink.js';
-import runFFmpeg from '../../lib/ffmpeg.js';
+import {AsyncJobQueue} from '../../async_job_queue.js';
+import * as comlink from '../../lib/comlink.js';
+import runFfmpeg from '../../lib/ffmpeg.js';
 import {WaitableEvent} from '../../waitable_event.js';
 import {AsyncWriter} from '../async_writer.js';
 
@@ -42,15 +42,15 @@ type ReadableCallback = (deviceReadable: number) => void;
  *
  * Ref: https://emscripten.org/docs/api_reference/Filesystem-API.html#devices
  */
-interface FSStream {
+interface FsStream {
   fd: number;
 }
-interface FS {
+interface Fs {
   makedev(major: number, minor: number): number;
   mkdev(path: string, mode?: number): void;
   registerDevice(dev: number, ops: FileOps): void;
   symlink(oldpath: string, newpath: string): void;
-  open(path: string, flags: string): FSStream;
+  open(path: string, flags: string): FsStream;
 }
 
 /**
@@ -289,12 +289,12 @@ class OutputDevice {
  * A ffmpeg-based video processor that can process input and output data
  * incrementally.
  */
-class FFMpegVideoProcessor {
+class FfmpegVideoProcessor {
   private readonly inputDevice = new InputDevice();
 
   private readonly outputDevice: OutputDevice;
 
-  private readonly jobQueue = new ClearableAsyncJobQueue();
+  private readonly jobQueue = new AsyncJobQueue();
 
   /**
    * @param output The output writer.
@@ -330,13 +330,25 @@ class FFMpegVideoProcessor {
       arguments: args,
       locateFile: (file: string) => {
         assert(file === 'ffmpeg.wasm');
-        return '/js/lib/ffmpeg.wasm';
+        // util.expandPath can't be used here since util includes
+        // load_time_data, which includes file under chrome://, but this file
+        // is in chrome-untrusted://.
+        // TODO(pihsun): Separate util into multiple files so we can include
+        // expandPath here.
+        // TODO(b/213408699): Separate files included in different scope
+        // (chrome://, chrome-untrusted://, worker) into different folder /
+        // tsconfig.json, so this can be caught at compile time.
+        return '../../../js/lib/ffmpeg.wasm';
       },
+      // This is from emscripten.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       noFSInit: true,  // It would be setup in preRun().
-      preRun: () => {
+      preRun: [() => {
         // The FS property are injected by emscripten at runtime.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        const fs = (config as unknown as {FS: FS}).FS;
+        /* eslint-disable-next-line
+             @typescript-eslint/naming-convention,
+             @typescript-eslint/consistent-type-assertions */
+        const fs = (config as unknown as {FS: Fs}).FS;
         assert(fs !== null);
         // 80 is just a random major number that won't collide with other
         // default devices of the Emscripten runtime environment, which uses
@@ -358,29 +370,29 @@ class FFMpegVideoProcessor {
         assert(stdin.fd === 0);
         assert(stdout.fd === 1);
         assert(stderr.fd === 2);
-      },
+      }],
       waitReadable: (callback: ReadableCallback) => {
         this.inputDevice.setReadableCallback(callback);
       },
     };
 
-    function initFFmpeg() {
+    function initFfmpeg() {
       return new Promise<void>((resolve) => {
         // runFFmpeg() is a special function exposed by Emscripten that will
         // return an object with then(). The function passed into then() would
         // be called when the runtime is initialized. Note that because the
         // then() function will return the object itself again, using await here
         // would cause an infinite loop.
-        runFFmpeg(config).then(() => resolve());
+        void runFfmpeg(config).then(() => resolve());
       });
     }
-    this.jobQueue.push(initFFmpeg);
+    this.jobQueue.push(initFfmpeg);
   }
 
   /**
    * Writes a blob with mkv data into the processor.
    */
-  async write(blob: Blob): Promise<void> {
+  write(blob: Blob): void {
     this.jobQueue.push(async () => {
       const buf = await blob.arrayBuffer();
       this.inputDevice.push(new Int8Array(buf));
@@ -394,7 +406,7 @@ class FFMpegVideoProcessor {
    */
   async close(): Promise<void> {
     // Flush and close the input device.
-    this.jobQueue.push(async () => {
+    this.jobQueue.push(() => {
       this.inputDevice.endPush();
     });
     await this.jobQueue.flush();
@@ -413,7 +425,7 @@ class FFMpegVideoProcessor {
   async cancel(): Promise<void> {
     // Clear and make sure there is no pending task.
     await this.jobQueue.clear();
-    this.jobQueue.push(async () => {
+    this.jobQueue.push(() => {
       this.inputDevice.cancel();
       // When input device is cancelled, for some reason calling
       // emscripten_force_exit() will not close the corresponding file
@@ -426,14 +438,14 @@ class FFMpegVideoProcessor {
 
 // Only export types to ensure that the file is not imported by other files at
 // runtime.
-export type VideoProcessorConstructor = typeof FFMpegVideoProcessor;
-export type VideoProcessor = FFMpegVideoProcessor;
+export type VideoProcessorConstructor = typeof FfmpegVideoProcessor;
+export type VideoProcessor = FfmpegVideoProcessor;
 
 /**
  * Expose the VideoProcessor constructor to given end point.
  */
 function exposeVideoProcessor(endPoint: MessagePort) {
-  Comlink.expose(FFMpegVideoProcessor, endPoint);
+  comlink.expose(FfmpegVideoProcessor, endPoint);
 }
 
-Comlink.expose({exposeVideoProcessor});
+comlink.expose({exposeVideoProcessor});

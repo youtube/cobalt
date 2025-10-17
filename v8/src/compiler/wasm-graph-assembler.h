@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_WASM_GRAPH_ASSEMBLER_H_
+#define V8_COMPILER_WASM_GRAPH_ASSEMBLER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_WASM_GRAPH_ASSEMBLER_H_
-#define V8_COMPILER_WASM_GRAPH_ASSEMBLER_H_
 
 #include "src/compiler/graph-assembler.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -15,21 +15,6 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-constexpr Builtin WasmRuntimeStubIdToBuiltinName(
-    wasm::WasmCode::RuntimeStubId runtime_stub_id) {
-  switch (runtime_stub_id) {
-#define DEF_CASE(name)          \
-  case wasm::WasmCode::k##name: \
-    return Builtin::k##name;
-#define DEF_TRAP_CASE(name) DEF_CASE(ThrowWasm##name)
-    WASM_RUNTIME_STUB_LIST(DEF_CASE, DEF_TRAP_CASE)
-#undef DEF_CASE
-#undef DEF_TRAP_CASE
-    default:
-      UNREACHABLE();
-  }
-}
 
 CallDescriptor* GetBuiltinCallDescriptor(
     Builtin name, Zone* zone, StubCallMode stub_mode,
@@ -44,32 +29,40 @@ class WasmGraphAssembler : public GraphAssembler {
       : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
         simplified_(zone) {}
 
+  // While CallBuiltin() translates to a direct call to the address of the
+  // builtin, CallBuiltinThroughJumptable instead jumps to a slot in a jump
+  // table that then calls the builtin. As the jump table is "close" to the
+  // generated code, this is encoded as a near call resulting in the instruction
+  // being shorter than a direct call to the builtin.
   template <typename... Args>
-  Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
-                        Operator::Properties properties, Args... args) {
+  Node* CallBuiltinThroughJumptable(Builtin builtin,
+                                    Operator::Properties properties,
+                                    Args... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
-        WasmRuntimeStubIdToBuiltinName(stub_id), temp_zone(),
-        StubCallMode::kCallWasmRuntimeStub, false, properties);
+        builtin, temp_zone(), StubCallMode::kCallWasmRuntimeStub, false,
+        properties);
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        stub_id, RelocInfo::WASM_STUB_CALL);
+    Node* call_target = mcgraph()->RelocatableWasmBuiltinCallTarget(builtin);
     return Call(call_descriptor, call_target, args...);
   }
 
   Node* GetBuiltinPointerTarget(Builtin builtin) {
-    static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+    static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
     return NumberConstant(static_cast<int>(builtin));
   }
 
   template <typename... Args>
   Node* CallBuiltin(Builtin name, Operator::Properties properties,
                     Args... args) {
-    auto* call_descriptor = GetBuiltinCallDescriptor(
-        name, temp_zone(), StubCallMode::kCallBuiltinPointer, false,
-        properties);
-    Node* call_target = GetBuiltinPointerTarget(name);
-    return Call(call_descriptor, call_target, args...);
+    return CallBuiltinImpl(name, false, properties, args...);
+  }
+
+  template <typename... Args>
+  Node* CallBuiltinWithFrameState(Builtin name, Operator::Properties properties,
+                                  Node* frame_state, Args... args) {
+    DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
+    return CallBuiltinImpl(name, true, properties, frame_state, args...);
   }
 
   // Sets {true_node} and {false_node} to their corresponding Branch outputs.
@@ -82,7 +75,7 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* SmiConstant(Tagged_t value) {
-    Address tagged_value = Internals::IntToSmi(static_cast<int>(value));
+    Address tagged_value = Internals::IntegralToSmi(static_cast<int>(value));
     return kTaggedSize == kInt32Size
                ? Int32Constant(static_cast<int32_t>(tagged_value))
                : Int64Constant(static_cast<int64_t>(tagged_value));
@@ -121,13 +114,23 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* Allocate(int size);
 
-  Node* Allocate(Node* size,
-                 AllowLargeObjects allow_large = AllowLargeObjects::kTrue);
+  Node* Allocate(Node* size);
 
   Node* LoadFromObject(MachineType type, Node* base, Node* offset);
 
   Node* LoadFromObject(MachineType type, Node* base, int offset) {
     return LoadFromObject(type, base, IntPtrConstant(offset));
+  }
+
+  Node* LoadProtectedPointerFromObject(Node* object, Node* offset);
+  Node* LoadProtectedPointerFromObject(Node* object, int offset) {
+    return LoadProtectedPointerFromObject(object, IntPtrConstant(offset));
+  }
+
+  Node* LoadImmutableProtectedPointerFromObject(Node* object, Node* offset);
+  Node* LoadImmutableProtectedPointerFromObject(Node* object, int offset) {
+    return LoadImmutableProtectedPointerFromObject(object,
+                                                   IntPtrConstant(offset));
   }
 
   Node* LoadImmutableFromObject(MachineType type, Node* base, Node* offset);
@@ -141,6 +144,8 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* LoadImmutable(LoadRepresentation rep, Node* base, int offset) {
     return LoadImmutable(rep, base, IntPtrConstant(offset));
   }
+
+  Node* LoadWasmCodePointer(Node* code_pointer);
 
   Node* StoreToObject(ObjectAccess access, Node* base, Node* offset,
                       Node* value);
@@ -159,9 +164,27 @@ class WasmGraphAssembler : public GraphAssembler {
                                        value);
   }
 
+  Node* BuildDecodeSandboxedExternalPointer(Node* handle,
+                                            ExternalPointerTagRange tag_range,
+                                            Node* isolate_root);
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
-                                           ExternalPointerTag tag,
+                                           ExternalPointerTagRange tag_range,
                                            Node* isolate_root);
+
+  Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
+                                           Node* index,
+                                           ExternalPointerTagRange tag_range,
+                                           Node* isolate_root);
+
+  Node* LoadImmutableTrustedPointerFromObject(Node* object, int offset,
+                                              IndirectPointerTag tag);
+  Node* LoadTrustedPointerFromObject(Node* object, int offset,
+                                     IndirectPointerTag tag);
+  // Returns the load node (where the source position for the trap needs to be
+  // set by the caller) and the result.
+  std::pair<Node*, Node*> LoadTrustedPointerFromObjectTrapOnNull(
+      Node* object, int offset, IndirectPointerTag tag);
+  Node* BuildDecodeTrustedPointer(Node* handle, IndirectPointerTag tag);
 
   Node* IsSmi(Node* object);
 
@@ -200,6 +223,9 @@ class WasmGraphAssembler : public GraphAssembler {
     return LoadFixedArrayElement(array, index, MachineType::AnyTagged());
   }
 
+  Node* LoadProtectedFixedArrayElement(Node* array, int index);
+  Node* LoadProtectedFixedArrayElement(Node* array, Node* index_intptr);
+
   Node* LoadByteArrayElement(Node* byte_array, Node* index_intptr,
                              MachineType type);
 
@@ -218,20 +244,19 @@ class WasmGraphAssembler : public GraphAssembler {
         ObjectAccess(MachineType::AnyTagged(), kFullWriteBarrier));
   }
 
-  Node* LoadWeakArrayListElement(Node* fixed_array, Node* index_intptr,
-                                 MachineType type = MachineType::AnyTagged());
+  Node* LoadWeakFixedArrayElement(Node* fixed_array, Node* index_intptr);
 
   // Functions, SharedFunctionInfos, FunctionData.
 
   Node* LoadSharedFunctionInfo(Node* js_function);
 
-  Node* LoadContextFromJSFunction(Node* js_function);
+  Node* LoadContextNoCellFromJSFunction(Node* js_function);
 
   Node* LoadFunctionDataFromJSFunction(Node* js_function);
 
   Node* LoadExportedFunctionIndexAsSmi(Node* exported_function_data);
 
-  Node* LoadExportedFunctionInstance(Node* exported_function_data);
+  Node* LoadExportedFunctionInstanceData(Node* exported_function_data);
 
   // JavaScript objects.
 
@@ -246,8 +271,10 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* IsDataRefMap(Node* map);
 
   Node* WasmTypeCheck(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* WasmTypeCheckAbstract(Node* object, WasmTypeCheckConfig config);
 
   Node* WasmTypeCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* WasmTypeCastAbstract(Node* object, WasmTypeCheckConfig config);
 
   Node* Null(wasm::ValueType type);
 
@@ -257,9 +284,9 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* AssertNotNull(Node* object, wasm::ValueType type, TrapId trap_id);
 
-  Node* WasmExternInternalize(Node* object);
+  Node* WasmAnyConvertExtern(Node* object);
 
-  Node* WasmExternExternalize(Node* object);
+  Node* WasmExternConvertAny(Node* object);
 
   Node* StructGet(Node* object, const wasm::StructType* type, int field_index,
                   bool is_signed, CheckForNull null_check);
@@ -288,22 +315,36 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* HasInstanceType(Node* heap_object, InstanceType type);
 
   void TrapIf(Node* condition, TrapId reason) {
-    AddNode(graph()->NewNode(mcgraph()->common()->TrapIf(reason), condition,
-                             effect(), control()));
+    // Initially wasm traps don't have a FrameState.
+    const bool has_frame_state = false;
+    AddNode(
+        graph()->NewNode(mcgraph()->common()->TrapIf(reason, has_frame_state),
+                         condition, effect(), control()));
   }
 
   void TrapUnless(Node* condition, TrapId reason) {
-    AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason), condition,
-                             effect(), control()));
+    // Initially wasm traps don't have a FrameState.
+    const bool has_frame_state = false;
+    AddNode(graph()->NewNode(
+        mcgraph()->common()->TrapUnless(reason, has_frame_state), condition,
+        effect(), control()));
   }
 
-  Node* LoadRootRegister() {
-    return AddNode(graph()->NewNode(mcgraph()->machine()->LoadRootRegister()));
-  }
+  Node* LoadTrustedDataFromInstanceObject(Node* instance_object);
 
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
 
  private:
+  template <typename... Args>
+  Node* CallBuiltinImpl(Builtin name, bool needs_frame_state,
+                        Operator::Properties properties, Args... args) {
+    auto* call_descriptor = GetBuiltinCallDescriptor(
+        name, temp_zone(), StubCallMode::kCallBuiltinPointer, needs_frame_state,
+        properties);
+    Node* call_target = GetBuiltinPointerTarget(name);
+    return Call(call_descriptor, call_target, args...);
+  }
+
   SimplifiedOperatorBuilder simplified_;
 };
 

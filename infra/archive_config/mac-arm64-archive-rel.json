@@ -34,8 +34,6 @@
                 "icudtl.dat"
             ],
             "dirs": [
-                "blink_deprecated_test_plugin.plugin",
-                "blink_test_plugin.plugin",
                 "Content Shell.app",
                 "resources"
             ],
@@ -66,6 +64,14 @@
         {
             "files": [
                 "updater.zip"
+            ],
+            "gcs_bucket": "chromium-browser-snapshots",
+            "gcs_path": "Mac_Arm/{%position%}",
+            "archive_type": "ARCHIVE_TYPE_FILES"
+        },
+        {
+            "files": [
+                "enterprise_companion.zip"
             ],
             "gcs_bucket": "chromium-browser-snapshots",
             "gcs_path": "Mac_Arm/{%position%}",

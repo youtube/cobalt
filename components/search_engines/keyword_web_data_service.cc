@@ -6,12 +6,16 @@
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
+#include "components/regional_capabilities/regional_capabilities_country_id.h"
 #include "components/search_engines/keyword_table.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/webdata/common/web_data_results.h"
+#include "components/webdata/common/web_database.h"
 #include "components/webdata/common/web_database_service.h"
+
+using ::country_codes::CountryId;
 
 namespace {
 
@@ -30,22 +34,34 @@ std::unique_ptr<WDTypedResult> GetKeywordsImpl(WebDatabase* db) {
     return nullptr;
   }
 
-  result.default_search_provider_id =
-      keyword_table->GetDefaultSearchProviderID();
-  result.builtin_keyword_version = keyword_table->GetBuiltinKeywordVersion();
-  result.starter_pack_version = keyword_table->GetStarterPackKeywordVersion();
+  WDKeywordsResult::Metadata metadata;
+  metadata.builtin_keyword_data_version =
+      keyword_table->GetBuiltinKeywordDataVersion();
+  metadata.builtin_keyword_country = regional_capabilities::CountryIdHolder(
+      keyword_table->GetBuiltinKeywordCountry());
+  metadata.starter_pack_version = keyword_table->GetStarterPackKeywordVersion();
+
+  result.metadata = metadata;
   return std::make_unique<WDResult<WDKeywordsResult>>(KEYWORDS_RESULT, result);
 }
 
-WebDatabase::State SetDefaultSearchProviderIDImpl(TemplateURLID id,
-                                                  WebDatabase* db) {
-  return KeywordTable::FromWebDatabase(db)->SetDefaultSearchProviderID(id)
+WebDatabase::State SetBuiltinKeywordDataVersionImpl(int version,
+                                                    WebDatabase* db) {
+  return KeywordTable::FromWebDatabase(db)->SetBuiltinKeywordDataVersion(
+             version)
              ? WebDatabase::COMMIT_NEEDED
              : WebDatabase::COMMIT_NOT_NEEDED;
 }
 
-WebDatabase::State SetBuiltinKeywordVersionImpl(int version, WebDatabase* db) {
-  return KeywordTable::FromWebDatabase(db)->SetBuiltinKeywordVersion(version)
+WebDatabase::State ClearBuiltinKeywordMilestoneImpl(WebDatabase* db) {
+  return KeywordTable::FromWebDatabase(db)->ClearBuiltinKeywordMilestone()
+             ? WebDatabase::COMMIT_NEEDED
+             : WebDatabase::COMMIT_NOT_NEEDED;
+}
+
+WebDatabase::State SetBuiltinKeywordCountryImpl(CountryId country_id,
+                                                WebDatabase* db) {
+  return KeywordTable::FromWebDatabase(db)->SetBuiltinKeywordCountry(country_id)
              ? WebDatabase::COMMIT_NEEDED
              : WebDatabase::COMMIT_NOT_NEEDED;
 }
@@ -59,6 +75,16 @@ WebDatabase::State SetStarterPackKeywordVersionImpl(int version,
 }
 
 }  // namespace
+
+WDKeywordsResult::Metadata::Metadata() = default;
+
+WDKeywordsResult::Metadata::Metadata(const WDKeywordsResult::Metadata&) =
+    default;
+
+WDKeywordsResult::Metadata& WDKeywordsResult::Metadata::operator=(
+    const WDKeywordsResult::Metadata&) = default;
+
+WDKeywordsResult::Metadata::~Metadata() = default;
 
 WDKeywordsResult::WDKeywordsResult() = default;
 
@@ -83,7 +109,7 @@ KeywordWebDataService::BatchModeScoper::~BatchModeScoper() {
 
 KeywordWebDataService::KeywordWebDataService(
     scoped_refptr<WebDatabaseService> wdbs,
-    scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner)
+    scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
     : WebDataServiceBase(std::move(wdbs), std::move(ui_task_runner)),
       timer_(FROM_HERE,
              base::Seconds(5),
@@ -135,14 +161,19 @@ WebDataServiceBase::Handle KeywordWebDataService::GetKeywords(
       FROM_HERE, base::BindOnce(&GetKeywordsImpl), consumer);
 }
 
-void KeywordWebDataService::SetDefaultSearchProviderID(TemplateURLID id) {
-  wdbs_->ScheduleDBTask(FROM_HERE,
-                        base::BindOnce(&SetDefaultSearchProviderIDImpl, id));
+void KeywordWebDataService::SetBuiltinKeywordDataVersion(int version) {
+  wdbs_->ScheduleDBTask(
+      FROM_HERE, base::BindOnce(&SetBuiltinKeywordDataVersionImpl, version));
 }
 
-void KeywordWebDataService::SetBuiltinKeywordVersion(int version) {
+void KeywordWebDataService::ClearBuiltinKeywordMilestone() {
   wdbs_->ScheduleDBTask(FROM_HERE,
-                        base::BindOnce(&SetBuiltinKeywordVersionImpl, version));
+                        base::BindOnce(&ClearBuiltinKeywordMilestoneImpl));
+}
+
+void KeywordWebDataService::SetBuiltinKeywordCountry(CountryId version) {
+  wdbs_->ScheduleDBTask(FROM_HERE,
+                        base::BindOnce(&SetBuiltinKeywordCountryImpl, version));
 }
 
 void KeywordWebDataService::SetStarterPackKeywordVersion(int version) {

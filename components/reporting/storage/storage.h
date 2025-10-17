@@ -16,7 +16,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "components/reporting/compression/compression_module.h"
@@ -28,7 +27,6 @@
 #include "components/reporting/storage/storage_uploader_interface.h"
 #include "components/reporting/util/status.h"
 #include "components/reporting/util/statusor.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace reporting {
 

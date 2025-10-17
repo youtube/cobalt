@@ -4,6 +4,9 @@
 
 package org.chromium.components.permissions;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
@@ -22,18 +25,23 @@ import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.graphics.drawable.DrawableCompat;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.util.TraceEventVectorDrawableCompat;
 import org.chromium.components.omnibox.AutocompleteSchemeClassifier;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer;
 import org.chromium.content_public.browser.bluetooth.BluetoothChooserEvent;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.permissions.PermissionCallback;
-import org.chromium.ui.text.NoUnderlineClickableSpan;
+import org.chromium.ui.text.ChromeClickableSpan;
 import org.chromium.ui.text.SpanApplier;
 import org.chromium.ui.text.SpanApplier.SpanInfo;
 import org.chromium.ui.util.ColorUtils;
@@ -46,17 +54,21 @@ import java.lang.annotation.RetentionPolicy;
  * pair with a certain class of Bluetooth devices (e.g. through a bluetooth.requestDevice Javascript
  * call).
  *
- * The dialog is shown by create() or show(), and always runs finishDialog() as it's closing.
+ * <p>The dialog is shown by create() or show(), and always runs finishDialog() as it's closing.
  */
 @JNINamespace("permissions")
+@NullMarked
 public class BluetoothChooserDialog
         implements ItemChooserDialog.ItemSelectedCallback, PermissionCallback {
     private static final String TAG = "Bluetooth";
 
     // These constants match BluetoothChooserAndroid::ShowDiscoveryState, and are used in
     // notifyDiscoveryState().
-    @IntDef({DiscoveryMode.DISCOVERY_FAILED_TO_START, DiscoveryMode.DISCOVERING,
-            DiscoveryMode.DISCOVERY_IDLE})
+    @IntDef({
+        DiscoveryMode.DISCOVERY_FAILED_TO_START,
+        DiscoveryMode.DISCOVERING,
+        DiscoveryMode.DISCOVERY_IDLE
+    })
     @Retention(RetentionPolicy.SOURCE)
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public @interface DiscoveryMode {
@@ -91,9 +103,11 @@ public class BluetoothChooserDialog
     final BluetoothChooserAndroidDelegate mDelegate;
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    public Drawable mConnectedIcon;
+    public @Nullable Drawable mConnectedIcon;
+
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public String mConnectedIconDescription;
+
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public Drawable[] mSignalStrengthLevelIcon;
 
@@ -110,33 +124,32 @@ public class BluetoothChooserDialog
     // The status message to show when the bluetooth adapter is turned off.
     private final SpannableString mAdapterOffStatus;
 
-    // Should the "adapter off" message be shown once Bluetooth permission is granted?
-    private boolean mAdapterOff;
-
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    public final BroadcastReceiver mLocationModeBroadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!LocationManager.MODE_CHANGED_ACTION.equals(intent.getAction())) return;
+    public final BroadcastReceiver mLocationModeBroadcastReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (!LocationManager.MODE_CHANGED_ACTION.equals(intent.getAction())) return;
 
-            if (!checkLocationServicesAndPermission()) return;
+                    if (!checkLocationServicesAndPermission()) return;
 
-            mItemChooserDialog.clear();
+                    mItemChooserDialog.clear();
 
-            if (mAdapterOff) {
-                notifyAdapterTurnedOff();
-                return;
-            }
-
-            Natives jni = BluetoothChooserDialogJni.get();
-            jni.restartSearch(mNativeBluetoothChooserDialogPtr);
-        }
-    };
+                    Natives jni = BluetoothChooserDialogJni.get();
+                    jni.restartSearch(mNativeBluetoothChooserDialogPtr);
+                }
+            };
 
     // The type of link that is shown within the dialog.
-    @IntDef({LinkType.EXPLAIN_BLUETOOTH, LinkType.ADAPTER_OFF, LinkType.ADAPTER_OFF_HELP,
-            LinkType.REQUEST_PERMISSIONS, LinkType.REQUEST_LOCATION_SERVICES,
-            LinkType.NEED_LOCATION_PERMISSION_HELP, LinkType.RESTART_SEARCH})
+    @IntDef({
+        LinkType.EXPLAIN_BLUETOOTH,
+        LinkType.ADAPTER_OFF,
+        LinkType.ADAPTER_OFF_HELP,
+        LinkType.REQUEST_PERMISSIONS,
+        LinkType.REQUEST_LOCATION_SERVICES,
+        LinkType.NEED_LOCATION_PERMISSION_HELP,
+        LinkType.RESTART_SEARCH
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface LinkType {
         int EXPLAIN_BLUETOOTH = 0;
@@ -148,17 +161,17 @@ public class BluetoothChooserDialog
         int RESTART_SEARCH = 6;
     }
 
-    /**
-     * Creates the BluetoothChooserDialog.
-     */
+    /** Creates the BluetoothChooserDialog. */
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    public BluetoothChooserDialog(WindowAndroid windowAndroid, String origin, int securityLevel,
-            BluetoothChooserAndroidDelegate delegate, long nativeBluetoothChooserDialogPtr) {
+    public BluetoothChooserDialog(
+            WindowAndroid windowAndroid,
+            String origin,
+            int securityLevel,
+            BluetoothChooserAndroidDelegate delegate,
+            long nativeBluetoothChooserDialogPtr) {
         mWindowAndroid = windowAndroid;
-        mActivity = windowAndroid.getActivity().get();
-        assert mActivity != null;
-        mContext = windowAndroid.getContext().get();
-        assert mContext != null;
+        mActivity = assertNonNull(windowAndroid.getActivity().get());
+        mContext = assertNonNull(windowAndroid.getContext().get());
         mOrigin = origin;
         mSecurityLevel = securityLevel;
         mDelegate = delegate;
@@ -169,35 +182,41 @@ public class BluetoothChooserDialog
         mConnectedIcon = getIconWithRowIconColorStateList(R.drawable.ic_bluetooth_connected);
         mConnectedIconDescription = mContext.getString(R.string.bluetooth_device_connected);
 
-        mSignalStrengthLevelIcon = new Drawable[] {
-                getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_0_bar),
-                getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_1_bar),
-                getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_2_bar),
-                getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_3_bar),
-                getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_4_bar)};
+        mSignalStrengthLevelIcon =
+                new Drawable[] {
+                    getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_0_bar),
+                    getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_1_bar),
+                    getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_2_bar),
+                    getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_3_bar),
+                    getIconWithRowIconColorStateList(R.drawable.ic_signal_cellular_4_bar)
+                };
 
         if (mAdapter == null) {
             Log.i(TAG, "BluetoothChooserDialog: Default Bluetooth adapter not found.");
         }
-        mAdapterOffStatus = SpanApplier.applySpans(
-                mContext.getString(R.string.bluetooth_adapter_off_help),
-                new SpanInfo("<link>", "</link>", createLinkSpan(LinkType.ADAPTER_OFF_HELP)));
+        mAdapterOffStatus =
+                SpanApplier.applySpans(
+                        mContext.getString(R.string.bluetooth_adapter_off_help),
+                        new SpanInfo(
+                                "<link>", "</link>", createLinkSpan(LinkType.ADAPTER_OFF_HELP)));
     }
 
-    private Drawable getIconWithRowIconColorStateList(int icon) {
+    private @Nullable Drawable getIconWithRowIconColorStateList(int icon) {
         Resources res = mContext.getResources();
 
-        Drawable drawable = TraceEventVectorDrawableCompat.create(res, icon, mContext.getTheme());
-        DrawableCompat.setTintList(drawable,
+        Drawable drawable =
+                assumeNonNull(
+                        TraceEventVectorDrawableCompat.create(res, icon, mContext.getTheme()));
+        DrawableCompat.setTintList(
+                drawable,
                 AppCompatResources.getColorStateList(
                         mContext, R.color.item_chooser_row_icon_color));
         return drawable;
     }
 
-    /**
-     * Show the BluetoothChooserDialog.
-     */
+    /** Show the BluetoothChooserDialog. */
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @Initializer
     public void show() {
         SpannableString origin = new SpannableString(mOrigin);
 
@@ -205,8 +224,13 @@ public class BluetoothChooserDialog
         AutocompleteSchemeClassifier autocompleteSchemeClassifier =
                 mDelegate.createAutocompleteSchemeClassifier();
 
-        OmniboxUrlEmphasizer.emphasizeUrl(origin, mContext, autocompleteSchemeClassifier,
-                mSecurityLevel, useDarkColors, true);
+        OmniboxUrlEmphasizer.emphasizeUrl(
+                origin,
+                mContext,
+                autocompleteSchemeClassifier,
+                mSecurityLevel,
+                useDarkColors,
+                true);
         autocompleteSchemeClassifier.destroy();
         // Construct a full string and replace the origin text with emphasized version.
         SpannableString title =
@@ -216,27 +240,40 @@ public class BluetoothChooserDialog
 
         String noneFound = mContext.getString(R.string.bluetooth_not_found);
 
-        SpannableString searching = SpanApplier.applySpans(
-                mContext.getString(R.string.bluetooth_searching),
-                new SpanInfo("<link>", "</link>", createLinkSpan(LinkType.EXPLAIN_BLUETOOTH)));
+        SpannableString searching =
+                SpanApplier.applySpans(
+                        mContext.getString(R.string.bluetooth_searching),
+                        new SpanInfo(
+                                "<link>", "</link>", createLinkSpan(LinkType.EXPLAIN_BLUETOOTH)));
 
         String positiveButton = mContext.getString(R.string.bluetooth_confirm_button);
 
-        SpannableString statusIdleNoneFound = SpanApplier.applySpans(
-                mContext.getString(R.string.bluetooth_not_seeing_it_idle),
-                new SpanInfo("<link1>", "</link1>", createLinkSpan(LinkType.EXPLAIN_BLUETOOTH)),
-                new SpanInfo("<link2>", "</link2>", createLinkSpan(LinkType.RESTART_SEARCH)));
+        SpannableString statusIdleNoneFound =
+                SpanApplier.applySpans(
+                        mContext.getString(R.string.bluetooth_not_seeing_it_idle),
+                        new SpanInfo(
+                                "<link1>", "</link1>", createLinkSpan(LinkType.EXPLAIN_BLUETOOTH)),
+                        new SpanInfo(
+                                "<link2>", "</link2>", createLinkSpan(LinkType.RESTART_SEARCH)));
 
         SpannableString statusActive = searching;
 
         SpannableString statusIdleSomeFound = statusIdleNoneFound;
 
         ItemChooserDialog.ItemChooserLabels labels =
-                new ItemChooserDialog.ItemChooserLabels(title, searching, noneFound, statusActive,
-                        statusIdleNoneFound, statusIdleSomeFound, positiveButton);
+                new ItemChooserDialog.ItemChooserLabels(
+                        title,
+                        searching,
+                        noneFound,
+                        statusActive,
+                        statusIdleNoneFound,
+                        statusIdleSomeFound,
+                        positiveButton);
         mItemChooserDialog = new ItemChooserDialog(mContext, mActivity.getWindow(), this, labels);
 
-        ContextUtils.registerProtectedBroadcastReceiver(mActivity, mLocationModeBroadcastReceiver,
+        ContextUtils.registerProtectedBroadcastReceiver(
+                mActivity,
+                mLocationModeBroadcastReceiver,
                 new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
         mIsLocationModeChangedReceiverRegistered = true;
     }
@@ -272,11 +309,6 @@ public class BluetoothChooserDialog
 
         mItemChooserDialog.clear();
 
-        if (mAdapterOff) {
-            notifyAdapterTurnedOff();
-            return;
-        }
-
         Natives jni = BluetoothChooserDialogJni.get();
         jni.restartSearch(mNativeBluetoothChooserDialogPtr);
     }
@@ -296,16 +328,23 @@ public class BluetoothChooserDialog
         }
 
         // Compute the message to show the user.
-        final SpanInfo permissionSpan = new SpanInfo("<permission_link>", "</permission_link>",
-                createLinkSpan(LinkType.REQUEST_PERMISSIONS));
-        final SpanInfo servicesSpan = new SpanInfo("<services_link>", "</services_link>",
-                createLinkSpan(LinkType.REQUEST_LOCATION_SERVICES));
+        final SpanInfo permissionSpan =
+                new SpanInfo(
+                        "<permission_link>",
+                        "</permission_link>",
+                        createLinkSpan(LinkType.REQUEST_PERMISSIONS));
+        final SpanInfo servicesSpan =
+                new SpanInfo(
+                        "<services_link>",
+                        "</services_link>",
+                        createLinkSpan(LinkType.REQUEST_LOCATION_SERVICES));
         final SpannableString needPermissionMessage;
         if (havePermission) {
             if (needsLocationServices) {
-                needPermissionMessage = SpanApplier.applySpans(
-                        mContext.getString(R.string.bluetooth_need_location_services_on),
-                        servicesSpan);
+                needPermissionMessage =
+                        SpanApplier.applySpans(
+                                mContext.getString(R.string.bluetooth_need_location_services_on),
+                                servicesSpan);
             } else {
                 // We don't need to request anything.
                 return true;
@@ -315,35 +354,37 @@ public class BluetoothChooserDialog
                 // If it needs locations services, it implicitly means it is a version
                 // lower than Android S, so we can assume the system permission
                 // needed is location permission.
-                needPermissionMessage = SpanApplier.applySpans(
-                        mContext.getString(
-                                R.string.bluetooth_need_location_permission_and_services_on),
-                        permissionSpan, servicesSpan);
+                int resourceId = R.string.bluetooth_need_location_permission_and_services_on;
+                needPermissionMessage =
+                        SpanApplier.applySpans(
+                                mContext.getString(resourceId), permissionSpan, servicesSpan);
             } else {
                 if (PermissionUtil.needsNearbyDevicesPermissionForBluetooth(mWindowAndroid)) {
-                    needPermissionMessage = SpanApplier.applySpans(
-                            mContext.getString(R.string.bluetooth_need_nearby_devices_permission),
-                            permissionSpan);
+                    int resourceId = R.string.bluetooth_need_nearby_devices_permission;
+                    needPermissionMessage =
+                            SpanApplier.applySpans(mContext.getString(resourceId), permissionSpan);
                 } else {
-                    needPermissionMessage = SpanApplier.applySpans(
-                            mContext.getString(R.string.bluetooth_need_location_permission),
-                            permissionSpan);
+                    int resourceId = R.string.bluetooth_need_location_permission;
+                    needPermissionMessage =
+                            SpanApplier.applySpans(mContext.getString(resourceId), permissionSpan);
                 }
             }
         }
 
-        SpannableString needPermissionStatus = SpanApplier.applySpans(
-                mContext.getString(R.string.bluetooth_need_location_permission_help),
-                new SpanInfo("<link>", "</link>",
-                        createLinkSpan(LinkType.NEED_LOCATION_PERMISSION_HELP)));
+        SpannableString needPermissionStatus =
+                SpanApplier.applySpans(
+                        mContext.getString(R.string.bluetooth_need_location_permission_help),
+                        new SpanInfo(
+                                "<link>",
+                                "</link>",
+                                createLinkSpan(LinkType.NEED_LOCATION_PERMISSION_HELP)));
 
         mItemChooserDialog.setErrorState(needPermissionMessage, needPermissionStatus);
         return false;
     }
 
-    private NoUnderlineClickableSpan createLinkSpan(@LinkType int linkType) {
-        return new NoUnderlineClickableSpan(
-                mContext, (view) -> onBluetoothLinkClick(view, linkType));
+    private ChromeClickableSpan createLinkSpan(@LinkType int linkType) {
+        return new ChromeClickableSpan(mContext, (view) -> onBluetoothLinkClick(view, linkType));
     }
 
     private void onBluetoothLinkClick(View view, @LinkType int linkType) {
@@ -353,8 +394,8 @@ public class BluetoothChooserDialog
 
         switch (linkType) {
             case LinkType.EXPLAIN_BLUETOOTH:
-                // No need to close the dialog here because
-                // ShowBluetoothOverviewLink will close it.
+                // No need to close the dialog here because ShowBluetoothOverviewLink will close
+                // it.
                 jni.showBluetoothOverviewLink(mNativeBluetoothChooserDialogPtr);
                 break;
             case LinkType.ADAPTER_OFF:
@@ -394,8 +435,12 @@ public class BluetoothChooserDialog
     }
 
     @CalledByNative
-    private static BluetoothChooserDialog create(WindowAndroid windowAndroid, String origin,
-            int securityLevel, BluetoothChooserAndroidDelegate delegate,
+    @VisibleForTesting
+    public static @Nullable BluetoothChooserDialog create(
+            WindowAndroid windowAndroid,
+            String origin,
+            int securityLevel,
+            BluetoothChooserAndroidDelegate delegate,
             long nativeBluetoothChooserDialogPtr) {
         if (!PermissionUtil.hasSystemPermissionsForBluetooth(windowAndroid)
                 && !PermissionUtil.canRequestSystemPermissionsForBluetooth(windowAndroid)) {
@@ -403,8 +448,26 @@ public class BluetoothChooserDialog
             // the dialog.
             return null;
         }
-        BluetoothChooserDialog dialog = new BluetoothChooserDialog(
-                windowAndroid, origin, securityLevel, delegate, nativeBluetoothChooserDialogPtr);
+
+        // Avoid showing the chooser when ModalDialogManager indicates that
+        // tab-modal or app-modal dialogs are suspended.
+        // TODO(crbug.com/41483591): Integrate BluetoothChooserDialog with
+        // ModalDialogManager.
+        ModalDialogManager modalDialogManager = windowAndroid.getModalDialogManager();
+        if (modalDialogManager != null
+                && (modalDialogManager.isSuspended(ModalDialogManager.ModalDialogType.TAB)
+                        || modalDialogManager.isSuspended(
+                                ModalDialogManager.ModalDialogType.APP))) {
+            return null;
+        }
+
+        BluetoothChooserDialog dialog =
+                new BluetoothChooserDialog(
+                        windowAndroid,
+                        origin,
+                        securityLevel,
+                        delegate,
+                        nativeBluetoothChooserDialogPtr);
         dialog.show();
         return dialog;
     }
@@ -416,13 +479,18 @@ public class BluetoothChooserDialog
         Drawable icon = null;
         String iconDescription = null;
         if (isGATTConnected) {
-            icon = mConnectedIcon.getConstantState().newDrawable();
+            icon = assumeNonNull(assumeNonNull(mConnectedIcon).getConstantState()).newDrawable();
             iconDescription = mConnectedIconDescription;
         } else if (signalStrengthLevel != -1) {
-            icon = mSignalStrengthLevelIcon[signalStrengthLevel].getConstantState().newDrawable();
-            iconDescription = mContext.getResources().getQuantityString(
-                    R.plurals.signal_strength_level_n_bars, signalStrengthLevel,
-                    signalStrengthLevel);
+            icon =
+                    assumeNonNull(mSignalStrengthLevelIcon[signalStrengthLevel].getConstantState())
+                            .newDrawable();
+            iconDescription =
+                    mContext.getResources()
+                            .getQuantityString(
+                                    R.plurals.signal_strength_level_n_bars,
+                                    signalStrengthLevel,
+                                    signalStrengthLevel);
         }
 
         mItemChooserDialog.addOrUpdateItem(deviceId, deviceName, icon, iconDescription);
@@ -438,54 +506,51 @@ public class BluetoothChooserDialog
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     @CalledByNative
     public void notifyAdapterTurnedOff() {
-        mAdapterOff = true;
+        SpannableString adapterOffMessage =
+                SpanApplier.applySpans(
+                        mContext.getString(R.string.bluetooth_adapter_off),
+                        new SpanInfo("<link>", "</link>", createLinkSpan(LinkType.ADAPTER_OFF)));
 
-        // Permission is required to turn the adapter on so make sure to ask for that first.
-        if (checkLocationServicesAndPermission()) {
-            SpannableString adapterOffMessage = SpanApplier.applySpans(
-                    mContext.getString(R.string.bluetooth_adapter_off),
-                    new SpanInfo("<link>", "</link>", createLinkSpan(LinkType.ADAPTER_OFF)));
-
-            mItemChooserDialog.setErrorState(adapterOffMessage, mAdapterOffStatus);
-        }
+        mItemChooserDialog.setErrorState(adapterOffMessage, mAdapterOffStatus);
     }
 
     @CalledByNative
     private void notifyAdapterTurnedOn() {
-        mAdapterOff = false;
         mItemChooserDialog.clear();
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @CalledByNative
+    public void notifyAdapterUnauthorized() {
+        checkLocationServicesAndPermission();
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     @CalledByNative
     public void notifyDiscoveryState(@DiscoveryMode int discoveryState) {
         switch (discoveryState) {
-            case DiscoveryMode.DISCOVERY_FAILED_TO_START: {
-                // FAILED_TO_START might be caused by a missing Location
-                // permission or by the Location service being turned off.
-                // Check, and show a request if so.
-                checkLocationServicesAndPermission();
-                break;
-            }
-            case DiscoveryMode.DISCOVERY_IDLE: {
+            case DiscoveryMode.DISCOVERY_IDLE:
                 mItemChooserDialog.setIdleState();
                 break;
-            }
-            default: {
+            default:
                 // TODO(jyasskin): Report the new state to the user.
+                Log.e(TAG, "Unexpected discovery state: " + discoveryState);
                 break;
-            }
         }
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
         void onDialogFinished(long nativeBluetoothChooserAndroid, int eventType, String deviceId);
+
         void restartSearch(long nativeBluetoothChooserAndroid);
+
         // Help links.
         void showBluetoothOverviewLink(long nativeBluetoothChooserAndroid);
+
         void showBluetoothAdapterOffLink(long nativeBluetoothChooserAndroid);
+
         void showNeedLocationPermissionLink(long nativeBluetoothChooserAndroid);
     }
 }

@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
+#include "ui/gfx/frame_data.h"
 #include "ui/gfx/gpu_fence_handle.h"
 #include "ui/gfx/presentation_feedback.h"
 #include "ui/ozone/platform/wayland/common/wayland_object.h"
@@ -37,7 +38,7 @@ struct WaylandFrame {
  public:
   // A frame originated from gpu process, and hence, requires acknowledgements.
   WaylandFrame(uint32_t frame_id,
-               int64_t seq,
+               const gfx::FrameData& data,
                WaylandSurface* root_surface,
                wl::WaylandOverlayConfig root_config,
                base::circular_deque<
@@ -58,6 +59,7 @@ struct WaylandFrame {
 
  private:
   friend class WaylandFrameManager;
+  friend class WaylandFrameManagerTest;
 
   uint32_t frame_id;
   raw_ptr<WaylandSurface, DanglingUntriaged> root_surface;
@@ -65,7 +67,8 @@ struct WaylandFrame {
   base::circular_deque<std::pair<WaylandSubsurface*, wl::WaylandOverlayConfig>>
       subsurfaces_to_overlays;
 
-  base::flat_map<WaylandSurface*, WaylandBufferHandle*> submitted_buffers;
+  base::flat_map<WaylandSurface*, raw_ptr<WaylandBufferHandle, CtnExperimental>>
+      submitted_buffers;
 
   // An indicator that there are buffers destrotyed before frame playback. This
   // frame should be skipped.
@@ -81,18 +84,25 @@ struct WaylandFrame {
   base::ScopedFD merged_release_fence_fd;
   // Whether this frame has had OnSubmission sent for it.
   bool submission_acked;
+  // Whether OnSubmission for this frame should be sent with
+  // SWAP_NAK_RECREATE_BUFFERS. This is used if there was a failure in
+  // submitting this frame which shouldn't result in a GPU process restart.
+  bool swap_result_recreate_buffers = false;
 
   // The wayland object identifying this feedback.
   wl::Object<struct wp_presentation_feedback> pending_feedback;
   // The actual presentation feedback. May be missing if the callback from the
   // Wayland server has not arrived yet.
-  absl::optional<gfx::PresentationFeedback> feedback = absl::nullopt;
+  std::optional<gfx::PresentationFeedback> feedback = std::nullopt;
   // Whether this frame has had OnPresentation sent for it.
   bool presentation_acked;
 
   // The sequence ID for this frame. This is used to know when the proper
   // buffers associated with a configure arrive.
   [[maybe_unused]] int64_t seq = -1;
+
+  // Trace ID for tracking submission of the current frame.
+  int64_t trace_id = -1;
 };
 
 // This is the frame update manager that configures graphical window/surface
@@ -126,19 +136,46 @@ class WaylandFrameManager {
   // Similar to ClearStates(), but does not clear submitted frames.
   void Hide();
 
+  void SetVideoCapture();
+  void ReleaseVideoCapture();
+
+  void OnWindowSuspensionChanged();
+  void FrameCallbackTimeout();
+
   static base::TimeDelta GetPresentationFlushTimerDurationForTesting();
 
  private:
+  friend class WaylandFrameManagerTest;
+
   void PlayBackFrame(std::unique_ptr<WaylandFrame> frame);
   void DiscardFrame(std::unique_ptr<WaylandFrame> frame);
 
+  void OnVideoCaptureUpdate();
+
+  // Checks if ACKs for swaps should be sent immediately instead of sending
+  // frames to wayland.
+  // This is done when window is SUSPENDED during video capture to ensure the
+  // video capture still works as compositors may throttle occluded windows.
+  void EvaluateShouldAckSwapWithoutCommit();
+
+  // Checks if frames should be sent without setting frame callbacks. This is
+  // done when window is not focused during video capture as a fallback to
+  // ensure video capture works in case the compositor stops sending frame
+  // callbacks and doesn't support SUSPENDED state yet or SUSPENDED state is
+  // sent after a delay [1].
+  // [1] https://gitlab.gnome.org/GNOME/mutter/-/issues/3663
+  void EvaluateShouldSkipFrameCallbacks();
+
   // Configures |surface| but does not commit wl_surface states yet.
-  void ApplySurfaceConfigure(WaylandFrame* frame,
-                             WaylandSurface* surface,
-                             wl::WaylandOverlayConfig& config,
-                             bool needs_opaque_region);
+  // Returns whether or not changes require a commit to the wl_surface, or
+  // std::nullopt if there was a failure in configuring the surface.
+  std::optional<bool> ApplySurfaceConfigure(WaylandFrame* frame,
+                                            WaylandSurface* surface,
+                                            wl::WaylandOverlayConfig& config,
+                                            bool needs_opaque_region);
 
   void MaybeProcessSubmittedFrames();
+  void SetFakeFeedback(WaylandFrame* frame);
   void ProcessOldSubmittedFrame(WaylandFrame* frame);
 
   // Gets presentation feedback information ready to be sent for submitted
@@ -151,24 +188,23 @@ class WaylandFrameManager {
   void ClearProcessedSubmittedFrames();
 
   void OnExplicitBufferRelease(WaylandSurface* surface,
-                               struct wl_buffer* wl_buffer,
+                               wl_buffer* wl_buffer,
                                base::ScopedFD fence);
-  void OnWlBufferRelease(WaylandSurface* surface, struct wl_buffer* wl_buffer);
+  void OnWlBufferRelease(WaylandSurface* surface, wl_buffer* wl_buffer);
 
-  // wl_callback_listener
-  static void FrameCallbackDone(void* data,
-                                struct wl_callback* callback,
-                                uint32_t time);
-  void OnFrameCallback(struct wl_callback* callback);
+  // wl_callback_listener callbacks:
+  static void OnFrameDone(void* data, wl_callback* callback, uint32_t time);
 
-  // wp_presentation_feedback_listener
-  static void FeedbackSyncOutput(
+  void HandleFrameCallback(wl_callback* callback);
+
+  // wp_presentation_feedback_listener callbacks:
+  static void OnSyncOutput(
       void* data,
-      struct wp_presentation_feedback* wp_presentation_feedback,
-      struct wl_output* output);
-  static void FeedbackPresented(
+      struct wp_presentation_feedback* presentation_feedback,
+      wl_output* output);
+  static void OnPresented(
       void* data,
-      struct wp_presentation_feedback* wp_presentation_feedback,
+      struct wp_presentation_feedback* presentation_feedback,
       uint32_t tv_sec_hi,
       uint32_t tv_sec_lo,
       uint32_t tv_nsec,
@@ -176,13 +212,14 @@ class WaylandFrameManager {
       uint32_t seq_hi,
       uint32_t seq_lo,
       uint32_t flags);
-  static void FeedbackDiscarded(
+  static void OnDiscarded(
       void* data,
-      struct wp_presentation_feedback* wp_presentation_feedback);
+      struct wp_presentation_feedback* presentation_feedback);
 
-  void OnPresentation(struct wp_presentation_feedback* wp_presentation_feedback,
-                      const gfx::PresentationFeedback& feedback,
-                      bool discarded = false);
+  void HandlePresentationFeedback(
+      struct wp_presentation_feedback* presentation_feedback,
+      const gfx::PresentationFeedback& feedback,
+      bool discarded = false);
 
   // Verifies the number of submitted frames and discards pending presentation
   // feedbacks if the number is too big.
@@ -197,7 +234,7 @@ class WaylandFrameManager {
 
   // Immediately clears submitted_buffers in the 1st in-flight submitted_frame.
   // This unblocks the pipeline.
-  // TODO(crbug.com/1358908): Remove related workaround once CrOS side fix
+  // TODO(crbug.com/40237160): Remove related workaround once CrOS side fix
   // stablizes.
   void FreezeTimeout();
 
@@ -220,10 +257,35 @@ class WaylandFrameManager {
   // Set when invalid frame data is sent and the gpu process must be terminated.
   std::string fatal_error_message_;
 
-  uint32_t frames_in_flight_ = 0;
-  base::OneShotTimer freeze_timeout_timer_;
-
   base::OneShotTimer presentation_flush_timer_;
+
+  base::OneShotTimer frame_callback_timer_;
+
+  int video_capture_count_ = 0;
+
+  // Indicates that a graphics freeze was detected from the compositor no longer
+  // sending frame callbacks, which is the case in mutter before before it sends
+  // the suspended state. If this occurs during tab capture, the captured
+  // content would look frozen until the suspended state is received.
+  // This is set when that is detected and a fallback rendering can be used
+  // during tab capture without relying on frame callbacks. See
+  // |should_skip_frame_callbacks_| below.
+  int frame_callback_freeze_detected_ = false;
+
+  // Indicates if fallback rendering should be used by not relying on frame
+  // callbacks to drive playback when |frame_callback_freeze_detected_| is true
+  // and |video_capture_count_| is more than 0. The frame callbacks are still
+  // set to be able to get notified once the compositor starts sending frame
+  // callbacks again so that they can be used for playback again.
+  bool should_skip_frame_callbacks_ = false;
+
+  // Indicates if rendering should continue in the background without sending
+  // surface commits to wayland. This is used to ensure video capture works when
+  // we know the window is occluded and can simply bypass wayland in this case.
+  // This optimized rendering path can only be used after we are notified of
+  // suspended state which may be sent a few seconds after the window gets
+  // occluded, as is the case in mutter.
+  bool should_ack_swap_without_commit_ = false;
 
   base::WeakPtrFactory<WaylandFrameManager> weak_factory_;
 };

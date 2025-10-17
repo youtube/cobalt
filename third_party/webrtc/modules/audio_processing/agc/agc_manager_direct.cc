@@ -14,6 +14,8 @@
 #include <cmath>
 
 #include "api/array_view.h"
+#include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "common_audio/include/audio_util.h"
 #include "modules/audio_processing/agc/gain_control.h"
 #include "modules/audio_processing/agc2/gain_map_internal.h"
@@ -22,7 +24,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_minmax.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
@@ -69,14 +70,13 @@ using AnalogAgcConfig =
 // string. Returns an unspecified value if the field trial is not specified, if
 // disabled or if it cannot be parsed. Example:
 // 'WebRTC-Audio-2ndAgcMinMicLevelExperiment/Enabled-80' => returns 80.
-absl::optional<int> GetMinMicLevelOverride() {
+std::optional<int> GetMinMicLevelOverride(const FieldTrialsView& field_trials) {
   constexpr char kMinMicLevelFieldTrial[] =
       "WebRTC-Audio-2ndAgcMinMicLevelExperiment";
-  if (!webrtc::field_trial::IsEnabled(kMinMicLevelFieldTrial)) {
-    return absl::nullopt;
+  if (!field_trials.IsEnabled(kMinMicLevelFieldTrial)) {
+    return std::nullopt;
   }
-  const auto field_trial_string =
-      webrtc::field_trial::FindFullName(kMinMicLevelFieldTrial);
+  const auto field_trial_string = field_trials.Lookup(kMinMicLevelFieldTrial);
   int min_mic_level = -1;
   sscanf(field_trial_string.c_str(), "Enabled-%d", &min_mic_level);
   if (min_mic_level >= 0 && min_mic_level <= 255) {
@@ -84,7 +84,7 @@ absl::optional<int> GetMinMicLevelOverride() {
   } else {
     RTC_LOG(LS_WARNING) << "[agc] Invalid parameter for "
                         << kMinMicLevelFieldTrial << ", ignored.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 }
 
@@ -152,7 +152,7 @@ int GetSpeechLevelErrorDb(float speech_level_dbfs, float speech_probability) {
     return 0;
   }
 
-  const float speech_level = rtc::SafeClamp<float>(
+  const float speech_level = SafeClamp<float>(
       speech_level_dbfs, kMinSpeechLevelDbfs, kMaxSpeechLevelDbfs);
 
   return std::round(kOverrideTargetSpeechLevelDbfs - speech_level);
@@ -160,7 +160,7 @@ int GetSpeechLevelErrorDb(float speech_level_dbfs, float speech_probability) {
 
 }  // namespace
 
-MonoAgc::MonoAgc(ApmDataDumper* data_dumper,
+MonoAgc::MonoAgc(ApmDataDumper* /* data_dumper */,
                  int clipped_level_min,
                  bool disable_digital_adaptive,
                  int min_mic_level)
@@ -188,9 +188,9 @@ void MonoAgc::Initialize() {
   is_first_frame_ = true;
 }
 
-void MonoAgc::Process(rtc::ArrayView<const int16_t> audio,
-                      absl::optional<int> rms_error_override) {
-  new_compression_to_set_ = absl::nullopt;
+void MonoAgc::Process(ArrayView<const int16_t> audio,
+                      std::optional<int> rms_error_override) {
+  new_compression_to_set_ = std::nullopt;
 
   if (check_volume_on_next_process_) {
     check_volume_on_next_process_ = false;
@@ -376,7 +376,7 @@ void MonoAgc::UpdateGain(int rms_error_db) {
 
   // Handle as much error as possible with the compressor first.
   int raw_compression =
-      rtc::SafeClamp(rms_error, kMinCompressionGain, max_compression_gain_);
+      SafeClamp(rms_error, kMinCompressionGain, max_compression_gain_);
 
   // Deemphasize the compression gain error. Move halfway between the current
   // target and the newly received target. This serves to soften perceptible
@@ -397,8 +397,8 @@ void MonoAgc::UpdateGain(int rms_error_db) {
   // raw rather than deemphasized compression here as we would otherwise
   // shrink the amount of slack the compressor provides.
   const int residual_gain =
-      rtc::SafeClamp(rms_error - raw_compression, -kMaxResidualGainChange,
-                     kMaxResidualGainChange);
+      SafeClamp(rms_error - raw_compression, -kMaxResidualGainChange,
+                kMaxResidualGainChange);
   RTC_DLOG(LS_INFO) << "[agc] rms_error=" << rms_error
                     << ", target_compression=" << target_compression_
                     << ", residual_gain=" << residual_gain;
@@ -447,19 +447,21 @@ void MonoAgc::UpdateCompressor() {
 std::atomic<int> AgcManagerDirect::instance_counter_(0);
 
 AgcManagerDirect::AgcManagerDirect(
+    const Environment& env,
     const AudioProcessing::Config::GainController1::AnalogGainController&
         analog_config,
     Agc* agc)
-    : AgcManagerDirect(/*num_capture_channels=*/1, analog_config) {
+    : AgcManagerDirect(env, /*num_capture_channels=*/1, analog_config) {
   RTC_DCHECK(channel_agcs_[0]);
   RTC_DCHECK(agc);
   channel_agcs_[0]->set_agc(agc);
 }
 
-AgcManagerDirect::AgcManagerDirect(int num_capture_channels,
+AgcManagerDirect::AgcManagerDirect(const Environment& env,
+                                   int num_capture_channels,
                                    const AnalogAgcConfig& analog_config)
     : analog_controller_enabled_(analog_config.enabled),
-      min_mic_level_override_(GetMinMicLevelOverride()),
+      min_mic_level_override_(GetMinMicLevelOverride(env.field_trials())),
       data_dumper_(new ApmDataDumper(instance_counter_.fetch_add(1) + 1)),
       num_capture_channels_(num_capture_channels),
       disable_digital_adaptive_(!analog_config.enable_digital_adaptive),
@@ -617,13 +619,13 @@ void AgcManagerDirect::AnalyzePreProcess(const AudioBuffer& audio_buffer) {
 }
 
 void AgcManagerDirect::Process(const AudioBuffer& audio_buffer) {
-  Process(audio_buffer, /*speech_probability=*/absl::nullopt,
-          /*speech_level_dbfs=*/absl::nullopt);
+  Process(audio_buffer, /*speech_probability=*/std::nullopt,
+          /*speech_level_dbfs=*/std::nullopt);
 }
 
 void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
-                               absl::optional<float> speech_probability,
-                               absl::optional<float> speech_level_dbfs) {
+                               std::optional<float> speech_probability,
+                               std::optional<float> speech_level_dbfs) {
   AggregateChannelLevels();
   const int volume_after_clipping_handling = recommended_input_volume_;
 
@@ -632,7 +634,7 @@ void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
   }
 
   const size_t num_frames_per_band = audio_buffer.num_frames_per_band();
-  absl::optional<int> rms_error_override = absl::nullopt;
+  std::optional<int> rms_error_override = std::nullopt;
   if (speech_probability.has_value() && speech_level_dbfs.has_value()) {
     rms_error_override =
         GetSpeechLevelErrorDb(*speech_level_dbfs, *speech_probability);
@@ -656,7 +658,7 @@ void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
   }
 }
 
-absl::optional<int> AgcManagerDirect::GetDigitalComressionGain() {
+std::optional<int> AgcManagerDirect::GetDigitalComressionGain() {
   return new_compressions_to_set_[channel_controlling_gain_];
 }
 

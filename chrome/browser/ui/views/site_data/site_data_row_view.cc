@@ -13,8 +13,10 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/omnibox/browser/favicon_cache.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/models/dialog_model_menu_model_adapter.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -48,7 +50,7 @@ constexpr UrlIdentity::FormatOptions kUrlIdentityFormatOptions = {
 
 std::u16string GetSettingStateString(ContentSetting setting,
                                      bool is_fully_partitioned) {
-  // TODO(crbug.com/1344787): Return actual strings.
+  // TODO(crbug.com/40231917): Return actual strings.
   int message_id = -1;
   switch (setting) {
     case CONTENT_SETTING_ALLOW: {
@@ -76,7 +78,7 @@ std::u16string GetSettingStateString(ContentSetting setting,
     case CONTENT_SETTING_DETECT_IMPORTANT_CONTENT:
     case CONTENT_SETTING_NUM_SETTINGS:
       // Not supported settings for cookies.
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 
   return l10n_util::GetStringUTF16(message_id);
@@ -153,8 +155,9 @@ SiteDataRowView::SiteDataRowView(
   const auto favicon = favicon_cache->GetFaviconForPageUrl(
       origin.GetURL(), base::BindOnce(&SiteDataRowView::SetFaviconImage,
                                       base::Unretained(this)));
-  if (!favicon.IsEmpty())
+  if (!favicon.IsEmpty()) {
     SetFaviconImage(favicon);
+  }
 
   std::u16string origin_display_name =
       UrlIdentity::CreateFromUrl(profile, origin.GetURL(),
@@ -179,7 +182,7 @@ SiteDataRowView::SiteDataRowView(
   delete_button_->SetVisible(setting_ != CONTENT_SETTING_BLOCK);
   delete_button_->SetProperty(views::kElementIdentifierKey, kDeleteButton);
 
-  // TODO(crbug.com/1344787): Use actual strings.
+  // TODO(crbug.com/40231917): Use actual strings.
   menu_button_ = AddChildView(views::CreateVectorImageButtonWithNativeTheme(
       base::BindRepeating(&SiteDataRowView::OnMenuIconClicked,
                           base::Unretained(this)),
@@ -209,12 +212,12 @@ void SiteDataRowView::SetFaviconImage(const gfx::Image& image) {
 }
 
 void SiteDataRowView::OnMenuIconClicked() {
-  // TODO(crbug.com/1344787): Use actual strings.
-  // TODO(crbug.com/1344787): Respect partitioned cookies state and provide
+  // TODO(crbug.com/40231917): Use actual strings.
+  // TODO(crbug.com/40231917): Respect partitioned cookies state and provide
   // special options for it.
   auto builder = ui::DialogModel::Builder();
   if (setting_ != CONTENT_SETTING_BLOCK) {
-    // TODO(crbug.com/1344787): Consider clearing the data before blocking the
+    // TODO(crbug.com/40231917): Consider clearing the data before blocking the
     // site to have a clean slate.
     builder.AddMenuItem(
         ui::ImageModel(),
@@ -251,10 +254,9 @@ void SiteDataRowView::OnMenuIconClicked() {
       dialog_model_.get(), views::MenuRunner::HAS_MNEMONICS,
       base::BindRepeating(&SiteDataRowView::OnMenuClosed,
                           base::Unretained(this)));
-  menu_runner_->RunMenuAt(GetWidget(), nullptr,
-                          menu_button_->GetAnchorBoundsInScreen(),
-                          views::MenuAnchorPosition::kTopRight,
-                          ui::MenuSourceType::MENU_SOURCE_MOUSE);
+  menu_runner_->RunMenuAt(
+      GetWidget(), nullptr, menu_button_->GetAnchorBoundsInScreen(),
+      views::MenuAnchorPosition::kTopRight, ui::mojom::MenuSourceType::kMouse);
   menu_button_->SetState(views::Button::ButtonState::STATE_PRESSED);
 }
 
@@ -275,8 +277,9 @@ void SiteDataRowView::OnDeleteIconClicked() {
 
   // The row is hidden, advance focus to the next row if the delete button was
   // focused.
-  if (delete_button_->HasFocus())
+  if (delete_button_->HasFocus()) {
     GetFocusManager()->AdvanceFocus(/*reverse=*/false);
+  }
 }
 
 void SiteDataRowView::OnBlockMenuItemClicked(int event_flags) {
@@ -294,8 +297,9 @@ void SiteDataRowView::OnClearOnExitMenuItemClicked(int event_flags) {
 void SiteDataRowView::SetContentSettingException(ContentSetting setting) {
   // For partitioned access, it's valid to create an allow exception that
   // matches current effective setting to allow 3PC.
-  if (!is_fully_partitioned_ || setting_ != CONTENT_SETTING_ALLOW)
+  if (!is_fully_partitioned_ || setting_ != CONTENT_SETTING_ALLOW) {
     DCHECK_NE(setting_, setting);
+  }
 
   create_exception_callback_.Run(origin_, setting);
 
@@ -310,3 +314,6 @@ void SiteDataRowView::SetContentSettingException(ContentSetting setting) {
 
   NotifyMenuItemClicked(this);
 }
+
+BEGIN_METADATA(SiteDataRowView)
+END_METADATA

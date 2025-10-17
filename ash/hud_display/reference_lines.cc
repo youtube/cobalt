@@ -11,7 +11,6 @@
 #include "third_party/skia/include/core/SkBlendMode.h"
 #include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/core/SkPath.h"
-#include "third_party/skia/include/effects/SkDashPathEffect.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/text_constants.h"
@@ -35,7 +34,7 @@ std::u16string GenerateLabelText(float value, const std::u16string& dimention) {
 
 }  // anonymous namespace
 
-BEGIN_METADATA(ReferenceLines, views::View)
+BEGIN_METADATA(ReferenceLines)
 END_METADATA
 
 ReferenceLines::ReferenceLines(float left,
@@ -87,11 +86,14 @@ ReferenceLines::ReferenceLines(float left,
 
 ReferenceLines::~ReferenceLines() = default;
 
-void ReferenceLines::Layout() {
+void ReferenceLines::Layout(PassKey) {
   // Align all the right labels on their left edge.
-  gfx::Size right_top_label_size = right_top_label_->GetPreferredSize();
-  gfx::Size right_middle_label_size = right_middle_label_->GetPreferredSize();
-  gfx::Size right_bottom_label_size = right_bottom_label_->GetPreferredSize();
+  gfx::Size right_top_label_size = right_top_label_->GetPreferredSize(
+      views::SizeBounds(right_top_label_->width(), {}));
+  gfx::Size right_middle_label_size = right_middle_label_->GetPreferredSize(
+      views::SizeBounds(right_middle_label_->width(), {}));
+  gfx::Size right_bottom_label_size = right_bottom_label_->GetPreferredSize(
+      views::SizeBounds(right_bottom_label_->width(), {}));
 
   const int right_labels_width = std::max(
       right_top_label_size.width(), std::max(right_middle_label_size.width(),
@@ -104,7 +106,8 @@ void ReferenceLines::Layout() {
   right_middle_label_->SetSize(right_middle_label_size);
   right_bottom_label_->SetSize(right_bottom_label_size);
 
-  left_bottom_label_->SetSize(left_bottom_label_->GetPreferredSize());
+  left_bottom_label_->SetSize(left_bottom_label_->GetPreferredSize(
+      views::SizeBounds(left_bottom_label_->width(), {})));
 
   constexpr int label_border = 3;  // Offset to labels from the reference lines.
 
@@ -124,10 +127,13 @@ void ReferenceLines::Layout() {
 
   left_bottom_label_->SetPosition(
       {label_border, bounds().height() -
-                         left_bottom_label_->GetPreferredSize().height() -
+                         left_bottom_label_
+                             ->GetPreferredSize(views::SizeBounds(
+                                 left_bottom_label_->width(), {}))
+                             .height() -
                          label_border});
 
-  views::View::Layout();
+  LayoutSuperclass<views::View>(this);
 }
 
 void ReferenceLines::OnPaint(gfx::Canvas* canvas) {
@@ -191,7 +197,7 @@ void ReferenceLines::OnPaint(gfx::Canvas* canvas) {
   canvas->DrawPath(solid_path, flags);
 
   const SkScalar intervals[] = {5, 3};
-  flags.setPathEffect(SkDashPathEffect::Make(
+  flags.setPathEffect(cc::PathEffect::MakeDash(
       intervals, sizeof(intervals) / sizeof(intervals[0]), /*phase=*/0));
   canvas->DrawPath(dotted_path, flags);
 }

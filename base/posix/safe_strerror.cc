@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "base/compiler_specific.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -33,12 +34,12 @@ namespace base {
     char* buf,
     size_t len) {
   // GNU version.
-  char *rc = (*strerror_r_ptr)(err, buf, len);
+  char* rc = (*strerror_r_ptr)(err, buf, len);
   if (rc != buf) {
     // glibc did not use buf and returned a static string instead. Copy it
     // into buf.
     buf[0] = '\0';
-    strncat(buf, rc, len - 1);
+    UNSAFE_TODO(strncat(buf, rc, len - 1));
   }
   // The GNU version never fails. Unknown errors get an "unknown error" message.
   // The result is always null terminated.
@@ -67,7 +68,7 @@ namespace base {
     // it indirectly implies that typically ERANGE will be returned, instead
     // of truncating the string. We play it safe by always terminating the
     // string explicitly.
-    buf[len - 1] = '\0';
+    UNSAFE_TODO(buf[len - 1]) = '\0';
   } else {
     // Error. POSIX is vague about whether the return value is itself a system
     // error code or something else. On Linux currently it is -1 and errno is
@@ -86,16 +87,13 @@ namespace base {
       strerror_error = result;
     }
     // snprintf truncates and always null-terminates.
-    snprintf(buf,
-             len,
-             "Error %d while retrieving error %d",
-             strerror_error,
-             err);
+    UNSAFE_TODO(snprintf(buf, len, "Error %d while retrieving error %d",
+                         strerror_error, err));
   }
   errno = old_errno;
 }
 
-void safe_strerror_r(int err, char *buf, size_t len) {
+void safe_strerror_r(int err, char* buf, size_t len) {
   if (buf == nullptr || len <= 0) {
     return;
   }

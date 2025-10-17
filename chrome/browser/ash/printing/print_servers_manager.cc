@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/printing/print_servers_manager.h"
 
 #include <map>
+#include <optional>
 #include <utility>
 
 #include "ash/public/cpp/network_config_service.h"
@@ -12,11 +13,10 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/observer_list.h"
 #include "chrome/browser/ash/printing/cups_printer_status_creator.h"
-#include "chrome/browser/ash/printing/enterprise_printers_provider.h"
+#include "chrome/browser/ash/printing/enterprise/print_servers_policy_provider.h"
+#include "chrome/browser/ash/printing/enterprise/print_servers_provider.h"
 #include "chrome/browser/ash/printing/ppd_provider_factory.h"
 #include "chrome/browser/ash/printing/ppd_resolution_tracker.h"
-#include "chrome/browser/ash/printing/print_servers_policy_provider.h"
-#include "chrome/browser/ash/printing/print_servers_provider.h"
 #include "chrome/browser/ash/printing/printer_configurer.h"
 #include "chrome/browser/ash/printing/printer_event_tracker.h"
 #include "chrome/browser/ash/printing/printer_event_tracker_factory.h"
@@ -40,7 +40,6 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "printing/printer_query_result.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -165,7 +164,7 @@ class PrintServersManagerImpl : public PrintServersManager {
 
   ServerPrintersFetchingMode fetching_mode_;
 
-  absl::optional<std::map<std::string, PrintServer>> print_servers_;
+  std::optional<std::map<std::string, PrintServer>> print_servers_;
 
   PrintServersConfig config_;
 

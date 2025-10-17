@@ -5,14 +5,9 @@
 // TODO(pihsun): Remove this once we fully specify all the types.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// ESLint doesn't like "declare class" without jsdoc.
-/* eslint-disable require-jsdoc */
-
 // File System Access API: This is currently a Chrome only API, and the spec is
 // still in working draft stage.
 // https://wicg.github.io/file-system-access/
-
-type FileSystemWriteChunkType = Blob|BufferSource|string;
 
 interface FileSystemWritableFileStream extends WritableStream {
   seek(position: number): Promise<void>;
@@ -34,23 +29,8 @@ interface FileSystemFileHandle {
   move(dir: FileSystemDirectoryHandle, name: string): Promise<void>;
 }
 
-interface FileSystemDirectoryHandle {
-  values(): IterableIterator<FileSystemHandle>;
-}
-
 interface StorageManager {
   getDirectory(): Promise<FileSystemDirectoryHandle>;
-}
-
-// Chrome WebUI specific helper.
-// https://source.chromium.org/chromium/chromium/src/+/main:ui/webui/resources/js/load_time_data.js
-
-interface Window {
-  loadTimeData: {
-    getBoolean(id: string): boolean,
-    getString(id: string): string,
-    getStringF(id: string, ...args: Array<number|string>): string,
-  };
 }
 
 // v8 specific stack information.
@@ -59,6 +39,26 @@ interface CallSite {
   getFunctionName(): string|undefined;
   getLineNumber(): number|undefined;
   getColumnNumber(): number|undefined;
+}
+
+// Compute Pressure API, see
+// https://developer.chrome.com/docs/web-platform/compute-pressure
+interface PressureObseverOptions {
+  sampleInterval?: number;
+}
+
+interface PressureRecord {
+  readonly source: string;
+  readonly state: 'critical'|'fair'|'nominal'|'serious';
+  readonly time: number;
+}
+
+type PressureObserverCallback = (records: PressureRecord[]) => void;
+
+declare class PressureObserver {
+  constructor(
+      callback: PressureObserverCallback, options: PressureObseverOptions);
+  observe(source: string): void;
 }
 
 // v8 specific stack trace customizing, see https://v8.dev/docs/stack-trace-api.
@@ -136,34 +136,12 @@ interface VideoFrameMetadata {
   rtpTimestamp?: number;
 }
 
+// This is a builtin name.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 interface HTMLVideoElement {
   requestVideoFrameCallback(callback: VideoFrameRequestCallback): number;
   cancelVideoFrameCallback(handle: number): undefined;
 }
-
-// Barcode Detection API, this is currently only supported in Chrome on
-// ChromeOS, Android or macOS.
-// https://wicg.github.io/shape-detection-api/
-declare class BarcodeDetector {
-  static getSupportedFormats(): Promise<BarcodeFormat[]>;
-  constructor(barcodeDetectorOptions?: BarcodeDetectorOptions);
-  detect(image: ImageBitmapSource): Promise<DetectedBarcode[]>;
-}
-
-interface BarcodeDetectorOptions {
-  formats?: BarcodeFormat[];
-}
-
-interface DetectedBarcode {
-  boundingBox: DOMRectReadOnly;
-  rawValue: string;
-  format: BarcodeFormat;
-  cornerPoints: readonly Point2D[];
-}
-
-type BarcodeFormat =
-    'aztec'|'codabar'|'code_39'|'code_93'|'code_128'|'data_matrix'|'ean_8'|
-    'ean_13'|'itf'|'pdf417'|'qr_code'|'unknown'|'upc_a'|'upc_e';
 
 // Web Workers API interface. This is included in lib.webworker.d.ts and
 // available if we enable lib: ["webworker"] in tsconfig.json, but it conflicts
@@ -176,3 +154,57 @@ type BarcodeFormat =
 interface SharedWorkerGlobalScope {
   onconnect?: ((this: SharedWorkerGlobalScope, ev: MessageEvent) => any)|null;
 }
+
+// Measure Memory API interface. This is currently only supported in
+// Chromium-based browsers. https://wicg.github.io/performance-measure-memory/
+interface MemoryAttributionContainer {
+  id: string;
+  src: string;
+}
+
+interface MemoryAttribution {
+  // Container is absent if the memory attribution is for the same-origin
+  // top-level realm.
+  container?: MemoryAttributionContainer;
+  scope: string;
+  url: string;
+}
+
+interface MemoryBreakdownEntry {
+  attribution: MemoryAttribution[];
+  bytes: number;
+  types: string[];
+}
+
+interface MemoryMeasurement {
+  breakdown: MemoryBreakdownEntry[];
+  bytes: number;
+}
+
+// This interface is only exposed to cross-origin-isolated Window,
+// ServiceWorker, and SharedWorker.
+// https://wicg.github.io/performance-measure-memory/#processing-model
+interface Performance {
+  measureUserAgentSpecificMemory(): Promise<MemoryMeasurement>;
+}
+
+/*
+ * This is the return value for LitElement render function.
+ *
+ * Since the render function can return multiple different renderable types [1],
+ * the type gets really complex if we explicitly list all possible types.
+ * LitElement own typing use `unknown` for render return type, and upstream
+ * discussion [2] also suggests using `unknown`, so we just alias the type to
+ * `unknown` and don't further restrict what types can be returned by render.
+ *
+ * Since directly writing `unknown` as return type of the render function is
+ * a bit confusing to readers, we expose a type alias here makes the code more
+ * readable.
+ *
+ * Also see
+ * https://chromium-review.googlesource.com/c/chromium/src/+/4318288/comment/c7a4600e_6ce078bc/
+ *
+ * [1]: https://lit.dev/docs/components/rendering/#renderable-values
+ * [2]: https://github.com/lit/lit/discussions/2359
+ */
+type RenderResult = unknown;

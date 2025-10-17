@@ -3,10 +3,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import coverage
 import io
 import sys
 import unittest
+
+# vpython-provided modules.
+import coverage  # pylint: disable=import-error
 
 
 class FakeStream(object):  # pylint: disable=useless-object-inheritance
@@ -17,8 +19,9 @@ class FakeStream(object):  # pylint: disable=useless-object-inheritance
     pass
 
 def main():
-  cov = coverage.coverage(include='*generate_buildbot_json.py')
+  cov = coverage.coverage(data_file=None, include='*generate_buildbot_json.py')
   cov.start()
+  # //testing/buildbot imports.
   # pylint: disable=import-outside-toplevel
   import generate_buildbot_json_unittest
   # pylint: enable=import-outside-toplevel

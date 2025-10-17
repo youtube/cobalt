@@ -22,16 +22,6 @@ namespace content {
 
 namespace {
 
-static SkColor ConvertToSkia(SkColor c) {
-#if BUILDFLAG(IS_ANDROID)
-  // Skia uses ABGR on Android.
-  return (SkColorGetA(c) << SK_A32_SHIFT) | (SkColorGetB(c) << SK_B32_SHIFT) |
-         (SkColorGetG(c) << SK_G32_SHIFT) | (SkColorGetR(c) << SK_R32_SHIFT);
-#else
-  return c;
-#endif
-}
-
 static NavigationEntryScreenshotCache* GetCacheForTab(WebContents* tab) {
   return static_cast<NavigationControllerImpl*>(&(tab->GetController()))
       ->GetNavigationEntryScreenshotCache();
@@ -54,8 +44,8 @@ void AssertEntryHasNoScreenshot(WebContents* tab, int nav_entry_id) {
 class NavigationEntryScreenshotCacheTest : public RenderViewHostTestHarness {
  public:
   NavigationEntryScreenshotCacheTest() {
-    scoped_feature_list_.InitWithFeatures({features::kBackForwardTransitions},
-                                          {});
+    scoped_feature_list_.InitWithFeatures(
+        {blink::features::kBackForwardTransitions}, {});
   }
   ~NavigationEntryScreenshotCacheTest() override = default;
 
@@ -89,10 +79,14 @@ class NavigationEntryScreenshotCacheTest : public RenderViewHostTestHarness {
   // controller of `tab`.
   void CacheScreenshot(WebContents* tab, int entry_id, SkColor color) {
     const auto& bitmap = GetBitmapOfColor(color);
-    auto* entry = GetEntryWithID(tab, entry_id);
+    auto& controller = static_cast<WebContentsImpl*>(tab)->GetController();
+    auto* entry = controller.GetEntryWithUniqueID(entry_id);
     auto* cache = GetCacheForTab(tab);
     cache->SetScreenshot(
-        entry, std::make_unique<NavigationEntryScreenshot>(bitmap, entry_id));
+        nullptr,
+        std::make_unique<NavigationEntryScreenshot>(
+            bitmap, entry->navigation_transition_data().unique_id(), true),
+        false);
   }
 
   std::unique_ptr<NavigationEntryScreenshot> GetScreenshot(WebContents* tab,
@@ -104,15 +98,24 @@ class NavigationEntryScreenshotCacheTest : public RenderViewHostTestHarness {
   void AssertBitmapOfColor(
       std::unique_ptr<NavigationEntryScreenshot> screenshot,
       SkColor color) {
-    auto ui_resource = screenshot->GetBitmap(0, false);
-    ASSERT_EQ(ui_resource.GetSize(), size_);
-    // Flattern the `UIResourceBitmap` and compare the color of each pixel.
-    const auto* pixels =
-        reinterpret_cast<const SkColor*>(ui_resource.GetPixels());
+    ASSERT_EQ(screenshot->dimensions_without_compression(), size_);
+    auto bitmap = screenshot->GetBitmapForTesting();
+    int num_pixel_mismatch = 0;
+    gfx::Rect err_bounding_box;
     for (int r = 0; r < size_.height(); ++r) {
       for (int c = 0; c < size_.width(); ++c) {
-        ASSERT_EQ(ConvertToSkia(pixels[c + r * c]), color);
+        if (bitmap.getColor(c, r) != color) {
+          ++num_pixel_mismatch;
+          err_bounding_box.Union(gfx::Rect(c, r, 1, 1));
+        }
       }
+    }
+    if (num_pixel_mismatch != 0) {
+      ASSERT_TRUE(false)
+          << "Number of pixel mismatches: " << num_pixel_mismatch
+          << "; error bounding box: " << err_bounding_box.ToString()
+          << "; bitmap size: "
+          << gfx::Size(bitmap.width(), bitmap.height()).ToString();
     }
   }
 
@@ -263,7 +266,7 @@ TEST_F(NavigationEntryScreenshotCacheTest, DeletedNavEntry) {
   CacheScreenshot(tab1(), 4, SK_ColorGREEN);
   CacheScreenshot(tab1(), 5, SK_ColorBLUE);
   CacheScreenshot(tab2(), 15, SK_ColorBLACK);
-  CacheScreenshot(tab2(), 20, SK_ColorWHITE);
+  CacheScreenshot(tab2(), 19, SK_ColorWHITE);
   ASSERT_EQ(GetManager()->GetCurrentCacheSize(), 64U * 5);
 
   // Remove the entry4->Green from tab1, entry20->Black from tab2.
@@ -281,7 +284,7 @@ TEST_F(NavigationEntryScreenshotCacheTest, DeletedNavEntry) {
   ASSERT_EQ(GetManager()->GetCurrentCacheSize(), 64U * 2);
   AssertBitmapOfColor(GetScreenshot(tab1(), 5), SK_ColorBLUE);
   ASSERT_EQ(GetManager()->GetCurrentCacheSize(), 64U * 1);
-  AssertBitmapOfColor(GetScreenshot(tab2(), 20), SK_ColorWHITE);
+  AssertBitmapOfColor(GetScreenshot(tab2(), 19), SK_ColorWHITE);
   ASSERT_TRUE(GetCacheForTab(tab1())->IsEmpty());
   ASSERT_TRUE(GetCacheForTab(tab2())->IsEmpty());
   ASSERT_TRUE(GetManager()->IsEmpty());
@@ -470,9 +473,9 @@ TEST_F(NavigationEntryScreenshotCacheTest, OnWebContentsDestroyed) {
   GetManager()->SetMemoryBudgetForTesting(10240U);
 
   // Restore entry1/2 into tab1; entry3/4 into tab2; entry5/6 into tab3.
-  RestoreEntriesToTab(tab1(), 1, 2, 1);
-  RestoreEntriesToTab(tab2(), 3, 4, 1);
-  RestoreEntriesToTab(tab3(), 5, 6, 1);
+  RestoreEntriesToTab(tab1(), 1, 3, 2);
+  RestoreEntriesToTab(tab2(), 3, 5, 2);
+  RestoreEntriesToTab(tab3(), 5, 7, 2);
 
   // Tab1: entry1->Red, entry2->Green.
   // Tab2: entry3->Blue, entry4->Black.

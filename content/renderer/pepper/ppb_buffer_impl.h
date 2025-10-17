@@ -7,6 +7,9 @@
 
 #include <stdint.h>
 
+#include "base/compiler_specific.h"
+#include "base/containers/checked_iterators.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
@@ -60,6 +63,8 @@ class PPB_Buffer_Impl : public ppapi::Resource,
 // mapped state in the destructor.
 class BufferAutoMapper {
  public:
+  using iterator = base::CheckedContiguousIterator<const uint8_t>;
+
   explicit BufferAutoMapper(ppapi::thunk::PPB_Buffer_API* api);
 
   BufferAutoMapper(const BufferAutoMapper&) = delete;
@@ -71,12 +76,25 @@ class BufferAutoMapper {
   const uint8_t* data() const { return data_; }
   size_t size() const { return size_; }
 
+  // Iterate buffer as bytes up to the end of its logical size.
+  iterator begin() const {
+    // SAFETY: The implementer of `PPB_Buffer_API` is responsible for
+    // guaranteeing that when `Map()` returns a non-null pointer, it points to
+    // at least the number of bytes returned in `Describe()`'s outparam. This
+    // memory must also remain valid for the lifetime of this mapper.
+    return UNSAFE_BUFFERS(iterator(data(), data() + size()));
+  }
+  iterator end() const {
+    // SAFETY: As in `begin()` above.
+    return UNSAFE_BUFFERS(iterator(data(), data() + size(), data() + size()));
+  }
+
  private:
-  ppapi::thunk::PPB_Buffer_API* api_;
+  raw_ptr<ppapi::thunk::PPB_Buffer_API> api_;
 
   bool needs_unmap_;
 
-  const uint8_t* data_;
+  raw_ptr<const uint8_t> data_;
   uint32_t size_;
 };
 

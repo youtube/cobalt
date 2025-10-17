@@ -10,6 +10,7 @@
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
 #include "net/base/net_errors.h"
+#include "net/base/schemeful_site.h"
 
 namespace content {
 
@@ -18,17 +19,15 @@ class RenderFrameHost;
 class MappingResultObserver;
 
 // `node` is expected to be the child FrameTreeNode created in response to a
-// <fencedframe> element being created. This method:
-//    - Returns `node` if we're in the ShadowDOM version
-//    - Returns the FrameTreeNode of the fenced frame's inner FrameTree, if
-//    we're in the MPArch version of fenced frames
+// <fencedframe> element being created. This method returns the FrameTreeNode of
+// the fenced frame's inner FrameTree.
 FrameTreeNode* GetFencedFrameRootNode(FrameTreeNode* node);
 
 void SimulateSharedStorageURNMappingComplete(
     FencedFrameURLMapping& fenced_frame_url_mapping,
     const GURL& urn_uuid,
     const GURL& mapped_url,
-    const url::Origin& shared_storage_origin,
+    const net::SchemefulSite& shared_storage_site,
     double budget_to_charge,
     scoped_refptr<FencedFrameReporter> fenced_frame_reporter = nullptr);
 
@@ -40,56 +39,56 @@ class TestFencedFrameURLMappingResultObserver
   ~TestFencedFrameURLMappingResultObserver() override;
 
   void OnFencedFrameURLMappingComplete(
-      const absl::optional<FencedFrameProperties>& properties) override;
+      const std::optional<FencedFrameProperties>& properties) override;
 
   bool mapping_complete_observed() const { return mapping_complete_observed_; }
 
-  const absl::optional<FencedFrameProperties>& fenced_frame_properties() {
+  const std::optional<FencedFrameProperties>& fenced_frame_properties() {
     return observed_fenced_frame_properties_;
   }
 
-  absl::optional<GURL> mapped_url() const {
+  std::optional<GURL> mapped_url() const {
     if (!observed_fenced_frame_properties_ ||
-        !observed_fenced_frame_properties_->mapped_url_) {
-      return absl::nullopt;
+        !observed_fenced_frame_properties_->mapped_url()) {
+      return std::nullopt;
     }
-    return observed_fenced_frame_properties_->mapped_url_
+    return observed_fenced_frame_properties_->mapped_url()
         ->GetValueIgnoringVisibility();
   }
 
-  absl::optional<std::vector<std::pair<GURL, FencedFrameConfig>>>
+  std::optional<std::vector<std::pair<GURL, FencedFrameConfig>>>
   nested_urn_config_pairs() const {
     if (!observed_fenced_frame_properties_ ||
-        !observed_fenced_frame_properties_->nested_urn_config_pairs_) {
-      return absl::nullopt;
+        !observed_fenced_frame_properties_->nested_urn_config_pairs()) {
+      return std::nullopt;
     }
-    return observed_fenced_frame_properties_->nested_urn_config_pairs_
+    return observed_fenced_frame_properties_->nested_urn_config_pairs()
         ->GetValueIgnoringVisibility();
   }
 
-  absl::optional<AdAuctionData> ad_auction_data() const {
+  std::optional<AdAuctionData> ad_auction_data() const {
     if (!observed_fenced_frame_properties_ ||
-        !observed_fenced_frame_properties_->ad_auction_data_) {
-      return absl::nullopt;
+        !observed_fenced_frame_properties_->ad_auction_data()) {
+      return std::nullopt;
     }
-    return observed_fenced_frame_properties_->ad_auction_data_
+    return observed_fenced_frame_properties_->ad_auction_data()
         ->GetValueIgnoringVisibility();
   }
 
   const base::RepeatingClosure& on_navigate_callback() const {
-    return observed_fenced_frame_properties_->on_navigate_callback_;
+    return observed_fenced_frame_properties_->on_navigate_callback();
   }
 
   FencedFrameReporter* fenced_frame_reporter() {
     if (!observed_fenced_frame_properties_) {
       return nullptr;
     }
-    return observed_fenced_frame_properties_->fenced_frame_reporter_.get();
+    return observed_fenced_frame_properties_->fenced_frame_reporter().get();
   }
 
  private:
   bool mapping_complete_observed_ = false;
-  absl::optional<FencedFrameProperties> observed_fenced_frame_properties_;
+  std::optional<FencedFrameProperties> observed_fenced_frame_properties_;
 };
 
 class FencedFrameURLMappingTestPeer {
@@ -121,9 +120,11 @@ class FencedFrameURLMappingTestPeer {
 
 // TODO(xiaochenzh): Once fenced frame size freezing has no time gap, remove
 // this.
-// This function is needed because the freezing only takes effect after layout
-// has happened.
-bool WaitForFencedFrameSizeFreeze(RenderFrameHost* rfh);
+// This function keeps polling the evaluation result of the given script until
+// it returns true or times out.
+// Currently this is only used to check the fenced frame size freezing behavior.
+// The size freezing only takes effect after layout has happened.
+bool PollUntilEvalToTrue(const std::string& script, RenderFrameHost* rfh);
 
 }  // namespace content
 

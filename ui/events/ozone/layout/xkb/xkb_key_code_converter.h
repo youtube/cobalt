@@ -7,9 +7,11 @@
 
 #include <xkbcommon/xkbcommon.h>
 
+#include "base/component_export.h"
+
 namespace ui {
 
-enum class DomCode;
+enum class DomCode : uint32_t;
 
 // XKB scan code values are platform-dependent; this provides the layout engine
 // with the mapping from DomCode to xkb_keycode_t. (This mapping is in principle

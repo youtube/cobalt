@@ -2,9 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #include "media/formats/webm/webm_webvtt_parser.h"
+
+#include <stdint.h>
+
+#include <array>
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -66,11 +74,12 @@ TEST_F(WebMWebVTTParserTest, Settings) {
   InSequence s;
 
   enum { kSettingsCount = 4 };
-  const char* const settings_str[kSettingsCount] = {
-    "vertical:lr",
-    "line:50%",
-    "position:42%",
-    "vertical:rl line:42% position:100%" };
+  const std::array<const char*, kSettingsCount> settings_str = {
+      "vertical:lr",
+      "line:50%",
+      "position:42%",
+      "vertical:rl line:42% position:100%",
+  };
 
   for (int i = 0; i < kSettingsCount; ++i) {
     const Cue cue = EncodeCue("", settings_str[i], "Subtitle");
@@ -87,11 +96,12 @@ TEST_F(WebMWebVTTParserTest, Content) {
   InSequence s;
 
   enum { kContentCount = 4 };
-  const char* const content_str[kContentCount] = {
-    "Subtitle",
-    "Another Subtitle",
-    "Yet Another Subtitle",
-    "Another Subtitle\nSplit Across Two Lines" };
+  const std::array<const char*, kContentCount> content_str = {
+      "Subtitle",
+      "Another Subtitle",
+      "Yet Another Subtitle",
+      "Another Subtitle\nSplit Across Two Lines",
+  };
 
   for (int i = 0; i < kContentCount; ++i) {
     const Cue cue = EncodeCue("", "", content_str[i]);

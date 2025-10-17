@@ -7,7 +7,6 @@
 // associated with any Chrome browser windows. See the <a
 // href="https://github.com/GoogleChrome/chrome-app-samples/tree/master/samples/window-state">
 // Window State Sample</a> for a demonstration of these options.
-[modernised_enums]
 namespace app.window {
 
   // Previously named Bounds.
@@ -289,16 +288,6 @@ namespace app.window {
     // If true, and supported by the platform, the window will be visible on all
     // workspaces.
     boolean? visibleOnAllWorkspaces;
-
-    // <p>If set, the action that is intended to be handled by the window on
-    //   lockscreen. This has to be set to create an app window visible on the
-    //   lock screen. The app window should be created only in response to an
-    //   app launch request for handling an action from the lock screen. App
-    //   window creation will fail if the app was not launched to handle the
-    //   action.
-    //   </p>
-    // <p>This is <b>Chrome OS only</b>.</p>
-    [nodoc] app.runtime.ActionType? lockScreenAction;
   };
 
   // Called in the creating window (parent) before the load event is called in
@@ -448,9 +437,10 @@ namespace app.window {
     // window with the same id. If you need to open a window with an id at a
     // location other than the remembered default, you can create it hidden,
     // move it to the desired location, then show it.
-    static void create(DOMString url,
-                       optional CreateWindowOptions options,
-                       optional CreateWindowCallback callback);
+    static void create(
+        DOMString url,
+        optional CreateWindowOptions options,
+        optional CreateWindowCallback callback);
 
     // Returns an $(ref:AppWindow) object for the
     // current script context (ie JavaScript 'window' object). This can also be

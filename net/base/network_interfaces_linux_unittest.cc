@@ -30,17 +30,15 @@ static const unsigned char kIPv6Addr[] = {0x24, 0x01, 0xfa, 0x00, 0x00, 0x04,
                                           0x10, 0x00, 0xbe, 0x30, 0x5b, 0xff,
                                           0xfe, 0xe5, 0x00, 0xc3};
 
-char* GetInterfaceName(int interface_index, char* ifname) {
+std::string GetInterfaceName(int interface_index) {
   static_assert(std::size(kIfnameEm1) < IF_NAMESIZE, "Invalid interface name");
-  memcpy(ifname, kIfnameEm1, std::size(kIfnameEm1));
-  return ifname;
+  return kIfnameEm1;
 }
 
-char* GetInterfaceNameVM(int interface_index, char* ifname) {
+std::string GetInterfaceNameVM(int interface_index) {
   static_assert(std::size(kIfnameVmnet) < IF_NAMESIZE,
                 "Invalid interface name");
-  memcpy(ifname, kIfnameVmnet, std::size(kIfnameVmnet));
-  return ifname;
+  return kIfnameVmnet;
 }
 
 TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
@@ -61,7 +59,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   };
 
   // Address of offline links should be ignored.
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -72,8 +70,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
 
   // Local address should be trimmed out.
   address_map.clear();
-  ASSERT_TRUE(
-      address_map.insert(std::make_pair(ipv6_local_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_local_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -81,7 +78,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
 
   // vmware address should return by default.
   address_map.clear();
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceNameVM));
@@ -93,7 +90,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
 
   // vmware address should be trimmed out if policy specified so.
   address_map.clear();
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, EXCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceNameVM));
@@ -103,7 +100,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   // Addresses with banned attributes should be ignored.
   address_map.clear();
   msg.ifa_flags = IFA_F_TENTATIVE;
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -114,7 +111,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   // attributes should be translated correctly.
   address_map.clear();
   msg.ifa_flags = IFA_F_TEMPORARY;
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -129,7 +126,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   // attributes should be translated correctly.
   address_map.clear();
   msg.ifa_flags = IFA_F_DEPRECATED;
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));

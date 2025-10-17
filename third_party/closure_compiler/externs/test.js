@@ -63,6 +63,13 @@ chrome.test.notifyPass = function(message) {};
 chrome.test.log = function(message) {};
 
 /**
+ * Open file: URLs for tests.
+ * @param {string} url
+ * @see https://developer.chrome.com/extensions/test#method-openFileUrl
+ */
+chrome.test.openFileUrl = function(url) {};
+
+/**
  * Sends a string message to the browser process, generating a Notification that
  * C++ test code can wait for.
  * @param {string} message
@@ -263,15 +270,6 @@ chrome.test.loadScript = function(scriptUrl) {};
  * @see https://developer.chrome.com/extensions/test#method-setExceptionHandler
  */
 chrome.test.setExceptionHandler = function(handler) {};
-
-/**
- * Returns the wake-event-page API function, which can be called to wake up the
- * extension's event page.
- * @return {function(): void} The API function which wakes the extension's event
- *     page
- * @see https://developer.chrome.com/extensions/test#method-getWakeEventPage
- */
-chrome.test.getWakeEventPage = function() {};
 
 /**
  * Used to test sending messages to extensions.

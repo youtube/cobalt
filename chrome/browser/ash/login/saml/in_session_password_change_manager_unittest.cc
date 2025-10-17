@@ -4,16 +4,17 @@
 
 #include "chrome/browser/ash/login/saml/in_session_password_change_manager.h"
 
-#include "ash/public/cpp/session/session_activation_observer.h"
-#include "ash/public/cpp/session/session_controller.h"
+#include <memory>
+#include <optional>
+#include <string>
+
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
-#include "build/build_config.h"
+#include "base/time/time.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/notifications/notification_display_service_impl.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -24,7 +25,6 @@
 #include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_names.h"
 #include "content/public/test/browser_task_environment.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -61,13 +61,9 @@ class InSessionPasswordChangeManagerTest : public testing::Test {
         prefs::kSamlPasswordExpirationAdvanceWarningDays,
         kAdvanceWarningTime.InDays());
 
-    std::unique_ptr<FakeChromeUserManager> fake_user_manager =
-        std::make_unique<FakeChromeUserManager>();
-    fake_user_manager->AddUser(user_manager::StubAccountId());
-    fake_user_manager->LoginUser(user_manager::StubAccountId());
-    ASSERT_TRUE(fake_user_manager->GetPrimaryUser());
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
+    fake_user_manager_->AddUser(user_manager::StubAccountId());
+    fake_user_manager_->LoginUser(user_manager::StubAccountId());
+    ASSERT_TRUE(fake_user_manager_->GetPrimaryUser());
 
     display_service_tester_ =
         std::make_unique<NotificationDisplayServiceTester>(profile_);
@@ -75,7 +71,7 @@ class InSessionPasswordChangeManagerTest : public testing::Test {
 
     // urgent_warning_days_ = -1: This means we only ever show a standard
     // notification, instead of an urgent one, because it is simpler to test.
-    // TODO(https://crbug.com/930109): Test both types of notification.
+    // TODO(crbug.com/40613129): Test both types of notification.
     manager_->urgent_warning_days_ = -1;
     InSessionPasswordChangeManager::SetForTesting(manager_.get());
   }
@@ -85,7 +81,7 @@ class InSessionPasswordChangeManagerTest : public testing::Test {
   }
 
  protected:
-  absl::optional<Notification> Notification() {
+  std::optional<Notification> Notification() {
     return NotificationDisplayServiceTester::Get()->GetNotification(
         "saml.password-expiry-notification");
   }
@@ -104,10 +100,11 @@ class InSessionPasswordChangeManagerTest : public testing::Test {
   content::BrowserTaskEnvironment test_environment_{
       base::test::TaskEnvironment::MainThreadType::UI,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_{std::make_unique<ash::FakeChromeUserManager>()};
   TestingProfileManager profile_manager_{TestingBrowserProcess::GetGlobal()};
-  raw_ptr<TestingProfile, ExperimentalAsh> profile_;
+  raw_ptr<TestingProfile> profile_;
 
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
   std::unique_ptr<NotificationDisplayServiceTester> display_service_tester_;
   std::unique_ptr<InSessionPasswordChangeManager> manager_;
 };

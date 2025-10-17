@@ -3,20 +3,20 @@ When the parent document becomes composited, the layer trees should get connecte
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [285, 230],
       "contentsOpaque": true,
       "backgroundColor": "#C0C0C0",
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow DIV id='iframe-content' class='box'",
+      "name": "LayoutBlockFlow DIV id='iframe-content' class='box'",
       "bounds": [210, 210],
       "contentsOpaque": true,
       "backgroundColor": "#0000FF",
@@ -30,7 +30,7 @@ When the parent document becomes composited, the layer trees should get connecte
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow DIV id='box' class='composited'",
+      "name": "LayoutBlockFlow DIV id='box' class='composited'",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#0000FF",

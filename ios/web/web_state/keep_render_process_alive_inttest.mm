@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #import <UIKit/UIKit.h>
+
 #import <functional>
 
 #import "base/test/scoped_feature_list.h"
@@ -12,18 +13,15 @@
 #import "ios/web/public/web_client.h"
 #import "ios/web/public/web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 namespace {
 // Overrides GetWindowedContainer.
 class FakeWebClient : public WebClient {
   UIView* GetWindowedContainer() override {
-    if (!windowed_container)
+    if (!windowed_container) {
       windowed_container = [[UIView alloc] init];
+    }
     return windowed_container;
   }
 

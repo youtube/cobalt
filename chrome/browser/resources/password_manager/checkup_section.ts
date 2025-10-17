@@ -2,29 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_icons.css.js';
+import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+import 'chrome://resources/cr_elements/cr_spinner_style.css.js';
 import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import './shared_style.css.js';
 
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import type {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
-import {PaperSpinnerLiteElement} from 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './checkup_section.html.js';
-import {FocusConfig} from './focus_config.js';
-import {CredentialsChangedListener, PasswordCheckInteraction, PasswordCheckStatusChangedListener, PasswordManagerImpl} from './password_manager_proxy.js';
-import {CheckupSubpage, Page, Route, RouteObserverMixin, Router, UrlParam} from './router.js';
+import type {FocusConfig} from './focus_config.js';
+import type {CredentialsChangedListener, PasswordCheckStatusChangedListener} from './password_manager_proxy.js';
+import {PasswordCheckInteraction, PasswordManagerImpl} from './password_manager_proxy.js';
+import type {Route} from './router.js';
+import {CheckupSubpage, Page, RouteObserverMixin, Router, UrlParam} from './router.js';
 
 const CheckState = chrome.passwordsPrivate.PasswordCheckState;
 
@@ -35,7 +36,7 @@ export interface CheckupSectionElement {
     checkupStatusSubLabel: HTMLElement,
     refreshButton: CrIconButtonElement,
     retryButton: CrButtonElement,
-    spinner: PaperSpinnerLiteElement,
+    spinner: HTMLElement,
     compromisedRow: CrLinkRowElement,
     reusedRow: CrLinkRowElement,
     weakRow: CrLinkRowElement,
@@ -81,6 +82,11 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
       weakPasswordsText_: String,
 
       /**
+       * Suggested action to take upon compromised passwords discovery.
+       */
+      compromisedPasswordsSuggestion_: String,
+
+      /**
        * The status indicates progress and affects banner, title and icon.
        */
       status_: {
@@ -119,24 +125,37 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
         computed: 'computeBannerImage_(status_, compromisedPasswords_, ' +
             'reusedPasswords_, weakPasswords_)',
       },
+
+      passwordCount_: {
+        type: Number,
+        value: 0,
+        observer: 'updateCheckedPasswordsText_',
+      },
     };
   }
 
-  focusConfig: FocusConfig;
-  private checkedPasswordsText_: string;
-  private compromisedPasswordsText_: string;
-  private reusedPasswordsText_: string;
-  private weakPasswordsText_: string;
-  private status_: chrome.passwordsPrivate.PasswordCheckStatus;
-  private compromisedPasswords_: chrome.passwordsPrivate.PasswordUiEntry[];
-  private weakPasswords_: chrome.passwordsPrivate.PasswordUiEntry[];
-  private reusedPasswords_: chrome.passwordsPrivate.PasswordUiEntry[];
+  declare focusConfig: FocusConfig;
+  declare private checkedPasswordsText_: string;
+  declare private compromisedPasswordsText_: string;
+  declare private reusedPasswordsText_: string;
+  declare private weakPasswordsText_: string;
+  declare private compromisedPasswordsSuggestion_: string;
+  declare private status_: chrome.passwordsPrivate.PasswordCheckStatus;
+  declare private compromisedPasswords_:
+      chrome.passwordsPrivate.PasswordUiEntry[];
+  declare private weakPasswords_: chrome.passwordsPrivate.PasswordUiEntry[];
+  declare private isCheckRunning_: boolean;
+  declare private isCheckSuccessful_: boolean;
+  declare private bannerImage_: string;
+  declare private reusedPasswords_: chrome.passwordsPrivate.PasswordUiEntry[];
   private didCheckAutomatically_: boolean = false;
+  declare private passwordCount_: number;
 
   private statusChangedListener_: PasswordCheckStatusChangedListener|null =
       null;
   private insecureCredentialsChangedListener_: CredentialsChangedListener|null =
       null;
+  private setSavedPasswordsListener_: CredentialsChangedListener|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -168,6 +187,13 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
       });
     };
 
+    this.setSavedPasswordsListener_ = passwordList => {
+      this.passwordCount_ =
+          passwordList
+              .filter(entry => !entry.federationText && !entry.isPasskey)
+              .length;
+    };
+
     PasswordManagerImpl.getInstance().getPasswordCheckStatus().then(
         this.statusChangedListener_);
     PasswordManagerImpl.getInstance().addPasswordCheckStatusListener(
@@ -177,6 +203,11 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
         this.insecureCredentialsChangedListener_);
     PasswordManagerImpl.getInstance().addInsecureCredentialsListener(
         this.insecureCredentialsChangedListener_);
+
+    PasswordManagerImpl.getInstance().getSavedPasswordList().then(
+        this.setSavedPasswordsListener_);
+    PasswordManagerImpl.getInstance().addSavedPasswordListChangedListener(
+        this.setSavedPasswordsListener_);
   }
 
   override disconnectedCallback() {
@@ -191,6 +222,11 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
     PasswordManagerImpl.getInstance().removeInsecureCredentialsListener(
         this.insecureCredentialsChangedListener_);
     this.insecureCredentialsChangedListener_ = null;
+
+    assert(this.setSavedPasswordsListener_);
+    PasswordManagerImpl.getInstance().removeSavedPasswordListChangedListener(
+        this.setSavedPasswordsListener_);
+    this.setSavedPasswordsListener_ = null;
   }
 
   override currentRouteChanged(route: Route): void {
@@ -202,6 +238,10 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
       PasswordManagerImpl.getInstance().recordPasswordCheckInteraction(
           PasswordCheckInteraction.START_CHECK_AUTOMATICALLY);
     }
+    if (route.page === Page.CHECKUP) {
+      PasswordManagerImpl.getInstance()
+          .dismissSafetyHubPasswordMenuNotification();
+    }
   }
 
   private async onStatusChanged_(
@@ -211,7 +251,43 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
     if (oldStatus !== undefined && oldStatus.state === newStatus.state) {
       return;
     }
-    switch (newStatus.state) {
+
+    await this.updateCheckedPasswordsText_();
+
+    if (newStatus.state === CheckState.NO_PASSWORDS) {
+      return;
+    }
+
+    // Announce password check result and focus retry/refresh button when
+    // password check is finished.
+    if (!!oldStatus && oldStatus.state === CheckState.RUNNING &&
+        newStatus.state !== CheckState.RUNNING) {
+      let stateText: string;
+      if (this.compromisedPasswords_.length > 0) {
+        stateText = this.i18n('checkupResultRed');
+      } else if (this.hasAnyIssues_()) {
+        stateText = this.i18n('checkupResultYellow');
+      } else {
+        stateText = this.i18n('checkupResultGreen');
+      }
+      getAnnouncerInstance().announce(
+          [this.checkedPasswordsText_, stateText].join('. '));
+      focusWithoutInk(
+          this.showRetryButton_() ? this.$.retryButton : this.$.refreshButton);
+    } else if (
+        !!oldStatus && oldStatus.state !== CheckState.RUNNING &&
+        newStatus.state === CheckState.RUNNING) {
+      // Announce password checkup has started.
+      getAnnouncerInstance().announce('Password check started');
+    }
+  }
+
+  private async updateCheckedPasswordsText_() {
+    if (!this.status_) {
+      return;
+    }
+
+    switch (this.status_.state) {
       case CheckState.IDLE:
       case CheckState.OFFLINE:
       case CheckState.SIGNED_OUT:
@@ -220,23 +296,7 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
       case CheckState.NO_PASSWORDS:
         this.checkedPasswordsText_ =
             await PluralStringProxyImpl.getInstance().getPluralString(
-                'checkedPasswords', this.status_.totalNumberOfPasswords || 0);
-        if (!!oldStatus && oldStatus.state === CheckState.RUNNING &&
-            newStatus.state !== CheckState.NO_PASSWORDS) {
-          let stateText: string;
-          if (this.compromisedPasswords_.length > 0) {
-            stateText = this.i18n('checkupResultRed');
-          } else if (this.hasAnyIssues_()) {
-            stateText = this.i18n('checkupResultYellow');
-          } else {
-            stateText = this.i18n('checkupResultGreen');
-          }
-          getAnnouncerInstance().announce(
-              [this.checkedPasswordsText_, stateText].join('. '));
-          focusWithoutInk(
-              this.showRetryButton_() ? this.$.retryButton :
-                                        this.$.refreshButton);
-        }
+                'checkedPasswords', this.passwordCount_);
         return;
       case CheckState.CANCELED:
         this.checkedPasswordsText_ = this.i18n('checkupCanceled');
@@ -256,6 +316,10 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
     this.compromisedPasswordsText_ =
         await PluralStringProxyImpl.getInstance().getPluralString(
             'compromisedPasswords', this.compromisedPasswords_.length);
+
+    this.compromisedPasswordsSuggestion_ =
+        await PluralStringProxyImpl.getInstance().getPluralString(
+            'compromisedPasswordsTitle', this.compromisedPasswords_.length);
   }
 
   private async onReusedPasswordsChanged_() {
@@ -368,7 +432,7 @@ export class CheckupSectionElement extends CheckupSectionElementBase {
       case CheckState.RUNNING:
       case CheckState.CANCELED:
         return this.compromisedPasswords_.length ?
-            this.i18n('compromisedPasswordsTitle') :
+            this.compromisedPasswordsSuggestion_ :
             this.i18n('compromisedPasswordsEmpty');
       case CheckState.OFFLINE:
         return this.i18n('checkupErrorOffline', brandingName);

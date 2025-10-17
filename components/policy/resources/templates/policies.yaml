@@ -932,7 +932,7 @@ policies:
   931: OnPrintEnterpriseConnector
   932: UserAgentReduction
   933: OriginAgentClusterDefaultEnabled
-  934: DeviceLoginScreenWebUILazyLoading
+  934: ''
   935: ProjectorEnabled
   936: PhoneHubCameraRollAllowed
   937: EcheAllowed
@@ -956,7 +956,7 @@ policies:
   955: WebHidAllowDevicesWithHidUsagesForUrls
   956: SecondaryGoogleAccountUsage
   957: DeviceEncryptedReportingPipelineEnabled
-  958: IsolatedAppsDeveloperModeAllowed
+  958: ''
   959: FloatingWorkspaceEnabled
   960: WindowPlacementAllowedForUrls
   961: WindowPlacementBlockedForUrls
@@ -980,7 +980,7 @@ policies:
   979: LocalFontsBlockedForUrls
   980: ProjectorDogfoodForFamilyLinkEnabled
   981: UrlParamFilterEnabled
-  982: ScreenTimeEnabled
+  982: ''
   983: DefaultClipboardSetting
   984: ClipboardAllowedForUrls
   985: ClipboardBlockedForUrls
@@ -1082,11 +1082,11 @@ policies:
   1081: DeviceSystemAecEnabled
   1082: HttpAllowlist
   1083: HttpsUpgradesEnabled
-  1084: RealTimeDownloadProtectionRequestAllowed
+  1084: ''
   1085: MandatoryExtensionsForIncognitoNavigation
   1086: CredentialProviderPromoEnabled
   1087: RemoteAccessHostAllowEnterpriseRemoteSupportConnections
-  1088: ClientSidePhishingProtectionAllowed
+  1088: ''
   1089: UserAvatarCustomizationSelectorsEnabled
   1090: DefaultThirdPartyStoragePartitioningSetting
   1091: ThirdPartyStoragePartitioningBlockedForOrigins
@@ -1096,34 +1096,277 @@ policies:
   1095: InsecureHashesInTLSHandshakesEnabled
   1096: DeviceLoginScreenGeolocationAccessLevel
   1097: DeviceReportNetworkEvents
-  1098: SafeBrowsingExtensionProtectionAllowed
-  1099: ''
-  1100: ''
-  1101: ''
-  1102: ''
-  1103: ''
-  1104: ''
-  1105: ''
-  1106: ''
-  1107: ''
-  1108: ''
-  1109: ''
-  1110: ''
-  1111: ''
-  1112: ''
-  1113: ''
-  1114: ''
-  1115: ''
-  1116: ''
-  1117: ''
-  1118: ''
-  1119: ''
-  1120: ''
-  1121: ''
-  1122: ''
-  1123: ''
-  1124: ''
+  1098: ''
+  1099: ShowDisplaySizeScreenEnabled
+  1100: EssentialSearchEnabled
+  1101: LegacyTechReportAllowlist
+  1102: ReportAppInventory
+  1103: ReportAppUsage
+  1104: ReportAppUsageCollectionRateMs
+  1105: BrowserContextAwareAccessSignalsAllowlist
+  1106: UserContextAwareAccessSignalsAllowlist
+  1107: GoogleSearchSidePanelEnabled
+  1108: PdfUseSkiaRendererEnabled
+  1109: DataUrlInSvgUseEnabled
+  1110: RSAKeyUsageForLocalAnchorsEnabled
+  1111: BeforeunloadEventCancelByPreventDefaultEnabled
+  1112: PolicyTestPageEnabled
+  1113: UrlKeyedMetricsAllowed
+  1114: AllowBackForwardCacheForCacheControlNoStorePageEnabled
+  1115: DeviceLoginScreenWebHidAllowDevicesForUrls
+  1116: SafeBrowsingProxiedRealTimeChecksAllowed
+  1117: PostQuantumKeyAgreementEnabled
+  1118: PhysicalKeyboardAutocorrect
+  1119: PhysicalKeyboardPredictiveWriting
+  1120: ColorCorrectionEnabled
+  1121: NativeClientForceAllowed
+  1122: EmojiPickerGifSupportEnabled
+  1123: DeviceChargingSoundsEnabled
+  1124: DeviceLowBatterySoundEnabled
   1125: ArcVmDataMigrationStrategy
+  1126: AccessibilityPerformanceFilteringAllowed
+  1127: RemoteAccessHostAllowEnterpriseFileTransfer
+  1128: ''
+  1129: ''
+  1130: ''
+  1131: GlanceablesEnabled
+  1132: DeviceAuthenticationURLBlocklist
+  1133: DeviceAuthenticationURLAllowlist
+  1134: DeviceReportRuntimeCounters
+  1135: DeviceReportRuntimeCountersCheckingRateMs
+  1136: BruschettaInstallerConfiguration
+  1137: ForcePermissionPolicyUnloadDefaultEnabled
+  1138: ReportWebsiteActivityAllowlist
+  1139: ReportWebsiteTelemetryAllowlist
+  1140: ReportWebsiteTelemetryCollectionRateMs
+  1141: SafeBrowsingSurveysEnabled
+  1142: BlockTruncatedCookies
+  1143: ReportWebsiteTelemetry
+  1144: CompressionDictionaryTransportEnabled
+  1145: MicrosoftOfficeCloudUpload
+  1146: GoogleWorkspaceCloudUpload
+  1147: ShortcutCustomizationAllowed
+  1148: MicrosoftOneDriveMount
+  1149: ExtensionOAuthRedirectUrls
+  1150: CreatePasskeysInICloudKeychain
+  1151: QuickOfficeForceFileDownloadEnabled
+  1152: ProfileSeparationSettings
+  1153: ProfileSeparationDataMigrationSettings
+  1154: ProfileSeparationDomainExceptionList
+  1155: FullRestoreMode
+  1156: ''
+  1157: SafeBrowsingDeepScanningEnabled
+  1158: DriveFileSyncAvailable
+  1159: DeviceSwitchFunctionKeysBehaviorEnabled
+  1160: DeviceDlcPredownloadList
+  1161: DataControlsRules
+  1162: DeviceEphemeralNetworkPoliciesEnabled
+  1163: PPAPISharedImagesForVideoDecoderAllowed
+  1164: ProfileReauthPrompt
+  1165: RelatedWebsiteSetsEnabled
+  1166: DeviceExtendedFkeysModifier
+  1167: UnaffiliatedDeviceArcAllowed
+  1168: RelatedWebsiteSetsOverrides
+  1169: ShowHumanPresenceSensorScreenEnabled
+  1170: PasswordSharingEnabled
+  1171: ZstdContentEncodingEnabled
+  1172: IPv6ReachabilityOverrideEnabled
+  1173: UserFeedbackWithLowLevelDebugDataAllowed
+  1174: MicrosoftOneDriveAccountRestrictions
+  1175: DeviceFlexHwDataForProductImprovementEnabled
+  1176: SiteSearchSettings
+  1177: PrivateNetworkAccessRestrictionsEnabled
+  1178: ContextMenuPhotoSharingSettings
+  1179: ExtensionInstallTypeBlocklist
+  1180: ParcelTrackingEnabled
+  1181: NativeHostsExecutablesLaunchDirectly
+  1182: FeedbackSurveysEnabled
+  1183: DeskAPIDeskSaveAndShareEnabled
+  1184: OopPrintDriversAllowed
+  1185: DeviceHardwareVideoDecodingEnabled
+  1186: TabOrganizerSettings
+  1187: HelpMeWriteSettings
+  1188: CreateThemesSettings
+  1189: ListenToThisPageEnabled
+  1190: AlwaysOnVpnPreConnectUrlAllowlist
+  1191: CACertificates
+  1192: CADistrustedCertificates
+  1193: CAHintCertificates
+  1194: DeviceLoginScreenTouchVirtualKeyboardEnabled
+  1195: DeviceExtendedAutoUpdateEnabled
+  1196: CAPlatformIntegrationEnabled
+  1197: FloatingSsoEnabled
+  1198: FloatingSsoDomainBlocklist
+  1199: FloatingSsoDomainBlocklistExceptions
+  1200: F11KeyModifier
+  1201: F12KeyModifier
+  1202: VirtualKeyboardSmartVisibilityEnabled
+  1203: WebAnnotations
+  1204: DeleteKeyModifier
+  1205: HomeAndEndKeysModifier
+  1206: PageUpAndPageDownKeysModifier
+  1207: InsertKeyModifier
+  1208: ToolbarAvatarLabelSettings
+  1209: DeviceWeeklyScheduledSuspend
+  1210: RemoteAccessHostAllowUrlForwarding
+  1211: ScreenCaptureLocation
+  1212: AllowedDomainsForAppsList
+  1213: ChromeForTestingAllowed
+  1214: GoogleLocationServicesEnabled
+  1215: ProvisionManagedClientCertificateForUser
+  1216: LocalUserFilesAllowed
+  1217: ''
+  1218: SubAppsAPIsAllowedWithoutGestureAndAuthorizationForOrigins
+  1219: DefaultWebPrintingSetting
+  1220: WebPrintingAllowedForUrls
+  1221: WebPrintingBlockedForUrls
+  1222: DocumentScanAPITrustedExtensions
+  1223: RemoteAccessHostAllowPinAuthentication
+  1224: DownloadManagerSaveToDriveSettings
+  1225: AutomaticFullscreenAllowedForUrls
+  1226: AutomaticFullscreenBlockedForUrls
+  1227: MutationEventsEnabled
+  1228: DevToolsGenAiSettings
+  1229: CACertificatesWithConstraints
+  1230: DefaultDirectSocketsSetting
+  1231: DirectSocketsAllowedForUrls
+  1232: DirectSocketsBlockedForUrls
+  1233: ''
+  1234: PrefixedVideoFullscreenApiAvailability
+  1235: PrivacySandboxIpProtectionEnabled
+  1236: OrcaEnabled
+  1237: EnterpriseLogoUrl
+  1238: EnterpriseCustomLabel
+  1239: ProfileLabel
+  1240: PrivacySandboxFingerprintingProtectionEnabled
+  1241: MultiScreenCaptureAllowedForUrls
+  1242: ''
+  1243: ''
+  1244: BoundSessionCredentialsEnabled
+  1245: UiAutomationProviderEnabled
+  1246: ApplicationBoundEncryptionEnabled
+  1247: DeviceAuthenticationFlowAutoReloadInterval
+  1248: ShowAiIntroScreenEnabled
+  1249: ''
+  1250: EnterpriseBadgingTemporarySetting
+  1251: GenAILocalFoundationalModelSettings
+  1252: DeviceExtensionsSystemLogEnabled
+  1253: ChromeDataRegionSetting
+  1254: ContextualGoogleIntegrationsEnabled
+  1255: ContextualGoogleIntegrationsConfiguration
+  1256: PdfViewerOutOfProcessIframeEnabled
+  1257: LockScreenAutoStartOnlineReauth
+  1258: KeyboardFocusableScrollersEnabled
+  1259: ExtensibleEnterpriseSSOBlocklist
+  1260: CSSCustomStateDeprecatedSyntaxEnabled
+  1261: MemorySaverModeSavings
+  1262: KioskVisionTelemetryEnabled
+  1263: GenAIWallpaperSettings
+  1264: GenAIVcBackgroundSettings
+  1265: DynamicCodeSettings
+  1266: LensOverlaySettings
+  1267: ThirdPartyPasswordManagersAllowed
+  1268: DeviceAllowEnterpriseRemoteAccessConnections
+  1269: ''
+  1270: FocusModeSoundsEnabled
+  1271: ExtensionDeveloperModeSettings
+  1272: LocalUserFilesMigrationDestination
+  1273: KioskBrowserPermissionsAllowedForOrigins
+  1274: LensOnGalleryEnabled
+  1275: HistorySearchSettings
+  1276: DevicePostQuantumKeyAgreementEnabled
+  1277: DefaultJavaScriptOptimizerSetting
+  1278: JavaScriptOptimizerAllowedForSites
+  1279: JavaScriptOptimizerBlockedForSites
+  1280: PromotionsEnabled
+  1281: QRCodeGeneratorEnabled
+  1282: DnsOverHttpsExcludedDomains
+  1283: DnsOverHttpsIncludedDomains
+  1284: SystemShortcutBehavior
+  1285: DeletingUndecryptablePasswordsEnabled
+  1286: StandardizedBrowserZoomEnabled
+  1287: ReportingEndpoints
+  1288: PrintingLPACSandboxEnabled
+  1289: ShowGeminiIntroScreenEnabled
+  1290: DeviceRestrictionSchedule
+  1291: TabCompareSettings
+  1292: AdHocCodeSigningForPWAsEnabled
+  1293: KioskWebAppOfflineEnabled
+  1294: ContentTransferEnablementStatus
+  1295: HelpMeReadSettings
+  1296: GenAiDefaultSettings
+  1297: KioskActiveWiFiCredentialsScopeChangeEnabled
+  1298: DataURLWhitespacePreservationEnabled
+  1299: AllowExcludeDisplayInMirrorMode
+  1300: AutofillPredictionSettings
+  1301: ArcOpenLinksInBrowserByDefault
+  1302: EnterpriseProfileBadgeToolbarSettings
+  1303: DefaultDirectSocketsPrivateNetworkAccessSetting
+  1304: DirectSocketsPrivateNetworkAccessAllowedForUrls
+  1305: DirectSocketsPrivateNetworkAccessBlockedForUrls
+  1306: SelectParserRelaxationEnabled
+  1307: ClassManagementEnabled
+  1308: EnterpriseSearchAggregatorSettings
+  1309: TranslatorAPIAllowed
+  1310: WebAudioOutputBufferingEnabled
+  1311: NTPOutlookCardVisible
+  1312: NTPSharepointCardVisible
+  1313: SharedWorkerBlobURLFixEnabled
+  1314: DeviceNativeClientForceAllowed
+  1315: GenAiLensOverlaySettings
+  1316: PasswordManagerPasskeysEnabled
+  1317: FilePickerChooseFromDriveSettings
+  1318: LiveTranslateEnabled
+  1319: DevicePowerBatteryChargingOptimization
+  1320: SmartCardConnectAllowedForUrls
+  1321: SmartCardConnectBlockedForUrls
+  1322: DeviceFlexArcPreloadEnabled
+  1323: AllowedInputMethodsForceEnabled
+  1324: WebRtcIPHandlingUrl
+  1325: GenAIPhotoEditingSettings
+  1326: PartitionedBlobUrlUsage
+  1327: ''
+  1328: DefaultControlledFrameSetting
+  1329: ControlledFrameAllowedForUrls
+  1330: ControlledFrameBlockedForUrls
+  1331: ExternalStorageAllowlist
+  1332: WebAuthenticationRemoteDesktopAllowedOrigins
+  1333: ServiceWorkerToControlSrcdocIframeEnabled
+  1334: ProvisionManagedClientCertificateForBrowser
+  1335: GeminiSettings
+  1336: GenAISmartGroupingSettings
+  1337: GenAiChromeOsSmartActionsSettings
+  1338: RelaunchFastIfOutdated
+  1339: ClassManagementCaptionsEnabled
+  1340: ClassManagementClassroomIntegrationEnabled
+  1341: ClassManagementNetworkRestrictionEnabled
+  1342: ''
+  1343: ClassManagementViewScreenEnabled
+  1344: KioskChromeAppsForceAllowed
+  1345: ReduceAcceptLanguageEnabled
+  1346: GenAIInlineImageSettings
+  1347: UserSecuritySignalsReporting
+  1348: UserSecurityAuthenticatedReporting
+  1349: HappyEyeballsV3Enabled
+  1350: FaceGazeEnabled
+  1351: ProvisionalNotificationsAllowed
+  1352: DeviceLoginScreenFaceGazeEnabled
+  1353: EnterpriseLogoUrlForBrowser
+  1354: EnterpriseCustomLabelForBrowser
+  1355: DefaultSmartCardConnectSetting
+  1356: DeviceUserInitiatedFirmwareUpdatesEnabled
+  1357: BuiltInAIAPIsEnabled
+  1358: TabGroupSharingSettings
+  1359: NTPFooterManagementNoticeEnabled
+  1360: NTPFooterExtensionAttributionEnabled
+  1361: ClearWindowNameForNewBrowsingContextGroup
+  1362: PasswordManagerBlocklist
+  1363: TLS13EarlyDataEnabled
+  1364: LocalNetworkAccessRestrictionsEnabled
+  1365: PrefetchWithServiceWorkerEnabled
+  1366: AIModeSearchSuggestSettings
+  1367: AIModeSettings
+
 atomic_groups:
   1: Homepage
   2: RemoteAccess
@@ -1172,3 +1415,13 @@ atomic_groups:
   45: PrivacySandbox
   46: KerberosPrefilledConfig
   47: ThirdPartyStoragePartitioningSettings
+  48: ''
+  49: ProfileSeparation
+  50: FloatingSso
+  51: WebPrintingSettings
+  52: DirectSocketsSettings
+  53: SkyVaultSettings
+  54: BrowserEventReporting
+  55: SmartCardConnectSettings
+  56: WebRtc
+  57: ControlledFrameSettings

@@ -9,7 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/strings/escape.h"
+#include "base/task/bind_post_task.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_service.h"
@@ -23,10 +23,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/web_contents.h"
-#include "google_apis/google_api_keys.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_status_code.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -34,9 +34,6 @@
 using content::BrowserThread;
 
 namespace safe_browsing {
-
-const char PPAPIDownloadRequest::kDownloadRequestUrl[] =
-    "https://sb-ssl.google.com/safebrowsing/clientreport/download";
 
 PPAPIDownloadRequest::PPAPIDownloadRequest(
     const GURL& requestor_url,
@@ -126,49 +123,32 @@ void PPAPIDownloadRequest::Start() {
                      weakptr_factory_.GetWeakPtr()),
       service_->GetDownloadRequestTimeout());
 
-  if (base::FeatureList::IsEnabled(safe_browsing::kSafeBrowsingOnUIThread)) {
-    CheckAllowlistsOnSBThread(requestor_url_, database_manager_,
-                              weakptr_factory_.GetWeakPtr());
-  } else {
-    content::GetIOThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&PPAPIDownloadRequest::CheckAllowlistsOnSBThread,
-                       requestor_url_, database_manager_,
-                       weakptr_factory_.GetWeakPtr()));
-  }
-}
-
-// static
-GURL PPAPIDownloadRequest::GetDownloadRequestUrl() {
-  GURL url(kDownloadRequestUrl);
-  std::string api_key = google_apis::GetAPIKey();
-  if (!api_key.empty())
-    url = url.Resolve("?key=" + base::EscapeQueryParamValue(api_key, true));
-
-  return url;
+  CheckAllowlistsOnUIThread(requestor_url_, database_manager_,
+                            weakptr_factory_.GetWeakPtr());
 }
 
 void PPAPIDownloadRequest::WebContentsDestroyed() {
   Finish(RequestOutcome::REQUEST_DESTROYED, DownloadCheckResult::UNKNOWN);
 }
 
-// Allowlist checking needs to the done on the SB thread.
-void PPAPIDownloadRequest::CheckAllowlistsOnSBThread(
+void PPAPIDownloadRequest::CheckAllowlistsOnUIThread(
     const GURL& requestor_url,
     scoped_refptr<SafeBrowsingDatabaseManager> database_manager,
     base::WeakPtr<PPAPIDownloadRequest> download_request) {
-  DCHECK_CURRENTLY_ON(
-      base::FeatureList::IsEnabled(safe_browsing::kSafeBrowsingOnUIThread)
-          ? content::BrowserThread::UI
-          : content::BrowserThread::IO);
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DVLOG(2) << " checking allowlists for requestor URL:" << requestor_url;
 
-  bool url_was_allowlisted =
-      requestor_url.is_valid() && database_manager &&
-      database_manager->MatchDownloadAllowlistUrl(requestor_url);
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&PPAPIDownloadRequest::AllowlistCheckComplete,
-                                download_request, url_was_allowlisted));
+  auto callback = base::BindPostTask(
+      content::GetUIThreadTaskRunner({}),
+      base::BindOnce(&PPAPIDownloadRequest::AllowlistCheckComplete,
+                     download_request));
+  if (!requestor_url.is_valid() || !database_manager) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  database_manager->MatchDownloadAllowlistUrl(requestor_url,
+                                              std::move(callback));
 }
 
 void PPAPIDownloadRequest::AllowlistCheckComplete(bool was_on_allowlist) {
@@ -219,6 +199,8 @@ void PPAPIDownloadRequest::SendRequest() {
         base::FilePath(default_file_path_.FinalExtension()).AsUTF8Unsafe();
   }
 
+  CHECK(service_);
+
   service_->AddReferrerChainToPPAPIClientDownloadRequest(
       web_contents(), initiating_frame_url_,
       initiating_outermost_main_frame_id_, initiating_main_frame_url_, tab_id_,
@@ -267,11 +249,6 @@ void PPAPIDownloadRequest::SendRequest() {
           "from dangerous sites' under Privacy. This feature is enabled by "
           "default."
         chrome_policy {
-          RealTimeDownloadProtectionRequestAllowed {
-            RealTimeDownloadProtectionRequestAllowed: false
-          }
-        }
-        chrome_policy {
           SafeBrowsingProtectionLevel {
             policy_options {mode: MANDATORY}
             SafeBrowsingProtectionLevel: 0
@@ -286,15 +263,25 @@ void PPAPIDownloadRequest::SendRequest() {
         deprecated_policies: "SafeBrowsingEnabled"
       })");
   auto resource_request = std::make_unique<network::ResourceRequest>();
-  resource_request->url = GetDownloadRequestUrl();
+  resource_request->url = service_->GetDownloadRequestUrl();
   resource_request->method = "POST";
+  resource_request->site_for_cookies =
+      net::SiteForCookies::FromUrl(resource_request->url);
   resource_request->load_flags = net::LOAD_DISABLE_CACHE;
   loader_ = network::SimpleURLLoader::Create(std::move(resource_request),
                                              traffic_annotation);
   loader_->AttachStringForUpload(client_download_request_data_,
                                  "application/octet-stream");
+
+  network::mojom::URLLoaderFactory* url_loader_factory =
+      service_->GetURLLoaderFactory(profile_).get();
+  if (!url_loader_factory) {
+    Finish(RequestOutcome::FETCH_FAILED, DownloadCheckResult::UNKNOWN);
+    return;
+  }
+
   loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-      service_->GetURLLoaderFactory(profile_).get(),
+      url_loader_factory,
       base::BindOnce(&PPAPIDownloadRequest::OnURLLoaderComplete,
                      base::Unretained(this)));
 }
@@ -306,6 +293,9 @@ void PPAPIDownloadRequest::OnURLLoaderComplete(
   int response_code = 0;
   if (loader_->ResponseInfo() && loader_->ResponseInfo()->headers)
     response_code = loader_->ResponseInfo()->headers->response_code();
+  RecordHttpResponseOrErrorCode(
+      "SBClientDownload.PPAPIDownloadRequest.NetworkResult",
+      loader_->NetError(), response_code);
   if (loader_->NetError() != net::OK || net::HTTP_OK != response_code) {
     Finish(RequestOutcome::FETCH_FAILED, DownloadCheckResult::UNKNOWN);
     return;

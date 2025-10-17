@@ -9,8 +9,8 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <vector>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/singleton.h"
@@ -86,7 +86,7 @@ class PluginInfoHostImplShutdownNotifierFactory
       : BrowserContextKeyedServiceShutdownNotifierFactory(
             "PluginInfoHostImpl") {}
 
-  ~PluginInfoHostImplShutdownNotifierFactory() override {}
+  ~PluginInfoHostImplShutdownNotifierFactory() override = default;
 };
 
 std::unique_ptr<PluginMetadata> GetPluginMetadata(const WebPluginInfo& plugin) {
@@ -149,8 +149,8 @@ bool IsPluginLoadingAccessibleResourceInWebView(
   }
 
   const std::string extension_id = resource.host();
-  const extensions::Extension* extension = extension_registry->GetExtensionById(
-      extension_id, extensions::ExtensionRegistry::ENABLED);
+  const extensions::Extension* extension =
+      extension_registry->enabled_extensions().GetByID(extension_id);
   if (!extension || !extensions::WebviewInfo::IsResourceWebviewAccessible(
                         extension, partition_id, resource.path())) {
     return false;
@@ -221,7 +221,7 @@ void PluginInfoHostImpl::PluginsLoaded(
   if (context_.FindEnabledPlugin(params.url, params.mime_type, &output->status,
                                  &output->plugin, &output->actual_mime_type,
                                  &plugin_metadata)) {
-    // TODO(crbug.com/1167278): Simplify this once PDF is the only "plugin."
+    // TODO(crbug.com/40164563): Simplify this once PDF is the only "plugin."
     context_.DecidePluginStatus(params.url, params.main_frame_origin,
                                 output->plugin,
                                 plugin_metadata->security_status(),
@@ -313,7 +313,7 @@ bool PluginInfoHostImpl::Context::FindEnabledPlugin(
   PluginService::GetInstance()->GetPluginInfoArray(
       url, mime_type, allow_wildcard, &matching_plugins, &mime_types);
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  base::EraseIf(matching_plugins, [&](const WebPluginInfo& info) {
+  std::erase_if(matching_plugins, [&](const WebPluginInfo& info) {
     return info.path.value() == ChromeContentClient::kNotPresent;
   });
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)

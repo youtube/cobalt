@@ -10,13 +10,13 @@
 #include "base/containers/lru_cache.h"
 #include "base/hash/hash.h"
 #include "base/memory/memory_pressure_listener.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "gpu/raster_export.h"
-#include "third_party/skia/include/gpu/GrContextOptions.h"
+#include "third_party/skia/include/gpu/ganesh/GrContextOptions.h"
 
 class GrDirectContext;
 
@@ -41,9 +41,7 @@ class RASTER_EXPORT GrShaderCache
     ~ScopedCacheUse();
 
    private:
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #union
-    RAW_PTR_EXCLUSION GrShaderCache* cache_;
+    raw_ptr<GrShaderCache> cache_;
   };
 
   GrShaderCache(size_t max_cache_size_bytes, Client* client);
@@ -117,7 +115,7 @@ class RASTER_EXPORT GrShaderCache
 
   Store::iterator AddToCache(CacheKey key, CacheData data);
   template <typename Iterator>
-  void EraseFromCache(Iterator it, bool overwriting);
+  void EraseFromCache(Iterator it);
 
   void WriteToDisk(const CacheKey& key, CacheData* data);
 
@@ -129,9 +127,7 @@ class RASTER_EXPORT GrShaderCache
   size_t cache_size_limit_ GUARDED_BY(lock_) = 0u;
   size_t curr_size_bytes_ GUARDED_BY(lock_) = 0u;
   Store store_ GUARDED_BY(lock_);
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION Client* const client_ GUARDED_BY(lock_);
+  raw_ptr<Client> const client_ GUARDED_BY(lock_);
   base::flat_set<int32_t> client_ids_to_cache_on_disk_ GUARDED_BY(lock_);
 
   // Multiple threads and hence multiple clients can be accessing the shader

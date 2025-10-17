@@ -2,16 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/task/sequence_manager/task_queue_selector.h"
 
 #include <stddef.h>
 
+#include <array>
 #include <map>
 #include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/pending_task.h"
@@ -27,11 +34,8 @@ using testing::_;
 using testing::ElementsAre;
 using testing::NotNull;
 
-namespace base {
-namespace sequence_manager {
-namespace internal {
 // To avoid symbol collisions in jumbo builds.
-namespace task_queue_selector_unittest {
+namespace base::sequence_manager::internal::task_queue_selector_unittest {
 
 namespace {
 const TaskQueue::QueuePriority kHighestPriority = 0;
@@ -53,6 +57,7 @@ class MockObserver : public TaskQueueSelector::Observer {
   ~MockObserver() override = default;
 
   MOCK_METHOD1(OnTaskQueueEnabled, void(internal::TaskQueueImpl*));
+  MOCK_METHOD0(OnWorkAvailable, void());
 };
 
 class TaskQueueSelectorForTest : public TaskQueueSelector {
@@ -83,7 +88,7 @@ class TaskQueueSelectorTest : public testing::Test {
         selector_(associated_thread_) {}
   ~TaskQueueSelectorTest() override = default;
 
-  void PushTasks(const size_t queue_indices[], size_t num_tasks) {
+  void PushTasks(base::span<const size_t> queue_indices, size_t num_tasks) {
     EnqueueOrderGenerator enqueue_order_generator;
     for (size_t i = 0; i < num_tasks; i++) {
       task_queues_[queue_indices[i]]->immediate_work_queue()->Push(
@@ -179,7 +184,7 @@ TEST_F(TaskQueueSelectorTest, TestPriorities) {
 }
 
 TEST_F(TaskQueueSelectorTest, TestMultiplePriorities) {
-  size_t reverse_priority_order[kPriorityCount];
+  std::array<size_t, kPriorityCount> reverse_priority_order;
   for (size_t priority = 0; priority < kPriorityCount; ++priority) {
     reverse_priority_order[(kPriorityCount - 1) - priority] = priority;
   }
@@ -198,11 +203,18 @@ TEST_F(TaskQueueSelectorTest, TestMultiplePriorities) {
               ElementsAre(9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 }
 
+TEST_F(TaskQueueSelectorTest, TestObserverWorkAvailableOnPushTask) {
+  testing::StrictMock<MockObserver> mock_observer;
+  selector_.SetTaskQueueSelectorObserver(&mock_observer);
+  EXPECT_CALL(mock_observer, OnWorkAvailable());
+  PushTask(/* queue_index=*/0, /* enqueue_order=*/4);
+}
+
 TEST_F(TaskQueueSelectorTest, TestObserverWithEnabledQueue) {
   task_queues_[1]->SetQueueEnabled(false);
   selector_.DisableQueue(task_queues_[1].get());
   {
-    MockObserver mock_observer;
+    testing::StrictMock<MockObserver> mock_observer;
     selector_.SetTaskQueueSelectorObserver(&mock_observer);
     EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_)).Times(1);
     task_queues_[1]->SetQueueEnabled(true);
@@ -217,7 +229,7 @@ TEST_F(TaskQueueSelectorTest,
        TestObserverWithSetQueuePriorityAndQueueAlreadyEnabled) {
   selector_.SetQueuePriority(task_queues_[1].get(), kHighPriority);
   {
-    MockObserver mock_observer;
+    testing::StrictMock<MockObserver> mock_observer;
     selector_.SetTaskQueueSelectorObserver(&mock_observer);
     EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_)).Times(0);
     selector_.SetQueuePriority(task_queues_[1].get(), kDefaultPriority);
@@ -228,11 +240,16 @@ TEST_F(TaskQueueSelectorTest,
 }
 
 TEST_F(TaskQueueSelectorTest, TestDisableEnable) {
-  MockObserver mock_observer;
+  testing::StrictMock<MockObserver> mock_observer;
   selector_.SetTaskQueueSelectorObserver(&mock_observer);
-
   size_t queue_order[] = {0, 1, 2, 3, 4};
-  PushTasks(queue_order, 5);
+  {
+    // Work is available when a task is pushed to an enabled queue (all queues
+    // were previously empty).
+    EXPECT_CALL(mock_observer, OnWorkAvailable());
+    PushTasks(queue_order, 5);
+    testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  }
   task_queues_[2]->SetQueueEnabled(false);
   selector_.DisableQueue(task_queues_[2].get());
   task_queues_[4]->SetQueueEnabled(false);
@@ -241,14 +258,26 @@ TEST_F(TaskQueueSelectorTest, TestDisableEnable) {
   EXPECT_EQ(kDefaultPriority, task_queues_[2]->GetQueuePriority());
   EXPECT_EQ(kDefaultPriority, task_queues_[4]->GetQueuePriority());
   EXPECT_THAT(PopTasksAndReturnQueueIndices(), ElementsAre(0, 1, 3));
-
-  EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_)).Times(2);
   task_queues_[2]->SetQueueEnabled(true);
-  selector_.EnableQueue(task_queues_[2].get());
+  {
+    EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_));
+    // Work is available when a non-empty queue is enabled (all queues were
+    // previously disabled).
+    EXPECT_CALL(mock_observer, OnWorkAvailable());
+    selector_.EnableQueue(task_queues_[2].get());
+    testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  }
   selector_.SetQueuePriority(task_queues_[2].get(), kPriorityCount - 1);
   EXPECT_THAT(PopTasksAndReturnQueueIndices(), ElementsAre(2));
   task_queues_[4]->SetQueueEnabled(true);
-  selector_.EnableQueue(task_queues_[4].get());
+  {
+    EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_));
+    // Work is available when a non-empty queue is enabled (all queues were
+    // previously disabled).
+    EXPECT_CALL(mock_observer, OnWorkAvailable());
+    selector_.EnableQueue(task_queues_[4].get());
+    testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  }
   EXPECT_THAT(PopTasksAndReturnQueueIndices(), ElementsAre(4));
 
   // Clear observer before it goes out of scope.
@@ -302,7 +331,8 @@ class TaskQueueSelectorStarvationTest : public TaskQueueSelectorTest {
   TaskQueueSelectorStarvationTest() = default;
 
  protected:
-  void TestPriorityOrder(const size_t queue_order[], size_t num_tasks) {
+  void TestPriorityOrder(base::span<const size_t> queue_order,
+                         size_t num_tasks) {
     for (size_t i = 0; i < kTaskQueueCount; i++) {
       // Setting the queue priority to its current value causes a check to fail.
       if (task_queues_[i]->GetQueuePriority() !=
@@ -335,9 +365,10 @@ class TaskQueueSelectorStarvationTest : public TaskQueueSelectorTest {
 
 TEST_F(TaskQueueSelectorStarvationTest,
        HigherPriorityWorkStarvesLowerPriorityWork) {
-  size_t queue_order[kTaskQueueCount];
-  for (size_t i = 0; i < kTaskQueueCount; i++)
+  std::array<size_t, kTaskQueueCount> queue_order;
+  for (size_t i = 0; i < kTaskQueueCount; i++) {
     queue_order[i] = i;
+  }
   TestPriorityOrder(queue_order, kTaskQueueCount);
 }
 
@@ -345,9 +376,10 @@ TEST_F(TaskQueueSelectorStarvationTest,
        NewHigherPriorityTasksStarveOldLowerPriorityTasks) {
   // Enqueue tasks in order from lowest to highest priority, and check that they
   // still run in order from highest to lowest priority.
-  size_t queue_order[kTaskQueueCount];
-  for (size_t i = 0; i < kTaskQueueCount; i++)
+  std::array<size_t, kTaskQueueCount> queue_order;
+  for (size_t i = 0; i < kTaskQueueCount; i++) {
     queue_order[i] = (kTaskQueueCount - i) - 1;
+  }
   TestPriorityOrder(queue_order, kTaskQueueCount);
 }
 
@@ -470,11 +502,9 @@ TEST_F(TaskQueueSelectorTest,
 }
 
 TEST_F(TaskQueueSelectorTest, TestObserverWithOneBlockedQueue) {
-  MockObserver mock_observer;  // Must outlive `selector`
+  testing::StrictMock<MockObserver> mock_observer;  // Must outlive `selector`
   TaskQueueSelectorForTest selector(associated_thread_);
   selector.SetTaskQueueSelectorObserver(&mock_observer);
-
-  EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_)).Times(1);
 
   std::unique_ptr<TaskQueueImpl> task_queue(NewTaskQueueWithBlockReporting());
   selector.AddQueue(task_queue.get(), kDefaultPriority);
@@ -489,13 +519,18 @@ TEST_F(TaskQueueSelectorTest, TestObserverWithOneBlockedQueue) {
   EXPECT_EQ(nullptr, selector.SelectWorkQueueToService());
 
   task_queue->SetQueueEnabled(true);
-  selector.EnableQueue(task_queue.get());
+  {
+    EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_));
+    EXPECT_CALL(mock_observer, OnWorkAvailable());
+    selector.EnableQueue(task_queue.get());
+    testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  }
   selector.RemoveQueue(task_queue.get());
   task_queue->UnregisterTaskQueue();
 }
 
 TEST_F(TaskQueueSelectorTest, TestObserverWithTwoBlockedQueues) {
-  MockObserver mock_observer;  // Must outlive `selector`
+  testing::StrictMock<MockObserver> mock_observer;  // Must outlive `selector`
   TaskQueueSelectorForTest selector(associated_thread_);
   selector.SetTaskQueueSelectorObserver(&mock_observer);
 
@@ -520,19 +555,26 @@ TEST_F(TaskQueueSelectorTest, TestObserverWithTwoBlockedQueues) {
   task_queue->immediate_work_queue()->Push(std::move(task1));
   task_queue2->immediate_work_queue()->Push(std::move(task2));
   EXPECT_EQ(nullptr, selector.SelectWorkQueueToService());
-  testing::Mock::VerifyAndClearExpectations(&mock_observer);
 
-  EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_)).Times(2);
-
-  task_queue->SetQueueEnabled(true);
-  selector.EnableQueue(task_queue.get());
+  {
+    EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_));
+    EXPECT_CALL(mock_observer, OnWorkAvailable());
+    task_queue->SetQueueEnabled(true);
+    selector.EnableQueue(task_queue.get());
+    testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  }
 
   selector.RemoveQueue(task_queue.get());
   task_queue->UnregisterTaskQueue();
   EXPECT_EQ(nullptr, selector.SelectWorkQueueToService());
 
-  task_queue2->SetQueueEnabled(true);
-  selector.EnableQueue(task_queue2.get());
+  {
+    EXPECT_CALL(mock_observer, OnTaskQueueEnabled(_));
+    EXPECT_CALL(mock_observer, OnWorkAvailable());
+    task_queue2->SetQueueEnabled(true);
+    selector.EnableQueue(task_queue2.get());
+    testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  }
   selector.RemoveQueue(task_queue2.get());
   task_queue2->UnregisterTaskQueue();
 }
@@ -640,7 +682,4 @@ TEST_F(ActivePriorityTrackerTest, HighestActivePriority) {
   EXPECT_FALSE(active_priority_tracker_.HasActivePriority());
 }
 
-}  // namespace task_queue_selector_unittest
-}  // namespace internal
-}  // namespace sequence_manager
-}  // namespace base
+}  // namespace base::sequence_manager::internal::task_queue_selector_unittest

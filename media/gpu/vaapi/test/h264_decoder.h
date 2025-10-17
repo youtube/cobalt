@@ -5,14 +5,14 @@
 #ifndef MEDIA_GPU_VAAPI_TEST_H264_DECODER_H_
 #define MEDIA_GPU_VAAPI_TEST_H264_DECODER_H_
 
+#include <queue>
+
 #include "media/gpu/vaapi/test/h264_dpb.h"
 #include "media/gpu/vaapi/test/h264_vaapi_wrapper.h"
 #include "media/gpu/vaapi/test/video_decoder.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
-
-#include <queue>
 
 namespace media {
 namespace vaapi_test {
@@ -157,12 +157,12 @@ class H264Decoder : public VideoDecoder {
   int prev_frame_num_offset_;
   bool prev_has_memmgmnt5_;
 
-  // These are absl::nullopt unless get recovery point SEI message after Reset.
+  // These are std::nullopt unless get recovery point SEI message after Reset.
   // A frame_num of the frame at output order that is correct in content.
-  absl::optional<int> recovery_frame_num_;
+  std::optional<int> recovery_frame_num_;
   // A value in the recovery point SEI message to compute |recovery_frame_num_|
   // later.
-  absl::optional<int> recovery_frame_cnt_;
+  std::optional<int> recovery_frame_cnt_;
 
   // Buffer object to keep track of our reference images.
   H264DPB dpb_;

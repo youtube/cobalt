@@ -8,15 +8,17 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 
+#include <cstdint>
 #include <cstring>
+#include <string>
 
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
-#include "quiche/quic/qbone/platform/internet_checksum.h"
 #include "quiche/quic/qbone/platform/tcp_packet.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -61,19 +63,21 @@ QbonePacketProcessor::ProcessingResult
 QbonePacketProcessor::Filter::FilterPacket(Direction direction,
                                            absl::string_view full_packet,
                                            absl::string_view payload,
-                                           icmp6_hdr* icmp_header,
-                                           OutputInterface* output) {
+                                           icmp6_hdr* icmp_header) {
   return ProcessingResult::OK;
 }
 
 void QbonePacketProcessor::ProcessPacket(std::string* packet,
                                          Direction direction) {
+  uint8_t traffic_class = TrafficClassFromHeader(*packet);
   if (ABSL_PREDICT_FALSE(!IsValid())) {
     QUIC_BUG(quic_bug_11024_1)
         << "QuicPacketProcessor is invoked in an invalid state.";
-    stats_->OnPacketDroppedSilently(direction);
+    stats_->OnPacketDroppedSilently(direction, traffic_class);
     return;
   }
+
+  stats_->RecordThroughput(packet->size(), direction, traffic_class);
 
   uint8_t transport_protocol;
   char* transport_data;
@@ -96,13 +100,10 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
           output_->SendPacketToClient(*packet);
           break;
       }
-      stats_->OnPacketForwarded(direction);
+      stats_->OnPacketForwarded(direction, traffic_class);
       break;
     case ProcessingResult::SILENT_DROP:
-      stats_->OnPacketDroppedSilently(direction);
-      break;
-    case ProcessingResult::DEFER:
-      stats_->OnPacketDeferred(direction);
+      stats_->OnPacketDroppedSilently(direction, traffic_class);
       break;
     case ProcessingResult::ICMP:
       if (icmp_header.icmp6_type == ICMP6_ECHO_REPLY) {
@@ -115,17 +116,17 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
       } else {
         SendIcmpResponse(dst, &icmp_header, *packet, direction);
       }
-      stats_->OnPacketDroppedWithIcmp(direction);
+      stats_->OnPacketDroppedWithIcmp(direction, traffic_class);
       break;
     case ProcessingResult::ICMP_AND_TCP_RESET:
       SendIcmpResponse(dst, &icmp_header, *packet, direction);
-      stats_->OnPacketDroppedWithIcmp(direction);
+      stats_->OnPacketDroppedWithIcmp(direction, traffic_class);
       SendTcpReset(*packet, direction);
-      stats_->OnPacketDroppedWithTcpReset(direction);
+      stats_->OnPacketDroppedWithTcpReset(direction, traffic_class);
       break;
     case ProcessingResult::TCP_RESET:
       SendTcpReset(*packet, direction);
-      stats_->OnPacketDroppedWithTcpReset(direction);
+      stats_->OnPacketDroppedWithTcpReset(direction, traffic_class);
       break;
   }
 }
@@ -154,7 +155,7 @@ QbonePacketProcessor::ProcessIPv6HeaderAndFilter(std::string* packet,
     result = filter_->FilterPacket(
         direction, *packet,
         absl::string_view(*transport_data, packet->size() - header_size),
-        icmp_header, output_);
+        icmp_header);
   }
 
   // Do not send ICMP error messages in response to ICMP errors.
@@ -288,4 +289,15 @@ void QbonePacketProcessor::SendResponse(Direction original_direction,
   }
 }
 
+uint8_t QbonePacketProcessor::TrafficClassFromHeader(
+    absl::string_view ipv6_header) {
+  // Packets that reach this function should have already been validated.
+  // However, there are tests that bypass that validation that fail because this
+  // would be out of bounds.
+  if (ipv6_header.length() < 2) {
+    return 0;  // Default to BE1
+  }
+
+  return ipv6_header[0] << 4 | ipv6_header[1] >> 4;
+}
 }  // namespace quic

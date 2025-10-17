@@ -31,6 +31,7 @@
 #include "perfetto/ext/tracing/core/trace_packet.h"
 #include "perfetto/ext/tracing/core/tracing_service.h"
 #include "perfetto/protozero/scattered_heap_buffer.h"
+#include "perfetto/tracing/core/data_source_config.h"
 #include "perfetto/tracing/core/tracing_service_state.h"
 #include "src/base/test/test_task_runner.h"
 #include "src/base/test/utils.h"
@@ -108,6 +109,7 @@ TEST_F(PerfettoFtraceIntegrationTest, TestFtraceProducer) {
 
   helper.ConnectConsumer();
   helper.WaitForConsumerConnect();
+  helper.WaitForDataSourceConnected("linux.ftrace");
 
   TraceConfig trace_config;
   trace_config.add_buffers()->set_size_kb(64);
@@ -208,8 +210,7 @@ TEST_F(PerfettoFtraceIntegrationTest, TestFtraceFlush) {
 // 1. On cuttlefish (x86-kvm). It's too slow when running on GCE (b/171771440).
 //    We cannot change the length of the production code in
 //    CanReadKernelSymbolAddresses() to deal with it.
-// 2. On user (i.e. non-userdebug) builds. As that doesn't work there by design.
-// 3. On ARM builds, because they fail on our CI.
+// 2. On ARM builds, because they fail on our CI.
 #if (PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD) && defined(__i386__)) || \
     defined(__arm__)
 #define MAYBE_KernelAddressSymbolization DISABLED_KernelAddressSymbolization
@@ -218,14 +219,10 @@ TEST_F(PerfettoFtraceIntegrationTest, TestFtraceFlush) {
 #endif
 TEST_F(PerfettoFtraceIntegrationTest, MAYBE_KernelAddressSymbolization) {
   // On Android in-tree builds (TreeHugger): this test must always run to
-  // prevent selinux / property-related regressions. However it can run only on
-  // userdebug.
+  // prevent selinux / property-related regressions.
   // On standalone builds and Linux, this can be optionally skipped because
   // there it requires root to lower kptr_restrict.
-#if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
-  if (!IsDebuggableBuild())
-    GTEST_SKIP();
-#else
+#if !PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
   if (geteuid() != 0)
     GTEST_SKIP();
 #endif
@@ -242,9 +239,10 @@ TEST_F(PerfettoFtraceIntegrationTest, MAYBE_KernelAddressSymbolization) {
 
   helper.ConnectConsumer();
   helper.WaitForConsumerConnect();
+  helper.WaitForDataSourceConnected("linux.ftrace");
 
   TraceConfig trace_config;
-  trace_config.add_buffers()->set_size_kb(1024);
+  trace_config.add_buffers()->set_size_kb(64);
 
   auto* ds_config = trace_config.add_data_sources()->mutable_config();
   ds_config->set_name("linux.ftrace");
@@ -257,6 +255,7 @@ TEST_F(PerfettoFtraceIntegrationTest, MAYBE_KernelAddressSymbolization) {
 
   // Synchronize with the ftrace data source. The kernel symbol map is loaded
   // at this point.
+  helper.WaitForAllDataSourceStarted();
   helper.FlushAndWait(kDefaultTestTimeoutMs);
   helper.DisableTracing();
   helper.WaitForTracingDisabled();
@@ -298,20 +297,24 @@ TEST_F(PerfettoFtraceIntegrationTest, ReportFtraceFailuresInStats) {
   helper.WaitForDataSourceConnected("linux.ftrace");
 
   TraceConfig trace_config;
-  trace_config.add_buffers()->set_size_kb(32);
-  trace_config.set_duration_ms(1);
+  TraceConfig::BufferConfig* buf = trace_config.add_buffers();
+  buf->set_size_kb(32);
+  buf->set_fill_policy(TraceConfig::BufferConfig::DISCARD);
 
   auto* ds_config = trace_config.add_data_sources()->mutable_config();
   ds_config->set_name("linux.ftrace");
 
   protos::gen::FtraceConfig ftrace_config;
-  ftrace_config.add_ftrace_events("sched/sched_process_fork");    // Good.
+  ftrace_config.add_ftrace_events("sched/sched_switch");          // Good.
   ftrace_config.add_ftrace_events("sched/does_not_exist");        // Bad.
   ftrace_config.add_ftrace_events("foobar/i_just_made_this_up");  // Bad.
   ftrace_config.add_atrace_categories("madeup_atrace_cat");       // Bad.
   ds_config->set_ftrace_config_raw(ftrace_config.SerializeAsString());
 
   helper.StartTracing(trace_config);
+  helper.WaitForAllDataSourceStarted(kDefaultTestTimeoutMs);
+  helper.FlushAndWait(kDefaultTestTimeoutMs);
+  helper.DisableTracing();
   helper.WaitForTracingDisabled(kDefaultTestTimeoutMs);
 
   helper.ReadData();

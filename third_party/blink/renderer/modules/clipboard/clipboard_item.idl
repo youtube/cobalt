@@ -3,16 +3,19 @@
 // found in the LICENSE file.
 
 // https://w3c.github.io/clipboard-apis/#clipboard-interface
+typedef Promise<(DOMString or Blob)> ClipboardItemData;
 
 [
   SecureContext,
   Exposed=Window
 ] interface ClipboardItem {
-  [RaisesException] constructor(record<DOMString, Promise<Blob>> items);
+  [RaisesException] constructor(record<DOMString, ClipboardItemData> items);
   readonly attribute FrozenArray<DOMString> types;
 
   [
     CallWith=ScriptState,
     RaisesException
   ] Promise<Blob> getType(DOMString type);
+
+  [Measure] static boolean supports(DOMString type);
 };

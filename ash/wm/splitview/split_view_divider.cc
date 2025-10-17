@@ -4,35 +4,38 @@
 
 #include "ash/wm/splitview/split_view_divider.h"
 
+#include <algorithm>
 #include <memory>
 
+#include "ash/accessibility/ui/accessibility_focusable_widget_delegate.h"
 #include "ash/display/screen_orientation_controller.h"
-#include "ash/public/cpp/shell_window_ids.h"
+#include "ash/focus/focus_cycler.h"
+#include "ash/public/cpp/window_properties.h"
 #include "ash/screen_util.h"
 #include "ash/shell.h"
 #include "ash/wm/desks/desks_util.h"
-#include "ash/wm/snap_group/snap_group_controller.h"
 #include "ash/wm/splitview/split_view_constants.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/splitview/split_view_divider_view.h"
 #include "ash/wm/splitview/split_view_utils.h"
 #include "ash/wm/window_properties.h"
+#include "ash/wm/window_util.h"
 #include "base/auto_reset.h"
 #include "base/check.h"
-#include "base/check_op.h"
-#include "base/containers/adapters.h"
 #include "base/containers/contains.h"
-#include "base/containers/flat_set.h"
-#include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
-#include "ui/aura/window_observer.h"
+#include "base/metrics/user_metrics.h"
+#include "chromeos/ui/base/chromeos_ui_constants.h"
 #include "ui/aura/window_targeter.h"
+#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/insets.h"
-#include "ui/views/view.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/view_targeter_delegate.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
+#include "ui/wm/core/coordinate_conversion.h"
 #include "ui/wm/core/transient_window_manager.h"
 #include "ui/wm/core/window_util.h"
 
@@ -40,94 +43,123 @@ namespace ash {
 
 namespace {
 
-// Returns the lowest common parent of the given `windows` by traversing up from
-// one of the observed windows' direct parent and check if the intermediate
-// parent contains all the observed window. If yes, it will be the lowest common
-// parent.
-aura::Window* FindLowestCommonParent(const aura::Window::Windows& windows) {
-  if (windows.empty()) {
-    return nullptr;
-  }
+constexpr float kOpacityForTransientDuringResize = 0.5f;
 
-  auto contains_all = [&](aura::Window* parent) {
-    for (aura::Window* window : windows) {
-      if (!parent->Contains(window)) {
-        return false;
-      }
-    }
+// Returns the allowed range of `divider_position` within `windows`,
+// accounting for the windows' minimum sizes.
+gfx::Range GetDividerPositionAllowedRange(const aura::Window::Windows windows) {
+  CHECK(!windows.empty());
 
-    return true;
-  };
-
-  // As a window can `Contains` itself, which is not the common parent, we start
-  // traversing from its parent instead.
-  for (aura::Window* parent = windows.front()->parent(); parent;
-       parent = parent->parent()) {
-    if (contains_all(parent)) {
-      return parent;
+  aura::Window* root_window = windows.at(0)->GetRootWindow();
+  aura::Window* primary_window = nullptr;
+  aura::Window* secondary_window = nullptr;
+  for (auto window : windows) {
+    if (IsPhysicallyLeftOrTop(window)) {
+      primary_window = window;
+    } else {
+      secondary_window = window;
     }
   }
+  CHECK(primary_window || secondary_window);
 
-  return nullptr;
+  const bool is_horizontal = IsLayoutHorizontal(root_window);
+  const int primary_window_minimum_length =
+      GetMinimumWindowLength(primary_window, is_horizontal);
+  const int secondary_window_minimum_length =
+      GetMinimumWindowLength(secondary_window, is_horizontal);
+  const gfx::Rect work_area_bounds_in_screen =
+      screen_util::GetDisplayWorkAreaBoundsInScreenForActiveDeskContainer(
+          root_window);
+  return gfx::Range(primary_window_minimum_length,
+                    is_horizontal ? (work_area_bounds_in_screen.width() -
+                                     secondary_window_minimum_length -
+                                     kSplitviewDividerShortSideLength)
+                                  : (work_area_bounds_in_screen.height() -
+                                     secondary_window_minimum_length -
+                                     kSplitviewDividerShortSideLength));
 }
 
-// Uses DFS to find the topmost child of the `parent` that is included in
-// `windows`. With the reverse traversing of the children, the first observed
-// window found will be the topmost one.
-aura::Window* FindTopMostChild(aura::Window* parent,
-                               const aura::Window::Windows& windows) {
-  for (aura::Window* child : base::Reversed(parent->children())) {
-    for (aura::Window* window : windows) {
-      if (child == window) {
-        return window;
-      }
-      if (child->Contains(window)) {
-        return FindTopMostChild(child, windows);
-      }
-    }
-  }
-
-  return nullptr;
+gfx::Point GetBoundedPosition(const gfx::Point& location_in_screen,
+                              const gfx::Rect& bounds_in_screen) {
+  return gfx::Point(std::clamp(location_in_screen.x(), bounds_in_screen.x(),
+                               bounds_in_screen.right() - 1),
+                    std::clamp(location_in_screen.y(), bounds_in_screen.y(),
+                               bounds_in_screen.bottom() - 1));
 }
 
-// Returns the top most window for the given `windows` set by first finding the
-// lowest common parent of all the `windows` and then applying DFS to look for
-// the first appeared observed window by reversely iterating through all the
-// children under the lowest common parent.
-aura::Window* GetTopMostWindow(const aura::Window::Windows& windows) {
-  aura::Window* lowest_common_parent = FindLowestCommonParent(windows);
-  CHECK(lowest_common_parent);
+gfx::Rect GetWorkAreaBoundsInScreen(aura::Window* window) {
+  return screen_util::GetDisplayWorkAreaBoundsInScreenForActiveDeskContainer(
+      window);
+}
 
-  return FindTopMostChild(lowest_common_parent, windows);
+// Returns the widget init params needed to create the widget.
+views::Widget::InitParams CreateWidgetInitParams(
+    aura::Window* parent_window,
+    const gfx::Rect& bounds,
+    views::WidgetDelegate* delegate) {
+  views::Widget::InitParams params(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
+  params.opacity = views::Widget::InitParams::WindowOpacity::kOpaque;
+  params.activatable = views::Widget::InitParams::Activatable::kNo;
+  params.parent = parent_window;
+  params.delegate = delegate;
+  params.bounds = bounds;
+  params.init_properties_container.SetProperty(kExcludeInMruKey, true);
+  params.init_properties_container.SetProperty(kIgnoreWindowActivationKey,
+                                               true);
+  params.init_properties_container.SetProperty(kHideInDeskMiniViewKey, true);
+  // Exclude the divider from getting transformed with its transient parent
+  // window when we are resizing. The divider will set its own transforms.
+  params.init_properties_container.SetProperty(
+      kExcludeFromTransientTreeTransformKey, true);
+  params.name = "SplitViewDividerWidget";
+  return params;
 }
 
 }  // namespace
 
-SplitViewDivider::SplitViewDivider(SplitViewController* controller)
-    : controller_(controller) {
-  // Observe currently snapped windows.
-  for (auto snap_pos : {SplitViewController::SnapPosition::kPrimary,
-                        SplitViewController::SnapPosition::kSecondary}) {
-    auto* window = controller_->GetSnappedWindow(snap_pos);
-    if (window) {
-      AddObservedWindow(window);
+// SplitViewDividerWidget observes its native widget activation change to set
+// pane focus on its contents view.
+class SplitViewDivider::SplitViewDividerWidget : public views::Widget {
+ public:
+  SplitViewDividerWidget() = default;
+  SplitViewDividerWidget(const SplitViewDividerWidget&) = delete;
+  SplitViewDividerWidget& operator=(const SplitViewDividerWidget&) = delete;
+  ~SplitViewDividerWidget() override = default;
+
+  // views::Widget:
+  bool OnNativeWidgetActivationChanged(bool active) override {
+    if (!Widget::OnNativeWidgetActivationChanged(active)) {
+      return false;
     }
+    // Only set focus and show the focus ring if `this` is being activated by
+    // the focus cycler.
+    if (!active || this != Shell::Get()->focus_cycler()->widget_activating()) {
+      return false;
+    }
+    base::RecordAction(
+        base::UserMetricsAction("SnapGroups_ActivateViaKeyboard"));
+    auto* divider_view =
+        views::AsViewClass<SplitViewDividerView>(GetContentsView());
+    divider_view->SetPaneFocusAndFocusDefault();
+    return true;
   }
 
-  // Create the divider widget after adding observed windows which the parent
-  // container of the divider will depend on.
-  CreateDividerWidget(controller);
-}
-
-SplitViewDivider::~SplitViewDivider() {
-  divider_widget_->Close();
-  for (auto* window : observed_windows_) {
-    window->RemoveObserver(this);
-    ::wm::TransientWindowManager::GetOrCreate(window)->RemoveObserver(this);
+  // ui::ColorProviderSource:
+  ui::ColorProviderKey GetColorProviderKey() const override {
+    //  As the transient child of the topmost window, divider uses that window's
+    //  theme color. Override `GetColorProviderKey()` to let it use the system's
+    //  theme instead.
+    return ui::NativeTheme::GetInstanceForNativeUi()->GetColorProviderKey(
+        nullptr);
   }
-  dragged_window_ = nullptr;
-  observed_windows_.clear();
-}
+};
+
+SplitViewDivider::SplitViewDivider(LayoutDividerController* controller)
+    : controller_(controller) {}
+
+SplitViewDivider::~SplitViewDivider() = default;
 
 // static
 gfx::Rect SplitViewDivider::GetDividerBoundsInScreen(
@@ -135,52 +167,244 @@ gfx::Rect SplitViewDivider::GetDividerBoundsInScreen(
     bool landscape,
     int divider_position,
     bool is_dragging) {
-  const int dragging_diff = (kSplitviewDividerEnlargedShortSideLength -
-                             kSplitviewDividerShortSideLength) /
-                            2;
+  const int dragging_diff = is_dragging
+                                ? (kSplitviewDividerEnlargedShortSideLength -
+                                   kSplitviewDividerShortSideLength) /
+                                      2
+                                : 0;
   if (landscape) {
-    return is_dragging
-               ? gfx::Rect(work_area_bounds_in_screen.x() + divider_position -
-                               dragging_diff,
-                           work_area_bounds_in_screen.y(),
-                           kSplitviewDividerEnlargedShortSideLength,
-                           work_area_bounds_in_screen.height())
-               : gfx::Rect(work_area_bounds_in_screen.x() + divider_position,
-                           work_area_bounds_in_screen.y(),
-                           kSplitviewDividerShortSideLength,
-                           work_area_bounds_in_screen.height());
+    return gfx::Rect(
+        work_area_bounds_in_screen.x() + divider_position - dragging_diff,
+        work_area_bounds_in_screen.y(),
+        is_dragging ? kSplitviewDividerEnlargedShortSideLength
+                    : kSplitviewDividerShortSideLength,
+        work_area_bounds_in_screen.height());
   } else {
-    return is_dragging
-               ? gfx::Rect(work_area_bounds_in_screen.x(),
-                           work_area_bounds_in_screen.y() + divider_position -
-                               dragging_diff,
-                           work_area_bounds_in_screen.width(),
-                           kSplitviewDividerEnlargedShortSideLength)
-               : gfx::Rect(work_area_bounds_in_screen.x(),
-                           work_area_bounds_in_screen.y() + divider_position,
-                           work_area_bounds_in_screen.width(),
-                           kSplitviewDividerShortSideLength);
+    return gfx::Rect(
+        work_area_bounds_in_screen.x(),
+        work_area_bounds_in_screen.y() + divider_position - dragging_diff,
+        work_area_bounds_in_screen.width(),
+        is_dragging ? kSplitviewDividerEnlargedShortSideLength
+                    : kSplitviewDividerShortSideLength);
   }
 }
 
-void SplitViewDivider::DoSpawningAnimation(int spawning_position) {
-  static_cast<SplitViewDividerView*>(divider_widget_->GetContentsView())
-      ->DoSpawningAnimation(spawning_position);
+aura::Window* SplitViewDivider::GetDividerWindow() {
+  return divider_widget_ ? divider_widget_->GetNativeWindow() : nullptr;
+}
+
+bool SplitViewDivider::HasDividerWidget() const {
+  return !!divider_widget_;
+}
+
+bool SplitViewDivider::IsDividerWidgetVisible() const {
+  return divider_widget_ && divider_widget_->IsVisible();
+}
+
+void SplitViewDivider::SetVisible(bool visible) {
+  if (target_visibility_ != visible) {
+    target_visibility_ = visible;
+    RefreshDividerState(/*observed_windows_changed=*/false);
+  }
+}
+
+void SplitViewDivider::SetDividerPosition(int divider_position) {
+  if (divider_position_ == divider_position) {
+    return;
+  }
+  divider_position_ = divider_position;
+  // Only clamp within `observed_windows_` if it is not empty; otherwise it
+  // will return an invalid range.
+  if (!observed_windows_.empty() &&
+      !display::Screen::GetScreen()->InTabletMode()) {
+    const gfx::Range divider_allowed_range =
+        GetDividerPositionAllowedRange(observed_windows_);
+    if (!divider_allowed_range.is_reversed()) {
+      divider_position_ = std::clamp(
+          divider_position_, static_cast<int>(divider_allowed_range.start()),
+          static_cast<int>(divider_allowed_range.end()));
+    }
+    // TODO(b/333623218): If the divider range is reversed, i.e. the windows no
+    // longer fit, we will break the group.
+  }
+  RefreshDividerState(/*observed_windows_changed=*/false);
+}
+
+void SplitViewDivider::UpdateDividerPosition(
+    const gfx::Point& location_in_screen) {
+  aura::Window* root = GetRootWindow();
+  const bool horizontal = IsLayoutHorizontal(root);
+  if (!display::Screen::GetScreen()->InTabletMode()) {
+    // In clamshell mode, we try to keep the center point of the divider as in
+    // sync with the mouse event location as possible. `SetDividerPosition()`
+    // will clamp the position between the windows' minimum sizes.
+    gfx::Point location_in_root(location_in_screen);
+    wm::ConvertPointFromScreen(root, &location_in_root);
+    // Note `divider_position` needs to be relative to the work area to get the
+    // correct bounds in `GetDividerBoundsInScreen()`.
+    gfx::Rect work_area = GetWorkAreaBoundsInScreen(root);
+    wm::ConvertRectFromScreen(root, &work_area);
+    SetDividerPosition(
+        horizontal ? location_in_root.x() -
+                         kSplitviewDividerShortSideLength / 2 - work_area.x()
+                   : location_in_root.y() -
+                         kSplitviewDividerShortSideLength / 2 - work_area.y());
+    return;
+  }
+
+  int potential_divider_position = divider_position_;
+  if (horizontal) {
+    potential_divider_position +=
+        location_in_screen.x() - previous_event_location_.x();
+  } else {
+    potential_divider_position +=
+        location_in_screen.y() - previous_event_location_.y();
+  }
+
+  // This line is used for ARC++ windows.
+  potential_divider_position = std::max(0, potential_divider_position);
+
+  SetDividerPosition(potential_divider_position);
+}
+
+aura::Window* SplitViewDivider::GetRootWindow() const {
+  return controller_->GetRootWindow();
+}
+
+void SplitViewDivider::StartResizeWithDivider(
+    const gfx::Point& location_in_screen) {
+  // `is_resizing_with_divider_` may be true here, because you can start
+  // dragging the divider with a pointing device while already dragging it by
+  // touch, or vice versa. It is possible by using the emulator or
+  // chrome://flags/#force-tablet-mode. Bailing out here does not stop the user
+  // from dragging by touch and with a pointing device simultaneously; it just
+  // avoids duplicate calls to `CreateDragDetails()` and `OnDragStarted()`. We
+  // also bail out here if you try to start dragging the divider during its snap
+  // animation.
+  if (is_resizing_with_divider_ ||
+      SplitViewController::Get(GetRootWindow())->IsDividerAnimating()) {
+    return;
+  }
+
+  is_resizing_with_divider_ = true;
+
+  EnlargeOrShrinkDivider(/*should_enlarge=*/true);
+  previous_event_location_ = location_in_screen;
+
+  UpdateDividerPosition(location_in_screen);
+  controller_->StartResizeWithDivider(location_in_screen);
+
+  for (aura::Window* window : observed_windows_) {
+    if (window == nullptr) {
+      continue;
+    }
+
+    WindowState* window_state = WindowState::Get(window);
+    gfx::Point location_in_parent(location_in_screen);
+    wm::ConvertPointFromScreen(window->parent(), &location_in_parent);
+    int window_component = GetWindowComponentForResize(window);
+    window_state->CreateDragDetails(gfx::PointF(location_in_parent),
+                                    window_component,
+                                    wm::WINDOW_MOVE_SOURCE_TOUCH);
+
+    window_state->OnDragStarted(window_component);
+  }
+
+  for (auto transient_window : transient_windows_observations_.sources()) {
+    ui::ScopedLayerAnimationSettings settings(
+        transient_window->layer()->GetAnimator());
+    transient_window->layer()->SetOpacity(kOpacityForTransientDuringResize);
+  }
+}
+
+void SplitViewDivider::ResizeWithDivider(const gfx::Point& location_in_screen) {
+  if (!is_resizing_with_divider_) {
+    return;
+  }
+
+  base::AutoReset<bool> auto_reset(&processing_resize_event_, true);
+
+  gfx::Point modified_location_in_screen = GetBoundedPosition(
+      location_in_screen,
+      GetWorkAreaBoundsInScreen(divider_widget_->GetNativeWindow()));
+
+  // Order here matters: we first update `divider_position_`, then the
+  // `LayoutDividerController` will update the window and divider bounds in
+  // `UpdateResizeWithDivider()`.
+  UpdateDividerPosition(modified_location_in_screen);
+  EnlargeOrShrinkDivider(/*should_enlarge=*/true);
+  controller_->UpdateResizeWithDivider(modified_location_in_screen);
+
+  previous_event_location_ = modified_location_in_screen;
+}
+
+void SplitViewDivider::EndResizeWithDivider(
+    const gfx::Point& location_in_screen) {
+  if (!is_resizing_with_divider_) {
+    return;
+  }
+
+  is_resizing_with_divider_ = false;
+
+  gfx::Point modified_location_in_screen = GetBoundedPosition(
+      location_in_screen, GetWorkAreaBoundsInScreen(GetRootWindow()));
+
+  // Order here matters: we first update `divider_position_`, then the
+  // `LayoutDividerController` will transform and update the windows bounds in
+  // `EndResizeWithDivider()`.
+  UpdateDividerPosition(modified_location_in_screen);
+  const gfx::Point cursor_point =
+      display::Screen::GetScreen()->GetCursorScreenPoint();
+  EnlargeOrShrinkDivider(
+      GetDividerBoundsInScreen(/*is_dragging=*/true).Contains(cursor_point));
+
+  // If the delegate is done with resizing, finish resizing and clean up.
+  // Otherwise it will be called later, in
+  // `DividerSnapAnimation::AnimationEnded()`.
+  if (controller_->EndResizeWithDivider(modified_location_in_screen)) {
+    CleanUpWindowResizing();
+  }
+}
+
+void SplitViewDivider::CleanUpWindowResizing() {
+  is_resizing_with_divider_ = false;
+  // Always call `OnResizeEnding()` since `CleanUpWindowResizing()` may be after
+  // an animation and we need to restore the window transforms.
+  controller_->OnResizeEnding();
+  FinishWindowResizing();
+  controller_->OnResizeEnded();
 }
 
 void SplitViewDivider::UpdateDividerBounds() {
-  divider_widget_->SetBounds(GetDividerBoundsInScreen(/*is_dragging=*/false));
+  if (divider_widget_) {
+    divider_widget_->SetBounds(GetDividerBoundsInScreen(/*is_dragging=*/false));
+  }
 }
 
 gfx::Rect SplitViewDivider::GetDividerBoundsInScreen(bool is_dragging) {
+  auto* root_window = GetRootWindow();
   const gfx::Rect work_area_bounds_in_screen =
-      screen_util::GetDisplayWorkAreaBoundsInScreenForActiveDeskContainer(
-          controller_->root_window()->GetChildById(
-              desks_util::GetActiveDeskContainerId()));
-  const int divider_position = controller_->divider_position();
-  const bool landscape = IsCurrentScreenOrientationLandscape();
-  return GetDividerBoundsInScreen(work_area_bounds_in_screen, landscape,
-                                  divider_position, is_dragging);
+      GetWorkAreaBoundsInScreen(root_window);
+  return GetDividerBoundsInScreen(work_area_bounds_in_screen,
+                                  IsLayoutHorizontal(root_window),
+                                  divider_position_, is_dragging);
+}
+
+void SplitViewDivider::EnlargeOrShrinkDivider(bool should_enlarge) {
+  if (!divider_widget_ || !divider_widget_->IsVisible()) {
+    return;
+  }
+
+  divider_widget_->SetBounds(GetDividerBoundsInScreen(should_enlarge));
+  divider_view_->RefreshDividerHandler();
+
+  // Even though the divider is a transient of the topmost window, it's not
+  // observed. Mouse/gesture events on the divider may not trigger a refresh of
+  // the stacking order which becomes noticeable with the existence of other
+  // observed transient windows (divider stacked on top of the transient
+  // window). Explicitly call `RefreshStackingOrder()` to apply needed
+  // adjustments.
+  RefreshStackingOrder();
 }
 
 void SplitViewDivider::SetAdjustable(bool adjustable) {
@@ -191,8 +415,7 @@ void SplitViewDivider::SetAdjustable(bool adjustable) {
   divider_widget_->GetNativeWindow()->SetEventTargetingPolicy(
       adjustable ? aura::EventTargetingPolicy::kTargetAndDescendants
                  : aura::EventTargetingPolicy::kNone);
-  static_cast<SplitViewDividerView*>(divider_view_)
-      ->SetDividerBarVisible(adjustable);
+  divider_view_->SetHandlerBarVisible(adjustable);
 }
 
 bool SplitViewDivider::IsAdjustable() const {
@@ -202,32 +425,62 @@ bool SplitViewDivider::IsAdjustable() const {
          aura::EventTargetingPolicy::kNone;
 }
 
-void SplitViewDivider::AddObservedWindow(aura::Window* window) {
-  CHECK(!base::Contains(observed_windows_, window));
+void SplitViewDivider::MaybeAddObservedWindow(aura::Window* window) {
+  if (base::Contains(observed_windows_, window)) {
+    return;
+  }
   window->AddObserver(this);
   observed_windows_.push_back(window);
-  ::wm::TransientWindowManager* transient_manager =
-      ::wm::TransientWindowManager::GetOrCreate(window);
+  wm::TransientWindowManager* transient_manager =
+      wm::TransientWindowManager::GetOrCreate(window);
   transient_manager->AddObserver(this);
-  for (auto* transient_window : transient_manager->transient_children()) {
+  for (aura::Window* transient_window :
+       transient_manager->transient_children()) {
     StartObservingTransientChild(transient_window);
   }
-  RefreshStackingOrder();
+
+  RefreshDividerState(/*observed_windows_changed=*/true);
 }
 
-void SplitViewDivider::RemoveObservedWindow(aura::Window* window) {
-  auto iter = base::ranges::find(observed_windows_, window);
+void SplitViewDivider::MaybeRemoveObservedWindow(aura::Window* window) {
+  auto iter = std::ranges::find(observed_windows_, window);
   if (iter != observed_windows_.end()) {
     window->RemoveObserver(this);
     observed_windows_.erase(iter);
-    ::wm::TransientWindowManager* transient_manager =
-        ::wm::TransientWindowManager::GetOrCreate(window);
+    wm::TransientWindowManager* transient_manager =
+        wm::TransientWindowManager::GetOrCreate(window);
     transient_manager->RemoveObserver(this);
-    for (auto* transient_window : transient_manager->transient_children()) {
+    for (aura::Window* transient_window :
+         transient_manager->transient_children()) {
       StopObservingTransientChild(transient_window);
     }
-    RefreshStackingOrder();
+    RefreshDividerState(/*observed_windows_changed=*/true);
   }
+}
+
+void SplitViewDivider::OnKeyboardOccludedBoundsChangedInPortrait(
+    const gfx::Rect& work_area,
+    int y) {
+  // If the divider widget doesn't exist, i.e. in clamshell split view, we are
+  // done.
+  if (!divider_widget_) {
+    return;
+  }
+
+  CHECK(!IsLayoutHorizontal(GetRootWindow()));
+
+  // Else subtract the divider width and update the widget bounds. Note we
+  // *don't* update `divider_position_` since it may be used to restore the
+  // window bounds in `SplitViewController::OnWindowActivated()`.
+  // TODO(b/331459348): Investigate why we don't update `divider_position_` and
+  // fix this code.
+  const int divider_position = y - kSplitviewDividerShortSideLength;
+  divider_widget_->SetBounds(
+      GetDividerBoundsInScreen(work_area, /*landscape=*/false, divider_position,
+                               /*is_dragging=*/false));
+
+  // Make split view divider unadjustable.
+  SetAdjustable(false);
 }
 
 void SplitViewDivider::OnWindowDragStarted(aura::Window* dragged_window) {
@@ -240,54 +493,25 @@ void SplitViewDivider::OnWindowDragEnded() {
   RefreshStackingOrder();
 }
 
-void SplitViewDivider::OnWindowDestroying(aura::Window* window) {
-  RemoveObservedWindow(window);
+void SplitViewDivider::SwapWindows() {
+  controller_->SwapWindows();
 }
 
-void SplitViewDivider::OnWindowBoundsChanged(aura::Window* window,
-                                             const gfx::Rect& old_bounds,
-                                             const gfx::Rect& new_bounds,
-                                             ui::PropertyChangeReason reason) {
-  if (!controller_->InSplitViewMode())
-    return;
-
-  // We only care about the bounds change of windows in
-  // |transient_windows_observations_|.
-  if (!transient_windows_observations_.IsObservingSource(window))
-    return;
-
-  // |window|'s transient parent must be one of the windows in
-  // |observed_windows_|.
-  aura::Window* transient_parent = nullptr;
-  for (auto* observed_window : observed_windows_) {
-    if (::wm::HasTransientAncestor(window, observed_window)) {
-      transient_parent = observed_window;
-      break;
-    }
-  }
-  DCHECK(transient_parent);
-
-  gfx::Rect transient_bounds = window->GetBoundsInScreen();
-  transient_bounds.AdjustToFit(transient_parent->GetBoundsInScreen());
-  window->SetBoundsInScreen(
-      transient_bounds,
-      display::Screen::GetScreen()->GetDisplayNearestWindow(window));
+void SplitViewDivider::OnWindowDestroying(aura::Window* window) {
+  MaybeRemoveObservedWindow(window);
 }
 
 void SplitViewDivider::OnWindowStackingChanged(aura::Window* window) {
-  // Skip the recursive update.
-  if (pause_update_) {
-    return;
-  }
-
-  base::AutoReset<bool> lock(&pause_update_, true);
   RefreshStackingOrder();
 }
 
-void SplitViewDivider::OnWindowAddedToRootWindow(aura::Window* window) {
-  // Stop observing `window` if it no longer belongs to the same root window as
-  // of the `controller_`.
-  RemoveObservedWindow(window);
+void SplitViewDivider::OnWindowVisibilityChanged(aura::Window* window,
+                                                 bool visible) {
+  if (transient_windows_observations_.IsObservingSource(window) && visible &&
+      is_resizing_with_divider_) {
+    window->layer()->SetOpacity(kOpacityForTransientDuringResize);
+  }
+  RefreshStackingOrder();
 }
 
 void SplitViewDivider::OnTransientChildAdded(aura::Window* window,
@@ -300,32 +524,96 @@ void SplitViewDivider::OnTransientChildRemoved(aura::Window* window,
   StopObservingTransientChild(transient);
 }
 
-void SplitViewDivider::CreateDividerWidget(SplitViewController* controller) {
-  CHECK(!divider_widget_);
+void SplitViewDivider::OnDisplayMetricsChanged(const display::Display& display,
+                                               uint32_t metrics) {
+  if (!(metrics &
+        (DISPLAY_METRIC_BOUNDS | DISPLAY_METRIC_ROTATION |
+         DISPLAY_METRIC_DEVICE_SCALE_FACTOR | DISPLAY_METRIC_WORK_AREA))) {
+    return;
+  }
+
+  UpdateDividerBounds();
+}
+
+void SplitViewDivider::RefreshDividerState(bool observed_windows_changed) {
+  // Avoid any recursive updates.
+  if (is_refreshing_state_) {
+    return;
+  }
+  base::AutoReset<bool> lock(&is_refreshing_state_, true);
+
+  if (observed_windows_.empty()) {
+    if (divider_widget_) {
+      CloseDividerWidget();
+    }
+    return;
+  }
+
+  if (observed_windows_changed) {
+    // Re-set the position since a new set of observed windows might mean
+    // different allowed range for the divider position.
+    SetDividerPosition(divider_position_);
+  }
+
+  // Stacking order is refreshed only if the widget has just been created or the
+  // observed windows have changed.
+  bool refresh_stacking_order = observed_windows_changed;
+  if (!divider_widget_) {
+    CreateDividerWidget(divider_position_);
+    refresh_stacking_order = true;
+  }
+
+  const bool update_visibility =
+      target_visibility_ != GetActualTargetVisibility();
+
+  if (target_visibility_) {
+    UpdateDividerBounds();
+    if (update_visibility) {
+      // Call `ShowInactive()` to avoid an unnecessary window activation change
+      // when the divider is shown or hidden.
+      divider_widget_->ShowInactive();
+      // Since the divider may be hidden and re-shown during
+      // `SnapGroupController::OnOverviewModeStarting|Ending()`,
+      // we need to refresh the stacking order when it's shown again.
+      refresh_stacking_order = true;
+    }
+  } else if (update_visibility) {
+    divider_widget_->Hide();
+    // Else no need to refresh the stacking order if the divider is hidden.
+    refresh_stacking_order = false;
+  }
+
+  if (refresh_stacking_order) {
+    RefreshStackingOrder();
+  }
+}
+
+void SplitViewDivider::CreateDividerWidget(int divider_position) {
+  DCHECK(!divider_widget_);
+  CHECK_GE(observed_windows_.size(), 1u);
   // Native widget owns this widget.
-  divider_widget_ = new views::Widget;
+  widget_delegate_ = std::make_unique<AccessibilityFocusableWidgetDelegate>(
+      /*register=*/true);
+  divider_widget_ = std::make_unique<SplitViewDividerWidget>();
   divider_widget_->set_focus_on_creation(false);
   aura::Window* parent_container = nullptr;
-  if (observed_windows_.empty()) {
-    // `observed_windows_` may still be empty for tablet mode, in this case we
-    // need to get a default parent container for the `divider_widget_`.
-    // TODO(michelefan): Remove this logic after refactoring the divider
-    // creation and removal logic in `SplitViewController`.
-    parent_container =
-        desks_util::GetActiveDeskContainerForRoot(controller_->root_window());
-  } else {
-    aura::Window* top_window = GetTopMostWindow(observed_windows_);
-    CHECK(top_window);
-    parent_container = top_window->parent();
-  }
+  aura::Window* top_window = window_util::GetTopMostWindow(observed_windows_);
+  CHECK(top_window);
+  parent_container = top_window->parent();
   CHECK(parent_container);
-  divider_widget_->Init(
-      CreateWidgetInitParams(parent_container, "SplitViewDivider"));
+
+  const gfx::Rect initial_divider_bounds = GetDividerBoundsInScreen(
+      GetWorkAreaBoundsInScreen(observed_windows_[0].get()),
+      IsLayoutHorizontal(observed_windows_[0].get()), divider_position,
+      /*is_dragging=*/false);
+
+  divider_widget_->Init(CreateWidgetInitParams(
+      parent_container, initial_divider_bounds, widget_delegate_.get()));
+
   divider_widget_->SetVisibilityAnimationTransition(
       views::Widget::ANIMATE_NONE);
   divider_view_ = divider_widget_->SetContentsView(
-      std::make_unique<SplitViewDividerView>(controller, this));
-  divider_widget_->SetBounds(GetDividerBoundsInScreen(/*is_dragging=*/false));
+      std::make_unique<SplitViewDividerView>(this));
   auto* divider_widget_native_window = divider_widget_->GetNativeWindow();
   divider_widget_native_window->SetProperty(kLockedToRootKey, true);
 
@@ -337,19 +625,101 @@ void SplitViewDivider::CreateDividerWidget(SplitViewController* controller) {
                                              -kSplitViewDividerExtraInset));
   divider_widget_native_window->SetEventTargeter(std::move(window_targeter));
 
-  divider_widget_->Show();
+  // Explicitly `set_parent_controls_lifetime` to false so that the lifetime of
+  // the divider will only be managed by `this`, which avoids UAF on window
+  // destroying.
+  wm::TransientWindowManager::GetOrCreate(divider_widget_native_window)
+      ->set_parent_controls_lifetime(false);
+}
+
+void SplitViewDivider::CloseDividerWidget() {
+  // If we're shutting down, no need to refresh the stacking order. This isn't
+  // needed but simply added for efficiency.
+  base::AutoReset<bool> lock(&is_refreshing_stacking_order_, true);
+  while (!observed_windows_.empty()) {
+    MaybeRemoveObservedWindow(observed_windows_.back());
+  }
+  CHECK(!transient_windows_observations_.IsObservingAnySource());
+
+  dragged_window_ = nullptr;
+
+  if (divider_widget_) {
+    auto* divider_window = divider_widget_->GetNativeWindow();
+    if (auto* transient_parent = wm::GetTransientParent(divider_window)) {
+      wm::RemoveTransientChild(transient_parent, divider_window);
+    }
+
+    // During the asynchronous window closing, there may be a duration when the
+    // divider widget is closing, but the pointer to `this` is not cleared in
+    // `SplitViewDividerView` yet, i.e. in `Layout()` which is called during
+    // clamshell <-> tablet transition.
+    divider_view_->OnDividerClosing();
+    // Disable any event handling on the divider while we are closing the
+    // widget.
+    divider_view_->SetCanProcessEventsWithinSubtree(false);
+    divider_window->SetEventTargetingPolicy(aura::EventTargetingPolicy::kNone);
+    divider_view_ = nullptr;
+    divider_widget_.reset();
+    widget_delegate_.reset();
+  }
+}
+
+bool SplitViewDivider::GetActualTargetVisibility() const {
+  return divider_widget_ &&
+         divider_widget_->GetNativeWindow()->TargetVisibility();
 }
 
 void SplitViewDivider::RefreshStackingOrder() {
-  if (observed_windows_.empty() || !divider_widget_) {
+  // Skip the recursive update.
+  if (is_refreshing_stacking_order_) {
     return;
   }
 
-  aura::Window* top_window = GetTopMostWindow(observed_windows_);
-  CHECK(top_window);
-  aura::Window* divider_window = divider_widget_->GetNativeWindow();
+  base::AutoReset<bool> lock(&is_refreshing_stacking_order_, true);
 
-  auto* divider_sibling_window = dragged_window_ ? dragged_window_ : top_window;
+  if (observed_windows_.empty() || !divider_widget_ ||
+      !divider_widget_->IsVisible()) {
+    return;
+  }
+
+  aura::Window::Windows visible_observed_windows;
+  for (aura::Window* window : observed_windows_) {
+    // During desk switches, the `IsVisible()`, which traverses up the
+    // parent layer hierarchy to determine visibility, can be unreliable due to
+    // the inactive desk's invisibility. Instead, use `TargetVisibility()`,
+    // which directly assesses the window's target visibility, regardless of the
+    // visibility of its parent's layer.
+    if (window->TargetVisibility()) {
+      visible_observed_windows.push_back(window);
+    }
+  }
+
+  // To get `divider_window` prepared to be the transient window of the
+  // `top_window` below, remove `divider_window` as the transient child from its
+  // transient parent if any.
+  auto* divider_window = divider_widget_->GetNativeWindow();
+  if (auto* transient_parent = wm::GetTransientParent(divider_window)) {
+    wm::RemoveTransientChild(transient_parent, divider_window);
+  }
+
+  CHECK(!wm::GetTransientParent(divider_window));
+
+  if (visible_observed_windows.empty()) {
+    divider_window->Hide();
+    return;
+  }
+
+  aura::Window* top_window =
+      window_util::GetTopMostWindow(visible_observed_windows);
+  if (!top_window) {
+    divider_window->Hide();
+    return;
+  }
+
+  CHECK(top_window->TargetVisibility());
+
+  auto* divider_sibling_window =
+      dragged_window_ ? dragged_window_.get() : top_window;
   CHECK(divider_sibling_window);
 
   // The divider needs to have the same parent of the `divider_sibling_window`
@@ -357,7 +727,6 @@ void SplitViewDivider::RefreshStackingOrder() {
   if (divider_sibling_window->parent() != divider_window->parent()) {
     views::Widget::ReparentNativeView(divider_window,
                                       divider_sibling_window->parent());
-    CHECK(!wm::GetTransientParent(divider_window));
   }
 
   if (dragged_window_) {
@@ -372,38 +741,106 @@ void SplitViewDivider::RefreshStackingOrder() {
 
   // Iterate through the siblings of the top window in an increasing z-order
   // which reflects the relative order of siblings.
-  for (auto* window : children) {
-    if (!base::Contains(observed_windows_, window)) {
+  for (aura::Window* window : children) {
+    if (!base::Contains(visible_observed_windows, window) ||
+        window == top_window) {
       continue;
-    }
-
-    if (window == top_window) {
-      break;
     }
 
     top_window_parent->StackChildAbove(window, top_window);
     top_window_parent->StackChildAbove(top_window, window);
   }
 
+  // Add the `divider_window` as a transient child of the `top_window`. In
+  // this way, on new transient window added, the divider will be stacked above
+  // the `top_window` but under the new transient window which is handled in
+  // `TransientWindowManager::RestackTransientDescendants()`.
+  wm::AddTransientChild(top_window, divider_window);
+
   top_window_parent->StackChildAbove(divider_window, top_window);
 }
 
 void SplitViewDivider::StartObservingTransientChild(aura::Window* transient) {
-  // For now, we only care about dialog bubbles type transient child. We may
-  // observe other types transient child window as well if need arises in the
-  // future.
-  views::Widget* widget = views::Widget::GetWidgetForNativeWindow(transient);
-  if (!widget || !widget->widget_delegate()->AsBubbleDialogDelegate())
+  // Confine the bounds of a transient window iif the given `transient` is a
+  // bubble dialog or dialog window.
+  if (!window_util::AsBubbleDialogDelegate(transient) &&
+      !window_util::AsDialogDelegate(transient)) {
     return;
+  }
+
+  // Do not adjust if the bubble dialog is attached to an anchor.
+  auto* widget = views::Widget::GetTopLevelWidgetForNativeView(transient);
+  if (widget->widget_delegate() &&
+      widget->widget_delegate()->AsBubbleDialogDelegate()) {
+    auto* bubble_dialog_delegate =
+        widget->widget_delegate()->AsBubbleDialogDelegate();
+    bool has_anchor = bubble_dialog_delegate->GetAnchorView() &&
+                      !bubble_dialog_delegate->GetAnchorRect().IsEmpty();
+    if (has_anchor) {
+      return;
+    }
+  }
+
+  // Explicitly check and early return if the `transient` is the divider native
+  // window.
+  if (divider_widget_ && transient == divider_widget_->GetNativeWindow()) {
+    return;
+  }
+
+  DCHECK(!transient_windows_observations_.IsObservingSource(transient));
 
   // At this moment, the transient window may not have the valid bounds yet.
-  // Start observe the transient window.
+  // Start observing the transient window.
   transient_windows_observations_.AddObservation(transient);
 }
 
 void SplitViewDivider::StopObservingTransientChild(aura::Window* transient) {
-  if (transient_windows_observations_.IsObservingSource(transient))
+  if (transient_windows_observations_.IsObservingSource(transient)) {
     transient_windows_observations_.RemoveObservation(transient);
+    // Set the opacity back to 1.0f unless the layer's opacity was updated
+    // during resize/removal.
+    if (is_resizing_with_divider_ && transient->layer()->GetTargetOpacity() ==
+                                         kOpacityForTransientDuringResize) {
+      transient->layer()->SetOpacity(1.0f);
+    }
+  }
+}
+
+gfx::Point SplitViewDivider::GetEndDragLocationInScreen(
+    aura::Window* window) const {
+  DCHECK(base::Contains(observed_windows_, window));
+  gfx::Point end_location(previous_event_location_);
+
+  const SnapPosition snap_position =
+      controller_->GetPositionOfSnappedWindow(window);
+  const gfx::Rect bounds = controller_->GetSnappedWindowBoundsInScreen(
+      snap_position, window, window_util::GetSnapRatioForWindow(window),
+      /*account_for_divider_width=*/true);
+
+  const bool is_physical_left_or_top =
+      IsPhysicallyLeftOrTop(snap_position, window);
+  if (IsLayoutHorizontal(window)) {
+    end_location.set_x(is_physical_left_or_top ? bounds.right() : bounds.x());
+  } else {
+    end_location.set_y(is_physical_left_or_top ? bounds.bottom() : bounds.y());
+  }
+  return end_location;
+}
+
+void SplitViewDivider::FinishWindowResizing() {
+  for (aura::Window* window : observed_windows_) {
+    WindowState* window_state = WindowState::Get(window);
+    if (window_state->is_dragged()) {
+      window_state->OnCompleteDrag(
+          gfx::PointF(GetEndDragLocationInScreen(window)));
+      window_state->DeleteDragDetails();
+    }
+  }
+  for (auto transient_window : transient_windows_observations_.sources()) {
+    ui::ScopedLayerAnimationSettings settings(
+        transient_window->layer()->GetAnimator());
+    transient_window->layer()->SetOpacity(1.0f);
+  }
 }
 
 }  // namespace ash

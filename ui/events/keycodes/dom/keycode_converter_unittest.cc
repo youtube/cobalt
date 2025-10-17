@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/events/keycodes/dom/keycode_converter.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+#include <iomanip>
 #include <map>
 #include <set>
 
@@ -22,12 +29,12 @@ namespace {
 // Number of native codes expected to be mapped for each kind of native code.
 // These are in the same order as the columns in dom_code_data.inc
 // as reflected in the DOM_CODE() macro below.
-const size_t expected_mapped_key_count[] = {
-    221,  // evdev
-    221,  // xkb
+constexpr auto expected_mapped_key_count = std::to_array<size_t>({
+    225,  // evdev
+    225,  // xkb
     157,  // windows
     119,  // mac
-};
+});
 
 const size_t kNativeColumns = std::size(expected_mapped_key_count);
 
@@ -35,7 +42,7 @@ struct KeycodeConverterData {
   uint32_t usb_keycode;
   const char* code;
   const char* id;
-  int native_keycode[kNativeColumns];
+  std::array<int, kNativeColumns> native_keycode;
 };
 
 #define DOM_CODE(usb, evdev, xkb, win, mac, code, id) \
@@ -55,9 +62,9 @@ const uint32_t kUsbNonUsHash = 0x070032;
 TEST(UsbKeycodeMap, KeycodeConverterData) {
   // This test looks at all kinds of supported native codes.
   // Verify that there are no duplicate entries in the mapping.
-  std::map<uint32_t, uint16_t> usb_to_native[kNativeColumns];
-  std::map<uint16_t, uint32_t> native_to_usb[kNativeColumns];
-  int invalid_native_keycode[kNativeColumns];
+  std::array<std::map<uint32_t, uint16_t>, kNativeColumns> usb_to_native;
+  std::array<std::map<uint16_t, uint32_t>, kNativeColumns> native_to_usb;
+  std::array<int, kNativeColumns> invalid_native_keycode;
   for (size_t i = 0; i < kNativeColumns; ++i) {
     invalid_native_keycode[i] = kKeycodeConverterData[0].native_keycode[i];
   }
@@ -192,11 +199,10 @@ TEST(KeycodeConverter, DomKey) {
       {ui::DomKey::NONE, false, false, false, "?!?", false},
       {ui::DomKey::NONE, false, false, false, "\x61\xCC\x81", false},
       // Some single Unicode characters.
-      {ui::DomKey::Constant<'-'>::Character, true, false, true, "-", false},
-      {ui::DomKey::Constant<'A'>::Character, true, false, true, "A", false},
-      {ui::DomKey::Constant<0xE1>::Character, true, false, true, "\xC3\xA1",
-       false},
-      {ui::DomKey::Constant<0x1F648>::Character, true, false, true,
+      {ui::DomKey::FromCharacter('-'), true, false, true, "-", false},
+      {ui::DomKey::FromCharacter('A'), true, false, true, "A", false},
+      {ui::DomKey::FromCharacter(0xE1), true, false, true, "\xC3\xA1", false},
+      {ui::DomKey::FromCharacter(0x1F648), true, false, true,
        "\xF0\x9F\x99\x88", false},
       // Unicode-equivalent named values.
       {ui::DomKey::BACKSPACE, true, false, true, "Backspace", true},
@@ -209,16 +215,14 @@ TEST(KeycodeConverter, DomKey) {
       {ui::DomKey::ENTER, true, false, false, "\r", true},
       {ui::DomKey::ESCAPE, true, false, false, "\x1B", true},
       {ui::DomKey::DEL, true, false, false, "\x7F", true},
-      {ui::DomKey::Constant<'\b'>::Character, true, false, true, "Backspace",
-       true},
-      {ui::DomKey::Constant<'\t'>::Character, true, false, true, "Tab", true},
-      {ui::DomKey::Constant<'\r'>::Character, true, false, true, "Enter", true},
-      {ui::DomKey::Constant<0x1B>::Character, true, false, true, "Escape",
-       true},
-      {ui::DomKey::Constant<0x7F>::Character, true, false, true, "Delete",
-       true},
+      {ui::DomKey::FromCharacter('\b'), true, false, true, "Backspace", true},
+      {ui::DomKey::FromCharacter('\t'), true, false, true, "Tab", true},
+      {ui::DomKey::FromCharacter('\r'), true, false, true, "Enter", true},
+      {ui::DomKey::FromCharacter(0x1B), true, false, true, "Escape", true},
+      {ui::DomKey::FromCharacter(0x7F), true, false, true, "Delete", true},
       // 'Dead' key.
-      {ui::DomKey::Constant<0xFFFF>::Dead, false, true, true, "Dead", true},
+      {ui::DomKey::DeadKeyFromCombiningCharacter(0xFFFF), false, true, true,
+       "Dead", true},
       // Sample non-Unicode key names.
       {ui::DomKey::SHIFT, false, false, true, "Shift", true},
       {ui::DomKey::F16, false, false, true, "F16", true},

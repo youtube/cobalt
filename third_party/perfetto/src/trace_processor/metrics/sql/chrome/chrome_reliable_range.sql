@@ -21,11 +21,18 @@
 --   b. The event rate for the thread is at or above 75p.
 -- Note: this metric considers only chrome processes and their threads, i.e. the ones coming
 -- from track_event's.
-SELECT IMPORT('common.metadata');
+
+-- Extracts an int value with the given name from the metadata table.
+CREATE OR REPLACE PERFETTO FUNCTION _extract_int_metadata(
+  -- The name of the metadata entry.
+  name STRING)
+-- int_value for the given name. NULL if there's no such entry.
+RETURNS LONG AS
+SELECT int_value FROM metadata WHERE name = ($name);
 
 DROP VIEW IF EXISTS chrome_event_stats_per_thread;
 
-CREATE VIEW chrome_event_stats_per_thread
+CREATE PERFETTO VIEW chrome_event_stats_per_thread
 AS
 SELECT
   COUNT(*) AS cnt, CAST(COUNT(*) AS DOUBLE) / (MAX(ts + dur) - MIN(ts)) AS rate, utid
@@ -41,7 +48,7 @@ DROP VIEW IF EXISTS chrome_event_cnt_cutoff;
 -- cutoff at around 10 events for a typical trace, and threads with fewer events are usually:
 -- 1. Not particularly interesting for the reliable range definition.
 -- 2. Create a lot of noise for other metrics, such as event rate.
-CREATE VIEW chrome_event_cnt_cutoff
+CREATE PERFETTO VIEW chrome_event_cnt_cutoff
 AS
 SELECT cnt
 FROM
@@ -58,7 +65,7 @@ DROP VIEW IF EXISTS chrome_event_rate_cutoff;
 -- Choose the top 25% event rate. 25% is a somewhat arbitrary number. The goal is to strike
 -- balance between not cropping too many events and making sure that the chance of data loss in the
 -- range declared "reliable" is low.
-CREATE VIEW chrome_event_rate_cutoff
+CREATE PERFETTO VIEW chrome_event_rate_cutoff
 AS
 SELECT rate
 FROM
@@ -76,7 +83,7 @@ DROP VIEW IF EXISTS chrome_reliable_range_per_thread;
 -- above.
 -- See b/239830951 for the analysis showing why we don't want to include all threads here
 -- (TL;DR - it makes the "reliable range" too short for a typical trace).
-CREATE VIEW chrome_reliable_range_per_thread
+CREATE PERFETTO VIEW chrome_reliable_range_per_thread
 AS
 SELECT
   utid,
@@ -107,7 +114,7 @@ GROUP BY utid;
 -- Renderer main thread (assuming that the corresponding process is present).
 DROP VIEW IF EXISTS chrome_processes_with_missing_main;
 
-CREATE VIEW chrome_processes_with_missing_main
+CREATE PERFETTO VIEW chrome_processes_with_missing_main
 AS
 SELECT
   upid
@@ -127,7 +134,7 @@ WHERE utid is NULL;
 
 DROP VIEW IF EXISTS chrome_processes_data_loss_free_period;
 
-CREATE VIEW chrome_processes_data_loss_free_period
+CREATE PERFETTO VIEW chrome_processes_data_loss_free_period
 AS
 SELECT
   upid AS limiting_upid,
@@ -148,14 +155,14 @@ LIMIT 1;
 
 DROP VIEW IF EXISTS chrome_reliable_range;
 
-CREATE VIEW chrome_reliable_range
+CREATE PERFETTO VIEW chrome_reliable_range
 AS
 SELECT
   -- If the trace has a cropping packet, we don't want to recompute the reliable
   -- based on cropped track events - the result might be incorrect.
-  IFNULL(EXTRACT_INT_METADATA('range_of_interest_start_us') * 1000,
+  IFNULL(_extract_int_metadata('range_of_interest_start_us') * 1000,
          MAX(thread_start, data_loss_free_start)) AS start,
-  IIF(EXTRACT_INT_METADATA('range_of_interest_start_us') IS NOT NULL,
+  IIF(_extract_int_metadata('range_of_interest_start_us') IS NOT NULL,
       'Range of interest packet',
       IIF(limiting_upid IN (SELECT upid FROM chrome_processes_with_missing_main),
           'Missing main thread for upid=' || limiting_upid,

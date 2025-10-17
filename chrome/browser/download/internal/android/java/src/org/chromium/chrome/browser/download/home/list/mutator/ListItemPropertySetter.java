@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.download.home.list.mutator;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.home.DownloadManagerUiConfig;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.chrome.browser.download.home.list.ListItem.OfflineItemListItem;
@@ -17,9 +19,10 @@ import java.util.List;
  * - Image item span width.
  * - Margins between {@link OfflineItemFilter} types (image, document, etc.).
  */
+@NullMarked
 public class ListItemPropertySetter implements ListConsumer {
     private final DownloadManagerUiConfig mConfig;
-    private ListConsumer mListConsumer;
+    private @Nullable ListConsumer mListConsumer;
 
     /** Constructor. */
     public ListItemPropertySetter(DownloadManagerUiConfig config) {
@@ -28,6 +31,7 @@ public class ListItemPropertySetter implements ListConsumer {
 
     @Override
     public void onListUpdated(List<ListItem> inputList) {
+        if (mListConsumer == null) return;
         setProperties(inputList);
         mListConsumer.onListUpdated(inputList);
     }
@@ -48,16 +52,22 @@ public class ListItemPropertySetter implements ListConsumer {
 
         for (int i = 0; i < listItems.size(); i++) {
             ListItem currentItem = listItems.get(i);
-            boolean currentItemIsImage = currentItem instanceof OfflineItemListItem
-                    && ((OfflineItemListItem) currentItem).item.filter == OfflineItemFilter.IMAGE;
+            boolean currentItemIsImage =
+                    currentItem instanceof OfflineItemListItem
+                            && ((OfflineItemListItem) currentItem).item.filter
+                                    == OfflineItemFilter.IMAGE;
             if (!currentItemIsImage) continue;
 
             ListItem previousItem = i == 0 ? null : listItems.get(i - 1);
             ListItem nextItem = i >= listItems.size() - 1 ? null : listItems.get(i + 1);
-            boolean previousItemIsImage = previousItem instanceof OfflineItemListItem
-                    && ((OfflineItemListItem) previousItem).item.filter == OfflineItemFilter.IMAGE;
-            boolean nextItemIsImage = nextItem instanceof OfflineItemListItem
-                    && ((OfflineItemListItem) nextItem).item.filter == OfflineItemFilter.IMAGE;
+            boolean previousItemIsImage =
+                    previousItem instanceof OfflineItemListItem
+                            && ((OfflineItemListItem) previousItem).item.filter
+                                    == OfflineItemFilter.IMAGE;
+            boolean nextItemIsImage =
+                    nextItem instanceof OfflineItemListItem
+                            && ((OfflineItemListItem) nextItem).item.filter
+                                    == OfflineItemFilter.IMAGE;
 
             if (!previousItemIsImage && !nextItemIsImage) {
                 ((OfflineItemListItem) currentItem).spanFullWidth = true;

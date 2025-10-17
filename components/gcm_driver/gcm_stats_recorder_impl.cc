@@ -13,6 +13,8 @@
 #include "base/strings/stringprintf.h"
 #include "components/gcm_driver/crypto/gcm_decryption_result.h"
 #include "components/gcm_driver/crypto/gcm_encryption_provider.h"
+#include "google_apis/gcm/engine/mcs_client.h"
+#include "google_apis/gcm/engine/registration_request.h"
 
 namespace gcm {
 
@@ -54,7 +56,6 @@ std::string GetMessageSendStatusString(
       return "TTL_EXCEEDED";
     case gcm::MCSClient::SEND_STATUS_COUNT:
       NOTREACHED();
-      break;
   }
   return "UNKNOWN";
 }
@@ -78,7 +79,6 @@ std::string GetConnectionResetReasonString(
       return "NEW_HEARTBEAT_INTERVAL";
     case gcm::ConnectionFactory::CONNECTION_RESET_COUNT:
       NOTREACHED();
-      break;
   }
   return "UNKNOWN_REASON";
 }
@@ -116,6 +116,12 @@ std::string GetRegistrationStatusString(
       return "QUOTA_EXCEEDED";
     case gcm::RegistrationRequest::TOO_MANY_REGISTRATIONS:
       return "TOO_MANY_REGISTRATIONS";
+    case gcm::RegistrationRequest::TOO_MANY_SUBSCRIBERS:
+      return "TOO_MANY_SUBSCRIBERS";
+    case gcm::RegistrationRequest::FIS_AUTH_ERROR:
+      return "FIS_AUTH_ERROR";
+    case gcm::RegistrationRequest::INVALID_TARGET_VERSION:
+      return "INVALID_TARGET_VERSION";
   }
   return "UNKNOWN_STATUS";
 }
@@ -151,7 +157,6 @@ std::string GetUnregistrationStatusString(
       return "DEVICE_REGISTRATION_ERROR";
     case gcm::UnregistrationRequest::UNREGISTRATION_STATUS_COUNT:
       NOTREACHED();
-      break;
   }
   return "UNKNOWN_STATUS";
 }
@@ -342,9 +347,8 @@ void GCMStatsRecorderImpl::RecordRegistrationRetryDelayed(
                          retries_left));
 }
 
-void GCMStatsRecorderImpl::RecordUnregistrationSent(
-    const std::string& app_id, const std::string& source) {
-  UMA_HISTOGRAM_COUNTS_1M("GCM.UnregistrationRequest", 1);
+void GCMStatsRecorderImpl::RecordUnregistrationSent(const std::string& app_id,
+                                                    const std::string& source) {
   if (!is_recording_)
     return;
   RecordRegistration(app_id, source, "Unregistration request sent",
@@ -476,17 +480,15 @@ void GCMStatsRecorderImpl::RecordNotifySendStatus(
     const std::string& receiver_id,
     const std::string& message_id,
     gcm::MCSClient::MessageSendStatus status,
-    int byte_size,
+    size_t byte_size,
     int ttl) {
   if (!is_recording_)
     return;
   RecordSending(
-      app_id,
-      receiver_id,
-      message_id,
+      app_id, receiver_id, message_id,
       base::StringPrintf("SEND status: %s",
                          GetMessageSendStatusString(status).c_str()),
-      base::StringPrintf("Msg size: %d bytes, TTL: %d", byte_size, ttl));
+      base::StringPrintf("Msg size: %zu bytes, TTL: %d", byte_size, ttl));
 }
 
 void GCMStatsRecorderImpl::RecordIncomingSendError(

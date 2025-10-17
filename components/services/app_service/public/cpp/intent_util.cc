@@ -4,6 +4,8 @@
 
 #include "components/services/app_service/public/cpp/intent_util.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,11 +15,11 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/mime_util/mime_util.h"
 
 namespace {
@@ -25,6 +27,7 @@ namespace {
 const char kWildCardAny[] = "*";
 const char kMimeTypeSeparator[] = "/";
 constexpr size_t kMimeTypeComponentSize = 2;
+const char kAuthorityHostPortSeparator[] = ":";
 
 const char kActionKey[] = "action";
 const char kUrlKey[] = "url";
@@ -103,6 +106,7 @@ apps::IntentPtr MakeShareIntent(const GURL& filesystem_url,
     intent->mime_type = mime_type;
     intent->files = std::vector<apps::IntentFilePtr>{};
     auto file = std::make_unique<apps::IntentFile>(filesystem_url);
+    file->mime_type = mime_type;
     intent->files.push_back(std::move(file));
   }
   if (!drive_share_url.is_empty()) {
@@ -164,27 +168,33 @@ apps::IntentPtr CreateStartOnLockScreenIntent() {
   return std::make_unique<apps::Intent>(kIntentActionStartOnLockScreen);
 }
 
-bool ConditionValueMatches(const std::string& value,
+bool ConditionValueMatches(std::string_view value,
                            const apps::ConditionValuePtr& condition_value) {
-  switch (condition_value->match_type) {
+  return PatternMatchValue(value, condition_value->match_type,
+                           condition_value->value);
+}
+
+bool PatternMatchValue(std::string_view test_value,
+                       apps::PatternMatchType match_type,
+                       std::string_view match_value) {
+  switch (match_type) {
     case apps::PatternMatchType::kLiteral:
-      return value == condition_value->value;
+      return test_value == match_value;
     case apps::PatternMatchType::kPrefix:
-      return base::StartsWith(value, condition_value->value,
+      return base::StartsWith(test_value, match_value,
                               base::CompareCase::INSENSITIVE_ASCII);
     case apps::PatternMatchType::kSuffix:
-      return base::EndsWith(value, condition_value->value,
+      return base::EndsWith(test_value, match_value,
                             base::CompareCase::INSENSITIVE_ASCII);
     case apps::PatternMatchType::kGlob:
-      return MatchGlob(value, condition_value->value);
+      return MatchGlob(test_value, match_value);
     case apps::PatternMatchType::kMimeType:
       // kMimeType as a match for kFile is handled in FileMatchesConditionValue.
-      return MimeTypeMatched(value, condition_value->value);
+      return MimeTypeMatched(test_value, match_value);
     case apps::PatternMatchType::kFileExtension:
     case apps::PatternMatchType::kIsDirectory: {
       // Handled in FileMatchesConditionValue.
       NOTREACHED();
-      return false;
     }
   }
 }
@@ -226,8 +236,13 @@ bool IsGenericFileHandler(const apps::IntentPtr& intent,
   return false;
 }
 
-bool MatchGlob(const std::string& value, const std::string& pattern) {
-#define GET_CHAR(s, i) ((UNLIKELY(i >= s.length())) ? '\0' : s[i])
+bool MatchGlob(std::string_view value, std::string_view pattern) {
+  static constexpr auto get_char = [](std::string_view s, size_t i) {
+    if (i >= s.length()) [[unlikely]] {
+      return '\0';
+    }
+    return s[i];
+  };
 
   const size_t NP = pattern.length();
   const size_t NS = value.length();
@@ -235,16 +250,16 @@ bool MatchGlob(const std::string& value, const std::string& pattern) {
     return NS == 0;
   }
   size_t ip = 0, is = 0;
-  char nextChar = GET_CHAR(pattern, 0);
+  char nextChar = get_char(pattern, 0);
   while (ip < NP && is < NS) {
     char c = nextChar;
     ++ip;
-    nextChar = GET_CHAR(pattern, ip);
+    nextChar = get_char(pattern, ip);
     const bool escaped = (c == '\\');
     if (escaped) {
       c = nextChar;
       ++ip;
-      nextChar = GET_CHAR(pattern, ip);
+      nextChar = get_char(pattern, ip);
     }
     if (nextChar == '*') {
       if (!escaped && c == '.') {
@@ -253,14 +268,14 @@ bool MatchGlob(const std::string& value, const std::string& pattern) {
           return true;
         }
         ++ip;
-        nextChar = GET_CHAR(pattern, ip);
+        nextChar = get_char(pattern, ip);
         // Consume everything until the next char in the pattern is found.
         if (nextChar == '\\') {
           ++ip;
-          nextChar = GET_CHAR(pattern, ip);
+          nextChar = get_char(pattern, ip);
         }
         do {
-          if (GET_CHAR(value, is) == nextChar) {
+          if (get_char(value, is) == nextChar) {
             break;
           }
           ++is;
@@ -270,22 +285,23 @@ bool MatchGlob(const std::string& value, const std::string& pattern) {
           return false;
         }
         ++ip;
-        nextChar = GET_CHAR(pattern, ip);
+        nextChar = get_char(pattern, ip);
         ++is;
       } else {
         // Consume only characters matching the one before '*'.
         do {
-          if (GET_CHAR(value, is) != c) {
+          if (get_char(value, is) != c) {
             break;
           }
           ++is;
         } while (is < NS);
         ++ip;
-        nextChar = GET_CHAR(pattern, ip);
+        nextChar = get_char(pattern, ip);
       }
     } else {
-      if (c != '.' && GET_CHAR(value, is) != c)
+      if (c != '.' && get_char(value, is) != c) {
         return false;
+      }
       ++is;
     }
   }
@@ -297,18 +313,16 @@ bool MatchGlob(const std::string& value, const std::string& pattern) {
 
   // One last check: we may have finished the match string, but still have a
   // '.*' at the end of the pattern, which is still a match.
-  if (ip == NP - 2 && GET_CHAR(pattern, ip) == '.' &&
-      GET_CHAR(pattern, ip + 1) == '*') {
+  if (ip == NP - 2 && get_char(pattern, ip) == '.' &&
+      get_char(pattern, ip + 1) == '*') {
     return true;
   }
 
   return false;
-
-#undef GET_CHAR
 }
 
-bool MimeTypeMatched(const std::string& intent_mime_type,
-                     const std::string& filter_mime_type) {
+bool MimeTypeMatched(std::string_view intent_mime_type,
+                     std::string_view filter_mime_type) {
   std::vector<std::string> intent_components =
       base::SplitString(intent_mime_type, kMimeTypeSeparator,
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
@@ -433,34 +447,33 @@ base::Value ConvertIntentToValue(const apps::IntentPtr& intent) {
   return base::Value(std::move(intent_value));
 }
 
-absl::optional<std::string> GetStringValueFromDict(
-    const base::Value::Dict& dict,
-    const std::string& key_name) {
+std::optional<std::string> GetStringValueFromDict(const base::Value::Dict& dict,
+                                                  const std::string& key_name) {
   const base::Value* value = dict.Find(key_name);
   if (!value)
-    return absl::nullopt;
+    return std::nullopt;
 
   const std::string* string_value = value->GetIfString();
   if (!string_value || string_value->empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   return *string_value;
 }
 
-absl::optional<bool> GetBoolValueFromDict(const base::Value::Dict& dict,
-                                          const std::string& key_name) {
+std::optional<bool> GetBoolValueFromDict(const base::Value::Dict& dict,
+                                         const std::string& key_name) {
   return dict.FindBool(key_name);
 }
 
-absl::optional<GURL> GetGurlValueFromDict(const base::Value::Dict& dict,
-                                          const std::string& key_name) {
+std::optional<GURL> GetGurlValueFromDict(const base::Value::Dict& dict,
+                                         const std::string& key_name) {
   const std::string* url_spec = dict.FindString(key_name);
   if (!url_spec)
-    return absl::nullopt;
+    return std::nullopt;
 
   GURL url(*url_spec);
   if (!url.is_valid())
-    return absl::nullopt;
+    return std::nullopt;
 
   return url;
 }
@@ -600,6 +613,54 @@ SharedText ExtractSharedText(const std::string& share_text) {
     shared_text.url = extracted_url;
 
   return shared_text;
+}
+
+// static
+std::optional<std::string> AuthorityView::PortToString(const GURL& url) {
+  int port_number = url.EffectiveIntPort();
+  if (port_number == url::PORT_UNSPECIFIED) {
+    return std::nullopt;
+  }
+  return base::ToString(port_number);
+}
+
+// static
+std::optional<std::string> AuthorityView::PortToString(
+    const url::Origin& origin) {
+  if (origin.port() == 0) {
+    return std::nullopt;
+  }
+  return base::ToString(origin.port());
+}
+
+// static
+AuthorityView AuthorityView::Decode(std::string_view encoded_string) {
+  size_t i = encoded_string.find_last_of(kAuthorityHostPortSeparator);
+  if (i == std::string_view::npos) {
+    return {.host = encoded_string};
+  }
+  return {.host = encoded_string.substr(0, i),
+          .port = encoded_string.substr(i + 1)};
+}
+
+// static
+std::string AuthorityView::Encode(const GURL& url) {
+  CHECK(url.is_valid());
+  return AuthorityView{.host = url.host(), .port = PortToString(url)}.Encode();
+}
+
+// static
+std::string AuthorityView::Encode(const url::Origin& origin) {
+  CHECK(!origin.opaque());
+  return AuthorityView{.host = origin.host(), .port = PortToString(origin)}
+      .Encode();
+}
+
+std::string AuthorityView::Encode() {
+  if (!port) {
+    return std::string(host);
+  }
+  return base::StrCat({host, kAuthorityHostPortSeparator, *port});
 }
 
 }  // namespace apps_util

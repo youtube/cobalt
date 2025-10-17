@@ -5,7 +5,8 @@
 #include "device/vr/android/arcore/arcore_plane_manager.h"
 
 #include "base/containers/contains.h"
-#include "device/vr/android/arcore/type_converters.h"
+#include "base/containers/heap_array.h"
+#include "device/vr/android/arcore/vr_service_type_converters.h"
 
 namespace device {
 
@@ -245,9 +246,8 @@ mojom::XRPlaneDetectionDataPtr ArCorePlaneManager::GetDetectedPlanesData()
       // points.
       DCHECK(polygon_size % 2 == 0);
 
-      std::unique_ptr<float[]> vertices_raw =
-          std::make_unique<float[]>(polygon_size);
-      ArPlane_getPolygon(arcore_session_, ar_plane, vertices_raw.get());
+      auto vertices_raw = base::HeapArray<float>::Uninit(polygon_size);
+      ArPlane_getPolygon(arcore_session_, ar_plane, vertices_raw.data());
 
       std::vector<mojom::XRPlanePointDataPtr> vertices;
       for (int i = 0; i < polygon_size; i += 2) {
@@ -269,7 +269,7 @@ mojom::XRPlaneDetectionDataPtr ArCorePlaneManager::GetDetectedPlanesData()
 
       updated_planes.push_back(mojom::XRPlaneData::New(
           plane_id.GetUnsafeValue(), device::mojom::XRPlaneOrientation::UNKNOWN,
-          absl::nullopt, std::vector<mojom::XRPlanePointDataPtr>{}));
+          std::nullopt, std::vector<mojom::XRPlanePointDataPtr>{}));
     }
   }
 
@@ -281,7 +281,7 @@ mojom::XRPlaneDetectionDataPtr ArCorePlaneManager::GetDetectedPlanesData()
                                           std::move(updated_planes));
 }
 
-absl::optional<PlaneId> ArCorePlaneManager::GetPlaneId(
+std::optional<PlaneId> ArCorePlaneManager::GetPlaneId(
     void* plane_address) const {
   return plane_address_to_id_.GetId(plane_address);
 }
@@ -290,11 +290,11 @@ bool ArCorePlaneManager::PlaneExists(PlaneId id) const {
   return base::Contains(plane_id_to_plane_info_, id);
 }
 
-absl::optional<gfx::Transform> ArCorePlaneManager::GetMojoFromPlane(
+std::optional<gfx::Transform> ArCorePlaneManager::GetMojoFromPlane(
     PlaneId id) const {
   auto it = plane_id_to_plane_info_.find(id);
   if (it == plane_id_to_plane_info_.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Naked pointer is fine here, ArAsPlane does not increase the internal

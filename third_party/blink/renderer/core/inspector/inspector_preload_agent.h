@@ -13,11 +13,21 @@ namespace blink {
 class Document;
 class SpeculationCandidate;
 class SpeculationRuleSet;
+class InspectedFrames;
+
+namespace internal {
+
+// Exposed for tests.
+CORE_EXPORT std::unique_ptr<protocol::Preload::RuleSet> BuildProtocolRuleSet(
+    const SpeculationRuleSet& rule_set,
+    const String& loader_id);
+
+}  // namespace internal
 
 class CORE_EXPORT InspectorPreloadAgent final
     : public InspectorBaseAgent<protocol::Preload::Metainfo> {
  public:
-  InspectorPreloadAgent();
+  explicit InspectorPreloadAgent(InspectedFrames* inspected_frames);
   InspectorPreloadAgent(const InspectorPreloadAgent&) = delete;
   InspectorPreloadAgent& operator=(const InspectorPreloadAgent&) = delete;
   ~InspectorPreloadAgent() override;
@@ -30,6 +40,8 @@ class CORE_EXPORT InspectorPreloadAgent final
       Document& document,
       const HeapVector<Member<SpeculationCandidate>>& candidates);
 
+  void Trace(Visitor*) const override;
+
  private:
   void Restore() override;
 
@@ -38,8 +50,10 @@ class CORE_EXPORT InspectorPreloadAgent final
   protocol::Response disable() override;
 
   void EnableInternal();
+  void ReportRuleSetsAndSources();
 
   InspectorAgentState::Boolean enabled_;
+  Member<InspectedFrames> inspected_frames_;
 };
 
 }  // namespace blink

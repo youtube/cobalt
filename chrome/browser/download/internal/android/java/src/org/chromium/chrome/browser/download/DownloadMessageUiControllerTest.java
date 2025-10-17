@@ -7,7 +7,7 @@ package org.chromium.chrome.browser.download;
 import android.content.Context;
 
 import androidx.annotation.Nullable;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import org.hamcrest.Matchers;
@@ -17,20 +17,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.profiles.OTRProfileID;
+import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.messages.MessageDispatcher;
-import org.chromium.components.offline_items_collection.ContentId;
+import org.chromium.components.offline_items_collection.FailState;
 import org.chromium.components.offline_items_collection.LegacyHelpers;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.components.offline_items_collection.OfflineItemState;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.UUID;
@@ -42,8 +43,7 @@ import java.util.UUID;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 public class DownloadMessageUiControllerTest {
-    @Rule
-    public final ChromeBrowserTestRule mBrowserTestRule = new ChromeBrowserTestRule();
+    @Rule public final ChromeBrowserTestRule mBrowserTestRule = new ChromeBrowserTestRule();
 
     private static final String MESSAGE_DOWNLOADING_FILE = "Downloading file…";
     private static final String MESSAGE_DOWNLOADING_TWO_FILES = "Downloading 2 files…";
@@ -57,6 +57,12 @@ public class DownloadMessageUiControllerTest {
     private static final String DESCRIPTION_DOWNLOADING = "See notification for download status";
     private static final String DESCRIPTION_DOWNLOAD_COMPLETE = "(0.01 KB) www.example.com";
 
+    private static final GURL LONG_URL_NEEDS_ELIDING =
+            new GURL("https://veryveryveryverylongsubdomain.example.com/");
+    private static final String DESCRIPTION_DOWNLOAD_COMPLETE_ELIDED = "(0.01 KB) example.com";
+    private static final String DESCRIPTION_BLOCKED = "Blocked by your organization";
+    private static final String DESCRIPTION_ONE_BLOCKED = "1 was blocked by your organization";
+
     private static final String TEST_FILE_NAME = "TestFile";
     private static final long TEST_TO_NEXT_STEP_DELAY = 100;
 
@@ -64,26 +70,25 @@ public class DownloadMessageUiControllerTest {
 
     @Before
     public void before() {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mTestController = new TestDownloadMessageUiController(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mTestController = new TestDownloadMessageUiController();
+                });
     }
 
     static class TestDelegate implements DownloadMessageUiController.Delegate {
         @Override
-        @Nullable
-        public Context getContext() {
-            return InstrumentationRegistry.getTargetContext();
+        public @Nullable Context getContext() {
+            return ApplicationProvider.getApplicationContext();
         }
 
         @Override
-        @Nullable
-        public MessageDispatcher getMessageDispatcher() {
+        public @Nullable MessageDispatcher getMessageDispatcher() {
             return null;
         }
 
         @Override
-        @Nullable
-        public ModalDialogManager getModalDialogManager() {
+        public @Nullable ModalDialogManager getModalDialogManager() {
             return null;
         }
 
@@ -93,11 +98,11 @@ public class DownloadMessageUiControllerTest {
         }
 
         @Override
-        public void openDownloadsPage(OTRProfileID otrProfileID, int source) {}
+        public void openDownloadsPage(OtrProfileId otrProfileId, int source) {}
 
         @Override
         public void openDownload(
-                ContentId contentId, OTRProfileID otrProfileID, int source, Context context) {}
+                OfflineItem offlineItem, OtrProfileId otrProfileId, int source, Context context) {}
 
         @Override
         public void removeNotification(int notificationId, DownloadInfo downloadInfo) {}
@@ -138,6 +143,10 @@ public class DownloadMessageUiControllerTest {
         void verifyMessageGone() {
             Assert.assertNull(mInfo);
         }
+
+        void verifyIgnoreAction(boolean expected) {
+            Assert.assertEquals(expected, mInfo.ignoreAction);
+        }
     }
 
     private static OfflineItem createOfflineItem(@OfflineItemState int state) {
@@ -154,16 +163,17 @@ public class DownloadMessageUiControllerTest {
     private static void markItemComplete(OfflineItem item) {
         item.state = OfflineItemState.COMPLETE;
         item.title = TEST_FILE_NAME;
-        item.url = JUnitTestGURLs.getGURL(JUnitTestGURLs.EXAMPLE_URL);
+        item.url = JUnitTestGURLs.EXAMPLE_URL;
         item.receivedBytes = 10L;
         item.totalSizeBytes = 10L;
     }
 
     private void waitForMessage(String message) {
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            Criteria.checkThat(mTestController.mInfo, Matchers.notNullValue());
-            Criteria.checkThat(mTestController.mInfo.message, Matchers.is(message));
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(mTestController.mInfo, Matchers.notNullValue());
+                    Criteria.checkThat(mTestController.mInfo.message, Matchers.is(message));
+                });
     }
 
     @Test
@@ -211,6 +221,7 @@ public class DownloadMessageUiControllerTest {
         OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
         mTestController.onItemUpdated(item);
         mTestController.verify(MESSAGE_DOWNLOAD_FAILED, null);
+        mTestController.verifyIgnoreAction(false);
     }
 
     @Test
@@ -220,10 +231,77 @@ public class DownloadMessageUiControllerTest {
         OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
         mTestController.onItemUpdated(item);
         mTestController.verify(MESSAGE_DOWNLOAD_FAILED, null);
+        mTestController.verifyIgnoreAction(false);
 
         OfflineItem item2 = createOfflineItem(OfflineItemState.FAILED);
         mTestController.onItemUpdated(item2);
         mTestController.verify(MESSAGE_TWO_DOWNLOAD_FAILED, null);
+        mTestController.verifyIgnoreAction(false);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testSingleOfflineItemBlocked() {
+        OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
+        item.failState = FailState.FILE_BLOCKED;
+        mTestController.onItemUpdated(item);
+        mTestController.verify(MESSAGE_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
+        mTestController.verifyIgnoreAction(true);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testMultipleOfflineItemBlocked() {
+        OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
+        item.failState = FailState.FILE_BLOCKED;
+        mTestController.onItemUpdated(item);
+        mTestController.verify(MESSAGE_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
+        mTestController.verifyIgnoreAction(true);
+
+        OfflineItem item2 = createOfflineItem(OfflineItemState.FAILED);
+        item2.failState = FailState.FILE_BLOCKED;
+        mTestController.onItemUpdated(item2);
+        mTestController.verify(MESSAGE_TWO_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
+        mTestController.verifyIgnoreAction(true);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testOneOutOfMultipleOfflineItemBlocked() {
+        OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
+        item.failState = FailState.FILE_BLOCKED;
+        mTestController.onItemUpdated(item);
+        mTestController.verify(MESSAGE_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
+        mTestController.verifyIgnoreAction(true);
+
+        OfflineItem item2 = createOfflineItem(OfflineItemState.FAILED);
+        mTestController.onItemUpdated(item2);
+        mTestController.verify(MESSAGE_TWO_DOWNLOAD_FAILED, DESCRIPTION_ONE_BLOCKED);
+        mTestController.verifyIgnoreAction(false);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testMultipleOfflineItemCompleteAndBlocked() {
+        OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
+        item.failState = FailState.FILE_BLOCKED;
+        mTestController.onItemUpdated(item);
+        mTestController.verify(MESSAGE_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
+        mTestController.verifyIgnoreAction(true);
+
+        OfflineItem item2 = createOfflineItem(OfflineItemState.COMPLETE);
+        mTestController.onItemUpdated(item2);
+        mTestController.verify(MESSAGE_SINGLE_DOWNLOAD_COMPLETE, DESCRIPTION_DOWNLOAD_COMPLETE);
+        mTestController.verifyIgnoreAction(false);
+
+        OfflineItem item3 = createOfflineItem(OfflineItemState.COMPLETE);
+        mTestController.onItemUpdated(item3);
+        mTestController.verify(MESSAGE_TWO_DOWNLOAD_COMPLETE, null);
+        mTestController.verifyIgnoreAction(false);
     }
 
     @Test
@@ -422,5 +500,18 @@ public class DownloadMessageUiControllerTest {
         item.state = OfflineItemState.IN_PROGRESS;
         mTestController.onItemUpdated(item);
         mTestController.verifyMessageGone();
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testLongUrlsAreElided() {
+        OfflineItem item = createOfflineItem(OfflineItemState.PENDING);
+        markItemComplete(item);
+        item.url = LONG_URL_NEEDS_ELIDING;
+        mTestController.onItemUpdated(item);
+
+        mTestController.verify(
+                MESSAGE_SINGLE_DOWNLOAD_COMPLETE, DESCRIPTION_DOWNLOAD_COMPLETE_ELIDED);
     }
 }

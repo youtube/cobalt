@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 #define COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_service.h"
 
@@ -56,11 +57,11 @@ class ExperimentConfigManager {
   raw_ptr<PrefService> experiment_config_;
 
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-                           TestStoreSafeConfigWithRegularConfig);
+                           StoreSafeConfigWithRegularConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-                           TestStoreSafeConfigWithSafeConfig);
+                           StoreSafeConfigWithSafeConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-                           TestStoreSafeConfigWithEmptyConfig);
+                           StoreSafeConfigWithEmptyConfig);
 };
 
 }  // namespace cobalt

@@ -5,6 +5,7 @@
 #include "chromeos/ash/components/phonehub/notification_manager_impl.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/flat_map.h"
 #include "base/strings/utf_string_conversions.h"
@@ -12,10 +13,8 @@
 #include "chromeos/ash/components/phonehub/fake_user_action_recorder.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/fake_multidevice_setup_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 namespace {
 
@@ -36,8 +35,8 @@ Notification CreateNotification(int64_t id) {
       id,
       phonehub::Notification::AppMetadata(
           kAppName, kPackageName,
-          /*color_icon=*/gfx::Image(), /*monochrome_icon_mask=*/absl::nullopt,
-          /*icon_color=*/absl::nullopt,
+          /*color_icon=*/gfx::Image(), /*monochrome_icon_mask=*/std::nullopt,
+          /*icon_color=*/std::nullopt,
           /*icon_is_monochrome=*/true, kUserId,
           proto::AppStreamabilityStatus::STREAMABLE),
       base::Time::Now(), Notification::Importance::kDefault,
@@ -51,10 +50,10 @@ class FakeObserver : public NotificationManager::Observer {
   FakeObserver() = default;
   ~FakeObserver() override = default;
 
-  absl::optional<NotificationState> GetState(int64_t notification_id) const {
+  std::optional<NotificationState> GetState(int64_t notification_id) const {
     const auto it = id_to_state_map_.find(notification_id);
     if (it == id_to_state_map_.end())
-      return absl::nullopt;
+      return std::nullopt;
     return it->second;
   }
 
@@ -115,7 +114,7 @@ class NotificationManagerImplTest : public testing::Test {
     return manager_->id_to_notification_map_.size();
   }
 
-  absl::optional<NotificationState> GetNotificationState(
+  std::optional<NotificationState> GetNotificationState(
       int64_t notification_id) {
     return fake_observer_.GetState(notification_id);
   }
@@ -277,5 +276,5 @@ TEST_F(NotificationManagerImplTest, ClearNotificationsOnFeatureStatusChanged) {
   SetNotificationFeatureStatus(FeatureState::kDisabledByUser);
   EXPECT_EQ(0u, GetNumNotifications());
 }
-}  // namespace phonehub
-}  // namespace ash
+
+}  // namespace ash::phonehub

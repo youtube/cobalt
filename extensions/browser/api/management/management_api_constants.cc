@@ -15,6 +15,9 @@ const char kExtensionCreateError[] =
 const char kGestureNeededForEscalationError[] =
     "Re-enabling an extension disabled due to permissions increase "
     "requires a user gesture.";
+const char kGestureNeededForMV2DeprecationReEnableError[] =
+    "Re-enabling an extension disabled due to MV2 deprecation requires a user "
+    "gesture.";
 const char kGestureNeededForUninstallError[] =
     "chrome.management.uninstall requires a user gesture.";
 const char kManifestParseError[] = "Failed to parse manifest.";
@@ -25,7 +28,7 @@ const char kUninstallCanceledError[] =
     "Extension * uninstall canceled by user.";
 const char kUserDidNotReEnableError[] =
     "The user did not accept the re-enable dialog.";
-const char kMissingRequirementsError[] = "There were missing requirements: *.";
+const char kMissingRequirementsError[] = "There were missing requirements: *";
 const char kGestureNeededForCreateAppShortcutError[] =
     "chrome.management.createAppShortcut requires a user gesture.";
 const char kNoBrowserToCreateShortcut[] =
@@ -55,14 +58,6 @@ const char kInstallReplacementWebAppNotFromWebstoreError[] =
     "Only extensions from the web store can install replacement web apps.";
 const char kGestureNeededForInstallReplacementWebAppError[] =
     "chrome.management.installReplacementWebApp requires a user gesture.";
-const char kGestureNeededForInstallReplacementAndroidAppError[] =
-    "chrome.management.installReplacementAndroidApp requires a user gesture.";
-const char kInstallReplacementAndroidAppInvalidContextError[] =
-    "Android apps can't be installed in the current user profile.";
-const char kInstallReplacementAndroidAppNotFromWebstoreError[] =
-    "Only extensions from the web store can install replacement Android apps.";
-const char kInstallReplacementAndroidAppCannotInstallApp[] =
-    "Could not install Android App.";
 const char kParentPermissionFailedError[] = "Parent Permission Request Failed.";
 const char kChromeAppsDeprecated[] =
     "Chrome app * is deprecated on Window, Mac, and Linux. "

@@ -37,13 +37,17 @@ class LayoutSVGResourcePaintServer : public LayoutSVGResourceContainer {
                            const AffineTransform* additional_transform,
                            const AutoDarkMode& auto_dark_mode,
                            cc::PaintFlags&) = 0;
+
+ protected:
+  void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
 };
 
 template <>
-inline bool IsResourceOfType<LayoutSVGResourcePaintServer>(
-    const LayoutSVGResourceContainer* container) {
-  return container->IsSVGPaintServer();
-}
+struct DowncastTraits<LayoutSVGResourcePaintServer> {
+  static bool AllowFrom(const LayoutSVGResourceContainer& container) {
+    return container.IsSVGPaintServer();
+  }
+};
 
 }  // namespace blink
 

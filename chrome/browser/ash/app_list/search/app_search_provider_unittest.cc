@@ -11,13 +11,14 @@
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/test/fake_app_instance.h"
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
 #include "base/containers/contains.h"
 #include "base/i18n/rtl.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
@@ -27,17 +28,19 @@
 #include "chrome/browser/ash/app_list/search/app_search_provider_test_base.h"
 #include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/ash/crostini/crostini_test_helper.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
-#include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/chunneld/chunneld_client.h"
 #include "chromeos/ash/components/dbus/cicerone/cicerone_client.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/dbus/seneschal/seneschal_client.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
 #include "components/crx_file/id_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/services/app_service/public/cpp/stub_icon_loader.h"
+#include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
+#include "extensions/browser/install_prefs_helper.h"
 #include "extensions/browser/uninstall_reason.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -53,7 +56,6 @@ constexpr char kGmailExtensionName[] = "Gmail Ext";
 constexpr char kGmailArcPackage[] = "com.google.android.gm";
 constexpr char kGmailArcActivity[] =
     "com.google.android.gm.ConversationListActivityGmail";
-constexpr char kKeyboardShortcutHelperInternalName[] = "Shortcuts";
 
 constexpr char kRankingAppQuery[] = "testRankingApp";
 
@@ -77,16 +79,15 @@ void UpdateIconKey(apps::AppServiceProxy& proxy, const std::string& app_id) {
       app_id, [&app_type, &icon_key](const apps::AppUpdate& update) {
         app_type = update.AppType();
         icon_key = std::make_unique<apps::IconKey>(
-            update.IconKey()->timeline + 1, update.IconKey()->resource_id,
-            update.IconKey()->icon_effects);
+            /*raw_icon_updated=*/true, update.IconKey()->icon_effects);
       });
 
   std::vector<apps::AppPtr> apps;
   apps::AppPtr app = std::make_unique<apps::App>(app_type, app_id);
   app->icon_key = std::move(*icon_key);
   apps.push_back(std::move(app));
-  proxy.AppRegistryCache().OnApps(std::move(apps), apps::AppType::kUnknown,
-                                  false /* should_notify_initialized */);
+  proxy.OnApps(std::move(apps), apps::AppType::kUnknown,
+               false /* should_notify_initialized */);
 }
 
 }  // namespace
@@ -94,10 +95,14 @@ void UpdateIconKey(apps::AppServiceProxy& proxy, const std::string& app_id) {
 class AppSearchProviderTest : public AppSearchProviderTestBase {
  public:
   AppSearchProviderTest()
-      : AppSearchProviderTestBase(/*zero_state_provider=*/false) {}
+      : AppSearchProviderTestBase(/*zero_state_provider=*/false) {
+  }
   AppSearchProviderTest(const AppSearchProviderTest&) = delete;
   AppSearchProviderTest& operator=(const AppSearchProviderTest&) = delete;
   ~AppSearchProviderTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(AppSearchProviderTest, Basic) {
@@ -129,11 +134,11 @@ TEST_F(AppSearchProviderTest, Basic) {
   EXPECT_EQ("Hosted App", RunQuery("host"));
 
   result = RunQuery("fake");
-  EXPECT_TRUE(result == "Fake App 0,Fake App 1" ||
-              result == "Fake App 1,Fake App 0");
-  result = RunQuery("app1");
-  EXPECT_TRUE(result == "Packaged App 1,Fake App 1" ||
-              result == "Fake App 1,Packaged App 1");
+  EXPECT_TRUE(result == "Fake App 1,Fake App 2" ||
+              result == "Fake App 2,Fake App 1");
+  result = RunQuery("app2");
+  EXPECT_TRUE(result == "Packaged App 2,Fake App 2" ||
+              result == "Fake App 2,Packaged App 2");
   arc_test().TearDown();
 }
 
@@ -146,12 +151,12 @@ TEST_F(AppSearchProviderTest, NonLatinLocale) {
   AddExtension(test_app_id_1, "Тестна апликација 1",
                ManifestLocation::kExternalPrefDownload,
                extensions::Extension::WAS_INSTALLED_BY_DEFAULT);
-  service_->EnableExtension(test_app_id_1);
+  registrar()->EnableExtension(test_app_id_1);
   const std::string test_app_id_2 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
   AddExtension(test_app_id_2, "Тестна апликација 2",
                ManifestLocation::kExternalPrefDownload,
                extensions::Extension::WAS_INSTALLED_BY_DEFAULT);
-  service_->EnableExtension(test_app_id_2);
+  registrar()->EnableExtension(test_app_id_2);
 
   AddArcApp("Лажна апликација 1", "fake.app.first", "activity");
   AddArcApp("Лажна апликација 2", "fake.app.second", "activity");
@@ -192,11 +197,11 @@ TEST_F(AppSearchProviderTest, DisableAndEnable) {
 
   EXPECT_EQ("Hosted App", RunQuery("host"));
 
-  service_->DisableExtension(kHostedAppId,
-                             extensions::disable_reason::DISABLE_USER_ACTION);
+  registrar()->DisableExtension(
+      kHostedAppId, {extensions::disable_reason::DISABLE_USER_ACTION});
   EXPECT_EQ("Hosted App", RunQuery("host"));
 
-  service_->EnableExtension(kHostedAppId);
+  registrar()->EnableExtension(kHostedAppId);
   EXPECT_EQ("Hosted App", RunQuery("host"));
 }
 
@@ -204,7 +209,7 @@ TEST_F(AppSearchProviderTest, UninstallExtension) {
   InitializeSearchProvider();
 
   EXPECT_EQ("Packaged App 1", RunQuery("app 1 p"));
-  service_->UninstallExtension(
+  registrar()->UninstallExtension(
       kPackagedApp1Id, extensions::UNINSTALL_REASON_FOR_TESTING, nullptr);
 
   // Allow async callbacks to run.
@@ -232,7 +237,7 @@ TEST_F(AppSearchProviderTest, InstallUninstallArc) {
   InitializeSearchProvider();
 
   EXPECT_EQ("", GetSortedResultsString());
-  EXPECT_EQ("", RunQuery("fake0"));
+  EXPECT_EQ("", RunQuery("fake1"));
 
   arc_apps.emplace_back(arc_test().fake_apps()[0]->Clone());
   arc_test().app_instance()->SendRefreshAppList(arc_apps);
@@ -240,7 +245,7 @@ TEST_F(AppSearchProviderTest, InstallUninstallArc) {
   // Allow async callbacks to run.
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ("Fake App 0", RunQuery("fake0"));
+  EXPECT_EQ("Fake App 1", RunQuery("fake1"));
 
   arc_apps.clear();
   arc_test().app_instance()->SendRefreshAppList(arc_apps);
@@ -249,7 +254,7 @@ TEST_F(AppSearchProviderTest, InstallUninstallArc) {
   base::RunLoop().RunUntilIdle();
 
   EXPECT_EQ("", GetSortedResultsString());
-  EXPECT_EQ("", RunQuery("fake0"));
+  EXPECT_EQ("", RunQuery("fake1"));
 
   // Let uninstall code to clean up.
   base::RunLoop().RunUntilIdle();
@@ -318,42 +323,15 @@ TEST_F(AppSearchProviderTest, FilterDuplicate) {
   arc_test().TearDown();
 }
 
-TEST_F(AppSearchProviderTest, FetchInternalApp) {
-  InitializeSearchProvider();
-
-  // Search Keyboard Shortcut Helper.
-  EXPECT_EQ(kKeyboardShortcutHelperInternalName, RunQuery("Keyboard"));
-  EXPECT_EQ(kKeyboardShortcutHelperInternalName, RunQuery("Shortcut"));
-  EXPECT_EQ(kKeyboardShortcutHelperInternalName, RunQuery("Helper"));
-}
-
 TEST_F(AppSearchProviderTest, WebApp) {
-  const web_app::AppId app_id = web_app::test::InstallDummyWebApp(
-      testing_profile(), kWebAppName, GURL(kWebAppUrl));
+  const webapps::AppId app_id = web_app::test::InstallDummyWebApp(
+      profile(), kWebAppName, GURL(kWebAppUrl));
 
   // Allow async callbacks to run.
   base::RunLoop().RunUntilIdle();
 
   InitializeSearchProvider();
   EXPECT_EQ("WebApp1", RunQuery("WebA"));
-}
-
-TEST_F(AppSearchProviderTest, BasicAppServiceAppResult) {
-  InitializeSearchProvider();
-  RunQuery("Keyboard");
-  std::vector<ChromeSearchResult*> keyboard_results = GetLastResults();
-  EXPECT_EQ(keyboard_results.size(), 1u);
-  EXPECT_EQ(base::UTF16ToUTF8(keyboard_results[0]->title()),
-            kKeyboardShortcutHelperInternalName);
-  EXPECT_EQ(keyboard_results[0]->display_type(),
-            ash::SearchResultDisplayType::kList);
-  EXPECT_EQ(keyboard_results[0]->result_type(),
-            ash::AppListSearchResultType::kInternalApp);
-  EXPECT_EQ(keyboard_results[0]->metrics_type(), ash::INTERNAL_APP);
-  EXPECT_EQ(keyboard_results[0]->is_recommendation(), false);
-  EXPECT_EQ(keyboard_results[0]->category(), Category::kApps);
-  EXPECT_EQ(keyboard_results[0]->id(),
-            ash::kInternalAppIdKeyboardShortcutViewer);
 }
 
 class AppSearchProviderCrostiniTest : public AppSearchProviderTest {
@@ -367,7 +345,6 @@ class AppSearchProviderCrostiniTest : public AppSearchProviderTest {
   }
 
   void TearDown() override {
-    profile_.reset();
     AppSearchProviderTest::TearDown();
 
     // |profile_| is initialized in AppListTestBase::SetUp but not destroyed in
@@ -384,7 +361,7 @@ class AppSearchProviderCrostiniTest : public AppSearchProviderTest {
 
 TEST_F(AppSearchProviderCrostiniTest, CrostiniApp) {
   // This both allows Crostini UI and enables Crostini.
-  crostini::CrostiniTestHelper crostini_test_helper(testing_profile());
+  crostini::CrostiniTestHelper crostini_test_helper(profile());
   crostini_test_helper.ReInitializeAppServiceIntegration();
   InitializeSearchProvider();
 
@@ -412,7 +389,7 @@ TEST_F(AppSearchProviderCrostiniTest, CrostiniAppWithExactMathing) {
   // Set a non-latin locale, which don't support fuzzy matching.
   base::i18n::SetICUDefaultLocale("sr");
   // This both allows Crostini UI and enables Crostini.
-  crostini::CrostiniTestHelper crostini_test_helper(testing_profile());
+  crostini::CrostiniTestHelper crostini_test_helper(profile());
   crostini_test_helper.ReInitializeAppServiceIntegration();
   InitializeSearchProvider();
 
@@ -447,8 +424,8 @@ TEST_F(AppSearchProviderTest, AppServiceIconCache) {
       proxy->OverrideInnerIconLoaderForTesting(&stub_icon_loader);
 
   // Insert dummy map values so that the stub_icon_loader knows of these apps.
-  stub_icon_loader.timelines_by_app_id_[kPackagedApp1Id] = 1;
-  stub_icon_loader.timelines_by_app_id_[kPackagedApp2Id] = 2;
+  stub_icon_loader.update_version_by_app_id_[kPackagedApp1Id] = 1;
+  stub_icon_loader.update_version_by_app_id_[kPackagedApp2Id] = 2;
 
   // The stub_icon_loader should start with no LoadIconFromIconKey calls.
   InitializeSearchProvider();
@@ -495,7 +472,6 @@ TEST_F(AppSearchProviderTest, FuzzyAppSearchTest) {
   std::string result = RunQuery("ackaged");
   EXPECT_TRUE(result == "Packaged App 1,Packaged App 2" ||
               result == "Packaged App 2,Packaged App 1");
-  EXPECT_EQ(kKeyboardShortcutHelperInternalName, RunQuery("Helper"));
 }
 
 class AppSearchProviderOemAppTest
@@ -517,11 +493,11 @@ class AppSearchProviderOemAppTest
 TEST_P(AppSearchProviderOemAppTest, OemResultsOnFirstBoot) {
   // Disable the pre-installed high-priority extensions. This test simulates
   // a brand new profile being added to a device, and should not include these.
-  service_->UninstallExtension(
+  registrar()->UninstallExtension(
       kHostedAppId, extensions::UNINSTALL_REASON_FOR_TESTING, nullptr);
-  service_->UninstallExtension(
+  registrar()->UninstallExtension(
       kPackagedApp1Id, extensions::UNINSTALL_REASON_FOR_TESTING, nullptr);
-  service_->UninstallExtension(
+  registrar()->UninstallExtension(
       kPackagedApp2Id, extensions::UNINSTALL_REASON_FOR_TESTING, nullptr);
 
   base::RunLoop().RunUntilIdle();
@@ -545,9 +521,9 @@ TEST_P(AppSearchProviderOemAppTest, OemResultsOnFirstBoot) {
                  ManifestLocation::kExternalPrefDownload,
                  extensions::Extension::WAS_INSTALLED_BY_OEM);
 
-    service_->EnableExtension(internal_app_id);
+    registrar()->EnableExtension(internal_app_id);
 
-    EXPECT_TRUE(prefs->WasInstalledByOem(internal_app_id));
+    EXPECT_TRUE(WasInstalledByOem(prefs, internal_app_id));
   }
 
   // Allow OEM app install to finish.

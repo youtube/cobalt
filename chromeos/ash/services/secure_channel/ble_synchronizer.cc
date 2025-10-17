@@ -141,7 +141,6 @@ void BleSynchronizer::ProcessQueue() {
     }
     default:
       NOTREACHED();
-      return;
   }
 }
 

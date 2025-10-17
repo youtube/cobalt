@@ -45,7 +45,7 @@ message SysStats {
     optional uint64 user_ns = 2;
 
     // Time spent in user mode (low prio).
-    optional uint64 user_ice_ns = 3;
+    optional uint64 user_nice_ns = 3;
 
     // Time spent in system mode.
     optional uint64 system_mode_ns = 4;
@@ -61,6 +61,9 @@ message SysStats {
 
     // Time spent servicing softirqs.
     optional uint64 softirq_ns = 8;
+
+    // Time spent executing something else on host than this guest.
+    optional uint64 steal_ns = 9;
   }
   // One entry per cpu.
   repeated CpuTimes cpu_stat = 3;
@@ -131,4 +134,55 @@ message SysStats {
   }
   // One entry per disk device.
   repeated DiskStat disk_stat = 13;
+
+  // Reading from /proc/pressure/*.
+  message PsiSample {
+    // Type of resource that may have exhibited pressure stalls.
+    //    * _SOME indicates some resource tasks stalled.
+    //    * _FULL indicates all non-idle resource tasks stalled simultaneously.
+    enum PsiResource {
+      PSI_RESOURCE_UNSPECIFIED = 0;
+      PSI_RESOURCE_CPU_SOME = 1;
+      PSI_RESOURCE_CPU_FULL = 2;
+      PSI_RESOURCE_IO_SOME = 3;
+      PSI_RESOURCE_IO_FULL = 4;
+      PSI_RESOURCE_MEMORY_SOME = 5;
+      PSI_RESOURCE_MEMORY_FULL = 6;
+    }
+    optional PsiResource resource = 1;
+
+    // Total absolute stall time (in nanos) for a given resource.
+    // While PSI readings are in micros, we store in nanos for consistency with
+    // most other time-based counters.
+    optional uint64 total_ns = 2;
+
+    // Note that /proc/pressure/* exposes historical average utilization values
+    // (as a %), but we don't yet sample those. They could easily be added as
+    // additional fields should the total stall time readings be insufficient.
+  }
+  // One entry per PsiResource type.
+  repeated PsiSample psi = 14;
+
+  // Reading from /sys/class/thermal/*.
+  message ThermalZone {
+    optional string name = 1;
+    optional uint64 temp = 2;
+    optional string type = 3;
+  }
+  repeated ThermalZone thermal_zone = 15;
+
+  // Reading from /sys/devices/system/cpu/cpu*/cpuidle/state*.
+  message CpuIdleStateEntry {
+    // Name of the idle state, e.g. C1-C10
+    optional string state = 1;
+    optional uint64 duration_us = 2;
+  }
+  message CpuIdleState {
+    optional uint32 cpu_id = 1;
+    repeated CpuIdleStateEntry cpuidle_state_entry = 2;
+  }
+  repeated CpuIdleState cpuidle_state = 16;
+
+  // Read GPU frequency info on Intel/AMD devices.
+  repeated uint64 gpufreq_mhz = 17;
 }

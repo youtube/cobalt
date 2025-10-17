@@ -23,6 +23,10 @@ NinePatchLayerImpl::NinePatchLayerImpl(LayerTreeImpl* tree_impl, int id)
 
 NinePatchLayerImpl::~NinePatchLayerImpl() = default;
 
+mojom::LayerType NinePatchLayerImpl::GetLayerType() const {
+  return mojom::LayerType::kNinePatch;
+}
+
 std::unique_ptr<LayerImpl> NinePatchLayerImpl::CreateLayerImpl(
     LayerTreeImpl* tree_impl) const {
   return NinePatchLayerImpl::Create(tree_impl, id());
@@ -38,21 +42,23 @@ void NinePatchLayerImpl::PushPropertiesTo(LayerImpl* layer) {
 void NinePatchLayerImpl::SetLayout(const gfx::Rect& aperture,
                                    const gfx::Rect& border,
                                    const gfx::Rect& layer_occlusion,
-                                   bool fill_center,
-                                   bool nearest_neighbor) {
+                                   bool fill_center) {
   // This check imposes an ordering on the call sequence.  An UIResource must
   // exist before SetLayout can be called.
   DCHECK(ui_resource_id_);
 
-  if (!quad_generator_.SetLayout(image_bounds_, bounds(), aperture, border,
-                                 layer_occlusion, fill_center,
-                                 nearest_neighbor))
+  if (!quad_generator_.SetLayout(
+          image_bounds_, bounds(), aperture, border, layer_occlusion,
+          fill_center,
+          GetFilterQuality() == PaintFlags::FilterQuality::kNone)) {
     return;
+  }
 
   NoteLayerPropertyChanged();
 }
 
-void NinePatchLayerImpl::AppendQuads(viz::CompositorRenderPass* render_pass,
+void NinePatchLayerImpl::AppendQuads(const AppendQuadsContext& context,
+                                     viz::CompositorRenderPass* render_pass,
                                      AppendQuadsData* append_quads_data) {
   DCHECK(!bounds().IsEmpty());
   quad_generator_.CheckGeometryLimitations();
@@ -75,17 +81,8 @@ void NinePatchLayerImpl::AppendQuads(viz::CompositorRenderPass* render_pass,
 
   std::vector<NinePatchGenerator::Patch> patches =
       quad_generator_.GeneratePatches();
-
-  for (auto& patch : patches)
-    patch.output_rect =
-        gfx::RectF(gfx::ToFlooredRectDeprecated(patch.output_rect));
-
   quad_generator_.AppendQuadsForCc(this, ui_resource_id_, render_pass,
                                    shared_quad_state, patches);
-}
-
-const char* NinePatchLayerImpl::LayerTypeAsString() const {
-  return "cc::NinePatchLayerImpl";
 }
 
 void NinePatchLayerImpl::AsValueInto(

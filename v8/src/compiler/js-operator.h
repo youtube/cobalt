@@ -15,6 +15,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -331,8 +332,9 @@ V8_EXPORT_PRIVATE const CallRuntimeParameters& CallRuntimeParametersOf(
     const Operator* op);
 
 // Defines the location of a context slot relative to a specific scope. This is
-// used as a parameter by JSLoadContext and JSStoreContext operators and allows
-// accessing a context-allocated variable without keeping track of the scope.
+// used as a parameter by JSLoadContextNoCell and JSStoreContextNoCell operators
+// and allows accessing a context-allocated variable without keeping track of
+// the scope.
 class ContextAccess final {
  public:
   ContextAccess(size_t depth, size_t index, bool immutable);
@@ -840,22 +842,16 @@ const ForInParameters& ForInParametersOf(const Operator* op);
 class JSWasmCallParameters {
  public:
   explicit JSWasmCallParameters(const wasm::WasmModule* module,
-                                const wasm::FunctionSig* signature,
+                                const wasm::CanonicalSig* signature,
                                 int function_index,
+                                SharedFunctionInfoRef shared_fct_info,
                                 wasm::NativeModule* native_module,
-                                FeedbackSource const& feedback)
-      : module_(module),
-        signature_(signature),
-        function_index_(function_index),
-        native_module_(native_module),
-        feedback_(feedback) {
-    DCHECK_NOT_NULL(module);
-    DCHECK_NOT_NULL(signature);
-  }
+                                FeedbackSource const& feedback);
 
   const wasm::WasmModule* module() const { return module_; }
-  const wasm::FunctionSig* signature() const { return signature_; }
+  const wasm::CanonicalSig* signature() const { return signature_; }
   int function_index() const { return function_index_; }
+  SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   wasm::NativeModule* native_module() const { return native_module_; }
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
@@ -863,8 +859,9 @@ class JSWasmCallParameters {
 
  private:
   const wasm::WasmModule* const module_;
-  const wasm::FunctionSig* const signature_;
+  const wasm::CanonicalSig* const signature_;
   int function_index_;
+  SharedFunctionInfoRef shared_fct_info_;
   wasm::NativeModule* native_module_;
   const FeedbackSource feedback_;
 };
@@ -950,6 +947,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();
   const Operator* CreateObject();
+  const Operator* CreateStringWrapper();
   const Operator* CreatePromise();
   const Operator* CreateTypedArray();
   const Operator* CreateLiteralArray(ArrayBoilerplateDescriptionRef constant,
@@ -1000,8 +998,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,
-                           const wasm::FunctionSig* wasm_signature,
-                           int function_index,
+                           const wasm::CanonicalSig* wasm_signature,
+                           int wasm_function_index,
+                           SharedFunctionInfoRef shared_fct_info,
                            wasm::NativeModule* native_module,
                            FeedbackSource const& feedback);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1014,6 +1013,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                          FeedbackSource const& feedback);
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
+      FeedbackSource const& feedback = FeedbackSource());
+  const Operator* ConstructForwardAllArgs(
+      CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource());
 
   const Operator* LoadProperty(FeedbackSource const& feedback);
@@ -1050,7 +1052,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                               const FeedbackSource& feedback);
 
   const Operator* HasContextExtension(size_t depth);
-  const Operator* LoadContext(size_t depth, size_t index, bool immutable);
+  const Operator* LoadContextNoCell(size_t depth, size_t index, bool immutable);
+  const Operator* LoadContext(size_t depth, size_t index);
+  const Operator* StoreContextNoCell(size_t depth, size_t index);
   const Operator* StoreContext(size_t depth, size_t index);
 
   const Operator* LoadModule(int32_t cell_index);
@@ -1066,6 +1070,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* AsyncFunctionReject();
   const Operator* AsyncFunctionResolve();
 
+  const Operator* DetachContextCell(int index);
+
   const Operator* ForInEnumerate();
   const Operator* ForInNext(ForInMode mode, const FeedbackSource& feedback);
   const Operator* ForInPrepare(ForInMode mode, const FeedbackSource& feedback);
@@ -1078,7 +1084,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   // Used to implement Ignition's SwitchOnGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
-  const Operator* GeneratorRestoreContext();
+  const Operator* GeneratorRestoreContextNoCell();
 
   // Used to implement Ignition's ResumeGenerator bytecode.
   const Operator* GeneratorRestoreRegister(int index);
@@ -1402,9 +1408,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
     DCHECK_GT(ArgumentCount(), 0);
     return Argument(ArgumentCount() - 1);
   }
-  TNode<Object> ArgumentOr(int i, Node* default_value) const {
-    return i < ArgumentCount() ? Argument(i)
-                               : TNode<Object>::UncheckedCast(default_value);
+  TNode<Object> ArgumentOr(int i, TNode<Object> default_value) const {
+    return i < ArgumentCount() ? Argument(i) : default_value;
   }
   TNode<Object> ArgumentOrUndefined(int i, JSGraph* jsgraph) const {
     return ArgumentOr(i, js_node_wrapper_utils::UndefinedConstant(jsgraph));
@@ -1430,7 +1435,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
            node->opcode() == IrOpcode::kJSCallWithSpread ||
            node->opcode() == IrOpcode::kJSConstruct ||
            node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-           node->opcode() == IrOpcode::kJSConstructWithSpread
+           node->opcode() == IrOpcode::kJSConstructWithSpread ||
+           node->opcode() == IrOpcode::kJSConstructForwardAllArgs
 #if V8_ENABLE_WEBASSEMBLY
            || node->opcode() == IrOpcode::kJSWasmCall
 #endif     // V8_ENABLE_WEBASSEMBLY
@@ -1509,7 +1515,7 @@ class JSWasmCallNode final : public JSCallOrConstructNode {
     return Parameters().arity_without_implicit_args();
   }
 
-  static Type TypeForWasmReturnType(const wasm::ValueType& type);
+  static Type TypeForWasmReturnType(wasm::CanonicalValueType type);
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1547,6 +1553,8 @@ using JSConstructWithSpreadNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithSpread>;
 using JSConstructWithArrayLikeNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithArrayLike>;
+using JSConstructForwardAllArgsNode =
+    JSConstructNodeBase<IrOpcode::kJSConstructForwardAllArgs>;
 
 class JSLoadNamedNode final : public JSNodeWrapperBase {
  public:

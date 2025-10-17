@@ -4,15 +4,15 @@
 
 #include "chrome/browser/device_api/managed_configuration_api_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/device_api/managed_configuration_api.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/pref_registry/pref_registry_syncable.h"
-#include "components/prefs/pref_service_factory.h"
 
 // static
 ManagedConfigurationAPIFactory* ManagedConfigurationAPIFactory::GetInstance() {
-  return base::Singleton<ManagedConfigurationAPIFactory>::get();
+  static base::NoDestructor<ManagedConfigurationAPIFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -27,18 +27,21 @@ ManagedConfigurationAPIFactory::ManagedConfigurationAPIFactory()
           "ManagedConfigurationAPI",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
 ManagedConfigurationAPIFactory::~ManagedConfigurationAPIFactory() = default;
 
-KeyedService* ManagedConfigurationAPIFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ManagedConfigurationAPIFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile(Profile::FromBrowserContext(context));
-  ManagedConfigurationAPI* api = new ManagedConfigurationAPI(profile);
-  return api;
+  return std::make_unique<ManagedConfigurationAPI>(profile);
 }
 
 void ManagedConfigurationAPIFactory::RegisterProfilePrefs(

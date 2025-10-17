@@ -21,7 +21,6 @@ const child_process = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const fswatch = require('node-watch');  // Like fs.watch(), but works on Linux.
 const pjoin = path.join;
 
 const ROOT_DIR = path.dirname(path.dirname(__dirname));  // The repo root.
@@ -50,12 +49,18 @@ function main() {
   // Check that deps are current before starting.
   const installBuildDeps = pjoin(ROOT_DIR, 'tools/install-build-deps');
 
-  // --filter=nodejs --filter=gn --filter=ninja is to match what
+  // --filter=nodejs --filter=pnpm --filter=gn --filter=ninja is to match what
   // cloud_build_entrypoint.sh passes to install-build-deps. It doesn't bother
   // installing the full toolchains because, unlike the Perfetto UI, it doesn't
   // need Wasm.
-  const depsArgs = ['--check-only=/dev/null', '--ui', '--filter=nodejs',
-                    '--filter=gn', '--filter=ninja'];
+  const depsArgs = [
+    '--check-only=/dev/null',
+    '--ui',
+    '--filter=nodejs',
+    '--filter=pnpm',
+    '--filter=gn',
+    '--filter=ninja'
+  ];
   exec(installBuildDeps, depsArgs);
 
   ninjaBuild();
@@ -126,7 +131,7 @@ function watchDir(dir) {
   const absDir = path.isAbsolute(dir) ? dir : pjoin(ROOT_DIR, dir);
   // Add a fs watch if in watch mode.
   if (cfg.watch) {
-    fswatch(absDir, {recursive: true}, (_eventType, filePath) => {
+    fs.watch(absDir, {recursive: true}, (_eventType, filePath) => {
       if (cfg.verbose) {
         console.log('File change detected', _eventType, filePath);
       }

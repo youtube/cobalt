@@ -13,23 +13,33 @@
 
 #include <memory>
 
+#include "api/environment/environment.h"
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "rtc_base/thread.h"
 
-namespace cricket {
+namespace webrtc {
 
-class SctpTransportFactory : public webrtc::SctpTransportFactoryInterface {
+class SctpTransportFactory : public SctpTransportFactoryInterface {
  public:
-  explicit SctpTransportFactory(rtc::Thread* network_thread);
+  explicit SctpTransportFactory(Thread* network_thread);
 
   std::unique_ptr<SctpTransportInternal> CreateSctpTransport(
-      rtc::PacketTransportInternal* transport) override;
+      const Environment& env,
+      DtlsTransportInternal* transport) override;
 
  private:
-  rtc::Thread* network_thread_;
+  Thread* network_thread_;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace cricket {
+using ::webrtc::SctpTransportFactory;
 }  // namespace cricket
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_SCTP_SCTP_TRANSPORT_FACTORY_H__

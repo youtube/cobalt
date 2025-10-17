@@ -4,10 +4,12 @@
 
 #include "services/network/shared_dictionary/shared_dictionary_writer_in_memory.h"
 
+#include "base/functional/callback_helpers.h"
 #include "base/test/bind.h"
 #include "crypto/secure_hash.h"
 #include "net/base/hash_value.h"
 #include "net/base/io_buffer.h"
+#include "services/network/shared_dictionary/shared_dictionary_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace network {
@@ -23,7 +25,7 @@ net::SHA256HashValue GetHash(const std::string& data) {
       crypto::SecureHash::Create(crypto::SecureHash::SHA256);
   secure_hash->Update(data.c_str(), data.size());
   net::SHA256HashValue sha256;
-  secure_hash->Finish(sha256.data, sizeof(sha256.data));
+  secure_hash->Finish(sha256);
   return sha256;
 }
 
@@ -46,7 +48,7 @@ TEST(SharedDictionaryWriterInMemory, SimpleWrite) {
                 EXPECT_EQ(GetHash(kTestData), hash);
                 finish_callback_called = true;
               }));
-  writer->Append(kTestData.c_str(), kTestData.size());
+  writer->Append(base::as_byte_span(kTestData));
   writer->Finish();
   EXPECT_TRUE(finish_callback_called);
 }
@@ -68,8 +70,8 @@ TEST(SharedDictionaryWriterInMemory, MultipleWrite) {
                 EXPECT_EQ(GetHash(kTestData1 + kTestData2), hash);
                 finish_callback_called = true;
               }));
-  writer->Append(kTestData1.c_str(), kTestData1.size());
-  writer->Append(kTestData2.c_str(), kTestData2.size());
+  writer->Append(base::as_byte_span(kTestData1));
+  writer->Append(base::as_byte_span(kTestData2));
   writer->Finish();
   EXPECT_TRUE(finish_callback_called);
 }
@@ -102,7 +104,7 @@ TEST(SharedDictionaryWriterInMemory, AbortedAfterWrite) {
                           result);
                 finish_callback_called = true;
               }));
-  writer->Append(kTestData.c_str(), kTestData.size());
+  writer->Append(base::as_byte_span(kTestData));
   writer.reset();
   EXPECT_TRUE(finish_callback_called);
 }
@@ -123,6 +125,31 @@ TEST(SharedDictionaryWriterInMemory, ErrorSizeZero) {
   writer->Finish();
   writer.reset();
   EXPECT_TRUE(finish_callback_called);
+}
+
+TEST(SharedDictionaryWriterInMemory, ErrorSizeExceedsLimit) {
+  base::ScopedClosureRunner size_limit_resetter =
+      shared_dictionary::SetDictionarySizeLimitForTesting(kTestData1.size());
+
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer = base::MakeRefCounted<
+      SharedDictionaryWriterInMemory>(base::BindLambdaForTesting(
+      [&](SharedDictionaryWriterInMemory::Result result,
+          scoped_refptr<net::IOBuffer> buffer, size_t size,
+          const net::SHA256HashValue& hash) {
+        EXPECT_EQ(
+            SharedDictionaryWriterInMemory::Result::kErrorSizeExceedsLimit,
+            result);
+        finish_callback_called = true;
+      }));
+  writer->Append(base::as_byte_span(kTestData1));
+  EXPECT_FALSE(finish_callback_called);
+  writer->Append(std::to_array<uint8_t>({'x'}));
+  EXPECT_TRUE(finish_callback_called);
+
+  // Test that calling Append() and Finish() doesn't cause unexpected crash.
+  writer->Append(base::as_byte_span(kTestData2));
+  writer->Finish();
 }
 
 }  // namespace network

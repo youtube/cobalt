@@ -4,6 +4,7 @@
 
 module blink.mojom;
 
+import "cc/mojom/browser_controls_offset_tag_modifications.mojom";
 import "cc/mojom/browser_controls_state.mojom";
 import "cc/mojom/overscroll_behavior.mojom";
 import "cc/mojom/touch_action.mojom";
@@ -52,8 +53,8 @@ struct KeyData {
 struct PointerData {
   int32 pointer_id;
   float force;
-  int32 tilt_x;
-  int32 tilt_y;
+  double tilt_x;
+  double tilt_y;
   float tangential_pressure;
   int32 twist;
   blink.mojom.Button button;
@@ -86,11 +87,6 @@ struct MouseData {
   WheelData? wheel_data;
 };
 
-struct ScrollUpdate {
-  float velocity_x;
-  float velocity_y;
-};
-
 struct ScrollData {
   float delta_x;
   float delta_y;
@@ -102,7 +98,6 @@ struct ScrollData {
   // Used for GestureScrollBegin type only. If this is true, we use the scroll
   // sequence to do cursor control rather than scroll.
   bool cursor_control;
-  ScrollUpdate? update_details;
 };
 
 struct PinchBeginData {
@@ -131,6 +126,10 @@ struct TapData {
   bool needs_wheel_event;
 };
 
+struct TapDownData {
+  int32 tap_down_count;
+};
+
 struct GestureData {
   gfx.mojom.PointF screen_position;
   gfx.mojom.PointF widget_position;
@@ -145,6 +144,7 @@ struct GestureData {
   PinchUpdateData? pinch_update_data;
   PinchEndData? pinch_end_data;
   TapData? tap_data;
+  TapDownData? tap_down_data;
   FlingData? fling_data;
 };
 
@@ -257,7 +257,7 @@ interface WidgetInputHandlerHost {
   // Sends the character bounds after every composition change
   // to always have correct bound info.
   ImeCompositionRangeChanged(gfx.mojom.Range range,
-                             array<gfx.mojom.Rect> bounds);
+                             array<gfx.mojom.Rect>? character_bounds);
 
   // Updates the mouse capture state of this widget. While capture is enabled,
   // all mouse events, including those that don't hittest to this widget, will
@@ -265,6 +265,13 @@ interface WidgetInputHandlerHost {
   // a scrollbar is being dragged, or text is being drag-highlighted, even
   // when the mouse passes across different RenderWidget areas.
   SetMouseCapture(bool capture);
+
+  // Updates the browser whether this main frame widget has ongoing autoscroll
+  // selection. Any further mouse up event should always be dispatched to the
+  // main frame in addition to it's event target (OOP child frame) if the state
+  // is active. This API should only ever be called on the InputHandler for a
+  // main frame's RenderWidgetHost.
+  SetAutoscrollSelectionActiveInMainFrame(bool autoscroll_selection);
 
   // Requests locking the target of mouse events to a single element and
   // removing the cursor from view.  Mostly used by the Pointer Lock API.
@@ -309,6 +316,12 @@ interface FrameWidgetInputHandler {
   // Deletes the current selection plus the specified number of characters
   // before and after the selection or caret.
   ExtendSelectionAndDelete(int32 before, int32 after);
+
+  // Deletes the current selection plus the specified number of characters
+  // before and after the selection or caret.
+  ExtendSelectionAndReplace(uint32 before,
+                            uint32 after,
+                            mojo_base.mojom.String16 replacement_text);
 
   // Deletes text before and after the current cursor position, excluding the
   // selection. The lengths are supplied in Java chars (UTF-16 Code Unit),
@@ -397,6 +410,19 @@ interface FrameWidgetInputHandler {
 
   // Requests the renderer to move the caret selection toward the point.
   MoveCaret(gfx.mojom.Point point);
+
+  // Requests the renderer to scroll the container of selection base to point.
+  [EnableIf=is_ios]
+  StartAutoscrollForSelectionToPoint(gfx.mojom.PointF point);
+
+  // Requests the renderer to stop autoscroll.
+  [EnableIf=is_ios]
+  StopAutoscroll();
+
+  // Get the rect in screen coordinates (DIPs) for a range of characters in the
+  // currently focused editable field.
+  [EnableIf=is_ios]
+  RectForEditFieldChars(gfx.mojom.Range range) => (gfx.mojom.Rect rect);
 };
 
 // An enumeration describing the active and focus states. If a widget is
@@ -410,12 +436,6 @@ enum FocusState
   kFocused,
   kNotFocusedAndActive,
   kNotFocusedAndNotActive
-};
-
-// TODO(sinansahin): DidOverscrollParams and TouchActionOptional can be moved
-//  into this struct as well.
-struct ScrollResultData {
-  gfx.mojom.PointF? root_scroll_offset;
 };
 
 // Interface exposed by the renderer to the browser. This class represents
@@ -482,8 +502,7 @@ interface WidgetInputHandler {
          ui.mojom.LatencyInfo updated_latency,
          blink.mojom.InputEventResultState state,
          DidOverscrollParams? overscroll,
-         TouchActionOptional? touch_action,
-         ScrollResultData? scroll_result_data);
+         TouchActionOptional? touch_action);
 
   // Sends a non-blocking input event to the render widget. The behaviour
   // of this API is the same as DispatchEvent just that there is no callback
@@ -511,10 +530,9 @@ interface WidgetInputHandler {
   GetFrameWidgetInputHandler(
       pending_associated_receiver<FrameWidgetInputHandler> interface_request);
 
-  // Notifies the renderer whether hiding/showing the browser controls is
-  // enabled, what the current state should be, and whether or not to
-  // animate to the proper state.
+  // see UpdateBrowserControlsState in third_party/blink/public/mojom/frame/frame.mojom for details
   UpdateBrowserControlsState(cc.mojom.BrowserControlsState constraints,
                              cc.mojom.BrowserControlsState current,
-                             bool animate);
+                             bool animate,
+                             cc.mojom.BrowserControlsOffsetTagModifications? offset_tag_modifications);
 };

@@ -5,22 +5,16 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_CSS_TOKENIZER_INPUT_STREAM_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_CSS_TOKENIZER_INPUT_STREAM_H_
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
 class CSSTokenizerInputStream {
-  USING_FAST_MALLOC(CSSTokenizerInputStream);
-
  public:
-  explicit CSSTokenizerInputStream(const String& input)
-      : string_length_(input.length()),
-        string_ref_(input.Impl()),
-        string_(input) {}
-
   explicit CSSTokenizerInputStream(StringView input)
-      : string_length_(input.length()), string_ref_(nullptr), string_(input) {}
+      : string_length_(input.length()), string_(input) {}
 
   CSSTokenizerInputStream(const CSSTokenizerInputStream&) = delete;
   CSSTokenizerInputStream& operator=(const CSSTokenizerInputStream&) = delete;
@@ -58,18 +52,22 @@ class CSSTokenizerInputStream {
 
   double GetDouble(unsigned start, unsigned end) const;
 
+  // Like GetDouble(), but only for the case where the number matches
+  // [0-9]+ (no decimal point, no exponent, no sign), and is faster.
+  double GetNaturalNumberAsDouble(unsigned start, unsigned end) const;
+
   template <bool characterPredicate(UChar)>
   unsigned SkipWhilePredicate(unsigned offset) {
     if (string_.Is8Bit()) {
-      const LChar* characters8 = string_.Characters8();
+      const LChar* characters8 = UNSAFE_TODO(string_.Characters8());
       while ((offset_ + offset) < string_length_ &&
-             characterPredicate(characters8[offset_ + offset])) {
+             characterPredicate(UNSAFE_TODO(characters8[offset_ + offset]))) {
         ++offset;
       }
     } else {
-      const UChar* characters16 = string_.Characters16();
+      const UChar* characters16 = UNSAFE_TODO(string_.Characters16());
       while ((offset_ + offset) < string_length_ &&
-             characterPredicate(characters16[offset_ + offset])) {
+             characterPredicate(UNSAFE_TODO(characters16[offset_ + offset]))) {
         ++offset;
       }
     }
@@ -81,6 +79,10 @@ class CSSTokenizerInputStream {
   unsigned length() const { return string_length_; }
   unsigned Offset() const { return std::min(offset_, string_length_); }
 
+  StringView RangeFrom(unsigned start) const {
+    return StringView(string_, start, string_length_ - start);
+  }
+
   StringView RangeAt(unsigned start, unsigned length) const {
     DCHECK(start + length <= string_length_);
     return StringView(string_, start, length);
@@ -91,10 +93,6 @@ class CSSTokenizerInputStream {
  private:
   wtf_size_t offset_ = 0;
   const wtf_size_t string_length_;
-  // Purely to hold on to the reference. Must be destroyed after the StringView
-  // (i.e., be higher up in the list of members), or the StringView destructor
-  // may DCHECK as it thinks the reference is dangling.
-  const scoped_refptr<StringImpl> string_ref_;
   StringView string_;
 };
 

@@ -15,7 +15,8 @@ BitmapFetcherService* BitmapFetcherServiceFactory::GetForBrowserContext(
 
 // static
 BitmapFetcherServiceFactory* BitmapFetcherServiceFactory::GetInstance() {
-  return base::Singleton<BitmapFetcherServiceFactory>::get();
+  static base::NoDestructor<BitmapFetcherServiceFactory> instance;
+  return instance.get();
 }
 
 BitmapFetcherServiceFactory::BitmapFetcherServiceFactory()
@@ -23,17 +24,20 @@ BitmapFetcherServiceFactory::BitmapFetcherServiceFactory()
           "BitmapFetcherService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-BitmapFetcherServiceFactory::~BitmapFetcherServiceFactory() {
-}
+BitmapFetcherServiceFactory::~BitmapFetcherServiceFactory() = default;
 
-KeyedService* BitmapFetcherServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+BitmapFetcherServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = static_cast<Profile*>(context);
   DCHECK(!profile->IsOffTheRecord());
-  return new BitmapFetcherService(profile);
+  return std::make_unique<BitmapFetcherService>(profile);
 }

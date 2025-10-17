@@ -22,7 +22,7 @@ ConstantSourceNode::ConstantSourceNode(BaseAudioContext& context)
       offset_(AudioParam::Create(
           context,
           Uuid(),
-          AudioParamHandler::kParamTypeConstantSourceOffset,
+          AudioParamHandler::AudioParamType::kParamTypeConstantSourceOffset,
           kDefaultOffsetValue,
           AudioParamHandler::AutomationRate::kAudio,
           AudioParamHandler::AutomationRateMode::kVariable)) {
@@ -65,7 +65,7 @@ ConstantSourceHandler& ConstantSourceNode::GetConstantSourceHandler() const {
 }
 
 AudioParam* ConstantSourceNode::offset() {
-  return offset_;
+  return offset_.Get();
 }
 
 void ConstantSourceNode::ReportDidCreate() {

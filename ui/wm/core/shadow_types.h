@@ -6,7 +6,6 @@
 #define UI_WM_CORE_SHADOW_TYPES_H_
 
 #include "base/component_export.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/aura/window.h"
 
 namespace wm {
@@ -19,12 +18,15 @@ constexpr int kShadowElevationDefault = -1;
 // shell. Used as a value for the kShadowElevationKey property.
 constexpr int kShadowElevationNone = 0;
 
+// The shadow elevation for popups such as toasts and notifiers.
+constexpr int kShadowElevationPopup = 4;
+
 // Standard shadow elevations used by the the aura window manager. The value is
 // used to initialize an instance of wm::Shadow and controls the offset and blur
 // of the shadow style created by gfx::ShadowValue::MakeMdShadowValues() or
 // gfx::ShadowValue::MakeChromeOSSystemUIShadowValues().
 constexpr int kShadowElevationMenuOrTooltip = 6;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 constexpr int kShadowElevationInactiveWindow = 12;
 #else
 constexpr int kShadowElevationInactiveWindow = 8;

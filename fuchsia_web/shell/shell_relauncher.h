@@ -5,8 +5,8 @@
 #ifndef FUCHSIA_WEB_SHELL_SHELL_RELAUNCHER_H_
 #define FUCHSIA_WEB_SHELL_SHELL_RELAUNCHER_H_
 
-#include "base/strings/string_piece.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+#include <string_view>
 
 namespace base {
 class CommandLine;
@@ -17,8 +17,8 @@ class CommandLine;
 // use RealmBuilder to relaunch the shell via the given package-relative URL
 // (which includes `--no-relaunch` on its command line) with the contents of
 // this process's command line.
-absl::optional<int> RelaunchForWebInstanceHostIfParent(
-    base::StringPiece relative_component_url,
+std::optional<int> RelaunchForWebInstanceHostIfParent(
+    std::string_view relative_component_url,
     const base::CommandLine& command_line);
 
 #endif  // FUCHSIA_WEB_SHELL_SHELL_RELAUNCHER_H_

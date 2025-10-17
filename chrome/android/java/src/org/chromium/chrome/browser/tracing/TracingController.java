@@ -13,8 +13,8 @@ import android.text.format.DateUtils;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.FileProviderUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.task.AsyncTask;
@@ -36,13 +36,9 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
 
-/**
- * Coordinates recording and saving/sharing Chrome performance traces.
- */
+/** Coordinates recording and saving/sharing Chrome performance traces. */
 public class TracingController {
-    /**
-     * Observer that is notified when the controller's tracing state changes.
-     */
+    /** Observer that is notified when the controller's tracing state changes. */
     public interface Observer {
         /**
          * Called by the TracingController when its state changes.
@@ -52,11 +48,15 @@ public class TracingController {
         void onTracingStateChanged(@State int state);
     }
 
-    /**
-     * State of the controller. There can only be one active tracing session at the same time.
-     */
-    @IntDef({State.INITIALIZING, State.IDLE, State.STARTING, State.RECORDING, State.STOPPING,
-            State.STOPPED})
+    /** State of the controller. There can only be one active tracing session at the same time. */
+    @IntDef({
+        State.INITIALIZING,
+        State.IDLE,
+        State.STARTING,
+        State.RECORDING,
+        State.STOPPING,
+        State.STOPPED
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface State {
         int INITIALIZING = 0;
@@ -86,26 +86,31 @@ public class TracingController {
     // Only set while a trace is in progress to avoid leaking native resources.
     private TracingControllerAndroid mNativeController;
 
-    private ObserverList<Observer> mObservers = new ObserverList<>();
+    private final ObserverList<Observer> mObservers = new ObserverList<>();
     private @State int mState = State.INITIALIZING;
     private Set<String> mKnownCategories;
     private File mTracingTempFile;
 
     private TracingController() {
         // Check for old chrome-trace temp files and delete them.
-        PostTask.postTask(TaskTraits.BEST_EFFORT_MAY_BLOCK, () -> {
-            File cacheDir =
-                    new File(ContextUtils.getApplicationContext().getCacheDir() + TEMP_FILE_DIR);
-            File[] files = cacheDir.listFiles();
-            if (files != null) {
-                long maxTime = System.currentTimeMillis() - DELETE_AFTER_SHARE_TIMEOUT_MILLIS;
-                for (File f : files) {
-                    if (f.lastModified() <= maxTime) {
-                        f.delete();
+        PostTask.postTask(
+                TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                () -> {
+                    File cacheDir =
+                            new File(
+                                    ContextUtils.getApplicationContext().getCacheDir()
+                                            + TEMP_FILE_DIR);
+                    File[] files = cacheDir.listFiles();
+                    if (files != null) {
+                        long maxTime =
+                                System.currentTimeMillis() - DELETE_AFTER_SHARE_TIMEOUT_MILLIS;
+                        for (File f : files) {
+                            if (f.lastModified() <= maxTime) {
+                                f.delete();
+                            }
+                        }
                     }
-                }
-            }
-        });
+                });
     }
 
     /**
@@ -132,12 +137,13 @@ public class TracingController {
 
     private void initialize() {
         mNativeController = TracingControllerAndroid.create(ContextUtils.getApplicationContext());
-        mNativeController.getKnownCategories(categories -> {
-            mKnownCategories = new HashSet<>(Arrays.asList(categories));
+        mNativeController.getKnownCategories(
+                categories -> {
+                    mKnownCategories = new HashSet<>(Arrays.asList(categories));
 
-            // Also cleans up the controller.
-            setState(State.IDLE);
-        });
+                    // Also cleans up the controller.
+                    setState(State.IDLE);
+                });
     }
 
     /**
@@ -192,7 +198,6 @@ public class TracingController {
     public void startRecording() {
         assert mState == State.IDLE;
         assert mNativeController == null;
-        assert TracingNotificationManager.browserNotificationsEnabled();
 
         mNativeController = TracingControllerAndroid.create(ContextUtils.getApplicationContext());
 
@@ -212,8 +217,10 @@ public class TracingController {
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd-HHmmss", Locale.US);
             formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
             try {
-                tracingTempFile = new File(
-                        cacheDir, TEMP_FILE_PREFIX + formatter.format(new Date()) + TEMP_FILE_EXT);
+                tracingTempFile =
+                        new File(
+                                cacheDir,
+                                TEMP_FILE_PREFIX + formatter.format(new Date()) + TEMP_FILE_EXT);
                 tracingTempFile.createNewFile();
             } catch (IOException e) {
                 Log.e(TAG, "Couldn't create chrome-trace temp file: %s", e.getMessage());
@@ -241,8 +248,13 @@ public class TracingController {
         String categories = TextUtils.join(",", TracingSettings.getEnabledCategories());
         String options = TracingSettings.getSelectedTracingMode();
 
-        if (!mNativeController.startTracing(mTracingTempFile.getPath(), false, categories, options,
-                    /*compressFile=*/true, /*useProtobuf=*/true)) {
+        if (!mNativeController.startTracing(
+                mTracingTempFile.getPath(),
+                false,
+                categories,
+                options,
+                /* compressFile= */ true,
+                /* useProtobuf= */ true)) {
             Log.e(TAG, "Native error while trying to start tracing");
             showErrorToast();
             setState(State.IDLE);
@@ -256,14 +268,19 @@ public class TracingController {
     private void updateBufferUsage() {
         if (mState != State.RECORDING) return;
 
-        mNativeController.getTraceBufferUsage(pair -> {
-            if (mState != State.RECORDING) return;
+        mNativeController.getTraceBufferUsage(
+                pair -> {
+                    if (mState != State.RECORDING) return;
 
-            TracingNotificationManager.updateTracingActiveNotification(pair.first);
+                    TracingNotificationManager.updateTracingActiveNotification(pair.first);
 
-            PostTask.postDelayedTask(TaskTraits.UI_DEFAULT,
-                    () -> { updateBufferUsage(); }, UPDATE_BUFFER_USAGE_INTERVAL_MILLIS);
-        });
+                    PostTask.postDelayedTask(
+                            TaskTraits.UI_DEFAULT,
+                            () -> {
+                                updateBufferUsage();
+                            },
+                            UPDATE_BUFFER_USAGE_INTERVAL_MILLIS);
+                });
     }
 
     /**
@@ -276,12 +293,13 @@ public class TracingController {
         setState(State.STOPPING);
         TracingNotificationManager.showTracingStoppingNotification();
 
-        mNativeController.stopTracing((Void v) -> {
-            assert mState == State.STOPPING;
+        mNativeController.stopTracing(
+                (Void v) -> {
+                    assert mState == State.STOPPING;
 
-            setState(State.STOPPED);
-            TracingNotificationManager.showTracingCompleteNotification();
-        });
+                    setState(State.STOPPED);
+                    TracingNotificationManager.showTracingCompleteNotification();
+                });
     }
 
     /**
@@ -294,15 +312,13 @@ public class TracingController {
         setState(State.IDLE);
     }
 
-    /**
-     * Share a recorded trace via an Android share intent.
-     */
+    /** Share a recorded trace via an Android share intent. */
     public void shareTrace() {
         assert mState == State.STOPPED;
 
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
 
-        Uri fileUri = ContentUriUtils.getContentUriFromFile(mTracingTempFile);
+        Uri fileUri = FileProviderUtils.getContentUriFromFile(mTracingTempFile);
 
         shareIntent.setType(TRACE_MIMETYPE);
         shareIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
@@ -316,11 +332,14 @@ public class TracingController {
 
         // Delete the file after an hour. This won't work if the app quits in the meantime, so we
         // also check for old files when TraceController is created.
-        File tracingTempFile = mTracingTempFile;
-        PostTask.postDelayedTask(TaskTraits.UI_DEFAULT, () -> {
-            PostTask.postTask(TaskTraits.BEST_EFFORT_MAY_BLOCK,
-                    new TracingTempFileDeletion(mTracingTempFile));
-        }, DELETE_AFTER_SHARE_TIMEOUT_MILLIS);
+        PostTask.postDelayedTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    PostTask.postTask(
+                            TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                            new TracingTempFileDeletion(mTracingTempFile));
+                },
+                DELETE_AFTER_SHARE_TIMEOUT_MILLIS);
 
         mTracingTempFile = null;
         setState(State.IDLE);
@@ -332,7 +351,8 @@ public class TracingController {
         if (mState == State.IDLE) {
             TracingNotificationManager.dismissNotification();
             if (mTracingTempFile != null) {
-                PostTask.postTask(TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                PostTask.postTask(
+                        TaskTraits.BEST_EFFORT_MAY_BLOCK,
                         new TracingTempFileDeletion(mTracingTempFile));
                 mTracingTempFile = null;
             }
@@ -347,7 +367,7 @@ public class TracingController {
     }
 
     private static class TracingTempFileDeletion implements Runnable {
-        private File mTempFile;
+        private final File mTempFile;
 
         public TracingTempFileDeletion(File file) {
             mTempFile = file;

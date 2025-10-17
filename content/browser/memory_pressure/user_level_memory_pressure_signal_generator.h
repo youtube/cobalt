@@ -7,11 +7,11 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#include <optional>
 #include <utility>
+
 #include "base/no_destructor.h"
 #include "base/timer/timer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Process;
@@ -44,17 +44,15 @@ class UserLevelMemoryPressureSignalGenerator {
   void StartPeriodicTimer(base::TimeDelta interval);
   void StartReportingTimer();
 
-  static std::pair<uint64_t, uint64_t>
-  GetTotalPrivateFootprintVisibleOrHigherPriorityRenderers();
+  static uint64_t GetTotalPrivateFootprintVisibleOrHigherPriorityRenderers();
 
   static void NotifyMemoryPressure();
 
   static void ReportBeforeAfterMetrics(
       uint64_t total_pmf_visible_or_higher_priority_renderers,
-      uint64_t total_pmf,
       const char* suffix_name);
 
-  static absl::optional<uint64_t> GetPrivateFootprint(
+  static std::optional<uint64_t> GetPrivateFootprint(
       const base::Process& process);
 
   uint64_t memory_threshold_;
@@ -65,7 +63,5 @@ class UserLevelMemoryPressureSignalGenerator {
 };
 
 }  // namespace memory_pressure
-
-#endif  // BUILDFLAG(IS_ANDROID)
 
 #endif  // CONTENT_BROWSER_MEMORY_PRESSURE_USER_LEVEL_MEMORY_PRESSURE_SIGNAL_GENERATOR_H_

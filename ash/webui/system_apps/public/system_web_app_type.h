@@ -5,11 +5,9 @@
 #ifndef ASH_WEBUI_SYSTEM_APPS_PUBLIC_SYSTEM_WEB_APP_TYPE_H_
 #define ASH_WEBUI_SYSTEM_APPS_PUBLIC_SYSTEM_WEB_APP_TYPE_H_
 
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-#error "Ash-only"
-#endif
+static_assert(BUILDFLAG(IS_CHROMEOS));
 
 namespace ash {
 
@@ -55,7 +53,7 @@ enum class SystemWebAppType {
   // You can find information about this SWA at: http://go/shimless-ux.
   //
   // Source: //ash/webui/shimless_rma/
-  // Contact: cros-peripherals@google.com
+  // Contact: cros-device-enablement@google.com
   SHIMLESS_RMA = 17,
 
   // A System Web App that launches on Demo Mode startup, to display animated
@@ -72,7 +70,7 @@ enum class SystemWebAppType {
   // feedback report on Chrome OS.
   //
   // Source: //ash/webui/os_feedback_ui
-  // contact: cros-telemetry@google.com
+  // contact: cros-device-enablement@google.com
   OS_FEEDBACK = 19,
 
   // Projector aka Screencast (go/projector-player-dd) aims to make it simple
@@ -88,17 +86,14 @@ enum class SystemWebAppType {
   // will have a mock page.
   PROJECTOR = 20,
 
-  // OsUrlHandler is called by Lacros to show Ash internal chrome:// pages as
-  // applications to the user. Note that these pages are accessible to the user
-  // as os://<page> through search.
-  // contact: skuhne@google.com
-  OS_URL_HANDLER = 21,
+  // OsUrlHandler was removed.
+  // OS_URL_HANDLER = 21,
 
   // FIRMWARE UPDATE App is SWA that lets users update all their peripheral
   // firmwares in one place.
   // You can find information about this SWA at: http://go/fwupd-app.
   // Source: //ash/webui/firmware_update/
-  // Contact: cros-peripherals@google.com
+  // Contact: cros-device-enablement@google.com
   FIRMWARE_UPDATE = 22,
 
   // OsFlags is called by Lacros to show the chrome://flags page as
@@ -107,18 +102,52 @@ enum class SystemWebAppType {
   // contact: skuhne@google.com
   OS_FLAGS = 23,
 
-  // Face ML app aims to provide UI interactions to help Face ML team train
-  // their models on CrOS. This is an internal app that is only enabled on
-  // pre-released Chromebooks with appropriate hardware and OS support.
+  // FaceML was deprecated.
+  // FACE_ML = 24,
+
+  // VC Background allows users to control webcam settings, including blur and
+  // background image.
+  // Source: //ash/webui/vc_background_ui/
+  // Contact: assistive-eng@google.com
+  VC_BACKGROUND = 25,
+
+  // CrOS implementation of the print preview surface.
+  // Source: //ash/webui/print_preview_cros/
+  // Contact: cros-device-enablement@google.com
+  PRINT_PREVIEW_CROS = 26,
+
+  // Boca implementation.
+  // Source: //ash/webui/boca_ui/
+  // Contact: cros-edu-eng@google.com
+  BOCA = 27,
+
+  // Mall is an app for finding and installing other apps.
+  // Source: //ash/webui/mall/
+  // Contact: crosdev-commerce-eng@google.com
+  MALL = 28,
+
+  // CrOS SWA that performs a soft reset for the users.
+  // Source: //ash/webui/sanitize_ui/
+  // Contact: behnoodm@google.com
+  // Contact: cryptohome-core@google.com
+  OS_SANITIZE = 29,
+
+  // Recorder app for ChromeOS.
   //
-  // Source: //ash/webui/face_ml_app_ui/
-  // contact: googleo@google.com
-  FACE_ML = 24,
+  // Source: //ash/webui/recorder_app_ui/
+  // Contact: chromeos-recorder-app@google.com
+  RECORDER = 30,
+
+  // Graduation app for ChromeOS EDU users.
+  //
+  // Source: //ash/webui/graduation_ui/
+  // Contact: cros-families-eng@google.com
+  GRADUATION = 31,
 
   // When adding a new System App, remember to:
   //
   // 1. Add a corresponding histogram suffix in WebAppSystemAppInternalName
-  //    (histograms.xml). The suffix name should match the App's
+  //    (histogram_suffixes_list.xml). The suffix name should match the App's
   //    |internal_name|. This is for reporting per-app install results.
   //
   // 2. Add a corresponding proto enum entry (with the same numerical value) to
@@ -148,13 +177,13 @@ enum class SystemWebAppType {
   //
   // 6. Update kMaxValue.
   //
-  // 7. (optional) Add your System Web App to |kSystemWebAppsMapping| in
+  // 7. Add your System Web App to |kSystemWebAppsMapping| in
   //    chrome/browser/apps/app_service/policy_util.cc to make it discoverable
   //    in policies.
   //
   // 8. Have one of System Web App Platform owners review the CL.
   //    See: //ash/webui/PLATFORM_OWNERS
-  kMaxValue = FACE_ML,
+  kMaxValue = GRADUATION,
 };
 
 }  // namespace ash

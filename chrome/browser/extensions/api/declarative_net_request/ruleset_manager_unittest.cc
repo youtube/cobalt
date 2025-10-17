@@ -4,16 +4,21 @@
 
 #include "extensions/browser/api/declarative_net_request/ruleset_manager.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/extensions/api/declarative_net_request/dnr_test_base.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_util.h"
+#include "components/version_info/channel.h"
 #include "extensions/browser/api/declarative_net_request/composite_matcher.h"
 #include "extensions/browser/api/declarative_net_request/file_backed_ruleset_source.h"
+#include "extensions/browser/api/declarative_net_request/prefs_helper.h"
 #include "extensions/browser/api/declarative_net_request/request_action.h"
 #include "extensions/browser/api/declarative_net_request/ruleset_matcher.h"
 #include "extensions/browser/api/declarative_net_request/test_utils.h"
@@ -25,6 +30,8 @@
 #include "extensions/common/api/declarative_net_request.h"
 #include "extensions/common/api/declarative_net_request/constants.h"
 #include "extensions/common/api/declarative_net_request/test_utils.h"
+#include "extensions/common/extension_features.h"
+#include "extensions/common/features/feature_channel.h"
 #include "extensions/common/file_util.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "extensions/common/url_pattern.h"
@@ -32,12 +39,12 @@
 #include "net/http/http_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-namespace extensions {
-namespace declarative_net_request {
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
+namespace extensions::declarative_net_request {
 
 namespace dnr_api = api::declarative_net_request;
 
@@ -45,7 +52,7 @@ namespace {
 
 class RulesetManagerTest : public DNRTestBase {
  public:
-  RulesetManagerTest() {}
+  RulesetManagerTest() = default;
 
   RulesetManagerTest(const RulesetManagerTest&) = delete;
   RulesetManagerTest& operator=(const RulesetManagerTest&) = delete;
@@ -93,10 +100,9 @@ class RulesetManagerTest : public DNRTestBase {
     ASSERT_EQ(1u, sources.size());
 
     int expected_checksum;
-    EXPECT_TRUE(ExtensionPrefs::Get(browser_context())
-                    ->GetDNRStaticRulesetChecksum(last_loaded_extension_->id(),
-                                                  sources[0].id(),
-                                                  &expected_checksum));
+    PrefsHelper helper(*ExtensionPrefs::Get(browser_context()));
+    EXPECT_TRUE(helper.GetStaticRulesetChecksum(
+        last_loaded_extension_->id(), sources[0].id(), expected_checksum));
 
     std::vector<std::unique_ptr<RulesetMatcher>> matchers(1);
     EXPECT_EQ(
@@ -104,7 +110,8 @@ class RulesetManagerTest : public DNRTestBase {
         sources[0].CreateVerifiedMatcher(expected_checksum, &matchers[0]));
 
     *matcher = std::make_unique<CompositeMatcher>(
-        std::move(matchers), HostPermissionsAlwaysRequired::kFalse);
+        std::move(matchers), last_loaded_extension_->id(),
+        HostPermissionsAlwaysRequired::kFalse);
   }
 
   void SetIncognitoEnabled(const Extension* extension, bool incognito_enabled) {
@@ -119,21 +126,23 @@ class RulesetManagerTest : public DNRTestBase {
 
   // Returns renderer-initiated request params for the given |url|.
   WebRequestInfoInitParams GetRequestParamsForURL(
-      base::StringPiece url,
-      absl::optional<url::Origin> initiator = absl::nullopt) {
+      std::string_view url,
+      std::optional<url::Origin> initiator = std::nullopt,
+      WebRequestResourceType web_request_type = WebRequestResourceType::OTHER) {
     const int kRendererId = 1;
     WebRequestInfoInitParams info;
     info.url = GURL(url);
     info.method = net::HttpRequestHeaders::kGetMethod;
     info.render_process_id = kRendererId;
     info.initiator = std::move(initiator);
+    info.web_request_type = web_request_type;
     return info;
   }
 
   // Returns renderer-initiated request params for the given |url| and
   // |request_headers| request headers.
   WebRequestInfoInitParams GetRequestParamsForURLWithHeaders(
-      base::StringPiece url,
+      std::string_view url,
       const std::vector<std::string>& request_headers) {
     const int kRendererId = 1;
     WebRequestInfoInitParams info;
@@ -171,7 +180,7 @@ TEST_P(RulesetManagerTest, MultipleRulesets) {
 
   auto should_block_request = [this](const WebRequestInfo& request, int rule_id,
                                      const ExtensionId& extension_id) {
-    manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+    manager()->EvaluateBeforeRequest(request, false /*is_incognito_context*/);
     return !request.dnr_actions->empty() &&
            ((*request.dnr_actions)[0] ==
             CreateRequestActionForTesting(
@@ -184,7 +193,8 @@ TEST_P(RulesetManagerTest, MultipleRulesets) {
 
     ASSERT_EQ(0u, manager()->GetMatcherCountForTest());
 
-    std::string extension_id_one, extension_id_two;
+    ExtensionId extension_id_one;
+    ExtensionId extension_id_two;
     size_t expected_matcher_count = 0;
 
     // Add the required rulesets.
@@ -192,7 +202,7 @@ TEST_P(RulesetManagerTest, MultipleRulesets) {
       ++expected_matcher_count;
       std::unique_ptr<CompositeMatcher> matcher;
       ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
-          {rule_one}, std::to_string(mask) + "_one", &matcher));
+          {rule_one}, base::NumberToString(mask) + "_one", &matcher));
       extension_id_one = last_loaded_extension()->id();
       manager()->AddRuleset(extension_id_one, std::move(matcher));
     }
@@ -200,7 +210,7 @@ TEST_P(RulesetManagerTest, MultipleRulesets) {
       ++expected_matcher_count;
       std::unique_ptr<CompositeMatcher> matcher;
       ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
-          {rule_two}, std::to_string(mask) + "_two", &matcher));
+          {rule_two}, base::NumberToString(mask) + "_two", &matcher));
       extension_id_two = last_loaded_extension()->id();
       manager()->AddRuleset(extension_id_two, std::move(matcher));
     }
@@ -247,11 +257,12 @@ TEST_P(RulesetManagerTest, IncognitoRequests) {
   EXPECT_FALSE(util::IsIncognitoEnabled(last_loaded_extension()->id(),
                                         browser_context()));
 
-  manager()->EvaluateRequest(request_info, true /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_info, true /*is_incognito_context*/);
   EXPECT_TRUE(request_info.dnr_actions->empty());
   request_info.dnr_actions.reset();
 
-  manager()->EvaluateRequest(request_info, false /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_info,
+                                   false /*is_incognito_context*/);
   ASSERT_EQ(1u, request_info.dnr_actions->size());
   EXPECT_EQ(CreateRequestActionForTesting(
                 RequestActionType::BLOCK, *rule_one.id, kDefaultPriority,
@@ -265,7 +276,7 @@ TEST_P(RulesetManagerTest, IncognitoRequests) {
   EXPECT_TRUE(util::IsIncognitoEnabled(last_loaded_extension()->id(),
                                        browser_context()));
 
-  manager()->EvaluateRequest(request_info, true /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_info, true /*is_incognito_context*/);
   ASSERT_EQ(1u, request_info.dnr_actions->size());
   EXPECT_EQ(CreateRequestActionForTesting(
                 RequestActionType::BLOCK, *rule_one.id, kDefaultPriority,
@@ -273,7 +284,8 @@ TEST_P(RulesetManagerTest, IncognitoRequests) {
             (*request_info.dnr_actions)[0]);
   request_info.dnr_actions.reset();
 
-  manager()->EvaluateRequest(request_info, false /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_info,
+                                   false /*is_incognito_context*/);
   ASSERT_EQ(1u, request_info.dnr_actions->size());
   EXPECT_EQ(CreateRequestActionForTesting(
                 RequestActionType::BLOCK, *rule_one.id, kDefaultPriority,
@@ -285,52 +297,69 @@ TEST_P(RulesetManagerTest, IncognitoRequests) {
 // Tests that
 // Extensions.DeclarativeNetRequest.EvaluateRequestTime.AllExtensions3
 // is only emitted when there are active rulesets.
-TEST_P(RulesetManagerTest, TotalEvaluationTimeHistogram) {
+// TODO(crbug.com/40727004): Add a check for the HeadersReceived versions of the
+// below histograms.
+TEST_P(RulesetManagerTest, EvaluationHistograms) {
   WebRequestInfo example_com_request(
       GetRequestParamsForURL("http://example.com"));
   WebRequestInfo google_com_request(
       GetRequestParamsForURL("http://google.com"));
   bool is_incognito_context = false;
-  const char* kHistogramName =
+  static constexpr char kEvaluationTimeHistogramName[] =
       "Extensions.DeclarativeNetRequest.EvaluateRequestTime.AllExtensions3";
+  static constexpr char kBeforeRequestRegexTimeHistogramName[] =
+      "Extensions.DeclarativeNetRequest.RegexRulesBeforeRequestActionTime."
+      "LessThan15Rules";
+  static constexpr char kBeforeRequestRulesetTimeHistogramName[] =
+      "Extensions.DeclarativeNetRequest."
+      "RulesetMatchingBeforeRequestActionTime."
+      "LessThan1000Rules";
   {
     base::HistogramTester tester;
 
-    manager()->EvaluateRequest(example_com_request, is_incognito_context);
+    manager()->EvaluateBeforeRequest(example_com_request, is_incognito_context);
     EXPECT_TRUE(example_com_request.dnr_actions->empty());
 
-    manager()->EvaluateRequest(google_com_request, is_incognito_context);
+    manager()->EvaluateBeforeRequest(google_com_request, is_incognito_context);
     EXPECT_TRUE(google_com_request.dnr_actions->empty());
 
-    tester.ExpectTotalCount(kHistogramName, 0);
+    tester.ExpectTotalCount(kEvaluationTimeHistogramName, 0);
+    tester.ExpectTotalCount(kBeforeRequestRegexTimeHistogramName, 0);
+    tester.ExpectTotalCount(kBeforeRequestRulesetTimeHistogramName, 0);
     example_com_request.dnr_actions.reset();
     google_com_request.dnr_actions.reset();
   }
 
   // Add an extension ruleset which blocks requests to "example.com".
   TestRule rule = CreateGenericRule();
+  TestRule regex_rule = CreateRegexRule(2);
   rule.condition->url_filter = std::string("example.com");
   std::unique_ptr<CompositeMatcher> matcher;
   ASSERT_NO_FATAL_FAILURE(
-      CreateMatcherForRules({rule}, "test_extension", &matcher));
+      CreateMatcherForRules({rule, regex_rule}, "test_extension", &matcher));
   manager()->AddRuleset(last_loaded_extension()->id(), std::move(matcher));
 
   {
     base::HistogramTester tester;
 
-    manager()->EvaluateRequest(example_com_request, is_incognito_context);
+    manager()->EvaluateBeforeRequest(example_com_request, is_incognito_context);
     ASSERT_EQ(1u, example_com_request.dnr_actions->size());
     EXPECT_EQ(CreateRequestActionForTesting(
                   RequestActionType::BLOCK, *rule.id, kDefaultPriority,
                   kMinValidStaticRulesetID, last_loaded_extension()->id()),
               (*example_com_request.dnr_actions)[0]);
 
-    tester.ExpectTotalCount(kHistogramName, 1);
+    tester.ExpectTotalCount(kEvaluationTimeHistogramName, 1);
+    tester.ExpectTotalCount(kBeforeRequestRegexTimeHistogramName, 1);
+    tester.ExpectTotalCount(kBeforeRequestRulesetTimeHistogramName, 1);
 
-    manager()->EvaluateRequest(google_com_request, is_incognito_context);
+    manager()->EvaluateBeforeRequest(google_com_request, is_incognito_context);
     EXPECT_TRUE(google_com_request.dnr_actions->empty());
 
-    tester.ExpectTotalCount(kHistogramName, 2);
+    tester.ExpectTotalCount(kEvaluationTimeHistogramName, 2);
+    tester.ExpectTotalCount(kBeforeRequestRegexTimeHistogramName, 2);
+    tester.ExpectTotalCount(kBeforeRequestRulesetTimeHistogramName, 2);
+
     example_com_request.dnr_actions.reset();
     google_com_request.dnr_actions.reset();
   }
@@ -359,8 +388,8 @@ TEST_P(RulesetManagerTest, Redirect) {
       RequestActionType::REDIRECT, *rule.id, *rule.priority,
       kMinValidStaticRulesetID, last_loaded_extension()->id());
   expected_redirect_action.redirect_url = GURL("http://google.com");
-  WebRequestInfo request_1(GetRequestParamsForURL(kExampleURL, absl::nullopt));
-  manager()->EvaluateRequest(request_1, is_incognito_context);
+  WebRequestInfo request_1(GetRequestParamsForURL(kExampleURL, std::nullopt));
+  manager()->EvaluateBeforeRequest(request_1, is_incognito_context);
   ASSERT_EQ(1u, request_1.dnr_actions->size());
   EXPECT_EQ(expected_redirect_action, (*request_1.dnr_actions)[0]);
 
@@ -368,21 +397,21 @@ TEST_P(RulesetManagerTest, Redirect) {
   // don't have host permissions to the request initiator.
   WebRequestInfo request_2(GetRequestParamsForURL(
       kExampleURL, url::Origin::Create(GURL("http://xyz.com"))));
-  manager()->EvaluateRequest(request_2, is_incognito_context);
+  manager()->EvaluateBeforeRequest(request_2, is_incognito_context);
   EXPECT_TRUE(request_2.dnr_actions->empty());
 
   // Change the initiator to "abc.com". It should be redirected since we have
   // the required host permissions.
   WebRequestInfo request_3(GetRequestParamsForURL(
       kExampleURL, url::Origin::Create(GURL("http://abc.com"))));
-  manager()->EvaluateRequest(request_3, is_incognito_context);
+  manager()->EvaluateBeforeRequest(request_3, is_incognito_context);
   ASSERT_EQ(1u, request_3.dnr_actions->size());
   EXPECT_EQ(expected_redirect_action, (*request_3.dnr_actions)[0]);
 
   // Ensure web-socket requests are not redirected.
   WebRequestInfo request_4(
-      GetRequestParamsForURL("ws://example.com", absl::nullopt));
-  manager()->EvaluateRequest(request_4, is_incognito_context);
+      GetRequestParamsForURL("ws://example.com", std::nullopt));
+  manager()->EvaluateBeforeRequest(request_4, is_incognito_context);
   EXPECT_TRUE(request_4.dnr_actions->empty());
 }
 
@@ -427,7 +456,7 @@ TEST_P(RulesetManagerTest, ExtensionScheme) {
   // Ensure that "http://example.com" will be blocked (with blocking taking
   // priority over redirection).
   WebRequestInfo request_1(GetRequestParamsForURL("http://example.com"));
-  manager()->EvaluateRequest(request_1, false /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_1, false /*is_incognito_context*/);
   ASSERT_EQ(1u, request_1.dnr_actions->size());
   EXPECT_EQ(CreateRequestActionForTesting(
                 RequestActionType::BLOCK, kMinValidID, kDefaultPriority,
@@ -440,7 +469,7 @@ TEST_P(RulesetManagerTest, ExtensionScheme) {
   EXPECT_TRUE(!background_page_url_1.is_empty());
   WebRequestInfo request_2(
       GetRequestParamsForURL(background_page_url_1.spec()));
-  manager()->EvaluateRequest(request_2, false /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_2, false /*is_incognito_context*/);
   EXPECT_TRUE(request_2.dnr_actions->empty());
 
   // Ensure that the background page for |extension_2| won't be blocked or
@@ -449,14 +478,14 @@ TEST_P(RulesetManagerTest, ExtensionScheme) {
   EXPECT_TRUE(!background_page_url_2.is_empty());
   WebRequestInfo request_3(
       GetRequestParamsForURL(background_page_url_2.spec()));
-  manager()->EvaluateRequest(request_3, false /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_3, false /*is_incognito_context*/);
   EXPECT_TRUE(request_3.dnr_actions->empty());
 
   // Also ensure that an arbitrary url on the chrome extension scheme is also
   // not blocked or redirected.
   WebRequestInfo request_4(GetRequestParamsForURL(base::StringPrintf(
       "%s://%s/%s", kExtensionScheme, "extension_id", "path")));
-  manager()->EvaluateRequest(request_4, false /*is_incognito_context*/);
+  manager()->EvaluateBeforeRequest(request_4, false /*is_incognito_context*/);
   EXPECT_TRUE(request_4.dnr_actions->empty());
 }
 
@@ -472,7 +501,7 @@ TEST_P(RulesetManagerTest, ModifyHeaders) {
     rule.condition->url_filter = std::string("*");
     rule.action->type = std::string("modifyHeaders");
     rule.action->request_headers = std::vector<TestHeaderInfo>(
-        {TestHeaderInfo("header1", "remove", absl::nullopt),
+        {TestHeaderInfo("header1", "remove", std::nullopt),
          TestHeaderInfo("header2", "set", "value2")});
 
     ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
@@ -488,7 +517,7 @@ TEST_P(RulesetManagerTest, ModifyHeaders) {
     rule.condition->url_filter = std::string("*");
     rule.action->type = std::string("modifyHeaders");
     rule.action->request_headers = std::vector<TestHeaderInfo>(
-        {TestHeaderInfo("header1", "remove", absl::nullopt)});
+        {TestHeaderInfo("header1", "remove", std::nullopt)});
     rule.action->response_headers = std::vector<TestHeaderInfo>(
         {TestHeaderInfo("header3", "append", "value3")});
 
@@ -503,14 +532,14 @@ TEST_P(RulesetManagerTest, ModifyHeaders) {
   WebRequestInfo request(GetRequestParamsForURL("http://example.com"));
 
   const std::vector<RequestAction>& actual_actions =
-      manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+      manager()->EvaluateBeforeRequest(request, false /*is_incognito_context*/);
 
   // Create the expected RequestAction for |extension_2|.
   RequestAction expected_action_1 = CreateRequestActionForTesting(
       RequestActionType::MODIFY_HEADERS, kMinValidID, kDefaultPriority,
       kMinValidStaticRulesetID, extension_2->id());
   expected_action_1.request_headers_to_modify = {RequestAction::HeaderInfo(
-      "header1", dnr_api::HeaderOperation::kRemove, absl::nullopt)};
+      "header1", dnr_api::HeaderOperation::kRemove, std::nullopt)};
   expected_action_1.response_headers_to_modify = {RequestAction::HeaderInfo(
       "header3", dnr_api::HeaderOperation::kAppend, "value3")};
 
@@ -520,7 +549,7 @@ TEST_P(RulesetManagerTest, ModifyHeaders) {
       kMinValidStaticRulesetID, extension_1->id());
   expected_action_2.request_headers_to_modify = {
       RequestAction::HeaderInfo("header1", dnr_api::HeaderOperation::kRemove,
-                                absl::nullopt),
+                                std::nullopt),
       RequestAction::HeaderInfo("header2", dnr_api::HeaderOperation::kSet,
                                 "value2")};
 
@@ -567,7 +596,8 @@ TEST_P(RulesetManagerTest, ModifyHeadersWithAllowRules) {
   {
     WebRequestInfo request(GetRequestParamsForURL("http://example.com"));
     const std::vector<RequestAction>& actions =
-        manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+        manager()->EvaluateBeforeRequest(request,
+                                         false /*is_incognito_context*/);
 
     // `rule1` and `rule2` match. `rule1` gets precedence because of priority.
     RequestAction expected_action = CreateRequestActionForTesting(
@@ -582,7 +612,8 @@ TEST_P(RulesetManagerTest, ModifyHeadersWithAllowRules) {
   {
     WebRequestInfo request(GetRequestParamsForURL("http://abc.example.com"));
     const std::vector<RequestAction>& actions =
-        manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+        manager()->EvaluateBeforeRequest(request,
+                                         false /*is_incognito_context*/);
 
     // `rule1`, `rule2` and `rule3` match. `rule3` gets precedence because of
     // priority.
@@ -604,7 +635,7 @@ TEST_P(RulesetManagerTest, ModifyHeaders_HostPermissions) {
   rule.condition->url_filter = std::string("*");
   rule.action->type = std::string("modifyHeaders");
   rule.action->request_headers = std::vector<TestHeaderInfo>(
-      {TestHeaderInfo("header1", "remove", absl::nullopt)});
+      {TestHeaderInfo("header1", "remove", std::nullopt)});
 
   ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
       {rule}, "test extension", &matcher, {"*://example.com/*"}));
@@ -616,13 +647,14 @@ TEST_P(RulesetManagerTest, ModifyHeaders_HostPermissions) {
   {
     WebRequestInfo request(GetRequestParamsForURL("http://example.com"));
     const std::vector<RequestAction>& actual_actions =
-        manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+        manager()->EvaluateBeforeRequest(request,
+                                         false /*is_incognito_context*/);
 
     RequestAction expected_action = CreateRequestActionForTesting(
         RequestActionType::MODIFY_HEADERS, kMinValidID, kDefaultPriority,
         kMinValidStaticRulesetID, extension->id());
     expected_action.request_headers_to_modify = {RequestAction::HeaderInfo(
-        "header1", dnr_api::HeaderOperation::kRemove, absl::nullopt)};
+        "header1", dnr_api::HeaderOperation::kRemove, std::nullopt)};
 
     EXPECT_THAT(actual_actions, ::testing::ElementsAre(::testing::Eq(
                                     ::testing::ByRef(expected_action))));
@@ -631,7 +663,8 @@ TEST_P(RulesetManagerTest, ModifyHeaders_HostPermissions) {
   {
     WebRequestInfo request(GetRequestParamsForURL("http://nopermissions.com"));
     const std::vector<RequestAction>& actual_actions =
-        manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+        manager()->EvaluateBeforeRequest(request,
+                                         false /*is_incognito_context*/);
     EXPECT_TRUE(actual_actions.empty());
   }
 
@@ -642,7 +675,8 @@ TEST_P(RulesetManagerTest, ModifyHeaders_HostPermissions) {
         "http://example.com",
         url::Origin::Create(GURL("http://nopermissions.com"))));
     const std::vector<RequestAction>& actual_actions =
-        manager()->EvaluateRequest(request, false /*is_incognito_context*/);
+        manager()->EvaluateBeforeRequest(request,
+                                         false /*is_incognito_context*/);
     EXPECT_TRUE(actual_actions.empty());
   }
 }
@@ -684,12 +718,12 @@ TEST_P(RulesetManagerTest, HostPermissionForInitiator) {
 
   struct TestCase {
     std::string url;
-    absl::optional<url::Origin> initiator;
+    std::optional<url::Origin> initiator;
     bool expected_action_redirect_extension;
     bool expected_action_blocking_extension;
   } cases[] = {
       // Empty initiator. Has access.
-      {"https://example.com", absl::nullopt, true, true},
+      {"https://example.com", std::nullopt, true, true},
       // Opaque origin as initiator. Has access.
       {"https://example.com", url::Origin(), true, true},
       // yahoo.com as initiator. Has access.
@@ -705,7 +739,7 @@ TEST_P(RulesetManagerTest, HostPermissionForInitiator) {
   };
 
   auto verify_test_case = [this](const std::string& url,
-                                 const absl::optional<url::Origin>& initiator,
+                                 const std::optional<url::Origin>& initiator,
                                  RequestAction* expected_action) {
     SCOPED_TRACE(base::StringPrintf(
         "Url-%s initiator-%s", url.c_str(),
@@ -714,7 +748,7 @@ TEST_P(RulesetManagerTest, HostPermissionForInitiator) {
     WebRequestInfo request(GetRequestParamsForURL(url, initiator));
 
     bool is_incognito_context = false;
-    manager()->EvaluateRequest(request, is_incognito_context);
+    manager()->EvaluateBeforeRequest(request, is_incognito_context);
 
     if (expected_action) {
       ASSERT_EQ(1u, request.dnr_actions->size());
@@ -758,11 +792,324 @@ TEST_P(RulesetManagerTest, HostPermissionForInitiator) {
   }
 }
 
+class RulesetManagerResponseHeadersTest : public RulesetManagerTest {
+ public:
+  RulesetManagerResponseHeadersTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        extensions_features::kDeclarativeNetRequestResponseHeaderMatching);
+  }
+
+ private:
+  // TODO(crbug.com/40727004): Once feature is launched to stable and feature
+  // flag can be removed, replace usages of this test class with just
+  // DeclarativeNetRequestBrowserTest.
+  base::test::ScopedFeatureList scoped_feature_list_;
+  ScopedCurrentChannel current_channel_override_{version_info::Channel::DEV};
+};
+
+// Test that multiple lists of modify header actions can be merged into a single
+// list that is still sorted in descending order of action precedence.
+TEST_P(RulesetManagerResponseHeadersTest, MergeModifyHeaderActions) {
+  // For 2 modify header actions, A and B, A has a higher priority than B if:
+  // A's extension is more recently installed than B's extension
+  // or if from the same extension:
+  // A's priority is greater than B's priority.
+
+  // Test setup: install 3 extensions, with extension N being more recently
+  // installed than extension N-1.
+  // Add the following (rule id, priority) for each extension:
+  // Extension 1:
+  // - OnHeadersReceived: (1, 100)
+  // Extension 2:
+  // - OnBeforeRequest:   (2, 10), (3, 1)
+  // - OnHeadersReceived: (4, 2)
+  // Extension 3:
+  // - OnBeforeRequest:   (5, 3)
+  // - OnHeadersReceived: (6, 2)
+
+  // Loads an extension with the given `rules`.
+  auto load_extension_with_rules = [this](const std::string& name,
+                                          const std::vector<TestRule>& rules) {
+    std::unique_ptr<CompositeMatcher> matcher;
+    ASSERT_NO_FATAL_FAILURE(
+        CreateMatcherForRules(rules, name, &matcher, {"<all_urls>"},
+                              /*has_background_script=*/false));
+    manager()->AddRuleset(last_loaded_extension()->id(), std::move(matcher));
+  };
+
+  // Creates a modifyHeaders rule with a given `id` and `priority`. If
+  // `headers_received_rule` is true, a trivial response header condition is
+  // added to the rule so it will be matched in onHeadersReceived instead of
+  // onBeforeRequest. Note: the action that the rule takes on a request is not
+  // important as it's not tested here.
+  auto create_rule = [](int id, int priority, bool headers_received_rule) {
+    TestRule rule = CreateGenericRule(id);
+    rule.priority = priority;
+    rule.condition->url_filter = std::string("example.com");
+    if (headers_received_rule) {
+      rule.condition->excluded_response_headers =
+          std::vector<TestHeaderCondition>(
+              {TestHeaderCondition("excludedKey", {}, {})});
+    }
+    rule.action->type = std::string("modifyHeaders");
+    rule.action->response_headers = std::vector<TestHeaderInfo>(
+        {TestHeaderInfo("header1", "append", "test")});
+    return rule;
+  };
+
+  auto get_rule_and_extension_ids =
+      [](const std::vector<RequestAction>& actions) {
+        std::vector<std::pair<int, ExtensionId>> rule_and_extension_ids;
+        for (const auto& action : actions) {
+          rule_and_extension_ids.emplace_back(action.rule_id,
+                                              action.extension_id);
+        }
+
+        return rule_and_extension_ids;
+      };
+
+  // Create the three extensions with their respective rules:
+  auto e1_hr_rule = create_rule(kMinValidID, 100, true);
+  load_extension_with_rules("extension 1", {e1_hr_rule});
+  auto extension_1_id = last_loaded_extension()->id();
+
+  auto e2_br_rule1 = create_rule(kMinValidID + 1, 10, false);
+  auto e2_br_rule2 = create_rule(kMinValidID + 2, 1, false);
+  auto e2_hr_rule = create_rule(kMinValidID + 3, 2, true);
+  load_extension_with_rules("extension 2",
+                            {e2_br_rule1, e2_br_rule2, e2_hr_rule});
+  auto extension_2_id = last_loaded_extension()->id();
+
+  auto e3_br_rule = create_rule(kMinValidID + 4, 3, false);
+  auto e3_hr_rule = create_rule(kMinValidID + 5, 2, true);
+  load_extension_with_rules("extension 3", {e3_br_rule, e3_hr_rule});
+  auto extension_3_id = last_loaded_extension()->id();
+
+  // Create a request to "example.com" and match with on before request actions.
+  WebRequestInfo request(
+      GetRequestParamsForURL("http://example.com", std::nullopt));
+  manager()->EvaluateBeforeRequest(request, /*is_incognito_context=*/false);
+
+  // The action from `extension_3` should come first since it was the most
+  // recently installed, followed by the 2 `extension_2` actions in descending
+  // order of priority, so:
+  //
+  // Extension 3:
+  // - e3_br_rule (pri = 3)
+  // Extension 2:
+  // - e2_br_rule1 (pri = 10)
+  // - e2_br_rule2 (pri = 1)
+  EXPECT_THAT(
+      get_rule_and_extension_ids(*request.dnr_actions),
+      testing::ElementsAre(std::make_pair(*e3_br_rule.id, extension_3_id),
+                           std::make_pair(*e2_br_rule1.id, extension_2_id),
+                           std::make_pair(*e2_br_rule2.id, extension_2_id)));
+
+  // Now match with actions in the on headers received phase.
+  auto base_headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      net::HttpUtil::AssembleRawHeaders("HTTP/1.0 200 OK\r\n"));
+  std::vector<RequestAction> headers_received_actions =
+      manager()->EvaluateRequestWithHeaders(request, base_headers.get(),
+                                            /*is_incognito_context=*/false);
+
+  // Each extension only has one response header matching rule each, so the
+  // actions returned should be in descending order of extension install time
+  // (most recent first), so:
+  //
+  // Extension 3:
+  // - e3_hr_rule (pri = 2)
+  // Extension 2:
+  // - e2_hr_rule (pri = 2)
+  // Extension 1:
+  // - e1_hr_rule (pri = 100)
+  EXPECT_THAT(
+      get_rule_and_extension_ids(headers_received_actions),
+      testing::ElementsAre(std::make_pair(*e3_hr_rule.id, extension_3_id),
+                           std::make_pair(*e2_hr_rule.id, extension_2_id),
+                           std::make_pair(*e1_hr_rule.id, extension_1_id)));
+
+  // Now merge actions matched in both request stages.
+  std::vector<RequestAction> merged_actions =
+      manager()->MergeModifyHeaderActions(std::move(*request.dnr_actions),
+                                          std::move(headers_received_actions));
+
+  // We should see [ext_3_actions, ext_2_actions, ext_1 actions], and actions
+  // within each block from the same extension should be sorted in descending
+  // order of priority, so, the merged actions in order are:
+  //
+  // Extension 3:
+  // - e3_br_rule (pri = 3)
+  // - e3_hr_rule (pri = 2)
+  // Extension 2:
+  // - e2_br_rule1 (pri = 10)
+  // - e2_hr_rule (pri = 2)
+  // - e2_br_rule2 (pri = 1)
+  // Extension 1:
+  // - e1_hr_rule (pri = 100)
+  EXPECT_THAT(
+      get_rule_and_extension_ids(merged_actions),
+      testing::ElementsAre(std::make_pair(*e3_br_rule.id, extension_3_id),
+                           std::make_pair(*e3_hr_rule.id, extension_3_id),
+                           std::make_pair(*e2_br_rule1.id, extension_2_id),
+                           std::make_pair(*e2_hr_rule.id, extension_2_id),
+                           std::make_pair(*e2_br_rule2.id, extension_2_id),
+                           std::make_pair(*e1_hr_rule.id, extension_1_id)));
+}
+
+// Tests that extensions can't block requests initiated by other extensions by
+// default.
+// Note: The --extensions-on-chrome-urls switch isn't tested here, see the
+///      CrossExtensionRequestBlocking browser test.
+TEST_P(RulesetManagerTest, CrossExtensionRequestBlocking) {
+  const Extension* extension_1 = nullptr;
+  const Extension* extension_2 = nullptr;
+  // Add an extension with a background page that blocks all requests.
+  {
+    std::unique_ptr<CompositeMatcher> matcher;
+    TestRule rule = CreateGenericRule();
+    rule.condition->url_filter = std::string("*");
+    rule.condition->resource_types =
+        std::vector<std::string>({"main_frame", "sub_frame", "other"});
+    ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
+        {rule}, "test extension_1", &matcher,
+        std::vector<std::string>({URLPattern::kAllUrlsPattern}),
+        true /* has_background_script */));
+    extension_1 = last_loaded_extension();
+    manager()->AddRuleset(extension_1->id(), std::move(matcher));
+  }
+
+  // Add a second extension which doesn't do anything.
+  {
+    std::unique_ptr<CompositeMatcher> matcher;
+    ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
+        {}, "test extension_2", &matcher,
+        std::vector<std::string>({URLPattern::kAllUrlsPattern}),
+        true /* has_background_script */));
+    extension_2 = last_loaded_extension();
+  }
+
+  EXPECT_EQ(1u, manager()->GetMatcherCountForTest());
+
+  // Extensions should be able to block requests that they initiated.
+  WebRequestInfo request_1(
+      GetRequestParamsForURL("http://example.com", extension_1->origin()));
+
+  manager()->EvaluateBeforeRequest(request_1, false /*is_incognito_context*/);
+  ASSERT_EQ(1u, request_1.dnr_actions->size());
+  EXPECT_EQ(CreateRequestActionForTesting(
+                RequestActionType::BLOCK, kMinValidID, kDefaultPriority,
+                kMinValidStaticRulesetID, extension_1->id()),
+            (*request_1.dnr_actions)[0]);
+
+  // Extensions should be able to block requests that they initiated from a
+  // manifest sandbox page.
+  WebRequestInfo request_2(GetRequestParamsForURL(
+      "http://example.com", extension_1->origin().DeriveNewOpaqueOrigin()));
+
+  manager()->EvaluateBeforeRequest(request_2, false /*is_incognito_context*/);
+  ASSERT_EQ(1u, request_2.dnr_actions->size());
+  EXPECT_EQ(CreateRequestActionForTesting(
+                RequestActionType::BLOCK, kMinValidID, kDefaultPriority,
+                kMinValidStaticRulesetID, extension_1->id()),
+            (*request_2.dnr_actions)[0]);
+
+  // Extensions should not be able to block (non-navigation) requests initiated
+  // by other extensions.
+  WebRequestInfo request_3(
+      GetRequestParamsForURL("http://example.com", extension_2->origin()));
+  manager()->EvaluateBeforeRequest(request_3, false /*is_incognito_context*/);
+  EXPECT_TRUE(request_3.dnr_actions->empty());
+
+  // Extensions should not be able to block (non-navigation) requests initiated
+  // by other extensions, even if they initiated from within a manifest sandbox
+  // page.
+  WebRequestInfo request_4(GetRequestParamsForURL(
+      "http://example.com", extension_2->origin().DeriveNewOpaqueOrigin()));
+  manager()->EvaluateBeforeRequest(request_4, false /*is_incognito_context*/);
+  EXPECT_TRUE(request_4.dnr_actions->empty());
+
+  // Extensions should be able to block main_frame navigation requests initiated
+  // by other extensions.
+  WebRequestInfo request_5(
+      GetRequestParamsForURL("http://example.com", extension_2->origin(),
+                             WebRequestResourceType::MAIN_FRAME));
+  manager()->EvaluateBeforeRequest(request_5, false /*is_incognito_context*/);
+  ASSERT_EQ(1u, request_5.dnr_actions->size());
+  EXPECT_EQ(CreateRequestActionForTesting(
+                RequestActionType::BLOCK, kMinValidID, kDefaultPriority,
+                kMinValidStaticRulesetID, extension_1->id()),
+            (*request_5.dnr_actions)[0]);
+
+  // Extensions should not be able to block sub_frame requests initiated by
+  // other extensions.
+  WebRequestInfo request_6(
+      GetRequestParamsForURL("http://example.com", extension_2->origin(),
+                             WebRequestResourceType::SUB_FRAME));
+  manager()->EvaluateBeforeRequest(request_6, false /*is_incognito_context*/);
+  EXPECT_TRUE(request_6.dnr_actions->empty());
+}
+
+// Tests that queryTransform rules do not leave a trailing "?" after removing
+// the last parameter from a URL.
+TEST_P(RulesetManagerTest, QueryTransformRemoveParamsTrailingQuestionMark) {
+  const Extension* extension = nullptr;
+  {
+    std::unique_ptr<CompositeMatcher> matcher;
+    TestRule rule = CreateGenericRule();
+    rule.condition->url_filter = std::string("example.com");
+    rule.action->type = std::string("redirect");
+    rule.action->redirect.emplace();
+    rule.action->redirect->transform.emplace();
+    rule.action->redirect->transform->query_transform.emplace();
+    rule.action->redirect->transform->query_transform->remove_params =
+        std::vector<std::string>({"remove"});
+
+    ASSERT_NO_FATAL_FAILURE(CreateMatcherForRules(
+        {rule}, "test extension_1", &matcher,
+        std::vector<std::string>({URLPattern::kAllUrlsPattern}),
+        true /* has_background_script */));
+    extension = last_loaded_extension();
+    manager()->AddRuleset(extension->id(), std::move(matcher));
+  }
+
+  EXPECT_EQ(1u, manager()->GetMatcherCountForTest());
+
+  struct TestCase {
+    std::string url;
+    std::string expected_redirected_url;
+  } test_cases[] = {
+      {"https://example.com", "https://example.com"},
+      {"https://example.com?", "https://example.com?"},
+      {"https://example.com?keep=1", "https://example.com?keep=1"},
+      {"https://example.com?keep=1&remove=2", "https://example.com?keep=1"},
+      {"https://example.com?remove=1", "https://example.com"},
+      {"https://example.com?remove", "https://example.com"}};
+
+  for (const auto& test_case : test_cases) {
+    SCOPED_TRACE("Testing " + test_case.url + " -> " +
+                 test_case.expected_redirected_url);
+    WebRequestInfo request(GetRequestParamsForURL(test_case.url));
+    manager()->EvaluateBeforeRequest(request, false /*is_incognito_context*/);
+
+    if (request.dnr_actions->empty()) {
+      EXPECT_EQ(test_case.expected_redirected_url, test_case.url);
+    } else {
+      ASSERT_EQ(1u, request.dnr_actions->size());
+      EXPECT_EQ(GURL(test_case.expected_redirected_url),
+                (*request.dnr_actions)[0].redirect_url);
+    }
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(All,
                          RulesetManagerTest,
                          ::testing::Values(ExtensionLoadType::PACKED,
                                            ExtensionLoadType::UNPACKED));
 
+INSTANTIATE_TEST_SUITE_P(All,
+                         RulesetManagerResponseHeadersTest,
+                         ::testing::Values(ExtensionLoadType::PACKED,
+                                           ExtensionLoadType::UNPACKED));
+
 }  // namespace
-}  // namespace declarative_net_request
-}  // namespace extensions
+}  // namespace extensions::declarative_net_request

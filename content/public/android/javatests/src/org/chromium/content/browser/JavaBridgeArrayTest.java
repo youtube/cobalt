@@ -14,11 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.test.params.BaseJUnit4RunnerDelegate;
-import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameter;
-import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameterBefore;
-import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
-import org.chromium.base.test.params.ParameterizedRunner;
+import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.content.browser.JavaBridgeActivityTestRule.Controller;
@@ -26,19 +22,15 @@ import org.chromium.content.browser.JavaBridgeActivityTestRule.Controller;
 /**
  * Part of the test suite for the Java Bridge. This class tests the general use of arrays.
  *
- * The conversions should follow
- * http://jdk6.java.net/plugin2/liveconnect/#JS_JAVA_CONVERSIONS. Places in
- * which the implementation differs from the spec are marked with
- * LIVECONNECT_COMPLIANCE.
- * FIXME: Consider making our implementation more compliant, if it will not
- * break backwards-compatibility. See b/4408210.
+ * <p>The conversions should follow http://jdk6.java.net/plugin2/liveconnect/#JS_JAVA_CONVERSIONS.
+ * Places in which the implementation differs from the spec are marked with LIVECONNECT_COMPLIANCE.
+ * FIXME: Consider making our implementation more compliant, if it will not break
+ * backwards-compatibility. See b/4408210.
  */
-@RunWith(ParameterizedRunner.class)
-@UseRunnerDelegate(BaseJUnit4RunnerDelegate.class)
+@RunWith(BaseJUnit4ClassRunner.class)
 @Batch(JavaBridgeActivityTestRule.BATCH)
 public class JavaBridgeArrayTest {
-    @Rule
-    public JavaBridgeActivityTestRule mActivityTestRule = new JavaBridgeActivityTestRule();
+    @Rule public JavaBridgeActivityTestRule mActivityTestRule = new JavaBridgeActivityTestRule();
 
     private static class TestObject extends Controller {
         private boolean mBooleanValue;
@@ -55,11 +47,13 @@ public class JavaBridgeArrayTest {
             mBooleanValue = x;
             notifyResultIsReady();
         }
+
         @JavascriptInterface
         public synchronized void setIntValue(int x) {
             mIntValue = x;
             notifyResultIsReady();
         }
+
         @JavascriptInterface
         public synchronized void setStringValue(String x) {
             mStringValue = x;
@@ -70,10 +64,12 @@ public class JavaBridgeArrayTest {
             waitForResult();
             return mBooleanValue;
         }
+
         public synchronized int waitForIntValue() {
             waitForResult();
             return mIntValue;
         }
+
         public synchronized String waitForStringValue() {
             waitForResult();
             return mStringValue;
@@ -84,6 +80,7 @@ public class JavaBridgeArrayTest {
             mIntArray = x;
             notifyResultIsReady();
         }
+
         @JavascriptInterface
         public synchronized void setIntIntArray(int[][] x) {
             mIntIntArray = x;
@@ -94,6 +91,7 @@ public class JavaBridgeArrayTest {
             waitForResult();
             return mIntArray;
         }
+
         public synchronized int[][] waitForIntIntArray() {
             waitForResult();
             return mIntIntArray;
@@ -110,11 +108,6 @@ public class JavaBridgeArrayTest {
         }
     }
 
-    @UseMethodParameterBefore(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void setupMojoTest(boolean useMojo) {
-        mActivityTestRule.setupMojoTest(useMojo);
-    }
-
     private TestObject mTestObject;
 
     @Before
@@ -126,8 +119,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testArrayLength(boolean useMojo) throws Throwable {
+    public void testArrayLength() throws Throwable {
         mActivityTestRule.executeJavaScript("testObject.setIntArray([42, 43, 44]);");
         int[] result = mTestObject.waitForIntArray();
         Assert.assertEquals(3, result.length);
@@ -139,8 +131,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassNull(boolean useMojo) throws Throwable {
+    public void testPassNull() throws Throwable {
         mActivityTestRule.executeJavaScript("testObject.setIntArray(null);");
         Assert.assertNull(mTestObject.waitForIntArray());
     }
@@ -148,8 +139,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassUndefined(boolean useMojo) throws Throwable {
+    public void testPassUndefined() throws Throwable {
         mActivityTestRule.executeJavaScript("testObject.setIntArray(undefined);");
         Assert.assertNull(mTestObject.waitForIntArray());
     }
@@ -157,8 +147,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassEmptyArray(boolean useMojo) throws Throwable {
+    public void testPassEmptyArray() throws Throwable {
         mActivityTestRule.executeJavaScript("testObject.setIntArray([]);");
         Assert.assertEquals(0, mTestObject.waitForIntArray().length);
     }
@@ -168,8 +157,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassArrayToStringMethod(boolean useMojo) throws Throwable {
+    public void testPassArrayToStringMethod() throws Throwable {
         // LIVECONNECT_COMPLIANCE: Should call toString() on array.
         mActivityTestRule.executeJavaScript("testObject.setStringValue([42, 42, 42]);");
         Assert.assertEquals("undefined", mTestObject.waitForStringValue());
@@ -180,8 +168,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassArrayToNonStringNonArrayMethod(boolean useMojo) throws Throwable {
+    public void testPassArrayToNonStringNonArrayMethod() throws Throwable {
         // LIVECONNECT_COMPLIANCE: Should raise JavaScript exception.
         mActivityTestRule.executeJavaScript("testObject.setIntValue([42, 42, 42]);");
         Assert.assertEquals(0, mTestObject.waitForIntValue());
@@ -190,8 +177,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassNonArrayToArrayMethod(boolean useMojo) throws Throwable {
+    public void testPassNonArrayToArrayMethod() throws Throwable {
         // LIVECONNECT_COMPLIANCE: Should raise JavaScript exception.
         mActivityTestRule.executeJavaScript("testObject.setIntArray(42);");
         Assert.assertNull(mTestObject.waitForIntArray());
@@ -200,8 +186,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testObjectWithLengthProperty(boolean useMojo) throws Throwable {
+    public void testObjectWithLengthProperty() throws Throwable {
         mActivityTestRule.executeJavaScript("testObject.setIntArray({length: 3, 1: 42});");
         int[] result = mTestObject.waitForIntArray();
         Assert.assertEquals(3, result.length);
@@ -213,8 +198,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testNonNumericLengthProperty(boolean useMojo) throws Throwable {
+    public void testNonNumericLengthProperty() throws Throwable {
         // LIVECONNECT_COMPLIANCE: This should not count as an array, so we
         // should raise a JavaScript exception.
         mActivityTestRule.executeJavaScript("testObject.setIntArray({length: \"foo\"});");
@@ -224,8 +208,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testLengthOutOfBounds(boolean useMojo) throws Throwable {
+    public void testLengthOutOfBounds() throws Throwable {
         // LIVECONNECT_COMPLIANCE: This should not count as an array, so we
         // should raise a JavaScript exception.
         mActivityTestRule.executeJavaScript("testObject.setIntArray({length: -1});");
@@ -247,8 +230,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testSparseArray(boolean useMojo) throws Throwable {
+    public void testSparseArray() throws Throwable {
         mActivityTestRule.executeJavaScript(
                 "var x = [42, 43]; x[3] = 45; testObject.setIntArray(x);");
         int[] result = mTestObject.waitForIntArray();
@@ -264,8 +246,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testMethodReturningArrayNotCalled(boolean useMojo) throws Throwable {
+    public void testMethodReturningArrayNotCalled() throws Throwable {
         // We don't invoke methods which return arrays, but note that no
         // exception is raised.
         // LIVECONNECT_COMPLIANCE: Should call method and convert result to
@@ -279,8 +260,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testMultiDimensionalArrayMethod(boolean useMojo) throws Throwable {
+    public void testMultiDimensionalArrayMethod() throws Throwable {
         // LIVECONNECT_COMPLIANCE: Should handle multi-dimensional arrays.
         mActivityTestRule.executeJavaScript("testObject.setIntIntArray([ [42, 43], [44, 45] ]);");
         Assert.assertNull(mTestObject.waitForIntIntArray());
@@ -289,8 +269,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassMultiDimensionalArray(boolean useMojo) throws Throwable {
+    public void testPassMultiDimensionalArray() throws Throwable {
         // LIVECONNECT_COMPLIANCE: Should handle multi-dimensional arrays.
         mActivityTestRule.executeJavaScript("testObject.setIntArray([ [42, 43], [44, 45] ]);");
         int[] result = mTestObject.waitForIntArray();
@@ -305,8 +284,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassArrayBuffer(boolean useMojo) throws Throwable {
+    public void testPassArrayBuffer() throws Throwable {
         mActivityTestRule.executeJavaScript("buffer = new ArrayBuffer(16);");
         mActivityTestRule.executeJavaScript("testObject.setIntArray(buffer);");
         Assert.assertNull(mTestObject.waitForIntArray());
@@ -321,8 +299,7 @@ public class JavaBridgeArrayTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
-    @UseMethodParameter(JavaBridgeActivityTestRule.MojoTestParams.class)
-    public void testPassDataView(boolean useMojo) throws Throwable {
+    public void testPassDataView() throws Throwable {
         mActivityTestRule.executeJavaScript("buffer = new ArrayBuffer(16);");
         mActivityTestRule.executeJavaScript("testObject.setIntArray(new DataView(buffer));");
         Assert.assertNull(mTestObject.waitForIntArray());

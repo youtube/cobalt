@@ -248,7 +248,7 @@ void CastRemotingConnector::CreateBridge(
 
 void CastRemotingConnector::RegisterBridge(RemotingBridge* bridge) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(bridges_.find(bridge) == bridges_.end());
+  CHECK(bridges_.find(bridge) == bridges_.end(), base::NotFatalUntil::M136);
 
   bridges_.insert(bridge);
   if (remoter_ && !active_bridge_ && remoting_allowed_.value_or(true))
@@ -258,7 +258,7 @@ void CastRemotingConnector::RegisterBridge(RemotingBridge* bridge) {
 void CastRemotingConnector::DeregisterBridge(RemotingBridge* bridge,
                                              RemotingStopReason reason) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(bridges_.find(bridge) != bridges_.end());
+  CHECK(bridges_.find(bridge) != bridges_.end(), base::NotFatalUntil::M136);
 
   bridges_.erase(bridge);
   if (bridge == active_bridge_)
@@ -290,7 +290,7 @@ void CastRemotingConnector::StartWithPermissionAlreadyGranted(
 
 bool CastRemotingConnector::StartRemotingCommon(RemotingBridge* bridge) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(bridges_.find(bridge) != bridges_.end());
+  CHECK(bridges_.find(bridge) != bridges_.end(), base::NotFatalUntil::M136);
 
   // Refuse to start if there is no remoting route available, or if remoting is
   // already active.
@@ -535,14 +535,14 @@ void CastRemotingConnector::OnPrefChanged() {
 #endif
 }
 
-absl::optional<bool> CastRemotingConnector::GetRemotingAllowedUserPref() const {
+std::optional<bool> CastRemotingConnector::GetRemotingAllowedUserPref() const {
 #if BUILDFLAG(IS_ANDROID)
-  return absl::nullopt;
+  return std::nullopt;
 #else
   const PrefService::Preference* pref = pref_service_->FindPreference(
       media_router::prefs::kMediaRouterMediaRemotingEnabled);
   if (!pref || pref->IsDefaultValue()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return pref->GetValue()->GetBool();
 #endif

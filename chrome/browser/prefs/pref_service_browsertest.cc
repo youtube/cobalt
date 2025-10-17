@@ -13,7 +13,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window_state.h"
@@ -30,20 +29,26 @@
 typedef InProcessBrowserTest PreservedWindowPlacement;
 using ::testing::Optional;
 
+namespace {
+
+const gfx::Rect window_frame = gfx::Rect(20, 40, 600, 600);
+
+}  // namespace
+
 IN_PROC_BROWSER_TEST_F(PreservedWindowPlacement, PRE_Test) {
-  browser()->window()->SetBounds(gfx::Rect(20, 30, 600, 600));
+  browser()->window()->SetBounds(window_frame);
 }
 
 // Fails on Chrome OS as the browser thinks it is restarting after a crash, see
 // http://crbug.com/168044
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_Test DISABLED_Test
 #else
 #define MAYBE_Test Test
 #endif
 IN_PROC_BROWSER_TEST_F(PreservedWindowPlacement, MAYBE_Test) {
   gfx::Rect bounds = browser()->window()->GetBounds();
-  gfx::Rect expected_bounds(gfx::Rect(20, 30, 600, 600));
+  gfx::Rect expected_bounds(window_frame);
   ASSERT_EQ(expected_bounds.ToString(), bounds.ToString());
 }
 

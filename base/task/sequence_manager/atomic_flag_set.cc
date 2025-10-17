@@ -4,15 +4,13 @@
 
 #include "base/task/sequence_manager/atomic_flag_set.h"
 
+#include <bit>
 #include <utility>
 
-#include "base/bits.h"
 #include "base/check_op.h"
 #include "base/functional/callback.h"
 
-namespace base {
-namespace sequence_manager {
-namespace internal {
+namespace base::sequence_manager::internal {
 
 AtomicFlagSet::AtomicFlagSet(
     scoped_refptr<const AssociatedThreadId> associated_thread)
@@ -56,17 +54,19 @@ void AtomicFlagSet::AtomicFlag::SetActive(bool active) {
 }
 
 void AtomicFlagSet::AtomicFlag::ReleaseAtomicFlag() {
-  if (!group_)
+  if (!group_) {
     return;
+  }
 
   DCHECK_CALLED_ON_VALID_THREAD(outer_->associated_thread_->thread_checker);
   SetActive(false);
 
   // If |group_| was full then add it on the partially free list.
-  if (group_->IsFull())
+  if (group_->IsFull()) {
     outer_->AddToPartiallyFreeList(group_);
+  }
 
-  int index = Group::IndexOfFirstFlagSet(flag_bit_);
+  size_t index = Group::IndexOfFirstFlagSet(flag_bit_);
   DCHECK(!group_->flag_callbacks[index].is_null());
   group_->flag_callbacks[index] = RepeatingClosure();
   group_->allocated_flags &= ~flag_bit_;
@@ -92,16 +92,16 @@ AtomicFlagSet::AtomicFlag AtomicFlagSet::AddFlag(RepeatingClosure callback) {
 
   DCHECK(partially_free_list_head_);
   Group* group = partially_free_list_head_;
-  size_t first_unoccupied_index =
-      static_cast<size_t>(group->FindFirstUnallocatedFlag());
+  size_t first_unoccupied_index = group->FindFirstUnallocatedFlag();
   DCHECK(!group->flag_callbacks[first_unoccupied_index]);
   group->flag_callbacks[first_unoccupied_index] = std::move(callback);
 
   size_t flag_bit = size_t{1} << first_unoccupied_index;
   group->allocated_flags |= flag_bit;
 
-  if (group->IsFull())
+  if (group->IsFull()) {
     RemoveFromPartiallyFreeList(group);
+  }
 
   return AtomicFlag(this, group, flag_bit);
 }
@@ -116,7 +116,7 @@ void AtomicFlagSet::RunActiveCallbacks() const {
         &iter->flags, size_t{0}, std::memory_order_acquire);
     // This is O(number of bits set).
     while (active_flags) {
-      int index = Group::IndexOfFirstFlagSet(active_flags);
+      size_t index = Group::IndexOfFirstFlagSet(active_flags);
       // Clear the flag.
       active_flags ^= size_t{1} << index;
       iter->flag_callbacks[index].Run();
@@ -140,24 +140,26 @@ bool AtomicFlagSet::Group::IsEmpty() const {
   return allocated_flags == 0u;
 }
 
-int AtomicFlagSet::Group::FindFirstUnallocatedFlag() const {
+size_t AtomicFlagSet::Group::FindFirstUnallocatedFlag() const {
   size_t unallocated_flags = ~allocated_flags;
   DCHECK_NE(unallocated_flags, 0u);
-  int index = IndexOfFirstFlagSet(unallocated_flags);
-  DCHECK_LT(index, kNumFlags);
+  size_t index = IndexOfFirstFlagSet(unallocated_flags);
+  DCHECK_LT(index, static_cast<size_t>(kNumFlags));
   return index;
 }
 
 // static
-int AtomicFlagSet::Group::IndexOfFirstFlagSet(size_t flag) {
+size_t AtomicFlagSet::Group::IndexOfFirstFlagSet(size_t flag) {
   DCHECK_NE(flag, 0u);
-  return bits::CountTrailingZeroBits(flag);
+  // std::countr_zero is non-negative.
+  return static_cast<size_t>(std::countr_zero(flag));
 }
 
 void AtomicFlagSet::AddToAllocList(std::unique_ptr<Group> group) {
   DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
-  if (alloc_list_head_)
+  if (alloc_list_head_) {
     alloc_list_head_->prev = group.get();
+  }
 
   group->next = std::move(alloc_list_head_);
   alloc_list_head_ = std::move(group);
@@ -165,8 +167,9 @@ void AtomicFlagSet::AddToAllocList(std::unique_ptr<Group> group) {
 
 void AtomicFlagSet::RemoveFromAllocList(Group* group) {
   DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
-  if (group->next)
+  if (group->next) {
     group->next->prev = group->prev;
+  }
 
   if (group->prev) {
     group->prev->next = std::move(group->next);
@@ -180,8 +183,9 @@ void AtomicFlagSet::AddToPartiallyFreeList(Group* group) {
   DCHECK_NE(partially_free_list_head_, group);
   DCHECK(!group->partially_free_list_prev);
   DCHECK(!group->partially_free_list_next);
-  if (partially_free_list_head_)
+  if (partially_free_list_head_) {
     partially_free_list_head_->partially_free_list_prev = group;
+  }
 
   group->partially_free_list_next = partially_free_list_head_;
   partially_free_list_head_ = group;
@@ -208,6 +212,4 @@ void AtomicFlagSet::RemoveFromPartiallyFreeList(Group* group) {
   group->partially_free_list_next = nullptr;
 }
 
-}  // namespace internal
-}  // namespace sequence_manager
-}  // namespace base
+}  // namespace base::sequence_manager::internal

@@ -55,7 +55,6 @@ $ALetter            = [\p{Word_Break = ALetter}];
 
 $Single_Quote       = [\p{Word_Break = Single_Quote}];
 $Double_Quote       = [\p{Word_Break = Double_Quote}];
-
 # Remove two full stop characters from $MidNumLet and add them to $MidNum
 # to break a hostname into its components at the cost of breaking
 # 'e.g.' and 'i.e.' as well.

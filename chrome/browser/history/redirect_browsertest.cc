@@ -41,7 +41,7 @@
 
 class RedirectTest : public InProcessBrowserTest {
  public:
-  RedirectTest() {}
+  RedirectTest() = default;
 
   std::vector<GURL> GetRedirects(const GURL& url) {
     history::HistoryService* history_service =
@@ -52,21 +52,22 @@ class RedirectTest : public InProcessBrowserTest {
     // asynchronously from the callback the history system uses to notify us
     // that it's done: OnRedirectQueryComplete.
     std::vector<GURL> rv;
+    base::RunLoop loop(base::RunLoop::Type::kNestableTasksAllowed);
     history_service->QueryRedirectsFrom(
         url,
         base::BindOnce(&RedirectTest::OnRedirectQueryComplete,
-                       base::Unretained(this), &rv),
+                       base::Unretained(this), &rv, loop.QuitWhenIdleClosure()),
         &tracker_);
-    content::RunMessageLoop();
+    loop.Run();
     return rv;
   }
 
  protected:
   void OnRedirectQueryComplete(std::vector<GURL>* rv,
+                               base::OnceClosure quit_closure,
                                history::RedirectList redirects) {
     rv->insert(rv->end(), redirects.begin(), redirects.end());
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::RunLoop::QuitCurrentWhenIdleClosureDeprecated());
+    std::move(quit_closure).Run();
   }
 
   // Tracker for asynchronous history queries.
@@ -285,14 +286,14 @@ IN_PROC_BROWSER_TEST_F(RedirectTest,
 
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), first_url, WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   // We don't sleep here - the first navigation won't have been committed yet
   // because we told the server to wait a minute. This means the browser has
   // started it's provisional load for the client redirect destination page but
   // hasn't completed. Our time is now!
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), final_url, WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   observer.Wait();
 
   // Check to make sure the navigation did in fact take place and we are

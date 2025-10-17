@@ -40,13 +40,6 @@ class TestLayerAnimationDelegate : public LayerAnimationDelegate {
   // PropertyChangeReason.
   void ExpectLastPropertyChangeReason(PropertyChangeReason reason);
 
-  // Sets the current frame number to be returned by GetFrameNumber. This can be
-  // used to simulate receiving acks of frame submission, in order to test
-  // advancing of animations. It can also be used to simulate the availability
-  // of the frame number when Layer is attached to, or detached from a frame
-  // number source, i.e. Compositor.
-  void SetFrameNumber(absl::optional<int> frame_number);
-
   // Implementation of LayerAnimationDelegate
   void SetBoundsFromAnimation(const gfx::Rect& bounds,
                               PropertyChangeReason reason) override;
@@ -60,7 +53,7 @@ class TestLayerAnimationDelegate : public LayerAnimationDelegate {
                                   PropertyChangeReason reason) override;
   void SetGrayscaleFromAnimation(float grayscale,
                                  PropertyChangeReason reason) override;
-  void SetColorFromAnimation(SkColor color,
+  void SetColorFromAnimation(SkColor4f color,
                              PropertyChangeReason reason) override;
   void SetClipRectFromAnimation(const gfx::Rect& clip_rect,
                                 PropertyChangeReason reason) override;
@@ -76,7 +69,7 @@ class TestLayerAnimationDelegate : public LayerAnimationDelegate {
   bool GetVisibilityForAnimation() const override;
   float GetBrightnessForAnimation() const override;
   float GetGrayscaleForAnimation() const override;
-  SkColor GetColorForAnimation() const override;
+  SkColor4f GetColorForAnimation() const override;
   gfx::Rect GetClipRectForAnimation() const override;
   gfx::RoundedCornersF GetRoundedCornersForAnimation() const override;
   const gfx::LinearGradient& GetGradientMaskForAnimation() const override;
@@ -85,7 +78,6 @@ class TestLayerAnimationDelegate : public LayerAnimationDelegate {
   ui::Layer* GetLayer() override;
   cc::Layer* GetCcLayer() const override;
   LayerThreadedAnimationDelegate* GetThreadedAnimationDelegate() override;
-  absl::optional<int> GetFrameNumber() const override;
   float GetRefreshRate() const override;
 
  private:
@@ -103,12 +95,11 @@ class TestLayerAnimationDelegate : public LayerAnimationDelegate {
   bool visibility_;
   float brightness_;
   float grayscale_;
-  SkColor color_;
+  SkColor4f color_;
   gfx::Rect clip_rect_;
   gfx::RoundedCornersF rounded_corners_;
   gfx::LinearGradient gradient_mask_;
   scoped_refptr<cc::Layer> cc_layer_;
-  absl::optional<int> frame_number_;
 
   // Allow copy and assign.
 };

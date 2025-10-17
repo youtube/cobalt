@@ -4,10 +4,11 @@
 
 #include "third_party/blink/renderer/platform/loader/link_header.h"
 
+#include <string_view>
+
 #include "base/strings/string_util.h"
 #include "components/link_header_util/link_header_util.h"
 #include "third_party/blink/public/common/web_package/signed_exchange_consts.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/parsing_utilities.h"
 
 namespace blink {
@@ -19,7 +20,7 @@ static bool IsExtensionParameter(LinkHeader::LinkParameterName name) {
 }
 
 static LinkHeader::LinkParameterName ParameterNameFromString(
-    base::StringPiece name) {
+    std::string_view name) {
   if (base::EqualsCaseInsensitiveASCII(name, "rel"))
     return LinkHeader::kLinkParameterRel;
   if (base::EqualsCaseInsensitiveASCII(name, "anchor"))
@@ -60,8 +61,7 @@ static LinkHeader::LinkParameterName ParameterNameFromString(
   if (base::EqualsCaseInsensitiveASCII(name, kSignedExchangeVariantKeyHeader))
     return LinkHeader::kLinkParameterVariantKey;
 
-  if (RuntimeEnabledFeatures::BlockingAttributeEnabled() &&
-      base::EqualsCaseInsensitiveASCII(name, "blocking")) {
+  if (base::EqualsCaseInsensitiveASCII(name, "blocking")) {
     return LinkHeader::kLinkParameterBlocking;
   }
 
@@ -110,19 +110,20 @@ void LinkHeader::SetValue(LinkParameterName name, const String& value) {
 
 template <typename Iterator>
 LinkHeader::LinkHeader(Iterator begin, Iterator end) : is_valid_(true) {
-  std::string url;
-  std::unordered_map<std::string, absl::optional<std::string>> params;
-  is_valid_ = link_header_util::ParseLinkHeaderValue(begin, end, &url, &params);
+  std::unordered_map<std::string, std::optional<std::string>> params;
+  std::optional<std::string> url = link_header_util::ParseLinkHeaderValue(
+      std::string_view(begin, end), params);
+  is_valid_ = url.has_value();
   if (!is_valid_)
     return;
 
-  url_ = String(&url[0], url.length());
+  url_ = String(*url);
   for (const auto& param : params) {
     LinkParameterName name = ParameterNameFromString(param.first);
     if (!IsExtensionParameter(name) && !param.second)
       is_valid_ = false;
     std::string value = param.second.value_or("");
-    SetValue(name, String(&value[0], value.length()));
+    SetValue(name, String(value));
   }
   // According to Section 5.2 of RFC 5988, "anchor" parameters in Link headers
   // must be either respected, or the entire header must be ignored:
@@ -138,8 +139,7 @@ LinkHeaderSet::LinkHeaderSet(const String& header) {
     return;
 
   DCHECK(header.Is8Bit()) << "Headers should always be 8 bit";
-  std::string header_string(reinterpret_cast<const char*>(header.Characters8()),
-                            header.length());
+  std::string header_string = header.Latin1();
   for (const auto& value : link_header_util::SplitLinkHeader(header_string))
     header_set_.push_back(LinkHeader(value.first, value.second));
 }

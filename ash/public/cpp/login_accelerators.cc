@@ -4,12 +4,12 @@
 
 #include "ash/public/cpp/login_accelerators.h"
 
-#include <string>
+#include <array>
 
 namespace ash {
 
 // clang-format off
-const LoginAcceleratorData kLoginAcceleratorData[] = {
+const std::array<LoginAcceleratorData, 15> kLoginAcceleratorData = {{
     {
         kToggleSystemInfo,
         ui::VKEY_V, ui::EF_ALT_DOWN,
@@ -17,6 +17,10 @@ const LoginAcceleratorData kLoginAcceleratorData[] = {
     }, {
         kShowFeedback,
         ui::VKEY_I, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
+        true, kScopeOobe | kScopeLogin,
+    },{
+        kShowFeedback,
+        ui::VKEY_I, ui::EF_CONTROL_DOWN | ui::EF_COMMAND_DOWN,
         true, kScopeOobe | kScopeLogin,
     }, {
         kShowResetScreen,
@@ -59,15 +63,15 @@ const LoginAcceleratorData kLoginAcceleratorData[] = {
        ui::VKEY_H, ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN,
        false, kScopeOobe,
     }, {
-       kEnableConsumerKiosk,
-       ui::VKEY_K, ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN | ui::EF_SHIFT_DOWN,
-       false, kScopeOobe,
-    }, {
        kLaunchDiagnostics,
        ui::VKEY_ESCAPE, ui::EF_CONTROL_DOWN | ui::EF_COMMAND_DOWN,
        true, kScopeOobe | kScopeLogin,
+    }, {
+      kEnableQuickStart,
+      ui::VKEY_Q, ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN,
+       false, kScopeOobe,
     },
-};
+}};
 // clang-format on
 
 const size_t kLoginAcceleratorDataLength = std::size(kLoginAcceleratorData);

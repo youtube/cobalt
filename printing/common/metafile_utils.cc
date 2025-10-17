@@ -2,28 +2,59 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "printing/common/metafile_utils.h"
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+#include <variant>
+
+#include "base/check.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/containers/span_reader.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "printing/buildflags/buildflags.h"
+#include "printing/mojom/print.mojom.h"
+#include "skia/ext/codec_utils.h"
+#include "skia/ext/font_utils.h"
+#include "third_party/skia/include/codec/SkPngDecoder.h"
 #include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
+#include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkPicture.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/core/SkString.h"
-#include "third_party/skia/include/core/SkTime.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/docs/SkPDFDocument.h"
+#include "third_party/skia/include/private/chromium/SkImageChromium.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_tree.h"
 #include "ui/accessibility/ax_tree_update.h"
+#include "ui/gfx/skia_span_util.h"
+
+#if BUILDFLAG(IS_WIN)
+// XpsObjectModel.h indirectly includes <wincrypt.h> which is
+// incompatible with Chromium's OpenSSL. By including wincrypt_shim.h
+// first, problems are avoided.
+// clang-format off
+#include "base/win/wincrypt_shim.h"
+
+#include <XpsObjectModel.h>
+#include <objbase.h>
+// clang-format on
+
+#include "third_party/skia/include/docs/SkXPSDocument.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace {
-
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
 
 // Table 333 in PDF 32000-1:2008 spec, section 14.8.4.2
 const char kPDFStructureTypeDocument[] = "Document";
@@ -64,21 +95,18 @@ SkString GetHeadingStructureType(int heading_level) {
   return SkString(kPDFStructureTypeHeading);
 }
 
-#endif  // BUILDFLAG(ENABLE_TAGGED_PDF)
-
-SkTime::DateTime TimeToSkTime(base::Time time) {
+SkPDF::DateTime TimeToSkTime(base::Time time) {
   base::Time::Exploded exploded;
   time.UTCExplode(&exploded);
-  SkTime::DateTime skdate;
-  skdate.fTimeZoneMinutes = 0;
-  skdate.fYear = exploded.year;
-  skdate.fMonth = exploded.month;
-  skdate.fDayOfWeek = exploded.day_of_week;
-  skdate.fDay = exploded.day_of_month;
-  skdate.fHour = exploded.hour;
-  skdate.fMinute = exploded.minute;
-  skdate.fSecond = exploded.second;
-  return skdate;
+  return SkPDF::DateTime{
+      .fTimeZoneMinutes = 0,
+      .fYear = static_cast<uint16_t>(exploded.year),
+      .fMonth = static_cast<uint8_t>(exploded.month),
+      .fDayOfWeek = static_cast<uint8_t>(exploded.day_of_week),
+      .fDay = static_cast<uint8_t>(exploded.day_of_month),
+      .fHour = static_cast<uint8_t>(exploded.hour),
+      .fMinute = static_cast<uint8_t>(exploded.minute),
+      .fSecond = static_cast<uint8_t>(exploded.second)};
 }
 
 sk_sp<SkPicture> GetEmptyPicture() {
@@ -95,10 +123,9 @@ sk_sp<SkPicture> GetEmptyPicture() {
 // have enough data to build a valid tree.
 bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
                                  SkPDF::StructureElementNode* tag) {
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
   bool valid = false;
 
-  tag->fNodeId = ax_node->GetIntAttribute(ax::mojom::IntAttribute::kDOMNodeId);
+  tag->fNodeId = ax_node->data().GetDOMNodeId();
   switch (ax_node->GetRole()) {
     case ax::mojom::Role::kRootWebArea:
       tag->fTypeString = kPDFStructureTypeDocument;
@@ -154,8 +181,7 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
       std::vector<int> header_ids;
       header_ids.reserve(header_nodes.size());
       for (ui::AXNode* header_node : header_nodes) {
-        header_ids.push_back(header_node->GetIntAttribute(
-            ax::mojom::IntAttribute::kDOMNodeId));
+        header_ids.push_back(header_node->data().GetDOMNodeId());
       }
       tag->fAttributes.appendNodeIdArray(
           kPDFTableAttributeOwner, kPDFTableCellHeadersAttribute, header_ids);
@@ -184,13 +210,13 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
   }
 
   if (ui::IsCellOrTableHeader(ax_node->GetRole())) {
-    absl::optional<int> row_span = ax_node->GetTableCellRowSpan();
+    std::optional<int> row_span = ax_node->GetTableCellRowSpan();
     if (row_span.has_value()) {
       tag->fAttributes.appendInt(kPDFTableAttributeOwner,
                                  kPDFTableCellRowSpanAttribute,
                                  row_span.value());
     }
-    absl::optional<int> col_span = ax_node->GetTableCellColSpan();
+    std::optional<int> col_span = ax_node->GetTableCellColSpan();
     if (col_span.has_value()) {
       tag->fAttributes.appendInt(kPDFTableAttributeOwner,
                                  kPDFTableCellColSpanAttribute,
@@ -212,47 +238,81 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
   }
 
   return valid;
-#else  // BUILDFLAG(ENABLE_TAGGED_PDF)
-  return false;
-#endif
+}
+
+sk_sp<SkData> GetImageData(SkImage* img) {
+  // Skip the encoding step if the image is already encoded
+  if (sk_sp<SkData> data = img->refEncodedData()) {
+    return data;
+  }
+
+  // TODO(crbug.com/40073326) Convert texture-backed images to raster
+  // *before* they get this far if possible.
+  if (img->isTextureBacked()) {
+    GrDirectContext* ctx = SkImages::GetContext(img);
+    return skia::EncodePngAsSkData(ctx, img);
+  }
+  return skia::EncodePngAsSkData(nullptr, img);
 }
 
 }  // namespace
 
 namespace printing {
 
-sk_sp<SkDocument> MakePdfDocument(base::StringPiece creator,
-                                  const ui::AXTreeUpdate& accessibility_tree,
-                                  SkWStream* stream) {
+sk_sp<SkDocument> MakePdfDocument(
+    std::string_view creator,
+    std::string_view title,
+    const ui::AXTreeUpdate& accessibility_tree,
+    mojom::GenerateDocumentOutline generate_document_outline,
+    SkWStream* stream) {
   SkPDF::Metadata metadata;
-  SkTime::DateTime now = TimeToSkTime(base::Time::Now());
+  SkPDF::DateTime now = TimeToSkTime(base::Time::Now());
   metadata.fCreation = now;
   metadata.fModified = now;
-  // TODO(crbug.com/691162): Switch to SkString's string_view constructor when
-  // possible.
-  metadata.fCreator = creator.empty()
-                          ? SkString("Chromium")
-                          : SkString(creator.data(), creator.size());
+  metadata.fCreator =
+      creator.empty() ? SkString("Chromium") : SkString(creator);
+  metadata.fTitle = SkString(title);
   metadata.fRasterDPI = 300.0f;
 
   SkPDF::StructureElementNode tag_root = {};
   if (!accessibility_tree.nodes.empty()) {
     ui::AXTree tree(accessibility_tree);
-    if (RecursiveBuildStructureTree(tree.root(), &tag_root))
+    if (RecursiveBuildStructureTree(tree.root(), &tag_root)) {
       metadata.fStructureElementTreeRoot = &tag_root;
+      metadata.fOutline =
+          generate_document_outline == mojom::GenerateDocumentOutline::kNone
+              ? SkPDF::Metadata::Outline::None
+              : SkPDF::Metadata::Outline::StructureElementHeaders;
+    }
   }
 
   return SkPDF::MakeDocument(stream, metadata);
 }
 
+#if BUILDFLAG(IS_WIN)
+sk_sp<SkDocument> MakeXpsDocument(SkWStream* stream) {
+  IXpsOMObjectFactory* factory = nullptr;
+  HRESULT hr = CoCreateInstance(CLSID_XpsOMObjectFactory, nullptr,
+                                CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory));
+  if (FAILED(hr) || !factory) {
+    DLOG(ERROR) << "Unable to create XPS object factory: "
+                << logging::SystemErrorCodeToString(hr);
+    return nullptr;
+  }
+
+  return SkXPS::MakeDocument(stream, factory);
+}
+#endif
+
 sk_sp<SkData> SerializeOopPicture(SkPicture* pic, void* ctx) {
   const auto* context = reinterpret_cast<const ContentToProxyTokenMap*>(ctx);
   uint32_t pic_id = pic->uniqueID();
   auto iter = context->find(pic_id);
-  if (iter == context->end())
+  if (iter == context->end()) {
     return nullptr;
+  }
 
-  return SkData::MakeWithCopy(&pic_id, sizeof(pic_id));
+  return gfx::MakeSkDataFromSpanWithCopy(base::byte_span_from_ref(pic_id));
 }
 
 sk_sp<SkPicture> DeserializeOopPicture(const void* data,
@@ -261,7 +321,6 @@ sk_sp<SkPicture> DeserializeOopPicture(const void* data,
   uint32_t pic_id;
   if (length < sizeof(pic_id)) {
     NOTREACHED();  // Should not happen if the content is as written.
-    return GetEmptyPicture();
   }
   memcpy(&pic_id, data, sizeof(pic_id));
 
@@ -299,7 +358,6 @@ sk_sp<SkTypeface> DeserializeOopTypeface(const void* data,
   SkStream* stream = *(reinterpret_cast<SkStream**>(const_cast<void*>(data)));
   if (length < sizeof(stream)) {
     NOTREACHED();  // Should not happen if the content is as written.
-    return nullptr;
   }
 
   SkTypefaceID id;
@@ -320,14 +378,92 @@ sk_sp<SkTypeface> DeserializeOopTypeface(const void* data,
 
   // Typeface not encountered before, expect it to be present in the stream.
   DCHECK(data_included);
-  sk_sp<SkTypeface> typeface = SkTypeface::MakeDeserialize(stream);
+  sk_sp<SkTypeface> typeface =
+      SkTypeface::MakeDeserialize(stream, skia::DefaultFontMgr());
   context->emplace(id, typeface);
   return typeface;
 }
 
+sk_sp<SkData> SerializeRasterImage(SkImage* img, void* ctx) {
+  if (!img) {
+    return nullptr;
+  }
+
+  auto* context = reinterpret_cast<ImageSerializationContext*>(ctx);
+
+  uint32_t img_id = img->uniqueID();
+  if (context->contains(img_id)) {
+    return SkData::MakeWithCopy(&img_id, sizeof(img_id));
+  }
+
+  sk_sp<SkData> img_data = GetImageData(img);
+  if (!img_data) {
+    return nullptr;
+  }
+
+  // Store image id followed by the image data on the first occurrence
+  // of an image.
+  auto data = SkData::MakeUninitialized(
+      base::CheckAdd(img_data->size(), sizeof(img_id)).ValueOrDie());
+
+  // SAFETY: The span is used as a view to avoid direct pointer access.
+  auto [id_span, data_span] =
+      UNSAFE_BUFFERS(base::span(static_cast<uint8_t*>(data->writable_data()),
+                                data->size()))
+          .split_at<sizeof(img_id)>();
+  id_span.copy_from(base::byte_span_from_ref(img_id));
+  data_span.copy_from(gfx::SkDataToSpan(img_data));
+
+  context->insert(img_id);
+
+  return data;
+}
+
+sk_sp<SkImage> DeserializeRasterImage(const void* bytes,
+                                      size_t length,
+                                      void* ctx) {
+  auto* context = reinterpret_cast<ImageDeserializationContext*>(ctx);
+
+  // SAFETY: The caller must provide a valid pointer and length.
+  base::SpanReader reader{
+      UNSAFE_BUFFERS(base::span(static_cast<const uint8_t*>(bytes), length))};
+
+  uint32_t img_id;
+  if (!reader.ReadU32NativeEndian(img_id)) {
+    // If there is no room for id, there cannot be meaningful image data.
+    return nullptr;
+  }
+
+  auto iter = context->find(img_id);
+  if (iter != context->end() && iter->second) {
+    return iter->second;
+  }
+
+  if (!reader.remaining()) {
+    return nullptr;
+  }
+
+  // Copy the data to avoid `bytes` being freed before the image is decoded.
+  auto data_span = reader.remaining_span();
+  auto img_data = SkData::MakeWithCopy(data_span.data(), data_span.size());
+
+  // Need to explicitly decode here, as the data are prefixed with image id,
+  // invalidating the built-in Skia fallback.
+  auto image = SkImages::DeferredFromEncodedData(img_data);
+  if (!image) {
+    return nullptr;
+  }
+
+  (*context)[img_id] = image;
+  return image;
+}
+
 SkSerialProcs SerializationProcs(PictureSerializationContext* picture_ctx,
-                                 TypefaceSerializationContext* typeface_ctx) {
+                                 TypefaceSerializationContext* typeface_ctx,
+                                 ImageSerializationContext* image_ctx) {
   SkSerialProcs procs;
+  procs.fImageProc = SerializeRasterImage;
+  procs.fImageCtx = image_ctx;
   procs.fPictureProc = SerializeOopPicture;
   procs.fPictureCtx = picture_ctx;
   procs.fTypefaceProc = SerializeOopTypeface;
@@ -337,8 +473,11 @@ SkSerialProcs SerializationProcs(PictureSerializationContext* picture_ctx,
 
 SkDeserialProcs DeserializationProcs(
     PictureDeserializationContext* picture_ctx,
-    TypefaceDeserializationContext* typeface_ctx) {
+    TypefaceDeserializationContext* typeface_ctx,
+    ImageDeserializationContext* image_ctx) {
   SkDeserialProcs procs;
+  procs.fImageProc = DeserializeRasterImage;
+  procs.fImageCtx = image_ctx;
   procs.fPictureProc = DeserializeOopPicture;
   procs.fPictureCtx = picture_ctx;
   procs.fTypefaceProc = DeserializeOopTypeface;

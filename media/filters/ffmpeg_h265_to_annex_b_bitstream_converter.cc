@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/ffmpeg_h265_to_annex_b_bitstream_converter.h"
 
 #include <stdint.h>
@@ -25,15 +30,16 @@ FFmpegH265ToAnnexBBitstreamConverter::~FFmpegH265ToAnnexBBitstreamConverter() {}
 
 bool FFmpegH265ToAnnexBBitstreamConverter::ConvertPacket(AVPacket* packet) {
   DVLOG(3) << __func__;
-  if (packet == NULL || !packet->data)
+  if (packet == nullptr || !packet->data) {
     return false;
+  }
 
   // Calculate the needed output buffer size.
   if (!hevc_config_) {
     if (!stream_codec_parameters_->extradata ||
         stream_codec_parameters_->extradata_size <= 0) {
       DVLOG(1) << "HEVCDecoderConfiguration not found, no extra codec data";
-      return false;
+      return true;
     }
 
     hevc_config_ = std::make_unique<mp4::HEVCDecoderConfigurationRecord>();

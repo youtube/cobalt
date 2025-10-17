@@ -14,18 +14,29 @@
 #include "modules/video_coding/codecs/vp9/libvpx_vp9_decoder.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <optional>
 
-#include "absl/strings/match.h"
-#include "api/transport/field_trial_based_config.h"
+#include "api/array_view.h"
+#include "api/scoped_refptr.h"
 #include "api/video/color_space.h"
-#include "api/video/i010_buffer.h"
+#include "api/video/encoded_image.h"
+#include "api/video/render_resolution.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
+#include "api/video/video_frame_type.h"
+#include "api/video_codecs/video_decoder.h"
 #include "common_video/include/video_frame_buffer.h"
+#include "modules/video_coding/codecs/vp9/vp9_frame_buffer_pool.h"
+#include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/vp9_uncompressed_header_parser.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "third_party/libyuv/include/libyuv/convert.h"
 #include "vpx/vp8dx.h"
 #include "vpx/vpx_decoder.h"
+#include "vpx/vpx_encoder.h"
+#include "vpx/vpx_image.h"
 
 namespace webrtc {
 namespace {
@@ -170,7 +181,7 @@ bool LibvpxVp9Decoder::Configure(const Settings& settings) {
   inited_ = true;
   // Always start with a complete key frame.
   key_frame_required_ = true;
-  if (absl::optional<int> buffer_pool_size = settings.buffer_pool_size()) {
+  if (std::optional<int> buffer_pool_size = settings.buffer_pool_size()) {
     if (!libvpx_buffer_pool_.Resize(*buffer_pool_size)) {
       return false;
     }
@@ -188,7 +199,6 @@ bool LibvpxVp9Decoder::Configure(const Settings& settings) {
 }
 
 int LibvpxVp9Decoder::Decode(const EncodedImage& input_image,
-                             bool missing_frames,
                              int64_t /*render_time_ms*/) {
   if (!inited_) {
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -198,9 +208,9 @@ int LibvpxVp9Decoder::Decode(const EncodedImage& input_image,
   }
 
   if (input_image._frameType == VideoFrameType::kVideoFrameKey) {
-    absl::optional<Vp9UncompressedHeader> frame_info =
+    std::optional<Vp9UncompressedHeader> frame_info =
         ParseUncompressedVp9Header(
-            rtc::MakeArrayView(input_image.data(), input_image.size()));
+            MakeArrayView(input_image.data(), input_image.size()));
     if (frame_info) {
       RenderResolution frame_resolution(frame_info->frame_width,
                                         frame_info->frame_height);
@@ -235,7 +245,7 @@ int LibvpxVp9Decoder::Decode(const EncodedImage& input_image,
   // `libvpx_buffer_pool_`. In practice libvpx keeps a few (~3-4) buffers alive
   // at a time.
   if (vpx_codec_decode(decoder_, buffer,
-                       static_cast<unsigned int>(input_image.size()), 0,
+                       static_cast<unsigned int>(input_image.size()), nullptr,
                        VPX_DL_REALTIME)) {
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
@@ -247,19 +257,18 @@ int LibvpxVp9Decoder::Decode(const EncodedImage& input_image,
   vpx_codec_err_t vpx_ret =
       vpx_codec_control(decoder_, VPXD_GET_LAST_QUANTIZER, &qp);
   RTC_DCHECK_EQ(vpx_ret, VPX_CODEC_OK);
-  int ret =
-      ReturnFrame(img, input_image.Timestamp(), qp, input_image.ColorSpace());
+  int ret = ReturnFrame(img, input_image.RtpTimestamp(), qp,
+                        input_image.ColorSpace());
   if (ret != 0) {
     return ret;
   }
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int LibvpxVp9Decoder::ReturnFrame(
-    const vpx_image_t* img,
-    uint32_t timestamp,
-    int qp,
-    const webrtc::ColorSpace* explicit_color_space) {
+int LibvpxVp9Decoder::ReturnFrame(const vpx_image_t* img,
+                                  uint32_t timestamp,
+                                  int qp,
+                                  const ColorSpace* explicit_color_space) {
   if (img == nullptr) {
     // Decoder OK and nullptr image => No show frame.
     return WEBRTC_VIDEO_CODEC_NO_OUTPUT;
@@ -268,12 +277,12 @@ int LibvpxVp9Decoder::ReturnFrame(
   // This buffer contains all of `img`'s image data, a reference counted
   // Vp9FrameBuffer. (libvpx is done with the buffers after a few
   // vpx_codec_decode calls or vpx_codec_destroy).
-  rtc::scoped_refptr<Vp9FrameBufferPool::Vp9FrameBuffer> img_buffer(
+  scoped_refptr<Vp9FrameBufferPool::Vp9FrameBuffer> img_buffer(
       static_cast<Vp9FrameBufferPool::Vp9FrameBuffer*>(img->fb_priv));
 
   // The buffer can be used directly by the VideoFrame (without copy) by
   // using a Wrapped*Buffer.
-  rtc::scoped_refptr<VideoFrameBuffer> img_wrapped_buffer;
+  scoped_refptr<VideoFrameBuffer> img_wrapped_buffer;
   switch (img->fmt) {
     case VPX_IMG_FMT_I420:
       img_wrapped_buffer = WrapI420Buffer(
@@ -346,7 +355,7 @@ int LibvpxVp9Decoder::ReturnFrame(
 
   auto builder = VideoFrame::Builder()
                      .set_video_frame_buffer(img_wrapped_buffer)
-                     .set_timestamp_rtp(timestamp);
+                     .set_rtp_timestamp(timestamp);
   if (explicit_color_space) {
     builder.set_color_space(*explicit_color_space);
   } else {
@@ -355,7 +364,7 @@ int LibvpxVp9Decoder::ReturnFrame(
   }
   VideoFrame decoded_image = builder.build();
 
-  decode_complete_callback_->Decoded(decoded_image, absl::nullopt, qp);
+  decode_complete_callback_->Decoded(decoded_image, std::nullopt, qp);
   return WEBRTC_VIDEO_CODEC_OK;
 }
 

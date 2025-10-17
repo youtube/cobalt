@@ -19,22 +19,29 @@
 
 #include <sqlite3.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "perfetto/base/status.h"
+#include "perfetto/ext/base/status_or.h"
 #include "perfetto/ext/base/string_view.h"
-#include "perfetto/protozero/field.h"
 #include "perfetto/protozero/message.h"
+#include "perfetto/protozero/packed_repeated_fields.h"
 #include "perfetto/protozero/scattered_heap_buffer.h"
+#include "perfetto/trace_processor/basic_types.h"
 #include "perfetto/trace_processor/trace_processor.h"
-#include "src/trace_processor/prelude/functions/register_function.h"
+#include "src/trace_processor/perfetto_sql/engine/perfetto_sql_engine.h"
+#include "src/trace_processor/perfetto_sql/intrinsics/functions/sql_function.h"
+#include "src/trace_processor/sqlite/bindings/sqlite_aggregate_function.h"
 #include "src/trace_processor/util/descriptors.h"
 
 #include "protos/perfetto/trace_processor/metrics_impl.pbzero.h"
 
-namespace perfetto {
-namespace trace_processor {
-namespace metrics {
+namespace perfetto::trace_processor::metrics {
 
 // A description of a SQL metric in C++.
 struct SqlMetricFile {
@@ -67,23 +74,6 @@ class ProtoBuilder {
   base::Status AppendSqlValue(const std::string& field_name,
                               const SqlValue& value);
 
-  // Note: all external callers to these functions should not
-  // |is_inside_repeated| to this function and instead rely on the default
-  // value.
-  base::Status AppendLong(const std::string& field_name,
-                          int64_t value,
-                          bool is_inside_repeated = false);
-  base::Status AppendDouble(const std::string& field_name,
-                            double value,
-                            bool is_inside_repeated = false);
-  base::Status AppendString(const std::string& field_name,
-                            base::StringView value,
-                            bool is_inside_repeated = false);
-  base::Status AppendBytes(const std::string& field_name,
-                           const uint8_t* data,
-                           size_t size,
-                           bool is_inside_repeated = false);
-
   // Returns the serialized |protos::ProtoBuilderResult| with the built proto
   // as the nested |protobuf| message.
   // Note: no other functions should be called on this class after this method
@@ -99,13 +89,19 @@ class ProtoBuilder {
   std::vector<uint8_t> SerializeRaw();
 
  private:
-  base::Status AppendSingleMessage(const FieldDescriptor& field,
-                                   const uint8_t* ptr,
-                                   size_t size);
-
+  base::Status AppendSingleLong(const FieldDescriptor& field, int64_t value);
+  base::Status AppendSingleDouble(const FieldDescriptor& field, double value);
+  base::Status AppendSingleString(const FieldDescriptor& field,
+                                  base::StringView data);
+  base::Status AppendSingleBytes(const FieldDescriptor& field,
+                                 const uint8_t* ptr,
+                                 size_t size);
   base::Status AppendRepeated(const FieldDescriptor& field,
                               const uint8_t* ptr,
                               size_t size);
+
+  base::StatusOr<const FieldDescriptor*> FindFieldByName(
+      const std::string& field_name);
 
   const DescriptorPool* pool_ = nullptr;
   const ProtoDescriptor* descriptor_ = nullptr;
@@ -121,11 +117,6 @@ class RepeatedFieldBuilder {
 
   base::Status AddSqlValue(SqlValue value);
 
-  void AddLong(int64_t value);
-  void AddDouble(double value);
-  void AddString(base::StringView value);
-  void AddBytes(const uint8_t* data, size_t size);
-
   // Returns the serialized |protos::ProtoBuilderResult| with the set of
   // repeated fields as |repeated_values| in the proto.
   // Note: no other functions should be called on this class after this method
@@ -133,10 +124,18 @@ class RepeatedFieldBuilder {
   std::vector<uint8_t> SerializeToProtoBuilderResult();
 
  private:
-  bool has_data_ = false;
+  base::Status AddLong(int64_t value);
+  base::Status AddDouble(double value);
+  base::Status AddString(base::StringView value);
+  base::Status AddBytes(const uint8_t* data, size_t size);
+
+  base::Status EnsureType(SqlValue::Type);
 
   protozero::HeapBuffered<protos::pbzero::ProtoBuilderResult> message_;
+  std::optional<SqlValue::Type> repeated_field_type_;
   protos::pbzero::RepeatedBuilderResult* repeated_ = nullptr;
+  protozero::PackedFixedSizeInt<int64_t> int64_packed_repeated_;
+  protozero::PackedFixedSizeInt<double> double_packed_repeated_;
 };
 
 // Replaces templated variables inside |raw_text| using the substitution given
@@ -175,7 +174,7 @@ struct BuildProto : public SqlFunction {
 // Implements the RUN_METRIC SQL function.
 struct RunMetric : public SqlFunction {
   struct Context {
-    TraceProcessor* tp;
+    PerfettoSqlEngine* engine;
     std::vector<SqlMetricFile>* metrics;
   };
   static constexpr bool kVoidReturn = true;
@@ -196,18 +195,21 @@ struct UnwrapMetricProto : public SqlFunction {
 };
 
 // These functions implement the RepeatedField SQL aggregate functions.
-void RepeatedFieldStep(sqlite3_context* ctx, int argc, sqlite3_value** argv);
-void RepeatedFieldFinal(sqlite3_context* ctx);
+struct RepeatedField : public SqliteAggregateFunction<RepeatedField> {
+  static constexpr char kName[] = "RepeatedField";
+  static constexpr int kArgCount = 1;
 
-base::Status ComputeMetrics(TraceProcessor* impl,
-                            const std::vector<std::string> metrics_to_compute,
+  static void Step(sqlite3_context* ctx, int argc, sqlite3_value** argv);
+  static void Final(sqlite3_context* ctx);
+};
+
+base::Status ComputeMetrics(PerfettoSqlEngine*,
+                            const std::vector<std::string>& metrics_to_compute,
                             const std::vector<SqlMetricFile>& metrics,
                             const DescriptorPool& pool,
                             const ProtoDescriptor& root_descriptor,
                             std::vector<uint8_t>* metrics_proto);
 
-}  // namespace metrics
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor::metrics
 
 #endif  // SRC_TRACE_PROCESSOR_METRICS_METRICS_H_

@@ -6,8 +6,11 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/values.h"
 #include "extensions/renderer/script_context.h"
@@ -15,7 +18,6 @@
 #include "third_party/blink/public/platform/web_crypto_algorithm.h"
 #include "third_party/blink/public/platform/web_crypto_algorithm_params.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/public/web/web_crypto_normalize.h"
 
 namespace extensions {
@@ -53,23 +55,24 @@ v8::Local<v8::Object> WebCryptoAlgorithmToV8Value(
   const blink::WebCryptoAlgorithmInfo* info =
       blink::WebCryptoAlgorithm::LookupAlgorithmInfo(algorithm.Id());
   gin::DataObjectBuilder builder(isolate);
-  builder.Set("name", base::StringPiece(info->name));
+  builder.Set("name", std::string_view(info->name));
 
   const blink::WebCryptoAlgorithm* hash = nullptr;
 
   switch (algorithm.Id()) {
-    case blink::kWebCryptoAlgorithmIdRsaSsaPkcs1v1_5: {
+    case blink::kWebCryptoAlgorithmIdRsaSsaPkcs1v1_5:
+    case blink::kWebCryptoAlgorithmIdRsaOaep: {
       const blink::WebCryptoRsaHashedKeyGenParams* rsa_hashed_key_gen =
           algorithm.RsaHashedKeyGenParams();
       if (rsa_hashed_key_gen) {
         builder.Set("modulusLength", rsa_hashed_key_gen->ModulusLengthBits());
 
-        const blink::WebVector<unsigned char>& public_exponent =
+        const std::vector<unsigned char>& public_exponent =
             rsa_hashed_key_gen->PublicExponent();
         v8::Local<v8::ArrayBuffer> buffer =
             v8::ArrayBuffer::New(isolate, public_exponent.size());
-        memcpy(buffer->GetBackingStore()->Data(), public_exponent.data(),
-               public_exponent.size());
+        UNSAFE_TODO(memcpy(buffer->GetBackingStore()->Data(),
+                           public_exponent.data(), public_exponent.size()));
         builder.Set("publicExponent", buffer);
 
         hash = &rsa_hashed_key_gen->GetHash();
@@ -87,7 +90,7 @@ v8::Local<v8::Object> WebCryptoAlgorithmToV8Value(
       const blink::WebCryptoEcKeyGenParams* ec_key_gen =
           algorithm.EcKeyGenParams();
       if (ec_key_gen) {
-        base::StringPiece named_curve;
+        std::string_view named_curve;
         switch (ec_key_gen->NamedCurve()) {
           case blink::kWebCryptoNamedCurveP256:
             named_curve = "P-256";
@@ -120,7 +123,7 @@ v8::Local<v8::Object> WebCryptoAlgorithmToV8Value(
         blink::WebCryptoAlgorithm::LookupAlgorithmInfo(hash->Id());
 
     builder.Set("hash", gin::DataObjectBuilder(isolate)
-                            .Set("name", base::StringPiece(hash_info->name))
+                            .Set("name", std::string_view(hash_info->name))
                             .Build());
   }
   // Otherwise, |algorithm| is missing support here or no parameters were
@@ -153,15 +156,13 @@ void PlatformKeysNatives::NormalizeAlgorithm(
     return;
   }
 
-  blink::WebString error_details;
-  int exception_code = 0;
+  blink::WebCryptoAlgorithm algorithm =
+      blink::NormalizeCryptoAlgorithm(v8::Local<v8::Object>::Cast(call_info[0]),
+                                      operation, call_info.GetIsolate());
 
-  blink::WebCryptoAlgorithm algorithm = blink::NormalizeCryptoAlgorithm(
-      v8::Local<v8::Object>::Cast(call_info[0]), operation, &exception_code,
-      &error_details, call_info.GetIsolate());
-
-  if (algorithm.IsNull())
+  if (algorithm.IsNull()) {
     return;
+  }
 
   call_info.GetReturnValue().Set(
       WebCryptoAlgorithmToV8Value(algorithm, context()->v8_context()));

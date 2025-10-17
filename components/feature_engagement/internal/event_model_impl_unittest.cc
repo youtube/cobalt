@@ -174,7 +174,7 @@ class EventModelImplTest : public ::testing::Test {
 
 class LoadFailingEventModelImplTest : public EventModelImplTest {
  public:
-  LoadFailingEventModelImplTest() {}
+  LoadFailingEventModelImplTest() = default;
 
   std::unique_ptr<TestInMemoryEventStore> CreateStore() override {
     return std::make_unique<TestInMemoryEventStore>(
@@ -558,6 +558,28 @@ TEST_F(LoadFailingEventModelImplTest, FailedInitializeInformsCaller) {
   EXPECT_FALSE(model_->IsReady());
   EXPECT_TRUE(got_initialize_callback_);
   EXPECT_FALSE(initialize_callback_result_);
+}
+
+TEST_F(EventModelImplTest, ClearEvents) {
+  model_->Initialize(
+      base::BindOnce(&EventModelImplTest::OnModelInitializationFinished,
+                     base::Unretained(this)),
+      1000u);
+  task_runner_->RunUntilIdle();
+  EXPECT_TRUE(model_->IsReady());
+
+  EXPECT_NE(nullptr, model_->GetEvent("foo"));
+  EXPECT_NE(0U, model_->GetEventCount("foo", 5U, 5U));
+  EXPECT_NE(nullptr, model_->GetEvent("bar"));
+  EXPECT_NE(0U, model_->GetEventCount("bar", 5U, 5U));
+
+  model_->ClearEvent("foo");
+
+  // ClearEvent() does not remove the event, but clears all the instances.
+  EXPECT_NE(nullptr, model_->GetEvent("foo"));
+  EXPECT_EQ(0U, model_->GetEventCount("foo", 5U, 5U));
+  EXPECT_NE(nullptr, model_->GetEvent("bar"));
+  EXPECT_NE(0U, model_->GetEventCount("bar", 5U, 5U));
 }
 
 }  // namespace feature_engagement

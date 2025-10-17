@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/tls_connection.h"
 
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -34,7 +36,6 @@ class SslIndexSingleton {
 
  private:
   SslIndexSingleton() {
-    CRYPTO_library_init();
     ssl_ex_data_index_connection_ =
         SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     QUICHE_CHECK_LE(0, ssl_ex_data_index_connection_);
@@ -127,11 +128,11 @@ void TlsConnection::DisableTicketSupport() {
 
 // static
 bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx() {
-  CRYPTO_library_init();
   bssl::UniquePtr<SSL_CTX> ssl_ctx(SSL_CTX_new(TLS_with_buffers_method()));
   SSL_CTX_set_min_proto_version(ssl_ctx.get(), TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx.get(), TLS1_3_VERSION);
   SSL_CTX_set_quic_method(ssl_ctx.get(), &kSslQuicMethod);
+  SSL_CTX_set_msg_callback(ssl_ctx.get(), &MessageCallback);
   return ssl_ctx;
 }
 
@@ -201,6 +202,15 @@ int TlsConnection::SendAlertCallback(SSL* ssl,
   ConnectionFromSsl(ssl)->delegate_->SendAlert(QuicEncryptionLevel(level),
                                                desc);
   return 1;
+}
+
+// static
+void TlsConnection::MessageCallback(int is_write, int version, int content_type,
+                                    const void* buf, size_t len, SSL* ssl,
+                                    void*) {
+  ConnectionFromSsl(ssl)->delegate_->MessageCallback(
+      is_write != 0, version, content_type,
+      absl::string_view(static_cast<const char*>(buf), len));
 }
 
 }  // namespace quic

@@ -8,7 +8,6 @@
 #include "base/test/task_environment.h"
 #include "services/accessibility/fake_service_client.h"
 #include "services/accessibility/os_accessibility_service.h"
-#include "services/accessibility/public/mojom/accessibility_service.mojom-shared.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ax {
@@ -33,7 +32,7 @@ class AssistiveTechnologyControllerTest : public testing::Test {
   }
 
  protected:
-  raw_ptr<AssistiveTechnologyControllerImpl, ExperimentalAsh> at_controller_ =
+  raw_ptr<AssistiveTechnologyControllerImpl, DanglingUntriaged> at_controller_ =
       nullptr;
   std::unique_ptr<FakeServiceClient> client_;
 
@@ -63,7 +62,13 @@ TEST_F(AssistiveTechnologyControllerTest, DisablesDisabledFeatures) {
 }
 
 // Enables one feature several times in a row to ensure it doesn't cause issues.
-TEST_F(AssistiveTechnologyControllerTest, EnablesEnabledFeatures) {
+// TODO(b/262637071) Fails on Fuchsia ASAN.
+#if BUILDFLAG(IS_FUCHSIA) && defined(ADDRESS_SANITIZER)
+#define MAYBE_EnablesEnabledFeatures DISABLED_EnablesEnabledFeatures
+#else
+#define MAYBE_EnablesEnabledFeatures EnablesEnabledFeatures
+#endif  // BUILDFLAG(IS_FUCHSIA) && defined(ADDRESS_SANITIZER)
+TEST_F(AssistiveTechnologyControllerTest, MAYBE_EnablesEnabledFeatures) {
   AssistiveTechnologyControllerImpl at_controller;
   std::vector<mojom::AssistiveTechnologyType> enabled_features;
 
@@ -84,7 +89,13 @@ TEST_F(AssistiveTechnologyControllerTest, EnablesEnabledFeatures) {
 }
 
 // Toggles all features.
-TEST_F(AssistiveTechnologyControllerTest, EnableAndDisableAllFeatures) {
+// TODO(b/262637071) Fails on Fuchsia ASAN.
+#if BUILDFLAG(IS_FUCHSIA) && defined(ADDRESS_SANITIZER)
+#define MAYBE_EnableAndDisableAllFeatures DISABLED_EnableAndDisableAllFeatures
+#else
+#define MAYBE_EnableAndDisableAllFeatures EnableAndDisableAllFeatures
+#endif  // BUILDFLAG(IS_FUCHSIA) && defined(ADDRESS_SANITIZER)
+TEST_F(AssistiveTechnologyControllerTest, MAYBE_EnableAndDisableAllFeatures) {
   AssistiveTechnologyControllerImpl at_controller;
   // Turn everything on.
   std::vector<mojom::AssistiveTechnologyType> enabled_features;
@@ -127,13 +138,13 @@ TEST_F(AssistiveTechnologyControllerTest,
   enabled_features.emplace_back(mojom::AssistiveTechnologyType::kChromeVox);
   at_controller_->EnableAssistiveTechnology(enabled_features);
   base::RunLoop script_waiter;
-  // This script will not compile if chrome.automation.GetFocus() is not found
-  // in V8, causing the test to crash.
+  // This script will not compile if nativeAutomationInternal.GetFocus() is not
+  // found in V8, causing the test to crash.
   // TODO(crbug.com/1355633): After adding mojom for automation, we can
   // start passing a11y events to V8 and then ensuring calling these methods
   // changes the underlying accessibility info.
   std::string script = R"JS(
-    chrome.automation.GetFocus();
+    nativeAutomationInternal.GetFocus();
   )JS";
   at_controller_->RunScriptForTest(mojom::AssistiveTechnologyType::kChromeVox,
                                    script, script_waiter.QuitClosure());

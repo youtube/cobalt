@@ -17,7 +17,7 @@
 
 #include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
-#include "compiler/translator/TranslatorESSL.h"
+#include "compiler/translator/glsl/TranslatorESSL.h"
 #include "compiler/translator/tree_util/FindSymbolNode.h"
 
 namespace sh
@@ -89,6 +89,8 @@ class MatchOutputCodeTest : public testing::Test
 
     // Test that the string is found in none of the outputs
     bool notFoundInCode(const char *stringToFind) const;
+
+    std::string outputCode(ShShaderOutput output) const;
 
   private:
     bool compileWithSettings(ShShaderOutput output,

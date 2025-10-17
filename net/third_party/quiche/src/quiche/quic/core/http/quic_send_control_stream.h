@@ -19,7 +19,7 @@ class QuicSpdySession;
 
 // 6.2.1 Control Stream.
 // The send control stream is self initiated and is write only.
-class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
+class QUICHE_EXPORT QuicSendControlStream : public QuicStream {
  public:
   // |session| can't be nullptr, and the ownership is not passed. The stream can
   // only be accessed through the session.
@@ -38,6 +38,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // first frame sent on this stream.
   void MaybeSendSettingsFrame();
 
+  // Send ORIGIN frame if |origins| is not empty.
+  void MaybeSendOriginFrame(std::vector<std::string> origins);
+
   // Send a PRIORITY_UPDATE frame on this stream, and a SETTINGS frame
   // beforehand if one has not been already sent.
   void WritePriorityUpdate(QuicStreamId stream_id, HttpStreamPriority priority);
@@ -53,6 +56,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
  private:
   // Track if a settings frame is already sent.
   bool settings_sent_;
+
+  // Track if an origin frame is already sent.
+  bool origin_frame_sent_;
 
   // SETTINGS values to send.
   const SettingsFrame settings_;

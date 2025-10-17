@@ -4,6 +4,8 @@
 
 #include "chrome/browser/enterprise/reporting/extension_request/extension_request_notification.h"
 
+#include <array>
+
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
@@ -26,13 +28,21 @@ constexpr char kFakeExtensionId[] = "fake-extension-id";
 
 // The elements order of array below must match the order in enum
 // ExtensionRequestNotification::NotifyType.
-const char* const kNotificationIds[] = {"extension_approved_notificaiton",
-                                        "extension_rejected_notificaiton",
-                                        "extension_installed_notificaiton"};
-const char* const kNotificationTitleKeywords[] = {"approved", "rejected",
-                                                  "installed"};
-const char* const kNotificationBodyKeywords[] = {"to install", "to view",
-                                                 "to view"};
+constexpr auto kNotificationIds = std::to_array<const char*>({
+    "extension_approved_notificaiton",
+    "extension_rejected_notificaiton",
+    "extension_installed_notificaiton",
+});
+constexpr auto kNotificationTitleKeywords = std::to_array<const char*>({
+    "approved",
+    "rejected",
+    "installed",
+});
+constexpr auto kNotificationBodyKeywords = std::to_array<const char*>({
+    "to install",
+    "to view",
+    "to view",
+});
 
 void OnNotificationClosed(bool expected_by_user, bool by_user) {
   EXPECT_EQ(expected_by_user, by_user);
@@ -56,7 +66,7 @@ class ExtensionRequestNotificationTest
     return GetParam();
   }
 
-  absl::optional<message_center::Notification> GetNotification() {
+  std::optional<message_center::Notification> GetNotification() {
     return display_service_tester_->GetNotification(
         kNotificationIds[GetNotifyType()]);
   }
@@ -71,17 +81,6 @@ INSTANTIATE_TEST_SUITE_P(
                       ExtensionRequestNotification::kRejected,
                       ExtensionRequestNotification::kForceInstalled));
 
-#if !DCHECK_IS_ON()
-// EXPECT_DEATH doesn't work well with BrowserWithTestWindowTest. Hence only run
-// the test when DCHECK is off.
-TEST_P(ExtensionRequestNotificationTest, NoExtension) {
-  ExtensionRequestNotification request_notification(
-      profile(), GetNotifyType(), ExtensionRequestNotification::ExtensionIds());
-  request_notification.Show(base::BindOnce(&OnNotificationClosed, false));
-  EXPECT_FALSE(GetNotification().has_value());
-}
-#endif  //! DCHECK_IS_ON()
-
 TEST_P(ExtensionRequestNotificationTest, HasExtensionAndClickedByUser) {
   ExtensionRequestNotification request_notification(
       profile(), GetNotifyType(),
@@ -92,7 +91,7 @@ TEST_P(ExtensionRequestNotificationTest, HasExtensionAndClickedByUser) {
   request_notification.Show(base::BindOnce(&OnNotificationClosed, true));
   show_run_loop.Run();
 
-  absl::optional<message_center::Notification> notification = GetNotification();
+  std::optional<message_center::Notification> notification = GetNotification();
   ASSERT_TRUE(notification.has_value());
 
   EXPECT_THAT(base::UTF16ToUTF8(notification->title()),
@@ -105,7 +104,7 @@ TEST_P(ExtensionRequestNotificationTest, HasExtensionAndClickedByUser) {
       close_run_loop.QuitClosure());
   display_service_tester_->SimulateClick(
       NotificationHandler::Type::TRANSIENT, kNotificationIds[GetNotifyType()],
-      absl::optional<int>(), absl::optional<std::u16string>());
+      std::optional<int>(), std::optional<std::u16string>());
   close_run_loop.Run();
 
   EXPECT_FALSE(GetNotification().has_value());
@@ -125,7 +124,7 @@ TEST_P(ExtensionRequestNotificationTest, HasExtensionAndClosedByBrowser) {
   request_notification.Show(base::BindOnce(&OnNotificationClosed, false));
   show_run_loop.Run();
 
-  absl::optional<message_center::Notification> notification = GetNotification();
+  std::optional<message_center::Notification> notification = GetNotification();
   ASSERT_TRUE(notification.has_value());
 
   base::RunLoop close_run_loop;

@@ -39,8 +39,6 @@ constexpr char kEnabledExtensionsCountHistogramName[] =
 constexpr char kUnknownAppsCountHistogramName[] =
     "FamilyUser.UnknownAppsCount2";
 constexpr char kArcAppsCountHistogramName[] = "FamilyUser.ArcAppsCount2";
-constexpr char kBuiltInAppsCountHistogramName[] =
-    "FamilyUser.BuiltInAppsCount2";
 constexpr char kCrostiniAppsCountHistogramName[] =
     "FamilyUser.CrostiniAppsCount2";
 // The InstalledExtensionsCount only includes regular browser extensions and
@@ -49,10 +47,8 @@ constexpr char kCrostiniAppsCountHistogramName[] =
 constexpr char kExtensionAppsCountHistogramName[] =
     "FamilyUser.ExtensionAppsCount2";
 constexpr char kWebAppsCountHistogramName[] = "FamilyUser.WebAppsCount2";
-constexpr char kMacOsAppsCountHistogramName[] = "FamilyUser.MacOsAppsCount2";
 constexpr char kPluginVmAppsCountHistogramName[] =
     "FamilyUser.PluginVmAppsCount2";
-constexpr char kStandaloneBrowserAppsCountHistogramName[] = "FamilyUser.LacrosAppsCount2";
 constexpr char kRemoteAppsCountHistogramName[] = "FamilyUser.RemoteAppsCount2";
 constexpr char kBorealisAppsCountHistogramName[] =
     "FamilyUser.BorealisAppsCount2";
@@ -60,11 +56,6 @@ constexpr char kBruschettaAppsCountHistogramName[] =
     "FamilyUser.BruschettaAppsCount2";
 constexpr char kSystemWebAppsCountHistogramName[] =
     "FamilyUser.SystemWebAppsCount2";
-constexpr char kStandaloneBrowserChromeAppCountHistogramName[] =
-    "FamilyUser.LacrosChromeAppsCount2";
-
-// TODO(agawronska): Add metrics for extensions, possibly differentiating Ash
-// from Lacros (AKA StandaloneBrowser).
 
 const char* GetAppsCountHistogramName(apps::AppType app_type) {
   switch (app_type) {
@@ -72,24 +63,17 @@ const char* GetAppsCountHistogramName(apps::AppType app_type) {
     // Extensions are recorded separately, and AppService only has some
     // extensions with file browser handlers.
     case apps::AppType::kExtension:
-    case apps::AppType::kStandaloneBrowserExtension:
       return kUnknownAppsCountHistogramName;
     case apps::AppType::kArc:
       return kArcAppsCountHistogramName;
-    case apps::AppType::kBuiltIn:
-      return kBuiltInAppsCountHistogramName;
     case apps::AppType::kCrostini:
       return kCrostiniAppsCountHistogramName;
     case apps::AppType::kChromeApp:
       return kExtensionAppsCountHistogramName;
     case apps::AppType::kWeb:
       return kWebAppsCountHistogramName;
-    case apps::AppType::kMacOs:
-      return kMacOsAppsCountHistogramName;
     case apps::AppType::kPluginVm:
       return kPluginVmAppsCountHistogramName;
-    case apps::AppType::kStandaloneBrowser:
-      return kStandaloneBrowserAppsCountHistogramName;
     case apps::AppType::kRemote:
       return kRemoteAppsCountHistogramName;
     case apps::AppType::kBorealis:
@@ -98,9 +82,8 @@ const char* GetAppsCountHistogramName(apps::AppType app_type) {
       return kBruschettaAppsCountHistogramName;
     case apps::AppType::kSystemWeb:
       return kSystemWebAppsCountHistogramName;
-    case apps::AppType::kStandaloneBrowserChromeApp:
-      return kStandaloneBrowserChromeAppCountHistogramName;
   }
+  NOTREACHED();  // Invalid enum value.
 }
 
 }  // namespace
@@ -123,7 +106,7 @@ FamilyUserAppMetrics::FamilyUserAppMetrics(Profile* profile)
           user_manager::UserManager::Get()->IsCurrentUserNew()) {
   DCHECK(extension_registry_);
   DCHECK(app_registry_);
-  Observe(app_registry_);
+  app_registry_cache_observer_.Observe(app_registry_);
   DCHECK(instance_registry_);
 }
 
@@ -181,7 +164,7 @@ void FamilyUserAppMetrics::OnAppTypeInitialized(apps::AppType app_type) {
 void FamilyUserAppMetrics::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
   DCHECK_EQ(cache, app_registry_);
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void FamilyUserAppMetrics::OnAppUpdate(const apps::AppUpdate& update) {}

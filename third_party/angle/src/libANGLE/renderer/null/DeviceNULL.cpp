@@ -26,12 +26,7 @@ egl::Error DeviceNULL::initialize()
 egl::Error DeviceNULL::getAttribute(const egl::Display *display, EGLint attribute, void **outValue)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
-}
-
-EGLint DeviceNULL::getType()
-{
-    return 0;
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 void DeviceNULL::generateExtensions(egl::DeviceExtensions *outExtensions) const {}

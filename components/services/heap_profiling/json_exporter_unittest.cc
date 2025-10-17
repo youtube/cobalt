@@ -11,6 +11,7 @@
 #include "base/json/json_writer.h"
 #include "base/process/process.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
@@ -48,7 +49,7 @@ const base::Value* FindFirstRegionWithAnyName(const base::Value::Dict& root) {
 // Looks up a given string id from the string table. Returns -1 if not found.
 int GetIdFromStringTable(const base::Value::List& strings, const char* text) {
   for (const auto& string : strings) {
-    absl::optional<int> string_id = string.GetDict().FindInt("id");
+    std::optional<int> string_id = string.GetDict().FindInt("id");
     const std::string* string_text = string.GetDict().FindString("string");
     if (string_id.has_value() && string_text != nullptr &&
         *string_text == text) {
@@ -63,7 +64,7 @@ int GetIdFromStringTable(const base::Value::List& strings, const char* text) {
 std::string GetStringFromStringTable(const base::Value::List& strings,
                                      int sid) {
   for (const auto& string : strings) {
-    absl::optional<int> string_id = string.GetDict().FindInt("id");
+    std::optional<int> string_id = string.GetDict().FindInt("id");
     if (*string_id == sid) {
       const std::string* string_text = string.GetDict().FindString("string");
       if (!string_text)
@@ -76,8 +77,8 @@ std::string GetStringFromStringTable(const base::Value::List& strings,
 
 int GetNodeWithNameID(const base::Value::List& nodes, int sid) {
   for (const auto& node : nodes) {
-    absl::optional<int> node_id = node.GetDict().FindInt("id");
-    absl::optional<int> node_name_sid = node.GetDict().FindInt("name_sid");
+    std::optional<int> node_id = node.GetDict().FindInt("id");
+    std::optional<int> node_name_sid = node.GetDict().FindInt("name_sid");
     if (node_id.has_value() && node_name_sid.has_value() &&
         *node_name_sid == sid) {
       return *node_id;
@@ -100,12 +101,11 @@ bool IsBacktraceInList(const base::Value::List& backtraces,
                        int id,
                        int parent) {
   for (const auto& backtrace : backtraces) {
-    absl::optional<int> backtrace_id = backtrace.GetDict().FindInt("id");
+    std::optional<int> backtrace_id = backtrace.GetDict().FindInt("id");
     if (!backtrace_id.has_value())
       continue;
 
-    absl::optional<int> backtrace_parent =
-        backtrace.GetDict().FindInt("parent");
+    std::optional<int> backtrace_parent = backtrace.GetDict().FindInt("parent");
     int backtrace_parent_int = kNoParent;
     if (backtrace_parent.has_value())
       backtrace_parent_int = *backtrace_parent;
@@ -149,7 +149,7 @@ TEST(ProfilingJsonExporterTest, Simple) {
   std::string json = ExportMemoryMapsAndV2StackTraceToJSON(&params);
 
   // JSON should parse.
-  absl::optional<base::Value> root = base::JSONReader::Read(json);
+  std::optional<base::Value> root = base::JSONReader::Read(json);
   ASSERT_TRUE(root);
 
   const base::Value::Dict* dict = root->GetIfDict();
@@ -262,7 +262,7 @@ TEST(ProfilingJsonExporterTest, Simple) {
   EXPECT_EQ(44, (*sizes)[node3].GetInt());
   EXPECT_EQ(id3, (*backtraces)[node3].GetInt());
 
-  // Validate that the partition alloc one got through.
+  // Validate that the PartitionAlloc one got through.
   counts = heaps_v2->FindListByDottedPath("allocators.partition_alloc.counts");
   types = heaps_v2->FindListByDottedPath("allocators.partition_alloc.types");
   sizes = heaps_v2->FindListByDottedPath("allocators.partition_alloc.sizes");
@@ -281,7 +281,7 @@ TEST(ProfilingJsonExporterTest, Simple) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314087): Re-enable when MemoryMaps works on Fuchsia.
+// TODO(crbug.com/42050458): Re-enable when MemoryMaps works on Fuchsia.
 #define MAYBE_MemoryMaps DISABLED_MemoryMaps
 #else
 #define MAYBE_MemoryMaps MemoryMaps
@@ -293,13 +293,13 @@ TEST(ProfilingJsonExporterTest, Simple) {
 TEST(ProfilingJsonExporterTest, MAYBE_MemoryMaps) {
   ExportParams params;
   params.maps = memory_instrumentation::OSMetrics::GetProcessMemoryMaps(
-      base::Process::Current().Pid());
+      base::Process::Current().Handle());
   ASSERT_GT(params.maps.size(), 2u);
 
   std::string json = ExportMemoryMapsAndV2StackTraceToJSON(&params);
 
   // JSON should parse.
-  absl::optional<base::Value> root = base::JSONReader::Read(json);
+  std::optional<base::Value> root = base::JSONReader::Read(json);
   ASSERT_TRUE(root);
 
   const base::Value::Dict* dict = root->GetIfDict();
@@ -348,7 +348,7 @@ TEST(ProfilingJsonExporterTest, Context) {
   std::string json = ExportMemoryMapsAndV2StackTraceToJSON(&params);
 
   // JSON should parse.
-  absl::optional<base::Value> root = base::JSONReader::Read(json);
+  std::optional<base::Value> root = base::JSONReader::Read(json);
   ASSERT_TRUE(root);
 
   // Retrieve the allocations.
@@ -377,9 +377,9 @@ TEST(ProfilingJsonExporterTest, Context) {
   // Reconstruct the map from type id to string.
   std::map<int, std::string> type_to_string;
   for (const auto& type : *types_map) {
-    const absl::optional<int> id = type.GetDict().FindInt("id");
+    const std::optional<int> id = type.GetDict().FindInt("id");
     ASSERT_TRUE(id.has_value());
-    const absl::optional<int> name_sid = type.GetDict().FindInt("name_sid");
+    const std::optional<int> name_sid = type.GetDict().FindInt("name_sid");
     ASSERT_TRUE(name_sid.has_value());
 
     type_to_string[*id] = GetStringFromStringTable(*strings, *name_sid);
@@ -429,12 +429,12 @@ TEST(ProfilingJsonExporterTest, LargeAllocation) {
   std::string json = ExportMemoryMapsAndV2StackTraceToJSON(&params);
 
   // JSON should parse.
-  auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(json);
-  ASSERT_TRUE(parsed_json.has_value()) << parsed_json.error().message;
+  ASSERT_OK_AND_ASSIGN(auto parsed_json,
+                       base::JSONReader::ReadAndReturnValueWithError(json));
 
   // Validate the allocators summary.
   const base::Value::Dict* malloc_summary =
-      parsed_json->GetDict().FindDictByDottedPath("allocators.malloc");
+      parsed_json.GetDict().FindDictByDottedPath("allocators.malloc");
   ASSERT_TRUE(malloc_summary);
   const std::string* malloc_size =
       malloc_summary->FindStringByDottedPath("attrs.size.value");
@@ -448,7 +448,7 @@ TEST(ProfilingJsonExporterTest, LargeAllocation) {
   // Validate allocators details.
   // heaps_v2.allocators.malloc.sizes.reduce((a,s)=>a+s,0).
   const base::Value::Dict* malloc =
-      parsed_json->GetDict().FindDictByDottedPath("heaps_v2.allocators.malloc");
+      parsed_json.GetDict().FindDictByDottedPath("heaps_v2.allocators.malloc");
   const base::Value::List* malloc_sizes = malloc->FindList("sizes");
   EXPECT_EQ(1u, malloc_sizes->size());
   EXPECT_EQ(0x9876543210ul, (*malloc_sizes)[0].GetDouble());

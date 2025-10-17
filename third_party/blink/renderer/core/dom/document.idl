@@ -50,15 +50,20 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     [Affects=Nothing] HTMLCollection getElementsByTagNameNS(DOMString? namespaceURI, DOMString localName);
     [Affects=Nothing] HTMLCollection getElementsByClassName(DOMString classNames);
 
-    [NewObject, DoNotTestNewObject, PerWorldBindings, RaisesException, ImplementedAs=CreateElementForBinding] Element createElement(DOMString localName);
-    [NewObject, DoNotTestNewObject, RaisesException] Element createElementNS(DOMString? namespaceURI, DOMString qualifiedName);
+    [NewObject, PerWorldBindings, RaisesException, ImplementedAs=CreateElementForBinding] Element createElement(DOMString localName);
+    [NewObject, RaisesException] Element createElementNS(DOMString? namespaceURI, DOMString qualifiedName);
     [NewObject] DocumentFragment createDocumentFragment();
     [NewObject] Text createTextNode(DOMString data);
     [NewObject, RaisesException] CDATASection createCDATASection(DOMString data);
     [NewObject] Comment createComment(DOMString data);
     [NewObject, RaisesException] ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
 
-    [NewObject, DoNotTestNewObject, CEReactions, RaisesException] Node importNode(Node node, optional boolean deep = false);
+    [NewObject, CEReactions, RaisesException] Node importNode(Node node, optional boolean deep = false);
+
+    // TODO(https://crbug.com/399124619): Merge all importnode variants, once Scoped Custom Element Registries
+    // are shipped unflagged
+    [NewObject, CEReactions, RaisesException, RuntimeEnabled=ScopedCustomElementRegistry] Node importNode(Node node, ImportNodeOptions options);
+
     [RaisesException, CEReactions] Node adoptNode(Node node);
 
     [NewObject, RaisesException, MeasureAs=DocumentCreateAttribute] Attr createAttribute(DOMString localName);
@@ -79,6 +84,14 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
 
     // HTML
     // https://html.spec.whatwg.org/C/#the-document-object
+
+    // https://github.com/whatwg/html/pull/9538
+    [CallWith=ExecutionContext,RaisesException,MeasureAs=ParseHTMLUnsafe] static Document parseHTMLUnsafe(HTMLString html);
+   // https://wicg.github.io/sanitizer-api/#sanitizer-api
+    // TODO(356601280): Merge the two setHTMLUnsafe variants into one, once the
+    //   different RuntimeEnabled flags are both perma-enabled.
+    [RuntimeEnabled=SanitizerAPI,RaisesException,CallWith=ExecutionContext,MeasureAs=ParseHTMLUnsafe,CEReactions] static Document parseHTMLUnsafe(HTMLString html, SetHTMLUnsafeOptions options);
+    [RuntimeEnabled=SanitizerAPI,RaisesException,CallWith=ExecutionContext,MeasureAs=ParseHTMLSafe,CEReactions] static Document parseHTML(DOMString html, optional SetHTMLOptions options = {});
 
     // resource metadata management
 
@@ -117,6 +130,11 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     [CallWith=Isolate, CEReactions, RaisesException] void write(TrustedHTML text);
     [CallWith=Isolate, CEReactions, RaisesException] void writeln(TrustedHTML text);
 
+    // TODO(330516530): Merge all write/writeln variants, once TrustedTypesHTML
+    // is perma-enabled.
+    [CallWith=Isolate, CEReactions, RaisesException, RuntimeEnabled=TrustedTypesHTML] undefined write(TrustedHTML text1, (TrustedHTML or DOMString)... text);
+    [CallWith=Isolate, CEReactions, RaisesException, RuntimeEnabled=TrustedTypesHTML] undefined writeln(TrustedHTML text1, (TrustedHTML or DOMString)... text);
+
     // user interaction
     readonly attribute Window? defaultView;
     [Affects=Nothing] boolean hasFocus();
@@ -139,11 +157,11 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     [Measure] readonly attribute HTMLCollection anchors;
     [Measure] readonly attribute HTMLCollection applets;
 
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString fgColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString linkColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString vlinkColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString alinkColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString bgColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString fgColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString linkColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString vlinkColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString alinkColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString bgColor;
 
     [MeasureAs=DocumentClear] void clear();
     [MeasureAs=DocumentCaptureEvents] void captureEvents();
@@ -180,10 +198,8 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     // Non-standard APIs
     [MeasureAs=DocumentCaretRangeFromPoint] Range caretRangeFromPoint(optional long x = 0, optional long y = 0);
 
-    // Storage Access API
-    [CallWith=ScriptState, NewObject, RuntimeEnabled=StorageAccessAPI, MeasureAs=StorageAccessAPI_HasStorageAccess_Method] Promise<boolean> hasStorageAccess();
-    [CallWith=ScriptState, NewObject, RuntimeEnabled=StorageAccessAPI, MeasureAs=StorageAccessAPI_requestStorageAccess_Method] Promise<void> requestStorageAccess();
-    [CallWith=ScriptState, NewObject, RuntimeEnabled=StorageAccessAPIForOriginExtension, MeasureAs=StorageAccessAPI_requestStorageAccessFor_Method] Promise<void> requestStorageAccessFor(USVString requestedOrigin);
+    // https://www.w3.org/TR/cssom-view/#dom-document-caretpositionfrompoint
+    [NewObject, MeasureAs=CaretPositionFromPoint, RuntimeEnabled=CaretPositionFromPoint] CaretPosition? caretPositionFromPoint(float x, float y, optional CaretPositionFromPointOptions options = {});
 
     // Text fragment directive API
     // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
@@ -195,7 +211,7 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     // Deprecated prefixed page visibility API.
     // TODO(davidben): This is a property so attaching a deprecation warning results in false positives when outputting
     // document in the console. It's possible https://crbug.com/43394 will resolve this.
-    [MeasureAs=PrefixedPageVisibility, ImplementedAs=visibilityState] readonly attribute DOMString webkitVisibilityState;
+    [MeasureAs=PrefixedPageVisibility, ImplementedAs=visibilityStateAsString] readonly attribute DOMString webkitVisibilityState;
     [MeasureAs=PrefixedPageVisibility, ImplementedAs=hidden] readonly attribute boolean webkitHidden;
 
     // Private Token API (https://github.com/wicg/trust-token-api)
@@ -203,9 +219,12 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
 
     [CallWith=ScriptState, Measure, RaisesException, NewObject, SecureContext, RuntimeEnabled=PrivateStateTokens] Promise<boolean> hasRedemptionRecord(USVString issuer);
 
-    // Confirmation of Action API
+    // ARIA Notify API
     // https://github.com/WICG/aom/blob/gh-pages/notification-api.md
-    [RuntimeEnabled=ConfirmationOfAction] void ariaNotify(HTMLString announcement, optional AriaNotificationOptions options = {});
+    [RuntimeEnabled=AriaNotify,MeasureAs=AriaNotify] void ariaNotify(DOMString announcement, optional AriaNotificationOptions options = {});
+
+    // The (experimental) DOM Parts API.
+    [RuntimeEnabled=DOMPartsAPI] DocumentPartRoot getPartRoot();
 
     // Event handler attributes
     attribute EventHandler onbeforecopy;
@@ -216,6 +235,10 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     attribute EventHandler onresume;
     attribute EventHandler onsearch;
     attribute EventHandler onvisibilitychange;
+
+    // Proposed setter for focus navigation starting point
+    // https://github.com/whatwg/html/issues/5326
+    [RuntimeEnabled=SetSequentialFocusStartingPoint, ImplementedAs=SetSequentialFocusNavigationStartingPoint] void setSequentialFocusStartingPoint(Element element);
 };
 
 Document includes GlobalEventHandlers;

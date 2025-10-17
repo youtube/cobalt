@@ -12,8 +12,6 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
 #include "components/javascript_dialogs/app_modal_dialog_view.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
@@ -38,6 +36,7 @@ class HasBeforeUnloadHandlerTest : public InProcessBrowserTest {
     GURL gurl(embedded_test_server()->GetURL("a.com", url));
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
     auto* wc = browser()->tab_strip_model()->GetActiveWebContents();
+    content::WebContentsDestroyedWatcher destroyed_watcher(wc);
     content::PrepContentsForBeforeUnloadTest(wc);
 
     base::RunLoop run_loop;
@@ -75,21 +74,21 @@ class HasBeforeUnloadHandlerTest : public InProcessBrowserTest {
       EXPECT_TRUE(alert->is_before_unload_dialog());
       alert->view()->AcceptAppModalDialog();
     }
+
+    ASSERT_NO_FATAL_FAILURE(destroyed_watcher.Wait());
+    EXPECT_TRUE(destroyed_watcher.IsDestroyed());
   }
 };
 
 }  // namespace
 
-// TODO(https://crbug.com/889304): Re-enable this test.
 IN_PROC_BROWSER_TEST_F(HasBeforeUnloadHandlerTest,
-                       DISABLED_NonEmptyBeforeUnloadDetected) {
+                       NonEmptyBeforeUnloadDetected) {
   TestDiscardBeforeUnloadHelper("/beforeunload.html",
                                 true /* has_beforeunload_helper */);
 }
 
-// TODO(https://crbug.com/902355): Re-enable this test.
-IN_PROC_BROWSER_TEST_F(HasBeforeUnloadHandlerTest,
-                       DISABLED_EmptyBeforeUnloadDetected) {
+IN_PROC_BROWSER_TEST_F(HasBeforeUnloadHandlerTest, EmptyBeforeUnloadDetected) {
   TestDiscardBeforeUnloadHelper("/emptybeforeunload.html",
                                 false /* has_beforeunload_helper */);
 }

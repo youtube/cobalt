@@ -6,17 +6,15 @@
 #define CHROMEOS_ASH_COMPONENTS_DRIVEFS_DRIVEFS_SEARCH_H_
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
+#include "chromeos/ash/components/drivefs/drivefs_search_query_delegate.h"
 #include "chromeos/ash/components/drivefs/mojom/drivefs.mojom.h"
-#include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace network {
 class NetworkConnectionTracker;
@@ -24,8 +22,11 @@ class NetworkConnectionTracker;
 
 namespace drivefs {
 
+class DriveFsSearchQuery;
+
 // Handles search queries to DriveFS.
-class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_DRIVEFS) DriveFsSearch {
+class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_DRIVEFS) DriveFsSearch
+    : public DriveFsSearchQueryDelegate {
  public:
   DriveFsSearch(mojom::DriveFs* drivefs,
                 network::NetworkConnectionTracker* network_connection_tracker,
@@ -34,7 +35,13 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_DRIVEFS) DriveFsSearch {
   DriveFsSearch(const DriveFsSearch&) = delete;
   DriveFsSearch& operator=(const DriveFsSearch&) = delete;
 
-  ~DriveFsSearch();
+  ~DriveFsSearch() override;
+
+  // Starts a new query, but does not call `GetNextPage`.
+  // The returned `DriveFsSearchQuery` can be destructed at any time to stop any
+  // in-flight `GetNextPage` calls.
+  std::unique_ptr<DriveFsSearchQuery> CreateQuery(
+      mojom::QueryParametersPtr query_params);
 
   // Starts DriveFs search query and returns whether it will be
   // performed localy or remotely. Assumes DriveFS to be mounted.
@@ -42,18 +49,19 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_DRIVEFS) DriveFsSearch {
       mojom::QueryParametersPtr query,
       mojom::SearchQuery::GetNextPageCallback callback);
 
- private:
-  void OnSearchDriveFs(
-      mojo::Remote<drivefs::mojom::SearchQuery> search,
-      drivefs::mojom::QueryParametersPtr query,
-      mojom::SearchQuery::GetNextPageCallback callback,
-      drive::FileError error,
-      absl::optional<std::vector<drivefs::mojom::QueryItemPtr>> items);
+  // `DriveFsSearchQueryDelegate` overrides:
+  bool IsOffline() override;
 
-  const raw_ptr<mojom::DriveFs, ExperimentalAsh> drivefs_;
-  const raw_ptr<network::NetworkConnectionTracker, ExperimentalAsh>
-      network_connection_tracker_;
-  const raw_ptr<const base::Clock, ExperimentalAsh> clock_;
+  void UpdateLastSharedWithMeResponse() override;
+  bool WithinQueryCacheTtl() override;
+
+  void StartMojoSearchQuery(mojo::PendingReceiver<mojom::SearchQuery> query,
+                            mojom::QueryParametersPtr query_params) override;
+
+ private:
+  const raw_ptr<mojom::DriveFs, DanglingUntriaged> drivefs_;
+  const raw_ptr<network::NetworkConnectionTracker> network_connection_tracker_;
+  const raw_ptr<const base::Clock> clock_;
   base::Time last_shared_with_me_response_;
 
   base::WeakPtrFactory<DriveFsSearch> weak_ptr_factory_{this};

@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include "content/browser/accessibility/accessibility_tree_formatter_fuchsia.h"
+
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
-#include "content/browser/accessibility/browser_accessibility_fuchsia.h"
+#include "ui/accessibility/platform/fuchsia/browser_accessibility_fuchsia.h"
 
 namespace content {
 namespace {
@@ -90,7 +92,6 @@ std::string FuchsiaRoleToString(const FuchsiaRole role) {
       return "UNKNOWN";
     default:
       NOTREACHED();
-      return std::string();
   }
 }
 
@@ -112,7 +113,6 @@ std::string FuchsiaActionToString(FuchsiaAction action) {
       return "SHOW_ON_SCREEN";
     default:
       NOTREACHED();
-      return std::string();
   }
 }
 
@@ -122,8 +122,9 @@ std::string FuchsiaActionsToString(const std::vector<FuchsiaAction>& actions) {
     fuchsia_actions.push_back(FuchsiaActionToString(action));
   }
 
-  if (fuchsia_actions.empty())
+  if (fuchsia_actions.empty()) {
     return std::string();
+  }
 
   return "{" + base::JoinString(fuchsia_actions, ", ") + "}";
 }
@@ -140,7 +141,6 @@ std::string CheckedStateToString(const FuchsiaCheckedState checked_state) {
       return "MIXED";
     default:
       NOTREACHED();
-      return std::string();
   }
 }
 
@@ -154,7 +154,6 @@ std::string ToggledStateToString(const FuchsiaToggledState toggled_state) {
       return "INDETERMINATE";
     default:
       NOTREACHED();
-      return std::string();
   }
 }
 
@@ -215,17 +214,20 @@ base::Value::Dict AccessibilityTreeFormatterFuchsia::BuildTree(
 void AccessibilityTreeFormatterFuchsia::RecursiveBuildTree(
     const ui::AXPlatformNodeDelegate& node,
     base::Value::Dict* dict) const {
-  if (!ShouldDumpNode(node))
+  if (!ShouldDumpNode(node)) {
     return;
+  }
 
   AddProperties(node, dict);
-  if (!ShouldDumpChildren(node))
+  if (!ShouldDumpChildren(node)) {
     return;
+  }
 
   base::Value::List children;
 
   fuchsia_accessibility_semantics::Node fuchsia_node =
-      static_cast<const BrowserAccessibilityFuchsia&>(node).ToFuchsiaNodeData();
+      static_cast<const ui::BrowserAccessibilityFuchsia&>(node)
+          .ToFuchsiaNodeData();
 
   for (uint32_t child_id : fuchsia_node.child_ids().value()) {
     ui::AXPlatformNodeFuchsia* child_node =
@@ -255,8 +257,8 @@ void AccessibilityTreeFormatterFuchsia::AddProperties(
     base::Value::Dict* dict) const {
   dict->Set("id", node.GetId());
 
-  const BrowserAccessibilityFuchsia* browser_accessibility_fuchsia =
-      static_cast<const BrowserAccessibilityFuchsia*>(&node);
+  const ui::BrowserAccessibilityFuchsia* browser_accessibility_fuchsia =
+      static_cast<const ui::BrowserAccessibilityFuchsia*>(&node);
 
   CHECK(browser_accessibility_fuchsia);
 
@@ -434,14 +436,16 @@ std::string AccessibilityTreeFormatterFuchsia::ProcessTreeForOutput(
   }
 
   for (const char* bool_attribute : kBoolAttributes) {
-    if (node.FindBool(bool_attribute).value_or(false))
+    if (node.FindBool(bool_attribute).value_or(false)) {
       WriteAttribute(/*include_by_default=*/true, bool_attribute, &line);
+    }
   }
 
   for (const char* string_attribute : kStringAttributes) {
     const std::string* value = node.FindString(string_attribute);
-    if (!value || value->empty())
+    if (!value || value->empty()) {
       continue;
+    }
 
     WriteAttribute(
         /*include_by_default=*/true,
@@ -450,16 +454,18 @@ std::string AccessibilityTreeFormatterFuchsia::ProcessTreeForOutput(
 
   for (const char* attribute_name : kIntAttributes) {
     int value = node.FindInt(attribute_name).value_or(0);
-    if (value == 0)
+    if (value == 0) {
       continue;
+    }
     WriteAttribute(true, base::StringPrintf("%s=%d", attribute_name, value),
                    &line);
   }
 
   for (const char* attribute_name : kDoubleAttributes) {
     int value = node.FindInt(attribute_name).value_or(0);
-    if (value == 0)
+    if (value == 0) {
       continue;
+    }
     WriteAttribute(true, base::StringPrintf("%s=%d", attribute_name, value),
                    &line);
   }

@@ -6,13 +6,13 @@
 
 #include "ash/constants/ash_pref_names.h"
 #include "base/metrics/histogram_functions.h"
+#include "chrome/browser/ash/auth/legacy_fingerprint_engine.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
 #include "chrome/browser/ash/login/users/chrome_user_manager_util.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/ash/auth/legacy_fingerprint_engine.h"
 #include "chrome/browser/ui/webui/ash/login/fingerprint_setup_screen_handler.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
@@ -90,13 +90,13 @@ std::string GetDefaultFingerprintName(int enrolled_finger_count) {
     default:
       NOTREACHED();
   }
-  return std::string();
 }
 
 }  // namespace
 
 // static
 std::string FingerprintSetupScreen::GetResultString(Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
     case Result::DONE:
       return "Done";
@@ -105,6 +105,7 @@ std::string FingerprintSetupScreen::GetResultString(Result result) {
     case Result::NOT_APPLICABLE:
       return BaseScreen::kNotApplicable;
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
 FingerprintSetupScreen::FingerprintSetupScreen(
@@ -130,7 +131,7 @@ bool FingerprintSetupScreen::ShouldBeSkipped(
       !fp_engine_.IsFingerprintEnabled(
           *ProfileManager::GetActiveUserProfile()->GetPrefs(),
           LegacyFingerprintEngine::Purpose::kAny) ||
-      chrome_user_manager_util::IsPublicSessionOrEphemeralLogin()) {
+      chrome_user_manager_util::IsManagedGuestSessionOrEphemeralLogin()) {
     return true;
   }
   return false;

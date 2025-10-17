@@ -10,12 +10,14 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/version.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -52,6 +54,8 @@ class LocalExtensionCache {
 
   // Name of flag file that indicates that cache is ready (import finished).
   static const char kCacheReadyFlagFileName[];
+  // Name of the file that lists invalid cache that should be removed.
+  static const char kInvalidCacheIdsFileName[];
 
   // Initialize cache. If |wait_for_cache_initialization| is |true|, the cache
   // contents will not be read until a flag file appears in the cache directory,
@@ -87,13 +91,17 @@ class LocalExtensionCache {
   void PutExtension(const std::string& id,
                     const std::string& expected_hash,
                     const base::FilePath& file_path,
-                    const std::string& version,
+                    const base::Version& version,
                     PutExtensionCallback callback);
 
   // Remove extension with |id| and |expected_hash| from local cache,
   // corresponding crx file will be removed from disk too. If |expected_hash| is
   // empty, all files corresponding to that |id| will be removed.
   bool RemoveExtension(const std::string& id, const std::string& expected_hash);
+
+  // Mark extension with |id| as obsolete and schedule removal for the next
+  // initialization. Returns true if removal was scheduled successfully.
+  bool RemoveOnNextInit(const std::string& id);
 
   // Return cache statistics. Returns |false| if cache is not ready.
   bool GetStatistics(uint64_t* cache_size, size_t* extensions_count);
@@ -114,15 +122,13 @@ class LocalExtensionCache {
 
  private:
   struct CacheItemInfo {
-    // TODO(https://crbug.com/1076376): Change |version| from std::string to
-    // base::Version.
-    std::string version;
+    base::Version version;
     std::string expected_hash;
     base::Time last_used;
     uint64_t size;
     base::FilePath file_path;
 
-    CacheItemInfo(const std::string& version,
+    CacheItemInfo(const base::Version& version,
                   const std::string& expected_hash,
                   const base::Time& last_used,
                   uint64_t size,
@@ -157,7 +163,7 @@ class LocalExtensionCache {
   // value of |compare| is set to the version number comparison result (as
   // returned by Version::CompareTo).
   static bool NewerOrSame(const CacheMap::iterator& entry,
-                          const std::string& version,
+                          const base::Version& version,
                           const std::string& expected_hash,
                           int* compare);
 
@@ -234,7 +240,7 @@ class LocalExtensionCache {
       const std::string& id,
       const std::string& expected_hash,
       const base::FilePath& file_path,
-      const std::string& version,
+      const base::Version& version,
       PutExtensionCallback callback);
 
   // Invoked on the UI thread when a new entry has been installed in the cache.
@@ -248,6 +254,20 @@ class LocalExtensionCache {
   static void BackendRemoveCacheEntry(const base::FilePath& cache_dir,
                                       const std::string& expected_hash,
                                       const std::string& id);
+
+  // Appends the extension id to |kInvalidCacheIdsFileName| file so that it is
+  // deleted on the next startup and a new version is retrieved.
+  static void BackendMarkCacheInvalid(
+      base::WeakPtr<LocalExtensionCache> local_cache,
+      const base::FilePath& cache_dir,
+      const std::string& extension_id);
+
+  // Invoked on the UI thread if BackendMarkCacheInvalid() fails.
+  void OnMarkCacheInvalidFailed(const std::string& extension_id);
+
+  // Gets extension ids from |kInvalidCacheIdsFileName| file.
+  static std::set<std::string> BackendGetInvalidCache(
+      const base::FilePath& cache_dir);
 
   // Compare two cache items returns true if first item is older.
   static bool CompareCacheItemsAge(const CacheMap::iterator& lhs,
@@ -274,6 +294,10 @@ class LocalExtensionCache {
 
   // This contains info about all cached extensions.
   CacheMap cached_extensions_;
+
+  // This contains extension ids of invalid cache that should be removed on the
+  // next initialization.
+  std::set<std::string> invalid_cache_ids_;
 
   // Delay between polling cache status.
   base::TimeDelta cache_status_polling_delay_;

@@ -6,6 +6,7 @@
 
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
@@ -20,7 +21,8 @@ AccessibilityTest::AccessibilityTest(LocalFrameClient* local_frame_client)
 
 void AccessibilityTest::SetUp() {
   RenderingTest::SetUp();
-  ax_context_ = std::make_unique<AXContext>(GetDocument(), ui::kAXModeComplete);
+  ax_context_ =
+      std::make_unique<AXContext>(GetDocument(), ui::kAXModeDefaultForTests);
 }
 
 AXObjectCacheImpl& AccessibilityTest::GetAXObjectCache() const {
@@ -33,28 +35,33 @@ AXObjectCacheImpl& AccessibilityTest::GetAXObjectCache() const {
 }
 
 AXObject* AccessibilityTest::GetAXObject(LayoutObject* layout_object) const {
-  return GetAXObjectCache().GetOrCreate(layout_object);
+  return GetAXObjectCache().Get(layout_object);
 }
 
 AXObject* AccessibilityTest::GetAXObject(const Node& node) const {
-  return GetAXObjectCache().GetOrCreate(&node);
+  return GetAXObjectCache().Get(&node);
 }
 
 AXObject* AccessibilityTest::GetAXRootObject() const {
-  return GetAXObjectCache().GetOrCreate(&GetLayoutView());
+  GetAXObjectCache().UpdateAXForAllDocuments();
+  return GetAXObjectCache().Root();
 }
 
 AXObject* AccessibilityTest::GetAXBodyObject() const {
-  return GetAXObjectCache().GetOrCreate(GetDocument().body());
+  return GetAXObjectCache().Get(GetDocument().body());
 }
 
 AXObject* AccessibilityTest::GetAXFocusedObject() const {
   return GetAXObjectCache().FocusedObject();
 }
 
-AXObject* AccessibilityTest::GetAXObjectByElementId(const char* id) const {
+AXObject* AccessibilityTest::GetAXObjectByElementId(const char* id,
+                                                    PseudoId pseudo_id) const {
   const auto* element = GetElementById(id);
-  return element ? GetAXObjectCache().GetOrCreate(element) : nullptr;
+  if (element && pseudo_id != kPseudoIdNone) {
+    return GetAXObjectCache().Get(element->GetPseudoElement(pseudo_id));
+  }
+  return GetAXObjectCache().Get(element);
 }
 
 std::string AccessibilityTest::PrintAXTree() const {

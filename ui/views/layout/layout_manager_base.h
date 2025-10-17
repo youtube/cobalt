@@ -7,19 +7,22 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "base/dcheck_is_on.h"
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/scoped_multi_source_observation.h"
+#include "base/types/pass_key.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/layout/layout_manager.h"
 #include "ui/views/layout/layout_types.h"
 #include "ui/views/layout/proposed_layout.h"
+#include "ui/views/view_observer.h"
 #include "ui/views/views_export.h"
 
 namespace views {
@@ -29,8 +32,11 @@ class View;
 // Base class for layout managers that can do layout calculation separately
 // from layout application. Derived classes must implement
 // CalculateProposedLayout(). Used in interpolating and animating layouts.
-class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
+class VIEWS_EXPORT LayoutManagerBase : public LayoutManager,
+                                       public ViewObserver {
  public:
+  using PassKeyType = base::NonCopyablePassKey<LayoutManagerBase>;
+
   LayoutManagerBase(const LayoutManagerBase&) = delete;
   LayoutManagerBase& operator=(const LayoutManagerBase&) = delete;
 
@@ -43,55 +49,70 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
   // result had already been calculated, a cached value may be returned.
   ProposedLayout GetProposedLayout(const gfx::Size& host_size) const;
 
-  // Excludes a specific view from the layout when doing layout calculations.
-  // Useful when a child view is meant to be displayed but has its size and
-  // position managed elsewhere in code. By default, all child views are
-  // included in the layout unless they are hidden.
-  void SetChildViewIgnoredByLayout(View* child_view, bool ignored);
-  bool IsChildViewIgnoredByLayout(const View* child_view) const;
+  // Fetches a proposed layout for a host view with `size_bounds`. This function
+  // does not require caching because it is generally used in combination with
+  // other LayoutManager.
+  ProposedLayout GetProposedLayout(const SizeBounds& size_bounds,
+                                   PassKeyType) const;
 
   // LayoutManager:
   gfx::Size GetPreferredSize(const View* host) const override;
+  gfx::Size GetPreferredSize(const View* host,
+                             const SizeBounds& available_size) const override;
   gfx::Size GetMinimumSize(const View* host) const override;
   int GetPreferredHeightForWidth(const View* host, int width) const override;
   SizeBounds GetAvailableSize(const View* host,
                               const View* view) const override;
   void Layout(View* host) final;
 
+  // ViewObserver:
+  void OnViewPropertyChanged(View* observed_view,
+                             const void* key,
+                             int64_t old_value) final;
+
+  // Returns whether the specified child view can be visible. To be able to be
+  // visible, |child| must be a child of the host view, and must have been
+  // visible when it was added or most recently had SetVisible(true) called on
+  // it by non-layout code.
+  bool CanBeVisible(const View* child) const;
+
  protected:
   LayoutManagerBase();
 
+  PassKeyType PassKey() const { return PassKeyType(); }
+
   // LayoutManager:
-  std::vector<View*> GetChildViewsInPaintOrder(const View* host) const override;
+  std::vector<raw_ptr<View, VectorExperimental>> GetChildViewsInPaintOrder(
+      const View* host) const override;
 
   // Direct cache control for subclasses that want to override default caching
   // behavior. Use at your own risk.
-  absl::optional<gfx::Size> cached_minimum_size() const {
+  std::optional<gfx::Size> cached_minimum_size() const {
     return cached_minimum_size_;
   }
   void set_cached_minimum_size(
-      const absl::optional<gfx::Size>& minimum_size) const {
+      const std::optional<gfx::Size>& minimum_size) const {
     cached_minimum_size_ = minimum_size;
   }
-  const absl::optional<gfx::Size>& cached_preferred_size() const {
+  const std::optional<gfx::Size>& cached_preferred_size() const {
     return cached_preferred_size_;
   }
   void set_cached_preferred_size(
-      const absl::optional<gfx::Size>& preferred_size) const {
+      const std::optional<gfx::Size>& preferred_size) const {
     cached_preferred_size_ = preferred_size;
   }
-  const absl::optional<gfx::Size>& cached_height_for_width() const {
+  const std::optional<gfx::Size>& cached_height_for_width() const {
     return cached_height_for_width_;
   }
   void set_cached_height_for_width(
-      const absl::optional<gfx::Size>& height_for_width) const {
+      const std::optional<gfx::Size>& height_for_width) const {
     cached_height_for_width_ = height_for_width;
   }
-  const absl::optional<gfx::Size>& cached_layout_size() const {
+  const std::optional<gfx::Size>& cached_layout_size() const {
     return cached_layout_size_;
   }
   void set_cached_layout_size(
-      const absl::optional<gfx::Size>& layout_size) const {
+      const std::optional<gfx::Size>& layout_size) const {
     cached_layout_size_ = layout_size;
   }
   const ProposedLayout& cached_layout() const { return cached_layout_; }
@@ -107,12 +128,6 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
   // |include_hidden| is set.
   bool IsChildIncludedInLayout(const View* child,
                                bool include_hidden = false) const;
-
-  // Returns whether the specified child view can be visible. To be able to be
-  // visible, |child| must be a child of the host view, and must have been
-  // visible when it was added or most recently had SetVisible(true) called on
-  // it by non-layout code.
-  bool CanBeVisible(const View* child) const;
 
   // Creates a proposed layout for the host view, including bounds and
   // visibility for all children currently included in the layout.
@@ -140,7 +155,7 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
   // additional layout-specific work required. Returns whether the host view
   // must be invalidated as a result of the update. All of these call
   // OnLayoutChanged() by default (see below).
-  virtual bool OnChildViewIgnoredByLayout(View* child_view, bool ignored);
+  virtual bool OnChildViewIncludedInLayoutSet(View* child_view, bool included);
   virtual bool OnViewAdded(View* host, View* view);
   virtual bool OnViewRemoved(View* host, View* view);
   virtual bool OnViewVisibilitySet(View* host, View* view, bool visible);
@@ -153,10 +168,10 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
   // all cached data.
   virtual void OnLayoutChanged();
 
-  // Adds an owned layout. Owned layouts receive the same events (Installed(),
-  // ViewAdded(), InvalidateLayout(), etc.) as the primary layout. Subclasses of
-  // LayoutManagerBase that need to compose or transform the output of one or
-  // more embedded layouts should use the |owned_layouts| system.
+  // Adds an owned layout. The primary layout propagates events (installation,
+  // view addition, etc.) to all owned layouts. Subclasses of LayoutManagerBase
+  // that need to compose or transform the output of one or more embedded
+  // layouts should use the |owned_layouts| system.
   template <class T>
   T* AddOwnedLayout(std::unique_ptr<T> owned_layout) {
     T* layout = owned_layout.get();
@@ -173,13 +188,14 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
   }
 
  private:
+  friend class ManualLayoutUtil;
   friend class LayoutManagerBaseAvailableSizeTest;
 
   // Holds bookkeeping data used to determine inclusion of children in the
   // layout.
   struct ChildInfo {
     bool can_be_visible = true;
-    bool ignored = false;
+    bool included_in_layout = true;
   };
 
   // LayoutManager:
@@ -199,7 +215,7 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
 
   // Do the work of propagating events to owned layouts. Returns true if the
   // host view must be invalidated.
-  bool PropagateChildViewIgnoredByLayout(View* child_view, bool ignored);
+  bool PropagateChildViewIncludedInLayout(View* child_view, bool included);
   bool PropagateViewAdded(View* host, View* view);
   bool PropagateViewRemoved(View* host, View* view);
   bool PropagateViewVisibilitySet(View* host, View* view, bool visible);
@@ -207,6 +223,14 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
   void PropagateInvalidateLayout();
 
   raw_ptr<View> host_view_ = nullptr;
+
+  // Monitors child views so we will be notified if their "ignored by layout"
+  // state changes. This should only ever be observing anything for the root
+  // layout manager, which in turn will propagate changes to owned layout
+  // managers as needed.
+  base::ScopedMultiSourceObservation<View, ViewObserver> view_observations_{
+      this};
+
   std::map<const View*, ChildInfo> child_infos_;
   std::vector<std::unique_ptr<LayoutManagerBase>> owned_layouts_;
   raw_ptr<LayoutManagerBase> parent_layout_ = nullptr;
@@ -227,11 +251,80 @@ class VIEWS_EXPORT LayoutManagerBase : public LayoutManager {
 
   // Do some really simple caching because layout generation can cost as much
   // as 1ms or more for complex views.
-  mutable absl::optional<gfx::Size> cached_minimum_size_;
-  mutable absl::optional<gfx::Size> cached_preferred_size_;
-  mutable absl::optional<gfx::Size> cached_height_for_width_;
-  mutable absl::optional<gfx::Size> cached_layout_size_;
+  mutable std::optional<gfx::Size> cached_minimum_size_;
+  mutable std::optional<gfx::Size> cached_preferred_size_;
+  mutable std::optional<gfx::Size> cached_height_for_width_;
+  mutable std::optional<gfx::Size> cached_layout_size_;
   mutable ProposedLayout cached_layout_;
+};
+
+// Provides methods for doing additional, manual manipulation of a
+// `LayoutManagerBase` and its managed Views inside its host View's
+// layout implementation, ideally before `LayoutManager::Layout()` is invoked.
+//
+// In most cases, the layout manager should do all of the layout. However, in
+// some cases, specific children of the host may be explicitly manipulated; for
+// example, to conditionally show a button which (if visible) should be included
+// in the layout.
+//
+// All of the direct manipulation functions on `LayoutManagerBase` and `View`,
+// such as `View::SetVisible()` and
+// `LayoutManagerBase::SetChildIncludedInLayout()`, cause cascades of layout
+// invalidation up the Views tree, so are not appropriate to be used inside of a
+// `Layout()` override. In the case that manual layout manipulation is required
+// alongside the use of a layout manager, a `ManualLayoutUtil` should be used
+// instead of callin those other methods directly.
+//
+// This class should only be instantiated and used inside the `Layout()` method
+// of a `View` or derived class, before `LayoutManager::Layout()` is invoked.
+class VIEWS_EXPORT ManualLayoutUtil {
+ public:
+  explicit ManualLayoutUtil(LayoutManagerBase* layout_manager);
+  ~ManualLayoutUtil();
+  ManualLayoutUtil(const ManualLayoutUtil&) = delete;
+  void operator=(const ManualLayoutUtil&) = delete;
+
+  // Includes, or excludes and hides, `child_view`.
+  //
+  // Example:
+  // ```
+  //  MyView::Layout(PassKey) {
+  //    // Only include `foo_button_` in the layout if the feature is enabled;
+  //    // otherwise hide it.
+  //    ManualLayoutUtil layout_util(flex_layout_.get());
+  //    layout_util.SetViewHidden(foo_button_, !foo_enabled);
+  //
+  //    // Do the standard Views layout, which invokes the layout manager.
+  //    LayoutSuperclass<View>(this);
+  //  }
+  // ```
+  //
+  // Note that if instead the code had read
+  // `foo_button_.SetVisible(foo_enabled)`, the current view and every view up
+  // the hierarchy would be invalidated, which could result in a layout loop.
+  void SetViewHidden(View* child_view, bool hidden);
+
+  // This is implementation for the method below; the exclusion is ended when
+  // the TemporaryExclusion goes out of scope.
+  using TemporaryExclusionData =
+      std::pair<const raw_ptr<ManualLayoutUtil>, const raw_ptr<View>>;
+  struct VIEWS_EXPORT TemporaryExclusionDeleter {
+    void operator()(TemporaryExclusionData*) const;
+  };
+  using TemporaryExclusion =
+      std::unique_ptr<TemporaryExclusionData,
+                      ManualLayoutUtil::TemporaryExclusionDeleter>;
+
+  // Temporarily removes `child_view` from the layout. Use during manual layout
+  // to see how the layout would look without the child view. When the return
+  // value goes out of scope, the exclusion is undone.
+  [[nodiscard]] TemporaryExclusion TemporarilyExcludeFromLayout(
+      View* child_view);
+
+ private:
+  void EndTemporaryExclusion(View* child_view);
+
+  const raw_ptr<LayoutManagerBase> layout_manager_;
 };
 
 }  // namespace views

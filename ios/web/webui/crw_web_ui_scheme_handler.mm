@@ -4,18 +4,14 @@
 
 #import "ios/web/webui/crw_web_ui_scheme_handler.h"
 
+#import <algorithm>
 #import <map>
 
 #import "base/files/file_path.h"
-#import "base/ranges/algorithm.h"
 #import "ios/web/webui/url_fetcher_block_adapter.h"
 #import "ios/web/webui/web_ui_ios_controller_factory_registry.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // Returns the error code associated with `URL`.
@@ -119,7 +115,7 @@ NSInteger GetErrorCodeForUrl(const GURL& URL) {
 
 // Removes `fetcher` from map of active fetchers.
 - (void)removeFetcher:(web::URLFetcherBlockAdapter*)fetcher {
-  _map.erase(base::ranges::find(
+  _map.erase(std::ranges::find(
       _map, fetcher,
       [](const std::pair<const id<WKURLSchemeTask>,
                          std::unique_ptr<web::URLFetcherBlockAdapter>>& entry) {

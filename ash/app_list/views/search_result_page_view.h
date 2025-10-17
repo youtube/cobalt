@@ -11,6 +11,7 @@
 #include "ash/app_list/views/search_result_page_dialog_controller.h"
 #include "ash/ash_export.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 namespace ash {
 
@@ -22,6 +23,8 @@ class SystemShadow;
 
 // The search results page for the app list.
 class ASH_EXPORT SearchResultPageView : public AppListPage {
+  METADATA_HEADER(SearchResultPageView, AppListPage)
+
  public:
   SearchResultPageView();
 
@@ -34,10 +37,9 @@ class ASH_EXPORT SearchResultPageView : public AppListPage {
                             SearchBoxView* search_box_view);
 
   // Overridden from views::View:
-  const char* GetClassName() const override;
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
-  void OnThemeChanged() override;
 
   // AppListPage overrides:
   void OnHidden() override;
@@ -59,13 +61,13 @@ class ASH_EXPORT SearchResultPageView : public AppListPage {
   // UI.
   bool CanSelectSearchResults() const;
 
-  AppListSearchView* search_view_for_test() { return search_view_; }
+  AppListSearchView* search_view() { return search_view_; }
 
   SearchResultPageAnchoredDialog* dialog_for_test() {
     return dialog_controller_->dialog();
   }
 
-  // Hide zero state search result view when ProductivityLauncher is enabled.
+  // Whether search result view should be showm.
   bool ShouldShowSearchResultView() const;
 
   // Called when the app list search query changes and new search is about to
@@ -77,12 +79,10 @@ class ASH_EXPORT SearchResultPageView : public AppListPage {
   void UpdateResultContainersVisibility();
 
  private:
-  // All possible states for the search results page. Used with productivity
-  // launcher.
+  // All possible states for the search results page.
   enum class SearchResultsState { kClosed, kActive, kExpanded };
 
-  // Animates from the current search results state to the `target_state`. Used
-  // with productivity launcher.
+  // Animates from the current search results state to the `target_state`.
   void AnimateToSearchResultsState(SearchResultsState target_state);
 
   // Transitions between `from_rect` and `to_rect` by animating the clip rect.
@@ -98,13 +98,10 @@ class ASH_EXPORT SearchResultPageView : public AppListPage {
   // Get the corner radius associated with the SearchResultsState.
   int GetCornerRadiusForSearchResultsState(SearchResultsState state);
 
-  // Search result container used for productivity launcher.
-  raw_ptr<AppListSearchView, ExperimentalAsh> search_view_ = nullptr;
+  // The search result container.
+  raw_ptr<AppListSearchView> search_view_ = nullptr;
 
-  // View containing SearchCardView instances. Owned by view hierarchy.
-  raw_ptr<views::View, ExperimentalAsh> root_view_ = nullptr;
-
-  // The currently shown search results state. Used with productivity launcher.
+  // The currently shown search results state.
   SearchResultsState current_search_results_state_ =
       SearchResultsState::kClosed;
 

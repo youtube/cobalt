@@ -6,11 +6,10 @@
 
 #include <Cocoa/Cocoa.h>
 
-#include "base/mac/mac_util.h"
-#import "base/mac/scoped_nsobject.h"
-#import "base/mac/scoped_objc_class_swizzler.h"
+#import "base/apple/scoped_objc_class_swizzler.h"
 #import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
 #import "ui/base/test/windowed_nsnotification_observer.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 #include "ui/views/widget/native_widget_mac.h"
 #include "ui/views/widget/root_view.h"
@@ -27,7 +26,7 @@ NSWindow* g_simulated_active_window_ = nil;
 
 // static
 void WidgetTest::SimulateNativeActivate(Widget* widget) {
-  NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
+  NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
   if (g_simulated_active_window_) {
     [center postNotificationName:NSWindowDidResignKeyNotification
                           object:g_simulated_active_window_];
@@ -37,14 +36,14 @@ void WidgetTest::SimulateNativeActivate(Widget* widget) {
   DCHECK(g_simulated_active_window_);
 
   // For now, don't simulate main status or windows that can't activate.
-  DCHECK([g_simulated_active_window_ canBecomeKeyWindow]);
+  DCHECK(g_simulated_active_window_.canBecomeKeyWindow);
   [center postNotificationName:NSWindowDidBecomeKeyNotification
                         object:g_simulated_active_window_];
 }
 
 // static
 bool WidgetTest::IsNativeWindowVisible(gfx::NativeWindow window) {
-  return [window.GetNativeNSWindow() isVisible];
+  return window.GetNativeNSWindow().visible;
 }
 
 // static
@@ -60,19 +59,21 @@ bool WidgetTest::IsWindowStackedAbove(Widget* above, Widget* below) {
   NSWindow* first = above->GetNativeWindow().GetNativeNSWindow();
   NSWindow* second = below->GetNativeWindow().GetNativeNSWindow();
 
-  for (NSWindow* window in [NSApp orderedWindows]) {
-    if (window == second)
+  for (NSWindow* window in NSApp.orderedWindows) {
+    if (window == second) {
       return !first;
+    }
 
-    if (window == first)
+    if (window == first) {
       first = nil;
+    }
   }
   return false;
 }
 
 gfx::Size WidgetTest::GetNativeWidgetMinimumContentSize(Widget* widget) {
   return gfx::Size(
-      [widget->GetNativeWindow().GetNativeNSWindow() contentMinSize]);
+      widget->GetNativeWindow().GetNativeNSWindow().contentMinSize);
 }
 
 // static
@@ -90,7 +91,7 @@ ui::ImeKeyEventDispatcher* WidgetTest::GetImeKeyEventDispatcherForWidget(
 
 // static
 bool WidgetTest::IsNativeWindowTransparent(gfx::NativeWindow window) {
-  return ![window.GetNativeNSWindow() isOpaque];
+  return !window.GetNativeNSWindow().opaque;
 }
 
 // static
@@ -102,26 +103,25 @@ bool WidgetTest::WidgetHasInProcessShadow(Widget* widget) {
 Widget::Widgets WidgetTest::GetAllWidgets() {
   Widget::Widgets all_widgets;
   for (NSWindow* window : [NSApp windows]) {
-    if (Widget* widget = Widget::GetWidgetForNativeWindow(window))
+    if (Widget* widget =
+            Widget::GetWidgetForNativeWindow(gfx::NativeWindow(window))) {
       all_widgets.insert(widget);
+    }
   }
   return all_widgets;
 }
 
 // static
 void WidgetTest::WaitForSystemAppActivation() {
-  if (base::mac::IsAtMostOS10_14())
-    return;
-
   // This seems to be only necessary on 10.15+ but it's obscure why. Shortly
   // after launching an app, the system sends ApplicationDidFinishLaunching
   // (which is normal), which causes AppKit on 10.15 to try to find a window to
   // activate. If it finds one it will makeKeyAndOrderFront: it, which breaks
   // tests that are deliberately creating inactive windows.
-  base::scoped_nsobject<WindowedNSNotificationObserver> observer(
+  WindowedNSNotificationObserver* observer =
       [[WindowedNSNotificationObserver alloc]
           initForNotification:NSApplicationDidFinishLaunchingNotification
-                       object:NSApp]);
+                       object:NSApp];
   [observer wait];
 }
 

@@ -28,29 +28,24 @@ void SetWindowAndLayerName(aura::Window* window, const std::string& name) {
 // first) of |parent|. The format of the string is "name1 name2 name3 ...".
 std::string ChildWindowNamesAsString(const aura::Window& parent) {
   std::string names;
-  for (const auto* child : parent.children()) {
-    if (!names.empty())
+  for (const aura::Window* child : parent.children()) {
+    if (!names.empty()) {
       names += " ";
+    }
     names += child->GetName();
   }
   return names;
 }
 
 class WindowReordererTest : public ViewsTestBase {
- public:
-  Widget::InitParams CreateParams(Widget::InitParams::Type type) override {
-    Widget::InitParams params = ViewsTestBase::CreateParams(type);
-    params.parent = parent_;
-    return params;
-  }
-
+ protected:
   std::unique_ptr<Widget> CreateControlWidget(aura::Window* parent) {
-    parent_ = parent;
-    return CreateTestWidget(Widget::InitParams::TYPE_CONTROL);
+    Widget::InitParams params =
+        CreateParamsForTestWidget(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                                  Widget::InitParams::TYPE_CONTROL);
+    params.parent = parent;
+    return CreateTestWidget(std::move(params));
   }
-
- private:
-  raw_ptr<aura::Window> parent_ = nullptr;
 };
 
 // Test that views with layers and views with associated windows are reordered
@@ -65,10 +60,9 @@ TEST_F(WindowReordererTest, Basic) {
   // 1) Test that layers for views and layers for windows associated to a host
   // view are stacked below the layers for any windows not associated to a host
   // view.
-  View* v = new View();
+  auto* v = contents_view->AddChildView(std::make_unique<View>());
   v->SetPaintToLayer();
   v->layer()->SetName("v");
-  contents_view->AddChildView(v);
 
   std::unique_ptr<Widget> w1 = CreateControlWidget(parent_window);
   SetWindowAndLayerName(w1->GetNativeView(), "w1");
@@ -81,16 +75,14 @@ TEST_F(WindowReordererTest, Basic) {
   EXPECT_EQ("v w1 w2",
             ui::test::ChildLayerNamesAsString(*parent_window->layer()));
 
-  View* host_view2 = new View();
-  contents_view->AddChildView(host_view2);
+  auto* host_view2 = contents_view->AddChildView(std::make_unique<View>());
   w2->GetNativeView()->SetProperty(kHostViewKey, host_view2);
   EXPECT_EQ("w2 w1", ChildWindowNamesAsString(*parent_window));
   EXPECT_EQ("v w2 w1",
             ui::test::ChildLayerNamesAsString(*parent_window->layer()));
 
-  View* host_view1 = new View();
+  auto* host_view1 = contents_view->AddChildViewAt(std::make_unique<View>(), 0);
   w1->GetNativeView()->SetProperty(kHostViewKey, host_view1);
-  contents_view->AddChildViewAt(host_view1, 0);
   EXPECT_EQ("w1 w2", ChildWindowNamesAsString(*parent_window));
   EXPECT_EQ("w1 v w2",
             ui::test::ChildLayerNamesAsString(*parent_window->layer()));
@@ -139,11 +131,9 @@ TEST_F(WindowReordererTest, Association) {
   aura::Window* w2 = aura::test::CreateTestWindowWithId(0, nullptr);
   SetWindowAndLayerName(w2, "w2");
 
-  View* host_view2 = new View();
-
   // 1) Test that parenting the window to the parent widget last results in a
   //    correct ordering of child windows and layers.
-  contents_view->AddChildView(host_view2);
+  auto* host_view2 = contents_view->AddChildView(std::make_unique<View>());
   w2->SetProperty(views::kHostViewKey, host_view2);
   EXPECT_EQ("w1", ChildWindowNamesAsString(*parent_window));
   EXPECT_EQ("w1", ui::test::ChildLayerNamesAsString(*parent_window->layer()));
@@ -155,8 +145,7 @@ TEST_F(WindowReordererTest, Association) {
 
   // 2) Test that associating the window and "host" view last results in a
   // correct ordering of child windows and layers.
-  View* host_view1 = new View();
-  contents_view->AddChildViewAt(host_view1, 0);
+  auto* host_view1 = contents_view->AddChildViewAt(std::make_unique<View>(), 0);
   EXPECT_EQ("w2 w1", ChildWindowNamesAsString(*parent_window));
   EXPECT_EQ("w2 w1",
             ui::test::ChildLayerNamesAsString(*parent_window->layer()));
@@ -196,31 +185,26 @@ TEST_F(WindowReordererTest, HostViewParentHasLayer) {
   //     +-- v13*
   // +--v2*
 
-  View* v1 = new View();
-  contents_view->AddChildView(v1);
+  View* v1 = contents_view->AddChildView(std::make_unique<View>());
 
-  View* v11 = new View();
+  View* v11 = v1->AddChildView(std::make_unique<View>());
   v11->SetPaintToLayer();
   v11->layer()->SetName("v11");
-  v1->AddChildView(v11);
 
   std::unique_ptr<Widget> w = CreateControlWidget(parent_window);
   SetWindowAndLayerName(w->GetNativeView(), "w");
   w->Show();
 
-  View* v12 = new View();
-  v1->AddChildView(v12);
+  View* v12 = v1->AddChildView(std::make_unique<View>());
   w->GetNativeView()->SetProperty(kHostViewKey, v12);
 
-  View* v13 = new View();
+  View* v13 = v1->AddChildView(std::make_unique<View>());
   v13->SetPaintToLayer();
   v13->layer()->SetName("v13");
-  v1->AddChildView(v13);
 
-  View* v2 = new View();
+  View* v2 = contents_view->AddChildView(std::make_unique<View>());
   v2->SetPaintToLayer();
   v2->layer()->SetName("v2");
-  contents_view->AddChildView(v2);
 
   // Test intial state.
   EXPECT_EQ("w", ChildWindowNamesAsString(*parent_window));
@@ -235,8 +219,7 @@ TEST_F(WindowReordererTest, HostViewParentHasLayer) {
             ui::test::ChildLayerNamesAsString(*parent_window->layer()));
 
   // Test moving the host view from one view with a layer to another.
-  v1->RemoveChildView(v12);
-  v2->AddChildView(v12);
+  v2->AddChildView(v1->RemoveChildViewT(v12));
   EXPECT_EQ("w", ChildWindowNamesAsString(*parent_window));
   EXPECT_EQ("v1 v2 w",
             ui::test::ChildLayerNamesAsString(*parent_window->layer()));

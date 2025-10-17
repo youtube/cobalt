@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/notreached.h"
@@ -37,6 +38,18 @@ bool DIBFormatNativelySupported(HDC dc,
               sizeof(supported), reinterpret_cast<LPSTR>(&supported));
   }
   return !!supported;
+}
+
+const BITMAPINFOHEADER* GetBitmapInfoHeader(
+    const EMRSTRETCHDIBITS* sdib_record) {
+  const BYTE* record_start = reinterpret_cast<const BYTE*>(sdib_record);
+  return reinterpret_cast<const BITMAPINFOHEADER*>(
+      UNSAFE_TODO(record_start + sdib_record->offBmiSrc));
+}
+
+const BYTE* GetBitmapBits(const EMRSTRETCHDIBITS* sdib_record) {
+  const BYTE* record_start = reinterpret_cast<const BYTE*>(sdib_record);
+  return UNSAFE_TODO(record_start + sdib_record->offBitsSrc);
 }
 
 }  // namespace
@@ -109,7 +122,6 @@ bool Emf::SafePlayback(HDC context) const {
   XFORM base_matrix;
   if (!GetWorldTransform(context, &base_matrix)) {
     NOTREACHED();
-    return false;
   }
   Emf::EnumerationContext playback_context;
   playback_context.base_matrix = &base_matrix;
@@ -127,7 +139,6 @@ gfx::Rect Emf::GetPageBounds(unsigned int page_number) const {
   ENHMETAHEADER header;
   if (GetEnhMetaFileHeader(emf_, sizeof(header), &header) != sizeof(header)) {
     NOTREACHED();
-    return gfx::Rect();
   }
   // Add 1 to right and bottom because it's inclusive rectangle.
   // See ENHMETAHEADER.
@@ -185,8 +196,33 @@ int CALLBACK Emf::SafePlaybackProc(HDC hdc,
   return 1;
 }
 
+PostScriptMetaFile::PostScriptMetaFile() = default;
+
+PostScriptMetaFile::~PostScriptMetaFile() = default;
+
+mojom::MetafileDataType PostScriptMetaFile::GetDataType() const {
+  return mojom::MetafileDataType::kPostScriptEmf;
+}
+
+bool PostScriptMetaFile::SafePlayback(HDC hdc) const {
+  Emf::Enumerator emf_enum(*this, nullptr, nullptr);
+  for (const Emf::Record& record : emf_enum) {
+    auto* emf_record = record.record();
+    if (emf_record->iType != EMR_GDICOMMENT) {
+      continue;
+    }
+
+    auto* comment = reinterpret_cast<const EMRGDICOMMENT*>(emf_record);
+    const char* data = reinterpret_cast<const char*>(comment->Data);
+    const uint16_t* ptr = reinterpret_cast<const uint16_t*>(data);
+    int ret = ExtEscape(hdc, PASSTHROUGH, 2 + *ptr, data, 0, nullptr);
+    DCHECK_EQ(*ptr, ret);
+  }
+  return true;
+}
+
 Emf::EnumerationContext::EnumerationContext() {
-  memset(this, 0, sizeof(*this));
+  UNSAFE_TODO(memset(this, 0, sizeof(*this)));
 }
 
 Emf::Record::Record(const ENHMETARECORD* record) : record_(record) {
@@ -246,46 +282,43 @@ bool Emf::Record::SafePlayback(Emf::EnumerationContext* context) const {
   const XFORM* base_matrix = context->base_matrix;
   switch (record()->iType) {
     case EMR_STRETCHDIBITS: {
-      const EMRSTRETCHDIBITS* sdib_record =
+      const auto* sdib_record =
           reinterpret_cast<const EMRSTRETCHDIBITS*>(record());
-      const BYTE* record_start = reinterpret_cast<const BYTE*>(record());
-      const BITMAPINFOHEADER* bmih = reinterpret_cast<const BITMAPINFOHEADER*>(
-          record_start + sdib_record->offBmiSrc);
-      const BYTE* bits = record_start + sdib_record->offBitsSrc;
+      const BITMAPINFOHEADER* bmih = GetBitmapInfoHeader(sdib_record);
+      const BYTE* bits = GetBitmapBits(sdib_record);
       bool play_normally = true;
       res = false;
       HDC hdc = context->hdc;
-      std::unique_ptr<SkBitmap> bitmap;
+      SkBitmap bitmap;
       if (bmih->biCompression == BI_JPEG) {
         if (!DIBFormatNativelySupported(hdc, CHECKJPEGFORMAT, bits,
                                         bmih->biSizeImage)) {
           play_normally = false;
-          bitmap = gfx::JPEGCodec::Decode(bits, bmih->biSizeImage);
-          DCHECK(bitmap);
-          DCHECK(!bitmap->isNull());
+          // SAFETY: This interfaces with a system-generated metafile.
+          bitmap = gfx::JPEGCodec::Decode(
+              UNSAFE_BUFFERS(base::span(bits, bmih->biSizeImage)));
+          DCHECK(!bitmap.isNull());
         }
       } else if (bmih->biCompression == BI_PNG) {
         if (!DIBFormatNativelySupported(hdc, CHECKPNGFORMAT, bits,
                                         bmih->biSizeImage)) {
           play_normally = false;
-          bitmap = std::make_unique<SkBitmap>();
-          bool png_ok =
-              gfx::PNGCodec::Decode(bits, bmih->biSizeImage, &*bitmap);
-          DCHECK(png_ok);
-          DCHECK(!bitmap->isNull());
+          // SAFETY: This interfaces with a system-generated metafile.
+          bitmap = gfx::PNGCodec::Decode(
+              UNSAFE_BUFFERS(base::span(bits, bmih->biSizeImage)));
+          DCHECK(!bitmap.isNull());
         }
       }
       if (play_normally) {
         res = Play(context);
       } else {
         const uint32_t* pixels =
-            static_cast<const uint32_t*>(bitmap->getPixels());
+            static_cast<const uint32_t*>(bitmap.getPixels());
         if (!pixels) {
           NOTREACHED();
-          return false;
         }
         BITMAPINFOHEADER bmi = {0};
-        skia::CreateBitmapHeaderForN32SkBitmap(*bitmap, &bmi);
+        skia::CreateBitmapHeaderForN32SkBitmap(bitmap, &bmi);
         res =
             (0 != StretchDIBits(hdc, sdib_record->xDest, sdib_record->yDest,
                                 sdib_record->cxDest, sdib_record->cyDest,
@@ -312,32 +345,34 @@ bool Emf::Record::SafePlayback(Emf::EnumerationContext* context) const {
       DCHECK_EQ(record()->nSize,
                 sizeof(DWORD) * 2 + sizeof(XFORM) + sizeof(DWORD));
       const XFORM* xform = reinterpret_cast<const XFORM*>(record()->dParm);
-      const DWORD* option = reinterpret_cast<const DWORD*>(xform + 1);
-      HDC hdc = context->hdc;
-      switch (*option) {
-        case MWT_IDENTITY:
-          if (base_matrix) {
-            res = 0 != SetWorldTransform(hdc, base_matrix);
-          } else {
-            res = 0 != ModifyWorldTransform(hdc, xform, MWT_IDENTITY);
-          }
-          break;
-        case MWT_LEFTMULTIPLY:
-        case MWT_RIGHTMULTIPLY:
-          res = 0 != ModifyWorldTransform(hdc, xform, *option);
-          break;
-        case 4:  // MWT_SET
-          if (base_matrix) {
-            res = 0 != SetWorldTransform(hdc, base_matrix) &&
-                  ModifyWorldTransform(hdc, xform, MWT_LEFTMULTIPLY);
-          } else {
-            res = 0 != SetWorldTransform(hdc, xform);
-          }
-          break;
-        default:
-          res = false;
-          break;
-      }
+      UNSAFE_TODO({
+        const DWORD* option = reinterpret_cast<const DWORD*>(xform + 1);
+        HDC hdc = context->hdc;
+        switch (*option) {
+          case MWT_IDENTITY:
+            if (base_matrix) {
+              res = 0 != SetWorldTransform(hdc, base_matrix);
+            } else {
+              res = 0 != ModifyWorldTransform(hdc, xform, MWT_IDENTITY);
+            }
+            break;
+          case MWT_LEFTMULTIPLY:
+          case MWT_RIGHTMULTIPLY:
+            res = 0 != ModifyWorldTransform(hdc, xform, *option);
+            break;
+          case 4:  // MWT_SET
+            if (base_matrix) {
+              res = 0 != SetWorldTransform(hdc, base_matrix) &&
+                    ModifyWorldTransform(hdc, xform, MWT_LEFTMULTIPLY);
+            } else {
+              res = 0 != SetWorldTransform(hdc, xform);
+            }
+            break;
+          default:
+            res = false;
+            break;
+        }
+      });
       break;
     }
     case EMR_SETLAYOUT:
@@ -366,7 +401,6 @@ Emf::Enumerator::Enumerator(const Emf& emf, HDC context, const RECT* rect) {
   if (!EnumEnhMetaFile(context, emf.emf(), &Emf::Enumerator::EnhMetaFileProc,
                        reinterpret_cast<void*>(this), rect)) {
     NOTREACHED();
-    items_.clear();
   }
   DCHECK_EQ(context_.hdc, context);
 }

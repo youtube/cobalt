@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
@@ -20,10 +22,12 @@
 #include "content/shell/browser/shell.h"
 #include "net/dns/mock_host_resolver.h"
 #include "services/media_session/public/cpp/features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom.h"
 
 namespace content {
+
+using testing::_;
+using testing::Invoke;
 
 namespace {
 
@@ -71,9 +75,21 @@ class TestVideoOverlayWindow : public VideoOverlayWindow {
   void SetHangUpButtonVisibility(bool is_visible) override {}
   void SetNextSlideButtonVisibility(bool is_visible) override {}
   void SetPreviousSlideButtonVisibility(bool is_visible) override {}
+  MOCK_METHOD(void, SetMediaPosition, (const media_session::MediaPosition&));
+  void SetSourceTitle(const std::u16string& source_title) override {
+    source_title_ = source_title;
+  }
+  void SetFaviconImages(
+      const std::vector<media_session::MediaImage>& images) override {
+    favicon_images_ = images;
+    OnSetFaviconImages(images);
+  }
+  MOCK_METHOD(void,
+              OnSetFaviconImages,
+              (const std::vector<media_session::MediaImage>& images));
   void SetSurfaceId(const viz::SurfaceId& surface_id) override {}
 
-  const absl::optional<PlaybackState>& playback_state() const {
+  const std::optional<PlaybackState>& playback_state() const {
     return playback_state_;
   }
 
@@ -83,13 +99,19 @@ class TestVideoOverlayWindow : public VideoOverlayWindow {
     playback_state_changed_callback_ = std::move(callback);
   }
 
-  const absl::optional<bool>& play_pause_button_visible() const {
+  const std::optional<bool>& play_pause_button_visible() const {
     return play_pause_button_visible_;
   }
 
-  const absl::optional<bool>& next_track_button_visible() const {
+  const std::optional<bool>& next_track_button_visible() const {
     return next_track_button_visible_;
   }
+
+  const std::vector<media_session::MediaImage>& favicon_images() const {
+    return favicon_images_;
+  }
+
+  const std::u16string& source_title() const { return source_title_; }
 
  private:
   // We maintain the visibility state so that
@@ -98,13 +120,16 @@ class TestVideoOverlayWindow : public VideoOverlayWindow {
   bool visible_ = false;
 
   gfx::Size size_;
-  absl::optional<PlaybackState> playback_state_;
+  std::optional<PlaybackState> playback_state_;
 
-  absl::optional<PlaybackState> expected_playback_state_;
+  std::optional<PlaybackState> expected_playback_state_;
   base::OnceClosure playback_state_changed_callback_;
 
-  absl::optional<bool> play_pause_button_visible_;
-  absl::optional<bool> next_track_button_visible_;
+  std::optional<bool> play_pause_button_visible_;
+  std::optional<bool> next_track_button_visible_;
+
+  std::vector<media_session::MediaImage> favicon_images_;
+  std::u16string source_title_;
 };
 
 class TestContentBrowserClient : public ContentBrowserTestContentBrowserClient {
@@ -113,7 +138,6 @@ class TestContentBrowserClient : public ContentBrowserTestContentBrowserClient {
       VideoPictureInPictureWindowController* controller) override {
     return std::make_unique<TestVideoOverlayWindow>();
   }
-  bool CanEnterFullscreenWithoutUserActivation() override { return true; }
 };
 
 class TestWebContentsDelegate : public WebContentsDelegate {
@@ -463,8 +487,6 @@ class MediaSessionPictureInPictureContentBrowserTest
     : public VideoPictureInPictureContentBrowserTest {
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContentBrowserTest::SetUpCommandLine(command_line);
-
     command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                     "MediaSession");
     scoped_feature_list_.InitWithFeatures(
@@ -585,41 +607,6 @@ IN_PROC_BROWSER_TEST_F(MediaSessionPictureInPictureContentBrowserTest,
   WaitForPlaybackState(VideoOverlayWindow::PlaybackState::kPlaying);
 }
 
-// When the player object associated with a video element is destroyed, any
-// Media Session actions that were set are no longer available.
-IN_PROC_BROWSER_TEST_F(MediaSessionPictureInPictureContentBrowserTest,
-                       ResettingPlayerDisablesActions) {
-  ASSERT_TRUE(NavigateToURL(
-      shell(), GetTestUrl("media/picture_in_picture", "one-video.html")));
-  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
-
-  ASSERT_TRUE(ExecJs(shell(), "setMediaSessionPlayActionHandler();"));
-  ASSERT_TRUE(ExecJs(shell(), "setMediaSessionPauseActionHandler();"));
-  ASSERT_TRUE(ExecJs(shell(), "setMediaSessionNextTrackActionHandler();"));
-
-  ASSERT_EQ(true, EvalJs(shell(), "resetVideo();"));
-
-  // Media Session actions are unavailable with the player removed.
-  EXPECT_EQ(overlay_window()->play_pause_button_visible().value_or(true),
-            false);
-  EXPECT_EQ(overlay_window()->next_track_button_visible().value_or(true),
-            false);
-
-  // Load new media on the video element. This creates a new player.
-  ASSERT_EQ(true, EvalJs(shell(), "updateVideoSrcAndPlay();"));
-
-  // The play/pause/replay and next buttons should be functional again.
-  EXPECT_EQ(overlay_window()->play_pause_button_visible().value_or(false),
-            true);
-  window_controller()->TogglePlayPause();
-  WaitForPlaybackState(VideoOverlayWindow::PlaybackState::kPaused);
-
-  EXPECT_EQ(overlay_window()->next_track_button_visible().value_or(false),
-            true);
-  window_controller()->NextTrack();
-  WaitForPlaybackState(VideoOverlayWindow::PlaybackState::kPlaying);
-}
-
 IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
                        EnterPictureInPictureHasNoChildWebContents) {
   ASSERT_TRUE(NavigateToURL(
@@ -629,6 +616,134 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
 
   ASSERT_TRUE(window_controller()->GetWebContents());
   ASSERT_FALSE(window_controller()->GetChildWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
+                       SeeksVideoAndUpdatesMediaPosition) {
+  // Open a page with a paused player in pip.
+  ASSERT_TRUE(NavigateToURL(
+      shell(), GetTestUrl("media/picture_in_picture", "one-video.html")));
+  ASSERT_EQ(true, EvalJs(shell(), "play();"));
+  ASSERT_TRUE(ExecJs(shell()->web_contents(), "video.pause();"));
+  ASSERT_TRUE(ExecJs(shell(), "setMediaSessionSeekToActionHandler();"));
+  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
+
+  // `SeekTo()` should properly seek the video and give the updated media
+  // position to the overlay window.
+  EXPECT_CALL(*overlay_window(), SetMediaPosition(_))
+      .WillOnce(Invoke([](const media_session::MediaPosition& position) {
+        EXPECT_EQ(position.GetPosition(), base::Seconds(2));
+        EXPECT_EQ(position.playback_rate(), 0);
+      }));
+  window_controller()->SeekTo(base::Seconds(2));
+  WaitForTitle(u"seekto 2");
+  testing::Mock::VerifyAndClearExpectations(overlay_window());
+
+  // If the website seeks without going through the controller, it should still
+  // give the updated media position to the overlay window.
+  EXPECT_CALL(*overlay_window(), SetMediaPosition(_))
+      .WillOnce(Invoke([](const media_session::MediaPosition& position) {
+        EXPECT_EQ(position.GetPosition(), base::Seconds(4));
+        EXPECT_EQ(position.playback_rate(), 0);
+      }));
+  ASSERT_TRUE(ExecJs(shell()->web_contents(), "video.currentTime = 4;"));
+  testing::Mock::VerifyAndClearExpectations(overlay_window());
+}
+
+IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
+                       SeeksVideoWithoutMediaSessionHandler) {
+  // Open a page with a paused player in pip.
+  ASSERT_TRUE(NavigateToURL(
+      shell(), GetTestUrl("media/picture_in_picture", "one-video.html")));
+  ASSERT_TRUE(ExecJs(shell(), "video.load();"));
+  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
+  ASSERT_EQ(0, EvalJs(shell(), "video.currentTime"));
+  ASSERT_TRUE(ExecJs(shell(), "setTitleToVideoCurrentTime();"));
+
+  // `SeekTo()` should properly seek the video and give the updated media
+  // position to the overlay window, even if no media session seekto action
+  // handler is set (it should instead update the media player directly).
+  EXPECT_CALL(*overlay_window(), SetMediaPosition(_))
+      .WillOnce(Invoke([](const media_session::MediaPosition& position) {
+        EXPECT_EQ(position.GetPosition(), base::Seconds(2));
+        EXPECT_EQ(position.playback_rate(), 0);
+      }));
+  window_controller()->SeekTo(base::Seconds(2));
+
+  // We need to wait until the currentTime has actually updated.
+  WaitForTitle(u"currentTime 2");
+  EXPECT_EQ(2, EvalJs(shell(), "video.currentTime"));
+}
+
+IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
+                       SendsFaviconImagesToOverlayWindow) {
+  ASSERT_TRUE(NavigateToURL(
+      shell(), GetTestUrl("media/picture_in_picture", "one-video.html")));
+  ASSERT_EQ(true, EvalJs(shell(), "play();"));
+  ASSERT_TRUE(ExecJs(shell()->web_contents(), "video.pause();"));
+  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
+
+  // The overlay window should have received the favicon image.
+  ASSERT_EQ(overlay_window()->favicon_images().size(), 1u);
+  const std::string icon_src = overlay_window()->favicon_images()[0].src.spec();
+  EXPECT_TRUE(base::Contains(icon_src, "test.ico"))
+      << "The icon source: \"" << icon_src << "\" should contain \"test.ico\"";
+
+  // The overlay window should be able to retrieve the favicon image.
+  base::RunLoop wait_for_image_loop;
+  window_controller()->GetMediaImage(
+      overlay_window()->favicon_images()[0], 16, 16,
+      base::BindOnce(
+          [](base::OnceClosure wait_closure, const SkBitmap& image) {
+            std::move(wait_closure).Run();
+          },
+          wait_for_image_loop.QuitClosure()));
+  wait_for_image_loop.Run();
+
+  // If the favicon changes, then the overlay window should receive the new
+  // favicon image.
+  EXPECT_CALL(*overlay_window(), OnSetFaviconImages(_))
+      .WillOnce(
+          Invoke([](const std::vector<media_session::MediaImage>& images) {
+            ASSERT_EQ(images.size(), 1u);
+            const std::string icon_src = images[0].src.spec();
+            EXPECT_TRUE(base::Contains(icon_src, "new.ico"))
+                << "The icon source: \"" << icon_src
+                << "\" should contain \"new.ico\"";
+          }));
+  ASSERT_TRUE(ExecJs(shell()->web_contents(), "updateFaviconSrc('/new.ico');"));
+}
+
+IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
+                       SendsSourceTitleToOverlayWindow_File) {
+  ASSERT_TRUE(NavigateToURL(
+      shell(), GetTestUrl("media/picture_in_picture", "one-video.html")));
+  ASSERT_EQ(true, EvalJs(shell(), "play();"));
+  ASSERT_TRUE(ExecJs(shell()->web_contents(), "video.pause();"));
+  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
+
+  EXPECT_EQ(overlay_window()->source_title(), u"File on your device");
+}
+
+IN_PROC_BROWSER_TEST_F(VideoPictureInPictureContentBrowserTest,
+                       SendsSourceTitleToOverlayWindow_Web) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  EXPECT_TRUE(NavigateToURL(
+      shell(), embedded_test_server()->GetURL(
+                   "example.com", "/media/picture_in_picture/one-video.html")));
+  ASSERT_EQ(true, EvalJs(shell(), "play();"));
+  ASSERT_TRUE(ExecJs(shell()->web_contents(), "video.pause();"));
+  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
+
+  // The actual origin and source title contains a port number that changes. We
+  // only care that it starts with "example.com" as expected.
+  const std::u16string expected_title_prefix(u"example.com");
+  ASSERT_GE(overlay_window()->source_title().size(),
+            expected_title_prefix.size());
+  EXPECT_EQ(
+      overlay_window()->source_title().substr(0, expected_title_prefix.size()),
+      expected_title_prefix);
 }
 
 }  // namespace content

@@ -22,9 +22,170 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="TextFragmentSource">
+<!-- Should be synced with TextFragmentLinkOpenSource in enums.xml. -->
+
+  <variant name=".SearchEngine" summary="the default search engine."/>
+  <variant name=".Unknown" summary="unknown but not the default search engine"/>
+</variants>
+
+<histogram name="SharedHighlights.AndroidShareSheet.SharedState"
+    enum="LinkGenerationSharedStatus" expires_after="2025-11-02">
+  <owner>sebsg@chromium.org</owner>
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records the status of the link generation when a user shares content using
+    the feature on Android.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.AsyncTask.Iterations" units="iterations"
+    expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Indicates number of iterations it took for AsyncFindBuffer to finish the
+    search. AsyncFindBuffer is used only for validating generated text fragment
+    selectors for Shared Highlighting.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.AsyncTask.SearchDuration" units="ms"
+    expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Time it took in milliseconds for AsyncFindBuffer to finish the search.
+    AsyncFindBuffer is used only for validating generated text fragment
+    selectors for Shared Highlighting.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.Desktop.CopiedLinkType"
+    enum="LinkGenerationCopiedLinkType" expires_after="2024-05-19">
+  <owner>sebsg@chromium.org</owner>
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records the type of shared highlighting link the user copied on desktop.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated.Error"
+    enum="LinkGenerationError" expires_after="2025-10-12">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records errors that caused text fragment selector generation to fail.
+    Recorded for all the failed link generation runs. This histogram is a
+    superset of |SharedHighlights.LinkGenerated.Error.Requested|.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated.Error.Iterations"
+    units="iterations" expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Indicates number of iterations it took for the unsuccessful text fragment
+    selector generation run.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated.Error.Requested"
+    enum="LinkGenerationError" expires_after="2025-10-12">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records errors that caused text fragment selector generation to fail.
+    Recorded only for failure cases that were requested by users.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated.Error.TimeToGenerate"
+    units="ms" expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Time it took in millisecons for a failed text fragment selector generation
+    attempt.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated.StateAtRequest"
+    enum="LinkGenerationState" expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records the state of the link generation when link to text request is
+    received from the browser process.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated.TimeToGenerate" units="ms"
+    expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    How long it took in milliseconds to successfully generate text fragment
+    selector.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.LinkGenerated{Requested}"
+    enum="BooleanSuccess" expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Indicates whether text fragment selector generation was successful for
+    {Requested}.
+  </summary>
+  <token key="Requested">
+    <variant name="" summary="all generation cases"/>
+    <variant name=".Requested"
+        summary="all cases when generated selector is requested."/>
+    <variant name=".RequestedAfterReady"
+        summary="cases when selector is requested after its ready."/>
+    <variant name=".RequestedBeforeReady"
+        summary="cases when selector is requested before its ready."/>
+  </token>
+</histogram>
+
+<histogram name="SharedHighlights.LinkToTextDiagnoseStatus"
+    enum="LinkToTextDiagnoseStatus" expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records the status of link to text flow on Android for diagnostic purposes.
+    Intended to be temporary for debug purposes.
+  </summary>
+</histogram>
+
+<histogram name="SharedHighlights.ObtainReshareLink.Status"
+    enum="LinkToTextReshareStatus" expires_after="2024-03-01">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Records if obtaining reshare link was successful. Otherwise, it records the
+    failure reason.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.AndroidPageSummary.SheetEvents"
+    enum="PageSummarySheetEvents" expires_after="2024-06-30">
+  <owner>salg@google.com</owner>
+  <owner>ssid@google.com</owner>
+  <summary>
+    Records ocurrences of various UI events related to the page summary sharing
+    sheet (open sheet, dismiss sheet, send feedback, etc.). Recorded based on
+    user actions (See enum definitions for more details).
+  </summary>
+</histogram>
+
 <histogram name="Sharing.AnyShareStarted" enum="ShareSourceAndroid"
     expires_after="never">
-  <owner>ellyjones@chromium.org</owner>
+  <owner>dimich@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <improvement direction="HIGHER_IS_BETTER"/>
@@ -38,7 +199,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sharing.AnyShareStartedDesktop" enum="ShareSourceDesktop"
     expires_after="never">
-  <owner>kristipark@chromium.org</owner>
+  <owner>dimich@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <improvement direction="HIGHER_IS_BETTER"/>
   <summary>
@@ -46,18 +207,6 @@ chromium-metrics-reviews@google.com.
 
     This is a vital metric for the sharing team; please do not remove it or
     change its behavior without consulting the metric owners.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ClickToCallDevicesToShow" units="devices"
-    expires_after="2022-10-23">
-<!-- Name completed by histogram_suffixes name="SharingClickToCallUi" -->
-
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    The number of available devices that are about to be shown in a UI for
-    picking a device to start a phone call on. Desktop only.
   </summary>
 </histogram>
 
@@ -72,53 +221,9 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.ClickToCallDialogShown" enum="SharingDialogType"
-    expires_after="2021-10-25">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    Logged whenever a dialog is shown for the Click to Call feature. Desktop
-    only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ClickToCallPhoneNumberValid" enum="BooleanValid"
-    expires_after="M98">
-  <owner>knollr@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    Records if a received phone number is valid. Invalid numbers might suggest
-    that the remote device tried to send malicious data. Logged when handling a
-    Click to Call message on Android received from a Chrome desktop instance.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ClickToCallSelectedAppIndex" units="index"
-    expires_after="2023-03-05">
-<!-- Name completed by histogram_suffixes name="SharingClickToCallUi" -->
-
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    The index of the app selected by the user for Click to Call. Zero based.
-    Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ClickToCallSelectedDeviceIndex" units="index"
-    expires_after="2023-09-10">
-<!-- Name completed by histogram_suffixes name="SharingClickToCallUi" -->
-
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    The index of the device selected by the user for Click to Call. Zero based.
-    Desktop only.
-  </summary>
-</histogram>
-
 <histogram name="Sharing.DefaultSharesheetAndroid.Opened" enum="ShareOrigin"
-    expires_after="2023-09-24">
+    expires_after="2025-10-19">
+  <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -127,52 +232,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.DeviceRegistrationResult"
-    enum="SharingDeviceRegistrationResult" expires_after="M97">
-  <owner>knollr@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
+<histogram name="Sharing.LocalSharingTargetInfoSupportsSync" enum="Boolean"
+    expires_after="2025-08-27">
+  <owner>rushans@google.com</owner>
+  <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
-    Result of Sharing device registration. Logged after Sharing registration is
-    attempted.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.DeviceUnregistrationResult"
-    enum="SharingDeviceRegistrationResult" expires_after="M97">
-  <owner>knollr@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    Result of Sharing device un-registration. Logged after Sharing
-    un-registration is attempted.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.MessageAckTime" units="ms" expires_after="2022-06-26">
-<!-- Name completed by histogram_suffixes name="SharingChannelType",
-     name="SharingDevicePlatform" and name="SharingMessage" -->
-
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The time from sending a FCM message from the Sharing service until an ack
-    message is received for it.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.MessageHandlerTime" units="ms" expires_after="M97">
-<!-- Name completed by histogram_suffix name="SharingMessage" -->
-
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The time from receiving a SharingMessage in SharingFCMHandler until an ack
-    is sent back. Recorded when SendAckMessage callback is run in
-    SharingMessageHandler.
+    Records whether the local device contains sharing information to use sync
+    (as opposed to FCM) from other devices. Recorded during device registration
+    on every browser startup or after sync reset.
   </summary>
 </histogram>
 
 <histogram name="Sharing.MessageReceivedType" enum="SharingMessageType"
-    expires_after="2023-10-08">
+    expires_after="2025-11-16">
   <owner>mvanouwerkerk@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -183,124 +255,18 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.PreparePreviewFaviconDuration" units="ms"
-    expires_after="2023-07-21">
+    expires_after="2025-06-08">
   <owner>wenyufu@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
-    The time to download the favicon as the image preview for sharing an link
-    using Android share sheet. Recorded when sharing a link with Android share
-    sheet only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyDecodeImageTime" units="ms"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>The time to decode an image for Remote Copy. Desktop only.</summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyHandleMessageResult"
-    enum="SharingRemoteCopyHandleMessageResult" expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The result of handling a Remote Copy message. Logged once per message, when
-    the handler for the Remote Copy FCM message is finished handling it. Desktop
-    only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyLoadImageStatusCode"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    Result code from loading an image for Remote Copy. Logs net::Error if it's
-    not net::OK. Logs net::OK if response header is not present. Otherwise, logs
-    HTTP status code. Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyLoadImageTime" units="ms"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>The time to load an image for Remote Copy. Desktop only.</summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyReceivedImageSizeAfterDecode" units="bytes"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The size of the image loaded from the image URL specified in a Remote Copy
-    message received from FCM, after decoding. Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyReceivedImageSizeBeforeDecode" units="bytes"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The size of the image loaded from the image URL specified in a Remote Copy
-    message received from FCM, before decoding. Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyReceivedTextSize" units="bytes"
-    expires_after="2022-05-01">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The size of the text in a Remote Copy message received from FCM. Desktop
-    only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyWriteImageDetectionTime" units="ms"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The time to detect a clipboard image write for Remote Copy. Logged after
-    writing the image. Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyWriteImageTime" units="ms"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The time to write an image to the clipboard for Remote Copy. Logged after
-    writing the image. Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyWriteTextDetectionTime" units="ms"
-    expires_after="2022-05-01">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The time to detect a clipboard text write for Remote Copy. Logged after
-    writing the text. Desktop only.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.RemoteCopyWriteTextTime" units="ms"
-    expires_after="M97">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The time to write text to the clipboard for Remote Copy. Logged after
-    writing the text. Desktop only.
+    The time to download the favicon as the image preview or processing the
+    provided preview image as URI, for sharing an link using Android share
+    sheet. Recorded when sharing a link with Android share sheet only.
   </summary>
 </histogram>
 
 <histogram name="Sharing.Screenshot.Action" enum="SharingScreenshotAction"
-    expires_after="2023-09-03">
+    expires_after="2023-11-19">
   <owner>jeffreycohen@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -318,17 +284,9 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.ScreenshotsAndroid.IsEditorDismissedOnStart"
-    enum="Boolean" expires_after="2022-09-11">
-  <owner>jeffreycohen@chromium.org</owner>
-  <owner>kristipark@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>Whether the editor was dismissed during editor recreation.</summary>
-</histogram>
-
 <histogram name="Sharing.ScrollCapture.BitmapGeneratorStatus"
     enum="SharingScrollCaptureBitmapGenerationStatus"
-    expires_after="2023-10-01">
+    expires_after="2025-10-01">
   <owner>ckitagawa@chromium.org</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -340,7 +298,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.ScrollCapture.SuccessfulCaptureDuration" units="ms"
-    expires_after="2023-10-01">
+    expires_after="2025-10-01">
   <owner>ckitagawa@chromium.org</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -350,117 +308,77 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.SendAckMessageResult" enum="SharingSendMessageResult"
-    expires_after="2022-10-09">
-<!-- Name completed by histogram_suffixes name="SharingChannelType",
-     name="SharingDevicePlatform" and name="SharingMessage" -->
-
-  <owner>peter@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    Result of sending an ack for a SharingMessage by the Sharing service. Logged
-    in the callback for sending the message to FCM. All platforms.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SendMessageResult" enum="SharingSendMessageResult"
-    expires_after="2023-10-22">
-<!-- Name completed by histogram_suffixes SharingChannelType,
-    SharingDevicePlatform, SharingMessage, and SharingPulseInterval. -->
-
+<histogram name="Sharing.SendMessageResult{DevicePlatform}{PulseInterval}"
+    enum="SharingSendMessageResult" expires_after="2025-10-12">
   <owner>peter@chromium.org</owner>
   <owner>knollr@chromium.org</owner>
   <summary>
     Result of sending a SharingMessage by the Sharing service. Logged after the
     send message callback is run. Not logged for sending ack messages. All
-    platforms.
+    platforms. {DevicePlatform} {PulseInterval}
+  </summary>
+  <token key="DevicePlatform">
+    <variant name=""/>
+    <variant name=".Android" summary="Android OS"/>
+    <variant name=".ChromeOS" summary="Chrome OS"/>
+    <variant name=".iOS" summary="iOS"/>
+    <variant name=".Linux" summary="Linux OS"/>
+    <variant name=".Mac" summary="Mac OS"/>
+    <variant name=".Server" summary="Server"/>
+    <variant name=".Unknown" summary="Device type unknown"/>
+    <variant name=".Windows" summary="Windows OS"/>
+  </token>
+  <token key="PulseInterval">
+    <variant name=""/>
+    <variant name=".PulseIntervalLong" summary="Long pulse interval"/>
+    <variant name=".PulseIntervalMedium" summary="Medium pulse interval"/>
+    <variant name=".PulseIntervalShort" summary="Short pulse interval"/>
+  </token>
+</histogram>
+
+<histogram name="Sharing.SendMessageUsingSync" enum="Boolean"
+    expires_after="2025-10-26">
+  <owner>rushans@google.com</owner>
+  <owner>src/chrome/browser/share/OWNERS</owner>
+  <summary>
+    Records whether a SharingMessage is being sent over sync. Recorded for all
+    messages before sending them. Recorded for all platforms.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.SendMessageWithSyncAckFcmConfiguration" enum="Boolean"
+    expires_after="2025-10-26">
+  <owner>rushans@google.com</owner>
+  <owner>src/chrome/browser/share/OWNERS</owner>
+  <summary>
+    Records whether a SharingMessage contains data required to send Ack message
+    using sync. Recorded for non-ack messages before sending them.
   </summary>
 </histogram>
 
 <histogram name="Sharing.SendTabToSelf.NotificationStatus"
-    enum="SendTabToSelfNotificationStatus" expires_after="2023-09-03">
-  <owner>ellyjones@chromium.org</owner>
+    enum="SendTabToSelfNotificationStatus" expires_after="2025-10-26">
+  <owner>jeffreycohen@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
     Status of STTS notifications. Recorded whenever a target device is chosen, a
-    recieved notification is shown, or an action is taken on the notification.
+    received notification is shown, or an action is taken on the notification.
   </summary>
 </histogram>
 
-<histogram name="Sharing.SharedClipboardDevicesToShow" units="devices"
-    expires_after="M88">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The number of available devices that are about to be shown in a UI for
-    picking a device to share the clipboard with. On desktop, it gets recorded
-    when the user right clicks on selected text. On Android, it gest recorded
-    when the user does long press, share and &quot;Send text to Your
-    Devices&quot;.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharedClipboardDialogShown" enum="SharingDialogType"
-    expires_after="M88">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    Logged whenever a dialog is shown for the Shared Clipboard feature.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharedClipboardSelectedDeviceIndex" units="index"
-    expires_after="M88">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The index of the device selected by the user for Shared Clipboard gets
-    recorded when the user chooses the destination device for sharing text. Zero
-    based.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharedClipboardSelectedTextSize" units="characters"
-    expires_after="M88">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>knollr@chromium.org</owner>
-  <summary>
-    The size of the selected text in Shared Clipboard gets recorded when the
-    user shares selected text.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ShareTargetUpdate.DynamicUpdateResult"
-    enum="ShareTargetUpdateResult" expires_after="2022-09-11">
-  <owner>jeffreycohen@chromium.org</owner>
-  <owner>kristipark@chromium.org</owner>
+<histogram name="Sharing.SharingHubAndroid.CustomAction"
+    enum="ShareCustomAction" expires_after="2025-11-09">
+  <owner>wenyufu@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
-    The result of reading/parsing/accepting a new proto for the third party
-    Share Targets.
-
-    This is for the file types loaded from the component-update system. This
-    includes both those loaded from disk shortly after startup, and those
-    received over the network when the component version changes.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ShareTargetUpdate.ResourceBundleResult"
-    enum="ShareTargetUpdateResult" expires_after="2022-09-11">
-  <owner>jeffreycohen@chromium.org</owner>
-  <owner>kristipark@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    The result of reading/parsing/accepting a new proto for the third party
-    Share Targets.
-
-    This is for the file types loaded from the resource bundle packaged with
-    Chrome, which is always loaded at startup.
+    Records the custom action when the user clicked one on the share sheet.
+    Recorded for both Chrome's sharing hub and Android's share sheet on U+.
   </summary>
 </histogram>
 
 <histogram name="Sharing.SharingHubAndroid.Opened" enum="ShareOrigin"
-    expires_after="2023-09-03">
+    expires_after="2025-10-19">
+  <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -470,7 +388,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SharingHubAndroid.ThirdPartyAppUsage"
-    enum="SharingHubBottomRowIndex" expires_after="2023-07-26">
+    enum="SharingHubBottomRowIndex" expires_after="2024-07-08">
+  <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -479,34 +398,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="Sharing.SharingHubAndroid.TimeToSaveScreenshotImageBeforeShare"
-    units="ms" expires_after="M110">
-  <obsolete>
-    No longer gathered for several milestones as of M111. Not sure precisely
-    when gathering of this metric stopped.
-  </obsolete>
-  <owner>skare@chromium.org</owner>
+<histogram name="Sharing.SharingHubAndroid.TimeToCustomAction" units="ms"
+    expires_after="2025-11-09">
+  <owner>wenyufu@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
-    Records the amount of time taken to save the output bitmap from the image
-    editor to temporary storage and generate a URI. Recorded when the followup
-    share actions panel is displayed.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharingHubAndroid.TimeToShare" units="ms"
-    expires_after="2023-07-02">
-  <owner>sophey@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Records the amount of time taken for the user to select a share target after
-    initiating a share.
+    Records the amount of time taken for the user to select a custom action
+    after initiating a share. Can record multiple times if the custom action
+    redirect the user back to the share sheet, but each time only record the
+    duration between share sheet shown until user click an action. Recorded for
+    both Chrome's sharing hub and Android's share sheet on U+.
   </summary>
 </histogram>
 
 <histogram name="Sharing.SharingHubAndroid.TimeToShowShareSheet" units="ms"
-    expires_after="2023-07-26">
+    expires_after="2025-02-23">
+  <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -516,7 +423,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SharingHubAndroid.{DetailedContentType}.{ShareStatus}"
-    enum="LinkToggleState" expires_after="M115">
+    enum="LinkToggleState" expires_after="2024-07-08">
+  <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -538,61 +446,8 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Sharing.SharingHubDesktop.CrOSSharesheetResult"
-    enum="SharingHubSharesheetResult" expires_after="2023-09-03">
-  <owner>kristipark@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Records whether the user selects a share target after opening the Chrome OS
-    sharesheet.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharingHubDesktop.TimeToFetchFaviconPreviewImage"
-    units="ms" expires_after="2023-03-12">
-  <obsolete>
-    Never actually logged in production, removed in M111.
-  </obsolete>
-  <owner>ellyjones@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Records the elapsed time (in milliseconds) between the sharing hub becoming
-    visible on screen and the favicon image (if there is one) replacing the
-    default image. Only logged for cases where the favicon is both present and
-    is delivered to the sharing hub asynchronously, so this metric tracks how
-    slow async favicon fetching is.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharingHubDesktop.TimeToFetchHQPreviewImage"
-    units="ms" expires_after="2023-03-12">
-  <obsolete>
-    Never actually logged in production, removed in M111.
-  </obsolete>
-  <owner>ellyjones@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Records the elapsed time (in milliseconds) between the sharing hub becoming
-    visible on screen and the high-quality image (if there is one) replacing the
-    default image. Only logged for cases where such a replacement eventually
-    happens - pages with no high-quality image do not produce an entry. This
-    metric essentially tracks how slow asynchronous HQ image fetching is.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.SharingHubDesktop.TimeToShow" units="ms"
-    expires_after="2023-09-24">
-  <owner>ellyjones@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Records the elapsed time (in milliseconds) between the user gesture that
-    should summon the sharing hub and the sharing hub actually becoming visible
-    on screen.
-  </summary>
-</histogram>
-
 <histogram name="Sharing.SmsFetcherAvailableDeviceCount" units="devices"
-    expires_after="2023-11-01">
+    expires_after="2025-10-12">
   <owner>yigu@chromium.org</owner>
   <owner>src/content/browser/sms/OWNERS</owner>
   <summary>
@@ -602,19 +457,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.SmsFetcherClientNameIsEmpty" enum="BooleanEmpty"
-    expires_after="2023-11-01">
-  <owner>yigu@chromium.org</owner>
-  <owner>src/content/browser/sms/OWNERS</owner>
-  <summary>
-    Records whether the remote client name is empty. This could happen on early
-    version of Chrome. This is logged once per notification when asking for user
-    permission to submit the one-time-passwords on the remote device.
-  </summary>
-</histogram>
-
 <histogram name="Sharing.SmsFetcherScreenOnAndUnlocked" enum="Boolean"
-    expires_after="2023-11-01">
+    expires_after="2025-10-12">
   <owner>yigu@chromium.org</owner>
   <owner>src/content/browser/sms/OWNERS</owner>
   <summary>
@@ -625,7 +469,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SmsFetcherTapWithChromeDestroyed" enum="Boolean"
-    expires_after="2023-11-01">
+    expires_after="2025-08-10">
   <owner>yigu@chromium.org</owner>
   <owner>src/content/browser/sms/OWNERS</owner>
   <summary>
@@ -647,7 +491,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.{ShareSurface}.ShareContentType"
-    enum="SharingContentTypeAndroid" expires_after="2023-10-13">
+    enum="SharingContentTypeAndroid" expires_after="2025-10-26">
   <owner>wenyufu@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
@@ -658,6 +502,67 @@ chromium-metrics-reviews@google.com.
     <variant name="DefaultSharesheetAndroid" summary="System share sheet"/>
     <variant name="SharingHubAndroid" summary="Chrome's sharing hub"/>
   </token>
+</histogram>
+
+<histogram name="TextFragmentAnchor.LinkOpenSource"
+    enum="TextFragmentLinkOpenSource" expires_after="2024-09-29">
+  <owner>jeffreycohen@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Recorded for every navigation to a link with a valid text fragment selector
+    (e.g. #:=:text=SELECTOR). Indicates source type that navigation originated
+    from. It only know about search engines that come from the pre-populated
+    list installed with Chrome. If the user uses a search engine not on the
+    list, it will be recorded as Unknown. This is even true if the user have a
+    custom search engine. These custom search engines can be created by hand or
+    auto-generated. In either case, it's not going to count as a search engine.
+    Also, it only checks to see if the *referrer* is from a domain associated
+    with search engine. If someone posts a link somewhere on a web site that
+    happens to have a search engine known to Google and that links includes the
+    fragment tokens, then if a user clicks that link, it'll look like it came
+    from a search engine even thought they did not.
+  </summary>
+</histogram>
+
+<histogram name="TextFragmentAnchor{TextFragmentSource}.AmbiguousMatch"
+    enum="Boolean" expires_after="2024-06-30">
+  <owner>bokan@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    Whether we found multiple matches for a selector. Recorded when
+    TextFragmentAnchor finishes searching once the page is loaded.
+
+    Recorded from text fragment links followed from {TextFragmentSource}.
+  </summary>
+  <token key="TextFragmentSource" variants="TextFragmentSource"/>
+</histogram>
+
+<histogram name="TextFragmentAnchor{TextFragmentSource}.MatchRate" units="%"
+    expires_after="2024-06-30">
+  <owner>bokan@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    The percentage of selectors for which a match was found in the document.
+    Recorded when TextFragmentAnchor finishes searching once the page is loaded.
+
+    Recorded from text fragment links followed from {TextFragmentSource}.
+  </summary>
+  <token key="TextFragmentSource" variants="TextFragmentSource"/>
+</histogram>
+
+<histogram name="TextFragmentAnchor{TextFragmentSource}.TimeToScrollIntoView"
+    units="ms" expires_after="2024-06-30">
+  <owner>bokan@chromium.org</owner>
+  <owner>chrome-shared-highlighting@google.com</owner>
+  <summary>
+    The time between creating the TextFragmentAnchor (i.e. when it is parsed)
+    and scrolling the target into view. Only recorded if there is a match and we
+    tried to scroll it into view (it may already have been in view). Recorded
+    when TextFragmentAnchor finishes searching once the page is loaded.
+
+    Recorded from text fragment links followed from {TextFragmentSource}.
+  </summary>
+  <token key="TextFragmentSource" variants="TextFragmentSource"/>
 </histogram>
 
 </histograms>

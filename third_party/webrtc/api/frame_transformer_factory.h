@@ -12,12 +12,9 @@
 #define API_FRAME_TRANSFORMER_FACTORY_H_
 
 #include <memory>
-#include <vector>
 
 #include "api/frame_transformer_interface.h"
-#include "api/scoped_refptr.h"
-#include "api/video/encoded_frame.h"
-#include "api/video/video_frame_metadata.h"
+#include "rtc_base/system/rtc_export.h"
 
 // This file contains EXPERIMENTAL functions to create video frames from
 // either an old video frame or directly from parameters.
@@ -32,7 +29,7 @@ std::unique_ptr<TransformableVideoFrameInterface> CreateVideoSenderFrame();
 std::unique_ptr<TransformableVideoFrameInterface> CreateVideoReceiverFrame();
 // Creates a new frame with the same metadata as the original.
 // The original can be a sender or receiver frame.
-RTC_EXPORT std::unique_ptr<TransformableFrameInterface> CloneAudioFrame(
+RTC_EXPORT std::unique_ptr<TransformableAudioFrameInterface> CloneAudioFrame(
     TransformableAudioFrameInterface* original);
 RTC_EXPORT std::unique_ptr<TransformableVideoFrameInterface> CloneVideoFrame(
     TransformableVideoFrameInterface* original);

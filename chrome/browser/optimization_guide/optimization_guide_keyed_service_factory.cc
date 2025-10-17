@@ -10,8 +10,16 @@
 #include "chrome/browser/download/background_download_service_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "content/public/browser/browser_context.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/scoped_java_ref.h"
+
+// Must come after other includes, because FromJniType() uses Profile.
+#include "chrome/browser/optimization_guide/android/jni_headers/OptimizationGuideBridgeFactory_jni.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // static
 OptimizationGuideKeyedService*
@@ -44,14 +52,16 @@ OptimizationGuideKeyedServiceFactory::OptimizationGuideKeyedServiceFactory()
               .WithAshInternals(ProfileSelection::kNone)
               .Build()) {
   DependsOn(BackgroundDownloadServiceFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 OptimizationGuideKeyedServiceFactory::~OptimizationGuideKeyedServiceFactory() =
     default;
 
-KeyedService* OptimizationGuideKeyedServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService> 
+  OptimizationGuideKeyedServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new OptimizationGuideKeyedService(context);
+  return std::make_unique<OptimizationGuideKeyedService>(context);
 }
 
 bool OptimizationGuideKeyedServiceFactory::ServiceIsCreatedWithBrowserContext()
@@ -62,3 +72,18 @@ bool OptimizationGuideKeyedServiceFactory::ServiceIsCreatedWithBrowserContext()
 bool OptimizationGuideKeyedServiceFactory::ServiceIsNULLWhileTesting() const {
   return true;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+static base::android::ScopedJavaLocalRef<jobject>
+JNI_OptimizationGuideBridgeFactory_GetForProfile(JNIEnv* env,
+                                                 Profile* profile) {
+  DCHECK(profile);
+
+  OptimizationGuideKeyedService* service =
+      OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
+  if (!service) {
+    return base::android::ScopedJavaLocalRef<jobject>();
+  }
+  return service->GetJavaObject();
+}
+#endif  // BUILDFLAG(IS_ANDROID)

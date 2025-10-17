@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/renderer/pepper/ppb_graphics_3d_impl.h"
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -21,6 +27,7 @@
 #include "content/renderer/pepper/plugin_module.h"
 #include "content/renderer/render_thread_impl.h"
 #include "gpu/GLES2/gl2extchromium.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/common/context_creation_attribs.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
@@ -46,26 +53,6 @@ using blink::WebString;
 
 namespace content {
 
-namespace {
-
-bool UseSharedImagesSwapChainForPPAPI() {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDisablePPAPISharedImagesSwapChain)) {
-    // This log is to make diagnosing any outages for Enterprise customers
-    // easier.
-    LOG(WARNING) << "NaCL SwapChain: Disabled by policy";
-    return false;
-  }
-
-  auto enabled =
-      base::FeatureList::IsEnabled(features::kPPAPISharedImagesSwapChain);
-  // This log is to make diagnosing any outages for Enterprise customers easier.
-  LOG(WARNING) << "NaCL SwapChain: Feature Controled: " << enabled;
-  return enabled;
-}
-
-}  // namespace
-
 // This class encapsulates ColorBuffer for the plugin. It wraps corresponding
 // SharedImage that we draw to and that we send to display compositor.
 // Can be in one of the 3 states:
@@ -85,8 +72,8 @@ class PPB_Graphics3D_Impl::ColorBuffer {
               bool has_alpha,
               bool is_single_buffered)
       : sii_(sii), size_(size), is_single_buffered_(is_single_buffered) {
-    uint32_t usage =
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_GLES2;
+    gpu::SharedImageUsageSet usage = gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
+                                     gpu::SHARED_IMAGE_USAGE_GLES2_WRITE;
 
     if (is_single_buffered_)
       usage |= gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
@@ -102,19 +89,22 @@ class PPB_Graphics3D_Impl::ColorBuffer {
     // kPepper3DImageChromium is enabled on some CrOS devices, SkiaRenderer
     // don't support overlays for legacy mailboxes. To avoid any problems with
     // overlays, we don't introduce them here.
-    mailbox_ = sii_->CreateSharedImage(
-        has_alpha ? viz::SinglePlaneFormat::kRGBA_8888
-                  : viz::SinglePlaneFormat::kRGBX_8888,
-        shared_image_size, gfx::ColorSpace::CreateSRGB(),
-        kTopLeft_GrSurfaceOrigin, kUnpremul_SkAlphaType, usage,
-        "PPBGraphics3DImpl", gpu::SurfaceHandle());
+    client_shared_image_ = sii_->CreateSharedImage(
+        {has_alpha ? viz::SinglePlaneFormat::kRGBA_8888
+                   : viz::SinglePlaneFormat::kRGBX_8888,
+         shared_image_size, gfx::ColorSpace::CreateSRGB(),
+         kTopLeft_GrSurfaceOrigin, kUnpremul_SkAlphaType, usage,
+         "PPBGraphics3DImpl"},
+        gpu::SurfaceHandle());
+    CHECK(client_shared_image_);
 
     sync_token_ = sii_->GenVerifiedSyncToken();
   }
 
   ~ColorBuffer() {
     DCHECK_NE(state, State::kAttached);
-    sii_->DestroySharedImage(destruction_sync_token_, mailbox_);
+    sii_->DestroySharedImage(destruction_sync_token_,
+                             std::move(client_shared_image_));
   }
 
   void Attach(gpu::CommandBufferProxyImpl* command_buffer,
@@ -124,8 +114,8 @@ class PPB_Graphics3D_Impl::ColorBuffer {
               bool needs_stencil) {
     DCHECK_EQ(state, State::kDetached);
     command_buffer->SetDefaultFramebufferSharedImage(
-        mailbox_, sync_token_, samples_count, preserve, needs_depth,
-        needs_stencil);
+        client_shared_image_->mailbox(), sync_token_, samples_count, preserve,
+        needs_depth, needs_stencil);
     state = State::kAttached;
     sync_token_.Clear();
   }
@@ -137,14 +127,15 @@ class PPB_Graphics3D_Impl::ColorBuffer {
     state = State::kDetached;
   }
 
-  gpu::Mailbox Export() {
+  // Note that the pointer returned from Export() is never null.
+  const scoped_refptr<gpu::ClientSharedImage>& Export() {
     DCHECK_EQ(state, State::kDetached);
 
     // In single buffered mode we use same image regardless if it's in
     // compositor or not, so don't track here.
     if (!is_single_buffered_)
       state = State::kInCompositor;
-    return mailbox_;
+    return client_shared_image_;
   }
 
   void UpdateDestructionSyncToken(const gpu::SyncToken& token) {
@@ -166,15 +157,13 @@ class PPB_Graphics3D_Impl::ColorBuffer {
 
   bool IsAttached() { return state == State::kAttached; }
 
-  bool IsSame(const gpu::Mailbox& mailbox) { return mailbox == mailbox_; }
-
  private:
   enum class State { kDetached, kAttached, kInCompositor };
 
   State state = State::kDetached;
-  gpu::SharedImageInterface* const sii_;
+  const raw_ptr<gpu::SharedImageInterface> sii_;
   const gfx::Size size_;
-  gpu::Mailbox mailbox_;
+  scoped_refptr<gpu::ClientSharedImage> client_shared_image_;
   // SyncToken to wait on before re-using this color buffer.
   gpu::SyncToken sync_token_;
   // SyncToken to wait before destroying the underlying shared image.
@@ -183,16 +172,9 @@ class PPB_Graphics3D_Impl::ColorBuffer {
 };
 
 PPB_Graphics3D_Impl::PPB_Graphics3D_Impl(PP_Instance instance)
-    : PPB_Graphics3D_Shared(instance,
-                            /*use_shared_images_swapchain=*/
-                            UseSharedImagesSwapChainForPPAPI()),
+    : PPB_Graphics3D_Shared(instance),
       bound_to_instance_(false),
-      commit_pending_(false),
-      has_alpha_(false),
-      use_image_chromium_(
-          !base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kDisablePepper3DImageChromium) &&
-          base::FeatureList::IsEnabled(features::kPepper3DImageChromium)) {}
+      commit_pending_(false) {}
 
 PPB_Graphics3D_Impl::~PPB_Graphics3D_Impl() {
   if (current_color_buffer_ && current_color_buffer_->IsAttached()) {
@@ -213,8 +195,9 @@ PPB_Graphics3D_Impl::~PPB_Graphics3D_Impl() {
 PP_Resource PPB_Graphics3D_Impl::CreateRaw(
     PP_Instance instance,
     PP_Resource share_context,
-    const gpu::ContextCreationAttribs& attrib_helper,
+    const ppapi::Graphics3DContextAttribs& context_attribs,
     gpu::Capabilities* capabilities,
+    gpu::GLCapabilities* gl_capabilities,
     const base::UnsafeSharedMemoryRegion** shared_state_region,
     gpu::CommandBufferId* command_buffer_id) {
   PPB_Graphics3D_API* share_api = nullptr;
@@ -226,9 +209,11 @@ PP_Resource PPB_Graphics3D_Impl::CreateRaw(
   }
   scoped_refptr<PPB_Graphics3D_Impl> graphics_3d(
       new PPB_Graphics3D_Impl(instance));
-  if (!graphics_3d->InitRaw(share_api, attrib_helper, capabilities,
-                            shared_state_region, command_buffer_id))
+  if (!graphics_3d->InitRaw(share_api, context_attribs, capabilities,
+                            gl_capabilities, shared_state_region,
+                            command_buffer_id)) {
     return 0;
+  }
   return graphics_3d->GetReference();
 }
 
@@ -248,7 +233,8 @@ PP_Bool PPB_Graphics3D_Impl::DestroyTransferBuffer(int32_t id) {
   return PP_TRUE;
 }
 
-PP_Bool PPB_Graphics3D_Impl::Flush(int32_t put_offset) {
+PP_Bool PPB_Graphics3D_Impl::Flush(int32_t put_offset, uint64_t release_count) {
+  command_buffer_->UpdateLastFenceSyncRelease(release_count);
   GetCommandBuffer()->Flush(put_offset);
   return PP_TRUE;
 }
@@ -271,27 +257,17 @@ void PPB_Graphics3D_Impl::EnsureWorkVisible() {
   command_buffer_->EnsureWorkVisible();
 }
 
-void PPB_Graphics3D_Impl::TakeFrontBuffer() {
-  taken_front_buffer_ = GenerateMailbox();
-  command_buffer_->TakeFrontBuffer(taken_front_buffer_);
-}
-
 void PPB_Graphics3D_Impl::ReturnFrontBuffer(const gpu::Mailbox& mailbox,
                                             const gpu::SyncToken& sync_token,
                                             bool is_lost) {
-  if (use_shared_images_swapchain_) {
-    if (is_single_buffered_) {
-      // We don't verify that mailbox is the same we have in the
-      // `current_color_buffer_` because it could have changed do to resize.
-    } else {
-      auto it = inflight_color_buffers_.find(mailbox);
-      DCHECK(it != inflight_color_buffers_.end());
-      RecycleColorBuffer(std::move(it->second), sync_token, is_lost);
-      inflight_color_buffers_.erase(it);
-    }
+  if (is_single_buffered_) {
+    // We don't verify that mailbox is the same we have in the
+    // `current_color_buffer_` because it could have changed do to resize.
   } else {
-    command_buffer_->ReturnFrontBuffer(mailbox, sync_token, is_lost);
-    mailboxes_to_reuse_.push_back(mailbox);
+    auto it = inflight_color_buffers_.find(mailbox);
+    CHECK(it != inflight_color_buffers_.end());
+    RecycleColorBuffer(std::move(it->second), sync_token, is_lost);
+    inflight_color_buffers_.erase(it);
   }
 }
 
@@ -322,54 +298,11 @@ gpu::GpuControl* PPB_Graphics3D_Impl::GetGpuControl() {
   return command_buffer_.get();
 }
 
-int32_t PPB_Graphics3D_Impl::DoSwapBuffers(const gpu::SyncToken& sync_token,
-                                           const gfx::Size& size) {
-  DCHECK(command_buffer_);
-
-  if (use_shared_images_swapchain_)
-    return DoPresent(sync_token, size);
-
-  if (taken_front_buffer_.IsZero()) {
-    DLOG(ERROR) << "TakeFrontBuffer should be called before DoSwapBuffers";
-    return PP_ERROR_FAILED;
-  }
-
-  if (bound_to_instance_) {
-    // If we are bound to the instance, we need to ask the compositor
-    // to commit our backing texture so that the graphics appears on the page.
-    // When the backing texture will be committed we get notified via
-    // ViewFlushedPaint().
-    //
-    // Don't need to check for NULL from GetPluginInstance since when we're
-    // bound, we know our instance is valid.
-    bool is_overlay_candidate = use_image_chromium_;
-    // TODO(reveman): Get texture target from browser process.
-    uint32_t target = GL_TEXTURE_2D;
-#if BUILDFLAG(IS_MAC)
-    if (use_image_chromium_)
-      target = GL_TEXTURE_RECTANGLE_ARB;
-#endif
-    viz::TransferableResource resource = viz::TransferableResource::MakeGpu(
-        taken_front_buffer_, target, sync_token, size,
-        viz::SinglePlaneFormat::kRGBA_8888, is_overlay_candidate);
-    HostGlobals::Get()
-        ->GetInstance(pp_instance())
-        ->CommitTransferableResource(resource);
-    commit_pending_ = true;
-  } else {
-    // Wait for the command to complete on the GPU to allow for throttling.
-    command_buffer_->SignalSyncToken(
-        sync_token, base::BindOnce(&PPB_Graphics3D_Impl::OnSwapBuffers,
-                                   weak_ptr_factory_.GetWeakPtr()));
-  }
-
-  return PP_OK_COMPLETIONPENDING;
-}
-
 bool PPB_Graphics3D_Impl::InitRaw(
     PPB_Graphics3D_API* share_context,
-    const gpu::ContextCreationAttribs& requested_attribs,
+    const ppapi::Graphics3DContextAttribs& requested_attribs,
     gpu::Capabilities* capabilities,
+    gpu::GLCapabilities* gl_capabilities,
     const base::UnsafeSharedMemoryRegion** shared_state_region,
     gpu::CommandBufferId* command_buffer_id) {
   PepperPluginInstanceImpl* plugin_instance =
@@ -407,12 +340,11 @@ bool PPB_Graphics3D_Impl::InitRaw(
 
   has_alpha_ = requested_attribs.alpha_size > 0;
 
-  if (use_shared_images_swapchain_) {
-    is_single_buffered_ = requested_attribs.single_buffer;
-    needs_depth_ = requested_attribs.depth_size > 0;
-    needs_stencil_ = requested_attribs.stencil_size > 0;
-    swapchain_size_ = requested_attribs.offscreen_framebuffer_size;
-  }
+  is_single_buffered_ = requested_attribs.single_buffer;
+  needs_depth_ = requested_attribs.depth_size > 0;
+  needs_stencil_ = requested_attribs.stencil_size > 0;
+  swapchain_size_ = requested_attribs.offscreen_framebuffer_size;
+
   // If we're in single buffered mode, we don't need additional buffer to
   // preserve contents.
   preserve_ = requested_attribs.buffer_preserved && !is_single_buffered_;
@@ -421,33 +353,23 @@ bool PPB_Graphics3D_Impl::InitRaw(
       !requested_attribs.single_buffer)
     samples_count_ = requested_attribs.samples;
 
-  gpu::ContextCreationAttribs attrib_helper = requested_attribs;
-  attrib_helper.should_use_native_gmb_for_backbuffer = use_image_chromium_;
-
-  if (use_shared_images_swapchain_) {
-    // Reset all attribs to default if we use our own default framebuffer.
-    attrib_helper = gpu::ContextCreationAttribs();
-  }
-
+  gpu::ContextCreationAttribs attrib_helper;
   attrib_helper.context_type = gpu::CONTEXT_TYPE_OPENGLES2;
 
   gpu::CommandBufferProxyImpl* share_buffer = nullptr;
-  UMA_HISTOGRAM_BOOLEAN("Pepper.Graphics3DHasShareGroup", !!share_context);
   if (share_context) {
     PPB_Graphics3D_Impl* share_graphics =
         static_cast<PPB_Graphics3D_Impl*>(share_context);
     share_buffer = share_graphics->GetCommandBufferProxy();
   }
 
-  if (use_shared_images_swapchain_)
-    shared_image_interface_ = channel->CreateClientSharedImageInterface();
+  shared_image_interface_ = channel->CreateClientSharedImageInterface();
 
   command_buffer_ = std::make_unique<gpu::CommandBufferProxyImpl>(
-      std::move(channel), render_thread->GetGpuMemoryBufferManager(),
-      kGpuStreamIdDefault, base::SingleThreadTaskRunner::GetCurrentDefault());
+      std::move(channel), kGpuStreamIdDefault,
+      base::SingleThreadTaskRunner::GetCurrentDefault());
   auto result = command_buffer_->Initialize(
-      gpu::kNullSurfaceHandle, share_buffer, kGpuStreamPriorityDefault,
-      attrib_helper, GURL::EmptyGURL());
+      share_buffer, kGpuStreamPriorityDefault, attrib_helper, GURL(), "Pepper");
   if (result != gpu::ContextResult::kSuccess)
     return false;
 
@@ -457,17 +379,16 @@ bool PPB_Graphics3D_Impl::InitRaw(
     *shared_state_region = &command_buffer_->GetSharedStateRegion();
   if (capabilities) {
     *capabilities = command_buffer_->GetCapabilities();
-    capabilities->use_shared_images_swapchain_for_ppapi =
-        use_shared_images_swapchain_;
+  }
+  if (gl_capabilities) {
+    *gl_capabilities = command_buffer_->GetGLCapabilities();
   }
   if (command_buffer_id)
     *command_buffer_id = command_buffer_->GetCommandBufferID();
 
-  if (use_shared_images_swapchain_) {
-    current_color_buffer_ = GetOrCreateColorBuffer();
-    current_color_buffer_->Attach(command_buffer_.get(), samples_count_,
-                                  preserve_, needs_depth_, needs_stencil_);
-  }
+  current_color_buffer_ = GetOrCreateColorBuffer();
+  current_color_buffer_->Attach(command_buffer_.get(), samples_count_,
+                                preserve_, needs_depth_, needs_stencil_);
 
   return true;
 }
@@ -551,20 +472,9 @@ void PPB_Graphics3D_Impl::SendContextLost() {
     ppp_graphics_3d->Graphics3DContextLost(this_pp_instance);
 }
 
-gpu::Mailbox PPB_Graphics3D_Impl::GenerateMailbox() {
-  if (!mailboxes_to_reuse_.empty()) {
-    gpu::Mailbox mailbox = mailboxes_to_reuse_.back();
-    mailboxes_to_reuse_.pop_back();
-    return mailbox;
-  }
-
-  return gpu::Mailbox::GenerateLegacyMailbox();
-}
-
-int32_t PPB_Graphics3D_Impl::DoPresent(const gpu::SyncToken& sync_token,
-                                       const gfx::Size& size) {
+int32_t PPB_Graphics3D_Impl::DoSwapBuffers(const gpu::SyncToken& sync_token,
+                                           const gfx::Size& size) {
   DCHECK(command_buffer_);
-  DCHECK(use_shared_images_swapchain_);
   DCHECK(current_color_buffer_);
   DCHECK_EQ(size, current_color_buffer_->size());
 
@@ -591,17 +501,18 @@ int32_t PPB_Graphics3D_Impl::DoPresent(const gpu::SyncToken& sync_token,
     // overlays, we don't introduce them here.
     constexpr bool is_overlay_candidate = false;
     constexpr uint32_t target = GL_TEXTURE_2D;
-    auto mailbox = current_color_buffer_->Export();
+    const auto& shared_image = current_color_buffer_->Export();
     viz::TransferableResource resource = viz::TransferableResource::MakeGpu(
-        mailbox, target, sync_token, current_color_buffer_->size(),
-        viz::SinglePlaneFormat::kRGBA_8888, is_overlay_candidate);
+        shared_image, target, sync_token, current_color_buffer_->size(),
+        viz::SinglePlaneFormat::kRGBA_8888, is_overlay_candidate,
+        viz::TransferableResource::ResourceSource::kPPBGraphics3D);
     HostGlobals::Get()
         ->GetInstance(pp_instance())
         ->CommitTransferableResource(resource);
     commit_pending_ = true;
 
     if (!is_single_buffered_) {
-      inflight_color_buffers_.emplace(mailbox,
+      inflight_color_buffers_.emplace(shared_image->mailbox(),
                                       std::move(current_color_buffer_));
       current_color_buffer_ = GetOrCreateColorBuffer();
     }
@@ -619,14 +530,11 @@ int32_t PPB_Graphics3D_Impl::DoPresent(const gpu::SyncToken& sync_token,
 }
 
 void PPB_Graphics3D_Impl::ResolveAndDetachFramebuffer() {
-  DCHECK(use_shared_images_swapchain_);
   DCHECK(current_color_buffer_);
   current_color_buffer_->Detach(command_buffer_.get());
 }
 
 void PPB_Graphics3D_Impl::DoResize(gfx::Size size) {
-  DCHECK(use_shared_images_swapchain_);
-
   if (swapchain_size_ == size)
     return;
   swapchain_size_ = size;
@@ -643,7 +551,6 @@ void PPB_Graphics3D_Impl::DoResize(gfx::Size size) {
 
 std::unique_ptr<PPB_Graphics3D_Impl::ColorBuffer>
 PPB_Graphics3D_Impl::GetOrCreateColorBuffer() {
-  DCHECK(use_shared_images_swapchain_);
   if (!available_color_buffers_.empty()) {
     auto result = std::move(*available_color_buffers_.begin());
     available_color_buffers_.erase(available_color_buffers_.begin());
@@ -659,7 +566,6 @@ void PPB_Graphics3D_Impl::RecycleColorBuffer(
     std::unique_ptr<ColorBuffer> buffer,
     const gpu::SyncToken& sync_token,
     bool is_lost) {
-  DCHECK(use_shared_images_swapchain_);
   buffer->Recycle(sync_token);
   if (is_lost || buffer->size() != swapchain_size_)
     return;

@@ -4,38 +4,34 @@
 
 #include "components/headless/test/pdf_utils.h"
 
+#include <optional>
+
 #include "base/logging.h"
 #include "components/headless/test/bitmap_utils.h"
 #include "pdf/pdf.h"
 #include "printing/units.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size_conversions.h"
-#include "ui/gfx/geometry/size_f.h"
 
 namespace headless {
 
 PDFPageBitmap::PDFPageBitmap() = default;
 PDFPageBitmap::~PDFPageBitmap() = default;
 
-bool PDFPageBitmap::Render(const std::string& pdf_data, int page_index) {
-  auto pdf_span = base::make_span(
-      reinterpret_cast<const uint8_t*>(pdf_data.data()), pdf_data.size());
-  return Render(pdf_span, page_index);
-}
-
 bool PDFPageBitmap::Render(base::span<const uint8_t> pdf_data, int page_index) {
-  absl::optional<gfx::SizeF> page_size_in_points =
+  std::optional<gfx::SizeF> page_size_in_points =
       chrome_pdf::GetPDFPageSizeByIndex(pdf_data, page_index);
   if (!page_size_in_points) {
     return false;
   }
 
+  page_size_in_points_ = page_size_in_points.value();
+
   gfx::SizeF page_size_in_pixels =
-      gfx::ScaleSize(page_size_in_points.value(),
+      gfx::ScaleSize(page_size_in_points_,
                      static_cast<float>(kDpi) / printing::kPointsPerInch);
 
   gfx::Rect page_rect(gfx::ToCeiledSize(page_size_in_pixels));

@@ -6,13 +6,14 @@
 #define EXTENSIONS_RENDERER_BINDINGS_API_SIGNATURE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
 #include "extensions/renderer/bindings/binding_access_checker.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8.h"
 
 namespace extensions {
@@ -40,7 +41,7 @@ class APISignature {
     // The list of expected arguments for the asynchronous return. Can be
     // nullopt if response validation isn't enabled, as it is only used when
     // validating a response from the API.
-    absl::optional<std::vector<std::unique_ptr<ArgumentSpec>>> signature;
+    std::optional<std::vector<std::unique_ptr<ArgumentSpec>>> signature;
     // Indicates if passing the callback when calling the API is optional for
     // contexts or APIs which do not support promises (passing the callback is
     // always inheriently optional if promises are supported).
@@ -67,9 +68,7 @@ class APISignature {
   static std::unique_ptr<APISignature> CreateFromValues(
       const base::Value& specification_list,
       const base::Value* returns_async,
-      BindingAccessChecker* access_checker,
-      const std::string& api_name,
-      bool is_event_signature);
+      BindingAccessChecker* access_checker);
 
   struct V8ParseResult {
     // Appease the Chromium style plugin (out of line ctor/dtor).
@@ -84,13 +83,13 @@ class APISignature {
     // since it will include null-filled optional arguments. Populated if
     // parsing was successful. Note that the callback, if any, is included in
     // this list.
-    absl::optional<std::vector<v8::Local<v8::Value>>> arguments;
+    std::optional<v8::LocalVector<v8::Value>> arguments;
 
     // Whether the asynchronous response is handled by a callback or a promise.
     binding::AsyncResponseType async_type = binding::AsyncResponseType::kNone;
 
     // The parse error, if parsing failed.
-    absl::optional<std::string> error;
+    std::optional<std::string> error;
   };
 
   struct JSONParseResult {
@@ -105,7 +104,7 @@ class APISignature {
     // The parsed JSON arguments, with null-filled optional arguments filled in.
     // Populated if parsing was successful. Does not include the callback (if
     // any).
-    absl::optional<base::Value::List> arguments_list;
+    std::optional<base::Value::List> arguments_list;
 
     // The callback, if one was provided.
     v8::Local<v8::Function> callback;
@@ -114,36 +113,35 @@ class APISignature {
     binding::AsyncResponseType async_type = binding::AsyncResponseType::kNone;
 
     // The parse error, if parsing failed.
-    absl::optional<std::string> error;
+    std::optional<std::string> error;
   };
 
-  // Parses |arguments| against this signature, returning the result and
+  // Parses `arguments` against this signature, returning the result and
   // performing no argument conversion.
-  V8ParseResult ParseArgumentsToV8(
-      v8::Local<v8::Context> context,
-      const std::vector<v8::Local<v8::Value>>& arguments,
-      const APITypeReferenceMap& type_refs) const;
+  V8ParseResult ParseArgumentsToV8(v8::Local<v8::Context> context,
+                                   const v8::LocalVector<v8::Value>& arguments,
+                                   const APITypeReferenceMap& type_refs) const;
 
-  // Parses |arguments| against this signature, returning the result after
+  // Parses `arguments` against this signature, returning the result after
   // converting to base::Values.
   JSONParseResult ParseArgumentsToJSON(
       v8::Local<v8::Context> context,
-      const std::vector<v8::Local<v8::Value>>& arguments,
+      const v8::LocalVector<v8::Value>& arguments,
       const APITypeReferenceMap& type_refs) const;
 
-  // Converts |arguments| to base::Values, ignoring the defined signature.
+  // Converts `arguments` to base::Values, ignoring the defined signature.
   // This is used when custom bindings modify the passed arguments to a form
   // that doesn't match the documented signature. Since we ignore the schema,
   // this parsing will never fail.
   JSONParseResult ConvertArgumentsIgnoringSchema(
       v8::Local<v8::Context> context,
-      const std::vector<v8::Local<v8::Value>>& arguments) const;
+      const v8::LocalVector<v8::Value>& arguments) const;
 
-  // Validates the provided |arguments| as if they were returned as a response
+  // Validates the provided `arguments` as if they were returned as a response
   // to an API call. This validation is much stricter than the versions above,
   // since response arguments are not allowed to have optional inner parameters.
   bool ValidateResponse(v8::Local<v8::Context> context,
-                        const std::vector<v8::Local<v8::Value>>& arguments,
+                        const v8::LocalVector<v8::Value>& arguments,
                         const APITypeReferenceMap& type_refs,
                         std::string* error) const;
 
@@ -152,7 +150,7 @@ class APISignature {
   // validating that APIs return proper values to an event (which has a
   // signature, but no return).
   bool ValidateCall(v8::Local<v8::Context> context,
-                    const std::vector<v8::Local<v8::Value>>& arguments,
+                    const v8::LocalVector<v8::Value>& arguments,
                     const APITypeReferenceMap& type_refs,
                     std::string* error) const;
 
@@ -168,7 +166,7 @@ class APISignature {
 
  private:
   // Checks if promises are allowed to be used for a call to an API from a given
-  // |context|.
+  // `context`.
   PromisesAllowed CheckPromisesAllowed(v8::Local<v8::Context> context) const;
 
   // The list of expected arguments for the API signature.
@@ -179,7 +177,7 @@ class APISignature {
   std::unique_ptr<APISignature::ReturnsAsync> returns_async_;
 
   // The associated access checker; required to outlive this object.
-  const BindingAccessChecker* access_checker_;
+  raw_ptr<const BindingAccessChecker, DanglingUntriaged> access_checker_;
 
   // A developer-readable method signature string, lazily set.
   mutable std::string expected_signature_;

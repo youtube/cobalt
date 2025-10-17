@@ -10,9 +10,13 @@ source_set("wake_lock") {
     "wake_lock.h",
     "wake_lock_context.cc",
     "wake_lock_context.h",
+    "wake_lock_features.cc",
+    "wake_lock_features.h",
     "wake_lock_provider.cc",
     "wake_lock_provider.h",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   public_deps = [
     "//base",

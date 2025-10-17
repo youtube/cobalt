@@ -4,8 +4,9 @@
 
 #include "components/ui_devtools/views/view_element.h"
 
+#include <algorithm>
+
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -27,20 +28,20 @@ namespace {
 
 ui::EventType GetMouseEventType(const std::string& type) {
   if (type == protocol::DOM::MouseEvent::TypeEnum::MousePressed)
-    return ui::ET_MOUSE_PRESSED;
+    return ui::EventType::kMousePressed;
   if (type == protocol::DOM::MouseEvent::TypeEnum::MouseDragged)
-    return ui::ET_MOUSE_DRAGGED;
+    return ui::EventType::kMouseDragged;
   if (type == protocol::DOM::MouseEvent::TypeEnum::MouseReleased)
-    return ui::ET_MOUSE_RELEASED;
+    return ui::EventType::kMouseReleased;
   if (type == protocol::DOM::MouseEvent::TypeEnum::MouseMoved)
-    return ui::ET_MOUSE_MOVED;
+    return ui::EventType::kMouseMoved;
   if (type == protocol::DOM::MouseEvent::TypeEnum::MouseEntered)
-    return ui::ET_MOUSE_ENTERED;
+    return ui::EventType::kMouseEntered;
   if (type == protocol::DOM::MouseEvent::TypeEnum::MouseExited)
-    return ui::ET_MOUSE_EXITED;
+    return ui::EventType::kMouseExited;
   if (type == protocol::DOM::MouseEvent::TypeEnum::MouseWheel)
-    return ui::ET_MOUSEWHEEL;
-  return ui::ET_UNKNOWN;
+    return ui::EventType::kMousewheel;
+  return ui::EventType::kUnknown;
 }
 
 int GetButtonFlags(const std::string& button) {
@@ -84,14 +85,14 @@ ViewElement::ViewElement(views::View* view,
                          UIElement* parent)
     : UIElementWithMetaData(UIElementType::VIEW, ui_element_delegate, parent),
       view_(view) {
-  observer_.Observe(view_);
+  observer_.Observe(view_.get());
 }
 
 ViewElement::~ViewElement() = default;
 
 void ViewElement::OnChildViewRemoved(views::View* parent, views::View* view) {
   DCHECK_EQ(parent, view_);
-  auto iter = base::ranges::find(children(), view, [](UIElement* child) {
+  auto iter = std::ranges::find(children(), view, [](UIElement* child) {
     return UIElement::GetBackingElement<views::View, ViewElement>(child);
   });
   if (iter == children().end()) {
@@ -116,7 +117,7 @@ void ViewElement::OnChildViewAdded(views::View* parent, views::View* view) {
 
 void ViewElement::OnChildViewReordered(views::View* parent, views::View* view) {
   DCHECK_EQ(parent, view_);
-  auto iter = base::ranges::find(children(), view, [](UIElement* child) {
+  auto iter = std::ranges::find(children(), view, [](UIElement* child) {
     return UIElement::GetBackingElement<views::View, ViewElement>(child);
   });
   if (iter == children().end() ||
@@ -143,7 +144,8 @@ void ViewElement::SetBounds(const gfx::Rect& bounds) {
 
 std::vector<std::string> ViewElement::GetAttributes() const {
   // TODO(lgrey): Change name to class after updating tests.
-  return {"name", view_->GetClassName()};
+  return {"class", std::string(view_->GetClassName()), "name",
+          view_->GetObjectName()};
 }
 
 std::pair<gfx::NativeWindow, gfx::Rect>
@@ -165,7 +167,7 @@ int UIElement::FindUIElementIdForBackendElement<views::View>(
       UIElement::GetBackingElement<views::View, ViewElement>(this) == element) {
     return node_id_;
   }
-  for (auto* child : children_) {
+  for (ui_devtools::UIElement* child : children_) {
     int ui_element_id = child->FindUIElementIdForBackendElement(element);
     if (ui_element_id)
       return ui_element_id;
@@ -187,10 +189,11 @@ bool ViewElement::FindMatchByElementID(
 bool ViewElement::DispatchMouseEvent(protocol::DOM::MouseEvent* event) {
   ui::EventType event_type = GetMouseEventType(event->getType());
   int button_flags = GetButtonFlags(event->getButton());
-  if (event_type == ui::ET_UNKNOWN)
+  if (event_type == ui::EventType::kUnknown) {
     return false;
+  }
   gfx::Point location(event->getX(), event->getY());
-  if (event_type == ui::ET_MOUSEWHEEL) {
+  if (event_type == ui::EventType::kMousewheel) {
     int x_offset = GetMouseWheelXOffset(event->getWheelDirection());
     int y_offset = GetMouseWheelYOffset(event->getWheelDirection());
     ui::MouseWheelEvent mouse_wheel_event(
@@ -239,7 +242,7 @@ ui::Layer* ViewElement::GetLayer() const {
 
 void ViewElement::RebuildTree() {
   ClearChildren();
-  for (auto* child : view_->children()) {
+  for (views::View* child : view_->children()) {
     AddChild(new ViewElement(child, delegate(), this));
   }
 }

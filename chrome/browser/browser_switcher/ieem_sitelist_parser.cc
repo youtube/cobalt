@@ -4,10 +4,8 @@
 
 #include "chrome/browser/browser_switcher/ieem_sitelist_parser.h"
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
-#include "chrome/browser/browser_switcher/browser_switcher_features.h"
 #include "content/public/browser/browser_thread.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/data_decoder/public/cpp/safe_xml_parser.h"
@@ -75,9 +73,7 @@ Entry ParseDomainOrPath(const base::Value& node, ParsedXml* result) {
 void ParseIeFileVersionOne(const base::Value& xml,
                            ParsingMode parsing_mode,
                            ParsedXml* result) {
-  const bool none_is_greylist =
-      parsing_mode == ParsingMode::kIESiteListMode &&
-      base::FeatureList::IsEnabled(kBrowserSwitcherNoneIsGreylist);
+  const bool none_is_greylist = parsing_mode == ParsingMode::kIESiteListMode;
 
   DCHECK(data_decoder::IsXmlElementNamed(xml, kSchema1RulesElement));
   for (const base::Value& node : *data_decoder::GetXmlElementChildren(xml)) {
@@ -100,7 +96,7 @@ void ParseIeFileVersionOne(const base::Value& xml,
             result->rules.sitelist.push_back(domain.text);
           }
         } else {
-          // TODO(crbug.com/1282233): Remove this else branch, and the
+          // TODO(crbug.com/40812726): Remove this else branch, and the
           // kBrowserSwitcherNoneIsGreylist flag, once we're confident this
           // doesn't break customers. This was added in M99.
           std::string prefix = (domain.do_not_transition ? "!" : "");
@@ -121,7 +117,7 @@ void ParseIeFileVersionOne(const base::Value& xml,
               result->rules.sitelist.push_back(domain.text + path.text);
             }
           } else {
-            // TODO(crbug.com/1282233): Remove this else branch, and the
+            // TODO(crbug.com/40812726): Remove this else branch, and the
             // kBrowserSwitcherNoneIsGreylist flag, once we're confident this
             // doesn't break customers. This was added in M99.
             std::string prefix = (path.do_not_transition ? "!" : "");
@@ -138,9 +134,7 @@ void ParseIeFileVersionOne(const base::Value& xml,
 void ParseIeFileVersionTwo(const base::Value& xml,
                            ParsingMode parsing_mode,
                            ParsedXml* result) {
-  const bool none_is_greylist =
-      parsing_mode == ParsingMode::kIESiteListMode &&
-      base::FeatureList::IsEnabled(kBrowserSwitcherNoneIsGreylist);
+  const bool none_is_greylist = parsing_mode == ParsingMode::kIESiteListMode;
 
   DCHECK(data_decoder::IsXmlElementNamed(xml, kSchema2SiteListElement));
   // Iterate over <site> elements. Notably, skip <created-by> elements.
@@ -173,7 +167,7 @@ void ParseIeFileVersionTwo(const base::Value& xml,
         result->rules.greylist.push_back(url);
       }
     } else {
-      // TODO(crbug.com/1282233): Remove this else branch, and the
+      // TODO(crbug.com/40812726): Remove this else branch, and the
       // kBrowserSwitcherNoneIsGreylist flag, once we're confident this
       // doesn't break customers. This was added in M99.
       std::string prefix = (open_in.empty() ||
@@ -212,11 +206,11 @@ void RawXmlParsed(ParsingMode parsing_mode,
 
 ParsedXml::ParsedXml() = default;
 ParsedXml::ParsedXml(ParsedXml&&) = default;
-ParsedXml::ParsedXml(RawRuleSet&& rules_, absl::optional<std::string>&& error_)
+ParsedXml::ParsedXml(RawRuleSet&& rules_, std::optional<std::string>&& error_)
     : rules(std::move(rules_)), error(std::move(error_)) {}
 ParsedXml::ParsedXml(std::vector<std::string>&& sitelist,
                      std::vector<std::string>&& greylist,
-                     absl::optional<std::string>&& error)
+                     std::optional<std::string>&& error)
     : ParsedXml(RawRuleSet(std::move(sitelist), std::move(greylist)),
                 std::move(error)) {}
 ParsedXml::~ParsedXml() = default;

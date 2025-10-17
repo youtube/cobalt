@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_DEVICE_REAUTH_MAC_AUTHENTICATOR_MAC_H_
 #define CHROME_BROWSER_DEVICE_REAUTH_MAC_AUTHENTICATOR_MAC_H_
 
-#include "chrome/browser/device_reauth/chrome_device_authenticator_common.h"
+#import <string>
 
 // This interface is need to simplify testing as mac authentication happens
 // through free function which is hard to mock.
@@ -13,6 +13,7 @@ class AuthenticatorMacInterface {
  public:
   virtual ~AuthenticatorMacInterface() = default;
   virtual bool CheckIfBiometricsAvailable() = 0;
+  virtual bool CheckIfBiometricsOrScreenLockAvailable() = 0;
   virtual bool AuthenticateUserWithNonBiometrics(
       const std::u16string& message) = 0;
 };
@@ -23,6 +24,7 @@ class AuthenticatorMac : public AuthenticatorMacInterface {
   AuthenticatorMac();
   ~AuthenticatorMac() override;
   bool CheckIfBiometricsAvailable() override;
+  bool CheckIfBiometricsOrScreenLockAvailable() override;
   bool AuthenticateUserWithNonBiometrics(
       const std::u16string& message) override;
 };

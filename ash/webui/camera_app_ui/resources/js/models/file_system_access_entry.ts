@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import {assert} from '../assert.js';
-import {AsyncJobQueue} from '../async_job_queue.js';
+import {AsyncJobWithResultQueue} from '../async_job_queue.js';
+import {isFileSystemDirectoryHandle, isFileSystemFileHandle} from '../util.js';
 
 import {AsyncWriter} from './async_writer.js';
 
@@ -25,7 +26,7 @@ export class FileAccessEntry {
   /**
    * Writes |blob| data into the file.
    *
-   * @return The returned promise is resolved once the write operation is
+   * @return The promise is resolved once the write operation is
    *     completed.
    */
   async write(blob: Blob): Promise<void> {
@@ -34,9 +35,6 @@ export class FileAccessEntry {
     await writer.close();
   }
 
-  /**
-   * Gets a writer to write data into the file.
-   */
   async getWriter(): Promise<AsyncWriter> {
     const writer = await this.handle.createWritable();
     // TODO(crbug.com/980846): We should write files in-place so that even the
@@ -60,8 +58,6 @@ export class FileAccessEntry {
   }
 
   /**
-   * Deletes the file.
-   *
    * @throws Thrown when trying to delete file with no parent directory.
    */
   async remove(): Promise<void> {
@@ -72,7 +68,7 @@ export class FileAccessEntry {
   }
 
   /**
-   * Moves the file to given directory and given name.
+   * Moves the file to given directory |dir| and given |name|.
    */
   async moveTo(dir: DirectoryAccessEntry, name: string): Promise<void> {
     const dirHandle = await dir.getHandle();
@@ -87,42 +83,24 @@ export class FileAccessEntry {
 /**
  * Guards from name collision when creating files.
  */
-const createFileJobs = new AsyncJobQueue();
+const createFileJobs = new AsyncJobWithResultQueue();
 
 /**
  * The abstract interface for the directory entry.
  */
 export interface DirectoryAccessEntry {
-  /**
-   * Gets the name of the directory.
-   */
   readonly name: string;
 
-  /**
-   * Gets the handle of the directory.
-   */
   getHandle(): Promise<FileSystemDirectoryHandle>;
 
-  /**
-   * Gets files in this directory.
-   */
   getFiles(): Promise<FileAccessEntry[]>;
 
-  /**
-   * Gets directories in this directory.
-   */
   getDirectories(): Promise<DirectoryAccessEntry[]>;
 
-  /**
-   * Gets the file given by its |name|.
-   *
-   * @param name The name of the file.
-   * @return The entry of the found file.
-   */
   getFile(name: string): Promise<FileAccessEntry|null>;
 
   /**
-   * Checks if file or directory with the target name exists.
+   * Checks if file or directory with the target |name| exists.
    */
   exists(name: string): Promise<boolean>;
 
@@ -130,19 +108,14 @@ export interface DirectoryAccessEntry {
    * Create the file given by its |name|. If there is already a file with same
    * name, it will try to use a name with index as suffix.
    * (e.g. IMG.png => IMG (1).png).
-   *
-   * @param name The name of the file.
-   * @return The entry of the created file.
    */
   createFile(name: string): Promise<FileAccessEntry>;
 
   /**
    * Gets the directory given by its |name|. If the directory is not found,
-   * create one if |createIfNotExist| is true.
+   * creates one if |createIfNotExist| is true.
    * TODO(crbug.com/1127587): Split this method to getDirectory() and
    * createDirectory().
-   *
-   * @return The entry of the found/created directory.
    */
   getDirectory({name, createIfNotExist}:
                    {name: string, createIfNotExist: boolean}):
@@ -150,8 +123,6 @@ export interface DirectoryAccessEntry {
 
   /**
    * Removes file by given |name| from the directory.
-   *
-   * @param name The name of the file.
    */
   removeEntry(name: string): Promise<void>;
 }
@@ -166,15 +137,15 @@ export class DirectoryAccessEntryImpl implements DirectoryAccessEntry {
     return this.handle.name;
   }
 
-  async getHandle(): Promise<FileSystemDirectoryHandle> {
-    return this.handle;
+  getHandle(): Promise<FileSystemDirectoryHandle> {
+    return Promise.resolve(this.handle);
   }
 
   async getFiles(): Promise<FileAccessEntry[]> {
     const results = [];
     for await (const handle of this.handle.values()) {
-      if (handle.kind === 'file') {
-        results.push(new FileAccessEntry(handle as FileSystemFileHandle, this));
+      if (isFileSystemFileHandle(handle)) {
+        results.push(new FileAccessEntry(handle, this));
       }
     }
     return results;
@@ -183,9 +154,8 @@ export class DirectoryAccessEntryImpl implements DirectoryAccessEntry {
   async getDirectories(): Promise<DirectoryAccessEntry[]> {
     const results = [];
     for await (const handle of this.handle.values()) {
-      if (handle.kind === 'directory') {
-        results.push(
-            new DirectoryAccessEntryImpl(handle as FileSystemDirectoryHandle));
+      if (isFileSystemDirectoryHandle(handle)) {
+        results.push(new DirectoryAccessEntryImpl(handle));
       }
     }
     return results;
@@ -202,11 +172,12 @@ export class DirectoryAccessEntryImpl implements DirectoryAccessEntry {
       return true;
     } catch (e) {
       assert(e instanceof Error);
+      // File doesn't exist.
       if (e.name === 'NotFoundError') {
         return false;
       }
-      if (e.name === 'TypeMismatchError' || e instanceof TypeError) {
-        // Directory with same name exists.
+      // Directory with same name exists.
+      if (e.name === 'TypeMismatchError') {
         return true;
       }
       throw e;

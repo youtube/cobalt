@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "media/filters/video_renderer_algorithm.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <cmath>
 #include <tuple>
 
@@ -143,7 +145,7 @@ class VideoRendererAlgorithmTest : public testing::Test {
     algorithm_.EnqueueFrame(CreateFrame(frame_tg.interval(1)));
     EXPECT_TRUE(RenderAndStep(&display_tg, &frames_dropped));
 
-    // Store cadence before reseting the algorithm.
+    // Store cadence before resetting the algorithm.
     const std::string cadence =
         algorithm_.cadence_estimator_.GetCadenceForTesting();
     time_source_.StopTicking();
@@ -1415,9 +1417,11 @@ TEST_F(VideoRendererAlgorithmTest, VariablePlaybackRateCadence) {
   TickGenerator frame_tg(base::TimeTicks(), NTSC(30));
   TickGenerator display_tg(tick_clock_->NowTicks(), 60);
 
-  const double kPlaybackRates[] = {1.0, 2, 0.215, 0.5, 1.0, 3.15};
-  const bool kTestRateHasCadence[std::size(kPlaybackRates)] = {
-      true, true, true, true, true, false};
+  const auto kPlaybackRates =
+      std::to_array<double>({1.0, 2, 0.215, 0.5, 1.0, 3.15});
+  const std::array<bool, std::size(kPlaybackRates)> kTestRateHasCadence = {
+      true, true, true, true, true, false,
+  };
 
   for (size_t i = 0; i < std::size(kPlaybackRates); ++i) {
     const double playback_rate = kPlaybackRates[i];
@@ -1442,12 +1446,13 @@ TEST_F(VideoRendererAlgorithmTest, UglyTimestampsHaveCadence) {
   time_source_.StartTicking();
 
   // 59.94fps, timestamp deltas from https://youtu.be/byoLvAo9qjs
-  const int kBadTimestampsMs[] = {
+  const auto kBadTimestampsMs = std::to_array<int>({
       17, 16, 17, 17, 16, 17, 17, 16, 17, 17, 17, 16, 17, 17, 16, 17, 17, 16,
       17, 17, 16, 17, 17, 16, 17, 17, 16, 17, 17, 17, 16, 17, 17, 16, 17, 17,
-      16, 17, 17, 16, 17, 17, 16, 17, 17, 16, 17, 17, 16, 17, 17, 17};
+      16, 17, 17, 16, 17, 17, 16, 17, 17, 16, 17, 17, 16, 17, 17, 17,
+  });
 
-  // Run throught ~1.6 seconds worth of frames.
+  // Run through ~1.6 seconds worth of frames.
   bool cadence_detected = false;
   base::TimeDelta timestamp;
   for (size_t i = 0; i < std::size(kBadTimestampsMs) * 2; ++i) {
@@ -1477,9 +1482,26 @@ TEST_F(VideoRendererAlgorithmTest, VariableFrameRateNoCadence) {
   TickGenerator display_tg(tick_clock_->NowTicks(), 60);
   time_source_.StartTicking();
 
-  const int kBadTimestampsMs[] = {200,  200,  200,  200,  200,  1000,
-                                  1000, 1000, 1000, 200,  200,  200,
-                                  200,  200,  1000, 1000, 1000, 1000};
+  const auto kBadTimestampsMs = std::to_array<int>({
+      200,
+      200,
+      200,
+      200,
+      200,
+      1000,
+      1000,
+      1000,
+      1000,
+      200,
+      200,
+      200,
+      200,
+      200,
+      1000,
+      1000,
+      1000,
+      1000,
+  });
 
   // Run throught ~10 seconds worth of frames.
   bool cadence_detected = false;

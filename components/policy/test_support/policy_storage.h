@@ -129,6 +129,35 @@ class PolicyStorage {
     policy_invalidation_topic_ = policy_invalidation_topic;
   }
 
+  const std::optional<enterprise_management::PolicyData::MarketSegment>
+  market_segment() const {
+    return market_segment_;
+  }
+  void set_market_segment(
+      enterprise_management::PolicyData::MarketSegment segment) {
+    market_segment_ = segment;
+  }
+
+  const std::optional<enterprise_management::PolicyData::MetricsLogSegment>
+  metrics_log_segment() const {
+    return metrics_log_segment_;
+  }
+  void set_metrics_log_segment(
+      enterprise_management::PolicyData::MetricsLogSegment segment) {
+    metrics_log_segment_ = segment;
+  }
+
+  const std::optional<
+      enterprise_management::PolicyData::K12AgeClassificationMetricsLogSegment>
+  k12_age_classification_metrics_log_segment() const {
+    return k12_age_classification_metrics_log_segment_;
+  }
+  void set_k12_age_classification_metrics_log_segment(
+      enterprise_management::PolicyData::K12AgeClassificationMetricsLogSegment
+          segment) {
+    k12_age_classification_metrics_log_segment_ = segment;
+  }
+
   base::Time timestamp() const { return timestamp_; }
   void set_timestamp(const base::Time& timestamp) { timestamp_ = timestamp; }
 
@@ -171,9 +200,10 @@ class PolicyStorage {
   const InitialEnrollmentState* GetInitialEnrollmentState(
       const std::string& brand_serial_id) const;
 
-  // Returns hashes for brand serial IDs whose initial enrollment state is
-  // registered on the server. Only hashes, which, when divied by |modulus|,
-  // result in the specified |remainder|, are returned.
+  // Returns truncated hashes (the first 8 bytes only) for brand serial IDs
+  // whose initial enrollment state is registered on the server. Only hashes,
+  // which, when divied by |modulus|, result in the specified |remainder|, are
+  // returned.
   std::vector<std::string> GetMatchingSerialHashes(uint64_t modulus,
                                                    uint64_t remainder) const;
 
@@ -184,6 +214,11 @@ class PolicyStorage {
 
   enterprise_management::DeviceManagementErrorDetail error_detail() const {
     return error_detail_;
+  }
+
+  bool enrollment_required() const { return enrollment_required_; }
+  void set_enrollment_required(bool enrollment_required) {
+    enrollment_required_ = enrollment_required;
   }
 
  private:
@@ -212,6 +247,14 @@ class PolicyStorage {
 
   std::string policy_invalidation_topic_;
 
+  std::optional<enterprise_management::PolicyData::MarketSegment>
+      market_segment_;
+  std::optional<enterprise_management::PolicyData::MetricsLogSegment>
+      metrics_log_segment_;
+  std::optional<
+      enterprise_management::PolicyData::K12AgeClassificationMetricsLogSegment>
+      k12_age_classification_metrics_log_segment_;
+
   base::Time timestamp_;
 
   bool allow_set_device_attributes_ = true;
@@ -221,6 +264,8 @@ class PolicyStorage {
   bool has_kiosk_license_ = true;
 
   bool has_enterprise_license_ = true;
+
+  bool enrollment_required_ = false;
 
   // Maps brand serial ID to PsmEntry.
   base::flat_map<std::string, PsmEntry> psm_entries_;

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/combobox_model.h"
 
 namespace payments {
@@ -31,8 +32,9 @@ void ValidatingCombobox::OnBlur() {
 
 void ValidatingCombobox::ViewHierarchyChanged(
     const views::ViewHierarchyChangedDetails& details) {
-  if (details.child == this && !details.is_add)
+  if (details.child == this && !details.is_add) {
     being_removed_ = true;
+  }
 }
 
 void ValidatingCombobox::OnContentsChanged() {
@@ -53,5 +55,8 @@ void ValidatingCombobox::Validate() {
   // ComboboxValueChanged may have side-effects, such as displaying errors.
   SetInvalid(!delegate_->ComboboxValueChanged(this));
 }
+
+BEGIN_METADATA(ValidatingCombobox)
+END_METADATA
 
 }  // namespace payments

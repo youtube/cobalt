@@ -4,15 +4,18 @@
 
 // Use the <code>chrome.printing</code> API to send print jobs to printers
 // installed on Chromebook.
-[platforms=("chromeos", "lacros"),
+[platforms=("chromeos"),
 implemented_in="chrome/browser/extensions/api/printing/printing_api.h"]
 namespace printing {
   dictionary SubmitJobRequest {
     // The print job to be submitted.
-    // The only supported content type is "application/pdf", and the CJT ticket
-    // shouldn't include FitToPageTicketItem, PageRangeTicketItem,
-    // ReverseOrderTicketItem and VendorTicketItem fields since they are
-    // irrelevant for native printing. All other fields must be present.
+    // Supported content types are "application/pdf" and "image/png". The
+    // <a href="https://developers.google.com/cloud-print/docs/cdd#cjt">Cloud Job Ticket</a>
+    // shouldn't include <code>FitToPageTicketItem</code>,
+    // <code>PageRangeTicketItem</code> and <code>ReverseOrderTicketItem</code>
+    // fields since they are irrelevant for native printing.
+    // <code>VendorTicketItem</code> is optional. All other fields must be
+    // present.
     printerProvider.PrintJob job;
 
     // Used internally to store the blob uuid after parameter customization and
@@ -110,6 +113,9 @@ namespace printing {
     // The printer is unreachable and doesn't accept print jobs.
     UNREACHABLE,
 
+    // The SSL certificate is expired. Printer accepts jobs but they fail.
+    EXPIRED_CERTIFICATE,
+
     // The printer is available.
     AVAILABLE
   };
@@ -148,32 +154,45 @@ namespace printing {
   callback CancelJobCallback = void();
   callback GetPrintersCallback = void(Printer[] printers);
   callback GetPrinterInfoCallback = void(GetPrinterInfoResponse response);
+  callback getJobStatusCallback = void(JobStatus status);
 
   interface Functions {
-    // Submits the job for print.
-    // If the extension is not listed in PrintingAPIExtensionsAllowlist policy,
-    // the user will be prompted to accept the print job.
-    [supportsPromises] static void submitJob(SubmitJobRequest request,
-                                             SubmitJobCallback callback);
+    // Submits the job for printing. If the extension is not listed in
+    // the <a href="https://chromeenterprise.google/policies/#PrintingAPIExtensionsAllowlist">
+    // <code>PrintingAPIExtensionsAllowlist</code></a> policy,
+    // the user is prompted to accept the print job.<br/>
+    // Before Chrome 120, this function did not return a promise.
+    static void submitJob(
+        SubmitJobRequest request,
+        SubmitJobCallback callback);
 
     // Cancels previously submitted job.
     // |jobId|: The id of the print job to cancel. This should be the same id
     // received in a $(ref:SubmitJobResponse).
-    [supportsPromises] static void cancelJob(DOMString jobId,
-                                             CancelJobCallback callback);
+    static void cancelJob(
+        DOMString jobId,
+        CancelJobCallback callback);
 
     // Returns the list of available printers on the device. This includes
     // manually added, enterprise and discovered printers.
-    [supportsPromises] static void getPrinters(GetPrintersCallback callback);
+    static void getPrinters(GetPrintersCallback callback);
 
     // Returns the status and capabilities of the printer in
     // <a href="https://developers.google.com/cloud-print/docs/cdd#cdd">
     // CDD format</a>.
     // This call will fail with a runtime error if no printers with given id are
     // installed.
-    [supportsPromises] static void getPrinterInfo(
+    static void getPrinterInfo(
         DOMString printerId,
         GetPrinterInfoCallback callback);
+
+    // Returns the status of the print job. This call will fail with a runtime
+    // error if the print job with the given `jobId` doesn't exist.
+    // `jobId`: The id of the print job to return the status of. This should be
+    // the same id received in a $(ref:SubmitJobResponse).
+    static void getJobStatus(
+        DOMString jobId,
+        getJobStatusCallback callback);
   };
 
   interface Properties {

@@ -5,13 +5,11 @@
 #ifndef CHROME_UPDATER_UTIL_LINUX_UTIL_H_
 #define CHROME_UPDATER_UTIL_LINUX_UTIL_H_
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
 namespace updater {
 
 // Filename of the non side-by-side launcher. The file is a hardlink to the
 // qualified version of the updater.
-extern const char kLauncherName[];
+inline constexpr char kLauncherName[] = "launcher";
 
 }  // namespace updater
 

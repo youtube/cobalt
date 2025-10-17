@@ -1,16 +1,16 @@
-// Copyright (c) 2020, Google Inc.
+// Copyright 2020 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package subprocess
 
@@ -68,7 +68,7 @@ type kasTestResponse struct {
 
 type kas struct{}
 
-func (k *kas) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (k *kas) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed kasVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -77,6 +77,7 @@ func (k *kas) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 	// See https://pages.nist.gov/ACVP/draft-fussell-acvp-kas-ecc.html#name-test-vectors
 	var ret []kasTestGroupResponse
 	for _, group := range parsed.Groups {
+		group := group
 		response := kasTestGroupResponse{
 			ID: group.ID,
 		}
@@ -119,6 +120,8 @@ func (k *kas) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 		method := "ECDH/" + group.Curve
 
 		for _, test := range group.Tests {
+			test := test
+
 			var xHex, yHex, privateKeyHex string
 			if useStaticNamedFields {
 				xHex, yHex, privateKeyHex = test.StaticXHex, test.StaticYHex, test.StaticPrivateKeyHex
@@ -155,40 +158,42 @@ func (k *kas) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 					return nil, err
 				}
 
-				result, err := m.Transact(method, 3, peerX, peerY, privateKey)
-				if err != nil {
-					return nil, err
-				}
-
-				ok := bytes.Equal(result[2], expectedOutput)
-				response.Tests = append(response.Tests, kasTestResponse{
-					ID:     test.ID,
-					Passed: &ok,
+				m.TransactAsync(method, 3, [][]byte{peerX, peerY, privateKey}, func(result [][]byte) error {
+					ok := bytes.Equal(result[2], expectedOutput)
+					response.Tests = append(response.Tests, kasTestResponse{
+						ID:     test.ID,
+						Passed: &ok,
+					})
+					return nil
 				})
 			} else {
-				result, err := m.Transact(method, 3, peerX, peerY, nil)
-				if err != nil {
-					return nil, err
-				}
+				m.TransactAsync(method, 3, [][]byte{peerX, peerY, nil}, func(result [][]byte) error {
+					testResponse := kasTestResponse{
+						ID:        test.ID,
+						ResultHex: hex.EncodeToString(result[2]),
+					}
 
-				testResponse := kasTestResponse{
-					ID:        test.ID,
-					ResultHex: hex.EncodeToString(result[2]),
-				}
+					if useStaticNamedFields {
+						testResponse.StaticXHex = hex.EncodeToString(result[0])
+						testResponse.StaticYHex = hex.EncodeToString(result[1])
+					} else {
+						testResponse.EphemeralXHex = hex.EncodeToString(result[0])
+						testResponse.EphemeralYHex = hex.EncodeToString(result[1])
+					}
 
-				if useStaticNamedFields {
-					testResponse.StaticXHex = hex.EncodeToString(result[0])
-					testResponse.StaticYHex = hex.EncodeToString(result[1])
-				} else {
-					testResponse.EphemeralXHex = hex.EncodeToString(result[0])
-					testResponse.EphemeralYHex = hex.EncodeToString(result[1])
-				}
-
-				response.Tests = append(response.Tests, testResponse)
+					response.Tests = append(response.Tests, testResponse)
+					return nil
+				})
 			}
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

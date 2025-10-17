@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/resource/data_pack.h"
 
 #include <stddef.h>
@@ -9,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/files/file.h"
@@ -16,7 +22,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
-#include "base/strings/string_piece.h"
+#include "base/test/gmock_expected_support.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/zlib/google/compression_utils.h"
@@ -45,23 +51,20 @@ TEST(DataPackTest, LoadFromPath) {
   DataPack pack(k100Percent);
   ASSERT_TRUE(pack.LoadFromPath(data_path));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(4));
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ("this is id 4", data);
+  ASSERT_EQ(pack.GetStringView(4),
+            std::make_optional(std::string_view{"this is id 4"}));
   ASSERT_TRUE(pack.HasResource(6));
-  ASSERT_TRUE(pack.GetStringPiece(6, &data));
-  EXPECT_EQ("this is id 6", data);
+  ASSERT_EQ(pack.GetStringView(6),
+            std::make_optional(std::string_view{"this is id 6"}));
 
   // Try reading zero-length data blobs, just in case.
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(0U, data.length());
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  EXPECT_EQ(0U, data.length());
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{}));
+  ASSERT_EQ(pack.GetStringView(10), std::make_optional(std::string_view{}));
 
   // Try looking up an invalid key.
   ASSERT_FALSE(pack.HasResource(140));
-  ASSERT_FALSE(pack.GetStringPiece(140, &data));
+  ASSERT_FALSE(pack.GetStringView(140).has_value());
 }
 
 TEST(DataPackTest, LoadFromPathCompressed) {
@@ -80,23 +83,20 @@ TEST(DataPackTest, LoadFromPathCompressed) {
   DataPack pack(k100Percent);
   ASSERT_TRUE(pack.LoadFromPath(data_path));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(4));
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ("this is id 4", data);
+  ASSERT_EQ(pack.GetStringView(4),
+            std::make_optional(std::string_view{"this is id 4"}));
   ASSERT_TRUE(pack.HasResource(6));
-  ASSERT_TRUE(pack.GetStringPiece(6, &data));
-  EXPECT_EQ("this is id 6", data);
+  ASSERT_EQ(pack.GetStringView(6),
+            std::make_optional(std::string_view{"this is id 6"}));
 
   // Try reading zero-length data blobs, just in case.
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(0U, data.length());
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  EXPECT_EQ(0U, data.length());
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{}));
+  ASSERT_EQ(pack.GetStringView(10), std::make_optional(std::string_view{}));
 
   // Try looking up an invalid key.
   ASSERT_FALSE(pack.HasResource(140));
-  ASSERT_FALSE(pack.GetStringPiece(140, &data));
+  ASSERT_FALSE(pack.GetStringView(140).has_value());
 }
 
 TEST(DataPackTest, LoadFromFile) {
@@ -116,23 +116,20 @@ TEST(DataPackTest, LoadFromFile) {
   DataPack pack(k100Percent);
   ASSERT_TRUE(pack.LoadFromFile(std::move(file)));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(4));
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ("this is id 4", data);
+  ASSERT_EQ(pack.GetStringView(4),
+            std::make_optional(std::string_view{"this is id 4"}));
   ASSERT_TRUE(pack.HasResource(6));
-  ASSERT_TRUE(pack.GetStringPiece(6, &data));
-  EXPECT_EQ("this is id 6", data);
+  ASSERT_EQ(pack.GetStringView(6),
+            std::make_optional(std::string_view{"this is id 6"}));
 
   // Try reading zero-length data blobs, just in case.
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(0U, data.length());
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  EXPECT_EQ(0U, data.length());
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{}));
+  ASSERT_EQ(pack.GetStringView(10), std::make_optional(std::string_view{}));
 
   // Try looking up an invalid key.
   ASSERT_FALSE(pack.HasResource(140));
-  ASSERT_FALSE(pack.GetStringPiece(140, &data));
+  ASSERT_FALSE(pack.GetStringView(140).has_value());
 }
 
 TEST(DataPackTest, LoadFromFileRegion) {
@@ -143,7 +140,7 @@ TEST(DataPackTest, LoadFromFileRegion) {
 
   // Construct a file which has a non page-aligned zero-filled header followed
   // by the actual pak file content.
-  const uint8_t kPadding[5678] = {0};
+  const uint8_t kPadding[5678] = {};
   ASSERT_TRUE(base::WriteFile(data_path, kPadding));
   ASSERT_TRUE(
       base::AppendToFile(data_path, {kSamplePakContentsV4, kSamplePakSizeV4}));
@@ -156,23 +153,20 @@ TEST(DataPackTest, LoadFromFileRegion) {
   base::MemoryMappedFile::Region region = {sizeof(kPadding), kSamplePakSizeV4};
   ASSERT_TRUE(pack.LoadFromFileRegion(std::move(file), region));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(4));
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ("this is id 4", data);
+  ASSERT_EQ(pack.GetStringView(4),
+            std::make_optional(std::string_view{"this is id 4"}));
   ASSERT_TRUE(pack.HasResource(6));
-  ASSERT_TRUE(pack.GetStringPiece(6, &data));
-  EXPECT_EQ("this is id 6", data);
+  ASSERT_EQ(pack.GetStringView(6),
+            std::make_optional(std::string_view{"this is id 6"}));
 
   // Try reading zero-length data blobs, just in case.
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(0U, data.length());
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  EXPECT_EQ(0U, data.length());
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{}));
+  ASSERT_EQ(pack.GetStringView(10), std::make_optional(std::string_view{}));
 
   // Try looking up an invalid key.
   ASSERT_FALSE(pack.HasResource(140));
-  ASSERT_FALSE(pack.GetStringPiece(140, &data));
+  ASSERT_FALSE(pack.GetStringView(140).has_value());
 }
 
 TEST(DataPackTest, LoadFromBufferV4) {
@@ -180,23 +174,20 @@ TEST(DataPackTest, LoadFromBufferV4) {
 
   ASSERT_TRUE(pack.LoadFromBuffer({kSamplePakContentsV4, kSamplePakSizeV4}));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(4));
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ("this is id 4", data);
+  ASSERT_EQ(pack.GetStringView(4),
+            std::make_optional(std::string_view{"this is id 4"}));
   ASSERT_TRUE(pack.HasResource(6));
-  ASSERT_TRUE(pack.GetStringPiece(6, &data));
-  EXPECT_EQ("this is id 6", data);
+  ASSERT_EQ(pack.GetStringView(6),
+            std::make_optional(std::string_view{"this is id 6"}));
 
   // Try reading zero-length data blobs, just in case.
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(0U, data.length());
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  EXPECT_EQ(0U, data.length());
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{}));
+  ASSERT_EQ(pack.GetStringView(10), std::make_optional(std::string_view{}));
 
   // Try looking up an invalid key.
   ASSERT_FALSE(pack.HasResource(140));
-  ASSERT_FALSE(pack.GetStringPiece(140, &data));
+  ASSERT_FALSE(pack.GetStringView(140).has_value());
 }
 
 TEST(DataPackTest, LoadFromBufferV5) {
@@ -205,20 +196,19 @@ TEST(DataPackTest, LoadFromBufferV5) {
   ASSERT_TRUE(pack.LoadFromBuffer(
       {kSampleCompressPakContentsV5, kSampleCompressPakSizeV5}));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(4));
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ("this is id 4", data);
+  ASSERT_EQ(pack.GetStringView(4),
+            std::make_optional(std::string_view{"this is id 4"}));
   ASSERT_TRUE(pack.HasResource(6));
-  ASSERT_TRUE(pack.GetStringPiece(6, &data));
+  ASSERT_TRUE(pack.GetStringView(6).has_value());
   ASSERT_TRUE(pack.HasResource(8));
-  ASSERT_TRUE(pack.GetStringPiece(8, &data));
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  ASSERT_EQ("this is id 4", data);
+  ASSERT_TRUE(pack.GetStringView(8).has_value());
+  ASSERT_EQ(pack.GetStringView(10),
+            std::make_optional(std::string_view{"this is id 4"}));
 
   // Try looking up an invalid key.
   ASSERT_FALSE(pack.HasResource(140));
-  ASSERT_FALSE(pack.GetStringPiece(140, &data));
+  ASSERT_FALSE(pack.GetStringView(140).has_value());
 }
 
 INSTANTIATE_TEST_SUITE_P(WriteBINARY,
@@ -238,6 +228,9 @@ TEST(DataPackTest, LoadFileWithTruncatedHeader) {
 
   DataPack pack(k100Percent);
   ASSERT_FALSE(pack.LoadFromPath(data_path));
+  ASSERT_THAT(pack.LoadFromPathWithError(data_path),
+              base::test::ErrorIs(DataPack::ErrorState{
+                  DataPack::FailureReason::kIncompleteHeader}));
 }
 
 TEST_P(DataPackTest, Write) {
@@ -251,12 +244,12 @@ TEST_P(DataPackTest, Write) {
   std::string four("four");
   std::string fifteen("fifteen");
 
-  std::map<uint16_t, base::StringPiece> resources;
-  resources.emplace(1, base::StringPiece(one));
-  resources.emplace(2, base::StringPiece(two));
-  resources.emplace(15, base::StringPiece(fifteen));
-  resources.emplace(3, base::StringPiece(three));
-  resources.emplace(4, base::StringPiece(four));
+  std::map<uint16_t, std::string_view> resources;
+  resources.emplace(1, std::string_view(one));
+  resources.emplace(2, std::string_view(two));
+  resources.emplace(15, std::string_view(fifteen));
+  resources.emplace(3, std::string_view(three));
+  resources.emplace(4, std::string_view(four));
   ASSERT_TRUE(DataPack::WritePack(file, resources, GetParam()));
 
   // Now try to read the data back in.
@@ -264,17 +257,12 @@ TEST_P(DataPackTest, Write) {
   ASSERT_TRUE(pack.LoadFromPath(file));
   EXPECT_EQ(pack.GetTextEncodingType(), GetParam());
 
-  base::StringPiece data;
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(one, data);
-  ASSERT_TRUE(pack.GetStringPiece(2, &data));
-  EXPECT_EQ(two, data);
-  ASSERT_TRUE(pack.GetStringPiece(3, &data));
-  EXPECT_EQ(three, data);
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ(four, data);
-  ASSERT_TRUE(pack.GetStringPiece(15, &data));
-  EXPECT_EQ(fifteen, data);
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{one}));
+  ASSERT_EQ(pack.GetStringView(2), std::make_optional(std::string_view{two}));
+  ASSERT_EQ(pack.GetStringView(3), std::make_optional(std::string_view{three}));
+  ASSERT_EQ(pack.GetStringView(4), std::make_optional(std::string_view{four}));
+  ASSERT_EQ(pack.GetStringView(15),
+            std::make_optional(std::string_view{fifteen}));
 
   EXPECT_EQ(5U, pack.GetResourceTableSizeForTesting());
   EXPECT_EQ(0U, pack.GetAliasTableSize());
@@ -291,14 +279,14 @@ TEST_P(DataPackTest, WriteWithAliases) {
   std::string four("four");
   std::string fifteen("fifteen");
 
-  std::map<uint16_t, base::StringPiece> resources;
-  resources.emplace(1, base::StringPiece(one));
-  resources.emplace(2, base::StringPiece(two));
-  resources.emplace(15, base::StringPiece(fifteen));
-  resources.emplace(3, base::StringPiece(three));
-  resources.emplace(4, base::StringPiece(four));
-  resources.emplace(10, base::StringPiece(one));
-  resources.emplace(11, base::StringPiece(three));
+  std::map<uint16_t, std::string_view> resources;
+  resources.emplace(1, std::string_view(one));
+  resources.emplace(2, std::string_view(two));
+  resources.emplace(15, std::string_view(fifteen));
+  resources.emplace(3, std::string_view(three));
+  resources.emplace(4, std::string_view(four));
+  resources.emplace(10, std::string_view(one));
+  resources.emplace(11, std::string_view(three));
   ASSERT_TRUE(DataPack::WritePack(file, resources, GetParam()));
 
   // Now try to read the data back in.
@@ -306,30 +294,18 @@ TEST_P(DataPackTest, WriteWithAliases) {
   ASSERT_TRUE(pack.LoadFromPath(file));
   EXPECT_EQ(pack.GetTextEncodingType(), GetParam());
 
-  base::StringPiece data;
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  EXPECT_EQ(one, data);
-  ASSERT_TRUE(pack.GetStringPiece(2, &data));
-  EXPECT_EQ(two, data);
-  ASSERT_TRUE(pack.GetStringPiece(3, &data));
-  EXPECT_EQ(three, data);
-  ASSERT_TRUE(pack.GetStringPiece(4, &data));
-  EXPECT_EQ(four, data);
-  ASSERT_TRUE(pack.GetStringPiece(15, &data));
-  EXPECT_EQ(fifteen, data);
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
-  EXPECT_EQ(one, data);
-  ASSERT_TRUE(pack.GetStringPiece(11, &data));
-  EXPECT_EQ(three, data);
+  ASSERT_EQ(pack.GetStringView(1), std::make_optional(std::string_view{one}));
+  ASSERT_EQ(pack.GetStringView(2), std::make_optional(std::string_view{two}));
+  ASSERT_EQ(pack.GetStringView(3), std::make_optional(std::string_view{three}));
+  ASSERT_EQ(pack.GetStringView(4), std::make_optional(std::string_view{four}));
+  ASSERT_EQ(pack.GetStringView(15),
+            std::make_optional(std::string_view{fifteen}));
+  ASSERT_EQ(pack.GetStringView(10), std::make_optional(std::string_view{one}));
+  ASSERT_EQ(pack.GetStringView(11),
+            std::make_optional(std::string_view{three}));
 
-  base::StringPiece data2;
-  ASSERT_TRUE(pack.GetStringPiece(1, &data));
-  ASSERT_TRUE(pack.GetStringPiece(10, &data2));
-  EXPECT_EQ(data.data(), data2.data());
-
-  ASSERT_TRUE(pack.GetStringPiece(3, &data));
-  ASSERT_TRUE(pack.GetStringPiece(11, &data2));
-  EXPECT_EQ(data.data(), data2.data());
+  ASSERT_EQ(pack.GetStringView(1)->data(), pack.GetStringView(10)->data());
+  ASSERT_EQ(pack.GetStringView(3)->data(), pack.GetStringView(11)->data());
 
   EXPECT_EQ(5U, pack.GetResourceTableSizeForTesting());
   EXPECT_EQ(2U, pack.GetAliasTableSize());
@@ -353,16 +329,15 @@ TEST(DataPackTest, ModifiedWhileUsed) {
   DataPack pack(k100Percent);
   ASSERT_TRUE(pack.LoadFromFile(std::move(file)));
 
-  base::StringPiece data;
   ASSERT_TRUE(pack.HasResource(10));
-  ASSERT_TRUE(pack.GetStringPiece(10, &data));
+  ASSERT_TRUE(pack.GetStringView(10).has_value());
 
   ASSERT_TRUE(base::WriteFile(
       data_path, {kSampleCorruptPakContents, kSampleCorruptPakSize}));
 
   // Reading asset #10 should now fail as it extends past the end of the file.
   ASSERT_TRUE(pack.HasResource(10));
-  ASSERT_FALSE(pack.GetStringPiece(10, &data));
+  ASSERT_FALSE(pack.GetStringView(10).has_value());
 }
 #endif
 

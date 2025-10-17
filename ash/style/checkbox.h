@@ -19,24 +19,22 @@ namespace ash {
 // A rectangular label button with the icon on its left side. It's usually used
 // in the group of checkboxes. Please refer `CheckboxGroup` for more details.
 class ASH_EXPORT Checkbox : public OptionButtonBase {
- public:
-  METADATA_HEADER(Checkbox);
+  METADATA_HEADER(Checkbox, OptionButtonBase)
 
+ public:
   explicit Checkbox(int button_width,
                     PressedCallback callback,
                     const std::u16string& label = std::u16string(),
-                    const gfx::Insets& insets = kDefaultPadding);
+                    const gfx::Insets& insets = kDefaultPadding,
+                    int image_label_spacing = kImageLabelSpacingDP);
   Checkbox(const Checkbox&) = delete;
   Checkbox& operator=(const Checkbox&) = delete;
   ~Checkbox() override;
 
-  // views::LabelButton:
+  // OptionButtonBase:
   gfx::ImageSkia GetImage(ButtonState for_state) const override;
-
-  // OptionButtonBase::
   const gfx::VectorIcon& GetVectorIcon() const override;
   bool IsIconOnTheLeftSide() override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
 };
 
 }  // namespace ash

@@ -65,7 +65,7 @@ void MTPDeviceMapService::RevokeMTPFileSystem(
     const AsyncDelegateKey key =
         GetAsyncDelegateKey(device_location, read_only);
     MTPDeviceUsageMap::iterator delegate_it = mtp_device_usage_map_.find(key);
-    DCHECK(delegate_it != mtp_device_usage_map_.end());
+    CHECK(delegate_it != mtp_device_usage_map_.end());
 
     mtp_device_usage_map_[key]--;
     if (mtp_device_usage_map_[key] == 0) {
@@ -97,7 +97,7 @@ void MTPDeviceMapService::RemoveAsyncDelegate(
 
   const AsyncDelegateKey key = GetAsyncDelegateKey(device_location, read_only);
   AsyncDelegateMap::iterator it = async_delegate_map_.find(key);
-  DCHECK(it != async_delegate_map_.end());
+  CHECK(it != async_delegate_map_.end());
   it->second->CancelPendingTasksAndDeleteDelegate();
   async_delegate_map_.erase(it);
 }
@@ -148,8 +148,7 @@ MTPDeviceAsyncDelegate* MTPDeviceMapService::GetMTPDeviceAsyncDelegate(
              : NULL;
 }
 
-MTPDeviceMapService::MTPDeviceMapService() {
-}
+MTPDeviceMapService::MTPDeviceMapService() = default;
 
 MTPDeviceMapService::~MTPDeviceMapService() {
   DCHECK(mtp_device_usage_map_.empty());

@@ -6,6 +6,7 @@
 
 #include <tuple>
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node_output.h"
 
 namespace blink {
@@ -20,7 +21,9 @@ constexpr unsigned kNumberOfOutputChannels = 1;
 ConstantSourceHandler::ConstantSourceHandler(AudioNode& node,
                                              float sample_rate,
                                              AudioParamHandler& offset)
-    : AudioScheduledSourceHandler(kNodeTypeConstantSource, node, sample_rate),
+    : AudioScheduledSourceHandler(NodeType::kNodeTypeConstantSource,
+                                  node,
+                                  sample_rate),
       offset_(&offset),
       sample_accurate_values_(GetDeferredTaskHandler().RenderQuantumFrames()) {
   AddOutput(kNumberOfOutputChannels);
@@ -76,11 +79,13 @@ void ConstantSourceHandler::Process(uint32_t frames_to_process) {
   if (is_sample_accurate && offset_->IsAudioRate()) {
     DCHECK_LE(frames_to_process, sample_accurate_values_.size());
     float* offsets = sample_accurate_values_.Data();
-    offset_->CalculateSampleAccurateValues(offsets, frames_to_process);
+    offset_->CalculateSampleAccurateValues(
+        sample_accurate_values_.as_span().first(frames_to_process));
     if (non_silent_frames_to_process > 0) {
-      memcpy(output_bus->Channel(0)->MutableData() + quantum_frame_offset,
-             offsets + quantum_frame_offset,
-             non_silent_frames_to_process * sizeof(*offsets));
+      UNSAFE_TODO(
+          memcpy(output_bus->Channel(0)->MutableData() + quantum_frame_offset,
+                 offsets + quantum_frame_offset,
+                 non_silent_frames_to_process * sizeof(*offsets)));
       output_bus->ClearSilentFlag();
     } else {
       output_bus->Zero();
@@ -93,12 +98,14 @@ void ConstantSourceHandler::Process(uint32_t frames_to_process) {
   if (value == 0) {
     output_bus->Zero();
   } else {
-    float* dest = output_bus->Channel(0)->MutableData();
-    dest += quantum_frame_offset;
-    for (unsigned k = 0; k < non_silent_frames_to_process; ++k) {
-      dest[k] = value;
-    }
-    output_bus->ClearSilentFlag();
+    UNSAFE_TODO({
+      float* dest = output_bus->Channel(0)->MutableData();
+      dest += quantum_frame_offset;
+      for (unsigned k = 0; k < non_silent_frames_to_process; ++k) {
+        dest[k] = value;
+      }
+      output_bus->ClearSilentFlag();
+    });
   }
 }
 
@@ -124,6 +131,10 @@ void ConstantSourceHandler::HandleStoppableSourceNode() {
       now >= end_time_ + kExtraStopFrames / Context()->sampleRate()) {
     Finish();
   }
+}
+
+base::WeakPtr<AudioScheduledSourceHandler> ConstantSourceHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace blink

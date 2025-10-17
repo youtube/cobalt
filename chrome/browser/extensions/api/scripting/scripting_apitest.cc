@@ -2,25 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
+#include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/api/scripting/scripting_api.h"
-
-#include "base/test/bind.h"
 #include "chrome/browser/extensions/extension_apitest.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/ui_test_utils.h"
+#include "chrome/browser/extensions/extension_util.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ssl/https_upgrades_util.h"
 #include "components/version_info/channel.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/prerender_test_util.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/test_utils.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/background_script_executor.h"
 #include "extensions/browser/disable_reason.h"
+#include "extensions/browser/extension_registrar.h"
+#include "extensions/browser/extension_registry.h"
+#include "extensions/browser/script_executor.h"
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/utils/content_script_utils.h"
 #include "extensions/test/extension_test_message_listener.h"
@@ -28,13 +33,37 @@
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "pdf/buildflags.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/test/base/ui_test_utils.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PDF)
+#include "base/test/scoped_feature_list.h"
+#include "pdf/pdf_features.h"
+#endif  // BUILDFLAG(ENABLE_PDF)
+
 namespace extensions {
 
+namespace {
+
 constexpr const char kSimulatedResourcePath[] = "/simulated-resource.html";
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+// Returns the IDs of all divs in a page; used for testing script injections.
+constexpr char kGetDivIds[] =
+    R"(let childIds = [];
+       for (const child of document.body.children)
+         childIds.push(child.id);
+       JSON.stringify(childIds.sort());)";
+#endif
+
+}  // namespace
 
 class ScriptingAPITest : public ExtensionApiTest {
  public:
@@ -53,12 +82,12 @@ class ScriptingAPITest : public ExtensionApiTest {
   }
 
   void OpenURLInCurrentTab(const GURL& url) {
-    content::WebContents* web_contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
+    content::WebContents* web_contents = GetActiveWebContents();
     ASSERT_TRUE(web_contents);
     content::TestNavigationObserver nav_observer(web_contents);
-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+    ASSERT_TRUE(NavigateToURL(url));
     nav_observer.Wait();
+    content::WaitForLoadStop(web_contents);
     EXPECT_TRUE(nav_observer.last_navigation_succeeded());
     EXPECT_EQ(url, web_contents->GetLastCommittedURL());
   }
@@ -66,15 +95,12 @@ class ScriptingAPITest : public ExtensionApiTest {
   void OpenURLInNewTab(const GURL& url) {
     content::TestNavigationObserver nav_observer(url);
     nav_observer.StartWatchingNewWebContents();
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+    NavigateToURLInNewTab(url);
     nav_observer.Wait();
+    auto* web_contents = GetActiveWebContents();
+    content::WaitForLoadStop(web_contents);
     EXPECT_TRUE(nav_observer.last_navigation_succeeded());
-    EXPECT_EQ(url, browser()
-                       ->tab_strip_model()
-                       ->GetActiveWebContents()
-                       ->GetLastCommittedURL());
+    EXPECT_EQ(url, web_contents->GetLastCommittedURL());
   }
 
   net::test_server::ControllableHttpResponse& controllable_http_response() {
@@ -85,10 +111,18 @@ class ScriptingAPITest : public ExtensionApiTest {
   // A controllable HTTP response for tests that need fine-grained timing.
   // Must be constructed as part of the test suite because it needs to
   // happen before the embedded test server is initialized.
-  absl::optional<net::test_server::ControllableHttpResponse>
+  std::optional<net::test_server::ControllableHttpResponse>
       controllable_http_response_;
 };
 
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest, GetContentScripts) {
+  ASSERT_TRUE(RunExtensionTest("scripting/get_scripts")) << message_;
+}
+
+// TODO(crbug.com/371432155): Most of the tests in this file are skipped on
+// desktop Android because they use the chrome.tabs API, which hasn't been
+// ported yet.
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, MainFrameTests) {
   OpenURLInCurrentTab(embedded_test_server()->GetURL(
       "example.com", "/extensions/main_world_script_flag.html"));
@@ -101,26 +135,57 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, MainFrameTests) {
 }
 
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, SubFramesTests) {
-  // Open up two tabs, each with cross-site iframes, one at a.com and one at
-  // d.com.
-  // In both cases, the cross-site iframes point to b.com and c.com.
   OpenURLInCurrentTab(
       embedded_test_server()->GetURL("a.com", "/iframe_cross_site.html"));
   OpenURLInNewTab(
       embedded_test_server()->GetURL("d.com", "/iframe_cross_site.html"));
+  OpenURLInNewTab(
+      embedded_test_server()->GetURL("e.com", "/iframe_sandboxed_srcdoc.html"));
+  OpenURLInNewTab(
+      embedded_test_server()->GetURL("f.com", "/iframe_blob_url.html"));
 
-  // From there, the test continues in the JS.
   ASSERT_TRUE(RunExtensionTest("scripting/sub_frames")) << message_;
 }
 
 // Test validating we don't insert content into nested WebContents.
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, NestedWebContents) {
   OpenURLInCurrentTab(
-      embedded_test_server()->GetURL("a.com", "/page_with_embedded_pdf.html"));
+      embedded_test_server()->GetURL("a.com", "/iframe_about_blank.html"));
+
+  content::RenderFrameHost* iframe_host = content::ChildFrameAt(
+      browser()->tab_strip_model()->GetActiveWebContents(), 0);
+  ASSERT_TRUE(iframe_host);
+  content::WebContents* inner_web_contents =
+      content::CreateAndAttachInnerContents(iframe_host);
+
+  EXPECT_TRUE(content::NavigateToURL(
+      inner_web_contents, embedded_test_server()->GetURL("/title1.html")));
 
   // From there, the test continues in the JS.
   ASSERT_TRUE(RunExtensionTest("scripting/nested_web_contents")) << message_;
 }
+
+#if BUILDFLAG(ENABLE_PDF)
+class ScriptingAPIOopifPdfTest : public ScriptingAPITest {
+ public:
+  ScriptingAPIOopifPdfTest() {
+    feature_list_.InitAndEnableFeature(chrome_pdf::features::kPdfOopif);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Validate that extensions are not allowed to execute scripts within the PDF
+// extension frame and the PDF content frame.
+IN_PROC_BROWSER_TEST_F(ScriptingAPIOopifPdfTest, PdfFrames) {
+  OpenURLInCurrentTab(
+      embedded_test_server()->GetURL("a.com", "/page_with_embedded_pdf.html"));
+
+  // From there, the test continues in the JS.
+  ASSERT_TRUE(RunExtensionTest("scripting/pdf")) << message_;
+}
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, CSSInjection) {
   OpenURLInCurrentTab(
@@ -129,6 +194,8 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, CSSInjection) {
       embedded_test_server()->GetURL("chromium.org", "/title2.html"));
   OpenURLInNewTab(embedded_test_server()->GetURL("subframes.example",
                                                  "/iframe_cross_site.html"));
+  OpenURLInNewTab(embedded_test_server()->GetURL(
+      "subframes-sandboxed.example", "/iframe_sandboxed_srcdoc.html"));
 
   ASSERT_TRUE(RunExtensionTest("scripting/css_injection")) << message_;
 }
@@ -137,8 +204,16 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, CSSRemoval) {
   ASSERT_TRUE(RunExtensionTest("scripting/remove_css")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(ScriptingAPITest, DynamicContentScripts) {
-  ASSERT_TRUE(RunExtensionTest("scripting/dynamic_scripts")) << message_;
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest, RegisterContentScripts) {
+  ASSERT_TRUE(RunExtensionTest("scripting/register_scripts")) << message_;
+}
+
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest, UnregisterContentScripts) {
+  ASSERT_TRUE(RunExtensionTest("scripting/unregister_scripts")) << message_;
+}
+
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest, UpdateContentScripts) {
+  ASSERT_TRUE(RunExtensionTest("scripting/update_scripts")) << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, DynamicContentScriptParameters) {
@@ -152,11 +227,107 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, DynamicContentScriptsMainWorld) {
   ASSERT_TRUE(RunExtensionTest("scripting/dynamic_scripts_main_world"))
       << message_;
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+// Unregisters a pending script and verifies that the script is unregistered
+// and doesn't inject.
+// Regression test for https://crbug.com/1496907.
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest,
+                       RapidDynamicContentScriptRegistrationAndUnregistration) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "test",
+           "manifest_version": 3,
+           "version": "0.1",
+           "background": {"service_worker": "background.js"},
+           "permissions": ["scripting"],
+           "host_permissions": ["*://example.com/*"]
+         })";
+  static constexpr char kBackgroundJs[] =
+      R"(chrome.test.runTests([
+           async function registerScripts() {
+             const scripts =
+                 [
+                   {
+                     id: 'script_1',
+                     matches: ['http://example.com/*'],
+                     js: ['script1.js'],
+                     runAt: 'document_end',
+                   },
+                   {
+                     id: 'script_2',
+                     matches: ['http://example.com/*'],
+                     js: ['script2.js'],
+                     runAt: 'document_end',
+                   }
+                 ];
+
+             // Call to register the two scripts, then immediately (before
+             // registration is complete) unregister script 1.
+             const registered =
+                 chrome.scripting.registerContentScripts(scripts);
+             const unregistered =
+                 chrome.scripting.unregisterContentScripts({ids: ['script_1']});
+             await Promise.allSettled([registered, unregistered]);
+
+             // Only script 2 should still be registered.
+             const registeredScripts =
+                 await chrome.scripting.getRegisteredContentScripts();
+             chrome.test.assertEq(['script_2'],
+                                  registeredScripts.map(script => script.id));
+
+             chrome.test.succeed();
+         }]);)";
+  static constexpr char kScript1Js[] =
+      R"(var div = document.createElement('div');
+         div.id = 'injected_1';
+         document.body.appendChild(div);)";
+  static constexpr char kScript2Js[] =
+      R"(console.warn('injectory');var div = document.createElement('div');
+         div.id = 'injected_2';
+         document.body.appendChild(div);)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  test_dir.WriteFile(FILE_PATH_LITERAL("script1.js"), kScript1Js);
+  test_dir.WriteFile(FILE_PATH_LITERAL("script2.js"), kScript2Js);
+
+  // The extension registers two scripts and then immediately unregistered
+  // the first; it also verifies the API indicates only the second script
+  // is still registered.
+  ResultCatcher result_catcher;
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+
+  // Verify that only the second script injects (i.e., that the first script
+  // really was unregistered). Regression test for https://crbug.com/1496907.
+  const GURL url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+  ASSERT_TRUE(NavigateToURL(url));
+  content::RenderFrameHost* new_frame =
+      GetActiveWebContents()->GetPrimaryMainFrame();
+
+  static constexpr char kGetInjectedIds[] =
+      R"(const divs = document.body.getElementsByTagName('div');
+         JSON.stringify(Array.from(divs).map(div => div.id));)";
+
+  EXPECT_EQ(R"(["injected_2"])", content::EvalJs(new_frame, kGetInjectedIds));
+}
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test that if an extension with persistent scripts is quickly unloaded while
 // these scripts are being fetched, requests that wait on that extension's
 // script load will be unblocked. Regression for crbug.com/1250575
-IN_PROC_BROWSER_TEST_F(ScriptingAPITest, RapidLoadUnload) {
+// TODO(crbug.com/40282331): Disabled on ASAN due to leak caused by renderer gin
+// objects which are intended to be leaked.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_RapidLoadUnload DISABLED_RapidLoadUnload
+#else
+#define MAYBE_RapidLoadUnload RapidLoadUnload
+#endif
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest, MAYBE_RapidLoadUnload) {
   ResultCatcher result_catcher;
   const Extension* extension = LoadExtension(
       test_data_dir_.AppendASCII("scripting/register_one_script"));
@@ -181,9 +352,9 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, RapidLoadUnload) {
   // which yields control of the thread so TriggerOnUnloaded is called
   // immediately, which unloads the extension before the Statestore fetch can
   // finish.
-  extension_service()->EnableExtension(extension->id());
-  extension_service()->DisableExtension(extension->id(),
-                                        disable_reason::DISABLE_USER_ACTION);
+  extension_registrar()->EnableExtension(extension->id());
+  extension_registrar()->DisableExtension(
+      extension->id(), {disable_reason::DISABLE_USER_ACTION});
 
   // Verify that the navigation to google.com, which matches a script in the
   // css_injection extension, will complete.
@@ -211,6 +382,8 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, ExecuteScriptSizeLimit) {
 
 // Tests that calling scripting.executeScript works on a newly created tab
 // before the initial commit has happened. Regression for crbug.com/1191971.
+// TODO(crbug.com/391921606): Port to desktop Android when we have test
+// navigation utilities that support "wait for tab".
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, ExecuteScriptBeforeInitialCommit) {
   constexpr char kManifest[] =
       R"({
@@ -260,7 +433,7 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, ExecuteScriptBeforeInitialCommit) {
     // extension function manually rather than calling it in JS.
     int tab_id = ExtensionTabUtil::GetTabId(web_contents);
     std::string args = base::StringPrintf(kArgTemplate, tab_id);
-    absl::optional<base::Value> result =
+    std::optional<base::Value> result =
         api_test_utils::RunFunctionAndReturnSingleResult(
             execute_script_function.get(), args, profile());
 
@@ -339,6 +512,8 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, ExecuteScriptBeforeInitialCommit) {
 // inject into a page as soon as possible. The testing for this is a bit tricky
 // because we need to craft a page that is guaranteed to not load by the time
 // the injections are triggered.
+// TODO(crbug.com/391921606): Port to desktop Android when we have test
+// navigation utilities that support "wait for tab".
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, InjectImmediately) {
   static constexpr char kManifest[] =
       R"({
@@ -464,7 +639,92 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, InjectImmediately) {
   EXPECT_EQ(base::Value(expected_default_result), get_default_result());
   EXPECT_EQ(base::Value(expected_immediate_result), get_immediate_result());
 }
+#endif
 
+#if !BUILDFLAG(IS_ANDROID)
+// Verifies dynamic scripts are properly injected in incognito.
+// Regression test for https://crbug.com/1495191.
+// TODO(crbug.com/40200835): Enable this test on Android once PRE_ steps work
+// properly on that platform.
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest,
+                       PRE_DynamicContentScriptsInjectInIncognito) {
+  // TODO(crbug.com/40937027): Convert test to use HTTPS and then remove.
+  ScopedAllowHttpForHostnamesForTesting allow_http({"example.com"},
+                                                   profile()->GetPrefs());
+
+  // Load up two extensions, one that's allowed in incognito and one that's
+  // not.
+  const Extension* incognito_allowed =
+      LoadExtension(test_data_dir_.AppendASCII("scripting/incognito_allowed"),
+                    {.allow_in_incognito = true});
+  const Extension* incognito_disallowed = LoadExtension(
+      test_data_dir_.AppendASCII("scripting/incognito_disallowed"),
+      {.allow_in_incognito = false});
+  ASSERT_TRUE(incognito_allowed);
+  ASSERT_TRUE(incognito_disallowed);
+
+  auto register_scripts = [this](const ExtensionId& extension_id) {
+    ResultCatcher result_catcher;
+    BackgroundScriptExecutor::ExecuteScriptAsync(profile(), extension_id,
+                                                 "registerScript();");
+    ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+  };
+
+  // In each extension, register a script that will inject a div with a given
+  // ID indicating if it injected.
+  register_scripts(incognito_allowed->id());
+  register_scripts(incognito_disallowed->id());
+
+  // Navigate to a page in the on-the-record profile. Both extensions should
+  // inject.
+  const GURL page_url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+  ASSERT_TRUE(NavigateToURL(page_url));
+  content::RenderFrameHost* regular_page =
+      GetActiveWebContents()->GetPrimaryMainFrame();
+  EXPECT_EQ(R"(["incognito-allowed","incognito-disallowed"])",
+            content::EvalJs(regular_page, kGetDivIds));
+
+  // Now, navigate to a page in incognito. Only the incognito-allowed extension
+  // should inject.
+  content::WebContents* incognito_web_contents =
+      PlatformOpenURLOffTheRecord(profile(), page_url);
+  content::WaitForLoadStop(incognito_web_contents);
+
+  EXPECT_EQ(R"(["incognito-allowed"])",
+            content::EvalJs(incognito_web_contents, kGetDivIds));
+}
+
+// TODO(crbug.com/40200835): Enable this test on Android once PRE_ steps work
+// properly on that platform.
+IN_PROC_BROWSER_TEST_F(ScriptingAPITest,
+                       DynamicContentScriptsInjectInIncognito) {
+  // TODO(crbug.com/40937027): Convert test to use HTTPS and then remove.
+  ScopedAllowHttpForHostnamesForTesting allow_http({"example.com"},
+                                                   profile()->GetPrefs());
+
+  // Repeat the steps of navigating to an on-the-record and off-the-record page
+  // to validate injection after a restart. This verifies the incognito bit
+  // is properly set when restoring scripts after a restart.
+
+  const GURL page_url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+  ASSERT_TRUE(NavigateToURL(page_url));
+  content::RenderFrameHost* regular_page =
+      GetActiveWebContents()->GetPrimaryMainFrame();
+  EXPECT_EQ(R"(["incognito-allowed","incognito-disallowed"])",
+            content::EvalJs(regular_page, kGetDivIds));
+
+  content::WebContents* incognito_web_contents =
+      PlatformOpenURLOffTheRecord(profile(), page_url);
+  content::WaitForLoadStop(incognito_web_contents);
+
+  EXPECT_EQ(R"(["incognito-allowed"])",
+            content::EvalJs(incognito_web_contents, kGetDivIds));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Base test fixture for tests spanning multiple sessions where a custom arg is
 // set before the test is run.
 class PersistentScriptingAPITest : public ScriptingAPITest {
@@ -540,14 +800,10 @@ class ScriptingAPIPrerenderingTest : public ScriptingAPITest {
   content::test::ScopedPrerenderFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/1351648): disabled on Mac due to flakiness.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_Basic DISABLED_Basic
-#else  // BUILDFLAG(IS_MAC)
-#define MAYBE_Basic Basic
-#endif  // BUILDFLAG(IS_MAC)
-IN_PROC_BROWSER_TEST_F(ScriptingAPIPrerenderingTest, MAYBE_Basic) {
+// TODO(crbug.com/40857271): disabled due to flakiness.
+IN_PROC_BROWSER_TEST_F(ScriptingAPIPrerenderingTest, DISABLED_Basic) {
   ASSERT_TRUE(RunExtensionTest("scripting/prerendering")) << message_;
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 }  // namespace extensions

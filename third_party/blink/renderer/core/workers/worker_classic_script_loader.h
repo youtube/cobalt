@@ -74,15 +74,15 @@ class CORE_EXPORT WorkerClassicScriptLoader final
                          network::mojom::RequestDestination);
 
   // Note that callbacks could be invoked before
-  // LoadTopLevelScriptAsynchronously() returns.
+  // `LoadTopLevelScriptAsynchronously()` returns.
   //
-  // |fetch_client_settings_object_fetcher| is different from
-  // ExecutionContext::Fetcher() in off-the-main-thread fetch.
-  // TODO(crbug.com/1064920): Remove |reject_coep_unsafe_none| and
-  // |blob_url_loader_factory| when PlzDedicatedWorker ships.
+  // `fetch_client_settings_object_fetcher` is different from
+  // `ExecutionContext::Fetcher()` in off-the-main-thread fetch.
+  // TODO(crbug.com/40123913): Remove `blob_url_loader_factory` now
+  // that PlzDedicatedWorker has shipped.
   //
-  // |worker_main_script_load_params| is valid for dedicated workers (when
-  // PlzDedicatedWorker is enabled) and shared workers.
+  // `worker_main_script_load_params` is valid for dedicated workers and shared
+  // workers.
   void LoadTopLevelScriptAsynchronously(
       ExecutionContext&,
       ResourceFetcher* fetch_client_settings_object_fetcher,
@@ -95,11 +95,8 @@ class CORE_EXPORT WorkerClassicScriptLoader final
       network::mojom::CredentialsMode,
       base::OnceClosure response_callback,
       base::OnceClosure finished_callback,
-      RejectCoepUnsafeNone reject_coep_unsafe_none =
-          RejectCoepUnsafeNone(false),
       mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>
-          blob_url_loader_factory = {},
-      absl::optional<uint64_t> main_script_identifier = absl::nullopt);
+          blob_url_loader_factory = {});
 
   // This will immediately invoke |finishedCallback| if
   // LoadTopLevelScriptAsynchronously() is in progress.
@@ -129,16 +126,15 @@ class CORE_EXPORT WorkerClassicScriptLoader final
   // ThreadableLoaderClient
   void DidReceiveResponse(uint64_t /*identifier*/,
                           const ResourceResponse&) override;
-  void DidReceiveData(const char* data, unsigned data_length) override;
+  void DidReceiveData(base::span<const char> data) override;
   void DidReceiveCachedMetadata(mojo_base::BigBuffer) override;
   void DidFinishLoading(uint64_t identifier) override;
   void DidFail(uint64_t, const ResourceError&) override;
   void DidFailRedirectCheck(uint64_t) override;
 
   // WorkerMainScriptLoaderClient
-  // These will be called for dedicated workers (when PlzDedicatedWorker is
-  // enabled) and shared workers.
-  void DidReceiveData(base::span<const char> span) override;
+  // These will be called for dedicated workers and shared workers.
+  void DidReceiveDataWorkerMainScript(base::span<const char> span) override;
   void OnFinishedLoadingWorkerMainScript() override;
   void OnFailedLoadingWorkerMainScript() override;
 

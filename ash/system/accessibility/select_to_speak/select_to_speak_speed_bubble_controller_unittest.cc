@@ -4,7 +4,7 @@
 
 #include "ash/system/accessibility/select_to_speak/select_to_speak_speed_bubble_controller.h"
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/accessibility/test_accessibility_controller_client.h"
 #include "ash/public/cpp/accessibility_controller_enums.h"
 #include "ash/shell.h"
@@ -20,6 +20,7 @@
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
 
@@ -45,7 +46,7 @@ class SelectToSpeakSpeedBubbleControllerTest : public AshTestBase {
     AshTestBase::TearDown();
   }
 
-  AccessibilityControllerImpl* GetAccessibilitController() {
+  AccessibilityController* GetAccessibilitController() {
     return Shell::Get()->accessibility_controller();
   }
 
@@ -64,6 +65,10 @@ class SelectToSpeakSpeedBubbleControllerTest : public AshTestBase {
 
   SelectToSpeakMenuView* GetMenuView() {
     return GetMenuBubbleController()->menu_view_;
+  }
+
+  TrayBubbleView* GetBubbleView() {
+    return GetSpeedBubbleController()->bubble_view_;
   }
 
   FloatingMenuButton* GetMenuButton(SelectToSpeakMenuView::ButtonId view_id) {
@@ -93,6 +98,10 @@ class SelectToSpeakSpeedBubbleControllerTest : public AshTestBase {
     if (!speed_view)
       return nullptr;
     return static_cast<HoverHighlightView*>(speed_view->GetViewByID(view_id));
+  }
+
+  std::u16string GetAccessibleNameForBubble() {
+    return GetSpeedBubbleController()->GetAccessibleNameForBubble();
   }
 
  protected:
@@ -168,6 +177,16 @@ TEST_F(SelectToSpeakSpeedBubbleControllerTest, FocusRestoredToSpeedButton) {
   FloatingMenuButton* speed_button =
       GetMenuButton(SelectToSpeakMenuView::ButtonId::kSpeed);
   EXPECT_TRUE(speed_button->HasFocus());
+}
+
+TEST_F(SelectToSpeakSpeedBubbleControllerTest, BubbleViewAccessibleName) {
+  ShowSelectToSpeakSpeedBubble(/*rate=*/1.2);
+
+  TrayBubbleView* bubble_view = GetBubbleView();
+  ui::AXNodeData node_data;
+  bubble_view->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+  EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetAccessibleNameForBubble());
 }
 
 }  // namespace ash

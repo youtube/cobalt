@@ -11,22 +11,23 @@ import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.FrameLayout;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.view.ViewCompat;
 
 import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * Container holding messages.
- */
+/** Container holding messages. */
+@NullMarked
 public class MessageContainer extends FrameLayout {
     private static final String TAG = "MessageContainer";
 
     interface MessageContainerA11yDelegate {
         void onA11yFocused();
+
         void onA11yFocusCleared();
+
         void onA11yDismiss();
     }
 
@@ -34,20 +35,19 @@ public class MessageContainer extends FrameLayout {
         private int mFocusedView;
 
         @Override
-        public void onInitializeAccessibilityEvent(
-                @NonNull View host, @NonNull AccessibilityEvent event) {
+        public void onInitializeAccessibilityEvent(View host, AccessibilityEvent event) {
             handleEvent(event);
             super.onInitializeAccessibilityEvent(host, event);
         }
 
         @Override
         public boolean onRequestSendAccessibilityEvent(
-                @NonNull ViewGroup host, @NonNull View child, @NonNull AccessibilityEvent event) {
+                ViewGroup host, View child, AccessibilityEvent event) {
             handleEvent(event);
             return super.onRequestSendAccessibilityEvent(host, child, event);
         }
 
-        private void handleEvent(@NonNull AccessibilityEvent event) {
+        private void handleEvent(AccessibilityEvent event) {
             if (mA11yDelegate == null) return;
             if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
                 assert mFocusedView == 0 : "No other view should be focused";
@@ -62,11 +62,11 @@ public class MessageContainer extends FrameLayout {
         }
     }
 
-    private MessageContainerA11yDelegate mA11yDelegate;
+    private @Nullable MessageContainerA11yDelegate mA11yDelegate;
     private boolean mIsInitializingLayout;
     private int mA11yDismissActionId = NO_ID;
 
-    public MessageContainer(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public MessageContainer(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         setAccessibilityDelegate(new MessageContainerA11yDelegateProxy());
     }
@@ -81,22 +81,17 @@ public class MessageContainer extends FrameLayout {
             throw new IllegalStateException("Should not contain the target view when adding.");
         }
         int index = 0;
-        if (MessageFeatureList.isStackAnimationEnabled()) {
-            if (getChildCount() > 1) {
-                throw new IllegalStateException(
-                        "Should not contain more than 2 views when adding a new message.");
-            } else if (getChildCount() == 1) {
-                View cur = getChildAt(0);
-                index = cur.getElevation() > view.getElevation() ? 1 : 0;
-            }
-        } else if (getChildCount() == 1) {
+        if (getChildCount() > 1) {
             throw new IllegalStateException(
-                    "Should not contain any view when adding a new message.");
+                    "Should not contain more than 2 views when adding a new message.");
+        } else if (getChildCount() == 1) {
+            View cur = getChildAt(0);
+            index = cur.getElevation() > view.getElevation() ? 1 : 0;
         }
         super.addView(view, index);
         onChildCountChanged();
 
-        // TODO(crbug.com/1178965): clipChildren should be set to false only when the message is in
+        // TODO(crbug.com/40749472): clipChildren should be set to false only when the message is in
         // motion.
     }
 
@@ -118,29 +113,33 @@ public class MessageContainer extends FrameLayout {
     private void onChildCountChanged() {
         ViewCompat.removeAccessibilityAction(this, mA11yDismissActionId);
         if (getChildCount() == 0) return;
-        String label = getResources().getString(
-                getChildCount() == 1 ? R.string.dismiss : R.string.message_dismiss_and_show_next);
-        mA11yDismissActionId = ViewCompat.addAccessibilityAction(this, label, (v, c) -> {
-            if (mA11yDelegate != null) {
-                assert getChildCount() != 0;
-                mA11yDelegate.onA11yDismiss();
-                return true;
-            }
-            return false;
-        });
+        String label =
+                getResources()
+                        .getString(
+                                getChildCount() == 1
+                                        ? R.string.chrome_dismiss
+                                        : R.string.message_dismiss_and_show_next);
+        mA11yDismissActionId =
+                ViewCompat.addAccessibilityAction(
+                        this,
+                        label,
+                        (v, c) -> {
+                            if (mA11yDelegate != null) {
+                                assert getChildCount() != 0;
+                                mA11yDelegate.onA11yDismiss();
+                                return true;
+                            }
+                            return false;
+                        });
     }
 
     public int getMessageBannerHeight() {
         assert getChildCount() > 0;
-        // TODO(https://crbug.com/1382275): remove this log after fix.
+        // TODO(crbug.com/40877229): remove this log after fix.
         if (getChildAt(0) == null) {
             Log.w(TAG, "Null child in message container; child count %s", getChildCount());
         }
         return getChildAt(0).getHeight();
-    }
-
-    public int getMessageShadowTopMargin() {
-        return getResources().getDimensionPixelOffset(R.dimen.message_shadow_top_margin);
     }
 
     @Override
@@ -164,29 +163,41 @@ public class MessageContainer extends FrameLayout {
     /**
      * Runs a {@link Runnable} after the message's initial layout. If the view is already laid out,
      * the {@link Runnable} will be called immediately.
+     *
      * @param runnable The {@link Runnable}.
+     * @return True if the callback is triggered immediately (i.e. synchronously).
      */
-    void runAfterInitialMessageLayout(Runnable runnable) {
+    boolean runAfterInitialMessageLayout(Runnable runnable) {
         View view = getChildAt(0);
         assert view != null;
         if (view.getHeight() > 0) {
             mIsInitializingLayout = false;
             runnable.run();
-            return;
+            return true;
         }
 
         mIsInitializingLayout = true;
-        view.addOnLayoutChangeListener(new OnLayoutChangeListener() {
-            @Override
-            public void onLayoutChange(View v, int left, int top, int right, int bottom,
-                    int oldLeft, int oldTop, int oldRight, int oldBottom) {
-                if (v.getHeight() == 0) return;
+        view.addOnLayoutChangeListener(
+                new OnLayoutChangeListener() {
+                    @Override
+                    public void onLayoutChange(
+                            View v,
+                            int left,
+                            int top,
+                            int right,
+                            int bottom,
+                            int oldLeft,
+                            int oldTop,
+                            int oldRight,
+                            int oldBottom) {
+                        if (v.getHeight() == 0) return;
 
-                runnable.run();
-                v.removeOnLayoutChangeListener(this);
-                mIsInitializingLayout = false;
-            }
-        });
+                        runnable.run();
+                        v.removeOnLayoutChangeListener(this);
+                        mIsInitializingLayout = false;
+                    }
+                });
+        return false;
     }
 
     /**
@@ -198,18 +209,14 @@ public class MessageContainer extends FrameLayout {
         return mIsInitializingLayout;
     }
 
-    /**
-     * Call {@link #addMessage(View)} instead in order to prevent from uncontrolled add.
-     */
+    /** Call {@link #addMessage(View)} instead in order to prevent from uncontrolled add. */
     @Override
     @Deprecated
     public final void addView(View view) {
         throw new RuntimeException("Use addMessage instead.");
     }
 
-    /**
-     * Call {@link #removeMessage(View)} instead in order to prevent from uncontrolled remove.
-     */
+    /** Call {@link #removeMessage(View)} instead in order to prevent from uncontrolled remove. */
     @Override
     @Deprecated
     public final void removeView(View view) {

@@ -11,7 +11,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "components/keyed_service/core/keyed_service.h"
 
@@ -30,13 +29,13 @@ class LoginUIService : public KeyedService {
     virtual void FocusUI() = 0;
 
    protected:
-    virtual ~LoginUI() {}
+    virtual ~LoginUI() = default;
   };
 
   // Used when the sync confirmation UI is closed to signify which option was
   // selected by the user.
   enum SyncConfirmationUIClosedResult {
-    // TODO(crbug.com/1141341): Rename the first option to make it work better
+    // TODO(crbug.com/40727110): Rename the first option to make it work better
     // for the sync-disabled variant of the UI.
     // Start sync immediately, if sync can be enabled. Otherwise, keep the user
     // signed in (with sync disabled).
@@ -59,7 +58,7 @@ class LoginUIService : public KeyedService {
         SyncConfirmationUIClosedResult result) {}
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
   explicit LoginUIService(Profile* profile);
@@ -91,6 +90,9 @@ class LoginUIService : public KeyedService {
   // - in the Modal Signin Error dialog if `browser` is not null, otherwise
   // - in a dialog shown on top of the profile picker if `from_profile_picker`
   //   is true.
+  // TODO(crbug.com/381231566): `from_profile_picker` is not used anymore and is
+  // now dead code, it should be removed in upcoming changes along with
+  // associated code that sets it.
   void DisplayLoginResult(Browser* browser,
                           const SigninUIError& error,
                           bool from_profile_picker);
@@ -98,15 +100,15 @@ class LoginUIService : public KeyedService {
   // Set the profile blocking modal error dialog message.
   void SetProfileBlockingErrorMessage();
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   // Gets the last error set through |DisplayLoginResult|.
   const SigninUIError& GetLastLoginError() const;
 #endif
 
  private:
   // Weak pointers to the recently opened UIs, with the most recent in front.
-  std::list<LoginUI*> ui_list_;
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+  std::list<raw_ptr<LoginUI, CtnExperimental>> ui_list_;
+#if !BUILDFLAG(IS_CHROMEOS)
   raw_ptr<Profile> profile_;
   SigninUIError last_login_error_ = SigninUIError::Ok();
 #endif

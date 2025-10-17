@@ -5,41 +5,37 @@
 #ifndef COMPONENTS_TRUSTED_VAULT_TRUSTED_VAULT_SERVER_CONSTANTS_H_
 #define COMPONENTS_TRUSTED_VAULT_TRUSTED_VAULT_SERVER_CONSTANTS_H_
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#include <optional>
+#include <string_view>
 
-#include "base/containers/span.h"
-#include "url/gurl.h"
+#include "base/containers/fixed_flat_set.h"
 
 namespace trusted_vault {
 
-inline constexpr int kUnknownConstantKeyVersion = 0;
+inline constexpr char kSyncSecurityDomainName[] = "chromesync";
+inline constexpr char kPasskeysSecurityDomainName[] = "hw_protected";
 
-inline constexpr char kSyncSecurityDomainName[] =
-    "users/me/securitydomains/chromesync";
-inline constexpr char kSecurityDomainMemberNamePrefix[] = "users/me/members/";
-inline constexpr char kJoinSecurityDomainsURLPath[] =
-    "users/me/securitydomains/chromesync:join";
-inline constexpr char kJoinSecurityDomainsErrorDetailTypeURL[] =
-    "type.googleapis.com/"
-    "google.internal.identity.securitydomain.v1.JoinSecurityDomainErrorDetail";
-inline constexpr char kGetSecurityDomainURLPathAndQuery[] =
-    "users/me/securitydomains/chromesync?view=2";
+// Identifies a particular security domain.
+//
+// Append new values at the end and update kMaxValue. Values must not be
+// persisted.
+enum class SecurityDomainId {
+  kChromeSync,
+  kPasskeys,
+  kMaxValue = kPasskeys,
+};
 
-inline constexpr char kQueryParameterAlternateOutputKey[] = "alt";
-inline constexpr char kQueryParameterAlternateOutputProto[] = "proto";
+inline constexpr auto kAllSecurityDomainIdValues =
+    base::MakeFixedFlatSet<SecurityDomainId>(
+        {SecurityDomainId::kChromeSync, SecurityDomainId::kPasskeys});
+static_assert(static_cast<int>(SecurityDomainId::kMaxValue) ==
+                  kAllSecurityDomainIdValues.size() - 1,
+              "Update kAllSecurityDomainIdValues when adding SecurityDomainId "
+              "enum values");
 
-std::vector<uint8_t> GetConstantTrustedVaultKey();
-std::string GetGetSecurityDomainMemberURLPathAndQuery(
-    base::span<const uint8_t> public_key);
-
-// Computes full URL, including alternate proto param.
-GURL GetFullJoinSecurityDomainsURLForTesting(const GURL& server_url);
-GURL GetFullGetSecurityDomainMemberURLForTesting(
-    const GURL& server_url,
-    base::span<const uint8_t> public_key);
-GURL GetFullGetSecurityDomainURLForTesting(const GURL& server_url);
+std::optional<SecurityDomainId> GetSecurityDomainByName(
+    std::string_view domain);
+std::string_view GetSecurityDomainName(SecurityDomainId id);
 
 }  // namespace trusted_vault
 

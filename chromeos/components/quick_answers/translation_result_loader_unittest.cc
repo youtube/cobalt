@@ -81,7 +81,7 @@ class TranslationResultLoaderTest : public testing::Test {
   void TearDown() override { loader_.reset(); }
 
  protected:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_;
   std::unique_ptr<TranslationResultLoader> loader_;
   std::unique_ptr<MockResultLoaderDelegate> mock_delegate_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
@@ -106,7 +106,7 @@ TEST_F(TranslationResultLoaderTest, Success) {
 
   EXPECT_CALL(*mock_delegate_, OnNetworkError()).Times(0);
 
-  fake_quick_answers_state_.SetConsentStatus(
+  fake_quick_answers_state_.AsyncSetConsentStatus(
       quick_answers::prefs::ConsentStatus::kAccepted);
   loader_->Fetch(PreprocessRequest(kTestTranslationIntent));
   run_loop.Run();
@@ -125,9 +125,8 @@ TEST_F(TranslationResultLoaderTest, Success) {
   raw_ptr<TranslationResult> translation_result =
       session->structured_result->translation_result.get();
   EXPECT_EQ(kTestTranslationIntent.intent_text,
-            base::UTF16ToUTF8(translation_result->text_to_translate));
-  EXPECT_EQ(kTestTranslationResult,
-            base::UTF16ToUTF8(translation_result->translated_text));
+            translation_result->text_to_translate);
+  EXPECT_EQ(kTestTranslationResult, translation_result->translated_text);
   EXPECT_EQ(kTestTranslationIntent.device_language,
             translation_result->target_locale);
   EXPECT_EQ(kTestTranslationIntent.source_language,
@@ -141,7 +140,7 @@ TEST_F(TranslationResultLoaderTest, NetworkError) {
   EXPECT_CALL(*mock_delegate_, OnNetworkError());
   EXPECT_CALL(*mock_delegate_, OnQuickAnswerReceived(testing::_)).Times(0);
 
-  fake_quick_answers_state_.SetConsentStatus(
+  fake_quick_answers_state_.AsyncSetConsentStatus(
       quick_answers::prefs::ConsentStatus::kAccepted);
   loader_->Fetch(PreprocessRequest(kTestTranslationIntent));
   base::RunLoop().RunUntilIdle();
@@ -150,13 +149,15 @@ TEST_F(TranslationResultLoaderTest, NetworkError) {
 TEST_F(TranslationResultLoaderTest, EmptyResponse) {
   test_url_loader_factory_.AddResponse(CreateTranslationRequest().spec(),
                                        std::string());
-  EXPECT_CALL(*mock_delegate_, OnQuickAnswerReceived(testing::Eq(nullptr)));
+  base::RunLoop run_loop;
+  EXPECT_CALL(*mock_delegate_, OnQuickAnswerReceived(testing::Eq(nullptr)))
+      .WillOnce([&]() { run_loop.Quit(); });
   EXPECT_CALL(*mock_delegate_, OnNetworkError()).Times(0);
 
-  fake_quick_answers_state_.SetConsentStatus(
+  fake_quick_answers_state_.AsyncSetConsentStatus(
       quick_answers::prefs::ConsentStatus::kAccepted);
   loader_->Fetch(PreprocessRequest(kTestTranslationIntent));
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 }  // namespace quick_answers

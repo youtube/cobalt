@@ -29,21 +29,24 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_RESOURCE_REQUEST_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/flat_set.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "net/cookies/site_for_cookies.h"
-#include "net/filter/source_stream.h"
+#include "net/filter/source_stream_type.h"
+#include "net/storage_access_api/status.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/cpp/fetch_retry_options.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/chunked_data_pipe_getter.mojom-blink-forward.h"
 #include "services/network/public/mojom/cors.mojom-blink-forward.h"
 #include "services/network/public/mojom/fetch_api.mojom-blink.h"
 #include "services/network/public/mojom/ip_address_space.mojom-blink-forward.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink-forward.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "services/network/public/mojom/web_bundle_handle.mojom-blink.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/resource_request_blocked_reason.h"
 #include "third_party/blink/public/platform/web_url_request_extra_data.h"
@@ -56,9 +59,15 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 
+namespace network {
+class PermissionsPolicy;
+}  // namespace network
+
 namespace blink {
 
+class FeatureContext;
 class EncodedFormData;
+struct IntegrityMetadataSet;
 
 // ResourceRequestHead represents request without request body.
 // See ResourceRequest below to see what request is.
@@ -227,9 +236,6 @@ class PLATFORM_EXPORT ResourceRequestHead {
     SetHttpHeaderField(http_names::kAccept, http_accept);
   }
 
-  bool AllowStoredCredentials() const;
-  void SetAllowStoredCredentials(bool allow_credentials);
-
   // The initial priority for the request.
   ResourceLoadPriority InitialPriority() const;
 
@@ -280,13 +286,56 @@ class PLATFORM_EXPORT ResourceRequestHead {
 
   // True if the request can work after the fetch group is terminated.
   bool GetKeepalive() const { return keepalive_; }
-  void SetKeepalive(bool keepalive) { keepalive_ = keepalive; }
+  void SetKeepalive(bool keepalive) {
+    keepalive_ = keepalive;
+    keepalive_token_ =
+        keepalive_ ? std::make_optional(base::UnguessableToken::Create())
+                   : std::nullopt;
+  }
+
+  bool HasFetchRetryOptions() const { return fetch_retry_options_.has_value(); }
+  const std::optional<network::FetchRetryOptions>& FetchRetryOptions() const {
+    return fetch_retry_options_;
+  }
+
+  void SetFetchRetryOptions(
+      const network::FetchRetryOptions& fetch_retry_options) {
+    fetch_retry_options_ = fetch_retry_options;
+  }
 
   // True if the request should be considered for computing and attaching the
   // topics headers.
   bool GetBrowsingTopics() const { return browsing_topics_; }
   void SetBrowsingTopics(bool browsing_topics) {
     browsing_topics_ = browsing_topics;
+  }
+
+  // True if this is an ad auction request eligible for attaching the
+  // `Sec-Ad-Auction-Fetch` request header and processing the
+  // `X-Ad-Auction-Result` response header.
+  bool GetAdAuctionHeaders() const { return ad_auction_headers_; }
+  void SetAdAuctionHeaders(bool ad_auction_headers) {
+    ad_auction_headers_ = ad_auction_headers;
+  }
+
+  // True if the original request included the required attribute for the
+  // response to be eligible to write to shared storage, pending a
+  // `PermissionsPolicy` check.
+  bool GetSharedStorageWritableOptedIn() const {
+    return shared_storage_writable_opted_in_;
+  }
+  void SetSharedStorageWritableOptedIn(bool shared_storage_writable_opted_in) {
+    shared_storage_writable_opted_in_ = shared_storage_writable_opted_in;
+  }
+
+  // True if the current request should have the
+  // `http_names::kSecSharedStorageWritable` header attached and is eligible to
+  // write to shared storage from response headers.
+  bool GetSharedStorageWritableEligible() const {
+    return shared_storage_writable_eligible_;
+  }
+  void SetSharedStorageWritableEligible(bool shared_storage_writable_eligible) {
+    shared_storage_writable_eligible_ = shared_storage_writable_eligible;
   }
 
   // True if service workers should not get events for the request.
@@ -367,8 +416,12 @@ class PLATFORM_EXPORT ResourceRequestHead {
   }
 
   const String& GetFetchIntegrity() const { return fetch_integrity_; }
-  void SetFetchIntegrity(const String& integrity) {
-    fetch_integrity_ = integrity;
+  void SetFetchIntegrity(const String& integrity, const FeatureContext*);
+
+  // This is also called as a side-effect of `SetFetchIntegrity()`.
+  void SetExpectedPublicKeys(const IntegrityMetadataSet&);
+  const WTF::Vector<String>& GetExpectedPublicKeys() const {
+    return expected_public_keys_;
   }
 
   bool CacheControlContainsNoCache() const;
@@ -382,14 +435,14 @@ class PLATFORM_EXPORT ResourceRequestHead {
     cors_preflight_policy_ = policy;
   }
 
-  const absl::optional<RedirectInfo>& GetRedirectInfo() const {
+  const std::optional<RedirectInfo>& GetRedirectInfo() const {
     return redirect_info_;
   }
 
-  void SetSuggestedFilename(const absl::optional<String>& suggested_filename) {
+  void SetSuggestedFilename(const std::optional<String>& suggested_filename) {
     suggested_filename_ = suggested_filename;
   }
-  const absl::optional<String>& GetSuggestedFilename() const {
+  const std::optional<String>& GetSuggestedFilename() const {
     return suggested_filename_;
   }
 
@@ -411,30 +464,27 @@ class PLATFORM_EXPORT ResourceRequestHead {
   void SetAllowStaleResponse(bool value) { allow_stale_response_ = value; }
   bool AllowsStaleResponse() const { return allow_stale_response_; }
 
-  const absl::optional<base::UnguessableToken>& GetDevToolsToken() const {
+  const std::optional<base::UnguessableToken>& GetDevToolsToken() const {
     return devtools_token_;
   }
   void SetDevToolsToken(
-      const absl::optional<base::UnguessableToken>& devtools_token) {
+      const std::optional<base::UnguessableToken>& devtools_token) {
     devtools_token_ = devtools_token;
   }
 
   const scoped_refptr<
-      base::RefCountedData<base::flat_set<net::SourceStream::SourceType>>>&
+      base::RefCountedData<base::flat_set<net::SourceStreamType>>>&
   GetDevToolsAcceptedStreamTypes() const {
     return devtools_accepted_stream_types_;
   }
   void SetDevToolsAcceptedStreamTypes(
       const scoped_refptr<
-          base::RefCountedData<base::flat_set<net::SourceStream::SourceType>>>&
-          types) {
+          base::RefCountedData<base::flat_set<net::SourceStreamType>>>& types) {
     devtools_accepted_stream_types_ = types;
   }
 
-  const absl::optional<String>& GetDevToolsId() const { return devtools_id_; }
-  void SetDevToolsId(const absl::optional<String>& devtools_id) {
-    devtools_id_ = devtools_id;
-  }
+  const String& GetDevToolsId() const { return devtools_id_; }
+  void SetDevToolsId(const String devtools_id) { devtools_id_ = devtools_id; }
 
   void SetRequestedWithHeader(const String& value) {
     requested_with_header_ = value;
@@ -453,10 +503,10 @@ class PLATFORM_EXPORT ResourceRequestHead {
   // can use this to display the initiator call stack when debugging a process
   // that later intercepts the request, e.g., in a service worker fetch event
   // handler.
-  const absl::optional<String>& GetDevToolsStackId() const {
+  const std::optional<String>& GetDevToolsStackId() const {
     return devtools_stack_id_;
   }
-  void SetDevToolsStackId(const absl::optional<String>& devtools_stack_id) {
+  void SetDevToolsStackId(const std::optional<String>& devtools_stack_id) {
     devtools_stack_id_ = devtools_stack_id;
   }
 
@@ -475,10 +525,10 @@ class PLATFORM_EXPORT ResourceRequestHead {
   }
 
   void SetRecursivePrefetchToken(
-      const absl::optional<base::UnguessableToken>& token) {
+      const std::optional<base::UnguessableToken>& token) {
     recursive_prefetch_token_ = token;
   }
-  const absl::optional<base::UnguessableToken>& RecursivePrefetchToken() const {
+  const std::optional<base::UnguessableToken>& RecursivePrefetchToken() const {
     return recursive_prefetch_token_;
   }
 
@@ -496,11 +546,14 @@ class PLATFORM_EXPORT ResourceRequestHead {
 
   void SetFetchLikeAPI(bool enabled) { is_fetch_like_api_ = enabled; }
 
+  bool IsFetchLaterAPI() const { return is_fetch_later_api_; }
+  void SetFetchLaterAPI(bool enabled) { is_fetch_later_api_ = enabled; }
+
   bool IsFavicon() const { return is_favicon_; }
 
   void SetFavicon(bool enabled) { is_favicon_ = enabled; }
 
-  bool PrefetchMaybeForTopLeveNavigation() const {
+  bool PrefetchMaybeForTopLevelNavigation() const {
     return prefetch_maybe_for_top_level_navigation_;
   }
   void SetPrefetchMaybeForTopLevelNavigation(
@@ -509,12 +562,12 @@ class PLATFORM_EXPORT ResourceRequestHead {
         prefetch_maybe_for_top_level_navigation;
   }
 
-  const absl::optional<network::mojom::blink::TrustTokenParams>&
+  const std::optional<network::mojom::blink::TrustTokenParams>&
   TrustTokenParams() const {
     return trust_token_params_;
   }
   void SetTrustTokenParams(
-      absl::optional<network::mojom::blink::TrustTokenParams> params) {
+      std::optional<network::mojom::blink::TrustTokenParams> params) {
     trust_token_params_ = std::move(params);
   }
 
@@ -530,7 +583,7 @@ class PLATFORM_EXPORT ResourceRequestHead {
     original_destination_ = value;
   }
 
-  const absl::optional<ResourceRequestHead::WebBundleTokenParams>&
+  const std::optional<ResourceRequestHead::WebBundleTokenParams>&
   GetWebBundleTokenParams() const {
     return web_bundle_token_params_;
   }
@@ -547,10 +600,12 @@ class PLATFORM_EXPORT ResourceRequestHead {
     return render_blocking_behavior_;
   }
 
-  void SetHasStorageAccess(bool has_storage_access) {
-    has_storage_access_ = has_storage_access;
+  void SetStorageAccessApiStatus(net::StorageAccessApiStatus status) {
+    storage_access_api_status_ = status;
   }
-  bool GetHasStorageAccess() const { return has_storage_access_; }
+  net::StorageAccessApiStatus GetStorageAccessApiStatus() const {
+    return storage_access_api_status_;
+  }
 
   network::mojom::AttributionSupport GetAttributionReportingSupport() const {
     return attribution_reporting_support_;
@@ -571,6 +626,75 @@ class PLATFORM_EXPORT ResourceRequestHead {
     attribution_reporting_eligibility_ = eligibility;
   }
 
+  const std::optional<base::UnguessableToken>& GetAttributionSrcToken() const {
+    return attribution_reporting_src_token_;
+  }
+
+  void SetAttributionReportingSrcToken(
+      std::optional<base::UnguessableToken> src_token) {
+    attribution_reporting_src_token_ = src_token;
+  }
+
+  bool SharedDictionaryWriterEnabled() const {
+    return shared_dictionary_writer_enabled_;
+  }
+
+  void SetSharedDictionaryWriterEnabled(bool shared_dictionary_writer_enabled) {
+    shared_dictionary_writer_enabled_ = shared_dictionary_writer_enabled;
+  }
+
+  const std::optional<base::UnguessableToken>&
+  GetServiceWorkerRaceNetworkRequestToken() const {
+    return service_worker_race_network_request_token_;
+  }
+
+  void SetServiceWorkerRaceNetworkRequestToken(
+      const base::UnguessableToken& token) {
+    // TODO(crbug.com/1492640) Consider using base::TokenType not to include
+    // null token by strong typing.
+    if (token.is_empty()) {
+      return;
+    }
+    service_worker_race_network_request_token_ = token;
+  }
+
+  void SetKnownTransparentPlaceholderImageIndex(wtf_size_t index) {
+    known_transparent_placeholder_image_index_ = index;
+  }
+
+  // TODO(crbug.com/41496436): Make the optimizations referencing the index
+  // applicable to all static resource loads.
+  wtf_size_t GetKnownTransparentPlaceholderImageIndex() const {
+    return known_transparent_placeholder_image_index_;
+  }
+
+  const std::optional<base::UnguessableToken>& GetKeepaliveToken() const {
+    return keepalive_token_;
+  }
+
+  // Indicates that both FetchContext::PrepareResourceRequestForCacheAccess()
+  // and FetchContext::UpgradeResourceRequestForLoader() must be called. See
+  // FetchContext::UpgradeResourceRequestForLoader() for details.
+  void SetRequiresUpgradeForLoader() { requires_upgrade_for_loader_ = true; }
+  bool RequiresUpgradeForLoader() const { return requires_upgrade_for_loader_; }
+
+  // See comment in SetUrl().
+  void SetCanChangeUrl(bool value) {
+#if DCHECK_IS_ON()
+    is_set_url_allowed_ = value;
+#endif
+  }
+
+  bool AllowsDeviceBoundSessionRegistration() const {
+    return allows_device_bound_session_registration_;
+  }
+
+  void SetAllowsDeviceBoundSessionRegistration(
+      bool allows_device_bound_session_registration) {
+    allows_device_bound_session_registration_ =
+        allows_device_bound_session_registration;
+  }
+
  private:
   const CacheControlHeader& GetCacheControlHeader() const;
 
@@ -589,7 +713,6 @@ class PLATFORM_EXPORT ResourceRequestHead {
 
   AtomicString http_method_;
   HTTPHeaderMap http_header_fields_;
-  bool allow_stored_credentials_ : 1;
   bool report_upload_progress_ : 1;
   bool has_user_gesture_ : 1;
   bool has_text_fragment_token_ : 1;
@@ -597,13 +720,38 @@ class PLATFORM_EXPORT ResourceRequestHead {
   bool use_stream_on_response_ : 1;
   bool keepalive_ : 1;
   bool browsing_topics_ : 1;
+  bool ad_auction_headers_ : 1;
+  bool shared_storage_writable_opted_in_ : 1;
+  bool shared_storage_writable_eligible_ : 1;
   bool allow_stale_response_ : 1;
-  mojom::blink::FetchCacheMode cache_mode_;
   bool skip_service_worker_ : 1;
   bool download_to_cache_only_ : 1;
   bool site_for_cookies_set_ : 1;
   bool is_form_submission_ : 1;
   bool priority_incremental_ : 1;
+  bool is_ad_resource_ : 1;
+  bool upgrade_if_insecure_ : 1;
+  bool is_revalidating_ : 1;
+  bool is_automatic_upgrade_ : 1;
+  bool is_from_origin_dirty_style_sheet_ : 1;
+  bool is_fetch_like_api_ : 1;
+  // Indicates that this ResourceRequest represents the requestObject for a
+  // JS fetchLater() call.
+  // https://whatpr.org/fetch/1647/094ea69...152d725.html#fetch-later-method
+  bool is_fetch_later_api_ : 1;
+  bool is_favicon_ : 1;
+  // Currently this is only used when a prefetch request has `as=document`
+  // specified. If true, and the request is cross-origin, the browser will cache
+  // the request under the cross-origin's partition. Furthermore, its reuse from
+  // the prefetch cache will be restricted to top-level-navigations.
+  bool prefetch_maybe_for_top_level_navigation_ : 1;
+  // Indicate the state of CompressionDictionaryTransport feature. When it is
+  // true, `use-as-dictionary` response HTTP header may be processed.
+  // TODO(crbug.com/1413922): Remove this flag when we launch
+  // CompressionDictionaryTransport feature.
+  bool shared_dictionary_writer_enabled_ : 1;
+  bool requires_upgrade_for_loader_ : 1;
+  mojom::blink::FetchCacheMode cache_mode_;
   ResourceLoadPriority initial_priority_;
   ResourceLoadPriority priority_;
   int intra_priority_value_;
@@ -614,34 +762,30 @@ class PLATFORM_EXPORT ResourceRequestHead {
   mojom::blink::FetchPriorityHint fetch_priority_hint_;
   network::mojom::CredentialsMode credentials_mode_;
   network::mojom::RedirectMode redirect_mode_;
+  // Exposed as Request.integrity in Service Workers
   String fetch_integrity_;
+  // Public key expectations extracted from `integrity_`
+  WTF::Vector<String> expected_public_keys_;
   String referrer_string_;
   network::mojom::ReferrerPolicy referrer_policy_;
   network::mojom::CorsPreflightPolicy cors_preflight_policy_;
-  absl::optional<RedirectInfo> redirect_info_;
-  absl::optional<network::mojom::blink::TrustTokenParams> trust_token_params_;
+  std::optional<RedirectInfo> redirect_info_;
+  std::optional<network::mojom::blink::TrustTokenParams> trust_token_params_;
   network::mojom::IPAddressSpace target_address_space_;
 
-  absl::optional<String> suggested_filename_;
+  std::optional<String> suggested_filename_;
 
   mutable CacheControlHeader cache_control_header_cache_;
 
   static const base::TimeDelta default_timeout_interval_;
 
-  bool is_ad_resource_ = false;
-
-  bool upgrade_if_insecure_ = false;
-  bool is_revalidating_ = false;
-
-  bool is_automatic_upgrade_ = false;
-
-  absl::optional<base::UnguessableToken> devtools_token_;
-  absl::optional<String> devtools_id_;
+  std::optional<base::UnguessableToken> devtools_token_;
+  String devtools_id_;
   String requested_with_header_;
   String client_data_header_;
   String purpose_header_;
 
-  absl::optional<String> devtools_stack_id_;
+  std::optional<String> devtools_stack_id_;
 
   ukm::SourceId ukm_source_id_ = ukm::kInvalidSourceId;
 
@@ -652,27 +796,15 @@ class PLATFORM_EXPORT ResourceRequestHead {
 
   uint64_t inspector_id_ = 0;
 
-  bool is_from_origin_dirty_style_sheet_ = false;
-
-  bool is_fetch_like_api_ = false;
-
-  bool is_favicon_ = false;
-
-  // Currently this is only used when a prefetch request has `as=document`
-  // specified. If true, and the request is cross-origin, the browser will cache
-  // the request under the cross-origin's partition. Furthermore, its reuse from
-  // the prefetch cache will be restricted to top-level-navigations.
-  bool prefetch_maybe_for_top_level_navigation_ = false;
-
   // This is used when fetching preload header requests from cross-origin
   // prefetch responses. The browser process uses this token to ensure the
   // request is cached correctly.
-  absl::optional<base::UnguessableToken> recursive_prefetch_token_;
+  std::optional<base::UnguessableToken> recursive_prefetch_token_;
 
   // This is used when fetching either a WebBundle or a subresrouce in the
   // WebBundle. The network process uses this token to associate the request to
   // the bundle.
-  absl::optional<WebBundleTokenParams> web_bundle_token_params_;
+  std::optional<WebBundleTokenParams> web_bundle_token_params_;
 
   // Render blocking behavior of the resource. Used in maintaining correct
   // reporting for redirects.
@@ -682,21 +814,47 @@ class PLATFORM_EXPORT ResourceRequestHead {
   // If not null, the network service will not advertise any stream types
   // (via Accept-Encoding) that are not listed. Also, it will not attempt
   // decoding any non-listed stream types.
-  // Instead of using absl::optional, we use scoped_refptr to reduce
+  // Instead of using std::optional, we use scoped_refptr to reduce
   // blink memory footprint because the attribute is only used by DevTools
   // and we should keep the footprint minimal when DevTools is closed.
-  scoped_refptr<
-      base::RefCountedData<base::flat_set<net::SourceStream::SourceType>>>
+  scoped_refptr<base::RefCountedData<base::flat_set<net::SourceStreamType>>>
       devtools_accepted_stream_types_;
 
-  bool has_storage_access_ = false;
+  net::StorageAccessApiStatus storage_access_api_status_ =
+      net::StorageAccessApiStatus::kNone;
 
   network::mojom::AttributionSupport attribution_reporting_support_ =
-      network::mojom::AttributionSupport::kWeb;
+      network::mojom::AttributionSupport::kUnset;
 
   network::mojom::AttributionReportingEligibility
       attribution_reporting_eligibility_ =
           network::mojom::AttributionReportingEligibility::kUnset;
+
+  std::optional<base::UnguessableToken> attribution_reporting_src_token_;
+
+  // The request is for a known transparent placeholder image, which enables us
+  // to bypass as much processing as possible.
+  // TODO(crbug.com/41496436): Make all the optimizations referencing the flag
+  // applicable to all static resource load.
+  wtf_size_t known_transparent_placeholder_image_index_ = kNotFound;
+
+  std::optional<base::UnguessableToken>
+      service_worker_race_network_request_token_;
+
+  // The unique identifier set when this request's `keepalive_` is true.
+  // TODO(crbug.com/382527001): Consider merge this field with `keepalive_`.
+  std::optional<base::UnguessableToken> keepalive_token_;
+
+  std::optional<network::FetchRetryOptions> fetch_retry_options_;
+
+#if DCHECK_IS_ON()
+  bool is_set_url_allowed_ = true;
+#endif
+
+  // Whether this request is allowed to register new device bound
+  // sessions or accept challenges on device bound sessions (e.g. due to
+  // an Origin Trial)
+  bool allows_device_bound_session_registration_ = false;
 };
 
 class PLATFORM_EXPORT ResourceRequestBody {
@@ -771,6 +929,16 @@ class PLATFORM_EXPORT ResourceRequest final : public ResourceRequestHead {
   void SetHttpBody(scoped_refptr<EncodedFormData>);
 
   ResourceRequestBody& MutableBody() { return body_; }
+
+  // `PermissionsPolicy` is in blink/public and hence cannot access
+  // `ResourceRequest`. We implement this method here and make `ResourceRequest`
+  // a forward-declared friend class to `PermissionsPolicy` in order to keep
+  // `PermissionsPolicy::IsFeatureEnabledForSubresourceRequestAssumingOptIn()`
+  // private for safety.
+  bool IsFeatureEnabledForSubresourceRequestAssumingOptIn(
+      const network::PermissionsPolicy* policy,
+      network::mojom::PermissionsPolicyFeature feature,
+      const url::Origin& origin);
 
  private:
   ResourceRequestBody body_;

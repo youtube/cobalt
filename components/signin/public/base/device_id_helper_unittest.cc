@@ -7,7 +7,6 @@
 #include <string>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -15,7 +14,7 @@
 namespace signin {
 namespace {
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 
 TEST(DeviceIdHelper, GenerateSigninScopedDeviceId) {
   EXPECT_FALSE(GenerateSigninScopedDeviceId().empty());
@@ -41,7 +40,7 @@ TEST(DeviceIdHelper, RecreateSigninScopedDeviceId) {
             prefs.GetString(prefs::kGoogleServicesSigninScopedDeviceId));
 }
 
-TEST(DeviceIdHelper, GetOrCreateScopedDeviceId) {
+TEST(DeviceIdHelper, GetSigninScopedDeviceId) {
   sync_preferences::TestingPrefServiceSyncable prefs;
   prefs.registry()->RegisterStringPref(
       prefs::kGoogleServicesSigninScopedDeviceId, std::string());
@@ -49,12 +48,12 @@ TEST(DeviceIdHelper, GetOrCreateScopedDeviceId) {
   ASSERT_TRUE(
       prefs.GetString(prefs::kGoogleServicesSigninScopedDeviceId).empty());
 
-  std::string device_id_1 = GetOrCreateScopedDeviceId(&prefs);
+  std::string device_id_1 = GetSigninScopedDeviceId(&prefs);
   EXPECT_FALSE(device_id_1.empty());
   EXPECT_EQ(device_id_1,
             prefs.GetString(prefs::kGoogleServicesSigninScopedDeviceId));
 
-  std::string device_id_2 = GetOrCreateScopedDeviceId(&prefs);
+  std::string device_id_2 = GetSigninScopedDeviceId(&prefs);
   EXPECT_EQ(device_id_1, device_id_2);
   EXPECT_EQ(device_id_2,
             prefs.GetString(prefs::kGoogleServicesSigninScopedDeviceId));

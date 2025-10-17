@@ -5,9 +5,8 @@
 #include "third_party/blink/renderer/core/workers/dedicated_worker_messaging_proxy.h"
 
 #include <memory>
-#include "base/feature_list.h"
+#include "base/trace_event/typed_macros.h"
 #include "services/network/public/mojom/fetch_api.mojom-blink.h"
-#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/v8_cache_options.mojom-blink.h"
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host.mojom-blink-forward.h"
@@ -20,6 +19,7 @@
 #include "third_party/blink/renderer/core/fetch/request.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/inspector/thread_debugger_common_impl.h"
 #include "third_party/blink/renderer/core/loader/worker_resource_timing_notifier_impl.h"
 #include "third_party/blink/renderer/core/messaging/blink_transferable_message.h"
@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 
 namespace blink {
 
@@ -78,8 +79,6 @@ void DedicatedWorkerMessagingProxy::StartWorkerGlobalScope(
     const KURL& script_url,
     const FetchClientSettingsObjectSnapshot& outside_settings_object,
     const v8_inspector::V8StackTraceId& stack_id,
-    const String& source_code,
-    RejectCoepUnsafeNone reject_coep_unsafe_none,
     const blink::DedicatedWorkerToken& token,
     mojo::PendingRemote<mojom::blink::DedicatedWorkerHost>
         dedicated_worker_host,
@@ -97,10 +96,18 @@ void DedicatedWorkerMessagingProxy::StartWorkerGlobalScope(
   pending_dedicated_worker_host_ = std::move(dedicated_worker_host);
   pending_back_forward_cache_controller_host_ =
       std::move(back_forward_cache_controller_host);
-  InitializeWorkerThread(
+  bool initialized = InitializeWorkerThread(
       std::move(creation_params),
       CreateBackingThreadStartupData(GetExecutionContext()->GetIsolate()),
       token);
+  if (base::FeatureList::IsEnabled(
+          blink::features::kWorkerThreadRespectTermRequest) &&
+      !initialized) {
+    virtual_time_pauser_.UnpauseVirtualTime();
+    // if the current thread (i.e. parent thread) has been asked to terminate,
+    // we do not start the child thread.
+    return;
+  }
 
   // Step 13: "Obtain script by switching on the value of options's type
   // member:"
@@ -109,29 +116,23 @@ void DedicatedWorkerMessagingProxy::StartWorkerGlobalScope(
     // destination, and inside settings."
     UseCounter::Count(GetExecutionContext(),
                       WebFeature::kClassicDedicatedWorker);
-    if (base::FeatureList::IsEnabled(features::kPlzDedicatedWorker)) {
-      auto* resource_timing_notifier =
-          WorkerResourceTimingNotifierImpl::CreateForOutsideResourceFetcher(
-              *GetExecutionContext());
-      // TODO(crbug.com/1177199): pass a proper policy container
-      GetWorkerThread()->FetchAndRunClassicScript(
-          script_url, std::move(worker_main_script_load_params),
-          /*policy_container=*/nullptr, outside_settings_object.CopyData(),
-          resource_timing_notifier, stack_id);
-    } else {
-      // Legacy code path (to be deprecated, see https://crbug.com/835717):
-      GetWorkerThread()->EvaluateClassicScript(
-          script_url, source_code, nullptr /* cached_meta_data */, stack_id);
-    }
+    auto* resource_timing_notifier =
+        WorkerResourceTimingNotifierImpl::CreateForOutsideResourceFetcher(
+            *GetExecutionContext());
+    // TODO(crbug.com/1177199): pass a proper policy container
+    GetWorkerThread()->FetchAndRunClassicScript(
+        script_url, std::move(worker_main_script_load_params),
+        /*policy_container=*/nullptr, outside_settings_object.CopyData(),
+        resource_timing_notifier, stack_id);
   } else if (options->type() == script_type_names::kModule) {
     // "module: Fetch a module worker script graph given url, outside settings,
     // destination, the value of the credentials member of options, and inside
     // settings."
     UseCounter::Count(GetExecutionContext(),
                       WebFeature::kModuleDedicatedWorker);
-    absl::optional<network::mojom::CredentialsMode> credentials_mode =
-        Request::ParseCredentialsMode(options->credentials());
-    DCHECK(credentials_mode);
+    network::mojom::CredentialsMode credentials_mode =
+        Request::V8RequestCredentialsToCredentialsMode(
+            options->credentials().AsEnum());
 
     auto* resource_timing_notifier =
         WorkerResourceTimingNotifierImpl::CreateForOutsideResourceFetcher(
@@ -140,7 +141,7 @@ void DedicatedWorkerMessagingProxy::StartWorkerGlobalScope(
     GetWorkerThread()->FetchAndRunModuleScript(
         script_url, std::move(worker_main_script_load_params),
         /*policy_container=*/nullptr, outside_settings_object.CopyData(),
-        resource_timing_notifier, *credentials_mode, reject_coep_unsafe_none);
+        resource_timing_notifier, credentials_mode);
   } else {
     NOTREACHED();
   }
@@ -152,7 +153,7 @@ void DedicatedWorkerMessagingProxy::PostMessageToWorkerGlobalScope(
   if (AskedToTerminate())
     return;
   if (!was_script_evaluated_) {
-    queued_early_tasks_.push_back(std::move(message));
+    queued_early_tasks_.push_back(TaskInfo{.message = std::move(message)});
     return;
   }
   PostCrossThreadTask(
@@ -161,6 +162,37 @@ void DedicatedWorkerMessagingProxy::PostMessageToWorkerGlobalScope(
           &DedicatedWorkerObjectProxy::ProcessMessageFromWorkerObject,
           CrossThreadUnretained(&WorkerObjectProxy()), std::move(message),
           CrossThreadUnretained(GetWorkerThread())));
+}
+
+void DedicatedWorkerMessagingProxy::PostCustomEventToWorkerGlobalScope(
+    TaskType task_type,
+    CrossThreadFunction<Event*(ScriptState*, CustomEventMessage)>
+        event_factory_callback,
+    CrossThreadFunction<Event*(ScriptState* script_state)>
+        event_factory_error_callback,
+    CustomEventMessage message) {
+  CHECK(IsParentContextThread());
+  if (AskedToTerminate()) {
+    return;
+  }
+  if (!was_script_evaluated_) {
+    queued_early_tasks_.push_back(TaskInfo{
+        .custom_event_info = CustomEventInfo{
+            .task_type = task_type,
+            .message = std::move(message),
+            .event_factory_callback = std::move(event_factory_callback),
+            .event_factory_error_callback =
+                std::move(event_factory_error_callback)}});
+    return;
+  }
+  PostCrossThreadTask(
+      *GetWorkerThread()->GetTaskRunner(task_type), FROM_HERE,
+      CrossThreadBindOnce(
+          &DedicatedWorkerObjectProxy::ProcessCustomEventFromWorkerObject,
+          CrossThreadUnretained(&WorkerObjectProxy()), std::move(message),
+          CrossThreadUnretained(GetWorkerThread()),
+          std::move(event_factory_callback),
+          std::move(event_factory_error_callback)));
 }
 
 bool DedicatedWorkerMessagingProxy::HasPendingActivity() const {
@@ -198,7 +230,7 @@ void DedicatedWorkerMessagingProxy::DidEvaluateScript(bool success) {
 
   virtual_time_pauser_.UnpauseVirtualTime();
 
-  Vector<BlinkTransferableMessage> tasks;
+  Vector<TaskInfo> tasks;
   queued_early_tasks_.swap(tasks);
 
   // The worker thread can already be terminated.
@@ -211,12 +243,28 @@ void DedicatedWorkerMessagingProxy::DidEvaluateScript(bool success) {
   // TODO(nhiroki): Consider whether to post the queued tasks to the worker when
   // |success| is false.
   for (auto& task : tasks) {
-    PostCrossThreadTask(
-        *GetWorkerThread()->GetTaskRunner(TaskType::kPostedMessage), FROM_HERE,
-        CrossThreadBindOnce(
-            &DedicatedWorkerObjectProxy::ProcessMessageFromWorkerObject,
-            CrossThreadUnretained(&WorkerObjectProxy()), std::move(task),
-            CrossThreadUnretained(GetWorkerThread())));
+    if (task.message) {
+      PostCrossThreadTask(
+          *GetWorkerThread()->GetTaskRunner(TaskType::kPostedMessage),
+          FROM_HERE,
+          CrossThreadBindOnce(
+              &DedicatedWorkerObjectProxy::ProcessMessageFromWorkerObject,
+              CrossThreadUnretained(&WorkerObjectProxy()),
+              std::move(*task.message),
+              CrossThreadUnretained(GetWorkerThread())));
+    } else {
+      CHECK(task.custom_event_info);
+      PostCrossThreadTask(
+          *GetWorkerThread()->GetTaskRunner(task.custom_event_info->task_type),
+          FROM_HERE,
+          CrossThreadBindOnce(
+              &DedicatedWorkerObjectProxy::ProcessCustomEventFromWorkerObject,
+              CrossThreadUnretained(&WorkerObjectProxy()),
+              std::move(task.custom_event_info->message),
+              CrossThreadUnretained(GetWorkerThread()),
+              std::move(task.custom_event_info->event_factory_callback),
+              std::move(task.custom_event_info->event_factory_error_callback)));
+    }
   }
 }
 
@@ -228,12 +276,21 @@ void DedicatedWorkerMessagingProxy::PostMessageToWorkerObject(
 
   ThreadDebugger* debugger =
       ThreadDebugger::From(GetExecutionContext()->GetIsolate());
-  MessagePortArray* ports = MessagePort::EntanglePorts(
+  GCedMessagePortArray* ports = MessagePort::EntanglePorts(
       *GetExecutionContext(), std::move(message.ports));
   debugger->ExternalAsyncTaskStarted(message.sender_stack_trace_id);
   if (message.message->CanDeserializeIn(GetExecutionContext())) {
-    worker_object_->DispatchEvent(
-        *MessageEvent::Create(ports, std::move(message.message)));
+    MessageEvent* event =
+        MessageEvent::Create(ports, std::move(message.message));
+    event->SetTraceId(message.trace_id);
+    TRACE_EVENT(
+        "devtools.timeline", "HandlePostMessage", "data",
+        [&](perfetto::TracedValue context) {
+          inspector_handle_post_message_event::Data(
+              std::move(context), GetExecutionContext(), *event);
+        },
+        perfetto::Flow::Global(event->GetTraceId()));
+    worker_object_->DispatchEvent(*event);
   } else {
     worker_object_->DispatchEvent(*MessageEvent::CreateError());
   }
@@ -288,7 +345,7 @@ void DedicatedWorkerMessagingProxy::Trace(Visitor* visitor) const {
   ThreadedMessagingProxyBase::Trace(visitor);
 }
 
-absl::optional<WorkerBackingThreadStartupData>
+std::optional<WorkerBackingThreadStartupData>
 DedicatedWorkerMessagingProxy::CreateBackingThreadStartupData(
     v8::Isolate* isolate) {
   using HeapLimitMode = WorkerBackingThreadStartupData::HeapLimitMode;

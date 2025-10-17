@@ -11,7 +11,9 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "chrome/browser/enterprise/signals/signals_common.h"
+#include "components/device_signals/core/common/common_types.h"
+#include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/connectors/core/common.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 
 namespace content {
@@ -39,18 +41,17 @@ struct ContextInfo {
   std::vector<std::string> on_bulk_data_entry_providers;
   std::vector<std::string> on_print_providers;
   std::vector<std::string> on_security_event_providers;
-  safe_browsing::EnterpriseRealTimeUrlCheckMode realtime_url_check_mode;
+  enterprise_connectors::EnterpriseRealTimeUrlCheckMode realtime_url_check_mode;
   std::string browser_version;
   safe_browsing::SafeBrowsingState safe_browsing_protection_level;
   bool site_isolation_enabled;
   bool built_in_dns_client_enabled;
-  absl::optional<safe_browsing::PasswordProtectionTrigger>
+  std::optional<safe_browsing::PasswordProtectionTrigger>
       password_protection_warning_trigger;
   bool chrome_remote_desktop_app_blocked;
-  absl::optional<bool> third_party_blocking_enabled;
-  SettingValue os_firewall;
+  device_signals::SettingValue os_firewall;
   std::vector<std::string> system_dns_servers;
-  absl::optional<std::string> enterprise_profile_id;
+  std::optional<std::string> enterprise_profile_id;
 };
 
 // Interface used by the chrome.enterprise.reportingPrivate.getContextInfo()
@@ -87,14 +88,17 @@ class ContextInfoFetcher {
 
   std::vector<std::string> GetProfileAffiliationIDs();
 
+#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
   std::vector<std::string> GetAnalysisConnectorProviders(
       enterprise_connectors::AnalysisConnector connector);
 
-  safe_browsing::EnterpriseRealTimeUrlCheckMode GetRealtimeUrlCheckMode();
+  enterprise_connectors::EnterpriseRealTimeUrlCheckMode
+  GetRealtimeUrlCheckMode();
 
   std::vector<std::string> GetOnSecurityEventProviders();
+#endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 
-  SettingValue GetOSFirewall();
+  device_signals::SettingValue GetOSFirewall();
 
   ContextInfo FetchAsyncSignals(ContextInfo info);
 

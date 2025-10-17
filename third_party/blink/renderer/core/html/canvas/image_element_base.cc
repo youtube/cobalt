@@ -6,7 +6,6 @@
 
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
@@ -57,13 +56,9 @@ bool ImageElementBase::IsImageElement() const {
 }
 
 scoped_refptr<Image> ImageElementBase::GetSourceImageForCanvas(
-    CanvasResourceProvider::FlushReason,
+    FlushReason,
     SourceImageStatus* status,
-    const gfx::SizeF& default_object_size,
-    const AlphaDisposition alpha_disposition) {
-  // UnpremultiplyAlpha is not implemented yet.
-  DCHECK_EQ(alpha_disposition, kPremultiplyAlpha);
-
+    const gfx::SizeF& default_object_size) {
   ImageResourceContent* image_content = CachedImage();
   if (!GetImageLoader().ImageComplete() || !image_content) {
     *status = kIncompleteSourceImageStatus;
@@ -77,22 +72,23 @@ scoped_refptr<Image> ImageElementBase::GetSourceImageForCanvas(
 
   scoped_refptr<Image> source_image = image_content->GetImage();
 
-  if (!source_image->width() || !source_image->height()) {
-    *status = kZeroSizeImageSourceStatus;
-    return nullptr;
-  }
-
   if (auto* svg_image = DynamicTo<SVGImage>(source_image.get())) {
     UseCounter::Count(GetElement().GetDocument(), WebFeature::kSVGInCanvas2D);
-    gfx::SizeF image_size = svg_image->ConcreteObjectSize(default_object_size);
-    if (!image_size.width() || !image_size.height()) {
+    const SVGImageViewInfo* view_info =
+        SVGImageForContainer::CreateViewInfo(*svg_image, GetElement());
+    const gfx::SizeF image_size = SVGImageForContainer::ConcreteObjectSize(
+        *svg_image, view_info, default_object_size);
+    if (image_size.IsEmpty()) {
       *status = kZeroSizeImageSourceStatus;
       return nullptr;
     }
     source_image = SVGImageForContainer::Create(
-        svg_image, image_size, 1,
-        GetElement().GetDocument().CompleteURL(GetElement().ImageSourceURL()),
-        PreferredColorScheme());
+        *svg_image, image_size, 1, view_info, PreferredColorScheme());
+  }
+
+  if (source_image->Size().IsEmpty()) {
+    *status = kZeroSizeImageSourceStatus;
+    return nullptr;
   }
 
   *status = kNormalSourceImageStatus;
@@ -110,8 +106,12 @@ gfx::SizeF ImageElementBase::ElementSize(
   if (!image_content || !image_content->HasImage())
     return gfx::SizeF();
   Image* image = image_content->GetImage();
-  if (auto* svg_image = DynamicTo<SVGImage>(image))
-    return svg_image->ConcreteObjectSize(default_object_size);
+  if (auto* svg_image = DynamicTo<SVGImage>(image)) {
+    const SVGImageViewInfo* view_info =
+        SVGImageForContainer::CreateViewInfo(*svg_image, GetElement());
+    return SVGImageForContainer::ConcreteObjectSize(*svg_image, view_info,
+                                                    default_object_size);
+  }
   return gfx::SizeF(image->Size(respect_orientation));
 }
 
@@ -134,63 +134,79 @@ bool ImageElementBase::IsOpaque() const {
   if (!GetImageLoader().ImageComplete() || !image_content)
     return false;
   Image* image = image_content->GetImage();
-  return image->CurrentFrameKnownToBeOpaque();
+  return image->IsOpaque();
 }
 
-gfx::Size ImageElementBase::BitmapSourceSize() const {
-  ImageResourceContent* image = CachedImage();
-  if (!image)
-    return gfx::Size();
-  // This method is called by ImageBitmap when creating and cropping the image.
-  // Return un-oriented size because the cropping must happen before
-  // orienting.
-  return image->IntrinsicSize(kDoNotRespectImageOrientation);
-}
-
-static bool HasDimensionsForImage(SVGImage* svg_image,
-                                  absl::optional<gfx::Rect> crop_rect,
+static bool HasDimensionsForImage(SVGImage& svg_image,
                                   const ImageBitmapOptions* options) {
-  if (!svg_image->ConcreteObjectSize(gfx::SizeF()).IsEmpty())
+  if (options->hasResizeWidth() && options->hasResizeHeight()) {
     return true;
-  if (crop_rect)
-    return true;
-  if (options->hasResizeWidth() && options->hasResizeHeight())
-    return true;
-  return false;
+  }
+  std::optional<NaturalSizingInfo> sizing_info =
+      SVGImageForContainer::GetNaturalDimensions(svg_image, nullptr);
+  return sizing_info && sizing_info->has_width && sizing_info->has_height;
 }
 
-ScriptPromise ImageElementBase::CreateImageBitmap(
+ImageBitmapSourceStatus ImageElementBase::CheckUsability() const {
+  ImageResourceContent* image_content = CachedImage();
+  if (!GetImageLoader().ImageComplete() || !image_content) {
+    return base::unexpected(ImageBitmapSourceError::kIncomplete);
+  }
+  if (image_content->ErrorOccurred()) {
+    return base::unexpected(ImageBitmapSourceError::kUndecodable);
+  }
+  // Check if the width/height are explicitly zero.
+  bool width_is_zero = false;
+  bool height_is_zero = false;
+  Image& image = *image_content->GetImage();
+  if (auto* svg_image = DynamicTo<SVGImage>(image)) {
+    std::optional<NaturalSizingInfo> sizing_info =
+        SVGImageForContainer::GetNaturalDimensions(*svg_image, nullptr);
+    if (!sizing_info) {
+      return base::unexpected(ImageBitmapSourceError::kIncomplete);
+    }
+    width_is_zero = sizing_info->has_width && sizing_info->size.width() == 0;
+    height_is_zero = sizing_info->has_height && sizing_info->size.height() == 0;
+  } else {
+    const gfx::Size image_size = image.Size();
+    width_is_zero = image_size.width() == 0;
+    height_is_zero = image_size.height() == 0;
+  }
+  if (width_is_zero || height_is_zero) {
+    return base::unexpected(width_is_zero
+                                ? ImageBitmapSourceError::kZeroWidth
+                                : ImageBitmapSourceError::kZeroHeight);
+  }
+  return base::ok();
+}
+
+ScriptPromise<ImageBitmap> ImageElementBase::CreateImageBitmap(
     ScriptState* script_state,
-    absl::optional<gfx::Rect> crop_rect,
+    std::optional<gfx::Rect> crop_rect,
     const ImageBitmapOptions* options,
     ExceptionState& exception_state) {
-  ImageResourceContent* image_content = CachedImage();
-  if (!image_content) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kInvalidStateError,
-        "No image can be retrieved from the provided element.");
-    return ScriptPromise();
-  }
+  // This was checked by CheckUsability().
+  CHECK(CachedImage());
   if (options->hasResizeWidth() && options->resizeWidth() == 0) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The resize width dimension is equal to 0.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
   if (options->hasResizeHeight() && options->resizeHeight() == 0) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The resize width dimension is equal to 0.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
-  if (auto* svg_image = DynamicTo<SVGImage>(image_content->GetImage())) {
-    if (!HasDimensionsForImage(svg_image, crop_rect, options)) {
+  Image& image = *CachedImage()->GetImage();
+  if (auto* svg_image = DynamicTo<SVGImage>(image)) {
+    if (!HasDimensionsForImage(*svg_image, options)) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kInvalidStateError,
-          "The image element contains an SVG image without intrinsic "
-          "dimensions, and no resize options or crop region are "
-          "specified.");
-      return ScriptPromise();
+          "The image element contains an SVG image without natural "
+          "dimensions, and no resize options are specified.");
+      return EmptyPromise();
     }
     // The following function only works on SVGImages (as checked above).
     return ImageBitmap::CreateAsync(

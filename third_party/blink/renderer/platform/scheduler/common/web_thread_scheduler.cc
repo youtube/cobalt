@@ -29,7 +29,7 @@ WebThreadScheduler::CreateMainThreadScheduler(
     std::unique_ptr<base::MessagePump> message_pump) {
   auto settings = base::sequence_manager::SequenceManager::Settings::Builder()
                       .SetMessagePumpType(base::MessagePumpType::DEFAULT)
-                      .SetRandomisedSamplingEnabled(true)
+                      .SetShouldSampleCPUTime(true)
                       .SetAddQueueTimeToTasks(true)
                       .SetPrioritySettings(CreatePrioritySettings())
                       .Build();
@@ -45,20 +45,12 @@ WebThreadScheduler::CreateMainThreadScheduler(
 
 // Stubs for main thread only virtual functions.
 scoped_refptr<base::SingleThreadTaskRunner>
-WebThreadScheduler::CompositorTaskRunner() {
-  NOTREACHED();
-  return nullptr;
-}
-
-scoped_refptr<base::SingleThreadTaskRunner>
 WebThreadScheduler::DeprecatedDefaultTaskRunner() {
   NOTREACHED();
-  return nullptr;
 }
 
 std::unique_ptr<MainThread> WebThreadScheduler::CreateMainThread() {
   NOTREACHED();
-  return nullptr;
 }
 
 void WebThreadScheduler::SetRendererHidden(bool hidden) {
@@ -79,7 +71,11 @@ void WebThreadScheduler::ResumeTimersForAndroidWebView() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-void WebThreadScheduler::SetRendererProcessType(WebRendererProcessType type) {
+void WebThreadScheduler::OnUrgentMessageReceived() {
+  NOTREACHED();
+}
+
+void WebThreadScheduler::OnUrgentMessageProcessed() {
   NOTREACHED();
 }
 

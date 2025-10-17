@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 source_set("android") {
   sources = [
@@ -40,7 +41,6 @@ android_library("java") {
     ":constants_java",
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//components/browser_ui/util/android:java",
     "//components/browser_ui/widget/android:java_resources",
     "//components/dom_distiller/core/android:dom_distiller_core_java",
@@ -48,13 +48,18 @@ android_library("java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_appcompat_appcompat_java",
     "//third_party/androidx:androidx_core_core_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
+    "//url:gurl_java",
   ]
   resources_package = "org.chromium.components.browser_ui.share"
 }
 
 android_resources("java_resources") {
-  sources = [ "java/res/layout/share_dialog_item.xml" ]
+  sources = [
+    "java/res/layout/share_dialog_item.xml",
+    "java/res/values/dimens.xml",
+  ]
   deps = [
     "//components/browser_ui/strings/android:browser_ui_strings_grd",
     "//components/browser_ui/styles/android:java_resources",
@@ -74,6 +79,7 @@ android_library("javatests") {
     "//base:base_java",
     "//base:base_java_test_support",
     "//chrome/android:chrome_java",
+    "//components/browser_ui/notifications/android:utils_java",
     "//content/public/test/android:content_java_test_support",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_appcompat_appcompat_java",
@@ -81,6 +87,7 @@ android_library("javatests") {
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_java",
     "//third_party/junit",
+    "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
   ]

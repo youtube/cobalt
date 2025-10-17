@@ -14,8 +14,8 @@ _util_sources = [
   "OSPixmap.h",
   "OSWindow.cpp",
   "OSWindow.h",
-  "angle_features_autogen.cpp",
-  "angle_features_autogen.h",
+  "autogen/angle_features_autogen.cpp",
+  "autogen/angle_features_autogen.h",
   "com_utils.h",
   "geometry_utils.cpp",
   "geometry_utils.h",
@@ -220,6 +220,7 @@ angle_source_set("angle_trace_fixture") {
     "capture/angle_trace_gl.h",
     "capture/trace_fixture.cpp",
     "capture/trace_fixture.h",
+    "capture/trace_interface.h",
   ]
   public_deps = [
     ":angle_trace_loader",
@@ -231,6 +232,27 @@ angle_source_set("angle_trace_fixture") {
   }
 }
 
+if (angle_enable_cl) {
+  angle_source_set("angle_trace_fixture_cl") {
+    testonly = true
+    defines = [ "ANGLE_REPLAY_IMPLEMENTATION" ]
+    suppressed_configs += [ "$angle_root:constructor_and_destructor_warnings" ]
+    sources = [
+      "capture/trace_fixture_cl.cpp",
+      "capture/trace_fixture_cl.h",
+      "capture/trace_interface.h",
+    ]
+    public_deps = [
+      ":angle_trace_loader",
+      "$angle_root:includes",
+    ]
+    if (is_ios) {
+      # shared libraries are hidden inside ios_framework_bundle, but we include headers from them
+      check_includes = false
+    }
+  }
+}
+
 if (angle_has_frame_capture) {
   config("angle_frame_capture_test_utils_config") {
     include_dirs = [ "$angle_root/util/capture" ]
@@ -238,9 +260,17 @@ if (angle_has_frame_capture) {
 
   angle_source_set("angle_frame_capture_test_utils") {
     testonly = true
+
+    if (restricted_traces_outside_of_apk) {
+      # On Android, if we are building the entire trace library,
+      # we need to load the libraries from outside the APK
+      defines = [ "ANGLE_TRACE_EXTERNAL_BINARIES" ]
+    }
+
     sources = [
       "capture/frame_capture_test_utils.cpp",
       "capture/frame_capture_test_utils.h",
+      "capture/trace_interface.h",
     ]
     deps = [ "$angle_root/third_party/rapidjson" ]
 
@@ -333,14 +363,10 @@ foreach(is_shared_library,
     if (is_fuchsia) {
       public_deps += [
         "$angle_root/src/common/fuchsia_egl",
-        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.images",
-        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy",
-        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic",
-        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.views",
+        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element",
         "//third_party/fuchsia-sdk/sdk/pkg/async-loop-cpp",
         "//third_party/fuchsia-sdk/sdk/pkg/async-loop-default",
         "//third_party/fuchsia-sdk/sdk/pkg/fdio",
-        "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
       ]
     }
 

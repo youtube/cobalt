@@ -4,6 +4,11 @@
 
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 
@@ -54,7 +59,7 @@ QuicAlarmFactory* QuicDispatcherPeer::GetAlarmFactory(
 }
 
 // static
-QuicDispatcher::WriteBlockedList* QuicDispatcherPeer::GetWriteBlockedList(
+QuicBlockedWriterList* QuicDispatcherPeer::GetWriteBlockedList(
     QuicDispatcher* dispatcher) {
   return &dispatcher->write_blocked_list_;
 }

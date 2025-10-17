@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.permissions;
 
+
 import androidx.test.filters.MediumTest;
 
 import org.junit.Before;
@@ -11,23 +12,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.permissions.PermissionTestRule.PermissionUpdateWaiter;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.content_public.common.ContentSwitches;
+import org.chromium.ui.base.DeviceFormFactor;
 
-/**
- * Test suite for media permissions requests.
- */
+/** Test suite for media permissions requests. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class MediaTest {
-    @Rule
-    public PermissionTestRule mPermissionRule = new PermissionTestRule();
+    @Rule public PermissionTestRule mPermissionRule = new PermissionTestRule();
 
     private static final String FAKE_DEVICE = ContentSwitches.USE_FAKE_DEVICE_FOR_MEDIA_STREAM;
     private static final String TEST_FILE = "/content/test/data/android/media_permissions.html";
@@ -39,25 +39,24 @@ public class MediaTest {
         mPermissionRule.setUpActivity();
     }
 
-    private void testMediaPermissionsPlumbing(String prefix, String script, int numUpdates,
-            boolean withGesture, boolean isDialog) throws Exception {
+    private void testMediaPermissionsPlumbing(
+            String prefix, String script, int numUpdates, boolean withGesture, boolean isDialog)
+            throws Exception {
         Tab tab = mPermissionRule.getActivity().getActivityTab();
         PermissionUpdateWaiter updateWaiter =
                 new PermissionUpdateWaiter(prefix, mPermissionRule.getActivity());
-        TestThreadUtils.runOnUiThreadBlocking(() -> tab.addObserver(updateWaiter));
+        ThreadUtils.runOnUiThreadBlocking(() -> tab.addObserver(updateWaiter));
         mPermissionRule.runAllowTest(
                 updateWaiter, TEST_FILE, script, numUpdates, withGesture, isDialog);
-        TestThreadUtils.runOnUiThreadBlocking(() -> tab.removeObserver(updateWaiter));
+        ThreadUtils.runOnUiThreadBlocking(() -> tab.removeObserver(updateWaiter));
     }
 
-    /**
-     * Verify asking for microphone creates a dialog and works when the permission is granted.
-     * @throws Exception
-     */
+    /** Verify asking for microphone creates a dialog and works when the permission is granted. */
     @Test
     @MediumTest
     @Feature({"MediaPermissions", "Main"})
     @CommandLineFlags.Add({FAKE_DEVICE})
+    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/41486136, https://crbug.com/383407975
     public void testMicrophoneMediaPermissionsPlumbingDialog() throws Exception {
         testMediaPermissionsPlumbing("Mic count:", "initiate_getMicrophone()", 1, true, true);
     }
@@ -65,7 +64,6 @@ public class MediaTest {
     /**
      * Verify asking for camera with no gesture creates a dialog and works when the permission is
      * granted.
-     * @throws Exception
      */
     @Test
     @MediumTest
@@ -78,12 +76,12 @@ public class MediaTest {
     /**
      * Verify asking for both mic and camera creates a combined dialog and works when the
      * permissions are granted.
-     * @throws Exception
      */
     @Test
     @MediumTest
     @Feature({"MediaPermissions", "Main"})
     @CommandLineFlags.Add({FAKE_DEVICE})
+    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/41486136
     public void testCombinedPermissionsPlumbingDialog() throws Exception {
         testMediaPermissionsPlumbing("Combined count:", "initiate_getCombined()", 1, true, true);
     }

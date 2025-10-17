@@ -2,17 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/test/h264_decoder.h"
 
+#include <va/va.h>
+
+#include <algorithm>
+
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "media/base/subsample_entry.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/vaapi/test/h264_dpb.h"
 #include "media/gpu/vaapi/test/video_decoder.h"
-#include "media/video/h264_parser.h"
-
-#include <va/va.h>
+#include "media/parsers/h264_parser.h"
 
 namespace media::vaapi_test {
 
@@ -92,7 +98,6 @@ bool FillH264PictureFromSliceHeader(const H264SPS* sps,
 
     default:
       NOTREACHED();
-      return false;
   }
   return true;
 }
@@ -334,7 +339,7 @@ void H264Decoder::FinishPicture(scoped_refptr<H264Picture> pic) {
         // outputting all pictures before it, to avoid outputting corrupted
         // frames.
         (*output_candidate)->frame_num == *recovery_frame_num_) {
-      recovery_frame_num_ = absl::nullopt;
+      recovery_frame_num_ = std::nullopt;
       output_queue.push(*output_candidate);
       (*output_candidate)->outputted = true;
     }
@@ -576,8 +581,9 @@ void H264Decoder::ConstructReferencePicListsB() {
 
   // If lists identical, swap first two entries in RefPicList1 (spec 8.2.4.2.3)
   if (ref_pic_list_b1_.size() > 1 &&
-      base::ranges::equal(ref_pic_list_b0_, ref_pic_list_b1_))
+      std::ranges::equal(ref_pic_list_b0_, ref_pic_list_b1_)) {
     std::swap(ref_pic_list_b1_[0], ref_pic_list_b1_[1]);
+  }
 }
 
 void H264Decoder::UpdatePicNums(int frame_num) {
@@ -906,8 +912,7 @@ bool H264Decoder::ModifyReferencePicList(const H264SliceHeader* slice_hdr,
   size_t original_size = ref_pic_listx->size();
   ref_pic_listx->resize(num_ref_idx_lX_active_minus1 + 1);
   for (int i = original_size; i < num_ref_idx_lX_active_minus1 + 1; i++) {
-    scoped_refptr<H264Picture> nonref_pic =
-        base::WrapRefCounted(new H264Picture(nullptr));
+    auto nonref_pic = base::MakeRefCounted<H264Picture>(nullptr);
     LOG_ASSERT(InitNonexistingPicture(nonref_pic, 0, false));
     (*ref_pic_listx)[i] = nonref_pic;
   }

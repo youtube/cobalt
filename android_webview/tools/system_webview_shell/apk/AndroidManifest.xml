@@ -17,6 +17,7 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.USE_CREDENTIALS"/>
     <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"/>
+    <uses-permission android:name="android.permission.MANAGE_ACCOUNTS"/>
 
 
     <!-- "Dangerous" permissions which require user prompt -->
@@ -35,6 +36,19 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <!-- android.permission.RECORD_AUDIO -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- PaymentRequest queries the following intents in the apps on the device. -->
+    <queries>
+        <intent>
+            <action android:name="org.chromium.intent.action.PAY"/>
+        </intent>
+        <intent>
+            <action android:name="org.chromium.intent.action.IS_READY_TO_PAY"/>
+        </intent>
+        <intent>
+            <action android:name="org.chromium.intent.action.UPDATE_PAYMENT_DETAILS"/>
+        </intent>
+    </queries>
 
     <application
         android:icon="@drawable/ic_launcher"
@@ -123,14 +137,18 @@
             android:label="@string/title_activity_layout_test"
             android:exported="true">
         </activity>
+        <activity android:name="org.chromium.webview_shell.WebViewMultiProfileBrowserActivity"
+            android:label="@string/title_activity_multi_profile"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:colorMode="wideColorGamut"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density">
+        </activity>
         <activity
             android:name="org.chromium.webview_shell.WebViewThreadTestActivity"
             android:label="@string/title_activity_thread_test"
             android:exported="true">
         </activity>
-        <activity android:name="org.chromium.test.broker.OnDeviceInstrumentationBroker"
-            android:exported="true"/>
-
         <activity
             android:name="org.chromium.webview_shell.PageCyclerTestActivity"
             android:label="@string/title_activity_page_cycler"
@@ -156,6 +174,14 @@
             android:exported="true">
         </activity>
 
-        <uses-library android:name="android.test.runner" />
+        <property android:name="android.adservices.AD_SERVICES_CONFIG"
+            android:resource="@xml/ad_services_config" />
+
+        <service android:name="android.webkit.MetaDataHolderService"
+                 android:enabled="false"
+                 android:exported="false">
+            <meta-data android:name="android.webkit.WebView.MultiProfileNameTagKey"
+                android:resource="@id/multi_profile_name_tag_key" />
+        </service>
     </application>
 </manifest>

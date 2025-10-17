@@ -10,17 +10,18 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "content/browser/renderer_host/input/fling_controller.h"
-#include "content/browser/renderer_host/input/input_router_client.h"
+#include "components/input/fling_controller.h"
+#include "components/input/input_router.h"
+#include "components/input/input_router_client.h"
+#include "content/browser/renderer_host/input/mock_render_widget_host_view_for_stylus_writing.h"
 #include "content/browser/scheduler/browser_ui_thread_scheduler.h"
+#include "content/test/mock_widget_input_handler.h"
 #include "ui/events/blink/did_overscroll_params.h"
 
 namespace content {
 
-class InputRouter;
-
-class MockInputRouterClient : public InputRouterClient,
-                              public FlingControllerSchedulerClient {
+class MockInputRouterClient : public input::InputRouterClient,
+                              public input::FlingControllerSchedulerClient {
  public:
   MockInputRouterClient();
   ~MockInputRouterClient() override;
@@ -32,9 +33,7 @@ class MockInputRouterClient : public InputRouterClient,
   void IncrementInFlightEventCount() override;
   void DecrementInFlightEventCount(
       blink::mojom::InputEventResultSource ack_source) override;
-  void NotifyUISchedulerOfScrollStateUpdate(
-      BrowserUIThreadScheduler::ScrollState scroll_state) override;
-  void DidOverscroll(const ui::DidOverscrollParams& params) override;
+  void DidOverscroll(blink::mojom::DidOverscrollParamsPtr params) override;
   void OnSetCompositorAllowedTouchAction(cc::TouchAction touch_action) override;
   void DidStartScrollingViewport() override;
   void ForwardWheelEventWithLatencyInfo(
@@ -46,6 +45,8 @@ class MockInputRouterClient : public InputRouterClient,
   bool IsWheelScrollInProgress() override;
   bool IsAutoscrollInProgress() override;
   void SetMouseCapture(bool capture) override {}
+  void SetAutoscrollSelectionActiveInMainFrame(
+      bool autoscroll_selection) override {}
   void RequestMouseLock(
       bool user_gesture,
       bool unadjusted_movement,
@@ -53,12 +54,20 @@ class MockInputRouterClient : public InputRouterClient,
       override {}
   gfx::Size GetRootWidgetViewportSize() override;
   void OnInvalidInputEventSource() override {}
+  blink::mojom::WidgetInputHandler* GetWidgetInputHandler() override;
+  void OnImeCancelComposition() override {}
+  void OnImeCompositionRangeChanged(
+      const gfx::Range& range,
+      const std::optional<std::vector<gfx::Rect>>& character_bounds) override {}
+  input::StylusInterface* GetStylusInterface() override;
+  void OnStartStylusWriting() override;
+  input::DispatchToRendererCallback GetDispatchToRendererCallback() override;
 
   bool GetAndResetFilterEventCalled();
   ui::DidOverscrollParams GetAndResetOverscroll();
   cc::TouchAction GetAndResetCompositorAllowedTouchAction();
 
-  void set_input_router(InputRouter* input_router) {
+  void set_input_router(input::InputRouter* input_router) {
     input_router_ = input_router;
   }
 
@@ -77,17 +86,30 @@ class MockInputRouterClient : public InputRouterClient,
   const blink::WebInputEvent* last_filter_event() const {
     return last_filter_event_.get();
   }
+  bool on_start_stylus_writing_called() const {
+    return on_start_stylus_writing_called_;
+  }
+  MockWidgetInputHandler::MessageVector GetAndResetDispatchedMessages() {
+    return widget_input_handler_.GetAndResetDispatchedMessages();
+  }
+  void set_render_widget_host_view(
+      MockRenderWidgetHostViewForStylusWriting* view) {
+    render_widget_host_view_ = view;
+  }
 
   // FlingControllerSchedulerClient
   void ScheduleFlingProgress(
-      base::WeakPtr<FlingController> fling_controller) override {}
+      base::WeakPtr<input::FlingController> fling_controller) override {}
   void DidStopFlingingOnBrowser(
-      base::WeakPtr<FlingController> fling_controller) override {}
+      base::WeakPtr<input::FlingController> fling_controller) override {}
   bool NeedsBeginFrameForFlingProgress() override;
+  bool ShouldUseMobileFlingCurve() override;
+  gfx::Vector2dF GetPixelsPerInch(
+      const gfx::PointF& position_in_screen) override;
 
  private:
-  raw_ptr<InputRouter> input_router_;
-  int in_flight_event_count_;
+  raw_ptr<input::InputRouter, DanglingUntriaged> input_router_;
+  int in_flight_event_count_ = 0;
 
   blink::mojom::InputEventResultState filter_state_;
 
@@ -99,6 +121,9 @@ class MockInputRouterClient : public InputRouterClient,
   cc::TouchAction compositor_allowed_touch_action_;
 
   bool is_wheel_scroll_in_progress_ = false;
+  MockWidgetInputHandler widget_input_handler_;
+  raw_ptr<MockRenderWidgetHostViewForStylusWriting> render_widget_host_view_;
+  bool on_start_stylus_writing_called_ = false;
 };
 
 }  // namespace content

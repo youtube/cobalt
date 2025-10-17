@@ -10,7 +10,6 @@ import android.content.Context;
 import android.content.Intent;
 
 import androidx.annotation.NonNull;
-import androidx.core.app.NotificationCompat;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
@@ -23,7 +22,6 @@ import org.chromium.chrome.browser.browserservices.intents.WebappExtras;
 import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
 import org.chromium.chrome.browser.customtabs.CustomTabLocator;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.notifications.NotificationConstants;
@@ -32,8 +30,7 @@ import org.chromium.chrome.browser.notifications.NotificationWrapperBuilderFacto
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxy;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 import org.chromium.components.browser_ui.notifications.NotificationMetadata;
 import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
@@ -41,17 +38,12 @@ import org.chromium.ui.base.Clipboard;
 
 import java.lang.ref.WeakReference;
 
-import javax.inject.Inject;
-
 /**
- * Manages the notification shown by Chrome when running standalone Web Apps. It accomplishes
- * number of goals:
- * - Presents the current URL.
- * - Exposes 'Share' and 'Open in Chrome' actions.
- * - Messages that Web App runs in Chrome.
+ * Manages the notification shown by Chrome when running standalone Web Apps. It accomplishes number
+ * of goals: - Presents the current URL. - Exposes 'Share' and 'Open in Chrome' actions. - Messages
+ * that Web App runs in Chrome.
  */
-@ActivityScope
-class WebappActionsNotificationManager implements PauseResumeWithNativeObserver {
+public class WebappActionsNotificationManager implements PauseResumeWithNativeObserver {
     private static final String ACTION_SHARE =
             "org.chromium.chrome.browser.webapps.NOTIFICATION_ACTION_SHARE";
     private static final String ACTION_OPEN_IN_CHROME =
@@ -62,8 +54,8 @@ class WebappActionsNotificationManager implements PauseResumeWithNativeObserver 
     private final CustomTabActivityTabProvider mTabProvider;
     private final BrowserServicesIntentDataProvider mIntentDataProvider;
 
-    @Inject
-    public WebappActionsNotificationManager(CustomTabActivityTabProvider tabProvider,
+    public WebappActionsNotificationManager(
+            CustomTabActivityTabProvider tabProvider,
             BrowserServicesIntentDataProvider intentDataProvider,
             ActivityLifecycleDispatcher lifecycleDispatcher) {
         mTabProvider = tabProvider;
@@ -93,12 +85,12 @@ class WebappActionsNotificationManager implements PauseResumeWithNativeObserver 
 
         Context appContext = ContextUtils.getApplicationContext();
         NotificationWrapper notification = createNotification(appContext, tab, webappExtras);
-        NotificationManagerProxy nm = new NotificationManagerProxyImpl(appContext);
-        nm.notify(notification);
+        BaseNotificationManagerProxyFactory.create().notify(notification);
 
-        NotificationUmaTracker.getInstance().onNotificationShown(
-                NotificationUmaTracker.SystemNotificationType.WEBAPP_ACTIONS,
-                notification.getNotification());
+        NotificationUmaTracker.getInstance()
+                .onNotificationShown(
+                        NotificationUmaTracker.SystemNotificationType.WEBAPP_ACTIONS,
+                        notification.getNotification());
     }
 
     private static NotificationWrapper createNotification(
@@ -113,11 +105,12 @@ class WebappActionsNotificationManager implements PauseResumeWithNativeObserver 
         PendingIntentProvider shareIntent =
                 createPendingIntentWithAction(appContext, tab, ACTION_SHARE);
 
-        NotificationMetadata metadata = new NotificationMetadata(
-                NotificationUmaTracker.SystemNotificationType.WEBAPP_ACTIONS,
-                null /* notificationTag */, NotificationConstants.NOTIFICATION_ID_WEBAPP_ACTIONS);
-        return NotificationWrapperBuilderFactory
-                .createNotificationWrapperBuilder(
+        NotificationMetadata metadata =
+                new NotificationMetadata(
+                        NotificationUmaTracker.SystemNotificationType.WEBAPP_ACTIONS,
+                        /* notificationTag= */ null,
+                        NotificationConstants.NOTIFICATION_ID_WEBAPP_ACTIONS);
+        return NotificationWrapperBuilderFactory.createNotificationWrapperBuilder(
                         ChromeChannelDefinitions.ChannelId.WEBAPP_ACTIONS, metadata)
                 .setSmallIcon(R.drawable.ic_chrome)
                 .setContentTitle(webappExtras.shortName)
@@ -125,13 +118,15 @@ class WebappActionsNotificationManager implements PauseResumeWithNativeObserver 
                 .setShowWhen(false)
                 .setAutoCancel(false)
                 .setOngoing(true)
-                .setPriorityBeforeO(NotificationCompat.PRIORITY_MIN)
                 .setContentIntent(focusIntent)
-                .addAction(R.drawable.ic_share_white_24dp,
-                        appContext.getResources().getString(R.string.share), shareIntent,
+                .addAction(
+                        R.drawable.ic_share_white_24dp,
+                        appContext.getString(R.string.share),
+                        shareIntent,
                         NotificationUmaTracker.ActionType.WEB_APP_ACTION_SHARE)
-                .addAction(R.drawable.ic_exit_to_app_white_24dp,
-                        appContext.getResources().getString(R.string.menu_open_in_chrome),
+                .addAction(
+                        R.drawable.ic_exit_to_app_white_24dp,
+                        appContext.getString(R.string.menu_open_in_chrome),
                         openInChromeIntent,
                         NotificationUmaTracker.ActionType.WEB_APP_ACTION_OPEN_IN_CHROME)
                 .buildNotificationWrapper();
@@ -144,14 +139,18 @@ class WebappActionsNotificationManager implements PauseResumeWithNativeObserver 
         intent.setClass(context, WebappLauncherActivity.class);
         IntentHandler.setTabId(intent, tab.getId());
         IntentUtils.addTrustedIntentExtras(intent);
-        return PendingIntentProvider.getActivity(context, 0, intent,
+        return PendingIntentProvider.getActivity(
+                context,
+                0,
+                intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_ONE_SHOT);
     }
 
     public static void cancelNotification() {
         NotificationManager nm =
-                (NotificationManager) ContextUtils.getApplicationContext().getSystemService(
-                        Context.NOTIFICATION_SERVICE);
+                (NotificationManager)
+                        ContextUtils.getApplicationContext()
+                                .getSystemService(Context.NOTIFICATION_SERVICE);
         nm.cancel(NotificationConstants.NOTIFICATION_ID_WEBAPP_ACTIONS);
     }
 
@@ -169,12 +168,15 @@ class WebappActionsNotificationManager implements PauseResumeWithNativeObserver 
         if (ACTION_SHARE.equals(intent.getAction())) {
             // Not routing through onMenuOrKeyboardAction to control UMA String.
             Tab tab = customTabActivity.getActivityTab();
-            customTabActivity.getShareDelegateSupplier().get().share(
-                    tab, false, ShareOrigin.WEBAPP_NOTIFICATION);
+            customTabActivity
+                    .getShareDelegateSupplier()
+                    .get()
+                    .share(tab, false, ShareOrigin.WEBAPP_NOTIFICATION);
             RecordUserAction.record("Webapp.NotificationShare");
             return true;
         } else if (ACTION_OPEN_IN_CHROME.equals(intent.getAction())) {
-            customTabActivity.onMenuOrKeyboardAction(R.id.open_in_browser_id, false /* fromMenu */);
+            customTabActivity.onMenuOrKeyboardAction(
+                    R.id.open_in_browser_id, /* fromMenu= */ false);
             return true;
         } else if (ACTION_FOCUS.equals(intent.getAction())) {
             Tab tab = customTabActivity.getActivityTab();

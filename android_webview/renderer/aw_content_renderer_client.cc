@@ -5,29 +5,33 @@
 #include "android_webview/renderer/aw_content_renderer_client.h"
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
+#include "android_webview/common/aw_features.h"
 #include "android_webview/common/aw_switches.h"
 #include "android_webview/common/mojom/frame.mojom.h"
 #include "android_webview/common/url_constants.h"
 #include "android_webview/renderer/aw_content_settings_client.h"
-#include "android_webview/renderer/aw_key_systems.h"
 #include "android_webview/renderer/aw_print_render_frame_helper_delegate.h"
 #include "android_webview/renderer/aw_render_frame_ext.h"
 #include "android_webview/renderer/aw_render_view_ext.h"
-#include "android_webview/renderer/aw_safe_browsing_error_page_controller_delegate_impl.h"
 #include "android_webview/renderer/aw_url_loader_throttle_provider.h"
-#include "android_webview/renderer/aw_websocket_handshake_throttle_provider.h"
 #include "android_webview/renderer/browser_exposed_renderer_interfaces.h"
+#include "base/android/library_loader/library_prefetcher.h"
 #include "base/command_line.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
+#include "base/task/thread_pool.h"
 #include "components/android_system_error_page/error_page_populator.h"
+#include "components/autofill/core/common/autofill_features.h"
+#include "components/cdm/renderer/key_system_support_update.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
 #include "components/page_load_metrics/renderer/metrics_render_frame_observer.h"
 #include "components/printing/renderer/print_render_frame_helper.h"
+#include "components/security_interstitials/content/renderer/security_interstitial_page_controller_delegate_impl.h"
 #include "components/visitedlink/renderer/visitedlink_reader.h"
 #include "content/public/child/child_thread.h"
 #include "content/public/common/url_constants.h"
@@ -37,10 +41,12 @@
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/public/web/web_frame.h"
+#include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "url/gurl.h"
@@ -68,6 +74,17 @@ void AwContentRendererClient::RenderThreadStarted() {
 
   browser_interface_broker_ =
       blink::Platform::Current()->GetBrowserInterfaceBroker();
+
+#if BUILDFLAG(SUPPORTS_CODE_ORDERING)
+  if (base::FeatureList::IsEnabled(features::kWebViewPrefetchNativeLibrary) &&
+      features::kWebViewPrefetchFromRenderer.Get()) {
+    base::ThreadPool::PostTask(
+        FROM_HERE, base::BindOnce([] {
+          base::android::NativeLibraryPrefetcher::ForkAndPrefetchNativeLibrary(
+              false);
+        }));
+  }
+#endif
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
   if (!spellcheck_)
@@ -151,18 +168,20 @@ void AwContentRendererClient::RenderFrameCreated(
       render_frame, std::make_unique<AwPrintRenderFrameHelperDelegate>());
   new AwRenderFrameExt(render_frame);
   new js_injection::JsCommunication(render_frame);
-  new AwSafeBrowsingErrorPageControllerDelegateImpl(render_frame);
+  new security_interstitials::SecurityInterstitialPageControllerDelegateImpl(
+      render_frame);
 
   content::RenderFrame* main_frame = render_frame->GetMainRenderFrame();
   if (main_frame && main_frame != render_frame) {
     // Avoid any race conditions from having the browser's UI thread tell the IO
     // thread that a subframe was created.
-    GetRenderMessageFilter()->SubFrameCreated(main_frame->GetRoutingID(),
-                                              render_frame->GetRoutingID());
+    GetRenderMessageFilter()->SubFrameCreated(
+        main_frame->GetWebFrame()->GetLocalFrameToken(),
+        render_frame->GetWebFrame()->GetLocalFrameToken());
   }
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
-  new SpellCheckProvider(render_frame, spellcheck_.get(), this);
+  new SpellCheckProvider(render_frame, spellcheck_.get());
 #endif
 
   // Owned by |render_frame|.
@@ -174,6 +193,22 @@ AwContentRendererClient::CreatePrescientNetworking(
     content::RenderFrame* render_frame) {
   return std::make_unique<network_hints::WebPrescientNetworkingImpl>(
       render_frame);
+}
+
+void AwContentRendererClient::
+    SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() {
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillSharedAutofill)) {
+    blink::WebRuntimeFeatures::EnableSharedAutofill(true);
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kWebViewMediaIntegrityApiBlinkExtension)) {
+    // Enable the overall android.webview namespace.
+    blink::WebRuntimeFeatures::EnableBlinkExtensionWebView(true);
+    // Enable the android.webview.getExperimentalMediaIntegrityProvider API.
+    blink::WebRuntimeFeatures::EnableBlinkExtensionWebViewMediaIntegrity(true);
+  }
 }
 
 void AwContentRendererClient::WebViewCreated(
@@ -190,20 +225,37 @@ void AwContentRendererClient::PrepareErrorPage(
     content::mojom::AlternativeErrorPageOverrideInfoPtr
         alternative_error_page_info,
     std::string* error_html) {
-  AwSafeBrowsingErrorPageControllerDelegateImpl::Get(render_frame)
+  security_interstitials::SecurityInterstitialPageControllerDelegateImpl::Get(
+      render_frame)
       ->PrepareForErrorPage();
 
   android_system_error_page::PopulateErrorPageHtml(error, error_html);
 }
 
-uint64_t AwContentRendererClient::VisitedLinkHash(const char* canonical_url,
-                                                  size_t length) {
-  return visited_link_reader_->ComputeURLFingerprint(canonical_url, length);
+uint64_t AwContentRendererClient::VisitedLinkHash(
+    std::string_view canonical_url) {
+  return visited_link_reader_->ComputeURLFingerprint(canonical_url);
+}
+
+uint64_t AwContentRendererClient::PartitionedVisitedLinkFingerprint(
+    std::string_view canonical_link_url,
+    const net::SchemefulSite& top_level_site,
+    const url::Origin& frame_origin) {
+  // Android WebView does not support partitioned :visited links, so we return
+  // the null fingerprint value for all queries.
+  return 0;
 }
 
 bool AwContentRendererClient::IsLinkVisited(uint64_t link_hash) {
   return visited_link_reader_->IsVisited(link_hash);
 }
+
+// Android WebView does not support partitioned :visited links. Since per-origin
+// salts are only used in the partitioned hashtable, AndroidWebView clients do
+// not need to take any action if a per-origin salt is received.
+void AwContentRendererClient::AddOrUpdateVisitedLinkSalt(
+    const url::Origin& origin,
+    uint64_t salt) {}
 
 void AwContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
@@ -212,17 +264,13 @@ void AwContentRendererClient::RunScriptsAtDocumentStart(
   communication->RunScriptsAtDocumentStart();
 }
 
-void AwContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<media::KeySystemSupportRegistration>
+AwContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
-  media::KeySystemInfos key_systems;
-  AwAddKeySystems(&key_systems);
-  std::move(cb).Run(std::move(key_systems));
-}
-
-std::unique_ptr<blink::WebSocketHandshakeThrottleProvider>
-AwContentRendererClient::CreateWebSocketHandshakeThrottleProvider() {
-  return std::make_unique<AwWebSocketHandshakeThrottleProvider>(
-      browser_interface_broker_.get());
+  // WebView always allows persisting data.
+  return cdm::GetSupportedKeySystemsUpdates(
+      render_frame, /*can_persist_data=*/true, std::move(cb));
 }
 
 std::unique_ptr<blink::URLLoaderThrottleProvider>
@@ -236,7 +284,7 @@ void AwContentRendererClient::GetInterface(
     const std::string& interface_name,
     mojo::ScopedMessagePipeHandle interface_pipe) {
   // A dirty hack to make SpellCheckHost requests work on WebView.
-  // TODO(crbug.com/806394): Use a WebView-specific service for SpellCheckHost
+  // TODO(crbug.com/40560165): Use a WebView-specific service for SpellCheckHost
   // and SafeBrowsing, instead of |content_browser|.
   RenderThread::Get()->BindHostReceiver(
       mojo::GenericPendingReceiver(interface_name, std::move(interface_pipe)));
@@ -244,8 +292,8 @@ void AwContentRendererClient::GetInterface(
 
 mojom::RenderMessageFilter* AwContentRendererClient::GetRenderMessageFilter() {
   if (!render_message_filter_) {
-    RenderThread::Get()->GetChannel()->GetRemoteAssociatedInterface(
-        &render_message_filter_);
+    browser_interface_broker_->GetInterface(
+        render_message_filter_.BindNewPipeAndPassReceiver());
   }
   return render_message_filter_.get();
 }

@@ -64,15 +64,15 @@ void EmitErrorBlocked(const String& url, Document& document) {
 
 void AddWarningHeader(FetchParameters* params) {
   params->MutableResourceRequest().AddHttpHeaderField(
-      "Intervention",
-      "<https://www.chromestatus.com/feature/5718547946799104>; "
-      "level=\"warning\"");
+      AtomicString("Intervention"),
+      AtomicString("<https://www.chromestatus.com/feature/5718547946799104>; "
+                   "level=\"warning\""));
 }
 
 void AddHeader(FetchParameters* params) {
   params->MutableResourceRequest().AddHttpHeaderField(
-      "Intervention",
-      "<https://www.chromestatus.com/feature/5718547946799104>");
+      AtomicString("Intervention"),
+      AtomicString("<https://www.chromestatus.com/feature/5718547946799104>"));
 }
 
 bool IsConnectionEffectively2G(WebEffectiveConnectionType effective_type) {
@@ -87,7 +87,6 @@ bool IsConnectionEffectively2G(WebEffectiveConnectionType effective_type) {
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 bool ShouldDisallowFetch(Settings* settings,
@@ -134,12 +133,11 @@ bool MaybeDisallowFetchForDocWrittenScript(FetchParameters& params,
   // Avoid blocking same origin scripts, as they may be used to render main
   // page content, whereas cross-origin scripts inserted via document.write
   // are likely to be third party content.
-  String request_host = params.Url().Host();
+  StringView request_host = params.Url().Host();
   String document_host = document.domWindow()->GetSecurityOrigin()->Domain();
-
-  bool same_site = false;
-  if (request_host == document_host)
-    same_site = true;
+  if (request_host == document_host) {
+    return false;
+  }
 
   // If the hosts didn't match, then see if the domains match. For example, if
   // a script is served from static.example.com for a document served from
@@ -152,10 +150,7 @@ bool MaybeDisallowFetchForDocWrittenScript(FetchParameters& params,
   // already top-level, such as localhost. Thus we only compare domains if we
   // get non-empty results back from getDomainAndRegistry.
   if (!request_domain.empty() && !document_domain.empty() &&
-      request_domain == document_domain)
-    same_site = true;
-
-  if (same_site) {
+      request_domain == document_domain) {
     return false;
   }
 
@@ -209,11 +204,19 @@ void PossiblyFetchBlockedDocWriteScript(
   ExecutionContext* context = element_document.GetExecutionContext();
   FetchParameters params(options.CreateFetchParameters(
       resource->Url(), context->GetSecurityOrigin(), context->GetCurrentWorld(),
-      cross_origin, resource->Encoding(), FetchParameters::kIdleLoad));
+      cross_origin, resource->Encoding(), FetchParameters::kIdleLoad, context));
   params.SetRenderBlockingBehavior(RenderBlockingBehavior::kNonBlocking);
   AddHeader(&params);
+
+  // If streaming is not allowed, no compile hints are needed either.
+  constexpr v8_compile_hints::V8CrowdsourcedCompileHintsProducer*
+      kNoCompileHintsProducer = nullptr;
+  constexpr v8_compile_hints::V8CrowdsourcedCompileHintsConsumer*
+      kNoCompileHintsConsumer = nullptr;
   ScriptResource::Fetch(params, element_document.Fetcher(), nullptr,
-                        ScriptResource::kNoStreaming);
+                        context->GetIsolate(), ScriptResource::kNoStreaming,
+                        kNoCompileHintsProducer, kNoCompileHintsConsumer,
+                        v8_compile_hints::MagicCommentMode::kNone);
 }
 
 }  // namespace blink

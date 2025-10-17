@@ -104,20 +104,6 @@ const char ESSL300_InOut6[] =
         o_color3 = clamp(o_color3 + u_color, vec4(0.0f), vec4(1.0f));
     })";
 
-// Use the array of inout variable with noncoherent qualifier
-const char ESSL300_InOut7[] =
-    R"(
-    layout(noncoherent, location = 0) inout highp vec4 o_color[4];
-    uniform highp vec4 u_color;
-
-    void main (void)
-    {
-        for (int i = 0 ; i < 4 ; i++)
-        {
-            o_color[i] = clamp(o_color[i] + u_color, vec4(0.0f), vec4(1.0f));
-        }
-    })";
-
 class EXTShaderFramebufferFetchNoncoherentTest : public sh::ShaderExtensionTest
 {
   public:
@@ -173,6 +159,10 @@ class EXTShaderFramebufferFetchNoncoherentTest : public sh::ShaderExtensionTest
     {
         DestroyCompiler(shaderOutputType);
 
+        if (shaderOutputType == SH_SPIRV_VULKAN_OUTPUT || shaderOutputType == SH_MSL_METAL_OUTPUT)
+        {
+            mCompileOptions.removeInactiveVariables = true;
+        }
         mCompilerList[shaderOutputType] =
             sh::ConstructCompiler(GL_FRAGMENT_SHADER, testing::get<0>(GetParam()), shaderOutputType,
                                   &mResourceList[shaderOutputType]);
@@ -183,15 +173,11 @@ class EXTShaderFramebufferFetchNoncoherentTest : public sh::ShaderExtensionTest
 
     testing::AssertionResult TestShaderCompile(ShShaderOutput shaderOutputType, const char *pragma)
     {
-        ShCompileOptions compileOptions = {};
-        compileOptions.objectCode       = true;
-        compileOptions.variables        = true;
-
         const char *shaderStrings[] = {testing::get<1>(GetParam()), pragma,
                                        testing::get<2>(GetParam())};
 
         bool success =
-            sh::Compile(mCompilerList[shaderOutputType], shaderStrings, 3, compileOptions);
+            sh::Compile(mCompilerList[shaderOutputType], shaderStrings, 3, mCompileOptions);
         if (success)
         {
             return ::testing::AssertionSuccess()
@@ -290,8 +276,7 @@ INSTANTIATE_TEST_SUITE_P(CorrectESSL300Shaders,
                                         ESSL300_InOut3,
                                         ESSL300_InOut4,
                                         ESSL300_InOut5,
-                                        ESSL300_InOut6,
-                                        ESSL300_InOut7)));
+                                        ESSL300_InOut6)));
 
 #if defined(ANGLE_ENABLE_VULKAN)
 
@@ -424,8 +409,7 @@ INSTANTIATE_TEST_SUITE_P(CorrectESSL300Shaders,
                                         ESSL300_InOut3,
                                         ESSL300_InOut4,
                                         ESSL300_InOut5,
-                                        ESSL300_InOut6,
-                                        ESSL300_InOut7)));
+                                        ESSL300_InOut6)));
 
 INSTANTIATE_TEST_SUITE_P(IncorrectESSL300Shaders,
                          EXTShaderFramebufferFetchNoncoherentES300FailureTest,

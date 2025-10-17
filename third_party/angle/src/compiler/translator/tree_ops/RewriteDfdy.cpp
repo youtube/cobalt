@@ -10,7 +10,6 @@
 
 #include "common/angleutils.h"
 #include "compiler/translator/SymbolTable.h"
-#include "compiler/translator/TranslatorVulkan.h"
 #include "compiler/translator/tree_util/DriverUniform.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
@@ -25,20 +24,17 @@ namespace
 class Traverser : public TIntermTraverser
 {
   public:
-    Traverser(TSymbolTable *symbolTable, SpecConst *specConst, const DriverUniform *driverUniforms);
+    Traverser(TSymbolTable *symbolTable, const DriverUniform *driverUniforms);
 
   private:
     bool visitAggregate(Visit visit, TIntermAggregate *node) override;
 
-    SpecConst *mSpecConst                = nullptr;
     const DriverUniform *mDriverUniforms = nullptr;
 };
 
 Traverser::Traverser(TSymbolTable *symbolTable,
-                     SpecConst *specConst,
                      const DriverUniform *driverUniforms)
     : TIntermTraverser(true, false, false, symbolTable),
-      mSpecConst(specConst),
       mDriverUniforms(driverUniforms)
 {}
 
@@ -79,12 +75,7 @@ bool Traverser::visitAggregate(Visit visit, TIntermAggregate *node)
         CreateBuiltInUnaryFunctionCallNode("dFdy", operand->deepCopy(), *mSymbolTable, 300);
 
     // Get rotation multiplier
-    TIntermTyped *swapXY = mSpecConst->getSwapXY();
-    if (swapXY == nullptr)
-    {
-        swapXY = mDriverUniforms->getSwapXY();
-    }
-
+    TIntermTyped *swapXY          = mDriverUniforms->getSwapXY();
     TIntermTyped *swapXMultiplier = MakeSwapXMultiplier(swapXY);
     TIntermTyped *swapYMultiplier = MakeSwapYMultiplier(swapXY->deepCopy());
 
@@ -109,7 +100,7 @@ bool Traverser::visitAggregate(Visit visit, TIntermAggregate *node)
 
     // Replace the old dFdx() or dFdy() node with the new node that contains the corrected value
     //
-    // Note the following bugs (anglebug.com/7346):
+    // Note the following bugs (anglebug.com/42265816):
     //
     // - Side effects of operand are duplicated with the above
     // - If the direct child of this node is itself dFdx/y, its queueReplacement will not be
@@ -124,16 +115,9 @@ bool RewriteDfdy(TCompiler *compiler,
                  TIntermBlock *root,
                  TSymbolTable *symbolTable,
                  int shaderVersion,
-                 SpecConst *specConst,
                  const DriverUniform *driverUniforms)
 {
-    // dFdx/dFdy is only valid in GLSL 3.0 and later.
-    if (shaderVersion < 300)
-    {
-        return true;
-    }
-
-    Traverser traverser(symbolTable, specConst, driverUniforms);
+    Traverser traverser(symbolTable, driverUniforms);
     root->traverse(&traverser);
     return traverser.updateTree(compiler, root);
 }

@@ -42,6 +42,7 @@ ScriptCustomElementDefinition::ScriptCustomElementDefinition(
       constructor_(data.constructor_),
       connected_callback_(data.connected_callback_),
       disconnected_callback_(data.disconnected_callback_),
+      connected_move_callback_(data.connected_move_callback_),
       adopted_callback_(data.adopted_callback_),
       attribute_changed_callback_(data.attribute_changed_callback_),
       form_associated_callback_(data.form_associated_callback_),
@@ -56,6 +57,7 @@ void ScriptCustomElementDefinition::Trace(Visitor* visitor) const {
   visitor->Trace(constructor_);
   visitor->Trace(connected_callback_);
   visitor->Trace(disconnected_callback_);
+  visitor->Trace(connected_move_callback_);
   visitor->Trace(adopted_callback_);
   visitor->Trace(attribute_changed_callback_);
   visitor->Trace(form_associated_callback_);
@@ -63,20 +65,6 @@ void ScriptCustomElementDefinition::Trace(Visitor* visitor) const {
   visitor->Trace(form_disabled_callback_);
   visitor->Trace(form_state_restore_callback_);
   CustomElementDefinition::Trace(visitor);
-}
-
-HTMLElement* ScriptCustomElementDefinition::HandleCreateElementSyncException(
-    Document& document,
-    const QualifiedName& tag_name,
-    v8::Isolate* isolate,
-    ExceptionState& exception_state) {
-  DCHECK(exception_state.HadException());
-  // 6.1."If any of these subsubsteps threw an exception".1
-  // Report the exception.
-  V8ScriptRunner::ReportException(isolate, exception_state.GetException());
-  exception_state.ClearException();
-  // ... .2 Return HTMLUnknownElement.
-  return CustomElement::CreateFailedElement(document, tag_name);
 }
 
 HTMLElement* ScriptCustomElementDefinition::CreateAutonomousCustomElementSync(
@@ -87,9 +75,7 @@ HTMLElement* ScriptCustomElementDefinition::CreateAutonomousCustomElementSync(
     return CustomElement::CreateFailedElement(document, tag_name);
   ScriptState::Scope scope(script_state_);
   v8::Isolate* isolate = script_state_->GetIsolate();
-
-  ExceptionState exception_state(isolate, ExceptionState::kConstructionContext,
-                                 "CustomElement");
+  v8::TryCatch try_catch(isolate);
 
   // Create an element with the synchronous custom elements flag set.
   // https://dom.spec.whatwg.org/#concept-create-element
@@ -99,20 +85,25 @@ HTMLElement* ScriptCustomElementDefinition::CreateAutonomousCustomElementSync(
 
   Element* element = nullptr;
   {
-    v8::TryCatch try_catch(script_state_->GetIsolate());
     element = CallConstructor();
     if (try_catch.HasCaught()) {
-      exception_state.RethrowV8Exception(try_catch.Exception());
-      return HandleCreateElementSyncException(document, tag_name, isolate,
-                                              exception_state);
+      // 6.1."If any of these subsubsteps threw an exception".1
+      // Report the exception.
+      V8ScriptRunner::ReportException(isolate, try_catch.Exception());
+      // ... .2 Return HTMLUnknownElement.
+      return CustomElement::CreateFailedElement(document, tag_name);
     }
   }
 
   // 6.1.3. through 6.1.9.
-  CheckConstructorResult(element, document, tag_name, exception_state);
-  if (exception_state.HadException()) {
-    return HandleCreateElementSyncException(document, tag_name, isolate,
-                                            exception_state);
+  CheckConstructorResult(element, document, tag_name,
+                         PassThroughException(isolate));
+  if (try_catch.HasCaught()) {
+    // 6.1."If any of these subsubsteps threw an exception".1
+    // Report the exception.
+    V8ScriptRunner::ReportException(isolate, try_catch.Exception());
+    // ... .2 Return HTMLUnknownElement.
+    return CustomElement::CreateFailedElement(document, tag_name);
   }
   // 6.1.10. Set result’s namespace prefix to prefix.
   if (element->prefix() != tag_name.Prefix())
@@ -173,8 +164,7 @@ Element* ScriptCustomElementDefinition::CallConstructor() {
     return nullptr;
   }
 
-  return V8Element::ToImplWithTypeCheck(constructor_->GetIsolate(),
-                                        result.V8Value());
+  return V8Element::ToWrappable(constructor_->GetIsolate(), result.V8Value());
 }
 
 v8::Local<v8::Object> ScriptCustomElementDefinition::Constructor() const {
@@ -187,31 +177,35 @@ ScriptValue ScriptCustomElementDefinition::GetConstructorForScript() {
 }
 
 bool ScriptCustomElementDefinition::HasConnectedCallback() const {
-  return connected_callback_;
+  return connected_callback_ != nullptr;
 }
 
 bool ScriptCustomElementDefinition::HasDisconnectedCallback() const {
-  return disconnected_callback_;
+  return disconnected_callback_ != nullptr;
+}
+
+bool ScriptCustomElementDefinition::HasConnectedMoveCallback() const {
+  return connected_move_callback_ != nullptr;
 }
 
 bool ScriptCustomElementDefinition::HasAdoptedCallback() const {
-  return adopted_callback_;
+  return adopted_callback_ != nullptr;
 }
 
 bool ScriptCustomElementDefinition::HasFormAssociatedCallback() const {
-  return form_associated_callback_;
+  return form_associated_callback_ != nullptr;
 }
 
 bool ScriptCustomElementDefinition::HasFormResetCallback() const {
-  return form_reset_callback_;
+  return form_reset_callback_ != nullptr;
 }
 
 bool ScriptCustomElementDefinition::HasFormDisabledCallback() const {
-  return form_disabled_callback_;
+  return form_disabled_callback_ != nullptr;
 }
 
 bool ScriptCustomElementDefinition::HasFormStateRestoreCallback() const {
-  return form_state_restore_callback_;
+  return form_state_restore_callback_ != nullptr;
 }
 
 void ScriptCustomElementDefinition::RunConnectedCallback(Element& element) {
@@ -226,6 +220,14 @@ void ScriptCustomElementDefinition::RunDisconnectedCallback(Element& element) {
     return;
 
   disconnected_callback_->InvokeAndReportException(&element);
+}
+
+void ScriptCustomElementDefinition::RunConnectedMoveCallback(Element& element) {
+  if (!connected_move_callback_) {
+    return;
+  }
+
+  connected_move_callback_->InvokeAndReportException(&element);
 }
 
 void ScriptCustomElementDefinition::RunAdoptedCallback(Element& element,

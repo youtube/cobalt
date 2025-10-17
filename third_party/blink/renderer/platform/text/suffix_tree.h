@@ -26,10 +26,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_TEXT_SUFFIX_TREE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_TEXT_SUFFIX_TREE_H_
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check_op.h"
-#include "base/ranges/algorithm.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -57,7 +57,7 @@ class SuffixTree {
   USING_FAST_MALLOC(SuffixTree);
 
  public:
-  SuffixTree(const String& text, unsigned depth) : depth_(depth), leaf_(true) {
+  SuffixTree(const String& text, unsigned depth) : leaf_(true), depth_(depth) {
     Build(text);
   }
   SuffixTree(const SuffixTree&) = delete;
@@ -101,7 +101,7 @@ class SuffixTree {
     }
 
     typename Vector<std::pair<int, Node*>>::iterator Find(int key) {
-      return base::ranges::find(children_, key, &std::pair<int, Node*>::first);
+      return std::ranges::find(children_, key, &std::pair<int, Node*>::first);
     }
 
     typename Vector<std::pair<int, Node*>>::iterator End() {
@@ -128,13 +128,13 @@ class SuffixTree {
     }
   }
 
-  Node root_;
-  unsigned depth_;
-
   // Instead of allocating a fresh empty leaf node for ever leaf in the tree
   // (there can be a lot of these), we alias all the leaves to this "static"
   // leaf node.
   Node leaf_;
+
+  Node root_;
+  unsigned depth_;
 };
 
 }  // namespace blink

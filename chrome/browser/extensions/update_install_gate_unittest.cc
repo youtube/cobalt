@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/extensions/update_install_gate.h"
+#include "extensions/browser/update_install_gate.h"
 
 #include <memory>
 
@@ -11,8 +11,10 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/values.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -27,10 +29,9 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/manifest_handlers/background_info.h"
-#include "extensions/common/value_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "components/user_manager/scoped_user_manager.h"
 #endif
@@ -45,7 +46,7 @@ const char kNonPersistentExtensionId[] = "cccccccccccccccccccccccccccccccc";
 
 std::unique_ptr<KeyedService> BuildEventRouter(
     content::BrowserContext* profile) {
-  return std::make_unique<extensions::EventRouter>(profile, nullptr);
+  return std::make_unique<EventRouter>(profile, nullptr);
 }
 
 scoped_refptr<const Extension> CreateApp(const std::string& extension_id,
@@ -53,20 +54,15 @@ scoped_refptr<const Extension> CreateApp(const std::string& extension_id,
   scoped_refptr<const Extension> app =
       ExtensionBuilder()
           .SetManifest(
-              DictionaryBuilder()
+              base::Value::Dict()
                   .Set("name", "Test app")
                   .Set("version", version)
                   .Set("manifest_version", 2)
-                  .Set("app",
-                       DictionaryBuilder()
-                           .Set("background",
-                                DictionaryBuilder()
-                                    .Set("scripts", ListBuilder()
-                                                        .Append("background.js")
-                                                        .Build())
-                                    .Build())
-                           .Build())
-                  .Build())
+                  .Set("app", base::Value::Dict().Set(
+                                  "background",
+                                  base::Value::Dict().Set(
+                                      "scripts", base::Value::List().Append(
+                                                     "background.js")))))
           .SetID(extension_id)
           .Build();
   return app;
@@ -78,15 +74,13 @@ scoped_refptr<const Extension> CreateExtension(const std::string& extension_id,
   scoped_refptr<const Extension> extension =
       ExtensionBuilder()
           .SetManifest(
-              DictionaryBuilder()
+              base::Value::Dict()
                   .Set("name", "Test extension")
                   .Set("version", version)
                   .Set("manifest_version", 2)
-                  .Set("background", DictionaryBuilder()
+                  .Set("background", base::Value::Dict()
                                          .Set("page", "background.html")
-                                         .Set("persistent", persistent)
-                                         .Build())
-                  .Build())
+                                         .Set("persistent", persistent)))
           .SetID(extension_id)
           .Build();
   return extension;
@@ -118,7 +112,7 @@ class UpdateInstallGateTest : public testing::Test {
     ASSERT_TRUE(profile_manager_->SetUp());
 
     const char kUserProfile[] = "profile1@example.com";
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     const AccountId account_id(AccountId::FromUserEmail(kUserProfile));
     // Needed to allow ChromeProcessManagerDelegate to allow background pages.
     fake_user_manager_ = new ash::FakeChromeUserManager();
@@ -222,18 +216,18 @@ class UpdateInstallGateTest : public testing::Test {
   // and RenderProcessHosts.
   content::RenderViewHostTestEnabler render_view_host_test_enabler_;
 
-  raw_ptr<TestingProfile> profile_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged> profile_ = nullptr;
   std::unique_ptr<TestingProfileManager> profile_manager_;
   std::unique_ptr<content::RenderProcessHost> render_process_host_;
 
-  raw_ptr<TestExtensionSystem> system_ = nullptr;
-  raw_ptr<ExtensionService> service_ = nullptr;
-  raw_ptr<ExtensionRegistry> registry_ = nullptr;
-  raw_ptr<EventRouter> event_router_ = nullptr;
+  raw_ptr<TestExtensionSystem, DanglingUntriaged> system_ = nullptr;
+  raw_ptr<ExtensionService, DanglingUntriaged> service_ = nullptr;
+  raw_ptr<ExtensionRegistry, DanglingUntriaged> registry_ = nullptr;
+  raw_ptr<EventRouter, DanglingUntriaged> event_router_ = nullptr;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Needed for creating ExtensionService.
-  raw_ptr<ash::FakeChromeUserManager, ExperimentalAsh> fake_user_manager_ =
+  raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged> fake_user_manager_ =
       nullptr;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_enabler_;
 #endif
@@ -243,6 +237,12 @@ class UpdateInstallGateTest : public testing::Test {
   scoped_refptr<const Extension> new_app_;
   scoped_refptr<const Extension> new_persistent_;
   scoped_refptr<const Extension> new_none_persistent_;
+
+  // This test relies on legacy MV2 extensions with persistent and non-
+  // persistent background pages.
+  // TODO(https://crbug.com/40804030): Migrate this to only rely on MV3
+  // extensions.
+  ScopedTestMV2Enabler mv2_enabler_;
 };
 
 TEST_F(UpdateInstallGateTest, InstallOnServiceNotReady) {

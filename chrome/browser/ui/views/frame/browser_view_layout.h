@@ -23,10 +23,6 @@ class TabStrip;
 class TabStripRegionView;
 class WebAppFrameToolbarView;
 
-namespace gfx {
-class Point;
-}  // namespace gfx
-
 namespace views {
 class View;
 class Label;
@@ -53,6 +49,7 @@ class BrowserViewLayout : public views::LayoutManager {
   // |browser_view| may be null in tests.
   BrowserViewLayout(std::unique_ptr<BrowserViewLayoutDelegate> delegate,
                     BrowserView* browser_view,
+                    views::View* window_scrim,
                     views::View* top_container,
                     WebAppFrameToolbarView* web_app_frame_toolbar,
                     views::Label* web_app_window_title,
@@ -64,6 +61,7 @@ class BrowserViewLayout : public views::LayoutManager {
                     views::View* left_aligned_side_panel_separator,
                     views::View* unified_side_panel,
                     views::View* right_aligned_side_panel_separator,
+                    views::View* side_panel_rounded_corner,
                     ImmersiveModeController* immersive_mode_controller,
                     views::View* contents_separator);
 
@@ -89,6 +87,8 @@ class BrowserViewLayout : public views::LayoutManager {
   }
   views::Widget* contents_border_widget() { return contents_border_widget_; }
 
+  void SetUseBrowserContentMinimumSize(bool use_browser_content_minimum_size);
+
   // Sets the bounds for the contents border.
   // * If nullopt, no specific bounds are set, and the border will be drawn
   //   around the entire contents area.
@@ -97,25 +97,19 @@ class BrowserViewLayout : public views::LayoutManager {
   // Note that *whether* the border is drawn is an orthogonal issue;
   // this function only controls where it's drawn when it is in fact drawn.
   void SetContentBorderBounds(
-      const absl::optional<gfx::Rect>& region_capture_rect);
+      const std::optional<gfx::Rect>& region_capture_rect);
 
   web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost();
-
-  // Returns the view against which the dialog is positioned and parented.
-  gfx::NativeView GetHostView();
-
-  // Tests to see if the specified |point| (in nonclient view's coordinates)
-  // is within the views managed by the laymanager. Returns one of
-  // HitTestCompat enum defined in ui/base/hit_test.h.
-  // See also ClientView::NonClientHitTest.
-  int NonClientHitTest(const gfx::Point& point);
 
   // views::LayoutManager overrides:
   void Layout(views::View* host) override;
   gfx::Size GetMinimumSize(const views::View* host) const override;
+  gfx::Size GetPreferredSize(
+      const views::View* host,
+      const views::SizeBounds& available_size) const override;
   gfx::Size GetPreferredSize(const views::View* host) const override;
-  std::vector<views::View*> GetChildViewsInPaintOrder(
-      const views::View* host) const override;
+  std::vector<raw_ptr<views::View, VectorExperimental>>
+  GetChildViewsInPaintOrder(const views::View* host) const override;
 
   // Returns the minimum acceptable width for the browser web contents.
   int GetMinWebContentsWidthForTesting() const;
@@ -139,15 +133,17 @@ class BrowserViewLayout : public views::LayoutManager {
   int LayoutBookmarkBar(int top);
   int LayoutInfoBar(int top);
 
+  // Helper struct and function for LayoutContentsContainerView that calculates
+  // bounds for |contents_container_| and |unified_side_panel_|.
+  struct ContentsContainerLayoutResult;
+  ContentsContainerLayoutResult CalculateContentsContainerLayout(
+      int top,
+      int bottom) const;
+
   // Layout the |contents_container_| view between the coordinates |top| and
   // |bottom|. See browser_view.h for details of the relationship between
-  // |contents_container_| and other views.
+  // |contents_container_| and other views. Also lays out |unified_side_panel_|.
   void LayoutContentsContainerView(int top, int bottom);
-
-  // Layout the `side_panel`. This updates the passed in
-  // `contents_container_bounds` to accommodate the side panel.
-  void LayoutSidePanelView(views::View* side_panel,
-                           gfx::Rect& contents_container_bounds);
 
   // Updates |top_container_|'s bounds. The new bounds depend on the size of
   // the bookmark bar and the toolbar.
@@ -170,36 +166,37 @@ class BrowserViewLayout : public views::LayoutManager {
   const std::unique_ptr<BrowserViewLayoutDelegate> delegate_;
 
   // The owning browser view.
-  const raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
+  const raw_ptr<BrowserView> browser_view_;
 
   // Child views that the layout manager manages.
   // NOTE: If you add a view, try to add it as a views::View, which makes
   // testing much easier.
-  const raw_ptr<views::View, DanglingUntriaged> top_container_;
-  const raw_ptr<WebAppFrameToolbarView, DanglingUntriaged>
-      web_app_frame_toolbar_;
-  const raw_ptr<views::Label, DanglingUntriaged> web_app_window_title_;
-  const raw_ptr<TabStripRegionView, DanglingUntriaged> tab_strip_region_view_;
-  const raw_ptr<views::View, DanglingUntriaged> toolbar_;
-  const raw_ptr<InfoBarContainerView, DanglingUntriaged> infobar_container_;
-  const raw_ptr<views::View, DanglingUntriaged> contents_container_;
-  const raw_ptr<views::View, DanglingUntriaged>
-      left_aligned_side_panel_separator_;
-  const raw_ptr<views::View, DanglingUntriaged> unified_side_panel_;
-  const raw_ptr<views::View, DanglingUntriaged>
-      right_aligned_side_panel_separator_;
-  const raw_ptr<ImmersiveModeController, DanglingUntriaged>
-      immersive_mode_controller_;
-  const raw_ptr<views::View, DanglingUntriaged> contents_separator_;
+  const raw_ptr<views::View> window_scrim_;
+  const raw_ptr<views::View> top_container_;
+  const raw_ptr<WebAppFrameToolbarView> web_app_frame_toolbar_;
+  const raw_ptr<views::Label> web_app_window_title_;
+  const raw_ptr<TabStripRegionView> tab_strip_region_view_;
+  const raw_ptr<views::View> toolbar_;
+  const raw_ptr<InfoBarContainerView> infobar_container_;
+  const raw_ptr<views::View> contents_container_;
+  const raw_ptr<views::View> left_aligned_side_panel_separator_;
+  const raw_ptr<views::View> unified_side_panel_;
+  const raw_ptr<views::View> right_aligned_side_panel_separator_;
+  const raw_ptr<views::View> side_panel_rounded_corner_;
+  const raw_ptr<ImmersiveModeController> immersive_mode_controller_;
+  const raw_ptr<views::View> contents_separator_;
 
-  raw_ptr<views::View, DanglingUntriaged> webui_tab_strip_ = nullptr;
-  raw_ptr<views::View, DanglingUntriaged> loading_bar_ = nullptr;
-  raw_ptr<TabStrip, DanglingUntriaged> tab_strip_ = nullptr;
-  raw_ptr<BookmarkBarView, DanglingUntriaged> bookmark_bar_ = nullptr;
-  raw_ptr<views::View, DanglingUntriaged> download_shelf_ = nullptr;
+  // These views are dynamically set.
+  raw_ptr<views::View> webui_tab_strip_ = nullptr;
+  raw_ptr<views::View> loading_bar_ = nullptr;
+  raw_ptr<TabStrip> tab_strip_ = nullptr;
+  raw_ptr<BookmarkBarView> bookmark_bar_ = nullptr;
+  raw_ptr<views::View> download_shelf_ = nullptr;
 
   // The widget displaying a border on top of contents container for
   // highlighting the content. Not created by default.
+  // TODO(crbug.com/393551539): reset the pointer at appropriate time and
+  // remove the DanglingUntriaged tag.
   raw_ptr<views::Widget, DanglingUntriaged> contents_border_widget_ = nullptr;
 
   // The bounds within which the vertically-stacked contents of the BrowserView
@@ -212,18 +209,21 @@ class BrowserViewLayout : public views::LayoutManager {
   std::unique_ptr<WebContentsModalDialogHostViews> dialog_host_;
 
   // The latest dialog bounds applied during a layout pass.
-  gfx::Rect latest_dialog_bounds_;
+  gfx::Rect latest_dialog_bounds_in_screen_;
 
   // The latest contents bounds applied during a layout pass, in screen
   // coordinates.
   gfx::Rect latest_contents_bounds_;
 
   // Directly tied to SetContentBorderBounds() - more details there.
-  absl::optional<gfx::Rect> dynamic_content_border_bounds_;
+  std::optional<gfx::Rect> dynamic_content_border_bounds_;
 
-  // The distance the web contents modal dialog is from the top of the window,
-  // in pixels.
-  int web_contents_modal_dialog_top_y_ = -1;
+  // The distance the web contents modal dialog is from the top of the dialog
+  // host widget.
+  int dialog_top_y_ = -1;
+
+  // Whether or not to use the browser based content minimum size.
+  bool use_browser_content_minimum_size_ = false;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_VIEW_LAYOUT_H_

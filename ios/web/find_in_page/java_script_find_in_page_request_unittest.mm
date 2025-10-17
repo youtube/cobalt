@@ -8,19 +8,14 @@
 #import "ios/web/public/test/web_test.h"
 #import "testing/gtest/include/gtest/gtest.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 class JavaScriptFindInPageRequestTest : public WebTest {
  protected:
   JavaScriptFindInPageRequestTest() {
-    auto main_frame = FakeWebFrame::CreateMainWebFrame(GURL::EmptyGURL());
+    auto main_frame = FakeWebFrame::CreateMainWebFrame();
     request_.AddFrame(main_frame.get());
-    auto frame_with_two_matches =
-        FakeWebFrame::CreateChildWebFrame(GURL::EmptyGURL());
+    auto frame_with_two_matches = FakeWebFrame::CreateChildWebFrame();
     request_.AddFrame(frame_with_two_matches.get());
     request_.Reset(@"foo", 2);
     request_.SetMatchCountForFrame(1, kMainFakeFrameId);

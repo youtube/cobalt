@@ -11,9 +11,12 @@
 
 #include "base/memory/raw_ref.h"
 #include "base/time/time.h"
+#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
+#include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/sessions/core/session_id.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
 #include "ui/base/window_open_disposition.h"
@@ -30,7 +33,7 @@ struct OmniboxLog {
              bool in_keyword_mode,
              metrics::OmniboxEventProto::KeywordModeEntryMethod entry_method,
              bool is_popup_open,
-             size_t selected_index,
+             OmniboxPopupSelection selection,
              WindowOpenDisposition disposition,
              bool is_paste_and_go,
              SessionID tab_id,
@@ -41,7 +44,9 @@ struct OmniboxLog {
              base::TimeDelta elapsed_time_since_last_change_to_default_match,
              const AutocompleteResult& result,
              const GURL& destination_url,
-             bool is_incognito);
+             bool is_incognito,
+             bool is_zero_suggest,
+             std::optional<SessionData> session);
   ~OmniboxLog();
 
   // The user's input text in the omnibox.
@@ -65,9 +70,10 @@ struct OmniboxLog {
   // True if the popup is open.
   bool is_popup_open;
 
-  // The index of the item selected in the dropdown list.  Set to 0 if the
-  // dropdown is closed (and therefore there is only one implicit suggestion).
-  size_t selected_index;
+  // Contains the selection used to open a match or take an action. This
+  // includes the index of the item selected in the dropdown list (or 0 if the
+  // dropdown is closed and therefore there is only one implicit suggestion).
+  OmniboxPopupSelection selection;
 
   // The disposition used to open the match. Currently, only SWITCH_TO_TAB
   // is relevant to the log; all other dispositions are treated identically.
@@ -84,6 +90,12 @@ struct OmniboxLog {
   // The type of page (e.g., new tab page, regular web page) that the
   // user was viewing before going somewhere with the omnibox.
   metrics::OmniboxEventProto::PageClassification current_page_classification;
+
+  // The amount of time since the user focused the omnibox. Recorded regardless
+  // of whether the omnibox popup is open. If a match is opened without
+  // triggering a focus event, e.g., when a user drags a URL to the omnibox to
+  // navigate, this elapsed time is set to -1 milliseconds.
+  base::TimeDelta elapsed_time_since_user_focused_omnibox;
 
   // The amount of time since the user first began modifying the text
   // in the omnibox.  If at some point after modifying the text, the
@@ -134,6 +146,20 @@ struct OmniboxLog {
   // Whether the item selection happened on an off-the-record/incognito profile.
   // This is used to disable logging of scoring signals in incognito mode.
   bool is_incognito;
+
+  // Whether the omnibox input is zero suggest at the time of item selection.
+  bool is_zero_suggest = false;
+
+  // Session-based metrics struct that tracks various bits of info during the
+  // course of a single Omnibox session (e.g. number of ZPS shown, etc.).
+  std::optional<SessionData> session;
+
+  // The preferred steady state (unfocused) omnibox position. Only logged on
+  // iOS phones.
+  metrics::OmniboxEventProto::OmniboxPosition steady_state_omnibox_position;
+
+  // The UKM source id for the last committed navigation in the top frame.
+  ukm::SourceId ukm_source_id;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_OMNIBOX_LOG_H_

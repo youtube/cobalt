@@ -5,6 +5,7 @@
 #include "ash/system/power/peripheral_battery_listener.h"
 
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 
@@ -13,9 +14,9 @@
 #include "ash/test/ash_test_base.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
@@ -23,7 +24,6 @@
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
 #include "device/bluetooth/test/mock_bluetooth_device.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/events/devices/device_data_manager_test_api.h"
 #include "ui/events/devices/touchscreen_device.h"
@@ -194,7 +194,7 @@ TEST_F(PeripheralBatteryListenerTest, Basic) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kTestBatteryId)),
                   AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
-                  AFIELD(&BI::last_active_update_timestamp, Eq(absl::nullopt)),
+                  AFIELD(&BI::last_active_update_timestamp, Eq(std::nullopt)),
                   AFIELD(&BI::level, Eq(50)),
                   AFIELD(&BI::charge_status, Eq(kTestBatteryStatusOut)))));
 
@@ -209,7 +209,7 @@ TEST_F(PeripheralBatteryListenerTest, Basic) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kTestBatteryId)),
                   AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
-                  AFIELD(&BI::last_active_update_timestamp, Eq(absl::nullopt)),
+                  AFIELD(&BI::last_active_update_timestamp, Eq(std::nullopt)),
                   AFIELD(&BI::level, Eq(5)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
@@ -223,8 +223,8 @@ TEST_F(PeripheralBatteryListenerTest, Basic) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kTestBatteryId)),
                   AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
-                  AFIELD(&BI::last_active_update_timestamp, Eq(absl::nullopt)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)))));
+                  AFIELD(&BI::last_active_update_timestamp, Eq(std::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
       kTestBatteryPath, kTestDeviceName, -1, kTestBatteryStatusIn,
@@ -237,7 +237,7 @@ TEST_F(PeripheralBatteryListenerTest, Basic) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kTestBatteryId)),
                   AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
-                  AFIELD(&BI::last_active_update_timestamp, Eq(absl::nullopt)),
+                  AFIELD(&BI::last_active_update_timestamp, Eq(std::nullopt)),
                   AFIELD(&BI::level, Eq(50)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
@@ -265,7 +265,7 @@ TEST_F(PeripheralBatteryListenerTest, ActiveUpdates) {
           AllOf(AFIELD(&BI::key, Eq(kTestBatteryId)),
                 AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
                 AFIELD(&BI::charge_status, Eq(kTestBatteryStatusOut)),
-                AFIELD(&BI::last_active_update_timestamp, Eq(absl::nullopt)))));
+                AFIELD(&BI::last_active_update_timestamp, Eq(std::nullopt)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
       kTestBatteryPath, kTestDeviceName, 50, kTestBatteryStatusIn,
@@ -494,7 +494,7 @@ TEST_F(PeripheralBatteryListenerTest, StylusNotification) {
   EXPECT_CALL(
       listener_observer_mock,
       OnUpdatedBatteryLevel(AllOf(AFIELD(&BI::key, Eq(kTestStylusBatteryPath)),
-                                  AFIELD(&BI::level, Eq(absl::nullopt)))));
+                                  AFIELD(&BI::level, Eq(std::nullopt)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
       kTestStylusBatteryPath, kTestStylusName, -1,
@@ -693,7 +693,7 @@ TEST_F(PeripheralBatteryListenerTest,
   EXPECT_CALL(
       listener_observer_mock,
       OnUpdatedBatteryLevel(AllOf(AFIELD(&BI::key, Eq(kBluetoothDeviceId1)),
-                                  AFIELD(&BI::level, Eq(absl::nullopt)))));
+                                  AFIELD(&BI::level, Eq(std::nullopt)))));
 
   mock_device_1_->RemoveBatteryInfo(BatteryType::kDefault);
 }
@@ -728,7 +728,7 @@ TEST_F(PeripheralBatteryListenerTest, EnsureUpdatesWithinSmallTimeIntervals) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kBluetoothDeviceId1)),
                   AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
-                  AFIELD(&BI::level, Eq(absl::nullopt)))));
+                  AFIELD(&BI::level, Eq(std::nullopt)))));
   mock_device_1_->RemoveBatteryInfo(BatteryType::kDefault);
 
   ClockAdvance(base::Seconds(1));
@@ -771,7 +771,7 @@ TEST_F(PeripheralBatteryListenerTest,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kBluetoothDeviceId1)),
                   AFIELD(&BI::last_update_timestamp, Eq(GetTestingClock())),
-                  AFIELD(&BI::level, Eq(absl::nullopt)))));
+                  AFIELD(&BI::level, Eq(std::nullopt)))));
   mock_device_1_->RemoveBatteryInfo(BatteryType::kDefault);
 
   ClockAdvance(base::Seconds(100));
@@ -1209,7 +1209,7 @@ TEST_F(PeripheralBatteryListenerTest, StylusDiscardsZeros) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kTestStylusBatteryPath)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status,
                          Eq(kTestStylusBatteryStatusDischargingOut)))));
 
@@ -1228,7 +1228,7 @@ TEST_F(PeripheralBatteryListenerTest, StylusDiscardsZeros) {
 
   EXPECT_CALL(
       listener_observer_mock,
-      OnUpdatedBatteryLevel(AllOf(AFIELD(&BI::level, Eq(absl::nullopt)))));
+      OnUpdatedBatteryLevel(AllOf(AFIELD(&BI::level, Eq(std::nullopt)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
       kTestStylusBatteryPath, kTestStylusName, 0,
@@ -1254,7 +1254,7 @@ TEST_F(PeripheralBatteryListenerTest, StylusChargerDoesNullZeros) {
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kTestChargerId)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(kTestBatteryStatusOut)))));
 
   battery_listener_->PeripheralBatteryStatusReceived(
@@ -1375,7 +1375,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest,
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kUnknown)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1428,7 +1428,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest, GarageCharging) {
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kUnknown)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1452,7 +1452,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest, GarageCharging) {
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kCharging)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1488,7 +1488,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest, GarageChargesFully) {
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kUnknown)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1566,7 +1566,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest,
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kUnknown)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1648,7 +1648,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest,
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kUnknown)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1734,7 +1734,7 @@ TEST_F(PeripheralBatteryListenerIncompleteDevicesTest, GarageChargingResumed) {
   EXPECT_CALL(listener_observer_mock,
               OnUpdatedBatteryLevel(AllOf(
                   AFIELD(&BI::key, Eq(kStylusChargerDeviceName)),
-                  AFIELD(&BI::level, Eq(absl::nullopt)),
+                  AFIELD(&BI::level, Eq(std::nullopt)),
                   AFIELD(&BI::charge_status, Eq(BI::ChargeStatus::kUnknown)),
                   AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaCharger)),
                   AFIELD(&BI::bluetooth_address, Eq("")))))
@@ -1916,6 +1916,174 @@ TEST_F(PeripheralBatteryListenerTest,
 
   battery_listener_->DeviceConnectedStateChanged(
       mock_adapter_.get(), mock_device_1_.get(), /*is_now_connected=*/true);
+}
+
+TEST_F(PeripheralBatteryListenerTest,
+       IneligibleBatteryReportingStylusViaScreenNoSerialNumber) {
+  testing::StrictMock<MockPeripheralBatteryObserver> listener_observer_mock;
+  base::ScopedObservation<PeripheralBatteryListener,
+                          PeripheralBatteryListener::Observer>
+      scoped_listener_obs{&listener_observer_mock};
+  scoped_listener_obs.Observe(battery_listener_.get());
+  base::HistogramTester histogram_tester_;
+
+  ui::TouchscreenDevice stylus(/*id=*/0, ui::INPUT_DEVICE_USB, kTestStylusName,
+                               gfx::Size(),
+                               /*touch_points=*/1, /*has_stylus=*/true);
+  stylus.sys_path = base::FilePath(kTestStylusBatteryPath);
+
+  ui::DeviceDataManagerTestApi().SetTouchscreenDevices({stylus});
+
+  EXPECT_CALL(listener_observer_mock,
+              OnAddingBattery(
+                  AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen))));
+  EXPECT_CALL(listener_observer_mock,
+              OnUpdatedBatteryLevel(
+                  AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen))));
+  battery_listener_->PeripheralBatteryStatusReceived(
+      kTestStylusBatteryPath, kTestStylusName, 50,
+      kTestStylusBatteryStatusDischargingIn, /*serial_number=*/"",
+      kBatteryPolledUpdate);
+  histogram_tester_.ExpectUniqueSample(
+      kStylusBatteryReportingEligibilityHistogramName,
+      StylusBatteryReportingEligibility::kIneligibleDueToScreen, 1);
+}
+
+TEST_F(PeripheralBatteryListenerTest,
+       EligibleBatteryReportingStylusViaChargerNoSerialNumber) {
+  testing::StrictMock<MockPeripheralBatteryObserver> listener_observer_mock;
+  base::ScopedObservation<PeripheralBatteryListener,
+                          PeripheralBatteryListener::Observer>
+      scoped_listener_obs{&listener_observer_mock};
+  scoped_listener_obs.Observe(battery_listener_.get());
+  base::HistogramTester histogram_tester_;
+
+  EXPECT_CALL(listener_observer_mock,
+              OnAddingBattery(AFIELD(
+                  &BI::type, Eq(BI::PeripheralType::kStylusViaCharger))));
+  EXPECT_CALL(listener_observer_mock,
+              OnUpdatedBatteryLevel(AFIELD(
+                  &BI::type, Eq(BI::PeripheralType::kStylusViaCharger))));
+  battery_listener_->PeripheralBatteryStatusReceived(
+      kTestChargerPath, kTestChargerName, 50,
+      power_manager::
+          PeripheralBatteryStatus_ChargeStatus_CHARGE_STATUS_CHARGING,
+      /*serial_number=*/"", kBatteryEventUpdate);
+  histogram_tester_.ExpectUniqueSample(
+      kStylusBatteryReportingEligibilityHistogramName,
+      StylusBatteryReportingEligibility::kEligible, 1);
+}
+
+TEST_F(PeripheralBatteryListenerTest,
+       IncorrectReportingStylusViaChargerWithIneligibleSerialNumber) {
+  testing::StrictMock<MockPeripheralBatteryObserver> listener_observer_mock;
+  base::ScopedObservation<PeripheralBatteryListener,
+                          PeripheralBatteryListener::Observer>
+      scoped_listener_obs{&listener_observer_mock};
+  scoped_listener_obs.Observe(battery_listener_.get());
+  base::HistogramTester histogram_tester_;
+
+  EXPECT_CALL(listener_observer_mock,
+              OnAddingBattery(AFIELD(
+                  &BI::type, Eq(BI::PeripheralType::kStylusViaCharger))));
+  EXPECT_CALL(listener_observer_mock,
+              OnUpdatedBatteryLevel(AFIELD(
+                  &BI::type, Eq(BI::PeripheralType::kStylusViaCharger))));
+  battery_listener_->PeripheralBatteryStatusReceived(
+      kTestChargerPath, kTestChargerName, 50,
+      power_manager::
+          PeripheralBatteryStatus_ChargeStatus_CHARGE_STATUS_CHARGING,
+      kStylusIneligibleSerialNumbers[0], kBatteryEventUpdate);
+  histogram_tester_.ExpectUniqueSample(
+      kStylusBatteryReportingEligibilityHistogramName,
+      StylusBatteryReportingEligibility::kIncorrectReports, 1);
+}
+
+TEST_F(PeripheralBatteryListenerTest,
+       IncorrectReportingStylusViaScreenWithIneligibleSerialNumber) {
+  testing::StrictMock<MockPeripheralBatteryObserver> listener_observer_mock;
+  base::ScopedObservation<PeripheralBatteryListener,
+                          PeripheralBatteryListener::Observer>
+      scoped_listener_obs{&listener_observer_mock};
+  scoped_listener_obs.Observe(battery_listener_.get());
+  base::HistogramTester histogram_tester_;
+
+  ui::TouchscreenDevice stylus(/*id=*/0, ui::INPUT_DEVICE_USB, kTestStylusName,
+                               gfx::Size(),
+                               /*touch_points=*/1, /*has_stylus=*/true);
+  stylus.sys_path = base::FilePath(kTestStylusBatteryPath);
+
+  ui::DeviceDataManagerTestApi().SetTouchscreenDevices({stylus});
+
+  EXPECT_CALL(listener_observer_mock,
+              OnAddingBattery(
+                  AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen))));
+  EXPECT_CALL(listener_observer_mock,
+              OnUpdatedBatteryLevel(
+                  AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen))));
+  battery_listener_->PeripheralBatteryStatusReceived(
+      kTestStylusBatteryPath, kTestStylusName, 50,
+      kTestStylusBatteryStatusDischargingIn, kStylusIneligibleSerialNumbers[0],
+      kBatteryPolledUpdate);
+  histogram_tester_.ExpectUniqueSample(
+      kStylusBatteryReportingEligibilityHistogramName,
+      StylusBatteryReportingEligibility::kIncorrectReports, 1);
+}
+
+TEST_F(PeripheralBatteryListenerTest,
+       EligibleBatteryReportingStylusViaChargerWithEligibleSerialNumber) {
+  testing::StrictMock<MockPeripheralBatteryObserver> listener_observer_mock;
+  base::ScopedObservation<PeripheralBatteryListener,
+                          PeripheralBatteryListener::Observer>
+      scoped_listener_obs{&listener_observer_mock};
+  scoped_listener_obs.Observe(battery_listener_.get());
+  base::HistogramTester histogram_tester_;
+
+  EXPECT_CALL(listener_observer_mock,
+              OnAddingBattery(AFIELD(
+                  &BI::type, Eq(BI::PeripheralType::kStylusViaCharger))));
+  EXPECT_CALL(listener_observer_mock,
+              OnUpdatedBatteryLevel(AFIELD(
+                  &BI::type, Eq(BI::PeripheralType::kStylusViaCharger))));
+  battery_listener_->PeripheralBatteryStatusReceived(
+      kTestChargerPath, kTestChargerName, 50,
+      power_manager::
+          PeripheralBatteryStatus_ChargeStatus_CHARGE_STATUS_CHARGING,
+      kStylusEligibleSerialNumbers[0], kBatteryEventUpdate);
+  histogram_tester_.ExpectUniqueSample(
+      kStylusBatteryReportingEligibilityHistogramName,
+      StylusBatteryReportingEligibility::kEligible, 1);
+}
+
+TEST_F(PeripheralBatteryListenerTest,
+       EligibleBatteryReportingStylusViaScreenWithEligibleSerialNumber) {
+  testing::StrictMock<MockPeripheralBatteryObserver> listener_observer_mock;
+  base::ScopedObservation<PeripheralBatteryListener,
+                          PeripheralBatteryListener::Observer>
+      scoped_listener_obs{&listener_observer_mock};
+  scoped_listener_obs.Observe(battery_listener_.get());
+  base::HistogramTester histogram_tester_;
+
+  ui::TouchscreenDevice stylus(/*id=*/0, ui::INPUT_DEVICE_USB, kTestStylusName,
+                               gfx::Size(),
+                               /*touch_points=*/1, /*has_stylus=*/true);
+  stylus.sys_path = base::FilePath(kTestStylusBatteryPath);
+
+  ui::DeviceDataManagerTestApi().SetTouchscreenDevices({stylus});
+
+  EXPECT_CALL(listener_observer_mock,
+              OnAddingBattery(
+                  AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen))));
+  EXPECT_CALL(listener_observer_mock,
+              OnUpdatedBatteryLevel(
+                  AFIELD(&BI::type, Eq(BI::PeripheralType::kStylusViaScreen))));
+  battery_listener_->PeripheralBatteryStatusReceived(
+      kTestStylusBatteryPath, kTestStylusName, 50,
+      kTestStylusBatteryStatusDischargingIn, kStylusEligibleSerialNumbers[0],
+      kBatteryPolledUpdate);
+  histogram_tester_.ExpectUniqueSample(
+      kStylusBatteryReportingEligibilityHistogramName,
+      StylusBatteryReportingEligibility::kEligible, 1);
 }
 
 // TODO: Test needed for eligibility behaviour of stylus chargers.

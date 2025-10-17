@@ -5,14 +5,13 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_PHONEHUB_COMBINED_ACCESS_SETUP_OPERATION_H_
 #define CHROMEOS_ASH_COMPONENTS_PHONEHUB_COMBINED_ACCESS_SETUP_OPERATION_H_
 
+#include <optional>
 #include <ostream>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // Implements the combined access setup flow. This flow involves:
 // (1) Creating a connection to the phone if one does not already exist.
@@ -97,15 +96,14 @@ class CombinedAccessSetupOperation {
 
   void NotifyCombinedStatusChanged(Status new_status);
 
-  absl::optional<Status> current_status_;
-  const raw_ptr<Delegate, ExperimentalAsh> delegate_;
+  std::optional<Status> current_status_;
+  const raw_ptr<Delegate> delegate_;
   base::OnceClosure destructor_callback_;
 };
 
 std::ostream& operator<<(std::ostream& stream,
                          CombinedAccessSetupOperation::Status status);
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_COMBINED_ACCESS_SETUP_OPERATION_H_

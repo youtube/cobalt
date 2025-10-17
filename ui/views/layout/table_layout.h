@@ -6,9 +6,10 @@
 #define UI_VIEWS_LAYOUT_TABLE_LAYOUT_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/layout/layout_manager_base.h"
 #include "ui/views/layout/layout_types.h"
@@ -92,6 +93,9 @@ class VIEWS_EXPORT TableLayout : public LayoutManagerBase {
 
   ~TableLayout() override;
 
+  size_t NumColumns() const;
+  size_t NumRows() const;
+
   // Adds a column. The alignment gives the default alignment for views added
   // with no explicit alignment. fixed_width gives a specific width for the
   // column, and is only used if size_type == kFixed. min_width gives the
@@ -113,12 +117,20 @@ class VIEWS_EXPORT TableLayout : public LayoutManagerBase {
   // spans.
   TableLayout& AddPaddingColumn(float horizontal_resize, int width);
 
+  // Removes the last `n` normal and/or padding columns. `n` must be at
+  // most `num_columns()`.
+  void RemoveColumns(size_t n);
+
   // Adds `n` new rows with the specified height (0 for unspecified height).
   TableLayout& AddRows(size_t n, float vertical_resize, int height = 0);
 
   // Adds a padding row, used to provide vertical white space between views.
   // Padding rows don't have any views, but are counted in row spans.
   TableLayout& AddPaddingRow(float vertical_resize, int height);
+
+  // Removes the last `n` normal and/or padding rows. `n` must be at most
+  // `num_rows()`.
+  void RemoveRows(size_t n);
 
   // Forces the specified columns to have the same size. The size of
   // linked columns is that of the max of the specified columns.
@@ -130,8 +142,6 @@ class VIEWS_EXPORT TableLayout : public LayoutManagerBase {
   TableLayout& SetLinkedColumnSizeLimit(int size_limit);
 
   TableLayout& SetMinimumSize(const gfx::Size& size);
-
-  TableLayout& SetIncludeHidden(bool include_hidden);
 
  protected:
   ProposedLayout CalculateProposedLayout(
@@ -171,7 +181,8 @@ class VIEWS_EXPORT TableLayout : public LayoutManagerBase {
   // Calculates the preferred width of each view, as well as updating the
   // ViewStates' `remaining_width`.
   void CalculateSize(SizeCalculationType type,
-                     const std::vector<ViewState*>& view_states) const;
+                     const std::vector<raw_ptr<ViewState, VectorExperimental>>&
+                         view_states) const;
 
   // Distributes `delta` among the resizable columns.
   void Resize(int delta) const;
@@ -193,7 +204,7 @@ class VIEWS_EXPORT TableLayout : public LayoutManagerBase {
 
   // Columns wider than this limit will be ignored when computing linked
   // columns' sizes.
-  absl::optional<int> linked_column_size_limit_;
+  std::optional<int> linked_column_size_limit_;
 
   // Minimum preferred size.
   gfx::Size minimum_size_;
@@ -202,10 +213,8 @@ class VIEWS_EXPORT TableLayout : public LayoutManagerBase {
   mutable std::vector<std::unique_ptr<ViewState>> view_states_by_row_span_;
 
   // ViewStates sorted based on column_span in ascending order.
-  mutable std::vector<ViewState*> view_states_by_col_span_;
-
-  // Indicates whether hidden views are included.
-  bool include_hidden_ = false;
+  mutable std::vector<raw_ptr<ViewState, VectorExperimental>>
+      view_states_by_col_span_;
 };
 
 }  // namespace views

@@ -31,10 +31,14 @@
 
 #include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
 
+#include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
+#include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/dom/id_target_observer_registry.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
+#include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/html_data_list_options_collection.h"
+#include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 
@@ -43,6 +47,7 @@ namespace blink {
 HTMLDataListElement::HTMLDataListElement(Document& document)
     : HTMLElement(html_names::kDatalistTag, document) {
   UseCounter::Count(document, WebFeature::kDataListElement);
+  document.IncrementDataListCount();
 }
 
 HTMLDataListOptionsCollection* HTMLDataListElement::options() {
@@ -53,20 +58,33 @@ HTMLDataListOptionsCollection* HTMLDataListElement::options() {
 void HTMLDataListElement::ChildrenChanged(const ChildrenChange& change) {
   HTMLElement::ChildrenChanged(change);
   if (!change.ByParser()) {
-    GetTreeScope().GetIdTargetObserverRegistry().NotifyObservers(
-        GetIdAttribute());
+    if (auto* registry = GetTreeScope().GetIdTargetObserverRegistry()) {
+      registry->NotifyObservers(GetIdAttribute());
+    }
   }
 }
 
 void HTMLDataListElement::FinishParsingChildren() {
   HTMLElement::FinishParsingChildren();
-  GetTreeScope().GetIdTargetObserverRegistry().NotifyObservers(
-      GetIdAttribute());
+  if (auto* registry = GetTreeScope().GetIdTargetObserverRegistry()) {
+    registry->NotifyObservers(GetIdAttribute());
+  }
 }
 
 void HTMLDataListElement::OptionElementChildrenChanged() {
-  GetTreeScope().GetIdTargetObserverRegistry().NotifyObservers(
-      GetIdAttribute());
+  if (auto* registry = GetTreeScope().GetIdTargetObserverRegistry()) {
+    registry->NotifyObservers(GetIdAttribute());
+  }
+}
+
+void HTMLDataListElement::DidMoveToNewDocument(Document& old_doc) {
+  HTMLElement::DidMoveToNewDocument(old_doc);
+  old_doc.DecrementDataListCount();
+  GetDocument().IncrementDataListCount();
+}
+
+void HTMLDataListElement::Prefinalize() {
+  GetDocument().DecrementDataListCount();
 }
 
 }  // namespace blink

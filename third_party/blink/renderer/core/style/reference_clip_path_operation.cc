@@ -6,6 +6,10 @@
 
 namespace blink {
 
+bool ReferenceClipPathOperation::IsLoading() const {
+  return resource_ && resource_->IsLoading();
+}
+
 void ReferenceClipPathOperation::AddClient(SVGResourceClient& client) {
   if (resource_) {
     resource_->AddClient(client);
@@ -16,10 +20,6 @@ void ReferenceClipPathOperation::RemoveClient(SVGResourceClient& client) {
   if (resource_) {
     resource_->RemoveClient(client);
   }
-}
-
-SVGResource* ReferenceClipPathOperation::Resource() const {
-  return resource_;
 }
 
 bool ReferenceClipPathOperation::operator==(const ClipPathOperation& o) const {

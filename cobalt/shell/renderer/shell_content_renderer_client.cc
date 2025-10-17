@@ -22,7 +22,9 @@
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/types/pass_key.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
@@ -172,24 +174,48 @@ void CreateRendererTestService(
 class ShellContentRendererUrlLoaderThrottleProvider
     : public blink::URLLoaderThrottleProvider {
  public:
+  ShellContentRendererUrlLoaderThrottleProvider()
+      : main_thread_task_runner_(
+            content::RenderThread::IsMainThread()
+                ? base::SequencedTaskRunner::GetCurrentDefault()
+                : nullptr) {}
+
+  // This constructor works in conjunction with Clone().
+  ShellContentRendererUrlLoaderThrottleProvider(
+      const scoped_refptr<base::SequencedTaskRunner>& main_thread_task_runner,
+      base::PassKey<ShellContentRendererUrlLoaderThrottleProvider>)
+      : main_thread_task_runner_(std::move(main_thread_task_runner)) {}
+
   std::unique_ptr<URLLoaderThrottleProvider> Clone() override {
-    return std::make_unique<ShellContentRendererUrlLoaderThrottleProvider>();
+    return std::make_unique<ShellContentRendererUrlLoaderThrottleProvider>(
+        main_thread_task_runner_,
+        base::PassKey<ShellContentRendererUrlLoaderThrottleProvider>());
   }
 
-  blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
-      int render_frame_id,
-      const blink::WebURLRequest& request) override {
-    blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
-    // Workers can call us on a background thread. We don't care about such
-    // requests because we purposefully only look at resources from frames
-    // that the user can interact with.`
-    content::RenderFrame* frame =
-        RenderThread::IsMainThread()
-            ? content::RenderFrame::FromRoutingID(render_frame_id)
-            : nullptr;
-    if (frame) {
-      auto throttle = content::MaybeCreateIdentityUrlLoaderThrottle(
-          base::BindRepeating(blink::SetIdpSigninStatus, frame->GetWebFrame()));
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
+      base::optional_ref<const blink::LocalFrameToken> local_frame_token,
+      const network::ResourceRequest& request) override {
+    std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
+    if (local_frame_token.has_value()) {
+      auto throttle =
+          content::MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
+              [](const blink::LocalFrameToken& local_frame_token,
+                 const scoped_refptr<base::SequencedTaskRunner>
+                     main_thread_task_runner,
+                 const url::Origin& origin,
+                 blink::mojom::IdpSigninStatus status) {
+                if (content::RenderThread::IsMainThread()) {
+                  blink::SetIdpSigninStatus(local_frame_token, origin, status);
+                  return;
+                }
+                if (main_thread_task_runner) {
+                  main_thread_task_runner->PostTask(
+                      FROM_HERE,
+                      base::BindOnce(&blink::SetIdpSigninStatus,
+                                     local_frame_token, origin, status));
+                }
+              },
+              local_frame_token.value(), main_thread_task_runner_));
       if (throttle) {
         throttles.push_back(std::move(throttle));
       }
@@ -199,6 +225,11 @@ class ShellContentRendererUrlLoaderThrottleProvider
   }
 
   void SetOnline(bool is_online) override {}
+
+private:
+  // Set only when `this` was created on the main thread, or cloned from a
+  // provider which was created on the main thread.
+  scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
 };
 
 }  // namespace
@@ -287,7 +318,9 @@ ShellContentRendererClient::CreateURLLoaderThrottleProvider(
 }
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)
-void ShellContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<media::KeySystemSupportRegistration>
+ShellContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
   media::KeySystemInfos key_systems;
   if (base::FeatureList::IsEnabled(media::kExternalClearKeyForTesting)) {
@@ -295,6 +328,7 @@ void ShellContentRendererClient::GetSupportedKeySystems(
         std::make_unique<cdm::ExternalClearKeyKeySystemInfo>());
   }
   std::move(cb).Run(std::move(key_systems));
+  return nullptr;
 }
 #endif
 

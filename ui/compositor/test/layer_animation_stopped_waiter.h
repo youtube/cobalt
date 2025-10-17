@@ -16,10 +16,10 @@ namespace base {
 class RunLoop;
 }
 
+namespace ui {
+
 class Layer;
 class LayerAnimator;
-
-namespace ui {
 
 // A class capable of waiting until a layer has stopped animating. Supports
 // animations that delete the layer on completion.
@@ -44,7 +44,8 @@ class LayerAnimationStoppedWaiter : public LayerAnimationObserver {
 
   void OnLayerAnimationEnded(LayerAnimationSequence* sequence) override;
 
-  raw_ptr<LayerAnimator, DanglingUntriaged> layer_animator_ = nullptr;
+  raw_ptr<LayerAnimator, AcrossTasksDanglingUntriaged> layer_animator_ =
+      nullptr;
   base::ScopedObservation<LayerAnimator, LayerAnimationObserver>
       layer_animator_observer_{this};
   std::unique_ptr<base::RunLoop> wait_loop_;

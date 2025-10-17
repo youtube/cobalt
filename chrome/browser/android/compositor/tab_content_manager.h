@@ -14,6 +14,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/containers/flat_map.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/thumbnail/cc/thumbnail_cache.h"
 #include "content/public/browser/render_widget_host_view.h"
 
@@ -38,14 +39,11 @@ class TabContentManager : public thumbnail::ThumbnailCacheObserver {
       const base::android::JavaRef<jobject>& jobj);
 
   TabContentManager(JNIEnv* env,
-                    jobject obj,
+                    const jni_zero::JavaRef<jobject>& obj,
                     jint default_cache_size,
-                    jint approximation_cache_size,
                     jint compression_queue_max_size,
                     jint write_queue_max_size,
-                    jboolean use_approximation_thumbnail,
-                    jboolean save_jpeg_thumbnails,
-                    jdouble jpeg_aspect_ratio);
+                    jboolean save_jpeg_thumbnails);
 
   TabContentManager(const TabContentManager&) = delete;
   TabContentManager& operator=(const TabContentManager&) = delete;
@@ -68,34 +66,21 @@ class TabContentManager : public thumbnail::ThumbnailCacheObserver {
   // their lifecycle is managed by this class.
   ThumbnailLayer* GetStaticLayer(int tab_id);
 
-  // Deprecated: This will be replace by just GetStaticLayer soon.
-  // Get the static thumbnail from the cache, or the NTP.
-  ThumbnailLayer* GetOrCreateStaticLayer(int tab_id, bool force_disk_read);
   // JNI methods.
 
-  // Should be called when a tab gets a new live layer that should be served
-  // by the cache to the CompositorView.
-  void AttachTab(JNIEnv* env,
-                 const base::android::JavaParamRef<jobject>& jtab,
-                 jint tab_id);
+  // Updates visible tab ids to page into the thumbnail cache.
+  void UpdateVisibleIds(const std::vector<int>& priority_ids,
+                        int primary_tab_id);
 
-  // Should be called when a tab removes a live layer because it should no
-  // longer be served by the CompositorView.  If `layer` is nullptr, will
-  // make sure all live layers are detached.
-  void DetachTab(JNIEnv* env,
-                 const base::android::JavaParamRef<jobject>& jtab,
-                 jint tab_id);
   void CaptureThumbnail(JNIEnv* env,
                         const base::android::JavaParamRef<jobject>& tab,
                         jfloat thumbnail_scale,
-                        jboolean write_to_cache,
-                        jdouble aspect_ratio,
+                        jboolean return_bitmap,
                         const base::android::JavaParamRef<jobject>& j_callback);
   void CacheTabWithBitmap(JNIEnv* env,
                           const base::android::JavaParamRef<jobject>& tab,
                           const base::android::JavaParamRef<jobject>& bitmap,
-                          jfloat thumbnail_scale,
-                          jdouble aspect_ratio);
+                          jfloat thumbnail_scale);
   void InvalidateIfChanged(JNIEnv* env,
                            jint tab_id,
                            const base::android::JavaParamRef<jobject>& jurl);
@@ -105,13 +90,16 @@ class TabContentManager : public thumbnail::ThumbnailCacheObserver {
   void NativeRemoveTabThumbnail(int tab_id);
   void RemoveTabThumbnail(JNIEnv* env, jint tab_id);
   void OnUIResourcesWereEvicted();
+  void WaitForJpegTabThumbnail(
+      JNIEnv* env,
+      jint tab_id,
+      const base::android::JavaParamRef<jobject>& j_callback);
   void GetEtc1TabThumbnail(
       JNIEnv* env,
       jint tab_id,
-      jdouble aspect_ratio,
       const base::android::JavaParamRef<jobject>& j_callback);
   void SetCaptureMinRequestTimeForTesting(JNIEnv* env, jint timeMs);
-  jint GetPendingReadbacksForTesting(JNIEnv* env);
+  jboolean IsTabCaptureInFlightForTesting(JNIEnv* env, jint tab_id);
 
   // ThumbnailCacheObserver implementation;
   void OnThumbnailAddedToCache(thumbnail::TabId tab_id) override;
@@ -119,9 +107,8 @@ class TabContentManager : public thumbnail::ThumbnailCacheObserver {
 
  private:
   class TabReadbackRequest;
-  // TODO(crbug/714384) check sizes and consider using base::flat_map if these
-  // layer maps are small.
-  using LayerMap = std::map<int, scoped_refptr<cc::slim::Layer>>;
+  // TODO(crbug.com/41314695) check sizes and consider using base::flat_map if
+  // these layer maps are small.
   using ThumbnailLayerMap = std::map<int, scoped_refptr<ThumbnailLayer>>;
   using TabReadbackRequestMap =
       base::flat_map<int, std::unique_ptr<TabReadbackRequest>>;
@@ -129,23 +116,30 @@ class TabContentManager : public thumbnail::ThumbnailCacheObserver {
   content::RenderWidgetHostView* GetRwhvForTab(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& tab);
+  std::unique_ptr<thumbnail::ThumbnailCaptureTracker, base::OnTaskRunnerDeleter>
+  TrackCapture(thumbnail::TabId tab_id);
+  void CleanupTrackers();
+  void OnTrackingFinished(int tab_id,
+                          thumbnail::ThumbnailCaptureTracker* tracker);
   void OnTabReadback(int tab_id,
+                     std::unique_ptr<thumbnail::ThumbnailCaptureTracker,
+                                     base::OnTaskRunnerDeleter> tracker,
                      base::android::ScopedJavaGlobalRef<jobject> j_callback,
-                     bool write_to_cache,
-                     double aspect_ratio,
+                     bool return_bitmap,
                      float thumbnail_scale,
                      const SkBitmap& bitmap);
 
   void SendThumbnailToJava(
       base::android::ScopedJavaGlobalRef<jobject> j_callback,
       bool need_downsampling,
-      double aspect_ratio,
       bool result,
       const SkBitmap& bitmap);
 
+  base::flat_map<thumbnail::TabId,
+                 base::WeakPtr<thumbnail::ThumbnailCaptureTracker>>
+      in_flight_captures_;
   std::unique_ptr<thumbnail::ThumbnailCache> thumbnail_cache_;
   ThumbnailLayerMap static_layer_cache_;
-  LayerMap live_layer_list_;
   TabReadbackRequestMap pending_tab_readbacks_;
 
   JavaObjectWeakGlobalRef weak_java_tab_content_manager_;

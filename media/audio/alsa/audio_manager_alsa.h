@@ -33,7 +33,7 @@ class MEDIA_EXPORT AudioManagerAlsa : public AudioManagerBase {
   void GetAudioOutputDeviceNames(AudioDeviceNames* device_names) override;
   AudioParameters GetInputStreamParameters(
       const std::string& device_id) override;
-  const char* GetName() override;
+  const std::string_view GetName() override;
 
   // Implementation of AudioManagerBase.
   AudioOutputStream* MakeLinearOutputStream(
@@ -75,6 +75,10 @@ class MEDIA_EXPORT AudioManagerAlsa : public AudioManagerBase {
   // Checks if the specific ALSA device is available.
   static bool IsAlsaDeviceAvailable(StreamType type,
                                     const char* device_name);
+
+  // Adds the switch-specified ALSA device if not present in device list.
+  static void AddAlsaDeviceFromSwitch(const char* switch_name,
+                                      AudioDeviceNames* device_names);
 
   static const char* UnwantedDeviceTypeWhenEnumerating(
       StreamType wanted_type);

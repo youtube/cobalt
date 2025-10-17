@@ -32,7 +32,6 @@ const char* SyncOperationTypeToString(SyncOperationType type) {
       return "FAIL";
   }
   NOTREACHED();
-  return "UNKNOWN";
 }
 
 }  // namespace sync_file_system

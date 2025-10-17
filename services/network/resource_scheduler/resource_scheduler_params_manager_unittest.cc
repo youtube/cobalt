@@ -157,7 +157,6 @@ class ResourceSchedulerParamsManagerTest : public testing::Test {
 
       case net::EFFECTIVE_CONNECTION_TYPE_LAST:
         NOTREACHED();
-        return;
     }
   }
 };

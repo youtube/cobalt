@@ -4,30 +4,30 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import org.chromium.base.CommandLine;
+import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
-import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Basis for testing tab model selector observers.
- */
+/** Basis for testing tab model selector observers. */
 public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
     // Test activity type that does not restore tab on cold restart.
     // Any type other than ActivityType.TABBED works.
@@ -51,98 +51,162 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
     @Override
     public Statement apply(final Statement base, Description description) {
         CommandLine.init(null);
-        return super.apply(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                setUp();
-                base.evaluate();
-            }
-        }, description);
+        return super.apply(
+                new Statement() {
+                    @Override
+                    public void evaluate() throws Throwable {
+                        setUp();
+                        base.evaluate();
+                    }
+                },
+                description);
     }
 
     private void setUp() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { initialize(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    initialize();
+                });
     }
 
     private void initialize() {
-        mSelector = new TabModelSelectorBase(null, EmptyTabModelFilter::new, false) {
-            @Override
-            public void requestToShowTab(Tab tab, int type) {}
+        mSelector =
+                new TabModelSelectorBase(null, false) {
+                    @Override
+                    public void requestToShowTab(Tab tab, int type) {}
 
-            @Override
-            public boolean isSessionRestoreInProgress() {
-                return false;
-            }
+                    @Override
+                    public boolean isSessionRestoreInProgress() {
+                        return false;
+                    }
 
-            @Override
-            public Tab openNewTab(LoadUrlParams loadUrlParams, @TabLaunchType int type, Tab parent,
-                    boolean incognito) {
-                return null;
-            }
-        };
+                    @Override
+                    public Tab openNewTab(
+                            LoadUrlParams loadUrlParams,
+                            @TabLaunchType int type,
+                            Tab parent,
+                            boolean incognito) {
+                        return null;
+                    }
+                };
 
         TabModelOrderController orderController = new TabModelOrderControllerImpl(mSelector);
-        TabContentManager tabContentManager = new TabContentManager(
-                InstrumentationRegistry.getTargetContext(), null, false, mSelector::getTabById);
+        TabContentManager tabContentManager =
+                new TabContentManager(
+                        ApplicationProvider.getApplicationContext(),
+                        null,
+                        false,
+                        mSelector::getTabById,
+                        TabWindowManagerSingleton.getInstance());
         tabContentManager.initWithNative();
         NextTabPolicySupplier nextTabPolicySupplier = () -> NextTabPolicy.HIERARCHICAL;
         AsyncTabParamsManager asyncTabParamsManager = AsyncTabParamsManagerSingleton.getInstance();
 
-        TabModelDelegate delegate = new TabModelDelegate() {
-            @Override
-            public void selectModel(boolean incognito) {
-                mSelector.selectModel(incognito);
-            }
+        TabModelDelegate delegate =
+                new TabModelDelegate() {
+                    @Override
+                    public void selectModel(boolean incognito) {
+                        mSelector.selectModel(incognito);
+                    }
 
-            @Override
-            public void requestToShowTab(Tab tab, @TabSelectionType int type) {}
+                    @Override
+                    public void requestToShowTab(Tab tab, @TabSelectionType int type) {}
 
-            @Override
-            public boolean isSessionRestoreInProgress() {
-                return false;
-            }
+                    @Override
+                    public boolean isSessionRestoreInProgress() {
+                        return false;
+                    }
 
-            @Override
-            public TabModel getModel(boolean incognito) {
-                return mSelector.getModel(incognito);
-            }
+                    @Override
+                    public TabModel getModel(boolean incognito) {
+                        return mSelector.getModel(incognito);
+                    }
 
-            @Override
-            public TabModel getCurrentModel() {
-                return mSelector.getCurrentModel();
-            }
+                    @Override
+                    public TabGroupModelFilter getFilter(boolean incognito) {
+                        return mSelector
+                                .getTabGroupModelFilterProvider()
+                                .getTabGroupModelFilter(incognito);
+                    }
 
-            @Override
-            public boolean isReparentingInProgress() {
-                return false;
-            }
-        };
+                    @Override
+                    public TabModel getCurrentModel() {
+                        return mSelector.getCurrentModel();
+                    }
 
-        mNormalTabModel = new TabModelSelectorTestTabModel(Profile.getLastUsedRegularProfile(),
-                orderController, tabContentManager, nextTabPolicySupplier, asyncTabParamsManager,
-                NO_RESTORE_TYPE, delegate);
+                    @Override
+                    public boolean isReparentingInProgress() {
+                        return false;
+                    }
+                };
 
-        mIncognitoTabModel = new TabModelSelectorTestIncognitoTabModel(
-                Profile.getLastUsedRegularProfile().getPrimaryOTRProfile(/*createIfNeeded=*/true),
-                orderController, tabContentManager, nextTabPolicySupplier, asyncTabParamsManager,
-                delegate);
+        TabRemover normalTabRemover =
+                new PassthroughTabRemover(
+                        () ->
+                                mSelector
+                                        .getTabGroupModelFilterProvider()
+                                        .getTabGroupModelFilter(/* isIncognito= */ false));
+        mNormalTabModel =
+                new TabModelSelectorTestTabModel(
+                        ProfileManager.getLastUsedRegularProfile(),
+                        orderController,
+                        tabContentManager,
+                        nextTabPolicySupplier,
+                        asyncTabParamsManager,
+                        NO_RESTORE_TYPE,
+                        delegate,
+                        normalTabRemover);
 
-        mSelector.initialize(mNormalTabModel, mIncognitoTabModel);
+        TabRemover incognitoTabRemover =
+                new PassthroughTabRemover(
+                        () ->
+                                mSelector
+                                        .getTabGroupModelFilterProvider()
+                                        .getTabGroupModelFilter(/* isIncognito= */ true));
+        mIncognitoTabModel =
+                new TabModelSelectorTestIncognitoTabModel(
+                        ProfileManager.getLastUsedRegularProfile()
+                                .getPrimaryOtrProfile(/* createIfNeeded= */ true),
+                        orderController,
+                        tabContentManager,
+                        nextTabPolicySupplier,
+                        asyncTabParamsManager,
+                        delegate,
+                        incognitoTabRemover);
+
+        TabUngrouperFactory factory =
+                (isIncognitoBranded, tabGroupModelFilterSupplier) ->
+                        new PassthroughTabUngrouper(tabGroupModelFilterSupplier);
+        mSelector.initialize(mNormalTabModel, mIncognitoTabModel, factory);
     }
 
-    /**
-     * Test TabModel that exposes the needed capabilities for testing.
-     */
-    public static class TabModelSelectorTestTabModel extends TabModelImpl {
-        private Set<TabModelObserver> mObserverSet = new HashSet<>();
+    /** Test TabModel that exposes the needed capabilities for testing. */
+    public static class TabModelSelectorTestTabModel extends TabModelImpl
+            implements IncognitoTabModelInternal {
+        private final Set<TabModelObserver> mObserverSet = new HashSet<>();
 
-        public TabModelSelectorTestTabModel(Profile profile,
-                TabModelOrderController orderController, TabContentManager tabContentManager,
+        public TabModelSelectorTestTabModel(
+                Profile profile,
+                TabModelOrderController orderController,
+                TabContentManager tabContentManager,
                 NextTabPolicySupplier nextTabPolicySupplier,
-                AsyncTabParamsManager asyncTabParamsManager, @ActivityType int activityType,
-                TabModelDelegate modelDelegate) {
-            super(profile, activityType, null, null, orderController, tabContentManager,
-                    nextTabPolicySupplier, asyncTabParamsManager, modelDelegate, false);
+                AsyncTabParamsManager asyncTabParamsManager,
+                @ActivityType int activityType,
+                TabModelDelegate modelDelegate,
+                TabRemover tabRemover) {
+            super(
+                    profile,
+                    activityType,
+                    null,
+                    null,
+                    orderController,
+                    tabContentManager,
+                    nextTabPolicySupplier,
+                    asyncTabParamsManager,
+                    modelDelegate,
+                    tabRemover,
+                    /* supportUndo= */ false,
+                    /* isArchivedTabModel= */ true);
         }
 
         @Override
@@ -157,23 +221,38 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
             mObserverSet.remove(observer);
         }
 
+        @Override
+        public void addIncognitoObserver(IncognitoTabModelObserver observer) {}
+
+        @Override
+        public void removeIncognitoObserver(IncognitoTabModelObserver observer) {}
+
         public Set<TabModelObserver> getObservers() {
             return mObserverSet;
         }
     }
 
-    /**
-     * Test IncognitoTabModel that exposes the needed capabilities for testing.
-     */
-    private static class TabModelSelectorTestIncognitoTabModel
-            extends TabModelSelectorTestTabModel implements IncognitoTabModel {
-        public TabModelSelectorTestIncognitoTabModel(Profile profile,
-                TabModelOrderController orderController, TabContentManager tabContentManager,
+    /** Test IncognitoTabModel that exposes the needed capabilities for testing. */
+    private static class TabModelSelectorTestIncognitoTabModel extends TabModelSelectorTestTabModel
+            implements IncognitoTabModel {
+        public TabModelSelectorTestIncognitoTabModel(
+                Profile profile,
+                TabModelOrderController orderController,
+                TabContentManager tabContentManager,
                 NextTabPolicySupplier nextTabPolicySupplier,
-                AsyncTabParamsManager asyncTabParamsManager, TabModelDelegate modelDelegate) {
-            super(Profile.getLastUsedRegularProfile().getPrimaryOTRProfile(/*createIfNeeded=*/true),
-                    orderController, tabContentManager, nextTabPolicySupplier,
-                    asyncTabParamsManager, NO_RESTORE_TYPE, modelDelegate);
+                AsyncTabParamsManager asyncTabParamsManager,
+                TabModelDelegate modelDelegate,
+                TabRemover tabRemover) {
+            super(
+                    ProfileManager.getLastUsedRegularProfile()
+                            .getPrimaryOtrProfile(/* createIfNeeded= */ true),
+                    orderController,
+                    tabContentManager,
+                    nextTabPolicySupplier,
+                    asyncTabParamsManager,
+                    NO_RESTORE_TYPE,
+                    modelDelegate,
+                    tabRemover);
         }
 
         @Override

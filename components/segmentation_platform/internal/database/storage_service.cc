@@ -7,6 +7,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/leveldb_proto/public/shared_proto_database_client_list.h"
+#include "components/segmentation_platform/internal/database/client_result_prefs.h"
 #include "components/segmentation_platform/internal/database/database_maintenance_impl.h"
 #include "components/segmentation_platform/internal/database/segment_info_database.h"
 #include "components/segmentation_platform/internal/database/signal_database_impl.h"
@@ -32,9 +33,11 @@ StorageService::StorageService(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     base::Clock* clock,
     UkmDataManager* ukm_data_manager,
-    const base::flat_set<proto::SegmentId>& all_segment_ids,
+    std::vector<std::unique_ptr<Config>> configs,
     ModelProviderFactory* model_provider_factory,
-    PrefService* profile_prefs)
+    PrefService* profile_prefs,
+    const std::string& profile_id,
+    ModelManager::SegmentationModelUpdatedCallback model_updated_callback)
     : StorageService(
           db_provider->GetDB<proto::SegmentInfo>(
               leveldb_proto::ProtoDbType::SEGMENT_INFO_DATABASE,
@@ -48,11 +51,14 @@ StorageService::StorageService(
               leveldb_proto::ProtoDbType::SIGNAL_STORAGE_CONFIG_DATABASE,
               storage_dir.Append(kSignalStorageConfigDBName),
               task_runner),
+          task_runner,
           clock,
           ukm_data_manager,
-          all_segment_ids,
+          std::move(configs),
           model_provider_factory,
-          profile_prefs) {}
+          profile_prefs,
+          profile_id,
+          model_updated_callback) {}
 
 StorageService::StorageService(
     std::unique_ptr<leveldb_proto::ProtoDatabase<proto::SegmentInfo>>
@@ -60,30 +66,44 @@ StorageService::StorageService(
     std::unique_ptr<leveldb_proto::ProtoDatabase<proto::SignalData>> signal_db,
     std::unique_ptr<leveldb_proto::ProtoDatabase<proto::SignalStorageConfigs>>
         signal_storage_config_db,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
     base::Clock* clock,
     UkmDataManager* ukm_data_manager,
-    const base::flat_set<proto::SegmentId>& all_segment_ids,
+    std::vector<std::unique_ptr<Config>> configs,
     ModelProviderFactory* model_provider_factory,
-    PrefService* profile_prefs)
-    : default_model_manager_(
-          std::make_unique<DefaultModelManager>(model_provider_factory,
-                                                all_segment_ids)),
+    PrefService* profile_prefs,
+    const std::string& profile_id,
+    ModelManager::SegmentationModelUpdatedCallback model_updated_callback)
+    : config_holder_(std::make_unique<ConfigHolder>(std::move(configs))),
+      client_result_prefs_(std::make_unique<ClientResultPrefs>(profile_prefs)),
+      cached_result_provider_(
+          std::make_unique<CachedResultProvider>(client_result_prefs_.get(),
+                                                 config_holder_->configs())),
+      cached_result_writer_(
+          std::make_unique<CachedResultWriter>(client_result_prefs_.get(),
+                                               clock)),
       segment_info_database_(std::make_unique<SegmentInfoDatabase>(
           std::move(segment_db),
           std::make_unique<SegmentInfoCache>())),
       signal_database_(
-          std::make_unique<SignalDatabaseImpl>(std::move(signal_db), clock)),
+          std::make_unique<SignalDatabaseImpl>(std::move(signal_db),
+                                               clock,
+                                               task_runner)),
       signal_storage_config_(std::make_unique<SignalStorageConfig>(
           std::move(signal_storage_config_db),
           clock)),
+      model_manager_(
+          std::make_unique<ModelManagerImpl>(config_holder_->all_segment_ids(),
+                                             model_provider_factory,
+                                             clock,
+                                             segment_info_database_.get(),
+                                             model_updated_callback)),
       ukm_data_manager_(ukm_data_manager),
+      profile_id_(profile_id),
       database_maintenance_(std::make_unique<DatabaseMaintenanceImpl>(
-          all_segment_ids,
+          config_holder_->all_segment_ids(),
           clock,
-          segment_info_database_.get(),
-          signal_database_.get(),
-          signal_storage_config_.get(),
-          default_model_manager_.get(),
+          this,
           profile_prefs)) {
   ukm_data_manager_->AddRef();
 }
@@ -92,12 +112,14 @@ StorageService::StorageService(
     std::unique_ptr<SegmentInfoDatabase> segment_info_database,
     std::unique_ptr<SignalDatabase> signal_database,
     std::unique_ptr<SignalStorageConfig> signal_storage_config,
-    std::unique_ptr<DefaultModelManager> default_model_manager,
+    std::unique_ptr<ModelManager> model_manager,
+    std::unique_ptr<ConfigHolder> config_holder,
     UkmDataManager* ukm_data_manager)
-    : default_model_manager_(std::move(default_model_manager)),
+    : config_holder_(std::move(config_holder)),
       segment_info_database_(std::move(segment_info_database)),
       signal_database_(std::move(signal_database)),
       signal_storage_config_(std::move(signal_storage_config)),
+      model_manager_(std::move(model_manager)),
       ukm_data_manager_(ukm_data_manager) {}
 
 StorageService::~StorageService() {
@@ -142,10 +164,13 @@ bool StorageService::IsInitializationFinished() const {
 void StorageService::MaybeFinishInitialization() {
   if (!IsInitializationFinished())
     return;
-  std::move(init_callback_)
-      .Run(*segment_info_database_initialized_ &&
-           *signal_database_initialized_ &&
-           *signal_storage_config_initialized_);
+  bool init_success = *segment_info_database_initialized_ &&
+                      *signal_database_initialized_ &&
+                      *signal_storage_config_initialized_;
+  if (init_success) {
+    model_manager_->Initialize();
+  }
+  std::move(init_callback_).Run(init_success);
 }
 
 int StorageService::GetServiceStatus() const {
@@ -174,6 +199,10 @@ void StorageService::ExecuteDatabaseMaintenanceTasks(bool is_startup) {
   // This should be invoked at least after a short amount of time has passed
   // since initialization happened.
   database_maintenance_->ExecuteMaintenanceTasks();
+}
+
+base::WeakPtr<StorageService> StorageService::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace segmentation_platform

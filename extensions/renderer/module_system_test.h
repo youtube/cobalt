@@ -7,6 +7,7 @@
 
 #include <set>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/task_environment.h"
 #include "extensions/renderer/module_system.h"
@@ -50,12 +51,12 @@ class ModuleSystemTestEnvironment {
   // name.
   void OverrideNativeHandler(const std::string& name, const std::string& code);
 
-  // Registers |file_name| from chrome/test/data/extensions as a module name
-  // |module_name|.
+  // Registers `file_name` from chrome/test/data/extensions as a module name
+  // `module_name`.
   void RegisterTestFile(const std::string& module_name,
                         const std::string& file_name);
 
-  // Create an empty object in the global scope with name |name|.
+  // Create an empty object in the global scope with name `name`.
   v8::Local<v8::Object> CreateGlobal(const std::string& name);
 
   // Registers a native field in the ModuleSystem.
@@ -79,14 +80,16 @@ class ModuleSystemTestEnvironment {
   AssertNatives* assert_natives() { return assert_natives_; }
 
  private:
-  v8::Isolate* isolate_;
-  std::unique_ptr<gin::ContextHolder> context_holder_;
+  raw_ptr<v8::Isolate> isolate_;
   v8::HandleScope handle_scope_;
+  // The `ContextHolder` must come after the `HandleScope` so it gets
+  // deallocated first (the destructor still allocates a handle).
+  std::unique_ptr<gin::ContextHolder> context_holder_;
 
   scoped_refptr<const Extension> extension_;
-  ScriptContextSet* context_set_;
-  ScriptContext* context_;
-  AssertNatives* assert_natives_;
+  raw_ptr<ScriptContextSet> context_set_;
+  raw_ptr<ScriptContext> context_;
+  raw_ptr<AssertNatives> assert_natives_;
   std::unique_ptr<StringSourceMap> source_map_;
 
   std::unique_ptr<NativeExtensionBindingsSystem> bindings_system_;
@@ -137,7 +140,7 @@ class ModuleSystemTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   gin::IsolateHolder isolate_holder_;
 
-  v8::Isolate* isolate_;
+  raw_ptr<v8::Isolate> isolate_;
 
   std::set<std::string> extension_ids_;
   ScriptContextSet context_set_;

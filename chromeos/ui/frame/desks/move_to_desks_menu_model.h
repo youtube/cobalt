@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_UI_FRAME_DESKS_MOVE_TO_DESKS_MENU_MODEL_H_
 #define CHROMEOS_UI_FRAME_DESKS_MOVE_TO_DESKS_MENU_MODEL_H_
 
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace chromeos {
 
@@ -60,7 +60,7 @@ class MoveToDesksMenuModel : public ui::SimpleMenuModel {
   // This is the index of the assign to all desks item in the menu model.
   // Floated windows cannot be assigned to all desks. In that case, this will be
   // nullopt.
-  absl::optional<size_t> assign_to_all_desks_item_index_;
+  std::optional<size_t> assign_to_all_desks_item_index_;
 };
 
 }  // namespace chromeos

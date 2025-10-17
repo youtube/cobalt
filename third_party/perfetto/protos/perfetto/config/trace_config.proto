@@ -26,7 +26,7 @@ import "protos/perfetto/config/data_source_config.proto";
 // It contains the general config for the logging buffer(s) and the configs for
 // all the data source being enabled.
 //
-// Next id: 37.
+// Next id: 40.
 message TraceConfig {
   message BufferConfig {
     optional uint32 size_kb = 1;
@@ -52,6 +52,21 @@ message TraceConfig {
       DISCARD = 2;
     }
     optional FillPolicy fill_policy = 4;
+
+    // When true the buffer is moved (rather than copied) onto the cloned
+    // session, and an empty buffer of the same size is allocated in the source
+    // tracing session. This feature will likely get deprecated in the future.
+    // It been introduced mainly to support the surfaceflinger snapshot dump
+    // for bugreports, where SF can dumps O(400MB) into the bugreport trace. In
+    // that case we don't want to retain another in-memory copy of the buffer.
+    optional bool transfer_on_clone = 5;
+
+    // Used in conjunction with transfer_on_clone. When true the buffer is
+    // cleared before issuing the Flush(reason=kTraceClone). This is to ensure
+    // that if the data source took too long to write the data in a previous
+    // clone-related flush, we don't end up with a mixture of leftovers from
+    // the previous write and new data.
+    optional bool clear_before_clone = 6;
   }
   repeated BufferConfig buffers = 1;
 
@@ -138,7 +153,7 @@ message TraceConfig {
   // long (e.g. 24h) traces, where suspend can inflate them to weeks of
   // wall-time, making them more likely to hit device reboots (and hence loss).
   // This option also changes consistently the semantic of
-  // TrigerConfig.stop_delay_ms.
+  // TriggerConfig.stop_delay_ms.
   optional bool prefer_suspend_clock_for_duration = 36;
 
   // This is set when --dropbox is passed to the Perfetto command line client
@@ -219,7 +234,9 @@ message TraceConfig {
     // a 24 hour period.
     // On R-, this override only affected userdebug builds. Since S, it also
     // affects user builds.
-    optional uint64 max_upload_per_day_bytes = 1;
+    // In 24Q3+ (V+), this override is a noop because upload guardrail logic
+    // was removed from Perfetto.
+    optional uint64 max_upload_per_day_bytes = 1 [deprecated = true];
 
     // Overrides the guardrail for maximum trace buffer size.
     // Available on U+
@@ -256,14 +273,26 @@ message TraceConfig {
   // trace ends to notify it about the trace readiness.
   optional bool notify_traceur = 16;
 
+  // This field was introduced in Android S.
   // Android-only. If set to a value > 0, marks the trace session as a candidate
   // for being attached to a bugreport. This field effectively acts as a z-index
   // for bugreports. When Android's dumpstate runs perfetto
   // --save-for-bugreport, traced will pick the tracing session with the highest
-  // score (score <= 0 is ignored), will steal its contents, save the trace into
-  // a known path and stop prematurely.
-  // This field was introduced in Android S.
+  // score (score <= 0 is ignored) and:
+  // On Android S, T:  will steal its contents, save the trace into
+  //     a known path and stop prematurely.
+  // On Android U+: will create a read-only snapshot and save that into a known
+  //     path, without stoppin the original tracing session.
+  // When this field is set the tracing session becomes eligible to be cloned
+  // by other UIDs.
   optional int32 bugreport_score = 30;
+
+  // When set, defines name of the file that will be saved under
+  // /data/misc/perfetto-traces/bugreport/ when using --save-all-for-bugreport.
+  // If omitted, traces will be named systrace.pftrace, systrace_1.pftrace, etc,
+  // starting from the highest `bugreport_score`.
+  // Introduced in v42 / Android V.
+  optional string bugreport_filename = 38;
 
   // Triggers allow producers to start or stop the tracing session when an event
   // occurs.
@@ -294,11 +323,45 @@ message TraceConfig {
       // consumer.
       STOP_TRACING = 2;
 
-      // NOTE: do not add new enum values here because of a subtle backward
-      // compat bug which might cause indefinite tracing on older versions of
-      // the service. See b/274931668 .
+      // 3 was taken by CLONE_SNAPSHOT but that has been moved to 4.
+      // The early implementation of CLONE_SNAPSHOT had various bugs
+      // (b/290798988, b/290799105) and made it into Android U. The number
+      // change is to make sure nobody rolls out a config that hits the broken
+      // behaviour.
+      reserved 3;
+
+      // When this mode is chosen, this causes a snapshot of the current tracing
+      // session to be created after |stop_delay_ms| while the current tracing
+      // session continues undisturbed (% an extra flush). This mode can be
+      // used only when the tracing session is handled by the "perfetto" cmdline
+      // client (which is true in 90% of cases). Part of the business logic
+      // necessary for this behavior, and ensuing file handling, lives in
+      // perfetto_cmd.cc . On other consumers, this causes only a notification
+      // of the trigger through a CloneTriggerHit ObservableEvent. The custom
+      // consumer is supposed to call CloneSession() itself after the event.
+      // Use use_clone_snapshot_if_available=true when targeting older versions
+      // of perfetto.
+      CLONE_SNAPSHOT = 4;
+
+      // NOTE: CLONE_SNAPSHOT should be used only when we targeting Android V+
+      // (15+) / Perfetto v38+. A bug in older versions of the tracing service
+      // might cause indefinitely long tracing sessions (see b/274931668).
     }
     optional TriggerMode trigger_mode = 1;
+
+    // This flag is really a workaround for b/274931668. This is needed only
+    // when deploying configs to different versions of the tracing service.
+    // When this is set to true this has the same effect of setting trigger_mode
+    // to CLONE_SNAPSHOT on newer versions of the service. This boolean has been
+    // introduced to allow to have configs that use CLONE_SNAPSHOT on newer
+    // versions of Android and fall back to STOP_TRACING on older versions where
+    // CLONE_SNAPSHOT did not exist.
+    // When using this flag, trigger_mode must be set to STOP_TRACING.
+    optional bool use_clone_snapshot_if_available = 5;
+
+    // DEPRECATED, was use_clone_snapshot_if_available in U. See the comment
+    // around CLONE_SNAPSHOT.
+    reserved 4;
 
     message Trigger {
       // The producer must specify this name to activate the trigger.
@@ -311,6 +374,8 @@ message TraceConfig {
 
       // After a trigger is received either in START_TRACING or STOP_TRACING
       // mode then the trace will end |stop_delay_ms| after triggering.
+      // In CLONE_SNAPSHOT mode, this is the delay between the trigger and the
+      // snapshot.
       // If |prefer_suspend_clock_for_duration| is set, the duration will be
       // based on wall-clock, counting also time in suspend.
       optional uint32 stop_delay_ms = 3;
@@ -373,11 +438,8 @@ message TraceConfig {
   }
   optional IncrementalStateConfig incremental_state_config = 21;
 
-  // Additional guardrail used by the Perfetto command line client.
-  // On user builds when --dropbox is set perfetto will refuse to trace unless
-  // this is also set.
-  // Added in Q.
-  optional bool allow_user_build_tracing = 19;
+  // No longer needed as we unconditionally allow tracing on user builds.
+  optional bool allow_user_build_tracing = 19 [deprecated = true];
 
   // If set the tracing service will ensure there is at most one tracing session
   // with this key.
@@ -389,6 +451,9 @@ message TraceConfig {
     COMPRESSION_TYPE_DEFLATE = 1;
   }
   optional CompressionType compression_type = 24;
+
+  // DEPRECATED, was compress_from_cli.
+  reserved 37;
 
   // Android-only. Not for general use. If set, saves the trace into an
   // incident. This field is read by perfetto_cmd, rather than the tracing
@@ -456,9 +521,110 @@ message TraceConfig {
   // design.
   //
   // Introduced in Android S, but it was broken (b/195065199). Reintroduced in
-  // Android T with a different field number.
+  // Android T with a different field number. Updated in Android U with a new
+  // bytecode version which supports string filtering.
   message TraceFilter {
+    // =========================
+    // Filter bytecode.
+    // =========================
+
+    // The bytecode as implemented in Android T.
     optional bytes bytecode = 1;
+
+    // The bytecode as implemented in Android U. Adds support for string
+    // filtering.
+    optional bytes bytecode_v2 = 2;
+
+    // =========================
+    // String filtering
+    // =========================
+
+    // The principles and terminology of string filtering is heavily inspired by
+    // iptables. A "rule" decide how strings should be filtered. Each rule
+    // contains a "policy" which indicates the algorithm to use for filtering.
+    // A "chain" is a list of rules which will be sequentially checked against
+    // each string.
+    //
+    // The first rule which applies to the string terminates filtering for that
+    // string. If no rules apply, the string is left unchanged.
+
+    // A policy specifies which algorithm should be used for filtering the
+    // string.
+    enum StringFilterPolicy {
+      SFP_UNSPECIFIED = 0;
+
+      // Tries to match the string field against |regex_pattern|. If it
+      // matches, all matching groups are "redacted" (i.e. replaced with a
+      // constant string) and filtering is terminated (i.e. no further rules are
+      // checked). If it doesn't match, the string is left unchanged and the
+      // next rule in chain is considered.
+      SFP_MATCH_REDACT_GROUPS = 1;
+
+      // Like |SFP_MATCH_REDACT_GROUPS| but tries to do some pre-work before
+      // checking the regex. Specifically, it tries to parse the string field as
+      // an atrace tracepoint and checks if the post-tgid field starts with
+      // |atrace_post_tgid_starts_with|. The regex matching is only performed if
+      // this check succeeds.
+      SFP_ATRACE_MATCH_REDACT_GROUPS = 2;
+
+      // Tries to match the string field against |regex_pattern|. If it
+      // matches, filtering is terminated (i.e. no further rules are checked).
+      // If it doesn't match, the string is left unchanged and the next rule in
+      // chain is considered.
+      SFP_MATCH_BREAK = 3;
+
+      // Like |SFP_MATCH_BREAK| but tries to do some pre-work before checking
+      // the regex. Specifically, it tries to parse the string field as an
+      // atrace tracepoint and checks if the post-tgid field starts with
+      // |atrace_post_tgid_starts_with|. The regex matching is only performed if
+      // this check succeeds.
+      SFP_ATRACE_MATCH_BREAK = 4;
+
+      // Tries to repeatedly search (i.e. find substrings of) the string field
+      // with |regex_pattern|. For each match, redacts any matching groups (i.e.
+      // replaced with a constant string). Once there are no further matches,
+      // filtering is terminated (i.e. no further rules are checked).
+      //
+      // Note that this is policy is a "search" policy not a "match" policy
+      // unlike the above policies:
+      //  * Match policies require matching the full string i.e. there is an
+      //    implicit leading `^` and trailing `$`.
+      //  * Search policies perform repeated partial matching of the string
+      //    e.g.
+      //      - String: `foo=aaa,bar=123,foo=bbb,baz=456`
+      //      - Pattern: `foo=(\d+)`
+      //      - Output: `foo=P6O,bar=123,foo=P6O,baz=456`
+      //    where P6O is the redaction string
+      //
+      // All of this is only performed after some pre-work where we try to parse
+      // the string field as an atrace tracepoint and check if the post-tgid
+      // field starts with |atrace_post_tgid_starts_with|.
+      //
+      // If there are no partial matches, the string is left unchanged and the
+      // next rule in chain is considered.
+      SFP_ATRACE_REPEATED_SEARCH_REDACT_GROUPS = 5;
+    }
+
+    // A rule specifies how strings should be filtered.
+    message StringFilterRule {
+      // The policy (i.e. algorithm) dictating how strings matching this rule
+      // should be handled.
+      optional StringFilterPolicy policy = 1;
+
+      // The regex pattern used to match against each string.
+      optional string regex_pattern = 2;
+
+      // The string which should appear after the tgid in atrace tracepoint
+      // strings.
+      optional string atrace_payload_starts_with = 3;
+    }
+
+    // A chain is a list of rules which string will be sequentially checked
+    // against.
+    message StringFilterChain {
+      repeated StringFilterRule rules = 1;
+    }
+    optional StringFilterChain string_filter_chain = 3;
   }
   // old field number for trace_filter
   reserved 32;
@@ -523,4 +689,49 @@ message TraceConfig {
     optional uint32 max_delay_ms = 2;
   }
   optional CmdTraceStartDelay cmd_trace_start_delay = 35;
+
+  // When non-empty, ensures that for a each semaphore named `name at most
+  // `max_other_session_count`` *other* sessions (whose value is taken of the
+  // minimum of all values specified by this config or any already-running
+  // session) can be be running.
+  //
+  // If a semaphore "acquisition" fails, EnableTracing will return an error
+  // and the tracing session will not be started (or elgible to start in
+  // the case of deferred sessions).
+  //
+  // This is easiest to explain with an example. Suppose the tracing service has
+  // the following active tracing sessions:
+  //   S1 = [{name=foo, max_other_session_count=2},
+  //         {name=bar, max_other_session_count=0}]
+  //   S2 = [{name=foo, max_other_session_count=1},
+  //         {name=baz, max_other_session_count=1}]
+  //
+  // Then, for a new session, the following would be the expected behaviour of
+  // EnableSession given the state of `session_semaphores`.
+  //   Q: session_semaphores = []
+  //   A: Allowed because it does not specify any semaphores. Will be allowed
+  //      no matter the state of any other tracing session.
+  //   Q: session_semaphores = [{name=baz, max_other_session_count=1}]
+  //   A: Allowed because both S2 and this config specify
+  //      max_other_session_count=1 for baz.
+  //   Q: session_semaphores = [{name=foo, max_other_session_count=3}]
+  //   A: Denied because S2 specified max_other_session_count=1 for foo and S1
+  //      takes that slot.
+  //   Q: session_semaphores = [{name=bar, max_other_session_count=0}]
+  //   A: Denied because S1 takes the the slot specified by both S1 and
+  //      this config.
+  //
+  // Introduced in 24Q3 (Android V).
+  message SessionSemaphore {
+    // The name of the semaphore. Acts as a unique identifier across all
+    // tracing sessions (including the one being started).
+    optional string name = 1;
+
+    // The maximum number of *other* sesssions which specify the same semaphore
+    // which can be active. The minimum of this value across all tracing
+    // sessions and the value specified by the config is used when deciding
+    // whether the tracing session can be started.
+    optional uint64 max_other_session_count = 2;
+  }
+  repeated SessionSemaphore session_semaphores = 39;
 }

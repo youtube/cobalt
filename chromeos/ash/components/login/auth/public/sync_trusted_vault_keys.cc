@@ -4,10 +4,12 @@
 
 #include "chromeos/ash/components/login/auth/public/sync_trusted_vault_keys.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace ash {
 
@@ -27,24 +29,24 @@ struct KeyMaterialAndVersion {
   int version = 0;
 };
 
-absl::optional<KeyMaterialAndVersion> ParseSingleEncryptionKey(
+std::optional<KeyMaterialAndVersion> ParseSingleEncryptionKey(
     const base::Value::Dict& js_object) {
   const base::Value::BlobStorage* key_material =
       js_object.FindBlob(kKeyMaterialDictKey);
   if (key_material == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return KeyMaterialAndVersion{*key_material,
                                js_object.FindInt(kVersionDictKey).value_or(0)};
 }
 
-absl::optional<SyncTrustedVaultKeys::TrustedRecoveryMethod>
+std::optional<SyncTrustedVaultKeys::TrustedRecoveryMethod>
 ParseSingleTrustedRecoveryMethod(const base::Value::Dict& js_object) {
   const base::Value::BlobStorage* public_key =
       js_object.FindBlob(kPublicKeyDictKey);
   if (public_key == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   SyncTrustedVaultKeys::TrustedRecoveryMethod method;
@@ -56,7 +58,7 @@ ParseSingleTrustedRecoveryMethod(const base::Value::Dict& js_object) {
 template <typename T>
 std::vector<T> ParseList(
     const base::Value::List* list,
-    const base::RepeatingCallback<absl::optional<T>(const base::Value::Dict&)>&
+    const base::RepeatingCallback<std::optional<T>(const base::Value::Dict&)>&
         entry_parser) {
   if (list == nullptr) {
     return {};
@@ -64,7 +66,7 @@ std::vector<T> ParseList(
 
   std::vector<T> parsed_list;
   for (const base::Value& list_entry : *list) {
-    absl::optional<T> parsed_entry = entry_parser.Run(list_entry.GetDict());
+    std::optional<T> parsed_entry = entry_parser.Run(list_entry.GetDict());
     if (parsed_entry.has_value()) {
       parsed_list.push_back(std::move(*parsed_entry));
     }
@@ -107,7 +109,7 @@ SyncTrustedVaultKeys SyncTrustedVaultKeys::FromJs(
   SyncTrustedVaultKeys result;
   const std::string* gaia_id = js_object.FindString(kGaiaIdDictKey);
   if (gaia_id) {
-    result.gaia_id_ = *gaia_id;
+    result.gaia_id_ = GaiaId(*gaia_id);
   }
 
   const std::vector<KeyMaterialAndVersion> encryption_keys =
@@ -128,7 +130,7 @@ SyncTrustedVaultKeys SyncTrustedVaultKeys::FromJs(
   return result;
 }
 
-const std::string& SyncTrustedVaultKeys::gaia_id() const {
+const GaiaId& SyncTrustedVaultKeys::gaia_id() const {
   return gaia_id_;
 }
 

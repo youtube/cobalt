@@ -4,17 +4,38 @@
 
 module remote_cocoa.mojom;
 
+import "mojo/public/mojom/base/process_id.mojom";
 import "mojo/public/mojom/base/string16.mojom";
+import "third_party/blink/public/mojom/choosers/popup_menu.mojom";
 import "third_party/blink/public/mojom/input/input_handler.mojom";
 import "third_party/blink/public/mojom/webshare/share_error.mojom";
-import "ui/base/mojom/attributed_string.mojom";
 import "ui/base/cursor/mojom/cursor.mojom";
 import "ui/base/ime/mojom/ime_types.mojom";
+import "ui/base/mojom/attributed_string.mojom";
 import "ui/display/mojom/screen_infos.mojom";
 import "ui/events/mojom/event.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "ui/gfx/mojom/ca_layer_params.mojom";
 import "ui/gfx/range/mojom/range.mojom";
+
+// Interface that lets the browser process hide/close a popup menu in a
+// remote cocoa process, for menus displayed by DisplayPopupMenu().
+interface PopupMenuRunner {
+  // Hide the associated popup menu.
+  Hide();
+};
+
+// Struct to encapsulate all the parameters to a DisplayPopupMenu() call.
+// Passed from the browser process to remote cocoa processes, but most of
+// the fields are passed unmodified from a renderer process.
+struct PopupMenu {
+  array<blink.mojom.MenuItem> items;
+  gfx.mojom.Rect bounds;
+  double item_font_size;
+  bool right_aligned;
+  uint32 selected_item;
+  pending_receiver<PopupMenuRunner> receiver;
+};
 
 // The interface through which code in the browser process, in
 // RenderWidgetHostViewMac, sends messages to the app shim process, targeting
@@ -102,7 +123,7 @@ interface RenderWidgetHostNSView {
                            array<string> file_paths)
     => (blink.mojom.ShareError error);
 
-  // TODO(https://crbug.com/1327478): This is a work around for a bug in mojo
+  // TODO(crbug.com/40226213): This is a work around for a bug in mojo
   // where close notifications for associated messages pipes can sometimes be
   // delivered later than they should. This method is called before closing the
   // remote, and is treated as if a close notification was received.
@@ -113,6 +134,11 @@ interface RenderWidgetHostNSView {
 
   // Ack overscroll message from the renderer.
   DidOverscroll(blink.mojom.DidOverscrollParams params);
+
+  // Shows a HTML select popup menu. The callback is called with the index of
+  // the selected item, or nullopt if the menu closed without selecting any
+  // items.
+  DisplayPopupMenu(PopupMenu menu) => (uint32? selected_item);
 };
 
 // The interface through which the RenderWidgetHostViewCocoa NSView in the app
@@ -136,18 +162,20 @@ interface RenderWidgetHostNSViewHost {
   // Indicates whether or not the NSView is its NSWindow's first responder.
   OnFirstResponderChanged(bool is_first_responder);
 
-  // Indicates whether or not the NSView is its NSWindow's first responder.
-  OnWindowIsKeyChanged(bool is_key);
-
   // Indicates whether or not the NSView's NSWindow is key.
-  OnBoundsInWindowChanged(
-      gfx.mojom.Rect view_bounds_in_window_dip,
-      bool attached_to_window);
+  OnWindowIsKeyChanged(bool is_key);
 
   // Indicates the NSView's bounds in its NSWindow's DIP coordinate system (with
   // the origin at the upper-left corner), and indicate if the the NSView is
   // attached to an NSWindow (if it is not, then |view_bounds_in_window_dip|'s
   // origin is meaningless, but its size is still relevant).
+  OnBoundsInWindowChanged(
+      gfx.mojom.Rect view_bounds_in_window_dip,
+      bool attached_to_window);
+
+  // Indicates the NSView's NSWindow's frame in the global display::Screen
+  // DIP coordinate system (where the origin the upper-left corner of
+  // Screen::GetPrimaryDisplay).
   OnWindowFrameInScreenChanged(
       gfx.mojom.Rect window_frame_in_screen_dip);
 
@@ -165,7 +193,7 @@ interface RenderWidgetHostNSViewHost {
   ForwardKeyboardEventWithCommands(
       blink.mojom.Event event,
       array<uint8> native_event_data,
-      bool skip_in_browser,
+      bool skip_if_unhandled,
       array<blink.mojom.EditCommand> commands);
 
   // Forward events to the renderer or the input router, as appropriate.
@@ -252,6 +280,12 @@ interface RenderWidgetHostNSViewHost {
   // return the result as |is_speaking|.
   [Sync]
   SyncIsSpeaking() => (bool is_speaking);
+
+  // Return in |element_token| the token for the root content AX node for this
+  // view and in |host_pid| the pid for the host process.
+  [Sync]
+  GetRenderWidgetAccessibilityToken() =>
+      (mojo_base.mojom.ProcessId host_pid, array<uint8> element_token);
 
   // Send the token for the NSWindow in which this NSView is being displayed.
   SetRemoteAccessibilityWindowToken(array<uint8> window_token);

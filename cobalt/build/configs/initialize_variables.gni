@@ -33,9 +33,6 @@ declare_args() {
       target_os != "android" && target_os != "ios"
 
   use_evergreen = false
-
-  # TODO(b/444119857) remove this flag once the Chromium rebase has landed.
-  build_with_exoplayer = false
 }
 
 assert(!(is_starboard && is_native_target_build),

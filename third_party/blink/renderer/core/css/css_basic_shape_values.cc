@@ -42,7 +42,8 @@ namespace cssvalue {
 
 static String BuildCircleString(const String& radius,
                                 const String& center_x,
-                                const String& center_y) {
+                                const String& center_y,
+                                bool has_explicit_center) {
   char at[] = "at";
   char separator[] = " ";
   StringBuilder result;
@@ -51,7 +52,7 @@ static String BuildCircleString(const String& radius,
     result.Append(radius);
   }
 
-  if (!center_x.IsNull() || !center_y.IsNull()) {
+  if (has_explicit_center) {
     if (!radius.IsNull()) {
       result.Append(separator);
     }
@@ -96,9 +97,8 @@ static CSSValuePair* BuildSerializablePositionOffset(CSSValue* offset,
     if ((side == CSSValueID::kRight || side == CSSValueID::kBottom) &&
         amount->IsPercentage()) {
       side = default_side;
-      amount = CSSNumericLiteralValue::Create(
-          100 - amount->GetFloatValue(),
-          CSSPrimitiveValue::UnitType::kPercentage);
+      amount =
+          amount->SubtractFrom(100, CSSPrimitiveValue::UnitType::kPercentage);
     }
   } else {
     amount = To<CSSPrimitiveValue>(offset);
@@ -108,7 +108,8 @@ static CSSValuePair* BuildSerializablePositionOffset(CSSValue* offset,
     side = default_side;
     amount = CSSNumericLiteralValue::Create(
         50, CSSPrimitiveValue::UnitType::kPercentage);
-  } else if (!amount || (amount->IsLength() && amount->IsZero())) {
+  } else if (!amount ||
+             (amount->IsLength() && amount->GetValueIfKnown() == 0.0)) {
     if (side == CSSValueID::kRight || side == CSSValueID::kBottom) {
       amount = CSSNumericLiteralValue::Create(
           100, CSSPrimitiveValue::UnitType::kPercentage);
@@ -140,7 +141,7 @@ String CSSBasicShapeCircleValue::CustomCSSText() const {
 
   return BuildCircleString(
       radius, SerializePositionOffset(*normalized_cx, *normalized_cy),
-      SerializePositionOffset(*normalized_cy, *normalized_cx));
+      SerializePositionOffset(*normalized_cy, *normalized_cx), center_x_);
 }
 
 bool CSSBasicShapeCircleValue::Equals(
@@ -161,7 +162,8 @@ void CSSBasicShapeCircleValue::TraceAfterDispatch(
 static String BuildEllipseString(const String& radius_x,
                                  const String& radius_y,
                                  const String& center_x,
-                                 const String& center_y) {
+                                 const String& center_y,
+                                 bool has_explicit_center) {
   char at[] = "at";
   char separator[] = " ";
   StringBuilder result;
@@ -179,7 +181,7 @@ static String BuildEllipseString(const String& radius_x,
     needs_separator = true;
   }
 
-  if (!center_x.IsNull() || !center_y.IsNull()) {
+  if (has_explicit_center) {
     if (needs_separator) {
       result.Append(separator);
     }
@@ -225,7 +227,7 @@ String CSSBasicShapeEllipseValue::CustomCSSText() const {
   return BuildEllipseString(
       radius_x, radius_y,
       SerializePositionOffset(*normalized_cx, *normalized_cy),
-      SerializePositionOffset(*normalized_cy, *normalized_cx));
+      SerializePositionOffset(*normalized_cy, *normalized_cx), center_x_);
 }
 
 bool CSSBasicShapeEllipseValue::Equals(
@@ -299,7 +301,8 @@ String CSSBasicShapePolygonValue::CustomCSSText() const {
 
 bool CSSBasicShapePolygonValue::Equals(
     const CSSBasicShapePolygonValue& other) const {
-  return CompareCSSValueVector(values_, other.values_);
+  return wind_rule_ == other.wind_rule_ &&
+         CompareCSSValueVector(values_, other.values_);
 }
 
 void CSSBasicShapePolygonValue::TraceAfterDispatch(
@@ -651,9 +654,16 @@ void CSSBasicShapeXYWHValue::Validate() const {
   DCHECK(x_);
   DCHECK(y_);
   DCHECK(width_);
-  DCHECK_GT(width_->GetFloatValue(), 0);
   DCHECK(height_);
-  DCHECK_GT(height_->GetFloatValue(), 0);
+
+  // The spec requires non-negative width and height but we can only validate
+  // numeric literals here.
+  if (width_->IsNumericLiteralValue()) {
+    DCHECK_GE(To<CSSNumericLiteralValue>(*width_).ClampedDoubleValue(), 0);
+  }
+  if (height_->IsNumericLiteralValue()) {
+    DCHECK_GE(To<CSSNumericLiteralValue>(*height_).ClampedDoubleValue(), 0);
+  }
 }
 
 }  // namespace cssvalue

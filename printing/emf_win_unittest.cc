@@ -10,6 +10,7 @@
 #include <winspool.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -44,7 +45,7 @@ class EmfPrintingTest : public testing::Test, public PrintingContext::Delegate {
   }
 
   // PrintingContext::Delegate methods.
-  gfx::NativeView GetParentView() override { return nullptr; }
+  gfx::NativeView GetParentView() override { return gfx::NativeView(); }
   std::string GetAppLocale() override { return std::string(); }
 };
 
@@ -70,8 +71,8 @@ TEST(EmfTest, DC) {
 
   // Playback the data.
   Emf emf;
-  // TODO(thestig): Make `data` uint8_t and avoid the base::as_bytes() call.
-  EXPECT_TRUE(emf.InitFromData(base::as_bytes(base::make_span(data))));
+  // TODO(thestig): Make `data` uint8_t and avoid the base::as_byte_span() call.
+  EXPECT_TRUE(emf.InitFromData(base::as_byte_span(data)));
   HDC hdc = CreateCompatibleDC(nullptr);
   EXPECT_TRUE(hdc);
   RECT output_rect = {0, 0, 10, 10};
@@ -90,12 +91,13 @@ TEST_F(EmfPrintingTest, Enumerate) {
   settings->set_device_name(u"UnitTest Printer");
 
   // Initialize it.
-  PrintingContextWin context(this);
+  PrintingContextWin context(this,
+                             PrintingContext::OutOfProcessBehavior::kDisabled);
   EXPECT_EQ(mojom::ResultCode::kSuccess,
             context.InitWithSettingsForTest(std::move(settings)));
 
   base::FilePath emf_file;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &emf_file));
+  EXPECT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &emf_file));
   emf_file = emf_file.Append(FILE_PATH_LITERAL("printing"))
                  .Append(FILE_PATH_LITERAL("test"))
                  .Append(FILE_PATH_LITERAL("data"))
@@ -108,7 +110,7 @@ TEST_F(EmfPrintingTest, Enumerate) {
   ASSERT_TRUE(emf_data.size());
 
   Emf emf;
-  EXPECT_TRUE(emf.InitFromData(base::as_bytes(base::make_span(emf_data))));
+  EXPECT_TRUE(emf.InitFromData(base::as_byte_span(emf_data)));
 
   // This will print to file. The reason is that when running inside a
   // unit_test, PrintingContext automatically dumps its files to the
@@ -163,8 +165,8 @@ TEST_F(EmfPrintingTest, PageBreak) {
   di.lpszDocName = L"Test Job";
   int job_id = ::StartDoc(dc.Get(), &di);
   Emf emf;
-  // TODO(thestig): Make `data` uint8_t and avoid the base::as_bytes() call.
-  EXPECT_TRUE(emf.InitFromData(base::as_bytes(base::make_span(data))));
+  // TODO(thestig): Make `data` uint8_t and avoid the base::as_byte_span() call.
+  EXPECT_TRUE(emf.InitFromData(base::as_byte_span(data)));
   EXPECT_TRUE(emf.SafePlayback(dc.Get()));
   ::EndDoc(dc.Get());
   // Since presumably the printer is not real, let us just delete the job from
@@ -198,9 +200,9 @@ TEST(EmfTest, FileBackedEmf) {
     EXPECT_TRUE(emf.GetDataAsVector(&data));
     EXPECT_EQ(data.size(), size);
   }
-  int64_t file_size = 0;
-  base::GetFileSize(metafile_path, &file_size);
-  EXPECT_EQ(size, file_size);
+  std::optional<int64_t> file_size = base::GetFileSize(metafile_path);
+  ASSERT_TRUE(file_size.has_value());
+  EXPECT_EQ(size, file_size.value());
 
   // Playback the data.
   HDC hdc = CreateCompatibleDC(nullptr);

@@ -5,6 +5,7 @@
 #ifndef ASH_SYSTEM_ACCESSIBILITY_SWITCH_ACCESS_SWITCH_ACCESS_BACK_BUTTON_VIEW_H_
 #define ASH_SYSTEM_ACCESSIBILITY_SWITCH_ACCESS_SWITCH_ACCESS_BACK_BUTTON_VIEW_H_
 
+#include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/metadata/view_factory.h"
@@ -16,9 +17,9 @@ class FloatingMenuButton;
 
 // View for the Switch Access Back Button.
 class SwitchAccessBackButtonView : public views::BoxLayoutView {
- public:
-  METADATA_HEADER(SwitchAccessBackButtonView);
+  METADATA_HEADER(SwitchAccessBackButtonView, views::BoxLayoutView)
 
+ public:
   explicit SwitchAccessBackButtonView(bool for_menu);
   ~SwitchAccessBackButtonView() override = default;
 
@@ -31,8 +32,8 @@ class SwitchAccessBackButtonView : public views::BoxLayoutView {
   void SetForMenu(bool for_menu);
 
   // views::View:
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
-  int GetHeightForWidth(int w) const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void OnPaint(gfx::Canvas* canvas) override;
 
  private:
@@ -41,7 +42,7 @@ class SwitchAccessBackButtonView : public views::BoxLayoutView {
   bool show_focus_ring_ = false;
 
   // Owned by views hierarchy.
-  FloatingMenuButton* back_button_;
+  raw_ptr<FloatingMenuButton> back_button_;
 };
 
 BEGIN_VIEW_BUILDER(/* no export */,

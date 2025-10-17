@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <map>
 #include <string>
 #include <utility>
@@ -18,6 +19,7 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
+#include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
@@ -34,14 +36,6 @@
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_utils.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-#include "base/test/scoped_feature_list.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
-#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
-#include "components/supervised_user/core/common/features.h"
-#endif
 
 namespace search {
 
@@ -100,7 +94,7 @@ class SearchTest : public BrowserWithTestWindowTest {
     InstantService* instant_service =
         InstantServiceFactory::GetForProfile(profile());
     return instant_service->IsInstantProcess(
-        contents->GetPrimaryMainFrame()->GetProcess()->GetID());
+        contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID());
   }
 
   // Each test case represents a navigation to |start_url| followed by a
@@ -110,7 +104,7 @@ class SearchTest : public BrowserWithTestWindowTest {
   // Note that we need to define this here because the flags needed to check
   // content::CanSameSiteMainFrameNavigationsChangeSiteInstances() etc might not
   // be set yet if we define this immediately (e.g. outside of the test class).
-  const struct ProcessIsolationTestCase {
+  struct ProcessIsolationTestCase {
     const char* description;
     const char* start_url;
     bool start_in_instant_process;
@@ -119,26 +113,31 @@ class SearchTest : public BrowserWithTestWindowTest {
     bool same_site_instance;
     bool same_rvh;
     bool same_process;
-  } kProcessIsolationTestCases[5] = {
+  };
+  const std::array<ProcessIsolationTestCase, 5> kProcessIsolationTestCases = {{
       {"Remote NTP -> SRP", "https://foo.com/newtab", true,
        "https://foo.com/url", false, false, false, false},
       {"Remote NTP -> Regular", "https://foo.com/newtab", true,
        "https://foo.com/other", false, false, false, false},
       {"SRP -> SRP", "https://foo.com/url", false, "https://foo.com/url", false,
-       true, !content::WillSameSiteNavigationsChangeRenderFrameHosts(), true},
+       true,
+       !content::WillSameSiteNavigationChangeRenderFrameHosts(
+           /*is_main_frame=*/true),
+       true},
       {"SRP -> Regular", "https://foo.com/url", false, "https://foo.com/other",
        false, !content::CanSameSiteMainFrameNavigationsChangeSiteInstances(),
        !content::CanSameSiteMainFrameNavigationsChangeSiteInstances(), true},
       {"Regular -> SRP", "https://foo.com/other", false, "https://foo.com/url",
        false, !content::CanSameSiteMainFrameNavigationsChangeSiteInstances(),
        !content::CanSameSiteMainFrameNavigationsChangeSiteInstances(), true},
-  };
+  }};
 
   // BrowserWithTestWindowTest:
   TestingProfile::TestingFactories GetTestingFactories() override {
-    return {{ChromeSigninClientFactory::GetInstance(),
-             base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
-                                 test_url_loader_factory())}};
+    return {TestingProfile::TestingFactory{
+        ChromeSigninClientFactory::GetInstance(),
+        base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
+                            test_url_loader_factory())}};
   }
 };
 
@@ -151,7 +150,7 @@ struct SearchTestCase {
 TEST_F(SearchTest, ShouldAssignURLToInstantRenderer) {
   // Only remote NTPs and most-visited tiles embedded in remote NTPs should be
   // assigned to Instant renderers.
-  const SearchTestCase kTestCases[] = {
+  const auto kTestCases = std::to_array<SearchTestCase>({
       {"chrome-search://most-visited/title.html?bar=abc", true,
        "Most-visited tile"},
       {"https://foo.com/newtab", true, "Remote NTP"},
@@ -161,7 +160,7 @@ TEST_F(SearchTest, ShouldAssignURLToInstantRenderer) {
       {"http://foo.com/instant", false, "Instant support was removed"},
       {"https://foo.com/instant", false, "Instant support was removed"},
       {"https://foo.com/", false, "Instant support was removed"},
-  };
+  });
 
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     const SearchTestCase& test = kTestCases[i];
@@ -172,7 +171,7 @@ TEST_F(SearchTest, ShouldAssignURLToInstantRenderer) {
 }
 
 TEST_F(SearchTest, ShouldUseProcessPerSiteForInstantSiteURL) {
-  const SearchTestCase kTestCases[] = {
+  const auto kTestCases = std::to_array<SearchTestCase>({
       {"chrome-search://remote-ntp", true, "Remote NTP"},
       {"invalid-scheme://online-ntp", false, "Invalid Online NTP URL"},
       {"chrome-search://foo.com", false, "Search result page"},
@@ -184,7 +183,7 @@ TEST_F(SearchTest, ShouldUseProcessPerSiteForInstantSiteURL) {
       {"http://foo.com:443/instant", false, "Non-HTTPS"},
       {"https://foo.com/instant", false, "No search terms replacement"},
       {"https://foo.com/", false, "Non-exact path"},
-  };
+  });
 
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     const SearchTestCase& test = kTestCases[i];
@@ -357,50 +356,12 @@ TEST_F(SearchTest, UseLocalNTPIfNTPURLIsNotSet) {
   EXPECT_EQ(chrome::kChromeUINewTabPageThirdPartyURL, new_tab_url);
 }
 
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-TEST_F(SearchTest,
-       UseLocalNTPIfNTPURLIsBlockedForSupervisedUserWithoutFiltering) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      supervised_user::kFilterWebsitesForSupervisedUsersOnDesktopAndIOS);
-
-  // Mark the profile as supervised, otherwise the URL filter won't be checked.
+TEST_F(SearchTest, UseLocalNTPIfNTPURLIsBlockedForSupervisedUser) {
+  // Enable supervision, otherwise the URL filter won't be checked.
   profile()->SetIsSupervisedProfile();
   // Block access to foo.com in the URL filter.
-  SupervisedUserService* supervised_user_service =
-      SupervisedUserServiceFactory::GetForProfile(profile());
-  supervised_user::SupervisedUserURLFilter* url_filter =
-      supervised_user_service->GetURLFilter();
-  std::map<std::string, bool> hosts;
-  hosts["foo.com"] = false;
-  url_filter->SetManualHosts(std::move(hosts));
-
-  if (supervised_user_service->IsURLFilteringEnabled()) {
-    EXPECT_EQ(chrome::kChromeUINewTabPageThirdPartyURL,
-              GetNewTabPageURL(profile()));
-    GURL new_tab_url(chrome::kChromeUINewTabURL);
-    EXPECT_TRUE(HandleNewTabURLRewrite(&new_tab_url, profile()));
-    EXPECT_EQ(chrome::kChromeUINewTabPageThirdPartyURL, new_tab_url);
-  } else {
-    EXPECT_EQ("https://foo.com/newtab", GetNewTabPageURL(profile()));
-  }
-}
-
-TEST_F(SearchTest, UseLocalNTPIfNTPURLIsBlockedForSupervisedUserWithFiltering) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      supervised_user::kFilterWebsitesForSupervisedUsersOnDesktopAndIOS);
-
-  // Mark the profile as supervised, otherwise the URL filter won't be checked.
-  profile()->SetIsSupervisedProfile();
-  // Block access to foo.com in the URL filter.
-  SupervisedUserService* supervised_user_service =
-      SupervisedUserServiceFactory::GetForProfile(profile());
-  supervised_user::SupervisedUserURLFilter* url_filter =
-      supervised_user_service->GetURLFilter();
-  std::map<std::string, bool> hosts;
-  hosts["foo.com"] = false;
-  url_filter->SetManualHosts(std::move(hosts));
+  supervised_user_test_util::SetManualFilterForHost(profile(), "foo.com",
+                                                    /*allowlist=*/false);
 
   EXPECT_EQ(chrome::kChromeUINewTabPageThirdPartyURL,
             GetNewTabPageURL(profile()));
@@ -408,7 +369,6 @@ TEST_F(SearchTest, UseLocalNTPIfNTPURLIsBlockedForSupervisedUserWithFiltering) {
   EXPECT_TRUE(HandleNewTabURLRewrite(&new_tab_url, profile()));
   EXPECT_EQ(chrome::kChromeUINewTabPageThirdPartyURL, new_tab_url);
 }
-#endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
 
 TEST_F(SearchTest, IsNTPOrRelatedURL) {
   GURL invalid_url;
@@ -437,7 +397,7 @@ TEST_F(SearchTest, IsNTPOrRelatedURL) {
 // Tests whether a |url| corresponds to a New Tab page.
 // See search::IsNTPURL(const GURL& url);
 TEST_F(SearchTest, IsNTPURL) {
-  const SearchTestCase kTestCases[] = {
+  const auto kTestCases = std::to_array<SearchTestCase>({
       {"chrome-search://remote-ntp", true, "Remote NTP URL"},
       {"chrome://new-tab-page", true, "WebUI NTP"},
       {"chrome://new-tab-page/path?params", true,
@@ -445,7 +405,7 @@ TEST_F(SearchTest, IsNTPURL) {
       {"invalid-scheme://remote-ntp", false, "Invalid Remote NTP URL"},
       {"chrome-search://most-visited/", false, "Most visited URL"},
       {"", false, "Invalid URL"},
-  };
+  });
 
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     const SearchTestCase& test = kTestCases[i];

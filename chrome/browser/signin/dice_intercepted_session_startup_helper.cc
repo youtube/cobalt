@@ -33,7 +33,7 @@ namespace {
 bool CookieInfoContains(const signin::AccountsInCookieJarInfo& cookie_info,
                         const CoreAccountId& account_id) {
   const std::vector<gaia::ListedAccount>& accounts =
-      cookie_info.signed_in_accounts;
+      cookie_info.GetPotentiallyInvalidSignedInAccounts();
   return base::Contains(accounts, account_id, &gaia::ListedAccount::id);
 }
 
@@ -65,7 +65,7 @@ void DiceInterceptedSessionStartupHelper::Startup(base::OnceClosure callback) {
       IdentityManagerFactory::GetForProfile(profile_);
   signin::AccountsInCookieJarInfo cookie_info =
       identity_manager->GetAccountsInCookieJar();
-  if (cookie_info.accounts_are_fresh &&
+  if (cookie_info.AreAccountsFresh() &&
       CookieInfoContains(cookie_info, account_id_)) {
     MoveTab();
   } else {
@@ -91,8 +91,9 @@ void DiceInterceptedSessionStartupHelper::OnAccountsInCookieUpdated(
     const GoogleServiceAuthError& error) {
   if (error != GoogleServiceAuthError::AuthErrorNone())
     return;
-  if (!accounts_in_cookie_jar_info.accounts_are_fresh)
+  if (!accounts_in_cookie_jar_info.AreAccountsFresh()) {
     return;
+  }
   if (!CookieInfoContains(accounts_in_cookie_jar_info, account_id_))
     return;
 
@@ -107,7 +108,7 @@ void DiceInterceptedSessionStartupHelper::OnStateChanged(
     return;
   }
 
-  // TODO(https://crbug.com/1051864): remove this when the cookie updates are
+  // TODO(crbug.com/40673982): remove this when the cookie updates are
   // correctly sent after reconciliation.
   if (state == signin_metrics::AccountReconcilorState::kOk) {
     signin::IdentityManager* identity_manager =
@@ -140,7 +141,7 @@ void DiceInterceptedSessionStartupHelper::StartupMultilogin(
 
 void DiceInterceptedSessionStartupHelper::StartupReconcilor(
     signin::IdentityManager* identity_manager) {
-  // TODO(https://crbug.com/1051864): cookie notifications are not triggered
+  // TODO(crbug.com/40673982): cookie notifications are not triggered
   // when the account is added by the reconcilor. Observe the reconcilor and
   // re-trigger the cookie update when it completes.
   reconcilor_observer_.Observe(

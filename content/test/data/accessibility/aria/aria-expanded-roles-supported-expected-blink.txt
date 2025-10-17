@@ -16,15 +16,15 @@ rootWebArea
 ++++++definition
 ++++++contentDeletion
 ++++++dialog
-++++++directory
+++++++list
 ++++++document
 ++++++emphasis
 ++++++feed
 ++++++figure
-++++++form
+++++++form name='Name required for form'
 ++++++grid
 ++++++++columnHeader expanded
-++++++++cell expanded
+++++++++gridCell expanded
 ++++++++row expanded
 ++++++++rowGroup
 ++++++++rowHeader expanded
@@ -36,8 +36,8 @@ rootWebArea
 ++++++genericContainer
 ++++++link expanded
 ++++++list
-++++++listBox expanded
-++++++listItem
+++++++++listItem expanded
+++++++listBox
 ++++++log
 ++++++main
 ++++++marquee
@@ -70,7 +70,7 @@ rootWebArea
 ++++++switch expanded
 ++++++tab expanded
 ++++++table
-++++++++cell expanded
+++++++++cell
 ++++++tabList
 ++++++tabPanel
 ++++++term

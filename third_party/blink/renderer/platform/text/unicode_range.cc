@@ -34,6 +34,8 @@
 
 #include "third_party/blink/renderer/platform/text/unicode_range.h"
 
+#include "base/compiler_specific.h"
+
 namespace blink {
 
 /**********************************************************************
@@ -416,21 +418,24 @@ unsigned FindCharUnicodeRange(UChar32 ch) {
   unsigned range;
 
   // search the first table
-  range = kGUnicodeSubrangeTable[0][ch >> 12];
+  range = UNSAFE_TODO(kGUnicodeSubrangeTable[0][ch >> 12]);
 
   if (range < kCRangeTableBase)
     // we try to get a specific range
     return range;
 
   // otherwise, we have one more table to look at
-  range = kGUnicodeSubrangeTable[range - kCRangeTableBase][(ch & 0x0f00) >> 8];
+  range = UNSAFE_TODO(
+      kGUnicodeSubrangeTable[range - kCRangeTableBase][(ch & 0x0f00) >> 8]);
   if (range < kCRangeTableBase)
     return range;
-  if (range < kCRangeTertiaryTable)
-    return kGUnicodeSubrangeTable[range - kCRangeTableBase][(ch & 0x00f0) >> 4];
+  if (range < kCRangeTertiaryTable) {
+    return UNSAFE_TODO(
+        kGUnicodeSubrangeTable[range - kCRangeTableBase][(ch & 0x00f0) >> 4]);
+  }
 
   // Yet another table to look at : U+0700 - U+16FF : 128 code point blocks
-  return kGUnicodeTertiaryRangeTable[(ch - 0x0700) >> 7];
+  return UNSAFE_TODO(kGUnicodeTertiaryRangeTable[(ch - 0x0700) >> 7]);
 }
 
 }  // namespace blink

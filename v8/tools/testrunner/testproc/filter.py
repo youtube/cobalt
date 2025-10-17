@@ -49,6 +49,18 @@ class StatusFileFilterProc(base.TestProcFilter):
     )
 
 
+class FuzzRareTestFilterProc(base.TestProcFilter):
+  """As above but skipping tests marked as 'FUZZ_RARE' with a probability."""
+
+  def __init__(self, rng, prob):
+    super(FuzzRareTestFilterProc, self).__init__()
+    self.rng = rng
+    self.prob = prob
+
+  def _filter(self, test):
+    return test.fuzz_rare and self.rng.random() < self.prob
+
+
 class NameFilterProc(base.TestProcFilter):
   """Filters tests based on command-line arguments.
 
@@ -78,12 +90,8 @@ class NameFilterProc(base.TestProcFilter):
     globs = self._globs.get(test.suite.name, [])
     for g in globs:
       if g == '*': return False
-      if fnmatch.fnmatch(test.path, g):
+      if fnmatch.fnmatch(test.name, g):
         return False
+
     exact_matches = self._exact_matches.get(test.suite.name, {})
-    if test.path in exact_matches: return False
-    if os.sep != '/':
-      unix_path = test.path.replace(os.sep, '/')
-      if unix_path in exact_matches: return False
-    # Filter out everything else.
-    return True
+    return test.name not in exact_matches

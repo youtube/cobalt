@@ -4,6 +4,7 @@
 
 #include "services/network/tcp_bound_socket.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
@@ -18,7 +19,6 @@
 #include "net/socket/tcp_socket.h"
 #include "services/network/socket_factory.h"
 #include "services/network/tcp_connected_socket.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 
@@ -27,10 +27,9 @@ TCPBoundSocket::TCPBoundSocket(
     net::NetLog* net_log,
     const net::NetworkTrafficAnnotationTag& traffic_annotation)
     : socket_factory_(socket_factory),
-      socket_(std::make_unique<net::TCPSocket>(
-          nullptr /*socket_performance_watcher*/,
-          net_log,
-          net::NetLogSource())),
+      socket_(net::TCPSocket::Create(nullptr /*socket_performance_watcher*/,
+                                     net_log,
+                                     net::NetLogSource())),
       traffic_annotation_(traffic_annotation) {}
 
 TCPBoundSocket::~TCPBoundSocket() = default;
@@ -62,11 +61,7 @@ void TCPBoundSocket::Listen(
   DCHECK(socket_->IsValid());
 
   if (!socket_) {
-    // Drop unexpected calls on the floor. Could destroy |this|, but as this is
-    // currently only reachable from more trusted processes, doesn't seem too
-    // useful.
     NOTREACHED();
-    return;
   }
 
   int result = ListenInternal(backlog);
@@ -99,11 +94,7 @@ void TCPBoundSocket::Connect(
   DCHECK(socket_->IsValid());
 
   if (!socket_) {
-    // Drop unexpected calls on the floor. Could destroy |this|, but as this is
-    // currently only reachable from more trusted processes, doesn't seem too
-    // useful.
     NOTREACHED();
-    return;
   }
 
   DCHECK(!connect_callback_);
@@ -131,8 +122,8 @@ void TCPBoundSocket::Connect(
 
 void TCPBoundSocket::OnConnectComplete(
     int result,
-    const absl::optional<net::IPEndPoint>& local_addr,
-    const absl::optional<net::IPEndPoint>& peer_addr,
+    const std::optional<net::IPEndPoint>& local_addr,
+    const std::optional<net::IPEndPoint>& peer_addr,
     mojo::ScopedDataPipeConsumerHandle receive_stream,
     mojo::ScopedDataPipeProducerHandle send_stream) {
   DCHECK(connecting_socket_);

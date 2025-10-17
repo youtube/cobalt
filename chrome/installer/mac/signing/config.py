@@ -4,7 +4,7 @@
 
 import os.path
 
-from .model import Distribution, NotarizationTool
+from signing.model import Distribution, NotarizeAndStapleLevel
 
 
 class ConfigError(Exception):
@@ -30,19 +30,20 @@ class CodeSignConfig(object):
     """
 
     def __init__(self,
+                 invoker=None,
                  identity=None,
                  installer_identity=None,
-                 notary_user=None,
-                 notary_password=None,
-                 notary_asc_provider=None,
-                 notary_team_id=None,
                  codesign_requirements_basic='',
-                 notarization_tool=None):
+                 notarize=NotarizeAndStapleLevel.STAPLE):
         """Creates a CodeSignConfig that will sign the product using the static
         properties on the class, using the code signing identity passed to the
         constructor.
 
         Args:
+            invoker: The operation invoker. This may be either an instantaited
+                |invoker.Interface| or a 1-arg callable that takes this instance
+                of |CodeSignConfig| and returns an instance of
+                |invoker.Interface|.
             identity: The name of the code signing identity to use for non-PKG
                 files. This can be any value that `codesign -s <identity>`
                 accepts, like the hex-encoded SHA1 hash of the certificate. Must
@@ -53,32 +54,23 @@ class CodeSignConfig(object):
                 hash is not a valid option, as it is for |identity| above. The
                 common name of the cert will work. If there is any distribution
                 that is packaged in a PKG this must not be None.
-            notary_user: Optional string username that will be used to
-                authenticate to Apple's notary service if notarizing.
-            notary_password: Optional string password or password reference
-                (e.g. @keychain, see `xcrun altool -h`) that will be used to
-                authenticate to Apple's notary service if notarizing.
-            notary_asc_provider: Optional string that will be used as the
-                `--asc-provider` argument to `xcrun altool`, to be used when
-                notary_user is associated with multiple Apple developer teams.
             codesign_requirements_basic: Optional string to specify the default
                 basic `codesign --requirements`.
-            notary_team_id: String for the Apple Team ID to use when notarizing.
-                Mandatory when using the notarytool `notarization_tool`, ignored
-                otherwise.
-            notarization_tool: The tool to use to communicate with the Apple
-                notary service. If None, the config will choose a default.
+            notarize: The |model.NotarizeAndStapleLevel|.
         """
         assert identity is not None
         assert type(identity) is str
+        assert invoker is not None
         self._identity = identity
         self._installer_identity = installer_identity
-        self._notary_user = notary_user
-        self._notary_password = notary_password
-        self._notary_asc_provider = notary_asc_provider
         self._codesign_requirements_basic = codesign_requirements_basic
-        self._notary_team_id = notary_team_id
-        self._notarization_tool = notarization_tool
+        self._notarize = notarize
+        if callable(invoker):
+            # Create a placeholder for the invoker in case the initializer
+            # accesses the field on the config.
+            self._invoker = None
+            invoker = invoker(self)
+        self._invoker = invoker
 
     @staticmethod
     def is_chrome_branded():
@@ -89,6 +81,12 @@ class CodeSignConfig(object):
         during the process of creating a CodeSignConfig object.
         """
         raise ConfigError('is_chrome_branded')
+
+    @property
+    def invoker(self):
+        """Returns the |invoker.Interface| instance for signing and notarizing.
+        """
+        return self._invoker
 
     @property
     def enable_updater(self):
@@ -111,47 +109,11 @@ class CodeSignConfig(object):
         return self._installer_identity
 
     @property
-    def notary_user(self):
-        """Returns the username for authenticating to Apple's notary service."""
-        return self._notary_user
-
-    @property
-    def notary_password(self):
-        """Returns the password or password reference for authenticating to
-        Apple's notary service.
+    def notarize(self):
+        """Returns the |model.NotarizeAndStapleLevel| that controls how, if
+        at all, notarization and stapling of CodeSignedProducts should occur.
         """
-        return self._notary_password
-
-    @property
-    def notary_asc_provider(self):
-        """Returns the ASC provider for authenticating to Apple's notary service
-        when notary_user is associatetd with multiple Apple developer teams.
-        """
-        return self._notary_asc_provider
-
-    @property
-    def notary_team_id(self):
-        """Returns the Apple Developer Team ID for authenticating to Apple's
-        notary service. Mandatory when notarization_tool is `NOTARYTOOL`.
-        """
-        return self._notary_team_id
-
-    @property
-    def notarization_tool(self):
-        """Returns the name of the tool to use for communicating with Apple's
-        notary service. The values are from the signing.model.NotarizationTool
-        enum.
-        """
-        return self._notarization_tool or NotarizationTool.ALTOOL
-
-    @property
-    def notarization_tool_path(self):
-        """Returns the path to the notarization tool binary, or None if this
-        Config does not override the default. The default is to invoke the tool
-        via xcrun(1). If a Config does override this value, it must be
-        appropriate for the active Config.notarization_tool.
-        """
-        return None
+        return self._notarize
 
     @property
     def app_product(self):
@@ -234,6 +196,19 @@ class CodeSignConfig(object):
         hardened runtime.
         """
         return False
+
+    @property
+    def main_executable_pinned_geometry(self):
+        """An optional tuple of pinned architecture offset pairs. If set the
+        pinned offsets will be compared with the apps signed main executable
+        offsets. If they do not match an exception will be thrown. Offsets are
+        compared in the order they are provided.
+        Provide the tuple in the following format:
+        (('x86_64', 16384), ('arm64', 294912))
+        Provide the tuple of pinned offsets in bytes and in the desired order.
+        For non-universal binaries this format can be used: (('arm64', 0),)
+        """
+        return None
 
     # Computed Properties ######################################################
 

@@ -5,8 +5,10 @@
 #include "components/paint_preview/renderer/paint_preview_recorder_utils.h"
 
 #include <utility>
+#include <variant>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/paint/paint_image.h"
@@ -15,7 +17,6 @@
 #include "components/paint_preview/common/file_stream.h"
 #include "components/paint_preview/common/paint_preview_tracker.h"
 #include "mojo/public/cpp/base/shared_memory_utils.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkImage.h"
@@ -57,14 +58,14 @@ class OpConverterAndTracker {
       : tracker_(tracker) {}
 
   const cc::PaintOp* ConvertAndTrack(const cc::PaintOp& op) {
-    converted_op_.emplace<absl::monostate>();
+    converted_op_.emplace<std::monostate>();
     switch (op.GetType()) {
-      case cc::PaintOpType::DrawTextBlob: {
+      case cc::PaintOpType::kDrawTextBlob: {
         const auto& text_blob_op = static_cast<const cc::DrawTextBlobOp&>(op);
         tracker_->AddGlyphs(text_blob_op.blob.get());
         break;
       }
-      case cc::PaintOpType::Annotate: {
+      case cc::PaintOpType::kAnnotate: {
         const auto& annotate_op = static_cast<const cc::AnnotateOp&>(op);
         tracker_->AnnotateLink(GURL(std::string(reinterpret_cast<const char*>(
                                                     annotate_op.data->data()),
@@ -73,69 +74,69 @@ class OpConverterAndTracker {
         // Delete the op. We no longer need it.
         return nullptr;
       }
-      case cc::PaintOpType::CustomData: {
+      case cc::PaintOpType::kCustomData: {
         const auto& custom_op = static_cast<const cc::CustomDataOp&>(op);
         tracker_->TransformClipForFrame(custom_op.id);
         break;
       }
-      case cc::PaintOpType::Save: {
+      case cc::PaintOpType::kSave: {
         tracker_->Save();
         break;
       }
-      case cc::PaintOpType::SaveLayer: {
+      case cc::PaintOpType::kSaveLayer: {
         tracker_->Save();
         break;
       }
-      case cc::PaintOpType::SaveLayerAlpha: {
+      case cc::PaintOpType::kSaveLayerAlpha: {
         tracker_->Save();
         break;
       }
-      case cc::PaintOpType::Restore: {
+      case cc::PaintOpType::kRestore: {
         tracker_->Restore();
         break;
       }
-      case cc::PaintOpType::SetMatrix: {
+      case cc::PaintOpType::kSetMatrix: {
         const auto& matrix_op = static_cast<const cc::SetMatrixOp&>(op);
         tracker_->SetMatrix(matrix_op.matrix.asM33());
         break;
       }
-      case cc::PaintOpType::Concat: {
+      case cc::PaintOpType::kConcat: {
         const auto& concat_op = static_cast<const cc::ConcatOp&>(op);
         tracker_->Concat(concat_op.matrix.asM33());
         break;
       }
-      case cc::PaintOpType::Scale: {
+      case cc::PaintOpType::kScale: {
         const auto& scale_op = static_cast<const cc::ScaleOp&>(op);
         tracker_->Scale(scale_op.sx, scale_op.sy);
         break;
       }
-      case cc::PaintOpType::Rotate: {
+      case cc::PaintOpType::kRotate: {
         const auto& rotate_op = static_cast<const cc::RotateOp&>(op);
         tracker_->Rotate(rotate_op.degrees);
         break;
       }
-      case cc::PaintOpType::Translate: {
+      case cc::PaintOpType::kTranslate: {
         const auto& translate_op = static_cast<const cc::TranslateOp&>(op);
         tracker_->Translate(translate_op.dx, translate_op.dy);
         break;
       }
-      case cc::PaintOpType::DrawImage: {
+      case cc::PaintOpType::kDrawImage: {
         const auto& image_op = static_cast<const cc::DrawImageOp&>(op);
         if (image_op.image.IsTextureBacked()) {
           converted_op_.emplace<cc::DrawImageOp>(
               MakeUnaccelerated(image_op.image), image_op.left, image_op.top,
               image_op.sampling, &image_op.flags);
-          return &absl::get<cc::DrawImageOp>(converted_op_);
+          return &std::get<cc::DrawImageOp>(converted_op_);
         }
         break;
       }
-      case cc::PaintOpType::DrawImageRect: {
+      case cc::PaintOpType::kDrawImageRect: {
         const auto& image_op = static_cast<const cc::DrawImageRectOp&>(op);
         if (image_op.image.IsTextureBacked()) {
           converted_op_.emplace<cc::DrawImageRectOp>(
               MakeUnaccelerated(image_op.image), image_op.src, image_op.dst,
               image_op.sampling, &image_op.flags, image_op.constraint);
-          return &absl::get<cc::DrawImageRectOp>(converted_op_);
+          return &std::get<cc::DrawImageRectOp>(converted_op_);
         }
         break;
       }
@@ -146,8 +147,8 @@ class OpConverterAndTracker {
   }
 
  private:
-  PaintPreviewTracker* tracker_;
-  absl::variant<absl::monostate, cc::DrawImageOp, cc::DrawImageRectOp>
+  raw_ptr<PaintPreviewTracker> tracker_;
+  std::variant<std::monostate, cc::DrawImageOp, cc::DrawImageRectOp>
       converted_op_;
 };
 
@@ -158,17 +159,17 @@ sk_sp<const SkPicture> PaintRecordToSkPicture(const cc::PaintRecord& recording,
                                               const gfx::Rect& bounds) {
   // base::Unretained is safe as |tracker| outlives the usage of
   // |custom_callback|.
-  cc::PlaybackParams::CustomDataRasterCallback custom_callback =
+  cc::PlaybackCallbacks callbacks;
+  callbacks.custom_callback =
       base::BindRepeating(&PaintPreviewTracker::CustomDataToSkPictureCallback,
                           base::Unretained(tracker));
   OpConverterAndTracker converter_and_tracker(tracker);
-  cc::PlaybackParams::ConvertOpCallback convert_op_callback =
+  callbacks.convert_op_callback =
       base::BindRepeating(&OpConverterAndTracker::ConvertAndTrack,
                           base::Unretained(&converter_and_tracker));
 
   auto skp = recording.ToSkPicture(
-      SkRect::MakeWH(bounds.width(), bounds.height()), nullptr,
-      std::move(custom_callback), std::move(convert_op_callback));
+      SkRect::MakeWH(bounds.width(), bounds.height()), nullptr, callbacks);
 
   if (!skp || skp->cullRect().width() == 0 || skp->cullRect().height() == 0)
     return nullptr;

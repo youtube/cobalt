@@ -17,7 +17,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/services/printing/public/mojom/print_backend_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -91,6 +90,11 @@ class UnsandboxedPrintBackendHostImpl
 
 class PrintBackendServiceImpl : public mojom::PrintBackendService {
  public:
+  struct StartPrintingResult {
+    mojom::ResultCode result;
+    int job_id;
+  };
+
   explicit PrintBackendServiceImpl(
       mojo::PendingReceiver<mojom::PrintBackendService> receiver);
   PrintBackendServiceImpl(const PrintBackendServiceImpl&) = delete;
@@ -132,7 +136,7 @@ class PrintBackendServiceImpl : public mojom::PrintBackendService {
 
    private:
 #if BUILDFLAG(ENABLE_OOP_BASIC_PRINT_DIALOG)
-    gfx::NativeView parent_native_view_ = nullptr;
+    gfx::NativeView parent_native_view_ = gfx::NativeView();
 #endif
     std::string locale_;
   };
@@ -152,7 +156,7 @@ class PrintBackendServiceImpl : public mojom::PrintBackendService {
   void GetDefaultPrinterName(
       mojom::PrintBackendService::GetDefaultPrinterNameCallback callback)
       override;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void GetPrinterSemanticCapsAndDefaults(
       const std::string& printer_name,
       mojom::PrintBackendService::GetPrinterSemanticCapsAndDefaultsCallback
@@ -195,7 +199,7 @@ class PrintBackendServiceImpl : public mojom::PrintBackendService {
       int document_cookie,
       const std::u16string& document_name,
 #if !BUILDFLAG(ENABLE_OOP_BASIC_PRINT_DIALOG)
-      const absl::optional<PrintSettings>& settings,
+      const std::optional<PrintSettings>& settings,
 #endif
       mojom::PrintBackendService::StartPrintingCallback callback) override;
 #if BUILDFLAG(IS_WIN)
@@ -230,7 +234,7 @@ class PrintBackendServiceImpl : public mojom::PrintBackendService {
       mojom::ResultCode result);
 #endif
   void OnDidStartPrintingReadyDocument(DocumentHelper& document_helper,
-                                       mojom::ResultCode result);
+                                       StartPrintingResult printing_result);
   void OnDidDocumentDone(
       DocumentHelper& document_helper,
       mojom::PrintBackendService::DocumentDoneCallback callback,

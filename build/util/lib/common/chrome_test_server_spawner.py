@@ -18,9 +18,10 @@ import subprocess
 import sys
 import threading
 import time
+import urllib
 
-from six.moves import BaseHTTPServer, urllib
-
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
 
 SERVER_TYPES = {
     'http': '',
@@ -213,13 +214,13 @@ class TestServerThread(threading.Thread):
     # Set up a pipe for the server to report when it has started.
     pipe_in, pipe_out = os.pipe()
 
-    # TODO(crbug.com/941669): Remove if condition after python3 migration.
+    # TODO(crbug.com/40618161): Remove if condition after python3 migration.
     if hasattr(os, 'set_inheritable'):
       os.set_inheritable(pipe_out, True)
 
     try:
       self._GenerateCommandLineArguments(pipe_out)
-      # TODO(crbug.com/941669): When this script is ported to Python 3, replace
+      # TODO(crbug.com/40618161): When this script is ported to Python 3, replace
       # 'vpython3' below with sys.executable.
       command = [
           'vpython3',
@@ -303,7 +304,7 @@ class TestServerThread(threading.Thread):
     self.wait_event.wait()
 
 
-class SpawningServerRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class SpawningServerRequestHandler(BaseHTTPRequestHandler):
   """A handler used to process http GET/POST request."""
 
   def _SendResponse(self, response_code, response_reason, additional_headers,
@@ -444,8 +445,8 @@ class SpawningServer(object):
   """The class used to start/stop a http server."""
 
   def __init__(self, test_server_spawner_port, port_forwarder, max_instances):
-    self.server = BaseHTTPServer.HTTPServer(('', test_server_spawner_port),
-                                            SpawningServerRequestHandler)
+    self.server = HTTPServer(('', test_server_spawner_port),
+                             SpawningServerRequestHandler)
     self.server_port = self.server.server_port
     _logger.info('Started test server spawner on port: %d.', self.server_port)
 

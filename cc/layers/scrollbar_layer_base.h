@@ -24,15 +24,15 @@ class CC_EXPORT ScrollbarLayerBase : public Layer {
   bool is_left_side_vertical_scrollbar() const {
     return is_left_side_vertical_scrollbar_;
   }
-
-  void PushPropertiesTo(LayerImpl* layer,
-                        const CommitState& commit_state,
-                        const ThreadUnsafeCommitState& unsafe_state) override;
+  bool has_find_in_page_tickmarks() const {
+    return has_find_in_page_tickmarks_.Read(*this);
+  }
+  bool SetHasFindInPageTickmarks(bool has_find_in_page_tickmarks);
 
   enum ScrollbarLayerType {
     kSolidColor,
     kPainted,
-    kPaintedOverlay,
+    kNinePatchThumb,
   };
   virtual ScrollbarLayerType GetScrollbarLayerType() const = 0;
 
@@ -41,12 +41,19 @@ class CC_EXPORT ScrollbarLayerBase : public Layer {
                      bool is_left_side_vertical_scrollbar);
   ~ScrollbarLayerBase() override;
 
+  void PushDirtyPropertiesTo(
+      LayerImpl* layer,
+      uint8_t dirty_flag,
+      const CommitState& commit_state,
+      const ThreadUnsafeCommitState& unsafe_state) override;
+
  private:
   bool IsScrollbarLayerForTesting() const final;
 
   const ScrollbarOrientation orientation_;
   const bool is_left_side_vertical_scrollbar_;
   ProtectedSequenceReadable<ElementId> scroll_element_id_;
+  ProtectedSequenceReadable<bool> has_find_in_page_tickmarks_;
 };
 
 }  // namespace cc

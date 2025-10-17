@@ -9,7 +9,6 @@ import org.junit.Assert;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.TimeoutException;
 
@@ -24,34 +23,40 @@ public class LayoutTestUtils {
     public static void waitForLayout(LayoutManager layoutManager, @LayoutType int type) {
         Assert.assertNotNull(layoutManager);
         CallbackHelper finishedShowingCallbackHelper = new CallbackHelper();
-        LayoutStateObserver observer = new LayoutStateObserver() {
-            @Override
-            public void onFinishedShowing(int layoutType) {
-                // Ensure the layout is the one we're actually looking for.
-                if (type != layoutType) return;
+        LayoutStateObserver observer =
+                new LayoutStateObserver() {
+                    @Override
+                    public void onFinishedShowing(int layoutType) {
+                        // Ensure the layout is the one we're actually looking for.
+                        if (type != layoutType) return;
 
-                finishedShowingCallbackHelper.notifyCalled();
-            }
-        };
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            if (layoutManager.isLayoutVisible(type)) {
-                finishedShowingCallbackHelper.notifyCalled();
-            } else {
-                layoutManager.addObserver(observer);
-            }
-        });
+                        finishedShowingCallbackHelper.notifyCalled();
+                    }
+                };
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // Only trigger immediately if the layout visible and not mid-transition.
+                    if (layoutManager.isLayoutVisible(type)
+                            && !layoutManager.isLayoutStartingToShow(type)
+                            && !layoutManager.isLayoutStartingToHide(type)) {
+                        finishedShowingCallbackHelper.notifyCalled();
+                    } else {
+                        layoutManager.addObserver(observer);
+                    }
+                });
 
         try {
-            finishedShowingCallbackHelper.waitForFirst();
+            finishedShowingCallbackHelper.waitForOnly();
         } catch (TimeoutException e) {
             assert false : "Timed out waiting for layout (@LayoutType " + type + ") to show!";
         }
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> layoutManager.removeObserver(observer));
+        ThreadUtils.runOnUiThreadBlocking(() -> layoutManager.removeObserver(observer));
     }
 
     /**
      * Start showing a layout and wait for it to finish showing.
+     *
      * @param layoutManager A layout manager to show different layouts.
      * @param type The type of layout to show.
      * @param animate Whether to animate the transition.

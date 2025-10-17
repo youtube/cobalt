@@ -7,12 +7,17 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/process/launch.h"
 #include "base/process/process_handle.h"
+#include "base/timer/elapsed_timer.h"
+#include "base/win/scoped_process_information.h"
+#include "build/build_config.h"
 #include "sandbox/policy/export.h"
 #include "sandbox/policy/sandbox_delegate.h"
 #include "sandbox/policy/sandbox_type.h"
@@ -38,21 +43,58 @@ enum class Sandbox;
 namespace sandbox {
 namespace policy {
 
+// Helper to recording timing information during process creation.
+class SANDBOX_POLICY_EXPORT SandboxLaunchTimer final {
+ public:
+  SandboxLaunchTimer() = default;
+  SandboxLaunchTimer(const SandboxLaunchTimer&) = delete;
+  SandboxLaunchTimer(SandboxLaunchTimer&& other) = default;
+  SandboxLaunchTimer& operator=(const SandboxLaunchTimer&) = delete;
+
+  // Call after the policy base object is created.
+  void OnPolicyCreated() { policy_created_ = timer_.Elapsed(); }
+
+  // Call after the delegate has generated policy settings.
+  void OnPolicyGenerated() { policy_generated_ = timer_.Elapsed(); }
+
+  // Call after CreateProcess() has returned a suspended process.
+  void OnProcessSpawned() { process_spawned_ = timer_.Elapsed(); }
+
+  // Call after unsuspending the process.
+  void OnProcessResumed() { process_resumed_ = timer_.Elapsed(); }
+
+  // Returns when this timer was created.
+  int64_t GetStartTimeInMicroseconds() const {
+    return timer_.start_time().since_origin().InMicroseconds();
+  }
+
+  // Call once to record histograms for a successful process launch.
+  void RecordHistograms();
+
+ private:
+  // `timer_` starts when this object is created.
+  base::ElapsedTimer timer_;
+  base::TimeDelta policy_created_;
+  base::TimeDelta policy_generated_;
+  base::TimeDelta process_spawned_;
+  base::TimeDelta process_resumed_;
+};
+
 class SANDBOX_POLICY_EXPORT SandboxWin {
  public:
-  // Create a sandboxed process `process` with the specified `cmd_line` of type
-  // `process_type` (e.g. 'renderer' or 'utility'). `handles_to_inherit`
-  // specifies a set of handles to inherit. `delegate` specifies the sandbox
-  // delegate to use when resolving specific sandbox policy.
+  // Create a sandboxed process `process` with the specified `cmd_line`.
+  // `handles_to_inherit` specifies a set of handles to inherit.
+  // `delegate` specifies the sandbox delegate to use when resolving specific
+  // sandbox policy.
   //
-  // Returns SBOX_ALL_OK if the process was successfully created.
-  // Otherwise, returns one of sandbox::ResultCode for any other error.
+  // If SBOX_ALL_OK is returned, then `result_callback` will be called with the
+  // process creation result. Otherwise, returns one of sandbox::ResultCode for
+  // any other error.
   static ResultCode StartSandboxedProcess(
       const base::CommandLine& cmd_line,
-      const std::string& process_type,
       const base::HandlesToInheritVector& handles_to_inherit,
       SandboxDelegate* delegate,
-      base::Process* process);
+      StartSandboxedProcessCallback result_callback);
 
   // Generates a sandbox policy into `policy` to match the one that would be
   // applied during `StartSandboxedProcess` for the identical set of arguments.
@@ -63,7 +105,6 @@ class SANDBOX_POLICY_EXPORT SandboxWin {
   // of sandbox::ResultCode for any other error while constructing the policy.
   static ResultCode GeneratePolicyForSandboxedProcess(
       const base::CommandLine& cmd_line,
-      const std::string& process_type,
       const base::HandlesToInheritVector& handles_to_inherit,
       SandboxDelegate* delegate,
       TargetPolicy* policy);
@@ -76,7 +117,7 @@ class SANDBOX_POLICY_EXPORT SandboxWin {
                                 TargetConfig* config);
 
   // Closes handles that are opened at process creation and initialization.
-  static ResultCode AddBaseHandleClosePolicy(TargetConfig* config);
+  static void AddBaseHandleClosePolicy(TargetConfig* config);
 
   // Add AppContainer policy for |sid| on supported OS.
   static ResultCode AddAppContainerPolicy(TargetConfig* config,
@@ -113,11 +154,25 @@ class SANDBOX_POLICY_EXPORT SandboxWin {
 
   // Provides a friendly name for the sandbox for chrome://sandbox and tracing.
   static std::string GetSandboxTypeInEnglish(
-      sandbox::mojom::Sandbox sandbox_type);
+      const std::optional<sandbox::mojom::Sandbox>& sandbox_type);
 
   // Helper for sandbox delegates to generate a SandboxTag
   static std::string GetSandboxTagForDelegate(
-      base::StringPiece prefix,
+      std::string_view prefix,
+      sandbox::mojom::Sandbox sandbox_type);
+
+ private:
+  FRIEND_TEST_ALL_PREFIXES(SandboxWinTest, GetJobMemoryLimit);
+
+  static void FinishStartSandboxedProcess(
+      SandboxDelegate* delegate,
+      SandboxLaunchTimer timer,
+      StartSandboxedProcessCallback result_callback,
+      base::win::ScopedProcessInformation target,
+      DWORD last_error,
+      ResultCode result);
+
+  static std::optional<size_t> GetJobMemoryLimit(
       sandbox::mojom::Sandbox sandbox_type);
 };
 

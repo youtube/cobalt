@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/display/manager/content_protection_manager.h"
 
 #include "base/containers/flat_map.h"
@@ -9,8 +14,8 @@
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/display/fake/fake_display_snapshot.h"
 #include "ui/display/manager/test/action_logger_util.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
 #include "ui/display/manager/test/test_display_layout_manager.h"
 #include "ui/display/manager/test/test_native_display_delegate.h"
 
@@ -19,7 +24,7 @@ namespace display::test {
 namespace {
 
 constexpr int64_t kDisplayIds[] = {123, 234, 345, 456};
-const DisplayMode kDisplayMode{gfx::Size(1366, 768), false, 60.0f};
+const DisplayMode kDisplayMode({1366, 768}, false, 60.0f);
 
 }  // namespace
 
@@ -41,11 +46,11 @@ class TestObserver : public ContentProtectionManager::Observer {
   void Reset() { security_changes_.clear(); }
 
  private:
-  void OnDisplaySecurityChanged(int64_t display_id, bool secure) override {
+  void OnDisplaySecurityMaybeChanged(int64_t display_id, bool secure) override {
     security_changes_.emplace(display_id, secure);
   }
 
-  const raw_ptr<ContentProtectionManager, ExperimentalAsh> manager_;
+  const raw_ptr<ContentProtectionManager> manager_;
   SecurityChanges security_changes_;
 };
 
@@ -99,12 +104,12 @@ class ContentProtectionManagerTest : public testing::Test {
     for (size_t i = 0; i < count; ++i)
       displays.push_back(displays_[i]->Clone());
 
-    layout_manager_.set_displays(std::move(displays));
-    native_display_delegate_.set_outputs(layout_manager_.GetDisplayStates());
+    native_display_delegate_.SetOutputs(std::move(displays));
+    layout_manager_.set_displays(native_display_delegate_.GetOutputs());
   }
 
   void TriggerDisplayConfiguration() {
-    manager_.OnDisplayModeChanged(layout_manager_.GetDisplayStates());
+    manager_.OnDisplayConfigurationChanged(layout_manager_.GetDisplayStates());
   }
 
   bool TriggerDisplaySecurityTimeout() {

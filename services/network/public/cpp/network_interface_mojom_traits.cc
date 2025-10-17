@@ -65,7 +65,6 @@ EnumTraits<network::mojom::ConnectionType,
       return network::mojom::ConnectionType::CONNECTION_BLUETOOTH;
   }
   NOTREACHED();
-  return network::mojom::ConnectionType::CONNECTION_UNKNOWN;
 }
 
 bool EnumTraits<network::mojom::ConnectionType,

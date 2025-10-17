@@ -12,6 +12,21 @@
 
 namespace blink {
 
+// Returns whether system noise suppression is allowed to be used regardless of
+// whether the noise suppression constraint is set, or whether a browser-based
+// AEC is active. This is currently the default on at least MacOS but is not
+// allowed for ChromeOS or Windows setups. On Windows, the system effects AEC,
+// NS and AGC always come as a "package" and it it not possible to enable or
+// disable the system NS independently. TODO(crbug.com/417413190): delete if not
+// relevant any more.
+constexpr bool IsIndependentSystemNsAllowed() {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+  return false;
+#else
+  return true;
+#endif
+}
+
 // Simple struct with audio-processing properties.
 struct PLATFORM_EXPORT AudioProcessingProperties {
   enum class EchoCancellationType {
@@ -24,14 +39,17 @@ struct PLATFORM_EXPORT AudioProcessingProperties {
     kEchoCancellationSystem
   };
 
+  enum class VoiceIsolationType {
+    // Voice isolation behavior selected by the system is used.
+    kVoiceIsolationDefault,
+    // Voice isolation is disabled.
+    kVoiceIsolationDisabled,
+    // Voice isolation is enabled.
+    kVoiceIsolationEnabled,
+  };
+
   // Disables properties that are enabled by default.
   void DisableDefaultProperties();
-
-  // Returns whether echo cancellation is enabled.
-  bool EchoCancellationEnabled() const;
-
-  // Returns whether WebRTC-provided echo cancellation is enabled.
-  bool EchoCancellationIsWebRtcProvided() const;
 
   bool HasSameReconfigurableSettings(
       const AudioProcessingProperties& other) const;
@@ -51,30 +69,10 @@ struct PLATFORM_EXPORT AudioProcessingProperties {
   bool system_gain_control_activated = false;
   bool system_noise_suppression_activated = false;
 
-  // Used for an experiment for forcing certain system-level
-  // noise suppression functionalities to be off. In contrast to
-  // `system_noise_suppression_activated` the system-level noise suppression
-  // referred to does not correspond to something that can replace the browser
-  // counterpart. I.e., the browser counterpart should be on, even if
-  // `disable_hw_noise_suppression` is false.
-  bool disable_hw_noise_suppression = false;
-
-  bool goog_audio_mirroring = false;
-  bool goog_auto_gain_control = true;
-  // TODO(https://crbug.com/1269723): Deprecate this constraint. The flag no
-  // longer toggles meaningful processing effects, but it still forces the audio
-  // processing module to be created and used.
-  bool goog_experimental_echo_cancellation =
-#if BUILDFLAG(IS_ANDROID)
-      false;
-#else
-      true;
-#endif
-  bool goog_noise_suppression = true;
-  // Experimental noise suppression maps to transient suppression (keytap
-  // removal).
-  bool goog_experimental_noise_suppression = true;
-  bool goog_highpass_filter = true;
+  bool auto_gain_control = true;
+  bool noise_suppression = true;
+  VoiceIsolationType voice_isolation =
+      VoiceIsolationType::kVoiceIsolationDefault;
 };
 }  // namespace blink
 

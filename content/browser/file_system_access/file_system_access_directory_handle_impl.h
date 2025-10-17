@@ -75,6 +75,7 @@ class CONTENT_EXPORT FileSystemAccessDirectoryHandleImpl
       mojo::PendingReceiver<blink::mojom::FileSystemAccessTransferToken> token)
       override;
   void GetUniqueId(GetUniqueIdCallback callback) override;
+  void GetCloudIdentifiers(GetCloudIdentifiersCallback callback) override;
 
   // Calculates a FileSystemURL for a (direct) child of this directory with the
   // given basename.  Returns an error when `basename` includes invalid input
@@ -83,31 +84,60 @@ class CONTENT_EXPORT FileSystemAccessDirectoryHandleImpl
       const std::string& basename,
       storage::FileSystemURL* result);
 
-  // The File System Access API should not give access to files that might
-  // trigger special handling from the operating system. This method is used to
-  // validate that all paths passed to GetFileHandle/GetDirectoryHandle are safe
-  // to be exposed to the web.
-  // TODO(https://crbug.com/1154757): Merge this with
-  // net::IsSafePortablePathComponent.
-  static bool IsSafePathComponent(const std::string& name);
-
  private:
+#if BUILDFLAG(IS_ANDROID)
+  void OnGetFileContentUri(std::string basename,
+                           bool create,
+                           GetFileCallback callback,
+                           base::FilePath child_path);
+#endif
+  void GetFileResolved(
+      const std::string& basename,
+      bool create,
+      GetFileCallback callback,
+      blink::mojom::FileSystemAccessErrorPtr get_child_url_result,
+      storage::FileSystemURL child_url);
   // This method creates the file if it does not currently exists. I.e. it is
   // the implementation for passing create=true to GetFile.
-  void GetFileWithWritePermission(const storage::FileSystemURL& child_url,
+  void GetFileWithWritePermission(const std::string& basename,
+                                  const storage::FileSystemURL& child_url,
                                   GetFileCallback callback);
-  void DoGetFile(bool create,
-                 storage::FileSystemURL url,
+  void DoGetFile(const std::string& basename,
+                 bool create,
+                 storage::FileSystemURL child_url,
                  GetFileCallback callback,
-                 bool allowed);
-  void DidGetFile(const storage::FileSystemURL& url,
+                 FileSystemAccessPermissionContext::SensitiveEntryResult
+                     sensitive_entry_result);
+#if BUILDFLAG(IS_ANDROID)
+  void DidGetFileQueryUri(const std::string& basename,
+                          GetFileCallback callback,
+                          base::FilePath child_path);
+#endif
+  void DidGetFile(const std::string& basename,
+                  storage::FileSystemURL child_url,
                   GetFileCallback callback,
                   base::File::Error result);
+#if BUILDFLAG(IS_ANDROID)
+  void OnGetDirectoryContentUri(std::string basename,
+                                bool create,
+                                GetDirectoryCallback callback,
+                                base::FilePath child_path);
+#endif
+  void GetDirectoryResolved(
+      const std::string& basename,
+      bool create,
+      GetDirectoryCallback callback,
+      blink::mojom::FileSystemAccessErrorPtr get_child_url_result,
+      storage::FileSystemURL child_url);
   // This method creates the directory if it does not currently exists. I.e. it
   // is the implementation for passing create=true to GetDirectory.
   void GetDirectoryWithWritePermission(const storage::FileSystemURL& child_url,
                                        GetDirectoryCallback callback);
-  void DidGetDirectory(const storage::FileSystemURL& url,
+#if BUILDFLAG(IS_ANDROID)
+  void DidGetDirectoryQueryUri(GetDirectoryCallback callback,
+                               base::FilePath child_path);
+#endif
+  void DidGetDirectory(storage::FileSystemURL child_url,
                        GetDirectoryCallback callback,
                        base::File::Error result);
   void DidReadDirectory(
@@ -116,8 +146,19 @@ class CONTENT_EXPORT FileSystemAccessDirectoryHandleImpl
       base::File::Error result,
       std::vector<filesystem::mojom::DirectoryEntry> file_list,
       bool has_more_entries);
-  void AllEntriesReady(
-      bool has_more_entries,
+#if BUILDFLAG(IS_ANDROID)
+  void OnRemoveEntryContentUri(std::string basename,
+                               bool recurse,
+                               RemoveEntryCallback callback,
+                               base::FilePath child_path);
+#endif
+  void RemoveEntryResolved(
+      const std::string& basename,
+      bool recurse,
+      RemoveEntryCallback callback,
+      blink::mojom::FileSystemAccessErrorPtr get_child_url_result,
+      storage::FileSystemURL child_url);
+  void CurrentBatchEntriesReady(
       scoped_refptr<FileSystemAccessDirectoryEntriesListenerHolder>
           listener_holder,
       std::vector<blink::mojom::FileSystemAccessEntryPtr> entries);
@@ -125,31 +166,26 @@ class CONTENT_EXPORT FileSystemAccessDirectoryHandleImpl
   void ResolveImpl(ResolveCallback callback,
                    FileSystemAccessTransferTokenImpl* possible_child);
 
-#if BUILDFLAG(IS_POSIX)
-  // Optionally checks for the blocklist for symbolic link.
-  void CheckSymbolicLinkAccess(storage::FileSystemURL url,
-                               base::OnceCallback<void(bool)> callback,
-                               const base::FilePath& symbolic_link);
-  void DidCheckSymbolicLinkAccess(
-      base::OnceCallback<void(bool)> callback,
-      FileSystemAccessPermissionContext::SensitiveEntryResult
-          sensitive_entry_result);
-  void AfterSymbolicLinkAccessCheck(
-      std::string basename,
+  void DidVerifySensitiveAccessForFileEntry(
+      base::SafeBaseName basename,
+      std::string display_name,
       storage::FileSystemURL child_url,
-      FileSystemAccessPermissionContext::HandleType handle_type,
       base::OnceCallback<void(blink::mojom::FileSystemAccessEntryPtr)>
           barrier_callback,
-      bool allowed);
-  void MergeAllEntries(
+      FileSystemAccessPermissionContext::SensitiveEntryResult
+          sensitive_entry_result);
+
+  void MergeCurrentBatchEntries(
       base::OnceCallback<void(
           std::vector<blink::mojom::FileSystemAccessEntryPtr>)> final_callback,
       std::vector<blink::mojom::FileSystemAccessEntryPtr> entries);
-#endif
+
+  storage::FileSystemURL CreateChildURL(const base::FilePath& child_path);
 
   // Helper to create a blink::mojom::FileSystemAccessEntry struct.
   blink::mojom::FileSystemAccessEntryPtr CreateEntry(
-      const std::string& basename,
+      const base::SafeBaseName& basename,
+      const std::string& display_name,
       const storage::FileSystemURL& url,
       FileSystemAccessPermissionContext::HandleType handle_type);
 

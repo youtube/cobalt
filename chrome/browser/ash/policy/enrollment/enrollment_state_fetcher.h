@@ -6,11 +6,10 @@
 #define CHROME_BROWSER_ASH_POLICY_ENROLLMENT_ENROLLMENT_STATE_FETCHER_H_
 
 #include <memory>
-#include <string>
 
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
-#include "chrome/browser/ash/policy/enrollment/auto_enrollment_client.h"
+#include "chrome/browser/ash/policy/enrollment/auto_enrollment_state.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "third_party/private_membership/src/private_membership_rlwe.pb.h"
@@ -21,7 +20,7 @@ class PrefService;
 
 namespace ash {
 class DeviceSettingsService;
-class SystemClockClient;
+class OobeConfiguration;
 }
 
 namespace network {
@@ -42,9 +41,8 @@ class ServerBackedStateKeysBroker;
 // state from the DMServer.
 //
 // The operation is aborted with state kNoEnrollment:
-//   * we are running on a ChromeOS Flex device, or
-//   * when RLZ brand code or serial number are missing, or
-//   * when the embargo date is present and has not yet passed.
+//   * when device ownership is taken or unknown,
+//   * when RLZ brand code or serial number are missing
 // All these values are retrieved using StatisticsProvider, which can be faked
 // using `FakeStatisticsProvider` in tests.
 //
@@ -56,22 +54,31 @@ class ServerBackedStateKeysBroker;
 // enrollment state or error. In case we retrieved state or determined lack
 // thereof, additional details are stored as a dictionary under key
 // `prefs::kServerBackedDeviceState` in `local_state`, which can contain entries
-// with the following keys:
-//  * kDeviceStateMode,
-//  * kDeviceStateManagementDomain,
-//  * kDeviceStateDisabledMessage,
-//  * kDeviceStateLicenseType,
-//  * kDeviceStatePackagedLicense,
-//  * kDeviceStateAssignedUpgradeType.
-//
-// TODO(b/265923216): Document possible values for the dict entries above.
-// TODO(b/265923216): Return the above values as part of the `report_result`
-// callback. The caller will then be responsible for setting prefs or using
-// these values otherwise.
+// with the following keys and values:
+//  * kDeviceStateMode:
+//    * kNoEnrollment,
+//    * kEnrollment, or
+//    * kDisabled;
+//  * kDeviceStateManagementDomain:
+//    * domain name or email address of the device owner;
+//  * kDeviceStateDisabledMessage:
+//    * message shown to the user in case the device is disabled;
+//  * kDeviceStateLicenseType:
+//    * empty string,
+//    * kDeviceStateLicenseTypeEnterprise,
+//    * kDeviceStateLicenseTypeEducation, or
+//    * kDeviceStateLicenseTypeTerminal;
+//  * kDeviceStatePackagedLicense:
+//    * whether the device has a packaged license (true) or not (false);
+//  * kDeviceStateAssignedUpgradeType:
+//    * empty string,
+//    * kDeviceStateAssignedUpgradeTypeChromeEnterprise, or
+//    * kDeviceStateAssignedUpgradeTypeKiosk.
 class EnrollmentStateFetcher {
  public:
   using RlweClient = private_membership::rlwe::PrivateMembershipRlweClient;
   using RlweClientFactory = base::RepeatingCallback<std::unique_ptr<RlweClient>(
+      private_membership::rlwe::RlweUseCase,
       const private_membership::rlwe::RlwePlaintextId&)>;
   using Factory =
       base::RepeatingCallback<std::unique_ptr<EnrollmentStateFetcher>(
@@ -80,9 +87,9 @@ class EnrollmentStateFetcher {
           RlweClientFactory rlwe_client_factory,
           DeviceManagementService* device_management_service,
           scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-          ash::SystemClockClient* system_clock_client,
           ServerBackedStateKeysBroker* state_key_broker,
-          ash::DeviceSettingsService* device_settings_service)>;
+          ash::DeviceSettingsService* device_settings_service,
+          ash::OobeConfiguration* oobe_configuration)>;
 
   // Creates an instance of EnrollmentStateFetcher.
   //
@@ -93,9 +100,9 @@ class EnrollmentStateFetcher {
       RlweClientFactory rlwe_client_factory,
       DeviceManagementService* device_management_service,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      ash::SystemClockClient* system_clock_client,
       ServerBackedStateKeysBroker* state_key_broker,
-      ash::DeviceSettingsService* device_settings_service);
+      ash::DeviceSettingsService* device_settings_service,
+      ash::OobeConfiguration* oobe_configuration);
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
 

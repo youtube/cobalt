@@ -33,14 +33,14 @@ class PLATFORM_EXPORT FEDropShadow final : public FilterEffect {
   // Compute which destination area will be affected when applying a drop
   // shadow effect with |stdDeviation| and |offset| to an area |rect|.
   static gfx::RectF MapEffect(const gfx::SizeF& std_deviation,
-                              const gfx::PointF& offset,
+                              const gfx::Vector2dF& offset,
                               const gfx::RectF&);
 
   void SetShadowColor(const Color& color) { shadow_color_ = color; }
   void SetShadowOpacity(float opacity) { shadow_opacity_ = opacity; }
 
-  WTF::TextStream& ExternalRepresentation(WTF::TextStream&,
-                                          int indention) const override;
+  StringBuilder& ExternalRepresentation(StringBuilder&,
+                                        wtf_size_t indent) const override;
 
  private:
   gfx::RectF MapEffect(const gfx::RectF&) const override;

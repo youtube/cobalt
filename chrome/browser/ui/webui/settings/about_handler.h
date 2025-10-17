@@ -12,22 +12,21 @@
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/help/version_updater.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "chrome/browser/upgrade_detector/upgrade_observer.h"
 #include "components/policy/core/common/policy_service.h"
 #include "content/public/browser/web_ui_message_handler.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+#include "base/callback_list.h"
 #include "base/task/cancelable_task_tracker.h"
-#include "chrome/browser/ash/tpm_firmware_update.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chrome/browser/ash/tpm/tpm_firmware_update.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace base {
-class FilePath;
 class Clock;
+class FilePath;
 }  // namespace base
 
 class Profile;
@@ -83,7 +82,7 @@ class AboutHandler : public settings::SettingsPageUIHandler,
   // Opens the help page. |args| must be empty.
   void HandleOpenHelpPage(const base::Value::List& args);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Checks if ReleaseNotes is enabled.
   void HandleGetEnabledReleaseNotes(const base::Value::List& args);
 
@@ -121,7 +120,7 @@ class AboutHandler : public settings::SettingsPageUIHandler,
                           const std::string& target_channel);
 
   // Applies deferred update, triggered by JS.
-  void HandleApplyDeferredUpdate(const base::Value::List& args);
+  void HandleApplyDeferredUpdateAdvanced(const base::Value::List& args);
 
   // Checks for and applies update, triggered by JS.
   void HandleRequestUpdate(const base::Value::List& args);
@@ -158,7 +157,7 @@ class AboutHandler : public settings::SettingsPageUIHandler,
   void SetPromotionState(VersionUpdater::PromotionState state);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void HandleOpenDiagnostics(const base::Value::List& args);
 
   void HandleOpenFirmwareUpdates(const base::Value::List& args);
@@ -185,6 +184,8 @@ class AboutHandler : public settings::SettingsPageUIHandler,
   void OnGetEndOfLifeInfo(std::string callback_id,
                           ash::UpdateEngineClient::EolInfo eol_info);
 
+  std::u16string GetEndOfLifeMessage(base::Time eol_date) const;
+
   // Opens the end of life incentive URL.
   void HandleOpenEndOfLifeIncentive(const base::Value::List& args);
 
@@ -197,14 +198,34 @@ class AboutHandler : public settings::SettingsPageUIHandler,
   // Callbacks for version_updater_->IsConsumerAutoUpdateEnabled calls.
   void OnIsConsumerAutoUpdateEnabled(std::string callback_id,
                                      std::string feature,
-                                     absl::optional<bool> enabled);
+                                     std::optional<bool> enabled);
 
   void HandleSetConsumerAutoUpdate(const base::Value::List& args);
   void HandleOpenProductLicenseOther(const base::Value::List& args);
 
+  // Handles the check for extended updates eligibility.
+  // |args| should have 4 values:
+  //   - [string] Name of the callback function
+  //   - [bool] Whether eol has passed
+  //   - [bool] Whether extended updates date has passed
+  //   - [bool] Whether opt-in is required for extended updates
+  void HandleIsExtendedUpdatesOptInEligible(const base::Value::List& args);
+
+  // Opens the Extended Updates dialog. |args| must be empty.
+  void HandleOpenExtendedUpdatesDialog(const base::Value::List& args);
+
+  // Records metric indicating that the Extended Updates option was shown.
+  void HandleRecordExtendedUpdatesShown(const base::Value::List& args);
+
+  // Called when the |kDeviceExtendedAutoUpdateEnabled| setting is changed.
+  void OnExtendedUpdatesSettingChanged();
+
   // Whether the end of life incentive includes an offer.
   bool eol_incentive_shows_offer_ = false;
-#endif
+
+  // Subscription for changes to the |kDeviceExtendedAutoUpdateEnabled| setting.
+  base::CallbackListSubscription extended_updates_setting_change_subscription_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   const raw_ptr<Profile> profile_;
 

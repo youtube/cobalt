@@ -4,6 +4,10 @@
 
 #include "net/cert/x509_util_apple.h"
 
+#include <string_view>
+
+#include "base/apple/foundation_util.h"
+#include "base/containers/span.h"
 #include "build/build_config.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
@@ -19,14 +23,15 @@ namespace {
 
 std::string BytesForSecCert(SecCertificateRef sec_cert) {
   std::string result;
-  base::ScopedCFTypeRef<CFDataRef> der_data(SecCertificateCopyData(sec_cert));
+  base::apple::ScopedCFTypeRef<CFDataRef> der_data(
+      SecCertificateCopyData(sec_cert));
   if (!der_data) {
     ADD_FAILURE();
     return result;
   }
-  result.assign(reinterpret_cast<const char*>(CFDataGetBytePtr(der_data)),
-                CFDataGetLength(der_data));
-  return result;
+
+  return std::string(
+      base::as_string_view(base::apple::CFDataToSpan(der_data.get())));
 }
 
 std::string BytesForSecCert(const void* sec_cert) {
@@ -43,7 +48,7 @@ TEST(X509UtilTest, CreateSecCertificateArrayForX509Certificate) {
   ASSERT_TRUE(cert);
   EXPECT_EQ(3U, cert->intermediate_buffers().size());
 
-  base::ScopedCFTypeRef<CFMutableArrayRef> sec_certs(
+  base::apple::ScopedCFTypeRef<CFMutableArrayRef> sec_certs(
       CreateSecCertificateArrayForX509Certificate(cert.get()));
   ASSERT_TRUE(sec_certs);
   ASSERT_EQ(4, CFArrayGetCount(sec_certs.get()));
@@ -69,7 +74,7 @@ TEST(X509UtilTest, CreateSecCertificateArrayForX509CertificateErrors) {
   ASSERT_TRUE(ok_cert);
 
   bssl::UniquePtr<CRYPTO_BUFFER> bad_cert =
-      x509_util::CreateCryptoBuffer(base::StringPiece("invalid"));
+      x509_util::CreateCryptoBuffer(std::string_view("invalid"));
   ASSERT_TRUE(bad_cert);
 
   scoped_refptr<X509Certificate> ok_cert2(
@@ -87,7 +92,7 @@ TEST(X509UtilTest, CreateSecCertificateArrayForX509CertificateErrors) {
 
   // With InvalidIntermediateBehavior::kIgnore, invalid intermediate certs
   // should be silently dropped.
-  base::ScopedCFTypeRef<CFMutableArrayRef> sec_certs(
+  base::apple::ScopedCFTypeRef<CFMutableArrayRef> sec_certs(
       CreateSecCertificateArrayForX509Certificate(
           cert_with_intermediates.get(), InvalidIntermediateBehavior::kIgnore));
   ASSERT_TRUE(sec_certs);
@@ -143,29 +148,25 @@ TEST(X509UtilTest,
   std::string bytes_cert3(
       x509_util::CryptoBufferAsStringPiece(certs[3]->cert_buffer()));
 
-  base::ScopedCFTypeRef<SecCertificateRef> sec_cert0(
-      CreateSecCertificateFromBytes(
-          reinterpret_cast<const uint8_t*>(bytes_cert0.data()),
-          bytes_cert0.length()));
+  base::apple::ScopedCFTypeRef<SecCertificateRef> sec_cert0(
+      CreateSecCertificateFromBytes(base::as_byte_span(bytes_cert0)));
   ASSERT_TRUE(sec_cert0);
-  EXPECT_EQ(bytes_cert0, BytesForSecCert(sec_cert0));
+  EXPECT_EQ(bytes_cert0, BytesForSecCert(sec_cert0.get()));
 
-  base::ScopedCFTypeRef<SecCertificateRef> sec_cert1(
-      CreateSecCertificateFromBytes(
-          reinterpret_cast<const uint8_t*>(bytes_cert1.data()),
-          bytes_cert1.length()));
+  base::apple::ScopedCFTypeRef<SecCertificateRef> sec_cert1(
+      CreateSecCertificateFromBytes(base::as_byte_span(bytes_cert1)));
   ASSERT_TRUE(sec_cert1);
-  EXPECT_EQ(bytes_cert1, BytesForSecCert(sec_cert1));
+  EXPECT_EQ(bytes_cert1, BytesForSecCert(sec_cert1.get()));
 
-  base::ScopedCFTypeRef<SecCertificateRef> sec_cert2(
+  base::apple::ScopedCFTypeRef<SecCertificateRef> sec_cert2(
       CreateSecCertificateFromX509Certificate(certs[2].get()));
   ASSERT_TRUE(sec_cert2);
-  EXPECT_EQ(bytes_cert2, BytesForSecCert(sec_cert2));
+  EXPECT_EQ(bytes_cert2, BytesForSecCert(sec_cert2.get()));
 
-  base::ScopedCFTypeRef<SecCertificateRef> sec_cert3(
+  base::apple::ScopedCFTypeRef<SecCertificateRef> sec_cert3(
       CreateSecCertificateFromX509Certificate(certs[3].get()));
   ASSERT_TRUE(sec_cert3);
-  EXPECT_EQ(bytes_cert3, BytesForSecCert(sec_cert3));
+  EXPECT_EQ(bytes_cert3, BytesForSecCert(sec_cert3.get()));
 
   scoped_refptr<X509Certificate> x509_cert_no_intermediates =
       CreateX509CertificateFromSecCertificate(sec_cert0, {});

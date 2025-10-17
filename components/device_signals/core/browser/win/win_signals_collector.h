@@ -33,7 +33,8 @@ class WinSignalsCollector : public BaseSignalsCollector {
   // signal does not require parameters. `response` will be passed along and the
   // signal values will be set on it when available. `done_closure` will be
   // invoked when signal collection is complete.
-  void GetAntiVirusSignal(const SignalsAggregationRequest& request,
+  void GetAntiVirusSignal(UserPermission permission,
+                          const SignalsAggregationRequest& request,
                           SignalsAggregationResponse& response,
                           base::OnceClosure done_closure);
 
@@ -49,7 +50,8 @@ class WinSignalsCollector : public BaseSignalsCollector {
   // Hotfix signal does not require parameters. `response` will be passed along
   // and the signal values will be set on it when available. `done_closure` will
   // be invoked when signal collection is complete.
-  void GetHotfixSignal(const SignalsAggregationRequest& request,
+  void GetHotfixSignal(UserPermission permission,
+                       const SignalsAggregationRequest& request,
                        SignalsAggregationResponse& response,
                        base::OnceClosure done_closure);
 
@@ -62,7 +64,7 @@ class WinSignalsCollector : public BaseSignalsCollector {
                                const std::vector<InstalledHotfix>& hotfixes);
 
   // Instance used to retrieve a pointer to a SystemSignalsService instance.
-  base::raw_ptr<SystemSignalsServiceHost> system_service_host_;
+  raw_ptr<SystemSignalsServiceHost> system_service_host_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<WinSignalsCollector> weak_factory_{this};

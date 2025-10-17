@@ -10,22 +10,15 @@
 
 import 'chrome://extensions/extensions.js';
 
-import {ExtensionsManagerElement, navigation, Page, Service} from 'chrome://extensions/extensions.js';
+import type {ExtensionsManagerElement} from 'chrome://extensions/extensions.js';
+import {navigation, Page, Service} from 'chrome://extensions/extensions.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestService} from './test_service.js';
 import {createExtensionInfo} from './test_util.js';
 
-const extension_manager_unit_tests = {
-  suiteName: 'ExtensionManagerUnitTest',
-  TestNames: {
-    UpdateFromActivityLog: 'update from activity log',
-  },
-};
-
-Object.assign(window, {extension_manager_unit_tests});
-
-suite(extension_manager_unit_tests.suiteName, function() {
+suite('ExtensionManagerUnitTest', function() {
   let manager: ExtensionsManagerElement;
   let service: TestService;
 
@@ -59,36 +52,38 @@ suite(extension_manager_unit_tests.suiteName, function() {
     });
   }
 
-  test(
-      extension_manager_unit_tests.TestNames.UpdateFromActivityLog, function() {
-        service.testActivities = testActivities;
+  test('UpdateFromActivityLog', async () => {
+    service.testActivities = testActivities;
 
-        const extension = createExtensionInfo();
-        simulateExtensionInstall(extension);
-        const secondExtension = createExtensionInfo({
-          id: 'b'.repeat(32),
-        });
-        simulateExtensionInstall(secondExtension);
+    const extension = createExtensionInfo();
+    simulateExtensionInstall(extension);
+    const secondExtension = createExtensionInfo({
+      id: 'b'.repeat(32),
+    });
+    simulateExtensionInstall(secondExtension);
+    await microtasksFinished();
 
-        assertTrue(manager.showActivityLog);
-        navigation.navigateTo({
-          page: Page.ACTIVITY_LOG,
-          extensionId: extension.id,
-        });
+    assertTrue(manager.showActivityLog);
+    navigation.navigateTo({
+      page: Page.ACTIVITY_LOG,
+      extensionId: extension.id,
+    });
 
-        const activityLog =
-            manager.shadowRoot!.querySelector('extensions-activity-log');
-        assertTrue(!!activityLog);  // View should now be present.
-        assertEquals(extension.id, activityLog.extensionInfo.id);
+    await microtasksFinished();
+    const activityLog =
+        manager.shadowRoot.querySelector('extensions-activity-log');
+    assertTrue(!!activityLog);  // View should now be present.
+    assertEquals(extension.id, activityLog.extensionInfo.id);
 
-        // Test that updates to different extensions does not change which
-        // extension the activity log points to. Regression test for
-        // https://crbug.com/924373.
-        service.itemStateChangedTarget.callListeners({
-          event_type: chrome.developerPrivate.EventType.PREFS_CHANGED,
-          extensionInfo: secondExtension,
-        });
+    // Test that updates to different extensions does not change which
+    // extension the activity log points to. Regression test for
+    // https://crbug.com/924373.
+    service.itemStateChangedTarget.callListeners({
+      event_type: chrome.developerPrivate.EventType.PREFS_CHANGED,
+      extensionInfo: secondExtension,
+    });
 
-        assertEquals(extension.id, activityLog.extensionInfo.id);
-      });
+    await microtasksFinished();
+    assertEquals(extension.id, activityLog.extensionInfo.id);
+  });
 });

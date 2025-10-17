@@ -8,6 +8,7 @@
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/cursor_manager_test_api.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/aura/test/aura_test_utils.h"
 #include "ui/aura/test/test_window_delegate.h"
 #include "ui/aura/test/test_windows.h"
@@ -102,6 +103,47 @@ TEST_F(NativeCursorManagerAshTest, SetCursorSize) {
   EXPECT_EQ(ui::CursorSize::kNormal, cursor_manager->GetCursorSize());
 }
 
+TEST_F(NativeCursorManagerAshTest, SetCursorColor) {
+  ::wm::CursorManager* cursor_manager = Shell::Get()->cursor_manager();
+
+  EXPECT_EQ(ui::kDefaultCursorColor, cursor_manager->GetCursorColor());
+
+  cursor_manager->SetCursorColor(SK_ColorRED);
+  EXPECT_EQ(SK_ColorRED, cursor_manager->GetCursorColor());
+
+  cursor_manager->SetCursorColor(SK_ColorGREEN);
+  EXPECT_EQ(SK_ColorGREEN, cursor_manager->GetCursorColor());
+
+  cursor_manager->SetCursorColor(SK_ColorYELLOW);
+  EXPECT_EQ(SK_ColorYELLOW, cursor_manager->GetCursorColor());
+
+  cursor_manager->SetCursorColor(ui::kDefaultCursorColor);
+  EXPECT_EQ(ui::kDefaultCursorColor, cursor_manager->GetCursorColor());
+}
+
+TEST_F(NativeCursorManagerAshTest, SetLargeCursorSizeInDip) {
+  ::wm::CursorManager* cursor_manager = Shell::Get()->cursor_manager();
+
+  EXPECT_EQ(ui::kDefaultLargeCursorSize,
+            cursor_manager->GetLargeCursorSizeInDip());
+
+  cursor_manager->SetLargeCursorSizeInDip(ui::kMaxLargeCursorSize);
+  EXPECT_EQ(ui::kMaxLargeCursorSize, cursor_manager->GetLargeCursorSizeInDip());
+
+  cursor_manager->SetLargeCursorSizeInDip(ui::kMaxLargeCursorSize + 1);
+  EXPECT_EQ(ui::kMaxLargeCursorSize, cursor_manager->GetLargeCursorSizeInDip());
+
+  cursor_manager->SetLargeCursorSizeInDip(ui::kMinLargeCursorSize);
+  EXPECT_EQ(ui::kMinLargeCursorSize, cursor_manager->GetLargeCursorSizeInDip());
+
+  cursor_manager->SetLargeCursorSizeInDip(ui::kMinLargeCursorSize - 1);
+  EXPECT_EQ(ui::kMinLargeCursorSize, cursor_manager->GetLargeCursorSizeInDip());
+
+  cursor_manager->SetLargeCursorSizeInDip(ui::kDefaultLargeCursorSize);
+  EXPECT_EQ(ui::kDefaultLargeCursorSize,
+            cursor_manager->GetLargeCursorSizeInDip());
+}
+
 TEST_F(NativeCursorManagerAshTest, SetDeviceScaleFactorAndRotation) {
   ::wm::CursorManager* cursor_manager = Shell::Get()->cursor_manager();
   const auto& cursor_shape_client = aura::client::GetCursorShapeClient();
@@ -126,8 +168,13 @@ TEST_F(NativeCursorManagerAshTest, RotationWithPanelOrientation) {
                                                          display_id);
 
   // The panel is portrait but its orientation is landscape.
+  const gfx::Rect bounds = gfx::Rect(0, 0, 1920, 1080);
   display::ManagedDisplayInfo native_display_info =
-      display::CreateDisplayInfo(display_id, gfx::Rect(0, 0, 1920, 1080));
+      display::CreateDisplayInfo(display_id, bounds);
+  // Each display should have at least one native mode.
+  display::ManagedDisplayMode mode(bounds.size(), /*refresh_rate=*/60.f,
+                                   /*is_interlaced=*/true,
+                                   /*native=*/true);
   native_display_info.set_panel_orientation(
       display::PanelOrientation::kRightUp);
   std::vector<display::ManagedDisplayInfo> display_info_list{

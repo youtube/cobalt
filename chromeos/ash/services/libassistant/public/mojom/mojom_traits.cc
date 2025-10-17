@@ -195,7 +195,7 @@ StructTraits<AssistantNotificationDataView, AssistantNotification>::
   return input.obfuscated_gaia_id;
 }
 
-const absl::optional<base::Time>&
+const std::optional<base::Time>&
 StructTraits<AssistantNotificationDataView, AssistantNotification>::expiry_time(
     const AssistantNotification& input) {
   return input.expiry_time;
@@ -327,7 +327,6 @@ MojoResolution EnumTraits<MojoResolution, AssistantResolution>::ToMojom(
       return MojoResolution::kMultiDeviceHotwordLoss;
   }
   NOTREACHED();
-  return MojoResolution::kNormal;
 }
 
 bool EnumTraits<MojoResolution, AssistantResolution>::FromMojom(
@@ -351,7 +350,6 @@ bool EnumTraits<MojoResolution, AssistantResolution>::FromMojom(
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -561,7 +559,6 @@ EnumTraits<MojoSuggestionType, AssistantSuggestionType>::ToMojom(
       return MojoSuggestionType::kBetterOnboarding;
   }
   NOTREACHED();
-  return MojoSuggestionType::kUnspecified;
 }
 
 bool EnumTraits<MojoSuggestionType, AssistantSuggestionType>::FromMojom(
@@ -579,7 +576,6 @@ bool EnumTraits<MojoSuggestionType, AssistantSuggestionType>::FromMojom(
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

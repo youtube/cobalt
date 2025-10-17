@@ -18,10 +18,6 @@
 #import "net/http/http_util.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 void ExtractContentSessionStorage(ContentWebState* web_state,
@@ -42,8 +38,8 @@ void ExtractContentSessionStorage(ContentWebState* web_state,
     std::unique_ptr<content::NavigationEntry> new_entry =
         content::NavigationController::CreateNavigationEntry(
             navigation_item_storage.virtualURL, content::Referrer(),
-            /* initiator_origin= */ absl::nullopt,
-            /* initiator_base_url= */ absl::nullopt, ui::PAGE_TRANSITION_RELOAD,
+            /* initiator_origin= */ std::nullopt,
+            /* initiator_base_url= */ std::nullopt, ui::PAGE_TRANSITION_RELOAD,
             /* is_renderer_initiated= */ false, std::string(), browser_context,
             /* blob_url_loader_factory= */ nullptr);
     new_entry->SetOriginalRequestURL(navigation_item_storage.URL);
@@ -94,7 +90,7 @@ void ExtractContentSessionStorage(ContentWebState* web_state,
 }
 
 CRWSessionStorage* BuildContentSessionStorage(
-    ContentWebState* web_state,
+    const ContentWebState* web_state,
     ContentNavigationManager* navigation_manager) {
   CRWSessionStorage* session_storage = [[CRWSessionStorage alloc] init];
   session_storage.lastActiveTime = web_state->GetLastActiveTime();

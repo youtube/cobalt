@@ -8,9 +8,9 @@
 #include <stddef.h>
 
 #include "base/memory/raw_ptr.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/engine/commit.h"
-#include "components/sync/engine/model_type_registry.h"
+#include "components/sync/engine/data_type_registry.h"
 
 namespace syncer {
 
@@ -23,9 +23,9 @@ class CommitContributor;
 // not previously registered.
 class CommitProcessor {
  public:
-  // |commit_types| must contain NIGORI. |commit_contributor_map| must be not
+  // `commit_types` must contain NIGORI. `commit_contributor_map` must be not
   // null and must outlive this object.
-  CommitProcessor(ModelTypeSet commit_types,
+  CommitProcessor(DataTypeSet commit_types,
                   CommitContributorMap* commit_contributor_map);
 
   CommitProcessor(const CommitProcessor&) = delete;
@@ -35,12 +35,12 @@ class CommitProcessor {
 
   // Gathers a set of contributions to be used to populate a commit message.
   //
-  // For each of the |commit_types| in this CommitProcessor's CommitContributor
+  // For each of the `commit_types` in this CommitProcessor's CommitContributor
   // map, gather any entries queued for commit into CommitContributions.  The
   // total number of entries in all the returned CommitContributions shall not
-  // exceed |max_entries|.
+  // exceed `max_entries`.
   // Returns no contribution if previous call collected them from all datatypes
-  // and total number of collected entries was less than |max_entries|.
+  // and total number of collected entries was less than `max_entries`.
   Commit::ContributionMap GatherCommitContributions(size_t max_entries);
 
  private:
@@ -49,31 +49,31 @@ class CommitProcessor {
   // updates at very high speed.
   enum class GatheringPhase { kHighPriority, kRegular, kLowPriority, kDone };
 
-  // Increments |phase| (in the order given above in GatheringPhase).
+  // Increments `phase` (in the order given above in GatheringPhase).
   static GatheringPhase IncrementGatheringPhase(GatheringPhase phase);
 
   // Returns user data types that should be gathered for committing in the
   // current phase.
-  ModelTypeSet GetUserTypesForCurrentCommitPhase() const;
+  DataTypeSet GetUserTypesForCurrentCommitPhase() const;
 
   // Gathers commit contributions for an individual datatype and populates
-  // |*contributions|. Returns the number of entries added.
+  // `*contributions`. Returns the number of entries added.
   size_t GatherCommitContributionsForType(
-      ModelType type,
+      DataType type,
       size_t max_entries,
       Commit::ContributionMap* contributions);
 
-  // Gathers commit contributions for |types| and populates |*contributions|.
+  // Gathers commit contributions for `types` and populates `*contributions`.
   // Returns the number of entries added.
   size_t GatherCommitContributionsForTypes(
-      ModelTypeSet types,
+      DataTypeSet types,
       size_t max_entries,
       Commit::ContributionMap* contributions);
 
-  const ModelTypeSet commit_types_;
+  const DataTypeSet commit_types_;
 
   // A map of 'commit contributors', one for each enabled type.
-  raw_ptr<CommitContributorMap> commit_contributor_map_;
+  const raw_ptr<CommitContributorMap> commit_contributor_map_;
   GatheringPhase phase_;
 };
 

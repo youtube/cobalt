@@ -1,63 +1,74 @@
-{% from 'templates/fields/field.tmpl' import encode, declare_storage, compare %}
+{% from 'templates/fields/field.tmpl' import encode, declare_storage, compare, group_source_expression, field_source_expression %}
 {% from 'templates/macros.tmpl' import print_if %}
 {% macro declare_field_group_class(group): -%}
 {% for subgroup in group.subgroups %}
 {{declare_field_group_class(subgroup)}}
 
 {% endfor %}
-class {{group.type_name}} : public RefCounted<{{group.type_name}}> {
+class {{group.type_name}} : public GarbageCollected<{{group.type_name}}> {
  public:
-  static scoped_refptr<{{group.type_name}}> Create() {
-    return base::AdoptRef(new {{group.type_name}});
+  explicit {{group.type_name}}();
+  CORE_EXPORT {{group.type_name}}(const {{group.type_name}}&);
+
+  static {{group.type_name}}* Create() {
+    return MakeGarbageCollected<{{group.type_name}}>();
   }
-  scoped_refptr<{{group.type_name}}> Copy() const {
-    return base::AdoptRef(new {{group.type_name}}(*this));
+  {{group.type_name}}* Copy() const {
+    return MakeGarbageCollected<{{group.type_name}}>(*this);
   }
 
-  // See comments in ComputedStyle.
-  void* operator new(size_t size) {
-    DCHECK(IsMainThread());
-    if (freelist_ != nullptr) {
-      {{group.type_name}}* ret = freelist_;
-      freelist_ = nullptr;
-      return ret;
-    }
-    return ::WTF::Partitions::FastMalloc(size, "{{group.type_name}}");
-  }
-  void operator delete(void* p) {
-    DCHECK(IsMainThread());
-    if (freelist_ == nullptr) {
-      freelist_ = static_cast<{{group.type_name}}*>(p);
-    } else {
-      ::WTF::Partitions::FastFree(p);
-    }
+  {% if group.all_fields|selectattr("is_inherited")|list|length > 0 and
+        group.all_fields|rejectattr("is_inherited")|list|length > 0 %}
+    {{ ("You have a subgroup that contain both inherited and non-inherited"
+        "members. While the code still supports this for now, it is problematic"
+        "for performance, and you should not do it unless you are certain"
+        "it will not affect benchmarks and memory usage negatively."
+        "This line crashes Jinja on purpose, so that you can consider.")/0 }}
+    // Used when constructing ComputedStyleBase, since this group contains
+    // both inherited and non-inherited members.
+    CORE_EXPORT {{group.type_name}}(const {{group.type_name}}& source_for_noninherited,
+                                    const {{group.type_name}}& parent_style) :
+    {% set comma = joiner(", ") %}
+    {% for subgroup in group.subgroups %}
+    {{comma()}}{{subgroup.member_name}}({{group_source_expression(subgroup, 'source_for_noninherited', 'parent_style')}})
+    {% endfor %}
+    {% for field in group.fields %}
+    {{comma()}}{{field.name}}({{field_source_expression(field, 'source_for_noninherited', 'parent_style')}})
+    {% endfor %}
+    {}
+  {% endif %}
+
+  CORE_EXPORT void Trace(Visitor* visitor) const {
+  {% for subgroup in group.subgroups %}
+    visitor->Trace({{subgroup.member_name}});
+  {% endfor %}
+  {% for field in group.fields %}
+    {% if field.wrapper_pointer_name == 'Member' %}
+    visitor->Trace({{field.name}});
+    {% elif not field.size and not field.wrapper_pointer_name %}
+    TraceIfNeeded<{{field.type_name}}>::Trace(visitor, {{field.name}});
+    {% endif %}
+  {% endfor %}
   }
 
   bool operator==(const {{group.type_name}}& other) const {
-    return (
-    {% set boolean_and = joiner("&& ") %}
+    return (true
     {% for subgroup in group.subgroups %}
-      {{boolean_and()}}{{subgroup.member_name}} == other.{{subgroup.member_name}}
+      && base::ValuesEquivalent({{subgroup.member_name}}, other.{{subgroup.member_name}})
     {% endfor %}
     {% for field in group.fields if not field.custom_compare %}
-      {{boolean_and()}}{{compare(field.wrapper_pointer_name, field.name, "other")}}
+      && {{compare(field.wrapper_pointer_name, field.name, "other")}}
     {% endfor %}
     );
   }
   bool operator!=(const {{group.type_name}}& other) const { return !(*this == other); }
 
   {% for subgroup in group.subgroups %}
-  DataRef<{{subgroup.type_name}}> {{subgroup.member_name}};
+  Member<{{subgroup.type_name}}> {{subgroup.member_name}};
   {% endfor %}
   {% for field in group.fields %}
   {{declare_storage(field)}}
   {% endfor %}
-
- private:
-  {{group.type_name}}();
-  CORE_EXPORT {{group.type_name}}(const {{group.type_name}}&);
-
-  CORE_EXPORT static {{group.type_name}}* freelist_;
 };
 {%- endmacro %}
 
@@ -66,16 +77,15 @@ class {{group.type_name}} : public RefCounted<{{group.type_name}}> {
 {{define_field_group_class(subgroup)}}
 
 {% endfor %}
-ComputedStyleBase::{{group.type_name}}::{{group.type_name}}() {{print_if(group.fields|length > 0, ':')}}
+ComputedStyleBase::{{group.type_name}}::{{group.type_name}}() {{print_if(group.fields|length > 0 or group.subgroups|length > 0, ':')}}
   {% set comma = joiner(", ") %}
+  {% for subgroup in group.subgroups %}
+    {{comma()}}{{subgroup.member_name}}({{subgroup.type_name}}::Create())
+  {% endfor %}
   {% for field in group.fields %}
       {{comma()}}{{field.name}}({{encode(field, field.default_value)}})
   {% endfor %}
-  {
-  {% for subgroup in group.subgroups %}
-    {{subgroup.member_name}}.Init();
-  {% endfor %}
-  }
+  {}
 
 ComputedStyleBase::{{group.type_name}}::{{group.type_name}}(const {{group.type_name}}& other) :
   {% set comma = joiner(", ") %}
@@ -90,7 +100,4 @@ ComputedStyleBase::{{group.type_name}}::{{group.type_name}}(const {{group.type_n
      {% endif %}
   {% endfor %}
   {}
-
-CORE_EXPORT ComputedStyleBase::{{group.type_name}}*
-ComputedStyleBase::{{group.type_name}}::freelist_ = nullptr;
 {%- endmacro %}

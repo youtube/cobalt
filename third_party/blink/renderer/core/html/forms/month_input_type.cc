@@ -30,7 +30,6 @@
 
 #include "third_party/blink/renderer/core/html/forms/month_input_type.h"
 
-#include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/date_time_fields_state.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
@@ -41,6 +40,7 @@
 #include "third_party/blink/renderer/platform/wtf/date_math.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "ui/strings/grit/ax_strings.h"
 
 namespace blink {
 
@@ -50,10 +50,6 @@ static const int kMonthStepScaleFactor = 1;
 
 void MonthInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeMonth);
-}
-
-const AtomicString& MonthInputType::FormControlType() const {
-  return input_type_names::kMonth;
 }
 
 double MonthInputType::ValueAsDate() const {
@@ -66,11 +62,12 @@ double MonthInputType::ValueAsDate() const {
 }
 
 String MonthInputType::SerializeWithDate(
-    const absl::optional<base::Time>& value) const {
+    const std::optional<base::Time>& value) const {
   DateComponents date;
-  if (!value ||
-      !date.SetMillisecondsSinceEpochForMonth(value->ToJsTimeIgnoringNull()))
+  if (!value || !date.SetMillisecondsSinceEpochForMonth(
+                    value->InMillisecondsFSinceUnixEpochIgnoringNull())) {
     return String();
+  }
   return SerializeWithComponents(date);
 }
 

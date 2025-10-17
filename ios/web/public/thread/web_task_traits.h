@@ -13,21 +13,19 @@ namespace web {
 class WebTaskTraits : public base::TaskTraits {
  public:
   struct ValidTrait : public base::TaskTraits::ValidTrait {
-    // TODO(crbug.com/1304248): iOS never supported TaskPriority, but some
+    // TODO(crbug.com/40217644): iOS never supported TaskPriority, but some
     // callers are providing it... Add support?
     ValidTrait(base::TaskPriority);
 
-    // TODO(crbug.com/1026641): These traits are meaningless on WebThreads but
+    // TODO(crbug.com/40108370): These traits are meaningless on WebThreads but
     // some callers of post_task.h had been using them in conjunction with
     // WebThread::ID traits. Remove such usage post-migration.
     ValidTrait(base::MayBlock);
     ValidTrait(base::TaskShutdownBehavior);
   };
 
-  template <
-      class... ArgTypes,
-      class CheckArgumentsAreValid = std::enable_if_t<
-          base::trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>::value>>
+  template <class... ArgTypes>
+    requires base::trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>
   constexpr WebTaskTraits(ArgTypes... args) : base::TaskTraits(args...) {}
 };
 

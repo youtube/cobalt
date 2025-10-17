@@ -30,7 +30,7 @@ std::string HostStatusToString(mojom::HostStatus status) {
 
 std::string HostStatusWithDeviceToString(
     mojom::HostStatus host_status,
-    const absl::optional<multidevice::RemoteDeviceRef>& host_device) {
+    const std::optional<multidevice::RemoteDeviceRef>& host_device) {
   std::ostringstream stream;
   stream << "{" << std::endl;
   stream << "  " << HostStatusToString(host_status) << ": "
@@ -44,24 +44,22 @@ std::string HostStatusWithDeviceToString(
 
 HostStatusProvider::HostStatusWithDevice::HostStatusWithDevice(
     mojom::HostStatus host_status,
-    const absl::optional<multidevice::RemoteDeviceRef>& host_device)
+    const std::optional<multidevice::RemoteDeviceRef>& host_device)
     : host_status_(host_status), host_device_(host_device) {
   if (host_status_ == mojom::HostStatus::kNoEligibleHosts ||
       host_status_ == mojom::HostStatus::kEligibleHostExistsButNoHostSet) {
     if (host_device_) {
-      PA_LOG(ERROR) << "HostStatusWithDevice::HostStatusWithDevice(): Tried to "
-                    << "construct a HostStatusWithDevice with a status "
-                    << "indicating no device, but a device was provided. "
-                    << "Status: " << host_status_ << ", IDs: "
-                    << host_device_->GetInstanceIdDeviceIdForLogs();
-      NOTREACHED();
+      NOTREACHED() << "HostStatusWithDevice::HostStatusWithDevice(): Tried to "
+                   << "construct a HostStatusWithDevice with a status "
+                   << "indicating no device, but a device was provided. "
+                   << "Status: " << host_status_
+                   << ", IDs: " << host_device_->GetInstanceIdDeviceIdForLogs();
     }
   } else if (!host_device_) {
-    PA_LOG(ERROR) << "HostStatusWithDevice::HostStatusWithDevice(): Tried to "
-                  << "construct a HostStatusWithDevice with a status "
-                  << "indicating a device, but no device was provided. "
-                  << "Status: " << host_status_;
-    NOTREACHED();
+    NOTREACHED() << "HostStatusWithDevice::HostStatusWithDevice(): Tried to "
+                 << "construct a HostStatusWithDevice with a status "
+                 << "indicating a device, but no device was provided. "
+                 << "Status: " << host_status_;
   }
 }
 
@@ -95,7 +93,7 @@ void HostStatusProvider::RemoveObserver(Observer* observer) {
 
 void HostStatusProvider::NotifyHostStatusChange(
     mojom::HostStatus host_status,
-    const absl::optional<multidevice::RemoteDeviceRef>& host_device) {
+    const std::optional<multidevice::RemoteDeviceRef>& host_device) {
   HostStatusWithDevice host_status_with_device(host_status, host_device);
   PA_LOG(INFO) << __func__ << ": "
                << HostStatusWithDeviceToString(host_status, host_device);

@@ -11,9 +11,14 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "components/send_tab_to_self/entry_point_display_reason.h"
 #include "content/public/browser/web_contents_user_data.h"
 
 class Profile;
+
+namespace actions {
+class ActionItem;
+}
 
 namespace content {
 class WebContents;
@@ -35,8 +40,7 @@ class SendTabToSelfBubbleView;
 struct TargetDeviceInfo;
 
 class SendTabToSelfBubbleController
-    : public content::WebContentsUserData<SendTabToSelfBubbleController>,
-      public base::SupportsWeakPtr<SendTabToSelfBubbleController> {
+    : public content::WebContentsUserData<SendTabToSelfBubbleController> {
  public:
   SendTabToSelfBubbleController(const SendTabToSelfBubbleController&) = delete;
   SendTabToSelfBubbleController& operator=(
@@ -83,6 +87,10 @@ class SendTabToSelfBubbleController
   bool show_message() const { return show_message_; }
   void set_show_message(bool show_message) { show_message_ = show_message; }
 
+  base::WeakPtr<SendTabToSelfBubbleController> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
   // Register SendTabToSelfBubbleController related prefs in the Profile prefs.
   static void RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable* user_prefs);
@@ -98,9 +106,8 @@ class SendTabToSelfBubbleController
   FRIEND_TEST_ALL_PREFIXES(SendTabToSelfDevicePickerBubbleViewTest,
                            DevicePressed);
 
-  void UpdateIcon();
-
   Profile* GetProfile();
+  virtual std::optional<EntryPointDisplayReason> GetEntryPointDisplayReason();
 
   // Weak reference. Will be nullptr if no bubble is currently shown.
   raw_ptr<SendTabToSelfBubbleView> send_tab_to_self_bubble_view_ = nullptr;
@@ -110,6 +117,10 @@ class SendTabToSelfBubbleController
   bool show_message_ = false;
   // True if the bubble is currently shown.
   bool bubble_shown_ = false;
+
+  raw_ptr<actions::ActionItem> send_tab_to_self_action_item_ = nullptr;
+
+  base::WeakPtrFactory<SendTabToSelfBubbleController> weak_ptr_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

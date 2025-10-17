@@ -4,37 +4,55 @@
 
 #include "components/viz/common/view_transition_element_resource_id.h"
 
-#include "base/atomic_sequence_num.h"
+#include "base/check_op.h"
 #include "base/strings/stringprintf.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 
 namespace viz {
-namespace {
 
-static base::AtomicSequenceNumber s_view_transition_element_resource_id;
-
-constexpr uint32_t kInvalidId = 0u;
-
-}  // namespace
-
-ViewTransitionElementResourceId ViewTransitionElementResourceId::Generate() {
-  return ViewTransitionElementResourceId(
-      s_view_transition_element_resource_id.GetNext() + 1);
-}
-
-ViewTransitionElementResourceId::ViewTransitionElementResourceId()
-    : ViewTransitionElementResourceId(kInvalidId) {}
-
+ViewTransitionElementResourceId::ViewTransitionElementResourceId() = default;
 ViewTransitionElementResourceId::~ViewTransitionElementResourceId() = default;
 
-ViewTransitionElementResourceId::ViewTransitionElementResourceId(uint32_t id)
-    : id_(id) {}
+ViewTransitionElementResourceId::ViewTransitionElementResourceId(
+    const blink::ViewTransitionToken& transition_token,
+    uint32_t local_id,
+    bool for_subframe_snapshot)
+    : transition_token_(transition_token),
+      local_id_(local_id),
+      for_subframe_snapshot_(for_subframe_snapshot) {
+  CHECK_NE(local_id, kInvalidLocalId);
+}
+
+bool operator==(const ViewTransitionElementResourceId& lhs,
+                const ViewTransitionElementResourceId& rhs) {
+  if (!lhs.IsValid()) {
+    return !rhs.IsValid();
+  }
+
+  return lhs.local_id_ == rhs.local_id_ &&
+         lhs.transition_token_ == rhs.transition_token_ &&
+         lhs.for_subframe_snapshot_ == rhs.for_subframe_snapshot_;
+}
 
 bool ViewTransitionElementResourceId::IsValid() const {
-  return id_ != kInvalidId;
+  return local_id_ != kInvalidLocalId;
 }
 
 std::string ViewTransitionElementResourceId::ToString() const {
-  return base::StringPrintf("ViewTransitionElementResourceId : %u", id_);
+  return base::StringPrintf(
+      "ViewTransitionElementResourceId : %u [transition: %s, for_subframe: %d]",
+      local_id_,
+      transition_token_ ? transition_token_->ToString().c_str() : "invalid",
+      for_subframe_snapshot_);
+}
+
+bool ViewTransitionElementResourceId::MatchesToken(
+    const base::flat_set<blink::ViewTransitionToken>& tokens) const {
+  // Subframe snapshot should not match the token, because they are not a part
+  // of capture for ViewTransition, but rather they are captures to implement
+  // pausing rendering for a subframe.
+  return !for_subframe_snapshot_ && transition_token_ &&
+         tokens.contains(*transition_token_);
 }
 
 }  // namespace viz

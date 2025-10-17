@@ -4,14 +4,31 @@
 
 #include "ash/ambient/ui/ambient_animation_progress_tracker.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
+
+namespace {
+
+void MoveAnimation(
+    base::flat_set<raw_ptr<const lottie::Animation, CtnExperimental>>& from,
+    base::flat_set<raw_ptr<const lottie::Animation, CtnExperimental>>& to,
+    const lottie::Animation* animation) {
+  if (to.contains(animation)) {
+    CHECK(!from.contains(animation));
+    return;
+  }
+  CHECK_EQ(from.erase(animation), 1u);
+  to.insert(animation);
+}
+
+}  // namespace
 
 AmbientAnimationProgressTracker::ImmutableParams::ImmutableParams() = default;
 
@@ -31,7 +48,9 @@ AmbientAnimationProgressTracker::~AmbientAnimationProgressTracker() = default;
 void AmbientAnimationProgressTracker::RegisterAnimation(
     lottie::Animation* animation) {
   DCHECK(animation);
-  DCHECK(!animation_observations_.IsObservingSource(animation));
+  if (animation_observations_.IsObservingSource(animation)) {
+    return;
+  }
   animation_observations_.AddObservation(animation);
   if (animation->GetPlaybackConfig()) {
     // The parameters verified here all concern "time" in the animation in some
@@ -43,7 +62,7 @@ void AmbientAnimationProgressTracker::RegisterAnimation(
   } else {
     DVLOG(4) << "Animation has not been Start()ed yet. Will be verified in "
                 "AnimationWillStartPlaying() later.";
-    uninitialized_animations_.insert(animation);
+    inactive_animations_.insert(animation);
   }
 }
 
@@ -76,7 +95,6 @@ AmbientAnimationProgressTracker::GetGlobalProgress() const {
   }
   NOTREACHED() << "HasActiveAnimations() must be true before calling "
                   "GetGlobalProgress()";
-  return Progress();
 }
 
 AmbientAnimationProgressTracker::ImmutableParams
@@ -98,10 +116,16 @@ void AmbientAnimationProgressTracker::AnimationWillStartPlaying(
   DCHECK(animation_observations_.IsObservingSource(
       const_cast<lottie::Animation*>(animation)));
   VerifyAnimationImmutableParams(*animation);
-  DCHECK(uninitialized_animations_.contains(animation));
-  DCHECK(!started_animations_.contains(animation));
-  uninitialized_animations_.erase(animation);
-  started_animations_.insert(animation);
+  MoveAnimation(/*from=*/inactive_animations_, /*to=*/started_animations_,
+                animation);
+}
+
+void AmbientAnimationProgressTracker::AnimationStopped(
+    const lottie::Animation* animation) {
+  CHECK(animation_observations_.IsObservingSource(
+      const_cast<lottie::Animation*>(animation)));
+  MoveAnimation(/*from=*/started_animations_, /*to=*/inactive_animations_,
+                animation);
 }
 
 void AmbientAnimationProgressTracker::AnimationIsDeleting(
@@ -111,7 +135,7 @@ void AmbientAnimationProgressTracker::AnimationIsDeleting(
   animation_observations_.RemoveObservation(
       const_cast<lottie::Animation*>(animation));
   started_animations_.erase(animation);
-  uninitialized_animations_.erase(animation);
+  inactive_animations_.erase(animation);
 }
 
 void AmbientAnimationProgressTracker::VerifyAnimationImmutableParams(

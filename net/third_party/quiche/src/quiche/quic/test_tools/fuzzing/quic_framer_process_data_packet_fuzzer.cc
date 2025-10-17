@@ -5,8 +5,11 @@
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
@@ -47,11 +50,7 @@ using quic::QuicTransportVersion;
 using quic::test::NoOpFramerVisitor;
 using quic::test::QuicFramerPeer;
 
-PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider,
-                                             ParsedQuicVersion version) {
-  if (!version.HasIetfInvariantHeader()) {
-    return quic::GOOGLE_QUIC_PACKET;
-  }
+PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider) {
   return provider->ConsumeBool() ? quic::IETF_QUIC_LONG_HEADER_PACKET
                                  : quic::IETF_QUIC_SHORT_HEADER_PACKET;
 }
@@ -59,7 +58,6 @@ PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider,
 ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
   // TODO(wub): Add support for v49+.
   const QuicTransportVersion transport_versions[] = {
-      quic::QUIC_VERSION_43,
       quic::QUIC_VERSION_46,
   };
 
@@ -84,7 +82,7 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
 
   header.version = ConsumeParsedQuicVersion(provider);
 
-  header.form = ConsumePacketHeaderFormat(provider, header.version);
+  header.form = ConsumePacketHeaderFormat(provider);
 
   const std::string cid_bytes =
       provider->ConsumeBytesAsString(kQuicDefaultConnectionIdLength);
@@ -206,9 +204,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (receiver_perspective == Perspective::IS_CLIENT) {
     QuicFramerPeer::SetLastSerializedServerConnectionId(
         &receiver_framer, header.source_connection_id);
-  } else {
-    QuicFramerPeer::SetLastSerializedClientConnectionId(
-        &receiver_framer, header.source_connection_id);
   }
 
   std::array<char, kEthernetMTU> packet_buffer;
@@ -238,8 +233,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // Serialize the null-encrypted packet into |packet_buffer|.
     QuicDataWriter writer(packet_buffer.size(), packet_buffer.data());
     size_t length_field_offset = 0;
-    QUICHE_CHECK(sender_framer.AppendPacketHeader(header, &writer,
-                                                  &length_field_offset));
+    QUICHE_CHECK(sender_framer.AppendIetfPacketHeader(header, &writer,
+                                                      &length_field_offset));
 
     QUICHE_CHECK(
         writer.WriteBytes(payload_buffer.data(), payload_buffer.size()));

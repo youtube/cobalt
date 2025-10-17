@@ -29,6 +29,7 @@
 #include "base/notreached.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/string_resource.h"
+#include "third_party/blink/renderer/platform/bindings/to_blink_string.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
@@ -54,13 +55,8 @@ class V8StringResource {
   V8StringResource(const V8StringResource&) = delete;
   V8StringResource& operator=(const V8StringResource&) = delete;
 
-  V8StringResource() : mode_(kExternalize) {}
-
-  V8StringResource(v8::Local<v8::Value> object)
-      : v8_object_(object), mode_(kExternalize) {}
-
-  V8StringResource(const String& string)
-      : mode_(kExternalize), string_(string) {}
+  V8StringResource(v8::Isolate* isolate, v8::Local<v8::Value> object)
+      : isolate_(isolate), v8_object_(object), mode_(kExternalize) {}
 
   void operator=(v8::Local<v8::Value> object) { v8_object_ = object; }
 
@@ -68,16 +64,8 @@ class V8StringResource {
 
   void operator=(std::nullptr_t) { SetString(String()); }
 
-  bool Prepare() {  // DEPRECATED
-    if (PrepareFast())
-      return true;
-
-    return v8_object_->ToString(v8::Isolate::GetCurrent()->GetCurrentContext())
-        .ToLocal(&v8_object_);
-  }
-
-  bool Prepare(v8::Isolate* isolate, ExceptionState& exception_state) {
-    return PrepareFast() || PrepareSlow(isolate, exception_state);
+  bool Prepare(ExceptionState& exception_state) {
+    return PrepareFast() || PrepareSlow(exception_state);
   }
 
   // Implicit conversions needed to make Blink bindings easier to use.
@@ -90,9 +78,9 @@ class V8StringResource {
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   operator StringView() const {
-    if (LIKELY(!v8_object_.IsEmpty())) {
-      return ToBlinkStringView(v8_object_.As<v8::String>(), backing_store_,
-                               mode_);
+    if (!v8_object_.IsEmpty()) [[likely]] {
+      return ToBlinkStringView(isolate_, v8_object_.As<v8::String>(),
+                               backing_store_, mode_);
     }
 
     return string_;
@@ -108,10 +96,11 @@ class V8StringResource {
       return true;
     }
 
-    if (LIKELY(v8_object_->IsString()))
+    if (v8_object_->IsString()) [[likely]] {
       return true;
+    }
 
-    if (LIKELY(v8_object_->IsInt32())) {
+    if (v8_object_->IsInt32()) [[likely]] {
       SetString(ToBlinkString(v8_object_.As<v8::Int32>()->Value()));
       return true;
     }
@@ -120,14 +109,10 @@ class V8StringResource {
     return false;
   }
 
-  bool PrepareSlow(v8::Isolate* isolate, ExceptionState& exception_state) {
-    v8::TryCatch try_catch(isolate);
-    if (!v8_object_->ToString(isolate->GetCurrentContext())
-             .ToLocal(&v8_object_)) {
-      exception_state.RethrowV8Exception(try_catch.Exception());
-      return false;
-    }
-    return true;
+  bool PrepareSlow(ExceptionState& exception_state) {
+    TryRethrowScope rethrow_scope(isolate_, exception_state);
+    return v8_object_->ToString(isolate_->GetCurrentContext())
+        .ToLocal(&v8_object_);
   }
 
   bool IsValid() const;
@@ -140,12 +125,15 @@ class V8StringResource {
 
   template <class StringType>
   StringType ToString() const {
-    if (LIKELY(!v8_object_.IsEmpty()))
-      return ToBlinkString<StringType>(v8_object_.As<v8::String>(), mode_);
+    if (!v8_object_.IsEmpty()) [[likely]] {
+      return ToBlinkString<StringType>(isolate_, v8_object_.As<v8::String>(),
+                                       mode_);
+    }
 
     return StringType(string_);
   }
 
+  v8::Isolate* isolate_;
   v8::Local<v8::Value> v8_object_;
   ExternalMode mode_;
   String string_;
@@ -161,7 +149,6 @@ inline bool V8StringResource<kDefaultMode>::IsValid() const {
 template <>
 inline String V8StringResource<kDefaultMode>::FallbackString() const {
   NOTREACHED();
-  return String();
 }
 
 template <>

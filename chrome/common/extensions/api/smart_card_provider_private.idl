@@ -10,8 +10,8 @@
 // [2] https://en.wikipedia.org/wiki/PC/SC
 // [3] https://github.com/WICG/web-smart-card/blob/main/README.md#web-idl
 //
-// TODO(crbug.com/1386175): Add API for the remaining SCard* functions.
-[platforms=("chromeos", "lacros"),
+// TODO(crbug.com/40247152): Add API for the remaining SCard* functions.
+[platforms=("chromeos"),
  implemented_in="chrome/browser/chromeos/extensions/smart_card_provider_private/smart_card_provider_private_api.h"]
 namespace smartCardProviderPrivate {
 
@@ -72,6 +72,21 @@ namespace smartCardProviderPrivate {
     EJECT_CARD
   };
 
+  enum ConnectionState {
+    // SCARD_ABSENT
+    ABSENT,
+    // SCARD_PRESENT
+    PRESENT,
+    // SCARD_SWALLOWED
+    SWALLOWED,
+    // SCARD_POWERED
+    POWERED,
+    // SCARD_NEGOTIABLE
+    NEGOTIABLE,
+    // SCARD_SPECIFIC
+    SPECIFIC
+  };
+
   // Maps to the SCARD_STATE_* flags defined in the winscard.h API.
   dictionary ReaderStateFlags {
     boolean? unaware;
@@ -105,11 +120,18 @@ namespace smartCardProviderPrivate {
   dictionary ReaderStateIn {
     DOMString reader;
     ReaderStateFlags currentState;
+    // Number of card insertion and removal events that happened in this reader,
+    // as known by the application.
+    long currentCount;
   };
 
   dictionary ReaderStateOut {
     DOMString reader;
     ReaderStateFlags eventState;
+    // The actual number of card insertion and removal events that happened in
+    // this reader.
+    // Set to zero if not supported.
+    long eventCount;
     ArrayBuffer atr;
   };
 
@@ -146,7 +168,7 @@ namespace smartCardProviderPrivate {
 
     // Browser requested a SCardCancel call.
     // Extension must report the result to the browser by calling
-    // reportCancelResult.
+    // reportPlainResult.
     [maxListeners=1] static void onCancelRequested(long requestId,
         long scardContext);
 
@@ -161,8 +183,50 @@ namespace smartCardProviderPrivate {
 
     // Browser requested a SCardDisconnect call.
     // Extension must report the result to the browser by calling
-    // reportDisconnectResult.
+    // reportPlainResult.
     [maxListeners=1] static void onDisconnectRequested(long requestId,
+        long scardHandle, Disposition disposition);
+
+    // Browser requested a SCardTransmit call.
+    // Extension must report the result to the browser by calling
+    // reportDataResult.
+    [maxListeners=1] static void onTransmitRequested(long requestId,
+        long scardHandle, Protocol protocol, ArrayBuffer data);
+
+    // Browser requested a SCardControl call.
+    // Extension must report the result to the browser by calling
+    // reportDataResult.
+    [maxListeners=1] static void onControlRequested(long requestId,
+        long scardHandle, long controlCode, ArrayBuffer data);
+
+    // Browser requested a SCardGetAttrib call.
+    // Extension must report the result to the browser by calling
+    // reportDataResult.
+    [maxListeners=1] static void onGetAttribRequested(long requestId,
+        long scardHandle, long attribId);
+
+    // Browser requested a SCardSetAttrib call.
+    // Extension must report the result to the browser by calling
+    // reportPlainResult.
+    [maxListeners=1] static void onSetAttribRequested(long requestId,
+        long scardHandle, long attribId, ArrayBuffer data);
+
+    // Browser requested a SCardStatus call.
+    // Extension must report the result to the browser by calling
+    // reportStatusResult.
+    [maxListeners=1] static void onStatusRequested(long requestId,
+        long scardHandle);
+
+    // Browser requested a SCardBeginTransaction call.
+    // Extension must report the result to the browser by calling
+    // reportPlainResult.
+    [maxListeners=1] static void onBeginTransactionRequested(long requestId,
+        long scardHandle);
+
+    // Browser requested a SCardEndTransaction call.
+    // Extension must report the result to the browser by calling
+    // reportPlainResult.
+    [maxListeners=1] static void onEndTransactionRequested(long requestId,
         long scardHandle, Disposition disposition);
   };
 
@@ -183,15 +247,22 @@ namespace smartCardProviderPrivate {
       static void reportGetStatusChangeResult(long requestId,
           ReaderStateOut[] readerStates, ResultCode resultCode);
 
-      // Reports the result of a SCardCancel call.
-      static void reportCancelResult(long requestId,
+      // Reports the result of a call which doesn't send back any other
+      // information.
+      static void reportPlainResult(long requestId,
           ResultCode resultCode);
 
       // Reports the result of a SCardConnect call.
       static void reportConnectResult(long requestId, long scardHandle,
           Protocol activeProtocol, ResultCode resultCode);
 
-      // Reports the result of a SCardDisconnect call.
-      static void reportDisconnectResult(long requestId, ResultCode resultCode);
+      // Reports the result of a call that sends back data on success.
+      static void reportDataResult(long requestId, ArrayBuffer data,
+          ResultCode resultCode);
+
+      // Reports the result of a SCardStatus call.
+      static void reportStatusResult(long requestId, DOMString readerName,
+          ConnectionState state, Protocol protocol, ArrayBuffer atr,
+          ResultCode resultCode);
   };
 };

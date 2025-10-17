@@ -15,18 +15,14 @@
 #import "base/task/thread_pool.h"
 #import "base/threading/scoped_blocking_call.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/main/browser.h"
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/ui/util/image/image_util.h"
-#import "ios/chrome/browser/web/image_fetch/image_fetch_tab_helper.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/browser/web/model/image_fetch/image_fetch_tab_helper.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "net/base/mime_util.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface ImageSaver ()
 // Base view controller for the alerts.
@@ -44,6 +40,13 @@
     _browser = browser;
   }
   return self;
+}
+
+- (void)stop {
+  [self.alertCoordinator stop];
+  self.alertCoordinator = nil;
+  self.baseViewController = nil;
+  _browser = nullptr;
 }
 
 - (void)saveImageAtURL:(const GURL&)URL
@@ -194,7 +197,7 @@
     // the error on the main thread.
     [self displayImageErrorAlertWithSettingsOnMainQueue];
   } else {
-    // TODO(crbug.com/797277): Provide a way for the user to easily reach the
+    // TODO(crbug.com/41362123): Provide a way for the user to easily reach the
     // photos app.
   }
 }

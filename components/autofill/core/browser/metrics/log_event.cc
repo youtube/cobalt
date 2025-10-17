@@ -4,6 +4,8 @@
 
 #include "components/autofill/core/browser/metrics/log_event.h"
 
+#include <variant>
+
 #include "base/notreached.h"
 
 namespace autofill {
@@ -33,15 +35,13 @@ bool OptionalBooleanToBool(OptionalBoolean value) {
       return true;
     case OptionalBoolean::kUndefined:
       NOTREACHED();
-      return false;
   }
 
   NOTREACHED();
-  return false;
 }
 
-bool AreCollapsible(const absl::monostate& event1,
-                    const absl::monostate& event2) {
+bool AreCollapsible(const std::monostate& event1,
+                    const std::monostate& event2) {
   return true;
 }
 
@@ -53,16 +53,20 @@ bool AreCollapsible(const AskForValuesToFillFieldLogEvent& event1,
 
 bool AreCollapsible(const TriggerFillFieldLogEvent& event1,
                     const TriggerFillFieldLogEvent& event2) {
-  return event1.fill_event_id != event2.fill_event_id;
+  return event1.fill_event_id == event2.fill_event_id;
 }
 
 bool AreCollapsible(const FillFieldLogEvent& event1,
                     const FillFieldLogEvent& event2) {
-  return event1.fill_event_id != event2.fill_event_id &&
+  return event1.fill_event_id == event2.fill_event_id &&
          event1.had_value_before_filling == event2.had_value_before_filling &&
          event1.autofill_skipped_status == event2.autofill_skipped_status &&
-         event1.was_autofilled == event2.was_autofilled &&
-         event1.had_value_after_filling == event2.had_value_after_filling;
+         event1.was_autofilled_before_security_policy ==
+             event2.was_autofilled_before_security_policy &&
+         event1.had_value_after_filling == event2.had_value_after_filling &&
+         event1.filling_prevented_by_iframe_security_policy ==
+             event2.filling_prevented_by_iframe_security_policy &&
+         event1.was_refill == event2.was_refill;
 }
 
 bool AreCollapsible(const TypingFieldLogEvent& event1,
@@ -73,8 +77,9 @@ bool AreCollapsible(const TypingFieldLogEvent& event1,
 bool AreCollapsible(const HeuristicPredictionFieldLogEvent& event1,
                     const HeuristicPredictionFieldLogEvent& event2) {
   return event1.field_type == event2.field_type &&
-         event1.pattern_source == event2.pattern_source &&
-         event1.is_active_pattern_source == event2.is_active_pattern_source &&
+         event1.heuristic_source == event2.heuristic_source &&
+         event1.is_active_heuristic_source ==
+             event2.is_active_heuristic_source &&
          event1.rank_in_field_signature_group ==
              event2.rank_in_field_signature_group;
 }
@@ -104,6 +109,14 @@ bool AreCollapsible(const RationalizationFieldLogEvent& event1,
   return event1.field_type == event2.field_type &&
          event1.section_id == event2.section_id &&
          event1.type_changed == event2.type_changed;
+}
+
+bool AreCollapsible(const AblationFieldLogEvent& event1,
+                    const AblationFieldLogEvent& event2) {
+  return event1.ablation_group == event2.ablation_group &&
+         event1.conditional_ablation_group ==
+             event2.conditional_ablation_group &&
+         event1.day_in_ablation_window == event2.day_in_ablation_window;
 }
 
 }  // namespace autofill

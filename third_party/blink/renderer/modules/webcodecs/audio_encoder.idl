@@ -7,7 +7,6 @@
 [
     Exposed=(Window,DedicatedWorker),
     SecureContext,
-    RuntimeEnabled=WebCodecs,
     ActiveScriptWrappable
 ] interface AudioEncoder : EventTarget {
     [CallWith=ScriptState, RaisesException, MeasureAs=WebCodecsAudioEncoder]
@@ -19,7 +18,6 @@
 
     // Fires to signal a decrease in encodeQueueSize. Will fire at most once
     // for a given turn of the event loop.
-    [RuntimeEnabled=WebCodecsDequeueEvent]
     attribute EventHandler ondequeue;
 
     // Enqueues a control message to configure the audio encoder for encoding
@@ -36,7 +34,7 @@
     // Enqueues a request to produce outputs for all already encoded data.
     // Resolved after emitting outputs for all previously encoded data.
     [RaisesException]
-    Promise<void> flush();
+    Promise<undefined> flush();
 
     // Discard all pending work and current encoder configuration.
     //

@@ -6,9 +6,10 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/strings/string_number_conversions.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/network_service_test_helper.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
@@ -79,8 +80,8 @@ void ContentMockCertVerifier::CertVerifier::
     GetNetworkService()->BindTestInterfaceForTesting(
         network_service_test_.BindNewPipeAndPassReceiver());
   }
-  // TODO(crbug.com/901026): Make sure the network process is started to avoid a
-  // deadlock on Android.
+  // TODO(crbug.com/41423903): Make sure the network process is started to avoid
+  // a deadlock on Android.
   network_service_test_.FlushForTesting();
 }
 

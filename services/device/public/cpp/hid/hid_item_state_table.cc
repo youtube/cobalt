@@ -101,7 +101,6 @@ void HidItemStateTable::SetItemValue(HidReportDescriptorItem::Tag tag,
         break;
       default:
         NOTREACHED() << "Unexpected global item in HID report descriptor";
-        break;
     }
   } else {
     switch (tag) {
@@ -140,7 +139,6 @@ void HidItemStateTable::SetItemValue(HidReportDescriptorItem::Tag tag,
         break;
       default:
         NOTREACHED() << "Unexpected local item in HID report descriptor";
-        break;
     }
   }
 }

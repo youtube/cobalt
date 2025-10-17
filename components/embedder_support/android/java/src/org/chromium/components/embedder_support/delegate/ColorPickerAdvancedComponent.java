@@ -12,6 +12,8 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 
 import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Encapsulates a single gradient view of the HSV color display, including its label, gradient
@@ -19,15 +21,16 @@ import org.chromium.base.ApiCompatibilityUtils;
  *
  * Mirrors a "color_picker_advanced_component" layout.
  */
+@NullMarked
 public class ColorPickerAdvancedComponent {
     // The view that displays the gradient.
     private final View mGradientView;
     // The seek bar that allows the user to change the value of this component.
     private final SeekBar mSeekBar;
     // The set of colors to interpolate the gradient through.
-    private int[] mGradientColors;
+    private int @Nullable [] mGradientColors;
     // The Drawable that represents the gradient.
-    private GradientDrawable mGradientDrawable;
+    private final GradientDrawable mGradientDrawable;
     // The text label for the component.
     private final TextView mText;
 
@@ -39,8 +42,11 @@ public class ColorPickerAdvancedComponent {
      * @param seekBarMax The range of the seek bar.
      * @param seekBarListener The listener for when the seek bar value changes.
      */
-    ColorPickerAdvancedComponent(final View rootView, final int textResourceId,
-            final int seekBarMax, final OnSeekBarChangeListener seekBarListener) {
+    ColorPickerAdvancedComponent(
+            final View rootView,
+            final int textResourceId,
+            final int seekBarMax,
+            final OnSeekBarChangeListener seekBarListener) {
         mGradientView = rootView.findViewById(R.id.gradient);
         mText = (TextView) rootView.findViewById(R.id.text);
         mText.setText(textResourceId);
@@ -51,16 +57,16 @@ public class ColorPickerAdvancedComponent {
         // Setting the thumb offset means the seek bar thumb can move all the way to each end
         // of the gradient view.
         Context context = rootView.getContext();
-        int offset = ApiCompatibilityUtils
-                             .getDrawable(context.getResources(),
-                                     R.drawable.color_picker_advanced_select_handle)
-                             .getIntrinsicWidth();
+        int offset =
+                ApiCompatibilityUtils.getDrawable(
+                                context.getResources(),
+                                R.drawable.color_picker_advanced_select_handle)
+                        .getIntrinsicWidth();
         mSeekBar.setThumbOffset(offset / 2);
+        mSeekBar.setContentDescription(context.getString(textResourceId));
     }
 
-    /**
-     * @return The value represented by this component, maintained by the seek bar progress.
-     */
+    /** @return The value represented by this component, maintained by the seek bar progress. */
     public float getValue() {
         return mSeekBar.getProgress();
     }

@@ -25,8 +25,7 @@ const char switches::kTestLauncherBatchLimit[] = "test-launcher-batch-limit";
 
 // Sets defaults desirable for the continuous integration bots, e.g. parallel
 // test execution and test retries.
-const char switches::kTestLauncherBotMode[] =
-    "test-launcher-bot-mode";
+const char switches::kTestLauncherBotMode[] = "test-launcher-bot-mode";
 
 // Makes it possible to debug the launcher itself. By default the launcher
 // automatically switches to single process mode when it detects presence
@@ -37,6 +36,15 @@ const char switches::kTestLauncherDebugLauncher[] =
 // List of paths to files (separated by ';') containing test filters (one
 // pattern per line).
 const char switches::kTestLauncherFilterFile[] = "test-launcher-filter-file";
+
+// Force running the test cases listed in the positive filter file with full
+// name (not wildcard). If set, only exact positive filter from the filter
+// file is allowed. Passing --gtest_filter, positive wildcard filters, or
+// negative filters will fail the test launcher.
+// If any test case is disabled or deleted in source files, the test suite
+// fails.
+const char switches::kEnforceExactPositiveFilter[] =
+    "enforce-exact-positive-filter";
 
 // Force running all requested tests and retries even if too many test errors
 // occur.
@@ -98,8 +106,7 @@ const char switches::kTestLauncherRetryLimit[] = "test-launcher-retry-limit";
 
 // Index of the test shard to run, starting from 0 (first shard) to total shards
 // minus one (last shard).
-const char switches::kTestLauncherShardIndex[] =
-    "test-launcher-shard-index";
+const char switches::kTestLauncherShardIndex[] = "test-launcher-shard-index";
 
 // Path to test results file with all the info from the test launcher.
 const char switches::kTestLauncherSummaryOutput[] =
@@ -111,8 +118,7 @@ const char switches::kTestLauncherTestPartResultsLimit[] =
     "test-launcher-test-part-results-limit";
 
 // Total number of shards. Must be the same for all shards.
-const char switches::kTestLauncherTotalShards[] =
-    "test-launcher-total-shards";
+const char switches::kTestLauncherTotalShards[] = "test-launcher-total-shards";
 
 // Time (in milliseconds) that the tests should wait before timing out.
 const char switches::kTestLauncherTimeout[] = "test-launcher-timeout";
@@ -124,6 +130,21 @@ const char switches::kTestLauncherTrace[] = "test-launcher-trace";
 const char switches::kTestTinyTimeout[] = "test-tiny-timeout";
 const char switches::kUiTestActionMaxTimeout[] = "ui-test-action-max-timeout";
 const char switches::kUiTestActionTimeout[] = "ui-test-action-timeout";
+
+// Do not suppress stack traces in death tests.
+const char switches::kWithDeathTestStackTraces[] =
+    "with-death-test-stack-traces";
+
+// The following three switches match those in fuzztest and are defined
+// the same way. We know about them in this test suite so that we can
+// act differently if we're in fuzzing mode.
+// These appear to be very stable fuzztest flags and it's unlikely that
+// we'd ever need to detect others in a similar way, but if this proves
+// to be unstable then we could add an upstream fuzztest API such as
+// fuzztest::AreWeFuzzing, and use that instead of detecting any flags.
+const char switches::kFuzz[] = "fuzz";
+const char switches::kFuzzFor[] = "fuzz_for";
+const char switches::kListFuzzTests[] = "list_fuzz_tests";
 
 #if BUILDFLAG(IS_IOS)
 // If enabled, runs unittests using the XCTest test runner.

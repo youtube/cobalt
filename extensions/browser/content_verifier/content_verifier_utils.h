@@ -8,8 +8,7 @@
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
 
-namespace extensions {
-namespace content_verifier_utils {
+namespace extensions::content_verifier_utils {
 
 // Extension relative FilePath's canonical version for content verification
 // system. Canonicalization consists of:
@@ -18,7 +17,6 @@ namespace content_verifier_utils {
 //     to content verifier via extension_protocols) and manifest.json paths
 //     also specify '/' separators.
 //   - In case-insensitive OS, lower casing path.
-//   - In Windows, trimming "dot-space" suffix in path.
 using CanonicalRelativePath =
     ::base::StrongAlias<class CanonicalRelativePathTag,
                         base::FilePath::StringType>;
@@ -34,23 +32,28 @@ constexpr bool IsFileAccessCaseSensitive() {
 
 // Returns true if this system/OS ignores (.| )+ suffix in a filepath while
 // accessing the file.
-constexpr bool IsDotSpaceFilenameSuffixIgnored() {
-#if BUILDFLAG(IS_WIN)
-  static_assert(!IsFileAccessCaseSensitive(),
-                "DotSpace suffix should only be ignored in case-insensitive"
-                "systems");
-  return true;
-#else
-  return false;
-#endif
-}
+// TODO(https://crbug.com/400119351): Remove this in M138.
+bool IsDotSpaceFilenameSuffixIgnored();
 
-// Returns platform specific canonicalized version of |relative_path| for
+// Returns platform specific canonicalized version of `relative_path` for
 // content verification system.
 CanonicalRelativePath CanonicalizeRelativePath(
     const base::FilePath& relative_path);
 
-}  // namespace content_verifier_utils
-}  // namespace extensions
+// Normalize a relative pathname by collapsing redundant separators and up-level
+// references, and normalizing separators so that "A//B", "A/./B", "A/foo/../B"
+// and "A\\B" all become "A/B". The trailing separator is preserved. This string
+// manipulation may change the meaning of a path that contains symbolic links.
+//
+// This function performs purely string operations without accessing the
+// filesystem or considering the current directory. The path doesn't need to
+// exist. Use base::NormalizeFilePath() to expand symbolic links and junctions
+// and get an absolute normalized file path.
+//
+// The function CHECKs that the path is not absolute.
+[[nodiscard]] base::FilePath NormalizePathComponents(
+    const base::FilePath& relative_path);
+
+}  // namespace extensions::content_verifier_utils
 
 #endif  // EXTENSIONS_BROWSER_CONTENT_VERIFIER_CONTENT_VERIFIER_UTILS_H_

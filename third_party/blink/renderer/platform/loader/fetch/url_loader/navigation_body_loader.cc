@@ -4,7 +4,13 @@
 
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/navigation_body_loader.h"
 
+#include <algorithm>
+#include <utility>
+
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
@@ -13,7 +19,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
-#include "services/network/public/cpp/features.h"
+#include "mojo/public/cpp/base/big_buffer.h"
+#include "services/network/public/cpp/loading_params.h"
 #include "services/network/public/cpp/record_ontransfersizeupdate_utils.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
@@ -23,7 +30,6 @@
 #include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
 #include "third_party/blink/public/platform/resource_load_info_notifier_wrapper.h"
-#include "third_party/blink/public/platform/web_code_cache_loader.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/platform/web_url_response.h"
 #include "third_party/blink/public/web/web_navigation_params.h"
@@ -55,14 +61,43 @@ size_t GetMaxDataToProcessPerTask() {
   return kMaxDataToProcessParam.Get();
 }
 
+// Either 1) owns the original, encoded data (if
+// `should_keep_encoded_data` was passed to `StartLoadingBodyInBackground()`)
+// or, or 2) just stores the data size (if `!should_keep_encoded_data`).
+class HeapArrayOrSize {
+ public:
+  HeapArrayOrSize(base::span<const char> data, bool should_keep_encoded_data)
+      : heap_array_or_size_(should_keep_encoded_data
+                                ? std::variant<base::HeapArray<char>, size_t>(
+                                      base::HeapArray<char>::CopiedFrom(data))
+                                : data.size()) {}
+
+  ~HeapArrayOrSize() = default;
+
+  HeapArrayOrSize(const HeapArrayOrSize&) = delete;
+  HeapArrayOrSize& operator=(const HeapArrayOrSize&) = delete;
+  HeapArrayOrSize(HeapArrayOrSize&&) = default;
+  HeapArrayOrSize& operator=(HeapArrayOrSize&&) = default;
+
+  base::SpanOrSize<const char> AsSpanOrSize() const {
+    return std::visit(
+        [](const auto& value) { return base::SpanOrSize<const char>(value); },
+        heap_array_or_size_);
+  }
+
+  size_t size() const { return AsSpanOrSize().size(); }
+
+ private:
+  std::variant<base::HeapArray<char>, size_t> heap_array_or_size_;
+};
+
 // A chunk of data read by the OffThreadBodyReader. This will be created on a
 // background thread and processed on the main thread.
 struct DataChunk {
   String decoded_data;
   bool has_seen_end_of_data = false;
   bool has_error = false;
-  std::unique_ptr<char[]> encoded_data;
-  size_t encoded_data_size = 0;
+  HeapArrayOrSize encoded_data;
   WebEncodingData encoding_data;
 };
 
@@ -74,18 +109,16 @@ class BodyReader {
   virtual ~BodyReader() = default;
   virtual bool ShouldContinueReading() = 0;
   virtual void FinishedReading(bool has_error) = 0;
-  virtual bool DataReceived(const char* data, size_t size) = 0;
+  virtual bool DataReceived(base::span<const char> data) = 0;
 };
 
 void ReadFromDataPipeImpl(BodyReader& reader,
                           mojo::ScopedDataPipeConsumerHandle& handle,
                           mojo::SimpleWatcher& handle_watcher) {
-  uint32_t num_bytes_consumed = 0;
+  size_t num_bytes_consumed = 0;
   while (reader.ShouldContinueReading()) {
-    const void* buffer = nullptr;
-    uint32_t available = 0;
-    MojoResult result =
-        handle->BeginReadData(&buffer, &available, MOJO_READ_DATA_FLAG_NONE);
+    base::span<const uint8_t> buffer;
+    MojoResult result = handle->BeginReadData(MOJO_READ_DATA_FLAG_NONE, buffer);
     if (result == MOJO_RESULT_SHOULD_WAIT) {
       handle_watcher.ArmOrNotify();
       return;
@@ -98,10 +131,11 @@ void ReadFromDataPipeImpl(BodyReader& reader,
       reader.FinishedReading(/*has_error=*/true);
       return;
     }
-    const uint32_t chunk_size = network::features::GetLoaderChunkSize();
+    const size_t chunk_size = network::kMaxNumConsumedBytesInTask;
     DCHECK_LE(num_bytes_consumed, chunk_size);
-    available = std::min(available, chunk_size - num_bytes_consumed);
-    if (available == 0) {
+    buffer = buffer.first(
+        std::min<size_t>(buffer.size(), chunk_size - num_bytes_consumed));
+    if (buffer.empty()) {
       // We've already consumed many bytes in this task. Defer the remaining
       // to the next task.
       result = handle->EndReadData(0);
@@ -109,10 +143,11 @@ void ReadFromDataPipeImpl(BodyReader& reader,
       handle_watcher.ArmOrNotify();
       return;
     }
-    num_bytes_consumed += available;
-    if (!reader.DataReceived(static_cast<const char*>(buffer), available))
+    num_bytes_consumed += buffer.size();
+    if (!reader.DataReceived(base::as_chars(buffer))) {
       return;
-    result = handle->EndReadData(available);
+    }
+    result = handle->EndReadData(buffer.size());
     DCHECK_EQ(MOJO_RESULT_OK, result);
   }
 }
@@ -155,7 +190,7 @@ class NavigationBodyLoader::OffThreadBodyReader : public BodyReader {
     size_t data_processed = 0;
     while (!data_chunks_.empty() && data_processed < max_data_to_process) {
       data.emplace_back(std::move(data_chunks_.front()));
-      data_processed += data.back().encoded_data_size;
+      data_processed += data.back().encoded_data.size();
       data_chunks_.erase(data_chunks_.begin());
     }
     if (!data_chunks_.empty()) {
@@ -207,11 +242,11 @@ class NavigationBodyLoader::OffThreadBodyReader : public BodyReader {
 
   void FinishedReading(bool has_error) override {
     has_seen_end_of_data_ = true;
-    AddChunk(decoder_->Flush(), nullptr, 0, has_error);
+    AddChunk(decoder_->Flush(), base::span<const char>(), has_error);
   }
 
-  bool DataReceived(const char* data, size_t size) override {
-    AddChunk(decoder_->Decode(data, size), data, size, /*has_error=*/false);
+  bool DataReceived(base::span<const char> data) override {
+    AddChunk(decoder_->Decode(data), data, /*has_error=*/false);
     return true;
   }
 
@@ -233,18 +268,13 @@ class NavigationBodyLoader::OffThreadBodyReader : public BodyReader {
   }
 
   void AddChunk(const String& decoded_data,
-                const char* encoded_data,
-                size_t size,
+                base::span<const char> encoded_data,
                 bool has_error) {
     DCHECK(reader_task_runner_->RunsTasksInCurrentSequence());
-    std::unique_ptr<char[]> encoded_data_copy;
-    // Avoid copying the encoded data unless the caller needs it.
-    if (should_keep_encoded_data_) {
-      encoded_data_copy = std::make_unique<char[]>(size);
-      memcpy(encoded_data_copy.get(), encoded_data, size);
-    }
+    HeapArrayOrSize encoded_data_or_size(encoded_data,
+                                         should_keep_encoded_data_);
 
-    bool post_task;
+    bool post_task = false;
     {
       base::AutoLock lock(lock_);
       if (decoded_data && process_background_data_callback_)
@@ -257,8 +287,7 @@ class NavigationBodyLoader::OffThreadBodyReader : public BodyReader {
           DataChunk{.decoded_data = decoded_data,
                     .has_seen_end_of_data = has_seen_end_of_data_,
                     .has_error = has_error,
-                    .encoded_data = std::move(encoded_data_copy),
-                    .encoded_data_size = size,
+                    .encoded_data = std::move(encoded_data_or_size),
                     .encoding_data = decoder_->GetEncodingData()});
     }
     if (post_task) {
@@ -311,15 +340,15 @@ class NavigationBodyLoader::MainThreadBodyReader : public BodyReader {
     loader_->NotifyCompletionIfAppropriate();
   }
 
-  bool DataReceived(const char* data, size_t size) override {
+  bool DataReceived(base::span<const char> data) override {
     base::WeakPtr<NavigationBodyLoader> weak_self =
         loader_->weak_factory_.GetWeakPtr();
-    loader_->client_->BodyDataReceived(base::make_span(data, size));
+    loader_->client_->BodyDataReceived(data);
     return weak_self.get();
   }
 
  private:
-  NavigationBodyLoader* loader_;
+  raw_ptr<NavigationBodyLoader, DanglingUntriaged> loader_;
 };
 
 NavigationBodyLoader::NavigationBodyLoader(
@@ -360,7 +389,7 @@ void NavigationBodyLoader::OnReceiveEarlyHints(
 void NavigationBodyLoader::OnReceiveResponse(
     network::mojom::URLResponseHeadPtr head,
     mojo::ScopedDataPipeConsumerHandle body,
-    absl::optional<mojo_base::BigBuffer> cached_metadata) {
+    std::optional<mojo_base::BigBuffer> cached_metadata) {
   // This has already happened in the browser process.
   NOTREACHED();
 }
@@ -487,13 +516,12 @@ void NavigationBodyLoader::ProcessOffThreadData() {
     return;
   }
 
-  auto chunks =
+  Vector<DataChunk> chunks =
       off_thread_body_reader_->TakeData(max_data_to_process_per_task_);
   auto weak_self = weak_factory_.GetWeakPtr();
-  for (const auto& chunk : chunks) {
-    client_->DecodedBodyDataReceived(
-        chunk.decoded_data, chunk.encoding_data,
-        base::make_span(chunk.encoded_data.get(), chunk.encoded_data_size));
+  for (const DataChunk& chunk : chunks) {
+    client_->DecodedBodyDataReceived(chunk.decoded_data, chunk.encoding_data,
+                                     chunk.encoded_data.AsSpanOrSize());
     if (!weak_self)
       return;
 
@@ -526,7 +554,7 @@ void NavigationBodyLoader::NotifyCompletionIfAppropriate() {
 
   handle_watcher_.Cancel();
 
-  absl::optional<WebURLError> error;
+  std::optional<WebURLError> error;
   if (status_.error_code != net::OK) {
     error = WebURLError::Create(status_, original_url_);
   }
@@ -541,8 +569,7 @@ void NavigationBodyLoader::NotifyCompletionIfAppropriate() {
   client_ = nullptr;
   client->BodyLoadingFinished(
       status_.completion_time, status_.encoded_data_length,
-      status_.encoded_body_length, status_.decoded_body_length,
-      status_.should_report_corb_blocking, error);
+      status_.encoded_body_length, status_.decoded_body_length, error);
 }
 
 void NavigationBodyLoader::
@@ -591,7 +618,8 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
     std::unique_ptr<ResourceLoadInfoNotifierWrapper>
         resource_load_info_notifier_wrapper,
     bool is_main_frame,
-    WebNavigationParams* navigation_params) {
+    WebNavigationParams* navigation_params,
+    bool is_ad_frame) {
   // Use the original navigation url to start with. We'll replay the
   // redirects afterwards and will eventually arrive to the final url.
   const KURL original_url = !commit_params->original_url.is_empty()
@@ -603,16 +631,15 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
       !commit_params->original_method.empty() ? commit_params->original_method
                                               : common_params->method,
       common_params->referrer->url, common_params->request_destination,
-      is_main_frame ? net::HIGHEST : net::LOWEST);
+      is_main_frame ? net::HIGHEST : net::LOWEST, is_ad_frame);
   size_t redirect_count = commit_params->redirect_response.size();
 
   if (redirect_count != commit_params->redirects.size()) {
     // We currently incorrectly send empty redirect_response and redirect_infos
-    // on frame reloads and some cases involving throttles.
+    // on frame reloads and some cases involving throttles. There are also other
+    // reports of non-empty cases, so further investigation is still needed.
     // TODO(https://crbug.com/1171225): Fix this.
-    DCHECK_EQ(0u, redirect_count);
-    DCHECK_EQ(0u, commit_params->redirect_infos.size());
-    DCHECK_NE(0u, commit_params->redirects.size());
+    redirect_count = std::min(redirect_count, commit_params->redirects.size());
   }
   navigation_params->redirects.reserve(redirect_count);
   navigation_params->redirects.resize(redirect_count);
@@ -651,4 +678,5 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
         std::move(resource_load_info_notifier_wrapper)));
   }
 }
+
 }  // namespace blink

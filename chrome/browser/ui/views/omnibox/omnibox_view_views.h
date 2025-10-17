@@ -10,13 +10,15 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 
+#include "base/callback_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "components/omnibox/browser/omnibox_popup_view.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/search_engines/template_url_service.h"
@@ -34,13 +36,12 @@
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/view.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ui/base/ime/ash/input_method_manager.h"
 #endif
 
 class LocationBarView;
 class OmniboxClient;
-class OmniboxPopupViewViews;
 
 namespace content {
 class WebContents;
@@ -58,22 +59,21 @@ class OSExchangeData;
 class OmniboxViewViews
     : public OmniboxView,
       public views::Textfield,
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       public ash::input_method::InputMethodManager::CandidateWindowObserver,
 #endif
       public views::TextfieldController,
       public ui::CompositorObserver,
       public TemplateURLServiceObserver {
- public:
-  METADATA_HEADER(OmniboxViewViews);
+  METADATA_HEADER(OmniboxViewViews, views::Textfield)
 
+ public:
   // Max width of the gradient mask used to smooth ElideAnimation edges.
   static const int kSmoothingGradientMaxWidth = 15;
 
-  OmniboxViewViews(OmniboxEditModelDelegate* edit_model_delegate,
-                   std::unique_ptr<OmniboxClient> client,
+  OmniboxViewViews(std::unique_ptr<OmniboxClient> client,
                    bool popup_window_mode,
-                   LocationBarView* location_bar,
+                   LocationBarView* location_bar_view,
                    const gfx::FontList& font_list);
   OmniboxViewViews(const OmniboxViewViews&) = delete;
   OmniboxViewViews& operator=(const OmniboxViewViews&) = delete;
@@ -84,9 +84,7 @@ class OmniboxViewViews
 
   // Exposes the RenderText for tests.
 #if defined(UNIT_TEST)
-  gfx::RenderText* GetRenderText() {
-    return views::Textfield::GetRenderText();
-  }
+  gfx::RenderText* GetRenderText() { return views::Textfield::GetRenderText(); }
 #endif
 
   // For use when switching tabs, this saves the current state onto the tab so
@@ -94,7 +92,7 @@ class OmniboxViewViews
   void SaveStateToTab(content::WebContents* tab);
 
   // Called when the window's active tab changes.
-  void OnTabChanged(content::WebContents* web_contents);
+  void OnTabChanged(const content::WebContents* web_contents);
 
   // Called to clear the saved state for |web_contents|.
   void ResetTabState(content::WebContents* web_contents);
@@ -132,7 +130,6 @@ class OmniboxViewViews
   bool IsSelectAll() const override;
   void GetSelectionBounds(std::u16string::size_type* start,
                           std::u16string::size_type* end) const override;
-  size_t GetAllSelectionsLength() const override;
   void SelectAll(bool reversed) override;
   void RevertAll() override;
   void SetFocus(bool is_user_initiated) override;
@@ -154,9 +151,7 @@ class OmniboxViewViews
   bool IsCommandIdEnabled(int command_id) const override;
 
   // For testing only.
-  OmniboxPopupViewViews* GetPopupContentsViewForTesting() const {
-    return popup_view_.get();
-  }
+  OmniboxPopupView* GetPopupViewForTesting() const;
 
  protected:
   // OmniboxView:
@@ -181,6 +176,7 @@ class OmniboxViewViews
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, FriendlyAccessibleLabel);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, DoNotNavigateOnDrop);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, AyncDropCallback);
+  FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, AccessibleTextSelectBoundTest);
 
   enum class UnelisionGesture {
     HOME_KEY_PRESSED,
@@ -191,13 +187,12 @@ class OmniboxViewViews
   // Update the field with |text| and set the selection. |ranges| should not be
   // empty; even text with no selections must have at least 1 empty range in
   // |ranges| to indicate the cursor position.
-  void SetTextAndSelectedRanges(const std::u16string& text,
-                                const std::vector<gfx::Range>& ranges);
-
-  void SetSelectedRanges(const std::vector<gfx::Range>& ranges);
+  void SetTextAndSelectedRange(const std::u16string& text,
+                               const gfx::Range& selection);
 
   // Returns the selected text.
-  std::u16string GetSelectedText() const;
+  std::u16string_view GetSelectedText() const;
+  void UpdateAccessibleTextSelection() override;
 
   // Paste text from the clipboard into the omnibox.
   // Textfields implementation of Paste() pastes the contents of the clipboard
@@ -235,15 +230,14 @@ class OmniboxViewViews
                                    bool save_original_selection,
                                    bool notify_text_changed) override;
   void OnInlineAutocompleteTextMaybeChanged(
-      const std::u16string& display_text,
-      std::vector<gfx::Range> selections,
-      const std::u16string& prefix_autocompletion,
+      const std::u16string& user_text,
       const std::u16string& inline_autocompletion) override;
   void OnInlineAutocompleteTextCleared() override;
   void OnRevertTemporaryText(const std::u16string& display_text,
                              const AutocompleteMatch& match) override;
   void OnBeforePossibleChange() override;
   bool OnAfterPossibleChange(bool allow_keyword_ui_change) override;
+  void OnKeywordPlaceholderTextChange() override;
   gfx::NativeView GetNativeView() const override;
   void ShowVirtualKeyboardIfEnabled() override;
   void HideImeIfNeeded() override;
@@ -258,7 +252,6 @@ class OmniboxViewViews
   bool IsItemForCommandIdDynamic(int command_id) const override;
   void OnGestureEvent(ui::GestureEvent* event) override;
   bool SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   bool HandleAccessibleAction(const ui::AXActionData& action_data) override;
   void OnFocus() override;
   void OnBlur() override;
@@ -268,8 +261,10 @@ class OmniboxViewViews
   void ExecuteTextEditCommand(ui::TextEditCommand command) override;
   bool ShouldShowPlaceholderText() const override;
 
+  void UpdateAccessibleValue() override;
+
   // ash::input_method::InputMethodManager::CandidateWindowObserver:
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void CandidateWindowOpened(
       ash::input_method::InputMethodManager* manager) override;
   void CandidateWindowClosed(
@@ -301,7 +296,9 @@ class OmniboxViewViews
   void OnCompositingDidCommit(ui::Compositor* compositor) override;
   void OnCompositingStarted(ui::Compositor* compositor,
                             base::TimeTicks start_time) override;
-  void OnCompositingEnded(ui::Compositor* compositor) override;
+  void OnDidPresentCompositorFrame(
+      uint32_t frame_token,
+      const gfx::PresentationFeedback& feedback) override;
   void OnCompositingShuttingDown(ui::Compositor* compositor) override;
 
   // TemplateURLServiceObserver:
@@ -320,18 +317,27 @@ class OmniboxViewViews
   // Helper method to construct part of the context menu.
   void MaybeAddSendTabToSelfItem(ui::SimpleMenuModel* menu_contents);
 
+  // Called when the popup view becomes visible.
+  void OnPopupOpened();
+
+  // Helper for updating placeholder color depending on whether its a keyword or
+  // DSE placeholder.
+  void UpdatePlaceholderTextColor();
+
   // When true, the location bar view is read only and also is has a slightly
   // different presentation (smaller font size). This is used for popups.
   bool popup_window_mode_;
 
-  std::unique_ptr<OmniboxPopupViewViews> popup_view_;
+  // Owns either an OmniboxPopupViewViews or an OmniboxPopupViewWebUI.
+  std::unique_ptr<OmniboxPopupView> popup_view_;
+  base::CallbackListSubscription popup_view_opened_subscription_;
 
   // Selection persisted across temporary text changes, like popup suggestions.
-  std::vector<gfx::Range> saved_temporary_selection_;
+  gfx::Range saved_temporary_selection_;
 
   // Holds the user's selection across focus changes.  There is only a saved
   // selection if this range IsValid().
-  std::vector<gfx::Range> saved_selection_for_focus_change_;
+  gfx::Range saved_selection_for_focus_change_;
 
   // Tracking state before and after a possible change.
   State state_before_change_;
@@ -340,7 +346,7 @@ class OmniboxViewViews
   // |location_bar_view_| can be NULL in tests.
   raw_ptr<LocationBarView> location_bar_view_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // True if the IME candidate window is open. When this is true, we want to
   // avoid showing the popup. So far, the candidate window is detected only
   // on Chrome OS.
@@ -359,6 +365,10 @@ class OmniboxViewViews
   // We select in response to a click that focuses the omnibox, but we defer
   // until release, setting this variable back to false if we saw a drag, to
   // allow the user to select just a portion of the text.
+  //
+  // This also controls whether we trigger zero-prefix suggestions on mouse
+  // release, potentially presenting the popup, which we don't want to do if the
+  // user made a selection via a click-drag gesture.
   bool select_all_on_mouse_release_ = false;
 
   // Indicates if we want to select all text in the omnibox when we get a

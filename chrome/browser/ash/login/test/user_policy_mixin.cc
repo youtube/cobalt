@@ -12,7 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/common/chrome_paths.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/cryptohome/rpc.pb.h"
@@ -21,6 +21,7 @@
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
 #include "chromeos/dbus/constants/dbus_paths.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace ash {
 
@@ -91,7 +92,8 @@ void UserPolicyMixin::SetUpPolicy() {
   }
 
   user_policy_builder_.policy_data().set_username(account_id_.GetUserEmail());
-  user_policy_builder_.policy_data().set_gaia_id(account_id_.GetGaiaId());
+  user_policy_builder_.policy_data().set_gaia_id(
+      account_id_.GetGaiaId().ToString());
   user_policy_builder_.policy_data().set_public_key_version(1);
 
   user_policy_builder_.SetDefaultSigningKey();

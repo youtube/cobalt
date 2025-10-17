@@ -25,8 +25,6 @@ class RuntimeApplication;
 
 namespace chromecast {
 
-class RuntimeServiceImpl;
-
 class CastRuntimeContentBrowserClient : public shell::CastContentBrowserClient {
  public:
   explicit CastRuntimeContentBrowserClient(
@@ -55,10 +53,8 @@ class CastRuntimeContentBrowserClient : public shell::CastContentBrowserClient {
       content::BrowserContext* browser_context,
       const base::RepeatingCallback<content::WebContents*()>& wc_getter,
       content::NavigationUIData* navigation_ui_data,
-      int frame_tree_node_id) override;
-
- protected:
-  void InitializeCoreComponents(CastWebService* web_service);
+      content::FrameTreeNodeId frame_tree_node_id,
+      std::optional<int64_t> navigation_id) override;
 
  private:
   class Observer : public cast_receiver::StreamingResolutionObserver,
@@ -85,8 +81,7 @@ class CastRuntimeContentBrowserClient : public shell::CastContentBrowserClient {
 
     // Responsible for modifying the resolution of the screen for the embedded
     // device. Set during the first (and only) call to CreateCastService().
-    base::raw_ptr<media::VideoPlaneController> video_plane_controller_ =
-        nullptr;
+    raw_ptr<media::VideoPlaneController> video_plane_controller_ = nullptr;
 
     std::atomic_bool is_buffering_enabled_{false};
   };
@@ -96,7 +91,6 @@ class CastRuntimeContentBrowserClient : public shell::CastContentBrowserClient {
 
   // Wrapper around the observers used with the cast_receiver component.
   Observer observer_;
-  std::unique_ptr<RuntimeServiceImpl> runtime_service_;
 };
 
 }  // namespace chromecast

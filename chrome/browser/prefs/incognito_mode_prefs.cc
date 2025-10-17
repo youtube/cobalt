@@ -9,7 +9,6 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
@@ -25,10 +24,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/android/partner_browser_customizations.h"
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/startup/browser_params_proxy.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 using policy::IncognitoModeAvailability;
 
@@ -103,7 +98,6 @@ bool IncognitoModePrefs::CanOpenBrowser(Profile* profile) {
 
     default:
       NOTREACHED();
-      return false;
   }
 }
 
@@ -119,7 +113,7 @@ bool IncognitoModePrefs::ArePlatformParentalControlsEnabled() {
 #if BUILDFLAG(IS_WIN)
   return GetWinParentalControls().logging_required;
 #elif BUILDFLAG(IS_ANDROID)
-  return chrome::android::PartnerBrowserCustomizations::IsIncognitoDisabled();
+  return android::PartnerBrowserCustomizations::IsIncognitoDisabled();
 #else
   return false;
 #endif
@@ -165,12 +159,6 @@ bool IncognitoModePrefs::ShouldLaunchIncognitoInternal(
       forced_by_switch ||
       GetAvailabilityInternal(prefs, DONT_CHECK_PARENTAL_CONTROLS) ==
           IncognitoModeAvailability::kForced;
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto* init_params = chromeos::BrowserParamsProxy::Get();
-  should_use_incognito |=
-      init_params->InitialBrowserAction() ==
-      crosapi::mojom::InitialBrowserAction::kOpenIncognitoWindow;
-#endif
   return should_use_incognito &&
          GetAvailabilityInternal(prefs, CHECK_PARENTAL_CONTROLS) !=
              IncognitoModeAvailability::kDisabled;

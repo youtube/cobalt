@@ -12,16 +12,13 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "components/webapps/browser/android/add_to_homescreen_params.h"
 #include "components/webapps/browser/android/shortcut_info.h"
 #include "components/webapps/browser/installable/installable_logging.h"
 #include "components/webapps/common/web_page_metadata_agent.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-
-namespace favicon_base {
-struct FaviconRawBitmapResult;
-}
 
 namespace webapps {
 
@@ -36,15 +33,17 @@ class AddToHomescreenDataFetcher {
    public:
     // Called when the homescreen icon title (and possibly information from the
     // web manifest) is available.
-    virtual void OnUserTitleAvailable(const std::u16string& title,
-                                      const GURL& url,
-                                      bool is_webapk_compatible) = 0;
+    virtual void OnUserTitleAvailable(
+        const std::u16string& title,
+        const GURL& url,
+        AddToHomescreenParams::AppType app_type) = 0;
 
     // Called when all the data needed to prompt the user to add to home screen
     // is available.
     virtual void OnDataAvailable(
         const ShortcutInfo& info,
         const SkBitmap& primary_icon,
+        AddToHomescreenParams::AppType app_type,
         const InstallableStatusCode installable_status) = 0;
 
    protected:
@@ -64,44 +63,41 @@ class AddToHomescreenDataFetcher {
 
   ~AddToHomescreenDataFetcher();
 
-  // IPC message received when the initialization is finished.
-  void OnDidGetWebPageMetadata(
-      mojo::AssociatedRemote<mojom::WebPageMetadataAgent> webapps_render_frame,
-      mojom::WebPageMetadataPtr web_page_metadata);
-
   // Accessors, etc.
   content::WebContents* web_contents() { return web_contents_.get(); }
   const SkBitmap& primary_icon() const { return primary_icon_; }
   ShortcutInfo& shortcut_info() { return shortcut_info_; }
-  bool has_maskable_primary_icon() const { return has_maskable_primary_icon_; }
 
  private:
+  // Start the pipeline to fetch data.
+  void FetchInstallableData();
+
   // Called to stop the timeout timer.
   void StopTimer();
 
   // Called if either InstallableManager or the favicon fetch takes too long.
   void OnDataTimedout();
 
-  // Called when InstallableManager finishes looking for a manifest and icon.
-  void OnDidGetManifestAndIcons(const InstallableData& data);
+  // Called when InstallableManager finishes looking for a manifest.
+  void OnDidGetInstallableData(const InstallableData& data);
+
+  // Called when InstallableManager finishes looking for a primary icon.
+  void OnDidGetPrimaryIcon(const InstallableData& data);
 
   // Called when InstallableManager finishes checking for installability.
   void OnDidPerformInstallableCheck(const InstallableData& data);
 
-  // Grabs the favicon for the current URL.
-  void FetchFavicon();
-  void OnFaviconFetched(
-      const favicon_base::FaviconRawBitmapResult& bitmap_result);
+  // Called when installable check failed on any step and continue with the add
+  // shortcut flow.
+  void PrepareToAddShortcut();
 
   // Creates an icon to display to the user to confirm the add to home screen
   // from the given |base_icon|. If |use_for_launcher| is true, the created icon
   // will also be used as the launcher icon.
-  void CreateIconForView(const SkBitmap& base_icon, bool use_for_launcher);
+  void CreateIconForView(const SkBitmap& base_icon);
 
   // Notifies the observer that the shortcut data is all available.
-  void OnIconCreated(bool use_for_launcher,
-                     const SkBitmap& icon_for_view,
-                     bool is_icon_generated);
+  void OnIconCreated(const SkBitmap& icon_for_view, bool is_icon_generated);
 
   base::WeakPtr<content::WebContents> web_contents_;
 
@@ -115,15 +111,12 @@ class AddToHomescreenDataFetcher {
   SkBitmap raw_primary_icon_;
   SkBitmap primary_icon_;
   ShortcutInfo shortcut_info_;
-  bool has_maskable_primary_icon_;
 
   base::CancelableTaskTracker favicon_task_tracker_;
   base::OneShotTimer data_timeout_timer_;
   base::TimeTicks start_time_;
 
   const base::TimeDelta data_timeout_ms_;
-
-  bool is_waiting_for_manifest_;
 
   base::WeakPtrFactory<AddToHomescreenDataFetcher> weak_ptr_factory_{this};
 };

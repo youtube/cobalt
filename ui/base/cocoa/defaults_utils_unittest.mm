@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/cocoa/defaults_utils.h"
 
 #include <AppKit/AppKit.h>
@@ -40,8 +45,8 @@ class DefaultsUtilsTest : public CocoaTest {
     int i = 0;
     for (NSString* next_key in blink_period_keys) {
       orig_blink_period_values_[i++] =
-          [[NSUserDefaults standardUserDefaults] integerForKey:next_key];
-      [[NSUserDefaults standardUserDefaults] removeObjectForKey:next_key];
+          [NSUserDefaults.standardUserDefaults integerForKey:next_key];
+      [NSUserDefaults.standardUserDefaults removeObjectForKey:next_key];
     }
 
     // Make sure the test's blink period changes get picked up.
@@ -58,7 +63,7 @@ class DefaultsUtilsTest : public CocoaTest {
 
   // Sets the blink period to `milliseconds`. Removes all values from defaults.
   void SetBlinkPeriod(const int milliseconds) {
-    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
 
     [defaults removeObjectForKey:kInsertionPointBlinkPeriodOn];
     [defaults removeObjectForKey:kInsertionPointBlinkPeriodOff];
@@ -77,11 +82,11 @@ class DefaultsUtilsTest : public CocoaTest {
     int i = 0;
     for (NSString* next_key in blink_period_keys) {
       if (orig_blink_period_values_[i]) {
-        [[NSUserDefaults standardUserDefaults]
+        [NSUserDefaults.standardUserDefaults
             setInteger:orig_blink_period_values_[i]
                 forKey:next_key];
       } else {
-        [[NSUserDefaults standardUserDefaults] removeObjectForKey:next_key];
+        [NSUserDefaults.standardUserDefaults removeObjectForKey:next_key];
       }
       i++;
     }
@@ -90,7 +95,7 @@ class DefaultsUtilsTest : public CocoaTest {
   }
 
  private:
-  absl::optional<bool> refresh_flag_initial_value_;
+  std::optional<bool> refresh_flag_initial_value_;
   NSInteger orig_blink_period_values_[2];
 };
 
@@ -110,7 +115,7 @@ TEST_F(DefaultsUtilsTest, RefreshFlagResetsOnAppActivate) {
   EXPECT_FALSE(WillRefreshBlinkPeriod());
 
   // Simulate the app becoming active, as if the user switched away and back.
-  [[NSNotificationCenter defaultCenter]
+  [NSNotificationCenter.defaultCenter
       postNotificationName:NSApplicationWillBecomeActiveNotification
                     object:nil];
 
@@ -127,10 +132,9 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodNoDefaults) {
 
 // Tests returning the blink period from defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromDefaults) {
-  [[NSUserDefaults standardUserDefaults]
-      setInteger:k750MS
-          forKey:kInsertionPointBlinkPeriodOn];
-  [[NSUserDefaults standardUserDefaults]
+  [NSUserDefaults.standardUserDefaults setInteger:k750MS
+                                           forKey:kInsertionPointBlinkPeriodOn];
+  [NSUserDefaults.standardUserDefaults
       setInteger:k750MS
           forKey:kInsertionPointBlinkPeriodOff];
 
@@ -141,12 +145,10 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromDefaults) {
 // Tests returning the blink period when a double is stored in defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromDefaultsDouble) {
   const double k750WithFractionalMS = 750.6;
-  [[NSUserDefaults standardUserDefaults]
-      setDouble:k750WithFractionalMS
-         forKey:kInsertionPointBlinkPeriodOn];
-  [[NSUserDefaults standardUserDefaults]
-      setDouble:k750WithFractionalMS
-         forKey:kInsertionPointBlinkPeriodOff];
+  [NSUserDefaults.standardUserDefaults setDouble:k750WithFractionalMS
+                                          forKey:kInsertionPointBlinkPeriodOn];
+  [NSUserDefaults.standardUserDefaults setDouble:k750WithFractionalMS
+                                          forKey:kInsertionPointBlinkPeriodOff];
 
   EXPECT_EQ(base::Milliseconds(k750MS),
             *TextInsertionCaretBlinkPeriodFromDefaults());
@@ -155,9 +157,8 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromDefaultsDouble) {
 // Tests returning the blink period derived from just the on time setting in
 // defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromOnTime) {
-  [[NSUserDefaults standardUserDefaults]
-      setInteger:k750MS
-          forKey:kInsertionPointBlinkPeriodOn];
+  [NSUserDefaults.standardUserDefaults setInteger:k750MS
+                                           forKey:kInsertionPointBlinkPeriodOn];
 
   EXPECT_EQ(base::Milliseconds((k750MS + 0) / 2),
             *TextInsertionCaretBlinkPeriodFromDefaults());
@@ -166,7 +167,7 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromOnTime) {
 // Tests returning the blink period derived from just the off time setting in
 // defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromOffTime) {
-  [[NSUserDefaults standardUserDefaults]
+  [NSUserDefaults.standardUserDefaults
       setInteger:k250MS
           forKey:kInsertionPointBlinkPeriodOff];
 
@@ -177,10 +178,9 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromOffTime) {
 // Tests returning the blink period derived from the on and off times in
 // defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromOnOffTime) {
-  [[NSUserDefaults standardUserDefaults]
-      setInteger:k750MS
-          forKey:kInsertionPointBlinkPeriodOn];
-  [[NSUserDefaults standardUserDefaults]
+  [NSUserDefaults.standardUserDefaults setInteger:k750MS
+                                           forKey:kInsertionPointBlinkPeriodOn];
+  [NSUserDefaults.standardUserDefaults
       setInteger:k250MS
           forKey:kInsertionPointBlinkPeriodOff];
 
@@ -190,9 +190,8 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromOnOffTime) {
 
 // Tests returning "infinite" blink period for a long on time in defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromLongOnTime) {
-  [[NSUserDefaults standardUserDefaults]
-      setInteger:kTwoHoursInMS
-          forKey:kInsertionPointBlinkPeriodOn];
+  [NSUserDefaults.standardUserDefaults setInteger:kTwoHoursInMS
+                                           forKey:kInsertionPointBlinkPeriodOn];
 
   EXPECT_EQ(kInfiniteBlinkTime, *TextInsertionCaretBlinkPeriodFromDefaults());
 }
@@ -200,7 +199,7 @@ TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodFromLongOnTime) {
 // Tests handling of bad blink period times from defaults.
 TEST_F(DefaultsUtilsTest, InsertionPointBlinkPeriodNegativeTimes) {
   const int kNegativeMS = -500;
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
 
   // By setting the blink period we cause
   // TextInsertionCaretBlinkPeriodFromDefaults() to evaluate to true so

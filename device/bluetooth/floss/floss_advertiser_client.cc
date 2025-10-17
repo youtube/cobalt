@@ -8,6 +8,7 @@
 
 namespace floss {
 namespace {
+constexpr char kDiscoverable[] = "discoverable";
 constexpr char kConnectable[] = "connectable";
 constexpr char kScannable[] = "scannable";
 constexpr char kIsLegacy[] = "is_legacy";
@@ -36,11 +37,34 @@ void FlossDBusClient::WriteDBusParam(dbus::MessageWriter* writer,
 }
 
 template <>
+void FlossDBusClient::WriteDBusParam(
+    dbus::MessageWriter* writer,
+    const AdvertisingSetParametersOld& params) {
+  dbus::MessageWriter array(nullptr);
+
+  writer->OpenArray("{sv}", &array);
+
+  WriteDictEntry(&array, kConnectable, params.connectable);
+  WriteDictEntry(&array, kScannable, params.scannable);
+  WriteDictEntry(&array, kIsLegacy, params.is_legacy);
+  WriteDictEntry(&array, kIsAnonymous, params.is_anonymous);
+  WriteDictEntry(&array, kIncludeTxPower, params.include_tx_power);
+  WriteDictEntry(&array, kPrimaryPhy, params.primary_phy);
+  WriteDictEntry(&array, kSecondaryPhy, params.secondary_phy);
+  WriteDictEntry(&array, kInterval, params.interval);
+  WriteDictEntry(&array, kTxPowerLevel, params.tx_power_level);
+  WriteDictEntry(&array, kOwnAddressType, params.own_address_type);
+  writer->CloseContainer(&array);
+}
+
+template <>
 void FlossDBusClient::WriteDBusParam(dbus::MessageWriter* writer,
                                      const AdvertisingSetParameters& params) {
   dbus::MessageWriter array(nullptr);
 
   writer->OpenArray("{sv}", &array);
+
+  WriteDictEntry(&array, kDiscoverable, params.discoverable);
   WriteDictEntry(&array, kConnectable, params.connectable);
   WriteDictEntry(&array, kScannable, params.scannable);
   WriteDictEntry(&array, kIsLegacy, params.is_legacy);
@@ -101,6 +125,12 @@ const DBusTypeInfo& GetDBusTypeInfo(const OwnAddressType*) {
 }
 
 template <>
+const DBusTypeInfo& GetDBusTypeInfo(const AdvertisingSetParametersOld*) {
+  static DBusTypeInfo info{"a{sv}", "AdvertisingSetParametersOld"};
+  return info;
+}
+
+template <>
 const DBusTypeInfo& GetDBusTypeInfo(const AdvertisingSetParameters*) {
   static DBusTypeInfo info{"a{sv}", "AdvertisingSetParameters"};
   return info;
@@ -136,6 +166,25 @@ AdvertiseData::~AdvertiseData() = default;
 FlossAdvertiserClient::FlossAdvertiserClient() = default;
 
 FlossAdvertiserClient::~FlossAdvertiserClient() {
+  for (auto& [_, callbacks] : start_advertising_set_callbacks_) {
+    std::move(callbacks.second)
+        .Run(device::BluetoothAdvertisement::ERROR_STARTING_ADVERTISEMENT);
+  }
+  start_advertising_set_callbacks_.clear();
+  for (auto& [_, callbacks] : stop_advertising_set_callbacks_) {
+    std::move(callbacks.second)
+        .Run(device::BluetoothAdvertisement::ERROR_RESET_ADVERTISING);
+  }
+  stop_advertising_set_callbacks_.clear();
+  for (auto& [_, callbacks] : set_advertising_params_callbacks_) {
+    std::move(callbacks.second)
+        .Run(device::BluetoothAdvertisement::ERROR_STARTING_ADVERTISEMENT);
+  }
+  set_advertising_params_callbacks_.clear();
+  CallAdvertisingMethod<bool>(
+      base::BindOnce(&FlossAdvertiserClient::CompleteUnregisterCallback,
+                     weak_ptr_factory_.GetWeakPtr()),
+      advertiser::kUnregisterCallback, callback_id_);
   if (bus_) {
     exported_callback_manager_.UnexportCallback(
         dbus::ObjectPath(kAdvertisingSetCallbackPath));
@@ -145,10 +194,12 @@ FlossAdvertiserClient::~FlossAdvertiserClient() {
 void FlossAdvertiserClient::Init(dbus::Bus* bus,
                                  const std::string& service_name,
                                  const int adapter_index,
+                                 base::Version version,
                                  base::OnceClosure on_ready) {
   bus_ = bus;
   service_name_ = service_name;
   gatt_adapter_path_ = GenerateGattPath(adapter_index);
+  version_ = version;
 
   dbus::ObjectProxy* object_proxy =
       bus_->GetObjectProxy(service_name_, gatt_adapter_path_);
@@ -215,27 +266,52 @@ void FlossAdvertiserClient::RemoveObserver(
 void FlossAdvertiserClient::StartAdvertisingSet(
     const AdvertisingSetParameters& params,
     const AdvertiseData& adv_data,
-    const absl::optional<AdvertiseData> scan_rsp,
-    const absl::optional<PeriodicAdvertisingParameters> periodic_params,
-    const absl::optional<AdvertiseData> periodic_data,
+    const std::optional<AdvertiseData> scan_rsp,
+    const std::optional<PeriodicAdvertisingParameters> periodic_params,
+    const std::optional<AdvertiseData> periodic_data,
     const int32_t duration,
     const int32_t max_ext_adv_events,
     StartSuccessCallback success_callback,
     ErrorCallback error_callback) {
-  CallAdvertisingMethod(
-      base::BindOnce(
-          &FlossAdvertiserClient::CompleteStartAdvertisingSetCallback,
-          weak_ptr_factory_.GetWeakPtr(), std::move(success_callback),
-          std::move(error_callback)),
-      advertiser::kStartAdvertisingSet, params, adv_data, scan_rsp,
-      periodic_params, periodic_data, duration, max_ext_adv_events,
-      callback_id_);
+  if (version_ >= base::Version("0.5")) {
+    CallAdvertisingMethod(
+        base::BindOnce(
+            &FlossAdvertiserClient::CompleteStartAdvertisingSetCallback,
+            weak_ptr_factory_.GetWeakPtr(), std::move(success_callback),
+            std::move(error_callback)),
+        advertiser::kStartAdvertisingSet, params, adv_data, scan_rsp,
+        periodic_params, periodic_data, duration, max_ext_adv_events,
+        callback_id_);
+  } else {
+    AdvertisingSetParametersOld params_old = {
+        params.connectable,      params.scannable,        params.is_legacy,
+        params.is_anonymous,     params.include_tx_power, params.primary_phy,
+        params.secondary_phy,    params.interval,         params.tx_power_level,
+        params.own_address_type,
+    };
+
+    CallAdvertisingMethod(
+        base::BindOnce(
+            &FlossAdvertiserClient::CompleteStartAdvertisingSetCallback,
+            weak_ptr_factory_.GetWeakPtr(), std::move(success_callback),
+            std::move(error_callback)),
+        advertiser::kStartAdvertisingSet, params_old, adv_data, scan_rsp,
+        periodic_params, periodic_data, duration, max_ext_adv_events,
+        callback_id_);
+  }
 }
 
 void FlossAdvertiserClient::StopAdvertisingSet(
     const AdvertiserId adv_id,
     StopSuccessCallback success_callback,
     ErrorCallback error_callback) {
+  if (stop_advertising_set_callbacks_.contains(adv_id)) {
+    // Stop already called for this adv_id.
+    std::move(error_callback)
+        .Run(device::BluetoothAdvertisement::ERROR_RESET_ADVERTISING);
+    return;
+  }
+
   CallAdvertisingMethod(
       base::BindOnce(&FlossAdvertiserClient::CompleteStopAdvertisingSetCallback,
                      weak_ptr_factory_.GetWeakPtr(),
@@ -302,6 +378,12 @@ void FlossAdvertiserClient::CompleteRegisterCallback(
   }
 }
 
+void FlossAdvertiserClient::CompleteUnregisterCallback(DBusResult<bool> ret) {
+  if (!ret.has_value() || *ret == false) {
+    LOG(WARNING) << __func__ << ": Failed to unregister callback";
+  }
+}
+
 void FlossAdvertiserClient::CompleteStartAdvertisingSetCallback(
     StartSuccessCallback success_callback,
     ErrorCallback error_callback,
@@ -324,9 +406,22 @@ void FlossAdvertiserClient::CompleteStopAdvertisingSetCallback(
     ErrorCallback error_callback,
     const AdvertiserId adv_id,
     DBusResult<Void> ret) {
-  stop_advertising_set_callbacks_.insert(
-      {adv_id,
-       std::make_pair(std::move(success_callback), std::move(error_callback))});
+  if (!ret.has_value()) {
+    std::move(error_callback)
+        .Run(device::BluetoothAdvertisement::ERROR_RESET_ADVERTISING);
+    return;
+  }
+
+  auto found = stop_advertising_set_callbacks_.find(adv_id);
+  if (found != stop_advertising_set_callbacks_.end()) {
+    // |OnAdvertisingSetStopped| has already completed
+    std::move(success_callback).Run();
+    stop_advertising_set_callbacks_.erase(found);
+  } else {
+    stop_advertising_set_callbacks_.insert(
+        {adv_id, std::make_pair(std::move(success_callback),
+                                std::move(error_callback))});
+  }
 }
 
 void FlossAdvertiserClient::CompleteSetAdvertisingParametersCallback(
@@ -375,6 +470,13 @@ void FlossAdvertiserClient::OnAdvertisingSetStopped(AdvertiserId adv_id) {
     auto& [success_callback, error_callback] = found->second;
     std::move(success_callback).Run();
     stop_advertising_set_callbacks_.erase(found);
+  } else {
+    // We have seen instances where we will get |OnAdvertisingSetStopped|
+    // before |CompleteStopAdvertisingSetCallback|. In that case, put a
+    // placeholder in the map to signal that we should run
+    // corresponding callbacks in |CompleteStopAdvertisingSetCallback|
+    stop_advertising_set_callbacks_.insert(
+        {adv_id, std::make_pair(base::DoNothing(), base::DoNothing())});
   }
 }
 

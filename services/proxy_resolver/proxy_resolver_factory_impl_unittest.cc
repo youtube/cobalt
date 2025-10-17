@@ -4,6 +4,7 @@
 
 #include "services/proxy_resolver/proxy_resolver_factory_impl.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -23,7 +24,6 @@
 #include "services/proxy_resolver/proxy_resolver_v8_tracing.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using net::test::IsError;
 using net::test::IsOk;
@@ -64,7 +64,9 @@ enum Event {
 class TestProxyResolverFactory : public ProxyResolverV8TracingFactory {
  public:
   struct PendingRequest {
-    raw_ptr<std::unique_ptr<ProxyResolverV8Tracing>> resolver;
+    raw_ptr<std::unique_ptr<ProxyResolverV8Tracing>,
+            AcrossTasksDanglingUntriaged>
+        resolver;
     net::CompletionOnceCallback callback;
   };
 

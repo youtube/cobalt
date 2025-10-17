@@ -28,9 +28,10 @@ namespace storage {
 class FileStreamReader;
 class FileStreamWriter;
 enum class FlushPolicy;
+enum class FlushMode;
 
 // A delegate class for recursive copy or move operations.
-class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveOperationDelegate
+class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveOperationDelegate final
     : public RecursiveOperationDelegate {
  public:
   class CopyOrMoveImpl;
@@ -73,8 +74,8 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveOperationDelegate
     void DidWrite(scoped_refptr<net::DrainableIOBuffer> buffer, int result);
 
     // Flushes the written content in |writer_|.
-    void Flush(bool is_eof);
-    void DidFlush(bool is_eof, int result);
+    void Flush(FlushMode flush_mode);
+    void DidFlush(FlushMode flush_mode, int result);
 
     std::unique_ptr<FileStreamReader> reader_;
     std::unique_ptr<FileStreamWriter> writer_;
@@ -114,13 +115,35 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveOperationDelegate
                         StatusCallback callback) override;
   void PostProcessDirectory(const FileSystemURL& url,
                             StatusCallback callback) override;
-  // Force a given source URL to produce an error for a copy or a
-  // cross-filesystem move.
-  void SetErrorUrlForTest(const FileSystemURL& url) {
-    error_url_for_test_ = url;
+  base::WeakPtr<RecursiveOperationDelegate> AsWeakPtr() override;
+
+  // Posts a closure to run later but will not be run if `this` object is
+  // destroyed.
+  template <typename Functor, typename... Args>
+  void RunCopyOrMoveHookDelegateCallbackLater(Functor&& functor,
+                                              Args&&... args) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::WeakPtr<CopyOrMoveOperationDelegate> delegate,
+               base::OnceClosure closure) {
+              if (!delegate) {
+                return;
+              }
+              // Do not run the closure if delegate is gone as the
+              // parameters to the closure are bound to the lifecycle
+              // of delegate.
+              std::move(closure).Run();
+            },
+            weak_factory_.GetWeakPtr(),
+            base::BindOnce(std::forward<Functor>(functor),
+                           base::Unretained(copy_or_move_hook_delegate_.get()),
+                           std::forward<Args>(args)...)));
   }
 
-  void PostTask(base::OnceClosure closure);
+  // Force a given source URL to produce an error for a copy or a
+  // cross-filesystem move.
+  static void SetErrorUrlForTest(const FileSystemURL* url);
 
  protected:
   void OnCancel() override;
@@ -169,7 +192,6 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveOperationDelegate
   const ErrorBehavior error_behavior_;
   std::unique_ptr<CopyOrMoveHookDelegate> copy_or_move_hook_delegate_;
   StatusCallback callback_;
-  FileSystemURL error_url_for_test_;
 
   std::map<CopyOrMoveImpl*, std::unique_ptr<CopyOrMoveImpl>> running_copy_set_;
   base::WeakPtrFactory<CopyOrMoveOperationDelegate> weak_factory_{this};

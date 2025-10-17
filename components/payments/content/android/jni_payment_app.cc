@@ -12,12 +12,14 @@
 #include "base/android/jni_string.h"
 #include "base/functional/callback.h"
 #include "components/payments/content/android/byte_buffer_helper.h"
-#include "components/payments/content/android/jni_headers/JniPaymentApp_jni.h"
 #include "components/payments/content/android/payment_handler_host.h"
 #include "components/payments/content/payment_request_converter.h"
 #include "components/payments/core/payment_method_data.h"
 #include "third_party/blink/public/mojom/payments/payment_request.mojom.h"
 #include "ui/gfx/android/java_bitmap.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/payments/content/android/jni_headers/JniPaymentApp_jni.h"
 
 namespace payments {
 namespace {
@@ -45,18 +47,14 @@ ScopedJavaLocalRef<jobject> JniPaymentApp::Create(
   // JniPaymentApp::FreeNativeObject() call.
   JniPaymentApp* app = new JniPaymentApp(std::move(payment_app));
 
-  ScopedJavaLocalRef<jobject> icon;
-  if (app->payment_app_->icon_bitmap() &&
-      !app->payment_app_->icon_bitmap()->drawsNothing()) {
-    icon = gfx::ConvertToJavaBitmap(*app->payment_app_->icon_bitmap());
-  }
-
   return Java_JniPaymentApp_Constructor(
       env, ConvertUTF8ToJavaString(env, app->payment_app_->GetId()),
       ConvertUTF16ToJavaString(env, app->payment_app_->GetLabel()),
-      ConvertUTF16ToJavaString(env, app->payment_app_->GetSublabel()), icon,
+      ConvertUTF16ToJavaString(env, app->payment_app_->GetSublabel()),
+      app->payment_app_->icon_bitmap(),
       static_cast<jint>(app->payment_app_->type()),
-      reinterpret_cast<jlong>(app));
+      reinterpret_cast<jlong>(app), app->payment_app_->issuer_bitmap(),
+      app->payment_app_->network_bitmap());
 }
 
 ScopedJavaLocalRef<jobjectArray> JniPaymentApp::GetInstrumentMethodNames(
@@ -66,7 +64,7 @@ ScopedJavaLocalRef<jobjectArray> JniPaymentApp::GetInstrumentMethodNames(
                                     payment_app_->GetAppMethodNames().end()));
 }
 
-// TODO(crbug.com/1209835): Remove jdata_byte_buffer here, as it is no longer
+// TODO(crbug.com/40182225): Remove jdata_byte_buffer here, as it is no longer
 // used.
 bool JniPaymentApp::IsValidForPaymentMethodData(
     JNIEnv* env,

@@ -58,14 +58,14 @@ class TabStripScrollingOverflowIndicatorStrategy {
 };
 
 class GradientIndicatorView : public views::View {
+  METADATA_HEADER(GradientIndicatorView, views::View)
+
  public:
   explicit GradientIndicatorView(views::OverflowIndicatorAlignment side);
   GradientIndicatorView(views::OverflowIndicatorAlignment side,
                         int opaque_width,
                         int shadow_opaque_width,
                         int shadow_blur_width);
-  METADATA_HEADER(GradientIndicatorView);
-
   // Making this smaller than the margin provided by the leftmost/rightmost
   // tab's tail (TabStyle::kTabOverlap / 2) makes the transition in and out of
   // the scroll state smoother.
@@ -135,7 +135,7 @@ class GradientOverflowIndicatorStrategy
   }
 
  protected:
-  // The views, owned by |scroll_view_|, that indicate that there are more
+  // The views, owned by `scroll_view_`, that indicate that there are more
   // tabs overflowing to the left or right.
   raw_ptr<GradientIndicatorView> left_overflow_indicator_;
   raw_ptr<GradientIndicatorView> right_overflow_indicator_;

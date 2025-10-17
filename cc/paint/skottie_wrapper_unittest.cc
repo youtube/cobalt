@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "cc/paint/skottie_wrapper.h"
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/span.h"
@@ -27,6 +33,7 @@ namespace cc {
 namespace {
 
 using ::testing::_;
+using ::testing::AtLeast;
 using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::FieldsAre;
@@ -61,7 +68,7 @@ class MockFrameDataCallback {
 
 TEST(SkottieWrapperTest, LoadsValidLottieFileNonSerializable) {
   scoped_refptr<SkottieWrapper> skottie =
-      SkottieWrapper::CreateNonSerializable(base::span<const uint8_t>(
+      SkottieWrapper::UnsafeCreateNonSerializable(base::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()),
           kLottieDataWithoutAssets1.length()));
   EXPECT_TRUE(skottie->is_valid());
@@ -69,7 +76,7 @@ TEST(SkottieWrapperTest, LoadsValidLottieFileNonSerializable) {
 
 TEST(SkottieWrapperTest, LoadsValidLottieFileSerializable) {
   scoped_refptr<SkottieWrapper> skottie =
-      SkottieWrapper::CreateSerializable(std::vector<uint8_t>(
+      SkottieWrapper::UnsafeCreateSerializable(std::vector<uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()),
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()) +
               kLottieDataWithoutAssets1.length()));
@@ -77,9 +84,9 @@ TEST(SkottieWrapperTest, LoadsValidLottieFileSerializable) {
 }
 
 TEST(SkottieWrapperTest, DetectsInvalidLottieFile) {
-  static constexpr base::StringPiece kInvalidJson = "this is invalid json";
+  static constexpr std::string_view kInvalidJson = "this is invalid json";
   scoped_refptr<SkottieWrapper> skottie =
-      SkottieWrapper::CreateNonSerializable(base::span<const uint8_t>(
+      SkottieWrapper::UnsafeCreateNonSerializable(base::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(kInvalidJson.data()),
           kInvalidJson.length()));
   EXPECT_FALSE(skottie->is_valid());
@@ -87,11 +94,11 @@ TEST(SkottieWrapperTest, DetectsInvalidLottieFile) {
 
 TEST(SkottieWrapperTest, IdMatchesForSameLottieFile) {
   scoped_refptr<SkottieWrapper> skottie_1 =
-      SkottieWrapper::CreateNonSerializable(base::span<const uint8_t>(
+      SkottieWrapper::UnsafeCreateNonSerializable(base::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()),
           kLottieDataWithoutAssets1.length()));
   scoped_refptr<SkottieWrapper> skottie_2 =
-      SkottieWrapper::CreateSerializable(std::vector<uint8_t>(
+      SkottieWrapper::UnsafeCreateSerializable(std::vector<uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()),
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()) +
               kLottieDataWithoutAssets1.length()));
@@ -102,11 +109,11 @@ TEST(SkottieWrapperTest, IdMatchesForSameLottieFile) {
 
 TEST(SkottieWrapperTest, IdDoesNotMatchForDifferentLottieFile) {
   scoped_refptr<SkottieWrapper> skottie_1 =
-      SkottieWrapper::CreateNonSerializable(base::span<const uint8_t>(
+      SkottieWrapper::UnsafeCreateNonSerializable(base::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets1.data()),
           kLottieDataWithoutAssets1.length()));
   scoped_refptr<SkottieWrapper> skottie_2 =
-      SkottieWrapper::CreateNonSerializable(base::span<const uint8_t>(
+      SkottieWrapper::UnsafeCreateNonSerializable(base::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWithoutAssets2.data()),
           kLottieDataWithoutAssets2.length()));
   ASSERT_TRUE(skottie_1->is_valid());
@@ -116,7 +123,7 @@ TEST(SkottieWrapperTest, IdDoesNotMatchForDifferentLottieFile) {
 
 TEST(SkottieWrapperTest, LoadsImageAssetsMetadata) {
   scoped_refptr<SkottieWrapper> skottie =
-      SkottieWrapper::CreateNonSerializable(base::span<const uint8_t>(
+      SkottieWrapper::UnsafeCreateNonSerializable(base::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(kLottieDataWith2Assets.data()),
           kLottieDataWith2Assets.length()));
   ASSERT_TRUE(skottie->is_valid());
@@ -257,9 +264,10 @@ TEST(SkottieWrapperTest, SetsTextNodesWithDraw) {
 
   SkottieTextPropertyValueMap text_map = {
       {HashSkottieResourceId(kLottieDataWith2TextNode1),
-       SkottieTextPropertyValue("new-test-text-1", gfx::RectF(1, 1, 1, 1))},
+       SkottieTextPropertyValue("new-test-text-1", gfx::RectF(1, 1, 100, 100))},
       {HashSkottieResourceId(kLottieDataWith2TextNode2),
-       SkottieTextPropertyValue("new-test-text-2", gfx::RectF(2, 2, 2, 2))}};
+       SkottieTextPropertyValue("new-test-text-2",
+                                gfx::RectF(2, 2, 200, 200))}};
   skottie->Draw(&canvas, /*t=*/0, SkRect::MakeWH(500, 500),
                 SkottieWrapper::FrameDataCallback(), SkottieColorMap(),
                 text_map);
@@ -267,14 +275,16 @@ TEST(SkottieWrapperTest, SetsTextNodesWithDraw) {
               UnorderedElementsAre(
                   Pair(HashSkottieResourceId(kLottieDataWith2TextNode1),
                        SkottieTextPropertyValue("new-test-text-1",
-                                                gfx::RectF(1, 1, 1, 1))),
+                                                gfx::RectF(1, 1, 100, 100))),
                   Pair(HashSkottieResourceId(kLottieDataWith2TextNode2),
                        SkottieTextPropertyValue("new-test-text-2",
-                                                gfx::RectF(2, 2, 2, 2)))));
+                                                gfx::RectF(2, 2, 200, 200)))));
+  // Check that we've actually drawn some text.
+  EXPECT_CALL(canvas, onDrawGlyphRunList).Times(AtLeast(1));
 
-  text_map = {
-      {HashSkottieResourceId(kLottieDataWith2TextNode2),
-       SkottieTextPropertyValue("new-test-text-2b", gfx::RectF(3, 3, 3, 3))}};
+  text_map = {{HashSkottieResourceId(kLottieDataWith2TextNode2),
+               SkottieTextPropertyValue("new-test-text-2b",
+                                        gfx::RectF(3, 3, 300, 300))}};
   skottie->Draw(&canvas, /*t=*/0.1, SkRect::MakeWH(500, 500),
                 SkottieWrapper::FrameDataCallback(), SkottieColorMap(),
                 text_map);
@@ -282,10 +292,26 @@ TEST(SkottieWrapperTest, SetsTextNodesWithDraw) {
               UnorderedElementsAre(
                   Pair(HashSkottieResourceId(kLottieDataWith2TextNode1),
                        SkottieTextPropertyValue("new-test-text-1",
-                                                gfx::RectF(1, 1, 1, 1))),
+                                                gfx::RectF(1, 1, 100, 100))),
                   Pair(HashSkottieResourceId(kLottieDataWith2TextNode2),
                        SkottieTextPropertyValue("new-test-text-2b",
-                                                gfx::RectF(3, 3, 3, 3)))));
+                                                gfx::RectF(3, 3, 300, 300)))));
+
+  // Missing glyphs should not trigger a crash.
+  text_map = {
+      {HashSkottieResourceId(kLottieDataWith2TextNode1),
+       SkottieTextPropertyValue("hello 你好", gfx::RectF(4, 4, 400, 400))}};
+  skottie->Draw(&canvas, /*t=*/0.2, SkRect::MakeWH(500, 500),
+                SkottieWrapper::FrameDataCallback(), SkottieColorMap(),
+                text_map);
+  EXPECT_THAT(skottie->GetCurrentTextPropertyValues(),
+              UnorderedElementsAre(
+                  Pair(HashSkottieResourceId(kLottieDataWith2TextNode1),
+                       SkottieTextPropertyValue("hello 你好",
+                                                gfx::RectF(4, 4, 400, 400))),
+                  Pair(HashSkottieResourceId(kLottieDataWith2TextNode2),
+                       SkottieTextPropertyValue("new-test-text-2b",
+                                                gfx::RectF(3, 3, 300, 300)))));
 }
 
 TEST(SkottieWrapperTest, Marker) {

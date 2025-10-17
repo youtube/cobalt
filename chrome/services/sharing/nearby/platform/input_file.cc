@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/services/sharing/nearby/platform/input_file.h"
 
 #include <vector>
 
 #include "base/logging.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 InputFile::InputFile(base::File file) : file_(std::move(file)) {}
 
@@ -56,5 +60,4 @@ base::File InputFile::ExtractUnderlyingFile() {
   return std::move(file_);
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

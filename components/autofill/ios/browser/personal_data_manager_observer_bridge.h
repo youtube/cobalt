@@ -7,7 +7,7 @@
 
 #import <Foundation/Foundation.h>
 
-#include "components/autofill/core/browser/personal_data_manager_observer.h"
+#import "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
 
 // PersonalDataManagerObserver is used by PersonalDataManager to informs its
 // client implemented in Objective-C when it has finished loading personal data
@@ -16,11 +16,6 @@
 
 // Called when the PersonalDataManager changed in some way.
 - (void)onPersonalDataChanged;
-
-@optional
-
-// Called when there is insufficient data to fill a form.
-- (void)onInsufficientFormData;
 
 @end
 
@@ -42,7 +37,6 @@ class PersonalDataManagerObserverBridge : public PersonalDataManagerObserver {
 
   // PersonalDataManagerObserver implementation.
   void OnPersonalDataChanged() override;
-  void OnInsufficientFormData() override;
 
  private:
   __weak id<PersonalDataManagerObserver> delegate_;

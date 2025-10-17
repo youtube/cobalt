@@ -27,9 +27,9 @@ namespace views {
 // continues to fire the clicked action as the mouse button remains pressed
 // down on the button.
 class VIEWS_EXPORT ScrollBarButton : public Button {
- public:
-  METADATA_HEADER(ScrollBarButton);
+  METADATA_HEADER(ScrollBarButton, Button)
 
+ public:
   enum class Type {
     kUp,
     kDown,
@@ -44,7 +44,8 @@ class VIEWS_EXPORT ScrollBarButton : public Button {
   ScrollBarButton& operator=(const ScrollBarButton&) = delete;
   ~ScrollBarButton() override;
 
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& /*available_size*/) const override;
 
  protected:
   // Button

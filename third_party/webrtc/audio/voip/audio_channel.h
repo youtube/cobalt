@@ -29,13 +29,13 @@ namespace webrtc {
 // AudioChannel represents a single media session and provides APIs over
 // AudioIngress and AudioEgress. Note that a single RTP stack is shared with
 // these two classes as it has both sending and receiving capabilities.
-class AudioChannel : public rtc::RefCountInterface {
+class AudioChannel : public RefCountInterface {
  public:
-  AudioChannel(Transport* transport,
+  AudioChannel(const Environment& env,
+               Transport* transport,
                uint32_t local_ssrc,
-               TaskQueueFactory* task_queue_factory,
                AudioMixer* audio_mixer,
-               rtc::scoped_refptr<AudioDecoderFactory> decoder_factory);
+               scoped_refptr<AudioDecoderFactory> decoder_factory);
   ~AudioChannel() override;
 
   // Set and get ChannelId that this audio channel belongs for debugging and
@@ -59,7 +59,7 @@ class AudioChannel : public rtc::RefCountInterface {
                   std::unique_ptr<AudioEncoder> encoder) {
     egress_->SetEncoder(payload_type, encoder_format, std::move(encoder));
   }
-  absl::optional<SdpAudioFormat> GetEncoderFormat() const {
+  std::optional<SdpAudioFormat> GetEncoderFormat() const {
     return egress_->GetEncoderFormat();
   }
   void RegisterTelephoneEventType(int rtp_payload_type, int sample_rate_hz) {
@@ -72,10 +72,10 @@ class AudioChannel : public rtc::RefCountInterface {
 
   // APIs relayed to AudioIngress.
   bool IsPlaying() const { return ingress_->IsPlaying(); }
-  void ReceivedRTPPacket(rtc::ArrayView<const uint8_t> rtp_packet) {
+  void ReceivedRTPPacket(ArrayView<const uint8_t> rtp_packet) {
     ingress_->ReceivedRTPPacket(rtp_packet);
   }
-  void ReceivedRTCPPacket(rtc::ArrayView<const uint8_t> rtcp_packet) {
+  void ReceivedRTCPPacket(ArrayView<const uint8_t> rtcp_packet) {
     ingress_->ReceivedRTCPPacket(rtcp_packet);
   }
   void SetReceiveCodecs(const std::map<int, SdpAudioFormat>& codecs) {

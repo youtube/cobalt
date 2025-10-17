@@ -5,6 +5,7 @@
 #include "content/public/test/url_loader_interceptor.h"
 
 #include "base/command_line.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "build/build_config.h"
@@ -24,6 +25,7 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/system/data_pipe_utils.h"
 #include "net/base/filename_util.h"
+#include "net/base/isolation_info.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/features.h"
@@ -94,7 +96,7 @@ IN_PROC_BROWSER_TEST_F(URLLoaderInterceptorTest, InterceptFrameWithFileScheme) {
   URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](URLLoaderInterceptor::RequestParams* params) {
         EXPECT_EQ(params->url_request.url, url);
-        EXPECT_EQ(params->process_id, 0);
+        EXPECT_EQ(params->process_id, network::mojom::kBrowserProcessId);
         seen = true;
         network::URLLoaderCompletionStatus status;
         status.error_code = net::ERR_FAILED;
@@ -158,24 +160,26 @@ class TestBrowserClientWithHeaderClient
       public network::mojom::TrustedURLLoaderHeaderClient {
  private:
   // ContentBrowserClient:
-  bool WillCreateURLLoaderFactory(
+  void WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
       content::RenderFrameHost* frame,
       int render_process_id,
       URLLoaderFactoryType type,
       const url::Origin& request_initiator,
-      absl::optional<int64_t> navigation_id,
+      const net::IsolationInfo& isolation_info,
+      std::optional<int64_t> navigation_id,
       ukm::SourceIdObj ukm_source_id,
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory>* factory_receiver,
+      network::URLLoaderFactoryBuilder& factory_builder,
       mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
           header_client,
       bool* bypass_redirect_checks,
       bool* disable_secure_dns,
-      network::mojom::URLLoaderFactoryOverridePtr* factory_override) override {
+      network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+      scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
+      override {
     if (header_client) {
       receivers_.Add(this, header_client->InitWithNewPipeAndPassReceiver());
     }
-    return true;
   }
 
   // network::mojom::TrustedURLLoaderHeaderClient:

@@ -9,28 +9,30 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list_buildflags.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
 class FieldTrial;
 class FieldTrialList;
 class PersistentMemoryAllocator;
+class FeatureVisitor;
 
 // Specifies whether a given feature is enabled or disabled by default.
 // NOTE: The actual runtime state may be different, due to a field trial or a
@@ -40,7 +42,7 @@ enum FeatureState {
   FEATURE_ENABLED_BY_DEFAULT,
 };
 
-// Recommended macros for declaring and defining features:
+// Recommended macros for declaring and defining features and parameters:
 //
 // - `kFeature` is the C++ identifier that will be used for the `base::Feature`.
 // - `name` is the feature name, which must be globally unique. This name is
@@ -60,7 +62,7 @@ enum FeatureState {
 //
 //   COMPONENT_EXPORT(MY_COMPONENT) BASE_DECLARE_FEATURE(kMyFeature);
 #define BASE_DECLARE_FEATURE(kFeature) \
-  extern CONSTINIT const base::Feature kFeature
+  extern constinit const base::Feature kFeature
 
 // Provides a definition for `kFeature` with `name` and `default_state`, e.g.
 //
@@ -69,7 +71,84 @@ enum FeatureState {
 // Features should *not* be defined in header files; do not use this macro in
 // header files.
 #define BASE_FEATURE(feature, name, default_state) \
-  CONSTINIT const base::Feature feature(name, default_state)
+  constinit const base::Feature feature(           \
+      name, default_state, base::internal::FeatureMacroHandshake::kSecret)
+
+// Provides a forward declaration for `feature_object_name` in a header file,
+// e.g.
+//
+//   BASE_DECLARE_FEATURE_PARAM(int, kMyFeatureParam);
+//
+// If the feature needs to be marked as exported, i.e. it is referenced by
+// multiple components, then write:
+//
+//   COMPONENT_EXPORT(MY_COMPONENT)
+//   BASE_DECLARE_FEATURE_PARAM(int, kMyFeatureParam);
+//
+// This macro enables optimizations to make the second and later calls faster,
+// but requires additional memory uses. If you obtain the parameter only once,
+// you can instantiate base::FeatureParam directly, or can call
+// base::GetFieldTrialParamByFeatureAsInt or equivalent functions for other
+// types directly.
+#define BASE_DECLARE_FEATURE_PARAM(T, feature_object_name) \
+  extern constinit const base::FeatureParam<T> feature_object_name
+
+// Provides a definition for `feature_object_name` with `T`, `feature`, `name`
+// and `default_value`, with an internal parsed value cache, e.g.
+//
+//   BASE_FEATURE_PARAM(int, kMyFeatureParam, &kMyFeature, "my_feature_param",
+//                      0);
+//
+// `T` is a parameter type, one of bool, int, size_t, double, std::string, and
+// base::TimeDelta. Enum types are not supported for now.
+//
+// It should *not* be defined in header files; do not use this macro in header
+// files.
+//
+// WARNING: If the feature is not enabled, the parameter is not set, or set to
+// an invalid value (per the param type), then Get() will return the default
+// value passed to this C++ macro. In particular this will typically return the
+// default value regardless of the server-side config in control groups.
+#define BASE_FEATURE_PARAM(T, feature_object_name, feature, name,       \
+                           default_value)                               \
+  namespace field_trial_params_internal {                               \
+  T GetFeatureParamWithCacheFor##feature_object_name(                   \
+      const base::FeatureParam<T>* feature_param) {                     \
+    static const typename base::internal::FeatureParamTraits<           \
+        T>::CacheStorageType storage =                                  \
+        base::internal::FeatureParamTraits<T>::ToCacheStorageType(      \
+            feature_param->GetWithoutCache());                          \
+    return base::internal::FeatureParamTraits<T>::FromCacheStorageType( \
+        storage);                                                       \
+  }                                                                     \
+  } /* field_trial_params_internal */                                   \
+  constinit const base::FeatureParam<T> feature_object_name(            \
+      feature, name, default_value,                                     \
+      &field_trial_params_internal::                                    \
+          GetFeatureParamWithCacheFor##feature_object_name)
+
+// Same as BASE_FEATURE_PARAM() but used for enum type parameters with on extra
+// argument, `options`. See base::FeatureParam<Enum> template declaration in
+// //base/metrics/field_trial_params.h for `options`' details.
+#define BASE_FEATURE_ENUM_PARAM(T, feature_object_name, feature, name, \
+                                default_value, options)                \
+  namespace field_trial_params_internal {                              \
+  T GetFeatureParamWithCacheFor##feature_object_name(                  \
+      const base::FeatureParam<T>* feature_param) {                    \
+    static const T param = feature_param->GetWithoutCache();           \
+    return param;                                                      \
+  }                                                                    \
+  } /* field_trial_params_internal */                                  \
+  constinit const base::FeatureParam<T> feature_object_name(           \
+      feature, name, default_value, options,                           \
+      &field_trial_params_internal::                                   \
+          GetFeatureParamWithCacheFor##feature_object_name)
+
+// Secret handshake to (try to) ensure all places that construct a base::Feature
+// go through the helper `BASE_FEATURE()` macro above.
+namespace internal {
+enum class FeatureMacroHandshake { kSecret };
+}
 
 // The Feature struct is used to define the default state for a feature. There
 // must only ever be one struct instance for a given feature name—generally
@@ -93,10 +172,13 @@ enum FeatureState {
 // [1]:
 // https://crsrc.org/c/docs/speed/binary_size/android_binary_size_trybot.md#Mutable-Constants
 struct BASE_EXPORT LOGICALLY_CONST Feature {
-  constexpr Feature(const char* name, FeatureState default_state)
+  constexpr Feature(const char* name,
+                    FeatureState default_state,
+                    internal::FeatureMacroHandshake)
       : name(name), default_state(default_state) {
 #if BUILDFLAG(ENABLE_BANNED_BASE_FEATURE_PREFIX)
-    if (StringPiece(name).find(BUILDFLAG(BANNED_BASE_FEATURE_PREFIX)) == 0) {
+    if (std::string_view(name).find(BUILDFLAG(BANNED_BASE_FEATURE_PREFIX)) ==
+        0) {
       LOG(FATAL) << "Invalid feature name " << name << " starts with "
                  << BUILDFLAG(BANNED_BASE_FEATURE_PREFIX);
     }
@@ -230,11 +312,11 @@ class BASE_EXPORT FeatureList {
     // Callers of this MUST ensure that there is a consistent, compile-time
     // default value associated.
     FeatureList::OverrideState GetOverrideStateByFeatureName(
-        StringPiece feature_name);
+        std::string_view feature_name);
 
     // Look up the feature, and, if present, populate |params|.
     // See GetFieldTrialParams in field_trial_params.h for more documentation.
-    bool GetParamsByFeatureName(StringPiece feature_name,
+    bool GetParamsByFeatureName(std::string_view feature_name,
                                 std::map<std::string, std::string>* params);
 
    private:
@@ -245,7 +327,7 @@ class BASE_EXPORT FeatureList {
 
     // Unowned pointer to the FeatureList object we use to look up feature
     // enablement.
-    raw_ptr<FeatureList> feature_list_;
+    raw_ptr<FeatureList, DanglingUntriaged> feature_list_;
   };
 
   // Describes a feature override. The first member is a Feature that will be
@@ -274,13 +356,13 @@ class BASE_EXPORT FeatureList {
   // If a feature name is prefixed with the '*' character, it will be created
   // with OVERRIDE_USE_DEFAULT - which is useful for associating with a trial
   // while using the default state.
-  void InitializeFromCommandLine(const std::string& enable_features,
-                                 const std::string& disable_features);
+  void InitFromCommandLine(const std::string& enable_features,
+                           const std::string& disable_features);
 
   // Initializes feature overrides through the field trial allocator, which
   // we're using to store the feature names, their override state, and the name
   // of the associated field trial.
-  void InitializeFromSharedMemory(PersistentMemoryAllocator* allocator);
+  void InitFromSharedMemory(PersistentMemoryAllocator* allocator);
 
   // Returns true if the state of |feature_name| has been overridden (regardless
   // of whether the overridden value is the same as the default value) for any
@@ -288,32 +370,32 @@ class BASE_EXPORT FeatureList {
   bool IsFeatureOverridden(const std::string& feature_name) const;
 
   // Returns true if the state of |feature_name| has been overridden via
-  // |InitializeFromCommandLine()|. This includes features explicitly
+  // |InitFromCommandLine()|. This includes features explicitly
   // disabled/enabled with --disable-features and --enable-features, as well as
   // any extra feature overrides that depend on command line switches.
   bool IsFeatureOverriddenFromCommandLine(
       const std::string& feature_name) const;
 
   // Returns true if the state |feature_name| has been overridden by
-  // |InitializeFromCommandLine()| and the state matches |state|.
+  // |InitFromCommandLine()| and the state matches |state|.
   bool IsFeatureOverriddenFromCommandLine(const std::string& feature_name,
                                           OverrideState state) const;
 
   // Associates a field trial for reporting purposes corresponding to the
   // command-line setting the feature state to |for_overridden_state|. The trial
   // will be activated when the state of the feature is first queried. This
-  // should be called during registration, after InitializeFromCommandLine() has
+  // should be called during registration, after InitFromCommandLine() has
   // been called but before the instance is registered via SetInstance().
   void AssociateReportingFieldTrial(const std::string& feature_name,
                                     OverrideState for_overridden_state,
                                     FieldTrial* field_trial);
 
   // Registers a field trial to override the enabled state of the specified
-  // feature to |override_state|. Command-line overrides still take precedence
+  // feature to `override_state`. Command-line overrides still take precedence
   // over field trials, so this will have no effect if the feature is being
   // overridden from the command-line. The associated field trial will be
   // activated when the feature state for this feature is queried. This should
-  // be called during registration, after InitializeFromCommandLine() has been
+  // be called during registration, after InitFromCommandLine() has been
   // called but before the instance is registered via SetInstance().
   void RegisterFieldTrialOverride(const std::string& feature_name,
                                   OverrideState override_state,
@@ -321,18 +403,22 @@ class BASE_EXPORT FeatureList {
 
   // Adds extra overrides (not associated with a field trial). Should be called
   // before SetInstance().
-  // The ordering of calls with respect to InitializeFromCommandLine(),
+  // The ordering of calls with respect to InitFromCommandLine(),
   // RegisterFieldTrialOverride(), etc. matters. The first call wins out,
-  // because the |overrides_| map uses insert(), which retains the first
-  // inserted entry and does not overwrite it on subsequent calls to insert().
+  // because the `overrides_` map uses emplace(), which retains the first
+  // inserted entry and does not overwrite it on subsequent calls to emplace().
+  //
+  // If `replace_use_default_overrides` is true, if there is an existing entry
+  // with type OVERRIDE_USE_DEFAULT, that entry will be replaced.
   void RegisterExtraFeatureOverrides(
-      const std::vector<FeatureOverrideInfo>& extra_overrides);
+      const std::vector<FeatureOverrideInfo>& extra_overrides,
+      bool replace_use_default_overrides = false);
 
   // Loops through feature overrides and serializes them all into |allocator|.
   void AddFeaturesToAllocator(PersistentMemoryAllocator* allocator);
 
   // Returns comma-separated lists of feature names (in the same format that is
-  // accepted by InitializeFromCommandLine()) corresponding to features that
+  // accepted by InitFromCommandLine()) corresponding to features that
   // have been overridden - either through command-line or via FieldTrials. For
   // those features that have an associated FieldTrial, the output entry will be
   // of the format "FeatureName<TrialName" (|include_group_name|=false) or
@@ -354,7 +440,7 @@ class BASE_EXPORT FeatureList {
   // Returns the field trial associated with the given feature |name|. Used for
   // getting the FieldTrial without requiring a struct Feature.
   base::FieldTrial* GetAssociatedFieldTrialByFeatureName(
-      StringPiece name) const;
+      std::string_view name) const;
 
   // DO NOT USE outside of internal field trial implementation code. Instead use
   // GetAssociatedFieldTrialByFeatureName(), which performs some additional
@@ -365,11 +451,11 @@ class BASE_EXPORT FeatureList {
   // GetAssociatedFieldTrialByFeatureName(), this function must be called during
   // |FeatureList| initialization; the returned value will report whether the
   // provided |name| has been used so far.
-  bool HasAssociatedFieldTrialByFeatureName(StringPiece name) const;
+  bool HasAssociatedFieldTrialByFeatureName(std::string_view name) const;
 
   // Get associated field trial for the given feature |name| only if override
   // enables it.
-  FieldTrial* GetEnabledFieldTrialByFeatureName(StringPiece name) const;
+  FieldTrial* GetEnabledFieldTrialByFeatureName(std::string_view name) const;
 
   // Construct an accessor allowing access to GetOverrideStateByFeatureName().
   // This can only be called before the FeatureList is initialized, and is
@@ -382,14 +468,14 @@ class BASE_EXPORT FeatureList {
   //
   // If no `FeatureList` instance is registered, this will:
   // - DCHECK(), if FailOnFeatureAccessWithoutFeatureList() was called.
-  //     TODO(crbug.com/1358639): Change the DCHECK to a CHECK when we're
+  //     TODO(crbug.com/40237050): Change the DCHECK to a CHECK when we're
   //     confident that all early accesses have been fixed. We don't want to
   //     get many crash reports from the field in the meantime.
   // - Return the default state, otherwise. Registering a `FeatureList` later
   //   will fail.
   //
-  // TODO(crbug.com/1358639): Make early FeatureList access fail on iOS, Android
-  // and ChromeOS. This currently only works on Windows, Mac and Linux.
+  // TODO(crbug.com/40237050): Make early FeatureList access fail on iOS,
+  // Android and ChromeOS. This currently only works on Windows, Mac and Linux.
   //
   // A feature with a given name must only have a single corresponding Feature
   // instance, which is checked in builds with DCHECKs enabled.
@@ -401,14 +487,14 @@ class BASE_EXPORT FeatureList {
   // (since they are used in command-line API functions that require ASCII) and
   // whether there are any reserved characters present, returning true if the
   // string is valid.
-  static bool IsValidFeatureOrFieldTrialName(StringPiece name);
+  static bool IsValidFeatureOrFieldTrialName(std::string_view name);
 
   // If the given |feature| is overridden, returns its enabled state; otherwise,
   // returns an empty optional. Must only be called after the singleton instance
   // has been registered via SetInstance(). Additionally, a feature with a given
   // name must only have a single corresponding Feature struct, which is checked
   // in builds with DCHECKs enabled.
-  static absl::optional<bool> GetStateIfOverridden(const Feature& feature);
+  static std::optional<bool> GetStateIfOverridden(const Feature& feature);
 
   // Returns the field trial associated with the given |feature|. Must only be
   // called after the singleton instance has been registered via SetInstance().
@@ -416,17 +502,17 @@ class BASE_EXPORT FeatureList {
 
   // Splits a comma-separated string containing feature names into a vector. The
   // resulting pieces point to parts of |input|.
-  static std::vector<base::StringPiece> SplitFeatureListString(
-      base::StringPiece input);
+  static std::vector<std::string_view> SplitFeatureListString(
+      std::string_view input);
 
   // Checks and parses the |enable_feature| (e.g.
-  // FeatureName<Study.Group:Param1/value1/) obtained by applying
+  // FeatureName<Study.Group:param1/value1/) obtained by applying
   // SplitFeatureListString() to the |enable_features| flag, and sets
   // |feature_name| to be the feature's name, |study_name| and |group_name| to
   // be the field trial name and its group name if the field trial is specified
   // or field trial parameters are given, |params| to be the field trial
   // parameters if exists.
-  static bool ParseEnableFeatureString(StringPiece enable_feature,
+  static bool ParseEnableFeatureString(std::string_view enable_feature,
                                        std::string* feature_name,
                                        std::string* study_name,
                                        std::string* group_name,
@@ -435,15 +521,15 @@ class BASE_EXPORT FeatureList {
   // Initializes and sets an instance of FeatureList with feature overrides via
   // command-line flags |enable_features| and |disable_features| if one has not
   // already been set from command-line flags. Returns true if an instance did
-  // not previously exist. See InitializeFromCommandLine() for more details
+  // not previously exist. See InitFromCommandLine() for more details
   // about |enable_features| and |disable_features| parameters.
-  static bool InitializeInstance(const std::string& enable_features,
-                                 const std::string& disable_features);
+  static bool InitInstance(const std::string& enable_features,
+                           const std::string& disable_features);
 
   // Like the above, but also adds extra overrides. If a feature appears in
   // |extra_overrides| and also |enable_features| or |disable_features|, the
   // disable/enable will supersede the extra overrides.
-  static bool InitializeInstance(
+  static bool InitInstance(
       const std::string& enable_features,
       const std::string& disable_features,
       const std::vector<FeatureOverrideInfo>& extra_overrides);
@@ -457,6 +543,16 @@ class BASE_EXPORT FeatureList {
   // Note: If you are considering using this for the purposes of testing, take
   // a look at using base/test/scoped_feature_list.h instead.
   static void SetInstance(std::unique_ptr<FeatureList> instance);
+
+  // Registers the given `instance` to be the temporary singleton feature list
+  // for this process. While the given `instance` is the singleton feature list,
+  // only the state of features matching `allowed_feature_names` can be checked.
+  // Attempting to query other feature will behave as if no feature list was set
+  // at all. It is expected that this instance is replaced using `SetInstance`
+  // with an instance without limitations as soon as practical.
+  static void SetEarlyAccessInstance(
+      std::unique_ptr<FeatureList> instance,
+      base::flat_set<std::string> allowed_feature_names);
 
   // Clears the previously-registered singleton instance for tests and returns
   // the old instance.
@@ -472,7 +568,7 @@ class BASE_EXPORT FeatureList {
   // After calling this, an attempt to access feature state when no FeatureList
   // is registered will DCHECK.
   //
-  // TODO(crbug.com/1358639): Change the DCHECK to a CHECK when we're confident
+  // TODO(crbug.com/40237050): Change the DCHECK to a CHECK when we're confident
   // that all early accesses have been fixed. We don't want to get many crash
   // reports from the field in the meantime.
   //
@@ -480,7 +576,26 @@ class BASE_EXPORT FeatureList {
   // processes that never register a FeatureList.
   static void FailOnFeatureAccessWithoutFeatureList();
 
-  void SetCachingContextForTesting(uint16_t caching_context);
+  // Returns the first feature that was accessed before a FeatureList was
+  // registered that allows accessing the feature.
+  static const Feature* GetEarlyAccessedFeatureForTesting();
+
+  // Resets the state of the early feature access tracker.
+  static void ResetEarlyFeatureAccessTrackerForTesting();
+
+  // Adds a feature to the early allowed feature access list for tests. Should
+  // only be called on a FeatureList that was set with SetEarlyAccessInstance().
+  void AddEarlyAllowedFeatureForTesting(std::string feature_name);
+
+  // Allows a visitor to record override state, parameters, and field trial
+  // associated with each feature. Optionally, provide a prefix which filters
+  // the visited features.
+  //
+  // NOTE: This is intended only for the special case of needing to get all
+  // overrides. This use case is specific to CrOS-Ash and V8. Most users should
+  // call IsEnabled() to query a feature's state.
+  static void VisitFeaturesAndParams(FeatureVisitor& visitor,
+                                     std::string_view filter_prefix = "");
 
  private:
   FRIEND_TEST_ALL_PREFIXES(FeatureListTest, CheckFeatureIdentity);
@@ -517,7 +632,7 @@ class BASE_EXPORT FeatureList {
   // Returns the override for the field trial associated with the given feature
   // |name| or null if the feature is not found.
   const base::FeatureList::OverrideEntry* GetOverrideEntryByFeatureName(
-      StringPiece name) const;
+      std::string_view name) const;
 
   // Finalizes the initialization state of the FeatureList, so that no further
   // overrides can be registered. This is called by SetInstance() on the
@@ -532,7 +647,7 @@ class BASE_EXPORT FeatureList {
   // Returns whether the given |feature| is enabled. This is invoked by the
   // public FeatureList::GetStateIfOverridden() static function on the global
   // singleton. Requires the FeatureList to have already been fully initialized.
-  absl::optional<bool> IsFeatureEnabledIfOverridden(
+  std::optional<bool> IsFeatureEnabledIfOverridden(
       const Feature& feature) const;
 
   // Returns the override state of a given |feature|. If the feature was not
@@ -541,7 +656,8 @@ class BASE_EXPORT FeatureList {
   OverrideState GetOverrideState(const Feature& feature) const;
 
   // Same as GetOverrideState(), but without a default value.
-  OverrideState GetOverrideStateByFeatureName(StringPiece feature_name) const;
+  OverrideState GetOverrideStateByFeatureName(
+      std::string_view feature_name) const;
 
   // Returns the field trial associated with the given |feature|. This is
   // invoked by the public FeatureList::GetFieldTrial() static function on the
@@ -561,11 +677,15 @@ class BASE_EXPORT FeatureList {
   // will take precedence over the feature's default state. If |field_trial| is
   // not null, registers the specified field trial object to be associated with
   // the feature, which will activate the field trial when the feature state is
-  // queried. If an override is already registered for the given feature, it
-  // will not be changed.
-  void RegisterOverride(StringPiece feature_name,
+  // queried.
+  //
+  // If an override is already registered for the given feature, it will not be
+  // changed, unless `replace_use_default_overrides` is true and the existing
+  // entry has type OVERRIDE_USE_DEFAULT.
+  void RegisterOverride(std::string_view feature_name,
                         OverrideState overridden_state,
-                        FieldTrial* field_trial);
+                        FieldTrial* field_trial,
+                        bool replace_use_default_overrides = false);
 
   // Implementation of GetFeatureOverrides() with a parameter that specifies
   // whether only command-line enabled overrides should be emitted. See that
@@ -583,6 +703,14 @@ class BASE_EXPORT FeatureList {
   // doesn't modify externally visible state.
   bool CheckFeatureIdentity(const Feature& feature) const;
 
+  // Returns true if this feature list was set with SetEarlyAccessInstance().
+  bool IsEarlyAccessInstance() const;
+
+  // Returns if this feature list instance allows access to the given feature.
+  // If a this feature list was set with SetEarlyAccessInstance(), only the
+  // features in `allowed_feature_names_` can be checked.
+  bool AllowFeatureAccess(const Feature& feature) const;
+
   // Map from feature name to an OverrideEntry struct for the feature, if it
   // exists.
   base::flat_map<std::string, OverrideEntry> overrides_;
@@ -592,8 +720,8 @@ class BASE_EXPORT FeatureList {
   // enabled. This is mutable as it's not externally visible and needs to be
   // usable from const getters.
   mutable Lock feature_identity_tracker_lock_;
-  mutable std::map<std::string, const Feature*> feature_identity_tracker_
-      GUARDED_BY(feature_identity_tracker_lock_);
+  mutable std::map<std::string, const Feature*, std::less<>>
+      feature_identity_tracker_ GUARDED_BY(feature_identity_tracker_lock_);
 
   // Tracks the associated FieldTrialList for DCHECKs. This is used to catch
   // the scenario where multiple FieldTrialList are used with the same
@@ -611,7 +739,13 @@ class BASE_EXPORT FeatureList {
   // Used when querying `base::Feature` state to determine if the cached value
   // in the `Feature` object is populated and valid. See the comment on
   // `base::Feature::cached_value` for more details.
-  uint16_t caching_context_ = 1;
+  const uint16_t caching_context_;
+
+  // If this instance was set with SetEarlyAccessInstance(), this set contains
+  // the names of the features whose state is allowed to be checked. Attempting
+  // to check the state of a feature not on this list will behave as if no
+  // feature list was initialized at all.
+  base::flat_set<std::string> allowed_feature_names_;
 };
 
 }  // namespace base

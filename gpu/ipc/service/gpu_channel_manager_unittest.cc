@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "base/strings/stringprintf.h"
 #include "base/test/test_trace_processor.h"
 #include "base/test/trace_event_analyzer.h"
 #include "base/test/trace_test_utils.h"
@@ -80,10 +81,7 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
 
     int32_t kRouteId =
         static_cast<int32_t>(GpuChannelReservedRoutes::kMaxValue) + 1;
-    const SurfaceHandle kFakeSurfaceHandle = 1;
-    SurfaceHandle surface_handle = kFakeSurfaceHandle;
     auto init_params = mojom::CreateCommandBufferParams::New();
-    init_params->surface_handle = surface_handle;
     init_params->share_group_id = MSG_ROUTING_NONE;
     init_params->stream_id = 0;
     init_params->stream_priority = SchedulingPriority::kNormal;
@@ -93,8 +91,10 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
 
     ContextResult result = ContextResult::kFatalFailure;
     Capabilities capabilities;
+    GLCapabilities gl_capabilities;
     CreateCommandBuffer(*channel, std::move(init_params), kRouteId,
-                        GetSharedMemoryRegion(), &result, &capabilities);
+                        GetSharedMemoryRegion(), &result, &capabilities,
+                        &gl_capabilities);
     EXPECT_EQ(result, ContextResult::kSuccess);
 
     auto raster_decoder_state =
@@ -120,35 +120,8 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
   }
 #endif
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  // TODO(crbug.com/1420217): Simplify this with a generic helper to control the
-  // test's tracing in ::base::test.
-  std::unique_ptr<perfetto::TracingSession> StartNewTraceBlocking() {
-    std::unique_ptr<perfetto::TracingSession> session =
-        perfetto::Tracing::NewTrace();
-    auto config = ::base::test::TracingEnvironment::GetDefaultTraceConfig();
-    for (auto& data_source : *config.mutable_data_sources()) {
-      perfetto::protos::gen::TrackEventConfig track_event_config;
-      track_event_config.add_disabled_categories("*");
-      track_event_config.add_enabled_categories("gpu");
-      data_source.mutable_config()->set_track_event_config_raw(
-          track_event_config.SerializeAsString());
-    }
-    session->Setup(config);
-    session->StartBlocking();
-    return session;
-  }
-
-  std::vector<char> StopAndReadTraceBlocking(
-      std::unique_ptr<perfetto::TracingSession> session) {
-    base::TrackEvent::Flush();
-    session->StopBlocking();
-    return session->ReadTraceBlocking();
-  }
-
  private:
   ::base::test::TracingEnvironment tracing_environment_;
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 };
 
 TEST_F(GpuChannelManagerTest, EstablishChannel) {
@@ -157,7 +130,8 @@ TEST_F(GpuChannelManagerTest, EstablishChannel) {
 
   ASSERT_TRUE(channel_manager());
   GpuChannel* channel = channel_manager()->EstablishChannel(
-      base::UnguessableToken::Create(), kClientId, kClientTracingId, false);
+      base::UnguessableToken::Create(), kClientId, kClientTracingId, false,
+      gfx::GpuExtraInfo(), /*gpu_memory_buffer_factory=*/nullptr);
   EXPECT_TRUE(channel);
   EXPECT_EQ(channel_manager()->LookupChannel(kClientId), channel);
 }
@@ -176,12 +150,9 @@ TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
 // Tests that peak memory usage is only reported for valid sequence numbers,
 // and that polling shuts down the monitoring.
 TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  std::unique_ptr<perfetto::TracingSession> session = StartNewTraceBlocking();
-#else
-  // TODO(crbug.com/1006541): Remove trace_analyzer usage after migration to the
-  // SDK.
-  trace_analyzer::Start("gpu");
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  base::test::TestTraceProcessor ttp;
+  ttp.StartTrace("gpu");
 #endif
 
   GpuChannelManager* manager = channel_manager();
@@ -205,11 +176,8 @@ TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
   EXPECT_EQ(0u, GetMonitorsPeakMemoryUsage(sequence_num));
   EXPECT_EQ(0u, GetManagersPeakMemoryUsage(sequence_num));
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  std::vector<char> raw_trace = StopAndReadTraceBlocking(std::move(session));
-  ASSERT_FALSE(raw_trace.empty());
-  base::test::TestTraceProcessor trace_processor;
-  auto status = trace_processor.ParseTrace(raw_trace);
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  absl::Status status = ttp.StopAndParseTrace();
   ASSERT_TRUE(status.ok()) << status.message();
   std::string query =
       R"(
@@ -232,37 +200,16 @@ TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
       where name = 'PeakMemoryTracking'
       ORDER BY ts ASC
       )";
-  EXPECT_THAT(trace_processor.ExecuteQuery(query),
+  auto result = ttp.RunQuery(query);
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(),
               ::testing::ElementsAre(
                   std::vector<std::string>{"start", "has_start_sources", "peak",
                                            "has_end_sources"},
                   std::vector<std::string>{
                       base::StringPrintf("%" PRIu64, current_memory), "1",
                       base::StringPrintf("%" PRIu64, current_memory), "1"}));
-#else   // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  auto analyzer = trace_analyzer::Stop();
-  trace_analyzer::TraceEventVector events;
-  analyzer->FindEvents(trace_analyzer::Query::EventNameIs("PeakMemoryTracking"),
-                       &events);
-
-  EXPECT_EQ(2u, events.size());
-
-  ASSERT_TRUE(events[0]->HasNumberArg("start"));
-  EXPECT_EQ(current_memory,
-            static_cast<uint64_t>(events[0]->GetKnownArgAsDouble("start")));
-  ASSERT_TRUE(events[0]->HasDictArg("start_sources"));
-  EXPECT_FALSE(events[0]->GetKnownArgAsDict("start_sources").empty());
-
-  const int kEndArgumentsSliceIndex = 1;
-  ASSERT_TRUE(events[kEndArgumentsSliceIndex]->HasNumberArg("peak"));
-  EXPECT_EQ(current_memory,
-            static_cast<uint64_t>(
-                events[kEndArgumentsSliceIndex]->GetKnownArgAsDouble("peak")));
-  ASSERT_TRUE(events[kEndArgumentsSliceIndex]->HasDictArg("end_sources"));
-  EXPECT_FALSE(events[kEndArgumentsSliceIndex]
-                   ->GetKnownArgAsDict("end_sources")
-                   .empty());
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+#endif
 }
 
 // Tests that while a channel may exist for longer than a request to monitor,

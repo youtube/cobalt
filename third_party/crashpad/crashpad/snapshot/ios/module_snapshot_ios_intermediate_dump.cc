@@ -17,8 +17,8 @@
 #include <mach-o/loader.h>
 #include <mach/mach.h>
 
+#include "base/apple/mach_logging.h"
 #include "base/files/file_path.h"
-#include "base/mac/mach_logging.h"
 #include "client/annotation.h"
 #include "snapshot/ios/intermediate_dump_reader_util.h"
 #include "util/ios/ios_intermediate_dump_data.h"
@@ -123,6 +123,63 @@ bool ModuleSnapshotIOSIntermediateDump::Initialize(
       if (name_dump && value_dump) {
         annotations_simple_map_.insert(
             make_pair(name_dump->GetString(), value_dump->GetString()));
+      }
+    }
+  }
+
+  const IOSIntermediateDumpList* extra_memory_regions_array =
+      image_data->GetAsList(IntermediateDumpKey::kModuleExtraMemoryRegions);
+  if (extra_memory_regions_array) {
+    for (auto& region : *extra_memory_regions_array) {
+      vm_address_t address;
+      const IOSIntermediateDumpData* region_data =
+          region->GetAsData(Key::kModuleExtraMemoryRegionData);
+      if (!region_data)
+        continue;
+      if (GetDataValueFromMap(
+              region.get(), Key::kModuleExtraMemoryRegionAddress, &address)) {
+        const std::vector<uint8_t>& bytes = region_data->bytes();
+        vm_size_t data_size = bytes.size();
+        if (data_size == 0)
+          continue;
+
+        const vm_address_t data =
+            reinterpret_cast<const vm_address_t>(bytes.data());
+
+        auto memory =
+            std::make_unique<internal::MemorySnapshotIOSIntermediateDump>();
+        memory->Initialize(address, data, data_size);
+        extra_memory_.push_back(std::move(memory));
+      }
+    }
+  }
+
+  const IOSIntermediateDumpList* intermediate_dump_extra_memory_regions_array =
+      image_data->GetAsList(
+          IntermediateDumpKey::kModuleIntermediateDumpExtraMemoryRegions);
+  if (intermediate_dump_extra_memory_regions_array) {
+    for (auto& region : *intermediate_dump_extra_memory_regions_array) {
+      vm_address_t address;
+      const IOSIntermediateDumpData* region_data =
+          region->GetAsData(Key::kModuleIntermediateDumpExtraMemoryRegionData);
+      if (!region_data)
+        continue;
+      if (GetDataValueFromMap(
+              region.get(),
+              Key::kModuleIntermediateDumpExtraMemoryRegionAddress,
+              &address)) {
+        const std::vector<uint8_t>& bytes = region_data->bytes();
+        vm_size_t data_size = bytes.size();
+        if (data_size == 0)
+          continue;
+
+        const vm_address_t data =
+            reinterpret_cast<const vm_address_t>(bytes.data());
+
+        auto memory =
+            std::make_unique<internal::MemorySnapshotIOSIntermediateDump>();
+        memory->Initialize(address, data, data_size);
+        intermediate_dump_extra_memory_.push_back(std::move(memory));
       }
     }
   }
@@ -264,6 +321,24 @@ std::set<CheckedRange<uint64_t>>
 ModuleSnapshotIOSIntermediateDump::ExtraMemoryRanges() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   return std::set<CheckedRange<uint64_t>>();
+}
+
+std::vector<const MemorySnapshot*>
+ModuleSnapshotIOSIntermediateDump::ExtraMemory() const {
+  std::vector<const MemorySnapshot*> extra_memory;
+  for (const auto& memory : extra_memory_) {
+    extra_memory.push_back(memory.get());
+  }
+  return extra_memory;
+}
+
+std::vector<const MemorySnapshot*>
+ModuleSnapshotIOSIntermediateDump::IntermediateDumpExtraMemory() const {
+  std::vector<const MemorySnapshot*> intermediate_dump_extra_memory;
+  for (const auto& memory : intermediate_dump_extra_memory_) {
+    intermediate_dump_extra_memory.push_back(memory.get());
+  }
+  return intermediate_dump_extra_memory;
 }
 
 std::vector<const UserMinidumpStream*>

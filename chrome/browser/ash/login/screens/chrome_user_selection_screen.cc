@@ -7,6 +7,8 @@
 #include <memory>
 #include <utility>
 
+#include "ash/public/cpp/login_screen.h"
+#include "ash/public/cpp/login_screen_model.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -14,11 +16,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
-#include "chrome/browser/ash/login/ui/views/user_board_view.h"
-#include "chrome/browser/ash/login/users/chrome_user_manager.h"
+#include "chrome/browser/ash/login/helper.h"
+#include "chrome/browser/ash/login/lock_screen_utils.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
+#include "chrome/browser/ui/ash/login/login_screen_client_impl.h"
 #include "chrome/browser/ui/webui/ash/login/l10n_util.h"
 #include "components/account_id/account_id.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
@@ -57,8 +60,9 @@ void ChromeUserSelectionScreen::Init(const user_manager::UserList& users) {
   // Retrieve the current policy for all users.
   for (user_manager::UserList::const_iterator it = users.begin();
        it != users.end(); ++it) {
-    if ((*it)->GetType() == user_manager::USER_TYPE_PUBLIC_ACCOUNT)
+    if ((*it)->GetType() == user_manager::UserType::kPublicAccount) {
       OnPolicyUpdated((*it)->GetAccountId().GetUserEmail());
+    }
   }
 }
 
@@ -95,7 +99,8 @@ void ChromeUserSelectionScreen::CheckForPublicSessionDisplayNameChange(
 
   if (!display_name.empty()) {
     // If a new display name was set by policy, notify the UI about it.
-    view_->SetPublicSessionDisplayName(account_id, display_name);
+    LoginScreen::Get()->GetModel()->SetPublicSessionDisplayName(account_id,
+                                                                display_name);
     return;
   }
 
@@ -127,8 +132,6 @@ void ChromeUserSelectionScreen::CheckForPublicSessionLocalePolicyChange(
          entry->value(base::Value::Type::LIST)->GetList()) {
       if (!locale_entry.is_string()) {
         NOTREACHED();
-        new_recommended_locales.clear();
-        break;
       }
       new_recommended_locales.push_back(locale_entry.GetString());
     }
@@ -149,18 +152,19 @@ void ChromeUserSelectionScreen::CheckForPublicSessionLocalePolicyChange(
 void ChromeUserSelectionScreen::CheckIfFullManagementDisclosureNeeded(
     policy::DeviceLocalAccountPolicyBroker* broker) {
   SetPublicSessionShowFullManagementDisclosure(
-      ChromeUserManager::Get()->IsFullManagementDisclosureNeeded(broker));
+      ash::login::IsFullManagementDisclosureNeeded(broker));
 }
 
 void ChromeUserSelectionScreen::SetPublicSessionDisplayName(
     const AccountId& account_id) {
   const user_manager::User* user =
       user_manager::UserManager::Get()->FindUser(account_id);
-  if (!user || user->GetType() != user_manager::USER_TYPE_PUBLIC_ACCOUNT)
+  if (!user || user->GetType() != user_manager::UserType::kPublicAccount) {
     return;
+  }
 
-  view_->SetPublicSessionDisplayName(account_id,
-                                     base::UTF16ToUTF8(user->GetDisplayName()));
+  LoginScreen::Get()->GetModel()->SetPublicSessionDisplayName(
+      account_id, base::UTF16ToUTF8(user->GetDisplayName()));
 }
 
 void ChromeUserSelectionScreen::SetPublicSessionLocales(
@@ -171,9 +175,10 @@ void ChromeUserSelectionScreen::SetPublicSessionLocales(
 
   // Construct the list of available locales. This list consists of the
   // recommended locales, followed by all others.
-  base::Value::List available_locales =
-      GetUILanguageList(&recommended_locales, std::string(),
-                        input_method::InputMethodManager::Get());
+  // TODO(crbug.com/404133029): Remove g_browser_process usage.
+  base::Value::List available_locales = GetUILanguageList(
+      g_browser_process->GetApplicationLocale(), &recommended_locales,
+      std::string(), input_method::InputMethodManager::Get());
 
   // Set the initially selected locale to the first recommended locale that is
   // actually available or the current UI locale if none of them are available.
@@ -188,14 +193,20 @@ void ChromeUserSelectionScreen::SetPublicSessionLocales(
   const bool two_or_more_recommended_locales = recommended_locales.size() >= 2;
 
   // Notify the UI.
-  view_->SetPublicSessionLocales(account_id, std::move(available_locales),
-                                 default_locale,
-                                 two_or_more_recommended_locales);
+  LoginScreen::Get()->GetModel()->SetPublicSessionLocales(
+      account_id,
+      lock_screen_utils::FromListValueToLocaleItem(
+          std::move(available_locales)),
+      default_locale, two_or_more_recommended_locales);
+
+  // Send a request to get keyboard layouts for `default_locale`.
+  LoginScreenClientImpl::Get()->RequestPublicSessionKeyboardLayouts(
+      account_id, default_locale);
 }
 
 void ChromeUserSelectionScreen::SetPublicSessionShowFullManagementDisclosure(
     bool show_full_management_disclosure) {
-  view_->SetPublicSessionShowFullManagementDisclosure(
+  LoginScreen::Get()->GetModel()->SetPublicSessionShowFullManagementDisclosure(
       show_full_management_disclosure);
 }
 

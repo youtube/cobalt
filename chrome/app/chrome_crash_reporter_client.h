@@ -6,7 +6,6 @@
 #define CHROME_APP_CHROME_CRASH_REPORTER_CLIENT_H_
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 
 #if !BUILDFLAG(IS_WIN)
 
@@ -23,7 +22,7 @@ class ChromeCrashReporterClient : public crash_reporter::CrashReporterClient {
   ChromeCrashReporterClient& operator=(const ChromeCrashReporterClient&) =
       delete;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // If true, processes of this type should pass crash-loop-before down to the
   // crash reporter and to their children (if the children's type is a process
   // type that wants crash-loop-before).
@@ -37,17 +36,13 @@ class ChromeCrashReporterClient : public crash_reporter::CrashReporterClient {
 #endif
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
-  void GetProductNameAndVersion(const char** product_name,
-                                const char** version) override;
-  void GetProductNameAndVersion(std::string* product_name,
-                                std::string* version,
-                                std::string* channel) override;
   base::FilePath GetReporterLogFilename() override;
 
   bool GetShouldDumpLargerDumps() override;
 #endif
 
   bool GetCrashDumpLocation(base::FilePath* crash_dir) override;
+  void GetProductInfo(ProductInfo* product_info) override;
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   bool GetCrashMetricsLocation(base::FilePath* metrics_dir) override;
@@ -59,10 +54,6 @@ class ChromeCrashReporterClient : public crash_reporter::CrashReporterClient {
 
 #if BUILDFLAG(IS_MAC)
   bool ReportingIsEnforcedByPolicy(bool* breakpad_enabled) override;
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-  int GetAndroidMinidumpDescriptor() override;
 #endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

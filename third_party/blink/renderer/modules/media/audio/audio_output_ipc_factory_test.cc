@@ -19,9 +19,10 @@
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/media/renderer_audio_output_stream_factory.mojom-blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 using ::testing::_;
 
@@ -54,7 +55,7 @@ class FakeRemoteFactory
   void RequestDeviceAuthorization(
       mojo::PendingReceiver<media::mojom::blink::AudioOutputStreamProvider>
           stream_provider,
-      const absl::optional<base::UnguessableToken>& session_id,
+      const std::optional<base::UnguessableToken>& session_id,
       const String& device_id,
       RequestDeviceAuthorizationCallback callback) override {
     std::move(callback).Run(
@@ -111,6 +112,7 @@ class AudioOutputIPCFactoryTest : public testing::Test {
 
  private:
   FakeAudioOutputIPCDelegate fake_delegate;
+  test::TaskEnvironment task_environment_;
 };
 
 TEST_F(AudioOutputIPCFactoryTest, CallFactoryFromIOThread) {
@@ -132,7 +134,7 @@ TEST_F(AudioOutputIPCFactoryTest, CallFactoryFromIOThread) {
   AudioOutputIPCFactory ipc_factory(io_thread->task_runner());
 
   ipc_factory.RegisterRemoteFactory(TokenFromInt(kRenderFrameId),
-                                    &interface_broker);
+                                    interface_broker);
 
   // To make sure that the pointer stored in |ipc_factory| is connected to
   // |remote_factory|, and also that it's bound to |io_thread|, we create an
@@ -181,7 +183,7 @@ TEST_F(AudioOutputIPCFactoryTest, SeveralFactories) {
 
   for (int i = 0; i < n_factories; i++) {
     ipc_factory.RegisterRemoteFactory(TokenFromInt(kRenderFrameId + i),
-                                      &interface_broker);
+                                      interface_broker);
   }
 
   base::RunLoop run_loop;
@@ -238,7 +240,7 @@ TEST_F(AudioOutputIPCFactoryTest, RegisterDeregisterBackToBack_Deregisters) {
   AudioOutputIPCFactory ipc_factory(io_thread->task_runner());
 
   ipc_factory.RegisterRemoteFactory(TokenFromInt(kRenderFrameId),
-                                    &interface_broker);
+                                    interface_broker);
   ipc_factory.MaybeDeregisterRemoteFactory(TokenFromInt(kRenderFrameId));
   // That there is no factory remaining at destruction is DCHECKed in the
   // AudioOutputIPCFactory destructor.

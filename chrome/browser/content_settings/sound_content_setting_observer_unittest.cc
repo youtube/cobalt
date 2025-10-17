@@ -95,7 +95,7 @@ class SoundContentSettingObserverTest : public ChromeRenderViewHostTestHarness {
   void ExpectRecordedForReason(SoundContentSettingObserver::MuteReason reason) {
     auto entries = test_ukm_recorder_->GetEntriesByName(kSiteMutedEvent);
     EXPECT_EQ(1u, entries.size());
-    for (const auto* const entry : entries) {
+    for (const ukm::mojom::UkmEntry* const entry : entries) {
       test_ukm_recorder_->ExpectEntrySourceHasUrl(entry, GURL(kURL1));
       test_ukm_recorder_->ExpectEntryMetric(entry, kSiteMutedReason, reason);
     }
@@ -104,12 +104,12 @@ class SoundContentSettingObserverTest : public ChromeRenderViewHostTestHarness {
 // TabMutedReason does not exist on Android.
 #if !BUILDFLAG(IS_ANDROID)
   void SetMuteStateForReason(bool state, TabMutedReason reason) {
-    chrome::SetTabAudioMuted(web_contents(), state, reason, kExtensionId);
+    SetTabAudioMuted(web_contents(), state, reason, kExtensionId);
   }
 #endif
 
  private:
-  raw_ptr<HostContentSettingsMap> host_content_settings_map_;
+  raw_ptr<HostContentSettingsMap, DanglingUntriaged> host_content_settings_map_;
   std::unique_ptr<ukm::TestUkmRecorder> test_ukm_recorder_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };

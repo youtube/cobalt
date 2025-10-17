@@ -11,8 +11,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 void OnboardingUiTrackerImpl::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kHideOnboardingUi, false);
@@ -48,12 +47,20 @@ void OnboardingUiTrackerImpl::DismissSetupUi() {
   UpdateShouldShowOnboardingUi();
 }
 
-void OnboardingUiTrackerImpl::HandleGetStarted() {
+void OnboardingUiTrackerImpl::HandleGetStarted(
+    bool is_icon_clicked_when_nudge_visible) {
   FeatureStatus status = feature_status_provider_->GetStatus();
 
   // The user is not opted into Better Together yet.
   if (status == FeatureStatus::kEligiblePhoneButNotSetUp) {
     show_multidevice_setup_dialog_callback_.Run();
+    if (is_icon_clicked_when_nudge_visible) {
+      util::LogMultiDeviceSetupDialogEntryPoint(
+          util::MultiDeviceSetupDialogEntrypoint::kPhoneHubBubbleAferNudge);
+    } else {
+      util::LogMultiDeviceSetupDialogEntryPoint(
+          util::MultiDeviceSetupDialogEntrypoint::kPhoneHubBubble);
+    }
     return;
   }
 
@@ -61,7 +68,7 @@ void OnboardingUiTrackerImpl::HandleGetStarted() {
   if (status == FeatureStatus::kDisabled) {
     multidevice_setup_client_->SetFeatureEnabledState(
         multidevice_setup::mojom::Feature::kPhoneHub,
-        /*enabled=*/true, /*auth_token=*/absl::nullopt, base::DoNothing());
+        /*enabled=*/true, /*auth_token=*/std::nullopt, base::DoNothing());
     util::LogFeatureOptInEntryPoint(util::OptInEntryPoint::kOnboardingFlow);
     return;
   }
@@ -107,5 +114,4 @@ void OnboardingUiTrackerImpl::UpdateShouldShowOnboardingUi() {
   NotifyShouldShowOnboardingUiChanged();
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

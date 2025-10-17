@@ -6,15 +6,19 @@ package org.chromium.chrome.browser.ui.fast_checkout;
 
 import android.content.Context;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutAutofillProfile;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutCreditCard;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+
+import java.util.List;
 
 /**
  * This component supports the user during checkout flows by offering a pre-selection of addresses
  * and credit cards and autofilling the chosen data. Data is selected via a bottom sheet that
  * suppresses the keyboard until dismissed.
  */
+@NullMarked
 public interface FastCheckoutComponent {
     /**
      * This delegate is called when the FastCheckout component is interacted with (e.g. dismissed or
@@ -29,20 +33,17 @@ public interface FastCheckoutComponent {
          */
         void onOptionsSelected(
                 FastCheckoutAutofillProfile profile, FastCheckoutCreditCard creditCard);
+
         /**
          * Called when the user dismisses the FastCheckoutComponent. Not called if an option was
          * selected.
          */
         void onDismissed();
 
-        /**
-         * Opens the Autofill profile settings menu.
-         */
+        /** Opens the Autofill profile settings menu. */
         void openAutofillProfileSettings();
 
-        /**
-         * Opens the credit card settings menu.
-         */
+        /** Opens the credit card settings menu. */
         void openCreditCardSettings();
     }
 
@@ -54,13 +55,10 @@ public interface FastCheckoutComponent {
      */
     void initialize(Context context, BottomSheetController sheetController, Delegate delegate);
 
-    /**
-     * Displays the given options in a new bottom sheet.
-     */
-    void showOptions(FastCheckoutAutofillProfile[] profiles, FastCheckoutCreditCard[] creditCards);
+    /** Displays the given options in a new bottom sheet. */
+    void showOptions(
+            List<FastCheckoutAutofillProfile> profiles, List<FastCheckoutCreditCard> creditCards);
 
-    /**
-     * Hides the bottom sheet. No-op if the sheet is already hidden.
-     */
+    /** Hides the bottom sheet. No-op if the sheet is already hidden. */
     void destroy();
 }

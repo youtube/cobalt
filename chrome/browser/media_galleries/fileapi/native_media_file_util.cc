@@ -2,17 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media_galleries/fileapi/native_media_file_util.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "base/files/safe_base_name.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/media_galleries/fileapi/media_path_filter.h"
@@ -39,9 +45,10 @@ base::File::Error IsMediaHeader(const char* buf, size_t length) {
     return base::File::FILE_ERROR_SECURITY;
 
   std::string mime_type;
-  if (!net::SniffMimeTypeFromLocalData(base::StringPiece(buf, length),
-                                       &mime_type))
+  if (!net::SniffMimeTypeFromLocalData(std::string_view(buf, length),
+                                       &mime_type)) {
     return base::File::FILE_ERROR_SECURITY;
+  }
 
   if (base::StartsWith(mime_type, "image/", base::CompareCase::SENSITIVE) ||
       base::StartsWith(mime_type, "audio/", base::CompareCase::SENSITIVE) ||
@@ -277,7 +284,7 @@ void NativeMediaFileUtil::CreateDirectory(
 void NativeMediaFileUtil::GetFileInfo(
     std::unique_ptr<storage::FileSystemOperationContext> context,
     const storage::FileSystemURL& url,
-    int /* fields */,
+    GetMetadataFieldSet fields,
     GetFileInfoCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
   storage::FileSystemOperationContext* context_ptr = context.get();
@@ -625,7 +632,9 @@ base::File::Error NativeMediaFileUtil::Core::ReadDirectorySync(
     if (!info.IsDirectory() && !media_path_filter_.Match(enum_path))
       continue;
 
-    file_list->emplace_back(enum_path.BaseName(),
+    auto name = base::SafeBaseName::Create(enum_path);
+    CHECK(name) << enum_path;
+    file_list->emplace_back(*name, info.GetName().AsUTF8Unsafe(),
                             info.IsDirectory()
                                 ? filesystem::mojom::FsFileType::DIRECTORY
                                 : filesystem::mojom::FsFileType::REGULAR_FILE);

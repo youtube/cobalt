@@ -10,12 +10,13 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -49,7 +50,8 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
 
   bool IsWriteBlocked() const override;
 
@@ -79,14 +81,23 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // |fake_packet_loss_percentage|, because every dropped package is followed by
   // a minimum number of successfully written packets.
   void set_fake_packet_loss_percentage(int32_t fake_packet_loss_percentage) {
-    QuicWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_packet_loss_percentage_ = fake_packet_loss_percentage;
+  }
+
+  // Once called, the next |passthrough_for_next_n_packets_| WritePacket() calls
+  // will always send the packets immediately, without being affected by the
+  // simulated error conditions.
+  void set_passthrough_for_next_n_packets(
+      uint32_t passthrough_for_next_n_packets) {
+    absl::WriterMutexLock lock(&config_mutex_);
+    passthrough_for_next_n_packets_ = passthrough_for_next_n_packets;
   }
 
   // Simulate dropping the first n packets unconditionally.
   // Subsequent packets will be lost at fake_packet_loss_percentage_ if set.
   void set_fake_drop_first_n_packets(int32_t fake_drop_first_n_packets) {
-    QuicWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_drop_first_n_packets_ = fake_drop_first_n_packets;
   }
 
@@ -95,14 +106,14 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   void set_fake_blocked_socket_percentage(
       int32_t fake_blocked_socket_percentage) {
     QUICHE_DCHECK(clock_);
-    QuicWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_blocked_socket_percentage_ = fake_blocked_socket_percentage;
   }
 
   // The percent of time a packet is simulated as being reordered.
   void set_fake_reorder_percentage(int32_t fake_packet_reorder_percentage) {
     QUICHE_DCHECK(clock_);
-    QuicWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     QUICHE_DCHECK(!fake_packet_delay_.IsZero());
     fake_packet_reorder_percentage_ = fake_packet_reorder_percentage;
   }
@@ -110,7 +121,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // The delay before writing this packet.
   void set_fake_packet_delay(QuicTime::Delta fake_packet_delay) {
     QUICHE_DCHECK(clock_);
-    QuicWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_packet_delay_ = fake_packet_delay;
   }
 
@@ -121,7 +132,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   void set_max_bandwidth_and_buffer_size(QuicBandwidth fake_bandwidth,
                                          QuicByteCount buffer_size) {
     QUICHE_DCHECK(clock_);
-    QuicWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_bandwidth_ = fake_bandwidth;
     buffer_size_ = buffer_size;
   }
@@ -142,7 +153,8 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     DelayedWrite(const char* buffer, size_t buf_len,
                  const QuicIpAddress& self_address,
                  const QuicSocketAddress& peer_address,
-                 std::unique_ptr<PerPacketOptions> options, QuicTime send_time);
+                 std::unique_ptr<PerPacketOptions> options,
+                 const QuicPacketWriterParams& params, QuicTime send_time);
     DelayedWrite(const DelayedWrite&) = delete;
     DelayedWrite(DelayedWrite&&) = default;
     DelayedWrite& operator=(const DelayedWrite&) = delete;
@@ -153,6 +165,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     QuicIpAddress self_address;
     QuicSocketAddress peer_address;
     std::unique_ptr<PerPacketOptions> options;
+    QuicPacketWriterParams params;
     QuicTime send_time;
   };
 
@@ -167,16 +180,17 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   DelayedPacketList delayed_packets_;
   QuicByteCount cur_buffer_size_;
   uint64_t num_calls_to_write_;
+  uint32_t passthrough_for_next_n_packets_ ABSL_GUARDED_BY(config_mutex_);
   int32_t num_consecutive_succesful_writes_;
 
-  QuicMutex config_mutex_;
-  int32_t fake_packet_loss_percentage_ QUIC_GUARDED_BY(config_mutex_);
-  int32_t fake_drop_first_n_packets_ QUIC_GUARDED_BY(config_mutex_);
-  int32_t fake_blocked_socket_percentage_ QUIC_GUARDED_BY(config_mutex_);
-  int32_t fake_packet_reorder_percentage_ QUIC_GUARDED_BY(config_mutex_);
-  QuicTime::Delta fake_packet_delay_ QUIC_GUARDED_BY(config_mutex_);
-  QuicBandwidth fake_bandwidth_ QUIC_GUARDED_BY(config_mutex_);
-  QuicByteCount buffer_size_ QUIC_GUARDED_BY(config_mutex_);
+  absl::Mutex config_mutex_;
+  int32_t fake_packet_loss_percentage_ ABSL_GUARDED_BY(config_mutex_);
+  int32_t fake_drop_first_n_packets_ ABSL_GUARDED_BY(config_mutex_);
+  int32_t fake_blocked_socket_percentage_ ABSL_GUARDED_BY(config_mutex_);
+  int32_t fake_packet_reorder_percentage_ ABSL_GUARDED_BY(config_mutex_);
+  QuicTime::Delta fake_packet_delay_ ABSL_GUARDED_BY(config_mutex_);
+  QuicBandwidth fake_bandwidth_ ABSL_GUARDED_BY(config_mutex_);
+  QuicByteCount buffer_size_ ABSL_GUARDED_BY(config_mutex_);
 };
 
 }  // namespace test

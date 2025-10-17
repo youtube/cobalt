@@ -14,17 +14,23 @@ BackForwardCacheDisablingFeatureTracker::
         TraceableVariableController* tracing_controller,
         ThreadSchedulerBase* scheduler)
     : opted_out_from_back_forward_cache_{false,
-                                         "FrameScheduler."
-                                         "OptedOutFromBackForwardCache",
+                                         MakeNamedTrack(
+                                             "FrameScheduler."
+                                             "OptedOutFromBackForwardCache",
+                                             this),
                                          tracing_controller,
                                          YesNoStateToString},
       scheduler_{scheduler} {}
 
 void BackForwardCacheDisablingFeatureTracker::SetDelegate(
     FrameOrWorkerScheduler::Delegate* delegate) {
+  // This function is only called when initializing. `delegate_` should be
+  // nullptr at first.
   DCHECK(!delegate_);
-  delegate_ = delegate;
-  // `delegate` might be nullptr on tests.
+  // `delegate` can be nullptr for tests.
+  if (delegate) {
+    delegate_ = (*delegate).AsWeakPtr();
+  }
 }
 
 void BackForwardCacheDisablingFeatureTracker::Reset() {
@@ -107,18 +113,9 @@ WTF::HashSet<SchedulingPolicy::Feature>
 BackForwardCacheDisablingFeatureTracker::
     GetActiveFeaturesTrackedForBackForwardCacheMetrics() {
   WTF::HashSet<SchedulingPolicy::Feature> result;
-  for (const auto& it : back_forward_cache_disabling_feature_counts_)
+  for (const auto& it : back_forward_cache_disabling_feature_counts_) {
     result.insert(it.first);
-  return result;
-}
-
-uint64_t BackForwardCacheDisablingFeatureTracker::
-    GetActiveFeaturesTrackedForBackForwardCacheMetricsMask() const {
-  auto result = back_forward_cache_disabling_features_.to_ullong();
-  static_assert(static_cast<size_t>(SchedulingPolicy::Feature::kMaxValue) <
-                    sizeof(result) * 8,
-                "Number of the features should allow a bitmask to fit into "
-                "64-bit integer");
+  }
   return result;
 }
 
@@ -164,19 +161,21 @@ void BackForwardCacheDisablingFeatureTracker::
 void BackForwardCacheDisablingFeatureTracker::ReportFeaturesToDelegate() {
   feature_report_scheduled_ = false;
 
-  uint64_t mask = GetActiveFeaturesTrackedForBackForwardCacheMetricsMask();
-  if (mask == last_uploaded_bfcache_disabling_features_ &&
-      non_sticky_features_and_js_locations_ == last_reported_non_sticky_ &&
+  if (non_sticky_features_and_js_locations_ == last_reported_non_sticky_ &&
       sticky_features_and_js_locations_ == last_reported_sticky_) {
     return;
   }
-  last_uploaded_bfcache_disabling_features_ = mask;
   last_reported_non_sticky_ = non_sticky_features_and_js_locations_;
   last_reported_sticky_ = sticky_features_and_js_locations_;
   FrameOrWorkerScheduler::Delegate::BlockingDetails details(
-      mask, non_sticky_features_and_js_locations_,
-      sticky_features_and_js_locations_);
-  delegate_->UpdateBackForwardCacheDisablingFeatures(details);
+      non_sticky_features_and_js_locations_, sticky_features_and_js_locations_);
+
+  // Check if the delegate still exists. This check is necessary because
+  // `FrameOrWorkerScheduler::Delegate` might be destroyed and thus `delegate_`
+  // might be gone when `ReportFeaturesToDelegate() is executed.
+  if (delegate_) {
+    delegate_->UpdateBackForwardCacheDisablingFeatures(details);
+  }
 }
 
 }  // namespace scheduler

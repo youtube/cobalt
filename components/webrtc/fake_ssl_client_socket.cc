@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/webrtc/fake_ssl_client_socket.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <cstdlib>
 #include <cstring>
+#include <string_view>
 #include <utility>
 
 #include "base/compiler_specific.h"
@@ -45,7 +52,8 @@ static const uint8_t kSslClientHello[] = {
 };
 
 // This is a TLSv1 SERVER_HELLO message.
-static const uint8_t kSslServerHello[] = {
+static const auto kSslServerHello = std::to_array<uint8_t>({
+    // clang-format off
     0x16,                                            // handshake message
     0x03, 0x01,                                      // SSL 3.1
     0x00, 0x4a,                                      // message len
@@ -63,10 +71,11 @@ static const uint8_t kSslServerHello[] = {
     0x4d, 0xa2, 0x75, 0x57, 0x41, 0x6c, 0x34, 0x5c,  //
     0x00, 0x04,                                      // RSA/RC4-128/MD5
     0x00                                             // null compression
-};
+    // clang-format on
+});
 
-// TODO(crbug/1183244): This annotation is not test specific but is for test. We
-// should fix it.
+// TODO(crbug.com/40171113): This annotation is not test specific but is for
+// test. We should fix it.
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation(
         "test",
@@ -74,19 +83,19 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 
 scoped_refptr<net::DrainableIOBuffer> NewDrainableIOBufferWithSize(int size) {
   return base::MakeRefCounted<net::DrainableIOBuffer>(
-      base::MakeRefCounted<net::IOBuffer>(size), size);
+      base::MakeRefCounted<net::IOBufferWithSize>(size), size);
 }
 
 }  // namespace
 
-base::StringPiece FakeSSLClientSocket::GetSslClientHello() {
-  return base::StringPiece(reinterpret_cast<const char*>(kSslClientHello),
-                           std::size(kSslClientHello));
+std::string_view FakeSSLClientSocket::GetSslClientHello() {
+  return std::string_view(reinterpret_cast<const char*>(kSslClientHello),
+                          std::size(kSslClientHello));
 }
 
-base::StringPiece FakeSSLClientSocket::GetSslServerHello() {
-  return base::StringPiece(reinterpret_cast<const char*>(kSslServerHello),
-                           std::size(kSslServerHello));
+std::string_view FakeSSLClientSocket::GetSslServerHello() {
+  return std::string_view(reinterpret_cast<const char*>(kSslServerHello.data()),
+                          std::size(kSslServerHello));
 }
 
 FakeSSLClientSocket::FakeSSLClientSocket(
@@ -100,7 +109,7 @@ FakeSSLClientSocket::FakeSSLClientSocket(
   std::memcpy(write_buf_->data(), kSslClientHello, std::size(kSslClientHello));
 }
 
-FakeSSLClientSocket::~FakeSSLClientSocket() {}
+FakeSSLClientSocket::~FakeSSLClientSocket() = default;
 
 int FakeSSLClientSocket::Read(net::IOBuffer* buf,
                               int buf_len,
@@ -347,10 +356,6 @@ const net::NetLogWithSource& FakeSSLClientSocket::NetLog() const {
 
 bool FakeSSLClientSocket::WasEverUsed() const {
   return transport_socket_->WasEverUsed();
-}
-
-bool FakeSSLClientSocket::WasAlpnNegotiated() const {
-  return transport_socket_->WasAlpnNegotiated();
 }
 
 net::NextProto FakeSSLClientSocket::GetNegotiatedProtocol() const {

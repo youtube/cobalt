@@ -7,8 +7,10 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -21,10 +23,6 @@
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_WIN)
-#define snprintf _snprintf
-#endif
 
 namespace pnacl {
 namespace {
@@ -79,11 +77,10 @@ class PnaclHostTest : public testing::Test {
     EXPECT_TRUE(mutable_file->GetInfo(&info));
     EXPECT_FALSE(info.is_directory);
     EXPECT_EQ(0LL, info.size);
-    char str[kBufferSize];
-    memset(str, 0x0, kBufferSize);
+    char str[kBufferSize] = {};
     snprintf(str, kBufferSize, "testdata%d", ++write_callback_count_);
-    EXPECT_EQ(kBufferSize,
-              static_cast<size_t>(mutable_file->Write(0, str, kBufferSize)));
+    EXPECT_EQ(kBufferSize, static_cast<size_t>(UNSAFE_TODO(
+                               mutable_file->Write(0, str, kBufferSize))));
     temp_callback_count_++;
   }
   void CallbackExpectHit(const base::File& file, bool is_hit) {
@@ -94,13 +91,11 @@ class PnaclHostTest : public testing::Test {
     EXPECT_TRUE(mutable_file->GetInfo(&info));
     EXPECT_FALSE(info.is_directory);
     EXPECT_EQ(kBufferSize, static_cast<size_t>(info.size));
-    char data[kBufferSize];
-    memset(data, 0x0, kBufferSize);
-    char str[kBufferSize];
-    memset(str, 0x0, kBufferSize);
+    char data[kBufferSize] = {};
+    char str[kBufferSize] = {};
     snprintf(str, kBufferSize, "testdata%d", write_callback_count_);
-    EXPECT_EQ(kBufferSize,
-              static_cast<size_t>(mutable_file->Read(0, data, kBufferSize)));
+    EXPECT_EQ(kBufferSize, static_cast<size_t>(UNSAFE_TODO(
+                               mutable_file->Read(0, data, kBufferSize))));
     EXPECT_STREQ(str, data);
     temp_callback_count_++;
   }

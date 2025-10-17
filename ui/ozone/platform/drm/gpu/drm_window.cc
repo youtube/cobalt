@@ -65,10 +65,12 @@ void DrmWindow::SetBounds(const gfx::Rect& bounds) {
 }
 
 void DrmWindow::SetCursor(const std::vector<SkBitmap>& bitmaps,
-                          const gfx::Point& location,
+                          const std::optional<gfx::Point>& location,
                           base::TimeDelta frame_delay) {
   cursor_bitmaps_ = bitmaps;
-  cursor_location_ = location;
+  if (location.has_value()) {
+    cursor_location_ = location.value();
+  }
   cursor_frame_ = 0;
   cursor_timer_.Stop();
 
@@ -77,7 +79,11 @@ void DrmWindow::SetCursor(const std::vector<SkBitmap>& bitmaps,
                         &DrmWindow::OnCursorAnimationTimeout);
   }
 
-  ResetCursor();
+  if (location.has_value()) {
+    ResetCursor();
+  } else {
+    UpdateCursorImage();
+  }
 }
 
 void DrmWindow::MoveCursor(const gfx::Point& location) {
@@ -112,7 +118,7 @@ void DrmWindow::SchedulePageFlip(
 
   last_submitted_planes_ = DrmOverlayPlane::Clone(planes);
 
-  if (!controller_) {
+  if (!controller_ || !controller_->GetDrmDevice()->has_master()) {
     std::move(submission_callback)
         .Run(gfx::SwapResult::SWAP_ACK,
              /*release_fence=*/gfx::GpuFenceHandle());

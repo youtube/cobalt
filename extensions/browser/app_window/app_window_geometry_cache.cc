@@ -18,6 +18,8 @@
 #include "extensions/browser/extension_prefs_factory.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 
 namespace {
 
@@ -43,11 +45,12 @@ AppWindowGeometryCache* AppWindowGeometryCache::Get(
   return Factory::GetForContext(context, true /* create */);
 }
 
-void AppWindowGeometryCache::SaveGeometry(const std::string& extension_id,
-                                          const std::string& window_id,
-                                          const gfx::Rect& bounds,
-                                          const gfx::Rect& screen_bounds,
-                                          ui::WindowShowState window_state) {
+void AppWindowGeometryCache::SaveGeometry(
+    const ExtensionId& extension_id,
+    const std::string& window_id,
+    const gfx::Rect& bounds,
+    const gfx::Rect& screen_bounds,
+    ui::mojom::WindowShowState window_state) {
   ExtensionData& extension_data = cache_[extension_id];
 
   // If we don't have any unsynced changes and this is a duplicate of what's
@@ -94,11 +97,11 @@ void AppWindowGeometryCache::SaveGeometry(const std::string& extension_id,
 }
 
 void AppWindowGeometryCache::SyncToStorage() {
-  std::set<std::string> tosync;
+  std::set<ExtensionId> tosync;
   tosync.swap(unsynced_extensions_);
   for (auto sync_it = tosync.cbegin(), sync_eit = tosync.cend();
        sync_it != sync_eit; ++sync_it) {
-    const std::string& extension_id = *sync_it;
+    const ExtensionId& extension_id = *sync_it;
     const ExtensionData& extension_data = cache_[extension_id];
 
     base::Value::Dict dict;
@@ -110,7 +113,8 @@ void AppWindowGeometryCache::SyncToStorage() {
       const gfx::Rect& screen_bounds = data_it->second.screen_bounds;
       DCHECK(!bounds.IsEmpty());
       DCHECK(!screen_bounds.IsEmpty());
-      DCHECK(data_it->second.window_state != ui::SHOW_STATE_DEFAULT);
+      DCHECK(data_it->second.window_state !=
+             ui::mojom::WindowShowState::kDefault);
       value.Set("x", bounds.x());
       value.Set("y", bounds.y());
       value.Set("w", bounds.width());
@@ -119,7 +123,7 @@ void AppWindowGeometryCache::SyncToStorage() {
       value.Set("screen_bounds_y", screen_bounds.y());
       value.Set("screen_bounds_w", screen_bounds.width());
       value.Set("screen_bounds_h", screen_bounds.height());
-      value.Set("state", data_it->second.window_state);
+      value.Set("state", static_cast<int>(data_it->second.window_state));
       value.Set("ts", base::TimeToValue(data_it->second.last_change));
       dict.Set(data_it->first, std::move(value));
 
@@ -131,12 +135,13 @@ void AppWindowGeometryCache::SyncToStorage() {
   }
 }
 
-bool AppWindowGeometryCache::GetGeometry(const std::string& extension_id,
-                                         const std::string& window_id,
-                                         gfx::Rect* bounds,
-                                         gfx::Rect* screen_bounds,
-                                         ui::WindowShowState* window_state) {
-  std::map<std::string, ExtensionData>::const_iterator extension_data_it =
+bool AppWindowGeometryCache::GetGeometry(
+    const ExtensionId& extension_id,
+    const std::string& window_id,
+    gfx::Rect* bounds,
+    gfx::Rect* screen_bounds,
+    ui::mojom::WindowShowState* window_state) {
+  std::map<ExtensionId, ExtensionData>::const_iterator extension_data_it =
       cache_.find(extension_id);
 
   // Not in the map means loading data for the extension didn't finish yet or
@@ -145,7 +150,7 @@ bool AppWindowGeometryCache::GetGeometry(const std::string& extension_id,
   if (extension_data_it == cache_.end()) {
     LoadGeometryFromStorage(extension_id);
     extension_data_it = cache_.find(extension_id);
-    DCHECK(extension_data_it != cache_.end());
+    CHECK(extension_data_it != cache_.end());
   }
 
   auto window_data_it = extension_data_it->second.find(window_id);
@@ -158,8 +163,10 @@ bool AppWindowGeometryCache::GetGeometry(const std::string& extension_id,
   // Check for and do not return corrupt data.
   if ((bounds && window_data.bounds.IsEmpty()) ||
       (screen_bounds && window_data.screen_bounds.IsEmpty()) ||
-      (window_state && window_data.window_state == ui::SHOW_STATE_DEFAULT))
+      (window_state &&
+       window_data.window_state == ui::mojom::WindowShowState::kDefault)) {
     return false;
+  }
 
   if (bounds)
     *bounds = window_data.bounds;
@@ -173,7 +180,7 @@ bool AppWindowGeometryCache::GetGeometry(const std::string& extension_id,
 void AppWindowGeometryCache::Shutdown() { SyncToStorage(); }
 
 AppWindowGeometryCache::WindowData::WindowData()
-    : window_state(ui::SHOW_STATE_DEFAULT) {}
+    : window_state(ui::mojom::WindowShowState::kDefault) {}
 
 AppWindowGeometryCache::WindowData::~WindowData() = default;
 
@@ -196,7 +203,7 @@ void AppWindowGeometryCache::SetSyncDelayForTests(int timeout_ms) {
 }
 
 void AppWindowGeometryCache::LoadGeometryFromStorage(
-    const std::string& extension_id) {
+    const ExtensionId& extension_id) {
   ExtensionData& extension_data = cache_[extension_id];
 
   const base::Value::Dict* stored_windows =
@@ -217,24 +224,33 @@ void AppWindowGeometryCache::LoadGeometryFromStorage(
       continue;
 
     WindowData& window_data = extension_data[window_id];
-    if (absl::optional<int> i = stored_window->FindInt("x"))
+    if (std::optional<int> i = stored_window->FindInt("x")) {
       window_data.bounds.set_x(*i);
-    if (absl::optional<int> i = stored_window->FindInt("y"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("y")) {
       window_data.bounds.set_y(*i);
-    if (absl::optional<int> i = stored_window->FindInt("w"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("w")) {
       window_data.bounds.set_width(*i);
-    if (absl::optional<int> i = stored_window->FindInt("h"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("h")) {
       window_data.bounds.set_height(*i);
-    if (absl::optional<int> i = stored_window->FindInt("screen_bounds_x"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("screen_bounds_x")) {
       window_data.screen_bounds.set_x(*i);
-    if (absl::optional<int> i = stored_window->FindInt("screen_bounds_y"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("screen_bounds_y")) {
       window_data.screen_bounds.set_y(*i);
-    if (absl::optional<int> i = stored_window->FindInt("screen_bounds_w"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("screen_bounds_w")) {
       window_data.screen_bounds.set_width(*i);
-    if (absl::optional<int> i = stored_window->FindInt("screen_bounds_h"))
+    }
+    if (std::optional<int> i = stored_window->FindInt("screen_bounds_h")) {
       window_data.screen_bounds.set_height(*i);
-    if (absl::optional<int> i = stored_window->FindInt("state"))
-      window_data.window_state = static_cast<ui::WindowShowState>(*i);
+    }
+    if (std::optional<int> i = stored_window->FindInt("state")) {
+      window_data.window_state = static_cast<ui::mojom::WindowShowState>(*i);
+    }
     if (const std::string* ts_as_string = stored_window->FindString("ts")) {
       int64_t ts;
       if (base::StringToInt64(*ts_as_string, &ts)) {
@@ -269,15 +285,18 @@ AppWindowGeometryCache::Factory::Factory()
 
 AppWindowGeometryCache::Factory::~Factory() = default;
 
-KeyedService* AppWindowGeometryCache::Factory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppWindowGeometryCache::Factory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new AppWindowGeometryCache(context, ExtensionPrefs::Get(context));
+  return std::make_unique<AppWindowGeometryCache>(context,
+                                                  ExtensionPrefs::Get(context));
 }
 
 content::BrowserContext*
 AppWindowGeometryCache::Factory::GetBrowserContextToUse(
     content::BrowserContext* context) const {
-  return ExtensionsBrowserClient::Get()->GetOriginalContext(context);
+  return ExtensionsBrowserClient::Get()->GetContextRedirectedToOriginal(
+      context);
 }
 
 void AppWindowGeometryCache::AddObserver(Observer* observer) {

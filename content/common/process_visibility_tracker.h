@@ -5,22 +5,22 @@
 #ifndef CONTENT_COMMON_PROCESS_VISIBILITY_TRACKER_H_
 #define CONTENT_COMMON_PROCESS_VISIBILITY_TRACKER_H_
 
+#include <optional>
+
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/observer_list_threadsafe.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
-#include "components/power_scheduler/power_mode_voter.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
 // This class represents overall on-screen visibility for a given process of the
 // embedding application. Currently only works/is used in the browser process on
 // Android (Chrome and WebView).
-// TODO(crbug.com/1177542): implement usage in other processes.
+// TODO(crbug.com/40168826): implement usage in other processes.
 // Observers can be added from any sequence, but OnProcessVisibilityChanged()
 // should be called from the thread that created the tracker instance.
 class CONTENT_EXPORT ProcessVisibilityTracker {
@@ -49,11 +49,10 @@ class CONTENT_EXPORT ProcessVisibilityTracker {
   ~ProcessVisibilityTracker();
 
   base::Lock lock_;
-  absl::optional<bool> is_visible_ GUARDED_BY(lock_);
+  std::optional<bool> is_visible_ GUARDED_BY(lock_);
   scoped_refptr<base::ObserverListThreadSafe<ProcessVisibilityObserver>>
       observers_ GUARDED_BY(lock_);
 
-  std::unique_ptr<power_scheduler::PowerModeVoter> power_mode_visibility_voter_;
   SEQUENCE_CHECKER(main_thread_);
 };
 

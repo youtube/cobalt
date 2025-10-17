@@ -4,7 +4,8 @@
 
 // clang-format off
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {AppProtocolEntry, HandlerEntry, ProtocolEntry, ProtocolHandlersElement, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {AppProtocolEntry, HandlerEntry, ProtocolEntry, ProtocolHandlersElement} from 'chrome://settings/lazy_load.js';
+import {SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
@@ -65,6 +66,7 @@ suite('ProtocolHandlers', function() {
         protocol_display_name: 'email',
         spec: 'http://www.google.com/%s',
         app_id: 'testID',
+        app_name: 'testName',
       }],
       protocol: 'mailto',
       protocol_display_name: 'email',
@@ -77,6 +79,7 @@ suite('ProtocolHandlers', function() {
           protocol_display_name: 'web calendar',
           spec: 'http://www.google1.com/%s',
           app_id: 'testID1',
+          app_name: 'testName1',
         },
         {
           host: 'www.google2.com',
@@ -103,6 +106,7 @@ suite('ProtocolHandlers', function() {
         protocol_display_name: 'email',
         spec: 'http://www.google1.com/%s',
         app_id: 'testID1',
+        app_name: 'testName1',
       }],
       protocol: 'mailto',
       protocol_display_name: 'email',
@@ -115,6 +119,7 @@ suite('ProtocolHandlers', function() {
           protocol_display_name: 'web calendar',
           spec: 'http://www.google.com/%s',
           app_id: 'testID',
+          app_name: 'testName',
         },
         {
           host: 'www.google3.com',
@@ -122,6 +127,7 @@ suite('ProtocolHandlers', function() {
           protocol_display_name: 'web calendar',
           spec: 'http://www.google3.com/%s',
           app_id: 'testID3',
+          app_name: 'testName3',
         },
       ],
       protocol: 'webcal',
@@ -145,7 +151,7 @@ suite('ProtocolHandlers', function() {
    */
   let browserProxy: TestSiteSettingsPrefsBrowserProxy;
 
-  setup(async function() {
+  setup(function() {
     browserProxy = new TestSiteSettingsPrefsBrowserProxy();
     SiteSettingsPrefsBrowserProxyImpl.setInstance(browserProxy);
   });
@@ -315,11 +321,13 @@ suite('ProtocolHandlers', function() {
     // There are three total handlers within the two protocols.
     assertEquals(3, listItems.length);
 
-    // Check that item hosts are rendered correctly.
-    const hosts = testElement.shadowRoot!.querySelectorAll('.protocol-host');
-    assertEquals('www.google.com', hosts[0]!.textContent!.trim());
-    assertEquals('www.google1.com', hosts[1]!.textContent!.trim());
-    assertEquals('www.google2.com', hosts[2]!.textContent!.trim());
+    // Check that item app names are rendered correctly.
+    const appNames =
+        testElement.shadowRoot!.querySelectorAll('.protocol-app-name');
+    assertEquals(3, appNames.length);
+    assertEquals('testName', appNames[0]!.textContent!.trim());
+    assertEquals('testName1', appNames[1]!.textContent!.trim());
+    assertEquals('www.google2.com', appNames[2]!.textContent!.trim());
   });
 
   test('remove web app allowed protocols', async () => {
@@ -347,11 +355,13 @@ suite('ProtocolHandlers', function() {
     // There are three total handlers within the two protocols.
     assertEquals(3, listItems.length);
 
-    // Check that item hosts are rendered correctly.
-    const hosts = testElement.shadowRoot!.querySelectorAll('.protocol-host');
-    assertEquals('www.google1.com', hosts[0]!.textContent!.trim());
-    assertEquals('www.google.com', hosts[1]!.textContent!.trim());
-    assertEquals('www.google3.com', hosts[2]!.textContent!.trim());
+    // Check that item app names are rendered correctly.
+    const appNames =
+        testElement.shadowRoot!.querySelectorAll('.protocol-app-name');
+    assertEquals(3, appNames.length);
+    assertEquals('testName1', appNames[0]!.textContent!.trim());
+    assertEquals('testName', appNames[1]!.textContent!.trim());
+    assertEquals('testName3', appNames[2]!.textContent!.trim());
   });
 
   test('remove web app disallowed protocols', async () => {
@@ -382,18 +392,20 @@ suite('ProtocolHandlers', function() {
     // the allowed and disallowed lists.
     assertEquals(6, listItems.length);
 
-    // Check that item hosts are rendered correctly.
-    const hosts = testElement.shadowRoot!.querySelectorAll('.protocol-host');
+    // Check that item app names are rendered correctly.
+    const appNames =
+        testElement.shadowRoot!.querySelectorAll('.protocol-app-name');
+    assertEquals(6, appNames.length);
 
     // Allowed list.
-    assertEquals('www.google.com', hosts[0]!.textContent!.trim());
-    assertEquals('www.google1.com', hosts[1]!.textContent!.trim());
-    assertEquals('www.google2.com', hosts[2]!.textContent!.trim());
+    assertEquals('testName', appNames[0]!.textContent!.trim());
+    assertEquals('testName1', appNames[1]!.textContent!.trim());
+    assertEquals('www.google2.com', appNames[2]!.textContent!.trim());
 
     // Disallowed list.
-    assertEquals('www.google1.com', hosts[3]!.textContent!.trim());
-    assertEquals('www.google.com', hosts[4]!.textContent!.trim());
-    assertEquals('www.google3.com', hosts[5]!.textContent!.trim());
+    assertEquals('testName1', appNames[3]!.textContent!.trim());
+    assertEquals('testName', appNames[4]!.textContent!.trim());
+    assertEquals('testName3', appNames[5]!.textContent!.trim());
   });
 
   test('remove web app allowed then disallowed protocols', async () => {

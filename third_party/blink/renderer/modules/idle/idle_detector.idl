@@ -17,13 +17,12 @@ enum ScreenIdleState {
 [
   SecureContext,
   Exposed=(Window,DedicatedWorker),
-  ActiveScriptWrappable,
-  RuntimeEnabled=IdleDetection
+  ActiveScriptWrappable
 ] interface IdleDetector : EventTarget {
   [CallWith=ScriptState] constructor();
   readonly attribute UserIdleState? userState;
   readonly attribute ScreenIdleState? screenState;
   attribute EventHandler onchange;
   [Exposed=Window, CallWith=ScriptState, RaisesException, MeasureAs=IdleDetectionPermissionRequested] static Promise<PermissionState> requestPermission();
-  [CallWith=ScriptState, RaisesException, MeasureAs=IdleDetectionStart] Promise<void> start(optional IdleOptions options = {});
+  [CallWith=ScriptState, RaisesException, MeasureAs=IdleDetectionStart] Promise<undefined> start(optional IdleOptions options = {});
 };

@@ -19,6 +19,7 @@
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_manager_observer.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_observer.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_restriction_set.h"
+#include "chrome/browser/chromeos/policy/dlp/dlp_content_tab_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -33,9 +34,11 @@ struct DesktopMediaID;
 class WebContents;
 }  // namespace content
 
-namespace policy {
-
+namespace data_controls {
 class DlpReportingManager;
+}  // namespace data_controls
+
+namespace policy {
 
 class DlpWarnNotifier;
 
@@ -47,6 +50,23 @@ class DlpContentManager : public DlpContentObserver,
                           public BrowserListObserver,
                           public TabStripModelObserver {
  public:
+  // Holds DLP restrictions information for `web_contents` object.
+  struct WebContentsInfo {
+    WebContentsInfo();
+    WebContentsInfo(content::WebContents* web_contents,
+                    DlpContentRestrictionSet restriction_set,
+                    std::vector<DlpContentTabHelper::RfhInfo> rfh_info_vector);
+    WebContentsInfo(const WebContentsInfo&);
+    WebContentsInfo& operator=(const WebContentsInfo&);
+    ~WebContentsInfo();
+
+    raw_ptr<content::WebContents> web_contents = nullptr;
+    // Restrictions set for `web_contents`.
+    DlpContentRestrictionSet restriction_set;
+    // DLP restrictions info for RenderFrameHosts in `web_contents`.
+    std::vector<DlpContentTabHelper::RfhInfo> rfh_info_vector;
+  };
+
   DlpContentManager(const DlpContentManager&) = delete;
   DlpContentManager& operator=(const DlpContentManager&) = delete;
 
@@ -68,19 +88,19 @@ class DlpContentManager : public DlpContentObserver,
   // to proceed or not.
   void CheckPrintingRestriction(content::WebContents* web_contents,
                                 content::GlobalRenderFrameHostId rfh_id,
-                                OnDlpRestrictionCheckedCallback callback);
+                                WarningCallback callback);
 
   // Returns whether screenshots should be restricted for extensions API.
   virtual bool IsScreenshotApiRestricted(content::WebContents* web_contents);
 
   // Checks whether screen sharing of content from the |media_id| source with
-  // application |application_name| is restricted or not advised. Depending on
+  // application |application_title| is restricted or not advised. Depending on
   // the result, calls |callback| and passes an indicator whether to proceed or
   // not.
   virtual void CheckScreenShareRestriction(
       const content::DesktopMediaID& media_id,
       const std::u16string& application_title,
-      OnDlpRestrictionCheckedCallback callback) = 0;
+      WarningCallback callback) = 0;
 
   // Called when screen share is started.
   // |state_change_callback| will be called when restricted content will appear
@@ -108,7 +128,8 @@ class DlpContentManager : public DlpContentObserver,
   virtual void OnScreenShareSourceChanging(
       const std::string& label,
       const content::DesktopMediaID& old_media_id,
-      const content::DesktopMediaID& new_media_id);
+      const content::DesktopMediaID& new_media_id,
+      bool captured_surface_control_active);
 
   void AddObserver(DlpContentManagerObserver* observer,
                    DlpContentRestriction restriction);
@@ -116,10 +137,14 @@ class DlpContentManager : public DlpContentObserver,
   void RemoveObserver(const DlpContentManagerObserver* observer,
                       DlpContentRestriction restriction);
 
+  // Returns an array of DLP restrictions info to all the tracked WebContents.
+  std::vector<WebContentsInfo> GetWebContentsInfo() const;
+
  protected:
   friend class DlpContentManagerTestHelper;
 
-  void SetReportingManagerForTesting(DlpReportingManager* manager);
+  void SetReportingManagerForTesting(
+      data_controls::DlpReportingManager* manager);
 
   void SetWarnNotifierForTesting(
       std::unique_ptr<DlpWarnNotifier> warn_notifier);
@@ -167,7 +192,6 @@ class DlpContentManager : public DlpContentObserver,
         content::MediaStreamUI::SourceCallback source_callback);
 
     bool operator==(const ScreenShareInfo& other) const;
-    bool operator!=(const ScreenShareInfo& other) const;
 
     const content::DesktopMediaID& media_id() const;
     const content::DesktopMediaID& new_media_id() const;
@@ -222,6 +246,10 @@ class DlpContentManager : public DlpContentObserver,
     // otherwise.
     bool HasOpenDialogWidget();
 
+    // Records that Captured Surface Control was active at some point during
+    // the capture.
+    void SetCapturedSurfaceControlActive();
+
     base::WeakPtr<ScreenShareInfo> GetWeakPtr();
 
    private:
@@ -242,7 +270,6 @@ class DlpContentManager : public DlpContentObserver,
     std::string label_;
     content::DesktopMediaID media_id_;
     content::DesktopMediaID new_media_id_;
-    // TODO(crbug.com/1264793): Don't cache the application name.
     std::u16string application_title_;
     base::OnceClosure stop_callback_;
     content::MediaStreamUI::StateChangeCallback state_change_callback_;
@@ -261,6 +288,9 @@ class DlpContentManager : public DlpContentObserver,
     // Set only for tab shares.
     base::WeakPtr<content::WebContents> web_contents_;
 
+    // Only meaningful for tab-shares.
+    bool captured_surface_control_active_ = false;
+
     base::WeakPtrFactory<ScreenShareInfo> weak_factory_{this};
   };
 
@@ -272,14 +302,14 @@ class DlpContentManager : public DlpContentObserver,
   static void ReportWarningProceededEvent(
       const GURL& url,
       DlpRulesManager::Restriction restriction,
-      DlpReportingManager* reporting_manager);
+      data_controls::DlpReportingManager* reporting_manager);
 
   // Helper method to create a callback with ReportWarningProceededEvent
   // function.
   static bool MaybeReportWarningProceededEvent(
       GURL url,
       DlpRulesManager::Restriction restriction,
-      DlpReportingManager* reporting_manager,
+      data_controls::DlpReportingManager* reporting_manager,
       bool should_proceed);
 
   // Retrieves WebContents from |media_id| for tab shares. Otherwise returns
@@ -326,7 +356,7 @@ class DlpContentManager : public DlpContentObserver,
   // app |application_title| and calls the |callback| with a result.
   void ProcessScreenShareRestriction(const std::u16string& application_title,
                                      ConfidentialContentsInfo info,
-                                     OnDlpRestrictionCheckedCallback callback);
+                                     WarningCallback callback);
 
   // Returns which level, url, and information about visible confidential
   // contents of screen share restriction that is currently enforced for
@@ -378,7 +408,7 @@ class DlpContentManager : public DlpContentObserver,
   void OnDlpWarnDialogReply(
       const DlpConfidentialContents& confidential_contents,
       DlpRulesManager::Restriction restriction,
-      OnDlpRestrictionCheckedCallback callback,
+      WarningCallback callback,
       bool should_proceed);
 
   // Reports events if required by the |restriction_info| and
@@ -417,7 +447,8 @@ class DlpContentManager : public DlpContentObserver,
   // List of the currently running screen shares.
   std::vector<std::unique_ptr<ScreenShareInfo>> running_screen_shares_;
 
-  raw_ptr<DlpReportingManager, DanglingUntriaged> reporting_manager_{nullptr};
+  raw_ptr<data_controls::DlpReportingManager, DanglingUntriaged>
+      reporting_manager_{nullptr};
 
   std::unique_ptr<DlpWarnNotifier> warn_notifier_;
 

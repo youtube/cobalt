@@ -4,12 +4,11 @@
 
 package org.chromium.android_webview.test.util;
 
-import org.chromium.android_webview.AwFeatureList;
-import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -32,10 +31,8 @@ public class JavascriptEventObserver {
      * @param name the name of object used in javascript
      */
     public void register(WebContents webContents, String name) {
-        JavascriptInjector
-                .fromWebContents(webContents,
-                        AwFeatureList.isEnabled(AwFeatures.WEBVIEW_JAVA_JS_BRIDGE_MOJO))
-                .addPossiblyUnsafeInterface(this, name, null);
+        JavascriptInjector.fromWebContents(webContents)
+                .addPossiblyUnsafeInterface(this, name, null, List.of("*"));
     }
 
     /**

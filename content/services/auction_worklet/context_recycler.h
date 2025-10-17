@@ -12,7 +12,9 @@
 #include "base/memory/raw_ref.h"
 #include "content/common/content_export.h"
 #include "content/services/auction_worklet/auction_v8_helper.h"
-#include "v8/include/v8-external.h"
+#include "content/services/auction_worklet/lazy_filler.h"
+#include "content/services/auction_worklet/public/mojom/auction_shared_storage_host.mojom-forward.h"
+#include "v8/include/v8-context.h"
 #include "v8/include/v8-forward.h"
 
 namespace auction_worklet {
@@ -21,16 +23,24 @@ namespace mojom {
 class AuctionSharedStorageHost;
 }  // namespace mojom
 
+class AuctionV8Logger;
 class ForDebuggingOnlyBindings;
 class PrivateAggregationBindings;
-class SharedStorageBindings;
+class RealTimeReportingBindings;
 class RegisterAdBeaconBindings;
+class RegisterAdMacroBindings;
 class ReportBindings;
+class PrivateModelTrainingBindings;
 class SetBidBindings;
 class SetPriorityBindings;
 class SetPrioritySignalsOverrideBindings;
+class SharedStorageBindings;
+class TextConversionHelpers;
+class AuctionConfigLazyFiller;
 class BiddingBrowserSignalsLazyFiller;
 class InterestGroupLazyFiller;
+class ReportWinBrowserSignalsLazyFiller;
+class SellerBrowserSignalsLazyFiller;
 
 // Base class for bindings used with contexts used with ContextRecycler.
 // The expected lifecycle is:
@@ -54,48 +64,23 @@ class Bindings {
 // points to input data (in that case we return overly fresh data, but that's
 // safe, and it doesn't seem worth the effort to aid in misuse).
 //
-// API for implementers is as follows:
+// In addition to the basic LazyFillter pattern, implementors must also
+// implement Reset(), which adjusts state for recycling.
 //
-// 1) In FillInObject, call DefineLazyAttribute for all relevant attributes.
-// 2) In the static helpers registered with DefineLazyAttribute
-//    (which take (v8::Local<v8::Name> name,
-//                 const v8::PropertyCallbackInfo<v8::Value>& info)
-//    Use GetSelf and SetResult() to provide value.
-//    The implementation must be careful of `this` being in recycled state,
-//    and also re-check that the field itself is still there (the check in
-//    FillInObject may have been from pre-recycling).
+// Implementations must be careful of `this` being in a recycled state, and
+// re-check that the fields themselves are still present on access (values may
+// have changed between defining an attribute and the invocation of the
+// attribute's callback).
 //
-//    If you use the JSON parser, make sure to eat exceptions with v8::TryCatch.
-//
-// 3) In Reset(), adjust state for recycling.
-//
-// Users should get one from ContextRecycler and call FillInObject on it, after
-// ContextRecyclerScope is active.
-class LazyFiller {
+// Users should get PersistedLazyFiller from ContextRecycler and use it to
+// populate objects only after ContextRecyclerScope is active.
+class PersistedLazyFiller : public LazyFiller {
  public:
-  virtual ~LazyFiller();
-  // Return success/failure.
-  virtual bool FillInObject(v8::Local<v8::Object> object) = 0;
+  ~PersistedLazyFiller() override;
   virtual void Reset() = 0;
 
  protected:
-  explicit LazyFiller(AuctionV8Helper* v8_helper);
-  AuctionV8Helper* v8_helper() { return v8_helper_.get(); }
-
-  template <typename T>
-  static T* GetSelf(const v8::PropertyCallbackInfo<v8::Value>& info) {
-    return static_cast<T*>(v8::External::Cast(*info.Data())->Value());
-  }
-
-  static void SetResult(const v8::PropertyCallbackInfo<v8::Value>& info,
-                        v8::Local<v8::Value> result);
-
-  bool DefineLazyAttribute(v8::Local<v8::Object> object,
-                           base::StringPiece name,
-                           v8::AccessorNameGetterCallback getter);
-
- private:
-  const raw_ptr<AuctionV8Helper> v8_helper_;
+  PersistedLazyFiller(AuctionV8Helper* v8_helper);
 };
 
 // This helps manage the state of bindings on a context should we chose to
@@ -112,16 +97,15 @@ class CONTENT_EXPORT ContextRecycler {
   }
 
   void AddPrivateAggregationBindings(
-      bool private_aggregation_permissions_policy_allowed);
+      bool private_aggregation_permissions_policy_allowed,
+      bool reserved_once_allowed);
   PrivateAggregationBindings* private_aggregation_bindings() {
     return private_aggregation_bindings_.get();
   }
 
-  void AddSharedStorageBindings(
-      mojom::AuctionSharedStorageHost* shared_storage_host,
-      bool shared_storage_permissions_policy_allowed);
-  SharedStorageBindings* shared_storage_bindings() {
-    return shared_storage_bindings_.get();
+  void AddRealTimeReportingBindings();
+  RealTimeReportingBindings* real_time_reporting_bindings() {
+    return real_time_reporting_bindings_.get();
   }
 
   void AddRegisterAdBeaconBindings();
@@ -129,9 +113,18 @@ class CONTENT_EXPORT ContextRecycler {
     return register_ad_beacon_bindings_.get();
   }
 
-  void AddReportBindings();
+  void AddRegisterAdMacroBindings();
+  RegisterAdMacroBindings* register_ad_macro_bindings() {
+    return register_ad_macro_bindings_.get();
+  }
+
+  void AddReportBindings(bool queue_report_aggregate_win_allowed);
   ReportBindings* report_bindings() { return report_bindings_.get(); }
 
+  void AddPrivateModelTrainingBindings();
+  PrivateModelTrainingBindings* private_model_training_bindings() {
+    return private_model_training_bindings_.get();
+  }
   void AddSetBidBindings();
   SetBidBindings* set_bid_bindings() { return set_bid_bindings_.get(); }
 
@@ -145,6 +138,19 @@ class CONTENT_EXPORT ContextRecycler {
     return set_priority_signals_override_bindings_.get();
   }
 
+  void AddSharedStorageBindings(
+      mojom::AuctionSharedStorageHost* shared_storage_host,
+      mojom::AuctionWorkletFunction source_auction_worklet_function,
+      bool shared_storage_permissions_policy_allowed);
+  SharedStorageBindings* shared_storage_bindings() {
+    return shared_storage_bindings_.get();
+  }
+
+  void AddTextConversionHelpers();
+  TextConversionHelpers* text_conversion_helpers() {
+    return text_conversion_helpers_.get();
+  }
+
   void AddInterestGroupLazyFiller();
   InterestGroupLazyFiller* interest_group_lazy_filler() {
     return interest_group_lazy_filler_.get();
@@ -153,6 +159,22 @@ class CONTENT_EXPORT ContextRecycler {
   void AddBiddingBrowserSignalsLazyFiller();
   BiddingBrowserSignalsLazyFiller* bidding_browser_signals_lazy_filler() {
     return bidding_browser_signals_lazy_filler_.get();
+  }
+
+  void AddSellerBrowserSignalsLazyFiller();
+  SellerBrowserSignalsLazyFiller* seller_browser_signals_lazy_filler() {
+    return seller_browser_signals_lazy_filler_.get();
+  }
+
+  void AddReportWinBrowserSignalsLazyFiller();
+  ReportWinBrowserSignalsLazyFiller* report_win_lazy_filler() {
+    return report_win_browser_signals_lazy_filler_.get();
+  }
+
+  void EnsureAuctionConfigLazyFillers(size_t required);
+  std::vector<std::unique_ptr<AuctionConfigLazyFiller>>&
+  auction_config_lazy_fillers() {
+    return auction_config_lazy_fillers_;
   }
 
  private:
@@ -171,22 +193,39 @@ class CONTENT_EXPORT ContextRecycler {
   const raw_ptr<AuctionV8Helper> v8_helper_;
   v8::Global<v8::Context> context_;
 
+  // Must be after `v8_helper` and `context_`, but before lazy bindings, which
+  // may use it.
+  std::unique_ptr<AuctionV8Logger> v8_logger_;
+
   std::unique_ptr<ForDebuggingOnlyBindings> for_debugging_only_bindings_;
   std::unique_ptr<PrivateAggregationBindings> private_aggregation_bindings_;
-  std::unique_ptr<SharedStorageBindings> shared_storage_bindings_;
+  std::unique_ptr<RealTimeReportingBindings> real_time_reporting_bindings_;
   std::unique_ptr<RegisterAdBeaconBindings> register_ad_beacon_bindings_;
+  std::unique_ptr<RegisterAdMacroBindings> register_ad_macro_bindings_;
   std::unique_ptr<ReportBindings> report_bindings_;
+  std::unique_ptr<PrivateModelTrainingBindings>
+      private_model_training_bindings_;
   std::unique_ptr<SetBidBindings> set_bid_bindings_;
   std::unique_ptr<SetPriorityBindings> set_priority_bindings_;
   std::unique_ptr<SetPrioritySignalsOverrideBindings>
       set_priority_signals_override_bindings_;
+  std::unique_ptr<SharedStorageBindings> shared_storage_bindings_;
+  std::unique_ptr<TextConversionHelpers> text_conversion_helpers_;
 
   // everything here is owned by one of the unique_ptr's above.
-  std::vector<Bindings*> bindings_list_;
+  std::vector<raw_ptr<Bindings, VectorExperimental>> bindings_list_;
 
   std::unique_ptr<InterestGroupLazyFiller> interest_group_lazy_filler_;
   std::unique_ptr<BiddingBrowserSignalsLazyFiller>
       bidding_browser_signals_lazy_filler_;
+  // Pointer stability is needed for these since V8 keeps pointers to them.
+  std::vector<std::unique_ptr<AuctionConfigLazyFiller>>
+      auction_config_lazy_fillers_;
+
+  std::unique_ptr<SellerBrowserSignalsLazyFiller>
+      seller_browser_signals_lazy_filler_;
+  std::unique_ptr<ReportWinBrowserSignalsLazyFiller>
+      report_win_browser_signals_lazy_filler_;
 };
 
 // Helper to enter a context scope on creation and reset all bindings

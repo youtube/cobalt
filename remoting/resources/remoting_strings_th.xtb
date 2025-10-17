@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">ระบบตรวจพบเวอร์ชันของโปรโตคอลที่เข้ากันไม่ได้ โปรดตรวจสอบว่าคุณมีซอฟต์แวร์เวอร์ชันล่าสุดติดตั้งอยู่บนคอมพิวเตอร์ทั้ง 2 เครื่องแล้ว และลองอีกครั้ง</translation>
 <translation id="1008557486741366299">ไม่ใช่ตอนนี้</translation>
 <translation id="1201402288615127009">ถัดไป</translation>
-<translation id="1296511125400541222">Copyright 2023 The Chromium Authors สงวนลิขสิทธิ์</translation>
 <translation id="1297009705180977556">เกิดข้อผิดพลาดในการเชื่อมต่อกับ <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">ออบเจ็กต์ที่ขอไม่มีอยู่</translation>
 <translation id="1480046233931937785">เครดิต</translation>
@@ -29,7 +28,7 @@
 <translation id="2329392777730037872">เปิด <ph name="URL" /> ในไคลเอ็นต์ไม่สำเร็จ</translation>
 <translation id="2359808026110333948">ต่อไป</translation>
 <translation id="2366718077645204424">ไม่สามารถเข้าถึงโฮสต์ อาจเป็นเพราะการกำหนดค่าของเครือข่ายที่คุณกำลังใช้อยู่</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  ออนไลน์ล่าสุด<ph name="RELATIVE_TIMESTAMP" /></translation>
+<translation id="242591256144136845">ลิขสิทธิ์ 2025 Google LLC สงวนลิขสิทธิ์</translation>
 <translation id="2504109125669302160">ให้สิทธิ์ "การเข้าถึง" กับ <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">เชื่อมต่อกับ <ph name="HOSTNAME" /> แล้ว</translation>
 <translation id="2540992418118313681">คุณต้องการจะแชร์คอมพิวเตอร์เครื่องนี้เพื่อให้ผู้ใช้อื่นเห็นและควบคุมไหม</translation>
@@ -41,6 +40,7 @@
 <translation id="2758123043070977469">มีปัญหาในการตรวจสอบสิทธิ์ โปรดเข้าสู่ระบบอีกครั้ง</translation>
 <translation id="2803375539583399270">ป้อน PIN</translation>
 <translation id="2919669478609886916">ขณะนี้คุณกำลังแชร์คอมพิวเตอร์เครื่องนี้กับผู้ใช้อื่น คุณต้องการแชร์ต่อไปหรือไม่</translation>
+<translation id="2929683002824598593">แชร์อุปกรณ์</translation>
 <translation id="2939145106548231838">ตรวจสอบสิทธิ์ตามที่โฮสต์กำหนด</translation>
 <translation id="3027681561976217984">โหมดสัมผัส</translation>
 <translation id="3106379468611574572">คอมพิวเตอร์ระยะไกลไม่ตอบสนองคำขอการเชื่อมต่อ โปรดตรวจยืนยันว่าคอมพิวเตอร์ดังกล่าวออนไลน์อยู่และลองอีกครั้ง</translation>
@@ -54,8 +54,7 @@
 <translation id="3423542133075182604">กระบวนการทำงานระยะไกลของคีย์ความปลอดภัย</translation>
 <translation id="3581045510967524389">ไม่สามารถเชื่อมต่อเครือข่าย โปรดตรวจสอบว่าอุปกรณ์ออนไลน์อยู่</translation>
 <translation id="3596628256176442606">บริการนี้จะช่วยให้สามารถใช้การเชื่อมต่อขาเข้าจากไคลเอ็นต์ Chromoting</translation>
-<translation id="369442766917958684">ออฟไลน์</translation>
-<translation id="3695446226812920698">เรียนรู้วิธี</translation>
+<translation id="3695446226812920698">ดูวิธีการ</translation>
 <translation id="3776024066357219166">เซสชัน Chrome Remote Desktop ของคุณสิ้นสุดแล้ว</translation>
 <translation id="3858860766373142691">ชื่อ</translation>
 <translation id="3897092660631435901">เมนู</translation>
@@ -89,12 +88,12 @@
 <translation id="4808503597364150972">โปรดป้อน PIN ของคุณสำหรับ <ph name="HOSTNAME" /></translation>
 <translation id="4812684235631257312">โฮสต์</translation>
 <translation id="4867841927763172006">ส่ง PrtScn</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC สงวนลิขสิทธิ์</translation>
 <translation id="4974476491460646149">ปิดการเชื่อมต่อของ <ph name="HOSTNAME" /> แล้ว</translation>
 <translation id="4985296110227979402">คุณต้องตั้งค่าคอมพิวเตอร์สำหรับการเข้าถึงระยะไกลก่อน</translation>
 <translation id="4987330545941822761">Chrome Remote Desktop ไม่สามารถระบุเบราว์เซอร์ที่จะเปิด URL ในอุปกรณ์ โปรดเลือกจากรายการด้านล่าง</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (ออฟไลน์)</translation>
 <translation id="507204348399810022">คุณแน่ใจไหมว่าต้องการปิดใช้การเชื่อมต่อระยะไกลกับ <ph name="HOSTNAME" /></translation>
+<translation id="5095424396646120601">รายงานข้อขัดข้อง</translation>
 <translation id="5170982930780719864">รหัสโฮสต์ไม่ถูกต้อง</translation>
 <translation id="5204575267916639804">คำถามที่พบบ่อย</translation>
 <translation id="5222676887888702881">ออกจากระบบ</translation>
@@ -107,7 +106,6 @@
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">ขณะนี้มีการแชร์เดสก์ท็อปของคุณกับ <ph name="USER" /></translation>
-<translation id="5750083143895808682">ลงชื่อเข้าใช้ด้วย <ph name="EMAIL_ADDRESS" /></translation>
 <translation id="579702532610384533">เชื่อมต่อใหม่</translation>
 <translation id="5810269635982033450">หน้าจอทำหน้าที่เหมือนแทร็กแพด</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> ขอสิทธิ์เข้าถึงเพื่อดูหน้าจอ รวมถึงควบคุมแป้นพิมพ์และเมาส์ของคุณ กด "<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />" หากคุณไม่คาดว่าจะได้รับคำขอนี้ ไม่เช่นนั้นให้เลือก ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' เพื่ออนุญาตการเชื่อมต่อเมื่อพร้อม</translation>
@@ -121,10 +119,12 @@
 <translation id="6178645564515549384">โฮสต์การรับส่งข้อความดั้งเดิมสำหรับการสนับสนุนระยะไกล</translation>
 <translation id="618120821413932081">อัปเดตความละเอียดของเดสก์ท็อประยะไกลให้พอดีกับหน้าต่าง</translation>
 <translation id="6223301979382383752">เปิดค่ากำหนดการบันทึกหน้าจอ</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> ขอสิทธิ์เข้าถึงเพื่อดูหน้าจอ รวมถึงควบคุมแป้นพิมพ์และเมาส์ของคุณ คุณต้องการแชร์อุปกรณ์ไหม</translation>
 <translation id="6284412385303060032">โฮสต์ที่ทำงานที่หน้าจอตรรกะของคอนโซลได้ปิดตัวลงเพื่อสนับสนุนโหมด Curtain โดยการเปลี่ยนไปเป็นโฮสต์ที่ทำงานในเซสชันเฉพาะผู้ใช้</translation>
 <translation id="6542902059648396432">รายงานปัญหา…</translation>
 <translation id="6583902294974160967">การสนับสนุน</translation>
 <translation id="6612717000975622067">ส่ง Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{หากคุณไม่ดำเนินการใดๆ อุปกรณ์จะเริ่มแชร์โดยอัตโนมัติในอีก # วินาที}other{หากคุณไม่ดำเนินการใดๆ อุปกรณ์จะเริ่มแชร์โดยอัตโนมัติในอีก # วินาที}}</translation>
 <translation id="6654753848497929428">แชร์</translation>
 <translation id="677755392401385740">โฮสต์เริ่มใช้งานสำหรับผู้ใช้: <ph name="HOST_USERNAME" /></translation>
 <translation id="6902524959760471898">แอปพลิเคชันตัวช่วยที่จะเปิด URL ในไคลเอ็นต์ของ <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@
 <translation id="7067321367069083429">หน้าจอทำหน้าที่เหมือนหน้าจอสัมผัส</translation>
 <translation id="7116737094673640201">ยินดีต้อนรับสู่ Chrome Remote Desktop</translation>
 <translation id="7144878232160441200">ลองอีกครั้ง</translation>
+<translation id="7298392173540380852">ลิขสิทธิ์ 2025 The Chromium Authors สงวนลิขสิทธิ์</translation>
 <translation id="7312846573060934304">โฮสต์ออฟไลน์</translation>
 <translation id="7319983568955948908">หยุดการแชร์</translation>
 <translation id="7359298090707901886">เบราว์เซอร์ที่เลือกไม่สามารถใช้เปิด URL ในคอมพิวเตอร์ในพื้นที่</translation>

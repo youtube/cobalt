@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/raster_decoder.h"
 
 #include <limits>
@@ -13,7 +18,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "components/viz/common/resources/resource_format.h"
 #include "gpu/command_buffer/common/gles2_cmd_utils.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/raster_cmd_format.h"
@@ -185,7 +189,7 @@ TEST_P(RasterDecoderManualInitTest, GetCapabilitiesNorm16) {
   // R16 requires an ES3 context plus the extension to be available.
   InitState init;
   init.context_type = CONTEXT_TYPE_OPENGLES3;
-  init.gl_version = "3.0";
+  init.gl_version = "OpenGL ES 3.0";
   init.extensions.push_back("GL_EXT_texture_norm16");
   InitDecoder(init);
   AddExpectationsForGetCapabilities();
@@ -206,7 +210,7 @@ class RasterDecoderOOPTest : public testing::Test, DecoderClient {
         share_group.get(), surface.get(), gl::GLContextAttribs());
     ASSERT_TRUE(context->MakeCurrent(surface.get()));
 
-    gpu_feature_info_.status_values[GPU_FEATURE_TYPE_GPU_RASTERIZATION] =
+    gpu_feature_info_.status_values[GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
         kGpuFeatureStatusEnabled;
     auto feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
         workarounds, gpu_feature_info_);
@@ -234,7 +238,7 @@ class RasterDecoderOOPTest : public testing::Test, DecoderClient {
         /*is_for_display_compositor=*/false);
 
     client_texture_mailbox_ =
-        CreateMailbox(viz::ResourceFormat::RGBA_8888, /*width=*/2,
+        CreateMailbox(viz::SinglePlaneFormat::kRGBA_8888, /*width=*/2,
                       /*height=*/2, /*cleared=*/false);
 
     // When creating the mailbox, we create a WrappedSkImage shared image which
@@ -269,9 +273,9 @@ class RasterDecoderOOPTest : public testing::Test, DecoderClient {
   void OnFenceSyncRelease(uint64_t release) override {}
   void OnDescheduleUntilFinished() override {}
   void OnRescheduleAfterFinished() override {}
-  void OnSwapBuffers(uint64_t swap_id, uint32_t flags) override {}
   void ScheduleGrContextCleanup() override {}
   void HandleReturnData(base::span<const uint8_t> data) override {}
+  bool ShouldYield() override { return false; }
 
   std::unique_ptr<RasterDecoder> CreateDecoder() {
     command_buffer_service_ = std::make_unique<FakeCommandBufferServiceBase>();
@@ -280,7 +284,7 @@ class RasterDecoderOOPTest : public testing::Test, DecoderClient {
         GpuPreferences(), nullptr /* memory_tracker */, &shared_image_manager_,
         context_state_, true /* is_privileged */));
     ContextCreationAttribs attribs;
-    attribs.enable_oop_rasterization = true;
+    attribs.enable_gpu_rasterization = true;
     attribs.enable_raster_interface = true;
     CHECK_EQ(decoder->Initialize(context_state_->surface(),
                                  context_state_->context(), true,
@@ -289,18 +293,20 @@ class RasterDecoderOOPTest : public testing::Test, DecoderClient {
     return decoder;
   }
 
-  gpu::Mailbox CreateMailbox(viz::ResourceFormat resource_format,
+  gpu::Mailbox CreateMailbox(viz::SharedImageFormat format,
                              GLsizei width,
                              GLsizei height,
                              bool cleared) {
-    gpu::Mailbox mailbox = gpu::Mailbox::GenerateForSharedImage();
+    gpu::Mailbox mailbox = gpu::Mailbox::Generate();
     gfx::Size size(width, height);
     auto color_space = gfx::ColorSpace::CreateSRGB();
-    viz::SharedImageFormat si_format =
-        viz::SharedImageFormat::SinglePlane(resource_format);
+
+    // Via this function, this test creates mailboxes that are used as both the
+    // sources of reads and destinations of writes via the raster interface.
     shared_image_factory_->CreateSharedImage(
-        mailbox, si_format, size, color_space, kTopLeft_GrSurfaceOrigin,
-        kPremul_SkAlphaType, gpu::kNullSurfaceHandle, SHARED_IMAGE_USAGE_RASTER,
+        mailbox, format, size, color_space, kTopLeft_GrSurfaceOrigin,
+        kPremul_SkAlphaType, gpu::kNullSurfaceHandle,
+        SHARED_IMAGE_USAGE_RASTER_READ | SHARED_IMAGE_USAGE_RASTER_WRITE,
         "TestLabel");
 
     if (cleared) {
@@ -380,7 +386,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DSizeMismatch) {
   context_state_->set_need_context_state_reset(true);
   // Create uninitialized source texture mailbox.
   gpu::Mailbox source_texture_mailbox =
-      CreateMailbox(viz::ResourceFormat::RGBA_8888,
+      CreateMailbox(viz::SinglePlaneFormat::kRGBA_8888,
                     /*width=*/1, /*height=*/1,
                     /*cleared=*/true);
   GLbyte mailboxes[sizeof(gpu::Mailbox) * 2];
@@ -394,7 +400,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DSizeMismatch) {
   {
     // This will initialize the bottom right corner of destination.
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(1, 1, 0, 0, 1, 1, false, mailboxes);
+    cmd.Init(1, 1, 0, 0, 1, 1, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
     EXPECT_EQ(GL_NO_ERROR, GetGLError());
     EXPECT_EQ(representation->ClearedRect(), gfx::Rect(1, 1, 1, 1));
@@ -403,7 +409,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DSizeMismatch) {
   {
     // Dest rect outside of dest bounds
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(2, 2, 0, 0, 1, 1, false, mailboxes);
+    cmd.Init(2, 2, 0, 0, 1, 1, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
     EXPECT_EQ(GL_INVALID_VALUE, GetGLError());
     EXPECT_EQ(representation->ClearedRect(), gfx::Rect(1, 1, 1, 1));
@@ -412,7 +418,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DSizeMismatch) {
   {
     // Source rect outside of source bounds
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(0, 0, 0, 0, 2, 2, false, mailboxes);
+    cmd.Init(0, 0, 0, 0, 2, 2, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
     EXPECT_EQ(GL_INVALID_VALUE, GetGLError());
     EXPECT_EQ(representation->ClearedRect(), gfx::Rect(1, 1, 1, 1));
@@ -423,7 +429,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DTwiceClearsUnclearedTexture) {
   context_state_->set_need_context_state_reset(true);
   // Create uninitialized source texture mailbox.
   gpu::Mailbox source_texture_mailbox =
-      CreateMailbox(viz::ResourceFormat::RGBA_8888,
+      CreateMailbox(viz::SinglePlaneFormat::kRGBA_8888,
                     /*width=*/2, /*height=*/2,
                     /*cleared=*/true);
   GLbyte mailboxes[sizeof(gpu::Mailbox) * 2];
@@ -438,7 +444,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DTwiceClearsUnclearedTexture) {
   // This will initialize the top half of destination.
   {
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(0, 0, 0, 0, 2, 1, false, mailboxes);
+    cmd.Init(0, 0, 0, 0, 2, 1, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
   }
   EXPECT_EQ(gfx::Rect(0, 0, 2, 1), representation->ClearedRect());
@@ -447,7 +453,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DTwiceClearsUnclearedTexture) {
   // This will initialize bottom half of the destination.
   {
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(0, 1, 0, 0, 2, 1, false, mailboxes);
+    cmd.Init(0, 1, 0, 0, 2, 1, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
   }
   EXPECT_TRUE(representation->IsCleared());
@@ -460,7 +466,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DPartialFailsWithUnalignedRect) {
   context_state_->set_need_context_state_reset(true);
   // Create uninitialized source texture mailbox.
   gpu::Mailbox source_texture_mailbox =
-      CreateMailbox(viz::ResourceFormat::RGBA_8888,
+      CreateMailbox(viz::SinglePlaneFormat::kRGBA_8888,
                     /*width=*/2, /*height=*/2,
                     /*cleared=*/true);
   GLbyte mailboxes[sizeof(gpu::Mailbox) * 2];
@@ -475,7 +481,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DPartialFailsWithUnalignedRect) {
   // This will initialize the top half of destination.
   {
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(0, 0, 0, 0, 2, 1, false, mailboxes);
+    cmd.Init(0, 0, 0, 0, 2, 1, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
   }
   EXPECT_EQ(gfx::Rect(0, 0, 2, 1), representation->ClearedRect());
@@ -486,7 +492,7 @@ TEST_F(RasterDecoderOOPTest, CopyTexSubImage2DPartialFailsWithUnalignedRect) {
   // this will fail.
   {
     auto& cmd = *GetImmediateAs<cmds::CopySharedImageINTERNALImmediate>();
-    cmd.Init(1, 1, 0, 0, 1, 1, false, mailboxes);
+    cmd.Init(1, 1, 0, 0, 1, 1, mailboxes);
     EXPECT_EQ(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(mailboxes)));
     EXPECT_EQ(GL_INVALID_VALUE, GetGLError());
   }

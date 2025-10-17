@@ -14,8 +14,10 @@
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
+#include "media/midi/midi_export.h"
 #include "media/midi/midi_input_port_android.h"
 #include "media/midi/midi_manager.h"
 
@@ -24,6 +26,10 @@ namespace midi {
 class MidiDeviceAndroid;
 class MidiOutputPortAndroid;
 class MidiService;
+
+// Checks if the current running Android system implements the MIDI service.
+// Should be available only in tests.
+MIDI_EXPORT bool HasSystemFeatureMidiForTesting();
 
 // MidiManagerAndroid is a MidiManager subclass for Android M or newer. For
 // older android OSes, we use MidiManagerUsb.
@@ -71,13 +77,15 @@ class MidiManagerAndroid final : public MidiManager,
   // All ports held in |devices_|. Each device has ownership of ports, but we
   // can store pointers here because a device will keep its ports while it is
   // alive.
-  std::vector<MidiInputPortAndroid*> all_input_ports_;
+  std::vector<raw_ptr<MidiInputPortAndroid, VectorExperimental>>
+      all_input_ports_;
   // A dictionary from a port to its index.
   // input_port_to_index_[all_input_ports_[i]] == i for each valid |i|.
   std::unordered_map<MidiInputPortAndroid*, size_t> input_port_to_index_;
 
   // Ditto for output ports.
-  std::vector<MidiOutputPortAndroid*> all_output_ports_;
+  std::vector<raw_ptr<MidiOutputPortAndroid, VectorExperimental>>
+      all_output_ports_;
   std::unordered_map<MidiOutputPortAndroid*, size_t> output_port_to_index_;
 
   base::android::ScopedJavaGlobalRef<jobject> raw_manager_;

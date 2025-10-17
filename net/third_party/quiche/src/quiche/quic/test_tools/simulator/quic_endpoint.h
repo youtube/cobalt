@@ -8,6 +8,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -53,6 +54,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& /*frame*/) override {}
   void OnBlockedFrame(const QuicBlockedFrame& /*frame*/) override {}
   void OnRstStream(const QuicRstStreamFrame& /*frame*/) override {}
+  void OnResetStreamAt(const QuicResetStreamAtFrame& /*frame*/) override {}
   void OnGoAway(const QuicGoAwayFrame& /*frame*/) override {}
   void OnMessageReceived(absl::string_view /*message*/) override {}
   void OnHandshakeDoneReceived() override {}
@@ -69,6 +71,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   void OnPathDegrading() override {}
   void OnForwardProgressMadeAfterPathDegrading() override {}
+  void OnForwardProgressMadeAfterFlowLabelChange() override {}
   void OnAckNeedsRetransmittableFrame() override {}
   void SendAckFrequency(const QuicAckFrequencyFrame& /*frame*/) override {}
   void SendNewConnectionId(const QuicNewConnectionIdFrame& /*frame*/) override {
@@ -104,21 +107,24 @@ class QuicEndpoint : public QuicEndpointBase,
   void BeforeConnectionCloseSent() override {}
   bool ValidateToken(absl::string_view /*token*/) override { return true; }
   bool MaybeSendAddressToken() override { return false; }
-  void OnBandwidthUpdateTimeout() override {}
-  std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
-      override {
-    return nullptr;
-  }
+  void CreateContextForMultiPortPath(
+      std::unique_ptr<MultiPortPathContextObserver> /*context_observer*/)
+      override {}
   void MigrateToMultiPortPath(
       std::unique_ptr<QuicPathValidationContext> /*context*/) override {}
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& /*server_preferred_address*/) override {}
+  void MaybeBundleOpportunistically() override {}
+  QuicByteCount GetFlowControlSendWindowSize(QuicStreamId /*id*/) override {
+    return std::numeric_limits<QuicByteCount>::max();
+  }
 
   // End QuicConnectionVisitorInterface implementation.
 
   // Begin SessionNotifierInterface methods:
   bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
-                    QuicTime receive_timestamp) override;
+                    QuicTime receive_timestamp,
+                    bool is_retransmission) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& /*frame*/) override {}
   void OnFrameLost(const QuicFrame& frame) override;
   bool RetransmitFrames(const QuicFrames& frames,

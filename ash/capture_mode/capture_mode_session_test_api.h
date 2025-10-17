@@ -5,15 +5,23 @@
 #ifndef ASH_CAPTURE_MODE_CAPTURE_MODE_SESSION_TEST_API_H_
 #define ASH_CAPTURE_MODE_CAPTURE_MODE_SESSION_TEST_API_H_
 
+#include "ash/capture_mode/action_button_container_view.h"
+#include "ash/capture_mode/capture_mode_constants.h"
+#include "ash/capture_mode/capture_mode_session_focus_cycler.h"
 #include "base/memory/raw_ptr.h"
-#include "capture_mode_session_focus_cycler.h"
+
+namespace views {
+class Label;
+}  // namespace views
 
 namespace ash {
 
+class ActionButtonView;
+class BaseCaptureModeSession;
 class CaptureLabelView;
 class CaptureModeBarView;
-class CaptureModeSession;
 class CaptureModeSettingsView;
+class CaptureRegionOverlayController;
 class MagnifierGlass;
 class RecordingTypeMenuView;
 class UserNudgeController;
@@ -22,7 +30,7 @@ class UserNudgeController;
 class CaptureModeSessionTestApi {
  public:
   CaptureModeSessionTestApi();
-  explicit CaptureModeSessionTestApi(CaptureModeSession* session);
+  explicit CaptureModeSessionTestApi(BaseCaptureModeSession* session);
 
   CaptureModeSessionTestApi(CaptureModeSessionTestApi&) = delete;
   CaptureModeSessionTestApi& operator=(CaptureModeSessionTestApi&) = delete;
@@ -34,11 +42,17 @@ class CaptureModeSessionTestApi {
 
   CaptureLabelView* GetCaptureLabelView();
 
+  views::Label* GetCaptureLabelInternalView();
+
   RecordingTypeMenuView* GetRecordingTypeMenuView();
 
   views::Widget* GetCaptureModeSettingsWidget();
 
   views::Widget* GetCaptureLabelWidget();
+
+  views::Widget* GetActionContainerWidget();
+
+  views::Widget* GetDisclaimerWidget();
 
   views::Widget* GetRecordingTypeMenuWidget();
 
@@ -59,18 +73,35 @@ class CaptureModeSessionTestApi {
 
   CaptureModeSessionFocusCycler::HighlightableView* GetCurrentFocusedView();
 
+  bool HasAxVirtualWidget() const;
+  size_t GetAxVirtualViewsCount() const;
+
   // Returns false if `current_focus_group_` equals to `kNone` which means
   // there's no focus on any focus group for now. Otherwise, returns true;
-  bool HasFocus();
+  bool HasFocus() const;
 
   bool IsFolderSelectionDialogShown();
 
   // Returns true if all UIs (cursors, widgets, and paintings on the layer) of
-  // the capture mode session is visible.
-  bool IsAllUisVisible();
+  // the capture mode session are visible.
+  bool AreAllUisVisible();
+
+  gfx::Rect GetSelectedWindowTargetBounds();
+
+  // Returns a vector of the current action buttons for the capture mode
+  // session. The returned vector will be empty if there are no buttons or there
+  // is no selected region.
+  std::vector<ActionButtonView*> GetActionButtons() const;
+
+  // Returns the action button with view ID `id`, or nullptr if there is none.
+  ActionButtonView* GetActionButtonByViewId(ActionButtonViewID id) const;
+
+  ActionButtonContainerView::ErrorView* GetActionContainerErrorView() const;
+
+  CaptureRegionOverlayController* GetCaptureRegionOverlayController() const;
 
  private:
-  const raw_ptr<CaptureModeSession, ExperimentalAsh> session_;
+  const raw_ptr<CaptureModeSession, DanglingUntriaged> session_;
 };
 
 }  // namespace ash

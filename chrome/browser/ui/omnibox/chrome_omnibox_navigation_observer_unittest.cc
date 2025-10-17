@@ -4,11 +4,13 @@
 
 #include "chrome/browser/ui/omnibox/chrome_omnibox_navigation_observer.h"
 
+#include <array>
 #include <unordered_map>
 #include <vector>
 
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -21,10 +23,6 @@
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
 #include "net/http/http_response_headers.h"
@@ -45,8 +43,8 @@ class ChromeOmniboxNavigationObserverTest
       const ChromeOmniboxNavigationObserverTest&) = delete;
 
  protected:
-  ChromeOmniboxNavigationObserverTest() {}
-  ~ChromeOmniboxNavigationObserverTest() override {}
+  ChromeOmniboxNavigationObserverTest() = default;
+  ~ChromeOmniboxNavigationObserverTest() override = default;
 
   content::NavigationController* navigation_controller() {
     return &(web_contents()->GetController());
@@ -72,6 +70,9 @@ class ChromeOmniboxNavigationObserverTest
   }
   static std::u16string policy_search_keyword() {
     return u"policy_search_keyword";
+  }
+  static std::u16string starter_pack_keyword() {
+    return u"starter_pack_keyword";
   }
 
  private:
@@ -108,8 +109,14 @@ void ChromeOmniboxNavigationObserverTest::SetUp() {
 
   TemplateURLData policy_turl;
   policy_turl.SetKeyword(policy_search_keyword());
-  policy_turl.created_by_policy = true;
+  policy_turl.policy_origin =
+      TemplateURLData::PolicyOrigin::kDefaultSearchProvider;
   factory_util.model()->Add(std::make_unique<TemplateURL>(policy_turl));
+
+  TemplateURLData starter_pack_turl;
+  starter_pack_turl.SetKeyword(starter_pack_keyword());
+  starter_pack_turl.starter_pack_id = 1;
+  factory_util.model()->Add(std::make_unique<TemplateURL>(starter_pack_turl));
 }
 
 namespace {
@@ -123,14 +130,15 @@ scoped_refptr<net::HttpResponseHeaders> GetHeadersForResponseCode(int code) {
         "HTTP/1.1 404 Not Found\r\n");
   }
   NOTREACHED();
-  return nullptr;
 }
 
 void WriteMojoMessage(const mojo::ScopedDataPipeProducerHandle& handle,
-                      const char* message) {
-  uint32_t num_bytes = strlen(message);
-  ASSERT_EQ(MOJO_RESULT_OK,
-            handle->WriteData(message, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+                      std::string message) {
+  size_t actually_written_bytes = 0;
+  ASSERT_EQ(MOJO_RESULT_OK, handle->WriteData(base::as_byte_span(message),
+                                              MOJO_WRITE_DATA_FLAG_NONE,
+                                              actually_written_bytes));
+  ASSERT_EQ(message.size(), actually_written_bytes);
 }
 
 }  // namespace
@@ -148,7 +156,8 @@ TEST_F(ChromeOmniboxNavigationObserverTest, DeleteBrokenCustomSearchEngines) {
       {non_auto_generated_search_keyword(), 404, true},
       {default_search_keyword(), 404, true},
       {prepopulated_search_keyword(), 404, true},
-      {policy_search_keyword(), 404, true}};
+      {policy_search_keyword(), 404, true},
+      {starter_pack_keyword(), 404, true}};
 
   std::u16string query = u" text";
   for (size_t i = 0; i < cases.size(); ++i) {
@@ -206,7 +215,8 @@ TEST_F(ChromeOmniboxNavigationObserverTest, AlternateNavInfoBar) {
   struct Case {
     const Response response;
     const bool expected_alternate_nav_bar_shown;
-  } cases[] = {
+  };
+  auto cases = std::to_array<Case>({
       // The only response provided is a net error.
       {{{"http://example/"}, kNetError}, false},
       // The response connected to a valid page.
@@ -246,7 +256,7 @@ TEST_F(ChromeOmniboxNavigationObserverTest, AlternateNavInfoBar) {
       {{{"http://example/", "https://example/", "https://example/root"},
         kNoResponse},
        true},
-  };
+  });
   for (size_t i = 0; i < std::size(cases); ++i) {
     SCOPED_TRACE("case #" + base::NumberToString(i));
     const Case& test_case = cases[i];
@@ -263,7 +273,7 @@ TEST_F(ChromeOmniboxNavigationObserverTest, AlternateNavInfoBar) {
       redir_info.status_code = net::HTTP_MOVED_PERMANENTLY;
       auto redir_head =
           network::CreateURLResponseHead(net::HTTP_MOVED_PERMANENTLY);
-      redirects.push_back({redir_info, std::move(redir_head)});
+      redirects.emplace_back(redir_info, std::move(redir_head));
     }
 
     // Fill in final response.

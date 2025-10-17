@@ -29,8 +29,8 @@
 
 #include "third_party/blink/renderer/core/page/autoscroll_controller.h"
 
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
@@ -107,7 +107,7 @@ bool AutoscrollController::SelectionAutoscrollInProgress() const {
 }
 
 bool AutoscrollController::AutoscrollInProgress() const {
-  return autoscroll_layout_object_;
+  return autoscroll_layout_object_ != nullptr;
 }
 
 bool AutoscrollController::AutoscrollInProgressFor(
@@ -132,6 +132,7 @@ void AutoscrollController::StartAutoscrollForSelection(
   pressed_layout_object_ = DynamicTo<LayoutBox>(layout_object);
   autoscroll_type_ = kAutoscrollForSelection;
   autoscroll_layout_object_ = scrollable;
+  UpdateCachedAutoscrollForSelectionState(true);
   ScheduleMainThreadAnimation();
 }
 
@@ -141,6 +142,7 @@ void AutoscrollController::StopAutoscroll() {
       pressed_layout_object_->GetNode()->StopAutoscroll();
     pressed_layout_object_ = nullptr;
   }
+  UpdateCachedAutoscrollForSelectionState(false);
   autoscroll_layout_object_ = nullptr;
   autoscroll_type_ = kNoAutoscroll;
 }
@@ -163,6 +165,7 @@ void AutoscrollController::StopAutoscrollIfNeeded(LayoutObject* layout_object) {
 
   if (autoscroll_layout_object_ != layout_object)
     return;
+  UpdateCachedAutoscrollForSelectionState(false);
   autoscroll_layout_object_ = nullptr;
   autoscroll_type_ = kNoAutoscroll;
 }
@@ -222,6 +225,29 @@ void AutoscrollController::UpdateDragAndDrop(Node* drop_target_node,
   }
 }
 
+#if BUILDFLAG(IS_IOS)
+void AutoscrollController::StartAutoscrollForSelectionToPoint(
+    LayoutObject* layout_object,
+    const gfx::PointF& point_in_viewport) {
+  LayoutBox* scrollable = LayoutBox::FindAutoscrollable(
+      layout_object, /*is_middle_click_autoscroll*/ false);
+  if (!scrollable) {
+    return;
+  }
+
+  autoscroll_layout_object_ = scrollable;
+  PhysicalOffset offset =
+      scrollable->CalculateAutoscrollDirection(point_in_viewport);
+  autoscroll_to_point_reference_position_ =
+      PhysicalOffset::FromPointFRound(point_in_viewport) + offset;
+  if (autoscroll_type_ == kNoAutoscroll) {
+    autoscroll_type_ = kAutoscrollForSelectionToPoint;
+    UpdateCachedAutoscrollForSelectionState(true);
+    ScheduleMainThreadAnimation();
+  }
+}
+#endif  // BUILDFLAG(IS_IOS)
+
 bool CanScrollDirection(LayoutBox* layout_box,
                         Page* page,
                         ScrollOrientation orientation) {
@@ -260,9 +286,9 @@ void AutoscrollController::HandleMouseMoveForMiddleClickAutoscroll(
       vertical_autoscroll_layout_box_ &&
       vertical_autoscroll_layout_box_->GetNode();
   if (horizontal_autoscroll_possible &&
-      !horizontal_autoscroll_layout_box_->CanBeScrolledAndHasScrollableArea() &&
+      !horizontal_autoscroll_layout_box_->IsUserScrollable() &&
       vertical_autoscroll_possible &&
-      !vertical_autoscroll_layout_box_->CanBeScrolledAndHasScrollableArea()) {
+      !vertical_autoscroll_layout_box_->IsUserScrollable()) {
     StopMiddleClickAutoscroll(frame);
     return;
   }
@@ -289,17 +315,13 @@ void AutoscrollController::HandleMouseMoveForMiddleClickAutoscroll(
       pow(fabs(distance.y()), kExponent) * kMultiplier * y_signum);
 
   bool can_scroll_vertically =
-      vertical_autoscroll_possible
-          ? CanScrollDirection(vertical_autoscroll_layout_box_,
-                               frame->GetPage(),
-                               ScrollOrientation::kVerticalScroll)
-          : false;
+      vertical_autoscroll_possible &&
+      CanScrollDirection(vertical_autoscroll_layout_box_, frame->GetPage(),
+                         ScrollOrientation::kVerticalScroll);
   bool can_scroll_horizontally =
-      horizontal_autoscroll_possible
-          ? CanScrollDirection(horizontal_autoscroll_layout_box_,
-                               frame->GetPage(),
-                               ScrollOrientation::kHorizontalScroll)
-          : false;
+      horizontal_autoscroll_possible &&
+      CanScrollDirection(horizontal_autoscroll_layout_box_, frame->GetPage(),
+                         ScrollOrientation::kHorizontalScroll);
 
   if (velocity != last_velocity_) {
     last_velocity_ = velocity;
@@ -374,7 +396,7 @@ void AutoscrollController::StartMiddleClickAutoscroll(
   bool can_propagate_vertically = true;
   bool can_propagate_horizontally = true;
 
-  LayoutObject* layout_object = scrollable->GetNode()->GetLayoutObject();
+  LayoutObject* layout_object = scrollable;
 
   while (layout_object && !(can_scroll_horizontally && can_scroll_vertically)) {
     if (LayoutBox* layout_box = DynamicTo<LayoutBox>(layout_object)) {
@@ -475,6 +497,13 @@ void AutoscrollController::Animate() {
         autoscroll_layout_object_->Autoscroll(selection_point);
       }
       break;
+#if BUILDFLAG(IS_IOS)
+    case kAutoscrollForSelectionToPoint:
+      ScheduleMainThreadAnimation();
+      autoscroll_layout_object_->Autoscroll(
+          autoscroll_to_point_reference_position_);
+      break;
+#endif  // BUILDFLAG(IS_IOS)
     case kNoAutoscroll:
     case kAutoscrollForMiddleClick:
       break;
@@ -484,6 +513,19 @@ void AutoscrollController::Animate() {
 void AutoscrollController::ScheduleMainThreadAnimation() {
   page_->GetChromeClient().ScheduleAnimation(
       autoscroll_layout_object_->GetFrame()->View());
+}
+
+void AutoscrollController::UpdateCachedAutoscrollForSelectionState(
+    bool autoscroll_selection) {
+  if (!autoscroll_layout_object_ || !autoscroll_layout_object_->GetFrame() ||
+      !autoscroll_layout_object_->GetFrame()->IsAttached() ||
+      !autoscroll_layout_object_->GetFrame()->IsOutermostMainFrame()) {
+    return;
+  }
+  autoscroll_layout_object_->GetFrame()
+      ->LocalFrameRoot()
+      .Client()
+      ->NotifyAutoscrollForSelectionInMainFrame(autoscroll_selection);
 }
 
 bool AutoscrollController::IsAutoscrolling() const {

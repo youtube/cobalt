@@ -9,6 +9,7 @@
 #include <grpcpp/support/client_callback.h>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "chromecast/cast_core/grpc/grpc_call.h"
 #include "chromecast/cast_core/grpc/grpc_client_reactor.h"
 #include "chromecast/cast_core/grpc/grpc_status_or.h"
@@ -126,7 +127,7 @@ class GrpcUnaryCall : public GrpcCall<TGrpcStub, TRequest> {
       } else {
         std::move(response_callback_).Run(status);
       }
-      delete this;
+      ReactorBase::DeleteThis();
     }
 
     using AsyncStubCall = base::OnceCallback<void(grpc::ClientContext*,
@@ -134,7 +135,7 @@ class GrpcUnaryCall : public GrpcCall<TGrpcStub, TRequest> {
                                                   Response*,
                                                   grpc::ClientUnaryReactor*)>;
 
-    AsyncInterface* async_interface_;
+    raw_ptr<AsyncInterface> async_interface_;
     ResponseCallback response_callback_;
     Response response_;
   };

@@ -21,6 +21,7 @@
 #include "common/system_utils.h"
 #include "common/vector_utils.h"
 #include "platform/PlatformMethods.h"
+#include "test_expectations/GPUTestConfig.h"
 #include "util/EGLWindow.h"
 #include "util/shader_utils.h"
 #include "util/util_gl.h"
@@ -169,7 +170,7 @@ struct GLColorT
     T R, G, B, A;
 };
 
-using GLColor16UI = GLColorT<uint16_t>;
+using GLColor16   = GLColorT<uint16_t>;
 using GLColor32F  = GLColorT<float>;
 using GLColor32I  = GLColorT<int32_t>;
 using GLColor32UI = GLColorT<uint32_t>;
@@ -231,6 +232,10 @@ constexpr std::array<GLenum, 6> kCubeFaces = {
 void LoadEntryPointsWithUtilLoader(angle::GLESDriverType driver);
 
 bool IsFormatEmulated(GLenum target);
+
+GPUTestConfig::API GetTestConfigAPIFromRenderer(angle::GLESDriverType driverType,
+                                                EGLenum renderer,
+                                                EGLenum deviceType);
 }  // namespace angle
 
 #define EXPECT_PIXEL_EQ(x, y, r, g, b, a) \
@@ -243,6 +248,9 @@ bool IsFormatEmulated(GLenum target);
     EXPECT_EQ(angle::MakeGLColor32F(r, g, b, a), angle::ReadColor32F(x, y))
 
 #define EXPECT_PIXEL_ALPHA_EQ(x, y, a) EXPECT_EQ(a, angle::ReadColor(x, y).A)
+
+#define EXPECT_PIXEL_ALPHA_NEAR(x, y, a, abs_error) \
+    EXPECT_NEAR(a, angle::ReadColor(x, y).A, abs_error);
 
 #define EXPECT_PIXEL_ALPHA32F_EQ(x, y, a) EXPECT_EQ(a, angle::ReadColor32F(x, y).A)
 
@@ -302,6 +310,9 @@ bool IsFormatEmulated(GLenum target);
 #define EXPECT_PIXEL_NEAR(x, y, r, g, b, a, abs_error) \
     EXPECT_PIXEL_NEAR_HELPER(x, y, r, g, b, a, abs_error, GLubyte, GL_RGBA, GL_UNSIGNED_BYTE)
 
+#define EXPECT_PIXEL_16_NEAR(x, y, r, g, b, a, abs_error) \
+    EXPECT_PIXEL_NEAR_HELPER(x, y, r, g, b, a, abs_error, GLushort, GL_RGBA, GL_UNSIGNED_SHORT)
+
 #define EXPECT_PIXEL_8S_NEAR(x, y, r, g, b, a, abs_error) \
     EXPECT_PIXEL_NEAR_HELPER(x, y, r, g, b, a, abs_error, GLbyte, GL_RGBA, GL_BYTE)
 
@@ -317,15 +328,24 @@ bool IsFormatEmulated(GLenum target);
 #define EXPECT_PIXEL_8UI(x, y, r, g, b, a) \
     EXPECT_PIXEL_EQ_HELPER(x, y, r, g, b, a, GLubyte, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE)
 
-#define EXPECT_PIXEL_16UI(x, y, r, g, b, a) \
-    EXPECT_PIXEL_EQ_HELPER(x, y, r, g, b, a, GLushort, GL_RGBA, GL_UNSIGNED_SHORT)
+#define EXPECT_PIXEL_32UI(x, y, r, g, b, a) \
+    EXPECT_PIXEL_EQ_HELPER(x, y, r, g, b, a, GLuint, GL_RGBA_INTEGER, GL_UNSIGNED_INT)
 
-#define EXPECT_PIXEL_16UI_COLOR(x, y, color) \
-    EXPECT_PIXEL_16UI(x, y, color.R, color.G, color.B, color.A)
+#define EXPECT_PIXEL_32I(x, y, r, g, b, a) \
+    EXPECT_PIXEL_EQ_HELPER(x, y, r, g, b, a, GLint, GL_RGBA_INTEGER, GL_INT)
+
+#define EXPECT_PIXEL_32UI_COLOR(x, y, color) \
+    EXPECT_PIXEL_32UI(x, y, color.R, color.G, color.B, color.A)
+
+#define EXPECT_PIXEL_32I_COLOR(x, y, color) \
+    EXPECT_PIXEL_32I(x, y, color.R, color.G, color.B, color.A)
 
 // TODO(jmadill): Figure out how we can use GLColor's nice printing with EXPECT_NEAR.
 #define EXPECT_PIXEL_COLOR_NEAR(x, y, angleColor, abs_error) \
     EXPECT_PIXEL_NEAR(x, y, angleColor.R, angleColor.G, angleColor.B, angleColor.A, abs_error)
+
+#define EXPECT_PIXEL_COLOR16_NEAR(x, y, angleColor, abs_error) \
+    EXPECT_PIXEL_16_NEAR(x, y, angleColor.R, angleColor.G, angleColor.B, angleColor.A, abs_error)
 
 #define EXPECT_PIXEL_COLOR32F_NEAR(x, y, angleColor, abs_error) \
     EXPECT_PIXEL32F_NEAR(x, y, angleColor.R, angleColor.G, angleColor.B, angleColor.A, abs_error)
@@ -397,10 +417,15 @@ class ANGLETestBase
         return mCurrentParams->eglParameters.debugLayersEnabled != EGL_FALSE;
     }
 
+    void *operator new(size_t size);
+    void operator delete(void *ptr);
+
   protected:
     void ANGLETestSetUp();
+    void ANGLETestSetUpCL();
     void ANGLETestPreTearDown();
     void ANGLETestTearDown();
+    void ANGLETestTearDownCL();
 
     virtual void swapBuffers();
 
@@ -469,6 +494,12 @@ class ANGLETestBase
                             bool useVertexBuffer,
                             float layer);
 
+    // The layer parameter chooses the 2DArray texture layer to sample from.
+    void draw2DArrayTexturedQuad(GLfloat positionAttribZ,
+                                 GLfloat positionAttribXYScale,
+                                 bool useVertexBuffer,
+                                 float layer);
+
     void setWindowWidth(int width);
     void setWindowHeight(int height);
     void setConfigRedBits(int bits);
@@ -514,6 +545,9 @@ class ANGLETestBase
 
     // Has a float uniform "u_layer" to choose the 3D texture layer.
     GLuint get3DTexturedQuadProgram();
+
+    // Has a float uniform "u_layer" to choose the 2DArray texture layer.
+    GLuint get2DArrayTexturedQuadProgram();
 
     class [[nodiscard]] ScopedIgnorePlatformMessages : angle::NonCopyable
     {
@@ -591,6 +625,7 @@ class ANGLETestBase
     // Used for texture rendering.
     GLuint m2DTexturedQuadProgram;
     GLuint m3DTexturedQuadProgram;
+    GLuint m2DArrayTexturedQuadProgram;
 
     bool mDeferContextInit;
     bool mAlwaysForceNewDisplay;
@@ -639,6 +674,7 @@ class ANGLETest : public ANGLETestBase, public ::testing::TestWithParam<Params>
     void SetUp() final
     {
         ANGLETestBase::ANGLETestSetUp();
+
         if (mIsSetUp)
         {
             testSetUp();
@@ -654,6 +690,14 @@ class ANGLETest : public ANGLETestBase, public ::testing::TestWithParam<Params>
         }
         ANGLETestBase::ANGLETestTearDown();
     }
+};
+
+enum class APIExtensionVersion
+{
+    Core,
+    OES,
+    EXT,
+    KHR,
 };
 
 template <typename Params>
@@ -689,5 +733,7 @@ class ANGLETestEnvironment : public testing::Environment
 };
 
 extern angle::PlatformMethods gDefaultPlatformMethods;
+
+int GetTestStartDelaySeconds();
 
 #endif  // ANGLE_TESTS_ANGLE_TEST_H_

@@ -4,13 +4,16 @@
 
 #include "base/command_line.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/extensions_browser_client.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest.h"
+#include "extensions/common/switches.h"
 
 namespace extensions {
 
@@ -36,7 +39,7 @@ class ExtensionsDisabledBrowserTest : public ExtensionBrowserTest {
     const char* test_name =
         testing::UnitTest::GetInstance()->current_test_info()->name();
     if (!base::StartsWith(test_name, "PRE_", base::CompareCase::SENSITIVE)) {
-      command_line->AppendSwitch(::switches::kDisableExtensions);
+      command_line->AppendSwitch(switches::kDisableExtensions);
     }
   }
 };

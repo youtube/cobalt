@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
@@ -48,9 +49,10 @@ class OffscreenDocumentManager : public KeyedService,
 
   // Creates and returns an offscreen document for the given `extension` and
   // `url`, created for the given `reason`.
-  OffscreenDocumentHost* CreateOffscreenDocument(const Extension& extension,
-                                                 const GURL& url,
-                                                 api::offscreen::Reason reason);
+  OffscreenDocumentHost* CreateOffscreenDocument(
+      const Extension& extension,
+      const GURL& url,
+      std::set<api::offscreen::Reason> reasons);
 
   // Returns the current offscreen document for the given `extension`, if one
   // exists.
@@ -75,7 +77,7 @@ class OffscreenDocumentManager : public KeyedService,
     // support creating a document with multiple reasons.
     std::vector<std::unique_ptr<OffscreenDocumentLifetimeEnforcer>> enforcers;
 
-    // TODO(https://crbug.com/1339382): This will need more fields to include
+    // TODO(crbug.com/40849649): This will need more fields to include
     // attributes like the associated reason and justification for the
     // document.
   };

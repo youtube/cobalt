@@ -6,7 +6,7 @@
 #define CHROMEOS_ASH_COMPONENTS_OSAUTH_PUBLIC_AUTH_ATTEMPT_CONSUMER_H_
 
 #include "base/component_export.h"
-#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/osauth/public/common_types.h"
 
 namespace ash {
@@ -48,7 +48,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthAttemptConsumer {
   //   * `OnUserAuthSuccess`
   virtual void OnUserAuthAttemptConfirmed(
       AuthHubConnector* connector,
-      base::raw_ptr<AuthFactorStatusConsumer>& out_consumer) = 0;
+      raw_ptr<AuthFactorStatusConsumer>& out_consumer) = 0;
 
   // AuthHub would call this method in edge-case scenario when authentication
   // was requested for account that is not present on the device.

@@ -25,8 +25,9 @@ void TestLayoutProvider::SetFontDetails(
 }
 
 int TestLayoutProvider::GetDistanceMetric(int metric) const {
-  if (distance_metrics_.count(metric))
+  if (distance_metrics_.count(metric)) {
     return distance_metrics_.find(metric)->second;
+  }
   return LayoutProvider::GetDistanceMetric(metric);
 }
 
@@ -38,13 +39,13 @@ int TestLayoutProvider::GetSnappedDialogWidth(int min_width) const {
   return snapped_dialog_width_ ? snapped_dialog_width_ : min_width;
 }
 
-ui::ResourceBundle::FontDetails TestLayoutProvider::GetFontDetails(
+ui::ResourceBundle::FontDetails TestLayoutProvider::GetFontDetailsImpl(
     int context,
     int style) const {
   auto it = details_.find({context, style});
   return it != details_.end()
              ? it->second
-             : TypographyProvider::GetFontDetails(context, style);
+             : TypographyProvider::GetFontDetailsImpl(context, style);
 }
 
 }  // namespace views::test

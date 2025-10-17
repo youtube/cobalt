@@ -29,12 +29,8 @@ enum LibraryProcessType {
   PROCESS_WEBVIEW = 3,
   // Shared library is running in child process as part of webview.
   PROCESS_WEBVIEW_CHILD = 4,
-  // Shared library is running in the app that uses weblayer.
-  PROCESS_WEBLAYER = 5,
-  // Shared library is running in child process as part of weblayer.
-  PROCESS_WEBLAYER_CHILD = 6,
   // Shared library is running in a non-embedded WebView process.
-  PROCESS_WEBVIEW_NONEMBEDDED = 7,
+  PROCESS_WEBVIEW_NONEMBEDDED = 5,
 };
 
 // Returns the library process type this library was loaded for.
@@ -63,9 +59,7 @@ BASE_EXPORT void RecordLibraryLoaderRendererHistograms();
 // Note: this can't use base::{Once, Repeating}Callback because there is no
 // way of initializing the default callback without using static objects, which
 // we forbid.
-typedef bool LibraryLoadedHook(JNIEnv* env,
-                               jclass clazz,
-                               LibraryProcessType library_process_type);
+typedef bool LibraryLoadedHook(LibraryProcessType library_process_type);
 
 // Set the hook function to be called (from Java) once the libraries are loaded.
 // SetLibraryLoadedHook may only be called from JNI_OnLoad. The hook function

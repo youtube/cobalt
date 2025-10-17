@@ -74,7 +74,7 @@ class SoftBindAttestationFlowImpl : public SoftBindAttestationFlow {
     void OnTimeout();
 
     Callback callback_;
-    base::RepeatingTimer timer_;
+    base::RetainingOneShotTimer timer_;
     const AccountId account_id_;
     std::string user_key_;
     int max_retries_ = 3;
@@ -105,7 +105,7 @@ class SoftBindAttestationFlowImpl : public SoftBindAttestationFlow {
                         base::Time not_valid_after,
                         std::string* pem_encoded_cert);
 
-  const raw_ptr<AttestationClient, ExperimentalAsh> attestation_client_;
+  const raw_ptr<AttestationClient, DanglingUntriaged> attestation_client_;
   std::unique_ptr<AttestationFlow> attestation_flow_;
   std::set<std::string> renewals_in_progress_;
 

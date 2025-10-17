@@ -4,13 +4,16 @@
 
 #include "ash/system/input_device_settings/input_device_tracker.h"
 
+#include <string_view>
+
+#include "ash/constants/ash_features.h"
 #include "ash/public/mojom/input_device_settings.mojom.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/system/input_device_settings/input_device_settings_pref_names.h"
 #include "ash/test/ash_test_base.h"
 #include "base/containers/contains.h"
-#include "base/strings/string_piece_forward.h"
+#include "base/test/scoped_feature_list.h"
 #include "components/account_id/account_id.h"
 #include "components/prefs/pref_service.h"
 
@@ -19,9 +22,9 @@ namespace ash {
 using InputDeviceCategory = InputDeviceTracker::InputDeviceCategory;
 
 namespace {
-const base::StringPiece kDeviceKey1 = "5555:1111";
-const base::StringPiece kDeviceKey2 = "3333:22aa";
-const base::StringPiece kDeviceKey3 = "aa22:eeff";
+const std::string_view kDeviceKey1 = "5555:1111";
+const std::string_view kDeviceKey2 = "3333:22aa";
+const std::string_view kDeviceKey3 = "aa22:eeff";
 
 constexpr char kUserEmail1[] = "email1@peripherals";
 constexpr char kUserEmail2[] = "email2@peripherals";
@@ -30,7 +33,7 @@ constexpr char kUserEmail2[] = "email2@peripherals";
 class InputDeviceTrackerTest
     : public AshTestBase,
       public ::testing::WithParamInterface<
-          std::pair<InputDeviceCategory, base::StringPiece>> {
+          std::pair<InputDeviceCategory, std::string_view>> {
  public:
   InputDeviceTrackerTest() = default;
   InputDeviceTrackerTest(const InputDeviceTrackerTest&) = delete;
@@ -39,10 +42,11 @@ class InputDeviceTrackerTest
 
   // testing::Test:
   void SetUp() override {
+    feature_list_.InitAndDisableFeature(features::kInputDeviceSettingsSplit);
     AshTestBase::SetUp();
     std::tie(category_, pref_path_) = GetParam();
     tracker_ = std::make_unique<InputDeviceTracker>();
-    SimulateUserLogin(GetAccountId(kUserEmail1));
+    SimulateUserLogin({kUserEmail1});
   }
 
   void TearDown() override {
@@ -50,12 +54,8 @@ class InputDeviceTrackerTest
     AshTestBase::TearDown();
   }
 
-  AccountId GetAccountId(base::StringPiece email) {
-    return AccountId::FromUserEmail(std::string(email));
-  }
-
   void CheckObservedDevicesList(
-      std::vector<base::StringPiece> expected_devices) {
+      std::vector<std::string_view> expected_devices) {
     pref_service_ = Shell::Get()->session_controller()->GetActivePrefService();
     const auto& list = pref_service_->GetList(pref_path_);
     EXPECT_EQ(expected_devices.size(), list.size());
@@ -65,7 +65,7 @@ class InputDeviceTrackerTest
     }
   }
 
-  void CallOnDeviceConnected(base::StringPiece device_key) {
+  void CallOnDeviceConnected(std::string_view device_key) {
     switch (category_) {
       case InputDeviceCategory::kKeyboard: {
         mojom::Keyboard keyboard;
@@ -94,18 +94,19 @@ class InputDeviceTrackerTest
   }
 
  protected:
+  base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<InputDeviceTracker> tracker_;
-  base::raw_ptr<PrefService, DanglingUntriaged | ExperimentalAsh> pref_service_;
+  raw_ptr<PrefService, DanglingUntriaged> pref_service_;
 
   InputDeviceCategory category_;
-  base::StringPiece pref_path_;
+  std::string_view pref_path_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
     ,
     InputDeviceTrackerTest,
     testing::ValuesIn(
-        std::vector<std::pair<InputDeviceCategory, base::StringPiece>>{
+        std::vector<std::pair<InputDeviceCategory, std::string_view>>{
             {InputDeviceCategory::kKeyboard,
              prefs::kKeyboardObservedDevicesPref},
             {InputDeviceCategory::kMouse, prefs::kMouseObservedDevicesPref},
@@ -143,7 +144,7 @@ TEST_P(InputDeviceTrackerTest, RecordDevicesTwoUsers) {
   CheckObservedDevicesList({kDeviceKey1, kDeviceKey2, kDeviceKey3});
 
   // Switch account
-  SimulateUserLogin(GetAccountId(kUserEmail2));
+  SimulateUserLogin({kUserEmail2});
   CheckObservedDevicesList({});
 
   CallOnDeviceConnected(kDeviceKey1);

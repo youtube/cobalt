@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.share.long_screenshots.bitmap_generation;
 
-
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 
@@ -13,10 +12,12 @@ import androidx.annotation.NonNull;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
@@ -27,31 +28,29 @@ import org.chromium.components.paintpreview.player.CompositorStatus;
 import org.chromium.components.paintpreview.player.PlayerCompositorDelegate;
 import org.chromium.url.GURL;
 
-/**
- * Test for {@link LongScreenshotsCompositor}.
- */
+/** Test for {@link LongScreenshotsCompositor}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @SuppressWarnings("DoNotMock") // Mocks GURL.
 public class LongScreenshotsCompositorTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private TestPlayerCompositorDelegate mCompositorDelegate;
-    private Bitmap mTestBitmap = Bitmap.createBitmap(512, 1024, Bitmap.Config.ARGB_8888);
-    private Rect mRect = new Rect(0, 100, 200, 1100);
+    private final Bitmap mTestBitmap = Bitmap.createBitmap(512, 1024, Bitmap.Config.ARGB_8888);
+    private final Rect mRect = new Rect(0, 100, 200, 1100);
     private boolean mErrorThrown;
 
-    @Mock
-    private GURL mTestGurl;
+    @Mock private GURL mTestGurl;
 
-    @Mock
-    private NativePaintPreviewServiceProvider mNativePaintPreviewServiceProvider;
+    @Mock private NativePaintPreviewServiceProvider mNativePaintPreviewServiceProvider;
 
-    /**
-     * Implementation of {@link PlayerCompositorDelegate.Factory} for tests.
-     */
+    /** Implementation of {@link PlayerCompositorDelegate.Factory} for tests. */
     class TestCompositorDelegateFactory implements PlayerCompositorDelegate.Factory {
         @Override
-        public PlayerCompositorDelegate create(NativePaintPreviewServiceProvider service, GURL url,
-                String directoryKey, boolean mainFrameMode,
+        public PlayerCompositorDelegate create(
+                NativePaintPreviewServiceProvider service,
+                GURL url,
+                String directoryKey,
+                boolean mainFrameMode,
                 @NonNull PlayerCompositorDelegate.CompositorListener compositorListener,
                 Callback<Integer> compositorErrorCallback) {
             Assert.fail("create shouldn't be called");
@@ -60,17 +59,18 @@ public class LongScreenshotsCompositorTest {
 
         @Override
         public PlayerCompositorDelegate createForCaptureResult(
-                NativePaintPreviewServiceProvider service, long nativeCaptureResultPtr, GURL url,
-                String directoryKey, boolean mainFrameMode,
+                NativePaintPreviewServiceProvider service,
+                long nativeCaptureResultPtr,
+                GURL url,
+                String directoryKey,
+                boolean mainFrameMode,
                 @NonNull PlayerCompositorDelegate.CompositorListener compositorListener,
                 Callback<Integer> compositorErrorCallback) {
             return mCompositorDelegate;
         }
     }
 
-    /**
-     * Implementation of {@link PlayerCompositorDelegate} for tests.
-     */
+    /** Implementation of {@link PlayerCompositorDelegate} for tests. */
     class TestPlayerCompositorDelegate implements PlayerCompositorDelegate {
         private boolean mRequestBitmapError;
         private boolean mWasDestroyed;
@@ -87,14 +87,21 @@ public class LongScreenshotsCompositorTest {
         public void addMemoryPressureListener(Runnable runnable) {}
 
         @Override
-        public int requestBitmap(UnguessableToken frameGuid, Rect clipRect, float scaleFactor,
-                Callback<Bitmap> bitmapCallback, Runnable errorCallback) {
+        public int requestBitmap(
+                UnguessableToken frameGuid,
+                Rect clipRect,
+                float scaleFactor,
+                Callback<Bitmap> bitmapCallback,
+                Runnable errorCallback) {
             Assert.fail("This version of requestBitmap should not be called");
             return 0;
         }
 
         @Override
-        public int requestBitmap(Rect clipRect, float scaleFactor, Callback<Bitmap> bitmapCallback,
+        public int requestBitmap(
+                Rect clipRect,
+                float scaleFactor,
+                Callback<Bitmap> bitmapCallback,
                 Runnable errorCallback) {
             Assert.assertEquals(mRect, clipRect);
             Assert.assertEquals(1f, scaleFactor, 0);
@@ -128,7 +135,6 @@ public class LongScreenshotsCompositorTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mCompositorDelegate = new TestPlayerCompositorDelegate();
         LongScreenshotsCompositor.overrideCompositorDelegateFactoryForTesting(
                 new TestCompositorDelegateFactory());
@@ -142,29 +148,37 @@ public class LongScreenshotsCompositorTest {
 
     @Test
     public void testSuccessfulCompositing() {
-        Callback<Bitmap> onBitmapResult = new Callback<Bitmap>() {
-            @Override
-            public void onResult(Bitmap result) {
-                Assert.assertEquals(mTestBitmap, result);
-            }
-        };
+        Callback<Bitmap> onBitmapResult =
+                new Callback<Bitmap>() {
+                    @Override
+                    public void onResult(Bitmap result) {
+                        Assert.assertEquals(mTestBitmap, result);
+                    }
+                };
 
-        Callback<Integer> compositorCallback = new Callback<Integer>() {
-            @Override
-            public void onResult(Integer result) {
-                Assert.assertEquals((Integer) CompositorStatus.OK, result);
-            }
-        };
+        Callback<Integer> compositorCallback =
+                new Callback<Integer>() {
+                    @Override
+                    public void onResult(Integer result) {
+                        Assert.assertEquals((Integer) CompositorStatus.OK, result);
+                    }
+                };
 
-        Runnable onErrorCallback = new Runnable() {
-            @Override
-            public void run() {
-                Assert.fail("Error should not be thrown");
-            }
-        };
+        Runnable onErrorCallback =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        Assert.fail("Error should not be thrown");
+                    }
+                };
 
-        LongScreenshotsCompositor compositor = new LongScreenshotsCompositor(mTestGurl,
-                mNativePaintPreviewServiceProvider, "test_directory_key", 0, compositorCallback);
+        LongScreenshotsCompositor compositor =
+                new LongScreenshotsCompositor(
+                        mTestGurl,
+                        mNativePaintPreviewServiceProvider,
+                        "test_directory_key",
+                        0,
+                        compositorCallback);
 
         // Mimic the service calling onCompositorReady
         compositor.onCompositorReady(
@@ -182,29 +196,37 @@ public class LongScreenshotsCompositorTest {
     @Test
     public void testRequestBitmapFailure() {
         mCompositorDelegate.setRequestBitmapError();
-        Callback<Bitmap> onBitmapResult = new Callback<Bitmap>() {
-            @Override
-            public void onResult(Bitmap result) {
-                Assert.fail("Bitmap should not be returned");
-            }
-        };
+        Callback<Bitmap> onBitmapResult =
+                new Callback<Bitmap>() {
+                    @Override
+                    public void onResult(Bitmap result) {
+                        Assert.fail("Bitmap should not be returned");
+                    }
+                };
 
-        Callback<Integer> compositorCallback = new Callback<Integer>() {
-            @Override
-            public void onResult(Integer result) {
-                Assert.assertEquals((Integer) CompositorStatus.OK, result);
-            }
-        };
+        Callback<Integer> compositorCallback =
+                new Callback<Integer>() {
+                    @Override
+                    public void onResult(Integer result) {
+                        Assert.assertEquals((Integer) CompositorStatus.OK, result);
+                    }
+                };
 
-        Runnable onErrorCallback = new Runnable() {
-            @Override
-            public void run() {
-                mErrorThrown = true;
-            }
-        };
+        Runnable onErrorCallback =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        mErrorThrown = true;
+                    }
+                };
 
-        LongScreenshotsCompositor compositor = new LongScreenshotsCompositor(mTestGurl,
-                mNativePaintPreviewServiceProvider, "test_directory_key", 0, compositorCallback);
+        LongScreenshotsCompositor compositor =
+                new LongScreenshotsCompositor(
+                        mTestGurl,
+                        mNativePaintPreviewServiceProvider,
+                        "test_directory_key",
+                        0,
+                        compositorCallback);
 
         // Mimic the service calling onCompositorReady
         compositor.onCompositorReady(null, null, null, null, null, null, null, 0f, 0);
@@ -219,15 +241,21 @@ public class LongScreenshotsCompositorTest {
 
     @Test
     public void testCompositorError() {
-        Callback<Integer> compositorCallback = new Callback<Integer>() {
-            @Override
-            public void onResult(Integer result) {
-                Assert.assertEquals((Integer) CompositorStatus.INVALID_REQUEST, result);
-            }
-        };
+        Callback<Integer> compositorCallback =
+                new Callback<Integer>() {
+                    @Override
+                    public void onResult(Integer result) {
+                        Assert.assertEquals((Integer) CompositorStatus.INVALID_REQUEST, result);
+                    }
+                };
 
-        LongScreenshotsCompositor compositor = new LongScreenshotsCompositor(mTestGurl,
-                mNativePaintPreviewServiceProvider, "test_directory_key", 0, compositorCallback);
+        LongScreenshotsCompositor compositor =
+                new LongScreenshotsCompositor(
+                        mTestGurl,
+                        mNativePaintPreviewServiceProvider,
+                        "test_directory_key",
+                        0,
+                        compositorCallback);
 
         compositor.onCompositorError(CompositorStatus.INVALID_REQUEST);
         compositor.destroy();

@@ -6,17 +6,19 @@
 
 #include <algorithm>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/bubble/bubble_constants.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/tray/tray_constants.h"
 #include "ash/system/tray/tray_utils.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_bubble.h"
-#include "ash/system/unified/unified_system_tray_view.h"
 #include "base/functional/bind.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
 
@@ -45,22 +47,19 @@ void PrivacyScreenToastController::ShowToast() {
 
   tray_->CloseSecondaryBubbles();
 
-  TrayBubbleView::InitParams init_params;
-  init_params.shelf_alignment = tray_->shelf()->alignment();
+  TrayBubbleView::InitParams init_params =
+      CreateInitParamsForTrayBubble(tray_, /*anchor_to_shelf_corner=*/true);
+  init_params.type = TrayBubbleView::TrayBubbleType::kSecondaryBubble;
   init_params.preferred_width = kPrivacyScreenToastMinWidth;
+
+  // Use this controller as the delegate rather than the tray.
   init_params.delegate = GetWeakPtr();
-  init_params.parent_window = tray_->GetBubbleWindowContainer();
-  init_params.anchor_view = nullptr;
-  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
-  init_params.anchor_rect = tray_->shelf()->GetSystemTrayAnchorRect();
-  init_params.insets = GetTrayBubbleInsets();
-  init_params.translucent = true;
 
   bubble_view_ = new TrayBubbleView(init_params);
   toast_view_ = new PrivacyScreenToastView(
       this, base::BindRepeating(&PrivacyScreenToastController::ButtonPressed,
                                 base::Unretained(this)));
-  bubble_view_->AddChildView(toast_view_.get());
+  bubble_view_->AddChildViewRaw(toast_view_.get());
 
   bubble_widget_ = views::BubbleDialogDelegateView::CreateBubble(bubble_view_);
 
@@ -89,6 +88,7 @@ void PrivacyScreenToastController::HideToast() {
 
 void PrivacyScreenToastController::BubbleViewDestroyed() {
   close_timer_.Stop();
+  toast_view_ = nullptr;
   bubble_view_ = nullptr;
   bubble_widget_ = nullptr;
 }
@@ -104,10 +104,11 @@ void PrivacyScreenToastController::OnMouseExitedView() {
 }
 
 std::u16string PrivacyScreenToastController::GetAccessibleNameForBubble() {
-  if (!toast_view_)
-    return std::u16string();
-  return toast_view_->GetAccessibleName();
+  return CalculateAccessibleNameForBubble();
 }
+
+void PrivacyScreenToastController::HideBubble(
+    const TrayBubbleView* bubble_view) {}
 
 void PrivacyScreenToastController::OnPrivacyScreenSettingChanged(
     bool enabled,
@@ -128,12 +129,32 @@ void PrivacyScreenToastController::StartAutoCloseTimer() {
   if (toast_view_ && toast_view_->IsButtonFocused())
     return;
 
-  int autoclose_delay = kTrayPopupAutoCloseDelayInSeconds;
-  if (Shell::Get()->accessibility_controller()->spoken_feedback().enabled())
-    autoclose_delay = kTrayPopupAutoCloseDelayInSecondsWithSpokenFeedback;
+  close_timer_.Start(
+      FROM_HERE,
+      Shell::Get()->accessibility_controller()->spoken_feedback().enabled()
+          ? kSecondaryBubbleWithSpokenFeedbackDuration
+          : kSecondaryBubbleDuration,
+      this, &PrivacyScreenToastController::HideToast);
+}
 
-  close_timer_.Start(FROM_HERE, base::Seconds(autoclose_delay), this,
-                     &PrivacyScreenToastController::HideToast);
+// static
+std::u16string
+PrivacyScreenToastController::CalculateAccessibleNameForBubble() {
+  auto* privacy_screen_controller = Shell::Get()->privacy_screen_controller();
+  std::u16string enabled_state = l10n_util::GetStringUTF16(
+      privacy_screen_controller->GetEnabled()
+          ? IDS_ASH_STATUS_TRAY_PRIVACY_SCREEN_ON_STATE
+          : IDS_ASH_STATUS_TRAY_PRIVACY_SCREEN_OFF_STATE);
+
+  std::u16string managed_state =
+      privacy_screen_controller->IsManaged()
+          ? l10n_util::GetStringUTF16(
+                IDS_ASH_STATUS_TRAY_PRIVACY_SCREEN_ENTERPRISE_MANAGED)
+          : std::u16string();
+
+  return l10n_util::GetStringFUTF16(
+      IDS_ASH_STATUS_TRAY_PRIVACY_SCREEN_TOAST_ACCESSIBILITY_TEXT,
+      enabled_state, managed_state);
 }
 
 void PrivacyScreenToastController::UpdateToastView() {
@@ -142,6 +163,7 @@ void PrivacyScreenToastController::UpdateToastView() {
     toast_view_->SetPrivacyScreenEnabled(
         /*enabled=*/privacy_screen_controller->GetEnabled(),
         /*managed=*/privacy_screen_controller->IsManaged());
+    bubble_view_->UpdateAccessibleName();
     int width =
         std::clamp(toast_view_->GetPreferredSize().width(),
                    kPrivacyScreenToastMinWidth, kPrivacyScreenToastMaxWidth);
@@ -152,8 +174,7 @@ void PrivacyScreenToastController::UpdateToastView() {
 void PrivacyScreenToastController::ButtonPressed() {
   auto* privacy_screen_controller = Shell::Get()->privacy_screen_controller();
   privacy_screen_controller->SetEnabled(
-      !privacy_screen_controller->GetEnabled(),
-      PrivacyScreenController::kToggleUISurfaceToastButton);
+      !privacy_screen_controller->GetEnabled());
 }
 
 void PrivacyScreenToastController::StopAutocloseTimer() {

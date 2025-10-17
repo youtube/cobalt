@@ -14,14 +14,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
-#include "base/values.h"
 #include "components/signin/public/identity_manager/account_info.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/extensions_activity.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/base/weak_handle.h"
-#include "components/sync/engine/configure_reason.h"
-#include "components/sync/engine/cycle/sync_cycle_snapshot.h"
-#include "components/sync/engine/model_type_configurer.h"
+#include "components/sync/engine/data_type_configurer.h"
 #include "components/sync/engine/shutdown_reason.h"
 #include "components/sync/engine/sync_credentials.h"
 #include "components/sync/engine/sync_encryption_handler.h"
@@ -38,13 +34,10 @@ class SyncEngineHost;
 struct SyncStatus;
 
 // The interface into the sync engine, which is the part of sync that performs
-// communication between model types and the sync server. In prod the engine
-// will always live on the sync thread and the object implementing this
-// interface will handle crossing threads if necessary.
-class SyncEngine : public ModelTypeConfigurer {
+// communication between data types and the sync server.
+// Lives on the UI thread.
+class SyncEngine : public DataTypeConfigurer {
  public:
-  using AllNodesCallback =
-      base::OnceCallback<void(ModelType, base::Value::List)>;
   using HttpPostProviderFactoryGetter =
       base::OnceCallback<std::unique_ptr<HttpPostProviderFactory>()>;
 
@@ -59,13 +52,12 @@ class SyncEngine : public ModelTypeConfigurer {
 
     ~InitParams();
 
-    raw_ptr<SyncEngineHost, DanglingUntriaged> host = nullptr;
+    raw_ptr<SyncEngineHost> host = nullptr;
     std::unique_ptr<SyncEncryptionHandler::Observer> encryption_observer_proxy;
     scoped_refptr<ExtensionsActivity> extensions_activity;
     GURL service_url;
     SyncEngine::HttpPostProviderFactoryGetter http_factory_getter;
     CoreAccountInfo authenticated_account_info;
-    std::string invalidator_client_id;
     std::unique_ptr<SyncManagerFactory> sync_manager_factory;
     bool enable_local_sync_backend = false;
     base::FilePath local_sync_backend_folder;
@@ -82,15 +74,15 @@ class SyncEngine : public ModelTypeConfigurer {
   // Kicks off asynchronous initialization. Optionally deletes sync data during
   // init in order to make sure we're starting fresh.
   //
-  // |saved_nigori_state| is optional nigori state to restore from a previous
+  // `saved_nigori_state` is optional nigori state to restore from a previous
   // engine instance. May be null.
   virtual void Initialize(InitParams params) = 0;
 
   // Returns whether the asynchronous initialization process has finished.
   virtual bool IsInitialized() const = 0;
 
-  // Inform the engine to trigger a sync cycle for |types|.
-  virtual void TriggerRefresh(const ModelTypeSet& types) = 0;
+  // Inform the engine to trigger a sync cycle for `types`.
+  virtual void TriggerRefresh(const DataTypeSet& types) = 0;
 
   // Updates the engine's SyncCredentials. The credentials must be fully
   // specified (account ID, email, and sync token). To invalidate the
@@ -138,7 +130,7 @@ class SyncEngine : public ModelTypeConfigurer {
   // TRUSTED_VAULT_PASSPHRASE: it provides new decryption keys that could
   // allow decrypting pending Nigori keys. Notifies observers of the result of
   // the operation via OnTrustedVaultKeyAccepted if the provided keys
-  // successfully decrypted pending keys. |done_cb| is invoked at the very end.
+  // successfully decrypted pending keys. `done_cb` is invoked at the very end.
   virtual void AddTrustedVaultDecryptionKeys(
       const std::vector<std::vector<uint8_t>>& keys,
       base::OnceClosure done_cb) = 0;
@@ -163,7 +155,7 @@ class SyncEngine : public ModelTypeConfigurer {
 
   // Returns datatypes that are currently throttled.
   virtual void GetThrottledDataTypesForTest(
-      base::OnceCallback<void(ModelTypeSet)> cb) const = 0;
+      base::OnceCallback<void(DataTypeSet)> cb) const = 0;
 
   // Requests that the backend forward to the fronent any protocol events in
   // its buffer and begin forwarding automatically from now on.  Repeated calls
@@ -179,11 +171,12 @@ class SyncEngine : public ModelTypeConfigurer {
   virtual void OnCookieJarChanged(bool account_mismatch,
                                   base::OnceClosure callback) = 0;
 
-  // Enables/Disables invalidations for session sync related datatypes.
-  virtual void SetInvalidationsForSessionsEnabled(bool enabled) = 0;
-
-  // Returns a Value::List representing Nigori node.
-  virtual void GetNigoriNodeForDebugging(AllNodesCallback callback) = 0;
+  // Returns whether the poll interval elapsed since the last known poll time.
+  // If returns true, there will likely be the next PERIODIC sync cycle soon but
+  // it's not guaranteed, see SyncSchedulerImpl for details. Note that this may
+  // diverge from a real scheduled poll time because this method uses base::Time
+  // while scheduler uses base::TimeTicks (which may be paused in sleep mode).
+  virtual bool IsNextPollTimeInThePast() const = 0;
 };
 
 }  // namespace syncer

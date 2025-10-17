@@ -17,10 +17,8 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/service_worker_context.h"
-#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/browser_test.h"
@@ -338,8 +336,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionResourceRequestPolicyTest,
 
   // Redirects can sometimes occur before the load event, so use a
   // UrlLoadObserver instead of blocking waiting for two load events.
-  ui_test_utils::UrlLoadObserver accessible_observer(
-      accessible_url, content::NotificationService::AllSources());
+  ui_test_utils::UrlLoadObserver accessible_observer(accessible_url);
   GURL accessible_client_redirect_resource(embedded_test_server()->GetURL(
       "/extensions/api_test/extension_resource_request_policy/"
       "web_accessible/accessible_redirect_resource.html"));
@@ -350,8 +347,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionResourceRequestPolicyTest,
             controller.GetLastCommittedEntry()->GetPageType());
   EXPECT_EQ(accessible_url, web_contents->GetLastCommittedURL());
 
-  ui_test_utils::UrlLoadObserver nonaccessible_observer(
-      invalid_url, content::NotificationService::AllSources());
+  ui_test_utils::UrlLoadObserver nonaccessible_observer(invalid_url);
   GURL nonaccessible_client_redirect_resource(embedded_test_server()->GetURL(
       "/extensions/api_test/extension_resource_request_policy/"
       "web_accessible/nonaccessible_redirect_resource.html"));
@@ -408,7 +404,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionResourceRequestPolicyTest,
 
   GURL private_page(
       "chrome-extension://kegmjfcnjamahdnldjmlpachmpielcdk/private.html");
-  ASSERT_TRUE(content::ExecuteScript(web_contents, "navigateFrameNow()"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "navigateFrameNow()"));
   EXPECT_TRUE(WaitForLoadStop(web_contents));
   EXPECT_NE(private_page, web_contents->GetLastCommittedURL());
 
@@ -657,10 +653,7 @@ IN_PROC_BROWSER_TEST_F(
     notification_data.body = base::UTF8ToUTF16(target_url.spec());
 
     GURL scope_url = embedded_test_server()->GetURL("/service_worker/");
-    content::StoragePartition* storage_partition =
-        browser()->profile()->GetDefaultStoragePartition();
-    content::ServiceWorkerContext* context =
-        storage_partition->GetServiceWorkerContext();
+    content::ServiceWorkerContext* context = GetServiceWorkerContext();
 
     content::WebContentsAddedObserver new_window_observer;
     content::DispatchServiceWorkerNotificationClick(context, scope_url,

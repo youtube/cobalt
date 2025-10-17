@@ -85,6 +85,20 @@ void VirtualKeyboardController::ForceShowKeyboardWithKeyset(
                              base::Unretained(this)));
 }
 
+void VirtualKeyboardController::ForceShowKeyboard() {
+  // If the virtual keyboard is enabled, show the keyboard directly.
+  auto* keyboard_controller = keyboard::KeyboardUIController::Get();
+  if (keyboard_controller->IsEnabled()) {
+    keyboard_controller->ShowKeyboard(false /* locked */);
+    return;
+  }
+
+  // Otherwise, temporarily enable the virtual keyboard until it is dismissed.
+  DCHECK(!keyboard::GetKeyboardEnabledFromShelf());
+  keyboard::SetKeyboardEnabledFromShelf(true);
+  keyboard_controller->ShowKeyboard(false);
+}
+
 void VirtualKeyboardController::OnTabletModeEventsBlockingChanged() {
   UpdateKeyboardEnabled();
 }
@@ -118,7 +132,7 @@ void VirtualKeyboardController::UpdateDevices() {
     if ((type == ui::InputDeviceType::INPUT_DEVICE_USB ||
          (type == ui::InputDeviceType::INPUT_DEVICE_BLUETOOTH &&
           bluetooth_devices_observer_->IsConnectedBluetoothDevice(device))) &&
-        !device.suspected_imposter) {
+        !device.suspected_keyboard_imposter) {
       external_keyboards_.push_back(device);
     }
   }
@@ -138,29 +152,6 @@ void VirtualKeyboardController::UpdateKeyboardEnabled() {
   Shell::Get()->system_tray_notifier()->NotifyVirtualKeyboardSuppressionChanged(
       !is_internal_keyboard_active && !touchscreens_.empty() &&
       !external_keyboards_.empty());
-}
-
-void VirtualKeyboardController::ForceShowKeyboard() {
-  // If the virtual keyboard is enabled, show the keyboard directly.
-  auto* keyboard_controller = keyboard::KeyboardUIController::Get();
-  if (keyboard_controller->IsEnabled()) {
-    keyboard_controller->ShowKeyboard(false /* locked */);
-    return;
-  }
-
-  // Otherwise, temporarily enable the virtual keyboard until it is dismissed.
-  DCHECK(!keyboard::GetKeyboardEnabledFromShelf());
-  keyboard::SetKeyboardEnabledFromShelf(true);
-  keyboard_controller->ShowKeyboard(false);
-}
-
-void VirtualKeyboardController::OnKeyboardEnabledChanged(bool is_enabled) {
-  if (!is_enabled) {
-    // TODO(shend/shuchen): Consider moving this logic to ImeController.
-    // https://crbug.com/896284.
-    Shell::Get()->ime_controller()->OverrideKeyboardKeyset(
-        input_method::ImeKeyset::kNone);
-  }
 }
 
 void VirtualKeyboardController::OnKeyboardHidden(bool is_temporary_hide) {
@@ -191,7 +182,7 @@ void VirtualKeyboardController::OnBluetoothAdapterOrDeviceChanged(
   }
 }
 
-const absl::optional<std::string>&
+const std::optional<std::string>&
 VirtualKeyboardController::GetInternalKeyboardName() const {
   return internal_keyboard_name_;
 }

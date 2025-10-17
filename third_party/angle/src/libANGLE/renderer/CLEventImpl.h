@@ -8,7 +8,7 @@
 #ifndef LIBANGLE_RENDERER_CLEVENTIMPL_H_
 #define LIBANGLE_RENDERER_CLEVENTIMPL_H_
 
-#include "libANGLE/renderer/CLtypes.h"
+#include "libANGLE/renderer/cl_types.h"
 
 namespace rx
 {
@@ -22,16 +22,18 @@ class CLEventImpl : angle::NonCopyable
     CLEventImpl(const cl::Event &event);
     virtual ~CLEventImpl();
 
-    virtual cl_int getCommandExecutionStatus(cl_int &executionStatus) = 0;
+    virtual angle::Result onEventCreate() = 0;
 
-    virtual cl_int setUserEventStatus(cl_int executionStatus) = 0;
+    virtual angle::Result getCommandExecutionStatus(cl_int &executionStatus) = 0;
 
-    virtual cl_int setCallback(cl::Event &event, cl_int commandExecCallbackType) = 0;
+    virtual angle::Result setUserEventStatus(cl_int executionStatus) = 0;
 
-    virtual cl_int getProfilingInfo(cl::ProfilingInfo name,
-                                    size_t valueSize,
-                                    void *value,
-                                    size_t *valueSizeRet) = 0;
+    virtual angle::Result setCallback(cl::Event &event, cl_int commandExecCallbackType) = 0;
+
+    virtual angle::Result getProfilingInfo(cl::ProfilingInfo name,
+                                           size_t valueSize,
+                                           void *value,
+                                           size_t *valueSizeRet) = 0;
 
   protected:
     const cl::Event &mEvent;

@@ -13,6 +13,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
@@ -51,9 +52,9 @@ class CONTENT_EXPORT FirstPartySetsDatabase {
     // `LazyInit()` failed and a more specific error wasn't diagnosed.
     kError = 2,
     // `LazyInit()` failed due to a compatible version number being too high.
-    kTooNew = 3,
+    // kTooNew = 3, // No longer used
     // `LazyInit()` failed due to a version number being too low.
-    kTooOld = 4,
+    // kTooOld = 4,  // No longer used
     // `LazyInit()` was successful but data is considered corrupted.
     kCorrupted = 5,
 
@@ -86,13 +87,10 @@ class CONTENT_EXPORT FirstPartySetsDatabase {
   [[nodiscard]] bool InsertBrowserContextCleared(
       const std::string& browser_context_id);
 
-  // TODO(crbug.com/1219656): Consider returning absl::nullopt for all the
-  // fetching methods when having query errors
-
   // Gets the global First-Party Sets and the config used by
   // `browser_context_id`.
-  [[nodiscard]] std::pair<net::GlobalFirstPartySets,
-                          net::FirstPartySetsContextConfig>
+  [[nodiscard]] std::optional<
+      std::pair<net::GlobalFirstPartySets, net::FirstPartySetsContextConfig>>
   GetGlobalSetsAndConfig(const std::string& browser_context_id);
 
   // Gets the sites to clear filters. The first filter holds the list of sites
@@ -100,8 +98,8 @@ class CONTENT_EXPORT FirstPartySetsDatabase {
   // cache filter that holds the current `run_count_` and a map of sites to
   // their `marked_at_run`, containing all the sites that were added into DB to
   // be cleared in a certain browser run, for the `browser_context_id`.
-  [[nodiscard]] std::pair<std::vector<net::SchemefulSite>,
-                          net::FirstPartySetsCacheFilter>
+  [[nodiscard]] std::optional<std::pair<std::vector<net::SchemefulSite>,
+                                        net::FirstPartySetsCacheFilter>>
   GetSitesToClearFilters(const std::string& browser_context_id);
 
   // Check whether the `browser_context_id`  has performed clearing.
@@ -109,6 +107,10 @@ class CONTENT_EXPORT FirstPartySetsDatabase {
       const std::string& browser_context_id);
 
  private:
+  // Returns true if there is no active transaction or `db_status` is not
+  // `kSuccess`. Should only be called within a transaction.
+  [[nodiscard]] bool TransactionFailed();
+
   // Stores the public First-Party Sets into database, and keeps track of the
   // the sets version used by `browser_context_id`. `sets_version` must be
   // valid. Returns true on success.
@@ -130,27 +132,27 @@ class CONTENT_EXPORT FirstPartySetsDatabase {
       const net::FirstPartySetsContextConfig& policy_config);
 
   // Gets the global First-Party Sets used by `browser_context_id`.
-  [[nodiscard]] net::GlobalFirstPartySets GetGlobalSets(
+  [[nodiscard]] std::optional<net::GlobalFirstPartySets> GetGlobalSets(
       const std::string& browser_context_id);
 
   // Gets the previously-stored manual configuration for the
   // `browser_context_id`.
-  [[nodiscard]] net::FirstPartySetsContextConfig FetchManualConfiguration(
-      const std::string& browser_context_id);
+  [[nodiscard]] std::optional<net::FirstPartySetsContextConfig>
+  FetchManualConfiguration(const std::string& browser_context_id);
 
   // Gets the previously-stored policy configuration for the
   // `browser_context_id`.
-  [[nodiscard]] net::FirstPartySetsContextConfig FetchPolicyConfigurations(
-      const std::string& browser_context_id);
+  [[nodiscard]] std::optional<net::FirstPartySetsContextConfig>
+  FetchPolicyConfigurations(const std::string& browser_context_id);
 
   // Gets the list of sites to clear for the `browser_context_id`.
-  [[nodiscard]] std::vector<net::SchemefulSite> FetchSitesToClear(
-      const std::string& browser_context_id);
+  [[nodiscard]] std::optional<std::vector<net::SchemefulSite>>
+  FetchSitesToClear(const std::string& browser_context_id);
 
   // Gets all the sites and mapped to the value of `run_count_`, which
   // represents the site was added into DB to be cleared in a certain browser
   // run, for the `browser_context_id`.
-  [[nodiscard]] base::flat_map<net::SchemefulSite, int64_t>
+  [[nodiscard]] std::optional<base::flat_map<net::SchemefulSite, int64_t>>
   FetchAllSitesToClearFilter(const std::string& browser_context_id);
 
   // Called at the start of each public operation, and initializes the database

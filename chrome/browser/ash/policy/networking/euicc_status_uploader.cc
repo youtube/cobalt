@@ -4,9 +4,11 @@
 
 #include "chrome/browser/ash/policy/networking/euicc_status_uploader.h"
 
+#include "ash/constants/ash_features.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/timer/timer.h"
+#include "base/values.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/profiles/profile.h"
@@ -15,6 +17,7 @@
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
+#include "components/onc/onc_constants.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -23,18 +26,24 @@
 namespace policy {
 
 namespace {
+
 const char kLastUploadedEuiccStatusEuiccCountKey[] = "euicc_count";
 const char kLastUploadedEuiccStatusESimProfilesKey[] = "esim_profiles";
 const char kLastUploadedEuiccStatusESimProfilesIccidKey[] = "iccid";
-const char kLastUploadedEuiccStatusESimProfilesSmdpAddressKey[] =
-    "smdp_address";
+const char kLastUploadedEuiccStatusESimProfilesNetworkNameKey[] =
+    "network_name";
+const char kLastUploadedEuiccStatusESimProfilesSmdpActivationCodeKey[] =
+    "smdp_activation_code";
+const char kLastUploadedEuiccStatusESimProfilesSmdsActivationCodeKey[] =
+    "smds_activation_code";
+
 const net::BackoffEntry::Policy kBackOffPolicy = {
     // Number of initial errors (in sequence) to ignore before applying
     // exponential back-off rules.
     0,
 
     // Initial delay for exponential back-off in ms.
-    static_cast<int>(base::Minutes(5).InMilliseconds()),
+    base::Minutes(5).InMilliseconds(),
 
     // Factor by which the waiting time will be multiplied.
     2,
@@ -43,7 +52,7 @@ const net::BackoffEntry::Policy kBackOffPolicy = {
     // between 90%-100% of the calculated time.
     0.5,
     // Maximum amount of time we are willing to delay our request in ms.
-    static_cast<int>(base::Hours(6).InMilliseconds()),
+    base::Hours(6).InMilliseconds(),
 
     // Time to keep an entry from being discarded even when it
     // has no significant state, -1 to never discard.
@@ -65,7 +74,7 @@ bool IsDeviceManaged() {
 
 // static
 const char EuiccStatusUploader::kLastUploadedEuiccStatusPref[] =
-    "esim.last_upload_euicc_status";
+    "esim.last_uploaded_euicc_status";
 const char EuiccStatusUploader::kShouldSendClearProfilesRequestPref[] =
     "esim.should_clear_profile_list";
 
@@ -100,9 +109,10 @@ EuiccStatusUploader::EuiccStatusUploader(
 }
 
 EuiccStatusUploader::~EuiccStatusUploader() {
-  if (ash::NetworkHandler::IsInitialized())
+  if (ash::NetworkHandler::IsInitialized()) {
     ash::NetworkHandler::Get()->managed_cellular_pref_handler()->RemoveObserver(
         this);
+  }
   OnManagedNetworkConfigurationHandlerShuttingDown();
 }
 
@@ -131,8 +141,28 @@ EuiccStatusUploader::ConstructRequestFromStatus(const base::Value::Dict& status,
     enterprise_management::ESimProfileInfo esim_profile_info;
     esim_profile_info.set_iccid(*esim_profile_dict.FindString(
         kLastUploadedEuiccStatusESimProfilesIccidKey));
-    esim_profile_info.set_smdp_address(*esim_profile_dict.FindString(
-        kLastUploadedEuiccStatusESimProfilesSmdpAddressKey));
+
+    const std::string* network_name = esim_profile_dict.FindString(
+        kLastUploadedEuiccStatusESimProfilesNetworkNameKey);
+    if (network_name && !network_name->empty()) {
+      esim_profile_info.set_name(*network_name);
+    }
+
+    const std::string* smdp_activation_code = esim_profile_dict.FindString(
+        kLastUploadedEuiccStatusESimProfilesSmdpActivationCodeKey);
+    const std::string* smds_activation_code = esim_profile_dict.FindString(
+        kLastUploadedEuiccStatusESimProfilesSmdsActivationCodeKey);
+
+    if (smdp_activation_code && !smdp_activation_code->empty()) {
+      esim_profile_info.set_smdp_address(*smdp_activation_code);
+    } else if (smds_activation_code && !smds_activation_code->empty()) {
+      esim_profile_info.set_smds_address(*smds_activation_code);
+    } else {
+      NET_LOG(ERROR) << "Failed to find an activation code when constructing "
+                        "EUICC upload request";
+      continue;
+    }
+
     mutable_esim_profiles->Add(std::move(esim_profile_info));
   }
   upload_request->set_clear_profile_list(clear_profile_list);
@@ -181,11 +211,10 @@ void EuiccStatusUploader::OnEuiccReset(const dbus::ObjectPath& euicc_path) {
 }
 
 base::Value::Dict EuiccStatusUploader::GetCurrentEuiccStatus() const {
-  base::Value::Dict status;
-
-  status.Set(kLastUploadedEuiccStatusEuiccCountKey,
-             static_cast<int>(
-                 ash::HermesManagerClient::Get()->GetAvailableEuiccs().size()));
+  auto status = base::Value::Dict().Set(
+      kLastUploadedEuiccStatusEuiccCountKey,
+      static_cast<int>(
+          ash::HermesManagerClient::Get()->GetAvailableEuiccs().size()));
 
   base::Value::List esim_profiles;
 
@@ -193,22 +222,51 @@ base::Value::Dict EuiccStatusUploader::GetCurrentEuiccStatus() const {
                                       ->cellular_esim_profile_handler()
                                       ->GetESimProfiles()) {
     // Do not report non-provisioned cellular networks.
-    if (esim_profile.iccid().empty())
+    if (esim_profile.iccid().empty()) {
       continue;
+    }
 
-    const std::string* smdp_address =
+    const base::Value::Dict* esim_metadata =
         ash::NetworkHandler::Get()
             ->managed_cellular_pref_handler()
-            ->GetSmdpAddressFromIccid(esim_profile.iccid());
-    // Report only managed profiles with a SMDP address.
-    if (!smdp_address)
+            ->GetESimMetadata(esim_profile.iccid());
+
+    // Report only managed profiles that we have metadata for.
+    if (!esim_metadata) {
       continue;
+    }
 
     base::Value::Dict esim_profile_to_add;
     esim_profile_to_add.Set(kLastUploadedEuiccStatusESimProfilesIccidKey,
                             esim_profile.iccid());
-    esim_profile_to_add.Set(kLastUploadedEuiccStatusESimProfilesSmdpAddressKey,
-                            *smdp_address);
+
+    const std::string* const smdp_activation_code =
+        esim_metadata->FindString(::onc::cellular::kSMDPAddress);
+    const std::string* const smds_activation_code =
+        esim_metadata->FindString(::onc::cellular::kSMDSAddress);
+
+    if (smdp_activation_code && !smdp_activation_code->empty()) {
+      esim_profile_to_add.Set(
+          kLastUploadedEuiccStatusESimProfilesSmdpActivationCodeKey,
+          *smdp_activation_code);
+    } else if (smds_activation_code && !smds_activation_code->empty()) {
+      esim_profile_to_add.Set(
+          kLastUploadedEuiccStatusESimProfilesSmdsActivationCodeKey,
+          *smds_activation_code);
+    } else {
+      // Report only managed profiles that we have an activation code for.
+      NET_LOG(ERROR) << "Failed to find an SM-DP+ or SM-DS activation code "
+                     << "in the eSIM metadata, skipping entry";
+      continue;
+    }
+
+    const std::string* network_name =
+        esim_metadata->FindString(::onc::network_config::kName);
+    if (network_name && !network_name->empty()) {
+      esim_profile_to_add.Set(
+          kLastUploadedEuiccStatusESimProfilesNetworkNameKey, *network_name);
+    }
+
     esim_profiles.Append(std::move(esim_profile_to_add));
   }
 
@@ -274,21 +332,27 @@ void EuiccStatusUploader::MaybeUploadStatus() {
 
 void EuiccStatusUploader::UploadStatus(base::Value::Dict status) {
   // Do not upload anything until the current upload finishes.
-  if (currently_uploading_)
+  if (currently_uploading_) {
     return;
+  }
   currently_uploading_ = true;
   attempted_upload_status_ = std::move(status);
 
+  const bool should_send_clear_profiles_request =
+      local_state_->GetBoolean(kShouldSendClearProfilesRequestPref);
+
   auto upload_request = ConstructRequestFromStatus(
-      attempted_upload_status_,
-      local_state_->GetBoolean(kShouldSendClearProfilesRequestPref));
+      attempted_upload_status_, should_send_clear_profiles_request);
   client_->UploadEuiccInfo(
       std::move(upload_request),
       base::BindOnce(&EuiccStatusUploader::OnStatusUploaded,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr(),
+                     should_send_clear_profiles_request));
 }
 
-void EuiccStatusUploader::OnStatusUploaded(bool success) {
+void EuiccStatusUploader::OnStatusUploaded(
+    bool should_send_clear_profiles_request,
+    bool success) {
   currently_uploading_ = false;
   retry_entry_.InformOfRequest(/*succeeded=*/success);
   base::UmaHistogramBoolean(
@@ -305,13 +369,15 @@ void EuiccStatusUploader::OnStatusUploaded(bool success) {
   // Remember the last uploaded status to not upload it again.
   local_state_->SetDict(kLastUploadedEuiccStatusPref,
                         std::move(attempted_upload_status_));
-  // Clean out the local state preference to not send |clear_profile_list| =
-  // true multiple times.
-  local_state_->ClearPref(kShouldSendClearProfilesRequestPref);
+
+  if (should_send_clear_profiles_request) {
+    // Clean out the local state preference to not send `clear_profile_list` =
+    // true multiple times.
+    local_state_->ClearPref(kShouldSendClearProfilesRequestPref);
+  }
   attempted_upload_status_.clear();
 
   MaybeUploadStatus();
-  return;
 }
 
 void EuiccStatusUploader::RetryUpload() {
@@ -320,8 +386,9 @@ void EuiccStatusUploader::RetryUpload() {
 }
 
 void EuiccStatusUploader::FireRetryTimerIfExistsForTesting() {
-  if (retry_timer_)
+  if (retry_timer_) {
     retry_timer_->FireNow();
+  }
 }
 
 }  // namespace policy

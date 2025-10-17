@@ -2,8 +2,6 @@ include_rules = [
   "+components/content_settings/browser",
   "+components/content_settings/core/browser",
   "+components/content_settings/core/common",
-  # TODO(bokan): Remove after investigating for crbug.com/1264667.
-  "+components/crash/core/common/crash_key.h",
   "+components/infobars",
   "+components/messages",
   "+components/resources",
@@ -18,6 +16,7 @@ include_rules = [
   "+content/public/test",
   "+mojo/public",
   "+net/base",
+  "+net/cookies",
   "+services/metrics/public/cpp",
   "+services/network/public/mojom",
   "+ui/base",

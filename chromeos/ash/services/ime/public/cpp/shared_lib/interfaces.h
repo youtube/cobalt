@@ -60,7 +60,7 @@
 // dependencies on Chromium, making it easier to use this file outside of the
 // Chromium repo. When using this file, consumers should also #include their own
 // copy of the MojoSystemThunks struct definition.
-struct MojoSystemThunks;
+struct MojoSystemThunks2;
 
 namespace ash {
 namespace ime {
@@ -121,13 +121,10 @@ class ImeCrosPlatform {
   // required to run in the thread creating its remote.
   virtual void RunInMainSequence(ImeSequencedTask task, int task_id) = 0;
 
-  // Returns whether a Chrome OS experimental feature is enabled or not. Only a
-  // subset of CrOS features are considered (features not considered appear as
-  // disabled), |feature_name| may or may not correspond to base::Feature::name
-  // of the CrOS feature, and there could be extra logic (see impl for details).
-  // TODO(b/218815885): Use consistent feature flag names as in CrOS
-  // base::Feature::name (instead of slightly-different bespoke names), and
-  // always wire 1:1 to CrOS feature flags (instead of having any extra logic).
+  // Returns whether a CrOS experimental feature is enabled. Only a subset of
+  // CrOS features are considered (features not considered appear as disabled).
+  // |feature_name| corresponds to base::Feature::name of the CrOS feature as
+  // defined in ash/constants/ash_features.cc in the Chromium repo.
   virtual bool IsFeatureEnabled(const char* feature_name) = 0;
 
   // Start a download using |SimpleURLLoader|. Each SimpleDownloadToFileV2 can
@@ -137,12 +134,7 @@ class ImeCrosPlatform {
                                      const char* file_path,
                                      SimpleDownloadCallbackV2 callback) = 0;
 
-  // Returns a pointer to the Mojo system thunks.
-  // The shared library can use this pointer for its own Mojo environment in
-  // order to communicate directly with the browser process.
-  // MojoSystemThunks has a stable ABI, hence it is safe to use it from the
-  // shared library
-  virtual const MojoSystemThunks* GetMojoSystemThunks() = 0;
+  virtual const void* Unused4() = 0;
 
   // Retrieves the string value of a CrOS feature's Finch param. Only a subset
   // of CrOS features are considered (see impl for details). |feature_name| is
@@ -153,6 +145,13 @@ class ImeCrosPlatform {
   virtual const char* GetFieldTrialParamValueByFeature(
       const char* feature_name,
       const char* param_name) = 0;
+
+  // Returns a pointer to the Mojo system thunks.
+  // The shared library can use this pointer for its own Mojo environment in
+  // order to communicate directly with the browser process.
+  // MojoSystemThunks has a stable ABI, hence it is safe to use it from the
+  // shared library
+  virtual const MojoSystemThunks2* GetMojoSystemThunks2() = 0;
 
   // TODO(https://crbug.com/837156): Provide Logger for main entry.
 };
@@ -169,9 +168,8 @@ class ImeClientDelegate {
   virtual ~ImeClientDelegate() = default;
 
  public:
-  // Returns the c_str() of the internal IME specification of ImeClientDelegate.
-  // The IME specification will be invalidated by its `Destroy` method.
-  virtual const char* ImeSpec() = 0;
+  // Obsolete, thus deprecated and must not be used. Kept for ABI vtable compat.
+  virtual void Unused1() = 0;
 
   // Process response data from the IME shared lib in the connected IME client.
   // The data will be invalidated by the engine soon after this call.
@@ -265,8 +263,40 @@ __attribute__((visibility("default"))) void CloseMojoMode();
 __attribute__((visibility("default"))) bool InitializeConnectionFactory(
     uint32_t receiver_connection_factory_handle);
 
+// Bootstraps an implementation of a ConnectionFactory in the IME shared lib.
+// Returns false if the connection attempt was unsuccessful.
+__attribute__((visibility("default"))) bool InitializeConnectionFactoryV2(
+    uintptr_t receiver_connection_factory_handle);
+
 // Returns whether there's a direct Mojo connection to an input method.
 __attribute__((visibility("default"))) bool IsInputMethodConnected();
+
+// ****************************************************************************
+// ***************************** USER DATA ************************************
+// ****************************************************************************
+
+// Contains serialised proto data with the size of the buffer.
+struct C_SerializedProto {
+  const uint8_t* const buffer;
+  const size_t size;
+};
+
+// If the proto is created in the shared library side, this function will clear
+// up the memory from the shared library side to prevent unintended issues due
+// to mismatch in memory management implementation.
+__attribute__((visibility("default"))) void DeleteSerializedProto(
+    C_SerializedProto proto);
+
+// Initialises the IME shared lib's UserData service functionality.
+// This needs to be called before any "UserData*" functions are called.
+__attribute__((visibility("default"))) void InitUserDataService(
+    ash::ime::ImeCrosPlatform* platform);
+
+// args: serialized UserDataRequest proto.
+// returns serialized UserDataResponse proto.
+// (see ./proto/user_data_service.proto)
+__attribute__((visibility("default"))) C_SerializedProto ProcessUserDataRequest(
+    C_SerializedProto args);
 
 }  // extern "C"
 

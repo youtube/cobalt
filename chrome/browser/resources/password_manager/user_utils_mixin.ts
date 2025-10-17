@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {dedupingMixin} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {PasswordManagerImpl} from './password_manager_proxy.js';
-import {AccountInfo, SyncBrowserProxyImpl, SyncInfo} from './sync_browser_proxy.js';
+import type {AccountInfo, SyncInfo} from './sync_browser_proxy.js';
+import {SyncBrowserProxyImpl} from './sync_browser_proxy.js';
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -23,10 +25,9 @@ export const UserUtilMixin = dedupingMixin(
         static get properties() {
           return {
             /**
-             * Indicates whether user opted in using passwords stored on
-             * their account.
+             * Indicates whether the account-scoped password storage is enabled.
              */
-            isOptedInForAccountStorage: {
+            isAccountStorageEnabled: {
               type: Boolean,
               value: false,
             },
@@ -45,7 +46,7 @@ export const UserUtilMixin = dedupingMixin(
             isAccountStoreUser: {
               type: Boolean,
               computed: 'computeIsAccountStoreUser_(' +
-                  'isOptedInForAccountStorage, isEligibleForAccountStorage)',
+                  'isAccountStorageEnabled, isEligibleForAccountStorage)',
             },
 
             isSyncingPasswords: {
@@ -67,43 +68,49 @@ export const UserUtilMixin = dedupingMixin(
               value: '',
               computed: 'computeAvatarImage_(accountInfo_)',
             },
+
+            syncInfo_: Object,
+            accountInfo_: Object,
           };
         }
 
-        isOptedInForAccountStorage: boolean;
-        isEligibleForAccountStorage: boolean;
-        isAccountStoreUser: boolean;
-        isSyncingPasswords: boolean;
-        accountEmail: string;
-        avatarImage: string;
-        private syncInfo_: SyncInfo;
-        private accountInfo_: AccountInfo;
+        declare isAccountStorageEnabled: boolean;
+        declare isEligibleForAccountStorage: boolean;
+        // Whether account storage is enabled and the default storage is
+        // account.
+        declare isAccountStoreUser: boolean;
+        declare isSyncingPasswords: boolean;
+        declare accountEmail: string;
+        declare avatarImage: string;
+        declare private syncInfo_: SyncInfo;
+        declare private accountInfo_: AccountInfo;
 
-        private setIsOptedInForAccountStorageListener_:
-            ((isOptedIn: boolean) => void)|null = null;
+        private setIsAccountStorageEnabledListener_:
+            ((enabled: boolean) => void)|null = null;
 
         override connectedCallback() {
           super.connectedCallback();
 
           // Create listener functions.
-          this.setIsOptedInForAccountStorageListener_ = (optedIn) =>
-              this.isOptedInForAccountStorage = optedIn;
+          this.setIsAccountStorageEnabledListener_ = (enabled) =>
+              this.isAccountStorageEnabled = enabled;
           const syncInfoChanged = (syncInfo: SyncInfo) => this.syncInfo_ =
               syncInfo;
           const accountInfoChanged = (accountInfo: AccountInfo) =>
               this.accountInfo_ = accountInfo;
 
           // Request initial data.
-          PasswordManagerImpl.getInstance().isOptedInForAccountStorage().then(
-              this.setIsOptedInForAccountStorageListener_);
+          PasswordManagerImpl.getInstance().isAccountStorageEnabled().then(
+              this.setIsAccountStorageEnabledListener_);
           SyncBrowserProxyImpl.getInstance().getSyncInfo().then(
               syncInfoChanged);
           SyncBrowserProxyImpl.getInstance().getAccountInfo().then(
               accountInfoChanged);
 
           // Listen for changes.
-          PasswordManagerImpl.getInstance().addAccountStorageOptInStateListener(
-              this.setIsOptedInForAccountStorageListener_);
+          PasswordManagerImpl.getInstance()
+              .addAccountStorageEnabledStateListener(
+                  this.setIsAccountStorageEnabledListener_);
           this.addWebUiListener('sync-info-changed', syncInfoChanged);
           this.addWebUiListener('stored-accounts-changed', accountInfoChanged);
         }
@@ -111,40 +118,40 @@ export const UserUtilMixin = dedupingMixin(
         override disconnectedCallback() {
           super.disconnectedCallback();
 
-          assert(this.setIsOptedInForAccountStorageListener_);
+          assert(this.setIsAccountStorageEnabledListener_);
           PasswordManagerImpl.getInstance()
-              .removeAccountStorageOptInStateListener(
-                  this.setIsOptedInForAccountStorageListener_);
-          this.setIsOptedInForAccountStorageListener_ = null;
+              .removeAccountStorageEnabledStateListener(
+                  this.setIsAccountStorageEnabledListener_);
+          this.setIsAccountStorageEnabledListener_ = null;
         }
 
-        optInForAccountStorage() {
-          PasswordManagerImpl.getInstance().optInForAccountStorage(true);
+        enableAccountStorage() {
+          PasswordManagerImpl.getInstance().setAccountStorageEnabled(true);
         }
 
-        optOutFromAccountStorage() {
-          PasswordManagerImpl.getInstance().optInForAccountStorage(false);
+        disableAccountStorage() {
+          PasswordManagerImpl.getInstance().setAccountStorageEnabled(false);
         }
 
         private computeIsEligibleForAccountStorage_(): boolean {
-          return !!this.syncInfo_ && this.syncInfo_.isEligibleForAccountStorage;
+          return !!(this.syncInfo_?.isEligibleForAccountStorage);
         }
 
         private computeIsSyncingPasswords_(): boolean {
-          return !!this.syncInfo_ && this.syncInfo_.isSyncingPasswords;
+          return !!(this.syncInfo_?.isSyncingPasswords);
         }
 
         private computeAccountEmail_(): string {
-          return (this.accountInfo_ ? this.accountInfo_.email : '');
+          return this.accountInfo_?.email || '';
         }
 
         private computeAvatarImage_(): string {
-          return this.accountInfo_.avatarImage || '';
+          return this.accountInfo_?.avatarImage || '';
         }
 
         private computeIsAccountStoreUser_(): boolean {
           return this.isEligibleForAccountStorage &&
-              this.isOptedInForAccountStorage;
+              this.isAccountStorageEnabled;
         }
       }
 
@@ -153,12 +160,12 @@ export const UserUtilMixin = dedupingMixin(
 
 
 export interface UserUtilMixinInterface {
-  isOptedInForAccountStorage: boolean;
+  isAccountStorageEnabled: boolean;
   isEligibleForAccountStorage: boolean;
   isAccountStoreUser: boolean;
   isSyncingPasswords: boolean;
   accountEmail: string;
   avatarImage: string;
-  optInForAccountStorage(): void;
-  optOutFromAccountStorage(): void;
+  enableAccountStorage(): void;
+  disableAccountStorage(): void;
 }

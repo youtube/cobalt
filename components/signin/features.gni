@@ -2,13 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/chrome_build.gni")
 
 declare_args() {
   # Compile time flag for Bound Session Credentials.
-  # Warning: The feature is still under development. This must not be enabled in
-  #          official builds.
-  enable_bound_session_credentials = false
+  enable_bound_session_credentials = is_linux || is_mac || is_win
 }
 
 # Dice is supported on the platform (but not necessarily enabled).

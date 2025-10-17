@@ -43,11 +43,8 @@ void ReportSmoothness(int value) {
 
 // PhotoView ------------------------------------------------------------------
 PhotoView::PhotoView(AmbientViewDelegateImpl* delegate,
-                     bool peripheral_ui_visible)
-    : peripheral_ui_visible_(peripheral_ui_visible),
-      delegate_(delegate),
-      glanceable_info_jitter_calculator_(
-          AmbientSlideshowPeripheralUi::CreateDefaultJitterCalculator()) {
+                     PhotoViewConfig view_config)
+    : view_config_(view_config), delegate_(delegate) {
   DCHECK(delegate_);
   SetID(AmbientViewID::kAmbientPhotoView);
   Init();
@@ -81,12 +78,14 @@ void PhotoView::Init() {
     // glanceable info on screen does not shift too much at once when
     // transitioning between AmbientBackgroundImageViews in
     // StartTransitionAnimation().
-    image_view = AddChildView(std::make_unique<AmbientBackgroundImageView>(
-        delegate_, glanceable_info_jitter_calculator_.get()));
+    image_view =
+        AddChildView(std::make_unique<AmbientBackgroundImageView>(delegate_));
     // Each image view will be animated on its own layer.
     image_view->SetPaintToLayer();
     image_view->layer()->SetFillsBoundsOpaquely(false);
-    image_view->SetPeripheralUiVisibility(peripheral_ui_visible_);
+
+    image_view->SetPeripheralUiVisibility(view_config_.peripheral_ui_visible);
+    image_view->SetForceResizeToFit(view_config_.force_resize_to_fit);
   }
 
   // Hides one image view initially for fade in animation.
@@ -140,7 +139,7 @@ void PhotoView::StartTransitionAnimation() {
 
     ui::AnimationThroughputReporter reporter(
         animation.GetAnimator(),
-        metrics_util::ForSmoothness(base::BindRepeating(ReportSmoothness)));
+        metrics_util::ForSmoothnessV3(base::BindRepeating(ReportSmoothness)));
 
     visible_layer->SetOpacity(0.0f);
   }
@@ -158,7 +157,7 @@ void PhotoView::StartTransitionAnimation() {
 
     ui::AnimationThroughputReporter reporter(
         animation.GetAnimator(),
-        metrics_util::ForSmoothness(base::BindRepeating(ReportSmoothness)));
+        metrics_util::ForSmoothnessV3(base::BindRepeating(ReportSmoothness)));
 
     invisible_layer->SetOpacity(1.0f);
   }
@@ -181,11 +180,7 @@ gfx::ImageSkia PhotoView::GetVisibleImageForTesting() {
   return image_views_.at(image_index_)->GetCurrentImage();
 }
 
-JitterCalculator* PhotoView::GetJitterCalculatorForTesting() {
-  return glanceable_info_jitter_calculator_.get();
-}
-
-BEGIN_METADATA(PhotoView, views::View)
+BEGIN_METADATA(PhotoView)
 END_METADATA
 
 }  // namespace ash

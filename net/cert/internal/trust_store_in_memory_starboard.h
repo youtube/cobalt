@@ -15,44 +15,47 @@
 #ifndef NET_CERT_INTERNAL_TRUST_STORE_IN_MEMORY_STARBOARD_H_
 #define NET_CERT_INTERNAL_TRUST_STORE_IN_MEMORY_STARBOARD_H_
 
+#include <string_view>
 #include <unordered_set>
 
-#include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
-#include "net/cert/pki/trust_store_in_memory.h"
+#include "net/cert/internal/platform_trust_store.h"
+#include "third_party/boringssl/src/pki/trust_store_in_memory.h"
 
 namespace net {
 
 // Wrapper around TrustStoreInMemory to lazily load trusted root certificates.
-class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
+class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
  public:
   TrustStoreInMemoryStarboard();
   ~TrustStoreInMemoryStarboard() override;
+  TrustStoreInMemoryStarboard(const TrustStoreInMemoryStarboard&) = delete;
+  TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
+      delete;
 
   // TrustStore implementation:
-  void SyncGetIssuersOf(const ParsedCertificate* cert,
-                        ParsedCertificateList* issuers) override;
-  CertificateTrust GetTrust(const ParsedCertificate* cert,
-                                    base::SupportsUserData* debug_data) override;
+  void SyncGetIssuersOf(const bssl::ParsedCertificate* cert,
+                        bssl::ParsedCertificateList* issuers) override;
+  bssl::CertificateTrust GetTrust(const bssl::ParsedCertificate* cert) override;
+
+  // net::PlatformTrustStore implementation:
+  std::vector<net::PlatformTrustStore::CertWithTrust> GetAllUserAddedCerts()
+      override;
 
   // Returns true if the trust store contains the given ParsedCertificate
   // (matches by DER).
-  bool Contains(const ParsedCertificate* cert) const {
+  bool Contains(const bssl::ParsedCertificate* cert) const {
     base::AutoLock scoped_lock(load_mutex_);
     return underlying_trust_store_.Contains(cert);
   }
 
  private:
-  TrustStoreInMemoryStarboard(const TrustStoreInMemoryStarboard&) = delete;
-  TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
-      delete;
-
-  TrustStoreInMemory underlying_trust_store_;
+  bssl::TrustStoreInMemory underlying_trust_store_;
 
   // Given a certificate's canonical name, try to load this cert from trusted
   // certs on disk if it is found.
-  std::shared_ptr<const ParsedCertificate> TryLoadCert(
-      const base::StringPiece& cert_name) const;
+  std::shared_ptr<const bssl::ParsedCertificate> TryLoadCert(
+      const std::string_view& cert_name) const;
 
   // The memory trust store can be accessed by multiple threads, in Chromium,
   // the synchronization issue is solved by initializing trust store at startup

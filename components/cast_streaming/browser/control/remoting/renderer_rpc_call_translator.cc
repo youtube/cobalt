@@ -23,12 +23,18 @@ RendererRpcCallTranslator::RendererRpcCallTranslator(
 
 RendererRpcCallTranslator::~RendererRpcCallTranslator() = default;
 
+void RendererRpcCallTranslator::SendFallbackMessage() {
+  // TODO(crbug.com/1434469): Add a RPC_ONREMOTINGERROR call to report the
+  // specifics of this failure.
+  message_processor_.Run(remote_handle_, media::cast::CreateMessageForError());
+}
+
 void RendererRpcCallTranslator::OnRpcInitialize() {
   if (!has_been_initialized_) {
     has_been_initialized_ = true;
     renderer_->Initialize(
         renderer_client_receiver_.BindNewEndpointAndPassRemote(),
-        /* streams */ {}, /* media_url_params */ nullptr,
+        /* streams */ {},
         base::BindOnce(&RendererRpcCallTranslator::OnInitializeCompleted,
                        weak_factory_.GetWeakPtr(), remote_handle_));
   } else {

@@ -9,7 +9,9 @@
 
 #include <memory>
 
+#import "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#import "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #include "url/gurl.h"
@@ -108,6 +110,9 @@ class NavigationContextImpl : public NavigationContext {
   // pending navigation item after navigation context was created.
   void SetItem(std::unique_ptr<NavigationItemImpl> item);
 
+  // Returns a weak pointer.
+  base::WeakPtr<NavigationContextImpl> GetWeakPtr();
+
  private:
   NavigationContextImpl(WebState* web_state,
                         const GURL& url,
@@ -115,7 +120,7 @@ class NavigationContextImpl : public NavigationContext {
                         ui::PageTransition page_transition,
                         bool is_renderer_initiated);
 
-  WebState* web_state_ = nullptr;
+  raw_ptr<WebState> web_state_ = nullptr;
   int64_t navigation_id_ = 0;
   GURL url_;
   bool has_user_gesture_ = false;
@@ -142,6 +147,8 @@ class NavigationContextImpl : public NavigationContext {
   // NavigationManager if the navigated was requested, but context does not yet
   // exist or when navigation was aborted.
   std::unique_ptr<NavigationItemImpl> item_;
+
+  base::WeakPtrFactory<NavigationContextImpl> weak_factory_{this};
 };
 
 }  // namespace web

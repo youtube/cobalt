@@ -22,28 +22,50 @@ The bot provides analysis using:
 
 ## Checks:
 
-- All monitored differences will be displayed below your CL on gerrit's CL
-  review page (in the Binary Size section).
-- Non-bordered changes are small changes below the failure limit.
-- Red-bordered changes are above the limit and are failing the tryjob.
-- Green-bordered changes are positive changes in the opposite direction (good
-  job making chrome smaller).
+- Results are shown under Gerrit's "Checks" tab in the "Info" section.
 
 ### Binary Size Increase
 
-- **What:** Checks that [normalized apk size] increases by no more than 16kb.
-- **Why:** While we hope that binary size impact of all commits are looked at
-  to ensure they make sense, this check is to ensure they are looked at for
-  larger than average commits.
+- **What:** Checks that [normalized apk size] increases by no more than 16kb on
+  arm32, and 64kb on high-end arm64.
+- **Why:** To ensure that larger-than-average size changes are understood and
+  intentional.
 
 [normalized apk size]: /docs/speed/binary_size/metrics.md#normalized-apk-size
+
+#### ARM64 vs ARM32
+
+If your CL shows a large increase in ARM64 size, but not for ARM32, keep in mind:
+- ARM32 instructions are ~half the size of ARM64 instructions.
+- ARM32 builds are optimized-for-size (`-Os`) and ARM64 optimizes for speed (`-O2`).
+- ARM32 builds use AFDO and ARM64 builds use PGO.
+  - Both use flags to consider unknown symbols as cold in order to
+    underestimate size changes, which can actually lead to overestimating in cases
+    where aggressive inlining leads to smaller size.
+
+In this scenario, `android-binary-size` should automatically create a second
+size breakdown for ARM64. You'll find a link to it at the bottom of the bot's
+LUCI page.
+
+To force the bot to create an ARM64 breakdown, add this to your commit footer
+(leaving no blank line before subsequent footers):
+
+```
+CreateArm64SizeReport: true
+```
+
+To create a SuperSize report for ARM64 locally:
+
+```sh
+tools/binary_size/diagnose_bloat.py --arm64
+```
 
 #### What to do if the Check Fails?
 
 - Look at the provided symbol diffs to understand where the size is coming from.
 - See if any of the generic [optimization advice] is applicable.
 - If you are writing a new feature or including a new library you might want to
-  think about skipping the android platform and to restrict this new
+  think about skipping the Android platform and to restrict this new
   feature/library to desktop platforms that might care less about binary size.
 - If reduction is not practical, add a rationale for the increase to the commit
   description. It should include:
@@ -51,12 +73,21 @@ The bot provides analysis using:
     - If you think that there might not be a consensus that the code your adding
       is worth the added file size, then add why you think it is.
         - To get a feeling for how large existing features are, refer to
-          [go/chrome-supersize] (Googlers only).
+          [go/chrome-supersize](Googlers only).
+- If an **auto-roll commit triggered this failure**:
+    - The purpose of blocking large rolls is so that we can have the roll commits
+      annotated with what is causing the large growth, and to ensure teams are
+      aware of large size changes.
+    - Please include in the roll commit message what is causing the increase, as
+      well as any pointers to discussions / justifications of the size increase.
+    - If there is a possibility of any follow-up size reductions, please include
+      `Bug:` lines for bugs that will track this work.
 
 - Add a footer to the commit description along the lines of:
     - `Binary-Size: Size increase is unavoidable (see above).`
     - `Binary-Size: Increase is temporary.`
-    - `Binary-Size: See commit description.` <-- use this if longer than one line.
+    - `Binary-Size: See commit description.` <-- use this if longer than one
+      line.
 
 ***note
 **Note:** Make sure there are no blank lines between `Binary-Size:` and other
@@ -70,8 +101,8 @@ footers.
 
 ### Dex Method Count
 
-- **What:** Checks that the number of Java methods after optimization does not
-  increase by more than 50.
+- **What:** Checks that the number of Java / Kotlin methods after optimization
+  does not increase by more than 50.
 - **Why:** Ensures that large changes to this metric are scrutinized.
 
 #### What to do if the Check Fails?
@@ -107,7 +138,7 @@ footers.
 - Make the symbol read-only (usually by adding "const").
 - If you can't make it const, then rename it.
 - If the symbol is logically const, and you really don't want to rename it to
-  reveal that it is not actually mutable, you can annotate it with the
+  reveal that it is actually mutable, you can annotate it with the
   [LOGICALLY_CONST] macro.
 - To check what section a symbol is in for a local build:
   ```sh
@@ -131,9 +162,9 @@ For more information on when to use `const char *` vs `const char[]`, see
 
 [LOGICALLY_CONST]: https://source.chromium.org/search?q=symbol:LOGICALLY_CONST
 
-### Added Symbols named “ForTest”
+### Added Symbols named "ForTest"
 
-- **What:** This checks that we don't have java symbols with “ForTest” in their
+- **What:** This checks that we don't have Java symbols with "ForTest" in their
   name in an optimized release APK.
 - **Why:** To prevent shipping unused test-only code to end-users.
 
@@ -169,7 +200,7 @@ For more information on when to use `const char *` vs `const char[]`, see
 
 - **What & Why:** Learn about these expectation files [here][expectation files].
 
-[expectation files]: /chrome/android/java/README.md
+[expectation files]: /chrome/android/expectations/README.md
 
 #### What to do if the Check Fails?
 
@@ -183,12 +214,12 @@ For more information on when to use `const char *` vs `const char[]`, see
 - Not all checks are perfect and sometimes you want to overrule the trybot (for
   example if you did your best and are unable to reduce binary size any
   further).
-- Adding a “Binary-Size: $ANY\_TEXT\_HERE” footer to your cl (next to “Bug:”)
+- Adding a "Binary-Size: $ANY\_TEXT\_HERE" footer to your CL (next to "Bug:")
   will bypass the bot assertions.
     - Most commits that trigger the warnings will also result in Telemetry
       alerts and be reviewed by a binary size sheriff. Failing to write an
       adequate justification may lead to the binary size sheriff filing a bug
-      against you to improve your cl.
+      against you to improve your CL.
 
 [binary-size@chromium.org]: https://groups.google.com/a/chromium.org/forum/#!forum/binary-size
 
@@ -204,10 +235,10 @@ For more information on when to use `const char *` vs `const char[]`, see
 - This is the text diff produced by the supersize tool.
 - It lists all changed symbols and for each one, which section it lives in,
   which source file it came from as well as what is its size before, after and
-  the delta for your cl.
+  the delta for your CL.
 - It also contains a histogram of symbol size deltas.
 - You can use this to find which symbols grew and where the binary size impact
-  of your cl comes from.
+  of your CL comes from.
 
 ### Supersize html diff
 

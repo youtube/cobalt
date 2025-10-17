@@ -9,12 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "components/autofill/core/browser/autofill_client.h"
 #include "components/autofill/core/browser/payments/legal_message_line.h"
-#include "components/autofill/core/browser/sync_utils.h"
-#include "components/autofill/core/browser/ui/payments/payments_bubble_closed_reasons.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/ui/payments/payments_ui_closed_reasons.h"
+#include "components/autofill/core/browser/ui/payments/save_payment_method_and_virtual_card_enroll_confirmation_ui_params.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/models/image_model.h"
 #include "url/gurl.h"
 
 class Profile;
@@ -38,11 +39,6 @@ class SaveCardBubbleController {
   static SaveCardBubbleController* GetOrCreate(
       content::WebContents* web_contents);
 
-  // Returns a reference to the SaveCardBubbleController associated with the
-  // given |web_contents|. If controller does not exist, this will return
-  // nullptr.
-  static SaveCardBubbleController* Get(content::WebContents* web_contents);
-
   // Returns the title that should be displayed in the bubble.
   virtual std::u16string GetWindowTitle() const = 0;
 
@@ -55,13 +51,24 @@ class SaveCardBubbleController {
   virtual std::u16string GetDeclineButtonText() const = 0;
 
   // Returns the account info of the signed-in user.
-  virtual const AccountInfo& GetAccountInfo() = 0;
+  virtual AccountInfo GetAccountInfo() = 0;
 
   // Returns the profile.
   virtual Profile* GetProfile() const = 0;
 
   // Returns the card that will be uploaded if the user accepts.
   virtual const CreditCard& GetCard() const = 0;
+
+  // Returns a once callback for the save card bubble controller's
+  // OnBubbleClosed() method.
+  virtual base::OnceCallback<void(PaymentsUiClosedReason)>
+  GetOnBubbleClosedCallback() = 0;
+
+  // Returns the UI parameters needed to display the save card confirmation
+  // view. This can only be called while the confirmation bubble view is being
+  // shown.
+  virtual const SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams&
+  GetConfirmationUiParams() const = 0;
 
   // Returns whether the dialog should include a textfield requesting the user
   // to confirm/provide cardholder name.
@@ -71,16 +78,21 @@ class SaveCardBubbleController {
   // allowing the user to provide expiration date.
   virtual bool ShouldRequestExpirationDateFromUser() const = 0;
 
+  // Returns the customized credit card image. If no card art image has been
+  // cached, an asynchronous request will be sent to fetch the image and this
+  // function will return the network image.
+  virtual ui::ImageModel GetCreditCardImage() const = 0;
+
   // Interaction.
   // OnSaveButton takes in a struct representing the cardholder name,
   // expiration date month and expiration date year confirmed/entered by the
   // user if they were requested, or struct with empty strings otherwise.
-  virtual void OnSaveButton(const AutofillClient::UserProvidedCardDetails&
-                                user_provided_card_details) = 0;
-  virtual void OnCancelButton() = 0;
+  virtual void OnSaveButton(
+      const payments::PaymentsAutofillClient::UserProvidedCardDetails&
+          user_provided_card_details) = 0;
   virtual void OnLegalMessageLinkClicked(const GURL& url) = 0;
   virtual void OnManageCardsClicked() = 0;
-  virtual void OnBubbleClosed(PaymentsBubbleClosedReason closed_reason) = 0;
+  virtual void OnBubbleClosed(PaymentsUiClosedReason closed_reason) = 0;
 
   // State.
 
@@ -90,8 +102,11 @@ class SaveCardBubbleController {
   virtual bool IsUploadSave() const = 0;
   // Returns the current state of the bubble.
   virtual BubbleType GetBubbleType() const = 0;
-  // Returns the current sync state.
-  virtual AutofillSyncSigninState GetSyncState() const = 0;
+  // Returns true if the user is signed in and sync transport is active for
+  // Wallet data, without having turned on sync-the-feature.
+  virtual bool IsPaymentsSyncTransportEnabledWithoutSyncFeature() const = 0;
+  // Hides the save card offer or confirmation bubble if it is showing.
+  virtual void HideSaveCardBubble() = 0;
 };
 
 }  // namespace autofill

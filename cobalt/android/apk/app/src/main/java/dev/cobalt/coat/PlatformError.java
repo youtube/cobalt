@@ -29,7 +29,7 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError

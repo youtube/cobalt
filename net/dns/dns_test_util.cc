@@ -2,22 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/dns/dns_test_util.h"
 
-#include <cstdint>
+#include <stdint.h>
+
+#include <algorithm>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
-#include "base/big_endian.h"
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/sys_byteorder.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/test_timeouts.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "net/base/io_buffer.h"
@@ -29,11 +40,11 @@
 #include "net/dns/dns_names_util.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_session.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/resolve_context.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/scheme_host_port.h"
 
 namespace net {
@@ -52,7 +63,7 @@ const uint8_t kMalformedResponseHeader[] = {
 // Create a response containing a valid question (as would normally be validated
 // in DnsTransaction) but completely missing a header-declared answer.
 DnsResponse CreateMalformedResponse(std::string hostname, uint16_t type) {
-  absl::optional<std::vector<uint8_t>> dns_name =
+  std::optional<std::vector<uint8_t>> dns_name =
       dns_names_util::DottedNameToNetwork(hostname);
   CHECK(dns_name.has_value());
   DnsQuery query(/*id=*/0x14, dns_name.value(), type);
@@ -84,9 +95,20 @@ class MockAddressSorter : public AddressSorter {
 
 }  // namespace
 
+DnsConfig CreateValidDnsConfig() {
+  IPAddress dns_ip(192, 168, 1, 0);
+  DnsConfig config;
+  config.nameservers.emplace_back(dns_ip, dns_protocol::kDefaultPort);
+  config.doh_config =
+      *DnsOverHttpsConfig::FromString("https://dns.example.com/");
+  config.secure_dns_mode = SecureDnsMode::kOff;
+  EXPECT_TRUE(config.IsValid());
+  return config;
+}
+
 DnsResourceRecord BuildTestDnsRecord(std::string name,
                                      uint16_t type,
-                                     std::string rdata,
+                                     base::span<const uint8_t> rdata,
                                      base::TimeDelta ttl) {
   DCHECK(!name.empty());
 
@@ -97,25 +119,24 @@ DnsResourceRecord BuildTestDnsRecord(std::string name,
   record.ttl = ttl.InSeconds();
 
   if (!rdata.empty())
-    record.SetOwnedRdata(std::move(rdata));
+    record.SetOwnedRdata(rdata);
 
   return record;
 }
 
 DnsResourceRecord BuildTestCnameRecord(std::string name,
-                                       base::StringPiece canonical_name,
+                                       std::string_view canonical_name,
                                        base::TimeDelta ttl) {
   DCHECK(!name.empty());
   DCHECK(!canonical_name.empty());
 
-  absl::optional<std::vector<uint8_t>> rdata =
+  std::optional<std::vector<uint8_t>> rdata =
       dns_names_util::DottedNameToNetwork(canonical_name);
   CHECK(rdata.has_value());
 
   return BuildTestDnsRecord(
       std::move(name), dns_protocol::kTypeCNAME,
-      std::string(reinterpret_cast<char*>(rdata.value().data()),
-                  rdata.value().size()),
+      base::span<const uint8_t>(rdata.value().data(), rdata.value().size()),
       ttl);
 }
 
@@ -127,8 +148,8 @@ DnsResourceRecord BuildTestAddressRecord(std::string name,
 
   return BuildTestDnsRecord(
       std::move(name),
-      ip.IsIPv4() ? dns_protocol::kTypeA : dns_protocol::kTypeAAAA,
-      net::IPAddressToPackedString(ip), ttl);
+      ip.IsIPv4() ? dns_protocol::kTypeA : dns_protocol::kTypeAAAA, ip.bytes(),
+      ttl);
 }
 
 DnsResourceRecord BuildTestTextRecord(std::string name,
@@ -136,33 +157,36 @@ DnsResourceRecord BuildTestTextRecord(std::string name,
                                       base::TimeDelta ttl) {
   DCHECK(!text_strings.empty());
 
-  std::string rdata;
+  std::vector<uint8_t> rdata;
+
   for (const std::string& text_string : text_strings) {
     DCHECK(!text_string.empty());
 
-    rdata += base::checked_cast<unsigned char>(text_string.size());
-    rdata += text_string;
+    rdata.push_back(base::checked_cast<uint8_t>(text_string.size()));
+    rdata.insert(rdata.end(), text_string.begin(), text_string.end());
   }
 
-  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeTXT,
-                            std::move(rdata), ttl);
+  return BuildTestDnsRecord(
+      std::move(name), dns_protocol::kTypeTXT,
+      base::span<const uint8_t>(rdata.data(), rdata.size()), ttl);
 }
 
 DnsResourceRecord BuildTestHttpsAliasRecord(std::string name,
-                                            base::StringPiece alias_name,
+                                            std::string_view alias_name,
                                             base::TimeDelta ttl) {
   DCHECK(!name.empty());
 
-  std::string rdata("\000\000", 2);
+  std::vector<uint8_t> rdata(2, 0);
 
-  absl::optional<std::vector<uint8_t>> alias_domain =
+  std::optional<std::vector<uint8_t>> alias_domain =
       dns_names_util::DottedNameToNetwork(alias_name);
   CHECK(alias_domain.has_value());
-  rdata.append(reinterpret_cast<char*>(alias_domain.value().data()),
-               alias_domain.value().size());
+  rdata.insert(rdata.end(), alias_domain.value().begin(),
+               alias_domain.value().end());
 
-  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeHttps,
-                            std::move(rdata), ttl);
+  return BuildTestDnsRecord(
+      std::move(name), dns_protocol::kTypeHttps,
+      base::span<const uint8_t>(rdata.data(), rdata.size()), ttl);
 }
 
 std::pair<uint16_t, std::string> BuildTestHttpsServiceAlpnParam(
@@ -176,13 +200,13 @@ std::pair<uint16_t, std::string> BuildTestHttpsServiceAlpnParam(
     param_value.append(alpn);
   }
 
-  return std::make_pair(dns_protocol::kHttpsServiceParamKeyAlpn,
-                        std::move(param_value));
+  return std::pair(dns_protocol::kHttpsServiceParamKeyAlpn,
+                   std::move(param_value));
 }
 
 std::pair<uint16_t, std::string> BuildTestHttpsServiceEchConfigParam(
     base::span<const uint8_t> ech_config_list) {
-  return std::make_pair(
+  return std::pair(
       dns_protocol::kHttpsServiceParamKeyEchConfig,
       std::string(reinterpret_cast<const char*>(ech_config_list.data()),
                   ech_config_list.size()));
@@ -190,43 +214,41 @@ std::pair<uint16_t, std::string> BuildTestHttpsServiceEchConfigParam(
 
 std::pair<uint16_t, std::string> BuildTestHttpsServiceMandatoryParam(
     std::vector<uint16_t> param_key_list) {
-  base::ranges::sort(param_key_list);
+  std::ranges::sort(param_key_list);
 
   std::string value;
   for (uint16_t param_key : param_key_list) {
-    char num_buffer[2];
-    base::WriteBigEndian(num_buffer, param_key);
-    value.append(num_buffer, 2);
+    std::array<uint8_t, 2> num_buffer = base::U16ToBigEndian(param_key);
+    value.append(num_buffer.begin(), num_buffer.end());
   }
 
-  return std::make_pair(dns_protocol::kHttpsServiceParamKeyMandatory,
-                        std::move(value));
+  return std::pair(dns_protocol::kHttpsServiceParamKeyMandatory,
+                   std::move(value));
 }
 
 std::pair<uint16_t, std::string> BuildTestHttpsServicePortParam(uint16_t port) {
-  char buffer[2];
-  base::WriteBigEndian(buffer, port);
-
-  return std::make_pair(dns_protocol::kHttpsServiceParamKeyPort,
-                        std::string(buffer, 2));
+  std::array<uint8_t, 2> buffer = base::U16ToBigEndian(port);
+  return std::pair(dns_protocol::kHttpsServiceParamKeyPort,
+                   std::string(buffer.begin(), buffer.end()));
 }
 
 DnsResourceRecord BuildTestHttpsServiceRecord(
     std::string name,
     uint16_t priority,
-    base::StringPiece service_name,
+    std::string_view service_name,
     const std::map<uint16_t, std::string>& params,
     base::TimeDelta ttl) {
   DCHECK(!name.empty());
   DCHECK_NE(priority, 0);
 
-  std::string rdata;
+  std::vector<uint8_t> rdata;
 
-  char num_buffer[2];
-  base::WriteBigEndian(num_buffer, priority);
-  rdata.append(num_buffer, 2);
+  {
+    std::array<uint8_t, 2> buf = base::U16ToBigEndian(priority);
+    rdata.insert(rdata.end(), buf.begin(), buf.end());
+  }
 
-  absl::optional<std::vector<uint8_t>> service_domain;
+  std::optional<std::vector<uint8_t>> service_domain;
   if (service_name == ".") {
     // HTTPS records have special behavior for `service_name == "."` (that it
     // will be treated as if the service name is the same as the record owner
@@ -237,22 +259,25 @@ DnsResourceRecord BuildTestHttpsServiceRecord(
     service_domain = dns_names_util::DottedNameToNetwork(service_name);
   }
   CHECK(service_domain.has_value());
-  rdata.append(reinterpret_cast<char*>(service_domain.value().data()),
-               service_domain.value().size());
+  rdata.insert(rdata.end(), service_domain.value().begin(),
+               service_domain.value().end());
 
   for (auto& param : params) {
-    base::WriteBigEndian(num_buffer, param.first);
-    rdata.append(num_buffer, 2);
-
-    base::WriteBigEndian(num_buffer,
-                         base::checked_cast<uint16_t>(param.second.size()));
-    rdata.append(num_buffer, 2);
-
-    rdata.append(param.second);
+    {
+      std::array<uint8_t, 2> buf = base::U16ToBigEndian(param.first);
+      rdata.insert(rdata.end(), buf.begin(), buf.end());
+    }
+    {
+      std::array<uint8_t, 2> buf = base::U16ToBigEndian(
+          base::checked_cast<uint16_t>(param.second.size()));
+      rdata.insert(rdata.end(), buf.begin(), buf.end());
+    }
+    rdata.insert(rdata.end(), param.second.begin(), param.second.end());
   }
 
-  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeHttps,
-                            std::move(rdata), ttl);
+  return BuildTestDnsRecord(
+      std::move(name), dns_protocol::kTypeHttps,
+      base::span<const uint8_t>(rdata.data(), rdata.size()), ttl);
 }
 
 DnsResponse BuildTestDnsResponse(
@@ -264,11 +289,11 @@ DnsResponse BuildTestDnsResponse(
     uint8_t rcode) {
   DCHECK(!name.empty());
 
-  absl::optional<std::vector<uint8_t>> dns_name =
+  std::optional<std::vector<uint8_t>> dns_name =
       dns_names_util::DottedNameToNetwork(name);
   CHECK(dns_name.has_value());
 
-  absl::optional<DnsQuery> query(absl::in_place, 0, dns_name.value(), type);
+  std::optional<DnsQuery> query(std::in_place, 0, dns_name.value(), type);
   return DnsResponse(0, true /* is_authoritative */, answers,
                      authority /* authority_records */,
                      additional /* additional_records */, query, rcode,
@@ -301,15 +326,14 @@ DnsResponse BuildTestDnsAddressResponseWithCname(std::string name,
   if (answer_name.empty())
     answer_name = name;
 
-  absl::optional<std::vector<uint8_t>> cname_rdata =
+  std::optional<std::vector<uint8_t>> cname_rdata =
       dns_names_util::DottedNameToNetwork(cannonname);
   CHECK(cname_rdata.has_value());
 
   std::vector<DnsResourceRecord> answers = {
-      BuildTestDnsRecord(
-          std::move(answer_name), dns_protocol::kTypeCNAME,
-          std::string(reinterpret_cast<char*>(cname_rdata.value().data()),
-                      cname_rdata.value().size())),
+      BuildTestDnsRecord(std::move(answer_name), dns_protocol::kTypeCNAME,
+                         base::span<const uint8_t>(cname_rdata.value().data(),
+                                                   cname_rdata.value().size())),
       BuildTestAddressRecord(std::move(cannonname), ip)};
 
   return BuildTestDnsResponse(
@@ -340,14 +364,13 @@ DnsResponse BuildTestDnsPointerResponse(std::string name,
 
   std::vector<DnsResourceRecord> answers;
   for (std::string& pointer_name : pointer_names) {
-    absl::optional<std::vector<uint8_t>> rdata =
+    std::optional<std::vector<uint8_t>> rdata =
         dns_names_util::DottedNameToNetwork(pointer_name);
     CHECK(rdata.has_value());
 
     answers.push_back(BuildTestDnsRecord(
         answer_name, dns_protocol::kTypePTR,
-        std::string(reinterpret_cast<char*>(rdata.value().data()),
-                    rdata.value().size())));
+        base::span<const uint8_t>(rdata.value().data(), rdata.value().size())));
   }
 
   return BuildTestDnsResponse(std::move(name), dns_protocol::kTypePTR, answers);
@@ -362,37 +385,43 @@ DnsResponse BuildTestDnsServiceResponse(
 
   std::vector<DnsResourceRecord> answers;
   for (TestServiceRecord& service_record : service_records) {
-    std::string rdata;
-    char num_buffer[2];
-    base::WriteBigEndian(num_buffer, service_record.priority);
-    rdata.append(num_buffer, 2);
-    base::WriteBigEndian(num_buffer, service_record.weight);
-    rdata.append(num_buffer, 2);
-    base::WriteBigEndian(num_buffer, service_record.port);
-    rdata.append(num_buffer, 2);
+    std::vector<uint8_t> rdata;
+    {
+      std::array<uint8_t, 2> buf =
+          base::U16ToBigEndian(service_record.priority);
+      rdata.insert(rdata.end(), buf.begin(), buf.end());
+    }
+    {
+      std::array<uint8_t, 2> buf = base::U16ToBigEndian(service_record.weight);
+      rdata.insert(rdata.end(), buf.begin(), buf.end());
+    }
+    {
+      std::array<uint8_t, 2> buf = base::U16ToBigEndian(service_record.port);
+      rdata.insert(rdata.end(), buf.begin(), buf.end());
+    }
 
-    absl::optional<std::vector<uint8_t>> dns_name =
+    std::optional<std::vector<uint8_t>> dns_name =
         dns_names_util::DottedNameToNetwork(service_record.target);
     CHECK(dns_name.has_value());
-    rdata.append(reinterpret_cast<char*>(dns_name.value().data()),
-                 dns_name.value().size());
+    rdata.insert(rdata.end(), dns_name.value().begin(), dns_name.value().end());
 
-    answers.push_back(BuildTestDnsRecord(answer_name, dns_protocol::kTypeSRV,
-                                         std::move(rdata), base::Hours(5)));
+    answers.push_back(BuildTestDnsRecord(
+        answer_name, dns_protocol::kTypeSRV,
+        base::span<const uint8_t>(rdata.data(), rdata.size()), base::Hours(5)));
   }
 
   return BuildTestDnsResponse(std::move(name), dns_protocol::kTypeSRV, answers);
 }
 
 MockDnsClientRule::Result::Result(ResultType type,
-                                  absl::optional<DnsResponse> response,
-                                  absl::optional<int> net_error)
+                                  std::optional<DnsResponse> response,
+                                  std::optional<int> net_error)
     : type(type), response(std::move(response)), net_error(net_error) {}
 
 MockDnsClientRule::Result::Result(DnsResponse response)
     : type(ResultType::kOk),
       response(std::move(response)),
-      net_error(absl::nullopt) {}
+      net_error(std::nullopt) {}
 
 MockDnsClientRule::Result::Result(Result&&) = default;
 
@@ -417,9 +446,7 @@ MockDnsClientRule::MockDnsClientRule(const std::string& prefix,
 MockDnsClientRule::MockDnsClientRule(MockDnsClientRule&& rule) = default;
 
 // A DnsTransaction which uses MockDnsClientRuleList to determine the response.
-class MockDnsTransactionFactory::MockTransaction
-    : public DnsTransaction,
-      public base::SupportsWeakPtr<MockTransaction> {
+class MockDnsTransactionFactory::MockTransaction final : public DnsTransaction {
  public:
   MockTransaction(const MockDnsClientRuleList& rules,
                   std::string hostname,
@@ -452,17 +479,19 @@ class MockDnsTransactionFactory::MockTransaction
 
           // Generate a DnsResponse when not provided with the rule.
           std::vector<DnsResourceRecord> authority_records;
-          absl::optional<std::vector<uint8_t>> dns_name =
+          std::optional<std::vector<uint8_t>> dns_name =
               dns_names_util::DottedNameToNetwork(hostname_);
           CHECK(dns_name.has_value());
-          absl::optional<DnsQuery> query(absl::in_place, /*id=*/22,
-                                         dns_name.value(), qtype_);
+          std::optional<DnsQuery> query(std::in_place, /*id=*/22,
+                                        dns_name.value(), qtype_);
+          const uint8_t fake_rdata[] = {'f', 'a', 'k', 'e', ' ',
+                                        'r', 'd', 'a', 't', 'a'};
           switch (result->type) {
             case MockDnsClientRule::ResultType::kNoDomain:
             case MockDnsClientRule::ResultType::kEmpty:
               DCHECK(!result->response);  // Not expected to be provided.
               authority_records = {BuildTestDnsRecord(
-                  hostname_, dns_protocol::kTypeSOA, "fake rdata")};
+                  hostname_, dns_protocol::kTypeSOA, fake_rdata)};
               result_.response = DnsResponse(
                   22 /* id */, false /* is_authoritative */,
                   std::vector<DnsResourceRecord>() /* answers */,
@@ -523,7 +552,8 @@ class MockDnsTransactionFactory::MockTransaction
       return;
     // Using WeakPtr to cleanly cancel when transaction is destroyed.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&MockTransaction::Finish, AsWeakPtr()));
+        FROM_HERE, base::BindOnce(&MockTransaction::Finish,
+                                  weak_ptr_factory_.GetWeakPtr()));
   }
 
   void FinishDelayedTransaction() {
@@ -534,13 +564,17 @@ class MockDnsTransactionFactory::MockTransaction
 
   bool delayed() const { return delayed_; }
 
+  base::WeakPtr<MockTransaction> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   void SetResponse(const MockDnsClientRule::Result* result) {
     if (result->response) {
       // Copy response in case |result| is destroyed before the transaction
       // completes.
-      auto buffer_copy =
-          base::MakeRefCounted<IOBuffer>(result->response->io_buffer_size());
+      auto buffer_copy = base::MakeRefCounted<IOBufferWithSize>(
+          result->response->io_buffer_size());
       memcpy(buffer_copy->data(), result->response->io_buffer()->data(),
              result->response->io_buffer_size());
       result_.response = DnsResponse(std::move(buffer_copy),
@@ -602,6 +636,7 @@ class MockDnsTransactionFactory::MockTransaction
   ResponseCallback callback_;
   bool started_ = false;
   bool delayed_ = false;
+  base::WeakPtrFactory<MockTransaction> weak_ptr_factory_{this};
 };
 
 class MockDnsTransactionFactory::MockDohProbeRunner : public DnsProbeRunner {
@@ -622,7 +657,6 @@ class MockDnsTransactionFactory::MockDohProbeRunner : public DnsProbeRunner {
   base::TimeDelta GetDelayUntilNextProbeForTest(
       size_t doh_server_index) const override {
     NOTREACHED();
-    return base::TimeDelta();
   }
 
  private:
@@ -731,11 +765,11 @@ bool MockDnsClient::FallbackFromInsecureTransactionPreferred() const {
          fallback_failures_ >= max_fallback_failures_;
 }
 
-bool MockDnsClient::SetSystemConfig(absl::optional<DnsConfig> system_config) {
+bool MockDnsClient::SetSystemConfig(std::optional<DnsConfig> system_config) {
   if (ignore_system_config_changes_)
     return false;
 
-  absl::optional<DnsConfig> before = effective_config_;
+  std::optional<DnsConfig> before = effective_config_;
   config_ = std::move(system_config);
   effective_config_ = BuildEffectiveConfig();
   session_ = BuildSession();
@@ -743,7 +777,7 @@ bool MockDnsClient::SetSystemConfig(absl::optional<DnsConfig> system_config) {
 }
 
 bool MockDnsClient::SetConfigOverrides(DnsConfigOverrides config_overrides) {
-  absl::optional<DnsConfig> before = effective_config_;
+  std::optional<DnsConfig> before = effective_config_;
   overrides_ = std::move(config_overrides);
   effective_config_ = BuildEffectiveConfig();
   session_ = BuildSession();
@@ -792,7 +826,7 @@ void MockDnsClient::ClearInsecureFallbackFailures() {
   fallback_failures_ = 0;
 }
 
-absl::optional<DnsConfig> MockDnsClient::GetSystemConfigForTesting() const {
+std::optional<DnsConfig> MockDnsClient::GetSystemConfigForTesting() const {
   return config_;
 }
 
@@ -805,7 +839,12 @@ void MockDnsClient::SetTransactionFactoryForTesting(
   NOTREACHED();
 }
 
-absl::optional<std::vector<IPEndPoint>> MockDnsClient::GetPresetAddrs(
+void MockDnsClient::SetAddressSorterForTesting(
+    std::unique_ptr<AddressSorter> address_sorter) {
+  address_sorter_ = std::move(address_sorter);
+}
+
+std::optional<std::vector<IPEndPoint>> MockDnsClient::GetPresetAddrs(
     const url::SchemeHostPort& endpoint) const {
   EXPECT_THAT(preset_endpoint_, testing::Optional(endpoint));
   return preset_addrs_;
@@ -824,11 +863,11 @@ void MockDnsClient::SetForceDohServerAvailable(bool available) {
   factory_->set_force_doh_server_available(available);
 }
 
-absl::optional<DnsConfig> MockDnsClient::BuildEffectiveConfig() {
+std::optional<DnsConfig> MockDnsClient::BuildEffectiveConfig() {
   if (overrides_.OverridesEverything())
     return overrides_.ApplyOverrides(DnsConfig());
   if (!config_ || !config_.value().IsValid())
-    return absl::nullopt;
+    return std::nullopt;
 
   return overrides_.ApplyOverrides(config_.value());
 }
@@ -844,6 +883,130 @@ scoped_refptr<DnsSession> MockDnsClient::BuildSession() {
 
   return base::MakeRefCounted<DnsSession>(
       effective_config_.value(), null_random_callback, nullptr /* net_log */);
+}
+
+MockHostResolverProc::MockHostResolverProc()
+    : HostResolverProc(nullptr),
+      requests_waiting_(&lock_),
+      slots_available_(&lock_) {}
+
+MockHostResolverProc::~MockHostResolverProc() = default;
+
+bool MockHostResolverProc::WaitFor(uint32_t count) {
+  base::AutoLock lock(lock_);
+  base::Time start_time = base::Time::Now();
+  while (num_requests_waiting_ < count) {
+    requests_waiting_.TimedWait(TestTimeouts::action_timeout());
+    if (base::Time::Now() > start_time + TestTimeouts::action_timeout()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void MockHostResolverProc::SignalMultiple(uint32_t count) {
+  base::AutoLock lock(lock_);
+  num_slots_available_ += count;
+  slots_available_.Broadcast();
+}
+
+void MockHostResolverProc::SignalAll() {
+  base::AutoLock lock(lock_);
+  num_slots_available_ = num_requests_waiting_;
+  slots_available_.Broadcast();
+}
+
+void MockHostResolverProc::AddRule(const std::string& hostname,
+                                   AddressFamily family,
+                                   const AddressList& result,
+                                   HostResolverFlags flags) {
+  base::AutoLock lock(lock_);
+  rules_[ResolveKey(hostname, family, flags)] = result;
+}
+
+void MockHostResolverProc::AddRule(const std::string& hostname,
+                                   AddressFamily family,
+                                   const std::string& ip_list,
+                                   HostResolverFlags flags,
+                                   const std::string& canonical_name) {
+  AddressList result;
+  std::vector<std::string> dns_aliases;
+  if (canonical_name != "") {
+    dns_aliases = {canonical_name};
+  }
+  int rv = ParseAddressList(ip_list, &result.endpoints());
+  result.SetDnsAliases(dns_aliases);
+  DCHECK_EQ(OK, rv);
+  AddRule(hostname, family, result, flags);
+}
+
+void MockHostResolverProc::AddRuleForAllFamilies(
+    const std::string& hostname,
+    const std::string& ip_list,
+    HostResolverFlags flags,
+    const std::string& canonical_name) {
+  AddressList result;
+  std::vector<std::string> dns_aliases;
+  if (canonical_name != "") {
+    dns_aliases = {canonical_name};
+  }
+  int rv = ParseAddressList(ip_list, &result.endpoints());
+  result.SetDnsAliases(dns_aliases);
+  DCHECK_EQ(OK, rv);
+  AddRule(hostname, ADDRESS_FAMILY_UNSPECIFIED, result, flags);
+  AddRule(hostname, ADDRESS_FAMILY_IPV4, result, flags);
+  AddRule(hostname, ADDRESS_FAMILY_IPV6, result, flags);
+}
+
+int MockHostResolverProc::Resolve(const std::string& hostname,
+                                  AddressFamily address_family,
+                                  HostResolverFlags host_resolver_flags,
+                                  AddressList* addrlist,
+                                  int* os_error) {
+  base::AutoLock lock(lock_);
+  capture_list_.emplace_back(hostname, address_family, host_resolver_flags);
+  ++num_requests_waiting_;
+  requests_waiting_.Broadcast();
+  {
+    base::ScopedAllowBaseSyncPrimitivesForTesting
+        scoped_allow_base_sync_primitives;
+    while (!num_slots_available_) {
+      slots_available_.Wait();
+    }
+  }
+  DCHECK_GT(num_requests_waiting_, 0u);
+  --num_slots_available_;
+  --num_requests_waiting_;
+  if (rules_.empty()) {
+    int rv = ParseAddressList("127.0.0.1", &addrlist->endpoints());
+    DCHECK_EQ(OK, rv);
+    return OK;
+  }
+  ResolveKey key(hostname, address_family, host_resolver_flags);
+  if (rules_.count(key) == 0) {
+    return ERR_NAME_NOT_RESOLVED;
+  }
+  *addrlist = rules_[key];
+  return OK;
+}
+
+MockHostResolverProc::CaptureList MockHostResolverProc::GetCaptureList() const {
+  CaptureList copy;
+  {
+    base::AutoLock lock(lock_);
+    copy = capture_list_;
+  }
+  return copy;
+}
+
+void MockHostResolverProc::ClearCaptureList() {
+  base::AutoLock lock(lock_);
+  capture_list_.clear();
+}
+
+bool MockHostResolverProc::HasBlockedRequests() const {
+  base::AutoLock lock(lock_);
+  return num_requests_waiting_ > num_slots_available_;
 }
 
 }  // namespace net

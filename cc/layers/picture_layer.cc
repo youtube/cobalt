@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/auto_reset.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/strings/stringprintf.h"
@@ -25,24 +24,14 @@
 
 namespace cc {
 
-PictureLayer::PictureLayerInputs::PictureLayerInputs() = default;
-
-PictureLayer::PictureLayerInputs::~PictureLayerInputs() = default;
-
 scoped_refptr<PictureLayer> PictureLayer::Create(ContentLayerClient* client) {
   return base::WrapRefCounted(new PictureLayer(client));
 }
 
 PictureLayer::PictureLayer(ContentLayerClient* client)
-    : instrumentation_object_tracker_(id()), update_source_frame_number_(-1) {
-  picture_layer_inputs_.client = client;
-}
-
-PictureLayer::PictureLayer(ContentLayerClient* client,
-                           std::unique_ptr<RecordingSource> source)
-    : PictureLayer(client) {
-  recording_source_.Write(*this) = std::move(source);
-}
+    : client_(client),
+      instrumentation_object_tracker_(id()),
+      update_source_frame_number_(-1) {}
 
 PictureLayer::~PictureLayer() = default;
 
@@ -51,47 +40,39 @@ std::unique_ptr<LayerImpl> PictureLayer::CreateLayerImpl(
   return PictureLayerImpl::Create(tree_impl, id());
 }
 
-void PictureLayer::PushPropertiesTo(
+void PictureLayer::PushDirtyPropertiesTo(
     LayerImpl* base_layer,
+    uint8_t dirty_flag,
     const CommitState& commit_state,
     const ThreadUnsafeCommitState& unsafe_state) {
-  // TODO(enne): http://crbug.com/918126 debugging
-  CHECK(this);
+  Layer::PushDirtyPropertiesTo(base_layer, dirty_flag, commit_state,
+                               unsafe_state);
 
-  PictureLayerImpl* layer_impl = static_cast<PictureLayerImpl*>(base_layer);
+  if (dirty_flag & kChangedGeneralProperty) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
+                 "PictureLayer::PushPropertiesTo");
+    DropRecordingSourceContentIfInvalid(
+        base_layer->layer_tree_impl()->source_frame_number());
 
-  Layer::PushPropertiesTo(base_layer, commit_state, unsafe_state);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
-               "PictureLayer::PushPropertiesTo");
-  DropRecordingSourceContentIfInvalid(
-      base_layer->layer_tree_impl()->source_frame_number());
+    PictureLayerImpl* layer_impl = static_cast<PictureLayerImpl*>(base_layer);
 
-  layer_impl->SetNearestNeighbor(picture_layer_inputs_.nearest_neighbor);
-  layer_impl->set_gpu_raster_max_texture_size(
-      commit_state.device_viewport_rect.size());
-  layer_impl->SetIsBackdropFilterMask(is_backdrop_filter_mask());
-  layer_impl->SetDirectlyCompositedImageDefaultRasterScale(
-      picture_layer_inputs_.directly_composited_image_default_raster_scale);
+    if (!update_rect().IsEmpty()) {
+      layer_impl->set_has_non_animated_image_update_rect();
+    }
 
-  // TODO(enne): http://crbug.com/918126 debugging
-  CHECK(this);
-  if (!recording_source_.Read(*this)) {
-    bool valid_host = layer_tree_host();
-    bool has_parent = parent();
-    bool parent_has_host = parent() && parent()->layer_tree_host();
+    layer_impl->set_gpu_raster_max_texture_size(
+        commit_state.device_viewport_rect.size());
+    layer_impl->SetIsBackdropFilterMask(is_backdrop_filter_mask());
 
-    auto str = base::StringPrintf("vh: %d, hp: %d, phh: %d", valid_host,
-                                  has_parent, parent_has_host);
-    static auto* crash_key = base::debug::AllocateCrashKeyString(
-        "issue918126", base::debug::CrashKeySize::Size32);
-    base::debug::SetCrashKeyString(crash_key, str);
-    base::debug::DumpWithoutCrashing();
+    layer_impl->UpdateRasterSource(CreateRasterSource(),
+                                   &last_updated_invalidation_.Write(*this));
   }
 
-  layer_impl->UpdateRasterSource(
-      recording_source_.Read(*this)->CreateRasterSource(),
-      &last_updated_invalidation_.Write(*this), nullptr, nullptr);
   DCHECK(last_updated_invalidation_.Read(*this).IsEmpty());
+}
+
+scoped_refptr<RasterSource> PictureLayer::CreateRasterSource() const {
+  return recording_source_.Read(*this).CreateRasterSource();
 }
 
 void PictureLayer::SetLayerTreeHost(LayerTreeHost* host) {
@@ -100,9 +81,7 @@ void PictureLayer::SetLayerTreeHost(LayerTreeHost* host) {
   if (!host)
     return;
 
-  if (!recording_source_.Read(*this))
-    recording_source_.Write(*this) = std::make_unique<RecordingSource>();
-  recording_source_.Write(*this)->SetSlowdownRasterScaleFactor(
+  recording_source_.Write(*this).SetSlowdownRasterScaleFactor(
       host->GetDebugState().slow_down_raster_scale_factor);
 
   // Source frame numbers are relative the LayerTreeHost, so this needs
@@ -112,9 +91,24 @@ void PictureLayer::SetLayerTreeHost(LayerTreeHost* host) {
 
 void PictureLayer::SetNeedsDisplayRect(const gfx::Rect& layer_rect) {
   DCHECK(IsPropertyChangeAllowed());
-  if (recording_source_.Read(*this))
-    recording_source_.Write(*this)->SetNeedsDisplayRect(layer_rect);
+  recording_source_.Write(*this).SetNeedsDisplayRect(layer_rect);
   Layer::SetNeedsDisplayRect(layer_rect);
+}
+
+void PictureLayer::SetForceUpdateRecordingSource() {
+  DCHECK(IsPropertyChangeAllowed());
+  recording_source_.Write(*this).set_force_update();
+  SetNeedsPushProperties();
+  if (draws_content() && IsAttached()) {
+    layer_tree_host()->SetNeedsUpdateLayers();
+  }
+}
+
+bool PictureLayer::RequiresSetNeedsDisplayOnHdrHeadroomChange() const {
+  if (const DisplayItemList* display_list = GetDisplayItemList()) {
+    return display_list->content_color_usage() == gfx::ContentColorUsage::kHDR;
+  }
+  return false;
 }
 
 bool PictureLayer::Update() {
@@ -122,13 +116,12 @@ bool PictureLayer::Update() {
       layer_tree_host()->SourceFrameNumber();
   bool updated = Layer::Update();
 
-  gfx::Size layer_size = bounds();
-
   auto& recording_source = recording_source_.Write(*this);
-  recording_source->SetBackgroundColor(SafeOpaqueBackgroundColor());
-  recording_source->SetRequiresClear(
-      !contents_opaque() &&
-      !picture_layer_inputs_.client->FillsBoundsCompletely());
+  recording_source.SetBackgroundColor(SafeOpaqueBackgroundColor());
+  recording_source.SetRequiresClear(!contents_opaque() &&
+                                    !client_->FillsBoundsCompletely());
+  recording_source.SetCanUseRecordedBounds(
+      layer_tree_host()->GetSettings().enable_hit_test_opaqueness);
 
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cc.debug"), "PictureLayer::Update",
                "source_frame_number", layer_tree_host()->SourceFrameNumber());
@@ -139,55 +132,19 @@ bool PictureLayer::Update() {
   // anything not explicitly recorded in this frame. We give this region
   // to the impl side so that it drops tiles that may not have a recording
   // for them.
-  DCHECK(picture_layer_inputs_.client);
+  DCHECK(client_);
 
-  auto recorded_viewport = picture_layer_inputs_.client->PaintableRegion();
+  updated |= recording_source.Update(
+      bounds(), layer_tree_host()->recording_scale_factor(), *client_,
+      last_updated_invalidation_.Write(*this));
 
-  updated |= recording_source->UpdateAndExpandInvalidation(
-      &last_updated_invalidation_.Write(*this), layer_size, recorded_viewport);
-
-  if (updated) {
-    {
-      auto old_display_list = std::move(picture_layer_inputs_.display_list);
-      picture_layer_inputs_.display_list =
-          picture_layer_inputs_.client->PaintContentsToDisplayList();
-      if (old_display_list &&
-          picture_layer_inputs_.display_list
-              ->NeedsAdditionalInvalidationForLCDText(*old_display_list)) {
-        last_updated_invalidation_.Write(*this) = gfx::Rect(bounds());
-      }
-    }
-
-    // Clear out previous directly composited image state - if the layer
-    // qualifies we'll set up the state below.
-    picture_layer_inputs_.directly_composited_image_default_raster_scale =
-        gfx::Vector2dF();
-    picture_layer_inputs_.nearest_neighbor = false;
-    absl::optional<DisplayItemList::DirectlyCompositedImageResult> result =
-        picture_layer_inputs_.display_list->GetDirectlyCompositedImageResult();
-    if (result) {
-      // Directly composited images are not guaranteed to fully cover every
-      // pixel in the layer due to ceiling when calculating the tile content
-      // rect from the layer bounds.
-      recording_source->SetRequiresClear(true);
-      picture_layer_inputs_.directly_composited_image_default_raster_scale =
-          result->default_raster_scale;
-      picture_layer_inputs_.nearest_neighbor = result->nearest_neighbor;
-    }
-
-    recording_source->UpdateDisplayItemList(
-        picture_layer_inputs_.display_list,
-        layer_tree_host()->recording_scale_factor());
-
-    SetNeedsPushProperties();
-    IncreasePaintCount();
-  } else {
-    // If this invalidation did not affect the recording source, then it can be
-    // cleared as an optimization.
-    last_updated_invalidation_.Write(*this).Clear();
+  if (!updated) {
+    return false;
   }
 
-  return updated;
+  SetNeedsPushProperties();
+  IncreasePaintCount();
+  return true;
 }
 
 sk_sp<const SkPicture> PictureLayer::GetPicture() const {
@@ -195,37 +152,38 @@ sk_sp<const SkPicture> PictureLayer::GetPicture() const {
     return nullptr;
 
   scoped_refptr<DisplayItemList> display_list =
-      picture_layer_inputs_.client->PaintContentsToDisplayList();
+      client_->PaintContentsToDisplayList();
   SkPictureRecorder recorder;
   SkCanvas* canvas =
       recorder.beginRecording(bounds().width(), bounds().height());
   canvas->clear(SK_ColorTRANSPARENT);
-  display_list->Raster(canvas);
+  ScrollOffsetMap raster_inducing_scroll_offsets;
+  const ScrollTree& scroll_tree =
+      layer_tree_host()->property_trees()->scroll_tree();
+  for (auto [element_id, _] : display_list->raster_inducing_scrolls()) {
+    raster_inducing_scroll_offsets[element_id] =
+        scroll_tree.current_scroll_offset(element_id);
+  }
+  display_list->Raster(canvas, /*image_provider=*/nullptr,
+                       &raster_inducing_scroll_offsets);
   return recorder.finishRecordingAsPicture();
 }
 
 void PictureLayer::ClearClient() {
-  picture_layer_inputs_.client = nullptr;
+  client_ = nullptr;
   UpdateDrawsContent();
 }
 
-void PictureLayer::SetNearestNeighbor(bool nearest_neighbor) {
-  if (picture_layer_inputs_.nearest_neighbor == nearest_neighbor)
-    return;
-
-  picture_layer_inputs_.nearest_neighbor = nearest_neighbor;
-  SetNeedsCommit();
-}
-
 bool PictureLayer::HasDrawableContent() const {
-  return picture_layer_inputs_.client && Layer::HasDrawableContent();
+  return client_ && Layer::HasDrawableContent();
 }
 
 void PictureLayer::SetIsBackdropFilterMask(bool is_backdrop_filter_mask) {
-  if (picture_layer_inputs_.is_backdrop_filter_mask == is_backdrop_filter_mask)
+  if (is_backdrop_filter_mask_ == is_backdrop_filter_mask) {
     return;
+  }
 
-  picture_layer_inputs_.is_backdrop_filter_mask = is_backdrop_filter_mask;
+  is_backdrop_filter_mask_ = is_backdrop_filter_mask;
   SetNeedsCommit();
 }
 
@@ -277,29 +235,28 @@ void PictureLayer::CaptureContent(const gfx::Rect& rect,
 
 void PictureLayer::DropRecordingSourceContentIfInvalid(
     int source_frame_number) {
-  gfx::Size recording_source_bounds = recording_source_.Read(*this)->GetSize();
+  gfx::Size recording_source_size = recording_source_.Read(*this).size();
 
   gfx::Size layer_bounds = bounds();
 
   // If update called, then recording source size must match bounds pushed to
   // impl layer.
   DCHECK(update_source_frame_number_.Read(*this) != source_frame_number ||
-         layer_bounds == recording_source_bounds)
+         layer_bounds == recording_source_size)
       << " bounds " << layer_bounds.ToString() << " recording source "
-      << recording_source_bounds.ToString();
+      << recording_source_size.ToString();
 
   if (update_source_frame_number_.Read(*this) != source_frame_number &&
-      recording_source_bounds != layer_bounds) {
+      recording_source_size != layer_bounds) {
     // Update may not get called for the layer (if it's not in the viewport
     // for example), even though it has resized making the recording source no
     // longer valid. In this case just destroy the recording source.
-    recording_source_.Write(*this)->SetEmptyBounds();
-    picture_layer_inputs_.display_list = nullptr;
+    recording_source_.Write(*this).SetEmptyBounds();
   }
 }
 
 const DisplayItemList* PictureLayer::GetDisplayItemList() const {
-  return picture_layer_inputs_.display_list.get();
+  return recording_source_.Read(*this).display_list();
 }
 
 }  // namespace cc

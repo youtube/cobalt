@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/test/browser_test.h"
@@ -21,8 +22,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionBrowserTest, BackgroundPageIsNeverComposited) {
 
   ProcessManager* manager = ProcessManager::Get(browser()->profile());
   ExtensionHost* host = FindHostWithPath(manager, "/backgroundpage.html", 1);
-  ASSERT_TRUE(host->host_contents()->GetDelegate()->IsNeverComposited(
-      host->host_contents()));
+  ASSERT_TRUE(host->host_contents()->IsNeverComposited());
 }
 
 }  // namespace extensions

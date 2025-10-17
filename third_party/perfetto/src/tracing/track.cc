@@ -49,6 +49,13 @@ void Track::Serialize(protos::pbzero::TrackDescriptor* desc) const {
   desc->AppendRawProtoBytes(bytes.data(), bytes.size());
 }
 
+// static
+Track Track::ThreadScoped(const void* ptr, Track parent) {
+  if (parent.uuid == 0)
+    return Track::FromPointer(ptr, ThreadTrack::Current());
+  return Track::FromPointer(ptr, parent);
+}
+
 protos::gen::TrackDescriptor ProcessTrack::Serialize() const {
   auto desc = Track::Serialize();
   auto pd = desc.mutable_process();
@@ -109,10 +116,30 @@ void ThreadTrack::Serialize(protos::pbzero::TrackDescriptor* desc) const {
   desc->AppendRawProtoBytes(bytes.data(), bytes.size());
 }
 
+protos::gen::TrackDescriptor NamedTrack::Serialize() const {
+  auto desc = Track::Serialize();
+  if (static_name_) {
+    desc.set_static_name(static_name_.value);
+  } else {
+    desc.set_name(dynamic_name_.value);
+  }
+  return desc;
+}
+
+void NamedTrack::Serialize(protos::pbzero::TrackDescriptor* desc) const {
+  auto bytes = Serialize().SerializeAsString();
+  desc->AppendRawProtoBytes(bytes.data(), bytes.size());
+}
+
 protos::gen::TrackDescriptor CounterTrack::Serialize() const {
   auto desc = Track::Serialize();
-  desc.set_name(name_);
   auto* counter = desc.mutable_counter();
+  if (static_name_) {
+    desc.set_static_name(static_name_.value);
+  } else {
+    desc.set_name(dynamic_name_.value);
+  }
+
   if (category_)
     counter->add_categories(category_);
   if (unit_ != perfetto::protos::pbzero::CounterDescriptor::UNIT_UNSPECIFIED)
@@ -181,21 +208,26 @@ void TrackRegistry::InitializeInstance() {
   if (instance_)
     return;
   instance_ = new TrackRegistry();
+  Track::process_uuid = ComputeProcessUuid();
+}
 
+// static
+uint64_t TrackRegistry::ComputeProcessUuid() {
+  base::Hasher hash;
   // Use the process start time + pid as the unique identifier for this process.
   // This ensures that if there are two independent copies of the Perfetto SDK
   // in the same process (e.g., one in the app and another in a system
   // framework), events emitted by each will be consistently interleaved on
   // common thread and process tracks.
   if (uint64_t start_time = GetProcessStartTime()) {
-    base::Hasher hash;
     hash.Update(start_time);
-    hash.Update(Platform::GetCurrentProcessId());
-    Track::process_uuid = hash.digest();
   } else {
     // Fall back to a randomly generated identifier.
-    Track::process_uuid = static_cast<uint64_t>(base::Uuidv4().lsb());
+    static uint64_t random_once = static_cast<uint64_t>(base::Uuidv4().lsb());
+    hash.Update(random_once);
   }
+  hash.Update(Platform::GetCurrentProcessId());
+  return hash.digest();
 }
 
 void TrackRegistry::ResetForTesting() {
@@ -205,19 +237,7 @@ void TrackRegistry::ResetForTesting() {
 void TrackRegistry::UpdateTrack(Track track,
                                 const std::string& serialized_desc) {
   std::lock_guard<std::mutex> lock(mutex_);
-  tracks_[track.uuid] = std::move(serialized_desc);
-}
-
-void TrackRegistry::UpdateTrackImpl(
-    Track track,
-    std::function<void(protos::pbzero::TrackDescriptor*)> fill_function) {
-  constexpr size_t kInitialSliceSize = 32;
-  constexpr size_t kMaximumSliceSize = 4096;
-  protozero::HeapBuffered<protos::pbzero::TrackDescriptor> new_descriptor(
-      kInitialSliceSize, kMaximumSliceSize);
-  fill_function(new_descriptor.get());
-  auto serialized_desc = new_descriptor.SerializeAsString();
-  UpdateTrack(track, serialized_desc);
+  tracks_[track.uuid] = {serialized_desc, track.parent_uuid};
 }
 
 void TrackRegistry::EraseTrack(Track track) {

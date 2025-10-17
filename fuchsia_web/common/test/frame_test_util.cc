@@ -4,6 +4,8 @@
 
 #include "fuchsia_web/common/test/frame_test_util.h"
 
+#include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -11,16 +13,14 @@
 #include "base/fuchsia/mem_buffer_util.h"
 #include "base/json/json_reader.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/test/test_future.h"
 #include "fuchsia_web/common/test/fit_adapter.h"
 #include "fuchsia_web/common/test/test_navigation_listener.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 bool LoadUrlAndExpectResponse(
     fuchsia::web::NavigationController* navigation_controller,
     fuchsia::web::LoadUrlParams load_url_params,
-    base::StringPiece url) {
+    std::string_view url) {
   CHECK(navigation_controller);
   base::test::TestFuture<fuchsia::web::NavigationController_LoadUrl_Result>
       result;
@@ -33,12 +33,12 @@ bool LoadUrlAndExpectResponse(
 bool LoadUrlAndExpectResponse(
     const fuchsia::web::NavigationControllerPtr& controller,
     fuchsia::web::LoadUrlParams params,
-    base::StringPiece url) {
+    std::string_view url) {
   return LoadUrlAndExpectResponse(controller.get(), std::move(params), url);
 }
 
-absl::optional<base::Value> ExecuteJavaScript(fuchsia::web::Frame* frame,
-                                              base::StringPiece script) {
+std::optional<base::Value> ExecuteJavaScript(fuchsia::web::Frame* frame,
+                                             std::string_view script) {
   base::test::TestFuture<fuchsia::web::Frame_ExecuteJavaScript_Result> result;
   frame->ExecuteJavaScript({"*"}, base::MemBufferFromString(script, "test"),
                            CallbackToFitFunction(result.GetCallback()));
@@ -46,7 +46,7 @@ absl::optional<base::Value> ExecuteJavaScript(fuchsia::web::Frame* frame,
   if (!result.Wait() || !result.Get().is_response())
     return {};
 
-  absl::optional<std::string> result_json =
+  std::optional<std::string> result_json =
       base::StringFromMemBuffer(result.Get().response().result);
   if (!result_json) {
     return {};

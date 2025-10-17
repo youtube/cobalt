@@ -31,28 +31,28 @@ namespace jni {
 class OwnedFactoryAndThreads {
  public:
   OwnedFactoryAndThreads(
-      std::unique_ptr<rtc::SocketFactory> socket_factory,
-      std::unique_ptr<rtc::Thread> network_thread,
-      std::unique_ptr<rtc::Thread> worker_thread,
-      std::unique_ptr<rtc::Thread> signaling_thread,
-      const rtc::scoped_refptr<PeerConnectionFactoryInterface>& factory);
+      std::unique_ptr<SocketFactory> socket_factory,
+      std::unique_ptr<Thread> network_thread,
+      std::unique_ptr<Thread> worker_thread,
+      std::unique_ptr<Thread> signaling_thread,
+      const scoped_refptr<PeerConnectionFactoryInterface>& factory);
 
   ~OwnedFactoryAndThreads() = default;
 
   PeerConnectionFactoryInterface* factory() { return factory_.get(); }
-  rtc::SocketFactory* socket_factory() { return socket_factory_.get(); }
-  rtc::Thread* network_thread() { return network_thread_.get(); }
-  rtc::Thread* signaling_thread() { return signaling_thread_.get(); }
-  rtc::Thread* worker_thread() { return worker_thread_.get(); }
+  SocketFactory* socket_factory() { return socket_factory_.get(); }
+  Thread* network_thread() { return network_thread_.get(); }
+  Thread* signaling_thread() { return signaling_thread_.get(); }
+  Thread* worker_thread() { return worker_thread_.get(); }
 
  private:
   // Usually implemented by the SocketServer associated with the network thread,
   // so needs to outlive the network thread.
-  const std::unique_ptr<rtc::SocketFactory> socket_factory_;
-  const std::unique_ptr<rtc::Thread> network_thread_;
-  const std::unique_ptr<rtc::Thread> worker_thread_;
-  const std::unique_ptr<rtc::Thread> signaling_thread_;
-  const rtc::scoped_refptr<PeerConnectionFactoryInterface> factory_;
+  const std::unique_ptr<SocketFactory> socket_factory_;
+  const std::unique_ptr<Thread> network_thread_;
+  const std::unique_ptr<Thread> worker_thread_;
+  const std::unique_ptr<Thread> signaling_thread_;
+  const scoped_refptr<PeerConnectionFactoryInterface> factory_;
 };
 
 }  // namespace jni

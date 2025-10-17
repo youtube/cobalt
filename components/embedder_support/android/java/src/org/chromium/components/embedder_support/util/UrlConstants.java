@@ -4,11 +4,16 @@
 
 package org.chromium.components.embedder_support.util;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 /**
  * Java side version of chrome/common/url_constants.cc
+ *
+ * <p>Do not add any more NTP related constants. TODO(crbug.com/40281619) Move NTP related constants
+ * to ChromeUrlConstants.java
  */
+@NullMarked
 public class UrlConstants {
     public static final String APP_INTENT_SCHEME = "android-app";
     public static final String BLOB_SCHEME = "blob";
@@ -19,6 +24,7 @@ public class UrlConstants {
     public static final String DATA_SCHEME = "data";
     public static final String DEVTOOLS_SCHEME = "devtools";
     public static final String DOCUMENT_SCHEME = "document";
+    public static final String FIDO_SCHEME = "fido";
     public static final String FILE_SCHEME = "file";
     public static final String FILESYSTEM_SCHEME = "filesystem";
     public static final String FTP_SCHEME = "ftp";
@@ -50,8 +56,12 @@ public class UrlConstants {
     public static final String NTP_NON_NATIVE_URL = "chrome://newtab/";
     public static final String NTP_ABOUT_URL = "about:newtab";
 
+    // Don't use this URL. The constant is added for legacy reasons.
+    public static final String NEW_TAB_PAGE_URL_LEGACY = "chrome://new-tab-page/";
+
     public static final String BOOKMARKS_HOST = "bookmarks";
-    public static final String BOOKMARKS_URL = "chrome-native://bookmarks/";
+    public static final String BOOKMARKS_URL = "chrome://bookmarks/";
+    public static final String BOOKMARKS_NATIVE_URL = "chrome-native://bookmarks/";
     public static final String BOOKMARKS_FOLDER_URL = "chrome-native://bookmarks/folder/";
     public static final String BOOKMARKS_UNCATEGORIZED_URL =
             "chrome-native://bookmarks/uncategorized/";
@@ -62,6 +72,7 @@ public class UrlConstants {
 
     public static final String RECENT_TABS_HOST = "recent-tabs";
     public static final String RECENT_TABS_URL = "chrome-native://recent-tabs/";
+    public static final String GRID_TAB_SWITCHER_URL = "chrome-native://gts/";
 
     // TODO(dbeam): do we need both HISTORY_URL and NATIVE_HISTORY_URL?
     public static final String HISTORY_HOST = "history";
@@ -82,12 +93,17 @@ public class UrlConstants {
     public static final String GOOGLE_ACCOUNT_ACTIVITY_CONTROLS_URL =
             "https://myaccount.google.com/activitycontrols/search";
 
+    public static final String GOOGLE_ACCOUNT_LINKED_SERVICES_URL =
+            "https://myaccount.google.com/linked-services?utm_source=chrome_s";
+
     public static final String GOOGLE_ACCOUNT_ACTIVITY_CONTROLS_FROM_PG_URL =
             "https://myaccount.google.com/activitycontrols/search"
-            + "&utm_source=chrome&utm_medium=privacy-guide";
+                    + "&utm_source=chrome&utm_medium=privacy-guide";
 
     public static final String GOOGLE_ACCOUNT_DEVICE_ACTIVITY_URL =
             "https://myaccount.google.com/device-activity?utm_source=chrome";
+
+    public static final String MY_ACTIVITY_HOME_URL = "https://myactivity.google.com/";
 
     public static final String GOOGLE_SEARCH_HISTORY_URL_IN_CBD =
             "https://myactivity.google.com/product/search?utm_source=chrome_cbd";
@@ -107,6 +123,11 @@ public class UrlConstants {
     public static final String MY_ACTIVITY_URL_IN_QD =
             "https://myactivity.google.com/myactivity?utm_source=chrome_qd";
 
+    public static final String GOOGLE_PRIVACY_POLICY = "https://policies.google.com/privacy";
+    public static final String GOOGLE_PRIVACY_POLICY_CHINA = "https://policies.google.cn/privacy";
+
+    public static final String GOOGLE_URL = "https://www.google.com/";
+
     public static final String EXPLORE_HOST = "explore";
     public static final String EXPLORE_URL = "chrome-native://explore/";
     public static final String CHROME_DINO_URL = "chrome://dino/";
@@ -116,10 +137,16 @@ public class UrlConstants {
     public static final String MANAGEMENT_HOST = "management";
     public static final String MANAGEMENT_URL = "chrome://management/";
 
+    /* Host and url used for PDF native pages. */
+    public static final String PDF_HOST = "pdf";
+    public static final String PDF_URL = "chrome-native://pdf/";
+    public static final String PDF_URL_PARAM = "link?url=";
+    public static final String PDF_URL_QUERY_PARAM = "url";
+
     private static class Holder {
         private static final String SERIALIZED_NTP_URL =
                 "73,1,true,0,6,0,-1,0,-1,9,6,0,-1,15,1,0,-1,0,-1,false,false,chrome://newtab/";
-        private static GURL sNtpGurl =
+        private static final GURL sNtpGurl =
                 GURL.deserializeLatestVersionOnly(SERIALIZED_NTP_URL.replace(',', '\0'));
     }
 

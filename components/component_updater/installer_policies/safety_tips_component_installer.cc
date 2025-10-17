@@ -89,8 +89,9 @@ void SafetyTipsComponentInstallerPolicy::ComponentReady(
            << install_dir.value();
 
   const base::FilePath pb_path = GetInstalledPath(install_dir);
-  if (pb_path.empty())
+  if (pb_path.empty()) {
     return;
+  }
 
   // The default proto will always be a placeholder since the updated versions
   // are not checked in to the repo. Simply load whatever the component updater
@@ -117,9 +118,8 @@ base::FilePath SafetyTipsComponentInstallerPolicy::GetRelativeInstallDir()
 
 void SafetyTipsComponentInstallerPolicy::GetHash(
     std::vector<uint8_t>* hash) const {
-  hash->assign(
-      kSafetyTipsPublicKeySHA256,
-      kSafetyTipsPublicKeySHA256 + std::size(kSafetyTipsPublicKeySHA256));
+  hash->assign(std::begin(kSafetyTipsPublicKeySHA256),
+               std::end(kSafetyTipsPublicKeySHA256));
 }
 
 std::string SafetyTipsComponentInstallerPolicy::GetName() const {

@@ -4,26 +4,31 @@
 
 #include "chrome/browser/ash/login/saml/public_saml_url_fetcher.h"
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/logging.h"
-#include "chrome/browser/ash/arc/arc_optin_uma.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/account_id/account_id.h"
+#include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/cloud/dm_auth.h"
 #include "components/policy/core/common/cloud/dmserver_job_configurations.h"
+#include "device_management_backend.pb.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "url/gurl.h"
 
 namespace ash {
 namespace {
@@ -76,7 +81,7 @@ void PublicSamlUrlFetcher::Fetch(base::OnceClosure callback) {
       GetDeviceId(), /*critical=*/false,
       policy::DMAuth::FromDMToken(
           DeviceSettingsService::Get()->policy_data()->request_token()),
-      /*oauth_token=*/absl::nullopt,
+      /*oauth_token=*/std::nullopt,
       g_browser_process->system_network_context_manager()
           ->GetSharedURLLoaderFactory(),
       base::BindOnce(&PublicSamlUrlFetcher::OnPublicSamlUrlReceived,

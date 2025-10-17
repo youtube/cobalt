@@ -7,10 +7,10 @@
 #include <memory>
 #include <utility>
 
-#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
+#include "chrome/browser/ui/tabs/test_util.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/browser/web_contents.h"
@@ -18,10 +18,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using base::HistogramTester;
 using content::WebContents;
 
 class TabStripModelStatsRecorderTest : public ChromeRenderViewHostTestHarness {
+  tabs::PreventTabFeatureInitialization prevent_;
 };
 
 TEST_F(TabStripModelStatsRecorderTest,
@@ -31,8 +31,6 @@ TEST_F(TabStripModelStatsRecorderTest,
 
   TabStripModelStatsRecorder recorder;
   tabstrip.AddObserver(&recorder);
-
-  HistogramTester tester;
 
   // Create first tab
   std::unique_ptr<WebContents> contents0 = CreateTestWebContents();
@@ -51,9 +49,6 @@ TEST_F(TabStripModelStatsRecorderTest,
                          TabStripUserGestureDetails(
                              TabStripUserGestureDetails::GestureType::kOther));
 
-  tester.ExpectUniqueSample(
-      "Tabs.StateTransfer.NumberOfOtherTabsActivatedBeforeMadeActive", 9, 1);
-
   tabstrip.RemoveObserver(&recorder);
   tabstrip.CloseAllTabs();
 }
@@ -65,8 +60,6 @@ TEST_F(TabStripModelStatsRecorderTest,
 
   TabStripModelStatsRecorder recorder;
   tabstrip.AddObserver(&recorder);
-
-  HistogramTester tester;
 
   // Create tab 0, 1, 2
   std::unique_ptr<WebContents> contents0 = CreateTestWebContents();
@@ -96,12 +89,6 @@ TEST_F(TabStripModelStatsRecorderTest,
   tabstrip.ActivateTabAt(tabstrip.GetIndexOfWebContents(raw_contents2),
                          TabStripUserGestureDetails(
                              TabStripUserGestureDetails::GestureType::kOther));
-
-  EXPECT_THAT(
-      tester.GetAllSamples(
-          "Tabs.StateTransfer.NumberOfOtherTabsActivatedBeforeMadeActive"),
-      testing::ElementsAre(base::Bucket(1, 8), base::Bucket(2, 2),
-                           base::Bucket(10, 1)));
 
   tabstrip.RemoveObserver(&recorder);
   tabstrip.CloseAllTabs();

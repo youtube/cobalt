@@ -4,10 +4,22 @@
 
 #include "ui/native_theme/native_theme_fluent.h"
 
+#include <memory>
+
+#include "cc/paint/paint_flags.h"
+#include "cc/paint/paint_op.h"
+#include "cc/paint/paint_record.h"
+#include "cc/paint/record_paint_canvas.h"
+#include "skia/ext/font_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkTypeface.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
+#include "ui/color/color_provider_utils.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_constants_fluent.h"
 
 namespace ui {
@@ -39,8 +51,9 @@ class NativeThemeFluentTest : public ::testing::Test,
   }
 
   void VerifyArrowRectIsIntRect(const gfx::RectF& arrow_rect) const {
-    if (theme_.ArrowIconsAvailable())
+    if (theme_.ArrowIconsAvailable()) {
       return;
+    }
 
     // Verify that an arrow rect with triangular arrows is an integer rect.
     EXPECT_TRUE(IsNearestRectWithinDistance(arrow_rect, 0.01f));
@@ -84,8 +97,9 @@ class NativeThemeFluentTest : public ::testing::Test,
         base::ClampFloor(kFluentScrollbarThickness * ScaleFromDIP());
 
     if (part == NativeTheme::kScrollbarUpArrow ||
-        part == NativeTheme::kScrollbarDownArrow)
+        part == NativeTheme::kScrollbarDownArrow) {
       return gfx::RectF(0, 0, track_thickness, button_length);
+    }
 
     return gfx::RectF(0, 0, button_length, track_thickness);
   }
@@ -95,7 +109,7 @@ class NativeThemeFluentTest : public ::testing::Test,
   // Mocks the availability of the font for drawing arrow icons.
   void SetArrowIconsAvailable(bool enabled) {
     if (enabled) {
-      theme_.typeface_ = SkTypeface::MakeDefault();
+      theme_.typeface_ = skia::DefaultTypeface();
       EXPECT_TRUE(theme_.ArrowIconsAvailable());
     } else {
       theme_.typeface_ = nullptr;
@@ -118,6 +132,72 @@ TEST_P(NativeThemeFluentTest, VerifyArrowRectWithTriangularArrows) {
 TEST_P(NativeThemeFluentTest, VerifyArrowRectWithArrowIcons) {
   SetArrowIconsAvailable(true);
   VerifyArrowRect();
+}
+
+// Verify that the thumb paint function draws a round rectangle.
+// Generally, NativeThemeFluent::Paint* functions are covered by
+// Blink's web tests; but in web tests we render the thumbs as squares
+// instead of pill-shaped. This test ensures we don't lose coverage on the
+// PaintOp called to draw the thumb.
+TEST_F(NativeThemeFluentTest, PaintThumbRoundedCorners) {
+  cc::RecordPaintCanvas canvas;
+  ColorProvider color_provider;
+  constexpr gfx::Rect kRect(15, 100);
+  // `is_web_test` is `false` by default.
+  const NativeTheme::ScrollbarThumbExtraParams extra_params;
+  theme_.PaintScrollbarThumb(
+      &canvas, &color_provider,
+      /*part=*/NativeTheme::kScrollbarVerticalThumb,
+      /*state=*/NativeTheme::kNormal, kRect, extra_params,
+      /*color_scheme=*/NativeTheme::ColorScheme::kDefault);
+  EXPECT_EQ(canvas.TotalOpCount(), 1u);
+  EXPECT_EQ(canvas.ReleaseAsRecord().GetFirstOp().GetType(),
+            cc::PaintOpType::kDrawRRect);
+}
+
+// Verify that GetThumbColor returns the correct color given the scrollbar state
+// and extra params.
+TEST_F(NativeThemeFluentTest, GetThumbColor) {
+  const std::unique_ptr<ui::ColorProvider> color_provider =
+      CreateDefaultColorProviderForBlink(/*dark_mode=*/false);
+  NativeTheme::ScrollbarThumbExtraParams extra_params;
+  const auto to_skcolor = [&](auto id) {
+    return SkColor4f::FromColor(color_provider->GetColor(id));
+  };
+  const auto scrollbar_color = [&](auto state) {
+    return theme_.GetScrollbarThumbColor(*color_provider, state, extra_params);
+  };
+
+  const SkColor4f normal_thumb_color =
+      to_skcolor(kColorWebNativeControlScrollbarThumb);
+  const SkColor4f hovered_thumb_color =
+      to_skcolor(kColorWebNativeControlScrollbarThumbHovered);
+  const SkColor4f pressed_thumb_color =
+      to_skcolor(kColorWebNativeControlScrollbarThumbPressed);
+  const SkColor4f minimal_thumb_color =
+      to_skcolor(kColorWebNativeControlScrollbarThumbOverlayMinimalMode);
+  static constexpr SkColor css_color = SK_ColorRED;
+
+  // When there are no extra params set, the colors should be the ones that
+  // correspond to the ColorId.
+  EXPECT_EQ(normal_thumb_color, scrollbar_color(NativeTheme::kNormal));
+  EXPECT_EQ(hovered_thumb_color, scrollbar_color(NativeTheme::kHovered));
+  EXPECT_EQ(pressed_thumb_color, scrollbar_color(NativeTheme::kPressed));
+
+  // When the thumb is being painted in minimal mode, the normal state should
+  // return the minimal mode's transparent color while the other states remain
+  // unaffected.
+  extra_params.is_thumb_minimal_mode = true;
+  EXPECT_EQ(minimal_thumb_color, scrollbar_color(NativeTheme::kNormal));
+  EXPECT_EQ(hovered_thumb_color, scrollbar_color(NativeTheme::kHovered));
+  EXPECT_EQ(pressed_thumb_color, scrollbar_color(NativeTheme::kPressed));
+
+  // When there is a css color set in the extra params, we modify the color
+  // when it is hovered or pressed to signal the change in state.
+  extra_params.thumb_color = css_color;
+  EXPECT_EQ(to_skcolor(css_color), scrollbar_color(NativeTheme::kNormal));
+  EXPECT_NE(to_skcolor(css_color), scrollbar_color(NativeTheme::kHovered));
+  EXPECT_NE(to_skcolor(css_color), scrollbar_color(NativeTheme::kPressed));
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

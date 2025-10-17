@@ -4,11 +4,12 @@
 
 #include "chromecast/cast_core/runtime/browser/core_streaming_config_manager.h"
 
+#include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chromecast/shared/platform_info_serializer.h"
@@ -62,9 +63,9 @@ cast_streaming::ReceiverConfig CreateConfig(
     const PlatformInfoSerializer& deserializer) {
   cast_streaming::ReceiverConfig constraints;
 
-  const absl::optional<int> width = deserializer.MaxWidth();
-  const absl::optional<int> height = deserializer.MaxHeight();
-  const absl::optional<int> frame_rate = deserializer.MaxFrameRate();
+  const std::optional<int> width = deserializer.MaxWidth();
+  const std::optional<int> height = deserializer.MaxHeight();
+  const std::optional<int> frame_rate = deserializer.MaxFrameRate();
   if (width && *width && height && *height && frame_rate && *frame_rate) {
     cast_streaming::ReceiverConfig::Display display;
     display.dimensions = gfx::Rect{*width, *height};
@@ -130,10 +131,10 @@ cast_streaming::ReceiverConfig CreateConfig(
         continue;
       }
 
-      auto it = base::ranges::find(
+      auto it = std::ranges::find(
           audio_limits, converted_codec,
           &cast_streaming::ReceiverConfig::AudioLimits::codec);
-      DCHECK(it != audio_limits.end());
+      CHECK(it != audio_limits.end());
       if (it->max_sample_rate) {
         it->max_sample_rate =
             std::max(it->max_sample_rate.value(), info.max_samples_per_second);
@@ -190,6 +191,8 @@ CoreStreamingConfigManager::CoreStreamingConfigManager(
     : CoreStreamingConfigManager(std::move(error_cb)) {
   std::unique_ptr<cast_api_bindings::MessagePort> server;
   cast_api_bindings::CreatePlatformMessagePortPair(&message_port_, &server);
+  message_port_->SetReceiver(this);
+
   message_port_service.ConnectToPortAsync(kMediaCapabilitiesBindingName,
                                           std::move(server));
 }
@@ -201,13 +204,13 @@ CoreStreamingConfigManager::CoreStreamingConfigManager(
 CoreStreamingConfigManager::~CoreStreamingConfigManager() = default;
 
 bool CoreStreamingConfigManager::OnMessage(
-    base::StringPiece message,
+    std::string_view message,
     std::vector<std::unique_ptr<cast_api_bindings::MessagePort>> ports) {
   DLOG(INFO) << "AV Settings Response Received: " << message;
 
   DCHECK(ports.empty());
 
-  absl::optional<PlatformInfoSerializer> deserializer =
+  std::optional<PlatformInfoSerializer> deserializer =
       PlatformInfoSerializer::Deserialize(message);
   if (!deserializer) {
     LOG(ERROR) << "AV Settings with invalid protobuf received: " << message;

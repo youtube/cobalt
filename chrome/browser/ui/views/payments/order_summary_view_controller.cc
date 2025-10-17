@@ -39,9 +39,9 @@ namespace {
 constexpr int kLineItemRowVerticalInset = 4;
 
 class LineItemRow : public views::View {
- public:
-  METADATA_HEADER(LineItemRow);
+  METADATA_HEADER(LineItemRow, views::View)
 
+ public:
   LineItemRow()
       : row_insets_(
             gfx::Insets::TLBR(kLineItemRowVerticalInset,
@@ -65,7 +65,7 @@ class LineItemRow : public views::View {
   gfx::Insets row_insets_;
 };
 
-BEGIN_METADATA(LineItemRow, views::View)
+BEGIN_METADATA(LineItemRow)
 END_METADATA
 
 // Creates a view for a line item to be displayed in the Order Summary Sheet.
@@ -147,8 +147,9 @@ OrderSummaryViewController::OrderSummaryViewController(
 }
 
 OrderSummaryViewController::~OrderSummaryViewController() {
-  if (spec())
+  if (spec()) {
     spec()->RemoveObserver(this);
+  }
 
   state()->RemoveObserver(this);
 }
@@ -170,8 +171,9 @@ std::u16string OrderSummaryViewController::GetSheetTitle() {
 }
 
 void OrderSummaryViewController::FillContentView(views::View* content_view) {
-  if (!spec())
+  if (!spec()) {
     return;
+  }
 
   auto layout = std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical);
@@ -195,7 +197,7 @@ void OrderSummaryViewController::FillContentView(views::View* content_view) {
       currency = base::UTF8ToUTF16((*display_items[i])->amount->currency);
     }
 
-    content_view->AddChildView(
+    content_view->AddChildViewRaw(
         CreateLineItemView(
             base::UTF8ToUTF16((*display_items[i])->label), currency,
             spec()->GetFormattedCurrencyAmount((*display_items[i])->amount),
@@ -210,7 +212,7 @@ void OrderSummaryViewController::FillContentView(views::View* content_view) {
       spec()->GetFormattedCurrencyAmount(
           spec()->GetTotal(state()->selected_app())->amount));
 
-  content_view->AddChildView(
+  content_view->AddChildViewRaw(
       CreateLineItemView(
           base::UTF8ToUTF16(spec()->GetTotal(state()->selected_app())->label),
           base::UTF8ToUTF16(

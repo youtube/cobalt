@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-json-parse-with-source
 
 (function TestBigInt() {
   const tooBigForNumber = BigInt(Number.MAX_SAFE_INTEGER) + 2n;
@@ -148,6 +147,10 @@ function GenerateParseReviverFunction(texts) {
   assertEquals(
     '{"x":{"x":1,"y":2}}',
     JSON.stringify({ x: { x: JSON.rawJSON(1), y: JSON.rawJSON(2) } })
+  );
+  assertEquals(
+    `"${'\u1234'.repeat(128)}"`,
+    JSON.stringify(JSON.rawJSON(`"${'\u1234'.repeat(128)}"`))
   );
 })();
 

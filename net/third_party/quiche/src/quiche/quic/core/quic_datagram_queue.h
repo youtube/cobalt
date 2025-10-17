@@ -5,13 +5,14 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 #define QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -20,10 +21,10 @@ class QuicSession;
 // Provides a way to buffer QUIC datagrams (messages) in case they cannot
 // be sent due to congestion control.  Datagrams are buffered for a limited
 // amount of time, and deleted after that time passes.
-class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
+class QUICHE_EXPORT QuicDatagramQueue {
  public:
   // An interface used to monitor events on the associated `QuicDatagramQueue`.
-  class QUIC_EXPORT_PRIVATE Observer {
+  class QUICHE_EXPORT Observer {
    public:
     virtual ~Observer() = default;
 
@@ -33,7 +34,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
     // This function is called synchronously in `QuicDatagramQueue` methods.
     // `status` is nullopt when the datagram is dropped due to being in the
     // queue for too long.
-    virtual void OnDatagramProcessed(absl::optional<MessageStatus> status) = 0;
+    virtual void OnDatagramProcessed(std::optional<MessageStatus> status) = 0;
   };
 
   // |session| is not owned and must outlive this object.
@@ -48,7 +49,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
 
   // Attempts to send a single datagram from the queue.  Returns the result of
   // SendMessage(), or nullopt if there were no unexpired datagrams to send.
-  absl::optional<MessageStatus> TrySendingNextDatagram();
+  std::optional<MessageStatus> TrySendingNextDatagram();
 
   // Sends all of the unexpired datagrams until either the connection becomes
   // write-blocked or the queue is empty.  Returns the number of datagrams sent.
@@ -69,11 +70,11 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
   void SetForceFlush(bool force_flush) { force_flush_ = force_flush; }
 
   size_t queue_size() { return queue_.size(); }
-
   bool empty() { return queue_.empty(); }
+  uint64_t expired_datagram_count() const { return expired_datagram_count_; }
 
  private:
-  struct QUIC_EXPORT_PRIVATE Datagram {
+  struct QUICHE_EXPORT Datagram {
     quiche::QuicheMemSlice datagram;
     QuicTime expiry;
   };
@@ -87,7 +88,8 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
   QuicTime::Delta max_time_in_queue_ = QuicTime::Delta::Zero();
   quiche::QuicheCircularDeque<Datagram> queue_;
   std::unique_ptr<Observer> observer_;
-  bool force_flush_;
+  uint64_t expired_datagram_count_ = 0;
+  bool force_flush_ = false;
 };
 
 }  // namespace quic

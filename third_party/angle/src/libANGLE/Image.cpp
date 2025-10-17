@@ -38,6 +38,10 @@ gl::ImageIndex GetImageIndex(EGLenum eglTarget, const egl::AttributeMap &attribs
     {
         return gl::ImageIndex::Make3D(mip, layer);
     }
+    else if (gl::IsCubeMapFaceTarget(target))
+    {
+        return gl::ImageIndex::MakeCubeMapFace(target, mip);
+    }
     else
     {
         ASSERT(layer == 0);
@@ -123,6 +127,11 @@ void ImageSibling::setSourceEGLImageInitState(gl::InitState initState) const
 {
     ASSERT(isEGLImageTarget());
     mTargetOf->setInitState(initState);
+}
+
+bool ImageSibling::isAttachmentSpecified(const gl::ImageIndex &imageIndex) const
+{
+    return !getAttachmentSize(imageIndex).empty();
 }
 
 bool ImageSibling::isRenderable(const gl::Context *context,
@@ -310,10 +319,25 @@ Image::Image(rx::EGLImplFactory *factory,
              const AttributeMap &attribs)
     : mState(id, target, buffer, attribs),
       mImplementation(factory->createImage(mState, context, target, attribs)),
-      mOrphanedAndNeedsInit(false)
+      mOrphanedAndNeedsInit(false),
+      mContextMutex(nullptr)
 {
     ASSERT(mImplementation != nullptr);
     ASSERT(buffer != nullptr);
+
+    if (kIsContextMutexEnabled)
+    {
+        if (context != nullptr)
+        {
+            mContextMutex = context->getContextMutex().getRoot();
+            ASSERT(mContextMutex->isReferenced());
+        }
+        else
+        {
+            mContextMutex = new ContextMutex();
+        }
+        mContextMutex->addRef();
+    }
 
     mState.source->addImageSource(this);
 }
@@ -350,6 +374,12 @@ void Image::onDestroy(const Display *display)
 Image::~Image()
 {
     SafeDelete(mImplementation);
+
+    if (mContextMutex != nullptr)
+    {
+        mContextMutex->release();
+        mContextMutex = nullptr;
+    }
 }
 
 void Image::setLabel(EGLLabelKHR label)
@@ -475,6 +505,11 @@ bool Image::hasProtectedContent() const
     return mState.hasProtectedContent;
 }
 
+bool Image::isFixedRatedCompression(const gl::Context *context) const
+{
+    return mImplementation->isFixedRatedCompression(context);
+}
+
 rx::ImageImpl *Image::getImplementation() const
 {
     return mImplementation;
@@ -503,7 +538,7 @@ Error Image::initialize(const Display *display, const gl::Context *context)
         if (!gl::ColorspaceFormatOverride(mState.colorspace, &nonLinearFormat))
         {
             // the colorspace format is not supported
-            return egl::EglBadMatch();
+            return egl::Error(EGL_BAD_MATCH);
         }
         mState.format = gl::Format(nonLinearFormat);
     }

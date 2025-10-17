@@ -93,7 +93,6 @@ Member<const CSSValue>& StyleRuleCounterStyle::GetDescriptorReference(
       return speak_as_;
     default:
       NOTREACHED();
-      return speak_as_;
   }
 }
 

@@ -7,87 +7,75 @@
 #include <memory>
 #include <string>
 
-#include "ash/constants/ash_features.h"
-#include "ash/glanceables/glanceables_v2_controller.h"
-#include "ash/session/test_session_controller_client.h"
+#include "ash/glanceables/glanceables_controller.h"
 #include "ash/shell.h"
-#include "base/test/scoped_feature_list.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
-#include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "components/account_id/account_id.h"
-#include "components/user_manager/scoped_user_manager.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
 namespace {
 
-const char kPrimaryProfileName[] = "primary_profile@example.com";
-const char kSecondaryProfileName[] = "secondary_profile@example.com";
+constexpr char kPrimaryProfileName[] = "primary_profile@example.com";
+constexpr char kSecondaryProfileName[] = "secondary_profile@example.com";
+constexpr GaiaId::Literal kFakeGaia2("fakegaia2");
 
 }  // namespace
 
 class GlanceablesKeyedServiceTest : public BrowserWithTestWindowTest {
  public:
-  GlanceablesKeyedServiceTest()
-      : scoped_user_manager_(std::make_unique<FakeChromeUserManager>()) {}
-
-  TestingProfile* CreateProfile() override {
-    const auto account_id = AccountId::FromUserEmail(kPrimaryProfileName);
-    fake_chrome_user_manager()->AddUser(account_id);
-    fake_chrome_user_manager()->LoginUser(account_id);
-    session_controller_client()->AddUserSession(kPrimaryProfileName);
-    session_controller_client()->SwitchActiveUser(account_id);
-    return profile_manager()->CreateTestingProfile(kPrimaryProfileName,
-                                                   /*is_main_profile=*/true);
+  // BrowserWithTestWindowTest:
+  std::optional<std::string> GetDefaultProfileName() override {
+    return kPrimaryProfileName;
   }
 
-  FakeChromeUserManager* fake_chrome_user_manager() {
-    return static_cast<FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
+  // BrowserWithTestWindowTest:
+  TestingProfile* CreateProfile(const std::string& profile_name) override {
+    EXPECT_EQ(kPrimaryProfileName, profile_name);
+    return profile_manager()->CreateTestingProfile(profile_name);
   }
-
-  TestSessionControllerClient* session_controller_client() {
-    return ash_test_helper()->test_session_controller_client();
-  }
-
- protected:
-  base::test::ScopedFeatureList feature_list_{features::kGlanceablesV2};
-  user_manager::ScopedUserManager scoped_user_manager_;
 };
 
 TEST_F(GlanceablesKeyedServiceTest, RegistersClientsInAsh) {
-  auto* const controller = Shell::Get()->glanceables_v2_controller();
+  auto* const controller = Shell::Get()->glanceables_controller();
+  EXPECT_FALSE(controller->GetClassroomClient());
   EXPECT_FALSE(controller->GetTasksClient());
 
   auto service = std::make_unique<GlanceablesKeyedService>(profile());
+  EXPECT_TRUE(controller->GetClassroomClient());
   EXPECT_TRUE(controller->GetTasksClient());
 
   service->Shutdown();
+  EXPECT_FALSE(controller->GetClassroomClient());
   EXPECT_FALSE(controller->GetTasksClient());
 }
 
-TEST_F(GlanceablesKeyedServiceTest,
-       DoesNotRegisterClientsInAshForNonPrimaryUser) {
-  auto* const controller = Shell::Get()->glanceables_v2_controller();
+TEST_F(GlanceablesKeyedServiceTest, RegisterClientsInAshForNonPrimaryUser) {
+  auto* const controller = Shell::Get()->glanceables_controller();
   auto service = std::make_unique<GlanceablesKeyedService>(profile());
-  EXPECT_TRUE(controller->GetTasksClient());
+  auto* const classroom_client_primary = controller->GetClassroomClient();
+  auto* const tasks_client_primary = controller->GetTasksClient();
+  EXPECT_TRUE(classroom_client_primary);
+  EXPECT_TRUE(tasks_client_primary);
 
-  const auto first_account_id = AccountId::FromUserEmail(kPrimaryProfileName);
-  const auto second_account_id =
-      AccountId::FromUserEmail(kSecondaryProfileName);
-  fake_chrome_user_manager()->AddUser(second_account_id);
-  fake_chrome_user_manager()->LoginUser(second_account_id);
-  profile_manager()->CreateTestingProfile(kSecondaryProfileName,
-                                          /*is_main_profile=*/false);
-  session_controller_client()->AddUserSession(kSecondaryProfileName);
+  LogIn(kSecondaryProfileName, kFakeGaia2);
+  auto* secondary_profile =
+      profile_manager()->CreateTestingProfile(kSecondaryProfileName);
+  SwitchActiveUser(kSecondaryProfileName);
+  auto service_secondary =
+      std::make_unique<GlanceablesKeyedService>(secondary_profile);
 
-  session_controller_client()->SwitchActiveUser(second_account_id);
-  EXPECT_FALSE(controller->GetTasksClient());
+  auto* const classroom_client_secondary = controller->GetClassroomClient();
+  auto* const tasks_client_secondary = controller->GetTasksClient();
+  EXPECT_TRUE(classroom_client_secondary);
+  EXPECT_TRUE(tasks_client_secondary);
+  EXPECT_NE(classroom_client_primary, classroom_client_secondary);
+  EXPECT_NE(tasks_client_primary, tasks_client_secondary);
 
-  session_controller_client()->SwitchActiveUser(first_account_id);
-  EXPECT_TRUE(controller->GetTasksClient());
+  SwitchActiveUser(kPrimaryProfileName);
+  EXPECT_EQ(classroom_client_primary, controller->GetClassroomClient());
+  EXPECT_EQ(tasks_client_primary, controller->GetTasksClient());
 }
 
 }  // namespace ash

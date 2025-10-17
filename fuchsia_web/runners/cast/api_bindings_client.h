@@ -7,12 +7,15 @@
 
 #include <chromium/cast/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl.h>
+
+#include <optional>
+#include <string_view>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/cast/message_port/message_port.h"
 #include "components/cast/named_message_port_connector/named_message_port_connector.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // Injects scripts received from the ApiBindings service, and provides connected
 // ports to the Agent.
@@ -47,10 +50,10 @@ class ApiBindingsClient {
   // |bindings_service_|.
   bool HasBindings() const;
 
-  // TODO(crbug.com/1082821): Move this method back to private once the Cast
+  // TODO(crbug.com/40131115): Move this method back to private once the Cast
   // Streaming Receiver component has been implemented.
   // Called when |connector_| has connected a port.
-  bool OnPortConnected(base::StringPiece port_name,
+  bool OnPortConnected(std::string_view port_name,
                        std::unique_ptr<cast_api_bindings::MessagePort> port);
 
  private:
@@ -60,9 +63,9 @@ class ApiBindingsClient {
   // Used by AttachToFrame() to invoke `on_error_callback` asynchronously.
   void CallOnErrorCallback(base::OnceClosure on_error_callback);
 
-  absl::optional<std::vector<chromium::cast::ApiBinding>> bindings_;
-  fuchsia::web::Frame* frame_ = nullptr;
-  cast_api_bindings::NamedMessagePortConnector* connector_ = nullptr;
+  std::optional<std::vector<chromium::cast::ApiBinding>> bindings_;
+  raw_ptr<fuchsia::web::Frame> frame_ = nullptr;
+  raw_ptr<cast_api_bindings::NamedMessagePortConnector> connector_ = nullptr;
   chromium::cast::ApiBindingsPtr bindings_service_;
   base::OnceClosure on_initialization_complete_;
 

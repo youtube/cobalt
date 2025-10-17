@@ -11,6 +11,8 @@ import android.widget.RadioGroup;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescription;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionLayout;
 
@@ -18,8 +20,9 @@ import org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionLayou
  * A radio button group used for accessibility preference. This allows the user to toggle between
  * allowing the get image descriptions feature on mobile data, or requiring it need Wi-Fi to run.
  */
-public class RadioButtonGroupAccessibilityPreference
-        extends Preference implements RadioGroup.OnCheckedChangeListener {
+@NullMarked
+public class RadioButtonGroupAccessibilityPreference extends Preference
+        implements RadioGroup.OnCheckedChangeListener {
     private RadioButtonWithDescriptionLayout mButtonGroup;
     private RadioButtonWithDescription mOnlyOnWifi;
     private RadioButtonWithDescription mUseMobileData;
@@ -39,14 +42,19 @@ public class RadioButtonGroupAccessibilityPreference
         return mOnlyOnWifiValue;
     }
 
+    @Initializer
     @Override
     public void onBindViewHolder(PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
 
-        mOnlyOnWifi = (RadioButtonWithDescription) holder.findViewById(
-                R.id.image_descriptions_settings_only_on_wifi_radio_button);
-        mUseMobileData = (RadioButtonWithDescription) holder.findViewById(
-                R.id.image_descriptions_settings_mobile_data_radio_button);
+        mOnlyOnWifi =
+                (RadioButtonWithDescription)
+                        holder.findViewById(
+                                R.id.image_descriptions_settings_only_on_wifi_radio_button);
+        mUseMobileData =
+                (RadioButtonWithDescription)
+                        holder.findViewById(
+                                R.id.image_descriptions_settings_mobile_data_radio_button);
 
         mButtonGroup = (RadioButtonWithDescriptionLayout) mOnlyOnWifi.getParent();
         mButtonGroup.setOnCheckedChangeListener(this);

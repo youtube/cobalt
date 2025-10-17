@@ -18,7 +18,8 @@ const int kExtensionIMEPrefixLength =
 const char kComponentExtensionIMEPrefix[] = "_comp_ime_";
 const int kComponentExtensionIMEPrefixLength =
     sizeof(kComponentExtensionIMEPrefix) /
-        sizeof(kComponentExtensionIMEPrefix[0]) - 1;
+        sizeof(kComponentExtensionIMEPrefix[0]) -
+    1;
 const char kArcIMEPrefix[] = "_arc_ime_";
 const int kArcIMEPrefixLength =
     sizeof(kArcIMEPrefix) / sizeof(kArcIMEPrefix[0]) - 1;
@@ -86,93 +87,98 @@ std::string GetExtensionIDFromInputMethodID(
     return input_method_id.substr(kComponentExtensionIMEPrefixLength,
                                   kExtensionIdLength);
   }
-  if (IsArcIME(input_method_id))
+  if (IsArcIME(input_method_id)) {
     return input_method_id.substr(kArcIMEPrefixLength, kExtensionIdLength);
+  }
   return "";
 }
 
 std::string GetComponentIDByInputMethodID(const std::string& input_method_id) {
-  if (IsComponentExtensionIME(input_method_id))
+  if (IsComponentExtensionIME(input_method_id)) {
     return input_method_id.substr(kComponentExtensionIMEPrefixLength +
                                   kExtensionIdLength);
-  if (IsExtensionIME(input_method_id))
+  }
+  if (IsExtensionIME(input_method_id)) {
     return input_method_id.substr(kExtensionIMEPrefixLength +
                                   kExtensionIdLength);
-  if (IsArcIME(input_method_id))
+  }
+  if (IsArcIME(input_method_id)) {
     return input_method_id.substr(kArcIMEPrefixLength + kExtensionIdLength);
+  }
   return input_method_id;
 }
 
 std::string GetInputMethodIDByEngineID(const std::string& engine_id) {
-  if (base::StartsWith(engine_id, kComponentExtensionIMEPrefix,
-                       base::CompareCase::SENSITIVE) ||
-      base::StartsWith(engine_id, kExtensionIMEPrefix,
-                       base::CompareCase::SENSITIVE) ||
-      base::StartsWith(engine_id, kArcIMEPrefix,
-                       base::CompareCase::SENSITIVE)) {
+  if (engine_id.starts_with(kComponentExtensionIMEPrefix) ||
+      engine_id.starts_with(kExtensionIMEPrefix) ||
+      engine_id.starts_with(kArcIMEPrefix)) {
     return engine_id;
   }
-  if (base::StartsWith(engine_id, "xkb:", base::CompareCase::SENSITIVE))
+  if (engine_id.starts_with("xkb:")) {
     return GetComponentInputMethodID(kXkbExtensionId, engine_id);
-  if (base::StartsWith(engine_id, "vkd_", base::CompareCase::SENSITIVE))
+  }
+  if (engine_id.starts_with("vkd_")) {
     return GetComponentInputMethodID(kM17nExtensionId, engine_id);
-  if (base::StartsWith(engine_id, "nacl_mozc_", base::CompareCase::SENSITIVE))
+  }
+  if (engine_id.starts_with("nacl_mozc_")) {
     return GetComponentInputMethodID(kMozcExtensionId, engine_id);
-  if (base::StartsWith(engine_id, "hangul_",
-                       base::CompareCase::SENSITIVE))
+  }
+  if (engine_id.starts_with("hangul_")) {
     return GetComponentInputMethodID(kHangulExtensionId, engine_id);
+  }
 
-  if (base::StartsWith(engine_id, "zh-", base::CompareCase::SENSITIVE) &&
+  if (engine_id.starts_with("zh-") &&
       engine_id.find("pinyin") != std::string::npos) {
     return GetComponentInputMethodID(kChinesePinyinExtensionId, engine_id);
   }
-  if (base::StartsWith(engine_id, "zh-", base::CompareCase::SENSITIVE) &&
+  if (engine_id.starts_with("zh-") &&
       engine_id.find("zhuyin") != std::string::npos) {
     return GetComponentInputMethodID(kChineseZhuyinExtensionId, engine_id);
   }
-  if (base::StartsWith(engine_id, "zh-", base::CompareCase::SENSITIVE) &&
+  if (engine_id.starts_with("zh-") &&
       engine_id.find("cangjie") != std::string::npos) {
     return GetComponentInputMethodID(kChineseCangjieExtensionId, engine_id);
   }
-  if (engine_id.find("-t-i0-") != std::string::npos)
+  if (engine_id.find("-t-i0-") != std::string::npos) {
     return GetComponentInputMethodID(kT13nExtensionId, engine_id);
+  }
 
   return engine_id;
 }
 
 bool IsExtensionIME(const std::string& input_method_id) {
-  return base::StartsWith(input_method_id, kExtensionIMEPrefix,
-                          base::CompareCase::SENSITIVE) &&
+  return input_method_id.starts_with(kExtensionIMEPrefix) &&
          input_method_id.size() >
              kExtensionIMEPrefixLength + kExtensionIdLength;
 }
 
 bool IsComponentExtensionIME(const std::string& input_method_id) {
-  return base::StartsWith(input_method_id, kComponentExtensionIMEPrefix,
-                          base::CompareCase::SENSITIVE) &&
+  return input_method_id.starts_with(kComponentExtensionIMEPrefix) &&
          input_method_id.size() >
              kComponentExtensionIMEPrefixLength + kExtensionIdLength;
 }
 
 bool IsArcIME(const std::string& input_method_id) {
-  return base::StartsWith(input_method_id, kArcIMEPrefix,
-                          base::CompareCase::SENSITIVE) &&
+  return input_method_id.starts_with(kArcIMEPrefix) &&
          input_method_id.size() > kArcIMEPrefixLength + kExtensionIdLength;
 }
 
 bool IsKeyboardLayoutExtension(const std::string& input_method_id) {
-  if (IsComponentExtensionIME(input_method_id))
-    return base::StartsWith(GetComponentIDByInputMethodID(input_method_id),
-                            "xkb:", base::CompareCase::SENSITIVE);
+  if (IsComponentExtensionIME(input_method_id)) {
+    return GetComponentIDByInputMethodID(input_method_id).starts_with("xkb:");
+  }
   return false;
 }
 
-bool IsExperimentalMultilingual(const std::string& input_method_id) {
+bool IsCros1pKorean(const std::string& input_method_id) {
+  // TODO(crbug.com/1162211): Input method IDs are tuples of extension type,
+  // extension ID, and extension-local input method ID. However, currently
+  // they're just concats of the three constituent pieces of info, hence StrCat
+  // here. Replace StrCat once they're no longer unstructured string concats.
+
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  const std::string prefix = base::StrCat(
-      {kComponentExtensionIMEPrefix, kXkbExtensionId, "experimental_"});
-  return base::StartsWith(input_method_id, prefix,
-                          base::CompareCase::SENSITIVE);
+  return input_method_id == base::StrCat({kComponentExtensionIMEPrefix,
+                                          kXkbExtensionId, "ko-t-i0-und"});
 #else
   return false;
 #endif

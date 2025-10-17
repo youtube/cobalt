@@ -72,7 +72,7 @@ class MockEnterpriseStartupDialog : public EnterpriseStartupDialog {
                void(const std::u16string&));
   MOCK_METHOD2(DisplayErrorMessage,
                void(const std::u16string&,
-                    const absl::optional<std::u16string>&));
+                    const std::optional<std::u16string>&));
   MOCK_METHOD0(IsShowing, bool());
 
   void SetCallback(EnterpriseStartupDialog::DialogResultCallback callback) {
@@ -133,7 +133,7 @@ class ChromeBrowserCloudManagementRegisterWatcherTest : public ::testing::Test {
   ChromeBrowserCloudManagementRegisterWatcher watcher_;
   FakeBrowserDMTokenStorage storage_;
   std::unique_ptr<MockEnterpriseStartupDialog> dialog_;
-  raw_ptr<MockEnterpriseStartupDialog> dialog_ptr_;
+  raw_ptr<MockEnterpriseStartupDialog, DanglingUntriaged> dialog_ptr_;
 };
 
 TEST_F(ChromeBrowserCloudManagementRegisterWatcherTest,

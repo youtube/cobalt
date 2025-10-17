@@ -19,6 +19,8 @@
 
 #include <stddef.h>
 
+#include <array>
+
 #include "components/history/core/browser/history_backend.h"
 #include "components/history/core/test/history_backend_db_base_test.h"
 
@@ -29,8 +31,8 @@ namespace {
 // HistoryBackend to work.
 class ContentHistoryBackendDBTest : public HistoryBackendDBBaseTest {
  public:
-  ContentHistoryBackendDBTest() {}
-  ~ContentHistoryBackendDBTest() override {}
+  ContentHistoryBackendDBTest() = default;
+  ~ContentHistoryBackendDBTest() override = default;
 };
 
 struct InterruptReasonAssociation {
@@ -40,15 +42,15 @@ struct InterruptReasonAssociation {
 
 // Test is dependent on interrupt reasons being listed in header file
 // in order.
-const InterruptReasonAssociation current_reasons[] = {
+const auto current_reasons = std::to_array<InterruptReasonAssociation>({
 #define INTERRUPT_REASON(a, b) { #a, b },
 #include "components/download/public/common/download_interrupt_reason_values.h"
 #undef INTERRUPT_REASON
-};
+});
 
 // This represents a list of all reasons we've previously used;
 // Do Not Remove Any Entries From This List.
-const InterruptReasonAssociation historical_reasons[] = {
+const auto historical_reasons = std::to_array<InterruptReasonAssociation>({
     {"FILE_FAILED", 1},
     {"FILE_ACCESS_DENIED", 2},
     {"FILE_NO_SPACE", 3},
@@ -79,7 +81,7 @@ const InterruptReasonAssociation historical_reasons[] = {
     {"USER_CANCELED", 40},
     {"USER_SHUTDOWN", 41},
     {"CRASH", 50},
-};
+});
 
 // Make sure no one has changed a DownloadInterruptReason we've previously
 // persisted.

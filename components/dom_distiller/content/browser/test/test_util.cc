@@ -38,14 +38,16 @@ const char* kDistilledPagePath = "/distilled_page.html";
 
 void SetUpTestServerWithoutStarting(EmbeddedTestServer* server) {
   FilePath root_dir;
-  PathService::Get(base::DIR_SOURCE_ROOT, &root_dir);
+  PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &root_dir);
 
   server->ServeFilesFromDirectory(
       root_dir.AppendASCII("components/dom_distiller/core/javascript"));
   server->ServeFilesFromDirectory(
       root_dir.AppendASCII("components/test/data/dom_distiller"));
-  server->ServeFilesFromDirectory(root_dir.AppendASCII("third_party/chaijs"));
-  server->ServeFilesFromDirectory(root_dir.AppendASCII("third_party/mocha"));
+  server->ServeFilesFromDirectory(
+      root_dir.AppendASCII("third_party/node/node_modules/chai"));
+  server->ServeFilesFromDirectory(
+      root_dir.AppendASCII("third_party/node/node_modules/mocha"));
 }
 
 }  // namespace
@@ -63,7 +65,6 @@ FakeDistilledPage::FakeDistilledPage(EmbeddedTestServer* server)
   AppendScriptFile("dom_distiller_viewer.js");
 
   // Also load test helper scripts.
-  AppendScriptFile("chai.js");
   AppendScriptFile("mocha.js");
   AppendScriptFile("test_util.js");
 }
@@ -87,7 +88,8 @@ void FakeDistilledPage::Load(EmbeddedTestServer* server,
 
 std::string FakeDistilledPage::GetPageHtmlWithScripts() {
   std::string html = GetArticleTemplateHtml(
-      mojom::Theme::kLight, mojom::FontFamily::kSansSerif, std::string());
+      mojom::Theme::kLight, mojom::FontFamily::kSansSerif, std::string(),
+      /*use_offline_data=*/false);
   for (const std::string& file : scripts_) {
     StrAppend(&html, {JsReplace("<script src=$1></script>", file)});
   }

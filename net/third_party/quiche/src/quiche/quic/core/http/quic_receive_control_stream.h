@@ -16,9 +16,8 @@ class QuicSpdySession;
 
 // 3.2.1 Control Stream.
 // The receive control stream is peer initiated and is read only.
-class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
-    : public QuicStream,
-      public HttpDecoder::Visitor {
+class QUICHE_EXPORT QuicReceiveControlStream : public QuicStream,
+                                               public HttpDecoder::Visitor {
  public:
   explicit QuicReceiveControlStream(PendingStream* pending,
                                     QuicSpdySession* spdy_session);
@@ -49,10 +48,16 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   bool OnHeadersFrameEnd() override;
   bool OnPriorityUpdateFrameStart(QuicByteCount header_length) override;
   bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) override;
+  bool OnOriginFrameStart(QuicByteCount header_length) override;
+  bool OnOriginFrame(const OriginFrame& frame) override;
   bool OnAcceptChFrameStart(QuicByteCount header_length) override;
   bool OnAcceptChFrame(const AcceptChFrame& frame) override;
   void OnWebTransportStreamFrameType(QuicByteCount header_length,
                                      WebTransportSessionId session_id) override;
+  bool OnMetadataFrameStart(QuicByteCount header_length,
+                            QuicByteCount payload_length) override;
+  bool OnMetadataFramePayload(absl::string_view payload) override;
+  bool OnMetadataFrameEnd() override;
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length,
                            QuicByteCount payload_length) override;
   bool OnUnknownFramePayload(absl::string_view payload) override;

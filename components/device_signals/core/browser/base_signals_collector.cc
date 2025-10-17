@@ -9,11 +9,12 @@
 
 #include "base/functional/callback.h"
 #include "components/device_signals/core/browser/signals_types.h"
+#include "components/device_signals/core/browser/user_permission_service.h"
 
 namespace device_signals {
 
 BaseSignalsCollector::BaseSignalsCollector(
-    const std::unordered_map<const SignalName, GetSignalCallback>
+    std::unordered_map<const SignalName, GetSignalCallback>
         signals_collection_map)
     : signals_collection_map_(std::move(signals_collection_map)) {
   DCHECK(!signals_collection_map_.empty());
@@ -37,6 +38,7 @@ BaseSignalsCollector::GetSupportedSignalNames() {
 }
 
 void BaseSignalsCollector::GetSignal(SignalName signal_name,
+                                     UserPermission permission,
                                      const SignalsAggregationRequest& request,
                                      SignalsAggregationResponse& response,
                                      base::OnceClosure done_closure) {
@@ -46,7 +48,13 @@ void BaseSignalsCollector::GetSignal(SignalName signal_name,
     return;
   }
 
-  signals_collection_map_[signal_name].Run(request, response,
+  if (permission != UserPermission::kGranted &&
+      permission != UserPermission::kMissingConsent) {
+    std::move(done_closure).Run();
+    return;
+  }
+
+  signals_collection_map_[signal_name].Run(permission, request, response,
                                            std::move(done_closure));
 }
 

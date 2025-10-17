@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 class Profile;
@@ -22,7 +22,7 @@ class StrikeDatabase;
 // Profiles.
 class StrikeDatabaseFactory : public ProfileKeyedServiceFactory {
  public:
-  // Returns the StrikeDatabase for |profile|, creating it if it is not
+  // Returns the StrikeDatabase for `profile`, creating it if it is not
   // yet created.
   static StrikeDatabase* GetForProfile(Profile* profile);
 
@@ -32,13 +32,13 @@ class StrikeDatabaseFactory : public ProfileKeyedServiceFactory {
   StrikeDatabaseFactory& operator=(const StrikeDatabaseFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<StrikeDatabaseFactory>;
+  friend base::NoDestructor<StrikeDatabaseFactory>;
 
   StrikeDatabaseFactory();
   ~StrikeDatabaseFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
 };
 

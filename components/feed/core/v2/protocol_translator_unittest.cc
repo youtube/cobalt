@@ -23,6 +23,7 @@
 #include "components/feed/core/v2/proto_util.h"
 #include "components/feed/core/v2/test/proto_printer.h"
 #include "components/feed/feed_feature_list.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace feed {
@@ -32,7 +33,7 @@ const char kResponsePbPath[] = "components/test/data/feed/response.binarypb";
 const base::Time kCurrentTime = base::Time::UnixEpoch() + base::Days(123);
 AccountInfo TestAccountInfo() {
   AccountInfo account_info;
-  account_info.gaia = "gaia";
+  account_info.gaia = GaiaId("gaia");
   account_info.email = "user@foo.com";
   return account_info;
 }
@@ -40,7 +41,8 @@ AccountInfo TestAccountInfo() {
 feedwire::Response TestWireResponse() {
   // Read and parse response.binarypb.
   base::FilePath response_file_path;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &response_file_path));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
+                               &response_file_path));
   response_file_path = response_file_path.AppendASCII(kResponsePbPath);
 
   CHECK(base::PathExists(response_file_path));
@@ -104,7 +106,8 @@ RefreshResponseData TranslateWireResponse(feedwire::Response response,
 RefreshResponseData TranslateWireResponse(feedwire::Response response) {
   return TranslateWireResponse(response, TestAccountInfo());
 }
-absl::optional<feedstore::DataOperation> TranslateDataOperation(
+
+std::optional<feedstore::DataOperation> TranslateDataOperation(
     feedwire::DataOperation operation) {
   return ::feed::TranslateDataOperation(base::Time(), std::move(operation));
 }
@@ -117,10 +120,6 @@ class ProtocolTranslatorTest : public testing::Test {
   ProtocolTranslatorTest(ProtocolTranslatorTest&) = delete;
   ProtocolTranslatorTest& operator=(const ProtocolTranslatorTest&) = delete;
   ~ProtocolTranslatorTest() override = default;
-
-  void SetUp() override {
-    feature_list_.InitAndEnableFeature(kFeedExperimentIDTagging);
-  }
 
  protected:
   base::test::ScopedFeatureList feature_list_;
@@ -172,8 +171,8 @@ TEST_F(ProtocolTranslatorTest, RootEventIdNotPresent) {
 TEST_F(ProtocolTranslatorTest, WasSignedInRequest) {
   feedwire::Response response = EmptyWireResponse();
 
-  for (AccountInfo account_info :
-       std::initializer_list<AccountInfo>{{"gaia", "user@foo.com"}, {}}) {
+  for (AccountInfo account_info : std::initializer_list<AccountInfo>{
+           {GaiaId("gaia"), "user@foo.com"}, {}}) {
     RefreshResponseData refresh = TranslateWireResponse(response, account_info);
     ASSERT_TRUE(refresh.model_update_request);
     EXPECT_EQ(refresh.model_update_request->stream_data.signed_in(),
@@ -223,7 +222,7 @@ TEST_F(ProtocolTranslatorTest, PrivacyNoticeFulfilled) {
 
 TEST_F(ProtocolTranslatorTest, ExperimentsAreTranslated) {
   Experiments expected;
-  std::vector<std::string> group_list{"Group1"};
+  std::vector<ExperimentGroup> group_list{{"Group1", 123}};
   expected["Trial1"] = group_list;
 
   feedwire::Response response = EmptyWireResponse();
@@ -233,65 +232,7 @@ TEST_F(ProtocolTranslatorTest, ExperimentsAreTranslated) {
                   ->add_experiments();
   exp->set_trial_name("Trial1");
   exp->set_group_name("Group1");
-
-  RefreshResponseData refresh = TranslateWireResponse(response);
-  ASSERT_TRUE(refresh.experiments.has_value());
-
-  EXPECT_EQ(refresh.experiments.value(), expected);
-}
-
-TEST_F(ProtocolTranslatorTest, ExperimentsAreTranslatedIDTaggingEnabled) {
-  Experiments expected;
-  std::vector<std::string> group_list1{"ID1"};
-  std::vector<std::string> group_list2{"ID2"};
-  expected[kDiscoverFeedExperiments] = group_list1;
-  expected["Trial1"] = group_list2;
-
-  feedwire::Response response = EmptyWireResponse();
-  auto* exp1 = response.mutable_feed_response()
-                   ->mutable_feed_response_metadata()
-                   ->mutable_chrome_feed_response_metadata()
-                   ->add_experiments();
-  exp1->set_experiment_id("ID1");
-  auto* exp2 = response.mutable_feed_response()
-                   ->mutable_feed_response_metadata()
-                   ->mutable_chrome_feed_response_metadata()
-                   ->add_experiments();
-  exp2->set_trial_name("Trial1");
-  exp2->set_experiment_id("ID2");
-
-  RefreshResponseData refresh = TranslateWireResponse(response);
-  ASSERT_TRUE(refresh.experiments.has_value());
-
-  EXPECT_EQ(refresh.experiments.value(), expected);
-}
-
-TEST_F(ProtocolTranslatorTest, ExperimentsAreTranslatedIDTaggingDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(kFeedExperimentIDTagging);
-  Experiments expected;
-  std::vector<std::string> group_list{"Group1"};
-  expected["Trial1"] = group_list;
-
-  feedwire::Response response = EmptyWireResponse();
-  auto* exp1 = response.mutable_feed_response()
-                   ->mutable_feed_response_metadata()
-                   ->mutable_chrome_feed_response_metadata()
-                   ->add_experiments();
-  exp1->set_trial_name("Trial1");
-  exp1->set_group_name("Group1");
-
-  auto* exp2 = response.mutable_feed_response()
-                   ->mutable_feed_response_metadata()
-                   ->mutable_chrome_feed_response_metadata()
-                   ->add_experiments();
-  exp2->set_experiment_id("EXP_ID_NOT_TRANSLATED");
-  auto* exp3 = response.mutable_feed_response()
-                   ->mutable_feed_response_metadata()
-                   ->mutable_chrome_feed_response_metadata()
-                   ->add_experiments();
-  exp3->set_trial_name("Trial_NOT_TRANSLATED");
-  exp3->set_experiment_id("EXP_ID_NOT_TRANSLATED");
+  exp->set_experiment_id("123");
 
   RefreshResponseData refresh = TranslateWireResponse(response);
   ASSERT_TRUE(refresh.experiments.has_value());
@@ -311,6 +252,19 @@ TEST_F(ProtocolTranslatorTest, ExperimentsAreNotTranslatedGroupAndIDMissing) {
   ASSERT_FALSE(refresh.experiments.has_value());
 }
 
+TEST_F(ProtocolTranslatorTest, HasFeedLaunchCuiMetadata) {
+  feedwire::Response response = EmptyWireResponse();
+  response.mutable_feed_response()
+      ->mutable_feed_response_metadata()
+      ->mutable_feed_launch_cui_server_metadata()
+      ->mutable_unknown_fields()
+      ->assign("hello");
+
+  RefreshResponseData refresh = TranslateWireResponse(response);
+  ASSERT_TRUE(refresh.feed_launch_cui_metadata.has_value());
+  EXPECT_EQ("hello", refresh.feed_launch_cui_metadata);
+}
+
 TEST_F(ProtocolTranslatorTest, MissingResponseVersion) {
   feedwire::Response response = EmptyWireResponse();
   response.set_response_version(feedwire::Response::UNKNOWN_RESPONSE_VERSION);
@@ -320,7 +274,7 @@ TEST_F(ProtocolTranslatorTest, MissingResponseVersion) {
 TEST_F(ProtocolTranslatorTest, TranslateContent) {
   feedwire::DataOperation wire_operation =
       MakeDataOperationWithContent(feedwire::DataOperation::UPDATE_OR_APPEND);
-  absl::optional<feedstore::DataOperation> translated =
+  std::optional<feedstore::DataOperation> translated =
       TranslateDataOperation(wire_operation);
   EXPECT_TRUE(translated);
   EXPECT_EQ("content", translated->content().frame());

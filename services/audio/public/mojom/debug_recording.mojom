@@ -5,16 +5,19 @@
 module audio.mojom;
 
 import "mojo/public/mojom/base/file.mojom";
+import "sandbox/policy/mojom/context.mojom";
 
 enum DebugRecordingStreamType {
   kInput = 0,
   kOutput = 1,
+  kLoopback = 2,
 };
 
 // Implemented by the browser process to create audio debug recording files on
 // behalf of the sandboxed audio service's DebugRecording interface. The created
 // files are scoped inside a directory controlled by the browser process, and
 // only the file handle is returned to the audio service.
+[RequireContext=sandbox.mojom.Context.kPrivilegedUtility]
 interface DebugRecordingFileProvider {
 
   // Creates a file at the base file path, with appended extensions ".output" or
@@ -38,6 +41,8 @@ interface DebugRecordingFileProvider {
 // browser process. To enable, bind interface and call Enable with a bound
 // DebugRecordingFileProvider interface pointer. To disable, close debug
 // recording message pipe or bind a new DebugRecording to the audio service.
+[RequireContext=sandbox.mojom.Context.kBrowser]
 interface DebugRecording {
+  [AllowedContext=sandbox.mojom.Context.kBrowser]
   Enable(pending_remote<DebugRecordingFileProvider> file_provider);
 };

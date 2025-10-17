@@ -1,4 +1,16 @@
-//go:build
+// Copyright 2022 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // break-kat corrupts a known-answer-test input in a binary and writes the
 // corrupted binary to stdout. This is used to demonstrate that the KATs in the
@@ -10,7 +22,9 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"sort"
 )
 
@@ -24,10 +38,20 @@ var (
 		"DRBG":            "c4da0740d505f1ee280b95e58c4931ac6de846a0152fbb4a3f174cf4787a4f1a40c2b50babe14aae530be5886d910a27",
 		"DRBG-reseed":     "c7161ca36c2309b716e9859bb96c6d49bdc8352103a18cd24ef42ec97ef46bf446eb1a4576c186e9351803763a7912fe",
 		"HKDF":            "68678504b9b3add17d5967a1a7bd37993fd8a33ce7303071f39c096d1635b3c9",
+		"MLDSA-keygen":    "0c6f387d2ab43387f021b0da816c71f0bc815ef0b16af1124f354c273eedb42fe54a019a",
+		"MLDSA-sign":      "f8c725848b39d9d980f02ff7a02419087065e2c80ac4d3d5974931ea7bd664b66e6bf3c7",
+		"MLDSA-verify":    "4923cea1293b2400ccc3b19f1e803ed85a0d6e0ba64f35f845f420d848e1858205883fdd",
+		"MLKEM-keygen":    "d8c9397c3130d8ecb411a68efcc89a553cb7e6817e0288bd0691609bf5",
+		"MLKEM-encap":     "7d9f1cb4ae04d75fa6575ae0e429b573a974b7",
+		"MLKEM-decap":     "a3192a8c88fc996d2df9858d2c55363993f0494d7ec0be5a567b8a4243a5745d",
 		"SHA-1":           "132fd9bad5c1826263bafbb699f707a5",
 		"SHA-256":         "ff3b857da7236a2baa0f396b51522217",
 		"SHA-512":         "212512f8d2ad8322781c6c4d69a9daa1",
-		"TLS-KDF":         "abc3657b094c7628a0b282996fe75a75f4984fd94d4ecc2fcf53a2c469a3f731",
+		"SLHDSA-keygen":   "be6bd7e8e198eaf62d572f13fc79f26f",
+		"SLHDSA-sign":     "82d409744d97ae305318469f7b857b91d4e33310b709b550a7c48a46094ec9d4",
+		"SLHDSA-verify":   "3fd69193ee9708bdea110ba29f235ff2ec9888d12761f84dc6e3f0d7eb48d05cacf6e87f",
+		"TLS10-KDF":       "abc3657b094c7628a0b282996fe75a75f4984fd94d4ecc2fcf53a2c469a3f731",
+		"TLS12-KDF":       "c5438ee26fd4acbd259fc91855dc69bf884ee29322fcbfd2966a4623d42ec781",
 		"TLS13-KDF":       "024a0d80f357f2499a1244dac26dab66fc13ed85fca71dace146211119525874",
 		"RSA-sign":        "d2b56e53306f720d7929d8708bf46f1c22300305582b115bedcac722d8aa5ab2",
 		"RSA-verify":      "abe2cbc13d6bd39d48db5334ddbf8d070a93bdcb104e2cc5d0ee486ee295f6b31bda126c41890b98b73e70e6b65d82f95c663121755a90744c8d1c21148a1960be0eca446e9ff497f1345c537ef8119b9a4398e95c5c6de2b1c955905c5299d8ce7a3b6ab76380d9babdd15f610237e1f3f2aa1c1f1e770b62fbb596381b2ebdd77ecef9c90d4c92f7b6b05fed2936285fa94826e62055322a33b6f04c74ce69e5d8d737fb838b79d2d48e3daf71387531882531a95ac964d02ea413bf85952982bbc089527daff5b845c9a0f4d14ef1956d9c3acae882d12da66da0f35794f5ee32232333517db9315232a183b991654dbea41615345c885325926744a53915",
@@ -50,8 +74,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	if flag.NArg() != 2 || kats[flag.Arg(1)] == "" {
+	if flag.NArg() == 0 || flag.NArg() > 2 || (flag.NArg() == 2 && kats[flag.Arg(1)] == "") {
 		fmt.Fprintln(os.Stderr, "Usage: break-kat <binary path> <test to break> > output")
+		fmt.Fprintln(os.Stderr, "       break-kat <binary path>  (to run all tests)")
 		fmt.Fprintln(os.Stderr, "Possible values for <test to break>:")
 		for _, kat := range sortedKATs() {
 			fmt.Fprintln(os.Stderr, " ", kat)
@@ -60,36 +85,88 @@ func main() {
 	}
 
 	inPath := flag.Arg(0)
-	test := flag.Arg(1)
-	testInputValue, err := hex.DecodeString(kats[test])
-	if err != nil {
-		panic("invalid kat data: " + err.Error())
-	}
-
 	binaryContents, err := os.ReadFile(inPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 
-	i := bytes.Index(binaryContents, testInputValue)
-	if i < 0 {
-		fmt.Fprintln(os.Stderr, "Expected test input value was not found in binary.")
+	if flag.NArg() == 2 {
+		breakBinary(binaryContents, flag.Arg(1), os.Stdout)
+		return
+	}
+
+	for _, test := range sortedKATs() {
+		fmt.Printf("\n### Running test for %q\n\n", test)
+
+		const outFile = "test_fips_broken"
+		output, err := os.OpenFile(outFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+		if err != nil {
+			panic(err)
+		}
+		breakBinary(binaryContents, test, output)
+		output.Close()
+
+		cmd := exec.Command("./" + outFile)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stdout
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("(task failed with: %s)\n", err)
+		} else {
+			fmt.Println("(task exec successful)")
+		}
+		os.Remove(outFile)
+	}
+
+	for _, test := range []string{"ECDSA_PWCT", "RSA_PWCT", "MLDSA_PWCT", "MLKEM_PWCT", "SLHDSA_PWCT", "CRNG"} {
+		fmt.Printf("\n### Running test for %q\n\n", test)
+
+		cmd := exec.Command("./" + inPath)
+		cmd.Env = append(cmd.Environ(), "BORINGSSL_FIPS_BREAK_TEST="+test)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stdout
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("(task failed with: %s)\n", err)
+		} else {
+			fmt.Println("(task exec successful)")
+		}
+	}
+}
+
+func breakBinary(binaryContents []byte, test string, output io.Writer) {
+	testInputValue, err := hex.DecodeString(kats[test])
+	if err != nil {
+		panic("invalid KAT data: " + err.Error())
+	}
+
+	brokenContents := make([]byte, len(binaryContents))
+	copy(brokenContents, binaryContents)
+
+	found := false
+	for {
+		i := bytes.Index(brokenContents, testInputValue)
+		if i < 0 {
+			break
+		}
+		found = true
+
+		// Zero out the entire value because the compiler may produce code
+		// where parts of the value are embedded in the instructions.
+		// See crbug.com/399818730
+		for j := range testInputValue {
+			brokenContents[i+j] = 0
+		}
+	}
+
+	if !found {
+		fmt.Fprintln(os.Stderr, "Expected test input value for", test, "was not found in binary.")
 		os.Exit(3)
 	}
 
-	// Zero out the entire value because the compiler may produce code
-	// where parts of the value are embedded in the instructions.
-	for j := range testInputValue {
-		binaryContents[i+j] = 0
+	if n, err := output.Write(brokenContents); err != nil || n != len(brokenContents) {
+		fmt.Fprintf(os.Stderr, "Bad write: %s (%d vs expected %d)\n", err, n, len(brokenContents))
+		os.Exit(1)
 	}
-
-	if bytes.Index(binaryContents, testInputValue) >= 0 {
-		fmt.Fprintln(os.Stderr, "Test input value was still found after erasing it. Second copy?")
-		os.Exit(4)
-	}
-
-	os.Stdout.Write(binaryContents)
 }
 
 func sortedKATs() []string {

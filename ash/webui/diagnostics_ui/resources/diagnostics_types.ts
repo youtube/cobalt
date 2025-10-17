@@ -7,9 +7,11 @@
  * Type aliases for the mojo API.
  */
 
-import {KeyboardInfo} from './input.mojom-webui.js';
-import {TouchDeviceInfo} from './input_data_provider.mojom-webui.js';
-import {RoutineType} from './system_routine_controller.mojom-webui.js';
+import type {KeyboardInfo} from './input.mojom-webui.js';
+import type {TouchDeviceInfo} from './input_data_provider.mojom-webui.js';
+import type {CellularStateProperties, EthernetStateProperties, Network, WiFiStateProperties} from './network_health_provider.mojom-webui.js';
+import {IPConfigProperties} from './network_health_provider.mojom-webui.js';
+import type {RoutineType} from './system_routine_controller.mojom-webui.js';
 
 export interface NetworkGuidInfo {
   networkGuids: string[];
@@ -59,3 +61,17 @@ export interface GetConnectedDevicesResponse {
   keyboards: KeyboardInfo[];
   touchDevices: TouchDeviceInfo[];
 }
+
+// Specifying subtypes for convenience for different possible fields in
+// |typeProperties|.
+export type WiFiNetwork = Omit<Network, 'typeProperties'>&{
+  typeProperties: {wifi?: WiFiStateProperties} | null,
+};
+
+export type CellularNetwork = Omit<Network, 'typeProperties'>&{
+  typeProperties: {cellular?: CellularStateProperties} | null,
+};
+
+export type EthernetNetwork = Omit<Network, 'typeProperties'>&{
+  typeProperties: {ethernet?: EthernetStateProperties} | null,
+};

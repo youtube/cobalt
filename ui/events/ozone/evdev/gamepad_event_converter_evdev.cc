@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "ui/events/ozone/evdev/gamepad_event_converter_evdev.h"
 
 #include <errno.h>
@@ -296,4 +301,14 @@ void GamepadEventConverterEvdev::OnSync(const base::TimeTicks& timestamp) {
     will_send_frame_ = false;
   }
 }
+
+std::ostream& GamepadEventConverterEvdev::DescribeForLog(
+    std::ostream& os) const {
+  os << "class=ui::GamepadEventConverterEvdev id=" << input_device_.id
+     << std::endl
+     << " supports_rumble=" << supports_rumble_ << std::endl
+     << "base ";
+  return EventConverterEvdev::DescribeForLog(os);
+}
+
 }  //  namespace ui

@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/json/json_reader.h"
 #include "third_party/re2/src/re2/re2.h"
@@ -35,7 +36,7 @@ std::string GetLastSegment(const std::string& path) {
 
 int CountMatches(const std::string& s, const std::string& p) {
   // return len(re.findall(p, s))
-  re2::StringPiece sp(s);
+  std::string_view sp(s);
   re2::RE2 regexp(p);
   int count = 0;
   while (re2::RE2::FindAndConsume(&sp, regexp))
@@ -151,26 +152,21 @@ std::vector<double> CalculateDerivedFeaturesFromJSON(
     return std::vector<double>();
   }
 
-  absl::optional<base::Value> json =
-      base::JSONReader::Read(stringified_json->GetString());
-  if (!json) {
+  std::optional<base::Value::Dict> dict =
+      base::JSONReader::ReadDict(stringified_json->GetString());
+  if (!dict) {
     return std::vector<double>();
   }
 
-  if (!json->is_dict()) {
-    return std::vector<double>();
-  }
+  std::optional<double> numElements = dict->FindDouble("numElements");
+  std::optional<double> numAnchors = dict->FindDouble("numAnchors");
+  std::optional<double> numForms = dict->FindDouble("numForms");
+  std::optional<bool> isOGArticle = dict->FindBool("opengraph");
 
-  auto& dict = json->GetDict();
-  absl::optional<double> numElements = dict.FindDouble("numElements");
-  absl::optional<double> numAnchors = dict.FindDouble("numAnchors");
-  absl::optional<double> numForms = dict.FindDouble("numForms");
-  absl::optional<bool> isOGArticle = dict.FindBool("opengraph");
-
-  std::string* url = dict.FindString("url");
-  std::string* innerText = dict.FindString("innerText");
-  std::string* textContent = dict.FindString("textContent");
-  std::string* innerHTML = dict.FindString("innerHTML");
+  std::string* url = dict->FindString("url");
+  std::string* innerText = dict->FindString("innerText");
+  std::string* textContent = dict->FindString("textContent");
+  std::string* innerHTML = dict->FindString("innerHTML");
   if (!(isOGArticle.has_value() && url && numElements && numAnchors &&
         numForms && innerText && textContent && innerHTML)) {
     return std::vector<double>();

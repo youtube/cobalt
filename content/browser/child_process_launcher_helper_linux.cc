@@ -5,6 +5,7 @@
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/posix/global_descriptors.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "content/browser/child_process_launcher.h"
 #include "content/browser/child_process_launcher_helper.h"
@@ -16,6 +17,7 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/common/sandboxed_process_launcher_delegate.h"
@@ -26,10 +28,10 @@
 namespace content {
 namespace internal {
 
-absl::optional<mojo::NamedPlatformChannel>
+std::optional<mojo::NamedPlatformChannel>
 ChildProcessLauncherHelper::CreateNamedPlatformChannelOnLauncherThread() {
   DCHECK(CurrentlyOnProcessLauncherTaskRunner());
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void ChildProcessLauncherHelper::BeforeLaunchOnClientThread() {
@@ -83,7 +85,7 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
   Process process;
   ZygoteCommunication* zygote_handle = GetZygoteForLaunch();
   if (zygote_handle) {
-    // TODO(crbug.com/569191): If chrome supported multiple zygotes they could
+    // TODO(crbug.com/40448989): If chrome supported multiple zygotes they could
     // be created lazily here, or in the delegate GetZygote() implementations.
     // Additionally, the delegate could provide a UseGenericZygote() method.
     base::ProcessHandle handle = zygote_handle->ForkRequest(
@@ -111,7 +113,9 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
-  if (GetProcessType() == switches::kRendererProcess) {
+  process_id_ = process.process.Pid();
+  if (GetProcessType() == switches::kRendererProcess ||
+      base::FeatureList::IsEnabled(features::kSchedQoSOnResourcedForChrome)) {
     process.process.InitializePriority();
   }
 #endif
@@ -146,7 +150,7 @@ ChildProcessTerminationInfo ChildProcessLauncherHelper::GetTerminationInfo(
 // static
 bool ChildProcessLauncherHelper::TerminateProcess(const base::Process& process,
                                                   int exit_code) {
-  // TODO(https://crbug.com/818244): Determine whether we should also call
+  // TODO(crbug.com/40565504): Determine whether we should also call
   // EnsureProcessTerminated() to make sure of process-exit, and reap it.
   return process.Terminate(exit_code, false);
 }
@@ -154,6 +158,8 @@ bool ChildProcessLauncherHelper::TerminateProcess(const base::Process& process,
 // static
 void ChildProcessLauncherHelper::ForceNormalProcessTerminationSync(
     ChildProcessLauncherHelper::Process process) {
+  TRACE_EVENT0("chromeos",
+               "ChildProcessLauncherHelper::ForceNormalProcessTerminationSync");
   DCHECK(CurrentlyOnProcessLauncherTaskRunner());
   process.process.Terminate(RESULT_CODE_NORMAL_EXIT, false);
   // On POSIX, we must additionally reap the child.
@@ -166,12 +172,13 @@ void ChildProcessLauncherHelper::ForceNormalProcessTerminationSync(
   }
 }
 
-void ChildProcessLauncherHelper::SetProcessBackgroundedOnLauncherThread(
+void ChildProcessLauncherHelper::SetProcessPriorityOnLauncherThread(
     base::Process process,
-    bool is_background) {
+    base::Process::Priority priority) {
   DCHECK(CurrentlyOnProcessLauncherTaskRunner());
-  if (process.CanBackgroundProcesses())
-    process.SetProcessBackgrounded(is_background);
+  if (process.CanSetPriority()) {
+    process.SetPriority(priority);
+  }
 }
 
 ZygoteCommunication* ChildProcessLauncherHelper::GetZygoteForLaunch() {

@@ -4,87 +4,20 @@
 
 #include "chrome/browser/vr/elements/ui_element_name.h"
 
+#include <array>
+
 #include "base/check_op.h"
 
 namespace vr {
 
 namespace {
 
-static const char* g_ui_element_name_strings[] = {
+// LINT.IfChange(UiElementName)
+static std::array<const char*, kNumUiElementNames> g_ui_element_name_strings = {
     "kNone",
     "kRoot",
-    "k2dBrowsingRepositioner",
-    "k2dBrowsingRoot",
-    "k2dBrowsingBackground",
-    "k2dBrowsingDefaultBackground",
-    "k2dBrowsingTexturedBackground",
-    "k2dBrowsingForeground",
-    "k2dBrowsingContentGroup",
-    "k2dBrowsingViewportAwareRoot",
     "kWebVrRoot",
     "kWebVrViewportAwareRoot",
-    "kContentResizer",
-    "kContentFrame",
-    "kContentFrameHitPlane",
-    "kContentQuad",
-    "kControllerRoot",
-    "kControllerGroup",
-    "kLaser",
-    "kController",
-    "kRepositionCursor",
-    "kReticle",
-    "kReticleLaserGroup",
-    "kBackplane",
-    "kCeiling",
-    "kFloor",
-    "kStars",
-    "kUrlBarPositioner",
-    "kUrlBarDmmRoot",
-    "kUrlBar",
-    "kUrlBarLayout",
-    "kUrlBarBackButton",
-    "kUrlBarLeftSeparator",
-    "kUrlBarSecurityButtonRegion",
-    "kUrlBarSecurityButton",
-    "kUrlBarOriginLayout",
-    "kUrlBarOriginRegion",
-    "kUrlBarUrlText",
-    "kUrlBarHintLayout",
-    "kUrlBarHintText",
-    "kUrlBarRightSeparator",
-    "kUrlBarOverflowButton",
-    "kOverflowMenuBackplane",
-    "kOverflowMenu",
-    "kOverflowMenuLayout",
-    "kOverflowMenuForwardButton",
-    "kOverflowMenuReloadButton",
-    "kOverflowMenuNewTabItem",
-    "kOverflowMenuNewIncognitoTabItem",
-    "kOverflowMenuBookmarksItem",
-    "kOverflowMenuRecentTabsItem",
-    "kOverflowMenuHistoryItem",
-    "kOverflowMenuDownloadsItem",
-    "kOverflowMenuShareItem",
-    "kOverflowMenuPreferencesItem",
-    "kOverflowMenuCloseAllTabsItem",
-    "kOverflowMenuCloseAllIncognitoTabsItem",
-    "kOverflowMenuSendFeedbackItem",
-    "kOmniboxDmmRoot",
-    "kOmniboxRoot",
-    "kOmniboxBackground",
-    "kOmniboxTextField",
-    "kOmniboxTextFieldLayout",
-    "kOmniboxVoiceSearchButton",
-    "kOmniboxCloseButton",
-    "kOmniboxSuggestions",
-    "kOmniboxSuggestionsOuterLayout",
-    "kOmniboxOuterLayout",
-    "k2dBrowsingHostedUi",
-    "k2dBrowsingHostedUiContent",
-    "k2dBrowsingVisibiltyHider",
-    "k2dBrowsingVisibiltyFader",
-    "kIndicatorBackplane",
-    "kIndicatorLayout",
     "kAudioCaptureIndicator",
     "kVideoCaptureIndicator",
     "kScreenCaptureIndicator",
@@ -97,20 +30,7 @@ static const char* g_ui_element_name_strings[] = {
     "kWebVrScreenCaptureIndicator",
     "kWebVrLocationAccessIndicator",
     "kWebVrBluetoothConnectedIndicator",
-    "kLoadingIndicator",
-    "kLoadingIndicatorForeground",
-    "kCloseButton",
-    "kScreenDimmer",
-    "kExitWarningText",
-    "kExitWarningBackground",
-    "kExitPrompt",
-    "kWebVrExclusiveScreenToast",
-    "kPlatformToastTransientParent",
-    "kPlatformToast",
-    "kSolidBackground",
     "kWebVrFloor",
-    "kWebVrHostedUi",
-    "kWebVrHostedUiContent",
     "kWebVrTimeoutRoot",
     "kWebVrTimeoutSpinner",
     "kWebVrBackground",
@@ -120,46 +40,18 @@ static const char* g_ui_element_name_strings[] = {
     "kWebVrTimeoutMessageText",
     "kWebVrTimeoutMessageButton",
     "kWebVrTimeoutMessageButtonText",
-    "kSpeechRecognitionRoot",
-    "kSpeechRecognitionCircle",
-    "kSpeechRecognitionMicrophoneIcon",
-    "kSpeechRecognitionResult",
-    "kSpeechRecognitionResultText",
-    "kSpeechRecognitionResultBackplane",
-    "kSpeechRecognitionListening",
-    "kSpeechRecognitionListeningGrowingCircle",
-    "kSpeechRecognitionListeningCloseButton",
-    "kControllerTrackpadLabel",
-    "kControllerTrackpadRepositionLabel",
-    "kControllerExitButtonLabel",
-    "kControllerBackButtonLabel",
-    "kControllerRepositionFinishLabel",
-    "kControllerTouchpadButton",
-    "kControllerAppButton",
-    "kControllerHomeButton",
-    "kControllerBatteryDot0",
-    "kControllerBatteryDot1",
-    "kControllerBatteryDot2",
-    "kControllerBatteryDot3",
-    "kControllerBatteryDot4",
-    "kContentRepositionHitPlane",
-    "kContentRepositionVisibilityToggle",
     "kWebXrExternalPromptNotification",
     "kUsbConnectedIndicator",
     "kWebXrUsbConnectedIndicator",
     "kMidiConnectedIndicator",
     "kWebXrMidiConnectedIndicator",
 };
-
-static_assert(
-    kNumUiElementNames == std::size(g_ui_element_name_strings),
-    "Mismatch between the kUiElementName enum and the corresponding array "
-    "of strings.");
+// LINT.ThenChange(//chrome/browser/vr/elements/ui_element_name.h:UiElementName)
 
 }  // namespace
 
 std::string UiElementNameToString(UiElementName name) {
-  DCHECK_GT(kNumUiElementNames, name);
+  CHECK_GT(kNumUiElementNames, name);
   return g_ui_element_name_strings[name];
 }
 

@@ -10,8 +10,7 @@
 #include "chrome/services/sharing/nearby/platform/input_stream_impl.h"
 #include "chrome/services/sharing/nearby/platform/output_stream_impl.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 BidirectionalStream::BidirectionalStream(
     connections::mojom::Medium medium,
@@ -56,7 +55,6 @@ Exception BidirectionalStream::Close() {
   if (!output_exception.Ok())
     return output_exception;
   NOTREACHED();
-  return {Exception::kFailed};
 }
 
 void BidirectionalStream::CreateStreams(
@@ -79,5 +77,4 @@ void BidirectionalStream::DestroyStreams(
   task_run_waitable_event->Signal();
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

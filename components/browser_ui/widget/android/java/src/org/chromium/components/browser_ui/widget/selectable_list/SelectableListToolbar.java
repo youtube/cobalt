@@ -7,11 +7,11 @@ package org.chromium.components.browser_ui.widget.selectable_list;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.text.Editable;
+import android.graphics.drawable.LayerDrawable;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -28,7 +28,10 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
 import androidx.annotation.CallSuper;
+import androidx.annotation.ColorInt;
+import androidx.annotation.IdRes;
 import androidx.annotation.IntDef;
+import androidx.annotation.MenuRes;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -36,9 +39,10 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
 
-import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.NumberRollView;
 import org.chromium.components.browser_ui.widget.R;
@@ -49,25 +53,30 @@ import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate.SelectionObserver;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.text.EmptyTextWatcher;
 import org.chromium.ui.util.ColorUtils;
+import org.chromium.ui.util.KeyboardNavigationListener;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * A toolbar that changes its view depending on whether a selection is established. The toolbar
- * also optionally shows a search view depending on whether {@link #initializeSearchView()} has
- * been called.
+ * A toolbar that changes its view depending on whether a selection is established. The toolbar also
+ * optionally shows a search view depending on whether {@link #initializeSearchView()} has been
+ * called.
  *
  * @param <E> The type of the selectable items this toolbar interacts with.
  */
-public class SelectableListToolbar<E>
-        extends Toolbar implements SelectionObserver<E>, OnClickListener, OnEditorActionListener,
-                                   DisplayStyleObserver {
-    /**
-     * A delegate that handles searching the list of selectable items associated with this toolbar.
-     */
+@NullMarked
+public class SelectableListToolbar<E> extends Toolbar
+        implements SelectionObserver<E>,
+                OnClickListener,
+                OnEditorActionListener,
+                DisplayStyleObserver {
+    /** A delegate that handles searching the list of selectable items associated with this toolbar. */
     public interface SearchDelegate {
         /**
          * Called when the text in the search EditText box has changed.
@@ -75,9 +84,7 @@ public class SelectableListToolbar<E>
          */
         void onSearchTextChanged(String query);
 
-        /**
-         * Called when a search is ended.
-         */
+        /** Called when a search is ended. */
         void onEndSearch();
     }
 
@@ -89,51 +96,74 @@ public class SelectableListToolbar<E>
         int SEARCH_VIEW = 2;
     }
 
-    @IntDef({NavigationButton.NONE, NavigationButton.BACK, NavigationButton.SELECTION_BACK})
+    @IntDef({
+        NavigationButton.NONE,
+        NavigationButton.SEARCH_BACK,
+        NavigationButton.SELECTION_BACK,
+        NavigationButton.NORMAL_VIEW_BACK
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface NavigationButton {
         int NONE = 0;
-        int BACK = 1;
+        int SEARCH_BACK = 1;
         int SELECTION_BACK = 2;
+        int NORMAL_VIEW_BACK = 3;
     }
 
+    // These are used to track whether there is actually a change in selection state, so that we can
+    // correctly make a11y announcements.
     protected boolean mIsSelectionEnabled;
+    // When we assign mSelectedItems, make sure we copy the contents so that we can properly track
+    // whether the content actually changed.
+    @Nullable private Set<E> mSelectedItems;
+
+    @SuppressWarnings("NullAway.Init")
     protected SelectionDelegate<E> mSelectionDelegate;
 
     private final ObservableSupplierImpl<Boolean> mIsSearchingSupplier =
             new ObservableSupplierImpl<>();
     private boolean mHasSearchView;
+
+    @SuppressWarnings("NullAway.Init")
     private LinearLayout mSearchView;
+
+    @SuppressWarnings("NullAway.Init")
     private EditText mSearchEditText;
+
+    @SuppressWarnings("NullAway.Init")
     private ImageButton mClearTextButton;
+
+    @SuppressWarnings("NullAway.Init")
     private SearchDelegate mSearchDelegate;
+
     private boolean mSearchEnabled;
     private boolean mUpdateStatusBarColor;
+    private boolean mShowBackInNormalView;
 
     protected NumberRollView mNumberRollView;
-    private Drawable mMenuButton;
+    private @Nullable Drawable mMenuButton;
+
+    @SuppressWarnings("NullAway.Init")
     private Drawable mNavigationIconDrawable;
 
     private @NavigationButton int mNavigationButton;
-    private int mTitleResId;
-    private int mSearchMenuItemId;
-    private int mInfoMenuItemId;
-    private int mNormalGroupResId;
-    private int mSelectedGroupResId;
+    private @StringRes int mTitleResId;
+    private @IdRes int mSearchMenuItemId;
+    private @IdRes int mInfoMenuItemId;
+    private @IdRes int mNormalGroupResId;
+    private @IdRes int mSelectedGroupResId;
 
-    private int mNormalBackgroundColor;
-    private int mSearchBackgroundColor;
-    private ColorStateList mIconColorList;
+    private @ColorInt int mNormalBackgroundColor;
+    private @ColorInt int mSearchBackgroundColor;
+    private @Nullable ColorStateList mIconColorList;
 
-    private UiConfig mUiConfig;
+    private @Nullable UiConfig mUiConfig;
     private int mWideDisplayStartOffsetPx;
     private int mModernNavButtonStartOffsetPx;
     private int mModernToolbarActionMenuEndOffsetPx;
     private int mModernToolbarSearchIconOffsetPx;
 
     private boolean mIsDestroyed;
-    private boolean mShowInfoItem;
-    private boolean mInfoShowing;
 
     private boolean mShowInfoIcon;
     private int mShowInfoStringId;
@@ -142,17 +172,13 @@ public class SelectableListToolbar<E>
     // current view type that SelectableListToolbar is showing
     private int mViewType;
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public SelectableListToolbar(Context context, AttributeSet attrs) {
         super(context, attrs);
         mIsSearchingSupplier.set(false);
     }
 
-    /**
-     * Destroys and cleans up itself.
-     */
+    /** Destroys and cleans up itself. */
     @CallSuper
     public void destroy() {
         mIsDestroyed = true;
@@ -161,22 +187,50 @@ public class SelectableListToolbar<E>
     }
 
     /**
+     * @see {@link #initialize(SelectionDelegate, int, int, int, boolean, int, boolean)}.
+     */
+    public void initialize(
+            SelectionDelegate<E> delegate,
+            int titleResId,
+            int normalGroupResId,
+            int selectedGroupResId,
+            boolean updateStatusBarColor) {
+        initialize(
+                delegate,
+                titleResId,
+                normalGroupResId,
+                selectedGroupResId,
+                updateStatusBarColor,
+                /* menuResId= */ 0,
+                /* showBackInNormalView= */ false);
+    }
+
+    /**
      * Initializes the SelectionToolbar.
      *
      * @param delegate The SelectionDelegate that will inform the toolbar of selection changes.
      * @param titleResId The resource id of the title string. May be 0 if this class shouldn't set
-     *                   set a title when the selection is cleared.
+     *     set a title when the selection is cleared.
      * @param normalGroupResId The resource id of the menu group to show when a selection isn't
-     *                         established.
+     *     established.
      * @param selectedGroupResId The resource id of the menu item to show when a selection is
-     *                           established.
+     *     established.
      * @param updateStatusBarColor Whether the status bar color should be updated to match the
-     *                             toolbar color. If true, the status bar will only be updated if
-     *                             the current device fully supports theming and is on Android M+.
+     *     toolbar color. If true, the status bar will only be updated if the current device fully
+     *     supports theming and is on Android M+.
+     * @param menuResId The resource id of the menu. {@code 0} if not required.
+     * @param showBackInNormalView Whether the back button should be shown in normal view.
      */
-    public void initialize(SelectionDelegate<E> delegate, int titleResId, int normalGroupResId,
-            int selectedGroupResId, boolean updateStatusBarColor) {
+    public void initialize(
+            SelectionDelegate<E> delegate,
+            @StringRes int titleResId,
+            @IdRes int normalGroupResId,
+            @IdRes int selectedGroupResId,
+            boolean updateStatusBarColor,
+            @MenuRes int menuResId,
+            boolean showBackInNormalView) {
         mTitleResId = titleResId;
+        if (menuResId != Resources.ID_NULL) inflateMenu(menuResId);
         mNormalGroupResId = normalGroupResId;
         mSelectedGroupResId = selectedGroupResId;
         // TODO(twellington): Setting the status bar color crashes on Nokia devices. Re-enable
@@ -186,44 +240,72 @@ public class SelectableListToolbar<E>
 
         mSelectionDelegate = delegate;
         mSelectionDelegate.addObserver(this);
+        // Initialize the selection state so that if selection is already enabled,
+        // mIsSelectionEnabled correctly tracks that instead of defaulting to false.
+        mIsSelectionEnabled = mSelectionDelegate.isSelectionEnabled();
+        mSelectedItems = new HashSet<>(mSelectionDelegate.getSelectedItems());
+        // If we're already in selection mode, show the selection mode.
+        if (mIsSelectionEnabled) {
+            showSelectionView(mSelectionDelegate.getSelectedItemsAsList(), mIsSelectionEnabled);
+        }
 
-        mModernNavButtonStartOffsetPx = getResources().getDimensionPixelSize(
-                R.dimen.selectable_list_toolbar_nav_button_start_offset);
-        mModernToolbarActionMenuEndOffsetPx = getResources().getDimensionPixelSize(
-                R.dimen.selectable_list_action_bar_end_padding);
-        mModernToolbarSearchIconOffsetPx = getResources().getDimensionPixelSize(
-                R.dimen.selectable_list_search_icon_end_padding);
+        mModernNavButtonStartOffsetPx =
+                getResources()
+                        .getDimensionPixelSize(
+                                R.dimen.selectable_list_toolbar_nav_button_start_offset);
+        mModernToolbarActionMenuEndOffsetPx =
+                getResources()
+                        .getDimensionPixelSize(R.dimen.selectable_list_action_bar_end_padding);
+        mModernToolbarSearchIconOffsetPx =
+                getResources()
+                        .getDimensionPixelSize(R.dimen.selectable_list_search_icon_end_padding);
 
         mNormalBackgroundColor = SemanticColorUtils.getDefaultBgColor(getContext());
         setBackgroundColor(mNormalBackgroundColor);
 
-        mIconColorList = AppCompatResources.getColorStateList(
-                getContext(), R.color.default_icon_color_tint_list);
+        mIconColorList =
+                AppCompatResources.getColorStateList(
+                        getContext(), R.color.default_icon_color_tint_list);
 
         setTitleTextAppearance(getContext(), R.style.TextAppearance_Headline_Primary);
         if (mTitleResId != 0) setTitle(mTitleResId);
 
-        mMenuButton = UiUtils.getTintedDrawable(getContext(), R.drawable.ic_more_vert_24dp,
-                R.color.default_icon_color_secondary_tint_list);
+        mMenuButton =
+                UiUtils.getTintedDrawable(
+                        getContext(),
+                        R.drawable.ic_more_vert_24dp,
+                        R.color.default_icon_color_secondary_tint_list);
         setOverflowIcon(mMenuButton);
-        mNavigationIconDrawable = UiUtils.getTintedDrawable(getContext(),
-                R.drawable.ic_arrow_back_white_24dp, R.color.default_icon_color_tint_list);
+        mNavigationIconDrawable =
+                UiUtils.getTintedDrawable(
+                        getContext(),
+                        R.drawable.ic_arrow_back_white_24dp,
+                        R.color.default_icon_color_tint_list);
+        mNavigationIconDrawable.setAutoMirrored(true);
 
         mShowInfoIcon = true;
         mShowInfoStringId = R.string.show_info;
         mHideInfoStringId = R.string.hide_info;
+
+        if (showBackInNormalView) {
+            mShowBackInNormalView = true;
+            setNavigationButton(NavigationButton.NORMAL_VIEW_BACK);
+        }
     }
 
     /**
      * Inflates and initializes the search view.
+     *
      * @param searchDelegate The delegate that will handle performing searches.
      * @param hintStringResId The hint text to show in the search view's EditText box.
      * @param searchMenuItemId The menu item used to activate the search view. This item will be
-     *                         hidden when selection is enabled or if the list of selectable items
-     *                         associated with this toolbar is empty.
+     *     hidden when selection is enabled or if the list of selectable items associated with this
+     *     toolbar is empty.
      */
     public void initializeSearchView(
-            SearchDelegate searchDelegate, int hintStringResId, int searchMenuItemId) {
+            SearchDelegate searchDelegate,
+            @StringRes int hintStringResId,
+            @IdRes int searchMenuItemId) {
         mHasSearchView = true;
         mSearchDelegate = searchDelegate;
         mSearchMenuItemId = searchMenuItemId;
@@ -235,20 +317,15 @@ public class SelectableListToolbar<E>
         mSearchEditText = mSearchView.findViewById(R.id.search_text);
         mSearchEditText.setHint(hintStringResId);
         mSearchEditText.setOnEditorActionListener(this);
-        mSearchEditText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                mClearTextButton.setVisibility(
-                        TextUtils.isEmpty(s) ? View.INVISIBLE : View.VISIBLE);
-                if (isSearching()) mSearchDelegate.onSearchTextChanged(s.toString());
-            }
-
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        mSearchEditText.addTextChangedListener(
+                new EmptyTextWatcher() {
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        mClearTextButton.setVisibility(
+                                TextUtils.isEmpty(s) ? View.INVISIBLE : View.VISIBLE);
+                        if (isSearching()) mSearchDelegate.onSearchTextChanged(s.toString());
+                    }
+                });
 
         mClearTextButton = findViewById(R.id.clear_text_button);
         mClearTextButton.setOnClickListener(v -> mSearchEditText.setText(""));
@@ -262,6 +339,37 @@ public class SelectableListToolbar<E>
         mNumberRollView = findViewById(R.id.selection_mode_number);
         mNumberRollView.setString(R.plurals.selected_items);
         mNumberRollView.setStringForZero(R.string.select_items);
+
+        // Set listener to be able to move focus out of toolbar view to adjacent views.
+        setOnKeyListener(
+                new KeyboardNavigationListener() {
+                    @Override
+                    protected boolean handleEnterKeyPress() {
+                        return SelectableListToolbar.this.handleEnterKeyPress();
+                    }
+
+                    @Override
+                    public @Nullable View getNextFocusBackward() {
+                        return SelectableListToolbar.this.getNextFocusBackward();
+                    }
+
+                    @Override
+                    public @Nullable View getNextFocusForward() {
+                        return SelectableListToolbar.this.getNextFocusForward();
+                    }
+                });
+    }
+
+    protected @Nullable View getNextFocusBackward() {
+        return null;
+    }
+
+    protected @Nullable View getNextFocusForward() {
+        return null;
+    }
+
+    protected boolean handleEnterKeyPress() {
+        return false;
     }
 
     @Override
@@ -269,6 +377,8 @@ public class SelectableListToolbar<E>
     public void onSelectionStateChange(List<E> selectedItems) {
         boolean wasSelectionEnabled = mIsSelectionEnabled;
         mIsSelectionEnabled = mSelectionDelegate.isSelectionEnabled();
+        Set<E> previouslySelectedItems = mSelectedItems;
+        mSelectedItems = new HashSet<>(selectedItems);
 
         // If onSelectionStateChange() gets called before onFinishInflate(), mNumberRollView
         // will be uninitialized. See crbug.com/637948.
@@ -284,12 +394,24 @@ public class SelectableListToolbar<E>
             showNormalView();
         }
 
+        // Handle a11y announcements
+        if (wasSelectionEnabled == mIsSelectionEnabled
+                && mSelectedItems.equals(previouslySelectedItems)) {
+            // If there's no actual change in selection state, don't announce anything.
+            return;
+        }
+        // Otherwise, make an appropriate announcement.
         if (mIsSelectionEnabled) {
             @StringRes
-            int resId = wasSelectionEnabled ? R.string.accessibility_toolbar_multi_select
-                                            : R.string.accessibility_toolbar_screen_position;
-            announceForAccessibility(
-                    getContext().getString(resId, Integer.toString(selectedItems.size())));
+            int resId =
+                    wasSelectionEnabled
+                            ? R.string.accessibility_toolbar_multi_select
+                            : R.string.accessibility_toolbar_screen_position;
+            ViewCompat.setAccessibilityPaneTitle(
+                    this, getContext().getString(resId, Integer.toString(selectedItems.size())));
+        } else {
+            ViewCompat.setAccessibilityPaneTitle(
+                    this, getContext().getString(R.string.accessibility_toolbar_exit_select));
         }
     }
 
@@ -300,11 +422,14 @@ public class SelectableListToolbar<E>
         switch (mNavigationButton) {
             case NavigationButton.NONE:
                 break;
-            case NavigationButton.BACK:
-                onNavigationBack();
+            case NavigationButton.SEARCH_BACK:
+                onSearchNavigationBack();
                 break;
             case NavigationButton.SELECTION_BACK:
                 mSelectionDelegate.clearSelection();
+                break;
+            case NavigationButton.NORMAL_VIEW_BACK:
+                onNavigationBack();
                 break;
             default:
                 assert false : "Incorrect navigation button state";
@@ -312,22 +437,29 @@ public class SelectableListToolbar<E>
     }
 
     /**
-     * Handle a click on the navigation back button. If this toolbar has a search view, the search
-     * view will be hidden. Subclasses should override this method if navigation back is also a
-     * valid toolbar action when not searching.
+     * Handle a click on the search navigation back button. If this toolbar has a search view, the
+     * search view will be hidden.
      */
-    public void onNavigationBack() {
+    public void onSearchNavigationBack() {
         if (!mHasSearchView || !isSearching()) return;
 
         hideSearchView();
     }
 
     /**
+     * Handle a click on the normal view back button. Can be overridden to give behavior to the back
+     * button on the normal view.
+     */
+    protected void onNavigationBack() {}
+
+    /**
      * Update the current navigation button (the top-left icon on LTR)
+     *
      * @param navigationButton one of NAVIGATION_BUTTON_* constants.
      */
     protected void setNavigationButton(@NavigationButton int navigationButton) {
-        int contentDescriptionId = 0;
+        @StringRes int contentDescriptionId = Resources.ID_NULL;
+        Drawable navigationButtonDrawable = mNavigationIconDrawable;
 
         mNavigationButton = navigationButton;
         setNavigationOnClickListener(this);
@@ -335,7 +467,24 @@ public class SelectableListToolbar<E>
         switch (mNavigationButton) {
             case NavigationButton.NONE:
                 break;
-            case NavigationButton.BACK:
+            case NavigationButton.SEARCH_BACK:
+                // Create a LayerDrawable to hold the search box icon highlight background as well
+                // as the navigation icon drawable.
+                var navigationBackgroundDrawable =
+                        AppCompatResources.getDrawable(
+                                getContext(), R.drawable.search_box_icon_background);
+                var navigationLayerDrawable =
+                        new LayerDrawable(
+                                new Drawable[] {
+                                    navigationBackgroundDrawable, mNavigationIconDrawable
+                                });
+                int inset =
+                        getResources()
+                                .getDimensionPixelSize(
+                                        R.dimen.search_box_nav_button_background_inset);
+                navigationLayerDrawable.setLayerInset(1, inset, inset, inset, inset);
+                navigationButtonDrawable = navigationLayerDrawable;
+
                 DrawableCompat.setTintList(mNavigationIconDrawable, mIconColorList);
                 contentDescriptionId = R.string.accessibility_toolbar_btn_back;
                 break;
@@ -343,19 +492,25 @@ public class SelectableListToolbar<E>
                 DrawableCompat.setTintList(mNavigationIconDrawable, mIconColorList);
                 contentDescriptionId = R.string.accessibility_cancel_selection;
                 break;
+            case NavigationButton.NORMAL_VIEW_BACK:
+                DrawableCompat.setTintList(
+                        mNavigationIconDrawable,
+                        AppCompatResources.getColorStateList(
+                                getContext(), R.color.default_icon_color_secondary_tint_list));
+                contentDescriptionId = R.string.accessibility_toolbar_btn_back;
+                break;
             default:
                 assert false : "Incorrect navigationButton argument";
         }
 
-        setNavigationIcon(contentDescriptionId == 0 ? null : mNavigationIconDrawable);
+        setNavigationIcon(
+                contentDescriptionId == Resources.ID_NULL ? null : navigationButtonDrawable);
         setNavigationContentDescription(contentDescriptionId);
 
         updateDisplayStyleIfNecessary();
     }
 
-    /**
-     * Shows the search edit text box and related views.
-     */
+    /** Shows the search edit text box and related views. */
     public void showSearchView(boolean showKeyboard) {
         assert mHasSearchView;
 
@@ -372,11 +527,9 @@ public class SelectableListToolbar<E>
         setTitle(null);
     }
 
-    /**
-     * Hides the search edit text box and related views. Notifies delegate of the change.
-     */
+    /** Hides the search edit text box and related views. Notifies delegate of the change. */
     public void hideSearchView() {
-        hideSearchView(/*notifyDelegate=*/true);
+        hideSearchView(/* notifyDelegate= */ true);
     }
 
     /**
@@ -444,13 +597,15 @@ public class SelectableListToolbar<E>
     @Override
     public void onDisplayStyleChanged(UiConfig.DisplayStyle newDisplayStyle) {
         int padding =
-                SelectableListLayout.getPaddingForDisplayStyle(newDisplayStyle, getResources());
+                SelectableListLayout.getPaddingForDisplayStyle(
+                        newDisplayStyle, this, getResources());
         int paddingStartOffset = 0;
         boolean isSearchViewShowing = isSearching() && !mIsSelectionEnabled;
         MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
 
         if (newDisplayStyle.horizontal == HorizontalDisplayStyle.WIDE
-                && !(isSearching() || mIsSelectionEnabled
+                && !(isSearching()
+                        || mIsSelectionEnabled
                         || mNavigationButton != NavigationButton.NONE)) {
             // The title in the wide display should be aligned with the texts of the list elements.
             paddingStartOffset = mWideDisplayStartOffsetPx;
@@ -471,12 +626,16 @@ public class SelectableListToolbar<E>
         int navigationButtonStartOffsetPx =
                 mNavigationButton != NavigationButton.NONE ? mModernNavButtonStartOffsetPx : 0;
 
-        int actionMenuBarEndOffsetPx = mIsSelectionEnabled ? mModernToolbarActionMenuEndOffsetPx
-                                                           : mModernToolbarSearchIconOffsetPx;
+        int actionMenuBarEndOffsetPx =
+                mIsSelectionEnabled
+                        ? mModernToolbarActionMenuEndOffsetPx
+                        : mModernToolbarSearchIconOffsetPx;
 
-        ViewCompat.setPaddingRelative(this,
-                padding + paddingStartOffset + navigationButtonStartOffsetPx, this.getPaddingTop(),
-                padding + actionMenuBarEndOffsetPx, this.getPaddingBottom());
+        this.setPaddingRelative(
+                padding + paddingStartOffset + navigationButtonStartOffsetPx,
+                this.getPaddingTop(),
+                padding + actionMenuBarEndOffsetPx,
+                this.getPaddingBottom());
     }
 
     /**
@@ -508,8 +667,11 @@ public class SelectableListToolbar<E>
             mSearchView.setVisibility(View.GONE);
             updateSearchMenuItem();
         }
-
-        setNavigationButton(NavigationButton.NONE);
+        if (mShowBackInNormalView) {
+            setNavigationButton(NavigationButton.NORMAL_VIEW_BACK);
+        } else {
+            setNavigationButton(NavigationButton.NONE);
+        }
         setBackgroundColor(mNormalBackgroundColor);
         if (mTitleResId != 0) setTitle(mTitleResId);
 
@@ -545,7 +707,7 @@ public class SelectableListToolbar<E>
         mNumberRollView.setVisibility(View.GONE);
         mSearchView.setVisibility(View.VISIBLE);
 
-        setNavigationButton(NavigationButton.BACK);
+        setNavigationButton(NavigationButton.SEARCH_BACK);
         setBackgroundResource(R.drawable.search_toolbar_modern_bg);
         updateStatusBarColor(mSearchBackgroundColor);
 
@@ -573,28 +735,30 @@ public class SelectableListToolbar<E>
 
     /**
      * Set info menu item used to toggle info header.
+     *
      * @param infoMenuItemId The menu item to show or hide information.
      */
-    public void setInfoMenuItem(int infoMenuItemId) {
+    public void setInfoMenuItem(@IdRes int infoMenuItemId) {
         mInfoMenuItemId = infoMenuItemId;
     }
 
     /**
      * Update icon, title, and visibility of info menu item.
-     * @param showItem          Whether or not info menu item should show.
-     * @param infoShowing       Whether or not info header is currently showing.
+     *
+     * @param showItem Whether or not info menu item should show.
+     * @param infoShowing Whether or not info header is currently showing.
      */
     public void updateInfoMenuItem(boolean showItem, boolean infoShowing) {
-        mShowInfoItem = showItem;
-        mInfoShowing = infoShowing;
-
         MenuItem infoMenuItem = getMenu().findItem(mInfoMenuItemId);
         if (infoMenuItem != null) {
             if (mShowInfoIcon) {
                 Drawable iconDrawable =
-                        TintedDrawable.constructTintedDrawable(getContext(), R.drawable.btn_info,
-                                infoShowing ? R.color.default_icon_color_accent1_tint_list
-                                            : R.color.default_icon_color_secondary_tint_list);
+                        TintedDrawable.constructTintedDrawable(
+                                getContext(),
+                                R.drawable.btn_info,
+                                infoShowing
+                                        ? R.color.default_icon_color_accent1_tint_list
+                                        : R.color.default_icon_color_secondary_tint_list);
 
                 infoMenuItem.setIcon(iconDrawable);
             }
@@ -604,15 +768,13 @@ public class SelectableListToolbar<E>
         }
     }
 
-    /**
-     * Hides the keyboard.
-     */
+    /** Hides the keyboard. */
     public void hideKeyboard() {
         KeyboardVisibilityDelegate.getInstance().hideKeyboard(mSearchEditText);
     }
 
     @Override
-    public void setTitle(CharSequence title) {
+    public void setTitle(@Nullable CharSequence title) {
         super.setTitle(title);
 
         // The super class adds an AppCompatTextView for the title which not focusable by default.
@@ -621,36 +783,34 @@ public class SelectableListToolbar<E>
     }
 
     @Override
-    public void setBackgroundColor(int color) {
+    public void setBackgroundColor(@ColorInt int color) {
         super.setBackgroundColor(color);
 
         updateStatusBarColor(color);
     }
 
-    private void updateStatusBarColor(int color) {
+    private void updateStatusBarColor(@ColorInt int color) {
         if (!mUpdateStatusBarColor) return;
 
         Context context = getContext();
         if (!(context instanceof Activity)) return;
 
         Window window = ((Activity) context).getWindow();
-        ApiCompatibilityUtils.setStatusBarColor(window, color);
-        ApiCompatibilityUtils.setStatusBarIconColor(window.getDecorView().getRootView(),
+        UiUtils.setStatusBarColor(window, color);
+        UiUtils.setStatusBarIconColor(
+                window.getDecorView().getRootView(),
                 !ColorUtils.shouldUseLightForegroundOnBackground(color));
     }
 
-    @VisibleForTesting
     public View getSearchViewForTests() {
         return mSearchView;
     }
 
-    @VisibleForTesting
-    public int getNavigationButtonForTests() {
+    public @NavigationButton int getNavigationButtonForTests() {
         return mNavigationButton;
     }
 
     /** Ends any in-progress animations. */
-    @VisibleForTesting
     public void endAnimationsForTesting() {
         mNumberRollView.endAnimationsForTesting();
     }

@@ -1,5 +1,3 @@
-sky@chromium.org
-
 # For download tests support review.
 per-file *download*=file://components/download/OWNERS
 per-file *test_file_error_injector*=file://components/download/OWNERS
@@ -19,11 +17,15 @@ per-file attribution_*=file://content/browser/attribution_reporting/OWNERS
 # For Aggregation Service testing tool.
 per-file test_aggregation_service*=file://content/browser/aggregation_service/OWNERS
 
+# For Topics API.
+per-file browsing_topics_*=file://components/browsing_topics/OWNERS
+
+# For Shared Storage API.
+per-file shared_storage_*=file://third_party/blink/renderer/modules/shared_storage/OWNERS
+per-file test_shared_storage_*=file://third_party/blink/renderer/modules/shared_storage/OWNERS
+
 # Network Service
 per-file network_service_test_helper.*=file://services/network/OWNERS
-
-# Cert Verifier Service
-per-file test_cert_verifier_service_factory.*=file://services/cert_verifier/OWNERS
 
 # DevTools-specific changes
 per-file *devtools*=file://content/browser/devtools/OWNERS
@@ -40,3 +42,18 @@ per-file *.mojom=file://ipc/SECURITY_OWNERS
 
 ## For fenced frames changes.
 per-file fenced_frame*=file://third_party/blink/renderer/core/html/fenced_frame/OWNERS
+
+# For Service Worker tests support review.
+per-file embedded_worker_instance_test_harness.*=file://content/browser/service_worker/OWNERS
+
+# For preloading changes.
+per-file prefetch*=file://content/browser/preloading/OWNERS
+per-file preloading*=file://content/browser/preloading/OWNERS
+per-file prerender*=file://content/browser/preloading/OWNERS
+
+# For browsing data changes.
+per-file browsing_data_remover_test_util.*=file://content/browser/browsing_data/OWNERS
+
+# For Captured Surface Control.
+per-file *captured_surface_controller*=eladalon@chromium.org
+per-file *captured_surface_controller*=guidou@chromium.org

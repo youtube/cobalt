@@ -27,10 +27,8 @@ void MediaAccessHandler::CheckDevicesAndRunCallback(
   // TODO(vrk): This code is largely duplicated in
   // MediaStreamDevicesController::GetDevices(). Move this code into a shared
   // method between the two classes.
-  bool get_default_audio_device = audio_allowed;
-  bool get_default_video_device = video_allowed;
 
-  // TOOD(crbug.com/1300883): Generalize to multiple streams.
+  // TODO(crbug.com/40216442): Generalize to multiple streams.
   blink::mojom::StreamDevicesSet stream_devices_set;
   stream_devices_set.stream_devices.emplace_back(
       blink::mojom::StreamDevices::New());
@@ -39,46 +37,30 @@ void MediaAccessHandler::CheckDevicesAndRunCallback(
 
   // Set an initial error result. If neither audio or video is allowed, we'll
   // never try to get any device below but will just create |ui| and return an
-  // empty list with "invalid state" result. If at least one is allowed, we'll
-  // try to get device(s), and if failure, we want to return "no hardware"
-  // result.
-  // TODO(grunell): The invalid state result should be changed to a new denied
-  // result + a dcheck to ensure at least one of audio or video types is
-  // capture.
+  // empty list with a "permission denied" result. If at least one is allowed,
+  // we'll try to get the device(s), and if failure, we want to return a "no
+  // hardware" result.
   blink::mojom::MediaStreamRequestResult result =
       (audio_allowed || video_allowed)
           ? blink::mojom::MediaStreamRequestResult::NO_HARDWARE
-          : blink::mojom::MediaStreamRequestResult::INVALID_STATE;
+          : blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED;
 
   // Get the exact audio or video device if an id is specified.
   // We only set any error result here and before running the callback change
   // it to OK if we have any device.
-  if (audio_allowed && !request.requested_audio_device_id.empty()) {
-    const blink::MediaStreamDevice* audio_device =
-        MediaCaptureDevicesDispatcher::GetInstance()->GetRequestedAudioDevice(
-            request.requested_audio_device_id);
-    if (audio_device) {
-      stream_devices.audio_device = *audio_device;
-      get_default_audio_device = false;
-    }
+  if (audio_allowed) {
+    stream_devices.audio_device =
+        MediaCaptureDevicesDispatcher::GetInstance()
+            ->GetPreferredAudioDeviceForBrowserContext(
+                web_contents->GetBrowserContext(),
+                request.requested_audio_device_ids);
   }
-  if (video_allowed && !request.requested_video_device_id.empty()) {
-    const blink::MediaStreamDevice* video_device =
-        MediaCaptureDevicesDispatcher::GetInstance()->GetRequestedVideoDevice(
-            request.requested_video_device_id);
-    if (video_device) {
-      stream_devices.video_device = *video_device;
-      get_default_video_device = false;
-    }
-  }
-
-  // If either or both audio and video devices were requested but not
-  // specified by id, get the default devices.
-  if (get_default_audio_device || get_default_video_device) {
-    MediaCaptureDevicesDispatcher::GetInstance()
-        ->GetDefaultDevicesForBrowserContext(
-            web_contents->GetBrowserContext(), get_default_audio_device,
-            get_default_video_device, stream_devices);
+  if (video_allowed) {
+    stream_devices.video_device =
+        MediaCaptureDevicesDispatcher::GetInstance()
+            ->GetPreferredVideoDeviceForBrowserContext(
+                web_contents->GetBrowserContext(),
+                request.requested_video_device_ids);
   }
 
   std::unique_ptr<content::MediaStreamUI> ui;

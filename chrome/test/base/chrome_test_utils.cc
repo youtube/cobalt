@@ -16,30 +16,33 @@
 
 namespace chrome_test_utils {
 
-content::WebContents* GetActiveWebContents(PlatformBrowserTest* browser_test) {
+content::WebContents* GetActiveWebContents(
+    const PlatformBrowserTest* browser_test) {
 #if BUILDFLAG(IS_ANDROID)
   for (const TabModel* model : TabModelList::models()) {
     if (model->IsActiveModel())
       return model->GetActiveWebContents();
   }
   NOTREACHED() << "No active TabModel??";
-  return nullptr;
 #else
   return browser_test->browser()->tab_strip_model()->GetActiveWebContents();
 #endif
 }
 
-Profile* GetProfile(PlatformBrowserTest* browser_test) {
+Profile* GetProfile(const PlatformBrowserTest* browser_test) {
 #if BUILDFLAG(IS_ANDROID)
   for (const TabModel* model : TabModelList::models()) {
     if (model->IsActiveModel())
       return model->GetProfile();
   }
   NOTREACHED() << "No active TabModel??";
-  return nullptr;
 #else
   return browser_test->browser()->profile();
 #endif
+}
+
+base::FilePath GetChromeTestDataDir() {
+  return base::FilePath(FILE_PATH_LITERAL("chrome/test/data"));
 }
 
 }  // namespace chrome_test_utils

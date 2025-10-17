@@ -7,6 +7,11 @@
 
 #include <vector>
 #include "base/component_export.h"
+#include "build/build_config.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "services/accessibility/public/mojom/automation.mojom.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/accessibility/ax_event.h"
 #include "ui/accessibility/ax_event_generator.h"
@@ -24,10 +29,11 @@ class AutomationV8Bindings;
 // Virtual class that owns one or more AutomationAXTreeWrappers.
 // TODO(crbug.com/1357889): Merge some of this interface with
 // AXTreeManager if possible.
-class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
+class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner
+    : public ax::mojom::Automation {
  public:
   AutomationTreeManagerOwner();
-  virtual ~AutomationTreeManagerOwner();
+  ~AutomationTreeManagerOwner() override;
 
   virtual AutomationV8Bindings* GetAutomationV8Bindings() const = 0;
   virtual void NotifyTreeEventListenersChanged() = 0;
@@ -47,8 +53,8 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
       AXTreeID tree_id,
       const gfx::Point& mouse_location,
       const AXEvent& event,
-      absl::optional<AXEventGenerator::Event> generated_event_type =
-          absl::optional<AXEventGenerator::Event>());
+      std::optional<AXEventGenerator::Event> generated_event_type =
+          std::optional<AXEventGenerator::Event>());
 
   // Gets the hosting node in a parent tree.
   AXNode* GetHostInParentTree(
@@ -77,7 +83,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
                              const std::vector<AXEvent>& events,
                              gfx::Point mouse_location);
 
-  absl::optional<gfx::Rect> GetAccessibilityFocusedLocation() const;
+  std::optional<gfx::Rect> GetAccessibilityFocusedLocation() const;
 
   void SendAccessibilityFocusedLocationChange(const gfx::Point& mouse_location);
 
@@ -139,22 +145,18 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
   // accessibility focus, or returns false if it cannot find the focus.
   bool GetAccessibilityFocus(AXTreeID* tree_id, int* node_id) const;
 
-  // Find the node with the given ID in the tree with the given ID, or
-  // returns nullptr if not found.
-  AXNode* GetNodeFromTree(const AXTreeID& tree_id, int node_id) const;
-
   void AddTreeChangeObserver(int observer_id, TreeChangeObserverFilter filter);
   void RemoveTreeChangeObserver(int observer_id);
   void TreeEventListenersChanged(AutomationAXTreeWrapper* tree_wrapper);
   bool ShouldSendTreeChangeEvent(ax::mojom::Mutation change_type,
-                                 ui::AXTree* tree,
-                                 ui::AXNode* node) const;
-  void DestroyAccessibilityTree(const ui::AXTreeID& tree_id);
+                                 AXTree* tree,
+                                 AXNode* node) const;
+  void DestroyAccessibilityTree(const AXTreeID& tree_id);
   void ClearCachedAccessibilityTrees();
 
   // Calculate the state of the node with ID |node_id|, or returns false if the
   // node cannot be found in the tree with ID |tree_id|.
-  bool CalculateNodeState(const ui::AXTreeID& tree_id,
+  bool CalculateNodeState(const AXTreeID& tree_id,
                           int node_id,
                           uint32_t* node_state,
                           bool* offscreen,
@@ -167,22 +169,39 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
  protected:
   friend class AutomationTreeManagerOwnerTest;
 
-  void OnAccessibilityEvents(const ui::AXTreeID& tree_id,
-                             const std::vector<AXEvent>& events,
-                             const std::vector<AXTreeUpdate>& updates,
-                             const gfx::Point& mouse_location,
-                             bool is_active_profile);
-
-  void OnAccessibilityLocationChange(const ui::AXTreeID& tree_id,
-                                     int node_id,
-                                     AXRelativeBounds new_location);
-
   // Invalidates this AutomationTreeManagerOnwer.
   void Invalidate();
 
   bool HasTreesWithEventListeners() const;
 
   void MaybeSendOnAllAutomationEventListenersRemoved();
+
+  // ax::mojom::Automation:
+  void DispatchTreeDestroyedEvent(const AXTreeID& tree_id) override;
+  void DispatchAccessibilityEvents(const AXTreeID& tree_id,
+                                   const std::vector<AXTreeUpdate>& updates,
+                                   const gfx::Point& mouse_location,
+                                   const std::vector<AXEvent>& events) override;
+  void DispatchAccessibilityLocationChange(
+      const AXTreeID& tree_id,
+      int32_t node_id,
+      const AXRelativeBounds& bounds) override;
+  void DispatchAccessibilityScrollChange(const AXTreeID& tree_id,
+                                         int32_t node_id,
+                                         int32_t scroll_x,
+                                         int32_t scroll_y) override;
+  void DispatchActionResult(const AXActionData& data, bool result) override;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  void DispatchGetTextLocationResult(
+      const AXActionData& data,
+      const std::optional<gfx::Rect>& rect) override;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Mojo receiver to the Automation interface, implemented by this class.
+  // Listed as a protected member so that derived classes can reset its status
+  // depending on their use cases.
+  mojo::AssociatedReceiver<ax::mojom::Automation> receiver_;
 
  private:
   // Gets the root(s) of a node's child tree. Multiple roots can occur when the
@@ -218,7 +237,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
       tree_id_to_tree_wrapper_map_;
 
   // Keeps track of all trees with event listeners.
-  std::set<ui::AXTreeID> trees_with_event_listeners_;
+  std::set<AXTreeID> trees_with_event_listeners_;
 
   std::vector<TreeChangeObserver> tree_change_observers_;
 
@@ -237,8 +256,6 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationTreeManagerOwner {
 
   // The global focused node id.
   int32_t focus_id_ = -1;
-
-  bool is_active_profile_ = true;
 };
 
 }  // namespace ui

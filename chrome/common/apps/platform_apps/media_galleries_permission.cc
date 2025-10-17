@@ -56,7 +56,7 @@ MediaGalleriesPermission::MediaGalleriesPermission(
     : SetDisjunctionPermission<MediaGalleriesPermissionData,
                                MediaGalleriesPermission>(info) {}
 
-MediaGalleriesPermission::~MediaGalleriesPermission() {}
+MediaGalleriesPermission::~MediaGalleriesPermission() = default;
 
 bool MediaGalleriesPermission::FromValue(
     const base::Value* value,
@@ -102,7 +102,6 @@ bool MediaGalleriesPermission::FromValue(
     // MediaGalleriesPermissionData is probably out of sync in some way.
     // Fail so developers notice this.
     NOTREACHED();
-    return false;
   }
 
   return IsValidPermissionSet(has_read, has_copy_to, has_delete, error);
@@ -129,7 +128,6 @@ extensions::PermissionIDSet MediaGalleriesPermission::GetPermissions() const {
 
   if (!IsValidPermissionSet(has_read, has_copy_to, has_delete, nullptr)) {
     NOTREACHED();
-    return result;
   }
 
   // If |has_all_auto_detected| is false, then Chrome will prompt the user at

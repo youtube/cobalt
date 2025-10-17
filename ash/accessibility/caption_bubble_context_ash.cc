@@ -6,7 +6,9 @@
 
 #include "ash/shell.h"
 #include "ash/wm/work_area_insets.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
+#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 
 namespace {
@@ -15,12 +17,14 @@ constexpr char kAshSessionId[] = "ash";
 
 namespace ash::captions {
 
-CaptionBubbleContextAsh::CaptionBubbleContextAsh() = default;
+CaptionBubbleContextAsh::CaptionBubbleContextAsh(
+    ::captions::OpenCaptionSettingsCallback callback)
+    : open_caption_settings_callback_(std::move(callback)) {}
 
 CaptionBubbleContextAsh::~CaptionBubbleContextAsh() = default;
 
 void CaptionBubbleContextAsh::GetBounds(GetBoundsCallback callback) const {
-  const absl::optional<gfx::Rect> bounds =
+  const std::optional<gfx::Rect> bounds =
       WorkAreaInsets::ForWindow(Shell::GetRootWindowForNewWindows())
           ->user_work_area_bounds();
   if (!bounds.has_value()) {
@@ -39,9 +43,18 @@ bool CaptionBubbleContextAsh::IsActivatable() const {
   return false;
 }
 
+bool CaptionBubbleContextAsh::ShouldAvoidOverlap() const {
+  return false;
+}
+
 std::unique_ptr<::captions::CaptionBubbleSessionObserver>
 CaptionBubbleContextAsh::GetCaptionBubbleSessionObserver() {
   return nullptr;
+}
+
+::captions::OpenCaptionSettingsCallback
+CaptionBubbleContextAsh::GetOpenCaptionSettingsCallback() {
+  return open_caption_settings_callback_;
 }
 
 }  // namespace ash::captions

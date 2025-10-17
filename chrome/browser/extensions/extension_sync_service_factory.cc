@@ -4,8 +4,9 @@
 
 #include "chrome/browser/extensions/extension_sync_service_factory.h"
 
+#include "chrome/browser/extensions/account_extension_tracker.h"
+#include "chrome/browser/extensions/chrome_extension_system_factory.h"
 #include "chrome/browser/extensions/extension_sync_service.h"
-#include "chrome/browser/extensions/extension_system_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/extension_prefs_factory.h"
@@ -22,21 +23,37 @@ ExtensionSyncService* ExtensionSyncServiceFactory::GetForBrowserContext(
 
 // static
 ExtensionSyncServiceFactory* ExtensionSyncServiceFactory::GetInstance() {
-  return base::Singleton<ExtensionSyncServiceFactory>::get();
+  static base::NoDestructor<ExtensionSyncServiceFactory> instance;
+  return instance.get();
 }
 
 ExtensionSyncServiceFactory::ExtensionSyncServiceFactory()
     : ProfileKeyedServiceFactory(
           "ExtensionSyncService",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Audit whether these should be
+              // redirected or should have their own instance.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
+  DependsOn(extensions::AccountExtensionTracker::GetFactory());
   DependsOn(extensions::ExtensionPrefsFactory::GetInstance());
   DependsOn(extensions::ExtensionRegistryFactory::GetInstance());
-  DependsOn(extensions::ExtensionSystemFactory::GetInstance());
+  DependsOn(extensions::ChromeExtensionSystemFactory::GetInstance());
 }
 
-ExtensionSyncServiceFactory::~ExtensionSyncServiceFactory() {}
+ExtensionSyncServiceFactory::~ExtensionSyncServiceFactory() = default;
 
-KeyedService* ExtensionSyncServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ExtensionSyncServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new ExtensionSyncService(Profile::FromBrowserContext(context));
+  return std::make_unique<ExtensionSyncService>(
+      Profile::FromBrowserContext(context));
+}
+
+bool ExtensionSyncServiceFactory::ServiceIsCreatedWithBrowserContext() const {
+  return true;
 }

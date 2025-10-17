@@ -5,13 +5,16 @@
 #ifndef CHROME_BROWSER_SYNC_SYNC_UI_UTIL_H_
 #define CHROME_BROWSER_SYNC_SYNC_UI_UTIL_H_
 
-#include "build/build_config.h"
-#include "components/sync/driver/sync_service_utils.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
 
-class Browser;
+#include "build/build_config.h"
+#include "components/sync/service/sync_service_utils.h"
+
 class Profile;
-class PrefService;
+
+#if !BUILDFLAG(IS_ANDROID)
+class Browser;
+#endif
 
 namespace signin {
 class IdentityManager;
@@ -78,10 +81,11 @@ enum AvatarSyncErrorType {
 };
 
 struct SyncStatusLabels {
-  SyncStatusMessageType message_type;
-  int status_label_string_id;
-  int button_string_id;
-  SyncStatusActionType action_type;
+  SyncStatusMessageType message_type = SyncStatusMessageType::kPreSynced;
+  int status_label_string_id = 0;
+  int button_string_id = 0;
+  int secondary_button_string_id = 0;
+  SyncStatusActionType action_type = SyncStatusActionType::kNoAction;
 };
 
 // Returns the high-level sync status by querying |sync_service| and
@@ -100,19 +104,27 @@ SyncStatusLabels GetSyncStatusLabels(Profile* profile);
 // the message type.
 SyncStatusMessageType GetSyncStatusMessageType(Profile* profile);
 
+#if !BUILDFLAG(IS_ANDROID)
+SyncStatusLabels GetSyncStatusLabelsForSettings(
+    const syncer::SyncService* service);
+
+SyncStatusLabels GetAvatarSyncErrorLabelsForSettings(AvatarSyncErrorType error);
+
 // Gets the error in the sync machinery (if any) that should be exposed to the
-// user through the titlebar avatar button. If absl::nullopt is returned, this
+// user through the titlebar avatar button. If std::nullopt is returned, this
 // does NOT mean sync-the-feature/sync-the-transport is enabled, simply that
 // there's no error. Furthermore, an error may be returned even if only
 // sync-the-transport is running. One such case is when the user wishes to run
 // an encrypted data type on transport mode and must first go through a reauth.
-absl::optional<AvatarSyncErrorType> GetAvatarSyncErrorType(Profile* profile);
+std::optional<AvatarSyncErrorType> GetAvatarSyncErrorType(Profile* profile);
 
 // When |error| is present, this returns the string to be shown both as the
 // tooltip of the avatar button, and in the profile menu body (the menu opened
 // by clicking the avatar button).
 std::u16string GetAvatarSyncErrorDescription(AvatarSyncErrorType error,
-                                             bool is_sync_feature_enabled);
+                                             bool is_sync_feature_enabled,
+                                             const std::string& user_email);
+#endif
 
 // Whether sync is currently blocked from starting because the sync
 // confirmation dialog hasn't been shown. Note that once the dialog is
@@ -123,17 +135,7 @@ bool ShouldRequestSyncConfirmation(const syncer::SyncService* service);
 // whether a missing passphrase is preventing Sync from fully starting up.
 bool ShouldShowSyncPassphraseError(const syncer::SyncService* service);
 
-// Returns whether missing trusted vault keys is preventing sync from starting
-// up encrypted datatypes.
-bool ShouldShowSyncKeysMissingError(const syncer::SyncService* sync_service,
-                                    const PrefService* pref_service);
-
-// Returns whether user action is required to improve the recoverability of the
-// trusted vault.
-bool ShouldShowTrustedVaultDegradedRecoverabilityError(
-    const syncer::SyncService* sync_service,
-    const PrefService* pref_service);
-
+#if !BUILDFLAG(IS_ANDROID)
 // Opens a tab for the purpose of retrieving the trusted vault keys, which
 // usually requires a reauth.
 void OpenTabForSyncKeyRetrieval(
@@ -145,5 +147,6 @@ void OpenTabForSyncKeyRetrieval(
 void OpenTabForSyncKeyRecoverabilityDegraded(
     Browser* browser,
     syncer::TrustedVaultUserActionTriggerForUMA trigger);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #endif  // CHROME_BROWSER_SYNC_SYNC_UI_UTIL_H_

@@ -6,10 +6,10 @@
 #define GOOGLE_APIS_GAIA_GAIA_OAUTH_CLIENT_H_
 
 #include <memory>
-#include <string>
-#include <vector>
+#include <string_view>
 
 #include "base/component_export.h"
+#include "base/containers/span.h"
 #include "base/memory/ref_counted.h"
 #include "base/values.h"
 
@@ -104,7 +104,7 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GaiaOAuthClient {
 
   // Call the userinfo API, returning the user gaia ID associated
   // with the given access token. The provided access token must have
-  // https://www.googleapis.com/auth/userinfo as one of its scopes.
+  // https://www.googleapis.com/auth/userinfo.email as one of its scopes.
   // See |max_retries| docs above.
   void GetUserId(const std::string& oauth_access_token,
                  int max_retries,
@@ -146,7 +146,7 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GaiaOAuthClient {
   // |max_retries| docs above.
   void GetAccountCapabilities(
       const std::string& oauth_access_token,
-      const std::vector<std::string>& capabilities_names,
+      base::span<const std::string_view> capabilities_names,
       int max_retries,
       Delegate* delegate);
 

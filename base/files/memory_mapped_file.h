@@ -11,8 +11,9 @@
 #include <utility>
 
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -38,6 +39,11 @@ class BASE_EXPORT MemoryMappedFile {
     // the OS to pause the thread while it writes them out. The pause can
     // be as much as 1s on some systems.
     READ_WRITE,
+
+    // This provides read/write access to the mapped file contents as above, but
+    // applies a copy-on-write policy such that no writes are carried through to
+    // the underlying file.
+    READ_WRITE_COPY,
 
     // This provides read/write access but with the ability to write beyond
     // the end of the existing file up to a maximum size specified as the
@@ -66,8 +72,7 @@ class BASE_EXPORT MemoryMappedFile {
   struct BASE_EXPORT Region {
     static const Region kWholeFile;
 
-    bool operator==(const Region& other) const;
-    bool operator!=(const Region& other) const;
+    friend bool operator==(const Region&, const Region&) = default;
 
     // Start of the region (measured in bytes from the beginning of the file).
     int64_t offset;
@@ -105,9 +110,12 @@ class BASE_EXPORT MemoryMappedFile {
     return Initialize(std::move(file), region, READ_ONLY);
   }
 
-  const uint8_t* data() const { return data_; }
-  uint8_t* data() { return data_; }
-  size_t length() const { return length_; }
+  const uint8_t* data() const { return bytes_.data(); }
+  uint8_t* data() { return bytes_.data(); }
+  size_t length() const { return bytes_.size(); }
+
+  span<const uint8_t> bytes() const { return bytes_; }
+  span<uint8_t> mutable_bytes() { return bytes_; }
 
   // Is file_ a valid file handle that points to an open, memory mapped file?
   bool IsValid() const;
@@ -126,13 +134,14 @@ class BASE_EXPORT MemoryMappedFile {
                                            int32_t* offset);
 
 #if BUILDFLAG(IS_WIN)
-  // Maps the executable file to memory, set |data_| to that memory address.
+  // Maps the executable file to memory, point `bytes_` to the memory range.
   // Return true on success.
   bool MapImageToMemory(Access access);
 #endif
 
-  // Map the file to memory, set data_ to that memory address. Return true on
-  // success, false on any kind of failure. This is a helper for Initialize().
+  // Map the file to memory, point `bytes_` to that memory address. Return true
+  // on success, false on any kind of failure. This is a helper for
+  // Initialize().
   bool MapFileRegionToMemory(const Region& region, Access access);
 
   // Closes all open handles.
@@ -140,8 +149,9 @@ class BASE_EXPORT MemoryMappedFile {
 
   File file_;
 
-  raw_ptr<uint8_t, DanglingUntriaged | AllowPtrArithmetic> data_ = nullptr;
-  size_t length_ = 0;
+  // RAW_PTR_EXCLUSION: Never allocated by PartitionAlloc (always mmap'ed), so
+  // there is no benefit to using a raw_span, only cost.
+  RAW_PTR_EXCLUSION span<uint8_t> bytes_;
 
 #if BUILDFLAG(IS_WIN)
   win::ScopedHandle file_mapping_;

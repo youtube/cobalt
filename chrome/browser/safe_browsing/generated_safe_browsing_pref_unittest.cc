@@ -4,7 +4,8 @@
 
 #include "chrome/browser/safe_browsing/generated_safe_browsing_pref.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "chrome/browser/extensions/api/settings_private/generated_pref_test_base.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -68,8 +69,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kNone,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_NONE,
-     settings_api::Enforcement::ENFORCEMENT_NONE,
+     settings_api::ControlledBy::kNone,
+     settings_api::Enforcement::kNone,
      kNoEnforcedValue,
      kNoRecommendedValue,
      {}},
@@ -78,8 +79,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kExtension,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_EXTENSION,
-     settings_api::Enforcement::ENFORCEMENT_ENFORCED,
+     settings_api::ControlledBy::kExtension,
+     settings_api::Enforcement::kEnforced,
      SafeBrowsingSetting::ENHANCED,
      kNoRecommendedValue,
      {}},
@@ -88,8 +89,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kDevicePolicy,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_DEVICE_POLICY,
-     settings_api::Enforcement::ENFORCEMENT_ENFORCED,
+     settings_api::ControlledBy::kDevicePolicy,
+     settings_api::Enforcement::kEnforced,
      SafeBrowsingSetting::DISABLED,
      kNoRecommendedValue,
      {}},
@@ -98,8 +99,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kExtension,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_EXTENSION,
-     settings_api::Enforcement::ENFORCEMENT_ENFORCED,
+     settings_api::ControlledBy::kExtension,
+     settings_api::Enforcement::kEnforced,
      SafeBrowsingSetting::STANDARD,
      kNoRecommendedValue,
      {}},
@@ -108,8 +109,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kRecommended,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_NONE,
-     settings_api::Enforcement::ENFORCEMENT_RECOMMENDED,
+     settings_api::ControlledBy::kNone,
+     settings_api::Enforcement::kRecommended,
      kNoEnforcedValue,
      SafeBrowsingSetting::ENHANCED,
      {}},
@@ -118,8 +119,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kRecommended,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_NONE,
-     settings_api::Enforcement::ENFORCEMENT_RECOMMENDED,
+     settings_api::ControlledBy::kNone,
+     settings_api::Enforcement::kRecommended,
      kNoEnforcedValue,
      SafeBrowsingSetting::STANDARD,
      {}},
@@ -128,8 +129,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kNotSet,
      settings_private::PrefSource::kRecommended,
      settings_private::PrefSource::kNone,
-     settings_api::ControlledBy::CONTROLLED_BY_NONE,
-     settings_api::Enforcement::ENFORCEMENT_RECOMMENDED,
+     settings_api::ControlledBy::kNone,
+     settings_api::Enforcement::kRecommended,
      kNoEnforcedValue,
      SafeBrowsingSetting::DISABLED,
      {}},
@@ -138,8 +139,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kEnforcedOff,
      settings_private::PrefSource::kNone,
      settings_private::PrefSource::kDevicePolicy,
-     settings_api::ControlledBy::CONTROLLED_BY_DEVICE_POLICY,
-     settings_api::Enforcement::ENFORCEMENT_ENFORCED,
+     settings_api::ControlledBy::kDevicePolicy,
+     settings_api::Enforcement::kEnforced,
      kNoEnforcedValue,
      kNoRecommendedValue,
      {SafeBrowsingSetting::STANDARD, SafeBrowsingSetting::DISABLED}},
@@ -148,8 +149,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kEnforcedOff,
      settings_private::PrefSource::kRecommended,
      settings_private::PrefSource::kDevicePolicy,
-     settings_api::ControlledBy::CONTROLLED_BY_DEVICE_POLICY,
-     settings_api::Enforcement::ENFORCEMENT_ENFORCED,
+     settings_api::ControlledBy::kDevicePolicy,
+     settings_api::Enforcement::kEnforced,
      kNoEnforcedValue,
      SafeBrowsingSetting::DISABLED,
      {SafeBrowsingSetting::STANDARD, SafeBrowsingSetting::DISABLED}},
@@ -158,8 +159,8 @@ const std::vector<SafeBrowsingManagementTestCase> kManagedTestCases = {
      settings_private::PrefSetting::kEnforcedOff,
      settings_private::PrefSource::kRecommended,
      settings_private::PrefSource::kDevicePolicy,
-     settings_api::ControlledBy::CONTROLLED_BY_DEVICE_POLICY,
-     settings_api::Enforcement::ENFORCEMENT_ENFORCED,
+     settings_api::ControlledBy::kDevicePolicy,
+     settings_api::Enforcement::kEnforced,
      kNoEnforcedValue,
      SafeBrowsingSetting::STANDARD,
      {SafeBrowsingSetting::STANDARD, SafeBrowsingSetting::DISABLED}},
@@ -208,8 +209,8 @@ void ValidateManagedPreference(
     }
   }
 
-  EXPECT_TRUE(base::ranges::equal(pref_user_selectable_values,
-                                  test_case.expected_user_selectable_values));
+  EXPECT_TRUE(std::ranges::equal(pref_user_selectable_values,
+                                 test_case.expected_user_selectable_values));
 }
 
 }  // namespace

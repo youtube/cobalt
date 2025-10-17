@@ -5,8 +5,10 @@
 #include "ui/wm/core/window_util.h"
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/display/screen.h"
@@ -25,7 +27,7 @@ namespace {
 void CloneChildren(ui::Layer* to_clone,
                    ui::Layer* parent,
                    const wm::MapLayerFunc& map_func) {
-  typedef std::vector<ui::Layer*> Layers;
+  typedef std::vector<raw_ptr<ui::Layer, VectorExperimental>> Layers;
   // Make a copy of the children since RecreateLayer() mutates it.
   Layers children(to_clone->children());
   for (Layers::const_iterator i = children.begin(); i != children.end(); ++i) {
@@ -47,7 +49,7 @@ void CloneChildren(ui::Layer* to_clone,
 void MirrorChildren(ui::Layer* to_mirror,
                     ui::Layer* parent,
                     bool sync_bounds) {
-  for (auto* child : to_mirror->children()) {
+  for (ui::Layer* child : to_mirror->children()) {
     ui::Layer* mirror = child->Mirror().release();
     mirror->set_sync_bounds_with_source(sync_bounds);
     parent->Add(mirror);
@@ -94,9 +96,10 @@ void SetWindowFullscreen(aura::Window* window,
   // Should only specify display id when entering fullscreen.
   DCHECK(target_display_id == display::kInvalidDisplayId || fullscreen);
 
-  ui::WindowShowState current_show_state =
+  ui::mojom::WindowShowState current_show_state =
       window->GetProperty(aura::client::kShowStateKey);
-  const bool is_fullscreen = current_show_state == ui::SHOW_STATE_FULLSCREEN;
+  const bool is_fullscreen =
+      current_show_state == ui::mojom::WindowShowState::kFullscreen;
   if (fullscreen == is_fullscreen &&
       target_display_id == display::kInvalidDisplayId) {
     return;
@@ -121,7 +124,7 @@ void SetWindowFullscreen(aura::Window* window,
     // WindowState::UpdateWindowStateRestoreHistoryStack(). But We still set the
     // `aura::client::kRestoreShowStateKey` here since this function is also
     // used on other non-ChromeOS platforms.
-    if (current_show_state != ui::SHOW_STATE_MINIMIZED) {
+    if (current_show_state != ui::mojom::WindowShowState::kMinimized) {
       window->SetProperty(aura::client::kRestoreShowStateKey,
                           current_show_state);
     }
@@ -129,18 +132,24 @@ void SetWindowFullscreen(aura::Window* window,
     // property change is processed.
     window->SetProperty(aura::client::kFullscreenTargetDisplayIdKey,
                         target_display_id);
-    window->SetProperty(aura::client::kShowStateKey, ui::SHOW_STATE_FULLSCREEN);
+    window->SetProperty(aura::client::kShowStateKey,
+                        ui::mojom::WindowShowState::kFullscreen);
     window->ClearProperty(aura::client::kFullscreenTargetDisplayIdKey);
   } else {
     Restore(window);
   }
 }
 
-bool WindowStateIs(const aura::Window* window, ui::WindowShowState state) {
+bool WindowStateIs(const aura::Window* window,
+                   ui::mojom::WindowShowState state) {
   return window->GetProperty(aura::client::kShowStateKey) == state;
 }
 
-void SetWindowState(aura::Window* window, ui::WindowShowState state) {
+ui::mojom::WindowShowState GetWindowState(const aura::Window* window) {
+  return window->GetProperty(aura::client::kShowStateKey);
+}
+
+void SetWindowState(aura::Window* window, ui::mojom::WindowShowState state) {
   window->SetProperty(aura::client::kShowStateKey, state);
 }
 
@@ -153,7 +162,7 @@ void Restore(aura::Window* window) {
 
 void Unminimize(aura::Window* window) {
   DCHECK_EQ(window->GetProperty(aura::client::kShowStateKey),
-            ui::SHOW_STATE_MINIMIZED);
+            ui::mojom::WindowShowState::kMinimized);
   Restore(window);
 }
 
@@ -209,14 +218,15 @@ const aura::Window* GetTransientParent(const aura::Window* window) {
   return manager ? manager->transient_parent() : nullptr;
 }
 
-const std::vector<aura::Window*>& GetTransientChildren(
-    const aura::Window* window) {
+const std::vector<raw_ptr<aura::Window, VectorExperimental>>&
+GetTransientChildren(const aura::Window* window) {
   const TransientWindowManager* manager =
       TransientWindowManager::GetIfExists(window);
   if (manager)
     return manager->transient_children();
 
-  static std::vector<aura::Window*>* shared = new std::vector<aura::Window*>;
+  static std::vector<raw_ptr<aura::Window, VectorExperimental>>* shared =
+      new std::vector<raw_ptr<aura::Window, VectorExperimental>>;
   return *shared;
 }
 

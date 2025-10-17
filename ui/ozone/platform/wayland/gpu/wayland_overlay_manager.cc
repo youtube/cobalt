@@ -4,8 +4,11 @@
 
 #include "ui/ozone/platform/wayland/gpu/wayland_overlay_manager.h"
 
+#include <variant>
+
 #include "base/logging.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/ozone/platform/wayland/common/wayland_util.h"
 #include "ui/ozone/platform/wayland/gpu/wayland_buffer_manager_gpu.h"
 #include "ui/ozone/platform/wayland/gpu/wayland_overlay_candidates.h"
@@ -58,67 +61,53 @@ void WaylandOverlayManager::CheckOverlaySupport(
 bool WaylandOverlayManager::CanHandleCandidate(
     const OverlaySurfaceCandidate& candidate,
     gfx::AcceleratedWidget widget) const {
-  if (candidate.buffer_size.IsEmpty())
-    return false;
-
   if (!manager_gpu_->SupportsFormat(candidate.format))
     return false;
 
-  // Setting the OverlayCandidate::|uv_rect| will eventually result in setting
-  // the |crop_rect_| in wayland. If this results in an empty pixel scale the
-  // wayland connection will be terminated. See: wayland_surface.cc
-  // 'ApplyPendingState'
-  // Because of the device scale factor (kMaxDeviceScaleFactor) we check against
-  // a rect who's size is empty when converted to fixed point number.
-  // TODO(https://crbug.com/1218678) : Move and generalize this fix in wayland
-  // host.
-  auto viewport_src =
-      gfx::ScaleRect(candidate.crop_rect, candidate.buffer_size.width(),
-                     candidate.buffer_size.height());
-
-  constexpr int kAssumedMaxDeviceScaleFactor = 8;
-  if (wl_fixed_from_double(viewport_src.width() /
-                           kAssumedMaxDeviceScaleFactor) == 0 ||
-      wl_fixed_from_double(viewport_src.height() /
-                           kAssumedMaxDeviceScaleFactor) == 0)
+  // TODO( https://crbug.com/331241180 ): Quads can come into overlay processor
+  // with 'rect's having position and size as pseudo nonsense values. Here we
+  // avoid we fail handling the candidate and avoid passing them through
+  // wayland.
+  // Wayland 'wl_fixed_t' allows for 23 bits of integer precision. Here we are
+  // very conservative and limit to 20 bits.
+  constexpr auto kMaxWaylandFixed = 1 << 20;
+  constexpr auto kMaxWaylandRect =
+      gfx::RectF(-kMaxWaylandFixed, -kMaxWaylandFixed, kMaxWaylandFixed * 2,
+                 kMaxWaylandFixed * 2);
+  if (!kMaxWaylandRect.Contains(candidate.display_rect)) {
     return false;
-
+  }
   // Passing an empty surface size through wayland will actually clear the size
   // restriction and display the buffer at full size. The function
   // 'set_destination_size' in augmenter will accept empty sizes without
   // protocol error but interprets this as a clear.
-  // TODO(https://crbug.com/1306230) : Move and generalize this fix in wayland
+  // TODO(crbug.com/40218274) : Move and generalize this fix in wayland
   // host.
+  constexpr int kAssumedMaxDeviceScaleFactor = 8;
   if (wl_fixed_from_double(candidate.display_rect.width() /
                            kAssumedMaxDeviceScaleFactor) == 0 ||
       wl_fixed_from_double(candidate.display_rect.height() /
                            kAssumedMaxDeviceScaleFactor) == 0)
     return false;
 
-  if (candidate.transform == gfx::OVERLAY_TRANSFORM_INVALID)
-    return false;
-
-  if (candidate.background_color.has_value() &&
-      !manager_gpu_->supports_surface_background_color()) {
+  if (std::holds_alternative<gfx::OverlayTransform>(candidate.transform)) {
+    if (std::get<gfx::OverlayTransform>(candidate.transform) ==
+        gfx::OVERLAY_TRANSFORM_INVALID) {
+      return false;
+    }
+  } else if (std::get<gfx::Transform>(candidate.transform).HasPerspective()) {
+    // Wayland supports only 2d matrix transforms.
     return false;
   }
 
-  // If clipping isn't supported, reject candidates with a clip rect, unless
-  // that clip wouldn't have any effect.
-  if (!manager_gpu_->supports_clip_rect() && candidate.clip_rect &&
-      !candidate.clip_rect->Contains(
-          gfx::ToNearestRect(candidate.display_rect))) {
+  // Wayland doesn't support clip_rect, background_color.
+  if (candidate.clip_rect || candidate.background_color.has_value()) {
     return false;
   }
 
   if (is_delegated_context_) {
-    // Support for subpixel accurate position could be checked in ctor, but the
-    // WaylandBufferManagerGpu is not initialized when |this| is created. Thus,
-    // do checks here.
-    if (manager_gpu_->supports_subpixel_accurate_position())
-      return true;
-    else
-      NotifyOverlayDelegationLimitedCapabilityOnce();
+    // Subpixel accurate position is not available.
+    NotifyOverlayDelegationLimitedCapabilityOnce();
   }
 
   // Reject candidates that don't fall on a pixel boundary.

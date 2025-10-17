@@ -12,16 +12,15 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/chrome_app_icon_service.h"
 #include "chrome/browser/extensions/extension_management.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
-#include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/clear_site_data_utils.h"
 #include "extensions/browser/extension_dialog_auto_confirm.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/image_loader.h"
 #include "extensions/common/constants.h"
@@ -29,8 +28,6 @@
 #include "extensions/common/extension_urls.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "extensions/common/manifest_url_handlers.h"
-#include "ui/base/l10n/l10n_util.h"
-#include "ui/base/layout.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/display/display.h"
@@ -53,18 +50,20 @@ constexpr char kReferrerId[] = "chrome-remove-extension-dialog";
 
 float GetScaleFactor(gfx::NativeWindow window) {
   const display::Screen* screen = display::Screen::GetScreen();
-  if (!screen)
+  if (!screen) {
     return 1.0;  // Happens in unit_tests.
-  if (window)
-    return screen->GetDisplayNearestWindow(window).device_scale_factor();
+  }
+  if (window) {
+    return screen->GetPreferredScaleFactorForWindow(window).value_or(1.0f);
+  }
   return screen->GetPrimaryDisplay().device_scale_factor();
 }
 
-ExtensionUninstallDialog::OnWillShowCallback* g_on_will_show_callback = nullptr;
+base::RepeatingClosure* g_on_will_show_callback = nullptr;
 }  // namespace
 
 void ExtensionUninstallDialog::SetOnShownCallbackForTesting(
-    ExtensionUninstallDialog::OnWillShowCallback* callback) {
+    base::RepeatingClosure* callback) {
   g_on_will_show_callback = callback;
 }
 
@@ -138,15 +137,15 @@ void ExtensionUninstallDialog::OnIconUpdated(ChromeAppIcon* icon) {
     return;
   }
 
-  if (g_on_will_show_callback != nullptr)
-    g_on_will_show_callback->Run(this);
+  if (g_on_will_show_callback != nullptr) {
+    g_on_will_show_callback->Run();
+  }
 
   switch (ScopedTestDialogAutoConfirm::GetAutoConfirmValue()) {
     case ScopedTestDialogAutoConfirm::NONE:
       Show();
       break;
     case ScopedTestDialogAutoConfirm::ACCEPT_AND_OPTION:
-    case ScopedTestDialogAutoConfirm::ACCEPT_AND_REMEMBER_OPTION:
       OnDialogClosed(CLOSE_ACTION_UNINSTALL_AND_CHECKBOX_CHECKED);
       break;
     case ScopedTestDialogAutoConfirm::ACCEPT:
@@ -178,34 +177,8 @@ void ExtensionUninstallDialog::OnProfileWillBeDestroyed(Profile* profile) {
   OnDialogClosed(CLOSE_ACTION_CANCELED);
 }
 
-std::string ExtensionUninstallDialog::GetHeadingText() {
-  if (triggering_extension_) {
-    return l10n_util::GetStringFUTF8(
-        IDS_EXTENSION_PROGRAMMATIC_UNINSTALL_PROMPT_HEADING,
-        base::UTF8ToUTF16(triggering_extension_->name()),
-        base::UTF8ToUTF16(extension_->name()));
-  }
-  return l10n_util::GetStringFUTF8(IDS_EXTENSION_UNINSTALL_PROMPT_HEADING,
-                                   base::UTF8ToUTF16(extension_->name()));
-}
-
-GURL ExtensionUninstallDialog::GetLaunchURL() const {
-  return AppLaunchInfo::GetFullLaunchURL(extension_.get());
-}
-
 bool ExtensionUninstallDialog::ShouldShowCheckbox() const {
   return show_report_abuse_checkbox_;
-}
-
-std::u16string ExtensionUninstallDialog::GetCheckboxLabel() const {
-  DCHECK(ShouldShowCheckbox());
-
-  return triggering_extension_.get()
-             ? l10n_util::GetStringFUTF16(
-                   IDS_EXTENSION_PROMPT_UNINSTALL_REPORT_ABUSE_FROM_EXTENSION,
-                   base::UTF8ToUTF16(extension_->name()))
-             : l10n_util::GetStringUTF16(
-                   IDS_EXTENSION_PROMPT_UNINSTALL_REPORT_ABUSE);
 }
 
 void ExtensionUninstallDialog::OnDialogClosed(CloseAction action) {
@@ -258,9 +231,8 @@ bool ExtensionUninstallDialog::Uninstall(std::u16string* error) {
           "Extensions.RemovedDefaultInstalledExtension"));
     }
 
-    return ExtensionSystem::Get(profile_)
-        ->extension_service()
-        ->UninstallExtension(extension_->id(), uninstall_reason_, error);
+    return ExtensionRegistrar::Get(profile_)->UninstallExtension(
+        extension_->id(), uninstall_reason_, error);
   }
   *error = kExtensionRemovedError;
   return false;

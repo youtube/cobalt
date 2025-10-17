@@ -4,8 +4,10 @@
 
 #include "ui/compositor/test/test_layer_animation_delegate.h"
 
+#include <optional>
+
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/compositor/layer.h"
 
 namespace ui {
@@ -19,7 +21,7 @@ TestLayerAnimationDelegate::TestLayerAnimationDelegate()
       visibility_(true),
       brightness_(0.0f),
       grayscale_(0.0f),
-      color_(SK_ColorBLACK) {
+      color_(SkColors::kBlack) {
   CreateCcLayer();
 }
 
@@ -29,7 +31,7 @@ TestLayerAnimationDelegate::TestLayerAnimationDelegate(
       transform_(other.GetTransformForAnimation()),
       opacity_(other.GetOpacityForAnimation()),
       visibility_(other.GetVisibilityForAnimation()),
-      color_(SK_ColorBLACK) {
+      color_(SkColors::kBlack) {
   CreateCcLayer();
 }
 
@@ -48,11 +50,6 @@ void TestLayerAnimationDelegate::ExpectLastPropertyChangeReason(
   EXPECT_TRUE(last_property_change_reason_is_set_);
   EXPECT_EQ(last_property_change_reason_, reason);
   last_property_change_reason_is_set_ = false;
-}
-
-void TestLayerAnimationDelegate::SetFrameNumber(
-    absl::optional<int> frame_number) {
-  frame_number_ = frame_number;
 }
 
 void TestLayerAnimationDelegate::SetBoundsFromAnimation(
@@ -104,7 +101,7 @@ void TestLayerAnimationDelegate::SetGrayscaleFromAnimation(
 }
 
 void TestLayerAnimationDelegate::SetColorFromAnimation(
-    SkColor color,
+    SkColor4f color,
     PropertyChangeReason reason) {
   color_ = color;
   last_property_change_reason_ = reason;
@@ -162,7 +159,7 @@ float TestLayerAnimationDelegate::GetGrayscaleForAnimation() const {
   return grayscale_;
 }
 
-SkColor TestLayerAnimationDelegate::GetColorForAnimation() const {
+SkColor4f TestLayerAnimationDelegate::GetColorForAnimation() const {
   return color_;
 }
 
@@ -200,10 +197,6 @@ cc::Layer* TestLayerAnimationDelegate::GetCcLayer() const {
 LayerThreadedAnimationDelegate*
 TestLayerAnimationDelegate::GetThreadedAnimationDelegate() {
   return &threaded_delegate_;
-}
-
-absl::optional<int> TestLayerAnimationDelegate::GetFrameNumber() const {
-  return frame_number_;
 }
 
 float TestLayerAnimationDelegate::GetRefreshRate() const {

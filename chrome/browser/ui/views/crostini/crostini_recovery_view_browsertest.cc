@@ -19,11 +19,11 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/crostini/crostini_dialogue_browser_test_util.h"
-#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chromeos/ash/components/dbus/concierge/fake_concierge_client.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 
 constexpr crostini::CrostiniUISurface kUiSurface =
     crostini::CrostiniUISurface::kAppList;
@@ -82,13 +82,16 @@ class CrostiniRecoveryViewBrowserTest : public CrostiniDialogBrowserTest {
     EXPECT_TRUE(VerifyUi());
     // There is one view, and it's ours.
     EXPECT_NE(nullptr, ActiveView());
-    EXPECT_EQ(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL,
-              ActiveView()->GetDialogButtons());
+    EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk) |
+                  static_cast<int>(ui::mojom::DialogButton::kCancel),
+              ActiveView()->buttons());
 
     EXPECT_NE(ActiveView()->GetOkButton(), nullptr);
     EXPECT_NE(ActiveView()->GetCancelButton(), nullptr);
-    EXPECT_TRUE(ActiveView()->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
-    EXPECT_TRUE(ActiveView()->IsDialogButtonEnabled(ui::DIALOG_BUTTON_CANCEL));
+    EXPECT_TRUE(
+        ActiveView()->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+    EXPECT_TRUE(
+        ActiveView()->IsDialogButtonEnabled(ui::mojom::DialogButton::kCancel));
   }
 
   void ExpectNoView() {
@@ -132,7 +135,7 @@ IN_PROC_BROWSER_TEST_F(CrostiniRecoveryViewBrowserTest, NoViewOnNormalStartup) {
 
   histogram_tester.ExpectUniqueSample(
       "Crostini.RecoverySource",
-      static_cast<base::HistogramBase::Sample>(kUiSurface), 0);
+      static_cast<base::HistogramBase::Sample32>(kUiSurface), 0);
 }
 
 IN_PROC_BROWSER_TEST_F(CrostiniRecoveryViewBrowserTest, Cancel) {
@@ -178,7 +181,7 @@ IN_PROC_BROWSER_TEST_F(CrostiniRecoveryViewBrowserTest, Cancel) {
 
   histogram_tester.ExpectUniqueSample(
       "Crostini.RecoverySource",
-      static_cast<base::HistogramBase::Sample>(kUiSurface), 3);
+      static_cast<base::HistogramBase::Sample32>(kUiSurface), 3);
 }
 
 IN_PROC_BROWSER_TEST_F(CrostiniRecoveryViewBrowserTest, Accept) {
@@ -200,8 +203,10 @@ IN_PROC_BROWSER_TEST_F(CrostiniRecoveryViewBrowserTest, Accept) {
   ActiveView()->AcceptDialog();
 
   // Buttons should be disabled after clicking Accept.
-  EXPECT_FALSE(ActiveView()->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
-  EXPECT_FALSE(ActiveView()->IsDialogButtonEnabled(ui::DIALOG_BUTTON_CANCEL));
+  EXPECT_FALSE(
+      ActiveView()->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+  EXPECT_FALSE(
+      ActiveView()->IsDialogButtonEnabled(ui::mojom::DialogButton::kCancel));
 
   WaitForViewDestroyed();
 
@@ -213,5 +218,5 @@ IN_PROC_BROWSER_TEST_F(CrostiniRecoveryViewBrowserTest, Accept) {
 
   histogram_tester.ExpectUniqueSample(
       "Crostini.RecoverySource",
-      static_cast<base::HistogramBase::Sample>(kUiSurface), 2);
+      static_cast<base::HistogramBase::Sample32>(kUiSurface), 2);
 }

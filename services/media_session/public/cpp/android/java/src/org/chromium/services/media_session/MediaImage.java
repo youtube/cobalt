@@ -7,10 +7,10 @@ package org.chromium.services.media_session;
 import android.graphics.Rect;
 import android.text.TextUtils;
 
-import androidx.annotation.NonNull;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -22,19 +22,16 @@ import java.util.List;
  * counterpart of media_session::MediaImage.
  */
 @JNINamespace("media_session")
+@NullMarked
 public final class MediaImage {
-    @NonNull
     private GURL mSrc;
 
     private String mType;
 
-    @NonNull
     private List<Rect> mSizes = new ArrayList<Rect>();
 
-    /**
-     * Creates a new MediaImage.
-     */
-    public MediaImage(@NonNull GURL src, @NonNull String type, @NonNull List<Rect> sizes) {
+    /** Creates a new MediaImage. */
+    public MediaImage(GURL src, String type, List<Rect> sizes) {
         mSrc = src;
         mType = type;
         mSizes = sizes;
@@ -43,7 +40,6 @@ public final class MediaImage {
     /**
      * @return The URL of this MediaImage.
      */
-    @NonNull
     public GURL getSrc() {
         return mSrc;
     }
@@ -62,24 +58,18 @@ public final class MediaImage {
         return mSizes;
     }
 
-    /**
-     * Sets the URL of this MediaImage.
-     */
-    public void setSrc(@NonNull GURL src) {
+    /** Sets the URL of this MediaImage. */
+    public void setSrc(GURL src) {
         mSrc = src;
     }
 
-    /**
-     * Sets the MIME type of this MediaImage.
-     */
-    public void setType(@NonNull String type) {
+    /** Sets the MIME type of this MediaImage. */
+    public void setType(String type) {
         mType = type;
     }
 
-    /**
-     * Sets the sizes of this MediaImage.
-     */
-    public void setSizes(@NonNull List<Rect> sizes) {
+    /** Sets the sizes of this MediaImage. */
+    public void setSizes(List<Rect> sizes) {
         mSizes = sizes;
     }
 
@@ -89,7 +79,8 @@ public final class MediaImage {
         if (!(obj instanceof MediaImage)) return false;
 
         MediaImage other = (MediaImage) obj;
-        return mSrc.equals(other.mSrc) && TextUtils.equals(mType, other.mType)
+        return mSrc.equals(other.mSrc)
+                && TextUtils.equals(mType, other.mType)
                 && mSizes.equals(other.mSizes);
     }
 
@@ -116,9 +107,7 @@ public final class MediaImage {
         return new MediaImage(src, type, Arrays.asList(sizes));
     }
 
-    /**
-     * Create a new {@link Rect} from the C++ code.
-     */
+    /** Create a new {@link Rect} from the C++ code. */
     @CalledByNative
     private static Rect createRect(int width, int height) {
         return new Rect(0, 0, width, height);

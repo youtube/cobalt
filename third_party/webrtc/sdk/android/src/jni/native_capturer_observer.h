@@ -21,7 +21,7 @@ namespace jni {
 
 ScopedJavaLocalRef<jobject> CreateJavaNativeCapturerObserver(
     JNIEnv* env,
-    rtc::scoped_refptr<AndroidVideoTrackSource> native_source);
+    scoped_refptr<AndroidVideoTrackSource> native_source);
 
 }  // namespace jni
 }  // namespace webrtc

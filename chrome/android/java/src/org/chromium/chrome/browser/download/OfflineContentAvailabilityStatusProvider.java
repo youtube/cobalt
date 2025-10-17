@@ -8,7 +8,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.chrome.browser.download.items.OfflineContentAggregatorFactory;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.offline_items_collection.ContentId;
 import org.chromium.components.offline_items_collection.OfflineContentProvider;
 import org.chromium.components.offline_items_collection.OfflineItem;
@@ -27,10 +27,10 @@ public class OfflineContentAvailabilityStatusProvider implements OfflineContentP
     private static OfflineContentAvailabilityStatusProvider sInstance;
 
     // Keeps track of suggested content.
-    private Set<ContentId> mSuggestedItems = new HashSet<>();
+    private final Set<ContentId> mSuggestedItems = new HashSet<>();
     // Keeps track of persistent content, i.e. non-transient content, including prefetch, downloads,
     // offline pages, etc. The idea is that this set will be empty iff Download Home would be empty.
-    private Set<ContentId> mPersistentItems = new HashSet<>();
+    private final Set<ContentId> mPersistentItems = new HashSet<>();
 
     /**
      * @return An {@link OfflineContentAvailabilityStatusProvider} instance singleton.  If one
@@ -53,8 +53,9 @@ public class OfflineContentAvailabilityStatusProvider implements OfflineContentP
      * @return Whether or not there is any suggested offline content available in Chrome.
      */
     public boolean isSuggestedContentAvailable() {
-        return SharedPreferencesManager.getInstance().readBoolean(
-                ChromePreferenceKeys.EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS, false);
+        return ChromeSharedPreferences.getInstance()
+                .readBoolean(
+                        ChromePreferenceKeys.EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS, false);
     }
 
     /**
@@ -62,8 +63,9 @@ public class OfflineContentAvailabilityStatusProvider implements OfflineContentP
      *         available in Chrome.
      */
     public boolean isPersistentContentAvailable() {
-        return SharedPreferencesManager.getInstance().readBoolean(
-                ChromePreferenceKeys.PERSISTENT_OFFLINE_CONTENT_AVAILABILITY_STATUS, false);
+        return ChromeSharedPreferences.getInstance()
+                .readBoolean(
+                        ChromePreferenceKeys.PERSISTENT_OFFLINE_CONTENT_AVAILABILITY_STATUS, false);
     }
 
     // OfflineContentProvider.Observer overrides
@@ -90,11 +92,13 @@ public class OfflineContentAvailabilityStatusProvider implements OfflineContentP
     public void onItemUpdated(OfflineItem item, UpdateDelta updateDelta) {}
 
     private void updateSharedPrefs() {
-        SharedPreferencesManager.getInstance().writeBoolean(
-                ChromePreferenceKeys.EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS,
-                !mSuggestedItems.isEmpty());
-        SharedPreferencesManager.getInstance().writeBoolean(
-                ChromePreferenceKeys.PERSISTENT_OFFLINE_CONTENT_AVAILABILITY_STATUS,
-                !mPersistentItems.isEmpty());
+        ChromeSharedPreferences.getInstance()
+                .writeBoolean(
+                        ChromePreferenceKeys.EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS,
+                        !mSuggestedItems.isEmpty());
+        ChromeSharedPreferences.getInstance()
+                .writeBoolean(
+                        ChromePreferenceKeys.PERSISTENT_OFFLINE_CONTENT_AVAILABILITY_STATUS,
+                        !mPersistentItems.isEmpty());
     }
 }

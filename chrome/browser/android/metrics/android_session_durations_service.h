@@ -7,11 +7,18 @@
 
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/sync/driver/sync_session_durations_metrics_recorder.h"
+#include "components/password_manager/core/browser/password_session_durations_metrics_recorder.h"
+#include "components/sync/service/sync_session_durations_metrics_recorder.h"
+#include "components/unified_consent/msbb_session_durations_metrics_recorder.h"
 
 namespace signin {
 class IdentityManager;
 }
+
+namespace signin_metrics {
+enum class SingleProfileSigninStatus;
+}
+
 namespace syncer {
 class SyncService;
 }
@@ -37,7 +44,8 @@ class AndroidSessionDurationsService : public KeyedService {
   ~AndroidSessionDurationsService() override;
 
   // Callers must ensure that the parameters outlive this object.
-  void InitializeForRegularProfile(syncer::SyncService* sync_service,
+  void InitializeForRegularProfile(PrefService* pref_service,
+                                   syncer::SyncService* sync_service,
                                    signin::IdentityManager* identity_manager);
 
   void InitializeForIncognitoProfile();
@@ -47,7 +55,7 @@ class AndroidSessionDurationsService : public KeyedService {
   AndroidSessionDurationsService& operator=(
       const AndroidSessionDurationsService&) = delete;
 
-  bool IsSignedIn() const;
+  signin_metrics::SingleProfileSigninStatus GetSigninStatus() const;
   bool IsSyncing() const;
 
   // KeyedService:
@@ -66,6 +74,10 @@ class AndroidSessionDurationsService : public KeyedService {
  private:
   std::unique_ptr<syncer::SyncSessionDurationsMetricsRecorder>
       sync_session_metrics_recorder_;
+  std::unique_ptr<password_manager::PasswordSessionDurationsMetricsRecorder>
+      password_session_duration_metrics_recorder_;
+  std::unique_ptr<unified_consent::MsbbSessionDurationsMetricsRecorder>
+      msbb_session_metrics_recorder_;
   std::unique_ptr<IncognitoSessionDurationsMetricsRecorder>
       incognito_session_metrics_recorder_;
 };

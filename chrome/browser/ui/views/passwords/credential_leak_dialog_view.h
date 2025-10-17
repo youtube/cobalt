@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -17,34 +18,31 @@ class WebContents;
 
 class CredentialLeakDialogController;
 
-class CredentialLeakDialogView : public views::DialogDelegateView,
-                                 public CredentialLeakPrompt {
+class CredentialLeakDialogView : public views::DialogDelegateView {
+  METADATA_HEADER(CredentialLeakDialogView, views::DialogDelegateView)
+
  public:
-  METADATA_HEADER(CredentialLeakDialogView);
   CredentialLeakDialogView(CredentialLeakDialogController* controller,
                            content::WebContents* web_contents);
   CredentialLeakDialogView(const CredentialLeakDialogView&) = delete;
   CredentialLeakDialogView& operator=(const CredentialLeakDialogView&) = delete;
   ~CredentialLeakDialogView() override;
 
-  // CredentialsLeakedPrompt:
-  void ShowCredentialLeakPrompt() override;
-  void ControllerGone() override;
+  // Sets up the child views.
+  void InitWindow();
+
+  CredentialLeakDialogController* controller() { return controller_; }
+  content::WebContents* web_contents() { return web_contents_; }
 
  private:
   // views::DialogDelegateView:
   void AddedToWidget() override;
   std::u16string GetWindowTitle() const override;
 
-  // Sets up the child views.
-  void InitWindow();
-
   // A weak pointer to the controller.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION CredentialLeakDialogController* controller_ = nullptr;
-  const raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ =
-      nullptr;
+  raw_ptr<CredentialLeakDialogController> controller_ = nullptr;
+  const raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged>
+      web_contents_ = nullptr;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_PASSWORDS_CREDENTIAL_LEAK_DIALOG_VIEW_H_

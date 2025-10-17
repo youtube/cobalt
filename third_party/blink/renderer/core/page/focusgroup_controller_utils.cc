@@ -4,13 +4,13 @@
 
 #include "third_party/blink/renderer/core/page/focusgroup_controller_utils.h"
 
-#include "third_party/blink/renderer/core/dom/css_toggle_inference.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
-#include "third_party/blink/renderer/core/layout/ng/table/layout_ng_table.h"
-#include "third_party/blink/renderer/core/layout/ng/table/layout_ng_table_cell.h"
+#include "third_party/blink/renderer/core/keywords.h"
+#include "third_party/blink/renderer/core/layout/table/layout_table.h"
+#include "third_party/blink/renderer/core/layout/table/layout_table_cell.h"
 #include "third_party/blink/renderer/core/page/grid_focusgroup_structure_info.h"
 
 namespace blink {
@@ -21,59 +21,58 @@ FocusgroupDirection FocusgroupControllerUtils::FocusgroupDirectionForEvent(
   if (event->ctrlKey() || event->metaKey() || event->shiftKey())
     return FocusgroupDirection::kNone;
 
+  const AtomicString key(event->key());
   // TODO(bebeaudr): Support RTL. Will it be as simple as inverting the
   // direction associated with the left and right arrows when in a RTL element?
-  if (event->key() == "ArrowDown")
-    return FocusgroupDirection::kForwardVertical;
-  else if (event->key() == "ArrowRight")
-    return FocusgroupDirection::kForwardHorizontal;
-  else if (event->key() == "ArrowUp")
-    return FocusgroupDirection::kBackwardVertical;
-  else if (event->key() == "ArrowLeft")
-    return FocusgroupDirection::kBackwardHorizontal;
+  if (key == keywords::kArrowDown) {
+    return FocusgroupDirection::kForwardBlock;
+  } else if (key == keywords::kArrowRight) {
+    return FocusgroupDirection::kForwardInline;
+  } else if (key == keywords::kArrowUp) {
+    return FocusgroupDirection::kBackwardBlock;
+  } else if (key == keywords::kArrowLeft) {
+    return FocusgroupDirection::kBackwardInline;
+  }
 
   return FocusgroupDirection::kNone;
 }
 
 bool FocusgroupControllerUtils::IsDirectionForward(
     FocusgroupDirection direction) {
-  return direction == FocusgroupDirection::kForwardHorizontal ||
-         direction == FocusgroupDirection::kForwardVertical;
+  return direction == FocusgroupDirection::kForwardInline ||
+         direction == FocusgroupDirection::kForwardBlock;
 }
 
 bool FocusgroupControllerUtils::IsDirectionBackward(
     FocusgroupDirection direction) {
-  return direction == FocusgroupDirection::kBackwardHorizontal ||
-         direction == FocusgroupDirection::kBackwardVertical;
+  return direction == FocusgroupDirection::kBackwardInline ||
+         direction == FocusgroupDirection::kBackwardBlock;
 }
 
-bool FocusgroupControllerUtils::IsDirectionHorizontal(
+bool FocusgroupControllerUtils::IsDirectionInline(
     FocusgroupDirection direction) {
-  return direction == FocusgroupDirection::kBackwardHorizontal ||
-         direction == FocusgroupDirection::kForwardHorizontal;
+  return direction == FocusgroupDirection::kBackwardInline ||
+         direction == FocusgroupDirection::kForwardInline;
 }
 
-bool FocusgroupControllerUtils::IsDirectionVertical(
+bool FocusgroupControllerUtils::IsDirectionBlock(
     FocusgroupDirection direction) {
-  return direction == FocusgroupDirection::kBackwardVertical ||
-         direction == FocusgroupDirection::kForwardVertical;
+  return direction == FocusgroupDirection::kBackwardBlock ||
+         direction == FocusgroupDirection::kForwardBlock;
 }
 
 bool FocusgroupControllerUtils::IsAxisSupported(FocusgroupFlags flags,
                                                 FocusgroupDirection direction) {
-  return ((flags & FocusgroupFlags::kHorizontal) &&
-          IsDirectionHorizontal(direction)) ||
-         ((flags & FocusgroupFlags::kVertical) &&
-          IsDirectionVertical(direction));
+  return ((flags & FocusgroupFlags::kInline) && IsDirectionInline(direction)) ||
+         ((flags & FocusgroupFlags::kBlock) && IsDirectionBlock(direction));
 }
 
 bool FocusgroupControllerUtils::WrapsInDirection(
     FocusgroupFlags flags,
     FocusgroupDirection direction) {
-  return ((flags & FocusgroupFlags::kWrapHorizontally) &&
-          IsDirectionHorizontal(direction)) ||
-         ((flags & FocusgroupFlags::kWrapVertically) &&
-          IsDirectionVertical(direction));
+  return ((flags & FocusgroupFlags::kWrapInline) &&
+          IsDirectionInline(direction)) ||
+         ((flags & FocusgroupFlags::kWrapBlock) && IsDirectionBlock(direction));
 }
 
 bool FocusgroupControllerUtils::FocusgroupExtendsInAxis(
@@ -105,18 +104,16 @@ Element* FocusgroupControllerUtils::FindNearestFocusgroupAncestor(
           // TODO(bebeaudr): Support grid focusgroups that aren't based on the
           // table layout objects.
           if (ancestor_flags & FocusgroupFlags::kGrid &&
-              IsA<LayoutNGTable>(ancestor->GetLayoutObject())) {
+              IsA<LayoutTable>(ancestor->GetLayoutObject())) {
             return ancestor;
           }
           break;
         case FocusgroupType::kLinear:
-          // TODO(https://crbug.com/1250716): Check CSS toggle restrictions?
           if (!(ancestor_flags & FocusgroupFlags::kGrid))
             return ancestor;
           break;
         default:
           NOTREACHED();
-          break;
       }
       return nullptr;
     }
@@ -180,48 +177,13 @@ bool FocusgroupControllerUtils::IsFocusgroupItem(const Element* element) {
     return false;
 
   // All children of a focusgroup are considered focusgroup items if they are
-  // focusable, except for some special cases for CSS toggles.
+  // focusable.
   Element* parent = FlatTreeTraversal::ParentElement(*element);
   if (!parent)
     return false;
 
   FocusgroupFlags parent_flags = parent->GetFocusgroupFlags();
-  if (parent_flags == FocusgroupFlags::kNone) {
-    return false;
-  }
-
-  FocusgroupFlags toggle_restrictions =
-      parent_flags & FocusgroupFlags::kCSSToggleRestrictions;
-  if (toggle_restrictions) {
-    CSSToggleInference* toggle_inference =
-        element->GetDocument().GetCSSToggleInference();
-    DCHECK(toggle_inference)
-        << "toggle restrictions should only exist because of toggle inference";
-    CSSToggleRole element_role = toggle_inference->RoleForElement(element);
-    if (toggle_restrictions & FocusgroupFlags::kForCSSToggleCheckbox) {
-      DCHECK_EQ(toggle_restrictions, FocusgroupFlags::kForCSSToggleCheckbox);
-      return element_role == CSSToggleRole::kCheckbox;
-    }
-    if (toggle_restrictions & FocusgroupFlags::kForCSSToggleListboxItem) {
-      DCHECK_EQ(toggle_restrictions, FocusgroupFlags::kForCSSToggleListboxItem);
-      return element_role == CSSToggleRole::kListboxItem;
-    }
-    if (toggle_restrictions & FocusgroupFlags::kForCSSToggleRadioItem) {
-      DCHECK_EQ(toggle_restrictions, FocusgroupFlags::kForCSSToggleRadioItem);
-      return element_role == CSSToggleRole::kRadioItem;
-    }
-    if (toggle_restrictions & FocusgroupFlags::kForCSSToggleTab) {
-      DCHECK_EQ(toggle_restrictions, FocusgroupFlags::kForCSSToggleTab);
-      return element_role == CSSToggleRole::kTab;
-    }
-    if (toggle_restrictions & FocusgroupFlags::kForCSSToggleTreeItem) {
-      DCHECK_EQ(toggle_restrictions, FocusgroupFlags::kForCSSToggleTreeItem);
-      return element_role == CSSToggleRole::kTreeItem;
-    }
-    NOTREACHED();
-  }
-
-  return true;
+  return parent_flags != FocusgroupFlags::kNone;
 }
 
 // This function is called whenever the |element| passed by parameter has fallen
@@ -307,13 +269,13 @@ bool FocusgroupControllerUtils::IsGridFocusgroupItem(const Element* element) {
 
   // TODO(bebeaudr): Add support for manual grids, where the grid focusgroup
   // items aren't necessarily on an table cell layout object.
-  return IsA<LayoutNGTableCell>(element->GetLayoutObject());
+  return IsA<LayoutTableCell>(element->GetLayoutObject());
 }
 
 GridFocusgroupStructureInfo*
 FocusgroupControllerUtils::CreateGridFocusgroupStructureInfoForGridRoot(
     Element* root) {
-  if (IsA<LayoutNGTable>(root->GetLayoutObject()) &&
+  if (IsA<LayoutTable>(root->GetLayoutObject()) &&
       root->GetFocusgroupFlags() & FocusgroupFlags::kGrid) {
     return MakeGarbageCollected<AutomaticGridFocusgroupStructureInfo>(
         root->GetLayoutObject());

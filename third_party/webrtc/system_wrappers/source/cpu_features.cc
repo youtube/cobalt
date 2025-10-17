@@ -12,19 +12,12 @@
 
 #include "rtc_base/system/arch.h"
 #include "system_wrappers/include/cpu_features_wrapper.h"
-#include "system_wrappers/include/field_trial.h"
 
 #if defined(WEBRTC_ARCH_X86_FAMILY) && defined(_MSC_VER)
 #include <intrin.h>
 #endif
 
 namespace webrtc {
-
-// No CPU feature is available => straight C path.
-int GetCPUInfoNoASM(CPUFeature feature) {
-  (void)feature;
-  return 0;
-}
 
 #if defined(WEBRTC_ARCH_X86_FAMILY)
 
@@ -78,8 +71,7 @@ int GetCPUInfo(CPUFeature feature) {
     return 0 != (cpu_info[2] & 0x00000001);
   }
 #if defined(WEBRTC_ENABLE_AVX2)
-  if (feature == kAVX2 &&
-      !webrtc::field_trial::IsEnabled("WebRTC-Avx2SupportKillSwitch")) {
+  if (feature == kAVX2) {
     int cpu_info7[4];
     __cpuid(cpu_info7, 0);
     int num_ids = cpu_info7[0];

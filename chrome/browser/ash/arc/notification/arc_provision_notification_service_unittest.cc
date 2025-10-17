@@ -7,12 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/metrics/arc_metrics_service.h"
-#include "ash/components/arc/metrics/stability_metrics_manager.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/fake_arc_session.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -22,17 +16,20 @@
 #include "chrome/browser/ash/arc/session/arc_provisioning_result.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
-#include "chrome/browser/ash/login/ui/fake_login_display_host.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
+#include "chrome/browser/ui/ash/login/fake_login_display_host.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/metrics/arc_metrics_service.h"
+#include "chromeos/ash/experiences/arc/metrics/stability_metrics_manager.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
-#include "components/user_manager/scoped_user_manager.h"
-#include "components/user_manager/user_manager.h"
 #include "ui/message_center/public/cpp/notification.h"
 
 namespace arc {
@@ -43,9 +40,7 @@ const char kArcManagedProvisionNotificationId[] = "arc_managed_provision";
 
 class ArcProvisionNotificationServiceTest : public BrowserWithTestWindowTest {
  protected:
-  ArcProvisionNotificationServiceTest()
-      : user_manager_enabler_(std::make_unique<ash::FakeChromeUserManager>()) {}
-
+  ArcProvisionNotificationServiceTest() = default;
   ArcProvisionNotificationServiceTest(
       const ArcProvisionNotificationServiceTest&) = delete;
   ArcProvisionNotificationServiceTest& operator=(
@@ -84,11 +79,6 @@ class ArcProvisionNotificationServiceTest : public BrowserWithTestWindowTest {
 
     arc::prefs::RegisterLocalStatePrefs(local_state_.registry());
     arc::StabilityMetricsManager::Initialize(&local_state_);
-
-    const AccountId account_id(AccountId::FromUserEmailGaiaId(
-        profile()->GetProfileUserName(), "1234567890"));
-    GetFakeUserManager()->AddUser(account_id);
-    GetFakeUserManager()->LoginUser(account_id);
   }
 
   void TearDown() override {
@@ -106,18 +96,12 @@ class ArcProvisionNotificationServiceTest : public BrowserWithTestWindowTest {
     ash::ConciergeClient::Shutdown();
   }
 
-  ash::FakeChromeUserManager* GetFakeUserManager() {
-    return static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
-  }
-
   std::unique_ptr<ArcServiceManager> arc_service_manager_;
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
   std::unique_ptr<NotificationDisplayServiceTester> display_service_;
-  raw_ptr<session_manager::SessionManager, ExperimentalAsh> session_manager_;
+  raw_ptr<session_manager::SessionManager> session_manager_;
 
  private:
-  user_manager::ScopedUserManager user_manager_enabler_;
   TestingPrefServiceSimple local_state_;
 };
 
@@ -187,7 +171,8 @@ TEST_F(ArcProvisionNotificationServiceTest,
   // shown when session starts.
   session_manager_->SetSessionState(
       session_manager::SessionState::LOGIN_PRIMARY);
-  arc_session_manager_->AllowActivation();
+  arc_session_manager_->AllowActivation(
+      ArcSessionManager::AllowActivationReason::kImmediateActivation);
   arc_session_manager_->RequestEnable();
   EXPECT_FALSE(
       display_service_->GetNotification(kArcManagedProvisionNotificationId));

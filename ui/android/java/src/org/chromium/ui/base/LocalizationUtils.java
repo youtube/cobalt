@@ -6,20 +6,22 @@ package org.chromium.ui.base;
 
 import android.view.View;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.CalledByNativeForTesting;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.LocaleUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.Locale;
 
-/**
- * This class provides the locale related methods for the native library.
- */
+/** This class provides the locale related methods for the native library. */
 @JNINamespace("l10n_util")
+@NullMarked
 public class LocalizationUtils {
 
     // This is mirrored from base/i18n/rtl.h. Please keep in sync.
@@ -27,9 +29,11 @@ public class LocalizationUtils {
     public static final int RIGHT_TO_LEFT = 1;
     public static final int LEFT_TO_RIGHT = 2;
 
-    private static Boolean sIsLayoutRtlForTesting;
+    private static @Nullable Boolean sIsLayoutRtlForTesting;
 
-    private LocalizationUtils() { /* cannot be instantiated */ }
+    private LocalizationUtils() {
+        /* cannot be instantiated */
+    }
 
     @CalledByNative
     private static Locale getJavaLocale(String language, String country, String variant) {
@@ -55,19 +59,31 @@ public class LocalizationUtils {
         if (sIsLayoutRtlForTesting != null) return sIsLayoutRtlForTesting;
 
         return ContextUtils.getApplicationContext()
-                       .getResources()
-                       .getConfiguration()
-                       .getLayoutDirection()
+                        .getResources()
+                        .getConfiguration()
+                        .getLayoutDirection()
                 == View.LAYOUT_DIRECTION_RTL;
     }
 
-    @VisibleForTesting
+    @CalledByNativeForTesting
     public static void setRtlForTesting(boolean shouldBeRtl) {
         sIsLayoutRtlForTesting = shouldBeRtl;
+        ResettersForTesting.register(() -> sIsLayoutRtlForTesting = null);
+    }
+
+    /** Returns whether navigation gestures should be mirrored due to the UI language. */
+    @CalledByNative
+    public static boolean shouldMirrorBackForwardGestures() {
+        if (!UiAndroidFeatureMap.isEnabled(UiAndroidFeatures.MIRROR_BACK_FORWARD_GESTURES_IN_RTL)) {
+            return false;
+        }
+
+        return LocalizationUtils.isLayoutRtl();
     }
 
     /**
      * Jni binding to base::i18n::GetFirstStrongCharacterDirection
+     *
      * @param string String to decide the direction.
      * @return One of the UNKNOWN_DIRECTION, RIGHT_TO_LEFT, and LEFT_TO_RIGHT.
      */
@@ -127,6 +143,7 @@ public class LocalizationUtils {
     @NativeMethods
     interface Natives {
         int getFirstStrongCharacterDirection(String string);
+
         String getNativeUiLocale();
     }
 }

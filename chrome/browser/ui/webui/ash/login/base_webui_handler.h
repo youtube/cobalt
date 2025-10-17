@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -17,7 +18,6 @@
 #include "components/login/base_screen_handler_utils.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_message_handler.h"
-#include "ui/gfx/native_widget_types.h"
 
 namespace login {
 class LocalizedValuesBuilder;
@@ -71,7 +71,7 @@ class BaseWebUIHandler : public content::WebUIMessageHandler {
   // All CallJS invocations can be recorded for tests if CallJS recording is
   // enabled.
   template <typename... Args>
-  void CallJS(base::StringPiece function_name, Args... args) {
+  void CallJS(std::string_view function_name, Args... args) {
     if (IsJavascriptAllowed()) {
       CallJavascriptFunction(function_name, base::Value(std::move(args))...);
       return;
@@ -84,8 +84,7 @@ class BaseWebUIHandler : public content::WebUIMessageHandler {
   }
 
   template <typename... Args>
-  void FireWebUIListenerWhenAllowed(base::StringPiece event_name,
-                                    Args... args) {
+  void FireWebUIListenerWhenAllowed(std::string_view event_name, Args... args) {
     if (IsJavascriptAllowed()) {
       FireWebUIListener(event_name, args...);
       return;
@@ -99,8 +98,7 @@ class BaseWebUIHandler : public content::WebUIMessageHandler {
   }
 
   template <typename T, typename... Args>
-  void AddCallback(base::StringPiece function_name,
-                   void (T::*method)(Args...)) {
+  void AddCallback(std::string_view function_name, void (T::*method)(Args...)) {
     base::RepeatingCallback<void(Args...)> callback =
         base::BindRepeating(method, base::Unretained(static_cast<T*>(this)));
     web_ui()->RegisterHandlerCallback(function_name, callback);

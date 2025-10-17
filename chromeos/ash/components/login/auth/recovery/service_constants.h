@@ -13,6 +13,7 @@ class GURL;
 
 namespace ash {
 
+COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH)
 std::string GetRecoveryHsmPublicKey();
 
 std::string GetRecoveryLedgerName();
@@ -20,10 +21,12 @@ std::string GetRecoveryLedgerPublicKey();
 uint32_t GetRecoveryLedgerPublicKeyHash();
 
 // Used to fetch the epoch public key and metadata from the recovery server.
+COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH)
 GURL GetRecoveryServiceEpochURL();
 
 // Used to perform mediation on the recovery request, the derived/mediated
 // secrets are returned in response.
+COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH)
 GURL GetRecoveryServiceMediateURL();
 
 // Used to fetch the reauth request token, which will be used as a parameter in

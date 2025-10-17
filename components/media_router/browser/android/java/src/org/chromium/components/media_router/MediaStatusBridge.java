@@ -8,16 +8,20 @@ import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
 import com.google.android.gms.cast.MediaStatus;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Wrapper layer that exposes a gms.cast.MediaStatus to native code.
  * See also media/base/media_status.h.
  */
 @JNINamespace("media_router")
+@NullMarked
 public class MediaStatusBridge {
-    private MediaStatus mStatus;
+    private final MediaStatus mStatus;
 
     public MediaStatusBridge(MediaStatus status) {
         mStatus = status;
@@ -56,7 +60,7 @@ public class MediaStatusBridge {
      * a YouTube Cast session, this could be the title of the video.
      */
     @CalledByNative
-    public String title() {
+    public @Nullable String title() {
         MediaInfo info = mStatus.getMediaInfo();
         if (info == null) return "";
 
@@ -66,41 +70,31 @@ public class MediaStatusBridge {
         return metadata.getString(MediaMetadata.KEY_TITLE);
     }
 
-    /**
-     * If this is true, the media can be played and paused.
-     */
+    /** If this is true, the media can be played and paused. */
     @CalledByNative
     public boolean canPlayPause() {
         return mStatus.isMediaCommandSupported(MediaStatus.COMMAND_PAUSE);
     }
 
-    /**
-     * If this is true, the media can be muted and unmuted.
-     */
+    /** If this is true, the media can be muted and unmuted. */
     @CalledByNative
     public boolean canMute() {
         return mStatus.isMediaCommandSupported(MediaStatus.COMMAND_TOGGLE_MUTE);
     }
 
-    /**
-     * If this is true, the media's volume can be changed.
-     */
+    /** If this is true, the media's volume can be changed. */
     @CalledByNative
     public boolean canSetVolume() {
         return mStatus.isMediaCommandSupported(MediaStatus.COMMAND_SET_VOLUME);
     }
 
-    /**
-     * If this is true, the media's current playback position can be chaxnged.
-     */
+    /** If this is true, the media's current playback position can be chaxnged. */
     @CalledByNative
     public boolean canSeek() {
         return mStatus.isMediaCommandSupported(MediaStatus.COMMAND_SEEK);
     }
 
-    /**
-     * Returns the stream's mute state.
-     */
+    /** Returns the stream's mute state. */
     @CalledByNative
     public boolean isMuted() {
         return mStatus.isMute();
@@ -128,9 +122,7 @@ public class MediaStatusBridge {
         return info.getStreamDuration();
     }
 
-    /**
-     * Current playback position, in ms. Must be less than or equal to |duration|.
-     */
+    /** Current playback position, in ms. Must be less than or equal to |duration|. */
     @CalledByNative
     public long currentTime() {
         return mStatus.getStreamPosition();

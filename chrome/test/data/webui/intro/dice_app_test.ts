@@ -5,14 +5,14 @@
 import 'chrome://intro/dice_app.js';
 
 import {IntroBrowserProxyImpl} from 'chrome://intro/browser_proxy.js';
-import {IntroAppElement} from 'chrome://intro/dice_app.js';
+import type {DiceAppElement} from 'chrome://intro/dice_app.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitBeforeNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestIntroBrowserProxy} from './test_intro_browser_proxy.js';
 
 suite('DiceAppTest', function() {
-  let testElement: IntroAppElement;
+  let testElement: DiceAppElement;
   let testBrowserProxy: TestIntroBrowserProxy;
 
   setup(function() {
@@ -30,7 +30,7 @@ suite('DiceAppTest', function() {
   });
 
   function isSelectorActive(selector: string) {
-    return testElement.shadowRoot!.querySelector(selector)!.classList.contains(
+    return testElement.shadowRoot.querySelector(selector)!.classList.contains(
         'active');
   }
 
@@ -41,7 +41,7 @@ suite('DiceAppTest', function() {
 
   test(
       '"signInPromo" is the active view without the noAnimations param',
-      async function() {
+      function() {
         const searchParams = new URLSearchParams(window.location.search);
         searchParams.append('noAnimations', 'true');
         testElement.setupViewManagerForTest(searchParams);

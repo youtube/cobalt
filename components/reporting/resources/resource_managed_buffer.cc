@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <cstdint>
 #include <memory>
 
@@ -47,7 +52,7 @@ void ResourceManagedBuffer::Clear() {
 }
 
 char* ResourceManagedBuffer::at(size_t pos) {
-  DCHECK_LT(pos, size_);
+  CHECK_LT(pos, size_);
   return buffer_.get() + pos;
 }
 

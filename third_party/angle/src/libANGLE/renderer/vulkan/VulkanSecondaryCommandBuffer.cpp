@@ -17,7 +17,7 @@ namespace rx
 {
 namespace vk
 {
-angle::Result VulkanSecondaryCommandBuffer::InitializeCommandPool(Context *context,
+angle::Result VulkanSecondaryCommandBuffer::InitializeCommandPool(ErrorContext *context,
                                                                   SecondaryCommandPool *pool,
                                                                   uint32_t queueFamilyIndex,
                                                                   ProtectionType protectionType)
@@ -30,20 +30,32 @@ angle::Result VulkanSecondaryCommandBuffer::InitializeRenderPassInheritanceInfo(
     ContextVk *contextVk,
     const Framebuffer &framebuffer,
     const RenderPassDesc &renderPassDesc,
-    VkCommandBufferInheritanceInfo *inheritanceInfoOut)
+    VkCommandBufferInheritanceInfo *inheritanceInfoOut,
+    VkCommandBufferInheritanceRenderingInfo *renderingInfoOut,
+    gl::DrawBuffersArray<VkFormat> *colorFormatStorageOut)
 {
-    const RenderPass *compatibleRenderPass = nullptr;
-    ANGLE_TRY(contextVk->getCompatibleRenderPass(renderPassDesc, &compatibleRenderPass));
+    *inheritanceInfoOut       = {};
+    inheritanceInfoOut->sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
 
-    inheritanceInfoOut->sType       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritanceInfoOut->renderPass  = compatibleRenderPass->getHandle();
-    inheritanceInfoOut->subpass     = 0;
-    inheritanceInfoOut->framebuffer = framebuffer.getHandle();
+    if (contextVk->getFeatures().preferDynamicRendering.enabled)
+    {
+        renderPassDesc.populateRenderingInheritanceInfo(contextVk->getRenderer(), renderingInfoOut,
+                                                        colorFormatStorageOut);
+        AddToPNextChain(inheritanceInfoOut, renderingInfoOut);
+    }
+    else
+    {
+        const RenderPass *compatibleRenderPass = nullptr;
+        ANGLE_TRY(contextVk->getCompatibleRenderPass(renderPassDesc, &compatibleRenderPass));
+        inheritanceInfoOut->renderPass  = compatibleRenderPass->getHandle();
+        inheritanceInfoOut->subpass     = 0;
+        inheritanceInfoOut->framebuffer = framebuffer.getHandle();
+    }
 
     return angle::Result::Continue;
 }
 
-angle::Result VulkanSecondaryCommandBuffer::initialize(Context *context,
+angle::Result VulkanSecondaryCommandBuffer::initialize(ErrorContext *context,
                                                        SecondaryCommandPool *pool,
                                                        bool isRenderPassCommandBuffer,
                                                        SecondaryCommandMemoryAllocator *allocator)
@@ -76,7 +88,7 @@ void VulkanSecondaryCommandBuffer::destroy()
 }
 
 angle::Result VulkanSecondaryCommandBuffer::begin(
-    Context *context,
+    ErrorContext *context,
     const VkCommandBufferInheritanceInfo &inheritanceInfo)
 {
     ASSERT(!mAnyCommand);
@@ -85,7 +97,10 @@ angle::Result VulkanSecondaryCommandBuffer::begin(
     beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo         = &inheritanceInfo;
-    if (inheritanceInfo.renderPass != VK_NULL_HANDLE)
+    // For render pass command buffers, specify that the command buffer is entirely inside a render
+    // pass.  This is determined by either the render pass object existing, or the
+    // VkCommandBufferInheritanceRenderingInfo specified in the pNext chain.
+    if (inheritanceInfo.renderPass != VK_NULL_HANDLE || inheritanceInfo.pNext != nullptr)
     {
         beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
     }
@@ -94,7 +109,7 @@ angle::Result VulkanSecondaryCommandBuffer::begin(
     return angle::Result::Continue;
 }
 
-angle::Result VulkanSecondaryCommandBuffer::end(Context *context)
+angle::Result VulkanSecondaryCommandBuffer::end(ErrorContext *context)
 {
     ANGLE_VK_TRY(context, CommandBuffer::end());
     return angle::Result::Continue;

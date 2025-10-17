@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "api/array_view.h"
 #include "modules/rtp_rtcp/source/forward_error_correction.h"
 
 namespace webrtc {
@@ -57,11 +58,8 @@ class UlpfecHeaderWriter : public FecHeaderWriter {
   size_t FecHeaderSize(size_t packet_mask_row_size) const override;
 
   void FinalizeFecHeader(
-      uint32_t media_ssrc,  // Unused by ULPFEC.
-      uint16_t seq_num_base,
-      const uint8_t* packet_mask,
-      size_t packet_mask_size,
-      ForwardErrorCorrection::Packet* fec_packet) const override;
+      ArrayView<const ProtectedStream> protected_streams,
+      ForwardErrorCorrection::Packet& fec_packet) const override;
 };
 
 }  // namespace webrtc

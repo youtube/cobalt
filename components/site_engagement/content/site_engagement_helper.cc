@@ -5,8 +5,8 @@
 #include "components/site_engagement/content/site_engagement_helper.h"
 
 #include <utility>
+#include <vector>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
@@ -57,7 +57,7 @@ SiteEngagementService::Helper::PeriodicTracker::PeriodicTracker(
     SiteEngagementService::Helper* helper)
     : helper_(helper), pause_timer_(std::make_unique<base::OneShotTimer>()) {}
 
-SiteEngagementService::Helper::PeriodicTracker::~PeriodicTracker() {}
+SiteEngagementService::Helper::PeriodicTracker::~PeriodicTracker() = default;
 
 void SiteEngagementService::Helper::PeriodicTracker::Start(
     base::TimeDelta initial_delay) {
@@ -112,8 +112,6 @@ void SiteEngagementService::Helper::InputTracker::TrackingStopped() {
 // registered again.
 void SiteEngagementService::Helper::InputTracker::DidGetUserInteraction(
     const blink::WebInputEvent& event) {
-  // Only respond to raw key down to avoid multiple triggering on a single input
-  // (e.g. keypress is a key down then key up).
   if (!is_tracking_)
     return;
 
@@ -123,7 +121,10 @@ void SiteEngagementService::Helper::InputTracker::DidGetUserInteraction(
   // of the values of the WebInputEvent::Type enum (hence it won't require the
   // compiler verifying that all cases are covered).
   switch (type) {
+    // Only respond to key down events to avoid multiple triggering on a single
+    // input (e.g. keypress is a key down then key up).
     case blink::WebInputEvent::Type::kRawKeyDown:
+    case blink::WebInputEvent::Type::kKeyDown:
       helper()->RecordUserInput(EngagementType::kKeypress);
       break;
     case blink::WebInputEvent::Type::kMouseDown:
@@ -146,7 +147,7 @@ SiteEngagementService::Helper::MediaTracker::MediaTracker(
     content::WebContents* web_contents)
     : PeriodicTracker(helper), content::WebContentsObserver(web_contents) {}
 
-SiteEngagementService::Helper::MediaTracker::~MediaTracker() {}
+SiteEngagementService::Helper::MediaTracker::~MediaTracker() = default;
 
 void SiteEngagementService::Helper::MediaTracker::TrackingStarted() {
   if (!active_media_players_.empty()) {
@@ -179,7 +180,7 @@ void SiteEngagementService::Helper::MediaTracker::MediaStoppedPlaying(
     const MediaPlayerInfo& media_info,
     const content::MediaPlayerId& id,
     WebContentsObserver::MediaStoppedReason reason) {
-  base::Erase(active_media_players_, id);
+  std::erase(active_media_players_, id);
 }
 
 SiteEngagementService::Helper::Helper(

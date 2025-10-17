@@ -5,7 +5,6 @@
 #include "gpu/vulkan/tests/basic_vulkan_test.h"
 
 #include "base/command_line.h"
-#include "base/strings/string_piece_forward.h"
 #include "build/build_config.h"
 #include "gpu/vulkan/init/vulkan_factory.h"
 #include "gpu/vulkan/tests/native_window.h"
@@ -54,6 +53,7 @@ void BasicVulkanTest::TearDown() {
     window_ = gfx::kNullAcceleratedWidget;
   }
   device_queue_->Destroy();
+  device_queue_.reset();
   vulkan_implementation_.reset();
 }
 

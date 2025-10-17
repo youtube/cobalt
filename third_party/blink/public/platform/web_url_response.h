@@ -32,29 +32,32 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_URL_RESPONSE_H_
 
 #include <memory>
+#include <optional>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
+#include "net/base/auth.h"
 #include "net/base/ip_endpoint.h"
 #include "net/cert/ct_policy_status.h"
-#include "net/http/http_response_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/http/alternate_protocol_usage.h"
+#include "net/http/http_connection_info.h"
 #include "third_party/blink/public/common/security/security_style.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_vector.h"
 
 namespace network {
-class TriggerAttestation;
 namespace mojom {
 enum class AlternateProtocolUsage;
+enum class DeviceBoundSessionUsage;
 enum class FetchResponseSource;
 enum class FetchResponseType : int32_t;
 enum class IPAddressSpace : int32_t;
 enum class PrivateNetworkAccessPreflightResult;
 class URLResponseHead;
 class LoadTimingInfo;
+class ServiceWorkerRouterInfo;
 }  // namespace mojom
 }  // namespace network
 
@@ -111,9 +114,6 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   void SetConnectionID(unsigned);
 
   void SetConnectionReused(bool);
-
-  void SetTriggerAttestation(
-      const absl::optional<network::TriggerAttestation>&);
 
   void SetLoadTiming(const network::mojom::LoadTimingInfo&);
 
@@ -183,6 +183,13 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   network::mojom::FetchResponseSource GetServiceWorkerResponseSource() const;
   void SetServiceWorkerResponseSource(network::mojom::FetchResponseSource);
 
+  // See network.mojom.URLResponseHead.static_routing_info.
+  void SetServiceWorkerRouterInfo(
+      const network::mojom::ServiceWorkerRouterInfo&);
+
+  // Flag whether a shared dictionary was used to decompress the response body.
+  void SetDidUseSharedDictionary(bool);
+
   // https://fetch.spec.whatwg.org/#concept-response-type
   void SetType(network::mojom::FetchResponseType);
   network::mojom::FetchResponseType GetType() const;
@@ -196,7 +203,7 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   // The URL list of the Response object the ServiceWorker passed to
   // respondWith().
   // See network.mojom.URLResponseHead.url_list_via_service_worker.
-  void SetUrlListViaServiceWorker(const WebVector<WebURL>&);
+  void SetUrlListViaServiceWorker(const std::vector<WebURL>&);
   // Returns true if the URL list is not empty.
   bool HasUrlListViaServiceWorker() const;
 
@@ -207,8 +214,8 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
 
   // The headers that should be exposed according to CORS. Only guaranteed
   // to be set if the response was served by a ServiceWorker.
-  WebVector<WebString> CorsExposedHeaderNames() const;
-  void SetCorsExposedHeaderNames(const WebVector<WebString>&);
+  std::vector<WebString> CorsExposedHeaderNames() const;
+  void SetCorsExposedHeaderNames(const std::vector<WebString>&);
 
   // Whether service worker navigation preload occurred.
   // See network.mojom.URLResponseHead.did_navigation_preload.
@@ -247,8 +254,8 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   void SetWasAlternateProtocolAvailable(bool);
 
   // Information about the type of connection used to fetch this resource.
-  net::HttpResponseInfo::ConnectionInfo ConnectionInfo() const;
-  void SetConnectionInfo(net::HttpResponseInfo::ConnectionInfo);
+  net::HttpConnectionInfo ConnectionInfo() const;
+  void SetConnectionInfo(net::HttpConnectionInfo);
 
   // Whether the response was cached and validated over the network.
   void SetIsValidated(bool);
@@ -261,9 +268,10 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   void SetEncodedBodyLength(uint64_t);
 
   void SetIsSignedExchangeInnerResponse(bool);
+  void SetIsWebBundleInnerResponse(bool);
   void SetWasInPrefetchCache(bool);
   void SetWasCookieInRequest(bool);
-  void SetRecursivePrefetchToken(const absl::optional<base::UnguessableToken>&);
+  void SetRecursivePrefetchToken(const std::optional<base::UnguessableToken>&);
 
   // Whether this resource is from a MHTML archive.
   bool FromArchive() const;
@@ -271,13 +279,10 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   // Sets any DNS aliases for the requested URL. The alias chain order is
   // expected to be in reverse, from canonical name (i.e. address record name)
   // through to query name.
-  void SetDnsAliases(const WebVector<WebString>&);
+  void SetDnsAliases(const std::vector<WebString>&);
 
-  WebURL WebBundleURL() const;
-  void SetWebBundleURL(const WebURL&);
-
-  void SetAuthChallengeInfo(const absl::optional<net::AuthChallengeInfo>&);
-  const absl::optional<net::AuthChallengeInfo>& AuthChallengeInfo() const;
+  void SetAuthChallengeInfo(const std::optional<net::AuthChallengeInfo>&);
+  const std::optional<net::AuthChallengeInfo>& AuthChallengeInfo() const;
 
   // The request's |includeCredentials| value from the "HTTP-network fetch"
   // algorithm.
@@ -285,8 +290,17 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   void SetRequestIncludeCredentials(bool);
   bool RequestIncludeCredentials() const;
 
+  void SetShouldUseSourceHashForJSCodeCache(bool);
+  bool ShouldUseSourceHashForJSCodeCache() const;
+
   void SetWasFetchedViaCache(bool);
-  void SetArrivalTimeAtRenderer(base::TimeTicks arrival);
+
+  void SetDeviceBoundSessionUsage(network::mojom::DeviceBoundSessionUsage);
+  network::mojom::DeviceBoundSessionUsage DeviceBoundSessionUsage() const;
+
+  // Whether the request was actually deferred by any device bound sessions.
+  void SetWasDeferredByDeviceBoundSession(bool);
+  bool WasDeferredByDeviceBoundSession() const;
 
 #if INSIDE_BLINK
  protected:

@@ -1,6 +1,10 @@
 # TensorFlow Lite Task Library
 
 load(
+    "@build_bazel_rules_apple//apple:ios.bzl",
+    "ios_static_framework",
+)
+load(
     "@org_tensorflow//tensorflow/lite/ios:ios.bzl",
     "TFL_MINIMUM_OS_VERSION",
     "tflite_ios_framework",
@@ -10,13 +14,8 @@ load(
     "TFL_TASK_MINIMUM_OS_VERSION",
     "strip_api_include_path_prefix",
 )
-load(
-    "@build_bazel_rules_apple//apple:ios.bzl",
-    "ios_static_framework",
-)
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = ["//tensorflow_lite_support:users"],
     licenses = ["notice"],  # Apache 2.0
 )

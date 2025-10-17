@@ -26,7 +26,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_USER_TIMING_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_USER_TIMING_H_
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/core/timing/performance_timing.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -38,8 +39,7 @@ class ExceptionState;
 class Performance;
 class V8UnionDoubleOrString;
 
-using PerformanceEntryMap =
-    HeapHashMap<AtomicString, Member<PerformanceEntryVector>>;
+using PerformanceEntryMap = HeapHashMap<AtomicString, PerformanceEntryVector>;
 
 class UserTiming final : public GarbageCollected<UserTiming> {
  public:
@@ -50,7 +50,7 @@ class UserTiming final : public GarbageCollected<UserTiming> {
   PerformanceMeasure* Measure(ScriptState*,
                               const AtomicString& measure_name,
                               const V8UnionDoubleOrString* start,
-                              const absl::optional<double>& duration,
+                              const std::optional<double>& duration,
                               const V8UnionDoubleOrString* end,
                               const ScriptValue& detail,
                               ExceptionState&,
@@ -59,7 +59,8 @@ class UserTiming final : public GarbageCollected<UserTiming> {
 
   PerformanceEntryVector GetMarks() const;
   PerformanceEntryVector GetMeasures() const;
-  void AddMarkToPerformanceTimeline(PerformanceMark&);
+  String GetSerializedDetail(const ScriptValue&);
+  void AddMarkToPerformanceTimeline(PerformanceMark&, PerformanceMarkOptions*);
 
   PerformanceEntryVector GetMarks(const AtomicString& name) const;
   PerformanceEntryVector GetMeasures(const AtomicString& name) const;

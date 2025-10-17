@@ -19,7 +19,7 @@ class InspectorIssue;
 }  // namespace Audits
 }  // namespace protocol
 
-// TODO(crbug.com/1063007): Attribute issues to ongoing navigations correctly.
+// TODO(crbug.com/40051801): Attribute issues to ongoing navigations correctly.
 class DevToolsIssueStorage
     : public content::PageUserData<DevToolsIssueStorage> {
  public:
@@ -40,6 +40,7 @@ class DevToolsIssueStorage
       std::pair<GlobalRenderFrameHostId,
                 std::unique_ptr<protocol::Audits::InspectorIssue>>;
   base::circular_deque<RenderFrameHostAssociatedIssue> issues_;
+  int total_added_issues_ = 0;
 };
 
 }  // namespace content

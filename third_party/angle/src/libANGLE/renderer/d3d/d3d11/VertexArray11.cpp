@@ -83,10 +83,23 @@ angle::Result VertexArray11::syncState(const gl::Context *context,
     gl::AttributesMask attributesToUpdate;
 
     // Make sure we trigger re-translation for static index or vertex data.
-    for (size_t dirtyBit : dirtyBits)
+    for (auto iter = dirtyBits.begin(), endIter = dirtyBits.end(); iter != endIter; ++iter)
     {
+        size_t dirtyBit = *iter;
         switch (dirtyBit)
         {
+            case gl::VertexArray::DIRTY_BIT_LOST_OBSERVATION:
+            {
+                // If vertex array was not observing while unbound, we need to check buffer's
+                // internal storage and take action if buffer has changed while not observing.
+                // For now we just simply assume buffer storage has changed and always dirty all
+                // binding points.
+                iter.setLaterBits(
+                    gl::VertexArray::DirtyBits(mState.getBufferBindingMask().to_ulong()
+                                               << gl::VertexArray::DIRTY_BIT_BINDING_0));
+                break;
+            }
+
             case gl::VertexArray::DIRTY_BIT_ELEMENT_ARRAY_BUFFER:
             case gl::VertexArray::DIRTY_BIT_ELEMENT_ARRAY_BUFFER_DATA:
             {
@@ -134,16 +147,15 @@ angle::Result VertexArray11::syncStateForDraw(const gl::Context *context,
     Renderer11 *renderer         = GetImplAs<Context11>(context)->getRenderer();
     StateManager11 *stateManager = renderer->getStateManager();
 
-    const gl::State &glState   = context->getState();
-    const gl::Program *program = glState.getProgram();
-    ASSERT(program);
-    const gl::ProgramExecutable &executable = program->getExecutable();
+    const gl::State &glState                = context->getState();
+    const gl::ProgramExecutable *executable = glState.getProgramExecutable();
+    ASSERT(executable);
 
-    mAppliedNumViewsToDivisor = (program->usesMultiview() ? program->getNumViews() : 1);
+    mAppliedNumViewsToDivisor = executable->usesMultiview() ? executable->getNumViews() : 1;
 
     if (mAttribsToTranslate.any())
     {
-        const gl::AttributesMask &activeLocations = executable.getActiveAttribLocationsMask();
+        const gl::AttributesMask &activeLocations = executable->getActiveAttribLocationsMask();
         gl::AttributesMask activeDirtyAttribs     = (mAttribsToTranslate & activeLocations);
         if (activeDirtyAttribs.any())
         {
@@ -154,7 +166,7 @@ angle::Result VertexArray11::syncStateForDraw(const gl::Context *context,
 
     if (mDynamicAttribsMask.any())
     {
-        const gl::AttributesMask &activeLocations = executable.getActiveAttribLocationsMask();
+        const gl::AttributesMask &activeLocations = executable->getActiveAttribLocationsMask();
         gl::AttributesMask activeDynamicAttribs   = (mDynamicAttribsMask & activeLocations);
 
         if (activeDynamicAttribs.any())

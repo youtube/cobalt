@@ -4,17 +4,21 @@
 
 #include "chrome/updater/win/app_command_runner.h"
 
-#include <shellapi.h>
 #include <windows.h>
 
+#include <shellapi.h>
+
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/base_paths_win.h"
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/strings/strcat.h"
@@ -28,7 +32,6 @@
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/win_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
@@ -64,14 +67,14 @@ HRESULT LoadAppCommandFormat(UpdaterScope scope,
 // REG_SZ `cmd`. Along with `cmd`, there are other properties of the app
 // registered, such as the version "pv"="107.0.5304.107". So, `pv` is also a
 // potential "command" for `IProcessLauncher`, which is unexpected.
-// TODO(crbug/1399177): Parameterize `LoadLegacyProcessLauncherFormat`.
 HRESULT LoadLegacyProcessLauncherFormat(const std::wstring& app_id,
                                         const std::wstring& command_id,
                                         std::wstring& command_format) {
-  constexpr wchar_t kAllowedLegacyProcessLauncherAppNamePrefix[] =
+  static constexpr wchar_t kAllowedLegacyProcessLauncherAppNamePrefix[] =
       L"" BROWSER_PRODUCT_NAME_STRING;
-  constexpr char kAllowedLegacyProcessLauncherMaxAppVersion[] = "110.0.5435.0";
-  constexpr wchar_t kAllowedLegacyProcessLauncherCommandId[] = L"cmd";
+  static constexpr char kAllowedLegacyProcessLauncherMaxAppVersion[] =
+      "110.0.5435.0";
+  static constexpr wchar_t kAllowedLegacyProcessLauncherCommandId[] = L"cmd";
 
   std::wstring pv;
   std::wstring name;
@@ -86,7 +89,7 @@ HRESULT LoadLegacyProcessLauncherFormat(const std::wstring& app_id,
 
     app_key.ReadValue(kRegValuePV, &pv);
     app_key.ReadValue(kRegValueName, &name);
-    const base::Version app_version(base::WideToASCII(pv));
+    const base::Version app_version(base::WideToUTF8(pv));
 
     if (app_version.IsValid() &&
         app_version.CompareTo(
@@ -114,6 +117,7 @@ bool IsSecureAppCommandExePath(UpdaterScope scope,
                                const base::FilePath& exe_path) {
   return exe_path.IsAbsolute() &&
          (!IsSystemInstall(scope) ||
+          IsParentOf(base::DIR_PROGRAM_FILES, exe_path) ||
           IsParentOf(base::DIR_PROGRAM_FILESX86, exe_path) ||
           IsParentOf(base::DIR_PROGRAM_FILES6432, exe_path));
 }
@@ -189,7 +193,7 @@ AppCommandRunner::LoadAutoRunOnOsUpgradeAppCommands(
   return app_command_runners;
 }
 
-HRESULT AppCommandRunner::Run(const std::vector<std::wstring>& substitutions,
+HRESULT AppCommandRunner::Run(base::span<const std::wstring> substitutions,
                               base::Process& process) const {
   if (executable_.empty() || process.IsValid()) {
     return E_UNEXPECTED;
@@ -251,7 +255,13 @@ HRESULT AppCommandRunner::GetAppCommandFormatComponents(
     return E_INVALIDARG;
   }
 
-  const base::FilePath exe = base::FilePath(argv.get()[0]);
+  // SAFETY: the unsafe buffer is present due to the ::CommandLineToArgvW call.
+  // When constructing the span, `num_args` is validated and checked as a valid
+  // size_t value.
+  UNSAFE_BUFFERS(const base::span<wchar_t*> safe_args{
+      argv.get(), base::checked_cast<size_t>(num_args)});
+
+  const base::FilePath exe(safe_args[0]);
   if (!IsSecureAppCommandExePath(scope, exe)) {
     LOG(WARNING) << __func__
                  << ": !IsSecureAppCommandExePath(scope, exe): " << exe;
@@ -260,39 +270,39 @@ HRESULT AppCommandRunner::GetAppCommandFormatComponents(
 
   executable = exe;
   parameters.clear();
-  for (int i = 1; i < num_args; ++i) {
-    parameters.push_back(argv.get()[i]);
+  for (size_t i = 1; i < safe_args.size(); ++i) {
+    parameters.push_back(safe_args[i]);
   }
 
   return S_OK;
 }
 
 // static
-absl::optional<std::wstring> AppCommandRunner::FormatParameter(
+std::optional<std::wstring> AppCommandRunner::FormatParameter(
     const std::wstring& parameter,
-    const std::vector<std::wstring>& substitutions) {
+    base::span<const std::wstring> substitutions) {
   return base::internal::DoReplaceStringPlaceholders(
-      /*format_string*/ parameter, /*subst*/ substitutions,
-      /*placeholder_prefix*/ L'%',
-      /*should_escape_multiple_placeholder_prefixes*/ false,
-      /*is_strict_mode*/ true, /*offsets*/ nullptr);
+      /*format_string=*/parameter, /*subst=*/substitutions,
+      /*placeholder_prefix=*/L'%',
+      /*should_escape_multiple_placeholder_prefixes=*/false,
+      /*is_strict_mode=*/true, /*offsets=*/nullptr);
 }
 
 // static
-absl::optional<std::wstring> AppCommandRunner::FormatAppCommandLine(
+std::optional<std::wstring> AppCommandRunner::FormatAppCommandLine(
     const std::vector<std::wstring>& parameters,
-    const std::vector<std::wstring>& substitutions) {
+    base::span<const std::wstring> substitutions) {
   std::wstring formatted_command_line;
   for (size_t i = 0; i < parameters.size(); ++i) {
-    absl::optional<std::wstring> formatted_parameter =
+    std::optional<std::wstring> formatted_parameter =
         FormatParameter(parameters[i], substitutions);
     if (!formatted_parameter) {
       VLOG(1) << __func__ << " FormatParameter failed: " << parameters[i]
               << ": " << substitutions.size();
-      return absl::nullopt;
+      return std::nullopt;
     }
 
-    constexpr wchar_t kQuotableCharacters[] = L" \t\\\"";
+    static constexpr wchar_t kQuotableCharacters[] = L" \t\\\"";
     formatted_command_line.append(
         formatted_parameter->find_first_of(kQuotableCharacters) ==
                 std::wstring::npos
@@ -312,13 +322,13 @@ absl::optional<std::wstring> AppCommandRunner::FormatAppCommandLine(
 HRESULT AppCommandRunner::ExecuteAppCommand(
     const base::FilePath& executable,
     const std::vector<std::wstring>& parameters,
-    const std::vector<std::wstring>& substitutions,
+    base::span<const std::wstring> substitutions,
     base::Process& process) {
   VLOG(2) << __func__ << ": " << executable << ": "
-          << base::JoinString(parameters, L",")
+          << base::JoinString(parameters, L",") << " : "
           << base::JoinString(substitutions, L",");
 
-  const absl::optional<std::wstring> command_line_parameters =
+  const std::optional<std::wstring> command_line_parameters =
       FormatAppCommandLine(parameters, substitutions);
   if (!command_line_parameters) {
     LOG(ERROR) << __func__ << "!command_line_parameters";

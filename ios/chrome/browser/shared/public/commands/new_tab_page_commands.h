@@ -7,7 +7,9 @@
 
 #import <UIKit/UIKit.h>
 
-#include "ios/chrome/browser/discover_feed/feed_constants.h"
+#include "ios/chrome/browser/discover_feed/model/feed_constants.h"
+
+typedef NS_ENUM(NSInteger, FeedLayoutUpdateType);
 
 // Commands related to the new tab page.
 @protocol NewTabPageCommands
@@ -22,7 +24,14 @@
 // Notifies the new tab page that the `feedType`'s model has completed updates.
 // This can include, initial loading of cards, pagination, card removal, and
 // refreshes.
-- (void)handleFeedModelDidEndUpdates:(FeedType)feedType;
+- (void)handleFeedModelOfType:(FeedType)feedType
+                didEndUpdates:(FeedLayoutUpdateType)updateType;
+
+// Presents an IPH bubble to highlight the Lens icon in the NTP Fakebox.
+- (void)presentLensIconBubble;
+
+// Presents an IPH bubble to highlight scrolling on the feed.
+- (void)presentFeedSwipeFirstRunBubble;
 
 @end
 

@@ -47,9 +47,9 @@ class VIEWS_EXPORT SliderListener {
 // Slider operates in interval [0,1] by default, but can also switch between a
 // predefined set of values, see SetAllowedValues method below.
 class VIEWS_EXPORT Slider : public View, public gfx::AnimationDelegate {
- public:
-  METADATA_HEADER(Slider);
+  METADATA_HEADER(Slider, View)
 
+ public:
   explicit Slider(SliderListener* listener = nullptr);
   Slider(const Slider&) = delete;
   Slider& operator=(const Slider&) = delete;
@@ -104,6 +104,8 @@ class VIEWS_EXPORT Slider : public View, public gfx::AnimationDelegate {
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
 
+  void AddedToWidget() override;
+
  private:
   friend class test::SliderTestApi;
 
@@ -124,30 +126,32 @@ class VIEWS_EXPORT Slider : public View, public gfx::AnimationDelegate {
   void OnSliderDragEnded();
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& available_size) const override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
   bool OnMouseDragged(const ui::MouseEvent& event) override;
   void OnMouseReleased(const ui::MouseEvent& event) override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   bool HandleAccessibleAction(const ui::AXActionData& action_data) override;
   void OnFocus() override;
   void OnBlur() override;
   void VisibilityChanged(View* starting_from, bool is_visible) override;
-  void AddedToWidget() override;
 
   // ui::EventHandler:
   void OnGestureEvent(ui::GestureEvent* event) override;
 
   void set_listener(SliderListener* listener) { listener_ = listener; }
 
-  void NotifyPendingAccessibilityValueChanged();
+  void ApplyPendingAccessibleValueUpdate();
 
   virtual SkColor GetThumbColor() const;
   virtual SkColor GetTroughColor() const;
   int GetSliderExtraPadding() const;
 
-  raw_ptr<SliderListener, DanglingUntriaged> listener_;
+  // Derived classes can override this method to update the accessible value.
+  virtual void UpdateAccessibleValue();
+
+  raw_ptr<SliderListener, AcrossTasksDanglingUntriaged> listener_;
 
   std::unique_ptr<gfx::SlideAnimation> move_animation_;
 

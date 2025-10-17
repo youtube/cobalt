@@ -10,14 +10,15 @@
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
+#include "chromeos/ash/components/timer_factory/timer_factory.h"
 #include "chromeos/ash/services/secure_channel/authenticated_channel_impl.h"
 #include "chromeos/ash/services/secure_channel/ble_advertiser_impl.h"
-#include "chromeos/ash/services/secure_channel/ble_constants.h"
 #include "chromeos/ash/services/secure_channel/ble_initiator_failure_type.h"
 #include "chromeos/ash/services/secure_channel/ble_listener_failure_type.h"
 #include "chromeos/ash/services/secure_channel/ble_scanner_impl.h"
 #include "chromeos/ash/services/secure_channel/ble_weave_client_connection.h"
 #include "chromeos/ash/services/secure_channel/connection_metrics_logger.h"
+#include "chromeos/ash/services/secure_channel/public/cpp/shared/ble_constants.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel.mojom.h"
 #include "chromeos/ash/services/secure_channel/secure_channel_disconnector.h"
 #include "device/bluetooth/public/cpp/bluetooth_uuid.h"
@@ -59,7 +60,7 @@ std::unique_ptr<BleConnectionManager> BleConnectionManagerImpl::Factory::Create(
     BleSynchronizerBase* ble_synchronizer,
     BleScanner* ble_scanner,
     SecureChannelDisconnector* secure_channel_disconnector,
-    TimerFactory* timer_factory,
+    ash::timer_factory::TimerFactory* timer_factory,
     base::Clock* clock) {
   if (test_factory_) {
     return test_factory_->CreateInstance(
@@ -209,7 +210,7 @@ BleConnectionManagerImpl::BleConnectionManagerImpl(
     BleSynchronizerBase* ble_synchronizer,
     BleScanner* ble_scanner,
     SecureChannelDisconnector* secure_channel_disconnector,
-    TimerFactory* timer_factory,
+    ash::timer_factory::TimerFactory* timer_factory,
     base::Clock* clock)
     : bluetooth_adapter_(bluetooth_adapter),
       clock_(clock),
@@ -401,12 +402,11 @@ void BleConnectionManagerImpl::SetAuthenticatingChannel(
   PauseConnectionAttemptsToDevice(remote_device_id);
 
   if (DoesAuthenticatingChannelExist(remote_device_id)) {
-    PA_LOG(ERROR) << "BleConnectionManager::SetAuthenticatingChannel(): A new "
-                  << "channel was created, one already exists for the same "
-                  << "remote device ID. ID: "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                         remote_device_id);
-    NOTREACHED();
+    NOTREACHED() << "BleConnectionManager::SetAuthenticatingChannel(): A new "
+                 << "channel was created, one already exists for the same "
+                 << "remote device ID. ID: "
+                 << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
+                        remote_device_id);
   }
 
   SecureChannel* secure_channel_raw = secure_channel.get();
@@ -495,10 +495,8 @@ std::string BleConnectionManagerImpl::GetRemoteDeviceIdForSecureChannel(
       return map_entry.first;
   }
 
-  PA_LOG(ERROR) << "BleConnectionManager::GetRemoteDeviceIdForSecureChannel(): "
-                << "No remote device ID mapped to the provided SecureChannel. ";
-  NOTREACHED();
-  return std::string();
+  NOTREACHED() << "BleConnectionManager::GetRemoteDeviceIdForSecureChannel(): "
+               << "No remote device ID mapped to the provided SecureChannel. ";
 }
 
 void BleConnectionManagerImpl::HandleSecureChannelDisconnection(
@@ -509,12 +507,11 @@ void BleConnectionManagerImpl::HandleSecureChannelDisconnection(
   remote_device_id_to_timestamps_map_[remote_device_id]->Reset();
 
   if (!DoesAuthenticatingChannelExist(remote_device_id)) {
-    PA_LOG(ERROR) << "BleConnectionManagerImpl::"
-                  << "HandleSecureChannelDisconnection(): Disconnected channel "
-                  << "not present in map. Remote device ID: "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                         remote_device_id);
-    NOTREACHED();
+    NOTREACHED() << "BleConnectionManagerImpl::"
+                 << "HandleSecureChannelDisconnection(): Disconnected channel "
+                 << "not present in map. Remote device ID: "
+                 << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
+                        remote_device_id);
   }
 
   for (const auto& details : GetDetailsForRemoteDevice(remote_device_id)) {
@@ -612,15 +609,11 @@ ConnectionAttemptDetails BleConnectionManagerImpl::ChooseChannelRecipient(
     }
   }
 
-  PA_LOG(ERROR) << "BleConnectionManager::ChooseChannelRecipient(): Could not "
-                << "find DeviceIdPair to receive channel. Remote device ID: "
-                << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                       remote_device_id)
-                << ", Role: " << connection_role;
-  NOTREACHED();
-  return ConnectionAttemptDetails(std::string(), std::string(),
-                                  ConnectionMedium::kBluetoothLowEnergy,
-                                  ConnectionRole::kInitiatorRole);
+  NOTREACHED() << "BleConnectionManager::ChooseChannelRecipient(): Could not "
+               << "find DeviceIdPair to receive channel. Remote device ID: "
+               << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
+                      remote_device_id)
+               << ", Role: " << connection_role;
 }
 
 void BleConnectionManagerImpl::StartConnectionAttemptTimerMetricsIfNecessary(

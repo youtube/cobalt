@@ -8,13 +8,11 @@ import("//components/safe_browsing/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/libprotobuf-mutator/fuzzable_proto_library.gni")
 
-source_set("phishing_classifier") {
-  if (safe_browsing_mode != 0) {
+if (safe_browsing_mode != 0) {
+  source_set("phishing_classifier") {
     sources = [
       "features.cc",
       "features.h",
-      "flatbuffer_scorer.cc",
-      "flatbuffer_scorer.h",
       "murmurhash3_util.cc",
       "murmurhash3_util.h",
       "phishing_classifier.cc",
@@ -23,22 +21,26 @@ source_set("phishing_classifier") {
       "phishing_classifier_delegate.h",
       "phishing_dom_feature_extractor.cc",
       "phishing_dom_feature_extractor.h",
+      "phishing_image_embedder.cc",
+      "phishing_image_embedder.h",
+      "phishing_image_embedder_delegate.cc",
+      "phishing_image_embedder_delegate.h",
       "phishing_model_setter_impl.cc",
       "phishing_model_setter_impl.h",
       "phishing_term_feature_extractor.cc",
       "phishing_term_feature_extractor.h",
       "phishing_url_feature_extractor.cc",
       "phishing_url_feature_extractor.h",
-      "protobuf_scorer.cc",
-      "protobuf_scorer.h",
+      "phishing_visual_feature_extractor.cc",
+      "phishing_visual_feature_extractor.h",
       "scorer.cc",
       "scorer.h",
     ]
 
     configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
+    public_deps = [ "//base" ]
     deps = [
-      "//base",
       "//cc/paint",
       "//components/optimization_guide:machine_learning_tflite_buildflags",
       "//components/paint_preview/common",
@@ -52,6 +54,7 @@ source_set("phishing_classifier") {
       "//components/safe_browsing/core/common/proto:csd_proto",
       "//content/public/renderer",
       "//crypto",
+      "//mojo/public/mojom/base:protobuf_support",
       "//skia",
       "//third_party/blink/public:blink_headers",
       "//third_party/smhasher:murmurhash3",
@@ -65,48 +68,45 @@ source_set("phishing_classifier") {
       "//v8",
     ]
   }
-}
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "features_unittest.cc",
-    "murmurhash3_util_unittest.cc",
-    "phishing_term_feature_extractor_unittest.cc",
-    "phishing_url_feature_extractor_unittest.cc",
-    "scorer_unittest.cc",
-  ]
-  deps = [
-    ":phishing_classifier",
-    "//base:base",
-    "//base/test:test_support",
-    "//components/safe_browsing/content/renderer/phishing_classifier:unit_tests_support",
-    "//components/safe_browsing/core/common/fbs:client_model",
-    "//components/safe_browsing/core/common/proto:client_model_proto",
-    "//components/safe_browsing/core/common/proto:csd_proto",
-    "//crypto",
-    "//skia",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//url",
-  ]
-}
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "features_unittest.cc",
+      "murmurhash3_util_unittest.cc",
+      "phishing_term_feature_extractor_unittest.cc",
+      "phishing_url_feature_extractor_unittest.cc",
+      "scorer_unittest.cc",
+    ]
+    deps = [
+      ":phishing_classifier",
+      "//base:base",
+      "//base/test:test_support",
+      "//components/safe_browsing/content/renderer/phishing_classifier:unit_tests_support",
+      "//components/safe_browsing/core/common/fbs:client_model",
+      "//components/safe_browsing/core/common/proto:client_model_proto",
+      "//components/safe_browsing/core/common/proto:csd_proto",
+      "//crypto",
+      "//skia",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
 
-source_set("unit_tests_support") {
-  testonly = true
-  sources = [
-    "test_utils.cc",
-    "test_utils.h",
-  ]
-  deps = [
-    ":phishing_classifier",
-    "//testing/gmock",
-  ]
-}
+  source_set("unit_tests_support") {
+    testonly = true
+    sources = [
+      "test_utils.cc",
+      "test_utils.h",
+    ]
+    deps = [
+      ":phishing_classifier",
+      "//testing/gmock",
+    ]
+  }
 
-if (use_fuzzing_engine_with_lpm) {
-  # TODO(crbug.com/1353965): Re-enable for Linux ASAN Debug build.
-  if (!is_linux || !is_debug || !is_asan) {
+  if (use_fuzzing_engine_with_lpm) {
     fuzzer_test("client_side_phishing_fuzzer") {
       sources = [ "client_side_phishing_fuzzer.cc" ]
       deps = [
@@ -118,12 +118,14 @@ if (use_fuzzing_engine_with_lpm) {
         "//skia",
         "//third_party/libprotobuf-mutator",
       ]
+      deps += [ "//components/safe_browsing/content/browser:client_side_detection_service" ]
     }
-  }
 
-  fuzzable_proto_library("client_side_phishing_fuzzer_proto") {
-    proto_in_dir = "//"
-    sources = [ "client_side_phishing_fuzzer.proto" ]
-    deps = [ "//components/safe_browsing/core/common/proto:client_model_proto" ]
+    fuzzable_proto_library("client_side_phishing_fuzzer_proto") {
+      proto_in_dir = "//"
+      sources = [ "client_side_phishing_fuzzer.proto" ]
+      deps =
+          [ "//components/safe_browsing/core/common/proto:client_model_proto" ]
+    }
   }
 }

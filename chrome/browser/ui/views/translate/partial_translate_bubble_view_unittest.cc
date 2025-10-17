@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/translate/partial_translate_bubble_ui_action_logger.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/actions/actions.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/views/test/button_test_api.h"
@@ -104,39 +105,46 @@ class PartialTranslateBubbleViewTest : public ChromeViewsTestBase {
     ChromeViewsTestBase::SetUp();
 
     // The bubble needs the parent as an anchor.
-    anchor_widget_ = CreateTestWidget(views::Widget::InitParams::TYPE_WINDOW);
+    anchor_widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                         views::Widget::InitParams::TYPE_WINDOW);
     anchor_widget_->Show();
 
     mock_model_ = new FakePartialTranslateBubbleModel(
         PartialTranslateBubbleModel::VIEW_STATE_BEFORE_TRANSLATE);
+
+    action_item_ = actions::ActionItem::Builder().SetActionId(0).Build();
   }
 
   void CreateAndShowBubble() {
     std::unique_ptr<PartialTranslateBubbleModel> model(mock_model_);
-    bubble_ = new PartialTranslateBubbleView(anchor_widget_->GetContentsView(),
-                                             std::move(model), nullptr,
-                                             base::DoNothing());
+    bubble_ = new PartialTranslateBubbleView(
+        action_item_->GetAsWeakPtr(), anchor_widget_->GetContentsView(),
+        std::move(model), nullptr, base::DoNothing());
     views::BubbleDialogDelegateView::CreateBubble(bubble_)->Show();
   }
 
   void PressButton(PartialTranslateBubbleView::ButtonID id) {
     views::Button* button =
         static_cast<views::Button*>(bubble_->GetViewByID(id));
-    ui::KeyEvent key_event(ui::ET_KEY_PRESSED, ui::VKEY_RETURN,
+    ui::KeyEvent key_event(ui::EventType::kKeyPressed, ui::VKEY_RETURN,
                            ui::DomCode::ENTER, ui::EF_NONE);
     views::test::ButtonTestApi(button).NotifyClick(key_event);
   }
 
   void TearDown() override {
-    bubble_->GetWidget()->CloseNow();
+    if (bubble_) {
+      bubble_->GetWidget()->CloseNow();
+    }
     anchor_widget_.reset();
 
     ChromeViewsTestBase::TearDown();
   }
 
   std::unique_ptr<views::Widget> anchor_widget_;
-  raw_ptr<FakePartialTranslateBubbleModel> mock_model_;
-  raw_ptr<PartialTranslateBubbleView> bubble_;
+  raw_ptr<FakePartialTranslateBubbleModel, DanglingUntriaged> mock_model_;
+  raw_ptr<PartialTranslateBubbleView, DanglingUntriaged> bubble_;
+  std::unique_ptr<actions::ActionItem> action_item_;
 };
 
 TEST_F(PartialTranslateBubbleViewTest,
@@ -189,7 +197,7 @@ TEST_F(PartialTranslateBubbleViewTest, SourceLanguageTabUpdatesViewState) {
             bubble_->GetViewState());
 }
 
-// TODO(crbug.com/1337110): For some reason calling bubble_->TabSelectedAt(1)
+// TODO(crbug.com/40848161): For some reason calling bubble_->TabSelectedAt(1)
 // before bubble_->TabSelectedAt(0) in a test causes TabSelectedAt(0) to be
 // run twice, resulting in the corresponding sample being logged twice. This
 // does not happen in production. For now, test this logging separately to avoid
@@ -208,4 +216,13 @@ TEST_F(PartialTranslateBubbleViewTest, TranslateFullPageButton) {
   CreateAndShowBubble();
   PressButton(PartialTranslateBubbleView::BUTTON_ID_FULL_PAGE_TRANSLATE);
   EXPECT_TRUE(mock_model_->full_page_translate_called_);
+}
+
+TEST_F(PartialTranslateBubbleViewTest, ActionItemUpdatesWithBubbleLifetime) {
+  EXPECT_FALSE(action_item_->GetIsShowingBubble());
+  CreateAndShowBubble();
+  EXPECT_TRUE(action_item_->GetIsShowingBubble());
+  bubble_->GetWidget()->CloseNow();
+  EXPECT_FALSE(action_item_->GetIsShowingBubble());
+  bubble_ = nullptr;
 }

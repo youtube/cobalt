@@ -11,7 +11,6 @@
  * of these tests fail, please be sure to edit that file and regenerate the test cases here and also
  * in net/proxy_resolution/proxy_config_service_android_unittests.cc if required.
  */
-
 package org.chromium.net;
 
 import android.os.Build;
@@ -26,6 +25,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
 
 import java.net.Proxy;
@@ -37,6 +37,9 @@ import java.util.Properties;
 
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
+@DisableIf.Build(
+        sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
+        message = "crbug.com/343821809")
 public class AndroidProxySelectorTest {
     Properties mProperties;
 
@@ -88,11 +91,7 @@ public class AndroidProxySelectorTest {
         Assert.assertEquals("Mapping", expected, toString(proxies));
     }
 
-    /**
-     * Test direct mapping when no proxy defined.
-     *
-     * @throws Exception
-     */
+    /** Test direct mapping when no proxy defined. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -102,11 +101,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "DIRECT");
     }
 
-    /**
-     * Test http.proxyHost and http.proxyPort works.
-     *
-     * @throws Exception
-     */
+    /** Test http.proxyHost and http.proxyPort works. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -118,11 +113,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "DIRECT");
     }
 
-    /**
-     * We should get the default port (80) for proxied hosts.
-     *
-     * @throws Exception
-     */
+    /** We should get the default port (80) for proxied hosts. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -133,11 +124,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "DIRECT");
     }
 
-    /**
-     * http.proxyPort only should not result in any hosts being proxied.
-     *
-     * @throws Exception
-     */
+    /** http.proxyPort only should not result in any hosts being proxied. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -148,11 +135,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "DIRECT");
     }
 
-    /**
-     * Test that HTTP non proxy hosts are mapped correctly
-     *
-     * @throws Exception
-     */
+    /** Test that HTTP non proxy hosts are mapped correctly */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -164,11 +147,7 @@ public class AndroidProxySelectorTest {
         checkMapping("http://slashdot.org/", "DIRECT");
     }
 
-    /**
-     * Test that | pattern works.
-     *
-     * @throws Exception
-     */
+    /** Test that | pattern works. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -181,11 +160,7 @@ public class AndroidProxySelectorTest {
         checkMapping("http://slashdot.org/", "DIRECT");
     }
 
-    /**
-     * Test that * pattern works.
-     *
-     * @throws Exception
-     */
+    /** Test that * pattern works. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -201,11 +176,7 @@ public class AndroidProxySelectorTest {
         checkMapping("http://www.example.com/", "DIRECT");
     }
 
-    /**
-     * Test that FTP non proxy hosts are mapped correctly
-     *
-     * @throws Exception
-     */
+    /** Test that FTP non proxy hosts are mapped correctly */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -217,11 +188,7 @@ public class AndroidProxySelectorTest {
         checkMapping("http://example.com/", "DIRECT");
     }
 
-    /**
-     * Test ftp.proxyHost and ftp.proxyPort works.
-     *
-     * @throws Exception
-     */
+    /** Test ftp.proxyHost and ftp.proxyPort works. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -233,11 +200,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "DIRECT");
     }
 
-    /**
-     * Test ftp.proxyHost and default port.
-     *
-     * @throws Exception
-     */
+    /** Test ftp.proxyHost and default port. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -248,11 +211,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "DIRECT");
     }
 
-    /**
-     * Test https.proxyHost and https.proxyPort works.
-     *
-     * @throws Exception
-     */
+    /** Test https.proxyHost and https.proxyPort works. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -264,11 +223,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "PROXY httpproxy.com:8080");
     }
 
-    /**
-     * Default http proxy is used if a scheme-specific one is not found.
-     *
-     * @throws Exception
-     */
+    /** Default http proxy is used if a scheme-specific one is not found. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -282,11 +237,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "PROXY defaultproxy.com:8080");
     }
 
-    /**
-     * SOCKS proxy is used if scheme-specific one is not found.
-     *
-     * @throws Exception
-     */
+    /** SOCKS proxy is used if scheme-specific one is not found. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -298,11 +249,7 @@ public class AndroidProxySelectorTest {
         checkMapping("https://example.com/", "SOCKS5 socksproxy.com:1080");
     }
 
-    /**
-     * SOCKS proxy port is used if specified
-     *
-     * @throws Exception
-     */
+    /** SOCKS proxy port is used if specified */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -312,11 +259,7 @@ public class AndroidProxySelectorTest {
         checkMapping("http://example.com/", "SOCKS5 socksproxy.com:9000");
     }
 
-    /**
-     * SOCKS proxy is ignored if default HTTP proxy defined.
-     *
-     * @throws Exception
-     */
+    /** SOCKS proxy is ignored if default HTTP proxy defined. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})

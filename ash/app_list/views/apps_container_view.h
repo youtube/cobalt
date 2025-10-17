@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <set>
 
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/app_list_view_provider.h"
@@ -22,12 +23,12 @@
 #include "ash/public/cpp/pagination/pagination_model_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/separator.h"
 #include "ui/views/focus/focus_manager.h"
 
 namespace ash {
 
-class ApplicationDragAndDropHost;
 class AppListFolderItem;
 class AppListFolderView;
 class AppListKeyboardController;
@@ -40,8 +41,8 @@ class SearchResultPageAnchoredDialog;
 
 // AppsContainerView contains a root level AppsGridView to render the root level
 // app items, and a AppListFolderView to render the app items inside the active
-// folder. With productivity launcher, it also contains the continue section,
-// recent apps, and an optional separator.
+// folder. It also contains the continue section, recent apps, and an optional
+// separator.
 class ASH_EXPORT AppsContainerView
     : public AppListPage,
       public AppListModelProvider::Observer,
@@ -51,6 +52,8 @@ class ASH_EXPORT AppsContainerView
       public AppListToastContainerView::Delegate,
       public views::FocusChangeListener,
       public AppListViewProvider {
+  METADATA_HEADER(AppsContainerView, AppListPage)
+
  public:
   explicit AppsContainerView(ContentsView* contents_view);
 
@@ -67,11 +70,6 @@ class ASH_EXPORT AppsContainerView
   // hides and then shows it.
   void ResetForShowApps();
 
-  // Sets |drag_and_drop_host_| for the current app list in both
-  // app_list_folder_view_ and root level apps_grid_view_.
-  void SetDragAndDropHostOfCurrentAppList(
-      ApplicationDragAndDropHost* drag_and_drop_host);
-
   // Returns true if it is currently showing an active folder page.
   bool IsInFolderView() const;
 
@@ -85,8 +83,7 @@ class ASH_EXPORT AppsContainerView
 
   // The minimal top margin for the apps grid (measured from the top of the
   // search box to the top of the apps grid). This margin includes space for
-  // search box and suggestion chips.
-  // For productivity launcher UI, this will not include space for continue
+  // search box and suggestion chips. This will not include space for continue
   // section and recent apps.
   int GetMinTopMarginForAppsGrid(const gfx::Size& search_box_size) const;
 
@@ -111,16 +108,21 @@ class ASH_EXPORT AppsContainerView
       const gfx::Size& search_box_size);
 
   // views::View overrides:
-  void Layout() override;
+  void Layout(PassKey) override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
-  const char* GetClassName() const override;
   void OnGestureEvent(ui::GestureEvent* event) override;
   void OnBoundsChanged(const gfx::Rect& old_bounds) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
+  bool GetDropFormats(int* formats,
+                      std::set<ui::ClipboardFormatType>* format_types) override;
+  bool CanDrop(const OSExchangeData& data) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
+  DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
 
   // views::FocusChangeListener overrides:
-  void OnWillChangeFocus(View* focused_before, View* focused_now) override {}
   void OnDidChangeFocus(View* focused_before, View* focused_now) override;
 
   // AppListPage overrides:
@@ -172,7 +174,7 @@ class ASH_EXPORT AppsContainerView
   // Handles `AppListController::UpdateAppListWithNewSortingOrder()` for the
   // app list container.
   void UpdateForNewSortingOrder(
-      const absl::optional<AppListSortOrder>& new_order,
+      const std::optional<AppListSortOrder>& new_order,
       bool animate,
       base::OnceClosure update_position_closure,
       base::OnceClosure animation_done_closure);
@@ -292,7 +294,7 @@ class ASH_EXPORT AppsContainerView
   // Called when the animation to fade out app list items is completed.
   // `aborted` indicates whether the fade out animation is aborted.
   void OnAppsGridViewFadeOutAnimationEnded(
-      const absl::optional<AppListSortOrder>& new_order,
+      const std::optional<AppListSortOrder>& new_order,
       bool aborted);
 
   // Called when the animation to fade in app list items is completed.
@@ -315,7 +317,7 @@ class ASH_EXPORT AppsContainerView
   // cardified state ends.
   bool keep_gradient_mask_for_cardified_state_ = false;
 
-  const raw_ptr<ContentsView, ExperimentalAsh> contents_view_;
+  const raw_ptr<ContentsView> contents_view_;
 
   // The app list config used to configure sizing and layout of apps grid items
   // within the apps container.
@@ -329,18 +331,16 @@ class ASH_EXPORT AppsContainerView
 
   // Contains the |continue_section_| and the |apps_grid_view_|, which are views
   // that are affected by paging. Owned by views hierarchy.
-  raw_ptr<views::View, ExperimentalAsh> scrollable_container_ = nullptr;
+  raw_ptr<views::View> scrollable_container_ = nullptr;
 
   // The views below are owned by views hierarchy.
-  raw_ptr<ContinueContainer, ExperimentalAsh> continue_container_ = nullptr;
-  raw_ptr<views::Separator, ExperimentalAsh> separator_ = nullptr;
-  raw_ptr<AppListToastContainerView, ExperimentalAsh> toast_container_ =
-      nullptr;
-  raw_ptr<PagedAppsGridView, ExperimentalAsh> apps_grid_view_ = nullptr;
-  raw_ptr<AppListFolderView, ExperimentalAsh> app_list_folder_view_ = nullptr;
-  raw_ptr<PageSwitcher, ExperimentalAsh> page_switcher_ = nullptr;
-  raw_ptr<FolderBackgroundView, ExperimentalAsh> folder_background_view_ =
-      nullptr;
+  raw_ptr<ContinueContainer> continue_container_ = nullptr;
+  raw_ptr<views::Separator> separator_ = nullptr;
+  raw_ptr<AppListToastContainerView> toast_container_ = nullptr;
+  raw_ptr<PagedAppsGridView> apps_grid_view_ = nullptr;
+  raw_ptr<AppListFolderView, DanglingUntriaged> app_list_folder_view_ = nullptr;
+  raw_ptr<PageSwitcher, DanglingUntriaged> page_switcher_ = nullptr;
+  raw_ptr<FolderBackgroundView> folder_background_view_ = nullptr;
 
   ShowState show_state_ = SHOW_NONE;
 

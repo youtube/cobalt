@@ -20,13 +20,13 @@
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
+#include "base/types/optional_ref.h"
 #include "chrome/browser/download/download_commands.h"
 #include "chrome/browser/enterprise/connectors/common.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
-#include "chrome/browser/safe_browsing/download_protection/deep_scanning_request.h"
+#include "chrome/browser/safe_browsing/download_protection/download_protection_delegate.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_observer.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
 #include "chrome/browser/safe_browsing/services_delegate.h"
@@ -36,6 +36,11 @@
 #include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/sessions/core/session_id.h"
 #include "url/gurl.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
+#include "chrome/browser/safe_browsing/download_protection/deep_scanning_request.h"
+#endif
 
 namespace content {
 class PageNavigator;
@@ -59,16 +64,27 @@ class CheckClientDownloadRequestBase;
 class CheckFileSystemAccessWriteRequest;
 class ClientDownloadRequest;
 class DownloadRequestMaker;
-class DownloadFeedbackService;
 class PPAPIDownloadRequest;
+
+#if !BUILDFLAG(IS_ANDROID)
+class DownloadFeedbackService;
+#endif
 
 // This class provides an asynchronous API to check whether a particular
 // client download is malicious or not.
 class DownloadProtectionService {
  public:
-  // Creates a download service.  The service is initially disabled.  You need
-  // to call SetEnabled() to start it.  |sb_service| owns this object.
-  explicit DownloadProtectionService(SafeBrowsingService* sb_service);
+  // Creates a download service. The service is initially disabled.  You need
+  // to call SetEnabled() to start it. `sb_service` owns this object via the
+  // ServicesDelegate. `delegate` must not be null.
+  DownloadProtectionService(
+      SafeBrowsingServiceImpl* sb_service,
+      std::unique_ptr<DownloadProtectionDelegate> delegate);
+
+  // Same as above, but creates the default delegate instance. This is meant as
+  // a convenience for tests. Prefer the constructor above that explicitly
+  // provides the delegate, if possible.
+  explicit DownloadProtectionService(SafeBrowsingServiceImpl* sb_service);
 
   DownloadProtectionService(const DownloadProtectionService&) = delete;
   DownloadProtectionService& operator=(const DownloadProtectionService&) =
@@ -88,14 +104,25 @@ class DownloadProtectionService {
   // method must be called on the UI thread, and the callback will also be
   // invoked on the UI thread.  This method must be called once the download
   // is finished and written to disk.
-  virtual void CheckClientDownload(download::DownloadItem* item,
-                                   CheckDownloadRepeatingCallback callback);
+  virtual void CheckClientDownload(
+      download::DownloadItem* item,
+      CheckDownloadRepeatingCallback callback,
+      base::optional_ref<const std::string> password = std::nullopt);
 
   // Checks the user permissions, then calls |CheckClientDownload| if
-  // appropriate. Returns whether we began scanning.
+  // appropriate. Returns whether we may do more asynchronous work to check the
+  // download, such as sending a ping (potentially subject to sampling or other
+  // eligibility checks). If this returns true, the `callback` will be invoked
+  // with the result of a check. If this returns false, the `callback` will not
+  // be run.
   virtual bool MaybeCheckClientDownload(
       download::DownloadItem* item,
       CheckDownloadRepeatingCallback callback);
+
+  // Cancel the pending check for `item`. This function simply drops the pending
+  // work in the `DownloadProtectionService`. The caller is responsible for
+  // updating the download state so that it completes successfully.
+  void CancelChecksForDownload(download::DownloadItem* item);
 
   // Returns whether the download URL should be checked for safety based on user
   // prefs.
@@ -106,12 +133,16 @@ class DownloadProtectionService {
   // delivered asynchronously via the given callback.  This method must be
   // called on the UI thread, and the callback will also be invoked on the UI
   // thread.  Pre-condition: !info.download_url_chain.empty().
+  // The caller should check ShouldCheckDownloadUrl() beforehand; this is not
+  // verified in this method.
   virtual void CheckDownloadUrl(download::DownloadItem* item,
                                 CheckDownloadCallback callback);
 
-  // Returns true iff the download specified by |info| should be scanned by
-  // CheckClientDownload() for malicious content.
-  virtual bool IsSupportedDownload(const download::DownloadItem& item,
+  // Returns true if the download specified by |info| may be scanned by
+  // CheckClientDownload() for malicious content. (Caller may apply further
+  // logic to determine if a scan occurs, such as sampling or other checks.)
+  // May modify the DownloadItem with a SupportsUserData::Data.
+  virtual bool IsSupportedDownload(download::DownloadItem& item,
                                    const base::FilePath& target_path) const;
 
   virtual void CheckPPAPIDownloadRequest(
@@ -122,11 +153,13 @@ class DownloadProtectionService {
       Profile* profile,
       CheckDownloadCallback callback);
 
-  // Checks whether the given File System Access write operation is likely to be
-  // malicious or not. The result is delivered asynchronously via the given
-  // callback.  This method must be called on the UI thread, and the callback
-  // will also be invoked on the UI thread.  This method must be called once the
-  // write is finished and data has been written to disk.
+  // If download protection is enabled for `item`, checks whether the given File
+  // System Access write operation is likely to be malicious or not. The result
+  // of the check is delivered asynchronously via the given callback, or the
+  // callback will be invoked with a result of UNKNOWN. This method must be
+  // called on the UI thread, and the callback will also be invoked on the UI
+  // thread. This method must be called once the write is finished and data has
+  // been written to disk.
   virtual void CheckFileSystemAccessWrite(
       std::unique_ptr<content::FileSystemAccessWriteItem> item,
       CheckDownloadCallback callback);
@@ -138,22 +171,28 @@ class DownloadProtectionService {
                               content::PageNavigator* navigator);
 
   // Enables or disables the service.  This is usually called by the
-  // SafeBrowsingService, which tracks whether any profile uses these services
-  // at all.  Disabling causes any pending and future requests to have their
-  // callbacks called with "UNKNOWN" results.
+  // SafeBrowsingServiceImpl, which tracks whether any profile uses these
+  // services at all.  Disabling causes any pending and future requests to have
+  // their callbacks called with "UNKNOWN" results.
   void SetEnabled(bool enabled);
 
   bool enabled() const { return enabled_; }
+
+  DownloadProtectionDelegate* delegate() { return delegate_.get(); }
+  const DownloadProtectionDelegate* delegate() const { return delegate_.get(); }
+
+  // Returns the URL that will be contacted for download protection requests.
+  const GURL& GetDownloadRequestUrl() const;
 
   // Returns the timeout that is used by CheckClientDownload().
   base::TimeDelta GetDownloadRequestTimeout() const;
 
   // Checks the user permissions, and submits the downloaded file if
   // appropriate. Returns whether the submission was successful.
-  bool MaybeBeginFeedbackForDownload(
-      Profile* profile,
-      download::DownloadItem* download,
-      DownloadCommands::Command download_command);
+  bool MaybeBeginFeedbackForDownload(Profile* profile,
+                                     download::DownloadItem* download,
+                                     const std::string& ping_request,
+                                     const std::string& ping_response);
 
   // Registers a callback that will be run when a ClientDownloadRequest has
   // been formed.
@@ -170,7 +209,7 @@ class DownloadProtectionService {
   base::CallbackListSubscription RegisterPPAPIDownloadRequestCallback(
       const PPAPIDownloadRequestCallback& callback);
 
-  double allowlist_sample_rate() const { return allowlist_sample_rate_; }
+  double allowlist_sample_rate() const;
 
   static void SetDownloadProtectionData(
       download::DownloadItem* item,
@@ -180,6 +219,11 @@ class DownloadProtectionService {
 
   static std::string GetDownloadPingToken(const download::DownloadItem* item);
 
+  // Whether a DownloadProtectionData is found on the item.
+  static bool HasDownloadProtectionVerdict(const download::DownloadItem* item);
+
+  // Returns ClientDownloadResponse::SAFE by default if no
+  // DownloadProtectionData is found.
   static ClientDownloadResponse::Verdict GetDownloadProtectionVerdict(
       const download::DownloadItem* item);
 
@@ -187,10 +231,7 @@ class DownloadProtectionService {
   GetDownloadProtectionTailoredVerdict(const download::DownloadItem* item);
 
   // Sends dangerous download opened report when download is opened or
-  // shown in folder, and if the following conditions are met:
-  // (1) it is a dangerous download.
-  // (2) user is NOT in incognito mode.
-  // (3) user is opted-in for extended reporting.
+  // shown in folder.
   void MaybeSendDangerousDownloadOpenedReport(download::DownloadItem* item,
                                               bool show_download_in_folder);
 
@@ -201,7 +242,8 @@ class DownloadProtectionService {
   void ReportDelayedBypassEvent(download::DownloadItem* download,
                                 download::DownloadDangerType danger_type);
 
-  // Uploads `item` to Safe Browsing for deep scanning, using the upload
+#if !BUILDFLAG(IS_ANDROID)
+  // Uploads `metadata` to Safe Browsing for deep scanning, using the upload
   // service attached to the profile `item` was downloaded in. This is
   // non-blocking, and the result we be provided through `callback`. `trigger`
   // is used to identify the reason for deep scanning, aka enterprise policy or
@@ -211,11 +253,21 @@ class DownloadProtectionService {
   // whether to block/allow large files, etc). This must be called on the UI
   // thread.
   void UploadForDeepScanning(
-      download::DownloadItem* item,
+      std::unique_ptr<DeepScanningMetadata> metadata,
       CheckDownloadRepeatingCallback callback,
-      DeepScanningRequest::DeepScanTrigger trigger,
+      DownloadItemWarningData::DeepScanTrigger trigger,
       DownloadCheckResult download_check_result,
-      enterprise_connectors::AnalysisSettings analysis_settings);
+      enterprise_connectors::AnalysisSettings analysis_settings,
+      base::optional_ref<const std::string> password);
+
+  // Helper functions for encrypted archive scans.
+  static void UploadForConsumerDeepScanning(
+      download::DownloadItem* item,
+      DownloadItemWarningData::DeepScanTrigger trigger,
+      base::optional_ref<const std::string> password);
+  static void CheckDownloadWithLocalDecryption(
+      download::DownloadItem* item,
+      base::optional_ref<const std::string> password);
 
   // Uploads a save package `item` for deep scanning. `save_package_file`
   // contains a mapping of on-disk files part of that save package to their
@@ -228,6 +280,7 @@ class DownloadProtectionService {
 
   // Returns all the currently active deep scanning requests.
   std::vector<DeepScanningRequest*> GetDeepScanningRequests();
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   virtual scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory(
       content::BrowserContext* browser_context);
@@ -236,18 +289,28 @@ class DownloadProtectionService {
   // `browser_context`.
   void RemovePendingDownloadRequests(content::BrowserContext* browser_context);
 
+  // Returns the maximum number of user gestures for a download referrer
+  // chain. If `item` is non-null, information about that download may
+  // change the limit.
+  static int GetDownloadAttributionUserGestureLimit(
+      download::DownloadItem* item = nullptr);
+
  private:
   friend class PPAPIDownloadRequest;
   friend class DownloadUrlSBClient;
+  template <bool UseMockDbManager>
   friend class DownloadProtectionServiceTestBase;
   friend class DownloadDangerPromptTest;
   friend class CheckClientDownloadRequestBase;
   friend class CheckClientDownloadRequest;
   friend class CheckFileSystemAccessWriteRequest;
-  friend class DeepScanningRequest;
   friend class DownloadRequestMaker;
 
-  FRIEND_TEST_ALL_PREFIXES(DownloadProtectionServiceTest,
+#if !BUILDFLAG(IS_ANDROID)
+  friend class DeepScanningRequest;
+#endif
+
+  FRIEND_TEST_ALL_PREFIXES(DownloadProtectionServiceMockTimeTest,
                            TestDownloadRequestTimeout);
   FRIEND_TEST_ALL_PREFIXES(DownloadProtectionServiceTest,
                            PPAPIDownloadRequest_InvalidResponse);
@@ -299,21 +362,13 @@ class DownloadProtectionService {
                        content::BrowserContext* browser_context,
                        DownloadCheckResult result);
 
+#if !BUILDFLAG(IS_ANDROID)
   // Called by a DeepScanningRequest when it finishes, to remove it from
   // |deep_scanning_requests_|.
   virtual void RequestFinished(DeepScanningRequest* request);
+#endif
 
   void PPAPIDownloadCheckRequestFinished(PPAPIDownloadRequest* request);
-
-  // Identify referrer chain info of a download. This function also records UMA
-  // stats of download attribution result.
-  std::unique_ptr<ReferrerChainData> IdentifyReferrerChain(
-      const download::DownloadItem& item);
-
-  // Identify referrer chain info of a File System Access write. This function
-  // also records UMA stats of download attribution result.
-  std::unique_ptr<ReferrerChainData> IdentifyReferrerChain(
-      const content::FileSystemAccessWriteItem& item);
 
   // Identify referrer chain of the PPAPI download based on the frame URL where
   // the download is initiated. Then add referrer chain info to
@@ -329,14 +384,16 @@ class DownloadProtectionService {
       bool has_user_gesture,
       ClientDownloadRequest* out_request);
 
-  void OnDangerousDownloadOpened(const download::DownloadItem* item,
+  void OnDangerousDownloadOpened(download::DownloadItem* item,
                                  Profile* profile);
 
+#if !BUILDFLAG(IS_ANDROID)
   // Get the BinaryUploadService for the given |profile|. Virtual so it can be
   // overridden in tests.
   virtual BinaryUploadService* GetBinaryUploadService(
       Profile* profile,
       const enterprise_connectors::AnalysisSettings& settings);
+#endif
 
   // Get the SafeBrowsingNavigationObserverManager for the given |web_contents|.
   SafeBrowsingNavigationObserverManager* GetNavigationObserverManager(
@@ -344,12 +401,14 @@ class DownloadProtectionService {
 
   // Callback when deep scanning has finished, but we may want to do the
   // metadata check anyway.
-  void MaybeCheckMetdataAfterDeepScanning(
+  void MaybeCheckMetadataAfterDeepScanning(
       download::DownloadItem* item,
       CheckDownloadRepeatingCallback callback,
       DownloadCheckResult result);
 
-  raw_ptr<SafeBrowsingService> sb_service_;
+  raw_ptr<SafeBrowsingServiceImpl> sb_service_ = nullptr;
+  // Delegate providing platform-specific logic. Never null.
+  std::unique_ptr<DownloadProtectionDelegate> delegate_;
   // These pointers may be NULL if SafeBrowsing is disabled.
   scoped_refptr<SafeBrowsingUIManager> ui_manager_;
   scoped_refptr<SafeBrowsingDatabaseManager> database_manager_;
@@ -365,19 +424,23 @@ class DownloadProtectionService {
   base::flat_map<PPAPIDownloadRequest*, std::unique_ptr<PPAPIDownloadRequest>>
       ppapi_download_requests_;
 
+#if !BUILDFLAG(IS_ANDROID)
   // Set of pending server requests for deep scanning.
   base::flat_map<DeepScanningRequest*, std::unique_ptr<DeepScanningRequest>>
       deep_scanning_requests_;
+#endif
 
   // Keeps track of the state of the service.
-  bool enabled_;
+  bool enabled_ = false;
 
   // BinaryFeatureExtractor object, may be overridden for testing.
   scoped_refptr<BinaryFeatureExtractor> binary_feature_extractor_;
 
-  int64_t download_request_timeout_ms_;
+  int64_t download_request_timeout_ms_ = 0;
 
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<DownloadFeedbackService> feedback_service_;
+#endif
 
   // A list of callbacks to be run on the main thread when a
   // ClientDownloadRequest has been formed.
@@ -397,7 +460,8 @@ class DownloadProtectionService {
   std::set<std::string> manual_blocklist_hashes_;
 
   // Rate of allowlisted downloads we sample to send out download ping.
-  double allowlist_sample_rate_;
+  // Overrides the value provided by the delegate. Intended for testing only.
+  std::optional<double> allowlist_sample_rate_ = std::nullopt;
 
   // DownloadProtectionObserver to send real time reports for dangerous download
   // events and handle special user actions on the download.

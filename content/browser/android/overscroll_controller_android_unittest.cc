@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include "content/browser/android/overscroll_controller_android.h"
+
 #include <memory>
+
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "cc/input/overscroll_behavior.h"
 #include "cc/layers/layer.h"
+#include "gpu/ipc/common/surface_handle.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
@@ -30,24 +32,28 @@ using ui::WindowAndroidCompositor;
 
 namespace content {
 
-namespace {
-
 class MockCompositor : public WindowAndroidCompositor {
  public:
-  ~MockCompositor() override {}
-  std::unique_ptr<ReadbackRef> TakeReadbackRef() override { return nullptr; }
+  ~MockCompositor() override = default;
+  ui::WindowAndroidCompositor::ScopedKeepSurfaceAliveCallback
+  TakeScopedKeepSurfaceAliveCallback(const viz::SurfaceId&) override {
+    return base::OnceClosure();
+  }
   void RequestCopyOfOutputOnRootLayer(
       std::unique_ptr<viz::CopyOutputRequest>) override {}
   void SetNeedsAnimate() override {}
   MOCK_METHOD0(GetResourceManager, ResourceManager&());
   MOCK_METHOD0(GetFrameSinkId, viz::FrameSinkId());
+  gpu::SurfaceHandle GetSurfaceHandle() override {
+    return gpu::kNullSurfaceHandle;
+  }
   void AddChildFrameSink(const viz::FrameSinkId& frame_sink_id) override {}
   void RemoveChildFrameSink(const viz::FrameSinkId& frame_sink_id) override {}
   bool IsDrawingFirstVisibleFrame() const override { return false; }
-  void SetVSyncPaused(bool paused) override {}
   void OnUpdateRefreshRate(float refresh_rate) override {}
   void OnUpdateSupportedRefreshRates(
       const std::vector<float>& supported_refresh_rates) override {}
+  void OnAdaptiveRefreshRateInfoChanged() override {}
   std::unique_ptr<ui::CompositorLock> GetCompositorLock(
       base::TimeDelta timeout) override {
     return nullptr;
@@ -55,6 +61,9 @@ class MockCompositor : public WindowAndroidCompositor {
   void OnUpdateOverlayTransform() override {}
   void PostRequestSuccessfulPresentationTimeForNextFrame(
       SuccessfulPresentationTimeCallback callback) override {}
+  void AddFrameSubmissionObserver(FrameSubmissionObserver* observer) override {}
+  void RemoveFrameSubmissionObserver(
+      FrameSubmissionObserver* observer) override {}
 };
 
 class MockGlowClient : public OverscrollGlowClient {
@@ -76,7 +85,9 @@ class MockGlow : public OverscrollGlow {
 class MockRefresh : public OverscrollRefresh {
  public:
   MockRefresh() : OverscrollRefresh() {}
-  MOCK_METHOD1(OnOverscrolled, void(const cc::OverscrollBehavior& behavior));
+  MOCK_METHOD2(OnOverscrolled,
+               void(const cc::OverscrollBehavior& behavior,
+                    gfx::Vector2dF accumulated_overscroll));
   MOCK_METHOD0(Reset, void());
   MOCK_CONST_METHOD0(IsActive, bool());
   MOCK_CONST_METHOD0(IsAwaitingScrollUpdateAck, bool());
@@ -112,9 +123,7 @@ class OverscrollControllerAndroidUnitTest : public testing::Test {
 
  protected:
   raw_ptr<MockGlow> glow_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION MockRefresh* refresh_;
+  raw_ptr<MockRefresh> refresh_;
   std::unique_ptr<MockCompositor> compositor_;
   std::unique_ptr<OverscrollControllerAndroid> controller_;
   float dip_scale_;
@@ -196,7 +205,7 @@ TEST_F(OverscrollControllerAndroidUnitTest,
 }
 
 TEST_F(OverscrollControllerAndroidUnitTest,
-       ConsumedUpdateDoesNotResetEnabledRefresh) {
+       ConsumedBeginDoesNotResetEnabledRefresh) {
   ui::DidOverscrollParams params = CreateVerticalOverscrollParams();
   params.overscroll_behavior.y = cc::OverscrollBehavior::Type::kAuto;
 
@@ -206,8 +215,8 @@ TEST_F(OverscrollControllerAndroidUnitTest,
   // Enable the refresh effect.
   controller_->OnOverscrolled(params);
 
-  // Generate a consumed scroll update.
-  blink::WebGestureEvent event(blink::WebInputEvent::Type::kGestureScrollUpdate,
+  // Generate a consumed scroll begin.
+  blink::WebGestureEvent event(blink::WebInputEvent::Type::kGestureScrollBegin,
                                blink::WebInputEvent::kNoModifiers,
                                ui::EventTimeForNow());
   controller_->OnGestureEventAck(
@@ -215,7 +224,5 @@ TEST_F(OverscrollControllerAndroidUnitTest,
 
   testing::Mock::VerifyAndClearExpectations(&refresh_);
 }
-
-}  // namespace
 
 }  // namespace content

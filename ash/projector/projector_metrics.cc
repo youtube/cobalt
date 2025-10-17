@@ -16,9 +16,6 @@ namespace {
 
 constexpr char kProjectorToolbarHistogramName[] = "Ash.Projector.Toolbar";
 
-constexpr char kProjectorMarkerColorHistogramName[] =
-    "Ash.Projector.MarkerColor";
-
 constexpr char kProjectorCreationFlowHistogramName[] =
     "Ash.Projector.CreationFlow";
 
@@ -33,9 +30,6 @@ constexpr char kProjectorPendingScreencastBatchIOTaskDurationHistogramName[] =
 
 constexpr char kProjectorPendingScreencastChangeIntervalHistogramName[] =
     "Ash.Projector.PendingScreencastChangeInterval";
-
-constexpr char kProjectorPolicyChangeHandlingErrorHistogramName[] =
-    "Ash.Projector.PolicyChangeHandlingError";
 
 constexpr char
     kProjectorOnDeviceToServerSpeechRecognitionFallbackReasonHistogramName[] =
@@ -67,11 +61,6 @@ void RecordToolbarMetrics(ProjectorToolbar button) {
       GetHistogramName(kProjectorToolbarHistogramName), button);
 }
 
-void RecordMarkerColorMetrics(ProjectorMarkerColor color) {
-  base::UmaHistogramEnumeration(
-      GetHistogramName(kProjectorMarkerColorHistogramName), color);
-}
-
 void RecordCreationFlowMetrics(ProjectorCreationFlow step) {
   base::UmaHistogramEnumeration(
       GetHistogramName(kProjectorCreationFlowHistogramName), step);
@@ -98,17 +87,9 @@ void RecordCreationFlowError(int message_id) {
       break;
     default:
       NOTREACHED();
-      break;
   }
   base::UmaHistogramEnumeration(
       GetHistogramName(kProjectorCreationFlowErrorHistogramName), error);
-}
-
-ASH_EXPORT void RecordPolicyChangeHandlingError(
-    ProjectorPolicyChangeHandlingError error) {
-  base::UmaHistogramEnumeration(
-      GetHistogramName(kProjectorPolicyChangeHandlingErrorHistogramName),
-      error);
 }
 
 ASH_EXPORT void RecordPendingScreencastBatchIOTaskDuration(

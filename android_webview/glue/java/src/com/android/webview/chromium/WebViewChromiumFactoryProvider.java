@@ -6,16 +6,17 @@ package com.android.webview.chromium;
 
 import android.app.Application;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
-import android.content.res.AssetManager;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Looper;
+import android.os.Process;
 import android.os.SystemClock;
+import android.os.UserHandle;
 import android.os.UserManager;
-import android.provider.Settings;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.PacProcessor;
@@ -31,24 +32,36 @@ import android.webkit.WebViewFactory;
 import android.webkit.WebViewFactoryProvider;
 import android.webkit.WebViewProvider;
 
+import androidx.annotation.GuardedBy;
+import androidx.annotation.IntDef;
 import androidx.annotation.RequiresApi;
+
+import com.android.webview.chromium.SharedStatics.ApiCall;
 
 import org.chromium.android_webview.ApkType;
 import org.chromium.android_webview.AwBrowserContext;
+import org.chromium.android_webview.AwBrowserMainParts;
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.AwContentsStatics;
+import org.chromium.android_webview.AwCookieManager;
+import org.chromium.android_webview.AwServiceWorkerController;
 import org.chromium.android_webview.AwSettings;
-import org.chromium.android_webview.BrowserSafeModeActionList;
-import org.chromium.android_webview.ProductConfig;
+import org.chromium.android_webview.ManifestMetadataUtil;
+import org.chromium.android_webview.R;
 import org.chromium.android_webview.WebViewChromiumRunQueue;
+import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.CommandLineUtil;
 import org.chromium.android_webview.common.DeveloperModeUtils;
 import org.chromium.android_webview.common.FlagOverrideHelper;
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.common.ProductionSupportedFlagList;
 import org.chromium.android_webview.common.SafeModeController;
+import org.chromium.android_webview.safe_mode.BrowserSafeModeActionList;
+import org.chromium.android_webview.safe_mode.DisableStartupTasksSafeModeAction;
 import org.chromium.android_webview.variations.FastVariationsSeedSafeModeAction;
 import org.chromium.base.BuildInfo;
+import org.chromium.base.BundleUtils;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
@@ -56,13 +69,14 @@ import org.chromium.base.PackageUtils;
 import org.chromium.base.PathUtils;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.ScopedSysTraceEvent;
+import org.chromium.base.version_info.VersionConstants;
+import org.chromium.blink_public.common.BlinkFeatures;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.NativeLibraries;
 import org.chromium.components.embedder_support.application.ClassLoaderContextWrapperFactory;
-import org.chromium.components.embedder_support.application.FirebaseConfig;
-import org.chromium.components.version_info.VersionConstants;
 import org.chromium.content_public.browser.LGEmailActionModeWorkaround;
 
 import java.io.File;
@@ -104,6 +118,7 @@ import java.util.concurrent.FutureTask;
  * </ul>
  */
 @SuppressWarnings("deprecation")
+@Lifetime.Singleton
 public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     private static final String TAG = "WVCFactoryProvider";
 
@@ -112,6 +127,9 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     private static final String SUPPORT_LIB_GLUE_AND_BOUNDARY_INTERFACE_PREFIX =
             "org.chromium.support_lib_";
+
+    private static final String ASSET_PATH_WORKAROUND_HISTOGRAM_NAME =
+            "Android.WebView.AssetPathWorkaroundUsed.FactoryInit";
 
     // This is an ID hardcoded by WebLayer for resources stored in locale splits. See
     // WebLayerImpl.java for more info.
@@ -128,11 +146,8 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     private static final Object sSingletonLock = new Object();
     private static WebViewChromiumFactoryProvider sSingleton;
-    // Used to indicate if WebLayer and WebView are running in the same process.
-    private static boolean sWebLayerRunningInSameProcess;
 
-    private final WebViewChromiumRunQueue mRunQueue = new WebViewChromiumRunQueue(
-            () -> { return WebViewChromiumFactoryProvider.this.mAwInit.hasStarted(); });
+    private final WebViewChromiumRunQueue mRunQueue = new WebViewChromiumRunQueue();
 
     /* package */ WebViewChromiumRunQueue getRunQueue() {
         return mRunQueue;
@@ -164,20 +179,35 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     protected boolean mShouldDisableThreadChecking;
 
-    // Initialization guarded by mAwInit.getLock()
+    @GuardedBy("mAwInit.getLazyInitLock()")
     private Statics mStaticsAdapter;
+
+    @GuardedBy("mAwInit.getLazyInitLock()")
+    private ServiceWorkerController mServiceWorkerController;
 
     private boolean mIsSafeModeEnabled;
 
-    private ServiceWorkerController mServiceWorkerController;
+    public static class InitInfo {
+        // Timestamp of init start and duration, used in the
+        // 'WebView.Startup.CreationTime.Stage1.FactoryInit' trace event.
+        public long mStartTime;
+        public long mDuration;
 
+        // Timestamp of the framework getProvider() method start and elapsed time until init is
+        // finished, used in the 'WebView.Startup.CreationTime.TotalFactoryInitTime'
+        // trace event.
+        public long mTotalFactoryInitStartTime;
+        public long mTotalFactoryInitDuration;
+    }
+
+    private final InitInfo mInitInfo = new InitInfo();
+
+    @GuardedBy("mAwInit.getLazyInitLock()")
     @RequiresApi(Build.VERSION_CODES.P)
-    private ObjectHolderForP mObjectHolderForP =
+    private final ObjectHolderForP mObjectHolderForP =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? new ObjectHolderForP() : null;
 
-    /**
-     * Thread-safe way to set the one and only WebViewChromiumFactoryProvider.
-     */
+    /** Thread-safe way to set the one and only WebViewChromiumFactoryProvider. */
     private static void setSingleton(WebViewChromiumFactoryProvider provider) {
         synchronized (sSingletonLock) {
             if (sSingleton != null) {
@@ -188,9 +218,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         }
     }
 
-    /**
-     * Thread-safe way to get the one and only WebViewChromiumFactoryProvider.
-     */
+    /** Thread-safe way to get the one and only WebViewChromiumFactoryProvider. */
     static WebViewChromiumFactoryProvider getSingleton() {
         synchronized (sSingletonLock) {
             if (sSingleton == null) {
@@ -200,9 +228,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         }
     }
 
-    /**
-     * Entry point for Android 26 (Oreo) and above. See class docs for initialization details.
-     */
+    /** Entry point for Android 26 (Oreo) and above. See class docs for initialization details. */
     public static WebViewChromiumFactoryProvider create(WebViewDelegate delegate) {
         return new WebViewChromiumFactoryProvider(delegate);
     }
@@ -216,36 +242,48 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         initialize(delegate);
     }
 
-    // Protected to allow downstream to override.
-    protected WebViewChromiumAwInit createAwInit() {
+    // Separate method to allow downstream to override when needed.
+    WebViewChromiumAwInit createAwInit() {
         try (ScopedSysTraceEvent e2 =
-                        ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.createAwInit")) {
+                ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.createAwInit")) {
             return new WebViewChromiumAwInit(this);
         }
     }
 
-    // Protected to allow downstream to override.
-    protected ContentSettingsAdapter createContentSettingsAdapter(AwSettings settings) {
+    // Separate method to allow downstream to override when needed.
+    ContentSettingsAdapter createContentSettingsAdapter(AwSettings settings) {
         return new ContentSettingsAdapter(settings);
     }
 
+    // Overridden in downstream subclass when building using the unreleased Android SDK.
+    boolean shouldEnableUserAgentReduction() {
+        return false;
+    }
+
+    // Overridden in downstream subclass when building using the unreleased Android SDK.
+    boolean shouldEnableFileSystemAccess() {
+        return false;
+    }
+
     private void deleteContentsOnPackageDowngrade(PackageInfo packageInfo) {
-        try (ScopedSysTraceEvent e2 = ScopedSysTraceEvent.scoped(
-                     "WebViewChromiumFactoryProvider.deleteContentsOnPackageDowngrade")) {
+        try (ScopedSysTraceEvent e2 =
+                ScopedSysTraceEvent.scoped(
+                        "WebViewChromiumFactoryProvider.deleteContentsOnPackageDowngrade")) {
             // Use shared preference to check for package downgrade.
-            // Since N, getSharedPreferences creates the preference dir if it doesn't exist,
-            // causing a disk write.
-            mWebViewPrefs = ContextUtils.getApplicationContext().getSharedPreferences(
-                    CHROMIUM_PREFS_NAME, Context.MODE_PRIVATE);
             int lastVersion = mWebViewPrefs.getInt(VERSION_CODE_PREF, 0);
             int currentVersion = packageInfo.versionCode;
-            if (!versionCodeGE(currentVersion, lastVersion)) {
+            if (isBranchDowngrade(currentVersion, lastVersion)) {
                 // The WebView package has been downgraded since we last ran in this
                 // application. Delete the WebView data directory's contents.
                 String dataDir = PathUtils.getDataDirectory();
-                Log.i(TAG,
-                        "WebView package downgraded from " + lastVersion + " to "
-                                + currentVersion + "; deleting contents of " + dataDir);
+                Log.i(
+                        TAG,
+                        "WebView package downgraded from "
+                                + lastVersion
+                                + " to "
+                                + currentVersion
+                                + "; deleting contents of "
+                                + dataDir);
                 deleteContents(new File(dataDir));
             }
             if (lastVersion != currentVersion) {
@@ -258,39 +296,31 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
      * This must not be called until {@link #initialize(WebViewDelegate)} has set mWebViewDelegate.
      */
     public void addWebViewAssetPath(Context ctx) {
-        mWebViewDelegate.addWebViewAssetPath(new ContextWrapper(ctx) {
-            // In the Android framework (<= API level 23)
-            // ContextThemeWrapper provides an implementation of
-            // getResources() that may proxy to either the wrapped
-            // context or a newly constructed context, but it does not
-            // provide an implementation of getAssets() that overrides
-            // the ContextWrapper implementation that always proxies
-            // to the wrapped context. This means that getAssets() and
-            // getResources().getAssets() may potentially return
-            // different AssetManagers, confusing WebView.
-            //
-            // To work around this problem, we provide an additional
-            // wrapper here here to avoid calling the getAssets()
-            // proxy chain (which we cannot change because it is in
-            // WebView framework code).
-            //
-            // We should be able to remove this workaround once we
-            // drop support for API 23.
-            @Override
-            public AssetManager getAssets() {
-                return getResources().getAssets();
-            }
-        });
+        mWebViewDelegate.addWebViewAssetPath(ctx);
     }
 
-    @SuppressWarnings("NoContextGetApplicationContext")
+    private boolean shouldEnableStartupTasksExperiment() {
+        if (CommandLine.getInstance().hasSwitch(AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC)) {
+            return true;
+        }
+        // TODO: Remove this once WebViewCachedFlags has landed (and seems safe).
+        if (DisableStartupTasksSafeModeAction.isStartupTasksExperimentDisabled()) {
+            return false;
+        }
+        return WebViewCachedFlags.get()
+                .isCachedFeatureEnabled(AwFeatures.WEBVIEW_USE_STARTUP_TASKS_LOGIC);
+    }
+
+    @SuppressWarnings({"NoContextGetApplicationContext", "DiscouragedApi"})
     private void initialize(WebViewDelegate webViewDelegate) {
-        long startTime = SystemClock.uptimeMillis();
+        mInitInfo.mStartTime = SystemClock.uptimeMillis();
         try (ScopedSysTraceEvent e1 =
-                        ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.initialize")) {
+                ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.initialize")) {
+            ThreadUtils.setWillOverrideUiThread();
             PackageInfo packageInfo;
-            try (ScopedSysTraceEvent e2 = ScopedSysTraceEvent.scoped(
-                         "WebViewChromiumFactoryProvider.getLoadedPackageInfo")) {
+            try (ScopedSysTraceEvent e2 =
+                    ScopedSysTraceEvent.scoped(
+                            "WebViewChromiumFactoryProvider.getLoadedPackageInfo")) {
                 // The package is used to locate the services for copying crash minidumps and
                 // requesting variations seeds. So it must be set before initializing variations and
                 // before a renderer has a chance to crash.
@@ -300,13 +330,19 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
             AwBrowserProcess.initializeApkType(packageInfo.applicationInfo);
 
             mAwInit = createAwInit();
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                mAwInit.setProviderInitOnMainLooperLocation(
+                        new Throwable(
+                                "Location where WebViewChromiumFactoryProvider init was"
+                                        + " started on the Android main looper"));
+            }
             mWebViewDelegate = webViewDelegate;
             Application application = webViewDelegate.getApplication();
             Context ctx = application.getApplicationContext();
 
             // If the application context is DE, but we have credentials, use a CE context instead
-            try (ScopedSysTraceEvent e2 = ScopedSysTraceEvent.scoped(
-                         "WebViewChromiumFactoryProvider.checkStorage")) {
+            try (ScopedSysTraceEvent e2 =
+                    ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.checkStorage")) {
                 checkStorageIsNotDeviceProtected(application);
             } catch (IllegalArgumentException e) {
                 if (!ctx.getSystemService(UserManager.class).isUserUnlocked()) {
@@ -315,26 +351,78 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 ctx = ctx.createCredentialProtectedStorageContext();
             }
 
+            try (ScopedSysTraceEvent e2 =
+                    ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.initCommandLine")) {
+                // This may take ~20 ms only on userdebug devices.
+                CommandLineUtil.initCommandLine();
+            }
+
+            try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
+                // Since N, getSharedPreferences creates the preference dir if it doesn't exist,
+                // causing a disk write.
+                mWebViewPrefs = ctx.getSharedPreferences(CHROMIUM_PREFS_NAME, Context.MODE_PRIVATE);
+                WebViewCachedFlags.init(mWebViewPrefs);
+            }
+
+            if (shouldEnableContextExperiment(ctx)) {
+                try {
+                    Context override =
+                            ctx.createPackageContext(
+                                    packageInfo.packageName,
+                                    Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY);
+                    // Use standard Android theme for standalone WebView, use custom theme for
+                    // everything else. Check package id of the theme resource to determine.
+                    boolean isStandaloneWebView =
+                            (override.getResources()
+                                                    .getIdentifier(
+                                                            "WebViewBaseTheme",
+                                                            "style",
+                                                            packageInfo.packageName)
+                                            & 0xff000000)
+                                    != 0x7f000000;
+                    ClassLoaderContextWrapperFactory.setOverrideInfo(
+                            packageInfo.packageName,
+                            isStandaloneWebView || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                                    ? android.R.style.Theme_DeviceDefault_DayNight
+                                    : R.style.WebViewBaseTheme,
+                            Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY);
+                    // Use this to report the actual state of the feature at runtime.
+                    AwBrowserMainParts.setUseWebViewContext(true);
+                } catch (PackageManager.NameNotFoundException e) {
+                    Log.e(TAG, "Could not get resource override context.");
+                }
+            }
+
             // WebView needs to make sure to always use the wrapped application context.
             ctx = ClassLoaderContextWrapperFactory.get(ctx);
             ContextUtils.initApplicationContext(ctx);
+
+            // Ensuring we set this before we might read it in any future calls to BuildInfo.
+            // BuildInfo requires ContextUtils' application context, so this has to happen after.
+            BuildInfo.setBrowserPackageInfo(packageInfo);
+            // Trigger the creation of the BuildInfo singleton to avoid potential issues reading
+            // the command line if this happens on another thread.
+            BuildInfo.getInstance();
 
             // Find the package ID for the package that WebView's resources come from.
             // This will be the donor package if there is one, not our main package.
             String resourcePackage = packageInfo.packageName;
             if (packageInfo.applicationInfo.metaData != null) {
-                resourcePackage = packageInfo.applicationInfo.metaData.getString(
-                        "com.android.webview.WebViewDonorPackage", resourcePackage);
+                resourcePackage =
+                        packageInfo.applicationInfo.metaData.getString(
+                                "com.android.webview.WebViewDonorPackage", resourcePackage);
             }
             int packageId;
             try {
                 packageId = webViewDelegate.getPackageId(ctx.getResources(), resourcePackage);
+                RecordHistogram.recordBooleanHistogram(ASSET_PATH_WORKAROUND_HISTOGRAM_NAME, false);
             } catch (RuntimeException e) {
                 // We failed to find the package ID, which likely means this context's AssetManager
                 // doesn't have WebView loaded in it. This may be because WebViewFactory doesn't add
                 // the package persistently to ResourcesManager and the app's AssetManager has been
                 // recreated. Try adding it again using WebViewDelegate, which does add it
                 // persistently.
+                RecordHistogram.recordBooleanHistogram(ASSET_PATH_WORKAROUND_HISTOGRAM_NAME, true);
                 addWebViewAssetPath(ctx);
                 packageId = webViewDelegate.getPackageId(ctx.getResources(), resourcePackage);
             }
@@ -348,53 +436,46 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
             AndroidXProcessGlobalConfig.extractConfigFromApp(application.getClassLoader());
 
-            try (ScopedSysTraceEvent e2 = ScopedSysTraceEvent.scoped(
-                         "WebViewChromiumFactoryProvider.initCommandLine")) {
-                // This may take ~20 ms only on userdebug devices.
-                CommandLineUtil.initCommandLine();
+            // Limiting scope of the command line switch object before it is passed to native.
+            // The reference to `cl` eventually becomes a stale object, causing incorrect behavior,
+            // since Java switches are incongruent with Native switches.
+            {
+                CommandLine cl = CommandLine.getInstance();
+
+                boolean multiProcess = webViewDelegate.isMultiProcessEnabled();
+                if (multiProcess) {
+                    cl.appendSwitch(AwSwitches.WEBVIEW_SANDBOXED_RENDERER);
+                }
+                Log.i(
+                        TAG,
+                        "version=%s (%s) minSdkVersion=%s isBundle=%s multiprocess=%s packageId=%s",
+                        VersionConstants.PRODUCT_VERSION,
+                        BuildConfig.VERSION_CODE,
+                        BuildConfig.MIN_SDK_VERSION,
+                        BundleUtils.isBundle(),
+                        multiProcess,
+                        packageId);
+
+                // Enable modern SameSite cookie behavior if the app targets at least S.
+                if (ctx.getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.S) {
+                    cl.appendSwitch(AwSwitches.WEBVIEW_ENABLE_MODERN_COOKIE_SAME_SITE);
+                }
+
+                // Enable logging JS console messages in system logs only if the app is debuggable
+                // or
+                // it's a debuggable android build.
+                if (BuildInfo.isDebugAndroidOrApp()) {
+                    cl.appendSwitch(AwSwitches.WEBVIEW_LOG_JS_CONSOLE_MESSAGES);
+                }
             }
 
-            boolean multiProcess = false;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Ask the system if multiprocess should be enabled on O+.
-                multiProcess = GlueApiHelperForO.isMultiProcessEnabled(webViewDelegate);
-            } else {
-                // Check the multiprocess developer setting directly on N.
-                multiProcess = Settings.Global.getInt(ctx.getContentResolver(),
-                                       Settings.Global.WEBVIEW_MULTIPROCESS, 0)
-                        == 1;
-            }
-            if (multiProcess) {
-                CommandLine cl = CommandLine.getInstance();
-                cl.appendSwitch(AwSwitches.WEBVIEW_SANDBOXED_RENDERER);
-            }
-            // Using concatenation rather than %s to allow values to be inlined by R8.
-            Log.i(TAG,
-                    "Loaded version=" + VersionConstants.PRODUCT_VERSION + " minSdkVersion="
-                            + BuildConfig.MIN_SDK_VERSION + " isBundle=" + ProductConfig.IS_BUNDLE
-                            + " multiprocess=%s packageId=%s",
-                    multiProcess, packageId);
-
-            // Enable modern SameSite cookie behavior if the app targets at least S.
-            if (ctx.getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.S) {
-                CommandLine cl = CommandLine.getInstance();
-                cl.appendSwitch(AwSwitches.WEBVIEW_ENABLE_MODERN_COOKIE_SAME_SITE);
-            }
-
-            // Enable logging JS console messages in system logs only if the app is debuggable or
-            // it's a debuggable android build.
-            if (BuildInfo.isDebugAndroidOrApp()) {
-                CommandLine cl = CommandLine.getInstance();
-                cl.appendSwitch(AwSwitches.WEBVIEW_LOG_JS_CONSOLE_MESSAGES);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                checkProcessUid();
             }
 
             String webViewPackageName = AwBrowserProcess.getWebViewPackageName();
-            long developerModeStart = SystemClock.elapsedRealtime();
             boolean isDeveloperModeEnabled =
                     DeveloperModeUtils.isDeveloperModeEnabled(webViewPackageName);
-            long developerModeEnd = SystemClock.elapsedRealtime();
-            RecordHistogram.recordTimesHistogram("Android.WebView.DevUi.DeveloperModeBlockingTime",
-                    developerModeEnd - developerModeStart);
             RecordHistogram.recordBooleanHistogram(
                     "Android.WebView.DevUi.DeveloperModeEnabled", isDeveloperModeEnabled);
             Map<String, Boolean> flagOverrides = null;
@@ -415,14 +496,11 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 }
             }
 
-            ThreadUtils.setWillOverrideUiThread();
-            BuildInfo.setBrowserPackageInfo(packageInfo);
-            BuildInfo.setFirebaseAppId(
-                    FirebaseConfig.getFirebaseAppIdForPackage(packageInfo.packageName));
             AndroidXProcessGlobalConfig androidXConfig = AndroidXProcessGlobalConfig.getConfig();
             try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
-                try (ScopedSysTraceEvent e2 = ScopedSysTraceEvent.scoped(
-                             "WebViewChromiumFactoryProvider.loadChromiumLibrary")) {
+                try (ScopedSysTraceEvent e2 =
+                        ScopedSysTraceEvent.scoped(
+                                "WebViewChromiumFactoryProvider.loadChromiumLibrary")) {
                     String dataDirectoryBasePath = androidXConfig.getDataDirectoryBasePathOrNull();
                     String cacheDirectoryBasePath =
                             androidXConfig.getCacheDirectoryBasePathOrNull();
@@ -438,12 +516,29 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                             dataDirectoryBasePath, cacheDirectoryBasePath, dataDirectorySuffix);
                 }
 
-                try (ScopedSysTraceEvent e2 = ScopedSysTraceEvent.scoped(
-                             "WebViewChromiumFactoryProvider.loadGlueLayerPlatSupportLibrary")) {
+                try (ScopedSysTraceEvent e2 =
+                        ScopedSysTraceEvent.scoped(
+                                "WebViewChromiumFactoryProvider.loadGlueLayerPlatSupportLibrary")) {
                     System.loadLibrary("webviewchromium_plat_support");
                 }
 
                 deleteContentsOnPackageDowngrade(packageInfo);
+            }
+
+            boolean partitionedCookies =
+                    androidXConfig.getPartitionedCookiesEnabled() == null
+                            ? !WebViewCachedFlags.get()
+                                    .isCachedFeatureEnabled(AwFeatures.WEBVIEW_DISABLE_CHIPS)
+                            : androidXConfig.getPartitionedCookiesEnabled();
+            // We use this to report the state of our partitioned override experiment if set.
+            // Applying this after the override of the Android X API has potentially been set
+            // otherwise our metrics could be misleading.
+            AwBrowserMainParts.setPartitionedCookiesDefaultState(partitionedCookies);
+            if (!partitionedCookies) {
+                AwCookieManager.disablePartitionedCookiesGlobal();
+                Log.d(TAG, "CHIPS Disabled");
+            } else {
+                Log.d(TAG, "CHIPS Enabled");
             }
 
             // Now safe to use WebView data directory.
@@ -454,18 +549,16 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
             SafeModeController controller = SafeModeController.getInstance();
             controller.registerActions(BrowserSafeModeActionList.sList);
-            long safeModeStart = SystemClock.elapsedRealtime();
             mIsSafeModeEnabled = controller.isSafeModeEnabled(webViewPackageName);
-            long safeModeEnd = SystemClock.elapsedRealtime();
-            RecordHistogram.recordTimesHistogram(
-                    "Android.WebView.SafeMode.CheckStateBlockingTime", safeModeEnd - safeModeStart);
             RecordHistogram.recordBooleanHistogram(
                     "Android.WebView.SafeMode.SafeModeEnabled", mIsSafeModeEnabled);
             if (mIsSafeModeEnabled) {
                 try {
                     long safeModeQueryExecuteStart = SystemClock.elapsedRealtime();
                     Set<String> actions = controller.queryActions(webViewPackageName);
-                    Log.w(TAG, "WebViewSafeMode is enabled: received %d SafeModeActions",
+                    Log.w(
+                            TAG,
+                            "WebViewSafeMode is enabled: received %d SafeModeActions",
                             actions.size());
                     controller.executeActions(actions);
                     long safeModeQueryExecuteEnd = SystemClock.elapsedRealtime();
@@ -478,34 +571,65 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 }
             }
 
+            // This check must happen after pref value has been read and SafeMode setup has
+            // completed.
+            boolean enableStartupTasksExperiment = shouldEnableStartupTasksExperiment();
+            mAwInit.setStartupTaskExperimentEnabled(enableStartupTasksExperiment);
+            AwBrowserMainParts.setWebViewStartupTasksLogicIsEnabled(enableStartupTasksExperiment);
+
             if (!FastVariationsSeedSafeModeAction.hasRun()) {
                 mAwInit.startVariationsInit();
             }
 
             mShouldDisableThreadChecking = shouldDisableThreadChecking(ctx);
 
-            setSingleton(this);
+            FlagOverrideHelper helper =
+                    new FlagOverrideHelper(ProductionSupportedFlagList.sFlagList);
+            helper.applyFlagOverrides(
+                    Map.of(AwFeatures.WEBVIEW_FILE_SYSTEM_ACCESS, shouldEnableFileSystemAccess()));
 
-            // sWebLayerRunningInSameProcess may have been set before initialize().
-            if (sWebLayerRunningInSameProcess) {
-                addTask(() -> { getBrowserContextOnUiThread().setWebLayerRunningInSameProcess(); });
-            }
+            // Apply user-agent reduction overrides for WebView. These features
+            // are intended to be enabled only for Android B+.
+            // 1) ReduceUserAgentMinorVersion: Enables reduction of the user-agent minor version.
+            // 2) WebViewReduceUAAndroidVersionDeviceModel: Enables reduction of the user-agent
+            //    Android version and device model.
+            helper.applyFlagOverrides(
+                    Map.of(
+                            AwFeatures.WEBVIEW_REDUCE_UA_ANDROID_VERSION_DEVICE_MODEL,
+                            shouldEnableUserAgentReduction(),
+                            BlinkFeatures.REDUCE_USER_AGENT_MINOR_VERSION,
+                            shouldEnableUserAgentReduction()));
+
+            setSingleton(this);
         }
 
+        mInitInfo.mDuration = SystemClock.uptimeMillis() - mInitInfo.mStartTime;
         RecordHistogram.recordTimesHistogram(
-                "Android.WebView.Startup.CreationTime.Stage1.FactoryInit",
-                SystemClock.uptimeMillis() - startTime);
+                "Android.WebView.Startup.CreationTime.Stage1.FactoryInit", mInitInfo.mDuration);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            final long webviewLoadStart =
+            mInitInfo.mTotalFactoryInitStartTime =
                     mWebViewDelegate.getStartupTimestamps().getWebViewLoadStart();
+            mInitInfo.mTotalFactoryInitDuration =
+                    SystemClock.uptimeMillis() - mInitInfo.mTotalFactoryInitStartTime;
             RecordHistogram.recordTimesHistogram(
                     "Android.WebView.Startup.CreationTime.TotalFactoryInitTime",
-                    SystemClock.uptimeMillis() - webviewLoadStart);
+                    mInitInfo.mTotalFactoryInitDuration);
         }
     }
 
     /* package */ static void checkStorageIsNotDeviceProtected(Context context) {
+        // The PAC processor service uses WebViewFactoryProvider.getPacProcessor() to
+        // get the JS engine it needs to run PAC scripts. It doesn't use the rest of
+        // WebView and this use case does not really store any meaningful data in the
+        // WebView data directory, but the PAC service needs to be able to run before
+        // the device is unlocked so that other apps running in that state can make
+        // proxy lookups. So, we just skip the check for it and don't care whether it
+        // is using DE or CE storage.
+        if ("com.android.pacprocessor".equals(context.getPackageName())) {
+            return;
+        }
+
         if (context.isDeviceProtectedStorage()) {
             throw new IllegalArgumentException(
                     "WebView cannot be used with device protected storage");
@@ -513,26 +637,21 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     }
 
     /**
-     * Both versionCodes should be from a WebView provider package implemented by Chromium.
-     * VersionCodes from other kinds of packages won't make any sense in this method.
+     * Compare two WebView provider versionCodes to see if the current version is an older Chromium
+     * branch than the last-used version.
      *
-     * An introduction to Chromium versionCode scheme:
-     * "BBBBPPPAX"
-     * BBBB: 4 digit branch number. It monotonically increases over time.
-     * PPP: patch number in the branch. It is padded with zeroes to the left. These three digits may
-     * change their meaning in the future.
-     * A: architecture digit.
-     * X: A digit to differentiate APKs for other reasons.
-     *
-     * This method takes the "BBBB" of versionCodes and compare them.
-     *
-     * @return true if versionCode1 is higher than or equal to versionCode2.
+     * @return true if the branch portion of currentVersion is lower than the branch portion of
+     *     lastVersion.
      */
-    private static boolean versionCodeGE(int versionCode1, int versionCode2) {
-        int v1 = versionCode1 / 100000;
-        int v2 = versionCode2 / 100000;
+    private static boolean isBranchDowngrade(int currentVersion, int lastVersion) {
+        // The WebView versionCode is 9 decimal digits "BBBBPPPXX":
+        // BBBB: 4 digit branch number. It monotonically increases over time.
+        // PPP: patch number in the branch. It is padded with zeroes to the left.
+        // XX: differentiates different architectures/build types/etc.
+        int currentBranch = currentVersion / 100000;
+        int lastBranch = lastVersion / 100000;
 
-        return v1 >= v2;
+        return currentBranch < lastBranch;
     }
 
     private static void deleteContents(File dir) {
@@ -550,8 +669,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     }
 
     public static boolean preloadInZygote() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                && Build.VERSION.SDK_INT < Build.VERSION_CODES.P && ProductConfig.IS_BUNDLE) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && BundleUtils.isBundle()) {
             // Apply workaround if we're a bundle on O, where the split APK handling bug exists.
             SplitApkWorkaround.apply();
         }
@@ -562,80 +680,84 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         return true;
     }
 
-   SharedPreferences getWebViewPrefs() {
-      return mWebViewPrefs;
-   }
+    SharedPreferences getWebViewPrefs() {
+        return mWebViewPrefs;
+    }
 
     @Override
     public Statics getStatics() {
-        synchronized (mAwInit.getLock()) {
-            SharedStatics sharedStatics = mAwInit.getStatics();
+        SharedStatics sharedStatics = mAwInit.getStatics();
+        synchronized (mAwInit.getLazyInitLock()) {
             if (mStaticsAdapter == null) {
-                mStaticsAdapter = new WebViewChromiumFactoryProvider.Statics() {
-                    @Override
-                    public String findAddress(String addr) {
-                        return sharedStatics.findAddress(addr);
-                    }
+                mStaticsAdapter =
+                        new WebViewChromiumFactoryProvider.Statics() {
+                            @Override
+                            public String findAddress(String addr) {
+                                return sharedStatics.findAddress(addr);
+                            }
 
-                    @Override
-                    public String getDefaultUserAgent(Context context) {
-                        return sharedStatics.getDefaultUserAgent(context);
-                    }
+                            @Override
+                            public String getDefaultUserAgent(Context context) {
+                                return sharedStatics.getDefaultUserAgent(context);
+                            }
 
-                    @Override
-                    public void setWebContentsDebuggingEnabled(boolean enable) {
-                        sharedStatics.setWebContentsDebuggingEnabled(enable);
-                    }
+                            @Override
+                            public void setWebContentsDebuggingEnabled(boolean enable) {
+                                sharedStatics.setWebContentsDebuggingEnabled(enable);
+                            }
 
-                    @Override
-                    public void clearClientCertPreferences(Runnable onCleared) {
-                        sharedStatics.clearClientCertPreferences(onCleared);
-                    }
+                            @Override
+                            public void clearClientCertPreferences(Runnable onCleared) {
+                                sharedStatics.clearClientCertPreferences(onCleared);
+                            }
 
-                    @Override
-                    public void freeMemoryForTests() {
-                        sharedStatics.freeMemoryForTests();
-                    }
+                            @Override
+                            public void freeMemoryForTests() {
+                                sharedStatics.freeMemoryForTests();
+                            }
 
-                    @Override
-                    public void enableSlowWholeDocumentDraw() {
-                        sharedStatics.enableSlowWholeDocumentDraw();
-                    }
+                            @Override
+                            public void enableSlowWholeDocumentDraw() {
+                                sharedStatics.enableSlowWholeDocumentDraw();
+                            }
 
-                    @Override
-                    public Uri[] parseFileChooserResult(int resultCode, Intent intent) {
-                        return sharedStatics.parseFileChooserResult(resultCode, intent);
-                    }
+                            @Override
+                            public Uri[] parseFileChooserResult(int resultCode, Intent intent) {
+                                return sharedStatics.parseFileChooserResult(resultCode, intent);
+                            }
 
-                    @Override
-                    public void initSafeBrowsing(Context context, ValueCallback<Boolean> callback) {
-                        sharedStatics.initSafeBrowsing(
-                                context, CallbackConverter.fromValueCallback(callback));
-                    }
+                            @Override
+                            public void initSafeBrowsing(
+                                    Context context, ValueCallback<Boolean> callback) {
+                                sharedStatics.initSafeBrowsing(
+                                        context, CallbackConverter.fromValueCallback(callback));
+                            }
 
-                    @Override
-                    public void setSafeBrowsingWhitelist(
-                            List<String> urls, ValueCallback<Boolean> callback) {
-                        sharedStatics.setSafeBrowsingAllowlist(
-                                urls, CallbackConverter.fromValueCallback(callback));
-                    }
+                            @Override
+                            public void setSafeBrowsingWhitelist(
+                                    List<String> urls, ValueCallback<Boolean> callback) {
+                                sharedStatics.setSafeBrowsingAllowlist(
+                                        urls, CallbackConverter.fromValueCallback(callback));
+                            }
 
-                    @Override
-                    public Uri getSafeBrowsingPrivacyPolicyUrl() {
-                        return sharedStatics.getSafeBrowsingPrivacyPolicyUrl();
-                    }
+                            @Override
+                            public Uri getSafeBrowsingPrivacyPolicyUrl() {
+                                return sharedStatics.getSafeBrowsingPrivacyPolicyUrl();
+                            }
 
-                    public boolean isMultiProcessEnabled() {
-                        return sharedStatics.isMultiProcessEnabled();
-                    }
+                            @SuppressWarnings("UnusedMethod")
+                            public boolean isMultiProcessEnabled() {
+                                return sharedStatics.isMultiProcessEnabled();
+                            }
 
-                    public String getVariationsHeader() {
-                        return sharedStatics.getVariationsHeader();
-                    }
-                };
+                            @SuppressWarnings("UnusedMethod")
+                            public String getVariationsHeader() {
+                                return sharedStatics.getVariationsHeader();
+                            }
+                        };
             }
+            return mStaticsAdapter;
         }
-        return mStaticsAdapter;
     }
 
     @Override
@@ -679,9 +801,15 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         }
 
         if (shouldDisable) {
-            Log.w(TAG, "Disabling thread check in WebView. "
-                            + "APK name: " + appName + ", versionCode: " + versionCode
-                            + ", targetSdkVersion: " + appTargetSdkVersion);
+            Log.w(
+                    TAG,
+                    "Disabling thread check in WebView. "
+                            + "APK name: "
+                            + appName
+                            + ", versionCode: "
+                            + versionCode
+                            + ", targetSdkVersion: "
+                            + appTargetSdkVersion);
         }
         return shouldDisable;
     }
@@ -696,23 +824,29 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public GeolocationPermissions getGeolocationPermissions() {
-        return mAwInit.getGeolocationPermissions();
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.APICall.Framework.GET_GEOLOCATION_PERMISSIONS")) {
+            SharedStatics.recordStaticApiCall(ApiCall.GET_GEOLOCATION_PERMISSIONS);
+            return mAwInit.getDefaultGeolocationPermissions();
+        }
     }
 
     @Override
     public CookieManager getCookieManager() {
-        return mAwInit.getCookieManager();
+        return mAwInit.getDefaultCookieManager();
     }
 
     @Override
     public ServiceWorkerController getServiceWorkerController() {
-        synchronized (mAwInit.getLock()) {
+        AwServiceWorkerController serviceWorkerController =
+                mAwInit.getDefaultServiceWorkerController();
+        synchronized (mAwInit.getLazyInitLock()) {
             if (mServiceWorkerController == null) {
                 mServiceWorkerController =
-                        new ServiceWorkerControllerAdapter(mAwInit.getServiceWorkerController());
+                        new ServiceWorkerControllerAdapter(serviceWorkerController);
             }
+            return mServiceWorkerController;
         }
-        return mServiceWorkerController;
     }
 
     @Override
@@ -727,40 +861,41 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public WebStorage getWebStorage() {
-        return mAwInit.getWebStorage();
+        return mAwInit.getDefaultWebStorage();
     }
 
     @Override
     public WebViewDatabase getWebViewDatabase(final Context context) {
-        return mAwInit.getWebViewDatabase(context);
+        return mAwInit.getDefaultWebViewDatabase(context);
     }
 
     WebViewDelegate getWebViewDelegate() {
         return mWebViewDelegate;
     }
 
-    WebViewContentsClientAdapter createWebViewContentsClientAdapter(WebView webView,
-            Context context) {
-        try (ScopedSysTraceEvent e = ScopedSysTraceEvent.scoped(
-                     "WebViewChromiumFactoryProvider.insideCreateWebViewContentsClientAdapter")) {
+    WebViewContentsClientAdapter createWebViewContentsClientAdapter(
+            WebView webView, Context context) {
+        try (ScopedSysTraceEvent e =
+                ScopedSysTraceEvent.scoped(
+                        "WebViewChromiumFactoryProvider.insideCreateWebViewContentsClientAdapter")) {
             return new WebViewContentsClientAdapter(webView, context, mWebViewDelegate);
         }
     }
 
     void startYourEngines(boolean onMainThread) {
-        try (ScopedSysTraceEvent e1 = ScopedSysTraceEvent.scoped(
-                     "WebViewChromiumFactoryProvider.startYourEngines")) {
+        try (ScopedSysTraceEvent e1 =
+                ScopedSysTraceEvent.scoped("WebViewChromiumFactoryProvider.startYourEngines")) {
             mAwInit.startYourEngines(onMainThread);
         }
     }
 
-    boolean hasStarted() {
-        return mAwInit.hasStarted();
+    boolean isChromiumInitialized() {
+        return mAwInit.isChromiumInitialized();
     }
 
     // Only on UI thread.
-    AwBrowserContext getBrowserContextOnUiThread() {
-        return mAwInit.getBrowserContextOnUiThread();
+    AwBrowserContext getDefaultBrowserContextOnUiThread() {
+        return mAwInit.getDefaultBrowserContextOnUiThread();
     }
 
     WebViewChromiumAwInit getAwInit() {
@@ -770,17 +905,15 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     @RequiresApi(Build.VERSION_CODES.P)
     @Override
     public TracingController getTracingController() {
-        synchronized (mAwInit.getLock()) {
-            mAwInit.ensureChromiumStartedLocked(true);
-            // ensureChromiumStartedLocked() can release the lock on first call while
-            // waiting for startup. Hence check the mTracingController here to ensure
-            // the singleton property.
+        mAwInit.triggerAndWaitForChromiumStarted(
+                true, WebViewChromiumAwInit.CallSite.GET_TRACING_CONTROLLER);
+        synchronized (mAwInit.getLazyInitLock()) {
             if (mObjectHolderForP.mTracingController == null) {
                 mObjectHolderForP.mTracingController =
                         GlueApiHelperForP.createTracingControllerAdapter(this, mAwInit);
             }
+            return mObjectHolderForP.mTracingController;
         }
-        return mObjectHolderForP.mTracingController;
     }
 
     private static class FilteredClassLoader extends ClassLoader {
@@ -814,24 +947,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         return new FilteredClassLoader(WebViewChromiumFactoryProvider.class.getClassLoader());
     }
 
-    // This is called from WebLayer when WebView and WebLayer are run in the same process. It's
-    // used to set a crash key to help attribute crashes. It's entirely possible WebView has not
-    // been initialized when this is called.
-    public static void setWebLayerRunningInSameProcess() {
-        // This may be called before initialize().
-        synchronized (sSingletonLock) {
-            sWebLayerRunningInSameProcess = true;
-            if (sSingleton == null) {
-                // initialize() hasn't been called yet. When initialize() is called
-                // |sWebLayerRunningInSameProcess| will be checked.
-                return;
-            }
-        }
-        getSingleton().addTask(() -> {
-            getSingleton().getBrowserContextOnUiThread().setWebLayerRunningInSameProcess();
-        });
-    }
-
     @RequiresApi(Build.VERSION_CODES.R)
     @Override
     public PacProcessor getPacProcessor() {
@@ -842,5 +957,103 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     @Override
     public PacProcessor createPacProcessor() {
         return GlueApiHelperForR.createPacProcessor();
+    }
+
+    public InitInfo getInitInfo() {
+        return mInitInfo;
+    }
+
+    private boolean shouldEnableContextExperiment(Context ctx) {
+        // Command line switch overrides all other conditions.
+        if (CommandLine.getInstance().hasSwitch(AwSwitches.WEBVIEW_USE_SEPARATE_RESOURCE_CONTEXT)) {
+            return true;
+        }
+
+        // Don't enable on V+.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return false;
+        }
+
+        // Allow the developer to opt in or opt out of the experiment.
+        ManifestMetadataUtil.ensureMetadataCacheInitialized(ctx);
+        Boolean valueFromManifest = ManifestMetadataUtil.shouldEnableContextExperiment();
+        if (valueFromManifest != null) {
+            return valueFromManifest;
+        }
+
+        // We also want to enable by default on the listed package names.
+        if ("com.aurora.launcher".equals(ctx.getPackageName())
+                || "com.qiku.android.launcher3".equals(ctx.getPackageName())) {
+            return true;
+        }
+
+        return WebViewCachedFlags.get()
+                .isCachedFeatureEnabled(AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT);
+    }
+
+    // These values are persisted to logs. Entries should not be renumbered and
+    // numeric values should never be reused.
+    //
+    // LINT.IfChange(UidType)
+    @IntDef({
+        UidType.ROOT,
+        UidType.SYSTEM,
+        UidType.PHONE,
+        UidType.NFC,
+        UidType.BLUETOOTH,
+        UidType.WIFI,
+        UidType.SHELL,
+        UidType.OTHER_NON_APP
+    })
+    private @interface UidType {
+        int ROOT = 0;
+        int SYSTEM = 1;
+        int PHONE = 2;
+        int NFC = 3;
+        int BLUETOOTH = 4;
+        int WIFI = 5;
+        int SHELL = 6;
+        int OTHER_NON_APP = 7;
+        int COUNT = 8;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:AndroidUidType)
+
+    private static void recordNonAppUid(@UidType int uidType) {
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.WebView.NonAppUid", uidType, UidType.COUNT);
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private static void checkProcessUid() {
+        int appId = UserHandle.getAppId(Process.myUid());
+        switch (appId) {
+            case Process.ROOT_UID:
+                recordNonAppUid(UidType.ROOT);
+                break;
+            case Process.SYSTEM_UID:
+                recordNonAppUid(UidType.SYSTEM);
+                break;
+            case Process.PHONE_UID:
+                recordNonAppUid(UidType.PHONE);
+                break;
+            case 1027 /* Process.NFC_UID */:
+                recordNonAppUid(UidType.NFC);
+                break;
+            case Process.BLUETOOTH_UID:
+                recordNonAppUid(UidType.BLUETOOTH);
+                break;
+            case Process.WIFI_UID:
+                recordNonAppUid(UidType.WIFI);
+                break;
+            case Process.SHELL_UID:
+                recordNonAppUid(UidType.SHELL);
+                break;
+            default:
+                if (appId < Process.FIRST_APPLICATION_UID) {
+                    recordNonAppUid(UidType.OTHER_NON_APP);
+                }
+                break;
+        }
     }
 }

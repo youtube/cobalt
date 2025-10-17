@@ -6,9 +6,10 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -26,6 +27,7 @@ class HTMLSlotElementTest : public testing::Test {
   Vector<HTMLSlotElement::LCSArray<size_t, kTableSize>, kTableSize> lcs_table_;
   Vector<HTMLSlotElement::LCSArray<Backtrack, kTableSize>, kTableSize>
       backtrack_table_;
+  test::TaskEnvironment task_environment_;
 };
 
 Vector<char> HTMLSlotElementTest::LongestCommonSubsequence(const Seq& seq1,
@@ -143,6 +145,7 @@ class HTMLSlotElementInDocumentTest : public testing::Test {
   }
 
  private:
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<DummyPageHolder> dummy_page_holder_;
 };
 
@@ -151,18 +154,19 @@ TEST_F(HTMLSlotElementInDocumentTest, RecalcAssignedNodeStyleForReattach) {
     <div id='host'><span id='span'></span></div>
   )HTML");
 
-  Element& host = *GetDocument().getElementById("host");
-  Element& span = *GetDocument().getElementById("span");
+  Element& host = *GetDocument().getElementById(AtomicString("host"));
+  Element& span = *GetDocument().getElementById(AtomicString("span"));
 
   ShadowRoot& shadow_root =
-      host.AttachShadowRootInternal(ShadowRootType::kOpen);
+      host.AttachShadowRootForTesting(ShadowRootMode::kOpen);
 
   shadow_root.setInnerHTML(R"HTML(<span><slot /></span>)HTML");
 
   auto* shadow_span = To<Element>(shadow_root.firstChild());
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
 
-  shadow_span->setAttribute(html_names::kStyleAttr, "display:block");
+  shadow_span->setAttribute(html_names::kStyleAttr,
+                            AtomicString("display:block"));
 
   GetDocument().Lifecycle().AdvanceTo(DocumentLifecycle::kInStyleRecalc);
   GetDocument().GetStyleEngine().RecalcStyle();
@@ -176,9 +180,9 @@ TEST_F(HTMLSlotElementInDocumentTest, SlotableFallback) {
     <div id='host'></div>
   )HTML");
 
-  Element& host = *GetDocument().getElementById("host");
+  Element& host = *GetDocument().getElementById(AtomicString("host"));
   ShadowRoot& shadow_root =
-      host.AttachShadowRootInternal(ShadowRootType::kOpen);
+      host.AttachShadowRootForTesting(ShadowRootMode::kOpen);
 
   shadow_root.setInnerHTML(R"HTML(<slot><span></span><!-- -->text</slot>)HTML");
 

@@ -18,7 +18,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
-#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -89,8 +89,6 @@ void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
       std::make_unique<os_crypt::Config>();
   // Forward the product name
   config->product_name = "Cobalt";
-  // OSCrypt may target keyring, which requires calls from the main thread.
-  config->main_thread_runner = content::GetUIThreadTaskRunner({});
   // OSCrypt can be disabled in a special settings file.
   config->should_use_preference = false;
   base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);

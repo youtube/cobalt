@@ -13,8 +13,8 @@ instead.
 
 ## System requirements
 
-* A 64-bit Intel machine running Linux with at least 8GB of RAM. More
-  than 16GB is highly recommended.
+* An x86-64 machine running Linux with at least 8GB of RAM. More than 16GB is
+  highly recommended.
 * At least 100GB of free disk space.
 * You must have Git and Python installed already.
 
@@ -75,7 +75,7 @@ appending `target_os = ['linux', 'android']` to your `.gclient` file (in the
 directory above `src`):
 
 ```shell
-echo "target_os = [ 'android' ]" >> ../.gclient
+echo "target_os = [ 'linux', 'android' ]" >> ../.gclient
 ```
 
 Then run `gclient sync` to pull the new Android dependencies:
@@ -91,12 +91,21 @@ gclient sync
 Once you have checked out the code, run
 
 ```shell
-build/install-build-deps.sh --android
+build/install-build-deps.sh
 ```
 
 to get all of the dependencies you need to build on Linux, *plus* all of the
 Android-specific dependencies (you need some of the regular Linux dependencies
 because an Android build includes a bunch of the Linux tools and utilities).
+
+NOTE: For 32-bit builds, the `--lib32` command line switch could be used.
+You may run into issues where `gperf` or `pkgconf` don't get installed,
+without it. To remedy this, and potentially other missing packages, you will
+have to install them manually using:
+
+```shell
+sudo apt-get install {missing_pkg}
+```
 
 ### Run the hooks
 
@@ -125,6 +134,8 @@ following arguments:
 ```gn
 target_os = "android"
 target_cpu = "arm64"  # See "Figuring out target_cpu" below
+use_remoteexec = true  # Enables distributed builds. See "Faster Builds".
+android_static_analysis = "build_server"  # Does static checks in background. See "Faster Builds".
 ```
 
 * You only have to run this once for each new build directory, Ninja will
@@ -179,22 +190,21 @@ out/Default chrome/test:unit_tests`).
 
 ### Multiple Chrome Targets
 
-The Google Play Store allows apps to send customized `.apk` or `.aab` files
+The Google Play Store allows apps to send customized bundles (`.aab` files)
 depending on the version of Android running on a device. Chrome uses this
 feature to package optimized versions for different OS versions.
 
-1. `monochrome_public_bundle` (MonochromePublic.aab)
-   * `minSdkVersion=24` (Nougat).
+1. `monochrome_public_bundle` (`MonochromePublic.aab`)
+   * `minSdkVersion=26` (Oreo).
    * Contains both Chrome and WebView (to save disk space).
-2. `trichrome_chrome_bundle` (TrichromeChrome.aab)
+2. `trichrome_chrome_bundle` (`TrichromeChrome.aab`)
    * `minSdkVersion=29` (Android 10).
-   * Native code shared with WebView through a "Static Shared Library APK": `trichrome_library_apk` 
+   * Native code shared with WebView through a "Static Shared Library APK": `trichrome_library_apk`
    * Corresponding WebView target: `trichrome_webview_bundle`
-3. `chrome_public_apk` (ChromePublic.apk)
-   * `minSdkVersion=24` (Nougat).
-   * WebView packaged independently (`system_webview_apk`).
-   * Used for only local development and tests (simpler than using bundle
-     targets).
+3. `chrome_public_bundle` & `chrome_public_apk` (`ChromePublic.aab`, `ChromePublic.apk`)
+   * `minSdkVersion=26` (Oreo).
+   * Used for local development (to avoid building WebView).
+   * WebView packaged independently (`system_webview_bundle` / `system_webview_apk`).
 
 *** note
 **Notes:**
@@ -334,7 +344,7 @@ with `.*`), eg:
 
 ```shell
 export CHROMIUM_LOGCAT_HIGHLIGHT='(WARNING|cr_Child)'
-out/Default.bin/chrome_public_apk logcat
+out/Default/bin/chrome_public_apk logcat
 # Highlights messages/tags containing WARNING and cr_Child strings.
 ```
 
@@ -353,16 +363,23 @@ for more on debugging, including how to debug Java code.
 ### Testing
 
 For information on running tests, see
-[Android Test Instructions](/testing/android/docs/README.md)
+[Android Test Instructions](/docs/testing/android_test_instructions.md)
 
-### Faster Edit/Deploy
+## Faster Builds
 
-#### GN Args
+### GN Args
+
 Args that affect build speed:
+ * `use_remoteexec = true` *(default=false)*
+   * What it does: Enables distributed builds via Reclient
+ * `symbol_level = 0` *(default=1)*
+   * What it does: Disables debug information in native code.
+   * Use this when doing primarily Java development.
+   * To disable symbols only in Blink / V8: `blink_symbol_level = 0`, `v8_symbol_level = 0`
  * `is_component_build = true` *(default=`is_debug`)*
    * What it does: Uses multiple `.so` files instead of just one (faster links)
  * `is_java_debug = true` *(default=`is_debug`)*
-   * What it does: Disables ProGuard (slow build step)
+   * What it does: Disables R8 (whole-program Java optimizer)
  * `treat_warnings_as_errors = false` *(default=`true`)*
    * Causes any compiler warnings or lint checks to not fail the build.
    * Allows you to iterate without needing to satisfy static analysis checks.
@@ -371,64 +388,52 @@ Args that affect build speed:
    * Set this to `"off"` if you want to turn off static analysis altogether.
  * `incremental_install = true` *(default=`false`)*
    * Makes build and install quite a bit faster. Explained in a later section.
+ * `enable_chrome_android_internal = false` *(Googlers only)*
+   * Disables non-public code, which exists even when building public targets.
+   * Use this is you do not need to test internal-only things.
 
-#### Running static analysis with the build server
-Normally analysis build steps like lint and errorprone will run in parallel with
-the rest of the build. The build will then wait for all analysis steps to
-complete successfully. By offloading analysis build steps to a separate build
-server to be run lazily at a low priority when the machine is idle, the actual
-build can complete up to 50-80% faster.
+### Asynchronous Static Analysis
+
+Normally analysis build steps like Lint and Error Prone will run as normal build
+steps. The build will then wait for all analysis steps to complete successfully.
+By offloading analysis build steps to a separate build server to be run lazily at
+a low priority, the actual build can complete much faster.
 
 **Note**: Since the build completes before the analysis checks finish, the build
-will not fail if an analysis check fails. Make sure to check the server's output
-at regular intervals to fix outstanding issues caught by these analysis checks.
+will not fail if an analysis check fails.
 
-##### First way (by running it manually)
+To enable this mode, add the gn args:
 
-There are **two** steps to using the build server.
-1. Add the gn arg `android_static_analysis = "build_server"`
-2. Run the script at
-[//build/android/fast_local_dev_server.py][fast_local_dev]
-
-All your local builds will now forward analysis steps to this server, including
-android lint, errorprone, bytecode processor.
-
-If you run (2) in a terminal, the output of the checks will be displayed there.
-
-##### Second way (using systemd)
-
-Alternatively, you can set up the server as a Linux service, so it runs on the
-background and starts on boot. If you're using systemd:
-
-Save the following as /etc/systemd/user/fast-local-dev-server.service.
-```
-[Unit]
-Description=Chrome server for android build static analysis
-
-[Service]
-Type=simple
-ExecStart=<path to fast_local_dev_server.py>
-Restart=always
-
-[Install]
-WantedBy=default.target
+```gn
+android_static_analysis = "build_server"
 ```
 
-Then
-```bash
-systemctl --user daemon-reload
-systemctl --user enable fast-local-dev-server
-systemctl --user start fast-local-dev-server
+Command output will show up on the terminal that ran the build, as well as in
+`out/Debug/buildserver.log.0`.
+
+See the status of the server at any time via:
+```
+build/android/fast_local_dev_server.py --print-status-all
 ```
 
-The output can be inspected with
-```
-journalctl --user -e -u fast-local-dev-server
-```
+### Use Reclient
 
-[fast_local_dev]: https://source.chromium.org/chromium/chromium/src/+/main:build/android/fast_local_dev_server.py
+*** note
+**Warning:** If you are a Google employee, do not follow the Reclient instructions
+in this section. Set up remote execution as described in
+[go/building-android-chrome](https://goto.google.com/building-android-chrome)
+instead.
+***
 
-#### Incremental Install
+Chromium's build can be sped up significantly by using a remote execution system
+compatible with [REAPI](https://github.com/bazelbuild/remote-apis). This allows
+you to benefit from remote caching and executing many build actions in parallel
+on a shared cluster of workers.
+
+To use Reclient, follow the corresponding
+[Linux build instructions](linux/build_instructions.md#use-reclient).
+
+### Incremental Install
 [Incremental Install](/build/android/incremental_install/README.md) uses
 reflection and sideloading to speed up the edit & deploy cycle (normally < 10
 seconds). The initial launch of the apk will be a lot slower on older Android
@@ -467,3 +472,12 @@ committing code to chromium.
 3.  Go to
     [http://storage.googleapis.com/chrome-browser-components/BUILD\_ID\_FROM\_STEP\_2/index.html](http://storage.googleapis.com/chrome-browser-components/BUILD_ID_FROM_STEP_2/index.html)
 4.  Download the listed files and follow the steps in the README.
+
+### Building with Docker
+
+To build Chromium for Android using Docker, please follow the
+instructions in the [Docker in Linux build instructions](/docs/linux/build_instructions.md#docker).
+
+*** note
+**Note:** You need install the [Android dependencies](#install-additional-build-dependencies) after setting up the [Build dependencies](/docs/linux/build_instructions.md#install-additional-build-dependencies).
+***

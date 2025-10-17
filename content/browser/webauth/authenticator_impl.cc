@@ -26,7 +26,9 @@ void AuthenticatorImpl::Create(
   // navigates or is deleted. See DocumentService for details.
   new AuthenticatorImpl(
       *render_frame_host, std::move(receiver),
-      std::make_unique<AuthenticatorCommonImpl>(render_frame_host));
+      std::make_unique<AuthenticatorCommonImpl>(
+          render_frame_host,
+          AuthenticatorCommonImpl::ServingRequestsFor::kWebContents));
 }
 
 void AuthenticatorImpl::CreateForTesting(
@@ -58,12 +60,27 @@ void AuthenticatorImpl::MakeCredential(
 }
 
 // mojom::Authenticator
-void AuthenticatorImpl::GetAssertion(
+void AuthenticatorImpl::GetCredential(
     blink::mojom::PublicKeyCredentialRequestOptionsPtr options,
-    GetAssertionCallback callback) {
-  authenticator_common_impl_->GetAssertion(origin(), std::move(options),
-                                           /*payment=*/nullptr,
-                                           std::move(callback));
+    GetCredentialCallback callback) {
+  authenticator_common_impl_->GetCredential(origin(), std::move(options),
+                                            /*payment=*/nullptr,
+                                            std::move(callback));
+}
+
+// mojom::Authenticator
+void AuthenticatorImpl::Report(
+    blink::mojom::PublicKeyCredentialReportOptionsPtr options,
+    ReportCallback callback) {
+  authenticator_common_impl_->Report(origin(), std::move(options),
+                                     std::move(callback));
+}
+
+// mojom::Authenticator
+void AuthenticatorImpl::GetClientCapabilities(
+    GetClientCapabilitiesCallback callback) {
+  authenticator_common_impl_->GetClientCapabilities(origin(),
+                                                    std::move(callback));
 }
 
 void AuthenticatorImpl::IsUserVerifyingPlatformAuthenticatorAvailable(

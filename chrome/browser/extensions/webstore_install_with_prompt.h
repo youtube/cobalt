@@ -10,7 +10,6 @@
 #include "chrome/browser/extensions/webstore_standalone_installer.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/views/native_window_tracker.h"
-#include "url/gurl.h"
 
 namespace content {
 class WebContents;
@@ -22,7 +21,7 @@ namespace extensions {
 // metadata from the webstore, shows an install UI and starts the download once
 // the user confirms. No post-install UI is shown.
 //
-// Clients will be notified of success or failure via the |callback| argument
+// Clients will be notified of success or failure via the `callback` argument
 // passed into the constructor.
 //
 // Clients of this class must be trusted, as verification of the requestor is
@@ -30,14 +29,8 @@ namespace extensions {
 // methods and can be used as a base class.
 class WebstoreInstallWithPrompt : public WebstoreStandaloneInstaller {
  public:
-  // Use this constructor when there is no parent window. The install dialog
-  // will be centered on the screen.
-  WebstoreInstallWithPrompt(const std::string& webstore_item_id,
-                            Profile* profile,
-                            Callback callback);
-
   // If this constructor is used, the parent of the install dialog will be
-  // |parent_window|.
+  // `parent_window`.
   WebstoreInstallWithPrompt(const std::string& webstore_item_id,
                             Profile* profile,
                             gfx::NativeWindow parent_window,

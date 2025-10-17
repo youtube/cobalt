@@ -552,7 +552,7 @@ class MapFileParserLld:
             # merged data. Feature request is filed under:
             # https://bugs.llvm.org/show_bug.cgi?id=35248
             if cur_obj == '<internal>':
-              if cur_section == '.rodata' and mangled_name == '':
+              if cur_section == '.rodata':
                 # Treat all <internal> sections within .rodata as as string
                 # literals. Some may hold numeric constants or other data, but
                 # there is currently no way to distinguish them.
@@ -563,7 +563,8 @@ class MapFileParserLld:
 
               is_partial = False
               cur_obj = None
-            elif cur_obj == 'lto.tmp' or 'thinlto-cache' in cur_obj:
+            elif (cur_obj == 'lto.tmp' or 'thinlto-cache' in cur_obj
+                  or '.lto.' in cur_obj):
               thin_map[address] = os.path.basename(cur_obj)
               cur_obj = None
 
@@ -641,7 +642,8 @@ class MapFileParserLld:
                   #   symbol.
                   # Anything that makes it here would be an anomaly worthy of
                   # investigation, so print warnings.
-                  logging.warn('Unrecognized __typeid_ symbol at %08X', address)
+                  logging.warning('Unrecognized __typeid_ symbol at %08X',
+                                  address)
                   continue
               else:
                 # Prefer |size|, and only fall back to |span| if |size == 0|.
@@ -670,8 +672,8 @@ class MapFileParserLld:
 def _DetectLto(lines):
   """Scans LLD linker map file and returns whether LTO was used."""
   # It's assumed that the first line in |lines| was consumed to determine that
-  # LLD was used. Seek 'thinlto-cache' prefix within an "indicator section" as
-  # indicator for LTO.
+  # LLD was used. Seek 'thinlto-cache' prefix or the string '.lto' within an
+  # "indicator section" as indicator for LTO.
   found_indicator_section = False
   # Potential names of "main section". Only one gets used.
   indicator_section_set = set(['.rodata', '.ARM.exidx'])
@@ -695,7 +697,7 @@ def _DetectLto(lines):
         found_indicator_section = True
     elif indent_size == 8:
       if found_indicator_section:
-        if tok.startswith('thinlto-cache'):
+        if tok.startswith('thinlto-cache') or '.lto.' in tok:
           return True
   return False
 

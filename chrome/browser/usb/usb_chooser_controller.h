@@ -15,6 +15,7 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/usb/usb_chooser_context.h"
 #include "components/permissions/chooser_controller.h"
+#include "content/public/browser/global_routing_id.h"
 #include "services/device/public/mojom/usb_device.mojom.h"
 #include "third_party/blink/public/mojom/usb/web_usb_service.mojom.h"
 #include "url/origin.h"
@@ -29,7 +30,7 @@ class UsbChooserController : public permissions::ChooserController,
  public:
   UsbChooserController(
       content::RenderFrameHost* render_frame_host,
-      std::vector<device::mojom::UsbDeviceFilterPtr> device_filters,
+      blink::mojom::WebUsbRequestDeviceOptionsPtr options,
       blink::mojom::WebUsbService::GetPermissionCallback callback);
 
   UsbChooserController(const UsbChooserController&) = delete;
@@ -60,11 +61,13 @@ class UsbChooserController : public permissions::ChooserController,
   void GotUsbDeviceList(std::vector<device::mojom::UsbDeviceInfoPtr> devices);
   bool DisplayDevice(const device::mojom::UsbDeviceInfo& device) const;
 
-  std::vector<device::mojom::UsbDeviceFilterPtr> filters_;
+  blink::mojom::WebUsbRequestDeviceOptionsPtr options_;
   blink::mojom::WebUsbService::GetPermissionCallback callback_;
   url::Origin origin_;
 
-  const raw_ptr<content::RenderFrameHost, DanglingUntriaged> requesting_frame_;
+  // Hold the GlobalRenderFrameHostId for requesting frame so we can always
+  // check whether the frame host is still valid before we access it.
+  const content::GlobalRenderFrameHostId render_frame_host_id_;
   base::WeakPtr<UsbChooserContext> chooser_context_;
   base::ScopedObservation<UsbChooserContext, UsbChooserContext::DeviceObserver>
       observation_{this};

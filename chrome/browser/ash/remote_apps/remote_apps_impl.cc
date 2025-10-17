@@ -4,21 +4,22 @@
 
 #include "chrome/browser/ash/remote_apps/remote_apps_impl.h"
 
+#include <algorithm>
+#include <optional>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/ash/remote_apps/remote_apps_manager.h"
 #include "chrome/browser/ash/remote_apps/remote_apps_manager_factory.h"
+#include "chrome/browser/ash/remote_apps/remote_apps_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/render_frame_host.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/features/behavior_feature.h"
 #include "extensions/common/features/feature.h"
 #include "extensions/common/features/feature_provider.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -27,6 +28,10 @@ namespace {
 constexpr char kErrNotReady[] = "Manager for remote apps is not ready";
 constexpr char kErrFolderIdDoesNotExist[] = "Folder ID provided does not exist";
 constexpr char kErrAppIdDoesNotExist[] = "App ID provided does not exist";
+constexpr char kErrFailedToPinAnApp[] =
+    "Invalid app ID or corresponding app is already pinned";
+constexpr char kErrPinningMultipleAppsNotSupported[] =
+    "Pinning multiple apps is not yet supported";
 
 static bool g_bypass_checks_for_testing_ = false;
 
@@ -75,7 +80,7 @@ RemoteAppsImpl::RemoteAppsImpl(RemoteAppsManager* manager) : manager_(manager) {
 RemoteAppsImpl::~RemoteAppsImpl() = default;
 
 void RemoteAppsImpl::BindRemoteAppsAndAppLaunchObserver(
-    const absl::optional<std::string>& source_id,
+    const std::optional<std::string>& source_id,
     mojo::PendingReceiver<chromeos::remote_apps::mojom::RemoteApps>
         pending_remote_apps,
     mojo::PendingRemote<chromeos::remote_apps::mojom::RemoteAppLaunchObserver>
@@ -123,21 +128,44 @@ void RemoteAppsImpl::DeleteApp(const std::string& app_id,
       std::move(callback).Run(kErrNotReady);
       return;
     case RemoteAppsError::kNone:
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     case RemoteAppsError::kAppIdDoesNotExist:
       std::move(callback).Run(kErrAppIdDoesNotExist);
       return;
     case RemoteAppsError::kFolderIdDoesNotExist:
-      // Impossible to reach - only occurs for |AddApp()|.
-      DCHECK(false);
+    case RemoteAppsError::kFailedToPinAnApp:
+    case RemoteAppsError::kPinningMultipleAppsNotSupported:
+      // Errors specific to other methods.
+      NOTREACHED();
   }
 }
 
 void RemoteAppsImpl::SortLauncherWithRemoteAppsFirst(
     SortLauncherWithRemoteAppsFirstCallback callback) {
   manager_->SortLauncherWithRemoteAppsFirst();
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
+}
+
+void RemoteAppsImpl::SetPinnedApps(const std::vector<std::string>& app_ids,
+                                   SetPinnedAppsCallback callback) {
+  ash::RemoteAppsError error = manager_->SetPinnedApps(app_ids);
+  switch (error) {
+    case RemoteAppsError::kNone:
+      std::move(callback).Run(std::nullopt);
+      return;
+    case RemoteAppsError::kFailedToPinAnApp:
+      std::move(callback).Run(kErrFailedToPinAnApp);
+      return;
+    case RemoteAppsError::kPinningMultipleAppsNotSupported:
+      std::move(callback).Run(kErrPinningMultipleAppsNotSupported);
+      return;
+    case RemoteAppsError::kAppIdDoesNotExist:
+    case RemoteAppsError::kFolderIdDoesNotExist:
+    case RemoteAppsError::kNotReady:
+      // Errors specific to other methods.
+      NOTREACHED();
+  }
 }
 
 void RemoteAppsImpl::OnAppLaunched(const std::string& source_id,
@@ -177,14 +205,16 @@ void RemoteAppsImpl::OnAppAdded(AddAppCallback callback,
           chromeos::remote_apps::mojom::AddAppResult::NewAppId(app_id));
       return;
     case RemoteAppsError::kAppIdDoesNotExist:
-      // Impossible to reach - only occurs for |DeleteApp()|.
-      DCHECK(false);
+    case RemoteAppsError::kFailedToPinAnApp:
+    case RemoteAppsError::kPinningMultipleAppsNotSupported:
+      // Errors specific to other methods.
+      NOTREACHED();
   }
 }
 
 void RemoteAppsImpl::DisconnectHandler(mojo::RemoteSetElementId id) {
-  const auto& it = base::ranges::find(source_id_to_remote_id_map_, id,
-                                      &SourceToRemoteIds::value_type::second);
+  const auto& it = std::ranges::find(source_id_to_remote_id_map_, id,
+                                     &SourceToRemoteIds::value_type::second);
 
   if (it == source_id_to_remote_id_map_.end())
     return;

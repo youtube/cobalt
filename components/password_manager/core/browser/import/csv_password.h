@@ -7,10 +7,10 @@
 
 #include <stddef.h>
 
-#include "base/containers/flat_map.h"
-#include "base/strings/string_piece.h"
-#include "base/types/expected.h"
+#include <string_view>
 
+#include "base/containers/flat_map.h"
+#include "base/types/expected.h"
 #include "url/gurl.h"
 
 namespace password_manager {
@@ -34,7 +34,7 @@ class CSVPassword {
   };
 
   explicit CSVPassword();
-  explicit CSVPassword(const ColumnMap& map, base::StringPiece csv_row);
+  explicit CSVPassword(const ColumnMap& map, std::string_view csv_row);
   explicit CSVPassword(GURL url,
                        std::string username,
                        std::string password,
@@ -52,6 +52,9 @@ class CSVPassword {
   CSVPassword& operator=(const CSVPassword&);
   CSVPassword& operator=(CSVPassword&&);
   ~CSVPassword();
+
+  // An exact equality comparison of all the fields - only used in tests.
+  friend bool operator==(const CSVPassword&, const CSVPassword&) = default;
 
   Status GetParseStatus() const;
 
@@ -74,9 +77,6 @@ class CSVPassword {
 
   Status status_;
 };
-
-// An exact equality comparison of all the fields is only used for tests.
-bool operator==(const CSVPassword& lhs, const CSVPassword& rhs);
 
 }  // namespace password_manager
 

@@ -5,6 +5,7 @@
 #include "ui/gl/gl_surface_egl_surface_control.h"
 
 #include <utility>
+#include <variant>
 
 #include "base/android/android_hardware_buffer_compat.h"
 #include "base/android/build_info.h"
@@ -194,11 +195,14 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
   current_frame_resources_.swap(pending_frame_resources_);
   pending_frame_resources_.clear();
 
-  gfx::SurfaceControl::Transaction::OnCompleteCb complete_cb = base::BindOnce(
-      &GLSurfaceEGLSurfaceControl::OnTransactionAckOnGpuThread,
-      weak_factory_.GetWeakPtr(), std::move(completion_callback),
-      std::move(present_callback), std::move(resources_to_release),
-      std::move(primary_plane_fences_));
+  OnTransactionAckArgs::SequenceId ack_id =
+      pending_transaction_ack_id_generator_.GenerateNextId();
+  pending_transaction_acks_.emplace_back(
+      ack_id, std::move(completion_callback), std::move(present_callback),
+      std::move(resources_to_release), std::move(primary_plane_fences_));
+  gfx::SurfaceControl::Transaction::OnCompleteCb complete_cb =
+      base::BindOnce(&GLSurfaceEGLSurfaceControl::OnTransactionAckOnGpuThread,
+                     weak_factory_.GetWeakPtr(), ack_id);
   primary_plane_fences_.reset();
   pending_transaction_->SetOnCompleteCb(std::move(complete_cb),
                                         gpu_task_runner_);
@@ -269,16 +273,14 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
   }
 
   AHardwareBuffer* hardware_buffer = nullptr;
-  base::ScopedFD fence_fd;
   auto scoped_hardware_buffer = std::move(image);
-  bool is_primary_plane = false;
+  bool is_primary_plane = overlay_plane_data.is_root_overlay;
   if (scoped_hardware_buffer) {
     hardware_buffer = scoped_hardware_buffer->buffer();
 
     // We currently only promote the display compositor's buffer or a video
     // buffer to an overlay. So if this buffer is not for video then it implies
     // its the primary plane.
-    is_primary_plane = !scoped_hardware_buffer->is_video();
     DCHECK(!is_primary_plane || !primary_plane_fences_);
     if (is_primary_plane) {
       primary_plane_fences_.emplace();
@@ -294,15 +296,15 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
     resource_ref.scoped_buffer = std::move(scoped_hardware_buffer);
   }
 
-  surface_state.buffer_updated_in_pending_transaction =
-      uninitialized || surface_state.hardware_buffer != hardware_buffer;
-  if (surface_state.buffer_updated_in_pending_transaction) {
+  if (uninitialized || surface_state.hardware_buffer != hardware_buffer ||
+      gpu_fence) {
     surface_state.hardware_buffer = hardware_buffer;
 
+    base::ScopedFD fence_fd;
     if (gpu_fence && surface_state.hardware_buffer) {
       auto fence_handle = gpu_fence->GetGpuFenceHandle().Clone();
       DCHECK(!fence_handle.is_null());
-      fence_fd = std::move(fence_handle.owned_fd);
+      fence_fd = fence_handle.Release();
     }
 
     if (is_primary_plane) {
@@ -349,13 +351,15 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
     // can become larger then a buffer so we clip it here. See crbug.com/1083412
     src.Intersect(gfx::Rect(buffer_size));
 
+    auto transform =
+        std::get<gfx::OverlayTransform>(overlay_plane_data.plane_transform);
     if (uninitialized || surface_state.src != src || surface_state.dst != dst ||
-        surface_state.transform != overlay_plane_data.plane_transform) {
+        surface_state.transform != transform) {
       surface_state.src = src;
       surface_state.dst = dst;
-      surface_state.transform = overlay_plane_data.plane_transform;
+      surface_state.transform = transform;
       pending_transaction_->SetGeometry(*surface_state.surface, src, dst,
-                                        overlay_plane_data.plane_transform);
+                                        transform);
     }
   }
 
@@ -390,16 +394,47 @@ bool GLSurfaceEGLSurfaceControl::SupportsPlaneGpuFences() const {
 }
 
 void GLSurfaceEGLSurfaceControl::OnTransactionAckOnGpuThread(
+    OnTransactionAckArgs::SequenceId id,
+    gfx::SurfaceControl::TransactionStats transaction_stats) {
+  DCHECK(gpu_task_runner_->BelongsToCurrentThread());
+  transaction_ack_timeout_manager_.OnTransactionAck();
+
+  bool found = false;
+  for (auto& args : pending_transaction_acks_) {
+    if (args.id == id) {
+      CHECK(!args.transaction_stats.has_value());
+      found = true;
+      args.transaction_stats = std::move(transaction_stats);
+      break;
+    }
+  }
+  CHECK(found);
+
+  while (!pending_transaction_acks_.empty()) {
+    auto& args = pending_transaction_acks_.front();
+    if (!args.transaction_stats) {
+      break;
+    }
+    OrderedOnTransactionAckOnGpuThread(
+        std::move(args.completion_callback),
+        std::move(args.presentation_callback),
+        std::move(args.released_resources),
+        std::move(args.primary_plane_fences),
+        std::move(args.transaction_stats.value()));
+    pending_transaction_acks_.pop_front();
+  }
+}
+
+void GLSurfaceEGLSurfaceControl::OrderedOnTransactionAckOnGpuThread(
     SwapCompletionCallback completion_callback,
     PresentationCallback presentation_callback,
     ResourceRefs released_resources,
-    absl::optional<PrimaryPlaneFences> primary_plane_fences,
+    std::optional<PrimaryPlaneFences> primary_plane_fences,
     gfx::SurfaceControl::TransactionStats transaction_stats) {
   TRACE_EVENT0("gpu",
                "GLSurfaceEGLSurfaceControl::OnTransactionAckOnGpuThread");
 
   DCHECK(gpu_task_runner_->BelongsToCurrentThread());
-  transaction_ack_timeout_manager_.OnTransactionAck();
 
   for (auto& surface_stat : transaction_stats.surface_stats) {
     auto it = released_resources.find(surface_stat.surface);
@@ -530,7 +565,8 @@ void GLSurfaceEGLSurfaceControl::CheckPendingPresentationCallbacks() {
   }
 }
 
-void GLSurfaceEGLSurfaceControl::SetFrameRate(float frame_rate) {
+void GLSurfaceEGLSurfaceControl::SetFrameRate(
+    gfx::SurfaceControlFrameRate frame_rate) {
   if (frame_rate_ == frame_rate)
     return;
 
@@ -539,7 +575,7 @@ void GLSurfaceEGLSurfaceControl::SetFrameRate(float frame_rate) {
 }
 
 void GLSurfaceEGLSurfaceControl::SetChoreographerVsyncIdForNextFrame(
-    absl::optional<int64_t> choreographer_vsync_id) {
+    std::optional<int64_t> choreographer_vsync_id) {
   choreographer_vsync_id_for_next_frame_ = choreographer_vsync_id;
 }
 
@@ -637,5 +673,25 @@ void GLSurfaceEGLSurfaceControl::TransactionAckTimeoutManager::
              << " haven't received any ack from past 5 second which indicates "
                 "it hanged";
 }
+
+GLSurfaceEGLSurfaceControl::OnTransactionAckArgs::OnTransactionAckArgs(
+    SequenceId id,
+    SwapCompletionCallback completion_callback,
+    PresentationCallback presentation_callback,
+    ResourceRefs released_resources,
+    std::optional<PrimaryPlaneFences> primary_plane_fences)
+    : id(id),
+      completion_callback(std::move(completion_callback)),
+      presentation_callback(std::move(presentation_callback)),
+      released_resources(std::move(released_resources)),
+      primary_plane_fences(std::move(primary_plane_fences)) {}
+
+GLSurfaceEGLSurfaceControl::OnTransactionAckArgs::OnTransactionAckArgs(
+    OnTransactionAckArgs&& other) = default;
+GLSurfaceEGLSurfaceControl::OnTransactionAckArgs&
+GLSurfaceEGLSurfaceControl::OnTransactionAckArgs::operator=(
+    GLSurfaceEGLSurfaceControl::OnTransactionAckArgs&& other) = default;
+GLSurfaceEGLSurfaceControl::OnTransactionAckArgs::~OnTransactionAckArgs() =
+    default;
 
 }  // namespace gl

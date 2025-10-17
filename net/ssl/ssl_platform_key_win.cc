@@ -2,21 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ssl/ssl_platform_key_win.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/feature_list.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "crypto/openssl_util.h"
 #include "crypto/scoped_capi_types.h"
 #include "crypto/scoped_cng_types.h"
-#include "net/base/features.h"
+#include "crypto/unexportable_key_win.h"
 #include "net/base/net_errors.h"
 #include "net/cert/x509_certificate.h"
 #include "net/ssl/ssl_platform_key_util.h"
@@ -32,10 +36,6 @@ namespace net {
 namespace {
 
 bool ProbeSHA256(ThreadedSSLPrivateKey::Delegate* delegate) {
-  if (!base::FeatureList::IsEnabled(features::kPlatformKeyProbeSHA256)) {
-    return false;
-  }
-
   // This input is chosen to avoid colliding with other signing inputs used in
   // TLS 1.2 or TLS 1.3. We use the construct in RFC 8446, section 4.4.3, but
   // change the context string. The context string ensures we don't collide with
@@ -67,7 +67,7 @@ std::string GetCAPIProviderName(HCRYPTPROV provider) {
   }
   // Per Microsoft's documentation, PP_NAME is NUL-terminated. However,
   // smartcard drivers are notoriously buggy, so check this.
-  auto nul = base::ranges::find(name, 0);
+  auto nul = std::ranges::find(name, 0);
   if (nul != name.end()) {
     name_len = nul - name.begin();
   }
@@ -133,7 +133,6 @@ class SSLPlatformKeyCAPI : public ThreadedSSLPrivateKey::Delegate {
         break;
       default:
         NOTREACHED();
-        return ERR_FAILED;
     }
 
     crypto::ScopedHCRYPTHASH hash_handle;
@@ -217,7 +216,7 @@ std::wstring GetCNGProviderName(NCRYPT_KEY_HANDLE key) {
 
   // Per Microsoft's documentation, the name is NUL-terminated. However,
   // smartcard drivers are notoriously buggy, so check this.
-  auto nul = base::ranges::find(name, 0);
+  auto nul = std::ranges::find(name, 0);
   if (nul != name.end()) {
     name.erase(nul, name.end());
   }
@@ -324,7 +323,6 @@ class SSLPlatformKeyCNG : public ThreadedSSLPrivateKey::Delegate {
           break;
         default:
           NOTREACHED();
-          return ERR_FAILED;
       }
       if (SSL_is_signature_algorithm_rsa_pss(algorithm)) {
         pss_padding_info.pszAlgId = hash_alg;
@@ -446,6 +444,27 @@ scoped_refptr<SSLPrivateKey> FetchClientCertPrivateKey(
     return WrapCAPIPrivateKey(certificate,
                               crypto::ScopedHCRYPTPROV(prov_or_key), key_spec);
   }
+}
+
+scoped_refptr<SSLPrivateKey> WrapUnexportableKeySlowly(
+    const crypto::UnexportableSigningKey& key) {
+  // Load a duplicated NCRYPT_KEY_HANDLE from `key`.
+  crypto::ScopedNCryptKey key_handle = crypto::DuplicatePlatformKeyHandle(key);
+  if (!key_handle.is_valid()) {
+    return nullptr;
+  }
+
+  int key_type;
+  size_t max_length;
+  if (!GetPublicKeyInfo(key.GetSubjectPublicKeyInfo(), &key_type,
+                        &max_length)) {
+    return nullptr;
+  }
+
+  return base::MakeRefCounted<ThreadedSSLPrivateKey>(
+      std::make_unique<SSLPlatformKeyCNG>(std::move(key_handle), key_type,
+                                          max_length),
+      GetSSLPlatformKeyTaskRunner());
 }
 
 }  // namespace net

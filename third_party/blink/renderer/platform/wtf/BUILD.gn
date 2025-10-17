@@ -52,7 +52,6 @@ component("wtf") {
     "bit_field.h",
     "bloom_filter.h",
     "casting.h",
-    "conditional_destructor.h",
     "container_annotations.h",
     "cross_thread_copier.cc",
     "cross_thread_copier.h",
@@ -112,7 +111,6 @@ component("wtf") {
     "text/ascii_fast_path.h",
     "text/atomic_string.cc",
     "text/atomic_string.h",
-    "text/atomic_string_cf.cc",
     "text/atomic_string_encoding.h",
     "text/atomic_string_hash.h",
     "text/atomic_string_table.cc",
@@ -125,6 +123,7 @@ component("wtf") {
     "text/character_names.h",
     "text/character_visitor.h",
     "text/code_point_iterator.h",
+    "text/convert_to_8bit_hash_reader.h",
     "text/copy_lchars_from_uchar_source.h",
     "text/encoding_tables.cc",
     "text/encoding_tables.h",
@@ -135,9 +134,13 @@ component("wtf") {
     "text/math_transform.h",
     "text/number_parsing_options.h",
     "text/parsing_utilities.h",
+    "text/strcat.cc",
+    "text/strcat.h",
     "text/string_buffer.h",
     "text/string_builder.cc",
     "text/string_builder.h",
+    "text/string_builder_stream.cc",
+    "text/string_builder_stream.h",
     "text/string_concatenate.cc",
     "text/string_concatenate.h",
     "text/string_hash.h",
@@ -178,10 +181,9 @@ component("wtf") {
     "text/text_offset_map.h",
     "text/text_position.cc",
     "text/text_position.h",
-    "text/text_stream.cc",
-    "text/text_stream.h",
     "text/unicode.h",
     "text/unicode_string.h",
+    "text/utf16.h",
     "text/utf8.cc",
     "text/utf8.h",
     "text/wtf_string.cc",
@@ -220,9 +222,9 @@ component("wtf") {
 
   deps = [
     "//base/allocator:buildflags",
-    "//build:chromeos_buildflags",
     "//third_party/blink/public/common:common",
     "//third_party/modp_b64",
+    "//third_party/rapidhash",
 
     # TODO(tkent): WTF should not depend on it.
     "//third_party/blink/public/common:headers",
@@ -242,6 +244,7 @@ component("wtf") {
 
   if (is_apple) {
     sources += [
+      "text/atomic_string_cf.cc",
       "text/string_apple.mm",
       "text/string_impl_apple.mm",
     ]
@@ -270,8 +273,6 @@ component("wtf") {
       "CoreFoundation.framework",
       "Foundation.framework",
     ]
-  } else {
-    sources -= [ "text/atomic_string_cf.cc" ]
   }
 
   if (using_mismatched_sample_profile) {
@@ -294,13 +295,12 @@ source_set("wtf_unittests_sources") {
   sources = [
     "allocator/allocator_test.cc",
     "allocator/partitions_test.cc",
-    "ascii_ctype_test.cc",
     "assertions_test.cc",
     "atomic_operations_test.cc",
     "bit_field_test.cc",
     "bloom_filter_test.cc",
+    "casting_test.cc",
     "cross_thread_functional_test.cc",
-    "date_math_test.cc",
     "decimal_test.cc",
     "deque_test.cc",
     "doubly_linked_list_test.cc",
@@ -320,6 +320,7 @@ source_set("wtf_unittests_sources") {
     "sequence_bound_test.cc",
     "shared_buffer_test.cc",
     "testing/run_all_tests.cc",
+    "text/ascii_ctype_test.cc",
     "text/atomic_string_table_test.cc",
     "text/atomic_string_test.cc",
     "text/base64_test.cc",
@@ -329,6 +330,7 @@ source_set("wtf_unittests_sources") {
     "text/integer_to_string_conversion_test.cc",
     "text/line_ending_test.cc",
     "text/math_transform_test.cc",
+    "text/strcat_test.cc",
     "text/string_buffer_test.cc",
     "text/string_builder_test.cc",
     "text/string_hasher_test.cc",
@@ -341,6 +343,7 @@ source_set("wtf_unittests_sources") {
     "text/text_codec_test.cc",
     "text/text_codec_utf8_test.cc",
     "text/text_encoding_test.cc",
+    "text/text_offset_map_test.cc",
     "text/wtf_string_test.cc",
     "threading_primitives_test.cc",
     "type_traits_test.cc",

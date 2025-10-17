@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_MOJO_STRING16_MOJOM_TRAITS_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_MOJO_STRING16_MOJOM_TRAITS_H_
 
 #include <string>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
 #include "mojo/public/mojom/base/string16.mojom-blink.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -33,7 +39,8 @@ class PLATFORM_EXPORT MaybeOwnedString16 {
 
  private:
   std::u16string owned_storage_;
-  base::span<const uint16_t> unowned_;
+  // TODO(367764863) Rewrite to base::raw_span
+  RAW_PTR_EXCLUSION base::span<const uint16_t> unowned_;
 };
 
 template <>

@@ -16,7 +16,6 @@
 #include "mutex.h"
 #include <float.h>
 #include "gregoimp.h" // Math
-#include "astro.h" // CalendarAstronomer
 #include "uhash.h"
 
 // Debugging
@@ -81,6 +80,7 @@ static const int32_t LIMITS[UCAL_FIELD_COUNT][4] = {
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // JULIAN_DAY
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // MILLISECONDS_IN_DAY
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // IS_LEAP_MONTH
+    {        0,        0,       11,       11}, // ORDINAL_MONTH
 };
 
 static const int32_t INDIAN_ERA_START  = 78;
@@ -148,10 +148,10 @@ static double gregorianToJD(int32_t year, int32_t month, int32_t date) {
  * Month is 0 based.
  * @param jd The Julian Day
  */
-static int32_t* jdToGregorian(double jd, int32_t gregorianDate[3]) {
+static int32_t* jdToGregorian(double jd, int32_t gregorianDate[3], UErrorCode& status) {
    int32_t gdow;
    Grego::dayToFields(jd - kEpochStartAsJulianDay,
-                      gregorianDate[0], gregorianDate[1], gregorianDate[2], gdow);
+                      gregorianDate[0], gregorianDate[1], gregorianDate[2], gdow, status);
    return gregorianDate;
 }
 
@@ -254,13 +254,14 @@ int32_t IndianCalendar::handleGetExtendedYear() {
  * method is called. The getGregorianXxx() methods return Gregorian
  * calendar equivalents for the given Julian day.
  */
-void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode&  /* status */) {
+void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode&  status) {
     double jdAtStartOfGregYear;
     int32_t leapMonth, IndianYear, yday, IndianMonth, IndianDayOfMonth, mday;
     int32_t gregorianYear;      // Stores gregorian date corresponding to Julian day;
     int32_t gd[3];
 
-    gregorianYear = jdToGregorian(julianDay, gd)[0];          // Gregorian date for Julian day
+    gregorianYear = jdToGregorian(julianDay, gd, status)[0];          // Gregorian date for Julian day
+    if (U_FAILURE(status)) return;
     IndianYear = gregorianYear - INDIAN_ERA_START;            // Year in Saka era
     jdAtStartOfGregYear = gregorianToJD(gregorianYear, 0, 1); // JD at start of Gregorian year
     yday = (int32_t)(julianDay - jdAtStartOfGregYear);        // Day number in Gregorian year (starting from 0)
@@ -294,24 +295,27 @@ void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode&  /* stat
    internalSet(UCAL_EXTENDED_YEAR, IndianYear);
    internalSet(UCAL_YEAR, IndianYear);
    internalSet(UCAL_MONTH, IndianMonth);
+   internalSet(UCAL_ORDINAL_MONTH, IndianMonth);
    internalSet(UCAL_DAY_OF_MONTH, IndianDayOfMonth);
    internalSet(UCAL_DAY_OF_YEAR, yday + 1); // yday is 0-based
 }    
 
-UBool
-IndianCalendar::inDaylightTime(UErrorCode& status) const
+constexpr uint32_t kIndianRelatedYearDiff = 79;
+
+int32_t IndianCalendar::getRelatedYear(UErrorCode &status) const
 {
-    // copied from GregorianCalendar
-    if (U_FAILURE(status) || !getTimeZone().useDaylightTime()) {
-        return false;
+    int32_t year = get(UCAL_EXTENDED_YEAR, status);
+    if (U_FAILURE(status)) {
+        return 0;
     }
-
-    // Force an update of the state of the Calendar.
-    ((IndianCalendar*)this)->complete(status); // cast away const
-
-    return (UBool)(U_SUCCESS(status) ? (internalGet(UCAL_DST_OFFSET) != 0) : false);
+    return year + kIndianRelatedYearDiff;
 }
 
+void IndianCalendar::setRelatedYear(int32_t year)
+{
+    // set extended year
+    set(UCAL_EXTENDED_YEAR, year - kIndianRelatedYearDiff);
+}
 
 /**
  * The system maintains a static default century start date and Year.  They are

@@ -1,12 +1,13 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
 import 'chrome://new-tab-page/new_tab_page.js';
 
-import {LensErrorType, LensFormElement, LensSubmitType} from 'chrome://new-tab-page/lazy_load.js';
+import type {LensFormElement} from 'chrome://new-tab-page/lazy_load.js';
+import {LensErrorType, LensSubmitType} from 'chrome://new-tab-page/lazy_load.js';
 import {assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 suite('LensFormTest', () => {
   let lensForm: LensFormElement;
@@ -15,6 +16,11 @@ suite('LensFormTest', () => {
   let urlFormSubmitted = false;
   let lastError: LensErrorType|null = null;
   let lastSubmit: LensSubmitType|null = null;
+
+  function loadingHandler(e: Event) {
+    const event = e as CustomEvent<LensSubmitType>;
+    lastSubmit = event.detail;
+  }
 
   setup(() => {
     lensForm = document.createElement('ntp-lens-form');
@@ -32,11 +38,6 @@ suite('LensFormTest', () => {
       const event = e as CustomEvent<LensErrorType>;
       lastError = event.detail;
     });
-
-    lensForm.addEventListener('loading', (e: Event) => {
-      const event = e as CustomEvent<LensSubmitType>;
-      lastSubmit = event.detail;
-    });
   });
 
   teardown(() => {
@@ -53,6 +54,9 @@ suite('LensFormTest', () => {
     // Act.
     dispatchFileInputChange(file);
 
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
+
     // Assert.
     assertTrue(fileFormSubmitted);
     assertEquals(null, lastError);
@@ -63,6 +67,7 @@ suite('LensFormTest', () => {
       'select multiple files should fail with multiple files error',
       async () => {
         // Arrange.
+        lensForm.addEventListener('loading', loadingHandler);
         const file1 = new File([], 'file-1.png', {type: 'image/png'});
         const file2 = new File([], 'file-2.png', {type: 'image/png'});
         const dataTransfer = new DataTransfer();
@@ -71,6 +76,7 @@ suite('LensFormTest', () => {
 
         // Act.
         dispatchFileInputChangeWithDataTransfer(dataTransfer);
+        await microtasksFinished();
 
         // Assert.
         assertFalse(fileFormSubmitted);
@@ -80,10 +86,12 @@ suite('LensFormTest', () => {
 
   test('select no files should fail with no files error', async () => {
     // Arrange.
+    lensForm.addEventListener('loading', loadingHandler);
     const dataTransfer = new DataTransfer();
 
     // Act.
     dispatchFileInputChangeWithDataTransfer(dataTransfer);
+    await microtasksFinished();
 
     // Assert.
     assertFalse(fileFormSubmitted);
@@ -95,10 +103,12 @@ suite('LensFormTest', () => {
       'select unsupported file type should fail with file type error',
       async () => {
         // Arrange.
+        lensForm.addEventListener('loading', loadingHandler);
         const file = new File([], 'file-name.pdf', {type: 'image/pdf'});
 
         // Act.
         dispatchFileInputChange(file);
+        await microtasksFinished();
 
         // Assert.
         assertFalse(fileFormSubmitted);
@@ -113,6 +123,9 @@ suite('LensFormTest', () => {
     // Act.
     dispatchFileInputChange(file);
 
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
+
     // Assert.
     const action = new URL(lensForm.$.fileForm.action);
     const ep = action.searchParams.get('ep');
@@ -125,6 +138,9 @@ suite('LensFormTest', () => {
 
     // Act.
     dispatchFileInputChange(file);
+
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
 
     // Assert.
     const action = new URL(lensForm.$.fileForm.action);
@@ -139,6 +155,9 @@ suite('LensFormTest', () => {
     // Act.
     dispatchFileInputChange(file);
 
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
+
     // Assert.
     const action = new URL(lensForm.$.fileForm.action);
     const s = action.searchParams.get('s');
@@ -151,6 +170,9 @@ suite('LensFormTest', () => {
 
     // Act.
     dispatchFileInputChange(file);
+
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
 
     // Assert.
     const action = new URL(lensForm.$.fileForm.action);
@@ -165,6 +187,9 @@ suite('LensFormTest', () => {
 
     // Act.
     dispatchFileInputChange(file);
+
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
 
     // Assert.
     const action = new URL(lensForm.$.fileForm.action);
@@ -181,10 +206,13 @@ suite('LensFormTest', () => {
         // Act.
         dispatchFileInputChange(file);
 
+        const e = await eventToPromise('loading', lensForm);
+        loadingHandler(e);
+
         // Assert.
         const action = new URL(lensForm.$.fileForm.action);
         const cd = action.searchParams.get('cd');
-        assertGT(cd?.length ?? 0, 0);
+        assertGT(cd!.length, 0);
       });
 
 
@@ -194,6 +222,10 @@ suite('LensFormTest', () => {
 
     // Act.
     lensForm.submitUrl(url);
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
+    await microtasksFinished();
+
 
     // Assert.
     assertTrue(urlFormSubmitted);
@@ -206,6 +238,9 @@ suite('LensFormTest', () => {
 
     // Act.
     lensForm.submitUrl(url);
+    const e = await eventToPromise('loading', lensForm);
+    loadingHandler(e);
+    await microtasksFinished();
 
     // Assert.
     assertTrue(urlFormSubmitted);
@@ -216,10 +251,12 @@ suite('LensFormTest', () => {
       'submit url with empty scheme should fail with invalid scheme error',
       async () => {
         // Arrange.
+        lensForm.addEventListener('loading', loadingHandler);
         const url = 'www.example.com/dog.jpg';
 
         // Act.
         lensForm.submitUrl(url);
+        await microtasksFinished();
 
         // Assert.
         assertFalse(urlFormSubmitted);
@@ -231,10 +268,12 @@ suite('LensFormTest', () => {
       'submit url with invalid scheme should fail with invalid scheme error',
       async () => {
         // Arrange.
+        lensForm.addEventListener('loading', loadingHandler);
         const url = 'file://www.example.com/dog.jpg';
 
         // Act.
         lensForm.submitUrl(url);
+        await microtasksFinished();
 
         // Assert.
         assertFalse(urlFormSubmitted);
@@ -244,10 +283,12 @@ suite('LensFormTest', () => {
 
   test('submit invalid url should fail with invalid url error', async () => {
     // Arrange.
+    lensForm.addEventListener('loading', loadingHandler);
     const url = 'http://www.example.com/\uD800.jpg';
 
     // Act.
     lensForm.submitUrl(url);
+    await microtasksFinished();
 
     // Assert.
     assertFalse(urlFormSubmitted);
@@ -257,6 +298,7 @@ suite('LensFormTest', () => {
 
   test('submit long url should fail with length too great error', async () => {
     // Arrange.
+    lensForm.addEventListener('loading', loadingHandler);
     let longString = 'http://www.example.com/dog.jpg?a=';
     for (let i = 0; i < 2000; i++) {
       longString += 'x';
@@ -264,6 +306,7 @@ suite('LensFormTest', () => {
 
     // Act.
     lensForm.submitUrl(longString);
+    await microtasksFinished();
 
     // Assert.
     assertFalse(urlFormSubmitted);
@@ -271,7 +314,7 @@ suite('LensFormTest', () => {
     assertEquals(null, lastSubmit);
   });
 
-  test('submit url should set entrypoint parameter', async () => {
+  test('submit url should set entrypoint parameter', () => {
     // Arrange.
     const input =
         lensForm.$.urlForm.children.namedItem('ep') as HTMLInputElement;
@@ -280,7 +323,7 @@ suite('LensFormTest', () => {
     assertEquals('cntpubu', input.value);
   });
 
-  test('submit url should set rendering environment parameter', async () => {
+  test('submit url should set rendering environment parameter', () => {
     // Arrange.
     const input =
         lensForm.$.urlForm.children.namedItem('re') as HTMLInputElement;
@@ -289,7 +332,7 @@ suite('LensFormTest', () => {
     assertEquals('df', input.value);
   });
 
-  test('submit url should set surface parameter', async () => {
+  test('submit url should set surface parameter', () => {
     // Arrange.
     const input =
         lensForm.$.urlForm.children.namedItem('s') as HTMLInputElement;
@@ -298,7 +341,7 @@ suite('LensFormTest', () => {
     assertEquals('4', input.value);
   });
 
-  test('submit url should set language parameter', async () => {
+  test('submit url should set language parameter', () => {
     // Arrange.
     const input =
         lensForm.$.urlForm.children.namedItem('hl') as HTMLInputElement;
@@ -316,21 +359,20 @@ suite('LensFormTest', () => {
     // Act.
     const url = 'https://www.example.com/dog.jpg';
     lensForm.submitUrl(url);
+    await microtasksFinished();
 
     // Assert.
     assertEquals('1001', input.value);
   });
 
-  test(
-      'submit url should set client data param to a non-empty value',
-      async () => {
-        // Arrange.
-        const input =
-            lensForm.$.urlForm.children.namedItem('cd') as HTMLInputElement;
+  test('submit url should set client data param to a non-empty value', () => {
+    // Arrange.
+    const input =
+        lensForm.$.urlForm.children.namedItem('cd') as HTMLInputElement;
 
-        // Assert.
-        assertGT(input.value.length, 0);
-      });
+    // Assert.
+    assertGT(input.value.length, 0);
+  });
 
   function dispatchFileInputChangeWithDataTransfer(dataTransfer: DataTransfer) {
     lensForm.$.fileInput.files = dataTransfer.files;

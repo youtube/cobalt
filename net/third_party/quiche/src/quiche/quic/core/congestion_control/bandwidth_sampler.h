@@ -26,7 +26,7 @@ class BandwidthSamplerPeer;
 
 // A subset of BandwidthSampler::ConnectionStateOnSentPacket which is returned
 // to the caller when the packet is acked or lost.
-struct QUIC_EXPORT_PRIVATE SendTimeState {
+struct QUICHE_EXPORT SendTimeState {
   SendTimeState()
       : is_valid(false),
         is_app_limited(false),
@@ -48,8 +48,8 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
   SendTimeState(const SendTimeState& other) = default;
   SendTimeState& operator=(const SendTimeState& other) = default;
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const SendTimeState& s);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const SendTimeState& s);
 
   // Whether other states in this object is valid.
   bool is_valid;
@@ -76,7 +76,7 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
   QuicByteCount bytes_in_flight;
 };
 
-struct QUIC_NO_EXPORT ExtraAckedEvent {
+struct QUICHE_EXPORT ExtraAckedEvent {
   // The excess bytes acknowlwedged in the time delta for this event.
   QuicByteCount extra_acked = 0;
 
@@ -94,7 +94,7 @@ struct QUIC_NO_EXPORT ExtraAckedEvent {
   }
 };
 
-struct QUIC_EXPORT_PRIVATE BandwidthSample {
+struct QUICHE_EXPORT BandwidthSample {
   // The bandwidth at that particular sample. Zero if no valid bandwidth sample
   // is available.
   QuicBandwidth bandwidth = QuicBandwidth::Zero();
@@ -113,7 +113,7 @@ struct QUIC_EXPORT_PRIVATE BandwidthSample {
 
 // MaxAckHeightTracker is part of the BandwidthSampler. It is called after every
 // ack event to keep track the degree of ack aggregation(a.k.a "ack height").
-class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
+class QUICHE_EXPORT MaxAckHeightTracker {
  public:
   explicit MaxAckHeightTracker(QuicRoundTripCount initial_filter_window)
       : max_ack_height_filter_(initial_filter_window, ExtraAckedEvent(), 0) {}
@@ -184,7 +184,7 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
 
 // An interface common to any class that can provide bandwidth samples from the
 // information per individual acknowledged packet.
-class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
+class QUICHE_EXPORT BandwidthSamplerInterface {
  public:
   virtual ~BandwidthSamplerInterface() {}
 
@@ -199,7 +199,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
 
   virtual void OnPacketNeutered(QuicPacketNumber packet_number) = 0;
 
-  struct QUIC_NO_EXPORT CongestionEventSample {
+  struct QUICHE_EXPORT CongestionEventSample {
     // The maximum bandwidth sample from all acked packets.
     // QuicBandwidth::Zero() if no samples are available.
     QuicBandwidth sample_max_bandwidth = QuicBandwidth::Zero();
@@ -332,7 +332,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
 // up until an ack for a packet that was sent after OnAppLimited() was called.
 // Note that while the scenario above is not the only scenario when the
 // connection is app-limited, the approach works in other cases too.
-class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
+class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
  public:
   BandwidthSampler(const QuicUnackedPacketMap* unacked_packet_map,
                    QuicRoundTripCount max_height_tracker_window_length);
@@ -397,18 +397,18 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   }
 
   // AckPoint represents a point on the ack line.
-  struct QUIC_NO_EXPORT AckPoint {
+  struct QUICHE_EXPORT AckPoint {
     QuicTime ack_time = QuicTime::Zero();
     QuicByteCount total_bytes_acked = 0;
 
-    friend QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
-                                                   const AckPoint& ack_point) {
+    friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                  const AckPoint& ack_point) {
       return os << ack_point.ack_time << ":" << ack_point.total_bytes_acked;
     }
   };
 
   // RecentAckPoints maintains the most recent 2 ack points at distinct times.
-  class QUIC_NO_EXPORT RecentAckPoints {
+  class QUICHE_EXPORT RecentAckPoints {
    public:
     void Update(QuicTime ack_time, QuicByteCount total_bytes_acked) {
       QUICHE_DCHECK_GE(total_bytes_acked, ack_points_[1].total_bytes_acked);
@@ -454,28 +454,35 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // and the state of the connection at the moment the packet was sent,
   // specifically the information about the most recently acknowledged packet at
   // that moment.
-  struct QUIC_EXPORT_PRIVATE ConnectionStateOnSentPacket {
+  class QUICHE_EXPORT ConnectionStateOnSentPacket {
+   public:
     // Time at which the packet is sent.
-    QuicTime sent_time;
+    QuicTime sent_time() const { return sent_time_; }
 
     // Size of the packet.
-    QuicByteCount size;
+    QuicByteCount size() const { return size_; }
 
     // The value of |total_bytes_sent_at_last_acked_packet_| at the time the
     // packet was sent.
-    QuicByteCount total_bytes_sent_at_last_acked_packet;
+    QuicByteCount total_bytes_sent_at_last_acked_packet() const {
+      return total_bytes_sent_at_last_acked_packet_;
+    }
 
     // The value of |last_acked_packet_sent_time_| at the time the packet was
     // sent.
-    QuicTime last_acked_packet_sent_time;
+    QuicTime last_acked_packet_sent_time() const {
+      return last_acked_packet_sent_time_;
+    }
 
     // The value of |last_acked_packet_ack_time_| at the time the packet was
     // sent.
-    QuicTime last_acked_packet_ack_time;
+    QuicTime last_acked_packet_ack_time() const {
+      return last_acked_packet_ack_time_;
+    }
 
     // Send time states that are returned to the congestion controller when the
     // packet is acked or lost.
-    SendTimeState send_time_state;
+    const SendTimeState& send_time_state() const { return send_time_state_; }
 
     // Snapshot constructor. Records the current state of the bandwidth
     // sampler.
@@ -483,35 +490,43 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     ConnectionStateOnSentPacket(QuicTime sent_time, QuicByteCount size,
                                 QuicByteCount bytes_in_flight,
                                 const BandwidthSampler& sampler)
-        : sent_time(sent_time),
-          size(size),
-          total_bytes_sent_at_last_acked_packet(
+        : sent_time_(sent_time),
+          size_(size),
+          total_bytes_sent_at_last_acked_packet_(
               sampler.total_bytes_sent_at_last_acked_packet_),
-          last_acked_packet_sent_time(sampler.last_acked_packet_sent_time_),
-          last_acked_packet_ack_time(sampler.last_acked_packet_ack_time_),
-          send_time_state(sampler.is_app_limited_, sampler.total_bytes_sent_,
-                          sampler.total_bytes_acked_, sampler.total_bytes_lost_,
-                          bytes_in_flight) {}
+          last_acked_packet_sent_time_(sampler.last_acked_packet_sent_time_),
+          last_acked_packet_ack_time_(sampler.last_acked_packet_ack_time_),
+          send_time_state_(sampler.is_app_limited_, sampler.total_bytes_sent_,
+                           sampler.total_bytes_acked_,
+                           sampler.total_bytes_lost_, bytes_in_flight) {}
 
     // Default constructor.  Required to put this structure into
     // PacketNumberIndexedQueue.
     ConnectionStateOnSentPacket()
-        : sent_time(QuicTime::Zero()),
-          size(0),
-          total_bytes_sent_at_last_acked_packet(0),
-          last_acked_packet_sent_time(QuicTime::Zero()),
-          last_acked_packet_ack_time(QuicTime::Zero()) {}
+        : sent_time_(QuicTime::Zero()),
+          size_(0),
+          total_bytes_sent_at_last_acked_packet_(0),
+          last_acked_packet_sent_time_(QuicTime::Zero()),
+          last_acked_packet_ack_time_(QuicTime::Zero()) {}
 
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const ConnectionStateOnSentPacket& p) {
-      os << "{sent_time:" << p.sent_time << ", size:" << p.size
+      os << "{sent_time:" << p.sent_time() << ", size:" << p.size()
          << ", total_bytes_sent_at_last_acked_packet:"
-         << p.total_bytes_sent_at_last_acked_packet
-         << ", last_acked_packet_sent_time:" << p.last_acked_packet_sent_time
-         << ", last_acked_packet_ack_time:" << p.last_acked_packet_ack_time
-         << ", send_time_state:" << p.send_time_state << "}";
+         << p.total_bytes_sent_at_last_acked_packet()
+         << ", last_acked_packet_sent_time:" << p.last_acked_packet_sent_time()
+         << ", last_acked_packet_ack_time:" << p.last_acked_packet_ack_time()
+         << ", send_time_state:" << p.send_time_state() << "}";
       return os;
     }
+
+   private:
+    QuicTime sent_time_;
+    QuicByteCount size_;
+    QuicByteCount total_bytes_sent_at_last_acked_packet_;
+    QuicTime last_acked_packet_sent_time_;
+    QuicTime last_acked_packet_ack_time_;
+    SendTimeState send_time_state_;
   };
 
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,

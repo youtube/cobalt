@@ -18,11 +18,10 @@ owners:
 - chromeos-commercial-identity@google.com
 schema:
   type: string
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:107-
 tags:
 - website-sharing
 - local-data-access
 type: string
+generate_device_proto: False

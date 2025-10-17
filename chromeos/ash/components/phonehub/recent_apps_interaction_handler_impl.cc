@@ -5,6 +5,7 @@
 #include "chromeos/ash/components/phonehub/recent_apps_interaction_handler_impl.h"
 
 #include <memory>
+#include <vector>
 
 #include "ash/constants/ash_features.h"
 #include "ash/resources/vector_icons/vector_icons.h"
@@ -170,7 +171,7 @@ void RecentAppsInteractionHandlerImpl::
       DCHECK(value.is_dict());
       recent_app_metadata_list_.emplace_back(
           Notification::AppMetadata::FromValue(value.GetDict()),
-          base::Time::FromDoubleT(0));
+          base::Time::FromSecondsSinceUnixEpoch(0));
     }
     has_loaded_prefs_ = true;
   }
@@ -228,7 +229,8 @@ void RecentAppsInteractionHandlerImpl::SetStreamableApps(
 
   // TODO(b/260015890): Save at most 6 apps.
   for (const auto& app : streamable_apps) {
-    recent_app_metadata_list_.emplace_back(app, base::Time::FromDoubleT(0));
+    recent_app_metadata_list_.emplace_back(
+        app, base::Time::FromSecondsSinceUnixEpoch(0));
   }
 
   SaveRecentAppMetadataListToPref();
@@ -237,14 +239,12 @@ void RecentAppsInteractionHandlerImpl::SetStreamableApps(
 
 void RecentAppsInteractionHandlerImpl::RemoveStreamableApp(
     const proto::App app_to_remove) {
-  recent_app_metadata_list_.erase(
-      std::remove_if(
-          recent_app_metadata_list_.begin(), recent_app_metadata_list_.end(),
-          [&app_to_remove](
-              const std::pair<Notification::AppMetadata, base::Time>& app) {
-            return app.first.package_name == app_to_remove.package_name();
-          }),
-      recent_app_metadata_list_.end());
+  std::erase_if(
+      recent_app_metadata_list_,
+      [&app_to_remove](
+          const std::pair<Notification::AppMetadata, base::Time>& app) {
+        return app.first.package_name == app_to_remove.package_name();
+      });
 
   SaveRecentAppMetadataListToPref();
   ComputeAndUpdateUiState();

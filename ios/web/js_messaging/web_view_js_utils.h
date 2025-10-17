@@ -6,7 +6,6 @@
 #define IOS_WEB_JS_MESSAGING_WEB_VIEW_JS_UTILS_H_
 
 #import <Foundation/Foundation.h>
-#include <memory>
 
 @class WKContentWorld;
 @class WKFrameInfo;
@@ -15,6 +14,8 @@
 namespace base {
 class Value;
 }  // namespace base
+
+#import "ios/web/public/js_messaging/web_view_js_utils.h"
 
 namespace web {
 
@@ -32,8 +33,8 @@ enum JSEvaluationErrorCode {
   JS_EVALUATION_ERROR_CODE_REJECTED = -1001,
 };
 
-// Converts result of WKWebView script evaluation to base::Value.
-std::unique_ptr<base::Value> ValueResultFromWKResult(id result);
+// Converts base::Value to an equivalent Foundation object.
+id NSObjectFromValueResult(const base::Value* value_result);
 
 // Executes JavaScript on WKWebView. If the web view cannot execute JS at the
 // moment, `completion_handler` is called with an NSError.

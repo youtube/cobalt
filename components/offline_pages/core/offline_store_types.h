@@ -55,7 +55,7 @@ template <typename T>
 class StoreUpdateResult {
  public:
   explicit StoreUpdateResult(StoreState state) : store_state(state) {}
-  ~StoreUpdateResult() {}
+  ~StoreUpdateResult() = default;
 
   // Move-only to avoid accidental copies.
   StoreUpdateResult(const StoreUpdateResult& other) = delete;
@@ -78,7 +78,7 @@ class StoreUpdateResult {
 
 // This enum is backed by a UMA histogram therefore its entries should not be
 // deleted or re-ordered and new ones should only be appended.
-// See enum definition with the same name in tools/metrics/histograms/enum.xml.
+// See enum definition with the same name in tools/metrics/histograms/enums.xml.
 enum class OfflinePagesStoreEvent {
   kOpenedFirstTime = 0,
   kReopened = 1,

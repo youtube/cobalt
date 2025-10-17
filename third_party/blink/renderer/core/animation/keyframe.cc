@@ -8,9 +8,10 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
 #include "third_party/blink/renderer/core/animation/effect_model.h"
 #include "third_party/blink/renderer/core/animation/invalidatable_interpolation.h"
-#include "third_party/blink/renderer/core/animation/view_timeline.h"
+#include "third_party/blink/renderer/core/animation/timeline_range.h"
 #include "third_party/blink/renderer/core/css/cssom/css_unit_value.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -36,6 +37,16 @@ Interpolation* Keyframe::PropertySpecificKeyframe::CreateInterpolation(
       const_cast<PropertySpecificKeyframe*>(&end));
 }
 
+Vector<PropertyHandle> Keyframe::PropertiesVector() const {
+  Vector<PropertyHandle> result;
+  const auto& properties = Properties();
+  result.ReserveInitialCapacity(properties.size());
+  for (const auto& property : properties) {
+    result.push_back(property);
+  }
+  return result;
+}
+
 void Keyframe::AddKeyframePropertiesToV8Object(V8ObjectBuilder& object_builder,
                                                Element* element) const {
   // If the keyframe has a timeline offset add it instead of offset.
@@ -44,20 +55,26 @@ void Keyframe::AddKeyframePropertiesToV8Object(V8ObjectBuilder& object_builder,
     timeline_range_offset->setRangeName(timeline_offset_->name);
     DCHECK(timeline_offset_->offset.IsPercent());
     timeline_range_offset->setOffset(
-        CSSUnitValue::Create(timeline_offset_->offset.Value(),
+        CSSUnitValue::Create(timeline_offset_->offset.Percent(),
                              CSSPrimitiveValue::UnitType::kPercentage));
     object_builder.Add("offset", timeline_range_offset);
   } else if (offset_) {
-    object_builder.Add("offset", offset_.value());
+    object_builder.AddNumber("offset", offset_.value());
   } else {
     object_builder.AddNull("offset");
   }
-  object_builder.Add("easing", easing_->ToString());
-  object_builder.AddString("composite",
-                           EffectModel::CompositeOperationToString(composite_));
+  object_builder.AddString("easing", easing_->ToString());
+  if (composite_) {
+    object_builder.AddString(
+        "composite", V8CompositeOperation(EffectModel::CompositeOperationToEnum(
+                                              composite_.value()))
+                         .AsCStr());
+  } else {
+    object_builder.AddString("composite", "auto");
+  }
 }
 
-bool Keyframe::ResolveTimelineOffset(const ViewTimeline* view_timeline,
+bool Keyframe::ResolveTimelineOffset(const TimelineRange& timeline_range,
                                      double range_start,
                                      double range_end) {
   if (!timeline_offset_) {
@@ -65,7 +82,7 @@ bool Keyframe::ResolveTimelineOffset(const ViewTimeline* view_timeline,
   }
 
   double relative_offset =
-      view_timeline->ToFractionalOffset(timeline_offset_.value());
+      timeline_range.ToFractionalOffset(timeline_offset_.value());
   double range = range_end - range_start;
   if (!range) {
     if (offset_) {
@@ -87,9 +104,9 @@ bool Keyframe::ResolveTimelineOffset(const ViewTimeline* view_timeline,
 
 /* static */
 bool Keyframe::LessThan(const Member<Keyframe>& a, const Member<Keyframe>& b) {
-  absl::optional first =
+  std::optional first =
       a->ComputedOffset().has_value() ? a->ComputedOffset() : a->Offset();
-  absl::optional second =
+  std::optional second =
       b->ComputedOffset().has_value() ? b->ComputedOffset() : b->Offset();
 
   if (first < second) {
@@ -105,16 +122,6 @@ bool Keyframe::LessThan(const Member<Keyframe>& a, const Member<Keyframe>& b) {
   }
 
   return false;
-}
-
-bool Keyframe::ResetOffsetResolvedFromTimeline() {
-  if (!timeline_offset_.has_value()) {
-    return false;
-  }
-
-  offset_.reset();
-  computed_offset_ = kNullComputedOffset;
-  return true;
 }
 
 }  // namespace blink

@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/containers/flat_set.h"
-#include "base/strings/string_piece.h"
 #include "components/origin_trials/common/origin_trials_persistence_provider.h"
 #include "components/origin_trials/common/persisted_trial_token.h"
 #include "url/origin.h"
@@ -29,6 +28,8 @@ class TestPersistenceProvider : public OriginTrialsPersistenceProvider {
   // OriginTrialsPersistenceProvider
   base::flat_set<origin_trials::PersistedTrialToken> GetPersistentTrialTokens(
       const url::Origin& origin) override;
+  SiteOriginTrialTokens GetPotentialPersistentTrialTokens(
+      const url::Origin& origin) override;
   void SavePersistentTrialTokens(
       const url::Origin& origin,
       const base::flat_set<origin_trials::PersistedTrialToken>& tokens)
@@ -38,6 +39,9 @@ class TestPersistenceProvider : public OriginTrialsPersistenceProvider {
  private:
   std::map<url::Origin, base::flat_set<origin_trials::PersistedTrialToken>>
       storage_;
+  std::map<SiteKey, base::flat_set<url::Origin>> sitekey_map_;
+
+  void UpdateSiteToOriginsMap(const url::Origin& origin, bool insert);
 };
 
 }  // namespace origin_trials::test

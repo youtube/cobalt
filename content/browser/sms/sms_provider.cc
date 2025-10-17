@@ -88,7 +88,6 @@ void SmsProvider::RecordParsingStatus(SmsParsingStatus status) {
       break;
     case SmsParsingStatus::kParsed:
       NOTREACHED();
-      break;
   }
 }
 

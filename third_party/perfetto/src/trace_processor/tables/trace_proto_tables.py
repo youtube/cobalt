@@ -24,6 +24,7 @@ from python.generators.trace_processor_table.public import CppTableId
 from python.generators.trace_processor_table.public import CppUint32
 
 EXPERIMENTAL_PROTO_PATH_TABLE = Table(
+    python_module=__file__,
     class_name='ExperimentalProtoPathTable',
     sql_name='experimental_proto_path',
     columns=[
@@ -36,7 +37,7 @@ EXPERIMENTAL_PROTO_PATH_TABLE = Table(
         doc='''
           Experimental table, subject to arbitrary breaking changes.
         ''',
-        group='Misc',
+        group='Proto',
         columns={
             'parent_id': '''''',
             'field_type': '''''',
@@ -45,6 +46,7 @@ EXPERIMENTAL_PROTO_PATH_TABLE = Table(
         }))
 
 EXPERIMENTAL_PROTO_CONTENT_TABLE = Table(
+    python_module=__file__,
     class_name='ExperimentalProtoContentTable',
     sql_name='experimental_proto_content',
     columns=[
@@ -56,7 +58,7 @@ EXPERIMENTAL_PROTO_CONTENT_TABLE = Table(
     ],
     tabledoc=TableDoc(
         doc='''''',
-        group='Misc',
+        group='Proto',
         columns={
             'path': '''''',
             'path_id': '''''',

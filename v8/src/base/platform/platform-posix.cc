@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
+
+#include "src/base/logging.h"
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
@@ -33,11 +35,12 @@
 
 #include <cmath>
 #include <cstdlib>
-
-#include "src/base/platform/platform-posix.h"
+#include <optional>
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
@@ -55,7 +58,9 @@
 #if V8_OS_DARWIN
 #include <mach/mach.h>
 #include <malloc/malloc.h>
-#else
+#elif V8_OS_OPENBSD
+#include <sys/malloc.h>
+#elif !V8_OS_ZOS
 #include <malloc.h>
 #endif
 
@@ -69,7 +74,7 @@
 #include <sys/resource.h>
 #endif
 
-#if !defined(_AIX) && !defined(V8_OS_FUCHSIA)
+#if !defined(_AIX) && !defined(V8_OS_FUCHSIA) && !V8_OS_ZOS
 #include <sys/syscall.h>
 #endif
 
@@ -99,9 +104,11 @@ namespace base {
 namespace {
 
 // 0 is never a valid thread id.
+#if V8_OS_ZOS
+const pthread_t kNoThread = {0};  // pthread_t is a struct on z/OS
+#else
 const pthread_t kNoThread = static_cast<pthread_t>(0);
-
-bool g_hard_abort = false;
+#endif
 
 const char* g_gc_fake_mmap = nullptr;
 
@@ -109,7 +116,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
                                 GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
-#if !V8_OS_FUCHSIA
+#if !V8_OS_FUCHSIA && !V8_OS_ZOS
 #if V8_OS_DARWIN
 // kMmapFd is used to pass vm_alloc flags to tag the region with the user
 // defined tag 255 This helps identify V8-allocated regions in memory analysis
@@ -134,7 +141,8 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
                                 PageType page_type) {
   int flags = MAP_ANONYMOUS;
   flags |= (page_type == PageType::kShared) ? MAP_SHARED : MAP_PRIVATE;
-  if (access == OS::MemoryPermission::kNoAccess) {
+  if (access == OS::MemoryPermission::kNoAccess ||
+      access == OS::MemoryPermission::kNoAccessWillJitLater) {
 #if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
     flags |= MAP_NORESERVE;
 #endif  // !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
@@ -147,7 +155,8 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
   // hardened runtime/memory protection is enabled, which is optional (via code
   // signing) on Intel-based Macs but mandatory on Apple silicon ones. See also
   // https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon.
-  if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
+  if (access == OS::MemoryPermission::kNoAccessWillJitLater ||
+      access == OS::MemoryPermission::kReadWriteExecute) {
     flags |= MAP_JIT;
   }
 #endif  // V8_OS_DARWIN
@@ -160,6 +169,12 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
   int flags = GetFlagsForMemoryPermission(access, page_type);
   void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
+
+#if V8_OS_LINUX && V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
+  // This is advisory, so we ignore errors.
+  madvise(result, size, MADV_DONTFORK);
+#endif
+
 #if ENABLE_HUGEPAGE
   if (result != nullptr && size >= kHugePageSize) {
     const uintptr_t huge_start =
@@ -178,7 +193,7 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
   return result;
 }
 
-#endif  // !V8_OS_FUCHSIA
+#endif  // !V8_OS_FUCHSIA && !V8_OS_ZOS
 
 }  // namespace
 
@@ -245,25 +260,26 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 #endif
 
-void PosixInitializeCommon(bool hard_abort, const char* const gc_fake_mmap) {
-  g_hard_abort = hard_abort;
+void PosixInitializeCommon(AbortMode abort_mode,
+                           const char* const gc_fake_mmap) {
+  g_abort_mode = abort_mode;
   g_gc_fake_mmap = gc_fake_mmap;
 }
 
 #if !V8_OS_FUCHSIA
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
-  PosixInitializeCommon(hard_abort, gc_fake_mmap);
+void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
+  PosixInitializeCommon(abort_mode, gc_fake_mmap);
 }
 #endif  // !V8_OS_FUCHSIA
+
+bool OS::IsHardwareEnforcedShadowStacksEnabled() { return false; }
 
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
   return 8;
-#elif V8_TARGET_ARCH_MIPS
-  return 8;
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
   return 8;
 #else
   // Otherwise we just assume 16 byte alignment, i.e.:
@@ -323,21 +339,27 @@ void* OS::GetRandomMmapAddr() {
   raw_addr &= 0x007fffff0000ULL;
   raw_addr += 0x7e8000000000ULL;
 #else
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64
   // Currently available CPUs have 48 bits of virtual addressing.  Truncate
   // the hint address to 46 bits to give the kernel a fighting chance of
   // fulfilling our placement request.
   raw_addr &= uint64_t{0x3FFFFFFFF000};
+#elif V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_OS_LINUX) || defined(V8_TARGET_OS_ANDROID)
+  // On Linux, the default virtual address space is limited to 39 bits when
+  // using 4KB pages, see arch/arm64/Kconfig. We truncate to 38 bits.
+  raw_addr &= uint64_t{0x3FFFFFF000};
+#else
+  // On macOS and elsewhere, we use 46 bits, same as on x64.
+  raw_addr &= uint64_t{0x3FFFFFFFF000};
+#endif
 #elif V8_TARGET_ARCH_PPC64
 #if V8_OS_AIX
-  // AIX: 64 bits of virtual addressing, but we limit address range to:
-  //   a) minimize Segment Lookaside Buffer (SLB) misses and
+  // AIX: 64 bits of virtual addressing, but we limit address range to minimize
+  // Segment Lookaside Buffer (SLB) misses.
   raw_addr &= uint64_t{0x3FFFF000};
   // Use extra address space to isolate the mmap regions.
   raw_addr += uint64_t{0x400000000000};
-#elif V8_TARGET_BIG_ENDIAN
-  // Big-endian Linux: 42 bits of virtual addressing.
-  raw_addr &= uint64_t{0x03FFFFFFF000};
 #else
   // Little-endian Linux: 46 bits of virtual addressing.
   raw_addr &= uint64_t{0x3FFFFFFF0000};
@@ -347,10 +369,6 @@ void* OS::GetRandomMmapAddr() {
   // of virtual addressing.  Truncate to 40 bits to allow kernel chance to
   // fulfill request.
   raw_addr &= uint64_t{0xFFFFFFF000};
-#elif V8_TARGET_ARCH_S390
-  // 31 bits of virtual addressing.  Truncate to 29 bits to allow kernel chance
-  // to fulfill request.
-  raw_addr &= 0x1FFFF000;
 #elif V8_TARGET_ARCH_MIPS64
   // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
   // to fulfill request.
@@ -364,9 +382,9 @@ void* OS::GetRandomMmapAddr() {
   // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
   raw_addr &= 0x3FFFF000;
 #elif V8_TARGET_ARCH_LOONG64
-  // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
-  // to fulfill request.
-  raw_addr &= uint64_t{0xFFFFFF0000};
+  // 40 or 47 bits of virtual addressing. Truncate to 38 bits to allow kernel
+  // chance to fulfill request.
+  raw_addr &= uint64_t{0x3FFFFF0000};
 #else
   raw_addr &= 0x3FFFF000;
 
@@ -398,6 +416,7 @@ void* OS::GetRandomMmapAddr() {
 
 // TODO(bbudge) Move Cygwin and Fuchsia stuff into platform-specific files.
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+#if !V8_OS_ZOS
 // static
 void* OS::Allocate(void* hint, size_t size, size_t alignment,
                    MemoryPermission access) {
@@ -481,6 +500,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
 
+  // Setting permissions can fail if the limit of VMAs is exceeded.
   // Any failure that's not OOM likely indicates a bug in the caller (e.g.
   // using an invalid mapping) so attempt to catch that here to facilitate
   // debugging of these failures.
@@ -534,10 +554,8 @@ bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
 #if defined(V8_OS_DARWIN)
   while (madvise(address, size, MADV_FREE_REUSE) == -1 && errno == EAGAIN) {
   }
-  return true;
-#else
-  return SetPermissions(address, size, access);
 #endif  // defined(V8_OS_DARWIN)
+  return true;
 }
 
 // static
@@ -590,6 +608,7 @@ bool OS::DecommitPages(void* address, size_t size) {
   void* ret = mmap(address, size, PROT_NONE,
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   if (V8_UNLIKELY(ret == MAP_FAILED)) {
+    // Decommitting pages can fail if the limit of VMAs is exceeded.
     CHECK_EQ(ENOMEM, errno);
     return false;
   }
@@ -597,12 +616,27 @@ bool OS::DecommitPages(void* address, size_t size) {
   return true;
 }
 #endif  // !defined(_AIX)
+#endif  // !V8_OS_ZOS
+
+// static
+bool OS::SealPages(void* address, size_t size) {
+#ifdef V8_ENABLE_MEMORY_SEALING
+#if V8_OS_LINUX && defined(__NR_mseal)
+  long ret = syscall(__NR_mseal, address, size, 0);
+  return ret == 0;
+#else
+  return false;
+#endif
+#else  // V8_ENABLE_MEMORY_SEALING
+  return false;
+#endif
+}
 
 // static
 bool OS::CanReserveAddressSpace() { return true; }
 
 // static
-Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
     void* hint, size_t size, size_t alignment,
     MemoryPermission max_permission) {
   // On POSIX, address space reservations are backed by private memory mappings.
@@ -664,6 +698,7 @@ void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
 }
 #endif  // !defined(V8_OS_DARWIN)
 
+#if !V8_OS_ZOS
 // static
 bool OS::HasLazyCommits() {
 #if V8_OS_AIX || V8_OS_LINUX || V8_OS_DARWIN
@@ -673,6 +708,7 @@ bool OS::HasLazyCommits() {
   return false;
 #endif
 }
+#endif  // !V8_OS_ZOS
 #endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
 const char* OS::GetGCFakeMMapFile() {
@@ -686,8 +722,15 @@ void OS::Sleep(TimeDelta interval) {
 
 
 void OS::Abort() {
-  if (g_hard_abort) {
-    IMMEDIATE_CRASH();
+  switch (g_abort_mode) {
+    case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
+      _exit(0);
+    case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
+      _exit(-1);
+    case AbortMode::kImmediateCrash:
+      IMMEDIATE_CRASH();
+    case AbortMode::kDefault:
+      break;
   }
   // Redirect to std abort to signal abnormal program termination.
   abort();
@@ -705,13 +748,15 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_LOONG64
   asm("break 0");
-#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
+#elif V8_HOST_ARCH_PPC64
   asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
   asm("int $3");
 #elif V8_HOST_ARCH_X64
   asm("int $3");
-#elif V8_HOST_ARCH_S390
+#elif V8_OS_ZOS
+  asm(" dc x'0001'");
+#elif V8_HOST_ARCH_S390X
   // Software breakpoint instruction is 0x0001
   asm volatile(".word 0x0001");
 #elif V8_HOST_ARCH_RISCV64
@@ -723,7 +768,7 @@ void OS::DebugBreak() {
 #endif
 }
 
-
+#if !V8_OS_ZOS
 class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
  public:
   PosixMemoryMappedFile(FILE* file, void* memory, size_t size)
@@ -793,14 +838,13 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
   if (memory_) OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize()));
   fclose(file_);
 }
-
+#endif  // !V8_OS_ZOS
 
 int OS::GetCurrentProcessId() {
   return static_cast<int>(getpid());
 }
 
-
-int OS::GetCurrentThreadId() {
+int OS::GetCurrentThreadIdInternal() {
 #if V8_OS_DARWIN || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
 #elif V8_OS_LINUX
@@ -813,6 +857,8 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(zx_thread_self());
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
+#elif V8_OS_ZOS
+  return gettid();
 #else
   return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif
@@ -840,6 +886,28 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   return 0;
 }
 #endif
+
+int OS::GetPeakMemoryUsageKb() {
+#if defined(V8_OS_FUCHSIA)
+  // Fuchsia does not implement getrusage()
+  return -1;
+#elif defined(V8_OS_ZOS)
+  // TODO(v8:342445981): zos - rusage struct doesn't yet include ru_maxrss
+  return -1;
+#else
+  struct rusage usage;
+  if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
+
+#if defined(V8_OS_MACOS) || defined(V8_OS_IOS)
+  constexpr int KB = 1024;
+  // MacOS and iOS ru_maxrss count bytes
+  return static_cast<int>(usage.ru_maxrss / KB);
+#else
+  // Most other cases (at least Linux, IOS, return kilobytes)
+  return static_cast<int>(usage.ru_maxrss);
+#endif  // defined(V8_OS_MACOS) || defined(V8_OS_IOS)
+#endif  // defined(V8_OS_FUCHSIA)
+}
 
 double OS::TimeCurrentMillis() {
   return Time::Now().ToJsTime();
@@ -923,10 +991,12 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
-#else
-  vfprintf(out, format, args);
+  if (out == stdout) {
+    __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
+    return;
+  }
 #endif
+  vfprintf(out, format, args);
 }
 
 
@@ -935,6 +1005,7 @@ void OS::PrintError(const char* format, ...) {
   va_start(args, format);
   VPrintError(format, args);
   va_end(args);
+  fflush(stderr);
 }
 
 
@@ -986,7 +1057,8 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
-Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+std::optional<AddressSpaceReservation>
+AddressSpaceReservation::CreateSubReservation(
     void* address, size_t size, OS::MemoryPermission max_permission) {
   DCHECK(Contains(address, size));
   DCHECK_EQ(0, size % OS::AllocatePageSize());
@@ -1020,6 +1092,8 @@ bool AddressSpaceReservation::Free(void* address, size_t size) {
   return OS::DecommitPages(address, size);
 }
 
+// z/OS specific implementation in platform-zos.cc.
+#if !defined(V8_OS_ZOS)
 // Darwin specific implementation in platform-darwin.cc.
 #if !defined(V8_OS_DARWIN)
 bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
@@ -1039,6 +1113,7 @@ bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
   return mmap(address, size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
               -1, 0) == address;
 }
+#endif  // !V8_OS_ZOS
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
                                              OS::MemoryPermission access) {
@@ -1079,12 +1154,12 @@ class Thread::PlatformData {
 Thread::Thread(const Options& options)
     : data_(new PlatformData),
       stack_size_(options.stack_size()),
+      priority_(options.priority()),
       start_semaphore_(nullptr) {
   const int min_stack_size = static_cast<int>(PTHREAD_STACK_MIN);
   if (stack_size_ > 0) stack_size_ = std::max(stack_size_, min_stack_size);
   set_name(options.name());
 }
-
 
 Thread::~Thread() {
   delete data_;
@@ -1116,7 +1191,6 @@ static void SetThreadName(const char* name) {
 #endif
 }
 
-
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
@@ -1124,6 +1198,35 @@ static void* ThreadEntry(void* arg) {
   // one).
   { MutexGuard lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
+#if V8_OS_DARWIN
+  switch (thread->priority()) {
+    case Thread::Priority::kBestEffort:
+      pthread_set_qos_class_self_np(QOS_CLASS_BACKGROUND, 0);
+      break;
+    case Thread::Priority::kUserVisible:
+      pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, -1);
+      break;
+    case Thread::Priority::kUserBlocking:
+      pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
+      break;
+    case Thread::Priority::kDefault:
+      break;
+  }
+#elif V8_OS_LINUX || V8_OS_ZOS
+  switch (thread->priority()) {
+    case Thread::Priority::kBestEffort:
+      setpriority(PRIO_PROCESS, 0, 10);
+      break;
+    case Thread::Priority::kUserVisible:
+      setpriority(PRIO_PROCESS, 0, 1);
+      break;
+    case Thread::Priority::kUserBlocking:
+      setpriority(PRIO_PROCESS, 0, 0);
+      break;
+    case Thread::Priority::kDefault:
+      break;
+  }
+#endif
   DCHECK_NE(thread->data()->thread_, kNoThread);
   thread->NotifyStartedAndRun();
   return nullptr;
@@ -1245,28 +1348,65 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 #if !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) && !defined(_AIX) && \
     !defined(V8_OS_SOLARIS)
 
+namespace {
+#if DEBUG
+bool MainThreadIsCurrentThread() {
+  // This method assumes the first time is called is from the main thread.
+  // It returns true for subsequent calls only if they are called from the
+  // same thread.
+  static int main_thread_id = -1;
+  if (main_thread_id == -1) {
+    main_thread_id = OS::GetCurrentThreadId();
+  }
+  return main_thread_id == OS::GetCurrentThreadId();
+}
+#endif  // DEBUG
+}  // namespace
+
 // static
 Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
+#if V8_OS_ZOS
+  return __get_stack_start();
+#elif V8_OS_OPENBSD
+  stack_t stack;
+  int error = pthread_stackseg_np(pthread_self(), &stack);
+  if(error) {
+    DCHECK(MainThreadIsCurrentThread());
+    return nullptr;
+  }
+  void* stack_start = reinterpret_cast<uint8_t*>(stack.ss_sp) + stack.ss_size;
+  return stack_start;
+#else
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
-  if (!error) {
-    void* base;
-    size_t size;
-    error = pthread_attr_getstack(&attr, &base, &size);
-    CHECK(!error);
-    pthread_attr_destroy(&attr);
-    return reinterpret_cast<uint8_t*>(base) + size;
-  }
-
+  if (error) {
+    DCHECK(MainThreadIsCurrentThread());
 #if defined(V8_LIBC_GLIBC)
-  // pthread_getattr_np can fail for the main thread. In this case
-  // just like NaCl we rely on the __libc_stack_end to give us
-  // the start of the stack.
-  // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
-  return __libc_stack_end;
+    // pthread_getattr_np can fail for the main thread.
+    // For the main thread we prefer using __libc_stack_end (if it exists) since
+    // it generally provides a tighter limit for CSS.
+    return __libc_stack_end;
 #else
-  return nullptr;
+    return nullptr;
 #endif  // !defined(V8_LIBC_GLIBC)
+  }
+  void* base;
+  size_t size;
+  error = pthread_attr_getstack(&attr, &base, &size);
+  CHECK(!error);
+  pthread_attr_destroy(&attr);
+  void* stack_start = reinterpret_cast<uint8_t*>(base) + size;
+#if defined(V8_LIBC_GLIBC)
+  // __libc_stack_end is process global and thus is only valid for
+  // the main thread. Check whether this is the main thread by checking
+  // __libc_stack_end is within the thread's stack.
+  if ((base <= __libc_stack_end) && (__libc_stack_end <= stack_start)) {
+    DCHECK(MainThreadIsCurrentThread());
+    return __libc_stack_end;
+  }
+#endif  // !defined(V8_LIBC_GLIBC)
+  return stack_start;
+#endif  // V8_OS_ZOS
 }
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&

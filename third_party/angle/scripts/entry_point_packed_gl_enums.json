@@ -434,6 +434,12 @@
     "glFlushMappedNamedBufferRange": {
         "buffer": "BufferID"
     },
+    "glFramebufferFoveationConfig": {
+        "framebuffer": "FramebufferID"
+    },
+    "glFramebufferFoveationParameters": {
+        "framebuffer": "FramebufferID"
+    },
     "glFramebufferRenderbuffer": {
         "renderbuffer": "RenderbufferID"
     },
@@ -1226,6 +1232,12 @@
     "glPointSizePointer": {
         "type": "VertexAttribType"
     },
+    "glPolygonMode": {
+        "mode": "PolygonMode"
+    },
+    "glPolygonModeNV": {
+        "mode": "PolygonMode"
+    },
     "glProgramBinary": {
         "program": "ShaderProgramID"
     },
@@ -1674,6 +1686,9 @@
     },
     "glTextureBufferRange": {
         "buffer": "BufferID",
+        "texture": "TextureID"
+    },
+    "glTextureFoveationParameters": {
         "texture": "TextureID"
     },
     "glTextureParameterf": {

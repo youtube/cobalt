@@ -8,20 +8,13 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/image/image_unittest_util.h"
 #include "ui/gfx/skia_util.h"
 
 namespace ui {
 namespace {
 
 using mojom::CursorType;
-
-// Creates a basic bitmap for testing with the given width and height.
-SkBitmap CreateTestBitmap(int width, int height) {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(width, height);
-  bitmap.eraseColor(SK_ColorRED);
-  return bitmap;
-}
 
 TEST(CursorTest, Null) {
   Cursor cursor;
@@ -37,7 +30,7 @@ TEST(CursorTest, BasicType) {
 }
 
 TEST(CursorTest, CustomType) {
-  const SkBitmap kBitmap = CreateTestBitmap(10, 10);
+  const SkBitmap kBitmap = gfx::test::CreateBitmap(/*size=*/10);
   constexpr gfx::Point kHotspot = gfx::Point(5, 2);
   constexpr float kScale = 2.0f;
 
@@ -59,15 +52,22 @@ TEST(CursorTest, CustomType) {
 
 TEST(CursorTest, CustomTypeComparesBitmapPixels) {
   const Cursor kCursor1 =
-      Cursor::NewCustom(CreateTestBitmap(10, 10), gfx::Point());
+      Cursor::NewCustom(gfx::test::CreateBitmap(/*size=*/10), gfx::Point());
   const Cursor kCursor2 =
-      Cursor::NewCustom(CreateTestBitmap(10, 10), gfx::Point());
+      Cursor::NewCustom(gfx::test::CreateBitmap(/*size=*/10), gfx::Point());
 
   EXPECT_NE(kCursor1.custom_bitmap().getGenerationID(),
             kCursor2.custom_bitmap().getGenerationID());
   EXPECT_TRUE(
       gfx::BitmapsAreEqual(kCursor1.custom_bitmap(), kCursor2.custom_bitmap()));
   EXPECT_EQ(kCursor1, kCursor2);
+}
+
+TEST(CursorTest, ClampHotspot) {
+  // Initialize a cursor with an invalid hotspot; it should be clamped.
+  const Cursor cursor =
+      Cursor::NewCustom(gfx::test::CreateBitmap(5, 7), gfx::Point(100, 100));
+  EXPECT_EQ(gfx::Point(4, 6), cursor.custom_hotspot());
 }
 
 }  // namespace

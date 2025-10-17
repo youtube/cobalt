@@ -42,6 +42,7 @@ namespace content {
 class Shell;
 class StoragePartitionImpl;
 class WebContents;
+struct EvalJsResult;
 
 class BackgroundSyncBaseBrowserTest : public ContentBrowserTest {
  public:
@@ -62,19 +63,17 @@ class BackgroundSyncBaseBrowserTest : public ContentBrowserTest {
   // (assertion failure) if the tag isn't registered.
   bool RegistrationPending(const std::string& tag);
 
-  bool CompleteDelayedSyncEvent();
+  void CompleteDelayedSyncEvent();
 
   void SetTestClock(base::SimpleTestClock* clock);
 
   void ClearStoragePartitionData();
 
-  std::string PopConsoleString();
-  bool PopConsole(const std::string& expected_msg);
-  bool RegisterServiceWorker();
+  EvalJsResult PopConsoleString();
+  void RegisterServiceWorker();
   void SetIncognitoMode(bool incognito);
   WebContents* web_contents();
-  bool LoadTestPage(const std::string& path);
-  std::string RunScript(const std::string& script);
+  void LoadTestPage(const std::string& path);
   net::EmbeddedTestServer* https_server() { return https_server_.get(); }
 
  private:

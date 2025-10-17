@@ -57,7 +57,7 @@ VALUES ('power.VPH_PWR_S5C_S6C_uws', 'cpu_big'),
 -- take into account the value after it. This underestimates the actual power
 -- drain between those counters.
 DROP VIEW IF EXISTS drain_in_watts;
-CREATE VIEW drain_in_watts AS
+CREATE PERFETTO VIEW drain_in_watts AS
 SELECT name,
   ts,
   LEAD(ts) OVER (
@@ -86,5 +86,4 @@ SELECT name,
   ) * 1e3 AS drain_w
 FROM counter
 JOIN counter_track ON (counter.track_id = counter_track.id)
-WHERE counter_track.type = 'counter_track'
-  AND name GLOB "power.*";
+WHERE name GLOB "power.*";

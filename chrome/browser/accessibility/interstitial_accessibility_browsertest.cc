@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
+#include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -12,6 +14,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
@@ -36,33 +39,31 @@ class InterstitialAccessibilityBrowserTest : public InProcessBrowserTest {
  protected:
   net::EmbeddedTestServer https_server_mismatched_;
 
-  bool IsShowingInterstitial(content::WebContents* tab) {
-    security_interstitials::SecurityInterstitialTabHelper* helper =
-        security_interstitials::SecurityInterstitialTabHelper::FromWebContents(
-            tab);
-    if (!helper) {
-      return false;
-    }
-    return helper->GetBlockingPageForCurrentlyCommittedNavigationForTesting() !=
-           nullptr;
-  }
-
   void ProceedThroughInterstitial(content::WebContents* web_contents) {
     content::TestNavigationObserver nav_observer(web_contents, 1);
     std::string javascript = "window.certificateErrorPageController.proceed();";
-    ASSERT_TRUE(content::ExecuteScript(web_contents, javascript));
+    ASSERT_TRUE(content::ExecJs(web_contents, javascript));
     nav_observer.Wait();
     return;
   }
 };
 
+// TODO(crbug.com/1453221): flakily times out on ChromeOS MSAN builders. Deflake
+// and re-enable.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_TestSSLInterstitialAccessibility \
+  DISABLED_TestSSLInterstitialAccessibility
+#else
+#define MAYBE_TestSSLInterstitialAccessibility TestSSLInterstitialAccessibility
+#endif
 IN_PROC_BROWSER_TEST_F(InterstitialAccessibilityBrowserTest,
-                       TestSSLInterstitialAccessibility) {
+                       MAYBE_TestSSLInterstitialAccessibility) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  content::EnableAccessibilityForWebContents(web_contents);
+  content::ScopedAccessibilityModeOverride scoped_accessibility_mode(
+      web_contents, ui::kAXModeComplete);
 
   ASSERT_TRUE(https_server_mismatched_.Start());
 
@@ -72,7 +73,8 @@ IN_PROC_BROWSER_TEST_F(InterstitialAccessibilityBrowserTest,
 
   // Ensure that we got an interstitial page.
   ASSERT_FALSE(web_contents->IsCrashed());
-  EXPECT_TRUE(IsShowingInterstitial(web_contents));
+  EXPECT_TRUE(
+      chrome_browser_interstitials::IsShowingInterstitial(web_contents));
 
   // Now check from the perspective of accessibility - we should be focused
   // on a page with title "Privacy error". Keep waiting on accessibility

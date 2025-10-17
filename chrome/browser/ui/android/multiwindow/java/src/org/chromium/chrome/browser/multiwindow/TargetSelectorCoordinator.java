@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.multiwindow;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
@@ -12,6 +14,8 @@ import android.view.View;
 import android.widget.ListView;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -25,16 +29,15 @@ import org.chromium.ui.modelutil.PropertyModel;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Coordinator to construct the move target selector dialog.
- */
+/** Coordinator to construct the move target selector dialog. */
+@NullMarked
 public class TargetSelectorCoordinator {
     private static final int TYPE_ENTRY = 0;
 
     // Last selector dialog instance. This is used to prevent the user from interacting with
     // multiple instances of selector UI.
     @SuppressLint("StaticFieldLeak")
-    static TargetSelectorCoordinator sPrevInstance;
+    static @Nullable TargetSelectorCoordinator sPrevInstance;
 
     private final Context mContext;
     private final Callback<InstanceInfo> mMoveCallback;
@@ -44,8 +47,8 @@ public class TargetSelectorCoordinator {
     private final View mDialogView;
     private final ModalDialogManager mModalDialogManager;
 
-    private PropertyModel mDialog;
-    private InstanceInfo mSelectedItem;
+    private @Nullable PropertyModel mDialog;
+    private @Nullable InstanceInfo mSelectedItem;
     private int mCurrentId; // ID for the current instance.
 
     /**
@@ -56,24 +59,32 @@ public class TargetSelectorCoordinator {
      * @param moveCallback Action to take when asked to open a chosen instance.
      * @param instanceInfo List of {@link InstanceInfo} for available Chrome instances.
      */
-    public static void showDialog(Context context, ModalDialogManager modalDialogManager,
-            LargeIconBridge iconBridge, Callback<InstanceInfo> moveCallback,
+    public static void showDialog(
+            Context context,
+            ModalDialogManager modalDialogManager,
+            LargeIconBridge iconBridge,
+            Callback<InstanceInfo> moveCallback,
             List<InstanceInfo> instanceInfo) {
         new TargetSelectorCoordinator(context, modalDialogManager, iconBridge, moveCallback)
                 .showDialog(instanceInfo);
     }
 
-    private TargetSelectorCoordinator(Context context, ModalDialogManager modalDialogManager,
-            LargeIconBridge iconBridge, Callback<InstanceInfo> moveCallback) {
+    private TargetSelectorCoordinator(
+            Context context,
+            ModalDialogManager modalDialogManager,
+            LargeIconBridge iconBridge,
+            Callback<InstanceInfo> moveCallback) {
         mContext = context;
         mModalDialogManager = modalDialogManager;
         mMoveCallback = moveCallback;
         mUiUtils = new UiUtils(mContext, iconBridge);
 
         ModelListAdapter adapter = new ModelListAdapter(mModelList);
-        adapter.registerType(TYPE_ENTRY,
-                parentView
-                -> LayoutInflater.from(mContext).inflate(R.layout.instance_switcher_item, null),
+        adapter.registerType(
+                TYPE_ENTRY,
+                parentView ->
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.instance_switcher_item, null),
                 TargetSelectorItemViewBinder::bind);
         mDialogView = LayoutInflater.from(context).inflate(R.layout.target_selector_dialog, null);
         ((ListView) mDialogView.findViewById(R.id.list_view)).setAdapter(adapter);
@@ -95,26 +106,29 @@ public class TargetSelectorCoordinator {
             PropertyModel itemModel = generateListItem(info);
             mModelList.add(new ModelListAdapter.ListItem(0, itemModel));
         }
-        ModalDialogProperties.Controller controller = new ModalDialogProperties.Controller() {
-            @Override
-            public void onDismiss(PropertyModel model, @DialogDismissalCause int dismissalCause) {
-                sPrevInstance = null;
-            }
+        ModalDialogProperties.Controller controller =
+                new ModalDialogProperties.Controller() {
+                    @Override
+                    public void onDismiss(
+                            PropertyModel model, @DialogDismissalCause int dismissalCause) {
+                        sPrevInstance = null;
+                    }
 
-            @Override
-            public void onClick(PropertyModel model, int buttonType) {
-                switch (buttonType) {
-                    case ModalDialogProperties.ButtonType.POSITIVE:
-                        dismissDialog(DialogDismissalCause.POSITIVE_BUTTON_CLICKED);
-                        mMoveCallback.onResult(mSelectedItem);
-                        break;
-                    case ModalDialogProperties.ButtonType.NEGATIVE:
-                        dismissDialog(DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
-                        break;
-                    default:
-                }
-            }
-        };
+                    @Override
+                    public void onClick(PropertyModel model, int buttonType) {
+                        switch (buttonType) {
+                            case ModalDialogProperties.ButtonType.POSITIVE:
+                                dismissDialog(DialogDismissalCause.POSITIVE_BUTTON_CLICKED);
+                                assumeNonNull(mSelectedItem);
+                                mMoveCallback.onResult(mSelectedItem);
+                                break;
+                            case ModalDialogProperties.ButtonType.NEGATIVE:
+                                dismissDialog(DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
+                                break;
+                            default:
+                        }
+                    }
+                };
         Resources resources = mContext.getResources();
         String title = mContext.getString(R.string.menu_move_to_other_window);
         return new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
@@ -123,12 +137,17 @@ public class TargetSelectorCoordinator {
                 .with(ModalDialogProperties.CUSTOM_VIEW, mDialogView)
                 .with(ModalDialogProperties.TITLE, title)
                 .with(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, true)
-                .with(ModalDialogProperties.BUTTON_STYLES,
+                .with(
+                        ModalDialogProperties.BUTTON_STYLES,
                         ModalDialogProperties.ButtonStyles.PRIMARY_FILLED_NEGATIVE_OUTLINE)
-                .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT, resources,
+                .with(
+                        ModalDialogProperties.POSITIVE_BUTTON_TEXT,
+                        resources,
                         R.string.target_selector_move)
                 .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT, resources, R.string.cancel)
-                .with(ModalDialogProperties.DIALOG_WHEN_LARGE, true)
+                .with(
+                        ModalDialogProperties.DIALOG_STYLES,
+                        ModalDialogProperties.DialogStyles.DIALOG_WHEN_LARGE)
                 .build();
     }
 
@@ -144,9 +163,11 @@ public class TargetSelectorCoordinator {
                         .with(TargetSelectorItemProperties.TITLE, title)
                         .with(TargetSelectorItemProperties.DESC, desc)
                         .with(TargetSelectorItemProperties.INSTANCE_ID, item.instanceId)
-                        .with(TargetSelectorItemProperties.CHECK_TARGET,
+                        .with(
+                                TargetSelectorItemProperties.CHECK_TARGET,
                                 item.type == InstanceInfo.Type.CURRENT)
-                        .with(TargetSelectorItemProperties.CLICK_LISTENER,
+                        .with(
+                                TargetSelectorItemProperties.CLICK_LISTENER,
                                 (view) -> selectInstance(item))
                         .build();
         mUiUtils.setFavicon(model, TargetSelectorItemProperties.FAVICON, item);
@@ -155,8 +176,10 @@ public class TargetSelectorCoordinator {
 
     private void selectInstance(InstanceInfo clickedItem) {
         int instanceId = clickedItem.instanceId;
+        assumeNonNull(mSelectedItem);
         if (mSelectedItem.instanceId == instanceId) return;
         // Do not allow the target to be the current one.
+        assumeNonNull(mDialog);
         mDialog.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, mCurrentId == instanceId);
         Iterator<ListItem> it = mModelList.iterator();
         while (it.hasNext()) {

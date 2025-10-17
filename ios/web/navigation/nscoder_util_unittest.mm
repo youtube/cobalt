@@ -10,10 +10,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 namespace {
 
@@ -25,8 +21,7 @@ const char* testStrings[] = {
     "This is working™",
     "古池や蛙飛込む水の音\nふるいけやかわずとびこむみずのおと",
     "ἀγεωμέτρητος μηδεὶς εἰσίτω",
-    "Bang!\t\n"
-};
+    "Bang!\t\n"};
 
 TEST_F(NSCoderStdStringTest, encodeDecode) {
   for (size_t i = 0; i < std::size(testStrings); ++i) {

@@ -26,7 +26,6 @@ UploadList::UploadInfo::State ReportUploadStateToUploadInfoState(
   }
 
   NOTREACHED();
-  return UploadList::UploadInfo::State::Uploaded;
 }
 
 }  // namespace

@@ -5,9 +5,9 @@
 // Utility methods to convert between absolute indexing (used in the dynamic
 // table), relative indexing used on the encoder stream, and relative indexing
 // and post-base indexing used on request streams (in header blocks).  See:
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#indexing
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#relative-indexing
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#post-base
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.2.4
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.2.5
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.2.6
 
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_INDEX_CONVERSIONS_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_INDEX_CONVERSIONS_H_
@@ -24,28 +24,29 @@ namespace quic {
 // 32 bytes), overflow is not possible.  The caller is responsible for providing
 // input that does not underflow.
 
-QUIC_EXPORT_PRIVATE uint64_t QpackAbsoluteIndexToEncoderStreamRelativeIndex(
+QUICHE_EXPORT uint64_t QpackAbsoluteIndexToEncoderStreamRelativeIndex(
     uint64_t absolute_index, uint64_t inserted_entry_count);
 
-QUIC_EXPORT_PRIVATE uint64_t QpackAbsoluteIndexToRequestStreamRelativeIndex(
+QUICHE_EXPORT uint64_t QpackAbsoluteIndexToRequestStreamRelativeIndex(
     uint64_t absolute_index, uint64_t base);
 
 // Conversion functions used in the decoder operate on input received from the
 // network.  These functions return false on overflow or underflow.
 
-QUIC_EXPORT_PRIVATE bool QpackEncoderStreamRelativeIndexToAbsoluteIndex(
+QUICHE_EXPORT bool QpackEncoderStreamRelativeIndexToAbsoluteIndex(
     uint64_t relative_index, uint64_t inserted_entry_count,
     uint64_t* absolute_index);
 
 // On success, |*absolute_index| is guaranteed to be strictly less than
 // std::numeric_limits<uint64_t>::max().
-QUIC_EXPORT_PRIVATE bool QpackRequestStreamRelativeIndexToAbsoluteIndex(
+QUICHE_EXPORT bool QpackRequestStreamRelativeIndexToAbsoluteIndex(
     uint64_t relative_index, uint64_t base, uint64_t* absolute_index);
 
 // On success, |*absolute_index| is guaranteed to be strictly less than
 // std::numeric_limits<uint64_t>::max().
-QUIC_EXPORT_PRIVATE bool QpackPostBaseIndexToAbsoluteIndex(
-    uint64_t post_base_index, uint64_t base, uint64_t* absolute_index);
+QUICHE_EXPORT bool QpackPostBaseIndexToAbsoluteIndex(uint64_t post_base_index,
+                                                     uint64_t base,
+                                                     uint64_t* absolute_index);
 
 }  // namespace quic
 

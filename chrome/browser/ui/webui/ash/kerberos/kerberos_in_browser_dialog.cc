@@ -9,9 +9,13 @@
 
 #include "ash/public/cpp/window_backdrop.h"
 #include "base/check_op.h"
-#include "chrome/browser/ui/webui/ash/system_web_dialog_delegate.h"
+#include "base/notreached.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/settings_window_manager_chromeos.h"
+#include "chrome/browser/ui/webui/ash/system_web_dialog/system_web_dialog_delegate.h"
 #include "chrome/common/webui_url_constants.h"
 #include "ui/aura/window.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -26,11 +30,6 @@ KerberosInBrowserDialog* g_dialog = nullptr;
 constexpr int kKerberosInBrowserDialogWidth = 370;
 constexpr int kKerberosInBrowserDialogHeight = 155;
 }  // namespace
-
-// static
-bool KerberosInBrowserDialog::IsShown() {
-  return g_dialog != nullptr;
-}
 
 void KerberosInBrowserDialog::AdjustWidgetInitParams(
     views::Widget::InitParams* params) {
@@ -55,8 +54,8 @@ KerberosInBrowserDialog::~KerberosInBrowserDialog() {
   g_dialog = nullptr;
 }
 
-ui::ModalType KerberosInBrowserDialog::GetDialogModalType() const {
-  return ui::MODAL_TYPE_SYSTEM;
+ui::mojom::ModalType KerberosInBrowserDialog::GetDialogModalType() const {
+  return ui::mojom::ModalType::kSystem;
 }
 
 void KerberosInBrowserDialog::GetDialogSize(gfx::Size* size) const {
@@ -66,6 +65,18 @@ void KerberosInBrowserDialog::GetDialogSize(gfx::Size* size) const {
   size->SetSize(
       std::min(kKerberosInBrowserDialogWidth, display.work_area().width()),
       std::min(kKerberosInBrowserDialogHeight, display.work_area().height()));
+}
+
+void KerberosInBrowserDialog::OnDialogClosed(const std::string& json_retval) {
+  if (json_retval == "openSettings") {
+    chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+        ProfileManager::GetActiveUserProfile(),
+        /*sub_page=*/"kerberos/kerberosAccounts");
+  } else if (!json_retval.empty()) {
+    NOTREACHED();
+  }
+
+  SystemWebDialogDelegate::OnDialogClosed(json_retval);
 }
 
 bool KerberosInBrowserDialog::ShouldShowCloseButton() const {
@@ -91,6 +102,16 @@ void KerberosInBrowserDialog::Show(base::OnceClosure close_dialog_closure) {
   // ChromeOS is defined.
   WindowBackdrop::Get(g_dialog->dialog_window())
       ->SetBackdropType(WindowBackdrop::BackdropType::kSemiOpaque);
+}
+
+// static
+bool KerberosInBrowserDialog::IsShown() {
+  return g_dialog != nullptr;
+}
+
+// static
+KerberosInBrowserDialog* KerberosInBrowserDialog::GetDialogForTesting() {
+  return g_dialog;
 }
 
 }  // namespace ash

@@ -4,6 +4,7 @@
 
 #include "components/session_proto_db/session_proto_db.h"
 
+#include <array>
 #include <map>
 
 #include "base/functional/bind.h"
@@ -20,6 +21,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
+using KeyValuePair =
+    std::pair<std::string, persisted_state_db::PersistedStateContentProto>;
 
 namespace {
 persisted_state_db::PersistedStateContentProto BuildProto(
@@ -307,7 +310,8 @@ class SessionProtoDBTest : public testing::Test {
 
  protected:
   raw_ptr<
-      leveldb_proto::test::FakeDB<session_proto_db::SessionProtoDBTestProto>>
+      leveldb_proto::test::FakeDB<session_proto_db::SessionProtoDBTestProto>,
+      DanglingUntriaged>
       test_content_db_;
 
  private:
@@ -315,7 +319,8 @@ class SessionProtoDBTest : public testing::Test {
 
   // For persisted_state_db::PersistedStateContentProto database
   raw_ptr<leveldb_proto::test::FakeDB<
-      persisted_state_db::PersistedStateContentProto>>
+              persisted_state_db::PersistedStateContentProto>,
+          DanglingUntriaged>
       content_db_;
   std::unique_ptr<
       SessionProtoDB<persisted_state_db::PersistedStateContentProto>>
@@ -332,7 +337,7 @@ TEST_F(SessionProtoDBTest, TestArbitraryProto) {
   InitTestProtoDB();
   test_content_db_->InitStatusCallback(leveldb_proto::Enums::InitStatus::kOK);
   RunUntilIdle();
-  base::RunLoop run_loop[2];
+  std::array<base::RunLoop, 2> run_loop;
   test_proto_db()->InsertContent(
       kMockKeyA, kTestProto,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -357,7 +362,7 @@ TEST_F(SessionProtoDBTest, TestInit) {
 
 TEST_F(SessionProtoDBTest, TestKeyInsertionSucceeded) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[2];
+  std::array<base::RunLoop, 2> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -375,7 +380,7 @@ TEST_F(SessionProtoDBTest, TestKeyInsertionSucceeded) {
 
 TEST_F(SessionProtoDBTest, TestKeyInsertionFailed) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[2];
+  std::array<base::RunLoop, 2> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -393,7 +398,7 @@ TEST_F(SessionProtoDBTest, TestKeyInsertionFailed) {
 
 TEST_F(SessionProtoDBTest, TestKeyInsertionPrefix) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[2];
+  std::array<base::RunLoop, 2> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -411,7 +416,7 @@ TEST_F(SessionProtoDBTest, TestKeyInsertionPrefix) {
 
 TEST_F(SessionProtoDBTest, TestLoadOneEntry) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[4];
+  std::array<base::RunLoop, 4> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -442,7 +447,7 @@ TEST_F(SessionProtoDBTest, TestLoadOneEntry) {
 
 TEST_F(SessionProtoDBTest, TestLoadAllEntries) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[3];
+  std::array<base::RunLoop, 3> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -464,7 +469,7 @@ TEST_F(SessionProtoDBTest, TestLoadAllEntries) {
 
 TEST_F(SessionProtoDBTest, TestDeleteWithPrefix) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[4];
+  std::array<base::RunLoop, 4> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -497,7 +502,7 @@ TEST_F(SessionProtoDBTest, TestDeleteWithPrefix) {
 
 TEST_F(SessionProtoDBTest, TestDeleteOneEntry) {
   InitPersistedStateDB();
-  base::RunLoop run_loop[6];
+  std::array<base::RunLoop, 6> run_loop;
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
       base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
@@ -543,7 +548,7 @@ TEST_F(SessionProtoDBTest, TestDeferredOperations) {
   InitPersistedStateDBWithoutCallback();
   RunUntilIdle();
   EXPECT_EQ(true, InitStatusUnknown());
-  base::RunLoop run_loop[4];
+  std::array<base::RunLoop, 4> run_loop;
 
   persisted_state_db()->InsertContent(
       kMockKeyA, kMockValueA,
@@ -586,7 +591,7 @@ TEST_F(SessionProtoDBTest, TestInitializationFailure) {
   InitPersistedStateDBWithoutCallback();
   RunUntilIdle();
   EXPECT_EQ(true, InitStatusUnknown());
-  base::RunLoop run_loop[6];
+  std::array<base::RunLoop, 6> run_loop;
 
   // Do some operations before database status is known
   persisted_state_db()->InsertContent(
@@ -636,6 +641,61 @@ TEST_F(SessionProtoDBTest, TestInitializationFailure) {
   for (int i = 3; i < 6; i++) {
     run_loop[i].Run();
   }
+}
+
+TEST_F(SessionProtoDBTest, TestUpdateEntries) {
+  InitPersistedStateDB();
+  std::array<base::RunLoop, 6> run_loop;
+  persisted_state_db()->InsertContent(
+      kMockKeyA, kMockValueA,
+      base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
+                     base::Unretained(this), run_loop[0].QuitClosure(), true));
+  MockInsertCallbackPersistedStateDB(content_db(), true);
+  run_loop[0].Run();
+
+  // Do one update and one insert for the UpdateEntries call.
+  auto entries_to_update = std::make_unique<std::vector<KeyValuePair>>();
+  entries_to_update->emplace_back(kMockKeyA, kMockValueB);
+  entries_to_update->emplace_back(kMockKeyB, kMockValueA);
+  persisted_state_db()->UpdateEntries(
+      std::move(entries_to_update),
+      std::make_unique<std::vector<std::string>>(),
+      base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
+                     base::Unretained(this), run_loop[1].QuitClosure(), true));
+  MockInsertCallbackPersistedStateDB(content_db(), true);
+  run_loop[1].Run();
+
+  persisted_state_db()->LoadOneEntry(
+      kMockKeyA,
+      base::BindOnce(&SessionProtoDBTest::GetEvaluationPersistedStateDB,
+                     base::Unretained(this), run_loop[2].QuitClosure(),
+                     kExpectedB));
+  content_db()->GetCallback(true);
+  run_loop[2].Run();
+  persisted_state_db()->LoadOneEntry(
+      kMockKeyB,
+      base::BindOnce(&SessionProtoDBTest::GetEvaluationPersistedStateDB,
+                     base::Unretained(this), run_loop[3].QuitClosure(),
+                     kExpectedA));
+  content_db()->GetCallback(true);
+  run_loop[3].Run();
+
+  // Reverts the update and insertion earlier.
+  entries_to_update = std::make_unique<std::vector<KeyValuePair>>();
+  auto keys_to_remove = std::make_unique<std::vector<std::string>>();
+  entries_to_update->emplace_back(kMockKeyA, kMockValueA);
+  keys_to_remove->emplace_back(kMockKeyB);
+  persisted_state_db()->UpdateEntries(
+      std::move(entries_to_update), std::move(keys_to_remove),
+      base::BindOnce(&SessionProtoDBTest::OperationEvaluation,
+                     base::Unretained(this), run_loop[4].QuitClosure(), true));
+  MockInsertCallbackPersistedStateDB(content_db(), true);
+  run_loop[4].Run();
+
+  persisted_state_db()->LoadAllEntries(base::BindOnce(
+      &SessionProtoDBTest::GetEvaluationPersistedStateDB,
+      base::Unretained(this), run_loop[5].QuitClosure(), kExpectedA));
+  MockLoadCallbackPersistedStateDB(content_db(), true);
 }
 
 TEST_F(SessionProtoDBTest, TestMaintenanceKeepSomeKeys) {

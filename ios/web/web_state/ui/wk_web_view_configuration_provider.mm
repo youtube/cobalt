@@ -6,29 +6,29 @@
 
 #import <Foundation/Foundation.h>
 #import <WebKit/WebKit.h>
+
 #import <vector>
 
 #import "base/check.h"
+#import "base/functional/callback_helpers.h"
 #import "base/ios/ios_util.h"
 #import "base/memory/ptr_util.h"
 #import "base/notreached.h"
+#import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/bind_post_task.h"
+#import "base/task/sequenced_task_runner.h"
+#import "base/uuid.h"
 #import "components/safe_browsing/core/common/features.h"
 #import "ios/web/common/features.h"
+#import "ios/web/js_features/window_error/catch_gcrweb_script_errors_java_script_feature.h"
 #import "ios/web/js_messaging/java_script_feature_manager.h"
 #import "ios/web/js_messaging/java_script_feature_util_impl.h"
-#import "ios/web/js_messaging/page_script_util.h"
 #import "ios/web/js_messaging/web_frames_manager_java_script_feature.h"
-#import "ios/web/navigation/session_restore_java_script_feature.h"
 #import "ios/web/public/browser_state.h"
 #import "ios/web/public/web_client.h"
 #import "ios/web/web_state/ui/wk_content_rule_list_provider.h"
-#import "ios/web/web_state/ui/wk_web_view_configuration_provider_observer.h"
 #import "ios/web/webui/crw_web_ui_scheme_handler.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
@@ -37,24 +37,16 @@ namespace {
 // A key used to associate a WKWebViewConfigurationProvider with a BrowserState.
 const char kWKWebViewConfigProviderKeyName[] = "wk_web_view_config_provider";
 
-// Returns a WKUserScript for JavsScript injected into the main frame at the
-// beginning of the document load.
-WKUserScript* InternalGetDocumentStartScriptForMainFrame(
-    BrowserState* browser_state) {
-  return [[WKUserScript alloc]
-        initWithSource:GetDocumentStartScriptForMainFrame(browser_state)
-         injectionTime:WKUserScriptInjectionTimeAtDocumentStart
-      forMainFrameOnly:YES];
-}
-
-// Returns a WKUserScript for JavsScript injected into all frames at the
-// beginning of the document load.
-WKUserScript* InternalGetDocumentStartScriptForAllFrames(
-    BrowserState* browser_state) {
-  return [[WKUserScript alloc]
-        initWithSource:GetDocumentStartScriptForAllFrames(browser_state)
-         injectionTime:WKUserScriptInjectionTimeAtDocumentStart
-      forMainFrameOnly:NO];
+// Converts `uuid` to an NSUUID.
+NSUUID* ToNSUUID(const base::Uuid& uuid) {
+  DCHECK(uuid.is_valid());
+  // base::Uuid(...) uses lower-case but NSUUID uses upper-case, so convert
+  // to upper-case before calling -initWithUUIDString: to avoid case issues.
+  const std::string uuid_string = base::ToUpperASCII(uuid.AsLowercaseString());
+  NSString* uuid_nsstring = base::SysUTF8ToNSString(uuid_string);
+  NSUUID* nsuuid = [[NSUUID alloc] initWithUUIDString:uuid_nsstring];
+  DCHECK(nsuuid);
+  return nsuuid;
 }
 
 }  // namespace
@@ -62,7 +54,6 @@ WKUserScript* InternalGetDocumentStartScriptForAllFrames(
 // static
 WKWebViewConfigurationProvider&
 WKWebViewConfigurationProvider::FromBrowserState(BrowserState* browser_state) {
-  DCHECK([NSThread isMainThread]);
   DCHECK(browser_state);
   if (!browser_state->GetUserData(kWKWebViewConfigProviderKeyName)) {
     browser_state->SetUserData(
@@ -73,18 +64,55 @@ WKWebViewConfigurationProvider::FromBrowserState(BrowserState* browser_state) {
       browser_state->GetUserData(kWKWebViewConfigProviderKeyName)));
 }
 
+// static
+void WKWebViewConfigurationProvider::DeleteDataStorageForIdentifier(
+    const base::Uuid& uuid,
+    base::OnceCallback<void(NSError*)> callback) {
+  if (@available(iOS 17.0, *)) {
+    // Calling either +removeDataStoreForIdentifier:completionHandler: or
+    // +fetchAllDataStoreIdentifiers: crashes if no WKWebsiteDataStore
+    // instance have been created in the app before.
+    //
+    // To prevent a crash, access the default data store. This prevents the
+    // crash. This is fine since the default data store cannot be deleted,
+    // so there is no risk of preventing the deletion that could happen if
+    // the code were trying to load the store that it is supposed to delete.
+    @autoreleasepool {
+      std::ignore = [WKWebsiteDataStore defaultDataStore];
+    }
+
+    // The WebKit documentation does not specify on which queue the block
+    // is run, so use base::BindPostTask(...) to ensure the callback will
+    // be run on the calling sequence.
+    auto completion = base::CallbackToBlock(base::BindPostTask(
+        base::SequencedTaskRunner::GetCurrentDefault(), std::move(callback)));
+
+    [WKWebsiteDataStore removeDataStoreForIdentifier:ToNSUUID(uuid)
+                                   completionHandler:completion];
+  } else {
+    NOTREACHED();
+  }
+}
+
+base::WeakPtr<WKWebViewConfigurationProvider>
+WKWebViewConfigurationProvider::AsWeakPtr() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 WKWebViewConfigurationProvider::WKWebViewConfigurationProvider(
     BrowserState* browser_state)
     : browser_state_(browser_state),
-      content_rule_list_provider_(std::make_unique<WKContentRuleListProvider>(
-          GetWebClient()->IsMixedContentAutoupgradeEnabled(browser_state))) {}
+      content_rule_list_provider_(
+          std::make_unique<WKContentRuleListProvider>()) {}
 
-WKWebViewConfigurationProvider::~WKWebViewConfigurationProvider() = default;
+WKWebViewConfigurationProvider::~WKWebViewConfigurationProvider() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
+}
 
 void WKWebViewConfigurationProvider::ResetWithWebViewConfiguration(
     WKWebViewConfiguration* configuration) {
-  DCHECK([NSThread isMainThread]);
-
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
   if (configuration_) {
     Purge();
   }
@@ -95,11 +123,24 @@ void WKWebViewConfigurationProvider::ResetWithWebViewConfiguration(
     configuration_ = [configuration copy];
   }
 
-  if (browser_state_->IsOffTheRecord() && configuration == nil) {
-    // Set the data store only when configuration is nil because the data store
-    // in the configuration should be used.
-    [configuration_
-        setWebsiteDataStore:[WKWebsiteDataStore nonPersistentDataStore]];
+  WKWebsiteDataStore* original_data_store = website_data_store_;
+  // Update the configuration's website data store.
+  if (!configuration) {
+    // Purge `website_data_store_` if current website data store is set from
+    // configuration originated from somewhere outside //ios/web, so that the
+    // next call to `GetWebsiteDataStore` will create a new data store for
+    // //ios/web managed WKWebview.
+    if (website_data_store_ && !is_data_store_originated_from_ios_web_) {
+      website_data_store_ = nil;
+    }
+    [configuration_ setWebsiteDataStore:GetWebsiteDataStore()];
+  } else {
+    website_data_store_ = configuration.websiteDataStore;
+    is_data_store_originated_from_ios_web_ = false;
+  }
+
+  if (website_data_store_ != original_data_store) {
+    website_data_store_updated_callbacks_.Notify(website_data_store_);
   }
 
   [configuration_ setIgnoresViewportScaleLimits:YES];
@@ -121,13 +162,11 @@ void WKWebViewConfigurationProvider::ResetWithWebViewConfiguration(
   // Chrome uses Google-provided Safe Browsing.
   [[configuration_ preferences] setFraudulentWebsiteWarningEnabled:NO];
 
-#if defined(__IPHONE_16_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_16_0
   if (@available(iOS 16.0, *)) {
-    if (base::FeatureList::IsEnabled(features::kEnableFullscreenAPI)) {
+    if (GetWebClient()->EnableFullscreenAPI()) {
       [[configuration_ preferences] setElementFullscreenEnabled:YES];
     }
   }
-#endif  // defined(__IPHONE_16_0)
 
   [configuration_ setAllowsInlineMediaPlayback:YES];
   // setJavaScriptCanOpenWindowsAutomatically is required to support popups.
@@ -150,23 +189,11 @@ void WKWebViewConfigurationProvider::ResetWithWebViewConfiguration(
 
   content_rule_list_provider_->SetUserContentController(
       configuration_.userContentController);
-
-  for (auto& observer : observers_)
-    observer.DidCreateNewConfiguration(this, configuration_);
-
-  // Workaround to force the creation of the WKWebsiteDataStore. This
-  // workaround need to be done here, because this method returns a copy of
-  // the already created configuration.
-  NSSet* data_types = [NSSet setWithObject:WKWebsiteDataTypeCookies];
-  [configuration_.websiteDataStore
-      fetchDataRecordsOfTypes:data_types
-            completionHandler:^(NSArray<WKWebsiteDataRecord*>* records){
-            }];
 }
 
 WKWebViewConfiguration*
 WKWebViewConfigurationProvider::GetWebViewConfiguration() {
-  DCHECK([NSThread isMainThread]);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
   if (!configuration_) {
     ResetWithWebViewConfiguration(nil);
   }
@@ -176,12 +203,48 @@ WKWebViewConfigurationProvider::GetWebViewConfiguration() {
   return [configuration_ copy];
 }
 
-WKContentRuleListProvider*
-WKWebViewConfigurationProvider::GetContentRuleListProvider() {
-  return content_rule_list_provider_.get();
+WKWebsiteDataStore* WKWebViewConfigurationProvider::GetWebsiteDataStore() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
+  if (!website_data_store_) {
+    if (browser_state_->IsOffTheRecord()) {
+      // The data is stored in memory. A new non-persistent data store is
+      // created for each incognito browser state.
+      website_data_store_ = [WKWebsiteDataStore nonPersistentDataStore];
+    } else {
+      const base::Uuid& storage_id = browser_state_->GetWebKitStorageID();
+      if (storage_id.is_valid()) {
+        if (@available(iOS 17.0, *)) {
+          // Set the data store to configuration when the browser state is not
+          // incognito and the storage ID exists. `dataStoreForIdentifier:` is
+          // available after iOS 17. Otherwise, use the default data store.
+          NSUUID* uuid = ToNSUUID(storage_id);
+          website_data_store_ =
+              [WKWebsiteDataStore dataStoreForIdentifier:uuid];
+        }
+      }
+    }
+
+    // Explicitly use the default data store.
+    if (website_data_store_ == nil) {
+      website_data_store_ = [WKWebsiteDataStore defaultDataStore];
+    }
+
+    // Mark the data store is originated from //ios/web.
+    is_data_store_originated_from_ios_web_ = true;
+
+    // Workaround to force the creation of the WKWebsiteDataStore.
+    NSSet* data_types = [NSSet setWithObject:WKWebsiteDataTypeCookies];
+    [website_data_store_
+        fetchDataRecordsOfTypes:data_types
+              completionHandler:^(NSArray<WKWebsiteDataRecord*>* records){
+              }];
+  }
+  DCHECK(website_data_store_);
+  return website_data_store_;
 }
 
 void WKWebViewConfigurationProvider::UpdateScripts() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
   [configuration_.userContentController removeAllUserScripts];
 
   JavaScriptFeatureManager* java_script_feature_manager =
@@ -196,6 +259,13 @@ void WKWebViewConfigurationProvider::UpdateScripts() {
        GetWebClient()->GetJavaScriptFeatures(browser_state_)) {
     features.push_back(feature);
   }
+  if (base::FeatureList::IsEnabled(features::kLogJavaScriptErrors)) {
+    // CatchGCrWebScriptErrorsJavaScriptFeature must be added last after all
+    // other scripts have setup their gCrWeb functions because this feature
+    // iterates over all such functions, wrapping them in
+    // `catchAndReportErrors`.
+    features.push_back(CatchGCrWebScriptErrorsJavaScriptFeature::GetInstance());
+  }
   java_script_feature_manager->ConfigureFeatures(features);
 
   WKUserContentController* user_content_controller =
@@ -206,30 +276,23 @@ void WKWebViewConfigurationProvider::UpdateScripts() {
        web_frames_manager_features) {
     feature->ConfigureHandlers(user_content_controller);
   }
-  SessionRestoreJavaScriptFeature::FromBrowserState(browser_state_)
-      ->ConfigureHandlers(user_content_controller);
-
-  // Main frame script depends upon scripts injected into all frames, so the
-  // "AllFrames" scripts must be injected first.
-  [configuration_.userContentController
-      addUserScript:InternalGetDocumentStartScriptForAllFrames(browser_state_)];
-  [configuration_.userContentController
-      addUserScript:InternalGetDocumentStartScriptForMainFrame(browser_state_)];
 }
 
 void WKWebViewConfigurationProvider::Purge() {
-  DCHECK([NSThread isMainThread]);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
   configuration_ = nil;
 }
 
-void WKWebViewConfigurationProvider::AddObserver(
-    WKWebViewConfigurationProviderObserver* observer) {
-  observers_.AddObserver(observer);
+WKContentRuleListProvider*
+WKWebViewConfigurationProvider::GetContentRuleListProvider() {
+  return content_rule_list_provider_.get();
 }
 
-void WKWebViewConfigurationProvider::RemoveObserver(
-    WKWebViewConfigurationProviderObserver* observer) {
-  observers_.RemoveObserver(observer);
+base::CallbackListSubscription
+WKWebViewConfigurationProvider::RegisterWebSiteDataStoreUpdatedCallback(
+    WebSiteDataStoreUpdatedCallbackList::CallbackType callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequence_checker_);
+  return website_data_store_updated_callbacks_.Add(std::move(callback));
 }
 
 }  // namespace web

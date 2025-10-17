@@ -7,13 +7,13 @@ package org.chromium.chrome.browser.management;
 import android.view.LayoutInflater;
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
-/**
- * The class responsible for setting up ManagementPage.
- */
+/** The class responsible for setting up ManagementPage. */
+@NullMarked
 class ManagementCoordinator {
     private final ManagementMediator mMediator;
     private final ManagementView mView;
@@ -25,8 +25,10 @@ class ManagementCoordinator {
      */
     public ManagementCoordinator(NativePageHost host, Profile profile) {
         mMediator = new ManagementMediator(host, profile);
-        mView = (ManagementView) LayoutInflater.from(host.getContext())
-                        .inflate(R.layout.enterprise_management, null);
+        mView =
+                (ManagementView)
+                        LayoutInflater.from(host.getContext())
+                                .inflate(R.layout.enterprise_management, null);
         PropertyModelChangeProcessor.create(
                 mMediator.getModel(), mView, ManagementViewBinder::bind);
     }

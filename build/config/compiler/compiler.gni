@@ -3,15 +3,14 @@
 # found in the LICENSE file.
 
 import("//build/config/c++/c++.gni")
+import("//build/config/cast.gni")
 import("//build/config/chrome_build.gni")
-import("//build/config/chromecast_build.gni")
 import("//build/config/chromeos/args.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/toolchain/cc_wrapper.gni")
-import("//build/toolchain/goma.gni")
 import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
 
@@ -26,10 +25,6 @@ if (is_apple) {
   import("//build/config/apple/symbols.gni")
 }
 
-if (is_ios) {
-  import("//build/config/ios/config.gni")
-}
-
 declare_args() {
   # Set to true to use lld, the LLVM linker.
   # In late bring-up on macOS (see docs/mac_lld.md).
@@ -40,7 +35,7 @@ declare_args() {
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
   optimize_for_size =
-      !is_high_end_android && (is_android || is_ios || is_castos)
+      !is_high_end_android && (is_android || is_castos || is_fuchsia)
 }
 
 declare_args() {
@@ -69,17 +64,10 @@ declare_args() {
   # example, don't omit the frame pointer and leave in symbols.
   enable_profiling = false
 
-  # use_debug_fission: whether to use split DWARF debug info
-  # files. This can reduce link time significantly, but is incompatible
-  # with some utilities such as icecc and ccache. Requires gold and
-  # gcc >= 4.8 or clang.
-  # http://gcc.gnu.org/wiki/DebugFission
-  #
-  # This is a placeholder value indicating that the code below should set
-  # the default.  This is necessary to delay the evaluation of the default
-  # value expression until after its input values such as use_gold have
-  # been set, e.g. by a toolchain_args() block.
-  use_debug_fission = "default"
+  # use_debug_fission: whether to use split DWARF debug info files. This can
+  # reduce link time significantly.
+  use_debug_fission =
+      !is_android && !is_fuchsia && !is_apple && !is_win && use_lld
 
   # Enables support for ThinLTO, which links 3x-10x faster than full LTO. See
   # also http://blog.llvm.org/2016/06/thinlto-scalable-and-incremental-lto.html
@@ -95,9 +83,6 @@ declare_args() {
                   (is_ios && use_lld && !is_cronet_build) ||
                   (is_android && target_os != "chromeos") ||
                   (is_chromeos && is_chromeos_device)))
-
-  # If true, use Goma for ThinLTO code generation where applicable.
-  use_goma_thin_lto = false
 
   # Whether we're using a sample profile collected on an architecture different
   # than the one we're compiling for.
@@ -138,7 +123,8 @@ declare_args() {
   # Set to true to enable using the ML inliner in LLVM. This currently only
   # enables the ML inliner when targeting Android.
   # Currently the ML inliner is only supported on linux hosts
-  use_ml_inliner = host_os == "linux" && is_android
+  use_ml_inliner = host_os == "linux" && is_android &&
+                   !llvm_android_mainline  # https://crbug.com/1468680
 
   # Set to true to use the android unwinder V2 implementation.
   use_android_unwinder_v2 = true
@@ -154,6 +140,11 @@ declare_args() {
   # flag set to the same value.
   use_relative_vtables_abi = is_android && current_cpu == "arm64" &&
                              use_custom_libcxx && !is_component_build
+
+  # Enable C++14 sized global deallocation functions.
+  # Disabled by default because of binary size increase.
+  # TODO(crbug.com/345541122): investigate the fuchsia binary size increase.
+  use_sized_deallocation = is_clang && is_asan
 }
 
 # To try out this combination, delete this assert.
@@ -165,6 +156,11 @@ assert(
 assert(!is_cfi || use_thin_lto, "CFI requires ThinLTO")
 assert(!enable_profiling || !is_component_build,
        "Cannot profile component builds (crbug.com/1199271).")
+
+assert(!is_win || is_asan == use_sized_deallocation,
+       "ASan and sized deallocation must be enabled together on Windows.")
+assert(is_clang || !use_sized_deallocation,
+       "Sized deallocation is supported on clang.")
 
 if (use_thin_lto && is_debug) {
   print("WARNING: ThinLTO (use_thin_lto=true) doesn't work with debug" +
@@ -200,10 +196,7 @@ if (is_chromeos) {
       # but overall shrinks binaries considerably by avoiding huge unwind
       # tables.
       (current_cpu == "x86" && !exclude_unwind_tables && optimize_for_size) ||
-      using_sanitizer ||
-      # For caller-callee instrumentation version which needs frame pointers to
-      # get the caller address.
-      use_call_graph
+      using_sanitizer
 } else if (is_fuchsia) {
   # Fuchsia on arm64 could use shadow call stack for unwinding.
   enable_frame_pointers = current_cpu != "arm64"
@@ -236,25 +229,13 @@ can_unwind_with_cfi_table = is_android && !is_component_build &&
                             !enable_frame_pointers && current_cpu == "arm"
 
 # Whether or not cfi table should be enabled on arm.
-# TODO(crbug.com/1090409): Replace can_unwind_with_cfi_table with this once
+# TODO(crbug.com/40133751): Replace can_unwind_with_cfi_table with this once
 # sampling profiler is enabled on android.
 enable_arm_cfi_table = is_android && !is_component_build && current_cpu == "arm"
 
-declare_args() {
-  # Whether to use the gold linker from binutils instead of lld or bfd.
-  use_gold = !use_lld && !(is_castos &&
-                           (current_cpu == "arm" || current_cpu == "mipsel")) &&
-             (((is_linux || is_chromeos_lacros) &&
-               (current_cpu == "x64" || current_cpu == "x86" ||
-                current_cpu == "arm" || current_cpu == "arm64" ||
-                current_cpu == "mipsel" || current_cpu == "mips64el")) ||
-              (is_android && (current_cpu == "x86" || current_cpu == "x64" ||
-                              current_cpu == "arm" || current_cpu == "arm64")))
-}
-
 # Use relative paths for debug info. This is important to make the build
 # results independent of the checkout and build directory names, which
-# in turn is important for goma compile hit rate.
+# in turn is important for reclient compile hit rate.
 # Setting this to true may make it harder to debug binaries on Linux, see
 # https://chromium.googlesource.com/chromium/src/+/main/docs/linux/debugging.md#Source-level-debug-with-fdebug_compilation_dir
 # It's not clear if the crash server will correctly handle dSYMs with relative
@@ -275,14 +256,26 @@ if (strip_absolute_paths_from_debug_symbols_default) {
   }
 }
 
-# If it wasn't manually set, then default use_debug_fission to false.
-assert(
-    use_debug_fission == "default" || use_debug_fission || !use_debug_fission,
-    "Invalid use_debug_fission.")
-if (use_debug_fission == "default") {
-  use_debug_fission = is_debug && !is_android && !is_fuchsia && !is_apple &&
-                      !is_win && (use_gold || use_lld) && cc_wrapper == ""
+# When absolute_paths in debug symbols, we need to use input root
+# absolute path to execute remotely in RBE.
+clang_need_input_root_absolute_path = !strip_absolute_paths_from_debug_symbols
+
+if (clang_need_input_root_absolute_path) {
+  compiler_logs = [ "clang_need_input_root_absolute_path=true" ]
+} else {
+  compiler_logs = [ "clang_need_input_root_absolute_path=false" ]
 }
+
+# TODO: https://issues.chromium.org/40120210 - remove this
+# once we can use relative path in hmap.
+clang_need_input_root_absolute_path_for_objc =
+    clang_need_input_root_absolute_path
+if (target_os == "ios") {
+  # objc/objcxx uses hmap, which contains absolute path
+  # see also b/256536089
+  clang_need_input_root_absolute_path_for_objc = true
+}
+compiler_logs += [ "clang_need_input_root_absolute_path_for_objc=$clang_need_input_root_absolute_path_for_objc" ]
 
 # If it wasn't manually set, set to an appropriate default.
 assert(symbol_level >= -1 && symbol_level <= 2, "Invalid symbol_level")
@@ -323,19 +316,22 @@ if (symbol_level == -1) {
 use_debug_fission = use_debug_fission && symbol_level == 2
 
 # Non-component debug builds with symbol_level = 2 are an undesirable (very slow
-# build times) and unsupported (some test binaries will fail with > 4 GB PDBs)
-# combination. This is only checked when current_toolchain == default_toolchain
-# because the is_component_build flag is set to false in various components of
-# the build (like nacl) and we don't want to assert on those.
+# build times, almost two-minute link times) combination. This is only checked
+# when current_toolchain == default_toolchain because the is_component_build
+# flag is set to false in various components of the build (like nacl) and we
+# don't want to assert on those.
 # iOS does not support component builds so add an exception for this platform.
+# Windows supports huge PDBs so this combination is allowed for those who don't
+# mind long build times.
 if (forbid_non_component_debug_builds) {
   assert(
       symbol_level != 2 || current_toolchain != default_toolchain ||
-          is_component_build || !is_debug || is_ios || use_debug_fission,
-      "Can't do non-component debug builds at symbol_level=2 without use_debug_fission=true")
+          is_component_build || is_fuchsia || is_apple || use_debug_fission ||
+          is_android || is_chromeos || is_win,
+      "Can't do non-component builds at symbol_level=2 without use_debug_fission=true")
 }
 
-# TODO(crbug.com/1341436) For Windows, to assemble lzma_sdk's assembly files,
+# TODO(crbug.com/40230692) For Windows, to assemble lzma_sdk's assembly files,
 # ml64.exe needs to be utilized as llvm-ml cannot yet assemble it. Once llvm-ml
 # is able to assemble lzma_sdk assembly files, remove this.
 # LzmaDecOpt.asm only works on x64 and not x86.

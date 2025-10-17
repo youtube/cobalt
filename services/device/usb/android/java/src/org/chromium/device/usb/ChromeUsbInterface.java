@@ -7,17 +7,19 @@ package org.chromium.device.usb;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
 
 /**
- * Exposes android.hardware.usb.UsbInterface as necessary for C++
- * device::UsbInterfaceAndroid.
+ * Exposes android.hardware.usb.UsbInterface as necessary for C++ device::UsbInterfaceAndroid.
  *
- * Lifetime is controlled by device::UsbInterfaceAndroid.
+ * <p>Lifetime is controlled by device::UsbInterfaceAndroid.
  */
 @JNINamespace("device")
+@NullMarked
 final class ChromeUsbInterface {
     private static final String TAG = "Usb";
 

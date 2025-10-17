@@ -13,7 +13,7 @@
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/test/repeating_test_future.h"
+#include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/accessibility/magnification_manager.h"
@@ -22,6 +22,7 @@
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/common/pref_names.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -57,7 +58,7 @@ class LoginScreenDefaultPolicyBrowsertestBase
 
   void RefreshDevicePolicyAndWaitForPrefChange(const char* pref_name);
 
-  raw_ptr<Profile, ExperimentalAsh> login_profile_;
+  raw_ptr<Profile, DanglingUntriaged> login_profile_;
 };
 
 class LoginScreenDefaultPolicyLoginScreenBrowsertest
@@ -79,6 +80,8 @@ class LoginScreenDefaultPolicyLoginScreenBrowsertest
 
   void VerifyPrefFollowsRecommendation(const char* pref_name,
                                        const base::Value& recommended_value);
+  void VerifyPrefIsManaged(const char* pref_name,
+                           const base::Value& managed_value);
 };
 
 class LoginScreenDefaultPolicyInSessionBrowsertest
@@ -104,7 +107,7 @@ LoginScreenDefaultPolicyBrowsertestBase::
     : login_profile_(nullptr) {}
 
 LoginScreenDefaultPolicyBrowsertestBase::
-    ~LoginScreenDefaultPolicyBrowsertestBase() {}
+    ~LoginScreenDefaultPolicyBrowsertestBase() = default;
 
 void LoginScreenDefaultPolicyBrowsertestBase::SetUpOnMainThread() {
   DevicePolicyCrosBrowserTest::SetUpOnMainThread();
@@ -117,19 +120,20 @@ void LoginScreenDefaultPolicyBrowsertestBase::
   PrefService* prefs = login_profile_->GetPrefs();
   ASSERT_TRUE(prefs);
   PrefChangeRegistrar registrar;
-  base::test::RepeatingTestFuture<const char*> pref_changed_future;
+  base::test::TestFuture<const char*> pref_changed_future;
   registrar.Init(prefs);
-  registrar.Add(pref_name, base::BindRepeating(
-                               pref_changed_future.GetCallback(), pref_name));
+  registrar.Add(pref_name,
+                base::BindRepeating(pref_changed_future.GetRepeatingCallback(),
+                                    pref_name));
   RefreshDevicePolicy();
   EXPECT_EQ(pref_name, pref_changed_future.Take());
 }
 
 LoginScreenDefaultPolicyLoginScreenBrowsertest::
-    LoginScreenDefaultPolicyLoginScreenBrowsertest() {}
+    LoginScreenDefaultPolicyLoginScreenBrowsertest() = default;
 
 LoginScreenDefaultPolicyLoginScreenBrowsertest::
-    ~LoginScreenDefaultPolicyLoginScreenBrowsertest() {}
+    ~LoginScreenDefaultPolicyLoginScreenBrowsertest() = default;
 
 void LoginScreenDefaultPolicyLoginScreenBrowsertest::SetUpCommandLine(
     base::CommandLine* command_line) {
@@ -172,11 +176,22 @@ void LoginScreenDefaultPolicyLoginScreenBrowsertest::
   EXPECT_EQ(recommended_value, *pref->GetRecommendedValue());
 }
 
-LoginScreenDefaultPolicyInSessionBrowsertest::
-    LoginScreenDefaultPolicyInSessionBrowsertest() {}
+void LoginScreenDefaultPolicyLoginScreenBrowsertest::VerifyPrefIsManaged(
+    const char* pref_name,
+    const base::Value& managed_value) {
+  const PrefService::Preference* pref =
+      login_profile_->GetPrefs()->FindPreference(pref_name);
+  ASSERT_TRUE(pref);
+  EXPECT_TRUE(pref->IsManaged());
+  EXPECT_FALSE(pref->IsDefaultValue());
+  EXPECT_EQ(managed_value, *pref->GetValue());
+}
 
 LoginScreenDefaultPolicyInSessionBrowsertest::
-    ~LoginScreenDefaultPolicyInSessionBrowsertest() {}
+    LoginScreenDefaultPolicyInSessionBrowsertest() = default;
+
+LoginScreenDefaultPolicyInSessionBrowsertest::
+    ~LoginScreenDefaultPolicyInSessionBrowsertest() = default;
 
 void LoginScreenDefaultPolicyInSessionBrowsertest::SetUpOnMainThread() {
   LoginScreenDefaultPolicyBrowsertestBase::SetUpOnMainThread();
@@ -216,6 +231,12 @@ IN_PROC_BROWSER_TEST_F(LoginScreenDefaultPolicyLoginScreenBrowsertest,
   AccessibilityManager* accessibility_manager = AccessibilityManager::Get();
   ASSERT_TRUE(accessibility_manager);
   EXPECT_TRUE(accessibility_manager->IsLargeCursorEnabled());
+}
+
+IN_PROC_BROWSER_TEST_F(LoginScreenDefaultPolicyLoginScreenBrowsertest,
+                       DeviceLoginScreenDinosaurGameDisabled) {
+  // Verifies that the dinosaur game is disabled on the login screen.
+  VerifyPrefIsManaged(prefs::kAllowDinosaurEasterEgg, base::Value(false));
 }
 
 IN_PROC_BROWSER_TEST_F(LoginScreenDefaultPolicyLoginScreenBrowsertest,

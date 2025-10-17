@@ -4,20 +4,25 @@
 
 #include "chrome/browser/ash/input_method/assistive_prefs.h"
 
+#include <optional>
+
 #include "ash/constants/ash_pref_names.h"
 #include "base/values.h"
+#include "chrome/browser/ash/input_method/input_method_settings.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 namespace input_method {
 
-bool IsPredictiveWritingPrefEnabled(PrefService* pref_service,
+bool IsPredictiveWritingPrefEnabled(const PrefService& pref_service,
                                     const std::string& engine_id) {
+  if (!IsPhysicalKeyboardPredictiveWritingAllowed(pref_service)) {
+    return false;
+  }
   const base::Value::Dict& input_method_settings =
-      pref_service->GetDict(::prefs::kLanguageInputMethodSpecificSettings);
-  absl::optional<bool> predictive_writing_setting =
+      pref_service.GetDict(::prefs::kLanguageInputMethodSpecificSettings);
+  std::optional<bool> predictive_writing_setting =
       input_method_settings.FindBoolByDottedPath(
           engine_id + ".physicalKeyboardEnablePredictiveWriting");
   // If no preference has been set yet by the user then we can assume the

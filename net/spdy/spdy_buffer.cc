@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/spdy/spdy_buffer.h"
 
 #include <cstring>
@@ -11,7 +16,7 @@
 #include "base/functional/callback.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "net/base/io_buffer.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
 
 namespace net {
 
@@ -31,8 +36,8 @@ std::unique_ptr<spdy::SpdySerializedFrame> MakeSpdySerializedFrame(
 
   auto frame_data = std::make_unique<char[]>(size);
   std::memcpy(frame_data.get(), data, size);
-  return std::make_unique<spdy::SpdySerializedFrame>(frame_data.release(), size,
-                                                     true /* owns_buffer */);
+  return std::make_unique<spdy::SpdySerializedFrame>(std::move(frame_data),
+                                                     size);
 }
 
 }  // namespace
@@ -44,7 +49,7 @@ class SpdyBuffer::SharedFrameIOBuffer : public IOBuffer {
  public:
   SharedFrameIOBuffer(const scoped_refptr<SharedFrame>& shared_frame,
                       size_t offset)
-      : IOBuffer(shared_frame->data->data() + offset),
+      : IOBuffer(base::span(*shared_frame->data).subspan(offset)),
         shared_frame_(shared_frame) {}
 
   SharedFrameIOBuffer(const SharedFrameIOBuffer&) = delete;
@@ -52,8 +57,9 @@ class SpdyBuffer::SharedFrameIOBuffer : public IOBuffer {
 
  private:
   ~SharedFrameIOBuffer() override {
-    // Prevent ~IOBuffer() from trying to delete |data_|.
-    data_ = nullptr;
+    // Prevent `data_` from dangling should this destructor remove the
+    // last reference to `shared_frame`.
+    ClearSpan();
   }
 
   const scoped_refptr<SharedFrame> shared_frame_;

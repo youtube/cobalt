@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/html/media/video_wake_lock.h"
 
 #include <memory>
+#include <utility>
 
 #include "cc/layers/layer.h"
 #include "media/mojo/mojom/media_player.mojom-blink.h"
@@ -13,8 +14,8 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom-blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
@@ -26,7 +27,10 @@
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/testing/wait_for_event.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/media/media_player_client.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
 #include "third_party/blink/renderer/platform/testing/empty_web_media_player.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
 namespace blink {
@@ -53,6 +57,8 @@ class VideoWakeLockPictureInPictureSession final
               const viz::SurfaceId&,
               const gfx::Size&,
               bool show_play_pause_button) override {}
+  void UpdateMediaPosition(
+      media_session::mojom::blink::MediaPositionPtr) override {}
 
  private:
   mojo::Receiver<mojom::blink::PictureInPictureSession> receiver_;
@@ -103,7 +109,7 @@ class VideoWakeLockMediaPlayer final : public EmptyWebMediaPlayer {
         viz::LocalSurfaceId(
             11, base::UnguessableToken::CreateForTesting(0x111111, 0)));
   }
-  absl::optional<viz::SurfaceId> GetSurfaceId() override { return surface_id_; }
+  std::optional<viz::SurfaceId> GetSurfaceId() override { return surface_id_; }
 
   bool HasAudio() const override { return has_audio_; }
   void SetHasAudio(bool has_audio) { has_audio_ = has_audio; }
@@ -118,7 +124,7 @@ class VideoWakeLockMediaPlayer final : public EmptyWebMediaPlayer {
   bool has_audio_ = true;
   bool has_video_ = true;
   gfx::Size size_ = kNormalVideoSize;
-  absl::optional<viz::SurfaceId> surface_id_;
+  std::optional<viz::SurfaceId> surface_id_;
 };
 
 class VideoWakeLockFrameClient : public test::MediaStubLocalFrameClient {
@@ -136,7 +142,7 @@ class VideoWakeLockTestWebFrameClient
       std::unique_ptr<WebMediaPlayer> web_media_player)
       : web_media_player_(std::move(web_media_player)) {}
 
-  WebMediaPlayer* CreateMediaPlayer(
+  std::unique_ptr<WebMediaPlayer> CreateMediaPlayer(
       const WebMediaPlayerSource&,
       WebMediaPlayerClient* client,
       blink::MediaInspectorContext*,
@@ -145,16 +151,20 @@ class VideoWakeLockTestWebFrameClient
       const WebString& sink_id,
       const cc::LayerTreeSettings* settings,
       scoped_refptr<base::TaskRunner> compositor_worker_task_runner) override {
-    web_media_player_client_ = client;
-    return web_media_player_.release();
+    media_player_client_ = static_cast<MediaPlayerClient*>(client);
+    return std::move(web_media_player_);
   }
 
-  WebMediaPlayerClient* web_media_player_client() const {
-    return web_media_player_client_;
+  MediaPlayerClient* media_player_client() const {
+    return media_player_client_;
+  }
+
+  void SetWebMediaPlayer(std::unique_ptr<WebMediaPlayer> web_media_player) {
+    web_media_player_ = std::move(web_media_player);
   }
 
  private:
-  WebMediaPlayerClient* web_media_player_client_ = nullptr;
+  MediaPlayerClient* media_player_client_ = nullptr;
   std::unique_ptr<WebMediaPlayer> web_media_player_;
 };
 
@@ -178,12 +188,13 @@ class VideoWakeLockTest : public testing::Test {
 
     GetDocument().body()->setInnerHTML(
         "<body><div></div><video></video></body>");
-    video_ = To<HTMLVideoElement>(GetDocument().QuerySelector("video"));
-    div_ = To<HTMLDivElement>(GetDocument().QuerySelector("div"));
+    video_ = To<HTMLVideoElement>(
+        GetDocument().QuerySelector(AtomicString("video")));
+    div_ = To<HTMLDivElement>(GetDocument().QuerySelector(AtomicString("div")));
     SetFakeCcLayer(fake_layer_.get());
     video_->SetReadyState(HTMLMediaElement::ReadyState::kHaveMetadata);
     video_wake_lock_ = MakeGarbageCollected<VideoWakeLock>(*video_.Get());
-    video_->SetSrc("http://example.com/foo.mp4");
+    video_->SetSrc(AtomicString("http://example.com/foo.mp4"));
     test::RunPendingTasks();
 
     GetPage().SetVisibilityState(mojom::blink::PageVisibilityState::kVisible,
@@ -198,8 +209,8 @@ class VideoWakeLockTest : public testing::Test {
   HTMLVideoElement* Video() const { return video_.Get(); }
   VideoWakeLock* GetVideoWakeLock() const { return video_wake_lock_.Get(); }
   VideoWakeLockMediaPlayer* GetMediaPlayer() const { return media_player_; }
-  WebMediaPlayerClient* GetMediaPlayerClient() const {
-    return client_->web_media_player_client();
+  MediaPlayerClient* GetMediaPlayerClient() const {
+    return client_->media_player_client();
   }
 
   LocalFrame& GetFrame() const { return *helper_.LocalMainFrame()->GetFrame(); }
@@ -259,6 +270,8 @@ class VideoWakeLockTest : public testing::Test {
 
   void UpdateObservers() {
     UpdateAllLifecyclePhasesForTest();
+    task_environment_.FastForwardBy(VideoWakeLock::kIntersectionObserverDelay +
+                                    base::Microseconds(1));
     test::RunPendingTasks();
   }
 
@@ -279,13 +292,24 @@ class VideoWakeLockTest : public testing::Test {
                                  CSSPrimitiveValue::UnitType::kPixels);
   }
 
+  HTMLDivElement* div() { return div_; }
+  HTMLVideoElement* video() { return video_; }
+
+  void RecreateWebMediaPlayer() {
+    auto media_player = std::make_unique<VideoWakeLockMediaPlayer>();
+    media_player_ = media_player.get();
+    client_->SetWebMediaPlayer(std::move(media_player));
+  }
+
  private:
+  test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<VideoWakeLockTestWebFrameClient> client_;
   Persistent<HTMLDivElement> div_;
   Persistent<HTMLVideoElement> video_;
   Persistent<VideoWakeLock> video_wake_lock_;
 
-  VideoWakeLockMediaPlayer* media_player_;
+  VideoWakeLockMediaPlayer* media_player_ = nullptr;
   scoped_refptr<cc::Layer> fake_layer_;
 
   VideoWakeLockPictureInPictureService pip_service_;
@@ -458,7 +482,7 @@ TEST_F(VideoWakeLockTest, LoadingCancelsLock) {
   // The network state has to be non-empty for the resetting to actually kick.
   SimulateNetworkState(HTMLMediaElement::kNetworkIdle);
 
-  Video()->SetSrc("");
+  Video()->SetSrc(g_empty_atom);
   test::RunPendingTasks();
   EXPECT_FALSE(HasWakeLock());
 }
@@ -562,10 +586,6 @@ TEST_F(VideoWakeLockTest, VideoWithFramesTakesLock) {
 }
 
 TEST_F(VideoWakeLockTest, HidingVideoOnlyReleasesLock) {
-  if (!GetVideoWakeLock()->HasStrictWakeLockForTests()) {
-    GTEST_SKIP();
-  }
-
   GetMediaPlayer()->SetHasAudio(false);
   ShowVideo();
   UpdateObservers();
@@ -578,10 +598,6 @@ TEST_F(VideoWakeLockTest, HidingVideoOnlyReleasesLock) {
 }
 
 TEST_F(VideoWakeLockTest, SmallMutedVideoDoesNotTakeLock) {
-  if (!GetVideoWakeLock()->HasStrictWakeLockForTests()) {
-    GTEST_SKIP();
-  }
-
   ASSERT_LT(
       kSmallVideoSize.Area64() / static_cast<double>(kWindowSize.Area64()),
       GetVideoWakeLock()->GetSizeThresholdForTests());
@@ -605,10 +621,6 @@ TEST_F(VideoWakeLockTest, SmallMutedVideoDoesNotTakeLock) {
 }
 
 TEST_F(VideoWakeLockTest, SizeChangeTakesLock) {
-  if (!GetVideoWakeLock()->HasStrictWakeLockForTests()) {
-    GTEST_SKIP();
-  }
-
   // Set player to take less than 20% of the page and mute it.
   GetMediaPlayer()->SetSize(kSmallVideoSize);
   Video()->setMuted(true);
@@ -632,10 +644,6 @@ TEST_F(VideoWakeLockTest, SizeChangeTakesLock) {
 }
 
 TEST_F(VideoWakeLockTest, MutedVideoTooFarOffscreenDoesNotTakeLock) {
-  if (!GetVideoWakeLock()->HasStrictWakeLockForTests()) {
-    GTEST_SKIP();
-  }
-
   Video()->setMuted(true);
 
   // Move enough of the video off screen to not take the lock.
@@ -653,6 +661,57 @@ TEST_F(VideoWakeLockTest, MutedVideoTooFarOffscreenDoesNotTakeLock) {
                (1 - kThreshold * 1.10) * kNormalVideoSize.height());
   UpdateObservers();
   EXPECT_TRUE(HasWakeLock());
+}
+
+TEST_F(VideoWakeLockTest, WakeLockTracksDocumentsPage) {
+  // Create a document that has no Page.
+  auto* another_document = Document::Create(GetDocument());
+  ASSERT_FALSE(another_document->GetPage());
+
+  // Move the video there, and notify our wake lock.
+  another_document->AppendChild(video());
+  GetVideoWakeLock()->ElementDidMoveToNewDocument();
+  EXPECT_FALSE(GetVideoWakeLock()->GetPage());
+
+  // Move the video back to the main page and verify that the wake lock notices.
+  div()->AppendChild(video());
+  GetVideoWakeLock()->ElementDidMoveToNewDocument();
+  EXPECT_EQ(GetVideoWakeLock()->GetPage(), video()->GetDocument().GetPage());
+}
+
+TEST_F(VideoWakeLockTest, VideoOnlyMediaStreamAlwaysTakesLock) {
+  // Default player is consumed on the first src=file load, so we must provide a
+  // new one for the MediaStream load below.
+  RecreateWebMediaPlayer();
+
+  // The "with audio" case is the same as the src=file case, so we only test the
+  // video only MediaStream case here.
+  GetMediaPlayer()->SetHasAudio(false);
+
+  MediaStreamComponentVector dummy_components;
+  auto* descriptor = MakeGarbageCollected<MediaStreamDescriptor>(
+      dummy_components, dummy_components);
+  Video()->SetSrcObjectVariant(descriptor);
+  test::RunPendingTasks();
+
+  ASSERT_EQ(Video()->GetLoadType(), WebMediaPlayer::kLoadTypeMediaStream);
+  EXPECT_FALSE(HasWakeLock());
+
+  GetMediaPlayer()->SetSize(kNormalVideoSize);
+  ShowVideo();
+  UpdateObservers();
+  SimulatePlaying();
+  EXPECT_TRUE(HasWakeLock());
+
+  // Set player to take less than 20% of the page and ensure wake lock is held.
+  GetMediaPlayer()->SetSize(kSmallVideoSize);
+  GetMediaPlayerClient()->SizeChanged();
+  UpdateObservers();
+  EXPECT_TRUE(HasWakeLock());
+
+  // Ensure normal wake lock release.
+  SimulatePause();
+  EXPECT_FALSE(HasWakeLock());
 }
 
 }  // namespace blink

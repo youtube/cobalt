@@ -11,6 +11,11 @@ source_set("test_support_common") {
   sources = [
     "decorators_utils.h",
     "graph_impl.h",
+    "page_aggregator.cc",
+    "page_aggregator.h",
+    "resource_attribution/gtest_util.h",
+    "test_browser_child_process.cc",
+    "test_browser_child_process.h",
     "test_harness_helper.cc",
     "test_harness_helper.h",
     "voting.h",
@@ -38,12 +43,24 @@ source_set("test_support") {
   testonly = true
 
   sources = [
+    "graph/mock_frame_node_observer.cc",
+    "graph/mock_frame_node_observer.h",
+    "graph/mock_page_node_observer.cc",
+    "graph/mock_page_node_observer.h",
+    "graph/mock_process_node_observer.cc",
+    "graph/mock_process_node_observer.h",
+    "graph/mock_system_node_observer.cc",
+    "graph/mock_system_node_observer.h",
+    "graph/mock_worker_node_observer.cc",
+    "graph/mock_worker_node_observer.h",
     "graph_test_harness.cc",
     "graph_test_harness.h",
     "mock_graphs.cc",
     "mock_graphs.h",
     "performance_manager_test_harness.cc",
     "performance_manager_test_harness.h",
+    "resource_attribution/measurement_delegates.cc",
+    "resource_attribution/measurement_delegates.h",
     "test_worker_node_factory.cc",
     "test_worker_node_factory.h",
   ]

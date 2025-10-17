@@ -4,9 +4,10 @@
 
 package org.chromium.ui.permissions;
 
-/**
- * Callback for permission requests.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Callback for permission requests. */
+@NullMarked
 public interface PermissionCallback {
     /**
      * Called upon completing a permission request.

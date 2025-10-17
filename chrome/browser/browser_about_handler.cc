@@ -39,9 +39,6 @@ bool HandleChromeAboutAndChromeSyncRewrite(
   if (host == chrome::kChromeUIAboutHost) {
     // Replace chrome://about with chrome://chrome-urls.
     host = chrome::kChromeUIChromeURLsHost;
-  } else if (host == chrome::kChromeUISyncHost) {
-    // Replace chrome://sync with chrome://sync-internals (for legacy reasons).
-    host = chrome::kChromeUISyncInternalsHost;
   }
 
   if (host != url->host()) {
@@ -55,6 +52,9 @@ bool HandleChromeAboutAndChromeSyncRewrite(
 }
 
 bool HandleNonNavigationAboutURL(const GURL& url) {
+  if (!url.is_valid()) {
+    return false;
+  }
   const std::string spec(url.spec());
 
   if (base::EqualsCaseInsensitiveASCII(spec, chrome::kChromeUIRestartURL)) {

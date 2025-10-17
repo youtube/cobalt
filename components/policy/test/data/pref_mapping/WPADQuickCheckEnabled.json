@@ -1,0 +1,24 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "fuchsia"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "WPADQuickCheckEnabled": true
+        },
+        "prefs": {
+          "proxy.quick_check_enabled": {
+            "location": "local_state",
+            "value": true
+          }
+        }
+      }
+    ]
+  }
+]

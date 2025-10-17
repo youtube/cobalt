@@ -5,14 +5,15 @@
 #ifndef CHROME_BROWSER_ASH_ARC_INSTANCE_THROTTLE_ARC_BOOT_PHASE_THROTTLE_OBSERVER_H_
 #define CHROME_BROWSER_ASH_ARC_INSTANCE_THROTTLE_ARC_BOOT_PHASE_THROTTLE_OBSERVER_H_
 
-#include "ash/components/arc/mojom/app.mojom.h"
-#include "ash/components/arc/mojom/intent_helper.mojom.h"
-#include "ash/components/arc/session/connection_holder.h"
+#include <optional>
+
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
-#include "chrome/browser/ash/throttle_observer.h"
 #include "chrome/browser/sessions/session_restore_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chromeos/ash/components/throttle/throttle_observer.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom.h"
+#include "chromeos/ash/experiences/arc/mojom/intent_helper.mojom.h"
+#include "chromeos/ash/experiences/arc/session/connection_holder.h"
 
 namespace content {
 class BrowserContext;
@@ -20,7 +21,7 @@ class BrowserContext;
 
 namespace arc {
 
-constexpr char kArcBootPhaseThrottleObserverName[] = "ArcIsBooting";
+inline constexpr char kArcBootPhaseThrottleObserverName[] = "ArcIsBooting";
 
 // This class observes phases of ARC boot and unthrottles the container
 // when ARC is booting or restarting.
@@ -59,7 +60,7 @@ class ArcBootPhaseThrottleObserver
 
   // If nullopt, ARC hasn't been started yet. Otherwise, true means ARC is
   // booting, and false means ARC has already booted.
-  const absl::optional<bool>& arc_is_booting() const { return arc_is_booting_; }
+  const std::optional<bool>& arc_is_booting() const { return arc_is_booting_; }
 
   static const base::TimeDelta& GetThrottleDelayForTesting();
 
@@ -73,7 +74,7 @@ class ArcBootPhaseThrottleObserver
 
   bool session_restore_loading_ = false;
   // This is set when one of the ArcSessionManagerObserver functions is called.
-  absl::optional<bool> arc_is_booting_;
+  std::optional<bool> arc_is_booting_;
 
   base::WeakPtrFactory<ArcBootPhaseThrottleObserver> weak_ptr_factory_{this};
 };

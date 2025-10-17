@@ -4,7 +4,7 @@
 
 package org.chromium.android_webview.test;
 
-import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.SINGLE_PROCESS;
+import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.EITHER_PROCESS;
 
 import androidx.test.filters.SmallTest;
 
@@ -24,14 +24,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test suite for {@link CleanupReference}. */
 @RunWith(AwJUnit4ClassRunner.class)
-@OnlyRunIn(SINGLE_PROCESS) // These are unit tests
+@OnlyRunIn(EITHER_PROCESS) // These are unit tests
 @Batch(Batch.UNIT_TESTS)
 public class CleanupReferenceTest {
-    private static AtomicInteger sObjectCount = new AtomicInteger();
+    private static final AtomicInteger sObjectCount = new AtomicInteger();
 
     private static class ReferredObject {
 
-        private CleanupReference mRef;
+        private final CleanupReference mRef;
 
         // Remember: this MUST be a static class, to avoid an implicit ref back to the
         // owning ReferredObject instance which would defeat GC of that object.
@@ -40,7 +40,7 @@ public class CleanupReferenceTest {
             public void run() {
                 sObjectCount.decrementAndGet();
             }
-        };
+        }
 
         public ReferredObject() {
             sObjectCount.incrementAndGet();

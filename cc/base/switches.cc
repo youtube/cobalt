@@ -6,7 +6,6 @@
 
 #include "base/command_line.h"
 
-namespace cc {
 namespace switches {
 
 const char kDisableThreadedAnimation[] = "disable-threaded-animation";
@@ -97,15 +96,9 @@ const char kUIShowScreenSpaceRects[] = "ui-show-screenspace-rects";
 // be highlighted. See DebugColors::NonLCDTextHighlightColor() for the colors.
 const char kHighlightNonLCDTextLayers[] = "highlight-non-lcd-text-layers";
 
-// Switches the ui compositor to use layer lists instead of layer trees.
-const char kUIEnableLayerLists[] = "ui-enable-layer-lists";
-
-// Enables the resume method on animated images.
-const char kAnimatedImageResume[] = "animated-image-resume";
-
 // Allows scaling clipped images in GpuImageDecodeCache. Note that this may
 // cause color-bleeding.
-// TODO(crbug.com/1157548): Remove this workaround flag once the underlying
+// TODO(crbug.com/40160880): Remove this workaround flag once the underlying
 // cache problems are solved.
 const char kEnableClippedImageScaling[] = "enable-scaling-clipped-images";
 
@@ -120,4 +113,3 @@ const char kCCScrollAnimationDurationForTesting[] =
     "cc-scroll-animation-duration-in-seconds";
 
 }  // namespace switches
-}  // namespace cc

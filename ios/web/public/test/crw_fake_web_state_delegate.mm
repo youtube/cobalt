@@ -7,10 +7,6 @@
 #import "ios/web/public/ui/context_menu_params.h"
 #import "ios/web/public/web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation CRWFakeWebStateDelegate {
   // Backs up the property with the same name.
   std::unique_ptr<web::WebState::OpenURLParams> _openURLParams;
@@ -63,8 +59,7 @@
 
 - (void)webState:(web::WebState*)webState
     handlePermissions:(NSArray<NSNumber*>*)permissions
-      decisionHandler:(web::WebStatePermissionDecisionHandler)decisionHandler
-    API_AVAILABLE(ios(15.0)) {
+      decisionHandler:(web::WebStatePermissionDecisionHandler)decisionHandler {
   _webState = webState;
   _permissionsRequestHandled = YES;
   decisionHandler(web::PermissionDecisionGrant);

@@ -12,6 +12,8 @@
 #define INLINE      inline
 #define VPX_ARCH_ARM 0
 #define ARCH_ARM 0
+#define VPX_ARCH_AARCH64 0
+#define ARCH_AARCH64 0
 #define VPX_ARCH_MIPS 1
 #define ARCH_MIPS 1
 #define VPX_ARCH_X86 0
@@ -22,8 +24,12 @@
 #define ARCH_PPC 0
 #define VPX_ARCH_LOONGARCH 0
 #define ARCH_LOONGARCH 0
-#define HAVE_NEON 0
 #define HAVE_NEON_ASM 0
+#define HAVE_NEON 0
+#define HAVE_NEON_DOTPROD 0
+#define HAVE_NEON_I8MM 0
+#define HAVE_SVE 0
+#define HAVE_SVE2 0
 #define HAVE_MIPS32 0
 #define HAVE_DSPR2 0
 #define HAVE_MSA 0
@@ -104,7 +110,6 @@
 #define CONFIG_FP_MB_STATS 0
 #define CONFIG_EMULATE_HARDWARE 0
 #define CONFIG_NON_GREEDY_MV 0
-#define CONFIG_RATE_CTRL 0
 #define CONFIG_COLLECT_COMPONENT_TIMING 0
 #define DECODE_WIDTH_LIMIT 16384
 #define DECODE_HEIGHT_LIMIT 16384

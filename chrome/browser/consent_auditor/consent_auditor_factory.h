@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 namespace consent_auditor {
@@ -30,13 +30,13 @@ class ConsentAuditorFactory : public ProfileKeyedServiceFactory {
   ConsentAuditorFactory& operator=(const ConsentAuditorFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<ConsentAuditorFactory>;
+  friend base::NoDestructor<ConsentAuditorFactory>;
 
   ConsentAuditorFactory();
   ~ConsentAuditorFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

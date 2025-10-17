@@ -9,14 +9,15 @@
 #include <vector>
 
 #include "net/base/net_export.h"
-#include "net/der/input.h"
+#include "third_party/boringssl/src/pki/input.h"
 
 namespace net {
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
 struct NET_EXPORT CertPrincipal {
   CertPrincipal();
-  explicit CertPrincipal(const std::string& name);
+  CertPrincipal(const CertPrincipal&);
+  CertPrincipal(CertPrincipal&&);
   ~CertPrincipal();
 
   // Configures handling of PrintableString values in the DistinguishedName. Do
@@ -26,13 +27,18 @@ struct NET_EXPORT CertPrincipal {
 
   // Parses a BER-format DistinguishedName.
   bool ParseDistinguishedName(
-      der::Input ber_name_data,
+      bssl::der::Input ber_name_data,
       PrintableStringHandling printable_string_handling =
           PrintableStringHandling::kDefault);
 
   // Returns a name that can be used to represent the issuer.  It tries in this
   // order: CN, O and OU and returns the first non-empty one found.
   std::string GetDisplayName() const;
+
+  // True if this object is equal to `other`. This is only exposed for testing,
+  // as a CertPrincipal object does not fully represent the X.509 Name it was
+  // parsed from, and comparing them likely does not mean what you want.
+  bool EqualsForTesting(const CertPrincipal& other) const;
 
   // The different attributes for a principal, stored in UTF-8.  They may be "".
   // Note that some of them can have several values.
@@ -42,10 +48,13 @@ struct NET_EXPORT CertPrincipal {
   std::string state_or_province_name;
   std::string country_name;
 
-  std::vector<std::string> street_addresses;
   std::vector<std::string> organization_names;
   std::vector<std::string> organization_unit_names;
-  std::vector<std::string> domain_components;
+
+ private:
+  // Comparison operator is private and only defined for use by
+  // EqualsForTesting, see comment there for more details.
+  bool operator==(const CertPrincipal& other) const;
 };
 
 }  // namespace net

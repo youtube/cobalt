@@ -8,12 +8,14 @@
 
 #include "libxml.h"
 #include <stdio.h>
+#include <libxml/xmlversion.h>
 
-#ifdef LIBXML_XPATH_ENABLED
+#if defined(LIBXML_XPATH_ENABLED) && defined(LIBXML_VALID_ENABLED)
 
 #include <string.h>
 #include <sys/stat.h>
 
+#include <libxml/catalog.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
@@ -81,20 +83,6 @@ static int nb_errors = 0;
 static int nb_leaks = 0;
 
 /*
- * We need to trap calls to the resolver to not account memory for the catalog
- * and not rely on any external resources.
- */
-static xmlParserInputPtr
-testExternalEntityLoader(const char *URL, const char *ID ATTRIBUTE_UNUSED,
-			 xmlParserCtxtPtr ctxt) {
-    xmlParserInputPtr ret;
-
-    ret = xmlNewInputFromFile(ctxt, (const char *) URL);
-
-    return(ret);
-}
-
-/*
  * Trapping the error messages at the generic level to grab the equivalent of
  * stderr messages on CLI tools.
  */
@@ -121,7 +109,7 @@ static void test_log(const char *msg, ...) {
 }
 
 static void
-testErrorHandler(void *userData ATTRIBUTE_UNUSED, xmlErrorPtr error) {
+testErrorHandler(void *userData ATTRIBUTE_UNUSED, const xmlError *error) {
     int res;
 
     if (testErrorsSize >= 32768)
@@ -148,12 +136,12 @@ static xmlXPathContextPtr ctxtXPath;
 
 static void
 initializeLibxml2(void) {
-    xmlGetWarningsDefaultValue = 0;
-    xmlPedanticParserDefault(0);
-
     xmlMemSetup(xmlMemFree, xmlMemMalloc, xmlMemRealloc, xmlMemoryStrdup);
     xmlInitParser();
-    xmlSetExternalEntityLoader(testExternalEntityLoader);
+#ifdef LIBXML_CATALOG_ENABLED
+    xmlInitializeCatalog();
+    xmlCatalogSetDefaults(XML_CATA_ALLOW_NONE);
+#endif
     ctxtXPath = xmlXPathNewContext(NULL);
     /*
     * Deactivate the cache if created; otherwise we have to create/free it
@@ -165,7 +153,6 @@ initializeLibxml2(void) {
     */
     if (ctxtXPath->cache != NULL)
 	xmlXPathContextSetCache(ctxtXPath, 0, -1, 0);
-    xmlSetStructuredErrorFunc(NULL, testErrorHandler);
 }
 
 /************************************************************************
@@ -186,6 +173,7 @@ xmlconfTestInvalid(const char *id, const char *filename, int options) {
 	         id, filename);
         return(0);
     }
+    xmlCtxtSetErrorHandler(ctxt, testErrorHandler, NULL);
     doc = xmlCtxtReadFile(ctxt, filename, NULL, options);
     if (doc == NULL) {
         test_log("test %s : %s invalid document turned not well-formed too\n",
@@ -216,6 +204,7 @@ xmlconfTestValid(const char *id, const char *filename, int options) {
 	         id, filename);
         return(0);
     }
+    xmlCtxtSetErrorHandler(ctxt, testErrorHandler, NULL);
     doc = xmlCtxtReadFile(ctxt, filename, NULL, options);
     if (doc == NULL) {
         test_log("test %s : %s failed to parse a valid document\n",
@@ -238,22 +227,27 @@ xmlconfTestValid(const char *id, const char *filename, int options) {
 
 static int
 xmlconfTestNotNSWF(const char *id, const char *filename, int options) {
+    xmlParserCtxtPtr ctxt;
     xmlDocPtr doc;
     int ret = 1;
 
+    ctxt = xmlNewParserCtxt();
+    xmlCtxtSetErrorHandler(ctxt, testErrorHandler, NULL);
     /*
      * In case of Namespace errors, libxml2 will still parse the document
      * but log a Namespace error.
      */
-    doc = xmlReadFile(filename, NULL, options);
+    doc = xmlCtxtReadFile(ctxt, filename, NULL, options);
     if (doc == NULL) {
         test_log("test %s : %s failed to parse the XML\n",
 	         id, filename);
         nb_errors++;
 	ret = 0;
     } else {
-	if ((xmlLastError.code == XML_ERR_OK) ||
-	    (xmlLastError.domain != XML_FROM_NAMESPACE)) {
+        const xmlError *error = xmlGetLastError();
+
+	if ((error->code == XML_ERR_OK) ||
+	    (error->domain != XML_FROM_NAMESPACE)) {
 	    test_log("test %s : %s failed to detect namespace error\n",
 		     id, filename);
 	    nb_errors++;
@@ -261,15 +255,19 @@ xmlconfTestNotNSWF(const char *id, const char *filename, int options) {
 	}
 	xmlFreeDoc(doc);
     }
+    xmlFreeParserCtxt(ctxt);
     return(ret);
 }
 
 static int
 xmlconfTestNotWF(const char *id, const char *filename, int options) {
+    xmlParserCtxtPtr ctxt;
     xmlDocPtr doc;
     int ret = 1;
 
-    doc = xmlReadFile(filename, NULL, options);
+    ctxt = xmlNewParserCtxt();
+    xmlCtxtSetErrorHandler(ctxt, testErrorHandler, NULL);
+    doc = xmlCtxtReadFile(ctxt, filename, NULL, options);
     if (doc != NULL) {
         test_log("test %s : %s failed to detect not well formedness\n",
 	         id, filename);
@@ -277,6 +275,7 @@ xmlconfTestNotWF(const char *id, const char *filename, int options) {
 	xmlFreeDoc(doc);
 	ret = 0;
     }
+    xmlFreeParserCtxt(ctxt);
     return(ret);
 }
 
@@ -406,7 +405,6 @@ xmlconfTestItem(xmlDocPtr doc, xmlNodePtr cur) {
         test_log("test %s : %s leaked %d bytes\n",
 	         id, filename, final - mem);
         nb_leaks++;
-	xmlMemDisplayLast(logfile, final - mem);
     }
     nb_tests++;
 
@@ -506,11 +504,13 @@ xmlconfInfo(void) {
 }
 
 static int
-xmlconfTest(void) {
-    const char *confxml = "xmlconf/xmlconf.xml";
+xmlconfTest(const char *dir) {
+    char confxml[500];
     xmlDocPtr doc;
     xmlNodePtr cur;
     int ret = 0;
+
+    snprintf(confxml, sizeof(confxml), "%s/xmlconf.xml", dir);
 
     if (!checkTestFile(confxml)) {
         fprintf(stderr, "%s is missing \n", confxml);
@@ -543,11 +543,13 @@ xmlconfTest(void) {
  ************************************************************************/
 
 int
-main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
+main(int argc, char **argv) {
     int ret = 0;
     int old_errors, old_tests, old_leaks;
+    const char *dir = "xmlconf";
+    int i;
 
-    logfile = fopen(LOGFILE, "w");
+    logfile = fopen(LOGFILE, "wb");
     if (logfile == NULL) {
         fprintf(stderr,
 	        "Could not open the log file, running in verbose mode\n");
@@ -555,14 +557,22 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
     }
     initializeLibxml2();
 
-    if ((argc >= 2) && (!strcmp(argv[1], "-v")))
-        verbose = 1;
-
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0) {
+            verbose = 1;
+        } else if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
+            i += 1;
+            dir = argv[i];
+        } else {
+            fprintf(stderr, "invalid argument: %s\n", argv[i]);
+            return 1;
+        }
+    }
 
     old_errors = nb_errors;
     old_tests = nb_tests;
     old_leaks = nb_leaks;
-    xmlconfTest();
+    xmlconfTest(dir);
     if ((nb_errors == old_errors) && (nb_leaks == old_leaks))
 	printf("Ran %d tests, no errors\n", nb_tests - old_tests);
     else
@@ -586,7 +596,6 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
     }
     xmlXPathFreeContext(ctxtXPath);
     xmlCleanupParser();
-    xmlMemoryDump();
 
     if (logfile != NULL)
         fclose(logfile);
@@ -594,9 +603,9 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
 }
 
 #else /* ! LIBXML_XPATH_ENABLED */
-#include <stdio.h>
 int
 main(int argc ATTRIBUTE_UNUSED, char **argv) {
-    fprintf(stderr, "%s need XPath support\n", argv[0]);
+    fprintf(stderr, "%s need XPath and validation support\n", argv[0]);
+    return(0);
 }
 #endif

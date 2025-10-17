@@ -24,6 +24,9 @@ Logger::Logger(const DebugMarkerManager* debug_marker_manager,
   Logger* this_temp = this;
   this_in_hex_ = std::string("GroupMarkerNotSet(crbug.com/242999)!:") +
       base::HexEncode(&this_temp, sizeof(this_temp));
+  suppress_performance_logs_ =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSuppressPerformanceLogs);
 }
 
 Logger::~Logger() = default;
@@ -36,8 +39,8 @@ void Logger::LogMessage(
     // LOG this unless logging is turned off as any chromium code that
     // generates these errors probably has a bug.
     if (log_synthesized_gl_errors_) {
-      ::logging::LogMessage(
-          filename, line, ::logging::LOG_ERROR).stream() << prefixed_msg;
+      ::logging::LogMessage(filename, line, ::logging::LOGGING_ERROR).stream()
+          << prefixed_msg;
     }
     log_message_callback_.Run(prefixed_msg);
   } else {
@@ -53,6 +56,10 @@ void Logger::LogMessage(
 const std::string& Logger::GetLogPrefix() const {
   const std::string& prefix(debug_marker_manager_->GetMarker());
   return prefix.empty() ? this_in_hex_ : prefix;
+}
+
+bool Logger::SuppressPerformanceLogs() const {
+  return suppress_performance_logs_;
 }
 
 }  // namespace gles2

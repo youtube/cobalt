@@ -4,9 +4,12 @@
 
 #include "quiche/quic/core/quic_server_id.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <vector>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic::test {
@@ -19,166 +22,120 @@ using ::testing::Property;
 class QuicServerIdTest : public QuicTest {};
 
 TEST_F(QuicServerIdTest, Constructor) {
-  QuicServerId google_server_id("google.com", 10, false);
+  QuicServerId google_server_id("google.com", 10);
   EXPECT_EQ("google.com", google_server_id.host());
   EXPECT_EQ(10, google_server_id.port());
-  EXPECT_FALSE(google_server_id.privacy_mode_enabled());
 
-  QuicServerId private_server_id("mail.google.com", 12, true);
+  QuicServerId private_server_id("mail.google.com", 12);
   EXPECT_EQ("mail.google.com", private_server_id.host());
   EXPECT_EQ(12, private_server_id.port());
-  EXPECT_TRUE(private_server_id.privacy_mode_enabled());
 }
 
 TEST_F(QuicServerIdTest, LessThan) {
-  QuicServerId a_10_https("a.com", 10, false);
-  QuicServerId a_11_https("a.com", 11, false);
-  QuicServerId b_10_https("b.com", 10, false);
-  QuicServerId b_11_https("b.com", 11, false);
+  QuicServerId a_10_https("a.com", 10);
+  QuicServerId a_11_https("a.com", 11);
+  QuicServerId b_10_https("b.com", 10);
+  QuicServerId b_11_https("b.com", 11);
 
-  QuicServerId a_10_https_private("a.com", 10, true);
-  QuicServerId a_11_https_private("a.com", 11, true);
-  QuicServerId b_10_https_private("b.com", 10, true);
-  QuicServerId b_11_https_private("b.com", 11, true);
-
-  // Test combinations of host, port, and privacy being same on left and
-  // right side of less than.
+  // Test combinations of host and port being same on left and right side of
+  // less than.
   EXPECT_FALSE(a_10_https < a_10_https);
-  EXPECT_TRUE(a_10_https < a_10_https_private);
-  EXPECT_FALSE(a_10_https_private < a_10_https);
-  EXPECT_FALSE(a_10_https_private < a_10_https_private);
+  EXPECT_TRUE(a_10_https < a_11_https);
 
   // Test with either host, port or https being different on left and right side
   // of less than.
-  bool left_privacy;
-  bool right_privacy;
-  for (int i = 0; i < 4; i++) {
-    left_privacy = (i / 2 == 0);
-    right_privacy = (i % 2 == 0);
-    QuicServerId a_10_https_left_private("a.com", 10, left_privacy);
-    QuicServerId a_10_https_right_private("a.com", 10, right_privacy);
-    QuicServerId a_11_https_left_private("a.com", 11, left_privacy);
-    QuicServerId a_11_https_right_private("a.com", 11, right_privacy);
-
-    QuicServerId b_10_https_left_private("b.com", 10, left_privacy);
-    QuicServerId b_10_https_right_private("b.com", 10, right_privacy);
-    QuicServerId b_11_https_left_private("b.com", 11, left_privacy);
-    QuicServerId b_11_https_right_private("b.com", 11, right_privacy);
-
-    EXPECT_TRUE(a_10_https_left_private < a_11_https_right_private);
-    EXPECT_TRUE(a_10_https_left_private < b_10_https_right_private);
-    EXPECT_TRUE(a_10_https_left_private < b_11_https_right_private);
-    EXPECT_FALSE(a_11_https_left_private < a_10_https_right_private);
-    EXPECT_FALSE(a_11_https_left_private < b_10_https_right_private);
-    EXPECT_TRUE(a_11_https_left_private < b_11_https_right_private);
-    EXPECT_FALSE(b_10_https_left_private < a_10_https_right_private);
-    EXPECT_TRUE(b_10_https_left_private < a_11_https_right_private);
-    EXPECT_TRUE(b_10_https_left_private < b_11_https_right_private);
-    EXPECT_FALSE(b_11_https_left_private < a_10_https_right_private);
-    EXPECT_FALSE(b_11_https_left_private < a_11_https_right_private);
-    EXPECT_FALSE(b_11_https_left_private < b_10_https_right_private);
-  }
+  EXPECT_TRUE(a_10_https < a_11_https);
+  EXPECT_TRUE(a_10_https < b_10_https);
+  EXPECT_TRUE(a_10_https < b_11_https);
+  EXPECT_FALSE(a_11_https < a_10_https);
+  EXPECT_FALSE(a_11_https < b_10_https);
+  EXPECT_TRUE(a_11_https < b_11_https);
+  EXPECT_FALSE(b_10_https < a_10_https);
+  EXPECT_TRUE(b_10_https < a_11_https);
+  EXPECT_TRUE(b_10_https < b_11_https);
+  EXPECT_FALSE(b_11_https < a_10_https);
+  EXPECT_FALSE(b_11_https < a_11_https);
+  EXPECT_FALSE(b_11_https < b_10_https);
 }
 
 TEST_F(QuicServerIdTest, Equals) {
-  bool left_privacy;
-  bool right_privacy;
-  for (int i = 0; i < 2; i++) {
-    left_privacy = right_privacy = (i == 0);
-    QuicServerId a_10_https_right_private("a.com", 10, right_privacy);
-    QuicServerId a_11_https_right_private("a.com", 11, right_privacy);
-    QuicServerId b_10_https_right_private("b.com", 10, right_privacy);
-    QuicServerId b_11_https_right_private("b.com", 11, right_privacy);
+  QuicServerId a_10_https("a.com", 10);
+  QuicServerId a_11_https("a.com", 11);
+  QuicServerId b_10_https("b.com", 10);
+  QuicServerId b_11_https("b.com", 11);
 
-    EXPECT_NE(a_10_https_right_private, a_11_https_right_private);
-    EXPECT_NE(a_10_https_right_private, b_10_https_right_private);
-    EXPECT_NE(a_10_https_right_private, b_11_https_right_private);
+  EXPECT_NE(a_10_https.cache_key(), a_11_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_10_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_11_https.cache_key());
+  EXPECT_NE(a_10_https, a_11_https);
+  EXPECT_NE(a_10_https, b_10_https);
+  EXPECT_NE(a_10_https, b_11_https);
 
-    QuicServerId new_a_10_https_left_private("a.com", 10, left_privacy);
-    QuicServerId new_a_11_https_left_private("a.com", 11, left_privacy);
-    QuicServerId new_b_10_https_left_private("b.com", 10, left_privacy);
-    QuicServerId new_b_11_https_left_private("b.com", 11, left_privacy);
+  QuicServerId new_a_10_https("a.com", 10);
+  QuicServerId new_a_11_https("a.com", 11);
+  QuicServerId new_b_10_https("b.com", 10);
+  QuicServerId new_b_11_https("b.com", 11);
 
-    EXPECT_EQ(new_a_10_https_left_private, a_10_https_right_private);
-    EXPECT_EQ(new_a_11_https_left_private, a_11_https_right_private);
-    EXPECT_EQ(new_b_10_https_left_private, b_10_https_right_private);
-    EXPECT_EQ(new_b_11_https_left_private, b_11_https_right_private);
-  }
-
-  for (int i = 0; i < 2; i++) {
-    right_privacy = (i == 0);
-    QuicServerId a_10_https_right_private("a.com", 10, right_privacy);
-    QuicServerId a_11_https_right_private("a.com", 11, right_privacy);
-    QuicServerId b_10_https_right_private("b.com", 10, right_privacy);
-    QuicServerId b_11_https_right_private("b.com", 11, right_privacy);
-
-    QuicServerId new_a_10_https_left_private("a.com", 10, false);
-
-    EXPECT_NE(new_a_10_https_left_private, a_11_https_right_private);
-    EXPECT_NE(new_a_10_https_left_private, b_10_https_right_private);
-    EXPECT_NE(new_a_10_https_left_private, b_11_https_right_private);
-  }
-  QuicServerId a_10_https_private("a.com", 10, true);
-  QuicServerId new_a_10_https_no_private("a.com", 10, false);
-  EXPECT_NE(new_a_10_https_no_private, a_10_https_private);
+  EXPECT_EQ(new_a_10_https.cache_key(), a_10_https.cache_key());
+  EXPECT_EQ(new_a_11_https.cache_key(), a_11_https.cache_key());
+  EXPECT_EQ(new_b_10_https.cache_key(), b_10_https.cache_key());
+  EXPECT_EQ(new_b_11_https.cache_key(), b_11_https.cache_key());
+  EXPECT_EQ(new_a_10_https, a_10_https);
+  EXPECT_EQ(new_a_11_https, a_11_https);
+  EXPECT_EQ(new_b_10_https, b_10_https);
+  EXPECT_EQ(new_b_11_https, b_11_https);
 }
 
 TEST_F(QuicServerIdTest, Parse) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("host.test:500");
 
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::host, "host.test")));
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::port, 500)));
-  EXPECT_THAT(server_id,
-              Optional(Property(&QuicServerId::privacy_mode_enabled, false)));
 }
 
 TEST_F(QuicServerIdTest, CannotParseMissingPort) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("host.test");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, CannotParseEmptyPort) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("host.test:");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, CannotParseEmptyHost) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString(":500");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, CannotParseUserInfo) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("userinfo@host.test:500");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, ParseIpv6Literal) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("[::1]:400");
 
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::host, "[::1]")));
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::port, 400)));
-  EXPECT_THAT(server_id,
-              Optional(Property(&QuicServerId::privacy_mode_enabled, false)));
 }
 
 TEST_F(QuicServerIdTest, ParseUnbracketedIpv6Literal) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("::1:400");
 
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::host, "::1")));
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::port, 400)));
-  EXPECT_THAT(server_id,
-              Optional(Property(&QuicServerId::privacy_mode_enabled, false)));
 }
 
 TEST_F(QuicServerIdTest, AddBracketsToIpv6) {
@@ -218,6 +175,47 @@ TEST_F(QuicServerIdTest, RemoveBracketsFromNonIpv6) {
   QuicServerId server_id("host.test", 100);
 
   EXPECT_EQ(server_id.GetHostWithoutIpv6Brackets(), "host.test");
+}
+
+TEST_F(QuicServerIdTest, CacheKeyEquals) {
+  QuicServerId a_10_https("a.com", 10, "key1");
+  QuicServerId a_11_https("a.com", 11, "key1");
+  QuicServerId b_10_https("b.com", 10, "key2");
+  QuicServerId b_11_https("b.com", 11, "key2");
+
+  EXPECT_EQ(a_10_https.cache_key(), a_10_https.cache_key());
+  EXPECT_EQ(a_10_https.cache_key(), a_11_https.cache_key());
+  EXPECT_EQ(b_10_https.cache_key(), b_11_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_10_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_11_https.cache_key());
+  EXPECT_NE(a_11_https.cache_key(), b_10_https.cache_key());
+  EXPECT_NE(a_11_https.cache_key(), b_11_https.cache_key());
+
+  EXPECT_EQ(a_10_https, a_10_https);
+  EXPECT_NE(a_10_https, a_11_https);
+  EXPECT_NE(b_10_https, b_11_https);
+  EXPECT_NE(a_10_https, b_10_https);
+  EXPECT_NE(a_10_https, b_11_https);
+  EXPECT_NE(a_11_https, b_10_https);
+  EXPECT_NE(a_11_https, b_11_https);
+
+  EXPECT_EQ(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_10_https));
+  EXPECT_NE(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_11_https));
+  EXPECT_NE(QuicServerIdHash()(b_10_https), QuicServerIdHash()(b_11_https));
+}
+
+TEST_F(QuicServerIdTest, CacheKeyLessThan) {
+  std::vector<QuicServerId> server_ids;
+  for (uint16_t port : {10, 11}) {
+    for (std::string host : {"a.com", "b.com"}) {
+      for (std::string cache_key : {"key1", "key2"}) {
+        server_ids.push_back(QuicServerId(host, port, cache_key));
+      }
+    }
+  }
+  for (size_t i = 0; i < server_ids.size() - 1; ++i) {
+    EXPECT_LT(server_ids[i], server_ids[i + 1]);
+  }
 }
 
 }  // namespace

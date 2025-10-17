@@ -3,8 +3,11 @@
 ## Quick Start
 
 ```bash
-$ git clone https://android.googlesource.com/platform/external/perfetto/
+$ git clone https://github.com/google/perfetto/
 $ cd perfetto
+
+# Install build dependencies
+tools/install-build-deps --ui
 
 # Will build into ./out/ui by default. Can be changed with --out path/
 # The final bundle will be available at ./ui/out/dist/.

@@ -18,7 +18,6 @@
 
 #if DCHECK_IS_ON()
 #include "base/auto_reset.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
 #endif
 
 namespace base {
@@ -29,7 +28,7 @@ namespace {
 // Used to verify that the trace events used in the constructor do not result in
 // instantiating a ScopedBlockingCall themselves (which would cause an infinite
 // reentrancy loop).
-ABSL_CONST_INIT thread_local bool construction_in_progress = false;
+constinit thread_local bool construction_in_progress = false;
 #endif
 
 }  // namespace
@@ -43,7 +42,7 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
   const AutoReset<bool> resetter(&construction_in_progress, true, false);
 #endif
 
-  internal::AssertBlockingAllowed();
+  AssertBlockingAllowed();
   TRACE_EVENT_BEGIN(
       "base", "ScopedBlockingCall", [&](perfetto::EventContext ctx) {
         ctx.event()->set_source_location_iid(

@@ -43,7 +43,7 @@ gfx::Size TestWindowDelegate::GetMinimumSize() const {
   return minimum_size_;
 }
 
-gfx::Size TestWindowDelegate::GetMaximumSize() const {
+std::optional<gfx::Size> TestWindowDelegate::GetMaximumSize() const {
   return maximum_size_;
 }
 
@@ -52,7 +52,7 @@ void TestWindowDelegate::OnBoundsChanged(const gfx::Rect& old_bounds,
 }
 
 gfx::NativeCursor TestWindowDelegate::GetCursor(const gfx::Point& point) {
-  return gfx::kNullCursor;
+  return gfx::NativeCursor{};
 }
 
 int TestWindowDelegate::GetNonClientComponent(const gfx::Point& point) const {
@@ -88,6 +88,14 @@ void TestWindowDelegate::OnWindowDestroyed(Window* window) {
 }
 
 void TestWindowDelegate::OnWindowTargetVisibilityChanged(bool visible) {
+}
+
+void TestWindowDelegate::OnWindowOcclusionChanged(
+    Window::OcclusionState old_occlusion_state,
+    Window::OcclusionState new_occlusion_state) {
+  if (on_occlusion_changed_) {
+    on_occlusion_changed_.Run();
+  }
 }
 
 bool TestWindowDelegate::HasHitTestMask() const {
@@ -157,10 +165,10 @@ EventCountDelegate::EventCountDelegate()
 
 void EventCountDelegate::OnKeyEvent(ui::KeyEvent* event) {
   switch (event->type()) {
-    case ui::ET_KEY_PRESSED:
+    case ui::EventType::kKeyPressed:
       key_press_count_++;
       break;
-    case ui::ET_KEY_RELEASED:
+    case ui::EventType::kKeyReleased:
       key_release_count_++;
       break;
     default:
@@ -170,19 +178,19 @@ void EventCountDelegate::OnKeyEvent(ui::KeyEvent* event) {
 
 void EventCountDelegate::OnMouseEvent(ui::MouseEvent* event) {
   switch (event->type()) {
-    case ui::ET_MOUSE_MOVED:
+    case ui::EventType::kMouseMoved:
       mouse_move_count_++;
       break;
-    case ui::ET_MOUSE_ENTERED:
+    case ui::EventType::kMouseEntered:
       mouse_enter_count_++;
       break;
-    case ui::ET_MOUSE_EXITED:
+    case ui::EventType::kMouseExited:
       mouse_leave_count_++;
       break;
-    case ui::ET_MOUSE_PRESSED:
+    case ui::EventType::kMousePressed:
       mouse_press_count_++;
       break;
-    case ui::ET_MOUSE_RELEASED:
+    case ui::EventType::kMouseReleased:
       mouse_release_count_++;
       break;
     default:

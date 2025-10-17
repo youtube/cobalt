@@ -8,7 +8,6 @@
 
 #include "ash/display/display_animator.h"
 #include "ash/display/display_util.h"
-#include "ash/display/window_tree_host_manager.h"
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/root_window_controller.h"
 #include "ash/rotator/screen_rotation_animator.h"
@@ -16,6 +15,7 @@
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/wallpaper/wallpaper_controller_impl.h"
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
@@ -55,7 +55,6 @@ display::DisplayPositionInUnifiedMatrix GetUnifiedModeShelfCellPosition() {
   }
 
   NOTREACHED();
-  return display::DisplayPositionInUnifiedMatrix::kBottomLeft;
 }
 
 }  // namespace
@@ -87,7 +86,7 @@ DisplayConfigurationController::DisplayConfigurationController(
     WindowTreeHostManager* window_tree_host_manager)
     : display_manager_(display_manager),
       window_tree_host_manager_(window_tree_host_manager) {
-  window_tree_host_manager_->AddObserver(this);
+  display_manager_->AddDisplayManagerObserver(this);
   if (base::SysInfo::IsRunningOnChromeOS()) {
     limiter_ = std::make_unique<DisplayChangeLimiter>();
   }
@@ -96,7 +95,7 @@ DisplayConfigurationController::DisplayConfigurationController(
 }
 
 DisplayConfigurationController::~DisplayConfigurationController() {
-  window_tree_host_manager_->RemoveObserver(this);
+  display_manager_->RemoveDisplayManagerObserver(this);
 }
 
 void DisplayConfigurationController::SetDisplayLayout(
@@ -163,8 +162,13 @@ void DisplayConfigurationController::SetDisplayRotation(
 
 display::Display::Rotation DisplayConfigurationController::GetTargetRotation(
     int64_t display_id) {
-  if (!display_manager_->IsDisplayIdValid(display_id))
+  // The display for `display_id` may exist but there may be no root window for
+  // it, such as in the case of Unified Display. Query for the target rotation
+  // only if the root window exists.
+  if (!display_manager_->IsDisplayIdValid(display_id) ||
+      !Shell::GetRootWindowForDisplayId(display_id)) {
     return display::Display::ROTATE_0;
+  }
 
   ScreenRotationAnimator* animator =
       GetScreenRotationAnimatorForDisplay(display_id);
@@ -198,7 +202,7 @@ DisplayConfigurationController::GetPrimaryMirroringDisplayForUnifiedDesktop()
       GetUnifiedModeShelfCellPosition());
 }
 
-void DisplayConfigurationController::OnDisplayConfigurationChanged() {
+void DisplayConfigurationController::OnDidApplyDisplayChanges() {
   // TODO(oshima): Stop all animations.
   SetThrottleTimeout(kAfterDisplayChangeThrottleTimeoutMs);
 }
@@ -233,7 +237,7 @@ void DisplayConfigurationController::SetDisplayLayoutImpl(
 void DisplayConfigurationController::SetMirrorModeImpl(bool mirror) {
   display_manager_->SetMirrorMode(
       mirror ? display::MirrorMode::kNormal : display::MirrorMode::kOff,
-      absl::nullopt);
+      std::nullopt);
   if (display_animator_)
     display_animator_->StartFadeInAnimation();
 }
@@ -255,8 +259,12 @@ void DisplayConfigurationController::SetUnifiedDesktopLayoutMatrixImpl(
 ScreenRotationAnimator*
 DisplayConfigurationController::GetScreenRotationAnimatorForDisplay(
     int64_t display_id) {
-  aura::Window* root_window = Shell::GetRootWindowForDisplayId(display_id);
-  return ScreenRotationAnimator::GetForRootWindow(root_window);
+  auto* root_controller =
+      Shell::GetRootWindowControllerWithDisplayId(display_id);
+  CHECK(root_controller);
+  auto* animator = root_controller->GetScreenRotationAnimator();
+  CHECK(animator);
+  return animator;
 }
 
 }  // namespace ash

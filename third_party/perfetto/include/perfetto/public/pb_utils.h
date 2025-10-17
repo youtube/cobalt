@@ -17,7 +17,9 @@
 #ifndef INCLUDE_PERFETTO_PUBLIC_PB_UTILS_H_
 #define INCLUDE_PERFETTO_PUBLIC_PB_UTILS_H_
 
+#include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "perfetto/public/compiler.h"
 
@@ -60,6 +62,32 @@ static inline uint8_t* PerfettoPbWriteVarInt(uint64_t value, uint8_t* dst) {
   return dst;
 }
 
+// Encodes `value` as a fixed32 (little endian) into `*dst`.
+//
+// `dst` must point into a buffer with at least 4 bytes of space.
+static inline uint8_t* PerfettoPbWriteFixed32(uint32_t value, uint8_t* buf) {
+  buf[0] = PERFETTO_STATIC_CAST(uint8_t, value);
+  buf[1] = PERFETTO_STATIC_CAST(uint8_t, value >> 8);
+  buf[2] = PERFETTO_STATIC_CAST(uint8_t, value >> 16);
+  buf[3] = PERFETTO_STATIC_CAST(uint8_t, value >> 24);
+  return buf + 4;
+}
+
+// Encodes `value` as a fixed32 (little endian) into `*dst`.
+//
+// `dst` must point into a buffer with at least 8 bytes of space.
+static inline uint8_t* PerfettoPbWriteFixed64(uint64_t value, uint8_t* buf) {
+  buf[0] = PERFETTO_STATIC_CAST(uint8_t, value);
+  buf[1] = PERFETTO_STATIC_CAST(uint8_t, value >> 8);
+  buf[2] = PERFETTO_STATIC_CAST(uint8_t, value >> 16);
+  buf[3] = PERFETTO_STATIC_CAST(uint8_t, value >> 24);
+  buf[4] = PERFETTO_STATIC_CAST(uint8_t, value >> 32);
+  buf[5] = PERFETTO_STATIC_CAST(uint8_t, value >> 40);
+  buf[6] = PERFETTO_STATIC_CAST(uint8_t, value >> 48);
+  buf[7] = PERFETTO_STATIC_CAST(uint8_t, value >> 56);
+  return buf + 8;
+}
+
 // Parses a VarInt from the encoded buffer [start, end). |end| is STL-style and
 // points one byte past the end of buffer.
 // The parsed int value is stored in the output arg |value|. Returns a pointer
@@ -84,6 +112,66 @@ static inline const uint8_t* PerfettoPbParseVarInt(const uint8_t* start,
   }
   *out_value = 0;
   return start;
+}
+
+static inline uint32_t PerfettoPbZigZagEncode32(int32_t value) {
+#if defined(__cplusplus) || \
+    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
+  // Right-shift of negative values is implementation specific.
+  // Assert the implementation does what we expect, which is that shifting an
+  // positive int32_t by 31 gives an all 0 bitmap, and a negative int32_t gives
+  // an all 1 bitmap.
+  static_assert(
+      PERFETTO_STATIC_CAST(uint32_t, INT32_C(-1) >> 31) == ~UINT32_C(0),
+      "implementation does not support assumed rightshift");
+  static_assert(PERFETTO_STATIC_CAST(uint32_t, INT32_C(1) >> 31) == UINT32_C(0),
+                "implementation does not support assumed rightshift");
+#endif
+
+  return (PERFETTO_STATIC_CAST(uint32_t, value) << 1) ^
+         PERFETTO_STATIC_CAST(uint32_t, value >> 31);
+}
+
+static inline uint64_t PerfettoPbZigZagEncode64(int64_t value) {
+#if defined(__cplusplus) || \
+    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
+  // Right-shift of negative values is implementation specific.
+  // Assert the implementation does what we expect, which is that shifting an
+  // positive int64_t by 63 gives an all 0 bitmap, and a negative int64_t gives
+  // an all 1 bitmap.
+  static_assert(
+      PERFETTO_STATIC_CAST(uint64_t, INT64_C(-1) >> 63) == ~UINT64_C(0),
+      "implementation does not support assumed rightshift");
+  static_assert(PERFETTO_STATIC_CAST(uint64_t, INT64_C(1) >> 63) == UINT64_C(0),
+                "implementation does not support assumed rightshift");
+#endif
+
+  return (PERFETTO_STATIC_CAST(uint64_t, value) << 1) ^
+         PERFETTO_STATIC_CAST(uint64_t, value >> 63);
+}
+
+static inline int32_t PerfettoPbZigZagDecode32(uint32_t value) {
+  uint32_t mask =
+      PERFETTO_STATIC_CAST(uint32_t, -PERFETTO_STATIC_CAST(int32_t, value & 1));
+  return PERFETTO_STATIC_CAST(int32_t, ((value >> 1) ^ mask));
+}
+
+static inline int64_t PerfettoPbZigZagDecode64(uint64_t value) {
+  uint64_t mask =
+      PERFETTO_STATIC_CAST(uint64_t, -PERFETTO_STATIC_CAST(int64_t, value & 1));
+  return PERFETTO_STATIC_CAST(int64_t, ((value >> 1) ^ mask));
+}
+
+static inline uint64_t PerfettoPbDoubleToFixed64(double value) {
+  uint64_t val;
+  memcpy(&val, &value, sizeof val);
+  return val;
+}
+
+static inline uint32_t PerfettoPbFloatToFixed32(float value) {
+  uint32_t val;
+  memcpy(&val, &value, sizeof val);
+  return val;
 }
 
 #endif  // INCLUDE_PERFETTO_PUBLIC_PB_UTILS_H_

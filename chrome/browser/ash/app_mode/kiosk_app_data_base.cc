@@ -4,16 +4,23 @@
 
 #include "chrome/browser/ash/app_mode/kiosk_app_data_base.h"
 
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_icon_loader.h"
 #include "chrome/browser/browser_process.h"
+#include "components/account_id/account_id.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/browser_thread.h"
@@ -32,7 +39,7 @@ constexpr char kKeyIcon[] = "icon";
 // Icon file extension.
 constexpr char kIconFileExtension[] = ".png";
 
-// Save |raw_icon| for given |app_id|.
+// Save `raw_icon` for given `app_id`.
 void SaveIconToLocalOnBlockingPool(const base::FilePath& icon_path,
                                    std::vector<unsigned char> image_data) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
@@ -48,11 +55,11 @@ void SaveIconToLocalOnBlockingPool(const base::FilePath& icon_path,
   }
 }
 
-void RemoveDictionaryPath(base::Value::Dict& dict, base::StringPiece path) {
-  base::StringPiece current_path(path);
+void RemoveDictionaryPath(base::Value::Dict& dict, std::string_view path) {
+  std::string_view current_path(path);
   base::Value::Dict* current_dictionary = &dict;
   size_t delimiter_position = current_path.rfind('.');
-  if (delimiter_position != base::StringPiece::npos) {
+  if (delimiter_position != std::string_view::npos) {
     current_dictionary =
         dict.FindDictByDottedPath(current_path.substr(0, delimiter_position));
     if (!current_dictionary) {
@@ -129,22 +136,24 @@ void KioskAppDataBase::DecodeIcon(KioskAppIconLoader::ResultCallback callback) {
 void KioskAppDataBase::SaveIcon(const SkBitmap& icon,
                                 const base::FilePath& cache_dir) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  std::vector<unsigned char> image_data;
-  if (!gfx::PNGCodec::EncodeBGRASkBitmap(icon, false, &image_data)) {
+  std::optional<std::vector<uint8_t>> image_data =
+      gfx::PNGCodec::EncodeBGRASkBitmap(icon, /*discard_transparency=*/false);
+  if (!image_data) {
     LOG(ERROR) << "Failed to encode kiosk icon";
     return;
   }
 
   const base::FilePath icon_path =
       cache_dir.AppendASCII(app_id_).AddExtension(kIconFileExtension);
-  base::ThreadPool::PostTask(FROM_HERE, {base::MayBlock()},
-                             base::BindOnce(&SaveIconToLocalOnBlockingPool,
-                                            icon_path, std::move(image_data)));
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock()},
+      base::BindOnce(&SaveIconToLocalOnBlockingPool, icon_path,
+                     std::move(image_data).value()));
 
   icon_path_ = icon_path;
 }
 
-void KioskAppDataBase::ClearCache() {
+void KioskAppDataBase::ClearCache() const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   PrefService* local_state = g_browser_process->local_state();
 

@@ -19,10 +19,11 @@ items:
   value: false
 owners:
 - khorimoto@google.com
-- cros-connectivity@google.com
+- cros-device-enablement@google.com
 schema:
   type: boolean
 supported_on:
 - chrome_os:97-
 tags: []
 type: main
+generate_device_proto: False

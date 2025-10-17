@@ -5,11 +5,11 @@
 #ifndef COMPONENTS_DOM_DISTILLER_CONTENT_BROWSER_DISTILLABLE_PAGE_UTILS_H_
 #define COMPONENTS_DOM_DISTILLER_CONTENT_BROWSER_DISTILLABLE_PAGE_UTILS_H_
 
+#include <optional>
 #include <ostream>
 
 #include "base/functional/callback.h"
 #include "base/observer_list_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class WebContents;
@@ -31,6 +31,7 @@ void IsDistillablePageForDetector(content::WebContents* web_contents,
 struct DistillabilityResult {
   bool is_distillable;
   bool is_last;
+  bool is_long_article;
   bool is_mobile_friendly;
 };
 
@@ -54,7 +55,7 @@ void AddObserver(content::WebContents* web_contents,
 void RemoveObserver(content::WebContents* web_contents,
                     DistillabilityObserver* observer);
 
-absl::optional<DistillabilityResult> GetLatestResult(
+std::optional<DistillabilityResult> GetLatestResult(
     content::WebContents* web_contents);
 
 }  // namespace dom_distiller

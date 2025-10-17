@@ -5,6 +5,7 @@
 #ifndef UI_ACCESSIBILITY_PLATFORM_CHILD_ITERATOR_BASE_H_
 #define UI_ACCESSIBILITY_PLATFORM_CHILD_ITERATOR_BASE_H_
 
+#include "base/component_export.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate.h"
 #include "ui/accessibility/platform/child_iterator.h"
 
@@ -22,7 +23,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) ChildIteratorBase : public ChildIterator {
   ChildIteratorBase& operator--() override;
   ChildIteratorBase operator--(int);
   gfx::NativeViewAccessible GetNativeViewAccessible() const override;
-  absl::optional<size_t> GetIndexInParent() const override;
+  std::optional<size_t> GetIndexInParent() const override;
   AXPlatformNodeDelegate* get() const override;
   AXPlatformNodeDelegate& operator*() const override;
   AXPlatformNodeDelegate* operator->() const override;

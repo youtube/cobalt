@@ -19,7 +19,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
-#include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/webui/shared_resources_data_source.h"
 #include "content/browser/webui/url_data_source_impl.h"
 #include "content/browser/webui/web_ui_data_source_impl.h"
@@ -32,7 +31,6 @@
 #include "content/public/common/url_constants.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "net/filter/source_stream.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/log/net_log_util.h"
@@ -65,9 +63,34 @@ bool SchemeIsInSchemes(const std::string& scheme,
   return base::Contains(schemes, scheme);
 }
 
+bool g_disallow_webui_scheme_caching_for_testing = false;
+
+std::vector<std::string> GetWebUISchemesSlow() {
+  std::vector<std::string> schemes;
+  schemes.emplace_back(kChromeUIScheme);
+  schemes.emplace_back(kChromeUIUntrustedScheme);
+  GetContentClient()->browser()->GetAdditionalWebUISchemes(&schemes);
+  return schemes;
+}
+
+std::vector<std::string> GetWebUISchemesCached() {
+  // It's OK to cache this in a static because the class implementing
+  // GetAdditionalWebUISchemes() won't change while the application is
+  // running, and because those methods always add the same items.
+  //
+  // However, be careful using this with unit tests which use
+  // GetAdditionalWebUISchemes() to change the list of WebUI schemes, since
+  // this caching may persist across tests. For those, this caching should be
+  // disabled via SetDisallowWebUISchemeCachingForTesting().
+  static base::NoDestructor<std::vector<std::string>> webui_schemes(
+      GetWebUISchemesSlow());
+
+  return *webui_schemes;
+}
+
 }  // namespace
 
-URLDataManagerBackend::URLDataManagerBackend() : next_request_id_(0) {
+URLDataManagerBackend::URLDataManagerBackend() {
   {
     // Add a shared data source for chrome://resources.
     auto* source = new WebUIDataSourceImpl(kChromeUIResourcesHost);
@@ -113,7 +136,6 @@ void URLDataManagerBackend::UpdateWebUIDataSource(
   auto it = data_sources_.find(source_name);
   if (it == data_sources_.end() || !it->second->IsWebUIDataSourceImpl()) {
     NOTREACHED();
-    return;
   }
   static_cast<WebUIDataSourceImpl*>(it->second.get())
       ->AddLocalizedStrings(update);
@@ -186,7 +208,7 @@ scoped_refptr<net::HttpResponseHeaders> URLDataManagerBackend::GetHeaders(
       csp_header.append(source->GetContentSecurityPolicy(directive));
     }
 
-    // TODO(crbug.com/1051745): Both CSP frame ancestors and XFO headers may be
+    // TODO(crbug.com/40118579): Both CSP frame ancestors and XFO headers may be
     // added to the response but frame ancestors would take precedence. In the
     // future, XFO will be removed so when that happens remove the check and
     // always add frame ancestors.
@@ -246,7 +268,6 @@ bool URLDataManagerBackend::CheckURLIsValid(const GURL& url) {
 
   if (!url.is_valid()) {
     NOTREACHED();
-    return false;
   }
 
   return true;
@@ -268,18 +289,16 @@ bool URLDataManagerBackend::IsValidNetworkErrorCode(int error_code) {
 }
 
 std::vector<std::string> URLDataManagerBackend::GetWebUISchemes() {
-  // It's OK to cache this in a static because the class implementing
-  // GetAdditionalWebUISchemes() won't change while the application is
-  // running, and because those methods always add the same items.
-  static base::NoDestructor<std::vector<std::string>> webui_schemes([]() {
-    std::vector<std::string> schemes;
-    schemes.emplace_back(kChromeUIScheme);
-    schemes.emplace_back(kChromeUIUntrustedScheme);
-    GetContentClient()->browser()->GetAdditionalWebUISchemes(&schemes);
-    return schemes;
-  }());
+  if (g_disallow_webui_scheme_caching_for_testing) {
+    return GetWebUISchemesSlow();
+  }
 
-  return *webui_schemes;
+  return GetWebUISchemesCached();
+}
+
+void URLDataManagerBackend::SetDisallowWebUISchemeCachingForTesting(
+    bool disallow_caching) {
+  g_disallow_webui_scheme_caching_for_testing = disallow_caching;
 }
 
 }  // namespace content

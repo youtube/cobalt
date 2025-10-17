@@ -27,6 +27,22 @@ perfetto_py_binary(
 )
 
 perfetto_go_proto_library(
+    name = "protos_perfetto_config_protos_go_proto",
+    visibility = PERFETTO_CONFIG.go_proto_library_visibility,
+    deps = [
+        ":protos_perfetto_config_protos",
+    ],
+)
+
+perfetto_go_proto_library(
+    name = "protos_perfetto_trace_minimal_protos_go_proto",
+    visibility = PERFETTO_CONFIG.go_proto_library_visibility,
+    deps = [
+        ":protos_perfetto_trace_minimal_protos",
+    ],
+)
+
+perfetto_go_proto_library(
     name = "protos_perfetto_trace_non_minimal_protos_go_proto",
     visibility = PERFETTO_CONFIG.go_proto_library_visibility,
     deps = [
@@ -58,6 +74,14 @@ perfetto_go_proto_library(
     ],
 )
 
+perfetto_jspb_proto_library(
+    name = "perfetto_trace_jspb_proto",
+    visibility = PERFETTO_CONFIG.public_visibility,
+    deps = [
+        ":trace_proto",
+    ],
+)
+
 # This is overridden in google internal builds via
 # PERFETTO_CONFIG.deps.version_header (see perfetto_cfg.bzl).
 perfetto_cc_library(
@@ -71,4 +95,9 @@ perfetto_py_binary(
     data = ["CHANGELOG"],
     main = "tools/write_version_header.py",
     python_version = "PY3",
+)
+
+exports_files(
+    ["ui/src/assets/favicon.png"],
+    visibility = PERFETTO_CONFIG.public_visibility,
 )

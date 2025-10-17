@@ -25,23 +25,31 @@ constexpr int kFovLeft = 0;
 constexpr int kFovRight = 1;
 constexpr int kFovBottom = 2;
 constexpr int kFovTop = 3;
+
+constexpr float kRadToDeg = 180.0f / M_PI;
 }  // anonymous namespace
 
 CardboardImageTransport::CardboardImageTransport(
-    std::unique_ptr<MailboxToSurfaceBridge> mailbox_bridge)
-    : XrImageTransportBase(std::move(mailbox_bridge)) {
+    std::unique_ptr<MailboxToSurfaceBridge> mailbox_bridge,
+    const gfx::Size& display_size)
+    : XrImageTransportBase(std::move(mailbox_bridge)),
+      display_size_(display_size) {
   DVLOG(2) << __func__;
 }
 
 CardboardImageTransport::~CardboardImageTransport() = default;
 
 void CardboardImageTransport::DoRuntimeInitialization() {
-  // TODO(https://crbug.com/1429088): Move this into helper classes rather than
+  // TODO(crbug.com/40900864): Move this into helper classes rather than
   // directly using the cardboard types here.
-  renderer_ = internal::ScopedCardboardObject<CardboardDistortionRenderer*>(
-      CardboardOpenGlEs2DistortionRenderer_create());
+  CardboardOpenGlEsDistortionRendererConfig config = {
+      CardboardSupportedOpenGlEsTextureType::kGlTexture2D,
+  };
 
-  surface_size_ = {0, 0};
+  renderer_ = internal::ScopedCardboardObject<CardboardDistortionRenderer*>(
+      CardboardOpenGlEs2DistortionRenderer_create(&config));
+
+  UpdateDistortionMesh();
 
   left_eye_description_.left_u = 0;
   left_eye_description_.right_u = 0.5;
@@ -54,22 +62,16 @@ void CardboardImageTransport::DoRuntimeInitialization() {
   right_eye_description_.bottom_v = 0;
 }
 
-void CardboardImageTransport::InitializeDistortionMesh(
-    const gfx::Size& frame_size) {
-  if (surface_size_ == frame_size) {
-    return;
-  }
-
-  // TODO(https://crbug.com/1429088): Move this into helper classes rather than
+void CardboardImageTransport::UpdateDistortionMesh() {
+  // TODO(crbug.com/40900864): Move this into helper classes rather than
   // directly using the cardboard types here.
-  // TODO(https://crbug.com/1429091): Actually query for saved params.
-  auto params = CardboardDeviceParams::GetV1DeviceParams();
+  auto params = CardboardDeviceParams::GetDeviceParams();
   CHECK(params.IsValid());
 
   lens_distortion_ = internal::ScopedCardboardObject<CardboardLensDistortion*>(
       CardboardLensDistortion_create(params.encoded_device_params(),
-                                     params.size(), frame_size.width(),
-                                     frame_size.height()));
+                                     params.size(), display_size_.width(),
+                                     display_size_.height()));
 
   CardboardMesh left_mesh;
   CardboardMesh right_mesh;
@@ -83,12 +85,9 @@ void CardboardImageTransport::InitializeDistortionMesh(
 }
 
 void CardboardImageTransport::Render(WebXrPresentationState* webxr,
-                                     GLuint framebuffer,
-                                     const gfx::Size& frame_size) {
+                                     GLuint framebuffer) {
   CHECK(webxr);
   CHECK(webxr->HaveRenderingFrame());
-
-  InitializeDistortionMesh(frame_size);
 
   WebXrFrame* frame = webxr->GetRenderingFrame();
 
@@ -102,39 +101,64 @@ void CardboardImageTransport::Render(WebXrPresentationState* webxr,
   // Mojo (and by extension RectF and the frame bounds), use a convention that
   // the origin is the top left; while OpenGL/Cardboard use the convention that
   // the origin for textures should be at the bottom left, so the top/bottom are
-  // intentionally inverted here.
-  left_eye_description_.top_v = left_bounds.bottom();
-  left_eye_description_.bottom_v = left_bounds.y();
-  right_eye_description_.top_v = right_bounds.bottom();
-  right_eye_description_.bottom_v = right_bounds.y();
+  // typically intentionally inverted here. However, WebGPU produces textures
+  // that are flipped relative to WebGL, so WebGPU textures don't need to be
+  // flipped.
+  const bool should_flip = !IsWebGPUSession();
+  if (should_flip) {
+    left_eye_description_.top_v = left_bounds.bottom();
+    left_eye_description_.bottom_v = left_bounds.y();
+    right_eye_description_.top_v = right_bounds.bottom();
+    right_eye_description_.bottom_v = right_bounds.y();
+  } else {
+    left_eye_description_.bottom_v = left_bounds.bottom();
+    left_eye_description_.top_v = left_bounds.y();
+    right_eye_description_.bottom_v = right_bounds.bottom();
+    right_eye_description_.top_v = right_bounds.y();
+  }
 
-  GLuint texture = GetRenderingTextureId(webxr);
+  LocalTexture texture = GetRenderingTexture(webxr);
+  CHECK_EQ(static_cast<uint32_t>(GL_TEXTURE_2D), texture.target);
 
-  left_eye_description_.texture = texture;
-  right_eye_description_.texture = texture;
+  left_eye_description_.texture = texture.id;
+  right_eye_description_.texture = texture.id;
 
   // "x" and "y" below refer to the lower left pixel coordinates, which should
   // be 0,0.
   CardboardDistortionRenderer_renderEyeToDisplay(
       renderer_.get(), /*target_display =*/0, /*x=*/0, /*y=*/0,
-      frame_size.width(), frame_size.height(), &left_eye_description_,
+      display_size_.width(), display_size_.height(), &left_eye_description_,
       &right_eye_description_);
 }
 
-mojom::VRFieldOfViewPtr CardboardImageTransport::GetFOV(
-    CardboardEye eye,
-    const gfx::Size& frame_size) {
-  InitializeDistortionMesh(frame_size);
-  float fov[4];
-  CardboardLensDistortion_getFieldOfView(lens_distortion_.get(), eye, fov);
+mojom::VRFieldOfViewPtr CardboardImageTransport::GetFOV(CardboardEye eye) {
+  std::array<float, 4> fov;
+  CardboardLensDistortion_getFieldOfView(lens_distortion_.get(), eye,
+                                         fov.data());
 
-  return mojom::VRFieldOfView::New(fov[kFovTop], fov[kFovBottom], fov[kFovLeft],
-                                   fov[kFovRight]);
+  return mojom::VRFieldOfView::New(
+      fov[kFovTop] * kRadToDeg, fov[kFovBottom] * kRadToDeg,
+      fov[kFovLeft] * kRadToDeg, fov[kFovRight] * kRadToDeg);
+}
+
+gfx::Transform CardboardImageTransport::GetMojoFromView(
+    CardboardEye eye,
+    gfx::Transform mojo_from_viewer) {
+  float view_from_viewer[16];
+  CardboardLensDistortion_getEyeFromHeadMatrix(lens_distortion_.get(), eye,
+                                               view_from_viewer);
+  // This needs to be inverted because the Cardboard SDK appears to be giving
+  // back values that are the inverse of what WebXR expects.
+  gfx::Transform viewer_from_view =
+      gfx::Transform::ColMajorF(view_from_viewer).InverseOrIdentity();
+  return mojo_from_viewer * viewer_from_view;
 }
 
 std::unique_ptr<CardboardImageTransport> CardboardImageTransportFactory::Create(
-    std::unique_ptr<MailboxToSurfaceBridge> mailbox_bridge) {
-  return std::make_unique<CardboardImageTransport>(std::move(mailbox_bridge));
+    std::unique_ptr<MailboxToSurfaceBridge> mailbox_bridge,
+    const gfx::Size& display_size) {
+  return std::make_unique<CardboardImageTransport>(std::move(mailbox_bridge),
+                                                   display_size);
 }
 
 }  // namespace device

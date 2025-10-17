@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -113,6 +114,11 @@ bool QuicCryptoClientHandshaker::CryptoConnect() {
 
 int QuicCryptoClientHandshaker::num_sent_client_hellos() const {
   return num_client_hellos_;
+}
+
+bool QuicCryptoClientHandshaker::ResumptionAttempted() const {
+  QUICHE_DCHECK(false);
+  return false;
 }
 
 bool QuicCryptoClientHandshaker::IsResumption() const {

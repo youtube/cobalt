@@ -5,25 +5,24 @@
 #include "ash/system/geolocation/test_geolocation_url_loader_factory.h"
 
 #include <memory>
+#include <optional>
+#include <string>
 
-#include "base/json/json_string_value_serializer.h"
+#include "base/json/json_writer.h"
 
 namespace ash {
 
 namespace {
 
 // Creates a serialized dictionary string of the geoposition.
-std::string CreateResponseBody(const Geoposition& position) {
+std::optional<std::string> CreateResponseBody(const Geoposition& position) {
   base::Value::Dict value;
-  if (position.accuracy)
-    value.Set("accuracy", position.accuracy);
+  value.Set("accuracy", position.accuracy);
 
-  if (position.latitude && position.longitude) {
-    base::Value::Dict location;
-    location.Set("lat", position.latitude);
-    location.Set("lng", position.longitude);
-    value.Set("location", std::move(location));
-  }
+  base::Value::Dict location;
+  location.Set("lat", position.latitude);
+  location.Set("lng", position.longitude);
+  value.Set("location", std::move(location));
 
   if (position.error_code) {
     base::Value::Dict error;
@@ -31,10 +30,7 @@ std::string CreateResponseBody(const Geoposition& position) {
     value.Set("error", std::move(error));
   }
 
-  std::string serialized_response;
-  JSONStringValueSerializer serializer(&serialized_response);
-  serializer.Serialize(value);
-  return serialized_response;
+  return base::WriteJson(value);
 }
 
 }  // namespace
@@ -48,11 +44,14 @@ void TestGeolocationUrlLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& url_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  // Response must be added before `CreateLoaderAndStart()` to ensure the latest
+  // `position_` is reflected in the incoming request.
+  test_url_loader_factory_.AddResponse(
+      url_request.url.spec(),
+      CreateResponseBody(position_).value_or(std::string()));
   test_url_loader_factory_.CreateLoaderAndStart(
       std::move(receiver), request_id, options, url_request, std::move(client),
       traffic_annotation);
-  test_url_loader_factory_.AddResponse(url_request.url.spec(),
-                                       CreateResponseBody(position_));
 }
 
 void TestGeolocationUrlLoaderFactory::Clone(
@@ -63,7 +62,18 @@ void TestGeolocationUrlLoaderFactory::Clone(
 std::unique_ptr<network::PendingSharedURLLoaderFactory>
 TestGeolocationUrlLoaderFactory::Clone() {
   NOTREACHED();
-  return nullptr;
+}
+
+void TestGeolocationUrlLoaderFactory::SetValidPosition(double latitude,
+                                                       double longitude,
+                                                       base::Time timestamp) {
+  position_ = Geoposition();
+  position_.latitude = latitude;
+  position_.longitude = longitude;
+  position_.status = Geoposition::STATUS_OK;
+  position_.accuracy = 10;
+  position_.timestamp = timestamp;
+  CHECK(position_.Valid());
 }
 
 void TestGeolocationUrlLoaderFactory::ClearResponses() {

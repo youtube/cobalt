@@ -6,8 +6,9 @@
 #define COMPONENTS_FEATURE_ENGAGEMENT_INTERNAL_CHROME_VARIATIONS_CONFIGURATION_H_
 
 #include "base/feature_list.h"
-#include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 #include "components/feature_engagement/public/configuration.h"
+#include "components/feature_engagement/public/configuration_provider.h"
 #include "components/feature_engagement/public/feature_list.h"
 #include "components/feature_engagement/public/group_list.h"
 
@@ -15,11 +16,11 @@ namespace feature_engagement {
 
 // A ChromeVariationsConfiguration provides a configuration that is parsed from
 // Chrome variations feature params. It is required to call
-// ParseFeatureConfigs(...) with all the features that should be parsed.
+// LoadFeatureConfigs(...) with all the features that should be parsed or
+// specified from code.
 class ChromeVariationsConfiguration : public Configuration {
  public:
   ChromeVariationsConfiguration();
-
   ChromeVariationsConfiguration(const ChromeVariationsConfiguration&) = delete;
   ChromeVariationsConfiguration& operator=(
       const ChromeVariationsConfiguration&) = delete;
@@ -40,32 +41,35 @@ class ChromeVariationsConfiguration : public Configuration {
       const override;
   const std::vector<std::string> GetRegisteredGroups() const override;
 
-  // Parses the variations configuration for all of the given |features| and
-  // |groups| and stores the result. It is only valid to call ParseConfigs once.
-  void ParseConfigs(const FeatureVector& features, const GroupVector& groups);
+  // Read the variations configuration for all of the given |features| and
+  // |groups| using the `configuration_providers`, and stores the result. It is
+  // only valid to call this method once.
+  void LoadConfigs(const ConfigurationProviderList& configuration_providers,
+                   const FeatureVector& features,
+                   const GroupVector& groups);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  void UpdateConfig(const base::Feature& feature,
+                    const ConfigurationProvider* provider) override;
+
+  const Configuration::EventPrefixSet& GetRegisteredAllowedEventPrefixes()
+      const override;
+#endif
 
  private:
-  void ParseFeatureConfig(const base::Feature* feature,
-                          const FeatureVector& all_features,
-                          const GroupVector& all_groups);
-  void ParseGroupConfig(const base::Feature* group,
-                        const FeatureVector& all_features,
-                        const GroupVector& all_groups);
-
-  // Checks whether |feature| should use a client side config and fills in
-  // |params| the parameters for later parsing if necessary.
-  bool ShouldUseClientSideConfig(const base::Feature* feature,
-                                 base::FieldTrialParams* params);
-  // Attempts to get the client side config for |feature| and add its config to
-  // the config store. If |is_group| is true, then |feature| refers to a group
-  // configuration instead of a feature configuration.
-  void TryAddingClientSideConfig(const base::Feature* feature, bool is_group);
-  // Returns true if FeatureConfig was found with a local hard coded
-  // configuration.
-  bool MaybeAddClientSideFeatureConfig(const base::Feature* feature);
-  // Returns true if GroupConfig was found with a local hard coded
-  // configuration.
-  bool MaybeAddClientSideGroupConfig(const base::Feature* group);
+  void LoadFeatureConfig(
+      const base::Feature& feature,
+      const ConfigurationProviderList& configuration_providers,
+      const FeatureVector& all_features,
+      const GroupVector& all_groups);
+  void LoadGroupConfig(
+      const base::Feature& group,
+      const ConfigurationProviderList& configuration_providers);
+#if BUILDFLAG(IS_CHROMEOS)
+  void LoadAllowedEventPrefixes(
+      const base::Feature& feature,
+      const ConfigurationProviderList& configuration_providers);
+#endif
 
   // Expands any group names in the existing FeatureConfig fields into the
   // feature names that are in the group.
@@ -76,6 +80,11 @@ class ChromeVariationsConfiguration : public Configuration {
 
   // The current group configurations.
   GroupConfigMap group_configs_;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // The allowed set of prefixes.
+  EventPrefixSet event_prefixes_;
+#endif
 };
 
 }  // namespace feature_engagement

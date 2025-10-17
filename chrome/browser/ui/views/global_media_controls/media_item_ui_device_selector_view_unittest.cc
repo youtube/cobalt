@@ -4,13 +4,13 @@
 
 #include "chrome/browser/ui/views/global_media_controls/media_item_ui_device_selector_view.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/callback_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/media_router/media_route_starter.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/views/chrome_views_test_base.h"
+#include "components/global_media_controls/public/test/mock_device_service.h"
 #include "components/media_router/browser/presentation/start_presentation_context.h"
 #include "media/audio/audio_device_description.h"
 #include "media/base/media_switches.h"
@@ -31,6 +32,7 @@
 #include "ui/gfx/color_palette.h"
 #include "ui/views/test/button_test_api.h"
 
+using global_media_controls::test::MockDeviceListHost;
 using media_router::CastDialogController;
 using media_router::CastDialogModel;
 using media_router::UIMediaSink;
@@ -43,7 +45,7 @@ namespace {
 constexpr char kItemId[] = "item_id";
 constexpr char kSinkFriendlyName[] = "Nest Hub";
 
-ui::MouseEvent pressed_event(ui::ET_MOUSE_PRESSED,
+ui::MouseEvent pressed_event(ui::EventType::kMousePressed,
                              gfx::Point(),
                              gfx::Point(),
                              ui::EventTimeForNow(),
@@ -61,21 +63,6 @@ std::vector<global_media_controls::mojom::DevicePtr> CreateDevices() {
   devices.push_back(CreateDevice());
   return devices;
 }
-
-class MockDeviceListHost : public global_media_controls::mojom::DeviceListHost {
- public:
-  MockDeviceListHost() : receiver_(this) {}
-
-  MOCK_METHOD(void, SelectDevice, (const std::string& device_id));
-
-  mojo::PendingRemote<global_media_controls::mojom::DeviceListHost>
-  BindNewPipeAndPassRemote() {
-    return receiver_.BindNewPipeAndPassRemote();
-  }
-
- private:
-  mojo::Receiver<global_media_controls::mojom::DeviceListHost> receiver_;
-};
 
 class MockMediaNotificationDeviceProvider
     : public MediaNotificationDeviceProvider {
@@ -156,18 +143,31 @@ class MockMediaItemUIDeviceSelectorDelegate
 
 class MockCastDialogController : public CastDialogController {
  public:
-  MOCK_METHOD1(AddObserver, void(CastDialogController::Observer* observer));
-  MOCK_METHOD1(RemoveObserver, void(CastDialogController::Observer* observer));
-  MOCK_METHOD2(StartCasting,
-               void(const std::string& sink_id,
-                    media_router::MediaCastMode cast_mode));
-  MOCK_METHOD1(StopCasting, void(const std::string& route_id));
-  MOCK_METHOD1(ClearIssue, void(const media_router::Issue::Id& issue_id));
-  MOCK_METHOD1(FreezeRoute, void(const std::string& route_id));
-  MOCK_METHOD1(UnfreezeRoute, void(const std::string& route_id));
-  MOCK_METHOD0(TakeMediaRouteStarter,
-               std::unique_ptr<media_router::MediaRouteStarter>());
-  MOCK_METHOD1(RegisterDestructor, void(base::OnceClosure));
+  MOCK_METHOD(void,
+              AddObserver,
+              (CastDialogController::Observer * observer),
+              (override));
+  MOCK_METHOD(void,
+              RemoveObserver,
+              (CastDialogController::Observer * observer),
+              (override));
+  MOCK_METHOD(void,
+              StartCasting,
+              (const std::string& sink_id,
+               media_router::MediaCastMode cast_mode),
+              (override));
+  MOCK_METHOD(void, StopCasting, (const std::string& route_id), (override));
+  MOCK_METHOD(void,
+              ClearIssue,
+              (const media_router::Issue::Id& issue_id),
+              (override));
+  MOCK_METHOD(void, FreezeRoute, (const std::string& route_id), (override));
+  MOCK_METHOD(void, UnfreezeRoute, (const std::string& route_id), (override));
+  MOCK_METHOD(std::unique_ptr<media_router::MediaRouteStarter>,
+              TakeMediaRouteStarter,
+              (),
+              (override));
+  MOCK_METHOD(void, RegisterDestructor, (base::OnceClosure), (override));
 };
 
 }  // anonymous namespace
@@ -226,13 +226,14 @@ class MediaItemUIDeviceSelectorViewTest : public ChromeViewsTestBase {
       const std::string& current_device = "1",
       bool has_audio_output = true,
       global_media_controls::GlobalMediaControlsEntryPoint entry_point =
-          global_media_controls::GlobalMediaControlsEntryPoint::kToolbarIcon) {
+          global_media_controls::GlobalMediaControlsEntryPoint::kToolbarIcon,
+      bool show_devices = false) {
     client_remote_.reset();
     device_list_host_ = std::make_unique<MockDeviceListHost>();
     auto device_selector_view = std::make_unique<MediaItemUIDeviceSelectorView>(
-        kItemId, delegate, device_list_host_->BindNewPipeAndPassRemote(),
+        kItemId, delegate, device_list_host_->PassRemote(),
         client_remote_.BindNewPipeAndPassReceiver(), has_audio_output,
-        entry_point);
+        entry_point, show_devices);
     device_selector_view->UpdateCurrentAudioDevice(current_device);
     return device_selector_view;
   }
@@ -317,12 +318,13 @@ TEST_F(MediaItemUIDeviceSelectorViewTest, DeviceEntryContainerVisibility) {
   view_ = CreateDeviceSelectorView(&delegate);
   EXPECT_FALSE(view_->GetDeviceEntryViewVisibilityForTesting());
 
-  // The device entry container should be expanded if the media dialog is opened
-  // for a presentation request.
+  // The device entry container should be expanded if it is requested to show
+  // devices.
   view_ = CreateDeviceSelectorView(
       &delegate, "1",
-      /* has_audio_output */ true,
-      global_media_controls::GlobalMediaControlsEntryPoint::kPresentation);
+      /*has_audio_output=*/true,
+      global_media_controls::GlobalMediaControlsEntryPoint::kSystemTray,
+      /*show_devices=*/true);
   EXPECT_TRUE(view_->GetDeviceEntryViewVisibilityForTesting());
 }
 
@@ -372,7 +374,7 @@ TEST_F(MediaItemUIDeviceSelectorViewTest, CurrentAudioDeviceHighlighted) {
   AddAudioDevices(delegate);
   view_ = CreateDeviceSelectorView(&delegate, "3");
 
-  auto* first_entry = GetDeviceEntryViewsContainer()->children().front();
+  auto* first_entry = GetDeviceEntryViewsContainer()->children().front().get();
   EXPECT_EQ(EntryLabelText(first_entry), "Earbuds");
   EXPECT_TRUE(IsHighlighted(first_entry));
 }
@@ -388,8 +390,8 @@ TEST_F(MediaItemUIDeviceSelectorViewTest, AudioDeviceHighlightedOnChange) {
   // There should be only one highlighted button. It should be the first button.
   // It's text should be "Speaker"
   auto highlight_pred = [this](views::View* v) { return IsHighlighted(v); };
-  EXPECT_EQ(base::ranges::count_if(container_children, highlight_pred), 1);
-  EXPECT_EQ(base::ranges::find_if(container_children, highlight_pred),
+  EXPECT_EQ(std::ranges::count_if(container_children, highlight_pred), 1);
+  EXPECT_EQ(std::ranges::find_if(container_children, highlight_pred),
             container_children.begin());
   EXPECT_EQ(EntryLabelText(container_children.front()), "Speaker");
 
@@ -397,8 +399,8 @@ TEST_F(MediaItemUIDeviceSelectorViewTest, AudioDeviceHighlightedOnChange) {
   view_->UpdateCurrentAudioDevice("3");
 
   // The button for "Earbuds" should come before all others & be highlighted.
-  EXPECT_EQ(base::ranges::count_if(container_children, highlight_pred), 1);
-  EXPECT_EQ(base::ranges::find_if(container_children, highlight_pred),
+  EXPECT_EQ(std::ranges::count_if(container_children, highlight_pred), 1);
+  EXPECT_EQ(std::ranges::find_if(container_children, highlight_pred),
             container_children.begin());
   EXPECT_EQ(EntryLabelText(container_children.front()), "Earbuds");
 }
@@ -439,7 +441,7 @@ TEST_F(MediaItemUIDeviceSelectorViewTest, AudioDeviceButtonsChange) {
 
     // When the device highlighted in the UI is removed, and there is no default
     // device, the UI should not highlight any of the devices.
-    for (auto* device_view : container_children) {
+    for (views::View* device_view : container_children) {
       EXPECT_FALSE(IsHighlighted(device_view));
     }
   }

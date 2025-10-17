@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {assert} from '../assert.js';
+import {isFileSystemDirectoryHandle} from '../util.js';
 import {WaitableEvent} from '../waitable_event.js';
 
 import {
@@ -17,33 +18,25 @@ import {
 } from './file_system_access_entry.js';
 import * as idb from './idb.js';
 import {getMaybeLazyDirectory} from './lazy_directory_entry.js';
+import {isLocalDev} from './load_time_data.js';
 
 
 /**
- * Checks if the entry's name has the video prefix.
- *
- * @param entry File entry.
- * @return Has the video prefix or not.
+ * Checks if the given |entry|'s name has the video prefix.
  */
 export function hasVideoPrefix(entry: FileAccessEntry): boolean {
   return entry.name.startsWith(VIDEO_PREFIX);
 }
 
 /**
- * Checks if the entry's name has the image prefix.
- *
- * @param entry File entry.
- * @return Has the image prefix or not.
+ * Checks if the given |entry|'s name has the image prefix.
  */
 function hasImagePrefix(entry: FileAccessEntry): boolean {
   return entry.name.startsWith(IMAGE_PREFIX);
 }
 
 /**
- * Checks if the entry's name has the document prefix.
- *
- * @param entry File entry.
- * @return Has the document prefix or not.
+ * Checks if the given |entry|'s name has the document prefix.
  */
 function hasDocumentPrefix(entry: FileAccessEntry): boolean {
   return entry.name.startsWith(DOCUMENT_PREFIX);
@@ -62,7 +55,8 @@ let cameraTempDir: DirectoryAccessEntry|null = null;
 /**
  * Gets camera directory used by CCA.
  */
-export function getCameraDirectory(): DirectoryAccessEntry|null {
+export function getCameraDirectory(): DirectoryAccessEntry {
+  assert(cameraDir !== null);
   return cameraDir;
 }
 
@@ -81,7 +75,7 @@ async function initCameraTempDir(): Promise<DirectoryAccessEntry> {
  *
  * @return Promise for the directory result.
  */
-async function initCameraDirectory(): Promise<DirectoryAccessEntry|null> {
+async function initCameraDirectory(): Promise<DirectoryAccessEntry> {
   const handle = new WaitableEvent<FileSystemDirectoryHandle>();
 
   // We use the sessionStorage to decide if we should use the handle in the
@@ -98,13 +92,13 @@ async function initCameraDirectory(): Promise<DirectoryAccessEntry|null> {
     assert(launchQueue !== undefined);
     launchQueue.setConsumer(async (launchParams) => {
       assert(launchParams.files.length > 0);
-      const dir: FileSystemHandle = launchParams.files[0];
-      assert(dir.kind === 'directory');
+      const dir = launchParams.files[0];
+      assert(isFileSystemDirectoryHandle(dir));
 
       await idb.set(idb.KEY_CAMERA_DIRECTORY_HANDLE, dir);
       window.sessionStorage.setItem('IsConsumedHandle', 'true');
 
-      handle.signal(dir as FileSystemDirectoryHandle);
+      handle.signal(dir);
     });
   }
   const dir = await handle.wait();
@@ -116,20 +110,31 @@ async function initCameraDirectory(): Promise<DirectoryAccessEntry|null> {
  * Initializes file systems. This function should be called only once in the
  * beginning of the app.
  */
-export async function initialize(): Promise<void> {
-  cameraDir = await initCameraDirectory();
-  assert(cameraDir !== null);
+export async function initialize(shouldHandleIntentResult: boolean):
+    Promise<void> {
+  if (shouldHandleIntentResult || isLocalDev()) {
+    // If shouldHandleIntentResult is true, CCA is launched in a system dialog,
+    // and the camera folder isn't accessible via launchQueue. We use OPFS as a
+    // temporary storage for the ongoing video in this case.
+    //
+    // TODO(pihsun): For local dev, add expert mode option for developer to
+    // point the camera folder to a local folder.
+    const root = await navigator.storage.getDirectory();
+    cameraDir = await getMaybeLazyDirectory(
+        new DirectoryAccessEntryImpl(root), 'Camera');
+  } else {
+    cameraDir = await initCameraDirectory();
+  }
 
   cameraTempDir = await initCameraTempDir();
-  assert(cameraTempDir !== null);
 }
 
 /**
- * Saves photo blob or metadata blob into predefined default location.
+ * Saves photo blob or metadata blob into predefined default location and
+ * returns the file.
  *
  * @param blob Data of the photo to be saved.
  * @param name Filename of the photo to be saved.
- * @return Promise for the result.
  */
 export async function saveBlob(
     blob: Blob, name: string): Promise<FileAccessEntry> {
@@ -144,7 +149,6 @@ export async function saveBlob(
 const PRIVATE_TEMPFILE_NAME = 'video-tmp.mp4';
 
 /**
- * @return Newly created temporary file.
  * @throws If failed to create video temp file.
  */
 export async function createPrivateTempVideoFile(name = PRIVATE_TEMPFILE_NAME):
@@ -152,7 +156,7 @@ export async function createPrivateTempVideoFile(name = PRIVATE_TEMPFILE_NAME):
   const dir = cameraTempDir;
   assert(dir !== null);
 
-  // Delete the previous temporary file if there is any.
+  // Deletes the previous temporary file if there is any.
   await dir.removeEntry(name);
 
   const file = await dir.createFile(name);
@@ -164,8 +168,6 @@ export async function createPrivateTempVideoFile(name = PRIVATE_TEMPFILE_NAME):
 
 /**
  * Gets the picture entries.
- *
- * @return Promise for the picture entries.
  */
 export async function getEntries(): Promise<FileAccessEntry[]> {
   assert(cameraDir !== null);
@@ -175,17 +177,14 @@ export async function getEntries(): Promise<FileAccessEntry[]> {
         !hasDocumentPrefix(entry)) {
       return false;
     }
-    return entry.name.match(/_(\d{8})_(\d{6})(?: \((\d+)\))?/);
+    return /_(\d{8})_(\d{6})(?: \((\d+)\))?/.exec(entry.name) !== null;
   });
 }
 
 /**
- * Returns an URL for a picture given by the file |entry|.
- *
- * @param entry The file entry of the picture.
- * @return Promise for the result.
+ * Returns an Object URL for a file `entry`.
  */
-export async function pictureURL(entry: FileAccessEntry): Promise<string> {
+export async function getObjectURL(entry: FileAccessEntry): Promise<string> {
   const file = await entry.file();
   return URL.createObjectURL(file);
 }

@@ -34,8 +34,9 @@ ContentInfoBarManager::NavigationDetailsFromLoadCommittedDetails(
 // static
 content::WebContents* ContentInfoBarManager::WebContentsFromInfoBar(
     InfoBar* infobar) {
-  if (!infobar || !infobar->owner())
+  if (!infobar || !infobar->owner()) {
     return nullptr;
+  }
   ContentInfoBarManager* infobar_manager =
       static_cast<ContentInfoBarManager*>(infobar->owner());
   return infobar_manager->web_contents();
@@ -48,8 +49,9 @@ ContentInfoBarManager::ContentInfoBarManager(content::WebContents* web_contents)
   // Infobar animations cause viewport resizes. Disable them for automated
   // tests, since they could lead to flakiness.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableAutomation))
+          switches::kEnableAutomation)) {
     set_animations_enabled(false);
+  }
 }
 
 ContentInfoBarManager::~ContentInfoBarManager() {
@@ -84,8 +86,9 @@ void ContentInfoBarManager::NavigationEntryCommitted(
       ui::PageTransitionCoreTypeIs(load_details.entry->GetTransitionType(),
                                    ui::PAGE_TRANSITION_RELOAD);
   ignore_next_reload_ = false;
-  if (!ignore)
+  if (!ignore) {
     OnNavigation(NavigationDetailsFromLoadCommittedDetails(load_details));
+  }
 }
 
 void ContentInfoBarManager::WebContentsDestroyed() {
@@ -111,7 +114,8 @@ void ContentInfoBarManager::OpenURL(const GURL& url,
                              (disposition == WindowOpenDisposition::CURRENT_TAB)
                                  ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                                  : disposition,
-                             ui::PAGE_TRANSITION_LINK, false));
+                             ui::PAGE_TRANSITION_LINK, false),
+      /*navigation_handle_callback=*/{});
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(ContentInfoBarManager);

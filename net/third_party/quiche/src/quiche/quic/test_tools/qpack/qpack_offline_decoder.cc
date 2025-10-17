@@ -27,8 +27,11 @@
 #include "quiche/quic/test_tools/qpack/qpack_offline_decoder.h"
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
@@ -130,7 +133,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     absl::string_view input_filename) {
   // Store data in |input_data_storage|; use a absl::string_view to
   // efficiently keep track of remaining portion yet to be decoded.
-  absl::optional<std::string> input_data_storage =
+  std::optional<std::string> input_data_storage =
       quiche::ReadFileContents(input_filename);
   QUICHE_DCHECK(input_data_storage.has_value());
   absl::string_view input_data(*input_data_storage);
@@ -228,17 +231,17 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
   // Store data in |expected_headers_data_storage|; use a
   // absl::string_view to efficiently keep track of remaining portion
   // yet to be decoded.
-  absl::optional<std::string> expected_headers_data_storage =
+  std::optional<std::string> expected_headers_data_storage =
       quiche::ReadFileContents(expected_headers_filename);
   QUICHE_DCHECK(expected_headers_data_storage.has_value());
   absl::string_view expected_headers_data(*expected_headers_data_storage);
 
   while (!decoded_header_lists_.empty()) {
-    spdy::Http2HeaderBlock decoded_header_list =
+    quiche::HttpHeaderBlock decoded_header_list =
         std::move(decoded_header_lists_.front());
     decoded_header_lists_.pop_front();
 
-    spdy::Http2HeaderBlock expected_header_list;
+    quiche::HttpHeaderBlock expected_header_list;
     if (!ReadNextExpectedHeaderList(&expected_headers_data,
                                     &expected_header_list)) {
       QUIC_LOG(ERROR)
@@ -265,7 +268,7 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
 
 bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
     absl::string_view* expected_headers_data,
-    spdy::Http2HeaderBlock* expected_header_list) {
+    quiche::HttpHeaderBlock* expected_header_list) {
   while (true) {
     absl::string_view::size_type endline = expected_headers_data->find('\n');
 
@@ -296,8 +299,8 @@ bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
 }
 
 bool QpackOfflineDecoder::CompareHeaderBlocks(
-    spdy::Http2HeaderBlock decoded_header_list,
-    spdy::Http2HeaderBlock expected_header_list) {
+    quiche::HttpHeaderBlock decoded_header_list,
+    quiche::HttpHeaderBlock expected_header_list) {
   if (decoded_header_list == expected_header_list) {
     return true;
   }
@@ -308,7 +311,7 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
   // Remove such headers one by one if they match.
   const char* kContentLength = "content-length";
   const char* kPseudoHeaderPrefix = ":";
-  for (spdy::Http2HeaderBlock::iterator decoded_it =
+  for (quiche::HttpHeaderBlock::iterator decoded_it =
            decoded_header_list.begin();
        decoded_it != decoded_header_list.end();) {
     const absl::string_view key = decoded_it->first;
@@ -316,7 +319,7 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
       ++decoded_it;
       continue;
     }
-    spdy::Http2HeaderBlock::iterator expected_it =
+    quiche::HttpHeaderBlock::iterator expected_it =
         expected_header_list.find(key);
     if (expected_it == expected_header_list.end() ||
         decoded_it->second != expected_it->second) {

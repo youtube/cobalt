@@ -100,7 +100,7 @@ This is followed by a list of event specifiers:
 :    Specifies the atrace categories you want to record a trace for.
      For example, the following command traces Window Manager using atrace:
      `adb shell perfetto --out FILE wm`. To record other categories, see the
-     [list of atrace categories](https://cs.android.com/android/platform/superproject/+/master:frameworks/native/cmds/atrace/atrace.cpp).
+     [list of atrace categories](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/native/cmds/atrace/atrace.cpp).
      Note: Available categories are Android version dependent.
 
 `FTRACE_GROUP/FTRACE_NAME`
@@ -124,7 +124,7 @@ The following table lists the available options when using `perfetto` in
 :    Specifies the path to a configuration file. In normal mode, some
      configurations may be encoded in a configuration protocol buffer.
      This file must comply with the protocol buffer schema defined in AOSP
-     [`trace_config.proto`](/protos/perfetto/config/data_source_config.proto).
+     [`trace_config.proto`](/protos/perfetto/config/trace_config.proto).
      You select and configure the data sources using the DataSourceConfig member
      of the TraceConfig, as defined in AOSP
      [`data_source_config.proto`](/protos/perfetto/config/data_source_config.proto).

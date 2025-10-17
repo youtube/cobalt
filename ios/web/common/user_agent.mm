@@ -5,10 +5,10 @@
 #import "ios/web/common/user_agent.h"
 
 #import <UIKit/UIKit.h>
-
 #import <stddef.h>
 #import <stdint.h>
 #import <sys/sysctl.h>
+
 #import <string>
 
 #import "base/strings/string_util.h"
@@ -17,14 +17,12 @@
 #import "base/system/sys_info.h"
 #import "ios/web/common/features.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
+// The Desktop OS version should always remain 10_15_7, to be consisent with
+// Chrome, Firefox, and Safari: https://crbug.com/40167872
 const char kDesktopUserAgentProductPlaceholder[] =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_5) "
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) %s"
     "Version/11.1.1 "
     "Safari/605.1.15";
@@ -39,11 +37,20 @@ std::string OSVersion() {
   int32_t os_major_version = 0;
   int32_t os_minor_version = 0;
   int32_t os_bugfix_version = 0;
+
   base::SysInfo::OperatingSystemVersionNumbers(
       &os_major_version, &os_minor_version, &os_bugfix_version);
 
   std::string os_version;
-  base::StringAppendF(&os_version, "%d_%d", os_major_version, os_minor_version);
+
+  if (base::FeatureList::IsEnabled(web::features::kUserAgentBugFixVersion)) {
+    base::StringAppendF(&os_version, "%d_%d_%d", os_major_version,
+                        os_minor_version, os_bugfix_version);
+  } else {
+    base::StringAppendF(&os_version, "%d_%d", os_major_version,
+                        os_minor_version);
+  }
+
   return os_version;
 }
 
@@ -65,12 +72,15 @@ std::string GetUserAgentTypeDescription(UserAgentType type) {
 }
 
 UserAgentType GetUserAgentTypeWithDescription(const std::string& description) {
-  if (description == std::string(kUserAgentTypeMobileDescription))
+  if (description == std::string(kUserAgentTypeMobileDescription)) {
     return UserAgentType::MOBILE;
-  if (description == std::string(kUserAgentTypeDesktopDescription))
+  }
+  if (description == std::string(kUserAgentTypeDesktopDescription)) {
     return UserAgentType::DESKTOP;
-  if (description == std::string(kUserAgentTypeAutomaticDescription))
+  }
+  if (description == std::string(kUserAgentTypeAutomaticDescription)) {
     return UserAgentType::AUTOMATIC;
+  }
   return UserAgentType::NONE;
 }
 
@@ -81,8 +91,9 @@ std::string BuildOSCpuInfo() {
   std::string platform =
       base::SysNSStringToUTF8([[UIDevice currentDevice] model]);
   size_t position = platform.find_first_of(" ");
-  if (position != std::string::npos)
+  if (position != std::string::npos) {
     platform = platform.substr(0, position);
+  }
 
   base::StringAppendF(&os_cpu, "%s; CPU %s %s like Mac OS X", platform.c_str(),
                       (platform == "iPad") ? "OS" : "iPhone OS",

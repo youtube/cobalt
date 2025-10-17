@@ -9,10 +9,8 @@
 namespace safe_browsing {
 
 FakeSafeBrowsingDatabaseManager::FakeSafeBrowsingDatabaseManager(
-    scoped_refptr<base::SequencedTaskRunner> ui_task_runner,
-    scoped_refptr<base::SequencedTaskRunner> io_task_runner)
-    : TestSafeBrowsingDatabaseManager(std::move(ui_task_runner),
-                                      std::move(io_task_runner)) {}
+    scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
+    : TestSafeBrowsingDatabaseManager(std::move(ui_task_runner)) {}
 
 FakeSafeBrowsingDatabaseManager::~FakeSafeBrowsingDatabaseManager() = default;
 
@@ -33,27 +31,25 @@ void FakeSafeBrowsingDatabaseManager::ClearDangerousUrl(
   dangerous_urls_.erase(dangerous_url);
 }
 
-bool FakeSafeBrowsingDatabaseManager::CanCheckRequestDestination(
-    network::mojom::RequestDestination request_destination) const {
-  return true;
-}
-
-bool FakeSafeBrowsingDatabaseManager::ChecksAreAlwaysAsync() const {
-  return false;
+void FakeSafeBrowsingDatabaseManager::SetHighConfidenceAllowlistMatchResult(
+    const GURL& url,
+    bool match_allowlist) {
+  high_confidence_allowlist_match_urls_[url] = match_allowlist;
 }
 
 bool FakeSafeBrowsingDatabaseManager::CheckBrowseUrl(
     const GURL& url,
     const SBThreatTypeSet& threat_types,
     Client* client,
-    MechanismExperimentHashDatabaseCache experiment_cache_selection) {
+    CheckBrowseUrlType check_type) {
   const auto it = dangerous_urls_.find(url);
   if (it == dangerous_urls_.end())
     return true;
 
   const SBThreatType result_threat_type = it->second;
-  if (result_threat_type == SB_THREAT_TYPE_SAFE)
+  if (result_threat_type == SBThreatType::SB_THREAT_TYPE_SAFE) {
     return true;
+  }
 
   ThreatPatternType pattern_type = ThreatPatternType::NONE;
   const auto it1 = dangerous_patterns_.find(url);
@@ -61,7 +57,7 @@ bool FakeSafeBrowsingDatabaseManager::CheckBrowseUrl(
     pattern_type = it1->second;
   }
 
-  sb_task_runner()->PostTask(
+  ui_task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&FakeSafeBrowsingDatabaseManager::CheckBrowseURLAsync, url,
                      result_threat_type, pattern_type, client));
@@ -79,10 +75,11 @@ bool FakeSafeBrowsingDatabaseManager::CheckDownloadUrl(
       continue;
 
     const SBThreatType result_threat_type = it->second;
-    if (result_threat_type == SB_THREAT_TYPE_SAFE)
+    if (result_threat_type == SBThreatType::SB_THREAT_TYPE_SAFE) {
       continue;
+    }
 
-    sb_task_runner()->PostTask(
+    ui_task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&FakeSafeBrowsingDatabaseManager::CheckDownloadURLAsync,
                        url_chain, result_threat_type, client));
@@ -98,14 +95,30 @@ bool FakeSafeBrowsingDatabaseManager::CheckExtensionIDs(
   return true;
 }
 
+void FakeSafeBrowsingDatabaseManager::CheckUrlForHighConfidenceAllowlist(
+    const GURL& url,
+    CheckUrlForHighConfidenceAllowlistCallback callback) {
+  const auto it = high_confidence_allowlist_match_urls_.find(url);
+  bool on_high_confidence_allowlist =
+      (it != high_confidence_allowlist_match_urls_.end() && it->second);
+  std::move(callback).Run(on_high_confidence_allowlist,
+                          /*logging_details=*/std::nullopt);
+}
+
 bool FakeSafeBrowsingDatabaseManager::CheckUrlForSubresourceFilter(
     const GURL& url,
     Client* client) {
   return true;
 }
 
-safe_browsing::ThreatSource FakeSafeBrowsingDatabaseManager::GetThreatSource()
-    const {
+safe_browsing::ThreatSource
+FakeSafeBrowsingDatabaseManager::GetBrowseUrlThreatSource(
+    CheckBrowseUrlType check_type) const {
+  return safe_browsing::ThreatSource::LOCAL_PVER4;
+}
+
+safe_browsing::ThreatSource
+FakeSafeBrowsingDatabaseManager::GetNonBrowseUrlThreatSource() const {
   return safe_browsing::ThreatSource::LOCAL_PVER4;
 }
 

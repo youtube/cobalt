@@ -9,6 +9,7 @@
 #include "util/android/AndroidWindow.h"
 
 #include <pthread.h>
+#include <filesystem>
 #include <iostream>
 
 #include "common/debug.h"
@@ -126,9 +127,19 @@ bool AndroidWindow::resize(int width, int height)
         FATAL() << "Window is NULL (is screen locked? e.g. SplashScreen in logcat)";
     }
 
-    // TODO: figure out a way to set the format as well,
-    // which is available only after EGLWindow initialization
-    int32_t err = ANativeWindow_setBuffersGeometry(sApp->window, mWidth, mHeight, 0);
+    // On some devices acquiring next swapchain image after window format change (without resize)
+    // does not return VK_ERROR_OUT_OF_DATE_KHR.  Further rendering into the acquired image and/or
+    // presenting that image may produce undefined results.  Try to preserve current window format
+    // to avoid such problem.  Note, window format is automatically set after swapchain create based
+    // on the create info imageFormat.
+    int32_t currentFormat = ANativeWindow_getFormat(sApp->window);
+    if (currentFormat < 0)
+    {
+        ERR() << "ANativeWindow_getFormat() failed: " << currentFormat;
+        currentFormat = 0;
+    }
+
+    int32_t err = ANativeWindow_setBuffersGeometry(sApp->window, mWidth, mHeight, currentFormat);
     return err == 0;
 }
 
@@ -171,6 +182,11 @@ static int32_t onInputEvent(struct android_app *app, AInputEvent *event)
     return 0;  // 0 == not handled
 }
 
+static bool validPollResult(int result)
+{
+    return result >= 0 || result == ALOOPER_POLL_CALLBACK;
+}
+
 void android_main(struct android_app *app)
 {
     int events;
@@ -187,13 +203,108 @@ void android_main(struct android_app *app)
     // Message loop, polling for events indefinitely (due to -1 timeout)
     // Must be here in order to handle APP_CMD_INIT_WINDOW event,
     // which occurs after AndroidWindow::initializeImpl(), but before AndroidWindow::messageLoop
-    while (ALooper_pollAll(-1, nullptr, &events, reinterpret_cast<void **>(&source)) >= 0)
+    while (
+        validPollResult(ALooper_pollOnce(-1, nullptr, &events, reinterpret_cast<void **>(&source))))
     {
         if (source != nullptr)
         {
             source->process(app, source);
         }
     }
+}
+
+std::string AndroidWindow::GetApplicationDirectory()
+{
+    // Use reverse JNI.
+    JNIEnv *jni = GetJniEnv();
+    if (!jni)
+    {
+        std::cerr << "GetApplicationDirectory:: Failed to get JNI env";
+        return "";
+    }
+
+    // Get the ANativeActivity class
+    jclass nativeActivityClass = jni->GetObjectClass(sApp->activity->clazz);
+    if (!nativeActivityClass)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to get ANativeActivity class";
+        return "";
+    }
+
+    // Get the getApplicationContext() method ID
+    jmethodID getApplicationContextMethod = jni->GetMethodID(
+        nativeActivityClass, "getApplicationContext", "()Landroid/content/Context;");
+    if (!getApplicationContextMethod)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to find getApplicationContext method";
+        return "";
+    }
+
+    // Call getApplicationContext() to get the Context object
+    jobject context = jni->CallObjectMethod(sApp->activity->clazz, getApplicationContextMethod);
+    if (!context)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to get Context object";
+        return "";
+    }
+
+    // Get the Context class
+    jclass contextClass = jni->GetObjectClass(context);
+    if (!contextClass)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to get Context class";
+        return "";
+    }
+
+    // Get the getFilesDir() method ID
+    jmethodID getFilesDirMethod = jni->GetMethodID(contextClass, "getFilesDir", "()Ljava/io/File;");
+    if (!getFilesDirMethod)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to find getFilesDir method";
+        return "";
+    }
+
+    // Call getFilesDir() to get the File object
+    jobject fileObject = jni->CallObjectMethod(context, getFilesDirMethod);
+    if (!fileObject)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to get File object";
+        return "";
+    }
+
+    // Get the File class
+    jclass fileClass = jni->GetObjectClass(fileObject);
+    if (!fileClass)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to get File class";
+        return "";
+    }
+
+    // Get the getAbsolutePath() method ID
+    jmethodID getAbsolutePathMethod =
+        jni->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
+    if (!getAbsolutePathMethod)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to find getAbsolutePath method";
+        return "";
+    }
+
+    // Call getAbsolutePath() to get the path as a jstring
+    jstring pathString = (jstring)jni->CallObjectMethod(fileObject, getAbsolutePathMethod);
+    if (!pathString)
+    {
+        std::cerr << "GetApplicationDirectory: Failed to get path string";
+        return "";
+    }
+
+    // Convert the jstring to a std::string
+    const char *pathChars = jni->GetStringUTFChars(pathString, nullptr);
+    std::string filesDirPath(pathChars);
+    jni->ReleaseStringUTFChars(pathString, pathChars);
+
+    // Return the base directory, stripping "files" essentially
+    std::filesystem::path fullPath(filesDirPath);
+    return fullPath.parent_path();
 }
 
 // static

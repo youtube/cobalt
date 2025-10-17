@@ -4,28 +4,31 @@
 
 package org.chromium.chrome.browser.feed;
 
-import androidx.annotation.Nullable;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.xsurface.PersistentKeyValueCache;
 
-/**
- * Implementation of xsurface's PersistentKeyValueCache.
- */
+/** Implementation of xsurface's PersistentKeyValueCache. */
 @JNINamespace("feed")
+@NullMarked
 public class FeedPersistentKeyValueCache implements PersistentKeyValueCache {
     @Override
     public void lookup(byte[] key, ValueConsumer consumer) {
         assert ThreadUtils.runningOnUiThread();
-        FeedPersistentKeyValueCacheJni.get().lookup(key, new Callback<byte[]>() {
-            @Override
-            public void onResult(byte[] result) {
-                consumer.run(result);
-            }
-        });
+        FeedPersistentKeyValueCacheJni.get()
+                .lookup(
+                        key,
+                        new Callback<byte[]>() {
+                            @Override
+                            public void onResult(byte[] result) {
+                                consumer.run(result);
+                            }
+                        });
     }
 
     @Override
@@ -43,7 +46,9 @@ public class FeedPersistentKeyValueCache implements PersistentKeyValueCache {
     @NativeMethods
     interface Natives {
         void lookup(byte[] key, Object consumer);
-        void put(byte[] key, byte[] value, Runnable onComplete);
-        void evict(byte[] key, Runnable onComplete);
+
+        void put(byte[] key, byte[] value, @Nullable Runnable onComplete);
+
+        void evict(byte[] key, @Nullable Runnable onComplete);
     }
 }

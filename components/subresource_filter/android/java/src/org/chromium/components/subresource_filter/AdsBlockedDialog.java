@@ -4,6 +4,8 @@
 
 package org.chromium.components.subresource_filter;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.Handler;
@@ -12,12 +14,14 @@ import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.style.ClickableSpan;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -25,35 +29,36 @@ import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modaldialog.ModalDialogProperties.ButtonType;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.text.NoUnderlineClickableSpan;
+import org.chromium.ui.text.ChromeClickableSpan;
 
 /**
- * Java part of AdsBlockedDialog pair providing communication between native ads blocked
- * delegate code and Java ads blocked dialog UI components.
+ * Java part of AdsBlockedDialog pair providing communication between native ads blocked delegate
+ * code and Java ads blocked dialog UI components.
  */
+@NullMarked
 public class AdsBlockedDialog implements ModalDialogProperties.Controller {
     private long mNativeDialog;
     private final Context mContext;
     private final ModalDialogManager mModalDialogManager;
-    private PropertyModel mDialogModel;
-    private ClickableSpan mClickableSpan;
-    private Handler mDialogHandler;
+    private @Nullable PropertyModel mDialogModel;
+    private @Nullable ClickableSpan mClickableSpan;
+    private final Handler mDialogHandler;
 
     @CalledByNative
-    static AdsBlockedDialog create(long nativeDialog, @NonNull WindowAndroid windowAndroid) {
+    static AdsBlockedDialog create(long nativeDialog, WindowAndroid windowAndroid) {
         return new AdsBlockedDialog(nativeDialog, windowAndroid);
     }
 
-    AdsBlockedDialog(long nativeDialog, @NonNull WindowAndroid windowAndroid) {
+    AdsBlockedDialog(long nativeDialog, WindowAndroid windowAndroid) {
         mNativeDialog = nativeDialog;
-        mContext = windowAndroid.getContext().get();
-        mModalDialogManager = windowAndroid.getModalDialogManager();
+        mContext = assumeNonNull(windowAndroid.getContext().get());
+        mModalDialogManager = assumeNonNull(windowAndroid.getModalDialogManager());
         mDialogHandler = new Handler(ThreadUtils.getUiThreadLooper());
     }
 
     /**
-     * Internal constructor for {@link AdsBlockedDialog}. Used by tests to inject
-     * parameters. External code should use AdsBlockedDialog#create.
+     * Internal constructor for {@link AdsBlockedDialog}. Used by tests to inject parameters.
+     * External code should use AdsBlockedDialog#create.
      *
      * @param nativeDialog The pointer to the dialog instance created by native code.
      * @param context The context for accessing resources.
@@ -61,38 +66,47 @@ public class AdsBlockedDialog implements ModalDialogProperties.Controller {
      * @param dialogHandler The {@link Handler} used to post the call to show the dialog.
      */
     @VisibleForTesting
-    AdsBlockedDialog(long nativeDialog, @NonNull Context context,
-            @NonNull ModalDialogManager modalDialogManager, Handler dialogHandler) {
+    AdsBlockedDialog(
+            long nativeDialog,
+            Context context,
+            ModalDialogManager modalDialogManager,
+            Handler dialogHandler) {
         mNativeDialog = nativeDialog;
         mContext = context;
         mModalDialogManager = modalDialogManager;
         mDialogHandler = dialogHandler;
     }
 
-    @VisibleForTesting
-    PropertyModel getDialogModelForTesting() {
+    @Nullable PropertyModel getDialogModelForTesting() {
         return mDialogModel;
     }
 
-    @VisibleForTesting
-    ClickableSpan getMessageClickableSpanForTesting() {
+    @Nullable ClickableSpan getMessageClickableSpanForTesting() {
         return mClickableSpan;
     }
 
     @CalledByNative
     void show(boolean shouldPostDialog) {
         Resources resources = mContext.getResources();
-        mClickableSpan = new NoUnderlineClickableSpan(
-                mContext, (view) -> AdsBlockedDialogJni.get().onLearnMoreClicked(mNativeDialog));
+        mClickableSpan =
+                new ChromeClickableSpan(
+                        mContext,
+                        (view) -> AdsBlockedDialogJni.get().onLearnMoreClicked(mNativeDialog));
         mDialogModel =
                 new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                         .with(ModalDialogProperties.CONTROLLER, this)
-                        .with(ModalDialogProperties.TITLE, resources,
+                        .with(
+                                ModalDialogProperties.TITLE,
+                                resources,
                                 R.string.blocked_ads_dialog_title)
                         .with(ModalDialogProperties.MESSAGE_PARAGRAPH_1, getFormattedMessageText())
-                        .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT, resources,
+                        .with(
+                                ModalDialogProperties.POSITIVE_BUTTON_TEXT,
+                                resources,
                                 R.string.blocked_ads_dialog_always_allow)
-                        .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT, resources,
+                        .with(
+                                ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
+                                resources,
                                 R.string.cancel)
                         .with(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true)
                         .with(ModalDialogProperties.FOCUS_DIALOG, true)
@@ -112,7 +126,9 @@ public class AdsBlockedDialog implements ModalDialogProperties.Controller {
         // suspension logic as a follow up.
         if (shouldPostDialog) {
             mDialogHandler.post(
-                    () -> mModalDialogManager.showDialog(mDialogModel, ModalDialogType.TAB));
+                    () ->
+                            mModalDialogManager.showDialog(
+                                    assumeNonNull(mDialogModel), ModalDialogType.TAB));
         } else {
             mModalDialogManager.showDialog(mDialogModel, ModalDialogType.TAB);
         }
@@ -142,9 +158,11 @@ public class AdsBlockedDialog implements ModalDialogProperties.Controller {
         if (buttonType == ButtonType.POSITIVE) {
             AdsBlockedDialogJni.get().onAllowAdsClicked(mNativeDialog);
         }
-        mModalDialogManager.dismissDialog(model,
-                buttonType == ButtonType.POSITIVE ? DialogDismissalCause.POSITIVE_BUTTON_CLICKED
-                                                  : DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
+        mModalDialogManager.dismissDialog(
+                model,
+                buttonType == ButtonType.POSITIVE
+                        ? DialogDismissalCause.POSITIVE_BUTTON_CLICKED
+                        : DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
     }
 
     @Override
@@ -157,7 +175,9 @@ public class AdsBlockedDialog implements ModalDialogProperties.Controller {
     @NativeMethods
     interface Natives {
         void onAllowAdsClicked(long nativeAdsBlockedDialog);
+
         void onLearnMoreClicked(long nativeAdsBlockedDialog);
+
         void onDismissed(long nativeAdsBlockedDialog);
     }
 }

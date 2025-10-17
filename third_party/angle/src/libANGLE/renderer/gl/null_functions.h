@@ -538,6 +538,7 @@ void INTERNAL_GL_APIENTRY glEnableiNULL(GLenum target, GLuint index);
 void INTERNAL_GL_APIENTRY glEndConditionalRenderNULL();
 void INTERNAL_GL_APIENTRY glEndQueryNULL(GLenum target);
 void INTERNAL_GL_APIENTRY glEndQueryIndexedNULL(GLenum target, GLuint index);
+void INTERNAL_GL_APIENTRY glEndTilingQCOMNULL(GLbitfield preserveMask);
 void INTERNAL_GL_APIENTRY glEndTransformFeedbackNULL();
 GLsync INTERNAL_GL_APIENTRY glFenceSyncNULL(GLenum condition, GLbitfield flags);
 void INTERNAL_GL_APIENTRY glFinishNULL();
@@ -1187,6 +1188,7 @@ void INTERNAL_GL_APIENTRY glPointParameteriNULL(GLenum pname, GLint param);
 void INTERNAL_GL_APIENTRY glPointParameterivNULL(GLenum pname, const GLint *params);
 void INTERNAL_GL_APIENTRY glPointSizeNULL(GLfloat size);
 void INTERNAL_GL_APIENTRY glPolygonModeNULL(GLenum face, GLenum mode);
+void INTERNAL_GL_APIENTRY glPolygonModeNVNULL(GLenum face, GLenum mode);
 void INTERNAL_GL_APIENTRY glPolygonOffsetNULL(GLfloat factor, GLfloat units);
 void INTERNAL_GL_APIENTRY glPolygonOffsetClampEXTNULL(GLfloat factor, GLfloat units, GLfloat clamp);
 void INTERNAL_GL_APIENTRY glPopDebugGroupNULL();
@@ -1490,6 +1492,8 @@ void INTERNAL_GL_APIENTRY glSignalSemaphoreEXTNULL(GLuint semaphore,
                                                    GLuint numTextureBarriers,
                                                    const GLuint *textures,
                                                    const GLenum *dstLayouts);
+void INTERNAL_GL_APIENTRY
+glStartTilingQCOMNULL(GLuint x, GLuint y, GLuint width, GLuint height, GLbitfield preserveMask);
 void INTERNAL_GL_APIENTRY glStencilFuncNULL(GLenum func, GLint ref, GLuint mask);
 void INTERNAL_GL_APIENTRY glStencilFuncSeparateNULL(GLenum face,
                                                     GLenum func,

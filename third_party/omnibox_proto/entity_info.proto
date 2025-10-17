@@ -10,7 +10,7 @@ option java_outer_classname = 'EntityInfoProto';
 
 package omnibox;
 
-import "action_info.proto";
+import "chrome_searchbox_stats.proto";
 
 // Entity Suggest rendering data.
 message EntityInfo {
@@ -41,9 +41,6 @@ message EntityInfo {
   // List of possible actions for this entity.
   repeated ActionInfo action_suggestions = 12;
 
-  // Distance to the point of interest.
-  optional uint32 distance_km = 13;
-
   // List of categories this entity belongs to.
   repeated CategoryInfo.Category category = 14;
 
@@ -53,34 +50,31 @@ message EntityInfo {
 
 // Entity Suggestion Action descriptor.
 message ActionInfo {
-  // The text to display on the Action button.
-  optional string displayed_text = 1;
-
-  // The icon used to decorate the Action button.
-  optional string icon_thumbnail_url = 2;
+  enum ActionType {
+    DIRECTIONS = 2;
+    CALL = 3;
+    REVIEWS = 20;
+  }
 
   // The URI to open when the action is invoked.
   optional string action_uri = 3;
 
   // Action type for logging.
-  optional metrics.ActionType logs_action_type = 4;
-
-  // When present, specifies the package to be used to execute the Action.
-  optional string package_id = 5;
+  optional .omnibox.metrics.ActionInfo.ActionType logs_action_type = 4;
 
   // Action type.
   optional ActionType action_type = 8;
 
-  enum ActionType {
-    DIRECTIONS = 2;
-    CALL = 3;
-    WEBSITE = 6;
-  }
+  // If non-empty, the action must result in navigation to the SRP accompanied
+  // with these additional request parameters to help force a certain SRP.
+  map<string, string> search_parameters = 9;
 }
 
 // Entity Suggestion Category info.
 message CategoryInfo {
   enum Category {
+    reserved 22;
+
     UNKNOWN = 0;
     MUSIC = 2;
     GAMES = 4;
@@ -96,9 +90,10 @@ message CategoryInfo {
     TV = 19;
     MOVIES = 20;
     CARS_MODEL_US = 21;
-    LOCAL_POIS_AND_CHAINS = 22;
     COMPANIES = 23;
     PRODUCT_LINES = 24;
     LOCAL_POI = 25;
+    LOCALITY = 26;
+    FICTIONAL_CHARACTERS = 27;
   }
 }

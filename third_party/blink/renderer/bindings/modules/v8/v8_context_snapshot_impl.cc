@@ -4,16 +4,20 @@
 
 #include "third_party/blink/renderer/bindings/modules/v8/v8_context_snapshot_impl.h"
 
+#include <array>
+
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_context_snapshot.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_event_target.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_html_document.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_initializer.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_node.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_window_properties.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_document.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_window.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
+#include "third_party/blink/renderer/platform/bindings/dom_data_store.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/v8_dom_wrapper.h"
 #include "third_party/blink/renderer/platform/bindings/v8_object_constructor.h"
@@ -70,12 +74,10 @@ namespace {
 
 constexpr const size_t kNumOfWorlds = 2;
 
-inline scoped_refptr<DOMWrapperWorld> IndexToWorld(v8::Isolate* isolate,
-                                                   size_t index) {
-  return index == 0
-             ? scoped_refptr<DOMWrapperWorld>(&DOMWrapperWorld::MainWorld())
-             : DOMWrapperWorld::EnsureIsolatedWorld(
-                   isolate, DOMWrapperWorld::WorldId::kMainWorldId + 1);
+inline DOMWrapperWorld* IndexToWorld(v8::Isolate* isolate, size_t index) {
+  return index == 0 ? &DOMWrapperWorld::MainWorld(isolate)
+                    : DOMWrapperWorld::EnsureIsolatedWorld(
+                          isolate, DOMWrapperWorld::WorldId::kMainWorldId + 1);
 }
 
 inline int WorldToIndex(const DOMWrapperWorld& world) {
@@ -85,7 +87,6 @@ inline int WorldToIndex(const DOMWrapperWorld& world) {
     return 1;
   } else {
     LOG(FATAL) << "Unknown DOMWrapperWorld";
-    return 1;
   }
 }
 
@@ -99,8 +100,8 @@ using InstallPropsPerContext =
 using InstallPropsPerIsolate =
     void (*)(v8::Isolate* isolate,
              const DOMWrapperWorld& world,
-             v8::Local<v8::Template> instance_template,
-             v8::Local<v8::Template> prototype_template,
+             v8::Local<v8::ObjectTemplate> instance_template,
+             v8::Local<v8::ObjectTemplate> prototype_template,
              v8::Local<v8::Template> interface_template);
 
 // Construction of |type_info_table| requires non-trivial initialization due
@@ -118,11 +119,15 @@ const struct {
   InstallPropsPerIsolate install_props_per_isolate;
   // Installs context-independent properties to objects in the context.
   InstallPropsPerContext install_props_per_context;
-  bool needs_per_context_install[kNumOfWorlds];
+  std::array<bool, kNumOfWorlds> needs_per_context_install;
 } type_info_table[] = {
     {V8Window::GetWrapperTypeInfo(),
      bindings::v8_context_snapshot::InstallPropsOfV8Window,
      bindings::v8_context_snapshot::InstallPropsOfV8Window,
+     {true, true}},
+    {V8WindowProperties::GetWrapperTypeInfo(),
+     bindings::v8_context_snapshot::InstallPropsOfV8WindowProperties,
+     bindings::v8_context_snapshot::InstallPropsOfV8WindowProperties,
      {true, true}},
     {V8HTMLDocument::GetWrapperTypeInfo(),
      bindings::v8_context_snapshot::InstallPropsOfV8HTMLDocument,
@@ -147,12 +152,7 @@ const struct {
 #endif
 
 enum class InternalFieldSerializedValue : uint8_t {
-  // ScriptWrappable pointer
   kSwHTMLDocument = 1,
-  kSwWindow,
-  // WrapperTypeInfo pointer
-  kWtiHTMLDocument,
-  kWtiWindow,
 };
 
 struct DeserializerData {
@@ -194,81 +194,69 @@ v8::Local<v8::Object> CreatePlatformObject(
 v8::StartupData SerializeInternalFieldCallback(v8::Local<v8::Object> object,
                                                int index,
                                                void* unused_data) {
-  InternalFieldSerializedValue value;
-  const WrapperTypeInfo* wrapper_type_info = ToWrapperTypeInfo(object);
-  if (index == kV8DOMWrapperObjectIndex) {
-    if (wrapper_type_info == V8HTMLDocument::GetWrapperTypeInfo()) {
-      value = InternalFieldSerializedValue::kSwHTMLDocument;
-    } else if (wrapper_type_info == V8Window::GetWrapperTypeInfo()) {
-      value = InternalFieldSerializedValue::kSwWindow;
-    } else {
-      LOG(FATAL) << "Unknown WrapperTypeInfo";
-      return {nullptr, 0};
-    }
-  } else if (index == kV8DOMWrapperTypeIndex) {
-    if (wrapper_type_info == V8HTMLDocument::GetWrapperTypeInfo()) {
-      value = InternalFieldSerializedValue::kWtiHTMLDocument;
-    } else if (wrapper_type_info == V8Window::GetWrapperTypeInfo()) {
-      value = InternalFieldSerializedValue::kWtiWindow;
-    } else {
-      LOG(FATAL) << "Unknown WrapperTypeInfo";
-      return {nullptr, 0};
-    }
-  } else {
-    LOG(FATAL) << "Unknown internal field";
-    return {nullptr, 0};
-  }
-
-  int size = 1;  // No endian support
-  uint8_t* data = new uint8_t[size];
-  *data = static_cast<uint8_t>(value);
-  CHECK_EQ(static_cast<InternalFieldSerializedValue>(*data), value);
-  return {reinterpret_cast<char*>(data), size};
+  NOTREACHED();
 }
 
 void DeserializeInternalFieldCallback(v8::Local<v8::Object> object,
                                       int index,
                                       v8::StartupData payload,
                                       void* data) {
+  NOTREACHED();
+}
+
+v8::StartupData SerializeAPIWrapperCallback(v8::Local<v8::Object> holder,
+                                            void* cpp_heap_pointer,
+                                            void* unused_data) {
+  auto* wrappable = static_cast<ScriptWrappable*>(cpp_heap_pointer);
+  if (!wrappable) {
+    return {nullptr, 0};
+  }
+  const WrapperTypeInfo* wrapper_type_info = wrappable->GetWrapperTypeInfo();
+  CHECK_EQ(wrappable, ToAnyScriptWrappable(holder->GetIsolate(), holder));
+  constexpr size_t kSize = 1;
+  static_assert(sizeof (InternalFieldSerializedValue) == kSize);
+  auto* serialized_value = new InternalFieldSerializedValue();
+  if (wrapper_type_info == V8HTMLDocument::GetWrapperTypeInfo()) {
+    *serialized_value = InternalFieldSerializedValue::kSwHTMLDocument;
+  } else {
+    LOG(FATAL) << "Unknown WrapperTypeInfo";
+  }
+  return {reinterpret_cast<char*>(serialized_value), kSize};
+}
+
+void DeserializeAPIWrapperCallback(v8::Local<v8::Object> holder,
+                                   v8::StartupData payload,
+                                   void* data) {
   CHECK_EQ(payload.raw_size, 1);  // No endian support
-  uint8_t value = *reinterpret_cast<const uint8_t*>(payload.data);
+  CHECK_EQ(*reinterpret_cast<const InternalFieldSerializedValue*>(payload.data),
+           InternalFieldSerializedValue::kSwHTMLDocument);
 
   DeserializerData* deserializer_data =
       reinterpret_cast<DeserializerData*>(data);
-
-  switch (static_cast<InternalFieldSerializedValue>(value)) {
-    case InternalFieldSerializedValue::kSwHTMLDocument: {
-      CHECK_EQ(index, kV8DOMWrapperObjectIndex);
-      CHECK(deserializer_data->html_document);
-      CHECK(deserializer_data->world.IsMainWorld());
-      V8DOMWrapper::SetNativeInfo(deserializer_data->isolate, object,
-                                  V8HTMLDocument::GetWrapperTypeInfo(),
-                                  deserializer_data->html_document);
-      bool result = deserializer_data->html_document->SetWrapper(
-          deserializer_data->isolate, V8HTMLDocument::GetWrapperTypeInfo(),
-          object);
-      CHECK(result);
-      break;
-    }
-    case InternalFieldSerializedValue::kSwWindow:
-      CHECK_EQ(index, kV8DOMWrapperObjectIndex);
-      // The global object's internal fields will be set in LocalWindowProxy.
-      break;
-    case InternalFieldSerializedValue::kWtiHTMLDocument:
-      CHECK_EQ(index, kV8DOMWrapperTypeIndex);
-      CHECK(deserializer_data->html_document);
-      CHECK(deserializer_data->world.IsMainWorld());
-      // The internal field of WrapperTypeInfo must be filled in
-      // kSwHTMLDocument case.
-      break;
-    case InternalFieldSerializedValue::kWtiWindow:
-      CHECK_EQ(index, kV8DOMWrapperTypeIndex);
-      // The global object's internal fields will be set in LocalWindowProxy.
-      break;
-    default:
-      LOG(FATAL) << "Unknown serialized value";
-  }
+  CHECK(deserializer_data->html_document);
+  CHECK(deserializer_data->world.IsMainWorld());
+  V8DOMWrapper::SetNativeInfo(deserializer_data->isolate, holder,
+                              deserializer_data->html_document);
+  const bool result =
+      DOMDataStore::SetWrapperInInlineStorage</*entered_context=*/false>(
+          deserializer_data->isolate, deserializer_data->html_document,
+          V8HTMLDocument::GetWrapperTypeInfo(), holder);
+  CHECK(result);
 }
+
+// We only care for WrapperTypeInfo and do not supply an actual instance of
+// the document. Since we need a script wrappable to get type info now, this
+// class is a minimal implementation of ScriptWrappable that returns correct
+// type info for HTMLDocument.
+class DummyHTMLDocumentForSnapshot : public ScriptWrappable {
+ public:
+  DummyHTMLDocumentForSnapshot() = default;
+
+ private:
+  const WrapperTypeInfo* GetWrapperTypeInfo() const override {
+    return V8HTMLDocument::GetWrapperTypeInfo();
+  }
+};
 
 void TakeSnapshotForWorld(v8::SnapshotCreator* snapshot_creator,
                           const DOMWrapperWorld& world) {
@@ -299,17 +287,18 @@ void TakeSnapshotForWorld(v8::SnapshotCreator* snapshot_creator,
     v8::Local<v8::Object> document_wrapper = CreatePlatformObject(
         isolate, context, world, document_wrapper_type_info);
 
-    int indices[] = {kV8DOMWrapperObjectIndex, kV8DOMWrapperTypeIndex};
-    void* values[] = {nullptr,
-                      const_cast<WrapperTypeInfo*>(document_wrapper_type_info)};
-    document_wrapper->SetAlignedPointerInInternalFields(std::size(indices),
-                                                        indices, values);
+    V8DOMWrapper::SetNativeInfo(
+        isolate, document_wrapper,
+        MakeGarbageCollected<DummyHTMLDocumentForSnapshot>());
 
     V8PrivateProperty::GetWindowDocumentCachedAccessor(isolate).Set(
         context->Global(), document_wrapper);
   }
 
-  snapshot_creator->AddContext(context, SerializeInternalFieldCallback);
+  snapshot_creator->AddContext(
+      context, SerializeInternalFieldCallback,
+      v8::SerializeContextDataCallback(),
+      v8::SerializeAPIWrapperCallback(SerializeAPIWrapperCallback));
   for (const auto& type_info : type_info_table) {
     snapshot_creator->AddData(
         type_info.wrapper_type_info->GetV8ClassTemplate(isolate, world));
@@ -348,10 +337,13 @@ v8::Local<v8::Context> V8ContextSnapshotImpl::CreateContext(
   DeserializerData deserializer_data = {isolate, world, html_document};
   v8::DeserializeInternalFieldsCallback internal_field_desrializer(
       DeserializeInternalFieldCallback, &deserializer_data);
+  v8::DeserializeAPIWrapperCallback api_wrappers_deserializer(
+      DeserializeAPIWrapperCallback, &deserializer_data);
   return v8::Context::FromSnapshot(
              isolate, WorldToIndex(world), internal_field_desrializer,
              extension_config, global_proxy,
-             document->GetExecutionContext()->GetMicrotaskQueue())
+             document->GetExecutionContext()->GetMicrotaskQueue(),
+             v8::DeserializeContextDataCallback(), api_wrappers_deserializer)
       .ToLocalChecked();
 }
 
@@ -400,9 +392,8 @@ void V8ContextSnapshotImpl::InstallInterfaceTemplates(v8::Isolate* isolate) {
   v8::HandleScope handle_scope(isolate);
 
   for (size_t world_index = 0; world_index < kNumOfWorlds; ++world_index) {
-    scoped_refptr<DOMWrapperWorld> world = IndexToWorld(isolate, world_index);
-    for (size_t i = 0; i < std::size(type_info_table); ++i) {
-      const auto& type_info = type_info_table[i];
+    DOMWrapperWorld* world = IndexToWorld(isolate, world_index);
+    for (size_t i = 0; const auto& type_info : type_info_table) {
       v8::Local<v8::FunctionTemplate> interface_template =
           isolate
               ->GetDataFromSnapshotOnce<v8::FunctionTemplate>(
@@ -413,12 +404,12 @@ void V8ContextSnapshotImpl::InstallInterfaceTemplates(v8::Isolate* isolate) {
       type_info.install_props_per_isolate(
           isolate, *world, interface_template->InstanceTemplate(),
           interface_template->PrototypeTemplate(), interface_template);
+      i++;
     }
   }
 }
 
-v8::StartupData V8ContextSnapshotImpl::TakeSnapshot() {
-  v8::Isolate* isolate = V8PerIsolateData::MainThreadIsolate();
+v8::StartupData V8ContextSnapshotImpl::TakeSnapshot(v8::Isolate* isolate) {
   CHECK(isolate);
   CHECK(isolate->IsCurrent());
   V8PerIsolateData* per_isolate_data = V8PerIsolateData::From(isolate);
@@ -439,7 +430,7 @@ v8::StartupData V8ContextSnapshotImpl::TakeSnapshot() {
     v8::HandleScope handle_scope(isolate);
     snapshot_creator->SetDefaultContext(v8::Context::New(isolate));
     for (size_t i = 0; i < kNumOfWorlds; ++i) {
-      scoped_refptr<DOMWrapperWorld> world = IndexToWorld(isolate, i);
+      DOMWrapperWorld* world = IndexToWorld(isolate, i);
       TakeSnapshotForWorld(snapshot_creator, *world);
     }
   }
@@ -474,6 +465,7 @@ const intptr_t* V8ContextSnapshotImpl::GetReferenceTable() {
       bindings::v8_context_snapshot::GetRefTableOfV8HTMLDocument(),
       bindings::v8_context_snapshot::GetRefTableOfV8Node(),
       bindings::v8_context_snapshot::GetRefTableOfV8Window(),
+      bindings::v8_context_snapshot::GetRefTableOfV8WindowProperties(),
       last_table,
   };
   DCHECK_EQ(std::size(tables), std::size(type_info_table) + 1);
@@ -484,9 +476,14 @@ const intptr_t* V8ContextSnapshotImpl::GetReferenceTable() {
   intptr_t* unified_table =
       static_cast<intptr_t*>(::WTF::Partitions::FastMalloc(
           size_bytes, "V8ContextSnapshotImpl::GetReferenceTable"));
+  // SAFETY: `::WTF::Partitions::FastMalloc` ensures `unified_table` points to
+  // `size_bytes` bytes.
+  auto unified_table_span =
+      UNSAFE_BUFFERS(base::span(unified_table, size_bytes));
   size_t offset_count = 0;
   for (const auto& table : tables) {
-    std::memcpy(unified_table + offset_count, table.data(), table.size_bytes());
+    unified_table_span.subspan(offset_count, table.size())
+        .copy_from_nonoverlapping(table);
     offset_count += table.size();
   }
   reference_table = unified_table;

@@ -7,17 +7,20 @@ package org.chromium.device.usb;
 import android.hardware.usb.UsbConfiguration;
 import android.hardware.usb.UsbDevice;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
- * Exposes android.hardware.usb.UsbDevice as necessary for C++
- * device::UsbDeviceAndroid.
+ * Exposes android.hardware.usb.UsbDevice as necessary for C++ device::UsbDeviceAndroid.
  *
- * Lifetime is controlled by device::UsbDeviceAndroid.
+ * <p>Lifetime is controlled by device::UsbDeviceAndroid.
  */
 @JNINamespace("device")
+@NullMarked
 final class ChromeUsbDevice {
     private static final String TAG = "Usb";
 
@@ -80,17 +83,17 @@ final class ChromeUsbDevice {
     }
 
     @CalledByNative
-    private String getManufacturerName() {
+    private @Nullable String getManufacturerName() {
         return mDevice.getManufacturerName();
     }
 
     @CalledByNative
-    private String getProductName() {
+    private @Nullable String getProductName() {
         return mDevice.getProductName();
     }
 
     @CalledByNative
-    private String getSerialNumber() {
+    private @Nullable String getSerialNumber() {
         return mDevice.getSerialNumber();
     }
 

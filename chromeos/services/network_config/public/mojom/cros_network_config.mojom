@@ -156,7 +156,10 @@ enum InhibitReason {
   // Inhibited because the EUICC memory is being reset.
   kResettingEuiccMemory,
   // Inhibited because an eSIM profile is being disabled.
-  kDisablingProfile
+  kDisablingProfile,
+  // Inhibited because SM-DS scans are being performed to discover profiles
+  // available for this device.
+  kRequestingAvailableProfiles,
 };
 
 // Always-on VPN operating mode.
@@ -216,6 +219,11 @@ struct CellularStateProperties {
   // String representing the SIM lock type. This will be empty when the SIM
   // is unlocked.
   string sim_lock_type;
+  // True when a SIM has a custom name.
+  bool has_nick_name = false;
+  // String representing the network operator.
+  string network_operator;
+  PaymentPortalProperties? payment_portal;
 };
 
 struct EthernetStateProperties {
@@ -255,8 +263,13 @@ struct WiFiStateProperties {
   int32 signal_strength;
   // The network SSID.
   string ssid;
+  // Whether the network is in range.
+  bool visible;
   // Whether the AP has a hidden SSID.
   bool hidden_ssid;
+  // Identifier of the set of Passpoint credentials that populated this Wi-Fi
+  // network.
+  string passpoint_id;
 };
 
 union NetworkTypeStateProperties {
@@ -283,16 +296,13 @@ struct NetworkStateProperties {
   // The captive portal state when connection_state == kPortal.
   PortalState portal_state = kUnknown;
   // The URL used to identify a captive portal state, set when portal_state is
-  // kPortal, kPortalSuspected, or kProxyAuthRequired.
+  // kPortal or kPortalSuspected.
   url.mojom.Url? portal_probe_url;
   // The relative priority of the network. Larger values have higher priority.
   int32 priority;
   // The proxy mode affecting this network. Includes any settings that affect
   // this network (i.e. global proxy settings are also considered).
   ProxyMode proxy_mode;
-  // Indicates if the DNS queries can be used to monitor user traffic via user
-  // or device identifiers in the secure DNS URI templates.
-  bool dns_queries_monitored;
   // True for visible networks that are blocked / disallowed by policy.
   bool prohibited_by_policy = false;
   OncSource source;
@@ -329,6 +339,17 @@ struct DeviceStateProperties {
   NetworkType type;
   // Whether or not any managed networks are available.
   bool managed_network_available = false;
+  // Serial number of the device, reported for cellular devices
+  // to start with. Displayed along with IMEI/EID to help user
+  // unlock carrier locked device.
+  string? serial;
+  // Indicates if the device is carrier locked.
+  // Reported only for cellular devices. Defaults to false
+  // for other device types.
+  bool is_carrier_locked = false;
+  // Indicates whether the device is in the flashing state. Reported only
+  // for cellular devices. Defaults to false for other device types.
+  bool is_flashing = false;
 };
 
 const int32 kNoLimit = 0;
@@ -378,6 +399,14 @@ enum ApnIpType {
 enum ApnType {
   kDefault,
   kAttach,
+  kTether,
+};
+
+// Sources for APNs.
+enum ApnSource {
+  kModem,
+  kModb,
+  kUi,
 };
 
 struct ApnProperties {
@@ -394,7 +423,8 @@ struct ApnProperties {
   // free-form entry in the future.
   // TODO(b/249550650) Remove attach after APN Revamp feature
   // has been completely transitioned.
-  // TODO(b/249550650) Add all new properties to the onc_spec.md documentation.
+  // TODO(b/249550650) Add all new properties to the
+  // //components/onc/docs/onc_spec.md documentation.
   string? attach;
   // The state property will be used by Chrome to determine whether a custom APN
   // is disabled by the user or not. Chrome will filter out disabled APNs before
@@ -402,6 +432,7 @@ struct ApnProperties {
   ApnState state;
   ApnIpType ip_type;
   array<ApnType> apn_types;
+  ApnSource source;
 };
 
 struct RoamingProperties {
@@ -686,6 +717,7 @@ struct ManagedCellularProperties {
   // Note: |sim_locked| field is not part of ONC spec.
   bool sim_locked = false;
   ManagedBoolean? allow_roaming;
+  ManagedBoolean? allow_text_messages;
   ManagedApnList? apn_list;
   ManagedBoolean? auto_connect;
   // List of user-entered custom APN entries. Note: This field is not
@@ -712,6 +744,7 @@ struct ManagedCellularProperties {
   string? min;
   string? model_id;
   string? network_technology;
+  string sim_lock_type;
   PaymentPortalProperties? payment_portal;
   string? roaming_state;
   // The current user selected APN. This corresponds to APN field in ONC.
@@ -799,8 +832,8 @@ struct TrafficCounterProperties {
   uint32 user_specified_reset_day;
 };
 
-// Managed properties provided by getManagedProperties. See onc_spec.md for
-// details about each property.
+// Managed properties provided by getManagedProperties. See
+// //components/onc/docs/onc_spec.md for details about each property.
 struct ManagedProperties {
   // Typed properties for compatibility with NetworkStateProperties.
   ConnectionStateType connection_state = kNotConnected;
@@ -823,8 +856,11 @@ struct ManagedProperties {
   // match the type of |type_properties|, which will always be provided.
   NetworkType type;
   NetworkTypeManagedProperties type_properties;
-  // Contains traffic counter related information for this network.
-  TrafficCounterProperties traffic_counter_properties;
+  // Contains traffic counter related information for this network. This field
+  // is only applicable for Cellular and WiFi networks when
+  // TrafficCountersEnabled and TrafficCountersForWiFiTesting, respectively, is
+  // enabled.
+  TrafficCounterProperties? traffic_counter_properties;
 };
 
 // Properties for SetProperties and ConfigureNetwork. All of the top level
@@ -851,7 +887,7 @@ struct PriorityConfig {
 
 // Wrapper to allow optional VpnType configuration. Note: only configuration of
 // internal VPN types (kOpenVPN and kL2TPIPsec) is supported.
-// TODO(657632): Remove wrapper once optional enums are supported.
+// TODO(crbug.com/40489779): Remove wrapper once optional enums are supported.
 struct VpnTypeConfig {
   VpnType value;
 };
@@ -902,7 +938,8 @@ struct SubjectAltName {
 };
 
 // Subset of currently implemented config properties in the UI. Additional
-// optional propreties from onc_spec.md may be added as needed.
+// optional properties from //components/onc/docs/onc_spec.md may be added as
+// needed.
 struct IPSecConfigProperties {
   string authentication_type;
   string? client_cert_pkcs11_id;
@@ -919,7 +956,8 @@ struct IPSecConfigProperties {
 };
 
 // Subset of currently implemented config properties in the UI. Additional
-// optional propreties from onc_spec.md may be added as needed.
+// optional properties from //components/onc/docs/onc_spec.md may be added as
+// needed.
 struct L2TPConfigProperties {
   bool lcp_echo_disabled = false;
   string? password;
@@ -928,7 +966,8 @@ struct L2TPConfigProperties {
 };
 
 // Subset of currently implemented config properties in the UI. Additional
-// optional propreties from onc_spec.md may be added as needed.
+// optional properties from //components/onc/docs/onc_spec.md may be added as
+// needed.
 struct OpenVPNConfigProperties {
   string? client_cert_pkcs11_id;
   string? client_cert_type;
@@ -955,6 +994,10 @@ struct WireGuardConfigProperties {
   array<WireGuardPeerProperties>? peers;
 };
 
+struct TextMessagesAllowState {
+  bool allow_text_messages;
+};
+
 // Only one of {Cellular|Ethernet|VPN|Wifi}ConfigProperties is allowed.
 // TODO(stevenjb): Make these a union.
 struct CellularConfigProperties {
@@ -964,11 +1007,15 @@ struct CellularConfigProperties {
   // If not provided the default allow_roaming behavior will be used for the
   // network.
   RoamingProperties? roaming;
+
+  // If not provided the existing user/policy set behavior
+  // text_message_allow_state will be used.
+  TextMessagesAllowState? text_message_allow_state;
 };
 
 struct EthernetConfigProperties {
   // |authentication| will default to "none" if not provided for new configs.
-  // TODO(657632): Use AuthenticationType here.
+  // TODO(crbug.com/40489779): Use AuthenticationType here.
   string? authentication;
   EAPConfigProperties? eap;
 };
@@ -1032,9 +1079,15 @@ struct CellularSimState {
 // configuration as a whole instead of individual network configurations.
 // Default values should be explicitly provided for boolean values.
 struct GlobalPolicy {
+  // If true, users will be allowed to modify APNs.
+  bool allow_apn_modification = true;
+
   // If true, allow PIN locking of SIMs attached to the device.
   // If false, PIN locking is prohibited.
   bool allow_cellular_sim_lock = true;
+
+  // If true, users will be allowed to turn on cellular hotspot.
+  bool allow_cellular_hotspot = true;
 
   // If true, only cellular networks present in policy may be connected to and
   // no new networks may be added or configured.
@@ -1052,8 +1105,37 @@ struct GlobalPolicy {
   // networks may be added or configured.
   bool allow_only_policy_wifi_networks_to_connect_if_available = false;
 
+  // Indicates if the DNS queries can be used to monitor user traffic via user
+  // or device identifiers in the secure DNS URI templates.
+  bool dns_queries_monitored = false;
+
+  // Indicates if the deviceReportXDREvents policy is enabled. When enabled
+  // user's network activity will be monitored/reported for system security.
+  bool report_xdr_events_enabled = false;
+
   // List of blocked networks which can not be connected to.
   array<string> blocked_hex_ssids;
+
+  // If true, ChromeOS wipes "Recommended" values in shared managed networks on
+  // some occasions (see //components/onc/docs/onc_spec.md).
+  bool recommended_values_are_ephemeral = false;
+
+  // If true, ChromeOS deletes shared non-managed on some occasions (see
+  // //components/onc/docs/onc_spec.md).
+  bool user_created_network_configurations_are_ephemeral = false;
+
+  // If set to kAllow, ChromeOS will allow showing text message notifications,
+  // when set to kSuppress, notifications will not be shown, when kUnset
+  // allows configuration by the user. (see //components/onc/docs/onc_spec.md).
+  SuppressionType allow_text_messages = kUnset;
+};
+
+// Type of the allow text messages property, mapped from onc strings. (see
+// components/onc/docs/onc_spec.md)
+enum SuppressionType {
+kUnset,
+kAllow,
+kSuppress,
 };
 
 // VPN providers for type kExtension and kArc are set via SetVpnProviders and
@@ -1092,7 +1174,7 @@ struct NetworkCertificate {
   // For user certificates, this contains the  PKCS#11 id to be passed to the
   // configuration manager (Shill) for retrieving the encrypted certificate.
   // This will be used in the appropriate ConfigProperties dictionary.
-  // TODO(1006901): Use a union here instead once the issue is fixed.
+  // TODO(crbug.com/40100073): Use a union here instead once the issue is fixed.
   string pem_or_id;
   // Whether the certificate is available for network authentication.
   bool available_for_network_auth;
@@ -1268,16 +1350,22 @@ interface CrosNetworkConfig {
   // Resets traffic counters for a service with ID |guid|.
   ResetTrafficCounters(string guid);
 
-  // Sets whether traffic counters should be automatically reset and the day of
-  // the month on which traffic counters are automatically reset. In order for
-  // |day| to be valid, it must be within the limit 1 <= |day| <= 31.
-  SetTrafficCountersAutoReset(string guid, bool auto_reset, UInt32Value? day) =>
-    (bool success);
+  // Sets the traffic counters reset day. In order for |day| to be valid, it
+  // must be within the limit 1 <= |day| <= 31.
+  SetTrafficCountersResetDay(string guid, UInt32Value? day) => (bool success);
 
   // Creates a new APN for the cellular network with ID |network_guid|, and
   // appends it to |custom_apn_list|. Should only be called when the APN
   // Revamp feature flag is enabled.
-  CreateCustomApn(string network_guid, ApnProperties apn);
+  CreateCustomApn(string network_guid, ApnProperties apn) =>
+    (bool success);
+
+  // Creates a new APN for the cellular network with ID |network_guid|,
+  // appends it to |custom_apn_list| in the enabled state, and disables
+  // all other existing custom APNs. Should only be called when the APN
+  // Revamp feature flag is enabled.
+  CreateExclusivelyEnabledCustomApn(string network_guid, ApnProperties apn) =>
+    (bool success);
 
   // Removes the APN with ID |apn_id| from |custom_apn_list| for the cellular
   // network with ID |network_guid|. Should only be called when the APN

@@ -12,7 +12,7 @@ namespace ash {
 // A metrics recorder that records user activity in login screen.
 // This is tied to UserMetricsRecorder lifetime.
 // Authentication related metrics are captured in
-// chromeos/ash/components/login/auth/auth_metrics_recorder.h
+// chromeos/ash/components/login/auth/auth_events_recorder.h
 class ASH_EXPORT LoginMetricsRecorder {
  public:
   // User clicks target on the lock screen. This enum is used to back an UMA
@@ -21,12 +21,10 @@ class ASH_EXPORT LoginMetricsRecorder {
     kShutDownButton = 0,
     kRestartButton,
     kSignOutButton,
-    kCloseNoteButton,
     kSystemTray,
     kVirtualKeyboardTray,
     kImeTray,
     kNotificationTray,
-    kTrayActionNoteButton,
     kParentAccessButton,
     kTargetCount,
   };
@@ -56,6 +54,7 @@ class ASH_EXPORT LoginMetricsRecorder {
     kEnterpriseEnrollmentButton,
     kSignIn,
     kOsInstallButton,
+    kSchoolEnrollmentButton,
     kTargetCount,
   };
 
@@ -66,7 +65,6 @@ class ASH_EXPORT LoginMetricsRecorder {
     kVirtualKeyboardTray,
     kImeTray,
     kNotificationTray,
-    kTrayActionNoteButton,
     kTargetCount,
   };
 
@@ -78,12 +76,12 @@ class ASH_EXPORT LoginMetricsRecorder {
     kSignOutButton,
     kBrowseAsGuestButton,
     kAddUserButton,
-    kCloseNoteButton,
     kCancelButton,
     kParentAccessButton,
     kEnterpriseEnrollmentButton,
     kOsInstallButton,
     kSignIn,
+    kSchoolEnrollmentButton,
     kTargetCount,
   };
 

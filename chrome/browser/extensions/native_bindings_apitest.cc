@@ -8,8 +8,9 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -18,6 +19,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/api/file_system/file_system_api.h"
+#include "extensions/browser/background_script_executor.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
@@ -25,8 +27,8 @@
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/process_manager.h"
+#include "extensions/browser/script_result_queue.h"
 #include "extensions/common/extension_features.h"
-#include "extensions/common/features/feature_developer_mode_only.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 #include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
@@ -36,15 +38,121 @@
 
 namespace extensions {
 
+namespace {
+
+// A script that can verify whether a developer-mode-restricted API is
+// available. Note that we use separate verify methods here (as opposed to
+// a boolean "is API available") so we can better verify expected errors and
+// give more meaningful messages in the case of failure.
+constexpr char kCheckApiAvailability[] =
+    R"(
+       async function verifyApiIsAvailable() {
+         let message;
+         try {
+           const tabs = await chrome.tabs.query({});
+           chrome.test.assertEq(1, tabs.length);
+           const debuggee = {tabId: tabs[0].id};
+           await chrome.debugger.attach(debuggee, '1.3');
+           await chrome.debugger.detach(debuggee);
+           message = 'success';
+         } catch (e) {
+           message = 'Unexpected error: ' + e.toString();
+         }
+         chrome.test.sendScriptResult(message);
+       }
+
+       async function verifyApiIsNotAvailable() {
+         let message;
+         try {
+           // Note: we try to call a method on the API (and not just test
+           // accessing it) since, if it was previously instantiated when the
+           // API was available, it would still be present.
+           await chrome.debugger.getTargets();
+           message = 'API unexpectedly available.';
+         } catch(e) {
+           const expectedError =
+               `Error: Failed to read the 'debugger' property from ` +
+               `'Object': The 'debugger' API is only available for users ` +
+               'in developer mode.';
+           message = e.toString() == expectedError
+               ? 'success'
+               : 'Unexpected error: ' + e.toString();
+         }
+         chrome.test.sendScriptResult(message);
+       })";
+
+constexpr char kCheckApiAvailabilityUserScripts[] =
+    R"(const script =
+           {
+             id: 'script',
+             matches: ['*://*/*'],
+             js: [{file: 'script.js'}]
+           };
+       async function verifyApiIsAvailable() {
+         let message;
+         try {
+           await chrome.userScripts.register([script]);
+           const registered = await chrome.userScripts.getScripts();
+           message =
+               (registered.length == 1 &&
+                registered[0].id == 'script')
+                   ? 'success'
+                   : 'Unexpected registration result: ' +
+                         JSON.stringify(registered);
+           await chrome.userScripts.unregister();
+         } catch (e) {
+           message = 'Unexpected error: ' + e.toString();
+         }
+         chrome.test.sendScriptResult(message);
+       }
+
+       async function verifyApiIsNotAvailable() {
+         let message;
+         try {
+           // Note: we try to call a method on the API (and not just test
+           // accessing it) since, if it was previously instantiated when the
+           // API was available, it would still be present.
+           await chrome.userScripts.register([script]);
+           message = 'API unexpectedly available.';
+           await chrome.userScripts.unregister();
+         } catch(e) {
+           const expectedError =
+               `Error: Failed to read the 'userScripts' property from ` +
+               `'Object': The 'userScripts' API is only available for users ` +
+               'in developer mode.';
+           message = e.toString() == expectedError
+               ? 'success'
+               : 'Unexpected error: ' + e.toString();
+         }
+         chrome.test.sendScriptResult(message);
+       })";
+
+bool ApiExists(content::WebContents* web_contents,
+               const std::string& api_name) {
+  return content::EvalJs(web_contents,
+                         base::StringPrintf("!!%s;", api_name.c_str()))
+      .ExtractBool();
+}
+
+bool ObjectIsDefined(content::WebContents* web_contents,
+                     const std::string& object_name) {
+  return content::EvalJs(web_contents,
+                         base::StringPrintf("self.hasOwnProperty('%s');",
+                                            object_name.c_str()))
+      .ExtractBool();
+}
+
+}  // namespace
+
 // And end-to-end test for extension APIs using native bindings.
 class NativeBindingsApiTest : public ExtensionApiTest {
  public:
-  NativeBindingsApiTest() {}
+  NativeBindingsApiTest() = default;
 
   NativeBindingsApiTest(const NativeBindingsApiTest&) = delete;
   NativeBindingsApiTest& operator=(const NativeBindingsApiTest&) = delete;
 
-  ~NativeBindingsApiTest() override {}
+  ~NativeBindingsApiTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     ExtensionApiTest::SetUpCommandLine(command_line);
@@ -58,27 +166,6 @@ class NativeBindingsApiTest : public ExtensionApiTest {
     ExtensionApiTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
   }
-};
-
-// And end-to-end test for extension APIs restricted to developer mode using
-// native bindings.
-class NativeBindingsRestrictedToDeveloperModeApiTest
-    : public NativeBindingsApiTest {
- public:
-  NativeBindingsRestrictedToDeveloperModeApiTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        extensions_features::kRestrictDeveloperModeAPIs);
-  }
-
-  NativeBindingsRestrictedToDeveloperModeApiTest(
-      const NativeBindingsRestrictedToDeveloperModeApiTest&) = delete;
-  NativeBindingsRestrictedToDeveloperModeApiTest& operator=(
-      const NativeBindingsRestrictedToDeveloperModeApiTest&) = delete;
-
-  ~NativeBindingsRestrictedToDeveloperModeApiTest() override = default;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, SimpleEndToEndTest) {
@@ -139,7 +226,7 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, DeclarativeEvents) {
 
   // And the extension should be notified of the click.
   ExtensionTestMessageListener clicked_listener("clicked and removed");
-  ExtensionActionAPI::Get(profile())->DispatchExtensionActionClicked(
+  ExtensionActionDispatcher::Get(profile())->DispatchExtensionActionClicked(
       *action, web_contents, extension);
   ASSERT_TRUE(clicked_listener.WaitUntilSatisfied());
 }
@@ -171,8 +258,10 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, FileSystemApiGetDisplayPath) {
   FileSystemChooseEntryFunction::RegisterTempExternalFileSystemForTest(
       "test_root", test_dir);
   base::FilePath test_file = test_dir.AppendASCII("text.txt");
-  FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathForTest picker(
-      test_file);
+  const FileSystemChooseEntryFunction::TestOptions test_options{
+      .path_to_be_picked = &test_file};
+  auto reset_options =
+      FileSystemChooseEntryFunction::SetOptionsForTesting(test_options);
   ASSERT_TRUE(RunExtensionTest("native_bindings/instance_of",
                                {.launch_as_platform_app = true}))
       << message_;
@@ -236,8 +325,8 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, ContextMenusTest) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   std::unique_ptr<TestRenderViewContextMenu> menu(
-      TestRenderViewContextMenu::Create(
-          web_contents, GURL("https://www.example.com"), GURL(), GURL()));
+      TestRenderViewContextMenu::Create(web_contents,
+                                        GURL("https://www.example.com")));
 
   ExtensionTestMessageListener listener("clicked");
   int command_id = ContextMenuMatcher::ConvertToExtensionsCustomCommandId(0);
@@ -294,19 +383,15 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, WebUIBindings) {
       ui_test_utils::NavigateToURL(browser(), GURL("chrome://extensions")));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  auto api_exists = [web_contents](const std::string& api_name) {
-    return content::EvalJs(web_contents,
-                           base::StringPrintf("!!%s;", api_name.c_str()))
-        .ExtractBool();
-  };
 
-  EXPECT_TRUE(api_exists("chrome.developerPrivate"));
-  EXPECT_TRUE(api_exists("chrome.developerPrivate.getProfileConfiguration"));
-  EXPECT_TRUE(api_exists("chrome.management"));
-  EXPECT_TRUE(api_exists("chrome.management.setEnabled"));
-  EXPECT_FALSE(api_exists("chrome.networkingPrivate"));
-  EXPECT_FALSE(api_exists("chrome.sockets"));
-  EXPECT_FALSE(api_exists("chrome.browserAction"));
+  EXPECT_TRUE(ApiExists(web_contents, "chrome.developerPrivate"));
+  EXPECT_TRUE(ApiExists(web_contents,
+                        "chrome.developerPrivate.getProfileConfiguration"));
+  EXPECT_TRUE(ApiExists(web_contents, "chrome.management"));
+  EXPECT_TRUE(ApiExists(web_contents, "chrome.management.setEnabled"));
+  EXPECT_FALSE(ApiExists(web_contents, "chrome.networkingPrivate"));
+  EXPECT_FALSE(ApiExists(web_contents, "chrome.sockets"));
+  EXPECT_FALSE(ApiExists(web_contents, "chrome.browserAction"));
 }
 
 // Tests creating an API from a context that hasn't been initialized yet
@@ -571,7 +656,7 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, MV2PromisesNotSupported) {
 
   // The above test makes 2 calls to chrome.tabs.create, so check that those
   // have been logged in the histograms we expect, but not to the histograms
-  // specifcally tracking service worker and MV3 calls.
+  // specifically tracking service worker and MV3 calls.
   EXPECT_EQ(2, histogram_tester.GetBucketCount(
                    "Extensions.Functions.ExtensionCalls",
                    functions::HistogramValue::TABS_CREATE));
@@ -583,46 +668,385 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, MV2PromisesNotSupported) {
                    functions::HistogramValue::TABS_CREATE));
 }
 
-IN_PROC_BROWSER_TEST_F(
-    NativeBindingsRestrictedToDeveloperModeApiTest,
+class NativeBindingsBrowserNamespaceTest : public NativeBindingsApiTest {
+ public:
+  NativeBindingsBrowserNamespaceTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        extensions_features::kExtensionBrowserNamespaceAlternative);
+  }
+
+  NativeBindingsBrowserNamespaceTest(
+      const NativeBindingsBrowserNamespaceTest&) = delete;
+  const NativeBindingsBrowserNamespaceTest& operator=(
+      const NativeBindingsBrowserNamespaceTest&) = delete;
+  ~NativeBindingsBrowserNamespaceTest() override = default;
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that extension background script contexts have access to
+// `chrome.<extension_api>` and `browser.<extension_api>` objects.
+IN_PROC_BROWSER_TEST_F(NativeBindingsBrowserNamespaceTest,
+                       ChromeAndBrowserObjects_ExtensionBackground) {
+  ASSERT_TRUE(RunExtensionTest("browser_object/background_context"))
+      << message_;
+}
+
+// Tests that extension foreground script contexts (e.g. content script,
+// extension page) have access to `chrome.<extension_api>` and
+// `browser.<extension_api>` objects.
+IN_PROC_BROWSER_TEST_F(NativeBindingsBrowserNamespaceTest,
+                       ChromeAndBrowserObjects_ExtensionForeground) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  const GURL& test_website =
+      embedded_test_server()->GetURL("a.com", "/title1.html");
+
+  const Extension* extension = LoadExtension(
+      test_data_dir_.AppendASCII("browser_object/foreground_context"));
+  ASSERT_TRUE(extension);
+
+  // Content script.
+  ResultCatcher catcher;
+  ASSERT_TRUE(content::NavigateToURL(GetActiveWebContents(), test_website));
+  ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
+
+  // Extension page.
+  ResultCatcher extension_resource_catcher;
+  ASSERT_TRUE(content::NavigateToURL(
+      GetActiveWebContents(),
+      GURL(extension->GetResourceURL("extension_resource_page.html"))));
+  ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
+}
+
+// Tests that an externally connectable webpage has access to
+// `chrome.<extension_api>` and `browser.<extension_api>` objects. Additionally
+// it tests that `chrome.app` is bound, but `browser.app` is not.
+IN_PROC_BROWSER_TEST_F(NativeBindingsBrowserNamespaceTest,
+                       ChromeAndBrowserObjects_ExternallyConnectableWebpage) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  const GURL& test_website =
+      embedded_test_server()->GetURL("a.com", "/title1.html");
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(
+      R"({
+          "name": "Externally connectable test extension",
+          "version": "0.1",
+          "manifest_version": 3,
+          "externally_connectable": {
+            "matches": ["*://a.com/*"]
+          }
+        })");
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), "");
+  ASSERT_TRUE(LoadExtension(test_dir.UnpackedPath()));
+
+  ASSERT_TRUE(content::NavigateToURL(GetActiveWebContents(), test_website));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  EXPECT_TRUE(ApiExists(web_contents, "chrome.runtime"));
+  EXPECT_TRUE(ApiExists(web_contents, "browser.runtime"));
+  EXPECT_TRUE(ApiExists(web_contents, "chrome.app"));
+  EXPECT_FALSE(ApiExists(web_contents, "browser.app"));
+}
+
+// Tests that the `browser` namespace is not available in WebUI.
+IN_PROC_BROWSER_TEST_F(NativeBindingsBrowserNamespaceTest, WebUIBindings) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("chrome://extensions")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  EXPECT_TRUE(ObjectIsDefined(web_contents, "chrome"));
+  EXPECT_FALSE(ObjectIsDefined(web_contents, "browser"));
+}
+
+// Tests that an arbitrary web page with no extension API access has access to
+// the `chrome` namespace, but not the browser namespace.
+IN_PROC_BROWSER_TEST_F(NativeBindingsBrowserNamespaceTest,
+                       TestNonExtensionChromeAndBrowserObjects) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  const GURL& test_website =
+      embedded_test_server()->GetURL("a.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_website));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  EXPECT_TRUE(ObjectIsDefined(web_contents, "chrome"));
+  EXPECT_FALSE(ObjectIsDefined(web_contents, "browser"));
+}
+
+// TODO(crbug.com/401226626): Test that the browser object also has dev mode
+// restricted APIs set on correctly as well.
+
+class DeveloperModeNativeBindingsApiTest
+    : public NativeBindingsApiTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  DeveloperModeNativeBindingsApiTest() {
+    if (GetParam()) {
+      // Ensure chrome.debugger is controlled by Developer Mode.
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/
+          {extensions_features::kUserScriptUserExtensionToggle,
+           extensions_features::kDebuggerAPIRestrictedToDevMode},
+          /*disabled_features=*/{});
+
+    } else {
+      // Ensure chrome.userScripts is controlled by Developer Mode.
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/{}, /*disabled_features=*/{
+              extensions_features::kUserScriptUserExtensionToggle,
+              extensions_features::kDebuggerAPIRestrictedToDevMode});
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// TODO(crbug.com/390138269): Revert the user scripts specific testing once the
+// extensions::kUserScriptUserExtensionToggle feature is launched.
+IN_PROC_BROWSER_TEST_P(
+    DeveloperModeNativeBindingsApiTest,
     DeveloperModeOnlyWithAPIPermissionUserIsNotInDeveloperMode) {
-  // With kDeveloperModeRestriction enabled, developer mode-only APIs
-  // should not be available if the user is not in developer mode.
+  // Developer mode-only APIs should not be available if the user is not in
+  // developer mode.
   SetCustomArg("not_in_developer_mode");
-  SetCurrentDeveloperMode(util::GetBrowserContextId(profile()), false);
-  ASSERT_TRUE(RunExtensionTest(
-      "native_bindings/developer_mode_only_with_api_permission"))
-      << message_;
+  util::SetDeveloperModeForProfile(profile(), false);
+  if (GetParam()) {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/developer_mode_only_with_api_permission"))
+        << message_;
+  } else {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/developer_mode_only_with_user_scripts_api_permission"))
+        << message_;
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(
-    NativeBindingsRestrictedToDeveloperModeApiTest,
+IN_PROC_BROWSER_TEST_P(
+    DeveloperModeNativeBindingsApiTest,
     DeveloperModeOnlyWithAPIPermissionUserIsInDeveloperMode) {
-  // With kDeveloperModeRestriction enabled, developer mode-only APIs
-  // should be available if the user is in developer mode.
+  // Developer mode-only APIs should be available if the user is in developer
+  // mode.
   SetCustomArg("in_developer_mode");
-  SetCurrentDeveloperMode(util::GetBrowserContextId(profile()), true);
-  ASSERT_TRUE(RunExtensionTest(
-      "native_bindings/developer_mode_only_with_api_permission"))
-      << message_;
+  util::SetDeveloperModeForProfile(profile(), true);
+  if (GetParam()) {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/developer_mode_only_with_api_permission"))
+        << message_;
+  } else {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/developer_mode_only_with_user_scripts_api_permission"))
+        << message_;
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(
-    NativeBindingsRestrictedToDeveloperModeApiTest,
+IN_PROC_BROWSER_TEST_P(
+    DeveloperModeNativeBindingsApiTest,
     DeveloperModeOnlyWithoutAPIPermissionUserIsNotInDeveloperMode) {
-  SetCurrentDeveloperMode(util::GetBrowserContextId(profile()), false);
-  ASSERT_TRUE(RunExtensionTest(
-      "native_bindings/developer_mode_only_without_api_permission"))
-      << message_;
+  util::SetDeveloperModeForProfile(profile(), false);
+  if (GetParam()) {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/developer_mode_only_without_api_permission"))
+        << message_;
+  } else {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/"
+        "developer_mode_only_without_user_scripts_api_permission"))
+        << message_;
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(
-    NativeBindingsRestrictedToDeveloperModeApiTest,
+IN_PROC_BROWSER_TEST_P(
+    DeveloperModeNativeBindingsApiTest,
     DeveloperModeOnlyWithoutAPIPermissionUserIsInDeveloperMode) {
-  SetCurrentDeveloperMode(util::GetBrowserContextId(profile()), true);
-  ASSERT_TRUE(RunExtensionTest(
-      "native_bindings/developer_mode_only_without_api_permission"))
-      << message_;
+  util::SetDeveloperModeForProfile(profile(), true);
+  if (GetParam()) {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/developer_mode_only_without_api_permission"))
+        << message_;
+  } else {
+    ASSERT_TRUE(RunExtensionTest(
+        "native_bindings/"
+        "developer_mode_only_without_user_scripts_api_permission"))
+        << message_;
+  }
 }
+
+// Tests that changing the developer mode setting affects existing renderers
+// for page-based contexts (i.e., the main renderer thread).
+IN_PROC_BROWSER_TEST_P(DeveloperModeNativeBindingsApiTest,
+                       SwitchingDeveloperModeAffectsExistingRenderers_Pages) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Test",
+           "manifest_version": 3,
+           "version": "0.1",
+           "permissions": ["%s"]
+         })";
+  static constexpr char kPageHtml[] =
+      R"(<!doctype html>
+         <html>
+           <script src="page.js"></script>
+         </html>)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(
+      base::StringPrintf(kManifest, GetParam() ? "debugger" : "userScripts"));
+  test_dir.WriteFile(FILE_PATH_LITERAL("page.html"), kPageHtml);
+  test_dir.WriteFile(
+      FILE_PATH_LITERAL("page.js"),
+      GetParam() ? kCheckApiAvailability : kCheckApiAvailabilityUserScripts);
+  test_dir.WriteFile(FILE_PATH_LITERAL("script.js"), "// blank");
+
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  const GURL extension_url = extension->GetResourceURL("page.html");
+
+  // Navigate to the extension page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), extension_url));
+  content::WebContents* existing_tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_EQ(extension_url, existing_tab->GetLastCommittedURL());
+
+  ScriptResultQueue result_queue;
+
+  // By default, the API is unavailable.
+  ASSERT_TRUE(content::ExecJs(existing_tab, "verifyApiIsNotAvailable();"));
+  EXPECT_EQ("success", result_queue.GetNextResult());
+
+  // Next, set the user in developer mode. Now the API should be available.
+  util::SetDeveloperModeForProfile(profile(), true);
+  ASSERT_TRUE(content::ExecJs(existing_tab, "verifyApiIsAvailable();"));
+  EXPECT_EQ("success", result_queue.GetNextResult());
+
+  // Toggle back to not in developer mode. The API should be unavailable again.
+  util::SetDeveloperModeForProfile(profile(), false);
+  ASSERT_TRUE(content::ExecJs(existing_tab, "verifyApiIsNotAvailable();"));
+  EXPECT_EQ("success", result_queue.GetNextResult());
+}
+
+// Tests that incognito windows use the developer mode setting from the
+// original, on-the-record profile (since incognito windows can't separately
+// set developer mode).
+IN_PROC_BROWSER_TEST_P(DeveloperModeNativeBindingsApiTest,
+                       IncognitoRenderersUseOriginalProfilesDevModeSetting) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Test",
+           "manifest_version": 3,
+           "version": "0.1",
+           "incognito": "split",
+           "permissions": ["%s"]
+         })";
+  static constexpr char kPageHtml[] =
+      R"(<!doctype html>
+         <html>
+           <script src="page.js"></script>
+         </html>)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(
+      base::StringPrintf(kManifest, GetParam() ? "debugger" : "userScripts"));
+  test_dir.WriteFile(FILE_PATH_LITERAL("page.html"), kPageHtml);
+  test_dir.WriteFile(
+      FILE_PATH_LITERAL("page.js"),
+      GetParam() ? kCheckApiAvailability : kCheckApiAvailabilityUserScripts);
+  test_dir.WriteFile(FILE_PATH_LITERAL("script.js"), "// blank");
+
+  const Extension* extension =
+      LoadExtension(test_dir.UnpackedPath(), {.allow_in_incognito = true});
+  ASSERT_TRUE(extension);
+
+  const GURL extension_url = extension->GetResourceURL("page.html");
+
+  Browser* incognito_browser = OpenURLOffTheRecord(profile(), extension_url);
+  content::WebContents* incognito_tab =
+      incognito_browser->tab_strip_model()->GetActiveWebContents();
+  content::WaitForLoadStop(incognito_tab);
+
+  ScriptResultQueue result_queue;
+
+  // By default, the API is unavailable.
+  ASSERT_TRUE(content::ExecJs(incognito_tab, "verifyApiIsNotAvailable();"));
+  EXPECT_EQ("success", result_queue.GetNextResult());
+
+  // Next, set the user in developer mode. Now the API should be available.
+  util::SetDeveloperModeForProfile(profile(), true);
+  ASSERT_TRUE(content::ExecJs(incognito_tab, "verifyApiIsAvailable();"));
+  EXPECT_EQ("success", result_queue.GetNextResult());
+
+  // Toggle back to not in developer mode. The API should be unavailable again.
+  util::SetDeveloperModeForProfile(profile(), false);
+  ASSERT_TRUE(content::ExecJs(incognito_tab, "verifyApiIsNotAvailable();"));
+  EXPECT_EQ("success", result_queue.GetNextResult());
+}
+
+// Tests that changing the developer mode setting affects existing renderers
+// for service worker contexts (which run off the main thread in the renderer).
+// TODO(crbug.com/40946312): Test flaky on multiple platforms
+IN_PROC_BROWSER_TEST_P(
+    DeveloperModeNativeBindingsApiTest,
+    DISABLED_SwitchingDeveloperModeAffectsExistingRenderers_ServiceWorkers) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Test",
+           "manifest_version": 3,
+           "version": "0.1",
+           "permissions": ["%s"],
+           "background": {"service_worker": "background.js"}
+         })";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(
+      base::StringPrintf(kManifest, GetParam() ? "debugger" : "userScripts"));
+  test_dir.WriteFile(
+      FILE_PATH_LITERAL("background.js"),
+      GetParam() ? kCheckApiAvailability : kCheckApiAvailabilityUserScripts);
+  test_dir.WriteFile(FILE_PATH_LITERAL("script.js"), "// blank");
+
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  auto call_in_service_worker = [this, extension](const std::string& script) {
+    return BackgroundScriptExecutor::ExecuteScript(
+        profile(), extension->id(), script,
+        BackgroundScriptExecutor::ResultCapture::kSendScriptResult);
+  };
+
+  auto renderer_round_trip = [this, extension]() {
+    EXPECT_EQ("success",
+              BackgroundScriptExecutor::ExecuteScript(
+                  profile(), extension->id(),
+                  "chrome.test.sendScriptResult('success');",
+                  BackgroundScriptExecutor::ResultCapture::kSendScriptResult));
+  };
+
+  // By default, the API is unavailable.
+  EXPECT_EQ("success", call_in_service_worker("verifyApiIsNotAvailable();"));
+
+  // Next, set the user in developer mode. Now the API should be available.
+  util::SetDeveloperModeForProfile(profile(), true);
+  // We need to give the renderer time to do a few thread hops since there are
+  // multiple IPC channels at play (unlike the test above). Do a round-trip to
+  // the renderer to allow it to process.
+  renderer_round_trip();
+  EXPECT_EQ("success", call_in_service_worker("verifyApiIsAvailable();"));
+
+  // Toggle back to not in developer mode. The API should be unavailable again.
+  util::SetDeveloperModeForProfile(profile(), false);
+  renderer_round_trip();
+  EXPECT_EQ("success", call_in_service_worker("verifyApiIsNotAvailable();"));
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         DeveloperModeNativeBindingsApiTest,
+                         // extensions_features::kDebuggerAPIRestrictedToDevMode
+                         testing::Bool());
 
 }  // namespace extensions

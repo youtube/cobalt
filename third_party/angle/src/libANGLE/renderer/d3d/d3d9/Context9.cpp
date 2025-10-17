@@ -15,6 +15,7 @@
 #include "libANGLE/renderer/OverlayImpl.h"
 #include "libANGLE/renderer/d3d/CompilerD3D.h"
 #include "libANGLE/renderer/d3d/ProgramD3D.h"
+#include "libANGLE/renderer/d3d/ProgramExecutableD3D.h"
 #include "libANGLE/renderer/d3d/RenderbufferD3D.h"
 #include "libANGLE/renderer/d3d/SamplerD3D.h"
 #include "libANGLE/renderer/d3d/ShaderD3D.h"
@@ -36,14 +37,17 @@ Context9::Context9(const gl::State &state, gl::ErrorSet *errorSet, Renderer9 *re
 
 Context9::~Context9() {}
 
-angle::Result Context9::initialize()
+angle::Result Context9::initialize(const angle::ImageLoadContext &imageLoadContext)
 {
+    mImageLoadContext = imageLoadContext;
     return angle::Result::Continue;
 }
 
 void Context9::onDestroy(const gl::Context *context)
 {
     mIncompleteTextures.onDestroy(context);
+
+    mImageLoadContext = {};
 }
 
 CompilerImpl *Context9::createCompiler()
@@ -59,6 +63,11 @@ ShaderImpl *Context9::createShader(const gl::ShaderState &data)
 ProgramImpl *Context9::createProgram(const gl::ProgramState &data)
 {
     return new ProgramD3D(data, mRenderer);
+}
+
+ProgramExecutableImpl *Context9::createProgramExecutable(const gl::ProgramExecutable *executable)
+{
+    return new ProgramExecutableD3D(executable);
 }
 
 FramebufferImpl *Context9::createFramebuffer(const gl::FramebufferState &data)
@@ -423,10 +432,10 @@ angle::Result Context9::popDebugGroup(const gl::Context *context)
 }
 
 angle::Result Context9::syncState(const gl::Context *context,
-                                  const gl::State::DirtyBits &dirtyBits,
-                                  const gl::State::DirtyBits &bitMask,
-                                  const gl::State::ExtendedDirtyBits &extendedDirtyBits,
-                                  const gl::State::ExtendedDirtyBits &extendedBitMask,
+                                  const gl::state::DirtyBits dirtyBits,
+                                  const gl::state::DirtyBits bitMask,
+                                  const gl::state::ExtendedDirtyBits extendedDirtyBits,
+                                  const gl::state::ExtendedDirtyBits extendedBitMask,
                                   gl::Command command)
 {
     mRenderer->getStateManager()->syncState(mState, dirtyBits, extendedDirtyBits);
@@ -529,10 +538,5 @@ void Context9::handleResult(HRESULT hr,
     errorStream << "Internal D3D9 error: " << gl::FmtHR(hr) << ": " << message;
 
     mErrors->handleError(glErrorCode, errorStream.str().c_str(), file, function, line);
-}
-
-angle::ImageLoadContext Context9::getImageLoadContext() const
-{
-    return getRenderer()->getDisplay()->getImageLoadContext();
 }
 }  // namespace rx

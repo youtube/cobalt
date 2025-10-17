@@ -31,12 +31,12 @@ namespace blink {
 
 template <>
 const SVGEnumerationMap& GetEnumerationMap<ColorMatrixType>() {
-  static const SVGEnumerationMap::Entry enum_items[] = {
-      {FECOLORMATRIX_TYPE_MATRIX, "matrix"},
-      {FECOLORMATRIX_TYPE_SATURATE, "saturate"},
-      {FECOLORMATRIX_TYPE_HUEROTATE, "hueRotate"},
-      {FECOLORMATRIX_TYPE_LUMINANCETOALPHA, "luminanceToAlpha"},
-  };
+  static constexpr auto enum_items = std::to_array<const char* const>({
+      "matrix",
+      "saturate",
+      "hueRotate",
+      "luminanceToAlpha",
+  });
   static const SVGEnumerationMap entries(enum_items);
   return entries;
 }
@@ -51,11 +51,7 @@ SVGFEColorMatrixElement::SVGFEColorMatrixElement(Document& document)
       type_(MakeGarbageCollected<SVGAnimatedEnumeration<ColorMatrixType>>(
           this,
           svg_names::kTypeAttr,
-          FECOLORMATRIX_TYPE_MATRIX)) {
-  AddToPropertyMap(values_);
-  AddToPropertyMap(in1_);
-  AddToPropertyMap(type_);
-}
+          FECOLORMATRIX_TYPE_MATRIX)) {}
 
 void SVGFEColorMatrixElement::Trace(Visitor* visitor) const {
   visitor->Trace(values_);
@@ -82,13 +78,11 @@ void SVGFEColorMatrixElement::SvgAttributeChanged(
   const QualifiedName& attr_name = params.name;
   if (attr_name == svg_names::kTypeAttr ||
       attr_name == svg_names::kValuesAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     PrimitiveAttributeChanged(attr_name);
     return;
   }
 
   if (attr_name == svg_names::kInAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     Invalidate();
     return;
   }
@@ -107,6 +101,26 @@ FilterEffect* SVGFEColorMatrixElement::Build(SVGFilterBuilder* filter_builder,
       filter, filter_type, values_->CurrentValue()->ToFloatVector());
   effect->InputEffects().push_back(input1);
   return effect;
+}
+
+SVGAnimatedPropertyBase* SVGFEColorMatrixElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kValuesAttr) {
+    return values_.Get();
+  } else if (attribute_name == svg_names::kInAttr) {
+    return in1_.Get();
+  } else if (attribute_name == svg_names::kTypeAttr) {
+    return type_.Get();
+  } else {
+    return SVGFilterPrimitiveStandardAttributes::PropertyFromAttribute(
+        attribute_name);
+  }
+}
+
+void SVGFEColorMatrixElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{values_.Get(), in1_.Get(), type_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGFilterPrimitiveStandardAttributes::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

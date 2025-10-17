@@ -19,7 +19,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/ssl_identity.h"
 
-namespace rtc {
+namespace webrtc {
 
 namespace {
 
@@ -32,7 +32,7 @@ const uint64_t kYearInSeconds = 365 * 24 * 60 * 60;
 // static
 scoped_refptr<RTCCertificate> RTCCertificateGenerator::GenerateCertificate(
     const KeyParams& key_params,
-    const absl::optional<uint64_t>& expires_ms) {
+    const std::optional<uint64_t>& expires_ms) {
   if (!key_params.IsValid()) {
     return nullptr;
   }
@@ -68,7 +68,7 @@ RTCCertificateGenerator::RTCCertificateGenerator(Thread* signaling_thread,
 
 void RTCCertificateGenerator::GenerateCertificateAsync(
     const KeyParams& key_params,
-    const absl::optional<uint64_t>& expires_ms,
+    const std::optional<uint64_t>& expires_ms,
     RTCCertificateGenerator::Callback callback) {
   RTC_DCHECK(signaling_thread_->IsCurrent());
   RTC_DCHECK(callback);
@@ -85,4 +85,4 @@ void RTCCertificateGenerator::GenerateCertificateAsync(
   });
 }
 
-}  // namespace rtc
+}  // namespace webrtc

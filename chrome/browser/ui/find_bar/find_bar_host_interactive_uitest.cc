@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
@@ -28,18 +30,17 @@ const char kEndState[] = "/find_in_page/end_state.html";
 
 class FindInPageInteractiveTest : public InProcessBrowserTest {
  public:
-  FindInPageInteractiveTest() {
-  }
+  FindInPageInteractiveTest() = default;
 
   // Platform independent FindInPage that takes |const wchar_t*|
   // as an input.
   int FindInPageASCII(WebContents* web_contents,
-                      const base::StringPiece& search_str,
+                      std::string_view search_str,
                       bool forward,
                       bool case_sensitive,
                       int* ordinal) {
     std::u16string search_str16(base::ASCIIToUTF16(search_str));
-    Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+    Browser* browser = chrome::FindBrowserWithTab(web_contents);
     browser->GetFindBarController()->find_bar()->SetFindTextAndSelectedRange(
         search_str16, gfx::Range());
     return ui_test_utils::FindInPage(web_contents, search_str16, forward,
@@ -78,8 +79,7 @@ IN_PROC_BROWSER_TEST_F(FindInPageInteractiveTest, FindInPageEndState) {
 
   // Search for a text that exists within a link on the page.
   int ordinal = 0;
-  EXPECT_EQ(1, FindInPageASCII(web_contents, "nk",
-                               true, false, &ordinal));
+  EXPECT_EQ(1, FindInPageASCII(web_contents, "nk", true, false, &ordinal));
   EXPECT_EQ(1, ordinal);
 
   // End the find session, which should set focus to the link.
@@ -89,8 +89,7 @@ IN_PROC_BROWSER_TEST_F(FindInPageInteractiveTest, FindInPageEndState) {
   EXPECT_EQ("link1", FocusedOnPage(web_contents));
 
   // Search for a text that exists within a link on the page.
-  EXPECT_EQ(1, FindInPageASCII(web_contents, "Google",
-                               true, false, &ordinal));
+  EXPECT_EQ(1, FindInPageASCII(web_contents, "Google", true, false, &ordinal));
   EXPECT_EQ(1, ordinal);
 
   // Move the selection to link 1, after searching.

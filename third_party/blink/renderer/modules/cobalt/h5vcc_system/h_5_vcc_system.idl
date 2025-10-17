@@ -43,7 +43,7 @@ interface H5vccSystem : EventTarget {
   readonly attribute DOMString? trackingAuthorizationStatus;
 
   [CallWith=ScriptState, RaisesException]
-  Promise<void> requestTrackingAuthorization();
+  Promise<undefined> requestTrackingAuthorization();
 
   // Platform-specific exit is performed based on |userOnExitStrategy|:
   //   - "close" stops the application.

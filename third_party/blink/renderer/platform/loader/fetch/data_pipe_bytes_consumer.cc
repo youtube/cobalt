@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/containers/span.h"
 #include "base/location.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -54,11 +55,10 @@ DataPipeBytesConsumer::DataPipeBytesConsumer(
 
 DataPipeBytesConsumer::~DataPipeBytesConsumer() {}
 
-BytesConsumer::Result DataPipeBytesConsumer::BeginRead(const char** buffer,
-                                                       size_t* available) {
+BytesConsumer::Result DataPipeBytesConsumer::BeginRead(
+    base::span<const char>& buffer) {
   DCHECK(!is_in_two_phase_read_);
-  *buffer = nullptr;
-  *available = 0;
+  buffer = {};
   if (state_ == InternalState::kClosed)
     return Result::kDone;
   if (state_ == InternalState::kErrored)
@@ -69,15 +69,12 @@ BytesConsumer::Result DataPipeBytesConsumer::BeginRead(const char** buffer,
   if (!data_pipe_.is_valid())
     return Result::kShouldWait;
 
-  uint32_t pipe_available = 0;
-  MojoResult rv =
-      data_pipe_->BeginReadData(reinterpret_cast<const void**>(buffer),
-                                &pipe_available, MOJO_READ_DATA_FLAG_NONE);
-
+  base::span<const uint8_t> bytes;
+  MojoResult rv = data_pipe_->BeginReadData(MOJO_READ_DATA_FLAG_NONE, bytes);
   switch (rv) {
     case MOJO_RESULT_OK:
       is_in_two_phase_read_ = true;
-      *available = pipe_available;
+      buffer = base::as_chars(bytes);
       return Result::kOk;
     case MOJO_RESULT_SHOULD_WAIT:
       watcher_.ArmOrNotify();
@@ -91,21 +88,20 @@ BytesConsumer::Result DataPipeBytesConsumer::BeginRead(const char** buffer,
       MaybeClose();
       // We hit the end of the pipe, but we may still need to wait for
       // SignalComplete() or SignalError() to be called.
-      if (IsReadableOrWaiting())
+      if (IsWaiting()) {
         return Result::kShouldWait;
+      }
       return Result::kDone;
     default:
       SetError(Error("error"));
       return Result::kError;
   }
-
-  NOTREACHED();
 }
 
 BytesConsumer::Result DataPipeBytesConsumer::EndRead(size_t read) {
   DCHECK(is_in_two_phase_read_);
   is_in_two_phase_read_ = false;
-  DCHECK(IsReadableOrWaiting());
+  DCHECK(IsWaiting());
   MojoResult rv = data_pipe_->EndReadData(base::checked_cast<uint32_t>(read));
   if (rv != MOJO_RESULT_OK) {
     SetError(Error("error"));
@@ -151,8 +147,9 @@ mojo::ScopedDataPipeConsumerHandle DataPipeBytesConsumer::DrainAsDataPipe() {
 void DataPipeBytesConsumer::SetClient(BytesConsumer::Client* client) {
   DCHECK(!client_);
   DCHECK(client);
-  if (IsReadableOrWaiting())
+  if (IsWaiting()) {
     client_ = client;
+  }
 }
 
 void DataPipeBytesConsumer::ClearClient() {
@@ -175,23 +172,24 @@ void DataPipeBytesConsumer::Trace(Visitor* visitor) const {
   BytesConsumer::Trace(visitor);
 }
 
-bool DataPipeBytesConsumer::IsReadableOrWaiting() const {
-  return state_ == InternalState::kReadable ||
-         state_ == InternalState::kWaiting;
+bool DataPipeBytesConsumer::IsWaiting() const {
+  return state_ == InternalState::kWaiting;
 }
 
 void DataPipeBytesConsumer::MaybeClose() {
   DCHECK(!is_in_two_phase_read_);
-  if (!completion_signaled_ || data_pipe_.is_valid() || !IsReadableOrWaiting())
+  if (!completion_signaled_ || data_pipe_.is_valid() || !IsWaiting()) {
     return;
+  }
   DCHECK(!watcher_.IsWatching());
   state_ = InternalState::kClosed;
   ClearClient();
 }
 
 void DataPipeBytesConsumer::SignalComplete() {
-  if (!IsReadableOrWaiting() || has_pending_complete_ || has_pending_error_)
+  if (!IsWaiting() || has_pending_complete_ || has_pending_error_) {
     return;
+  }
   if (is_in_two_phase_read_) {
     has_pending_complete_ = true;
     return;
@@ -199,7 +197,7 @@ void DataPipeBytesConsumer::SignalComplete() {
   completion_signaled_ = true;
   Client* client = client_;
   MaybeClose();
-  if (!IsReadableOrWaiting()) {
+  if (!IsWaiting()) {
     if (client)
       client->OnStateChange();
     return;
@@ -211,9 +209,10 @@ void DataPipeBytesConsumer::SignalComplete() {
 }
 
 void DataPipeBytesConsumer::SignalSize(uint64_t size) {
-  if (!IsReadableOrWaiting() || has_pending_complete_ || has_pending_error_)
+  if (!IsWaiting() || has_pending_complete_ || has_pending_error_) {
     return;
-  total_size_ = absl::make_optional(size);
+  }
+  total_size_ = std::make_optional(size);
   DCHECK_LE(num_read_bytes_, *total_size_);
   if (!data_pipe_.is_valid() && num_read_bytes_ < *total_size_) {
     SignalError(Error());
@@ -227,8 +226,9 @@ void DataPipeBytesConsumer::SignalSize(uint64_t size) {
 }
 
 void DataPipeBytesConsumer::SignalError(const Error& error) {
-  if (!IsReadableOrWaiting() || has_pending_complete_ || has_pending_error_)
+  if (!IsWaiting() || has_pending_complete_ || has_pending_error_) {
     return;
+  }
   if (is_in_two_phase_read_) {
     has_pending_error_ = true;
     return;
@@ -243,8 +243,9 @@ void DataPipeBytesConsumer::SignalError(const Error& error) {
 
 void DataPipeBytesConsumer::SetError(const Error& error) {
   DCHECK(!is_in_two_phase_read_);
-  if (!IsReadableOrWaiting())
+  if (!IsWaiting()) {
     return;
+  }
   ClearDataPipe();
   state_ = InternalState::kErrored;
   error_ = error;
@@ -252,8 +253,9 @@ void DataPipeBytesConsumer::SetError(const Error& error) {
 }
 
 void DataPipeBytesConsumer::Notify(MojoResult) {
-  if (!IsReadableOrWaiting())
+  if (!IsWaiting()) {
     return;
+  }
 
   // If the pipe signals us in the middle of our client reading, then delay
   // processing the signal until the read is complete.
@@ -275,8 +277,9 @@ void DataPipeBytesConsumer::Notify(MojoResult) {
     MaybeClose();
     // If we're still waiting for the explicit completion signal then
     // return immediately.  The client needs to keep waiting.
-    if (IsReadableOrWaiting())
+    if (IsWaiting()) {
       return;
+    }
   } else if (!state.readable()) {
     // We were signaled, but the pipe is still not readable.  Continue to wait.
     // We don't need to notify the client.

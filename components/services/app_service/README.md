@@ -31,7 +31,7 @@ for these aspects:
   - App Installer: install, uninstall and update apps.
   - App Coordinator: keep system-wide settings, e.g. default handlers.
 
-Some things are still the responsbility of individual Consumers or Publishers.
+Some things are still the responsibility of individual Consumers or Publishers.
 For example, the order in which the apps' icons are presented in the launcher
 is a launcher-specific detail, not a system-wide detail, and is managed by the
 launcher, not the App Service. Similarly, Android-specific VM (Virtual Machine)
@@ -119,9 +119,9 @@ The `App`, `Readiness` and `OptionalBool` types are:
       // The fields above are mandatory. Everything else below is optional.
 
       Readiness readiness;
-      absl::optional<std::string> name;
-      absl::optional<IconKey> icon_key;
-      absl::optional<bool> show_in_launcher;
+      std::optional<std::string> name;
+      std::optional<IconKey> icon_key;
+      std::optional<bool> show_in_launcher;
       // etc.
     };
 
@@ -141,8 +141,8 @@ which have the same type: `App`). Specifically, last known value wins. Any
 known field in the delta overwrites the corresponding field in the old state,
 any unknown field in the delta is ignored. For example, if an app's name
 changed but its icon didn't, the delta's `App.name` field (a
-`absl::optional<std::string>`) would be known (not `absl::nullopt`) and copied
-over but its `App.icon` field would be unknown (`absl::nullopt`) and not copied
+`std::optional<std::string>`) would be known (not `std::nullopt`) and copied
+over but its `App.icon` field would be unknown (`std::nullopt`) and not copied
 over.
 
 The current state is thus the merger or sum of all previous deltas, including
@@ -322,8 +322,8 @@ There are two boolean fields that facilitate this: `allow_placeholder_icon` is
 sent from a `Subscriber` to a `Publisher` and `is_placeholder_icon` is sent in
 the response.
 
-`LoadIcon`'s `allow_placeholder_icon` states whether the the caller will accept
-a placeholder if the real icon can not be provided quickly. Native user
+`LoadIcon`'s `allow_placeholder_icon` states whether the caller will accept a
+placeholder if the real icon can not be provided quickly. Native user
 interfaces like the app launcher will probably set this to true. On the other
 hand, serving Web-UI URLs such as `chrome://app-icon/app_id/icon_size` will set
 this to false, as that URL should identify a particular icon, not one that

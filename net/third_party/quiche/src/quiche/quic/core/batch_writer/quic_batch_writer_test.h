@@ -74,7 +74,7 @@ static bool CreateSocket(int family, QuicSocketAddress* address, int* fd) {
 }
 
 struct QuicUdpBatchWriterIOTestParams;
-class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTestDelegate {
+class QUICHE_EXPORT QuicUdpBatchWriterIOTestDelegate {
  public:
   virtual ~QuicUdpBatchWriterIOTestDelegate() {}
 
@@ -87,14 +87,14 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTestDelegate {
   virtual QuicUdpBatchWriter* GetWriter() = 0;
 };
 
-struct QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTestParams {
+struct QUICHE_EXPORT QuicUdpBatchWriterIOTestParams {
   // Use shared_ptr because gtest makes copies of test params.
   std::shared_ptr<QuicUdpBatchWriterIOTestDelegate> delegate;
   int address_family;
   int data_size;
   int packet_size;
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
+  QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicUdpBatchWriterIOTestParams& p) {
     os << "{ address_family: " << p.address_family
        << " data_size: " << p.data_size << " packet_size: " << p.packet_size
@@ -129,7 +129,7 @@ MakeQuicBatchWriterTestParams() {
 // QuicUdpBatchWriterIOTest is a value parameterized test fixture that can be
 // used by tests of derived classes of QuicUdpBatchWriter, to verify basic
 // packet IO capabilities.
-class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
+class QUICHE_EXPORT QuicUdpBatchWriterIOTest
     : public QuicTestWithParam<QuicUdpBatchWriterIOTestParams> {
  protected:
   QuicUdpBatchWriterIOTest()
@@ -195,7 +195,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
 
       result = GetWriter()->WritePacket(&packet_buffer_[0], this_packet_size,
                                         self_address_.host(), peer_address_,
-                                        nullptr);
+                                        nullptr, QuicPacketWriterParams());
 
       ASSERT_EQ(WRITE_STATUS_OK, result.status) << strerror(result.error_code);
       bytes_flushed += result.bytes_written;
@@ -231,11 +231,13 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
       QuicUdpSocketApi::ReadPacketResult result;
       result.packet_buffer = {&packet_buffer_[0], sizeof(packet_buffer_)};
       result.control_buffer = {&control_buffer_[0], sizeof(control_buffer_)};
+      ASSERT_TRUE(QuicUdpSocketApi().WaitUntilReadable(
+          peer_socket_, QuicTime::Delta::FromSeconds(1)));
       QuicUdpSocketApi().ReadPacket(
           peer_socket_,
-          quic::BitMask64(QuicUdpPacketInfoBit::V4_SELF_IP,
-                          QuicUdpPacketInfoBit::V6_SELF_IP,
-                          QuicUdpPacketInfoBit::PEER_ADDRESS),
+          quic::QuicUdpPacketInfoBitMask({QuicUdpPacketInfoBit::V4_SELF_IP,
+                                          QuicUdpPacketInfoBit::V6_SELF_IP,
+                                          QuicUdpPacketInfoBit::PEER_ADDRESS}),
           &result);
       ASSERT_TRUE(result.ok);
       ASSERT_TRUE(

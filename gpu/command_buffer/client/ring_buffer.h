@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This file contains the definition of the RingBuffer class.
 
 #ifndef GPU_COMMAND_BUFFER_CLIENT_RING_BUFFER_H_
@@ -11,6 +16,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
+#include "gpu/command_buffer/common/buffer.h"
 #include "gpu/gpu_export.h"
 
 namespace gpu {
@@ -27,16 +33,14 @@ class GPU_EXPORT RingBuffer {
 
   // Creates a RingBuffer.
   // Parameters:
+  //   buffer: the buffer that this ring buffer's data backing is based on.
   //   alignment: Alignment for allocations.
   //   base_offset: The offset of the start of the buffer.
-  //   size: The size of the buffer in bytes.
   //   helper: A CommandBufferHelper for dealing with tokens.
-  //   base: The physical address that corresponds to base_offset.
-  RingBuffer(uint32_t alignment,
+  RingBuffer(scoped_refptr<gpu::Buffer> buffer,
+             uint32_t alignment,
              Offset base_offset,
-             uint32_t size,
-             CommandBufferHelper* helper,
-             void* base);
+             CommandBufferHelper* helper);
 
   RingBuffer(const RingBuffer&) = delete;
   RingBuffer& operator=(const RingBuffer&) = delete;
@@ -140,6 +144,9 @@ class GPU_EXPORT RingBuffer {
   // Used blocks are added to the end, blocks are freed from the beginning.
   Container blocks_;
 
+  // The buffer that this ring buffer's data backing is based on.
+  scoped_refptr<gpu::Buffer> buffer_;
+
   // The base offset of the ring buffer.
   Offset base_offset_;
 
@@ -160,7 +167,7 @@ class GPU_EXPORT RingBuffer {
   uint32_t num_used_blocks_ = 0;
 
   // The physical address that corresponds to base_offset.
-  raw_ptr<void> base_;
+  raw_ptr<void, AcrossTasksDanglingUntriaged> base_;
 };
 
 }  // namespace gpu

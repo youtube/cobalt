@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {DomIf} from 'chrome://new-tab-page/new_tab_page.js';
-import {BackgroundImage, NtpBackgroundImageSource, Theme} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
-import {getDeepActiveElement} from 'chrome://resources/js/util_ts.js';
-import {keyDownOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
+import type {BackgroundImage, Theme} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
+import {NtpBackgroundImageSource} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
+import {getDeepActiveElement} from 'chrome://resources/js/util.js';
 import {assertEquals, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
+import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 
 export const NONE_ANIMATION: string = 'none 0s ease 0s 1 normal none running';
@@ -48,49 +48,53 @@ export function installMock<T extends object>(
   installer = installer ||
       (clazz as unknown as {setInstance: Installer<T>}).setInstance;
   const mock = TestMock.fromClass(clazz);
-  installer!(mock);
+  installer(mock);
   return mock;
 }
 
 export function createBackgroundImage(url: string): BackgroundImage {
   return {
     url: {url},
+    url2x: null,
+    attributionUrl: null,
+    size: null,
+    repeatX: null,
+    repeatY: null,
+    positionX: null,
+    positionY: null,
     imageSource: NtpBackgroundImageSource.kNoImage,
   };
 }
 
-export function createTheme(isDark: boolean = false): Theme {
+export function createTheme({isDark = false, isBaseline = true} = {}): Theme {
   const mostVisited = {
     backgroundColor: {value: 0xff00ff00},
     isDark,
-    useTitlePill: false,
     useWhiteTileIcon: false,
   };
   return {
     backgroundColor: {value: 0xffff0000},
+    backgroundImage: null,
+    backgroundImageAttributionUrl: null,
     backgroundImageAttribution1: '',
     backgroundImageAttribution2: '',
     dailyRefreshEnabled: false,
     backgroundImageCollectionId: '',
+    logoColor: null,
+    isBaseline: isBaseline,
     isDark,
     mostVisited: mostVisited,
     textColor: {value: 0xff0000ff},
-    themeRealboxIcons: false,
     isCustomBackground: true,
   };
 }
 
-export async function initNullModule(): Promise<null> {
-  return null;
+export function initNullModule(): Promise<null> {
+  return Promise.resolve(null);
 }
 
 export function createElement(): HTMLElement {
   return document.createElement('div');
-}
-
-export function render(element: HTMLElement) {
-  element.shadowRoot!.querySelectorAll<DomIf>('dom-if').forEach(
-      tmpl => tmpl.render());
 }
 
 export function capture(

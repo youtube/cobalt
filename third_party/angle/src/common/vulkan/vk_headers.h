@@ -16,36 +16,6 @@
 #    include <vulkan/vulkan.h>
 #endif
 
-// For the unreleased VK_GOOGLEX_multisampled_render_to_single_sampled
-#if !defined(VK_GOOGLEX_multisampled_render_to_single_sampled)
-#    define VK_GOOGLEX_multisampled_render_to_single_sampled 1
-#    define VK_GOOGLEX_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_SPEC_VERSION 1
-#    define VK_GOOGLEX_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_EXTENSION_NAME \
-        "VK_GOOGLEX_multisampled_render_to_single_sampled"
-
-#    define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_GOOGLEX \
-        ((VkStructureType)(1000376000))
-#    define VK_STRUCTURE_TYPE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_INFO_GOOGLEX \
-        ((VkStructureType)(1000376001))
-
-typedef struct VkPhysicalDeviceMultisampledRenderToSingleSampledFeaturesGOOGLEX
-{
-    VkStructureType sType;
-    const void *pNext;
-    VkBool32 multisampledRenderToSingleSampled;
-} VkPhysicalDeviceMultisampledRenderToSingleSampledFeaturesGOOGLEX;
-
-typedef struct VkMultisampledRenderToSingleSampledInfoGOOGLEX
-{
-    VkStructureType sType;
-    const void *pNext;
-    VkBool32 multisampledRenderToSingleSampledEnable;
-    VkSampleCountFlagBits rasterizationSamples;
-    VkResolveModeFlagBits depthResolveMode;
-    VkResolveModeFlagBits stencilResolveMode;
-} VkMultisampledRenderToSingleSampledInfoGOOGLEX;
-#endif /* VK_GOOGLEX_multisampled_render_to_single_sampled */
-
 #if !defined(ANGLE_SHARED_LIBVULKAN)
 
 namespace rx
@@ -72,6 +42,9 @@ extern PFN_vkImportSemaphoreFdKHR vkImportSemaphoreFdKHR;
 
 // VK_EXT_external_memory_host
 extern PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerPropertiesEXT;
+
+// VK_EXT_device_fault
+extern PFN_vkGetDeviceFaultInfoEXT vkGetDeviceFaultInfoEXT;
 
 // VK_EXT_host_query_reset
 extern PFN_vkResetQueryPoolEXT vkResetQueryPoolEXT;
@@ -121,10 +94,6 @@ extern PFN_vkGetAndroidHardwareBufferPropertiesANDROID vkGetAndroidHardwareBuffe
 extern PFN_vkGetMemoryAndroidHardwareBufferANDROID vkGetMemoryAndroidHardwareBufferANDROID;
 #    endif
 
-#    if defined(ANGLE_PLATFORM_GGP)
-extern PFN_vkCreateStreamDescriptorSurfaceGGP vkCreateStreamDescriptorSurfaceGGP;
-#    endif  // defined(ANGLE_PLATFORM_GGP)
-
 // VK_KHR_shared_presentable_image
 extern PFN_vkGetSwapchainStatusKHR vkGetSwapchainStatusKHR;
 
@@ -149,12 +118,34 @@ extern PFN_vkCmdSetPatchControlPointsEXT vkCmdSetPatchControlPointsEXT;
 extern PFN_vkCmdSetPrimitiveRestartEnableEXT vkCmdSetPrimitiveRestartEnableEXT;
 extern PFN_vkCmdSetRasterizerDiscardEnableEXT vkCmdSetRasterizerDiscardEnableEXT;
 
+// VK_EXT_vertex_input_dynamic_state
+extern PFN_vkCmdSetVertexInputEXT vkCmdSetVertexInputEXT;
+
 // VK_KHR_fragment_shading_rate
 extern PFN_vkGetPhysicalDeviceFragmentShadingRatesKHR vkGetPhysicalDeviceFragmentShadingRatesKHR;
 extern PFN_vkCmdSetFragmentShadingRateKHR vkCmdSetFragmentShadingRateKHR;
 
 // VK_GOOGLE_display_timing
 extern PFN_vkGetPastPresentationTimingGOOGLE vkGetPastPresentationTimingGOOGLE;
+
+// VK_EXT_host_image_copy
+extern PFN_vkCopyImageToImageEXT vkCopyImageToImageEXT;
+extern PFN_vkCopyImageToMemoryEXT vkCopyImageToMemoryEXT;
+extern PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImageEXT;
+extern PFN_vkTransitionImageLayoutEXT vkTransitionImageLayoutEXT;
+extern PFN_vkGetImageSubresourceLayout2EXT vkGetImageSubresourceLayout2EXT;
+
+// VK_KHR_dynamic_rendering
+extern PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
+extern PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
+
+// VK_KHR_dynamic_rendering_local_read
+extern PFN_vkCmdSetRenderingAttachmentLocationsKHR vkCmdSetRenderingAttachmentLocationsKHR;
+extern PFN_vkCmdSetRenderingInputAttachmentIndicesKHR vkCmdSetRenderingInputAttachmentIndicesKHR;
+
+// VK_KHR_synchronization2
+extern PFN_vkCmdPipelineBarrier2KHR vkCmdPipelineBarrier2KHR;
+extern PFN_vkCmdWriteTimestamp2KHR vkCmdWriteTimestamp2KHR;
 
 }  // namespace rx
 

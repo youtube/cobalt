@@ -4,13 +4,15 @@
 
 package org.chromium.chrome.browser;
 
+
+import org.chromium.build.annotations.NullMarked;
+
 /**
- * Non-translatable strings cause apk size bloat if they are added in strings. Use constants
- * instead of marking the message 'translateable="false"'.
+ * Non-translatable strings cause apk size bloat if they are added in strings. Use constants instead
+ * of marking the message 'translateable="false"'.
  */
+@NullMarked
 public class ChromeStringConstants {
-    public static final String AUTOFILL_MANAGE_WALLET_CARD_URL =
-            "https://payments.google.com/#paymentMethods";
     public static final String AUTOFILL_MANAGE_WALLET_ADDRESSES_URL =
             "https://payments.google.com/#paymentMethods";
     public static final String SYNC_DASHBOARD_URL = "https://www.google.com/settings/chrome/sync";

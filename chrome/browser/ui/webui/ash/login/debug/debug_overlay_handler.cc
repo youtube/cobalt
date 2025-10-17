@@ -13,13 +13,13 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/time_formatting.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "chrome/browser/ui/ash/wallpaper_controller_client_impl.h"
 #include "chrome/common/chrome_paths.h"
 #include "ui/display/display_switches.h"
 #include "ui/snapshot/snapshot.h"
@@ -91,12 +91,8 @@ DebugOverlayHandler::DebugOverlayHandler() {
   add_resolution_to_filename_ =
       command_line->HasSwitch(::switches::kHostWindowBounds);
 
-  base::Time::Exploded now;
-  base::Time::Now().LocalExplode(&now);
-  std::string series_name =
-      base::StringPrintf("%d-%02d-%02d - %02d.%02d.%02d", now.year, now.month,
-                         now.day_of_month, now.hour, now.minute, now.second);
-  screenshot_dir_ = base_dir.Append(series_name);
+  screenshot_dir_ = base_dir.Append(base::UnlocalizedTimeFormatWithPattern(
+      base::Time::Now(), "y-MM-dd - HH.mm.ss"));
 }
 
 DebugOverlayHandler::~DebugOverlayHandler() = default;
@@ -116,8 +112,9 @@ void DebugOverlayHandler::DeclareLocalizedValues(
 
 void DebugOverlayHandler::HandleCaptureScreenshot(const std::string& name) {
   aura::Window::Windows root_windows = Shell::GetAllRootWindows();
-  if (root_windows.size() == 0)
+  if (root_windows.size() == 0) {
     return;
+  }
 
   screenshot_index_++;
   std::string filename_base =
@@ -131,18 +128,18 @@ void DebugOverlayHandler::HandleCaptureScreenshot(const std::string& name) {
       filename.append(base::StringPrintf("- Display %zu", screen));
     }
 
-    if (add_resolution_to_filename_)
+    if (add_resolution_to_filename_) {
       filename.append("_" + rect.size().ToString());
+    }
 
     if (DarkLightModeController::Get()->IsDarkModeEnabled()) {
       filename.append("_dark");
     }
 
     filename.append(".png");
-    ui::GrabWindowSnapshotAsyncPNG(
-        root_window, rect,
-        base::BindOnce(&RunStoreScreenshotOnTaskRunner, screenshot_dir_,
-                       filename));
+    ui::GrabWindowSnapshotAsPNG(root_window, rect,
+                                base::BindOnce(&RunStoreScreenshotOnTaskRunner,
+                                               screenshot_dir_, filename));
   }
 }
 
@@ -153,7 +150,7 @@ void DebugOverlayHandler::ToggleColorMode() {
 
 void DebugOverlayHandler::HandleSwitchWallpaper(const std::string& color) {
   if (color == "def") {
-    WallpaperControllerClientImpl::Get()->SetInitialWallpaper();
+    ash::WallpaperController::Get()->ShowOobeWallpaper();
     return;
   }
 

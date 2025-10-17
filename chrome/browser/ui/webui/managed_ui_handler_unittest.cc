@@ -4,9 +4,10 @@
 
 #include "chrome/browser/ui/webui/managed_ui_handler.h"
 
+#include <optional>
+
 #include "base/token.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/testing_profile.h"
@@ -19,11 +20,6 @@
 #include "content/public/test/test_web_ui_data_source.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "components/policy/core/browser/browser_policy_connector_base.h"
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
 class TestManagedUIHandler : public ManagedUIHandler {
  public:
@@ -67,7 +63,7 @@ class ManagedUIHandlerTest : public testing::Test {
 
   bool IsSourceManaged() {
     const auto* local_strings = source_->GetLocalizedStrings();
-    absl::optional<bool> managed = local_strings->FindBool("isManaged");
+    std::optional<bool> managed = local_strings->FindBool("isManaged");
     if (!managed.has_value()) {
       ADD_FAILURE();
       return false;
@@ -112,7 +108,7 @@ TEST_F(ManagedUIHandlerTest, ManagedUIBecomesEnabledByProfile) {
   EXPECT_TRUE(IsSourceManaged());
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(ManagedUIHandlerTest, ManagedUIDisabledForChildAccount) {
   profile_policy_connector()->OverrideIsManagedForTesting(true);
   profile()->SetIsSupervisedProfile();

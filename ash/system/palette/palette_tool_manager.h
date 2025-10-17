@@ -32,7 +32,7 @@ enum class PaletteToolId;
 struct ASH_EXPORT PaletteToolView {
   PaletteGroup group;
   PaletteToolId tool_id;
-  views::View* view;
+  raw_ptr<views::View> view;
 };
 
 class ASH_EXPORT PaletteToolManager : public PaletteTool::Delegate {
@@ -50,10 +50,6 @@ class ASH_EXPORT PaletteToolManager : public PaletteTool::Delegate {
 
     // Return the window associated with this palette.
     virtual aura::Window* GetWindow() = 0;
-
-    // Record usage of each pen palette option.
-    virtual void RecordPaletteOptionsUsage(PaletteTrayOptions option,
-                                           PaletteInvocationMethod method) = 0;
 
    protected:
     virtual ~Delegate() {}
@@ -108,16 +104,14 @@ class ASH_EXPORT PaletteToolManager : public PaletteTool::Delegate {
   void HidePalette() override;
   void HidePaletteImmediately() override;
   aura::Window* GetWindow() override;
-  void RecordPaletteOptionsUsage(PaletteTrayOptions option,
-                                 PaletteInvocationMethod method) override;
 
   PaletteTool* FindToolById(PaletteToolId tool_id) const;
 
   // Unowned pointer to the delegate to provide external functionality.
-  raw_ptr<Delegate, ExperimentalAsh> delegate_;
+  raw_ptr<Delegate> delegate_;
 
   // Unowned pointer to the active tool / group.
-  std::map<PaletteGroup, PaletteTool*> active_tools_;
+  std::map<PaletteGroup, raw_ptr<PaletteTool, CtnExperimental>> active_tools_;
 
   // Owned list of all tools.
   std::vector<std::unique_ptr<PaletteTool>> tools_;

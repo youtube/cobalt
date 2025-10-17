@@ -4,24 +4,29 @@
 
 #include "ash/system/unified/notification_counter_view.h"
 
-#include "ash/constants/ash_features.h"
+#include <optional>
+#include <string>
+
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
-#include "ash/system/message_center/ash_message_center_lock_screen_controller.h"
-#include "ash/system/message_center/message_center_utils.h"
+#include "ash/system/notification_center/ash_message_center_lock_screen_controller.h"
+#include "ash/system/notification_center/message_center_utils.h"
 #include "ash/system/tray/tray_constants.h"
+#include "ash/system/tray/tray_item_view.h"
 #include "ash/system/unified/notification_icons_controller.h"
 #include "base/i18n/number_formatting.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/image/canvas_image_source.h"
+#include "ui/gfx/paint_vector_icon.h"
 #include "ui/message_center/message_center.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
@@ -60,20 +65,10 @@ ui::ColorId SeparatorIconColorId(session_manager::SessionState state) {
 // Returns true if we should show the counter view (e.g. during quiet mode,
 // screen lock, etc.).
 bool ShouldShowCounterView() {
-  SessionControllerImpl* session_controller =
-      Shell::Get()->session_controller();
-
-  if (features::IsQsRevampEnabled()) {
-    // The `NotificationCounterView` should only be hidden if the screen is not
-    // locked and quiet mode is enabled.
-    return !message_center::MessageCenter::Get()->IsQuietMode() ||
-           session_controller->IsScreenLocked();
-  }
-
-  return !message_center::MessageCenter::Get()->IsQuietMode() &&
-         session_controller->ShouldShowNotificationTray() &&
-         (!session_controller->IsScreenLocked() ||
-          AshMessageCenterLockScreenController::IsEnabled());
+  // The `NotificationCounterView` should only be hidden if the screen is not
+  // locked and quiet mode is enabled.
+  return !message_center::MessageCenter::Get()->IsQuietMode() ||
+         Shell::Get()->session_controller()->IsScreenLocked();
 }
 
 class NumberIconImageSource : public gfx::CanvasImageSource {
@@ -92,9 +87,14 @@ class NumberIconImageSource : public gfx::CanvasImageSource {
   NumberIconImageSource& operator=(const NumberIconImageSource&) = delete;
 
   void Draw(gfx::Canvas* canvas) override {
-    SkColor tray_icon_color =
+    ui::ColorId tray_icon_color_id;
+    tray_icon_color_id = notification_counter_view_->is_active()
+                             ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                             : cros_tokens::kCrosSysOnSurface;
+
+    const SkColor tray_icon_color =
         notification_counter_view_->GetColorProvider()->GetColor(
-            kColorAshIconColorPrimary);
+            tray_icon_color_id);
     // Paint the contents inside the circle background. The color doesn't matter
     // as it will be hollowed out by the XOR operation.
     if (count_ > kTrayNotificationMaxCount) {
@@ -117,11 +117,13 @@ class NumberIconImageSource : public gfx::CanvasImageSource {
   }
 
  private:
-  raw_ptr<NotificationCounterView, ExperimentalAsh> notification_counter_view_;
+  raw_ptr<NotificationCounterView> notification_counter_view_;
   size_t count_;
 };
 
 }  // namespace
+
+// NotificationCounterView -----------------------------------------------------
 
 NotificationCounterView::NotificationCounterView(
     Shelf* shelf,
@@ -163,16 +165,19 @@ void NotificationCounterView::Update() {
 
   int icon_id = std::min(notification_count, kTrayNotificationMaxCount + 1);
   if (icon_id != count_for_display_) {
-    image_view()->SetImage(
-        gfx::CanvasImageSource::MakeImageSkia<NumberIconImageSource>(this,
-                                                                     icon_id));
     count_for_display_ = icon_id;
+    image_view()->SetImage(ui::ImageModel::FromImageSkia(
+        gfx::CanvasImageSource::MakeImageSkia<NumberIconImageSource>(this,
+                                                                     icon_id)));
+    UpdateLabelOrImageViewColor(is_active());
   }
   SetVisible(true);
 }
 
-std::u16string NotificationCounterView::GetAccessibleNameString() const {
-  return GetVisible() ? image_view()->GetTooltipText() : base::EmptyString16();
+std::optional<std::u16string> NotificationCounterView::GetAccessibleNameString()
+    const {
+  return GetVisible() ? std::optional(image_view()->GetTooltipText())
+                      : std::nullopt;
 }
 
 void NotificationCounterView::HandleLocaleChange() {
@@ -181,14 +186,21 @@ void NotificationCounterView::HandleLocaleChange() {
 
 void NotificationCounterView::OnThemeChanged() {
   TrayItemView::OnThemeChanged();
-  image_view()->SetImage(
-      gfx::CanvasImageSource::MakeImageSkia<NumberIconImageSource>(
-          this, count_for_display_));
+  UpdateLabelOrImageViewColor(is_active());
 }
 
-const char* NotificationCounterView::GetClassName() const {
-  return "NotificationCounterView";
+void NotificationCounterView::UpdateLabelOrImageViewColor(bool active) {
+  TrayItemView::UpdateLabelOrImageViewColor(active);
+
+  image_view()->SetImage(ui::ImageModel::FromImageSkia(
+      gfx::CanvasImageSource::MakeImageSkia<NumberIconImageSource>(
+          this, count_for_display_)));
 }
+
+BEGIN_METADATA(NotificationCounterView)
+END_METADATA
+
+// QuietModeView ---------------------------------------------------------------
 
 QuietModeView::QuietModeView(Shelf* shelf) : TrayItemView(shelf) {
   CreateImageView();
@@ -199,13 +211,16 @@ QuietModeView::QuietModeView(Shelf* shelf) : TrayItemView(shelf) {
 
 QuietModeView::~QuietModeView() = default;
 
+const std::u16string& QuietModeView::GetAccessibleNameString() const {
+  return image_view()->GetTooltipText();
+}
+
 void QuietModeView::Update() {
   if (message_center::MessageCenter::Get()->IsQuietMode() &&
       Shell::Get()->session_controller()->GetSessionState() ==
           session_manager::SessionState::ACTIVE) {
-    image_view()->SetImage(ui::ImageModel::FromVectorIcon(
-        kSystemTrayDoNotDisturbIcon, kColorAshIconColorPrimary));
     SetVisible(true);
+    UpdateLabelOrImageViewColor(is_active());
   } else {
     SetVisible(false);
   }
@@ -221,9 +236,17 @@ void QuietModeView::OnThemeChanged() {
   Update();
 }
 
-const char* QuietModeView::GetClassName() const {
-  return "QuietModeView";
+void QuietModeView::UpdateLabelOrImageViewColor(bool active) {
+  TrayItemView::UpdateLabelOrImageViewColor(active);
+
+  image_view()->SetImage(ui::ImageModel::FromVectorIcon(
+      kSystemTrayDoNotDisturbIcon,
+      active ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+             : cros_tokens::kCrosSysOnSurface));
 }
+
+BEGIN_METADATA(QuietModeView)
+END_METADATA
 
 SeparatorTrayItemView::SeparatorTrayItemView(Shelf* shelf)
     : TrayItemView(shelf) {
@@ -240,12 +263,11 @@ SeparatorTrayItemView::~SeparatorTrayItemView() = default;
 
 void SeparatorTrayItemView::HandleLocaleChange() {}
 
-const char* SeparatorTrayItemView::GetClassName() const {
-  return "SeparatorTrayItemView";
-}
-
 void SeparatorTrayItemView::UpdateColor(session_manager::SessionState state) {
   separator_->SetColorId(SeparatorIconColorId(state));
 }
+
+BEGIN_METADATA(SeparatorTrayItemView)
+END_METADATA
 
 }  // namespace ash

@@ -2,29 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-
 #include "chrome/browser/ash/extensions/speech/speech_recognition_private_api.h"
 
+#include <optional>
+#include <string>
+
 #include "chrome/browser/ash/extensions/speech/speech_recognition_private_manager.h"
+#include "chrome/browser/ash/extensions/speech/speech_recognition_private_manager_factory.h"
 #include "chrome/browser/speech/speech_recognition_constants.h"
 #include "chrome/common/extensions/api/speech_recognition_private.h"
 #include "content/public/browser/browser_context.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 
 ExtensionFunction::ResponseAction SpeechRecognitionPrivateStartFunction::Run() {
   // Extract arguments.
-  absl::optional<api::speech_recognition_private::Start::Params> params =
+  std::optional<api::speech_recognition_private::Start::Params> params =
       api::speech_recognition_private::Start::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   const api::speech_recognition_private::StartOptions* options =
       &params->options;
   DCHECK(options);
-  absl::optional<int> client_id;
-  absl::optional<std::string> locale;
-  absl::optional<bool> interim_results;
+  std::optional<int> client_id;
+  std::optional<std::string> locale;
+  std::optional<bool> interim_results;
   if (options->client_id)
     client_id = *options->client_id;
   if (options->locale)
@@ -34,7 +35,8 @@ ExtensionFunction::ResponseAction SpeechRecognitionPrivateStartFunction::Run() {
 
   // Get the manager for this context and ask it to handle this API call.
   SpeechRecognitionPrivateManager* manager =
-      SpeechRecognitionPrivateManager::Get(browser_context());
+      SpeechRecognitionPrivateManagerFactory::GetForBrowserContext(
+          browser_context());
   const std::string key = manager->CreateKey(extension_id(), client_id);
   manager->HandleStart(
       key, locale, interim_results,
@@ -44,7 +46,7 @@ ExtensionFunction::ResponseAction SpeechRecognitionPrivateStartFunction::Run() {
 
 void SpeechRecognitionPrivateStartFunction::OnStart(
     speech::SpeechRecognitionType type,
-    absl::optional<std::string> error) {
+    std::optional<std::string> error) {
   if (error.has_value()) {
     Respond(Error(error.value()));
     return;
@@ -56,19 +58,20 @@ void SpeechRecognitionPrivateStartFunction::OnStart(
 
 ExtensionFunction::ResponseAction SpeechRecognitionPrivateStopFunction::Run() {
   // Extract arguments.
-  absl::optional<api::speech_recognition_private::Stop::Params> params =
+  std::optional<api::speech_recognition_private::Stop::Params> params =
       api::speech_recognition_private::Stop::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   const api::speech_recognition_private::StopOptions* options =
       &params->options;
   DCHECK(options);
-  absl::optional<int> client_id;
+  std::optional<int> client_id;
   if (options->client_id)
     client_id = *options->client_id;
 
   // Get the manager for this context and ask it to handle this API call.
   SpeechRecognitionPrivateManager* manager =
-      SpeechRecognitionPrivateManager::Get(browser_context());
+      SpeechRecognitionPrivateManagerFactory::GetForBrowserContext(
+          browser_context());
   const std::string key = manager->CreateKey(extension_id(), client_id);
   manager->HandleStop(
       key, base::BindOnce(&SpeechRecognitionPrivateStopFunction::OnStop, this));
@@ -76,7 +79,7 @@ ExtensionFunction::ResponseAction SpeechRecognitionPrivateStopFunction::Run() {
 }
 
 void SpeechRecognitionPrivateStopFunction::OnStop(
-    absl::optional<std::string> error) {
+    std::optional<std::string> error) {
   if (error.has_value()) {
     Respond(Error(error.value()));
     return;

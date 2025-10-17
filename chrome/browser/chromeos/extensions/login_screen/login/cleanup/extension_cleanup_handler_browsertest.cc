@@ -9,16 +9,14 @@
 
 #include "ash/constants/ash_switches.h"
 #include "base/path_service.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/component_loader.h"
-#include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/extensions/pending_extension_manager.h"
 #include "chrome/browser/extensions/policy_test_utils.h"
 #include "chrome/browser/policy/extension_force_install_mixin.h"
 #include "chrome/common/chrome_paths.h"
@@ -27,8 +25,9 @@
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/extension_system.h"
+#include "extensions/browser/pending_extension_manager.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
@@ -37,7 +36,6 @@ namespace {
 
 const char* const kExemptExtensions[] = {
     app_constants::kChromeAppId,
-    app_constants::kLacrosAppId,
 };
 
 const char kAccountId[] = "public-session@test";
@@ -131,15 +129,11 @@ class ExtensionCleanupHandlerTest : public policy::DevicePolicyCrosBrowserTest {
   }
 
   void InstallUserExtension(const std::string& extension_id) {
-    extensions::ExtensionService* extension_service =
-        extensions::ExtensionSystem::Get(GetActiveUserProfile())
-            ->extension_service();
-    base::Value::Dict manifest(extensions::DictionaryBuilder()
+    base::Value::Dict manifest(base::Value::Dict()
                                    .Set("name", "Foo")
                                    .Set("description", "Bar")
                                    .Set("manifest_version", 2)
-                                   .Set("version", "1.0")
-                                   .Build());
+                                   .Set("version", "1.0"));
 
     auto observer = GetTestExtensionRegistryObserver(extension_id);
     scoped_refptr<const extensions::Extension> extension =
@@ -148,7 +142,8 @@ class ExtensionCleanupHandlerTest : public policy::DevicePolicyCrosBrowserTest {
             .SetID(extension_id)
             .SetManifest(std::move(manifest))
             .Build();
-    extension_service->AddExtension(extension.get());
+    extensions::ExtensionRegistrar::Get(GetActiveUserProfile())
+        ->AddExtension(extension.get());
     observer->WaitForExtensionReady();
   }
 
@@ -176,18 +171,16 @@ class ExtensionCleanupHandlerTest : public policy::DevicePolicyCrosBrowserTest {
   }
 
   void WaitForComponentExtensionsInstall() {
-    extensions::ExtensionService* extension_service =
-        extensions::ExtensionSystem::Get(GetActiveUserProfile())
-            ->extension_service();
+    auto* component_loader =
+        extensions::ComponentLoader::Get(GetActiveUserProfile());
     std::vector<std::string> registered_component_extensions =
-        extension_service->component_loader()
-            ->GetRegisteredComponentExtensionsIds();
+        component_loader->GetRegisteredComponentExtensionsIds();
     std::unordered_set<
         std::unique_ptr<extensions::TestExtensionRegistryObserver>>
         extension_observers;
     for (const auto& extension : registered_component_extensions) {
-      if (extension_service->pending_extension_manager()->IsIdPending(
-              extension)) {
+      if (extensions::PendingExtensionManager::Get(GetActiveUserProfile())
+              ->IsIdPending(extension)) {
         extension_observers.insert(GetTestExtensionRegistryObserver(extension));
       }
     }
@@ -200,8 +193,14 @@ class ExtensionCleanupHandlerTest : public policy::DevicePolicyCrosBrowserTest {
   ExtensionForceInstallMixin extension_force_install_mixin_{&mixin_host_};
 };
 
+// TODO(crbug.com/41491505): Fix flaky test.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_CleanupWithExemptExtensions DISABLED_CleanupWithExemptExtensions
+#else
+#define MAYBE_CleanupWithExemptExtensions CleanupWithExemptExtensions
+#endif
 IN_PROC_BROWSER_TEST_F(ExtensionCleanupHandlerTest,
-                       CleanupWithExemptExtensions) {
+                       MAYBE_CleanupWithExemptExtensions) {
   SetUpDeviceLocalAccountPolicy();
   WaitForSessionStart();
   WaitForComponentExtensionsInstall();
@@ -211,8 +210,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionCleanupHandlerTest,
   Profile* profile = GetActiveUserProfile();
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(profile);
-  extensions::ExtensionService* extension_service =
-      extensions::ExtensionSystem::Get(profile)->extension_service();
 
   // Set up the user policy builder and add an extension to the cleanup
   // exemption list.
@@ -276,8 +273,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionCleanupHandlerTest,
   // User installed extension is not reinstalled.
   EXPECT_FALSE(
       extension_registry->enabled_extensions().Contains(kUserExtensionId));
-  EXPECT_FALSE(extension_service->pending_extension_manager()->IsIdPending(
-      kUserExtensionId));
+  EXPECT_FALSE(extensions::PendingExtensionManager::Get(GetActiveUserProfile())
+                   ->IsIdPending(kUserExtensionId));
 
   // Force-installed app and extension are reinstalled.
   EXPECT_TRUE(extension_registry->enabled_extensions().Contains(kAppId));

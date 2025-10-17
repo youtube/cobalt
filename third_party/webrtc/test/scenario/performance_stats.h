@@ -21,8 +21,8 @@ namespace webrtc {
 namespace test {
 
 struct VideoFramePair {
-  rtc::scoped_refptr<VideoFrameBuffer> captured;
-  rtc::scoped_refptr<VideoFrameBuffer> decoded;
+  scoped_refptr<VideoFrameBuffer> captured;
+  scoped_refptr<VideoFrameBuffer> decoded;
   Timestamp capture_time = Timestamp::MinusInfinity();
   Timestamp decoded_time = Timestamp::PlusInfinity();
   Timestamp render_time = Timestamp::PlusInfinity();
@@ -36,7 +36,6 @@ struct VideoFramePair {
   // decoded frame has matched differend captured frames.
   int repeated = 0;
 };
-
 
 struct VideoFramesStats {
   int count = 0;

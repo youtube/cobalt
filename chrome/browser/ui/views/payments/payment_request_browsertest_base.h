@@ -9,6 +9,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
@@ -17,9 +18,9 @@
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view.h"
 #include "chrome/browser/ui/views/payments/test_chrome_payment_request_delegate.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/personal_data_manager_observer.h"
-#include "components/autofill/core/browser/test_event_waiter.h"
+#include "components/autofill/core/browser/test_utils/test_event_waiter.h"
 #include "components/payments/content/payment_request.h"
 #include "components/payments/core/const_csp_checker.h"
 #include "components/sync/test/test_sync_service.h"
@@ -31,8 +32,10 @@
 #include "third_party/blink/public/mojom/payments/payment_request.mojom-forward.h"
 
 namespace autofill {
+class AddressDataManager;
 class AutofillProfile;
 class CreditCard;
+class PaymentsDataManager;
 }  // namespace autofill
 
 namespace content {
@@ -54,8 +57,7 @@ class PersonalDataLoadedObserverMock
   PersonalDataLoadedObserverMock();
   ~PersonalDataLoadedObserverMock() override;
 
-  MOCK_METHOD0(OnPersonalDataChanged, void());
-  MOCK_METHOD0(OnPersonalDataFinishedProfileTasks, void());
+  MOCK_METHOD(void, OnPersonalDataChanged, (), (override));
 };
 
 // Base class for any interactive PaymentRequest test that will need to open
@@ -183,6 +185,8 @@ class PaymentRequestBrowserTestBase
   const std::vector<PaymentRequest*> GetPaymentRequests();
 
   autofill::PersonalDataManager* GetDataManager();
+  autofill::AddressDataManager* address_data_manager();
+  autofill::PaymentsDataManager* payments_data_manager();
   // Adds the various models to the database, waiting until the personal data
   // manager notifies that they are added.
   // NOTE: If no use_count is specified on the models and multiple items are
@@ -190,7 +194,6 @@ class PaymentRequestBrowserTestBase
   // are added close to each other.
   void AddAutofillProfile(const autofill::AutofillProfile& profile);
   void AddCreditCard(const autofill::CreditCard& card);
-  void WaitForOnPersonalDataChanged();
 
   void CreatePaymentRequestForTest(
       mojo::PendingReceiver<payments::mojom::PaymentRequest> receiver,
@@ -225,7 +228,7 @@ class PaymentRequestBrowserTestBase
   std::vector<std::u16string> GetShippingOptionLabelValues(
       DialogViewID parent_view_id);
 
-  // TODO(crbug.com/1209835): Remove remaining test usage and delete these.
+  // TODO(crbug.com/40182225): Remove remaining test usage and delete these.
   void OpenCVCPromptWithCVC(const std::u16string& cvc,
                             PaymentRequestDialogView* dialog_view);
   void PayWithCreditCard(const std::u16string& cvc);
@@ -241,25 +244,24 @@ class PaymentRequestBrowserTestBase
   bool IsViewVisible(DialogViewID view_id, views::View* dialog_view) const;
 
   // Getting/setting the |value| in the textfield of a given |type|.
-  std::u16string GetEditorTextfieldValue(autofill::ServerFieldType type);
+  std::u16string_view GetEditorTextfieldValue(autofill::FieldType type);
   void SetEditorTextfieldValue(const std::u16string& value,
-                               autofill::ServerFieldType type);
+                               autofill::FieldType type);
   // Getting/setting the |value| in the combobox of a given |type|.
-  std::u16string GetComboboxValue(autofill::ServerFieldType type);
-  void SetComboboxValue(const std::u16string& value,
-                        autofill::ServerFieldType type);
+  std::u16string GetComboboxValue(autofill::FieldType type);
+  void SetComboboxValue(const std::u16string& value, autofill::FieldType type);
   // Special case for the billing address since the interesting value is not
   // the visible one accessible directly on the base combobox model.
   void SelectBillingAddress(const std::string& billing_address_id);
 
   // Whether the editor textfield/combobox for the given |type| is currently in
   // an invalid state.
-  bool IsEditorTextfieldInvalid(autofill::ServerFieldType type);
-  bool IsEditorComboboxInvalid(autofill::ServerFieldType type);
+  bool IsEditorTextfieldInvalid(autofill::FieldType type);
+  bool IsEditorComboboxInvalid(autofill::FieldType type);
 
   bool IsPayButtonEnabled();
 
-  std::u16string GetPrimaryButtonLabel() const;
+  std::u16string_view GetPrimaryButtonLabel() const;
 
   // Sets proper animation delegates and waits for animation to finish.
   void WaitForAnimation();
@@ -274,12 +276,12 @@ class PaymentRequestBrowserTestBase
 
   // Returns the text of the Label or StyledLabel with the specific |view_id|
   // that is a child of the Payment Request dialog view.
-  const std::u16string& GetLabelText(DialogViewID view_id);
-  const std::u16string& GetLabelText(DialogViewID view_id,
-                                     views::View* dialog_view);
-  const std::u16string& GetStyledLabelText(DialogViewID view_id);
+  std::u16string_view GetLabelText(DialogViewID view_id);
+  std::u16string_view GetLabelText(DialogViewID view_id,
+                                   views::View* dialog_view);
+  std::u16string_view GetStyledLabelText(DialogViewID view_id);
   // Returns the error label text associated with a given field |type|.
-  const std::u16string& GetErrorLabelForType(autofill::ServerFieldType type);
+  std::u16string_view GetErrorLabelForType(autofill::FieldType type);
 
   net::EmbeddedTestServer* https_server() { return https_server_.get(); }
 
@@ -309,8 +311,8 @@ class PaymentRequestBrowserTestBase
   std::unique_ptr<autofill::EventWaiter<DialogEvent>> event_waiter_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   // Weak, owned by the PaymentRequest object.
-  raw_ptr<TestChromePaymentRequestDelegate, DanglingUntriaged> delegate_ =
-      nullptr;
+  raw_ptr<TestChromePaymentRequestDelegate, AcrossTasksDanglingUntriaged>
+      delegate_ = nullptr;
   syncer::TestSyncService sync_service_;
   sync_preferences::TestingPrefServiceSyncable prefs_;
   bool is_incognito_ = false;

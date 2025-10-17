@@ -36,6 +36,11 @@
  * version of this file under any of the LGPL, the MPL or the GPL.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/image-decoders/png/png_image_decoder.h"
 
 #include <memory>
@@ -43,6 +48,7 @@
 #include "base/containers/adapters.h"
 #include "base/numerics/checked_math.h"
 #include "media/base/video_color_space.h"
+#include "skia/ext/cicp.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/modules/skcms/skcms.h"
 
@@ -55,12 +61,13 @@ namespace blink {
 PNGImageDecoder::PNGImageDecoder(
     AlphaOption alpha_option,
     HighBitDepthDecodingOption high_bit_depth_decoding_option,
-    const ColorBehavior& color_behavior,
+    ColorBehavior color_behavior,
     wtf_size_t max_decoded_bytes,
     wtf_size_t offset)
     : ImageDecoder(alpha_option,
                    high_bit_depth_decoding_option,
                    color_behavior,
+                   cc::AuxImage::kDefault,
                    max_decoded_bytes),
       offset_(offset),
       current_frame_(0),
@@ -74,6 +81,10 @@ PNGImageDecoder::PNGImageDecoder(
       bit_depth_(0) {}
 
 PNGImageDecoder::~PNGImageDecoder() = default;
+
+String PNGImageDecoder::FilenameExtension() const {
+  return "png";
+}
 
 const AtomicString& PNGImageDecoder::MimeType() const {
   DEFINE_STATIC_LOCAL(const AtomicString, png_mime_type, ("image/png"));
@@ -90,14 +101,20 @@ wtf_size_t PNGImageDecoder::DecodeFrameCount() {
   return Failed() ? frame_buffer_cache_.size() : reader_->FrameCount();
 }
 
+void PNGImageDecoder::DecodeSize() {
+  Parse(ParseQuery::kSize);
+}
+
 void PNGImageDecoder::Decode(wtf_size_t index) {
   Parse(ParseQuery::kMetaData);
 
-  if (Failed())
+  if (Failed()) {
     return;
+  }
 
   UpdateAggressivePurging(index);
 
+  bool incomplete_parse = false;
   Vector<wtf_size_t> frames_to_decode = FindFramesToDecode(index);
   for (const auto& frame : base::Reversed(frames_to_decode)) {
     current_frame_ = frame;
@@ -107,31 +124,40 @@ void PNGImageDecoder::Decode(wtf_size_t index) {
     }
 
     // If this returns false, we need more data to continue decoding.
-    if (!PostDecodeProcessing(frame))
+    if (!PostDecodeProcessing(frame)) {
+      incomplete_parse = true;
       break;
+    }
   }
 
   // It is also a fatal error if all data is received and we have decoded all
   // frames available but the file is truncated.
-  if (index >= frame_buffer_cache_.size() - 1 && IsAllDataReceived() &&
-      reader_ && !reader_->ParseCompleted())
-    SetFailed();
+  if (index >= frame_buffer_cache_.size() - 1 && IsAllDataReceived()) {
+    incomplete_parse |= (reader_ && !reader_->ParseCompleted());
+    if (incomplete_parse) {
+      SetFailed();
+    }
+  }
 }
 
 void PNGImageDecoder::Parse(ParseQuery query) {
-  if (Failed() || (reader_ && reader_->ParseCompleted()))
+  if (Failed() || (reader_ && reader_->ParseCompleted())) {
     return;
+  }
 
-  if (!reader_)
+  if (!reader_) {
     reader_ = std::make_unique<PNGImageReader>(this, offset_);
+  }
 
-  if (!reader_->Parse(*data_, query))
+  if (!reader_->Parse(*data_, query)) {
     SetFailed();
+  }
 }
 
 void PNGImageDecoder::ClearFrameBuffer(wtf_size_t index) {
-  if (reader_)
+  if (reader_) {
     reader_->ClearDecodeState(index);
+  }
   ImageDecoder::ClearFrameBuffer(index);
 }
 
@@ -152,8 +178,9 @@ int PNGImageDecoder::RepetitionCount() const {
 void PNGImageDecoder::InitializeNewFrame(wtf_size_t index) {
   const PNGImageReader::FrameInfo& frame_info = reader_->GetFrameInfo(index);
   ImageFrame& buffer = frame_buffer_cache_[index];
-  if (decode_to_half_float_)
+  if (decode_to_half_float_) {
     buffer.SetPixelFormat(ImageFrame::PixelFormat::kRGBA_F16);
+  }
 
   DCHECK(gfx::Rect(Size()).Contains(frame_info.frame_rect));
   buffer.SetOriginalFrameRect(frame_info.frame_rect);
@@ -185,32 +212,11 @@ static std::unique_ptr<ColorProfile> ParseCicpChunk(
   uint8_t matrix_coefficients = chunk.data[2];
   uint8_t range_u8 = chunk.data[3];
 
-  // Per PNG spec, matrix_coefficients must be 0, i.e. RGB (YUV is explicitly
-  // disallowed).
-  if (matrix_coefficients) {
+  sk_sp<SkColorSpace> sk_color_space = skia::CICPGetSkColorSpace(
+      primaries, trc, matrix_coefficients, range_u8, /*prefer_srgb_trfn=*/true);
+  if (!sk_color_space) {
     return nullptr;
   }
-  // range must be 0 or 1.
-  if (range_u8 != 0 && range_u8 != 1) {
-    return nullptr;
-  }
-  const auto range = range_u8 == 1 ? gfx::ColorSpace::RangeID::FULL
-                                   : gfx::ColorSpace::RangeID::LIMITED;
-  if (range == gfx::ColorSpace::RangeID::LIMITED) {
-    // TODO(crbug/1339019): Implement this if needed.
-    DLOG(WARNING) << "Limited range RGB is not fully supported";
-  }
-  media::VideoColorSpace color_space(primaries, trc, 0, range);
-
-  // If not valid, do not return anything.
-  if (!color_space.IsSpecified()) {
-    return nullptr;
-  }
-
-  sk_sp<SkColorSpace> sk_color_space =
-      color_space.ToGfxColorSpace().GetAsFullRangeRGB().ToSkColorSpace();
-  if (!sk_color_space)
-    return nullptr;
 
   skcms_ICCProfile profile;
   sk_color_space->toProfile(&profile);
@@ -245,22 +251,14 @@ static inline std::unique_ptr<ColorProfile> ReadColorProfile(png_structp png,
   png_bytep buffer;
   png_uint_32 length;
   if (png_get_iCCP(png, info, &name, &compression, &buffer, &length)) {
-    return ColorProfile::Create(buffer, length);
+    return ColorProfile::Create(base::as_bytes(base::span(buffer, length)));
   }
 
-  png_fixed_point chrm[8];
-  if (!png_get_cHRM_fixed(png, info, &chrm[0], &chrm[1], &chrm[2], &chrm[3],
-                          &chrm[4], &chrm[5], &chrm[6], &chrm[7]))
-    return nullptr;
-
   png_fixed_point inverse_gamma;
-  if (!png_get_gAMA_fixed(png, info, &inverse_gamma))
+  bool got_gama_chunk = png_get_gAMA_fixed(png, info, &inverse_gamma);
+  if (!got_gama_chunk) {
     return nullptr;
-
-  // cHRM and gAMA tags are both present. The PNG spec states that cHRM is
-  // valid even without gAMA but we cannot apply the cHRM without guessing
-  // a gAMA. Color correction is not a guessing game: match the behavior
-  // of Safari and Firefox instead (compat).
+  }
 
   struct pngFixedToFloat {
     explicit pngFixedToFloat(png_fixed_point value)
@@ -268,6 +266,39 @@ static inline std::unique_ptr<ColorProfile> ReadColorProfile(png_structp png,
     operator float() { return float_value; }
     float float_value;
   };
+
+  png_fixed_point chrm[8];
+  if (!png_get_cHRM_fixed(png, info, &chrm[0], &chrm[1], &chrm[2], &chrm[3],
+                          &chrm[4], &chrm[5], &chrm[6], &chrm[7])) {
+    if (got_gama_chunk) {
+      // `kPngGammaThreshold` mimics `PNG_GAMMA_THRESHOLD_FIXED` from `libpng`
+      // without using internal/private `png_muldiv` and/or
+      // `png_gamma_significant`.
+      constexpr float kPngGammaThreshold = 0.05f;
+      constexpr float kMinNeutralValue = 1.0f - kPngGammaThreshold;
+      constexpr float kMaxNeutralValue = 1.0f + kPngGammaThreshold;
+      float floating_inverse_gamma = pngFixedToFloat(inverse_gamma);
+      float tmp = floating_inverse_gamma * 2.2f;
+      bool is_neutral = kMinNeutralValue < tmp && tmp < kMaxNeutralValue;
+      if (!is_neutral) {
+        skcms_ICCProfile profile;
+        skcms_Init(&profile);
+        skcms_SetXYZD50(&profile, &SkNamedGamut::kSRGB);
+
+        skcms_TransferFunction fn = SkNamedTransferFn::k2Dot2;
+        fn.g = 1.0f / floating_inverse_gamma;
+        skcms_SetTransferFunction(&profile, &fn);
+
+        return std::make_unique<ColorProfile>(profile);
+      }
+    }
+    return nullptr;
+  }
+
+  // cHRM and gAMA tags are both present. The PNG spec states that cHRM is
+  // valid even without gAMA but we cannot apply the cHRM without guessing
+  // a gAMA. Color correction is not a guessing game: match the behavior
+  // of Safari and Firefox instead (compat).
 
   float rx = pngFixedToFloat(chrm[2]);
   float ry = pngFixedToFloat(chrm[3]);
@@ -278,8 +309,9 @@ static inline std::unique_ptr<ColorProfile> ReadColorProfile(png_structp png,
   float wx = pngFixedToFloat(chrm[0]);
   float wy = pngFixedToFloat(chrm[1]);
   skcms_Matrix3x3 to_xyzd50;
-  if (!skcms_PrimariesToXYZD50(rx, ry, gx, gy, bx, by, wx, wy, &to_xyzd50))
+  if (!skcms_PrimariesToXYZD50(rx, ry, gx, gy, bx, by, wx, wy, &to_xyzd50)) {
     return nullptr;
+  }
 
   skcms_TransferFunction fn;
   fn.g = 1.0f / pngFixedToFloat(inverse_gamma);
@@ -294,24 +326,101 @@ static inline std::unique_ptr<ColorProfile> ReadColorProfile(png_structp png,
   return std::make_unique<ColorProfile>(profile);
 }
 
-void PNGImageDecoder::SetColorSpace() {
-  if (IgnoresColorSpace())
-    return;
-  png_structp png = reader_->PngPtr();
-  png_infop info = reader_->InfoPtr();
-  const int color_type = png_get_color_type(png, info);
-  if (!(color_type & PNG_COLOR_MASK_COLOR))
-    return;
-  // We only support color profiles for color PALETTE and RGB[A] PNG.
-  // TODO(msarett): Add GRAY profile support, block CYMK?
-  if (auto profile = ReadColorProfile(png, info)) {
-    SetEmbeddedColorProfile(std::move(profile));
+static inline void ReadHDRMetadata(
+    png_structp png,
+    png_infop info,
+    std::optional<gfx::HDRMetadata>* hdr_metadata) {
+  std::optional<gfx::HdrMetadataCta861_3> clli;
+  std::optional<gfx::HdrMetadataSmpteSt2086> mdcv;
+  std::optional<gfx::HdrMetadataAgtm> agtm;
+  png_unknown_chunkp unknown_chunks;
+  size_t num_unknown_chunks =
+      png_get_unknown_chunks(png, info, &unknown_chunks);
+  for (size_t chunk_index = 0; chunk_index < num_unknown_chunks;
+       chunk_index++) {
+    const auto& chunk = unknown_chunks[chunk_index];
+    if (strcmp(reinterpret_cast<const char*>(chunk.name), "cLLi") == 0 ||
+        strcmp(reinterpret_cast<const char*>(chunk.name), "cLLI") == 0) {
+      if (chunk.size != 8) {
+        continue;
+      }
+      const uint32_t max_cll_times_10000 = (chunk.data[0] << 24) |
+                                           (chunk.data[1] << 16) |
+                                           (chunk.data[2] << 8) | chunk.data[3];
+      const uint32_t max_fall_times_10000 =
+          (chunk.data[4] << 24) | (chunk.data[5] << 16) | (chunk.data[6] << 8) |
+          chunk.data[7];
+      clli.emplace(max_cll_times_10000 / 10000, max_fall_times_10000 / 10000);
+      continue;
+    }
+    if (strcmp(reinterpret_cast<const char*>(chunk.name), "mDCv") == 0 ||
+        strcmp(reinterpret_cast<const char*>(chunk.name), "mDCV") == 0) {
+      if (chunk.size != 24) {
+        continue;
+      }
+      // Red, green, blue, white, each with x and y.
+      uint16_t chromaticities_times_50000[8];
+      for (int i = 0; i < 8; ++i) {
+        chromaticities_times_50000[i] =
+            (chunk.data[2 * i] << 8) | chunk.data[2 * i + 1];
+      }
+      const uint32_t max_luminance_times_10000 =
+          (chunk.data[16] << 24) | (chunk.data[17] << 16) |
+          (chunk.data[18] << 8) | chunk.data[19];
+      const uint32_t min_luminance_times_10000 =
+          (chunk.data[20] << 24) | (chunk.data[21] << 16) |
+          (chunk.data[22] << 8) | chunk.data[23];
+      SkColorSpacePrimaries primaries = {
+          chromaticities_times_50000[0] / 50000.f,
+          chromaticities_times_50000[1] / 50000.f,
+          chromaticities_times_50000[2] / 50000.f,
+          chromaticities_times_50000[3] / 50000.f,
+          chromaticities_times_50000[4] / 50000.f,
+          chromaticities_times_50000[5] / 50000.f,
+          chromaticities_times_50000[6] / 50000.f,
+          chromaticities_times_50000[7] / 50000.f,
+      };
+      mdcv.emplace(primaries, max_luminance_times_10000 * 1e-4f,
+                   min_luminance_times_10000 * 1e-4f);
+      continue;
+    }
+    if (strcmp(reinterpret_cast<const char*>(chunk.name), "agTm") == 0) {
+      agtm.emplace(SkData::MakeWithCopy(chunk.data, chunk.size));
+      continue;
+    }
+  }
+  if (clli || mdcv || agtm) {
+    if (!hdr_metadata->has_value()) {
+      hdr_metadata->emplace();
+    }
+    if (clli) {
+      (*hdr_metadata)->cta_861_3 = clli;
+    }
+    if (mdcv) {
+      (*hdr_metadata)->smpte_st_2086 = mdcv;
+    }
+    if (agtm) {
+      (*hdr_metadata)->agtm = agtm;
+    }
   }
 }
 
-void PNGImageDecoder::SetBitDepth() {
-  if (bit_depth_)
+void PNGImageDecoder::SetColorSpace() {
+  if (IgnoresColorSpace()) {
     return;
+  }
+  png_structp png = reader_->PngPtr();
+  png_infop info = reader_->InfoPtr();
+  if (auto profile = ReadColorProfile(png, info)) {
+    SetEmbeddedColorProfile(std::move(profile));
+  }
+  ReadHDRMetadata(png, info, &hdr_metadata_);
+}
+
+void PNGImageDecoder::SetBitDepth() {
+  if (bit_depth_) {
+    return;
+  }
   png_structp png = reader_->PngPtr();
   png_infop info = reader_->InfoPtr();
   bit_depth_ = png_get_bit_depth(png, info);
@@ -329,6 +438,10 @@ bool PNGImageDecoder::ImageIsHighBitDepth() {
          // TODO(crbug.com/874057): Implement support for 16-bit PNGs w/
          // ImageFrame::kBlendAtopPreviousFrame.
          repetition_count_ == kAnimationNone;
+}
+
+std::optional<gfx::HDRMetadata> PNGImageDecoder::GetHDRMetadata() const {
+  return hdr_metadata_;
 }
 
 bool PNGImageDecoder::SetSize(unsigned width, unsigned height) {
@@ -354,38 +467,38 @@ void PNGImageDecoder::HeaderAvailable() {
 
   // Expand to ensure we use 24-bit for RGB and 32-bit for RGBA.
   if (color_type == PNG_COLOR_TYPE_PALETTE ||
-      (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8))
+      (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)) {
     png_set_expand(png);
+  }
 
-  if (png_get_valid(png, info, PNG_INFO_tRNS))
+  if (png_get_valid(png, info, PNG_INFO_tRNS)) {
     png_set_expand(png);
+  }
 
-  if (!decode_to_half_float_)
+  if (!decode_to_half_float_) {
     png_set_strip_16(png);
+  }
 
   if (color_type == PNG_COLOR_TYPE_GRAY ||
-      color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+      color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
     png_set_gray_to_rgb(png);
+  }
 
-  if (!HasEmbeddedColorProfile()) {
-    const double kInverseGamma = 0.45455;
-    const double kDefaultGamma = 2.2;
-    double gamma;
-    if (!IgnoresColorSpace() && png_get_gAMA(png, info, &gamma)) {
-      const double kMaxGamma = 21474.83;
-      if ((gamma <= 0.0) || (gamma > kMaxGamma)) {
-        gamma = kInverseGamma;
-        png_set_gAMA(png, info, gamma);
-      }
-      png_set_gamma(png, kDefaultGamma, gamma);
-    } else {
-      png_set_gamma(png, kDefaultGamma, kInverseGamma);
+  // process eXIf chunk
+  png_uint_32 exif_size = 0;
+  png_bytep exif_buffer = nullptr;
+  if (png_get_eXIf_1(png, info, &exif_size, &exif_buffer) != 0) {
+    // exif data exists
+    if (exif_size != 0 && exif_buffer) {
+      ApplyExifMetadata(SkData::MakeWithoutCopy(exif_buffer, exif_size).get(),
+                        gfx::Size(width, height));
     }
   }
 
   // Tell libpng to send us rows for interlaced pngs.
-  if (interlace_type == PNG_INTERLACE_ADAM7)
+  if (interlace_type == PNG_INTERLACE_ADAM7) {
     png_set_interlace_handling(png);
+  }
 
   // Update our info now (so we can get color channel info).
   png_read_update_info(png, info);
@@ -592,8 +705,9 @@ static inline void SetRGBARawRowNoAlphaNeon(png_bytep src_ptr,
 void PNGImageDecoder::RowAvailable(unsigned char* row_buffer,
                                    unsigned row_index,
                                    int) {
-  if (current_frame_ >= frame_buffer_cache_.size())
+  if (current_frame_ >= frame_buffer_cache_.size()) {
     return;
+  }
 
   ImageFrame& buffer = frame_buffer_cache_[current_frame_];
   if (buffer.GetStatus() == ImageFrame::kFrameEmpty) {
@@ -609,8 +723,9 @@ void PNGImageDecoder::RowAvailable(unsigned char* row_buffer,
       unsigned color_channels = has_alpha_channel_ ? 4 : 3;
       base::CheckedNumeric<int> interlace_buffer_size = color_channels;
       interlace_buffer_size *= Size().GetCheckedArea();
-      if (decode_to_half_float_)
+      if (decode_to_half_float_) {
         interlace_buffer_size *= 2;
+      }
       if (!interlace_buffer_size.IsValid()) {
         longjmp(JMPBUF(png), 1);
       }
@@ -643,16 +758,19 @@ void PNGImageDecoder::RowAvailable(unsigned char* row_buffer,
   // frame size, ignore the extra rows and use the frame size as the source
   // of truth. libpng can send extra rows: ignore them too, this to prevent
   // memory writes outside of the image bounds (security).
-  if (!row_buffer)
+  if (!row_buffer) {
     return;
+  }
 
   DCHECK_GT(frame_rect.height(), 0);
-  if (row_index >= static_cast<unsigned>(frame_rect.height()))
+  if (row_index >= static_cast<unsigned>(frame_rect.height())) {
     return;
+  }
 
   int y = row_index + frame_rect.y();
-  if (y < 0)
+  if (y < 0) {
     return;
+  }
   DCHECK_LT(y, Size().height());
 
   /* libpng comments (continued).
@@ -679,8 +797,9 @@ void PNGImageDecoder::RowAvailable(unsigned char* row_buffer,
 
   if (png_bytep interlace_buffer = reader_->InterlaceBuffer()) {
     unsigned bytes_per_pixel = has_alpha ? 4 : 3;
-    if (decode_to_half_float_)
+    if (decode_to_half_float_) {
       bytes_per_pixel *= 2;
+    }
     row = interlace_buffer + (row_index * bytes_per_pixel * Size().width());
     png_progressive_combine_row(reader_->PngPtr(), row, row_buffer);
   }
@@ -768,8 +887,9 @@ void PNGImageDecoder::RowAvailable(unsigned char* row_buffer,
         }
       }
 
-      if (alpha_mask != 255)
+      if (alpha_mask != 255) {
         current_buffer_saw_alpha_ = true;
+      }
 
     } else {
 #if (defined(__ARM_NEON__) || defined(__ARM_NEON))
@@ -828,40 +948,46 @@ void PNGImageDecoder::RowAvailable(unsigned char* row_buffer,
 }
 
 void PNGImageDecoder::FrameComplete() {
-  if (current_frame_ >= frame_buffer_cache_.size())
+  if (current_frame_ >= frame_buffer_cache_.size()) {
     return;
+  }
 
-  if (reader_->InterlaceBuffer())
+  if (reader_->InterlaceBuffer()) {
     reader_->ClearInterlaceBuffer();
+  }
 
   ImageFrame& buffer = frame_buffer_cache_[current_frame_];
   if (buffer.GetStatus() == ImageFrame::kFrameEmpty) {
     longjmp(JMPBUF(reader_->PngPtr()), 1);
   }
 
-  if (!current_buffer_saw_alpha_)
+  if (!current_buffer_saw_alpha_) {
     CorrectAlphaWhenFrameBufferSawNoAlpha(current_frame_);
+  }
 
   buffer.SetStatus(ImageFrame::kFrameComplete);
 }
 
 bool PNGImageDecoder::FrameIsReceivedAtIndex(wtf_size_t index) const {
-  if (!IsDecodedSizeAvailable())
+  if (!IsDecodedSizeAvailable()) {
     return false;
+  }
 
   DCHECK(!Failed() && reader_);
 
   // For non-animated images, return ImageDecoder::FrameIsReceivedAtIndex.
   // This matches the behavior of WEBPImageDecoder.
-  if (reader_->ParseCompleted() && reader_->FrameCount() == 1)
+  if (reader_->ParseCompleted() && reader_->FrameCount() == 1) {
     return ImageDecoder::FrameIsReceivedAtIndex(index);
+  }
 
   return reader_->FrameIsReceivedAtIndex(index);
 }
 
 base::TimeDelta PNGImageDecoder::FrameDurationAtIndex(wtf_size_t index) const {
-  if (index < frame_buffer_cache_.size())
+  if (index < frame_buffer_cache_.size()) {
     return frame_buffer_cache_[index].Duration();
+  }
   return base::TimeDelta();
 }
 

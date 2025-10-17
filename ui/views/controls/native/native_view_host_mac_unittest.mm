@@ -9,9 +9,10 @@
 #include <memory>
 
 #include "base/mac/mac_util.h"
-#import "base/mac/scoped_nsobject.h"
 #import "testing/gtest_mac.h"
 #import "ui/base/cocoa/views_hostable.h"
+#include "ui/gfx/native_widget_types.h"
+#import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 #include "ui/views/controls/native/native_view_host.h"
 #include "ui/views/controls/native/native_view_host_test_base.h"
 #include "ui/views/view.h"
@@ -20,14 +21,15 @@
 class TestViewsHostable : public ui::ViewsHostableView {
  public:
   id parent_accessibility_element() const {
-    return parent_accessibility_element_;
+    return parent_accessibility_element_.Get();
   }
 
  private:
   // ui::ViewsHostableView:
-  void ViewsHostableAttach(ui::ViewsHostableView::Host* host) override {
+  void ViewsHostableAttach(ui::ViewsHostableView::Host* host) override {}
+  void ViewsHostableDetach() override {
+    parent_accessibility_element_ = gfx::NativeViewAccessible();
   }
-  void ViewsHostableDetach() override { parent_accessibility_element_ = nil; }
   void ViewsHostableSetBounds(const gfx::Rect& bounds_in_window) override {}
   void ViewsHostableSetVisible(bool visible) override {}
   void ViewsHostableMakeFirstResponder() override {}
@@ -39,13 +41,13 @@ class TestViewsHostable : public ui::ViewsHostableView {
     return parent_accessibility_element_;
   }
   gfx::NativeViewAccessible ViewsHostableGetAccessibilityElement() override {
-    return nil;
+    return gfx::NativeViewAccessible();
   }
 
-  id parent_accessibility_element_ = nil;
+  gfx::NativeViewAccessible parent_accessibility_element_;
 };
 
-@interface TestViewsHostableView : NSView<ViewsHostable>
+@interface TestViewsHostableView : NSView <ViewsHostable>
 @property(nonatomic, assign) ui::ViewsHostableView* viewsHostableView;
 @end
 @implementation TestViewsHostableView
@@ -77,19 +79,24 @@ class NativeViewHostMacTest : public test::NativeViewHostTestBase {
   void CreateHost() {
     CreateTopLevel();
     CreateTestingHost();
-    native_view_.reset([[NSView alloc] initWithFrame:NSZeroRect]);
+    native_view_ = [[NSView alloc] initWithFrame:NSZeroRect];
 
     // Verify the expectation that the NativeViewHostWrapper is only created
     // after the NativeViewHost is added to a widget.
     EXPECT_FALSE(native_host());
-    toplevel()->GetRootView()->AddChildView(host());
+    toplevel()->GetRootView()->AddChildViewRaw(host());
     EXPECT_TRUE(native_host());
 
-    host()->Attach(native_view_.get());
+    host()->Attach(gfx::NativeView(native_view_));
+  }
+
+  NSView* GetMovedContentViewForWidget(const std::unique_ptr<Widget>& widget) {
+    return (__bridge NSView*)widget->GetNativeWindowProperty(
+        views::NativeWidgetMacNSWindowHost::kMovedContentNSView);
   }
 
  protected:
-  base::scoped_nsobject<NSView> native_view_;
+  NSView* __strong native_view_;
 };
 
 // Test destroying the top level widget before destroying the NativeViewHost.
@@ -124,17 +131,90 @@ TEST_F(NativeViewHostMacTest, Attach) {
   EXPECT_FALSE([native_view_ window]);
   EXPECT_NSEQ(NSZeroRect, [native_view_ frame]);
 
-  host()->Attach(native_view_.get());
+  host()->Attach(gfx::NativeView(native_view_));
   EXPECT_TRUE([native_view_ superview]);
   EXPECT_TRUE([native_view_ window]);
 
-  // Layout() is normally async, call it now to ensure bounds have been applied.
-  host()->Layout();
+  // Layout is normally async, trigger it now to ensure bounds have been
+  // applied.
+  host()->DeprecatedLayoutImmediately();
   // Expect the top-left to be 10 pixels below the titlebar.
   int bottom = toplevel()->GetClientAreaBoundsInScreen().height() - 10 - 60;
   EXPECT_NSEQ(NSMakeRect(10, bottom, 80, 60), [native_view_ frame]);
 
   DestroyHost();
+}
+
+// If Widget A has been attached to Widget B, ensure Widget A maintains a
+// reference to its native view.
+TEST_F(NativeViewHostMacTest, CheckNativeViewReferenceOnAttach) {
+  CreateTopLevel();
+  CreateTestingHost();
+  toplevel()->GetRootView()->AddChildViewRaw(host());
+
+  // Create a second widget.
+  auto second_widget = std::make_unique<Widget>();
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
+  params.delegate = nullptr;
+  second_widget->Init(std::move(params));
+
+  // No reference to its native view should exist currently.
+  EXPECT_EQ(GetMovedContentViewForWidget(second_widget), nullptr);
+
+  NSView* view = second_widget->GetNativeView().GetNativeNSView();
+  NSWindow* native_window = [view window];
+  host()->Attach(second_widget->GetNativeView());
+
+  // On Ventura, the attach rips Widget A's contentView from its window.
+  // NativeViewHostMac::AttachNativeView() should have stored a reference.
+  if (base::mac::MacOSMajorVersion() >= 13) {
+    EXPECT_EQ([native_window contentView], nullptr);
+    EXPECT_EQ(GetMovedContentViewForWidget(second_widget), view);
+  } else {
+    EXPECT_EQ([native_window contentView], view);
+  }
+
+  // After detaching, there should be no reference, and the native view should
+  // be restored to its widget's window.
+  host()->Detach();
+  EXPECT_EQ(GetMovedContentViewForWidget(second_widget), nullptr);
+  EXPECT_EQ([native_window contentView], view);
+
+  DestroyHost();
+}
+
+// On macOS13, if Widget A has been attached to Widget B, ensure Widget A's
+// reference to its native view disappears when the native view is freed.
+TEST_F(NativeViewHostMacTest, CheckNoNativeViewReferenceOnDestruct) {
+  if (base::mac::MacOSMajorVersion() < 13) {
+    return;
+  }
+
+  CreateTopLevel();
+  CreateTestingHost();
+  toplevel()->GetRootView()->AddChildViewRaw(host());
+
+  // Create a second widget.
+  auto second_widget = std::make_unique<Widget>();
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
+  params.delegate = nullptr;
+  second_widget->Init(std::move(params));
+
+  // No reference should to the native view should exist currently.
+  EXPECT_EQ(GetMovedContentViewForWidget(second_widget), nullptr);
+
+  // Attaching the widget's native view should store a reference.
+  NSView* view = second_widget->GetNativeView().GetNativeNSView();
+  host()->Attach(second_widget->GetNativeView());
+  EXPECT_EQ(GetMovedContentViewForWidget(second_widget), view);
+
+  // Tearing down the destination widget (where we attached the second widget)
+  // will free the native view and should remove the reference.
+  DestroyHost();
+
+  EXPECT_EQ(GetMovedContentViewForWidget(second_widget), nullptr);
 }
 
 // Ensure the native view is integrated into the views accessibility
@@ -144,14 +224,13 @@ TEST_F(NativeViewHostMacTest, AccessibilityParent) {
   CreateHost();
   host()->Detach();
 
-  base::scoped_nsobject<TestViewsHostableView> view(
-      [[TestViewsHostableView alloc] init]);
+  TestViewsHostableView* view = [[TestViewsHostableView alloc] init];
   TestViewsHostable views_hostable;
   [view setViewsHostableView:&views_hostable];
 
-  host()->Attach(view.get());
+  host()->Attach(gfx::NativeView(view));
   EXPECT_NSEQ(views_hostable.parent_accessibility_element(),
-              toplevel()->GetRootView()->GetNativeViewAccessible());
+              toplevel()->GetRootView()->GetNativeViewAccessible().Get());
 
   host()->Detach();
   DestroyHost();
@@ -164,17 +243,11 @@ TEST_F(NativeViewHostMacTest, ContentViewPositionAndSize) {
   CreateHost();
   toplevel()->SetBounds(gfx::Rect(0, 0, 100, 100));
 
-  // The new visual style on macOS 11 (and presumably later) has slightly taller
-  // titlebars, which means the window rect has to leave a bit of extra space
-  // for the titlebar.
-  int titlebar_extra = base::mac::IsAtLeastOS11() ? 6 : 0;
-
   native_host()->ShowWidget(5, 10, 100, 100, 200, 200);
-  EXPECT_NSEQ(NSMakeRect(5, -32 - titlebar_extra, 100, 100),
-              [native_view_ frame]);
+  EXPECT_NSEQ(NSMakeRect(5, -38, 100, 100), native_view_.frame);
 
   native_host()->ShowWidget(10, 25, 50, 50, 50, 50);
-  EXPECT_NSEQ(NSMakeRect(10, 3 - titlebar_extra, 50, 50), [native_view_ frame]);
+  EXPECT_NSEQ(NSMakeRect(10, -3, 50, 50), native_view_.frame);
 
   DestroyHost();
 }
@@ -198,17 +271,17 @@ TEST_F(NativeViewHostMacTest, NativeViewHidden) {
 
   host()->SetVisible(false);
   EXPECT_FALSE([native_view_ isHidden]);  // Stays visible.
-  host()->Attach(native_view_.get());
+  host()->Attach(gfx::NativeView(native_view_));
   EXPECT_TRUE([native_view_ isHidden]);  // Hidden when attached.
 
   host()->Detach();
   [native_view_ setHidden:YES];
   host()->SetVisible(true);
   EXPECT_TRUE([native_view_ isHidden]);  // Stays hidden.
-  host()->Attach(native_view_.get());
-  // Layout() updates visibility, and is normally async, call it now to ensure
+  host()->Attach(gfx::NativeView(native_view_));
+  // Layout updates visibility, and is normally async, trigger it now to ensure
   // visibility updated.
-  host()->Layout();
+  host()->DeprecatedLayoutImmediately();
   EXPECT_FALSE([native_view_ isHidden]);  // Made visible when attached.
 
   EXPECT_TRUE([native_view_ superview]);
@@ -216,7 +289,7 @@ TEST_F(NativeViewHostMacTest, NativeViewHidden) {
   EXPECT_TRUE([native_view_ isHidden]);  // Hidden when removed from Widget.
   EXPECT_FALSE([native_view_ superview]);
 
-  toplevel()->GetRootView()->AddChildView(host());
+  toplevel()->GetRootView()->AddChildViewRaw(host());
   EXPECT_FALSE([native_view_ isHidden]);  // And visible when added.
   EXPECT_TRUE([native_view_ superview]);
 
@@ -233,7 +306,7 @@ TEST_F(NativeViewHostMacTest, NativeViewReleased) {
     // It's possible for both of them to be destroyed without calling
     // NativeHostView::Detach().
     [native_view_ removeFromSuperview];
-    native_view_.reset();
+    native_view_ = nil;
   }
 
   // During teardown, NativeViewDetaching() is called in RemovedFromWidget().

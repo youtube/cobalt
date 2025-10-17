@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "base/base64.h"
@@ -44,17 +45,15 @@
 #include "components/url_formatter/url_fixer.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
-#include "crypto/encryptor.h"
 #include "crypto/hmac.h"
-#include "crypto/symmetric_key.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/proxy_server.h"
 #include "net/base/proxy_string_util.h"
-#include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_nss.h"
 #include "net/proxy_resolution/proxy_bypass_rules.h"
 #include "net/proxy_resolution/proxy_config.h"
+#include "third_party/boringssl/src/pki/pem.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
@@ -64,8 +63,6 @@ namespace ash::onc {
 namespace {
 
 // Scheme strings for supported |net::ProxyServer::SCHEME_*| enum values.
-constexpr char kDirectScheme[] = "direct";
-constexpr char kQuicScheme[] = "quic";
 constexpr char kSocksScheme[] = "socks";
 constexpr char kSocks4Scheme[] = "socks4";
 constexpr char kSocks5Scheme[] = "socks5";
@@ -141,8 +138,6 @@ net::ProxyBypassRules ConvertOncExcludeDomainsToBypassRules(
 
 std::string SchemeToString(net::ProxyServer::Scheme scheme) {
   switch (scheme) {
-    case net::ProxyServer::SCHEME_DIRECT:
-      return kDirectScheme;
     case net::ProxyServer::SCHEME_HTTP:
       return url::kHttpScheme;
     case net::ProxyServer::SCHEME_SOCKS4:
@@ -152,12 +147,14 @@ std::string SchemeToString(net::ProxyServer::Scheme scheme) {
     case net::ProxyServer::SCHEME_HTTPS:
       return url::kHttpsScheme;
     case net::ProxyServer::SCHEME_QUIC:
-      return kQuicScheme;
+      // Re-map the legacy "quic://" proxy protocol scheme to "https://",
+      // because that's how it's actually treated. See
+      // https://issues.chromium.org/issues/40141686.
+      return url::kHttpsScheme;
     case net::ProxyServer::SCHEME_INVALID:
       break;
   }
   NOTREACHED();
-  return "";
 }
 
 void SetProxyForScheme(const net::ProxyConfig::ProxyRules& proxy_rules,
@@ -173,7 +170,9 @@ void SetProxyForScheme(const net::ProxyConfig::ProxyRules& proxy_rules,
   }
   if (!proxy_list || proxy_list->IsEmpty())
     return;
-  const net::ProxyServer& server = proxy_list->Get();
+  const net::ProxyChain& chain = proxy_list->First();
+  CHECK(chain.is_single_proxy());
+  const net::ProxyServer& server = chain.First();
   std::string host = server.host_port_pair().host();
 
   // For all proxy types except SOCKS, the default scheme of the proxy host is
@@ -182,11 +181,12 @@ void SetProxyForScheme(const net::ProxyConfig::ProxyRules& proxy_rules,
       (onc_scheme == ::onc::proxy::kSocks) ? net::ProxyServer::SCHEME_SOCKS4
                                            : net::ProxyServer::SCHEME_HTTP;
   // Only prefix the host with a non-default scheme.
-  if (server.scheme() != default_scheme)
+  if (server.scheme() != default_scheme) {
     host = SchemeToString(server.scheme()) + "://" + host;
-  base::Value::Dict url_dict;
-  url_dict.Set(::onc::proxy::kHost, host);
-  url_dict.Set(::onc::proxy::kPort, server.host_port_pair().port());
+  }
+  auto url_dict = base::Value::Dict()
+                      .Set(::onc::proxy::kHost, host)
+                      .Set(::onc::proxy::kPort, server.host_port_pair().port());
   dict.Set(onc_scheme, std::move(url_dict));
 }
 
@@ -367,7 +367,7 @@ NetworkTypePattern NetworkTypePatternFromOncType(const std::string& type) {
   return NetworkTypePattern::Default();
 }
 
-absl::optional<base::Value::Dict> ConvertOncProxySettingsToProxyConfig(
+std::optional<base::Value::Dict> ConvertOncProxySettingsToProxyConfig(
     const base::Value::Dict& onc_proxy_settings) {
   std::string type = GetString(onc_proxy_settings, ::onc::proxy::kType);
 
@@ -388,7 +388,7 @@ absl::optional<base::Value::Dict> ConvertOncProxySettingsToProxyConfig(
         onc_proxy_settings.FindDict(::onc::proxy::kManual);
     if (!manual_dict) {
       NET_LOG(ERROR) << "Manual proxy missing dictionary";
-      return absl::nullopt;
+      return std::nullopt;
     }
     std::string manual_spec;
     AppendProxyServerForScheme(*manual_dict, ::onc::proxy::kFtp, &manual_spec);
@@ -407,10 +407,9 @@ absl::optional<base::Value::Dict> ConvertOncProxySettingsToProxyConfig(
                                                      bypass_rules.ToString());
   }
   NOTREACHED();
-  return absl::nullopt;
 }
 
-absl::optional<base::Value::Dict> ConvertProxyConfigToOncProxySettings(
+std::optional<base::Value::Dict> ConvertProxyConfigToOncProxySettings(
     const base::Value::Dict& proxy_config_dict) {
   // Create a ProxyConfigDictionary from the dictionary.
   ProxyConfigDictionary proxy_config(proxy_config_dict.Clone());
@@ -419,7 +418,7 @@ absl::optional<base::Value::Dict> ConvertProxyConfigToOncProxySettings(
   base::Value::Dict proxy_settings;
   ProxyPrefs::ProxyMode mode;
   if (!proxy_config.GetMode(&mode)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   switch (mode) {
     case ProxyPrefs::MODE_DIRECT: {
@@ -472,7 +471,7 @@ absl::optional<base::Value::Dict> ConvertProxyConfigToOncProxySettings(
     }
     default: {
       LOG(ERROR) << "Unexpected proxy mode in Shill config: " << mode;
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
   return proxy_settings;
@@ -513,36 +512,30 @@ int ImportNetworksForUser(const user_manager::User* user,
     base::Value::Dict normalized_network = normalizer.NormalizeObject(
         &chromeos::onc::kNetworkConfigurationSignature, network);
 
-    // TODO(b/235297258): Use ONC and ManagedNetworkConfigurationHandler
-    // instead.
-    base::Value::Dict shill_dict = onc::TranslateONCObjectToShill(
-        &chromeos::onc::kNetworkConfigurationSignature,
-        std::move(normalized_network));
-
-    std::unique_ptr<NetworkUIData> ui_data(
-        NetworkUIData::CreateFromONC(::onc::ONC_SOURCE_USER_IMPORT));
-    shill_dict.Set(shill::kUIDataProperty, ui_data->GetAsJson());
-    shill_dict.Set(shill::kProfileProperty, profile->path);
-
-    std::string type = GetString(shill_dict, shill::kTypeProperty);
-    NetworkConfigurationHandler* config_handler =
-        NetworkHandler::Get()->network_configuration_handler();
-    if (NetworkTypePattern::Ethernet().MatchesType(type)) {
+    std::string type =
+        GetString(normalized_network, ::onc::network_config::kType);
+    ManagedNetworkConfigurationHandler* managed_network_config_handler =
+        NetworkHandler::Get()->managed_network_configuration_handler();
+    // "type" might be removed if the imported onc has ::onc:kRemove field.
+    if (type.empty()) {
+      continue;
+    }
+    if (type == ::onc::network_config::kEthernet) {
       // Ethernet has to be configured using an existing Ethernet service.
       const NetworkState* ethernet =
           NetworkHandler::Get()->network_state_handler()->FirstNetworkByType(
               NetworkTypePattern::Ethernet());
       if (ethernet) {
-        config_handler->SetShillProperties(ethernet->path(), shill_dict,
-                                           base::OnceClosure(),
-                                           network_handler::ErrorCallback());
+        managed_network_config_handler->SetProperties(
+            ethernet->path(), normalized_network.Clone(), base::OnceClosure(),
+            network_handler::ErrorCallback());
       } else {
         ethernet_not_found = true;
       }
-
     } else {
-      config_handler->CreateShillConfiguration(
-          shill_dict, network_handler::ServiceResultCallback(),
+      managed_network_config_handler->CreateConfiguration(
+          user->username_hash(), normalized_network.Clone(),
+          network_handler::ServiceResultCallback(),
           network_handler::ErrorCallback());
       ++networks_created;
     }

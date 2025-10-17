@@ -17,8 +17,7 @@
 class PrefRegistrySimple;
 class PrefService;
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 class ConnectionScheduler;
 class MessageSender;
@@ -78,12 +77,11 @@ class MultideviceFeatureAccessManagerImpl
                               AccessProhibitedReason reason);
 
   FeatureStatus current_feature_status_;
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
-  raw_ptr<multidevice_setup::MultiDeviceSetupClient, ExperimentalAsh>
-      multidevice_setup_client_;
-  raw_ptr<FeatureStatusProvider, ExperimentalAsh> feature_status_provider_;
-  raw_ptr<MessageSender, ExperimentalAsh> message_sender_;
-  raw_ptr<ConnectionScheduler, ExperimentalAsh> connection_scheduler_;
+  raw_ptr<PrefService> pref_service_;
+  raw_ptr<multidevice_setup::MultiDeviceSetupClient> multidevice_setup_client_;
+  raw_ptr<FeatureStatusProvider> feature_status_provider_;
+  raw_ptr<MessageSender> message_sender_;
+  raw_ptr<ConnectionScheduler> connection_scheduler_;
 
   // Registers preference value change listeners.
   PrefChangeRegistrar pref_change_registrar_;
@@ -93,7 +91,6 @@ class MultideviceFeatureAccessManagerImpl
   bool feature_setup_connection_update_pending_ = false;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_MULTIDEVICE_FEATURE_ACCESS_MANAGER_IMPL_H_

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -23,14 +24,16 @@
 #include "chromeos/ash/components/network/network_handler_callbacks.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 
 namespace dbus {
 class ObjectPath;
 }
 
 namespace ash {
+
+inline constexpr char kTemporaryServiceConfiguredButNotUsable[] =
+    "Temporary service configured but not usable";
 
 // The NetworkConfigurationHandler class is used to create and configure
 // networks in ChromeOS. It mostly calls through to the Shill service API, and
@@ -112,7 +115,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkConfigurationHandler
   // operation and only entries that evaluate to true by applying the confirmer
   // will be removed.
   void RemoveConfiguration(const std::string& service_path,
-                           absl::optional<RemoveConfirmer> remove_confirmer,
+                           std::optional<RemoveConfirmer> remove_confirmer,
                            base::OnceClosure callback,
                            network_handler::ErrorCallback error_callback);
 
@@ -191,7 +194,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkConfigurationHandler
   // Set the Name and GUID properties correctly and Invoke |callback|.
   void GetPropertiesCallback(network_handler::ResultCallback callback,
                              const std::string& service_path,
-                             absl::optional<base::Value::Dict> properties);
+                             std::optional<base::Value::Dict> properties);
 
   // Invoke |callback| and inform NetworkStateHandler to request an update
   // for the service after setting properties.
@@ -223,15 +226,15 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkConfigurationHandler
   void RemoveConfigurationFromProfile(
       const std::string& service_path,
       const std::string& profile_path,
-      absl::optional<RemoveConfirmer> remove_confirmer,
+      std::optional<RemoveConfirmer> remove_confirmer,
       base::OnceClosure callback,
       network_handler::ErrorCallback error_callback);
 
   // Unowned associated Network*Handlers (global or test instance).
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_;
+  raw_ptr<NetworkStateHandler> network_state_handler_;
   base::ScopedObservation<NetworkStateHandler, NetworkStateHandlerObserver>
       network_state_handler_observer_{this};
-  raw_ptr<NetworkDeviceHandler, ExperimentalAsh> network_device_handler_;
+  raw_ptr<NetworkDeviceHandler, DanglingUntriaged> network_device_handler_;
 
   // Map of in-progress deleter instances.
   std::map<std::string, std::unique_ptr<ProfileEntryDeleter>>

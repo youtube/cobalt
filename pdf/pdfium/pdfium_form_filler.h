@@ -197,8 +197,8 @@ class PDFiumFormFiller : public FPDF_FORMFILLINFO, public IPDF_JSPLATFORM {
   class EngineInIsolateScope {
    public:
     EngineInIsolateScope(PDFiumEngine* engine, v8::Isolate* isolate);
-    EngineInIsolateScope(EngineInIsolateScope&&);
-    EngineInIsolateScope& operator=(EngineInIsolateScope&&);
+    EngineInIsolateScope(EngineInIsolateScope&&) noexcept;
+    EngineInIsolateScope& operator=(EngineInIsolateScope&&) noexcept;
     ~EngineInIsolateScope();
 
     PDFiumEngine* engine() { return engine_; }
@@ -210,8 +210,9 @@ class PDFiumFormFiller : public FPDF_FORMFILLINFO, public IPDF_JSPLATFORM {
 
   class EngineInIsolateScopeFactory {
    public:
-    explicit EngineInIsolateScopeFactory(PDFiumEngine* engine);
-    EngineInIsolateScopeFactory(const EngineInIsolateScope&) = delete;
+    EngineInIsolateScopeFactory(PDFiumEngine* engine,
+                                ScriptOption script_option);
+    EngineInIsolateScopeFactory(const EngineInIsolateScopeFactory&) = delete;
     EngineInIsolateScopeFactory& operator=(
         const EngineInIsolateScopeFactory&&) = delete;
     ~EngineInIsolateScopeFactory();

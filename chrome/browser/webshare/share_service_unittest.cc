@@ -4,18 +4,18 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/files/safe_base_name.h"
-#include "base/guid.h"
 #include "base/run_loop.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
 #include "chrome/browser/webshare/share_service_impl.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -43,9 +43,6 @@ using blink::mojom::ShareError;
 
 class ShareServiceUnitTest : public ChromeRenderViewHostTestHarness {
  public:
-  ShareServiceUnitTest() {
-    feature_list_.InitAndEnableFeature(features::kWebShare);
-  }
   ~ShareServiceUnitTest() override = default;
 
   void SetUp() override {
@@ -66,7 +63,7 @@ class ShareServiceUnitTest : public ChromeRenderViewHostTestHarness {
 #endif
   }
 
-  ShareError ShareGeneratedFileData(const base::FilePath::StringType& extension,
+  ShareError ShareGeneratedFileData(std::string_view extension,
                                     const std::string& content_type,
                                     unsigned file_length = 100,
                                     unsigned file_count = 1) {
@@ -76,14 +73,10 @@ class ShareServiceUnitTest : public ChromeRenderViewHostTestHarness {
     std::vector<blink::mojom::SharedFilePtr> files;
     files.reserve(file_count);
     for (unsigned index = 0; index < file_count; ++index) {
-      const base::FilePath::StringType name = base::StringPrintf(
-#if BUILDFLAG(IS_WIN)
-          L"share%d%ls",
-#else
-          "share%d%s",
-#endif
-          index, extension.c_str());
-      files.push_back(CreateSharedFile(name, content_type, file_length));
+      files.push_back(CreateSharedFile(
+          base::FilePath::FromASCII(
+              base::StrCat({"share", base::NumberToString(index), extension})),
+          content_type, file_length));
     }
 
     ShareError result;
@@ -98,16 +91,15 @@ class ShareServiceUnitTest : public ChromeRenderViewHostTestHarness {
     return result;
   }
 
-  bool IsDangerousFilename(base::FilePath::StringPieceType path) {
+  bool IsDangerousFilename(base::FilePath::StringViewType path) {
     return ShareServiceImpl::IsDangerousFilename(base::FilePath(path));
   }
 
  private:
-  blink::mojom::SharedFilePtr CreateSharedFile(
-      base::FilePath::StringPieceType name,
-      const std::string& content_type,
-      unsigned file_length) {
-    const std::string uuid = base::GenerateGUID();
+  blink::mojom::SharedFilePtr CreateSharedFile(const base::FilePath& name,
+                                               const std::string& content_type,
+                                               unsigned file_length) {
+    const std::string uuid = base::Uuid::GenerateRandomV4().AsLowercaseString();
 
     auto blob = blink::mojom::SerializedBlob::New();
     blob->uuid = uuid;
@@ -171,17 +163,15 @@ class ShareServiceUnitTest : public ChromeRenderViewHostTestHarness {
 #if BUILDFLAG(IS_WIN)
   webshare::ScopedShareOperationFakeComponents scoped_fake_components_;
 #endif
-  base::test::ScopedFeatureList feature_list_;
   mojo::Remote<blink::mojom::ShareService> share_service_remote_;
 };
 
 TEST_F(ShareServiceUnitTest, FileCount) {
-  EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"), "text/plain",
-                                   1234, kMaxSharedFileCount));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".txt", "text/plain", 1234,
+                                                   kMaxSharedFileCount));
   EXPECT_EQ(ShareError::PERMISSION_DENIED,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"), "text/plain",
-                                   1234, kMaxSharedFileCount + 1));
+            ShareGeneratedFileData(".txt", "text/plain", 1234,
+                                   kMaxSharedFileCount + 1));
 }
 
 TEST_F(ShareServiceUnitTest, DangerousFilename) {
@@ -217,21 +207,15 @@ TEST_F(ShareServiceUnitTest, DangerousMimeType) {
 }
 
 TEST_F(ShareServiceUnitTest, Multimedia) {
-  EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".avif"), "image/avif"));
-  EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".bmp"), "image/bmp"));
-  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(FILE_PATH_LITERAL(".xbm"),
-                                                   "image/x-xbitmap"));
-  EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".flac"), "audio/flac"));
-  EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".webm"), "video/webm"));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".avif", "image/avif"));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".bmp", "image/bmp"));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".xbm", "image/x-xbitmap"));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".flac", "audio/flac"));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".webm", "video/webm"));
 }
 
 TEST_F(ShareServiceUnitTest, PortableDocumentFormat) {
-  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(FILE_PATH_LITERAL(".pdf"),
-                                                   "application/pdf"));
+  EXPECT_EQ(ShareError::OK, ShareGeneratedFileData(".pdf", "application/pdf"));
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -251,32 +235,30 @@ TEST_F(ShareServiceUnitTest, ReservedNames) {
 // On Chrome OS, like Android, we prevent sharing of Android applications.
 TEST_F(ShareServiceUnitTest, AndroidPackage) {
   EXPECT_EQ(ShareError::PERMISSION_DENIED,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".apk"), "text/plain"));
+            ShareGeneratedFileData(".apk", "text/plain"));
   EXPECT_EQ(ShareError::PERMISSION_DENIED,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".dex"), "text/plain"));
+            ShareGeneratedFileData(".dex", "text/plain"));
   EXPECT_EQ(ShareError::PERMISSION_DENIED,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"),
-                                   "vnd.android.package-archive"));
+            ShareGeneratedFileData(".txt", "vnd.android.package-archive"));
 }
 
 TEST_F(ShareServiceUnitTest, TotalBytes) {
   EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"), "text/plain",
+            ShareGeneratedFileData(".txt", "text/plain",
                                    kMaxSharedFileBytes / kMaxSharedFileCount,
                                    kMaxSharedFileCount));
   EXPECT_EQ(
       ShareError::PERMISSION_DENIED,
-      ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"), "text/plain",
+      ShareGeneratedFileData(".txt", "text/plain",
                              (kMaxSharedFileBytes / kMaxSharedFileCount) + 1,
                              kMaxSharedFileCount));
 }
 
 TEST_F(ShareServiceUnitTest, FileBytes) {
   EXPECT_EQ(ShareError::OK,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"), "text/plain",
-                                   kMaxSharedFileBytes));
-  EXPECT_EQ(ShareError::PERMISSION_DENIED,
-            ShareGeneratedFileData(FILE_PATH_LITERAL(".txt"), "text/plain",
-                                   kMaxSharedFileBytes + 1));
+            ShareGeneratedFileData(".txt", "text/plain", kMaxSharedFileBytes));
+  EXPECT_EQ(
+      ShareError::PERMISSION_DENIED,
+      ShareGeneratedFileData(".txt", "text/plain", kMaxSharedFileBytes + 1));
 }
 #endif
