@@ -15,13 +15,13 @@
 #ifndef STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 #define STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 
+#include <cstdint>
 #include <mutex>
 
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

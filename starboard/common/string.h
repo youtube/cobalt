@@ -21,12 +21,14 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

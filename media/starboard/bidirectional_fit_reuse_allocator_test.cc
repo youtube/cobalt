@@ -16,6 +16,8 @@
 
 #include "media/starboard/bidirectional_fit_reuse_allocator.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "starboard/common/fixed_no_free_allocator.h"
@@ -23,7 +25,6 @@
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

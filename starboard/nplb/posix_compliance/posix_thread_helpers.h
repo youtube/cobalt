@@ -17,10 +17,11 @@
 
 #include <pthread.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/types.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

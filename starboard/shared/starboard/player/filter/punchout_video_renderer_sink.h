@@ -16,14 +16,15 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_
 
 #include <pthread.h>
+
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
