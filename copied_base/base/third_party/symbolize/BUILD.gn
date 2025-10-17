@@ -4,6 +4,9 @@
 
 import("//build/config/compiler/compiler.gni")
 
+if (is_cobalt) {
+  import("//build/config/logging.gni")
+} else {
 declare_args() {
   # Stack traces will not include function names. Instead they will contain
   # file and offset information that can be used with
@@ -11,6 +14,7 @@ declare_args() {
   # and also enabling symbol_level = 2, you can get much more detailed stack
   # traces with file names and line numbers, even in non-ASAN builds.
   print_unsymbolized_stack_traces = is_asan || is_lsan || is_msan || is_tsan
+}
 }
 
 config("symbolize_config") {
