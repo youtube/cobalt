@@ -184,6 +184,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnBufferingStateChange(BufferingState state);
 
   State state_;
+  bool playback_started_ = false;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const std::unique_ptr<MediaLog> media_log_;
   raw_ptr<CdmContext> cdm_context_;
