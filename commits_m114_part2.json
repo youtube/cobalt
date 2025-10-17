@@ -1,5 +1,96 @@
 [
   {
+    "hexsha": "13a12b3c361af044e03d371970d0a6096294db98",
+    "original_hexsha": "4d433c6150d3ccf674ec67eabe00ba2b40bff034",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-16T21:13:54-07:00",
+    "summary": "android: Migrate VideoSurfaceView to JNI generator (#7508)",
+    "stats": {
+      "files": 3,
+      "insertions": 20,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4325c58407b343e8b0b3823fcb18769bd6317d3a",
+    "original_hexsha": "b1ae296e12ffd68964ed6f8aa7a165c67160affc",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-16T21:05:14-07:00",
+    "summary": "android: Migrate MediaDrm.KeyStatus to JNI generator (#7513)",
+    "stats": {
+      "files": 2,
+      "insertions": 37,
+      "deletions": 29
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bc7df52c567c6eda034e5eae2597d20b537c8b8c",
+    "original_hexsha": "83bc9f3e5df4182086b99cb0b2b476f803e15f2b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-16T20:54:07-07:00",
+    "summary": "android: Migrate AudioTimestamp to JNI generator (#7512)",
+    "stats": {
+      "files": 2,
+      "insertions": 40,
+      "deletions": 37
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f1c964ed8ae8f55e010c6da5bdb5101dac46106d",
+    "original_hexsha": "634ac489916985864a1628fdfe17fe57d20ed7f3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-16T19:24:45-07:00",
+    "summary": "android: Migrate PlatformError to JNI generator (#7510)",
+    "stats": {
+      "files": 3,
+      "insertions": 12,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "74cef09fc6523fbc003d9690ec1ebcf4bf502e4e",
+    "original_hexsha": "17e15450cadc16b9799a18d1f19f1e1211291648",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-16T16:28:30-07:00",
+    "summary": "android: Make DrmSystem support app-assisted provisioning (#6671)",
+    "stats": {
+      "files": 9,
+      "insertions": 457,
+      "deletions": 46
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eebe8c86fcd6ade8348867603a3c3de81b91b5de",
+    "original_hexsha": "eebe8c86fcd6ade8348867603a3c3de81b91b5de",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-10-16T14:57:36-07:00",
+    "summary": "evergreen: Enable blink feature for MediaSource.duration (#7579)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eb32720d4cc41ece8e51534aa844025779186d18",
+    "original_hexsha": "bf52231c1a649cd894096f1f9388882d645cb8c1",
+    "author": "Sherry Zhou",
+    "datetime": "2025-10-16T10:36:22-07:00",
+    "summary": "linux: Remove forced GPU memory limit for 3p platforms (#7558)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "12aa635d15ad32cfee8215d57d212ab1e1329602",
     "original_hexsha": "d9c99c03dfe88c5d65f65dbcc00d6394fc65a6f0",
     "author": "Eric Zhang",
