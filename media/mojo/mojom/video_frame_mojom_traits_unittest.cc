@@ -34,14 +34,14 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 #include <linux/kcmp.h>
 #include <sys/syscall.h>
 
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/process.h"
 #include "media/mojo/mojom/buffer_handle_test_util.h"
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 
 namespace media {
 
@@ -386,7 +386,7 @@ TEST_F(VideoFrameStructTraitsTest, SharedImageVideoFrame) {
   ASSERT_EQ(frame->shared_image()->mailbox(), shared_image->mailbox());
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)  && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)|| BUILDFLAG(IS_CHROMEOS)
 TEST_F(VideoFrameStructTraitsTest, DmabufsVideoFrame) {
   constexpr gfx::Size kCodedSize = gfx::Size(256, 256);
   constexpr gfx::Rect kVisibleRect(kCodedSize);
@@ -634,7 +634,7 @@ TEST_F(VideoFrameStructTraitsTest, DmabufsVideoFrameTooSmall) {
   // Ensure deserialization fails instead of crashing.
   EXPECT_TRUE(RoundTripFails(std::move(frame)));
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX)  && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(VideoFrameStructTraitsTest, MappableSharedImageVideoFrame) {
   auto test_sii = base::MakeRefCounted<gpu::TestSharedImageInterface>();
