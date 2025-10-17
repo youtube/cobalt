@@ -36,7 +36,7 @@ PLATFORMS = ['android-arm', 'android-arm64', 'android-x86']
 CONFIGS = ['gold', 'qa']
 
 
-def patch_args(out_dir):
+def patch_args_for_google3(out_dir):
   """
   Ensures 'is_cobalt_on_google3 = true' is in the args.gn file.
   Will raise FileNotFoundError if args.gn is missing.
@@ -61,7 +61,7 @@ def build(platforms_to_package):
       subprocess.call(
           ['cobalt/build/gn.py', out_dir, '-p', platform, '-c', config])
 
-      patch_args(out_dir)
+      patch_args_for_google3(out_dir)
 
       subprocess.call(['autoninja', '-C', out_dir, 'cobalt:gn_all'])
 
