@@ -28,11 +28,16 @@
 #include <type_traits>
 
 #include "base/containers/span.h"
-#include "base/numerics/byte_conversions.h"
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#include "base/numerics/byte_conversions.h"
+#else
+#include "base/sys_byteorder.h"
+#endif
 
 #if BUILDFLAG(IS_APPLE)
 #include <uuid/uuid.h>
@@ -57,6 +62,7 @@ void UUID::InitializeToZero() {
   memset(this, 0, sizeof(*this));
 }
 
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
 void UUID::InitializeFromBytes(const uint8_t* bytes_ptr) {
   // TODO(crbug.com/40284755): This span construction is unsound. The caller
   // should provide a span instead of an unbounded pointer.
@@ -67,6 +73,14 @@ void UUID::InitializeFromBytes(const uint8_t* bytes_ptr) {
   std::ranges::copy(bytes.subspan<8, 2>(), data_4);
   std::ranges::copy(bytes.subspan<10, 6>(), data_5);
 }
+#else
+void UUID::InitializeFromBytes(const uint8_t* bytes) {
+  memcpy(this, bytes, sizeof(*this));
+  data_1 = base::NetToHost32(data_1);
+  data_2 = base::NetToHost16(data_2);
+  data_3 = base::NetToHost16(data_3);
+}
+#endif
 
 bool UUID::InitializeFromString(std::string_view string) {
   if (string.length() != 36)
@@ -116,7 +130,11 @@ bool UUID::InitializeWithNew() {
   // from libuuid is not available everywhere.
   // On Windows, do not use UuidCreate() to avoid a dependency on rpcrt4, so
   // that this function is usable early in DllMain().
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
   base::RandBytes(base::byte_span_from_ref(*this));
+#else
+  base::RandBytes(this, sizeof(*this));
+#endif
 
   // Set six bits per RFC 4122 §4.4 to identify this as a pseudo-random UUID.
   data_3 = (4 << 12) | (data_3 & 0x0fff);  // §4.1.3

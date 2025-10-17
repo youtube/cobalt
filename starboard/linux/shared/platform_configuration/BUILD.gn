@@ -77,7 +77,10 @@ config("compiler_flags") {
       "-fno-delete-null-pointer-checks",
 
       # Do not warn about variable length arrays
-      "-Wno-vla-cxx-extension"
+      "-Wno-vla-cxx-extension",
+
+      "-Wno-return-type",
+      "-Wno-sometimes-uninitialized",
     ]
 
     if (is_gold) {

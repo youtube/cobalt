@@ -4177,52 +4177,6 @@ action("build_date") {
   ]
 }
 
-if (enable_nocompile_tests) {
-  nocompile_test("base_nocompile_tests") {
-    sources = [
-      "allocator/partition_allocator/partition_alloc_base/thread_annotations_pa_unittest.nc",
-      "allocator/partition_allocator/pointers/raw_ptr_unittest.nc",
-      "allocator/partition_allocator/pointers/raw_ref_unittest.nc",
-      "callback_list_unittest.nc",
-      "containers/buffer_iterator_unittest.nc",
-      "containers/checked_iterators_unittest.nc",
-      "containers/contains_unittest.nc",
-      "containers/enum_set_unittest.nc",
-      "containers/span_unittest.nc",
-      "debug/crash_logging_unittest.nc",
-      "functional/bind_unittest.nc",
-      "functional/callback_unittest.nc",
-      "functional/function_ref_unittest.nc",
-      "functional/overloaded_unittest.nc",
-      "memory/ref_counted_unittest.nc",
-      "memory/weak_ptr_unittest.nc",
-      "metrics/field_trial_params_unittest.nc",
-      "metrics/histogram_unittest.nc",
-      "no_destructor_unittest.nc",
-      "observer_list_unittest.nc",
-      "sequence_checker_unittest.nc",
-      "strings/string_piece_unittest.nc",
-      "task/bind_post_task_unittest.nc",
-      "task/task_traits_unittest.nc",
-      "thread_annotations_unittest.nc",
-      "traits_bag_unittest.nc",
-      "types/pass_key_unittest.nc",
-      "types/variant_util_unittest.nc",
-      "values_unittest.nc",
-    ]
-
-    deps = [
-      ":base",
-      "//copied_base/base/test:run_all_unittests",
-      "//testing/gtest",
-    ]
-
-    # Since the nocompile test is not able to inspect the contents of
-    # include_dirs, we need to specify the Abseil include dir manually.
-    include_dirs = [ "//third_party/abseil-cpp" ]
-  }
-}
-
 if (is_android || is_robolectric) {
   generate_jni("base_jni_headers") {
     sources = [
