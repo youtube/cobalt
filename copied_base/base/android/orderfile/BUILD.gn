@@ -15,7 +15,7 @@ if (use_order_profiling &&
       sources += [ "orderfile_instrumentation.cc" ]
     }
 
-    deps = [ "//base" ]
+    deps = [ "//copied_base/base" ]
   }
 
   executable("orderfile_instrumentation_perftest") {
@@ -27,7 +27,7 @@ if (use_order_profiling &&
     }
     deps = [
       ":orderfile_instrumentation",
-      "//base",
+      "//copied_base/base",
       "//testing/gtest",
       "//testing/perf",
     ]

@@ -10,7 +10,7 @@ source_set("ios") {
 
   frameworks = [ "Foundation.framework" ]
 
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 
   configs += [ "//build/config/compiler:enable_arc" ]
 }

@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//base/allocator/partition_allocator/partition_alloc.gni")
+import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
 import("//build/buildflag_header.gni")
 import("//build/config/chromecast_build.gni")
 import("//build/config/chromeos/ui_mode.gni")
@@ -400,7 +400,7 @@ source_set("raw_ptr") {
   # When built inside Chromium, although this cannot directly be made a
   # component, we expect `//base` to provide the only GN-level access.
   if (build_with_chromium) {
-    visibility = [ "//base" ]
+    visibility = [ "//copied_base/base" ]
   }
 }
 

@@ -17,14 +17,13 @@
 # a bit easier to see which files apply in which cases rather than having a
 # huge sequence of random-looking conditionals.
 
-import("//base/allocator/allocator.gni")
-import("//base/allocator/partition_allocator/partition_alloc.gni")
-import("//base/debug/debug.gni")
-import("//base/trace_event/tracing.gni")
+import("//copied_base/base/allocator/allocator.gni")
+import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
+import("//copied_base/base/debug/debug.gni")
+import("//copied_base/base/trace_event/tracing.gni")
 import("//build/buildflag_header.gni")
 import("//build/config/arm.gni")
 import("//build/config/c++/c++.gni")
-import("//build/config/chromecast_build.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/cronet/config.gni")
@@ -51,7 +50,7 @@ if (is_mac) {
 
 if (is_apple) {
   # Buildflags to control time behavior on iOS in file shared with mac.
-  import("//base/time/buildflags/buildflags.gni")
+  import("//copied_base/base/time/buildflags/buildflags.gni")
 }
 
 if (is_win) {
@@ -1029,10 +1028,10 @@ component("base") {
   ]
 
   deps = [
-    "//base/allocator:buildflags",
-    "//base/allocator/partition_allocator:raw_ptr",
-    "//base/third_party/double_conversion",
-    "//base/third_party/dynamic_annotations",
+    "//copied_base/base/allocator:buildflags",
+    "//copied_base/base/allocator/partition_allocator:raw_ptr",
+    "//copied_base/base/third_party/double_conversion",
+    "//copied_base/base/third_party/dynamic_annotations",
     "//build:blink_buildflags",
     "//build:branding_buildflags",
     "//build/config/compiler:compiler_buildflags",
@@ -1045,7 +1044,7 @@ component("base") {
   defines += [ "IS_RAW_PTR_IMPL" ]
 
   if (is_apple) {
-    deps += [ "//base/time/buildflags:buildflags" ]
+    deps += [ "//copied_base/base/time/buildflags:buildflags" ]
   }
 
   if (build_rust_json_reader) {
@@ -1073,8 +1072,8 @@ component("base") {
     ":sanitizer_buildflags",
     ":synchronization_buildflags",
     ":tracing_buildflags",
-    "//base/allocator/partition_allocator:buildflags",
-    "//base/numerics:base_numerics",
+    "//copied_base/base/allocator/partition_allocator:buildflags",
+    "//copied_base/base/numerics:base_numerics",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//third_party/abseil-cpp:absl",
@@ -1116,7 +1115,7 @@ component("base") {
         "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
         "allocator/partition_allocator/shim/allocator_shim_override_linker_wrapped_symbols.h",
       ]
-      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
+      all_dependent_configs += [ "//copied_base/base/allocator:wrap_malloc_symbols" ]
     }
     if (is_apple) {
       sources += [
@@ -1124,7 +1123,7 @@ component("base") {
         "allocator/partition_allocator/shim/allocator_shim_override_mac_default_zone.h",
         "allocator/partition_allocator/shim/allocator_shim_override_mac_symbols.h",
       ]
-      configs += [ "//base/allocator:mac_no_default_new_delete_symbols" ]
+      configs += [ "//copied_base/base/allocator:mac_no_default_new_delete_symbols" ]
     }
     if (is_chromeos || is_linux) {
       sources += [
@@ -1978,7 +1977,7 @@ component("base") {
       "win/wrapped_window_proc.h",
     ]
 
-    deps += [ "//base/win:base_win_buildflags" ]
+    deps += [ "//copied_base/base/win:base_win_buildflags" ]
 
     data_deps += [ "//build/win:runtime_libs" ]
 
@@ -2170,9 +2169,9 @@ component("base") {
       ]
       defines += [ "USE_SYMBOLIZE" ]
       deps += [
-        "//base/third_party/symbolize",
-        "//base/third_party/xdg_mime",
-        "//base/third_party/xdg_user_dirs",
+        "//copied_base/base/third_party/symbolize",
+        "//copied_base/base/third_party/xdg_mime",
+        "//copied_base/base/third_party/xdg_user_dirs",
       ]
     }
   } else {
@@ -2440,12 +2439,12 @@ component("base") {
     ]
 
     public_deps += [
-      "//base/tracing/protos:chrome_track_event_zero",
+      "//copied_base/base/tracing/protos:chrome_track_event_zero",
       "//third_party/perfetto:libperfetto",
     ]
 
     deps += [
-      "//base/tracing/protos:chrome_track_event",
+      "//copied_base/base/tracing/protos:chrome_track_event",
       "//third_party/perfetto/include/perfetto/protozero",
     ]
 
@@ -2674,7 +2673,7 @@ static_library("base_static") {
       "win/static_constants.h",
     ]
 
-    public_deps = [ "//base/win:pe_image" ]
+    public_deps = [ "//copied_base/base/win:pe_image" ]
 
     # Disable sanitizer coverage in win/pe_image.cc. It is called by the sandbox
     # before sanitizer coverage can initialize. http://crbug.com/484711
@@ -2759,7 +2758,7 @@ component("i18n") {
   ]
   deps = [
     ":base",
-    "//base/third_party/dynamic_annotations",
+    "//copied_base/base/third_party/dynamic_annotations",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
   ]
@@ -2805,8 +2804,8 @@ test("base_perftests") {
   deps = [
     ":base",
     ":debugging_buildflags",
-    "//base/test:test_support",
-    "//base/test:test_support_perf",
+    "//copied_base/base/test:test_support",
+    "//copied_base/base/test:test_support_perf",
     "//testing/gtest",
     "//testing/perf",
   ]
@@ -2850,8 +2849,8 @@ test("base_i18n_perftests") {
   deps = [
     ":base",
     ":i18n",
-    "//base/test:test_support",
-    "//base/test:test_support_perf",
+    "//copied_base/base/test:test_support",
+    "//copied_base/base/test:test_support_perf",
     "//testing/gtest",
   ]
 }
@@ -2900,7 +2899,7 @@ if (is_win) {
     sources = [ "win/scoped_handle_test_dll.cc" ]
     deps = [
       ":base",
-      "//base/win:base_win_buildflags",
+      "//copied_base/base/win:base_win_buildflags",
     ]
   }
 }
@@ -2962,7 +2961,7 @@ source_set("base_stack_sampling_profiler_test_util") {
   ]
   deps = [
     ":base",
-    "//base/test:test_support",
+    "//copied_base/base/test:test_support",
     "//testing/gtest",
   ]
   if (is_android) {
@@ -3021,8 +3020,8 @@ if (is_apple) {
     configs += [ "//build/config/compiler:enable_arc" ]
     deps = [
       ":base",
-      "//base/ios",
-      "//base/test:test_support",
+      "//copied_base/base/ios",
+      "//copied_base/base/test:test_support",
       "//testing/gtest",
     ]
   }
@@ -3037,7 +3036,7 @@ if (!is_nacl && (is_linux || is_chromeos)) {
     cflags = [ "-fstack-protector-all" ]
 
     deps = [
-      "//base",
+      "//copied_base/base",
       "//testing/gtest",
     ]
   }
@@ -3093,7 +3092,7 @@ if (is_fuchsia) {
     ]
     deps = [
       ":base",
-      "//base/test:test_support",
+      "//copied_base/base/test:test_support",
       "//testing/gtest",
     ]
     public_deps = [
@@ -3510,11 +3509,11 @@ test("base_unittests") {
     ":feature_list_buildflags",
     ":i18n",
     ":sanitizer_buildflags",
-    "//base/allocator:buildflags",
-    "//base/test:native_library_test_utils",
-    "//base/test:run_all_unittests",
-    "//base/test:test_support",
-    "//base/third_party/dynamic_annotations",
+    "//copied_base/base/allocator:buildflags",
+    "//copied_base/base/test:native_library_test_utils",
+    "//copied_base/base/test:run_all_unittests",
+    "//copied_base/base/test:test_support",
+    "//copied_base/base/third_party/dynamic_annotations",
     "//build:blink_buildflags",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
@@ -3531,9 +3530,9 @@ test("base_unittests") {
     ]
   } else {
   data_deps = [
-    "//base/test:immediate_crash_test_helper",
-    "//base/test:test_child_process",
-    "//base/test:test_shared_library",
+    "//copied_base/base/test:immediate_crash_test_helper",
+    "//copied_base/base/test:test_child_process",
+    "//copied_base/base/test:test_shared_library",
     "//testing/buildbot/filters:base_unittests_filters",
   ]
   }
@@ -3562,7 +3561,7 @@ test("base_unittests") {
   ]
 
   if (is_win) {
-    deps += [ "//base/win:base_win_buildflags" ]
+    deps += [ "//copied_base/base/win:base_win_buildflags" ]
 
     sources += [
       "debug/gdi_debug_util_win_unittest.cc",
@@ -3811,7 +3810,7 @@ test("base_unittests") {
     ]
     deps += [
       ":base_java_unittest_support",
-      "//base/test:test_support_java",
+      "//copied_base/base/test:test_support_java",
     ]
   }
 
@@ -3977,7 +3976,7 @@ test("base_unittests") {
       "debug/test_elf_image_builder.h",
     ]
 
-    deps += [ "//base/test:malloc_wrapper" ]
+    deps += [ "//copied_base/base/test:malloc_wrapper" ]
     defines += [
       # This library is used by ElfReaderTest to test reading elf files.
       "MALLOC_WRAPPER_LIB=\"${shlib_prefix}malloc_wrapper${shlib_extension}\"",
@@ -4071,7 +4070,7 @@ test("base_unittests") {
   }
 
   if (is_win) {
-    deps += [ "//base:scoped_handle_test_dll" ]
+    deps += [ "//copied_base/base:scoped_handle_test_dll" ]
     if (current_cpu == "x64" || current_cpu == "arm64") {
       sources += [ "profiler/win32_stack_frame_unwinder_unittest.cc" ]
       deps += [ ":base_profiler_test_support_library" ]
@@ -4204,7 +4203,7 @@ if (enable_nocompile_tests) {
 
     deps = [
       ":base",
-      "//base/test:run_all_unittests",
+      "//copied_base/base/test:run_all_unittests",
       "//testing/gtest",
     ]
 
@@ -4343,7 +4342,7 @@ if (is_android) {
       "android/java/src/org/chromium/base/process_launcher/FileDescriptorInfo.java",
     ]
 
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java") {
@@ -4487,7 +4486,7 @@ if (is_android) {
       sources += [ "android/java/src/org/chromium/base/IntentUtils.java" ]
     }
 
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
 
     resources_package = "org.chromium.base"
 
@@ -4513,8 +4512,8 @@ if (is_android) {
       ":base_java",
       ":base_java_test_support",
       ":base_java_test_support_uncommon",
-      "//base:jni_java",
-      "//base/test:test_support_java",
+      "//copied_base/base:jni_java",
+      "//copied_base/base/test:test_support_java",
       "//build/android:build_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_test_monitor_java",
@@ -4553,7 +4552,7 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/util/GarbageCollectionTestUtilsTest.java",
     ]
 
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   source_set("base_javatests_lib") {
@@ -4578,12 +4577,12 @@ if (is_android) {
 
     deps = [
       ":base_java",
-      "//base:jni_java",
+      "//copied_base/base:jni_java",
       "//build/android:build_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/junit:junit",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java_test_support") {
@@ -4591,7 +4590,7 @@ if (is_android) {
 
     deps = [
       ":base_java",
-      "//base:jni_java",
+      "//copied_base/base:jni_java",
       "//build/android:build_java",
       "//third_party/accessibility_test_framework:accessibility_test_framework_java",
       "//third_party/android_deps:espresso_java",
@@ -4685,15 +4684,15 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/TimeoutTimer.java",
       "test/android/javatests/src/org/chromium/base/test/util/UserActionTester.java",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java_test_support_uncommon") {
     testonly = true
 
     deps = [
-      "//base:base_java",
-      "//base:jni_java",
+      "//copied_base/base:base_java",
+      "//copied_base/base:jni_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_test_monitor_java",
       "//third_party/hamcrest:hamcrest_java",
@@ -4713,7 +4712,7 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/Matchers.java",
     ]
 
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java_process_launcher_test_support") {
@@ -4807,7 +4806,7 @@ if (is_android) {
       ":base_java_test_support",
       ":base_java_test_support_uncommon",
       ":base_junit_test_support",
-      "//base/test:test_support_java",
+      "//copied_base/base/test:test_support_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_test_core_java",
       "//third_party/androidx:androidx_test_runner_java",
@@ -4843,10 +4842,10 @@ if (is_android) {
     sources =
         [ "android/javatests/src/org/chromium/base/profiler/TestSupport.java" ]
 
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
 
     deps = [
-      "//base:jni_java",
+      "//copied_base/base:jni_java",
       "//build/android:build_java",
     ]
   }
@@ -4856,7 +4855,7 @@ if (is_android) {
 
     deps = [
       ":base_java",
-      "//base:jni_java",
+      "//copied_base/base:jni_java",
     ]
 
     sources = [
@@ -4869,17 +4868,17 @@ if (is_android) {
 # Keep the list of fuzzer_tests in alphabetical order.
 fuzzer_test("base64_decode_fuzzer") {
   sources = [ "base64_decode_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("base64_encode_fuzzer") {
   sources = [ "base64_encode_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("base64url_fuzzer") {
   sources = [ "base64url_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("base_json_correctness_fuzzer") {
@@ -4890,13 +4889,13 @@ fuzzer_test("base_json_correctness_fuzzer") {
 
 fuzzer_test("base_json_reader_fuzzer") {
   sources = [ "json/json_reader_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
 }
 
 fuzzer_test("base_json_string_escape_fuzzer") {
   sources = [ "json/string_escape_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 if (is_mac) {
@@ -4917,7 +4916,7 @@ if (is_mac) {
   fuzzer_test("base_mach_port_rendezvous_fuzzer") {
     sources = [ "mac/mach_port_rendezvous_fuzzer.cc" ]
     deps = [
-      "//base",
+      "//copied_base/base",
       "//testing/libfuzzer/fuzzers/mach:converter",
       "//third_party/libprotobuf-mutator",
     ]
@@ -4928,67 +4927,67 @@ if (is_mac) {
 
 fuzzer_test("command_line_fuzzer") {
   sources = [ "command_line_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("escape_fuzzer") {
   sources = [ "strings/escape_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("file_path_fuzzer") {
   sources = [ "files/file_path_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("string_number_conversions_fuzzer") {
   sources = [ "strings/string_number_conversions_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("string_pattern_fuzzer") {
   sources = [ "strings/pattern_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("string_tokenizer_fuzzer") {
   sources = [ "strings/string_tokenizer_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("substring_set_matcher_fuzzer") {
   sources = [ "substring_set_matcher/substring_set_matcher_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("sys_string_conversions_fuzzer") {
   sources = [ "strings/sys_string_conversions_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("time_delta_from_string_fuzzer") {
   sources = [ "time/time_delta_from_string_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("time_fuzzer") {
   sources = [ "time/time_fuzzer.cc" ]
   deps = [
-    "//base",
-    "//base/test:test_support",
+    "//copied_base/base",
+    "//copied_base/base/test:test_support",
   ]
 }
 
 fuzzer_test("utf_string_conversions_fuzzer") {
   sources = [ "strings/utf_string_conversions_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [ "//copied_base/base" ]
 }
 
 fuzzer_test("pickle_fuzzer") {
   sources = [ "pickle_fuzzer.cc" ]
   deps = [
-    "//base",
-    "//base/test:test_support",
+    "//copied_base/base",
+    "//copied_base/base/test:test_support",
   ]
 }
 

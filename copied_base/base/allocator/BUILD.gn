@@ -2,8 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//base/allocator/allocator.gni")
-import("//base/allocator/partition_allocator/partition_alloc.gni")
+import("//copied_base/base/allocator/allocator.gni")
+import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
 import("//build/buildflag_header.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/dcheck_always_on.gni")
@@ -32,7 +32,7 @@ if (is_apple) {
 
     deps = [
       ":buildflags",
-      "//base/allocator/partition_allocator:buildflags",
+      "//copied_base/base/allocator/partition_allocator:buildflags",
     ]
   }
 }
