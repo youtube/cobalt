@@ -78,6 +78,9 @@ public final class CommandLineOverrideHelper {
         // Disable QUIC to save CPU budgets on m114.
         // Remove below if Cobalt rebase to m138+.
         paramOverrides.add("--disable-quic");
+        // Mipmap generation is not used and disabling it aims to reduce memory
+        // usage.
+        paramOverrides.add("--disable-mipmap-generation");
 
         return paramOverrides;
     }
