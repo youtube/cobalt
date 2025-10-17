@@ -297,7 +297,7 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Web tests implement their own BrowserMain() replacement.
     web_test_runner_->RunBrowserMain(std::move(main_function_params));
