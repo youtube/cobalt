@@ -124,7 +124,8 @@ public abstract class CobaltActivity extends Activity {
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
     String startDeepLink = getIntentUrlAsString(getIntent());
     if (startDeepLink == null) {
-      throw new IllegalArgumentException("startDeepLink cannot be null, set it to empty string");
+      Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
+      startDeepLink = "";
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
