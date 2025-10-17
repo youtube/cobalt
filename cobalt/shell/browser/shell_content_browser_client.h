@@ -38,6 +38,21 @@ namespace content {
 class ShellBrowserContext;
 class ShellBrowserMainParts;
 
+// In content browser tests we allow more than one ShellContentBrowserClient
+// to be created (actually, ContentBrowserTestContentBrowserClient). Any state
+// needed should be added here so that it's shared between the instances.
+struct SharedState {
+  SharedState();
+
+  // Owned by content::BrowserMainLoop.
+  raw_ptr<ShellBrowserMainParts, DanglingUntriaged> shell_browser_main_parts =
+      nullptr;
+
+  std::unique_ptr<PrefService> local_state;
+};
+
+SharedState& GetSharedState();
+
 std::string GetShellUserAgent();
 std::string GetShellLanguage();
 blink::UserAgentMetadata GetShellUserAgentMetadata();
@@ -153,9 +168,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 #if BUILDFLAG(IS_IOS)
   BluetoothDelegate* GetBluetoothDelegate() override;
 #endif
-#if defined(RUN_BROWSER_TESTS)
-  void BindBrowserControlInterface(mojo::ScopedMessagePipeHandle pipe) override;
-#endif  // defined(RUN_BROWSER_TESTS)
+
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;
@@ -260,10 +273,6 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // shell_content_browser_client.cc). Any state that is specific to a
   // particular instance should be placed here.
 };
-
-// The delay for sending reports when running with --run-web-tests
-constexpr base::TimeDelta kReportingDeliveryIntervalTimeForWebTests =
-    base::Milliseconds(100);
 
 }  // namespace content
 
