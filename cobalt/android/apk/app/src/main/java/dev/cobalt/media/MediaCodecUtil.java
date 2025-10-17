@@ -450,7 +450,6 @@ public class MediaCodecUtil {
   }
 
   /** Returns an array of CodecCapabilityInfo for all available decoders. */
-  @SuppressWarnings("unused")
   @CalledByNative
   public static CodecCapabilityInfo[] getAllCodecCapabilityInfos() {
     List<CodecCapabilityInfo> codecCapabilityInfos = new ArrayList<>();

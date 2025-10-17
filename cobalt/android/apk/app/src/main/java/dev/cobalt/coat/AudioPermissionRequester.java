@@ -42,7 +42,6 @@ public class AudioPermissionRequester {
    * Requests the RECORD_AUDIO permission. Returns true if the permission is granted; returns false
    * if the permission is not granted yet and starts to request the RECORD_AUDIO permission.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   public synchronized boolean requestRecordAudioPermission() {
     Activity activity = mActivityHolder.get();
