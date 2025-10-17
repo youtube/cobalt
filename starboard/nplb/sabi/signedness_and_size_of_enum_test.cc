@@ -21,7 +21,7 @@ typedef enum GenericEnumType {
   kOnlyTag,
 } GenericEnumType;
 
-// TODO: Fix this test to work with new compiler.
+// TODO b/452970985 : Fix this test to work with new compiler.
 // SB_COMPILE_ASSERT((static_cast<GenericEnumType>(-1) < 0) == SB_HAS_SIGNED_ENUM,
 //                   SB_HAS_SIGNED_ENUM_is_inconsistent_with_sign_of_enum);
 
