@@ -96,7 +96,7 @@ declare_args() {
   # We currently only have default profiles for Chromium in-tree, so we disable
   # this by default for all downstream projects, since these profiles are likely
   # nonsensical for said projects.
-  clang_use_default_sample_profile = 0
+  clang_use_default_sample_profile = false
   #    chrome_pgo_phase == 0 && build_with_chromium && is_official_build &&
   #    ((is_android && !is_high_end_android) || chromeos_is_browser_only)
 
