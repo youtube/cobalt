@@ -75,7 +75,7 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       switches::kDisableAcceleratedVideoEncode,
       // Disable QUIC to save CPU budgets on m114.
       // Remove below if Cobalt rebase to m138+.
-      switches::kDisableQuic,
+      // switches::kDisableQuic,
 });
 
 // Map of switches with parameters and their defaults.

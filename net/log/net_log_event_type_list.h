@@ -2248,6 +2248,11 @@ EVENT_TYPE(BOUND_TO_QUIC_SESSION_POOL_JOB)
 //     "require_confirmation": <True if we require handshake confirmation
 //                              in the connection>
 //  }
+//
+// The end event parameters are:
+//  {
+//     "net_error": <Net error code the connect failed with, on error>,
+//  }
 EVENT_TYPE(QUIC_SESSION_POOL_JOB_CONNECT)
 
 // Measures the time taken by a ProxyJob to establish a connection to its
