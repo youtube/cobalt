@@ -395,12 +395,12 @@ public class AudioTrackBridge {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        mAudioTimestamp.setFramePosition(mRawAudioTimestamp.framePosition & 0x7FFFFFFF);
-        mAudioTimestamp.setNanoTime(mRawAudioTimestamp.nanoTime);
+        mAudioTimestamp.framePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
+        mAudioTimestamp.nanoTime = mRawAudioTimestamp.nanoTime;
       } else {
         // Time stamps haven't been updated yet, assume playback hasn't started.
-        mAudioTimestamp.setFramePosition(0);
-        mAudioTimestamp.setNanoTime(System.nanoTime());
+        mAudioTimestamp.framePosition = 0;
+        mAudioTimestamp.nanoTime = System.nanoTime();
       }
 
       if (mAudioTimestamp.getFramePosition() > mMaxFramePositionSoFar) {
@@ -410,7 +410,7 @@ public class AudioTrackBridge {
         // increasing, and a monotonically increastion frame position is
         // required to calculate the playback time correctly, because otherwise
         // we would be going back in time.
-        mAudioTimestamp.setFramePosition(mMaxFramePositionSoFar);
+        mAudioTimestamp.framePosition = mMaxFramePositionSoFar;
       }
     }
 
@@ -445,13 +445,7 @@ public class AudioTrackBridge {
       this.nanoTime = nanoTime;
     }
 
-    public void setFramePosition(long framePosition) {
-      this.framePosition = framePosition;
-    }
 
-    public void setNanoTime(long nanoTime) {
-      this.nanoTime = nanoTime;
-    }
 
     @CalledByNative("AudioTimestamp")
     public long getFramePosition() {
