@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+  import("//copied_base/base/debug/debug.gni")
+} else {
 import("//build/config/compiler/compiler.gni")
 import("//build/config/compiler/pgo/pgo.gni")
 
@@ -40,3 +43,4 @@ assert(
     build_allocation_stack_trace_recorder ||
         !build_allocation_trace_recorder_full_reporting,
     "Report for stack trace recorder is enabled, but the recorder is disabled!")
+}
