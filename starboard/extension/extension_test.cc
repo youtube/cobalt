@@ -233,11 +233,15 @@ TEST(ExtensionTest, CrashHandler) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_GE(extension_api->version, 1u);
-  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_LE(extension_api->version, 3u);
   EXPECT_NE(extension_api->OverrideCrashpadAnnotations, nullptr);
 
   if (extension_api->version >= 2) {
     EXPECT_NE(extension_api->SetString, nullptr);
+  }
+
+  if (extension_api->version >= 3) {
+    EXPECT_NE(extension_api->RegisterSetStringCallback, nullptr);
   }
 
   const ExtensionApi* second_extension_api =
