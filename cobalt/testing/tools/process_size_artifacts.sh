@@ -2,31 +2,19 @@
 
 set -x
 
-# echo "artifact dir structure"
-# ls -d "$artifact_dir"/*/*/*/
-for artifact_dir in size_artifacts/size_artifacts_*; do
-  if [[ -d "$artifact_dir" ]]; then
-    # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
-    PLATFORM=$(basename "$artifact_dir" | sed -n 's/size_artifacts_\(.*\)_gold/\1/p')
-# for artifact_dir in out/evergreen-arm-hardfp-rdk_gold/; do
-#   if [[ -d "$artifact_dir" ]]; then
-#     # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
-#     PLATFORM=evergreen-arm-hardfp-rdk
-    CONFIG=gold
+artifact_dir=$(find . -type d -name "size_artifacts_*" | head -n 1)
+if [[ -d "$artifact_dir" ]]; then
+  # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
+  PLATFORM=$(basename "$artifact_dir" | sed -n 's/size_artifacts_\(.*\)_gold/\1/p')
+  CONFIG=gold
 
-    if [[ -z "$PLATFORM" ]]; then
-      echo "Could not extract platform from $artifact_dir"
-      continue
-    fi
+  if [[ -z "$PLATFORM" ]]; then
+    echo "Could not extract platform from $artifact_dir"
+    exit 1
+  fi
 
-    echo "Processing $PLATFORM"
-    TARGET_DIR="out/${PLATFORM}_${CONFIG}"
-    echo "target_dir : $TARGET_DIR"
-    mkdir -p "${TARGET_DIR}/bin"
-    mkdir -p "${TARGET_DIR}/lib"
-    mkdir -p "${TARGET_DIR}/sizes"
+  libcobalt_so_src="${artifact_dir}/libcobalt.so"
 
-    # Find and move libcobalt.so
     find_file() {
       local file_name="$1"
       local search_dir="$2"
@@ -39,23 +27,21 @@ for artifact_dir in size_artifacts/size_artifacts_*; do
       fi
       eval "$result_var"="'$file_path'"
     }
+  RUNNER_PATH="${artifact_dir}/bin/run_cobalt_sizes"
 
-    find_file "libcobalt.so" "$artifact_dir" "libcobalt_so_src" || continue
-    find_file "run_cobalt_sizes" "$artifact_dir" "RUNNER_PATH" || continue
+  echo "Running Check binary size for $PLATFORM"
+  vpython3 "$RUNNER_PATH" \
+    --output-directory "$artifact_dir" \
+    --isolated-script-test-output "$artifact_dir/sizes/test_results.json"
 
-    echo "Running Check binary size for $PLATFORM"
-    python3 $RUNNER_PATH
+  SIZES_PATH="$artifact_dir/sizes/sizes/perf_results.json"
 
-    find_file "perf_results.json" "$artifact_dir" "SIZES_PATH" || continue
-
-
-    echo "Running Compare binary size for $PLATFORM"
-    python3 cobalt/testing/tools/compare_sizes.py \
-      --current "$SIZES_PATH" \
-      --reference cobalt/testing/tools/reference_metrics.json \
-      --platform "${PLATFORM}" \
-      --config "${CONFIG}"
-  else
-    echo "Not a directory: $artifact_dir"
-  fi
-done
+  echo "Running Compare binary size for $PLATFORM"
+  python3 cobalt/testing/tools/compare_sizes.py \
+    --current "$SIZES_PATH" \
+    --reference cobalt/testing/tools/reference_metrics.json \
+    --platform "${PLATFORM}" \
+    --config "${CONFIG}"
+else
+  echo "Not a directory: $artifact_dir"
+fi
