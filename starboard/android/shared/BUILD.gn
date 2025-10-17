@@ -381,16 +381,11 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
+              "drm_session_id_mapper_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
             ]
-
-  sources += [
-    "//starboard/shared/starboard/drm/drm_test_helpers.cc",
-    "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "drm_session_id_mapper_test.cc",
-  ]
 
   # Add starboard_feature_test to Android's starboard_platform_tests,
   # since Android is the only platform that includes starboard_feature.
@@ -401,6 +396,7 @@ test("starboard_platform_tests") {
   deps = [
     ":starboard_platform",
     "//starboard:starboard_group",
+    "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
     "//testing/gtest",
