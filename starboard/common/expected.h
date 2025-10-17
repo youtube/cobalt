@@ -67,6 +67,10 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
+  Expected(const T& value) : has_value_(true) {
+    new (&storage_.value_) T(value);
+  }
+
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
@@ -80,14 +84,30 @@ class Expected {
     new (&storage_.error_) E(std::move(unexpected.error()));
   }
 
+  // Copy constructor. Conditionally deleted if T or E are not
+  // copy-constructible.
   Expected(const Expected& other) : has_value_(other.has_value_) {
-    if (has_value_) {
-      new (&storage_.value_) T(other.storage_.value_);
+    if constexpr (std::is_copy_constructible_v<T> &&
+                  std::is_copy_constructible_v<E>) {
+      if (has_value_) {
+        new (&storage_.value_) T(other.storage_.value_);
+      } else {
+        new (&storage_.error_) E(other.storage_.error_);
+      }
     } else {
-      new (&storage_.error_) E(other.storage_.error_);
+      // This branch should not be taken for non-copyable types,
+      // but needs to be valid for the compiler.
+      SB_NOTREACHED();
     }
   }
+  template <typename T_ = T,
+            typename E_ = E,
+            std::enable_if_t<!(std::is_copy_constructible<T_>::value &&
+                               std::is_copy_constructible<E_>::value),
+                             int> = 0>
+  Expected(const Expected& other) = delete;
 
+  // Move constructor.
   Expected(Expected&& other) : has_value_(other.has_value_) {
     if (has_value_) {
       new (&storage_.value_) T(std::move(other.storage_.value_));
@@ -104,25 +124,41 @@ class Expected {
     }
   }
 
+  // Copy assignment operator. Conditionally deleted if T or E are not
+  // copy-assignable.
   Expected& operator=(const Expected& other) {
-    if (this == &other) {
-      return *this;
+    if constexpr (std::is_copy_constructible_v<T> &&
+                  std::is_copy_assignable_v<T> &&
+                  std::is_copy_constructible_v<E> &&
+                  std::is_copy_assignable_v<E>) {
+      if (this == &other) {
+        return *this;
+      }
+      if (has_value_ && other.has_value_) {
+        storage_.value_ = other.storage_.value_;
+      } else if (!has_value_ && !other.has_value_) {
+        storage_.error_ = other.storage_.error_;
+      } else if (has_value_ && !other.has_value_) {
+        storage_.value_.~T();
+        new (&storage_.error_) E(other.storage_.error_);
+      } else {  // !has_value_ && other.has_value_
+        storage_.error_.~E();
+        new (&storage_.value_) T(other.storage_.value_);
+      }
+      has_value_ = other.has_value_;
+    } else {
+      SB_NOTREACHED();
     }
-    if (has_value_ && other.has_value_) {
-      storage_.value_ = other.storage_.value_;
-    } else if (!has_value_ && !other.has_value_) {
-      storage_.error_ = other.storage_.error_;
-    } else if (has_value_ && !other.has_value_) {
-      storage_.value_.~T();
-      new (&storage_.error_) E(other.storage_.error_);
-    } else {  // !has_value_ && other.has_value_
-      storage_.error_.~E();
-      new (&storage_.value_) T(other.storage_.value_);
-    }
-    has_value_ = other.has_value_;
     return *this;
   }
+  template <typename T_ = T,
+            typename E_ = E,
+            std::enable_if_t<!(std::is_copy_assignable<T_>::value &&
+                               std::is_copy_assignable<E_>::value),
+                             int> = 0>
+  Expected& operator=(const Expected& other) = delete;
 
+  // Move assignment operator.
   Expected& operator=(Expected&& other) {
     if (this == &other) {
       return *this;
