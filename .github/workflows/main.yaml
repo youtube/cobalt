@@ -63,6 +63,7 @@ jobs:
             cobalt/testing/filters
             cobalt/testing/tools
             cobalt/tools
+            tools/binary_size
             docker-compose.yaml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'

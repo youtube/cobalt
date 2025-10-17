@@ -44,10 +44,7 @@ for artifact_dir in size_artifacts/size_artifacts_*; do
     find_file "run_cobalt_sizes" "$artifact_dir" "RUNNER_PATH" || continue
 
     echo "Running Check binary size for $PLATFORM"
-    chmod +x "$RUNNER_PATH"
-    pushd "$(dirname "$RUNNER_PATH")"
-    python3 "$(basename "$RUNNER_PATH")"
-    popd
+    python3 $RUNNER_PATH
 
     find_file "perf_results.json" "$artifact_dir" "SIZES_PATH" || continue
 
