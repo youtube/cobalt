@@ -1,0 +1,223 @@
+--- WARNING ---
+   13   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidChannels
+>> 14   : [nplb_loader/708094:0918/200512.366676(UTC):WARNING:audio_sink_internal.cc(113)] Invalid audio channels 0
+   15   : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidChannels (0 ms)
+--- WARNING (2 times; 1 similar) across 2 tests ---
+   16   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidFrequency
+>> 17   : [nplb_loader/708094:0918/200512.366773(UTC):WARNING:audio_sink_internal.cc(118)] Invalid audio sampling frequency 0
+   18   : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidFrequency (0 ms)
+
+Occurred in these tests: SbAudioSinkCreateTest.RainyDayInvalidFrequency, SbAudioSinkGetNearestSupportedSampleFrequencyTest.ZeroFrequency
+--- WARNING ---
+   19   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidSampleType
+>> 20   : [nplb_loader/708094:0918/200512.366892(UTC):WARNING:audio_sink_internal.cc(124)] Invalid audio sample type 0
+   21   : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidSampleType (0 ms)
+--- WARNING ---
+   22   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameStorageType
+>> 23   : [nplb_loader/708094:0918/200512.366994(UTC):WARNING:audio_sink_internal.cc(129)] Invalid audio frame storage type 1
+   24   : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameStorageType (0 ms)
+--- WARNING ---
+   25   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameBuffers
+>> 26   : [nplb_loader/708094:0918/200512.367078(UTC):WARNING:audio_sink_internal.cc(135)] Pointer to frame buffers cannot be NULL
+>> 27   : [nplb_loader/708094:0918/200512.367089(UTC):WARNING:audio_sink_internal.cc(140)] Invalid frame buffer size 0
+   28   : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameBuffers (0 ms)
+--- WARNING ---
+   29   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidCallback
+>> 30   : [nplb_loader/708094:0918/200512.367171(UTC):WARNING:audio_sink_internal.cc(146)] update_source_status_func cannot be NULL
+>> 31   : [nplb_loader/708094:0918/200512.367181(UTC):WARNING:audio_sink_internal.cc(151)] consume_frames_func cannot be NULL
+   32   : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidCallback (0 ms)
+--- WARNING ---
+   2456 : [0;32m[ RUN      ] [mSbMediaCanPlayMimeAndKeySystem.Invalid
+>> 2457 : [nplb_loader/708094:0918/200513.780090(UTC):WARNING:parsed_mime_info.cc(138)] Unknown eotf abc.
+   2458 : [0;32m[       OK ] [mSbMediaCanPlayMimeAndKeySystem.Invalid (0 ms)
+--- WARNING ---
+   2496 : [0;32m[ RUN      ] [mSbMediaCanPlayMimeAndKeySystem.FLAKY_ValidatePerformance
+   2497 : [nplb_loader/708094:0918/200513.781049(UTC):INFO:media_can_play_mime_and_key_system_test.cc(933)] SbMediaCanPlayMimeAndKeySystem - Warmup queries measured duration 15us total across 9 calls.
+   2498 : [nplb_loader/708094:0918/200513.781078(UTC):INFO:media_can_play_mime_and_key_system_test.cc(936)]   Measured duration 1.66667us average per call.
+>> 2499 : [nplb_loader/708094:0918/200513.781178(UTC):WARNING:parsed_mime_info.cc(138)] Unknown eotf catavision.
+   2500 : [nplb_loader/708094:0918/200513.781241(UTC):INFO:media_can_play_mime_and_key_system_test.cc(933)] SbMediaCanPlayMimeAndKeySystem - SDR queries measured duration 142us total across 38 calls.
+   2501 : [nplb_loader/708094:0918/200513.781265(UTC):INFO:media_can_play_mime_and_key_system_test.cc(936)]   Measured duration 3.73684us average per call.
+   2502 : [nplb_loader/708094:0918/200513.781607(UTC):INFO:media_can_play_mime_and_key_system_test.cc(933)] SbMediaCanPlayMimeAndKeySystem - HDR queries measured duration 322us total across 82 calls.
+          ... (9 lines skipped) ...
+   2512 : [0;32m[       OK ] [mSbMediaCanPlayMimeAndKeySystem.FLAKY_ValidatePerformance (1 ms)
+--- WARNING (12 times; 11 similar) ---
+   2527 : [0;32m[ RUN      ] [mMultiplePlayerTest.SunnyDay
+          ... (456 lines skipped) ...
+   2984 : [player_worker/708399:0918/200514.794545(UTC):INFO:filter_based_player_worker_handler.cc(443)] Video prerolled.
+   2985 : [player_worker/708402:0918/200514.797465(UTC):INFO:filter_based_player_worker_handler.cc(329)] Video EOS enqueued
+   2986 : [player_worker/708402:0918/200514.798388(UTC):INFO:filter_based_player_worker_handler.cc(443)] Video prerolled.
+>> 2987 : [dt_context/708288:0918/200514.801157(UTC):WARNING:video_render_algorithm_impl.cc(231)] Frame @ 0 microseconds should be displayed 3 times, but is displayed 2 times, the elapsed media time/system time from last Render() call are 31188/15319 microseconds, the video is at 24 fps, media time is 63375, backlog 5 frames.
+   2988 : [player_worker/708398:0918/200514.802033(UTC):INFO:filter_based_player_worker_handler.cc(329)] Video EOS enqueued
+   2989 : [player_worker/708398:0918/200514.805642(UTC):INFO:filter_based_player_worker_handler.cc(443)] Video prerolled.
+   2990 : [dt_context/708288:0918/200514.825374(UTC):WARNING:video_render_algorithm_impl.cc(231)] Frame @ 0 microseconds should be displayed 3 times, but is displayed 2 times, the elapsed media time/system time from last Render() call are 59455/15264 microseconds, the video is at 24 fps, media time is 59455, backlog 5 frames.
+
+Also occurred in combination with other failures in this test (8 times similar).
+          ... (2400 lines skipped) ...
+   5391 : [0;32m[       OK ] [mMultiplePlayerTest.SunnyDay (8723 ms)
+--- WARNING (28 times; 27 similar) ---
+   2527 : [0;32m[ RUN      ] [mMultiplePlayerTest.SunnyDay
+          ... (869 lines skipped) ...
+   3397 : [player_worker/709906:0918/200516.119257(UTC):INFO:filter_based_player_worker_handler.cc(443)] Video prerolled.
+   3398 : [player_worker/709908:0918/200516.129487(UTC):INFO:filter_based_player_worker_handler.cc(329)] Video EOS enqueued
+   3399 : [player_worker/709908:0918/200516.136822(UTC):INFO:filter_based_player_worker_handler.cc(443)] Video prerolled.
+>> 3400 : [dt_context/708288:0918/200516.152325(UTC):WARNING:video_frame_rate_estimator.cc(92)] Frame rate discontinuity detected, current frame duration: 100000, average frame duration: 33333
+   3401 : [player_worker/709905:0918/200516.173565(UTC):INFO:filter_based_player_worker_handler.cc(472)] Video ended.
+   3402 : [player_worker/709907:0918/200516.219724(UTC):INFO:filter_based_player_worker_handler.cc(472)] Video ended.
+   3403 : [player_worker/709909:0918/200516.224656(UTC):INFO:filter_based_player_worker_handler.cc(472)] Video ended.
+
+Also occurred in combination with other failures in this test (8 times similar).
+          ... (1987 lines skipped) ...
+   5391 : [0;32m[       OK ] [mMultiplePlayerTest.SunnyDay (8723 ms)
+--- ERROR (2 times; 1 similar) ---
+   5575 : [0;32m[ RUN      ] [mSbPlayerTest.NullCallbacks
+   5576 : [nplb_loader/708094:0918/200522.685085(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5577 : [nplb_loader/708094:0918/200522.685117(UTC):ERROR:player_create.cc(112)] |sample_deallocate_func| cannot be null.
+   5578 : [nplb_loader/708094:0918/200522.685130(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5579 : [nplb_loader/708094:0918/200522.685140(UTC):ERROR:player_create.cc(119)] |decoder_status_func| cannot be null.
+   5580 : [nplb_loader/708094:0918/200522.685150(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5581 : [nplb_loader/708094:0918/200522.685167(UTC):ERROR:player_create.cc(126)] |player_status_func| cannot be null.
+>> 5582 : [nplb_loader/708094:0918/200522.685177(UTC):ERROR:player_create.cc(54)] |player_error_func| cannot be null.
+          ... (lines 5583-5585 are a repeat of lines 5576-5578) ...
+          ... (4 lines skipped) ...
+   5590 : [0;32m[       OK ] [mSbPlayerTest.NullCallbacks (26 ms)
+--- ERROR ---
+   5631 : [0;32m[ RUN      ] [mSbPlayerTest.MultiPlayer
+   5632 : [nplb_loader/708094:0918/200522.774547(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 1 times, with 0 player created.
+   5633 :  Now creating player for none and none
+   5634 : [nplb_loader/708094:0918/200522.774639(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5635 : [nplb_loader/708094:0918/200522.774654(UTC):ERROR:player_create.cc(177)] SbPlayerCreate() requires at least one audio track or one video track.
+   5636 : [nplb_loader/708094:0918/200522.774667(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 2 times, with 0 player created.
+   5637 :  Now creating player for none and avc
+   5638 : [nplb_loader/708094:0918/200522.774691(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+
+Also occurred in combination with other failures in this test (9 times similar).
+          ... (7093 lines skipped) ...
+   12732: [0;32m[       OK ] [mSbPlayerTest.MultiPlayer (1342 ms)
+--- ERROR (90 times; 89 similar) ---
+   5631 : [0;32m[ RUN      ] [mSbPlayerTest.MultiPlayer
+          ... (13 lines skipped) ...
+   5645 : [nplb_loader/708094:0918/200522.775381(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 3 times, with 1 player created.
+   5646 :  Now creating player for none and hevc
+   5647 : [nplb_loader/708094:0918/200522.775432(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5648 : [nplb_loader/708094:0918/200522.775702(UTC):ERROR:player_create.cc(164)] Unsupported video codec hevc.
+   5649 : [nplb_loader/708094:0918/200522.775722(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 4 times, with 1 player created.
+   5650 :  Now creating player for none and mpeg2
+   5651 : [nplb_loader/708094:0918/200522.775751(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5652 : [nplb_loader/708094:0918/200522.775761(UTC):ERROR:player_create.cc(164)] Unsupported video codec mpeg2.
+   5653 : [nplb_loader/708094:0918/200522.775773(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 5 times, with 1 player created.
+   5654 :  Now creating player for none and theora
+   5655 : [nplb_loader/708094:0918/200522.775792(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5656 : [nplb_loader/708094:0918/200522.775803(UTC):ERROR:player_create.cc(164)] Unsupported video codec theora.
+   5657 : [nplb_loader/708094:0918/200522.775814(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 6 times, with 1 player created.
+   5658 :  Now creating player for none and vc1
+   5659 : [nplb_loader/708094:0918/200522.775832(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 5660 : [nplb_loader/708094:0918/200522.775842(UTC):ERROR:player_create.cc(164)] Unsupported video codec vc1.
+   5661 : [nplb_loader/708094:0918/200522.775852(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 7 times, with 1 player created.
+   5662 :  Now creating player for none and av1
+   5663 : [nplb_loader/708094:0918/200522.775870(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+          ... (7068 lines skipped) ...
+   12732: [0;32m[       OK ] [mSbPlayerTest.MultiPlayer (1342 ms)
+--- ERROR (81 times; 80 similar) ---
+   5631 : [0;32m[ RUN      ] [mSbPlayerTest.MultiPlayer
+          ... (542 lines skipped) ...
+   6174 : [nplb_loader/708094:0918/200522.799584(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 82 times, with 44 player created.
+   6175 :  Now creating player for iamf and none
+   6176 : [nplb_loader/708094:0918/200522.799616(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+>> 6177 : [nplb_loader/708094:0918/200522.799627(UTC):ERROR:player_create.cc(138)] Unsupported audio codec iamf.
+   6178 : [nplb_loader/708094:0918/200522.799639(UTC):INFO:player_create_test.cc(403)] Attempt to create SbPlayer for 83 times, with 44 player created.
+   6179 :  Now creating player for iamf and avc
+   6180 : [nplb_loader/708094:0918/200522.799658(UTC):INFO:player_create.cc(99)] SbPlayerCreate() called with audio mime "", video mime "", and max video capabilities "".
+
+Also occurred in combination with other failures in this test (9 times similar).
+          ... (6551 lines skipped) ...
+   12732: [0;32m[       OK ] [mSbPlayerTest.MultiPlayer (1342 ms)
+--- ERROR ---
+   12800: [0;32m[ RUN      ] [mSbFileDeleteRecursiveTest.RainyDayNonExistentPathErrors
+>> 12801: [nplb_loader/708094:0918/200524.105085(UTC):ERROR:file.cc(105)] Path does not exist: '/tmp/nplb_loader-708094/ScopedRandomFile.File_9363694864769498838'
+   12802: [0;32m[       OK ] [mSbFileDeleteRecursiveTest.RainyDayNonExistentPathErrors (0 ms)
+--- ERROR (2 times; 1 similar) ---
+   12967: [0;32m[ RUN      ] [mSbLogTest.SunnyDayStreams
+   12968: [nplb_loader/708094:0918/200524.339943(UTC):INFO:log_test.cc(61)] testing info
+>> 12969: [nplb_loader/708094:0918/200524.340015(UTC):WARNING:log_test.cc(63)] testing warning
+>> 12970: [nplb_loader/708094:0918/200524.340035(UTC):ERROR:log_test.cc(65)] testing error
+   12971: [nplb_loader/708094:0918/200524.340052(UTC):WARNING:log_test.cc(63)] testing warning
+   12972: [nplb_loader/708094:0918/200524.340068(UTC):ERROR:log_test.cc(65)] testing error
+   12973: [nplb_loader/708094:0918/200524.340084(UTC):ERROR:log_test.cc(65)] testing error
+   12974: [0;32m[       OK ] [mSbLogTest.SunnyDayStreams (0 ms)
+--- WARNING ---
+   13419: [0;32m[ RUN      ] [mPosixFcntlTest.RejectInvalidCommand
+>> 13420: [nplb_loader/708094:0918/200526.873012(UTC):WARNING:starboard_layer_posix_fcntl_abi_wrappers.cc(57)] Unknown musl fcntl command: -1
+   13421: [0;32m[       OK ] [mPosixFcntlTest.RejectInvalidCommand (0 ms)
+--- ERROR ---
+   13611: [0;32m[ RUN      ] [mFileTempTest.MkdtempNonExistentPath
+>> 13612: ../../starboard/nplb/posix_compliance/posix_file_temp_test.cc:66: Failure
+   13613: Expected equality of these values:
+   13614:   (*__errno_location())
+   13615:     Which is: 13
+   13616:   2
+   13617: mkdtemp expected errno ENOENT (2) for non-existent path, but got 13 (Permission denied).
+>> 13618: [0;31m[  FAILED  ] [mFileTempTest.MkdtempNonExistentPath (0 ms)
+--- ERROR ---
+   13623: [0;32m[ RUN      ] [mFileTempTest.MkstempNonExistentPath
+>> 13624: ../../starboard/nplb/posix_compliance/posix_file_temp_test.cc:106: Failure
+   13625: Expected equality of these values:
+   13626:   (*__errno_location())
+   13627:     Which is: 13
+   13628:   2
+   13629: mkstemp expected errno ENOENT (2) for non-existent path, but got 13 (Permission denied).
+>> 13630: [0;31m[  FAILED  ] [mFileTempTest.MkstempNonExistentPath (0 ms)
+--- ERROR ---
+   13639: [0;32m[ RUN      ] [mFileTempTest.MkostempNonExistentPath
+>> 13640: ../../starboard/nplb/posix_compliance/posix_file_temp_test.cc:182: Failure
+   13641: Expected equality of these values:
+   13642:   (*__errno_location())
+   13643:     Which is: 13
+   13644:   2
+   13645: mkostemp expected errno ENOENT (2) for non-existent path, but got 13 (Permission denied).
+>> 13646: [0;31m[  FAILED  ] [mFileTempTest.MkostempNonExistentPath (0 ms)
+--- WARNING ---
+   14345: [0;32m[ RUN      ] [mPosixSocketpairTest.SocketpairWithInvalidDomainFails
+>> 14346: [nplb_loader/708094:0918/200531.128880(UTC):WARNING:starboard_layer_posix_socketpair_abi_wrappers.cc(40)] Only AF_UNIX is supported for domain, got: -1
+   14347: [0;32m[       OK ] [mPosixSocketpairTest.SocketpairWithInvalidDomainFails (0 ms)
+--- WARNING ---
+   14348: [0;32m[ RUN      ] [mPosixSocketpairTest.SocketpairWithInvalidTypeFails
+>> 14349: [nplb_loader/708094:0918/200531.128968(UTC):WARNING:starboard_layer_posix_socketpair_abi_wrappers.cc(70)] Unable to convert musl socket type to platform socket type, or unknown flags are present. Value: -526337
+   14350: [0;32m[       OK ] [mPosixSocketpairTest.SocketpairWithInvalidTypeFails (0 ms)
+--- WARNING ---
+   14351: [0;32m[ RUN      ] [mPosixSocketpairTest.SocketpairWithInvalidProtocolFails
+>> 14352: [nplb_loader/708094:0918/200531.129045(UTC):WARNING:starboard_layer_posix_socketpair_abi_wrappers.cc(82)] Only the default protocol is supported, got -1
+   14353: [0;32m[       OK ] [mPosixSocketpairTest.SocketpairWithInvalidProtocolFails (0 ms)
+--- ERROR ---
+   14645: [0;32m[ RUN      ] [mPosixTimeTimeTests.TimeIsReasonable
+>> 14646: ../../starboard/nplb/posix_compliance/posix_time_time_test.cc:98: Failure
+   14647: Expected: (now_s) < (kReasonableMinTime), actual: 1758225936 vs 1735689600
+   14648: Current time (1758225936) is before the expected past threshold (1735689600).
+>> 14649: ../../starboard/nplb/posix_compliance/posix_time_time_test.cc:103: Failure
+   14650: Expected: (now_s) > (kReasonableMaxTime), actual: 1758225936 vs 9223372036854775807
+   14651: Current time (1758225936) is after the expected future threshold (9223372036854775807).
+>> 14652: [0;31m[  FAILED  ] [mPosixTimeTimeTests.TimeIsReasonable (0 ms)
+--- CRASH ---
+   14679: [0;32m[ RUN      ] [mPosixTimezoneTests.HandlesInvalidTZStringGracefully
+   14680: 
+>> 14681: Caught signal: SIGSEGV (11)
+>> 14682: 	<unknown> [0x7fdd54649df0]
+>> 14683: 	starboard::nplb::PosixTimezoneTests_HandlesInvalidTZStringGracefully_Test::TestBody() [0x7fdd53f2ff2d]
+>> 14684: 	testing::Test::Run() [0x7fdd53f7a3e9]
+>> 14685: 	testing::TestInfo::Run() [0x7fdd53f7b431]
+>> 14686: 	testing::TestSuite::Run() [0x7fdd53f7be57]
+>> 14687: 	testing::internal::UnitTestImpl::RunAllTests() [0x7fdd53f85797]
+>> 14688: 	testing::UnitTest::Run() [0x7fdd53f852b2]
+>> 14689: 	SbEventHandle [0x7fdd53d85687]
+>> 14690: 	starboard::shared::starboard::Application::HandleEventAndUpdateState() [0x7fdd550e8d0e]
+>> 14691: 	starboard::shared::starboard::Application::DispatchAndDelete() [0x7fdd550e8902]
+>> 14692: 	starboard::shared::starboard::Application::DispatchStart() [0x7fdd550e83d6]
+>> 14693: 	starboard::shared::starboard::Application::RunLoop() [0x7fdd550e7a10]
+>> 14694: 	starboard::shared::starboard::Application::Run() [0x7fdd550e7d1a]
+>> 14695: 	SbRunStarboardMain [0x7fdd54f541e0]
+>> 14696: 	<unknown> [0x7fdd54633ca8]
+>> 14697: 	__libc_start_main [0x7fdd54633d65]
+>> 14698: 	<unknown> [0x55dbb023ee4a]
+   14699: 
+   14700: RETURN_CODE: -6
+Full log saved to: agents/extensions/cobalt_builds/tests/run_nplb_example2.log
+Log analysis summary: Errors: 182, Warnings: 53
