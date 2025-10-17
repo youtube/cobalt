@@ -1832,8 +1832,6 @@ component("base") {
     sources -= [
       #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
       # #include <linux/magic.h>
-      "debug/proc_maps_linux.cc",
-      "debug/proc_maps_linux.h",
       "files/dir_reader_linux.h",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
