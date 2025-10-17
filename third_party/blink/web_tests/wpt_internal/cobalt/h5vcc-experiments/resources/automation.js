@@ -21,3 +21,19 @@ function h5vcc_experiments_tests(func, name, properties) {
     }
     }, name, properties);
   }
+
+function h5vcc_experiments_mojo_disconnection_tests(func, name, properties) {
+  promise_test(async (test) => {
+    const { H5vccExperiments } = await import(
+      '/gen/cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.m.js');
+    let interceptor =
+      new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
+    interceptor.oninterfacerequest = e => e.handle.close();
+    interceptor.start();
+    try {
+      await func(test, interceptor);
+    } finally {
+      interceptor.stop();
+    }
+  }, name, properties);
+}

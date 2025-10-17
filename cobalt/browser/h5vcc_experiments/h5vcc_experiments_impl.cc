@@ -82,11 +82,18 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kExperimentConfigFeatureParams,
       std::move(experiment_config.Find(cobalt::kExperimentConfigFeatureParams)
                     ->GetDict()));
-  experiment_config_ptr->SetList(
-      cobalt::kExperimentConfigExpIds,
+  experiment_config_ptr->SetString(
+      cobalt::kExperimentConfigActiveConfigData,
       std::move(
-          experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
-  experiment_config_ptr->CommitPendingWrite();
+          experiment_config.Find(cobalt::kExperimentConfigActiveConfigData)
+              ->GetString()));
+  experiment_config_ptr->SetString(
+      cobalt::kLatestConfigHash,
+      std::move(
+          experiment_config.Find(cobalt::kLatestConfigHash)->GetString()));
+  // CommitPendingWrite not called here to avoid excessive disk writes.
+  // Features and featureParams won't be applied until the next Cobalt cold
+  // start so the delay is acceptable.
   std::move(callback).Run();
 }
 
@@ -95,14 +102,14 @@ void H5vccExperimentsImpl::ResetExperimentState(
   PrefService* experiment_config =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
   experiment_config->ClearPref(cobalt::kExperimentConfig);
-  experiment_config->CommitPendingWrite();
+  // CommitPendingWrite not called here due to the same reason as above.
   std::move(callback).Run();
 }
 
-void H5vccExperimentsImpl::GetActiveExperimentIds(
-    GetActiveExperimentIdsCallback callback) {
+void H5vccExperimentsImpl::GetActiveExperimentConfigData(
+    GetActiveExperimentConfigDataCallback callback) {
   std::move(callback).Run(
-      cobalt::GlobalFeatures::GetInstance()->active_experiment_ids());
+      cobalt::GlobalFeatures::GetInstance()->active_config_data());
 }
 
 void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
@@ -116,6 +123,30 @@ void H5vccExperimentsImpl::GetFeatureParam(
   std::string param_value = base::GetFieldTrialParamValue(
       cobalt::kCobaltExperimentName, feature_param_name);
   std::move(callback).Run(param_value);
+}
+
+void H5vccExperimentsImpl::GetLatestExperimentConfigHashData(
+    GetLatestExperimentConfigHashDataCallback callback) {
+  std::move(callback).Run(
+      cobalt::GlobalFeatures::GetInstance()->latest_config_hash());
+}
+
+void H5vccExperimentsImpl::SetLatestExperimentConfigHashData(
+    const std::string& hash_data,
+    SetLatestExperimentConfigHashDataCallback callback) {
+  cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetString(
+      cobalt::kLatestConfigHash, hash_data);
+  // CommitPendingWrite not called here due to the same reason as above.
+  std::move(callback).Run();
+}
+
+void H5vccExperimentsImpl::SetFinchParameters(
+    base::Value::Dict settings,
+    SetFinchParametersCallback callback) {
+  cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetDict(
+      cobalt::kFinchParameters, std::move(settings));
+  // CommitPendingWrite not called here due to the same reason as above.
+  std::move(callback).Run();
 }
 
 }  // namespace h5vcc_experiments
