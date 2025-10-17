@@ -285,6 +285,7 @@ component("base") {
     "containers/flat_set.h",
     "containers/flat_tree.cc",
     "containers/flat_tree.h",
+    "containers/heap_array.h",
     "containers/id_map.h",
     "containers/intrusive_heap.cc",
     "containers/intrusive_heap.h",
