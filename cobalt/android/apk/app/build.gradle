@@ -129,6 +129,19 @@ android {
             }
             signingConfig signingConfigs.debugConfig
             enableUnitTestCoverage true
+            minifyEnabled false
+            shrinkResources false
+            packagingOptions {
+                doNotStrip "**/*.so"
+            }
+            externalNativeBuild {
+                cmake {
+                    cppFlags '-g'
+                }
+                ndkBuild {
+                    cFlags '-g'
+                }
+            }
         }
         release {
             minifyEnabled true
