@@ -102,7 +102,6 @@ if (current_toolchain == starboard_toolchain) {
     public_deps = [ "//$starboard_path:starboard_platform" ]
 
     deps = [
-      "//starboard:starboard_headers_only",
       "//starboard/common",
       "//starboard/shared/starboard/media:media_util",
       "//starboard/shared/starboard/player:video_dmp",
