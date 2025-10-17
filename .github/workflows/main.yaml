@@ -352,7 +352,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Set Up Depot Tools
-        uses: ./src/.github/actions/depot_tools
+        uses: ./.github/actions/depot_tools
       - name: Download all size artifacts
         uses: actions/download-artifact@v4
         with:
