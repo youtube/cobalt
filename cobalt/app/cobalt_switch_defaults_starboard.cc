@@ -88,15 +88,6 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
      // Don't launch services related to user-interaction via peripherals,
      // e.g. video capture.
      "UserInteractionPeripherals"},
-        // The Renderer Compositor (a.k.a. "cc" see //docs/how_cc_works.md) has
-        // two important parts re. memory consumption, one is the image decode
-        // cache whose size is specified by the LimitImageDecodeCacheSize flag
-        // and the tile manager cache of rasterized content (i.e. content that
-        // has been rastered already or pre-rastered and is kept for later fast
-        // (re)use) that can be overwritten with the kForceGpuMemAvailableMb
-        // switch.
-        // TODO(mcasas): Ideally configure depending on policy.
-        {switches::kForceGpuMemAvailableMb, "32"},
         // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
         // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
         // creation, but egl extension required to support the attribute is
@@ -117,9 +108,11 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
         // we set it explicitly just in case.
         {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
-        // Enable precise memory info so we can make accurate client-side
+        // Align with MSE spec for MediaSource.duration;
+        // enable precise memory info so we can make accurate client-side
         // measurements.
-        {switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
+        {switches::kEnableBlinkFeatures,
+         "MediaSourceNewAbortAndDuration, PreciseMemoryInfo"},
         // Enable autoplay video/audio, as Cobalt may launch directly into media
         // playback before user interaction.
         {switches::kAutoplayPolicy, "no-user-gesture-required"},

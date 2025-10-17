@@ -764,13 +764,12 @@ public class MediaDrmBridge {
   }
 
   @CalledByNative
-  void generateProvisionRequest() {
+  byte[] generateProvisionRequest() {
     assert mEnableAppProvisioning;
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
     Log.i(TAG, "start provisioning: request size=" + request.getData().length);
 
-    MediaDrmBridgeJni.get().onProvisioningRequestMessage(
-        mNativeMediaDrmBridge, request.getData());
+    return request.getData();
   }
 
   @CalledByNative
@@ -927,10 +926,6 @@ public class MediaDrmBridge {
         int ticket,
         byte[] sessionId,
         int requestType,
-        byte[] message);
-
-    void onProvisioningRequestMessage(
-        long nativeMediaDrmBridge,
         byte[] message);
 
     void onKeyStatusChange(
