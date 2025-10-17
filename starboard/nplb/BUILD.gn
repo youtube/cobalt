@@ -33,7 +33,7 @@ config("wnos") {
     "-Wno-unreachable-code",
     "-Wno-unreachable-code-break",
 
-# Do not warn about variable length arrays
+    # Do not warn about variable length arrays
     "-Wno-vla-cxx-extension"
   ]
 }
