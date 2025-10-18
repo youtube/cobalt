@@ -281,6 +281,9 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
 }
 
 #if BUILDFLAG(IS_COBALT)
+#ifdef UNSAFE_BUFFERS_BUILD
+#pragma allow_unsafe_buffers
+#endif
 int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
