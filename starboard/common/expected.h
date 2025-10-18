@@ -67,6 +67,22 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
+  // Explicitly provides a non-templated copy constructor for the success value
+  // T. This ensures that copy-initialization (e.g., 'return components;') works
+  // correctly and non-ambiguously, especially for compilers like GCC
+  // that may not implicitly favor the templated constructor for T when U=T.
+  constexpr Expected(const T& value) : has_value_(true) {
+    new (&storage_.value_) T(value);
+  }
+
+  // Explicitly provides a non-templated move constructor for the success value
+  // T. This is the best match for rvalue arguments (e.g., 'return T{};' or
+  // 'return std::move(value);'), guaranteeing an efficient move construction of
+  // the stored value.
+  constexpr Expected(T&& value) : has_value_(true) {
+    new (&storage_.value_) T(std::move(value));
+  }
+
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&

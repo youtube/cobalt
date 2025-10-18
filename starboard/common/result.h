@@ -43,6 +43,17 @@ class NonNullResult {
   static_assert(std::is_pointer<T>::value || is_unique_ptr<T>::value,
                 "T must be a raw pointer or std::unique_ptr.");
 
+  // Non-templated copy constructor for T (fixes lvalue
+  // return/copy-initialization).
+  NonNullResult(const T& value) : result_(value) {
+    SB_CHECK(this->value() != nullptr) << "NonNullResult value cannot be null.";
+  }
+
+  // Non-templated move constructor for T (best match for rvalue return).
+  NonNullResult(T&& value) : result_(std::move(value)) {
+    SB_CHECK(this->value() != nullptr) << "NonNullResult value cannot be null.";
+  }
+
   // Constructor for success value.
   // SB_CHECKs that the value is not null.
   template <
