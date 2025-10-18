@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
@@ -60,16 +61,33 @@ CrxDownloader::download_metrics() const {
 
 void CrxDownloader::StartDownloadFromUrl(const GURL& url,
                                          const std::string& expected_hash,
+#if defined(IN_MEMORY_UPDATES)
+                                         std::string* dst,
+#endif                                        
                                          DownloadCallback download_callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "CrxDownloader::StartDownloadFromUrl: url=" << url;
+#endif
   std::vector<GURL> urls;
   urls.push_back(url);
+#if defined(IN_MEMORY_UPDATES)
+  CHECK(dst);
+  StartDownload(urls, expected_hash, dst, std::move(download_callback));
+#else
   StartDownload(urls, expected_hash, std::move(download_callback));
+#endif
 }
 
 void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
                                   const std::string& expected_hash,
+#if defined(IN_MEMORY_UPDATES)
+                                  std::string* dst,
+#endif                                  
                                   DownloadCallback download_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if defined(IN_MEMORY_UPDATES)
+  CHECK(dst);
+#endif
 
   auto error = CrxDownloaderError::NONE;
   if (urls.empty()) {
@@ -86,19 +104,39 @@ void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
     return;
   }
 
+#if defined(IN_MEMORY_UPDATES)
+  dst_str_ = dst;
+#endif
+
   urls_ = urls;
   expected_hash_ = expected_hash;
   current_url_ = urls_.begin();
   download_callback_ = std::move(download_callback);
 
+#if defined(IN_MEMORY_UPDATES)
+  DoStartDownload(*current_url_, dst);
+#else
   DoStartDownload(*current_url_);
+#endif
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void CrxDownloader::CancelDownload() {
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "CrxDownloader::CancelDownload";
+  DoCancelDownload();
+}
+#endif
 
 void CrxDownloader::OnDownloadComplete(
     bool is_handled,
     const Result& result,
     const DownloadMetrics& download_metrics) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "CrxDownloader::OnDownloadComplete";
+#endif
 
   if (result.error) {
     main_task_runner()->PostTask(
@@ -109,20 +147,40 @@ void CrxDownloader::OnDownloadComplete(
 
   CHECK_EQ(0, download_metrics.error);
   CHECK(is_handled);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "CrxDownloader::OnDownloadComplete, verifying response";
+#endif
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, kTaskTraits,
       base::BindOnce(
+#if defined(IN_MEMORY_UPDATES)
+          // Verifies the hash of a CRX package downloaded to a string in memory
+          [](std::string* dst_str, const std::string& expected_hash) {
+            if (VerifyHash256(dst_str, expected_hash))
+#else      
           // Verifies the hash of a CRX file. Returns NONE or BAD_HASH if
           // the hash of the CRX does not match the |expected_hash|. The input
           // file is deleted in case of errors.
           [](const base::FilePath& filepath, const std::string& expected_hash) {
             if (VerifyFileHash256(filepath, expected_hash))
+#endif
               return CrxDownloaderError::NONE;
+#if BUILDFLAG(IS_STARBOARD)
+#if !defined(IN_MEMORY_UPDATES)
+            base::DeleteFile(filepath);
+#endif  // !defined(IN_MEMORY_UPDATES)
+#else  // BUILDFLAG(IS_STARBOARD)
             DeleteFileAndEmptyParentDirectory(filepath);
+#endif  // BUILDFLAG(IS_STARBOARD)
             return CrxDownloaderError::BAD_HASH;
           },
+#if defined(IN_MEMORY_UPDATES)
+          dst_str_, expected_hash_),
+#else
           result.response, expected_hash_),
+#endif  
       base::BindOnce(
           // Handles CRX verification result, and retries the download from
           // a different URL if the verification fails.
@@ -136,7 +194,9 @@ void CrxDownloader::OnDownloadComplete(
                                  result));
               return;
             }
+#if !defined(IN_MEMORY_UPDATES)
             result.response.clear();
+#endif
             result.error = static_cast<int>(error);
             download_metrics.error = result.error;
             downloader->main_task_runner()->PostTask(
@@ -163,11 +223,21 @@ void CrxDownloader::HandleDownloadError(
     const DownloadMetrics& download_metrics) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK_NE(0, result.error);
+#if !defined(IN_MEMORY_UPDATES)
   CHECK(result.response.empty());
+#endif
   CHECK_NE(0, download_metrics.error);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "CrxDownloader::HandleDownloadError";
+#endif
 
   download_metrics_.push_back(download_metrics);
 
+#if BUILDFLAG(IS_STARBOARD)
+  if (result.error != static_cast<int>(CrxDownloaderError::SLOT_UNAVAILABLE)) {
+#endif
   // If an error has occured, try the next url if there is any,
   // or try the successor in the chain if there is any successor.
   // If this downloader has received a 5xx error for the current url,
@@ -181,17 +251,29 @@ void CrxDownloader::HandleDownloadError(
 
   // Try downloading from another url from the list.
   if (current_url_ != urls_.end()) {
+#if defined(IN_MEMORY_UPDATES)
+    DoStartDownload(*current_url_, dst_str_);
+#else
     DoStartDownload(*current_url_);
+#endif
     return;
   }
 
   // Try downloading using the next downloader.
   if (successor_ && !urls_.empty()) {
+#if defined(IN_MEMORY_UPDATES)
+    successor_->StartDownload(urls_, expected_hash_, dst_str_,
+                                std::move(download_callback_));
+#else
     successor_->StartDownload(urls_, expected_hash_,
                               std::move(download_callback_));
+#endif                            
     return;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  }
+#endif
   // The download ends here since there is no url nor downloader to handle this
   // download request further.
   main_task_runner()->PostTask(

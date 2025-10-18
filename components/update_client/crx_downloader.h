@@ -18,6 +18,12 @@
 #include "base/task/sequenced_task_runner.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/memory/raw_ptr.h"
+#include "components/update_client/configurator.h"
+#include "starboard/extension/installation_manager.h"
+#endif
+
 namespace update_client {
 
 // Defines a download interface for downloading components, with retrying on
@@ -54,8 +60,16 @@ class CrxDownloader : public base::RefCountedThreadSafe<CrxDownloader> {
     // Download error: 0 indicates success.
     int error = 0;
 
+#if BUILDFLAG(IS_STARBOARD)
+    int installation_index = IM_EXT_INVALID_INDEX;
+#endif
+#if defined(IN_MEMORY_UPDATES)
+    // Path where the contents of the downloaded Crx should later be installed.
+    base::FilePath installation_dir;
+#else
     // Path of the downloaded file if the download was successful.
     base::FilePath response;
+#endif
   };
 
   // The callback is posted only once, when the download is handled, regardless
@@ -82,12 +96,32 @@ class CrxDownloader : public base::RefCountedThreadSafe<CrxDownloader> {
   // behavior is undefined. The callback gets invoked if the download can't
   // be started. |expected_hash| represents the SHA256 cryptographic hash of
   // the download payload, represented as a hexadecimal string.
+#if !defined(IN_MEMORY_UPDATES)
   void StartDownloadFromUrl(const GURL& url,
                             const std::string& expected_hash,
                             DownloadCallback download_callback);
   void StartDownload(const std::vector<GURL>& urls,
                      const std::string& expected_hash,
                      DownloadCallback download_callback);
+
+#else
+  // Overloads where |dst| points to a string that the Crx package should be
+  // downloaded to.
+  // These functions do not take ownership of |dst|, which must refer to a valid
+  // string that outlives this object.
+  void StartDownloadFromUrl(const GURL& url,
+                            const std::string& expected_hash,
+                            std::string* dst,
+                            DownloadCallback download_callback);
+  void StartDownload(const std::vector<GURL>& urls,
+                     const std::string& expected_hash,
+                     std::string* dst,
+                     DownloadCallback download_callback);
+#endif                     
+
+#if BUILDFLAG(IS_STARBOARD)
+  void CancelDownload();
+#endif
 
   void set_progress_callback(const ProgressCallback& progress_callback);
 
@@ -122,7 +156,14 @@ class CrxDownloader : public base::RefCountedThreadSafe<CrxDownloader> {
  private:
   friend class base::RefCountedThreadSafe<CrxDownloader>;
 
+#if defined(IN_MEMORY_UPDATES)
+  virtual void DoStartDownload(const GURL& url, std::string* dst) = 0;
+#else
   virtual void DoStartDownload(const GURL& url) = 0;
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+  virtual void DoCancelDownload() = 0;
+#endif
 
   void HandleDownloadError(bool is_handled,
                            const Result& result,
@@ -144,6 +185,11 @@ class CrxDownloader : public base::RefCountedThreadSafe<CrxDownloader> {
   std::vector<GURL>::iterator current_url_;
 
   std::vector<DownloadMetrics> download_metrics_;
+
+#if defined(IN_MEMORY_UPDATES)
+  // TODO(b/449250040): Replace naked pointers
+  base::raw_ptr<std::string> dst_str_;  // not owned, can't be null
+#endif
 };
 
 }  // namespace update_client
