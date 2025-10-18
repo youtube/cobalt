@@ -14,7 +14,7 @@
 #include "base/numerics/basic_ops_impl.h"
 #include "build/build_config.h"
 
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 #include <bit>
 #endif
 
@@ -23,7 +23,7 @@ static_assert(ARCH_CPU_LITTLE_ENDIAN);
 
 namespace base {
 
-#if BUILDFLAG(IS_COBALT) && !defined(SB_IS_DEFAULT_TC)
+#if BUILDFLAG(IS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
 namespace {
 template <typename To, typename From>
   requires(sizeof(To) == sizeof(From) && std::is_trivially_copyable_v<To> &&
@@ -153,7 +153,7 @@ inline constexpr int64_t I64FromNativeEndian(
 // storage, and explicit big endian for network order.
 inline constexpr float FloatFromNativeEndian(
     std::span<const uint8_t, 4u> bytes) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return std::bit_cast<float>(U32FromNativeEndian(bytes));
 #else
   return BitCast<float>(U32FromNativeEndian(bytes));
@@ -168,7 +168,7 @@ inline constexpr float FloatFromNativeEndian(
 // storage, and explicit big endian for network order.
 inline constexpr double DoubleFromNativeEndian(
     std::span<const uint8_t, 8u> bytes) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return std::bit_cast<double>(U64FromNativeEndian(bytes));
 #else
   return BitCast<double>(U64FromNativeEndian(bytes));
@@ -288,7 +288,7 @@ inline constexpr int64_t I64FromLittleEndian(
 // buffer.
 inline constexpr float FloatFromLittleEndian(
     std::span<const uint8_t, 4u> bytes) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return std::bit_cast<float>(U32FromLittleEndian(bytes));
 #else
   return BitCast<float>(U32FromLittleEndian(bytes));
@@ -304,7 +304,7 @@ inline constexpr float FloatFromLittleEndian(
 // buffer.
 inline constexpr double DoubleFromLittleEndian(
     std::span<const uint8_t, 8u> bytes) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return std::bit_cast<double>(U64FromLittleEndian(bytes));
 #else
   return BitCast<double>(U64FromLittleEndian(bytes));
@@ -407,7 +407,7 @@ inline constexpr int64_t I64FromBigEndian(std::span<const uint8_t, 8u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr float FloatFromBigEndian(std::span<const uint8_t, 4u> bytes) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return std::bit_cast<float>(U32FromBigEndian(bytes));
 #else
   return BitCast<float>(U32FromBigEndian(bytes));
@@ -422,7 +422,7 @@ inline constexpr float FloatFromBigEndian(std::span<const uint8_t, 4u> bytes) {
 // IPC) as a byte buffer.
 inline constexpr double DoubleFromBigEndian(
     std::span<const uint8_t, 8u> bytes) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return std::bit_cast<double>(U64FromBigEndian(bytes));
 #else
   return BitCast<double>(U64FromBigEndian(bytes));
@@ -517,7 +517,7 @@ inline constexpr std::array<uint8_t, 8u> I64ToNativeEndian(int64_t val) {
 // byte buffer. Prefer an explicit little endian when storing data into external
 // storage, and explicit big endian for network order.
 inline constexpr std::array<uint8_t, 4u> FloatToNativeEndian(float val) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return U32ToNativeEndian(std::bit_cast<uint32_t>(val));
 #else
   return U32ToNativeEndian(BitCast<uint32_t>(val));
@@ -531,7 +531,7 @@ inline constexpr std::array<uint8_t, 4u> FloatToNativeEndian(float val) {
 // byte buffer. Prefer an explicit little endian when storing data into external
 // storage, and explicit big endian for network order.
 inline constexpr std::array<uint8_t, 8u> DoubleToNativeEndian(double val) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return U64ToNativeEndian(std::bit_cast<uint64_t>(val));
 #else
   return U64ToNativeEndian(BitCast<uint64_t>(val));
@@ -635,7 +635,7 @@ inline constexpr std::array<uint8_t, 8u> I64ToLittleEndian(int64_t val) {
 // memory, such as when stored in shared-memory (or passed through IPC) as a
 // byte buffer.
 inline constexpr std::array<uint8_t, 4u> FloatToLittleEndian(float val) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return internal::ToLittleEndian(std::bit_cast<uint32_t>(val));
 #else
   return internal::ToLittleEndian(BitCast<uint32_t>(val));
@@ -650,7 +650,7 @@ inline constexpr std::array<uint8_t, 4u> FloatToLittleEndian(float val) {
 // memory, such as when stored in shared-memory (or passed through IPC) as a
 // byte buffer.
 inline constexpr std::array<uint8_t, 8u> DoubleToLittleEndian(double val) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return internal::ToLittleEndian(std::bit_cast<uint64_t>(val));
 #else
   return internal::ToLittleEndian(BitCast<uint64_t>(val));
@@ -754,7 +754,7 @@ inline constexpr std::array<uint8_t, 8u> I64ToBigEndian(int64_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 4u> FloatToBigEndian(float val) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return internal::ToLittleEndian(ByteSwap(std::bit_cast<uint32_t>(val)));
 #else
   return internal::ToLittleEndian(ByteSwap(BitCast<uint32_t>(val)));
@@ -769,7 +769,7 @@ inline constexpr std::array<uint8_t, 4u> FloatToBigEndian(float val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 8u> DoubleToBigEndian(double val) {
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   return internal::ToLittleEndian(ByteSwap(std::bit_cast<uint64_t>(val)));
 #else
   return internal::ToLittleEndian(ByteSwap(BitCast<uint64_t>(val)));
