@@ -75,7 +75,7 @@ int64_t VideoFrameTracker::seek_to_time() const {
 }
 
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_to_be_rendered_.empty()) {
     frames_to_be_rendered_.push_back(timestamp);
@@ -112,7 +112,7 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void VideoFrameTracker::Seek(int64_t seek_to_time) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Ensure that all dropped frames before seeking are captured.
   UpdateDroppedFrames();
@@ -122,13 +122,13 @@ void VideoFrameTracker::Seek(int64_t seek_to_time) {
 }
 
 int VideoFrameTracker::UpdateAndGetDroppedFrames() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   UpdateDroppedFrames();
   return dropped_frames_;
 }
 
 void VideoFrameTracker::UpdateDroppedFrames() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   {
     std::lock_guard lock(rendered_frames_mutex_);

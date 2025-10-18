@@ -18,62 +18,22 @@
 #include <atomic>
 
 #include "build/build_config.h"
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-
 class ThreadChecker {
  public:
-  enum Type { kSetThreadIdOnCreation, kSetThreadIdOnFirstCheck };
-
-  explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {}
-
-  void Detach() {}
-
-  bool CalledOnValidThread() const { return true; }
-};
-
-#else  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-
-class ThreadChecker {
- public:
-  enum Type { kSetThreadIdOnCreation, kSetThreadIdOnFirstCheck };
-
-  explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {
-    if (type == kSetThreadIdOnCreation) {
-      thread_id_ = SbThreadGetId();
-    } else {
-      thread_id_ = kSbThreadInvalidId;
-    }
+  ThreadChecker() : thread_id_(SbThreadGetId()) {
+    SB_CHECK(SbThreadIsValidId(thread_id_));
   }
 
-  // Detached the thread checker from its current thread.  The thread checker
-  // will re-attach to a thread when CalledOnValidThread() is called again.
-  // This essentially reset the thread checker to a status just like that it
-  // was created with 'kSetThreadIdOnFirstCheck'.
-  void Detach() {
-    // This is safe as when this function is called, it is expected that it
-    // won't be called on its current thread.
-    thread_id_ = kSbThreadInvalidId;
-  }
-
-  bool CalledOnValidThread() const {
-    SbThreadId current_thread_id = SbThreadGetId();
-    SbThreadId stored_thread_id = kSbThreadInvalidId;
-    thread_id_.compare_exchange_weak(stored_thread_id, current_thread_id,
-                                     std::memory_order_relaxed,
-                                     std::memory_order_relaxed);
-    return stored_thread_id == kSbThreadInvalidId ||
-           stored_thread_id == current_thread_id;
-  }
+  bool CalledOnValidThread() const { return thread_id_ == SbThreadGetId(); }
 
  private:
-  mutable std::atomic<SbThreadId> thread_id_;
+  const SbThreadId thread_id_;
 };
-
-#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 // Alias to prevent breaking the RDK build on CI.
 // See https://paste.googleplex.com/4776103591936000
