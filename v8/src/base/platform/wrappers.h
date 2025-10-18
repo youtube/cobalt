@@ -10,34 +10,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef V8_OS_STARBOARD
-#include "starboard/string.h"
-#endif
+
 
 namespace v8::base {
 
 inline char* Strdup(const char* source) {
-#if V8_OS_STARBOARD
-  return SbStringDuplicate(source);
-#else
   return strdup(source);
-#endif
 }
 
 inline FILE* Fopen(const char* filename, const char* mode) {
-#if V8_OS_STARBOARD
-  return NULL;
-#else
   return fopen(filename, mode);
-#endif
 }
 
 inline int Fclose(FILE* stream) {
-#if V8_OS_STARBOARD
-  return -1;
-#else
   return fclose(stream);
-#endif
 }
 
 }  // namespace v8::base

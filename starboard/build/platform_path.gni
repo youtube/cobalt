@@ -65,6 +65,9 @@ if (starboard_path == "") {
       starboard_target_platform = "linux-x64x11"
     }
   }
+  assert(
+      starboard_target_platform != "",
+      "Please add your starboard_target_platform in the platform's args.gn file")
 
   starboard_path = exec_script("//starboard/build/platforms.py",
                                [ starboard_target_platform ],
@@ -73,7 +76,3 @@ if (starboard_path == "") {
 
 assert(defined(starboard_path),
        "Please add your platform to starboard/build/platforms.py")
-
-assert(
-    starboard_target_platform != "",
-    "Please add your starboard_target_platform in the platform's args.gn file")

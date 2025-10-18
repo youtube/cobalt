@@ -134,9 +134,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_rvv() const { return has_rvv_; }
 
  private:
-#if defined(V8_OS_STARBOARD)
-  bool StarboardDetectCPU();
-#endif
+
   char vendor_[13];
   int stepping_;
   int model_;

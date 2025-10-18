@@ -23,5 +23,6 @@ source_set("crash_annotator") {
     "//cobalt/browser/crash_annotator/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard:starboard_headers_only",
   ]
 }

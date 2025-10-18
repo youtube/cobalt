@@ -323,6 +323,12 @@
 #define BUILDFLAG_INTERNAL_IS_NATIVE_TARGET_BUILD() (0)
 #endif
 
+#if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)
+#define BUILDFLAG_INTERNAL_BUILD_BASE_WITH_CPP17() (1)
+#else
+#define BUILDFLAG_INTERNAL_BUILD_BASE_WITH_CPP17() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)
