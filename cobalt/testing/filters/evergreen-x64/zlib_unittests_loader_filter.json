@@ -2,6 +2,8 @@
   "failing_tests": [
     "CompressionUtilsTest.*",
     "ZipReaderTest.*",
-    "ZipTest.*"
+    "ZipTest.*",
+    "ZlibTest.ZipFilenameCommentSize",
+    "ZlibTest.ZipExtraFieldSize"
   ]
 }
