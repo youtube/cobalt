@@ -152,6 +152,9 @@ runs:
             cp out/linux-x64x11-no-starboard_$MATRIX_CONFIG/chromedriver out/${{ matrix.platform }}_${{ matrix.config }}
             cd ..
           fi
+          set -x
+          find src/out/${{ matrix.platform }}_${{ matrix.config }} fonts\* -print
+          set +x
           src/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
             --json_path=src/cobalt/build/$BUILD_PLATFORM/package.json \
