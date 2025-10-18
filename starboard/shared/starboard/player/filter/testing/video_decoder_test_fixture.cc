@@ -91,10 +91,11 @@ void VideoDecoderTestFixture::Initialize() {
   } else {
     factory = PlayerComponents::Factory::Create();
   }
-  std::string error_message;
-  ASSERT_TRUE(factory->CreateSubComponents(
-      creation_parameters, nullptr, nullptr, &video_decoder_,
-      &video_render_algorithm_, &video_renderer_sink_, &error_message));
+  auto sub_components = factory->CreateSubComponents(creation_parameters);
+  ASSERT_TRUE(sub_components) << sub_components.error();
+  video_decoder_ = std::move(sub_components->video.decoder);
+  video_render_algorithm_ = std::move(sub_components->video.render_algorithm);
+  video_renderer_sink_ = std::move(sub_components->video.renderer_sink);
   ASSERT_TRUE(video_decoder_);
 
   if (video_renderer_sink_) {
