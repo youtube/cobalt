@@ -143,10 +143,6 @@ void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
-  SB_CHECK_EQ(input_buffers.size(), 1U)
-      << "ExoPlayer can only write 1 sample at a time, received "
-      << input_buffers.size() << " samples.";
-
   {
     std::lock_guard lock(mutex_);
 
@@ -160,32 +156,56 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
   int type = input_buffers.front()->sample_type() == kSbMediaTypeAudio
                  ? kSbMediaTypeAudio
                  : kSbMediaTypeVideo;
-  bool is_key_frame = true;
-
-  if (type == kSbMediaTypeVideo) {
-    is_key_frame = input_buffers.front()->video_sample_info().is_key_frame;
-  }
-
-  bool is_eos = false;
-
-  JNIEnv* env = AttachCurrentThread();
-  // Remove the ADTS header from AAC frames before writing to the player.
   int offset = type == kSbMediaTypeAudio &&
                        audio_stream_info_.codec == kSbMediaAudioCodecAac
                    ? kADTSHeaderSize
                    : kNoOffset;
-  size_t data_size = input_buffers.front()->size() - offset;
-  env->SetByteArrayRegion(
-      static_cast<jbyteArray>(j_sample_data_.obj()), 0, data_size,
-      reinterpret_cast<const jbyte*>(input_buffers.front()->data() + offset));
-  ScopedJavaLocalRef<jbyteArray> media_samples(
-      env, static_cast<jbyteArray>(env->NewLocalRef(j_sample_data_.obj())));
 
-  auto media_source =
+  JNIEnv* env = AttachCurrentThread();
+  size_t number_of_samples = input_buffers.size();
+
+  std::vector<uint8_t> j_samples;
+  base::android::ScopedJavaLocalRef<jintArray> j_sizes(
+      env, env->NewIntArray(number_of_samples));
+  base::android::ScopedJavaLocalRef<jlongArray> j_timestamps(
+      env, env->NewLongArray(number_of_samples));
+  base::android::ScopedJavaLocalRef<jbooleanArray> j_key_frames(
+      env, env->NewBooleanArray(number_of_samples));
+
+  // Get pointers to the Java arrays to allow us to write directly to them.
+  jint* j_sizes_ptr = static_cast<jint*>(
+      env->GetPrimitiveArrayCritical(j_sizes.obj(), nullptr));
+  jlong* j_timestamps_ptr = static_cast<jlong*>(
+      env->GetPrimitiveArrayCritical(j_timestamps.obj(), nullptr));
+  jboolean* j_key_frames_ptr = static_cast<jboolean*>(
+      env->GetPrimitiveArrayCritical(j_key_frames.obj(), nullptr));
+
+  for (size_t i = 0; i < number_of_samples; ++i) {
+    auto& input_buffer = input_buffers[i];
+    const uint8_t* data_start = input_buffer->data() + offset;
+    const uint8_t* data_end = data_start + input_buffer->size();
+    j_samples.insert(j_samples.end(), data_start, data_end);
+    j_sizes_ptr[i] = input_buffer->size() - offset;
+    j_timestamps_ptr[i] = static_cast<jlong>(input_buffer->timestamp());
+    j_key_frames_ptr[i] = type == kSbMediaTypeVideo
+                              ? input_buffer->video_sample_info().is_key_frame
+                              : true;
+  }
+
+  env->ReleasePrimitiveArrayCritical(j_sizes.obj(), j_sizes_ptr, 0);
+  env->ReleasePrimitiveArrayCritical(j_timestamps.obj(), j_timestamps_ptr, 0);
+  env->ReleasePrimitiveArrayCritical(j_key_frames.obj(), j_key_frames_ptr, 0);
+
+  // Set sample data directly to a buffer without copying.
+  ScopedJavaLocalRef<jobject> j_combined_samples(
+      env, env->NewDirectByteBuffer(reinterpret_cast<void*>(j_samples.data()),
+                                    j_samples.size()));
+
+  auto j_media_source =
       type == kSbMediaTypeAudio ? j_audio_media_source_ : j_video_media_source_;
-  Java_ExoPlayerMediaSource_writeSample(
-      env, media_source, media_samples, data_size,
-      input_buffers.front()->timestamp(), is_key_frame, is_eos);
+  Java_ExoPlayerMediaSource_writeSamples(
+      env, j_media_source, j_combined_samples, j_sizes, j_timestamps,
+      j_key_frames, input_buffers.size());
 }
 
 void ExoPlayerBridge::WriteEndOfStream(SbMediaType stream_type) {
@@ -381,12 +401,8 @@ void ExoPlayerBridge::InitExoplayer() {
     }
     j_output_surface_.Reset(j_output_surface);
 
-    int width = video_stream_info_.codec != kSbMediaVideoCodecNone
-                    ? video_stream_info_.frame_size.width
-                    : 0;
-    int height = video_stream_info_.codec != kSbMediaVideoCodecNone
-                     ? video_stream_info_.frame_size.height
-                     : 0;
+    int width = video_stream_info_.frame_size.width;
+    int height = video_stream_info_.frame_size.height;
     int framerate = 0;
     int bitrate = 0;
 

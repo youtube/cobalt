@@ -33,6 +33,7 @@ import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import org.chromium.base.annotations.CalledByNative;
 
 /** Writes encoded media from the native app to the SampleStream */
@@ -94,6 +95,11 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
 
     @CalledByNative
+    public void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] isKeyFrame, int sampleCount) {
+        mediaPeriod.writeSamples(samples, sizes, timestamps, isKeyFrame, sampleCount);
+    }
+
+    @CalledByNative
     public void writeEndOfStream() {
         mediaPeriod.writeEndOfStream();
     }
@@ -132,6 +138,8 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
         private boolean timelineFinalized = false;
 
+        private final Object lock = new Object();
+
         ExoPlayerMediaPeriod(Format format, Allocator allocator, ExoPlayerBridge playerBridge, ExoPlayerMediaSource host,
                 int rendererType) {
             this.format = format;
@@ -159,7 +167,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
                 SampleStream[] streams, boolean[] streamResetFlags, long positionUs) {
             for (int i = 0; i < selections.length; ++i) {
                 if (selections[i] != null) {
-                    stream = new ExoPlayerSampleStream(allocator, selections[i].getSelectedFormat());
+                    stream = new ExoPlayerSampleStream(allocator, selections[i].getSelectedFormat(), lock);
                     streams[i] = stream;
                     streamResetFlags[i] = true;
                 }
@@ -253,8 +261,13 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
             return true;
         }
 
+        public void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] isKeyFrame, int sampleCount) {
+            stream.writeSamples(samples, sizes, timestamps, isKeyFrame, sampleCount);
+        }
+
         public void writeEndOfStream() {
-            stream.writeSample(null, 0, 0, false, true);
+            reachedEos = true;
+            stream.writeEndOfStream();
         }
     }
 }
