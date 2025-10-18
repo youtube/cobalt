@@ -14,7 +14,7 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
