@@ -20,6 +20,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
+#include "starboard/common/size.h"
 
 namespace starboard {
 
@@ -66,7 +67,7 @@ class StarboardBridge {
 
   base::android::ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetDeviceResolution(JNIEnv* env);
+  Size GetDeviceResolution(JNIEnv* env);
 
   bool IsNetworkConnected(JNIEnv* env);
 

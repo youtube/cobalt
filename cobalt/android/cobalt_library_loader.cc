@@ -17,13 +17,9 @@
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
 
-#include "starboard/android/shared/jni_state.h"
-
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   base::android::InitVM(vm);
-  // Also pass VM handle to Starboard JNI env
-  starboard::JNIState::SetVM(vm);
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
   }

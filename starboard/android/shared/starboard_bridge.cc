@@ -22,7 +22,6 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -67,7 +66,6 @@ jboolean JNI_StarboardBridge_InitJNI(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_starboard_bridge) {
   SB_CHECK(env);
-  JniInitialize(env, j_starboard_bridge.obj());
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
@@ -272,9 +270,11 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetDisplayDpi(JNIEnv* env) {
   return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
 }
 
-ScopedJavaLocalRef<jobject> StarboardBridge::GetDeviceResolution(JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
+Size StarboardBridge::GetDeviceResolution(JNIEnv* env) {
+  SB_CHECK(env);
+  ScopedJavaLocalRef<jobject> j_size =
+      Java_StarboardBridge_getDisplaySize(env, j_starboard_bridge_);
+  return {Java_Size_getWidth(env, j_size), Java_Size_getHeight(env, j_size)};
 }
 
 bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {

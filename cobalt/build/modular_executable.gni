@@ -96,6 +96,7 @@ template("evergreen_final_target") {
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app($starboard_toolchain)",
     ]
+    deps = [ "//starboard/loader_app($starboard_toolchain)" ]
     write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
   }
 
