@@ -26,6 +26,10 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/installation_manager.h"
+#endif
+
 namespace update_client {
 
 class ActionRunner;
@@ -49,6 +53,12 @@ class Component {
   // Handles the current state of the component and makes it transition
   // to the next component state before |callback_handle_complete_| is invoked.
   void Handle(CallbackHandleComplete callback_handle_complete);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Stops update progress for the component and may clean resources used in its
+  // current state.
+  void Cancel();
+#endif
 
   CrxUpdateItem GetCrxUpdateItem() const;
 
@@ -129,6 +139,9 @@ class Component {
   std::vector<base::Value::Dict> GetEvents() const;
 
  private:
+#if BUILDFLAG(IS_STARBOARD)
+  bool is_cancelled_ = false;
+#endif
   friend class MockPingManagerImpl;
   friend class UpdateCheckerTest;
 
@@ -158,7 +171,52 @@ class Component {
     // by the outer component, after the current state is fully handled.
     void Handle(CallbackNextState callback);
 
+#if BUILDFLAG(IS_STARBOARD)
+    // Stops update progress and may clean resources used in the current state.
+    virtual void Cancel();
+#endif
+
     ComponentState state() const { return state_; }
+
+#if BUILDFLAG(IS_STARBOARD)
+    // TODO(b/449242495): Change state_name() to a function
+    std::string state_name() {
+      switch (state_) {
+        case ComponentState::kNew:
+          return "New";
+        case ComponentState::kChecking:
+          return "Checking";
+        case ComponentState::kCanUpdate:
+          return "CanUpdate";
+        case ComponentState::kDownloadingDiff:
+          return "DownloadingDiff";
+        case ComponentState::kDownloading:
+          return "Downloading";
+        case ComponentState::kDownloaded:
+          return "Downloaded";
+        case ComponentState::kUpdatingDiff:
+          return "UpdatingDiff";
+        case ComponentState::kUpdating:
+          return "Updating";
+        case ComponentState::kUpdated:
+          return "Updated";
+        case ComponentState::kUpToDate:
+          return  "UpToDate";
+        case ComponentState::kUpdateError:
+          return "UpdateError";
+        case ComponentState::kUninstalled:
+          return "Uninstalled";
+        case ComponentState::kRegistration:
+          return "Registration";
+        case ComponentState::kRun:
+          return "Run";
+        case ComponentState::kLastStatus:
+          return "LastStatus";
+      }
+      NOTREACHED();
+      return "Unknown";
+    }
+#endif
 
    protected:
     // Initiates the transition to the new state.
@@ -249,6 +307,9 @@ class Component {
     StateDownloadingDiff(const StateDownloadingDiff&) = delete;
     StateDownloadingDiff& operator=(const StateDownloadingDiff&) = delete;
     ~StateDownloadingDiff() override;
+#if BUILDFLAG(IS_STARBOARD)
+    void Cancel() override;
+#endif
 
    private:
     // State overrides.
@@ -271,6 +332,10 @@ class Component {
     StateDownloading(const StateDownloading&) = delete;
     StateDownloading& operator=(const StateDownloading&) = delete;
     ~StateDownloading() override;
+
+#if BUILDFLAG(IS_STARBOARD)
+    void Cancel() override;
+#endif
 
    private:
     // State overrides.
@@ -446,7 +511,20 @@ class Component {
   // The error reported by the update checker.
   int update_check_error_ = 0;
 
+#if defined(IN_MEMORY_UPDATES)
+  // TODO(b/b/444006168): use std::vector<uint8_t>
+  // To hold the CRX package in memory. The component owns this string
+  // throughout the entire update.
+  std::string crx_str_;
+
+  // With in-memory updates the installation directory is still determined in
+  // the download flow even though it isn't needed until the unpack flow. Since
+  // there is no `crx_path_` that the installation directory can be derived from,
+  // a dedicated `installation_dir_` data member is added.
+  base::FilePath installation_dir_;
+#else
   base::FilePath payload_path_;
+#endif
 
   // The byte counts below are valid for the current url being fetched.
   // |total_bytes| is equal to the size of the CRX file and |downloaded_bytes|
@@ -458,6 +536,10 @@ class Component {
   // Install progress, in the range of [0, 100]. A value of -1 means that the
   // progress is unknown.
   int install_progress_ = -1;
+
+#if BUILDFLAG(IS_STARBOARD)
+  int installation_index_ = IM_EXT_INVALID_INDEX;
+#endif
 
   // The error information for full and differential updates.
   // The |error_category| contains a hint about which module in the component
