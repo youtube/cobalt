@@ -23,6 +23,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -93,8 +94,16 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void SetPlayingStatus(JNIEnv*, jboolean isPlaying);
   void OnPlaybackEnded(JNIEnv*);
 
-  // VideoSurfaceHolder method
-  void OnSurfaceDestroyed() override {}
+  // VideoSurfaceHolder method.
+  void OnSurfaceDestroyed() override {
+    if (is_playing_ && j_video_media_source_ &&
+        !IsEndOfStreamWritten(kSbMediaTypeVideo)) {
+      SB_LOG(INFO) << "Error: Video surface was destroyed during playback.";
+      error_cb_(kSbPlayerErrorDecode,
+                "Video surface was destroyed during playback.");
+      error_occurred_ = true;
+    }
+  }
 
   bool IsEndOfStreamWritten(SbMediaType type) const {
     return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;

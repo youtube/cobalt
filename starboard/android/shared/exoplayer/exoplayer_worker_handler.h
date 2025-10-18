@@ -48,7 +48,7 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
   HandlerResult SetPause(bool pause) override;
   HandlerResult SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-  HandlerResult SetBounds(const Bounds& bounds) override { return {true}; }
+  HandlerResult SetBounds(const Bounds& bounds) override { return Success(); }
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void Stop() override;
