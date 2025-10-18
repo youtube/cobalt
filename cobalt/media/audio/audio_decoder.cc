@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "cobalt/media/audio/audio_decoder.h"
 
 #include <stdint.h>
