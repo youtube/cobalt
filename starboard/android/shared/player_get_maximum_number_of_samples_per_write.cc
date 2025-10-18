@@ -13,8 +13,13 @@
 // limitations under the License.
 
 #include "starboard/player.h"
+#include "starboard/shared/starboard/features.h"
 
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                               SbMediaType sample_type) {
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
+    return 1;
+  }
   return 256;
 }
