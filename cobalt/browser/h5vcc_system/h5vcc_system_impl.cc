@@ -91,8 +91,16 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  // TODO - b/395650827: Connect to Starboard extension.
-  NOTIMPLEMENTED();
+  const starboard::extension::IfaApi* ifa_api =
+      static_cast<const starboard::extension::IfaApi*>(
+          SbSystemGetExtension(starboard::extension::kIfaApiName));
+  if (ifa_api && ifa_api->version >= 2 &&
+      ifa_api->GetTrackingAuthorizationStatus) {
+    char status[128];
+    if (ifa_api->GetTrackingAuthorizationStatus(status, sizeof(status))) {
+      return status;
+    }
+  }
   return "NOT_SUPPORTED";
 }
 

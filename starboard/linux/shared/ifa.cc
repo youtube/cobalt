@@ -48,11 +48,18 @@ bool GetLimitAdTracking(char* out_value, int value_length) {
       GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
 }
 
+bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
+  return CopyStringAndTestIfSuccess(
+      out_value, value_length,
+      GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
+}
+
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
     1,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
+    &GetTrackingAuthorizationStatus,
 };
 
 }  // namespace
