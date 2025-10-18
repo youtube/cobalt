@@ -113,3 +113,12 @@ icu_use_data_file = false
 
 # Disable the Pepper API (PPAPI) plugin support
 enable_ppapi = false
+
+# Disable plugin support.
+enable_plugins = false
+
+# Disable PDF support.
+enable_pdf = false
+
+# Disable printing support.
+enable_printing = false
