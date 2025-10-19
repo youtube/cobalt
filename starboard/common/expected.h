@@ -94,16 +94,19 @@ class Expected {
                 std::is_convertible<U, T>::value &&
                 !std::is_same<std::decay_t<U>, Unexpected<E>>::value &&
                 !std::is_same<std::decay_t<U>, Expected<T, E>>::value>>
-  Expected(U&& value) {
+  Expected(U&& value) noexcept(std::is_nothrow_constructible<T, U&&>::value) {
     new (&storage_.value_) T(std::forward<U>(value));
     has_value_ = true;
   }
 
-  Expected(Unexpected<E> unexpected) {
+  Expected(Unexpected<E> unexpected) noexcept(
+      std::is_nothrow_move_constructible<E>::value) {
     new (&storage_.error_) E(std::move(unexpected.error()));
   }
 
-  Expected(const Expected& other) {
+  Expected(const Expected& other) noexcept(
+      std::is_nothrow_copy_constructible<T>::value &&
+      std::is_nothrow_copy_constructible<E>::value) {
     if (other.has_value_) {
       new (&storage_.value_) T(other.storage_.value_);
       has_value_ = true;
@@ -112,7 +115,9 @@ class Expected {
     }
   }
 
-  Expected(Expected&& other) {
+  Expected(Expected&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value &&
+      std::is_nothrow_move_constructible<E>::value) {
     if (other.has_value_) {
       new (&storage_.value_) T(std::move(other.storage_.value_));
       has_value_ = true;
