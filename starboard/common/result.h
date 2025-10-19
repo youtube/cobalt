@@ -51,7 +51,8 @@ class NonNullResult {
   template <typename U = T,
             std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
   NonNullResult(const T& value) noexcept(
-      std::is_nothrow_copy_constructible<T>::value) {
+      std::is_nothrow_copy_constructible<T>::value)
+      : result_(value) {
     SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
   }
 
