@@ -67,12 +67,13 @@ class NonNullResult {
 
   // Constructor for success value.
   // SB_CHECKs that the value is not null.
-  template <typename U,
-            typename = std::enable_if_t<
-                std::is_convertible<U, T>::value &&
-                !std::is_same<std::decay_t<U>, T>::value !std::
-                    is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
-                !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
+  template <
+      typename U,
+      typename = std::enable_if_t<
+          std::is_convertible<U, T>::value &&
+          !std::is_same<std::decay_t<U>, T>::value &&
+          !std::is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
+          !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
   NonNullResult(U&& value) : result_(std::forward<U>(value)) {
     SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
   }
