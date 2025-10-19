@@ -67,10 +67,11 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
-  // Explicitly provides a dedicated constructor for copying the success value
-  // T. This ensures that copy-initialization (e.g., 'return components;') works
-  // correctly and non-ambiguously, especially for compilers like GCC
-  // that may not implicitly favor the templated constructor for T when U=T.
+  // Provides a constrained templated constructor for copying the success value.
+  // This is implemented as a template with `std::enable_if` to ensure it is
+  // only instantiated for copy-constructible types. This is the C++17
+  // standard-compliant way to prevent compilation errors when `Expected` is
+  // used with move-only types like `std::unique_ptr`.
   template <typename U = T,
             std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
   Expected(const T& value) noexcept(
