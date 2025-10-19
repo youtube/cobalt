@@ -43,10 +43,11 @@ class NonNullResult {
   static_assert(std::is_pointer<T>::value || is_unique_ptr<T>::value,
                 "T must be a raw pointer or std::unique_ptr.");
 
-  // Explicitly provides a dedicated constructor for copying the success value
-  // T. This ensures that copy-initialization works correctly and
-  // non-ambiguously, especially for compilers that may not implicitly favor the
-  // templated constructor.
+  // Provides a constrained templated constructor for copying the success value.
+  // This is implemented as a template with `std::enable_if` to ensure it is
+  // only instantiated for copy-constructible types. This is the C++17
+  // standard-compliant way to prevent compilation errors when `NonNullResult`
+  // is used with move-only types.
   template <typename U = T,
             std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
   NonNullResult(const T& value) noexcept(
