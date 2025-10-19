@@ -50,74 +50,88 @@ class NonNullResult {
   // is used with move-only types.
   template <typename U = T,
             std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
-  NonNullResult(const T& value) noexcept(
-      std::is_nothrow_copy_constructible<T>::value)
-      : result_(value) {
-    SB_CHECK(this->value()) << "NonNullResult value cannot be null.";
+      NonNullResult(const T& value) noexcept(
+          std::is_nothrow_copy_constructible<T>::value)
+          SB_CHECK(result_.value())
+      << "NonNullResult value cannot be null.";
+}
+
+// Explicitly provides a non-templated move constructor for the success value
+// T. This is the best match for rvalue arguments, guaranteeing an efficient
+// move construction of the stored value.
+NonNullResult(T&& value) noexcept(std::is_nothrow_move_constructible<T>::value)
+    : result_(std::move(value)) {
+  SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+}
+
+// Constructor for success value.
+// SB_CHECKs that the value is not null.
+template <typename U,
+          typename = std::enable_if_t<
+              std::is_convertible<U, T>::value &&
+              !std::is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
+              !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
+NonNullResult(U&& value) : result_(std::forward<U>(value)) {
+  SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+}
+
+// Constructor for failure value.
+NonNullResult(Unexpected<std::string> error) : result_(std::move(error)) {}
+
+// Forwarded methods
+constexpr bool has_value() const noexcept {
+  return result_.has_value();
+}
+constexpr explicit operator bool() const noexcept {
+  return has_value();
+}
+
+constexpr T& value() & noexcept {
+  return result_.value();
+}
+constexpr const T& value() const& noexcept {
+  return result_.value();
+}
+constexpr T&& value() && noexcept {
+  return std::move(result_).value();
+}
+
+constexpr std::string& error() & noexcept {
+  return result_.error();
+}
+constexpr const std::string& error() const& noexcept {
+  return result_.error();
+}
+constexpr std::string&& error() && noexcept {
+  return std::move(result_).error();
+}
+
+// Custom operators
+auto operator->() {
+  if constexpr (std::is_pointer_v<T>) {
+    return value();
+  } else {  // is_unique_ptr
+    return value().get();
   }
+}
 
-  // Explicitly provides a non-templated move constructor for the success value
-  // T. This is the best match for rvalue arguments, guaranteeing an efficient
-  // move construction of the stored value.
-  NonNullResult(T&& value) noexcept(
-      std::is_nothrow_move_constructible<T>::value)
-      : result_(std::move(value)) {
-    SB_CHECK(this->value()) << "NonNullResult value cannot be null.";
+auto operator->() const {
+  if constexpr (std::is_pointer_v<T>) {
+    return value();
+  } else {  // is_unique_ptr
+    return value().get();
   }
+}
 
-  // Constructor for success value.
-  // SB_CHECKs that the value is not null.
-  template <
-      typename U,
-      typename = std::enable_if_t<
-          std::is_convertible<U, T>::value &&
-          !std::is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
-          !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
-  NonNullResult(U&& value) : result_(std::forward<U>(value)) {
-    SB_CHECK(this->value()) << "NonNullResult value cannot be null.";
-  }
+auto& operator*() & {
+  return *value();
+}
+const auto& operator*() const& {
+  return *value();
+}
 
-  // Constructor for failure value.
-  NonNullResult(Unexpected<std::string> error) : result_(std::move(error)) {}
-
-  // Forwarded methods
-  constexpr bool has_value() const noexcept { return result_.has_value(); }
-  constexpr explicit operator bool() const noexcept { return has_value(); }
-
-  constexpr T& value() & noexcept { return result_.value(); }
-  constexpr const T& value() const& noexcept { return result_.value(); }
-  constexpr T&& value() && noexcept { return std::move(result_).value(); }
-
-  constexpr std::string& error() & noexcept { return result_.error(); }
-  constexpr const std::string& error() const& noexcept {
-    return result_.error();
-  }
-  constexpr std::string&& error() && noexcept {
-    return std::move(result_).error();
-  }
-
-  // Custom operators
-  auto operator->() {
-    if constexpr (std::is_pointer_v<T>) {
-      return value();
-    } else {  // is_unique_ptr
-      return value().get();
-    }
-  }
-
-  auto operator->() const {
-    if constexpr (std::is_pointer_v<T>) {
-      return value();
-    } else {  // is_unique_ptr
-      return value().get();
-    }
-  }
-
-  auto& operator*() & { return *value(); }
-  const auto& operator*() const& { return *value(); }
-
- private:
-  Result<T> result_;
+private:
+Result<T> result_;
 };
 
 // Helper functions for creating success and failure Result values.
