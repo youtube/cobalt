@@ -71,7 +71,13 @@ class Expected {
   // T. This ensures that copy-initialization (e.g., 'return components;') works
   // correctly and non-ambiguously, especially for compilers like GCC
   // that may not implicitly favor the templated constructor for T when U=T.
-  Expected(const T& value) : has_value_(true) {
+  template <typename U = T,
+            std::enable_if_t<std::is_same<U, T>::value &&
+                                 std::is_copy_constructible<U>::value,
+                             int> = 0>
+  Expected(const T& value) noexcept(
+      std::is_nothrow_copy_constructible<T>::value)
+      : has_value_(true) {
     new (&storage_.value_) T(value);
   }
 
@@ -79,7 +85,8 @@ class Expected {
   // T. This is the best match for rvalue arguments (e.g., 'return T{};' or
   // 'return std::move(value);'), guaranteeing an efficient move construction of
   // the stored value.
-  Expected(T&& value) : has_value_(true) {
+  Expected(T&& value) noexcept(std::is_nothrow_move_constructible<T>::value)
+      : has_value_(true) {
     new (&storage_.value_) T(std::move(value));
   }
 
