@@ -53,7 +53,7 @@ class NonNullResult {
   NonNullResult(const T& value) noexcept(
       std::is_nothrow_copy_constructible<T>::value)
       : result_(value) {
-    SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+    SB_CHECK(this->value()) << "NonNullResult value cannot be null.";
   }
 
   // Explicitly provides a non-templated move constructor for the success value
@@ -62,7 +62,7 @@ class NonNullResult {
   NonNullResult(T&& value) noexcept(
       std::is_nothrow_move_constructible<T>::value)
       : result_(std::move(value)) {
-    SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+    SB_CHECK(this->value()) << "NonNullResult value cannot be null.";
   }
 
   // Constructor for success value.
@@ -74,7 +74,7 @@ class NonNullResult {
           !std::is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
           !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
   NonNullResult(U&& value) : result_(std::forward<U>(value)) {
-    SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+    SB_CHECK(this->value()) << "NonNullResult value cannot be null.";
   }
 
   // Constructor for failure value.
