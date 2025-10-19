@@ -47,14 +47,22 @@ class NonNullResult {
   // T. This ensures that copy-initialization works correctly and
   // non-ambiguously, especially for compilers that may not implicitly favor the
   // templated constructor.
-  NonNullResult(const T& value) : result_(value) {
+  template <typename U = T,
+            std::enable_if_t<std::is_same<U, T>::value &&
+                                 std::is_copy_constructible<U>::value,
+                             int> = 0>
+  NonNullResult(const T& value) noexcept(
+      std::is_nothrow_copy_constructible<T>::value)
+      : result_(value) {
     SB_CHECK(this->value() != nullptr) << "NonNullResult value cannot be null.";
   }
 
   // Explicitly provides a non-templated move constructor for the success value
   // T. This is the best match for rvalue arguments, guaranteeing an efficient
   // move construction of the stored value.
-  NonNullResult(T&& value) : result_(std_move(value)) {
+  NonNullResult(T&& value) noexcept(
+      std::is_nothrow_move_constructible<T>::value)
+      : result_(std::move(value)) {
     SB_CHECK(this->value() != nullptr) << "NonNullResult value cannot be null.";
   }
 
