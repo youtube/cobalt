@@ -101,7 +101,6 @@ class Expected {
 
   Expected(Unexpected<E> unexpected) {
     new (&storage_.error_) E(std::move(unexpected.error()));
-    has_value_ = false;
   }
 
   Expected(const Expected& other) {
