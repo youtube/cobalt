@@ -92,6 +92,7 @@ class Expected {
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
+                !std::is_same<std::decay_t<U>, T>::value &&
                 !std::is_same<std::decay_t<U>, Unexpected<E>>::value &&
                 !std::is_same<std::decay_t<U>, Expected<T, E>>::value>>
   Expected(U&& value) noexcept(std::is_nothrow_constructible<T, U&&>::value) {
