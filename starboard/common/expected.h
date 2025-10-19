@@ -67,14 +67,12 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
-  // Explicitly provides a non-templated copy constructor for the success value
+  // Explicitly provides a dedicated constructor for copying the success value
   // T. This ensures that copy-initialization (e.g., 'return components;') works
   // correctly and non-ambiguously, especially for compilers like GCC
   // that may not implicitly favor the templated constructor for T when U=T.
   template <typename U = T,
-            std::enable_if_t<std::is_same<U, T>::value &&
-                                 std::is_copy_constructible<U>::value,
-                             int> = 0>
+            std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
   Expected(const T& value) noexcept(
       std::is_nothrow_copy_constructible<T>::value)
       : has_value_(true) {
