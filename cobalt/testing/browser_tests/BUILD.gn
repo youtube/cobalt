@@ -126,6 +126,25 @@ static_library("browsertest_support") {
   configs += [ "//v8:external_startup_data" ]
 }
 
+mojom("browsertests_mojom") {
+  testonly = true
+  sources = [
+    "common/main_frame_counter_test.mojom",
+    "common/power_monitor_test.mojom",
+    "common/render_frame_test_helper.mojom",
+  ]
+  public_deps = [
+    "//sandbox/policy/mojom",
+    "//third_party/blink/public/mojom/tokens",
+  ]
+}
+
+mojom("shell_controller_mojom") {
+  testonly = true
+  sources = [ "common/shell_controller.test-mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
+}
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 
@@ -220,11 +239,11 @@ test("cobalt_browsertests") {
 
   deps = [
     ":browsertest_support",
+    ":browsertests_mojom",
     ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//cc/slim",
-    "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
@@ -398,7 +417,7 @@ test("cobalt_browsertests") {
 
   if (is_linux && !is_tsan) {
     deps += [
-      "//cobalt/shell:shell_controller_mojom",
+      "//cobalt/testing/browser_tests:shell_controller_mojom",
       "//components/variations:variations",
       "//components/variations/field_trial_config:field_trial_config",
       "//mojo/public/cpp/platform",
@@ -414,19 +433,45 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
+    "common/main_frame_counter_test_impl.cc",
+    "common/main_frame_counter_test_impl.h",
+    "common/power_monitor_test_impl.cc",
+    "common/power_monitor_test_impl.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
     "common/shell_test_switches.cc",
     "common/shell_test_switches.h",
+    "renderer/render_frame_test_helper.cc",
+    "renderer/render_frame_test_helper.h",
+    "renderer/shell_render_frame_observer.cc",
+    "renderer/shell_render_frame_observer.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
   ]
 
   public_deps = [
+    ":browsertests_mojom",
+    ":shell_controller_mojom",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/custom_handlers:test_support",
+    "//components/metrics:test_support",
+    "//components/services/storage/test_api",
+    "//content/common:main_frame_counter",
+    "//content/public/child",
+    "//content/public/common",
+    "//content/public/renderer",
+    "//content/public/utility",
+    "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
   ]
+
+  if (use_aura) {
+    public_deps += [ "//ui/aura:test_support" ]
+  }
 
   if (shell_use_toolkit_views) {
     if (use_aura) {

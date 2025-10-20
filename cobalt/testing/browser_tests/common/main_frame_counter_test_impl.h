@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
-#define COBALT_SHELL_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
+#define COBALT_TESTING_BROWSER_TESTS_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
 
-#include "cobalt/shell/common/main_frame_counter_test.mojom.h"
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 namespace content {
@@ -34,4 +34,4 @@ class MainFrameCounterTestImpl final : public mojom::MainFrameCounterTest {
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_

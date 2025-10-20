@@ -12,7 +12,7 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
@@ -47,7 +47,7 @@ void MediaBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
   command_line->AppendSwitchASCII(
       switches::kAutoplayPolicy,
       switches::autoplay::kNoUserGestureRequiredPolicy);
-  command_line->AppendSwitch(switches::kExposeInternalsForTesting);
+  command_line->AppendSwitch(test_switches::kExposeInternalsForTesting);
 
   std::vector<base::test::FeatureRef> enabled_features = {
 #if BUILDFLAG(IS_ANDROID)

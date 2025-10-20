@@ -73,7 +73,7 @@
 #endif
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -158,7 +158,7 @@ void ShellBrowserMainParts::InitializeMessageLoopContext() {
 
 void ShellBrowserMainParts::ToolkitInitialized() {
 #if defined(RUN_BROWSER_TESTS)
-  if (switches::IsRunWebTestsSwitchPresent()) {
+  if (test_switches::IsRunWebTestsSwitchPresent()) {
     return;
   }
 #endif  // defined(RUN_BROWSER_TESTS)
