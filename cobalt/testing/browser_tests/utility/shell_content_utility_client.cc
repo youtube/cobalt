@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/utility/shell_content_utility_client.h"
+#include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
 
 #include <memory>
 #include <utility>

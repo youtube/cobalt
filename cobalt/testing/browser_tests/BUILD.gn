@@ -422,6 +422,8 @@ static_library("cobalt_shell_test_lib") {
     "common/shell_test_switches.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
   ]
 
   public_deps = [
