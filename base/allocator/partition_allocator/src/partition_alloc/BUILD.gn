@@ -951,7 +951,7 @@ if (is_clang_or_gcc) {
       sources += [ "shim/empty.cc" ]
     }
 
-    deps += [
+    public_deps = [
       ":allocator_base",
       ":allocator_core",
       ":buildflags",
