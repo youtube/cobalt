@@ -29,6 +29,9 @@ To Cherry-Pick: (in feature/derp_m120 ontop of m120)
 	git cherry-pick 3e8e73ba3efd73369c253343e1068cebffe6f9e5
 	git commit --no-verify
 
+f8f21fb4aa01f75acbb12abf5ea8c263c6817141
+c47e4caa1658e046c7e2f6eb1b9b572479d987cb
+
 
 
 To Subtree:
@@ -165,11 +168,14 @@ To Rebase:
 
 git cherry-pick 649ffa1f9b0f970ea628ccd307ec382d287c8319
 
-python3 main.py commits --repo-path=/usr/local/google/home/brianting/thor/src --source-branch=feature/rebase_m120 --start-commit-ref=da0cf2796bd79744c2c611a9544e864bc34ca08c --end-commit-ref=34a91959b67e91c0d6bcb5312e4b768eab8a092c --output-file=commits_m120.json
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/rebase/src --source-branch=feature/rebase_m120 --start-commit-ref=da0cf2796bd79744c2c611a9544e864bc34ca08c --end-commit-ref=756f53bd16d0fb0369a311e1882e7644110caaf6 --output-file=commits_m120.json
 
-python3 main.py rebase --repo-path=/usr/local/google/home/brianting/rebase_tools/src --rebase-branch=feature/rebase_m126 --conflicts-dir=m120_to_m126_conflicts --commits-file=commits_m120.json --resume-commit-index=1
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/rebase/src --source-branch=feature/rebase_m126 --start-commit-ref=cea352970eb8cad66f25f50b8d1469b3847aeda5 --end-commit-ref=445476a7299bdab21f791d6d7bb298657c47dc26 --output-file=commits_m126.json
+
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/rebase/src --rebase-branch=feature/rebase_m126 --conflicts-dir=m120_to_m126_conflicts --commits-file=commits_m120.json --resume-commit-index=696
 
 gclient config --name=src --custom-var=download_remoteexec_cfg=True git@github.com:youtube/cobalt.git
+cipd auth-login
 gclient sync --no-history -r $(git rev-parse @)
 build_telemetry opt-out
 siso login
@@ -177,28 +183,28 @@ gn gen out/Default
 gn args out/Default (use_remoteexec=true)
 time autoninja -C out/Default content_shell
 
-conflicts up to CP-51 (inclusive / 59568943355dc7633f1f4b68562a8f52e4390103) - builds content_shell
-m120_to_m126_conflicts/f6ee25f
-m120_to_m126_conflicts/5d0f3ad
-m120_to_m126_conflicts/90b744d
-m120_to_m126_conflicts/bcbb108
+debug/devel/qa/gold
+cobalt/build/gn.py -p linux-x64x11 -c devel
+time autoninja -C out/linux-x64x11_devel cobalt:gn_all chromedriver dump_syms minidump_stackwalk
 
-conflicts up to CP-120 (inclusive / c4aa60257b6ed4f1b11d83bc398a7e122c2266d4) - requires is_cobalt=false gn flag to build content_shell
-m120_to_m126_conflicts/9fff641
-m120_to_m126_conflicts/568014e
-m120_to_m126_conflicts/c13213f
-m120_to_m126_conflicts/ccead89
-m120_to_m126_conflicts/6d97999
+cobalt/build/gn.py -p android-arm -c devel
+time autoninja -C out/android-arm_devel cobalt_apk
 
-conflicts up to CP-249 (inclusive / 0a73a9eaac479b823756155dd7aa2cbaa9d81ffe) - builds content_shell
-m120_to_m126_conflicts/4ad91d6
-m120_to_m126_conflicts/01623e5
-m120_to_m126_conflicts/81af463
-m120_to_m126_conflicts/05e2a8c
-m120_to_m126_conflicts/d9ec2ba
-m120_to_m126_conflicts/7f1b6ea
-m120_to_m126_conflicts/0b4932a
 
-m120_to_m126_conflicts/8e96e41
+
+To Merge to Main:
+
+git merge origin/feature/rebase_m138
+git rm -rf .
+git clean -fdx
+git checkout origin/feature/rebase_m138 .
+git commit --no-verify
+git prune
+git gc
+
+
+
+Skipped:
+80695d70e26c9061db071c7217c38f1a092c64bf
 
 
