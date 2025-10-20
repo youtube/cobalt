@@ -117,6 +117,23 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool EnsurePlayerIsInitialized();
 
  private:
+  struct BatchedSampleData {
+    BatchedSampleData(JNIEnv* env, size_t size)
+        : sizes(base::android::ScopedJavaLocalRef<jintArray>(
+              env,
+              env->NewIntArray(size))),
+          timestamps(base::android::ScopedJavaLocalRef<jlongArray>(
+              env,
+              env->NewLongArray(size))),
+          key_frames(base::android::ScopedJavaLocalRef<jbooleanArray>(
+              env,
+              env->NewBooleanArray(size))) {}
+    std::vector<uint8_t> samples;
+    const base::android::ScopedJavaLocalRef<jintArray> sizes;
+    const base::android::ScopedJavaLocalRef<jlongArray> timestamps;
+    const base::android::ScopedJavaLocalRef<jbooleanArray> key_frames;
+  };
+
   void InitExoplayer();
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
