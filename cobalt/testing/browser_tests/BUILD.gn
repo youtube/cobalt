@@ -414,6 +414,8 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
+    "app/shell_main_test_delegate.cc",
+    "app/shell_main_test_delegate.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
     "common/shell_test_switches.cc",
@@ -423,8 +425,10 @@ static_library("cobalt_shell_test_lib") {
   ]
 
   public_deps = [
+    "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/custom_handlers:test_support",
+    "//content/public/utility",
     "//content/test:test_support",
   ]
 

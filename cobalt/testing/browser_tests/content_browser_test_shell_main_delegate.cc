@@ -22,7 +22,7 @@
 namespace content {
 
 ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
-    : ShellMainDelegate(/*is_content_browsertests=*/true) {}
+    : ShellMainTestDelegate(/*is_content_browsertests=*/true) {}
 
 ContentBrowserTestShellMainDelegate::~ContentBrowserTestShellMainDelegate() =
     default;
@@ -35,7 +35,7 @@ ContentBrowserTestShellMainDelegate::PostEarlyInitialization(
     // Browser tests on Lacros requires a non-null LacrosService.
     lacros_service_ = std::make_unique<chromeos::LacrosService>();
   }
-  ShellMainDelegate::PostEarlyInitialization(invoked_in);
+  ShellMainTestDelegate::PostEarlyInitialization(invoked_in);
   return absl::nullopt;
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
