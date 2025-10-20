@@ -36,6 +36,7 @@
       "fr",
       "gl",
       "gu",
+      "he",
       "hi",
       "hr",
       "hu",
@@ -184,6 +185,7 @@
         "fr",
         "gl",
         "gu",
+        "he",
         "hi",
         "hr",
         "hu",
@@ -273,6 +275,7 @@
             "fr",
             "gl",
             "gu",
+            "he",
             "hi",
             "hr",
             "hu",
@@ -364,6 +367,7 @@
         "fr",
         "gl",
         "gu",
+        "he",
         "hi",
         "hr",
         "hu",
@@ -454,6 +458,7 @@
         "fr",
         "gl",
         "gu",
+        "he",
         "hi",
         "hr",
         "hu",
@@ -537,6 +542,7 @@
         "fr",
         "gl",
         "gu",
+        "he",
         "hi",
         "hr",
         "hu",
@@ -1512,6 +1518,27 @@
       ],
       "files": {
         "includelist": [
+	  "he"
+	]
+      },
+      "rules": [
+        "-/calendar/*",
+        "+/calendar/default",
+        "+/calendar/gregorian",
+        "+/calendar/generic",
+        "+/calendar/hebrew",
+        "-/calendar/default/DateTimeSkeletons",
+        "-/calendar/gregorian/DateTimeSkeletons",
+        "-/calendar/generic/DateTimeSkeletons",
+        "-/calendar/hebrew/DateTimeSkeletons"
+      ]
+    },
+    {
+      "categories": [
+        "locales_tree"
+      ],
+      "files": {
+        "includelist": [
 	  "ar"
 	]
       },
@@ -1639,6 +1666,7 @@
         "+/calendar/ethiopic",
         "+/calendar/ethiopic-amete-alem",
         "+/calendar/japanese",
+        "+/calendar/hebrew",
         "+/calendar/islamic",
         "+/calendar/islamic-umalqura",
         "+/calendar/islamic-civil",
@@ -1683,6 +1711,7 @@
           "am",
           "ar",
           "fa",
+          "he",
           "hi",
           "ja",
           "ko",
@@ -1799,6 +1828,7 @@
         "+/*/fil",
         "+/*/fr",
         "+/*/gl",
+        "+/*/he",
         "+/*/gu",       
         "+/*/hi",
         "+/*/hr",
