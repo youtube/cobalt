@@ -24,6 +24,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.os.Build.VERSION;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltMediaSession;
 import dev.cobalt.util.Log;
@@ -331,6 +332,16 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         break;
       case 6:
         channelConfig = AudioFormat.CHANNEL_OUT_5POINT1;
+        break;
+      case 8:
+        channelConfig = AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
+        break;
+      case 10:
+        if (VERSION.SDK_INT >= 32) {
+          channelConfig = AudioFormat.CHANNEL_OUT_7POINT1POINT2;
+        } else {
+          throw new RuntimeException("Unsupported channel count: " + channelCount);
+        }
         break;
       default:
         throw new RuntimeException("Unsupported channel count: " + channelCount);
