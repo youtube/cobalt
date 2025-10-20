@@ -33,7 +33,7 @@ namespace {
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 
-constexpr int kMaxFramesInDecoder = 100;
+constexpr int kMaxFramesInDecoder = 6;
 constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
