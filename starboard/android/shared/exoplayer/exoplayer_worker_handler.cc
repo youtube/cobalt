@@ -102,6 +102,7 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
     SB_CHECK(input_buffer);
   }
 
+  *samples_written = 0;
   if (input_buffers.front()->sample_type() == kSbMediaTypeAudio) {
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeAudio)) {
       SB_LOG(WARNING) << "Tried to write audio sample after EOS is reached";
