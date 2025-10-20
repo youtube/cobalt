@@ -166,8 +166,6 @@ source_set("browsertests_sources") {
   sources = [
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
     "common/shell_test_switches.cc",
     "common/shell_test_switches.h",
     "renderer/render_frame_test_helper.cc",
@@ -477,7 +475,6 @@ mojom("browsertests_mojom") {
   testonly = true
   sources = [
     "common/main_frame_counter_test.mojom",
-    "common/power_monitor_test.mojom",
     "common/render_frame_test_helper.mojom",
   ]
   public_deps = [
