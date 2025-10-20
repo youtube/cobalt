@@ -18,6 +18,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/system/sys_info.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
@@ -38,8 +39,8 @@ using ::starboard::FormatWithDigitSeparators;
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
-                             55 * 1024 * 1024,
-                             // SbMediaGetInitialBufferCapacity(),
+                             // 55 * 1024 * 1024,
+                             SbMediaGetInitialBufferCapacity(),
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
@@ -58,6 +59,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
             << FormatWithDigitSeparators(initial_capacity_ / 1024)
             << ", allocation_unit(KiB)="
             << FormatWithDigitSeparators(allocation_unit_ / 1024)
+            << ", phyical memory (MiB)="
+            << FormatWithDigitSeparators(
+                   base::SysInfo::AmountOfPhysicalMemory() / 1024 / 1024)
             << ", is_memory_pool_allocated_on_demand="
             << starboard::to_string(is_memory_pool_allocated_on_demand_);
 

@@ -16,6 +16,7 @@
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/common/log.h"
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 
 namespace {
@@ -34,6 +35,7 @@ namespace {
 // https://github.com/youtube/cobalt/blob/a3c966f929aabea1d71813c31d404e1b319c2fcd/media/base/demuxer_memory_limit.h#L44
 // TODO: b/416039556 - Allow starboard::feature to override this value, once
 // b/416039556 is completed.
+// constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
 constexpr int kMaxVideoBufferBudget = 50 * 1024 * 1024;
 
 }  // namespace
@@ -42,6 +44,9 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
+  SB_LOG(INFO) << __func__ << ":decoder_buffer_allocator > resolution="
+               << starboard::Size(resolution_width, resolution_height)
+               << ", bits_per_pixel=" << bits_per_pixel;
   auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget = starboard::RuntimeResourceOverlay::GetInstance()
                             ->max_video_buffer_budget();
