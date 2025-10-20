@@ -1,5 +1,70 @@
 [
   {
+    "hexsha": "d362953050550b121bed8c74776c9e43671b1528",
+    "original_hexsha": "80695d70e26c9061db071c7217c38f1a092c64bf",
+    "author": "Ying Yu",
+    "datetime": "2025-10-18T06:26:16+00:00",
+    "summary": "evergreen: more customizations to update_client (#7131)",
+    "stats": {
+      "files": 12,
+      "insertions": 1008,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "207a000d1791f10c522cb33fc67230ddcde32a5f",
+    "original_hexsha": "cf470ab38accf95b3e85af6ba30d6060727be353",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-17T15:45:11-07:00",
+    "summary": "android: Add video_frame_tracker_test to Android unit test and cleanup Android unit test config (#7602)",
+    "stats": {
+      "files": 3,
+      "insertions": 31,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "54692c608b76d5a59afacfe31aa7726311954b71",
+    "original_hexsha": "a66ce40f015018dc960aedaa0ead3ec8a181d667",
+    "author": "Holden Warriner",
+    "datetime": "2025-10-17T22:12:10+00:00",
+    "summary": "Implement CrashAnnotator interface for 3P (#7548)",
+    "stats": {
+      "files": 7,
+      "insertions": 71,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9c6a1c73d5fb82e5c3f5292fdeae3ff55f270b1d",
+    "original_hexsha": "3ecdcac27747ae78374741e9f9429322c5f83a49",
+    "author": "Colin Liang",
+    "datetime": "2025-10-17T13:38:21-07:00",
+    "summary": "android: Prevent crash when deep link is null (#7494)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3f8c8390c9af92ae91c72e71c26e5444de44d5c2",
+    "original_hexsha": "9cc901ccfcd84a7f3a32d8aee8cb839eaee89279",
+    "author": "Miguel Casas",
+    "datetime": "2025-10-17T12:22:04-07:00",
+    "summary": "content/compositor: Allow more Workers for raster/image decoding for Android (#7590)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "13a12b3c361af044e03d371970d0a6096294db98",
     "original_hexsha": "4d433c6150d3ccf674ec67eabe00ba2b40bff034",
     "author": "Kyujung Youn",
