@@ -17,7 +17,6 @@
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_utils.h"
-#include "base/android/cobalt_for_google3_buildflags.h"
 #include "base/base_jni_headers/PiiElider_jni.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/logging.h"
@@ -48,6 +47,9 @@ bool g_fatal_exception_occurred = false;
 const char* COBALT_ORG_CHROMIUM = "cobalt/org/chromium";
 const char* ORG_CHROMIUM = "org/chromium";
 
+bool g_add_cobalt_prefix = false;
+std::atomic<bool> g_checked_command_line(false);
+
 std::string getRepackagedName(const char* signature) {
   std::string holder(signature);
   size_t pos = 0;
@@ -59,12 +61,11 @@ std::string getRepackagedName(const char* signature) {
 }
 
 bool shouldAddCobaltPrefix() {
-#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
-  // The flag is set in cobalt/build/android/package.py
-  return true;
-#else
-  return false;
-#endif
+  if (!g_checked_command_line && base::CommandLine::InitializedForCurrentProcess()) {
+    g_add_cobalt_prefix = base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kCobaltJniPrefix);
+    g_checked_command_line = true;
+  }
+  return g_add_cobalt_prefix;
 }
 
 // Java exception stack trace example:
