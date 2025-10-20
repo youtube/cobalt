@@ -18,7 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 

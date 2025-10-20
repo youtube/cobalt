@@ -46,12 +46,12 @@
 #include "v8/include/v8.h"
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"   // nogncheck
-#include "cobalt/shell/common/power_monitor_test_impl.h"        // nogncheck
-#include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
-#include "cobalt/shell/renderer/shell_render_frame_observer.h"  // nogncheck
-#include "content/public/test/test_service.mojom.h"             // nogncheck
-#include "third_party/blink/public/web/web_testing_support.h"   // nogncheck
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"  // nogncheck
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"  // nogncheck
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"  // nogncheck
+#include "cobalt/testing/browser_tests/renderer/shell_render_frame_observer.h"  // nogncheck
+#include "content/public/test/test_service.mojom.h"            // nogncheck
+#include "third_party/blink/public/web/web_testing_support.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -241,7 +241,7 @@ void ShellContentRendererClient::RenderFrameCreated(RenderFrame* render_frame) {
 void ShellContentRendererClient::DidInitializeWorkerContextOnWorkerThread(
     v8::Local<v8::Context> context) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kExposeInternalsForTesting)) {
+          test_switches::kExposeInternalsForTesting)) {
     blink::WebTestingSupport::InjectInternalsObject(context);
   }
 }

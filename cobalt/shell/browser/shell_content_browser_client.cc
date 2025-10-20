@@ -122,8 +122,8 @@
 #endif
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_controller.test-mojom.h"  // nogncheck
-#include "cobalt/shell/common/shell_test_switches.h"          // nogncheck
+#include "cobalt/testing/browser_tests/common/shell_controller.test-mojom.h"  // nogncheck
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"  // nogncheck
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
 #include "components/metrics/test/test_enabled_state_provider.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
@@ -424,8 +424,8 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
 
 #if defined(RUN_BROWSER_TESTS)
   static const char* kForwardTestSwitches[] = {
-      switches::kExposeInternalsForTesting,
-      switches::kRunWebTests,
+      test_switches::kExposeInternalsForTesting,
+      test_switches::kRunWebTests,
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),

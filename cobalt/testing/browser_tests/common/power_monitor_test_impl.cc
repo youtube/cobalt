@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/common/power_monitor_test_impl.h"
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 
 #include <memory>
 #include <utility>

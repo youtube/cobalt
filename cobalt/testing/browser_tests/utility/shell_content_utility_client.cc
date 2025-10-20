@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/utility/shell_content_utility_client.h"
+#include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
 
 #include <memory>
 #include <utility>
@@ -33,7 +33,7 @@
 #include "base/ranges/algorithm.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "cobalt/shell/common/power_monitor_test_impl.h"
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "components/services/storage/test_api/test_api.h"
 #include "content/public/child/child_thread.h"
 #include "content/public/common/content_switches.h"
