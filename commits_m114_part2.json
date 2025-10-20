@@ -1,18 +1,5 @@
 [
   {
-    "hexsha": "d362953050550b121bed8c74776c9e43671b1528",
-    "original_hexsha": "80695d70e26c9061db071c7217c38f1a092c64bf",
-    "author": "Ying Yu",
-    "datetime": "2025-10-18T06:26:16+00:00",
-    "summary": "evergreen: more customizations to update_client (#7131)",
-    "stats": {
-      "files": 12,
-      "insertions": 1008,
-      "deletions": 18
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "207a000d1791f10c522cb33fc67230ddcde32a5f",
     "original_hexsha": "cf470ab38accf95b3e85af6ba30d6060727be353",
     "author": "Kyujung Youn",
