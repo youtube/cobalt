@@ -30,7 +30,7 @@ declare_args() {
   # needed only for release builds or for webview testing. Slows down "gn gen"
   # and ninja parse time due to having to write rules for most native targets
   # a second time. Applicable only when target_cpu is 64-bit.
-  enable_android_secondary_abi = is_official_build
+  enable_android_secondary_abi = is_official_build && !is_cobalt
 }
 
 assert(!devtools_instrumentation_dumping || use_order_profiling,
