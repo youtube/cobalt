@@ -33,10 +33,11 @@ class ShellMainTestDelegate : public ShellMainDelegate {
   ~ShellMainTestDelegate() override;
 
   // ContentMainDelegate implementation:
+  ContentClient* CreateContentClient() override;
   absl::optional<int> BasicStartupComplete() override;
   ContentUtilityClient* CreateContentUtilityClient() override;
 
- protected:
+ private:
   std::unique_ptr<ShellContentUtilityClient> utility_client_;
 };
 
