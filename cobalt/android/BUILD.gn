@@ -2,6 +2,7 @@ import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/buildflags.gni")
 import("//third_party/icu/config.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
@@ -17,8 +18,14 @@ jinja_template("cobalt_manifest") {
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
@@ -26,6 +33,9 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
+    "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
   ]
 
   if (!use_evergreen) {
@@ -41,13 +51,13 @@ android_library("cobalt_main_java") {
   deps = [
     ":jni_headers",
     "//base:base_java",
-    "//base:jni_java",
     "//base:process_launcher_java",
+    "//base/version_info/android:version_constants_java",
     "//build/android:build_java",
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
-    "//components/version_info/android:version_constants_java",
+    "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
@@ -60,6 +70,7 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//url:gurl_java",
   ]
@@ -74,7 +85,10 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  srcjar_deps = [ "//starboard/android/shared:java_enums" ]
+  srcjar_deps = [
+    ":jni_headers",
+    "//starboard/android/shared:java_enums",
+  ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
@@ -137,8 +151,6 @@ android_library("cobalt_main_java") {
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 android_library("cobalt_apk_java") {
@@ -165,9 +177,8 @@ android_assets("coat_assets") {
   disable_compression = true
 }
 
-# Copied from target: libcontent_shell_content_view
-# TODO(b/376867565) rename this library, NO shell
-shared_library("libchrobalt") {
+# TODO(b/450024477): just a shared library once jni migration is complete
+shared_library_with_jni("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
@@ -185,7 +196,6 @@ shared_library("libchrobalt") {
     "//components/memory_system",
     "//media",
     "//skia",
-    "//starboard/android/shared:starboard_jni_state",
     "//third_party/blink/public/common",
   ]
 
@@ -207,6 +217,7 @@ shared_library("libchrobalt") {
   if (is_official_build) {
     configs += [ "//build/config/compiler:strip_debug" ]
   }
+  java_targets = [ ":cobalt_apk" ]
 }
 
 android_apk("cobalt_apk") {
@@ -227,6 +238,7 @@ android_apk("cobalt_apk") {
     "//ui/android:ui_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
+  srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
 }
 

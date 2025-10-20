@@ -247,10 +247,21 @@ assert(!(llvm_force_head_revision && use_remoteexec && host_os != "linux"),
 # source root and might have conflicting versions of some headers) can remove
 # this and specify their own include paths.
 config("default_include_dirs") {
+  if (is_cobalt &&
+      ((is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) ||
+       current_toolchain == native_target)) {
+    include_dirs = [
+      "//copied_base",
+      "//",
+      "$root_gen_dir/copied_base",
+      root_gen_dir
+    ]
+  } else {
   include_dirs = [
     "//",
     root_gen_dir,
   ]
+  }
 }
 
 # Compiler instrumentation can introduce dependencies in DSOs to symbols in
@@ -1081,6 +1092,9 @@ config("compiler") {
     # We use clang-rt sanitizer runtimes.
     "-Zexternal-clangrt",
   ]
+  if (is_cobalt && current_toolchain == default_toolchain) {
+    rustflags += ["-Ztls-model=emulated"]
+  }
 
   if (!is_win || force_rustc_color_output) {
     # Colorize error output. The analogous flag is passed for clang. This must

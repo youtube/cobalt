@@ -1,2 +1,6 @@
 target_os = "android"
 target_cpu = "arm"
+
+# TODO(b/376141256): Decide if this flag is needed here or in .gclient file
+chrome_pgo_phase = 0
+clang_use_default_sample_profile = false

@@ -216,9 +216,7 @@ static_library("test_support") {
   # that would require special support in gn2bp (AOSP Cronet).
   if (enable_base_tracing && !is_cronet_build) {
     public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
-    if (!is_cobalt_hermetic_build) {
-      public_deps += [ ":test_trace_processor" ]
-    }
+    public_deps += [ ":test_trace_processor" ]
     sources += [
       "test_trace_processor.cc",
       "test_trace_processor.h",
@@ -232,6 +230,9 @@ static_library("test_support") {
         ":test_trace_processor+bundle",
         ":test_trace_processor+link",
       ]
+    }
+    if (is_cobalt_hermetic_build) {
+      public_deps -= [ ":test_trace_processor" ]
     }
   }
 
@@ -608,7 +609,7 @@ executable("test_child_process") {
 }
 }
 
-if (enable_base_tracing && !is_cobalt_hermetic_build) {
+if (enable_base_tracing) {
   perfetto_cc_proto_descriptor("gen_cc_chrome_track_event_descriptor") {
     descriptor_name = "chrome_track_event.descriptor"
     descriptor_target = "//base/tracing/protos:chrome_track_event"
@@ -631,6 +632,7 @@ if (enable_base_tracing && !is_cobalt_hermetic_build) {
            ] + rebase_path(sources, root_build_dir)
   }
 
+if (!is_cobalt_hermetic_build) {
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
   # base via a public_dep on libperfetto; libtrace_processor also depends on
@@ -693,6 +695,7 @@ if (enable_base_tracing && !is_cobalt_hermetic_build) {
       public_deps = [ ":test_trace_processor" ]
     }
   }
+}
 } else if (!is_component_build && is_mac) {
   # Provide a dummy target in order for clients to not have to special-case
   # the dependency.

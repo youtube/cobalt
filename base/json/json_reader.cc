@@ -13,7 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
 #include "base/json/json_parser.h"
 #else
 #include "base/strings/string_view_rust.h"
@@ -23,7 +23,7 @@
 
 // TODO(crbug.com/40811643): Move the C++ parser into components/nacl to just
 // run in-process there. Don't compile base::JSONReader on NaCL at all.
-#if !BUILDFLAG(IS_NACL)
+#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
 
 namespace {
 const char kSecurityJsonParsingTime[] = "Security.JSONParser.ParsingTime";
@@ -144,7 +144,7 @@ std::string JSONReader::Error::ToString() const {
 std::optional<Value> JSONReader::Read(std::string_view json,
                                       int options,
                                       size_t max_depth) {
-#if BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
   internal::JSONParser parser(options, max_depth);
   return parser.Parse(json);
 #else   // BUILDFLAG(IS_NACL)
@@ -185,7 +185,7 @@ std::optional<Value::List> JSONReader::ReadList(std::string_view json,
 JSONReader::Result JSONReader::ReadAndReturnValueWithError(
     std::string_view json,
     int options) {
-#if BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
   internal::JSONParser parser(options);
   auto value = parser.Parse(json);
   if (!value) {

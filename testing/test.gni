@@ -15,6 +15,7 @@ import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_starboard) {
   import("//cobalt/build/modular_executable.gni")
+  import("//cobalt/build/configs/hacks.gni")
 }
 
 declare_args() {
@@ -1027,10 +1028,16 @@ template("test") {
     # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
     # is_starboard as a toolchain arg.
   } else if (is_starboard && use_custom_libc) {
+    ignored_variables = TESTONLY_AND_VISIBILITY + [ "use_xvfb" ]
+
+    # TODO: b/452367792 - Cobalt: Evaluate if we want to support fuzztest targets.
+    if (enable_cobalt_hermetic_hacks) {
+      ignored_variables += [ "fuzztests", "fuzztest_stack_limit_kb" ]
+    }
     modular_executable(target_name) {
       forward_variables_from(invoker,
                              "*",
-                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
+                             ignored_variables)
       testonly = true
     }
   } else if (!is_nacl) {

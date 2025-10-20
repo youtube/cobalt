@@ -198,11 +198,6 @@ declare_args() {
   clang_warning_suppression_file = ""
 }
 
-if (is_cobalt) {
-  assert(!cobalt_is_release_build || is_official_build,
-         "Release builds are only available in official builds.")
-}
-
 # ==============================================================================
 # TOOLCHAIN SETUP
 # ==============================================================================

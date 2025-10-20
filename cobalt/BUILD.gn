@@ -13,9 +13,15 @@
 # limitations under the License.
 
 import("//build/linux/strip_binary.gni")
+import("//build/toolchain/toolchain.gni")
 import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
+
+if (!toolchain_for_rust_host_build_tools) {
+  assert(!cobalt_is_release_build || is_official_build,
+        "Release builds are only available in official builds.")
+}
 
 # This arg temporarily enables or disables the updater_sandbox target.
 # It's disabled on CI by default due to missing libcurl pkg. To enable it
@@ -49,10 +55,7 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
-
-  # TODO: b/446904317 - add these deps for all 3P platforms once build issues
-  # are resolved.
-  if (target_os == "linux" && target_cpu == "x64") {
+  if (use_crashpad) {
     deps += [
       "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
       "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
@@ -134,9 +137,10 @@ source_set("common") {
     ]
   }
 
+  public_deps = [ "//cobalt/browser" ]
+
   deps = [
     "//base",
-    "//cobalt/browser",
     "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",

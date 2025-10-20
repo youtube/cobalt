@@ -32,6 +32,9 @@ config("wnos") {
     "-Wno-unused-local-typedef",
     "-Wno-unreachable-code",
     "-Wno-unreachable-code-break",
+
+    # Do not warn about variable length arrays
+    "-Wno-vla-cxx-extension"
   ]
 }
 
@@ -186,6 +189,7 @@ test("nplb") {
       "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_resource_limit_test.cc",
+      "posix_compliance/posix_sched_getaffinity_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -349,11 +353,6 @@ test("nplb") {
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//starboard/shared/starboard/player:player_download_test_data",
   ]
-
-  if (is_clang) {
-    # signedness_and_size_of_enum_test.cc casts -1 to enum value
-    cflags = [ "-Wno-enum-constexpr-conversion" ]
-  }
 
   if (sb_is_evergreen_compatible) {
     sources += [

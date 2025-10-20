@@ -31,7 +31,7 @@
 
 #define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
                                 param_name, default_value)                 \
-  BASE_DECLARE_FEATURE_PARAM(T, param_object_name)
+  BASE_DECLARE_FEATURE_PARAM(T, param_object_name);
 
 #define FEATURE_LIST_START namespace cobalt::features {
 #define FEATURE_LIST_END }

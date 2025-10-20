@@ -62,7 +62,10 @@ declare_args() {
   # case.
   # We disable that on LibFuzzer builds because it breaks the libfuzzer
   # runtime. See crbug.com/411020147.
-  use_llvm_libatomic = !is_apple && !is_nacl && !use_libfuzzer
+  use_llvm_libatomic =
+      !is_apple && !is_nacl && !use_libfuzzer &&
+      (!is_cobalt || (current_toolchain != starboard_toolchain &&
+                      current_toolchain != native_target))
 }
 
 if (use_implicit_libcxx_modules) {
@@ -80,8 +83,8 @@ use_custom_libcxx = use_custom_libcxx && !is_nacl
 
 # Cobalt comment: Override the use_custom_libcxx variable for partner toolchains to
 # avoid linking with chromium's C++ libraries.
-if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain ||
-    is_cobalt && current_toolchain == native_target) {
+if ((is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) ||
+    (is_cobalt && current_toolchain == native_target)) {
   use_custom_libcxx = false
 }
 

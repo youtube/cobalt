@@ -33,16 +33,16 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
-import java.util.Optional;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard")
@@ -127,76 +127,61 @@ class MediaCodecBridge {
 
   private FrameRateEstimator mFrameRateEstimator = null;
 
-  /** A wrapper around a MediaFormat. */
-  private static class GetOutputFormatResult {
-    private int mStatus;
-    // May be null if mStatus is not MediaCodecStatus.OK.
-    private MediaFormat mFormat;
-    private Optional<Boolean> mFormatHasCropValues = Optional.empty();
+   /** Wraps a {@link MediaFormat} object to expose its properties to native code */
+   // Copied from Chromium's MediaCodecBridge.java
+   // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
+   // Here are changes made.
+   // - Exposes formatHasCropValues() to the native layer, which needs to call it.
+   // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
+   // - Add @Nonnul annotation to mFormat. since it is not null.
+   // - Add safety checks for width() and height() to prevent a crash. Cobalt's native code
+   //   accesses the format immediately in the onOutputFormatChanged callback, which can be
+   //   before the dimension keys are available.
+   private static class MediaFormatWrapper {
+    @NonNull private final MediaFormat mFormat;
 
-    @CalledByNative("GetOutputFormatResult")
-    private GetOutputFormatResult() {
-      mStatus = MediaCodecStatus.ERROR;
-      mFormat = null;
+    private MediaFormatWrapper(MediaFormat format) {
+      mFormat = format;
     }
 
+    @CalledByNative("MediaFormatWrapper")
     private boolean formatHasCropValues() {
-      if (!mFormatHasCropValues.isPresent() && mFormat != null) {
-        boolean hasCropValues =
-            mFormat.containsKey(KEY_CROP_RIGHT)
-                && mFormat.containsKey(KEY_CROP_LEFT)
-                && mFormat.containsKey(KEY_CROP_BOTTOM)
-                && mFormat.containsKey(KEY_CROP_TOP);
-        mFormatHasCropValues = Optional.ofNullable(hasCropValues);
+      return mFormat.containsKey(KEY_CROP_RIGHT)
+            && mFormat.containsKey(KEY_CROP_LEFT)
+            && mFormat.containsKey(KEY_CROP_BOTTOM)
+            && mFormat.containsKey(KEY_CROP_TOP);
+    }
+
+    @CalledByNative("MediaFormatWrapper")
+    private int width() {
+      if (formatHasCropValues()) {
+        return mFormat.getInteger(KEY_CROP_RIGHT) - mFormat.getInteger(KEY_CROP_LEFT) + 1;
       }
-      return mFormatHasCropValues.orElse(false);
+      if (mFormat.containsKey(MediaFormat.KEY_WIDTH)) {
+        return mFormat.getInteger(MediaFormat.KEY_WIDTH);
+      }
+      Log.w(TAG, "KEY_WIDTH not found in MediaFormat.");
+      return 0;
     }
 
-    @CalledByNative("GetOutputFormatResult")
-    private int status() {
-      return mStatus;
+    @CalledByNative("MediaFormatWrapper")
+    private int height() {
+      if (formatHasCropValues()) {
+        return mFormat.getInteger(KEY_CROP_BOTTOM) - mFormat.getInteger(KEY_CROP_TOP) + 1;
+      }
+      if (mFormat.containsKey(MediaFormat.KEY_HEIGHT)) {
+        return mFormat.getInteger(MediaFormat.KEY_HEIGHT);
+      }
+      Log.w(TAG, "KEY_HEIGHT not found in MediaFormat.");
+      return 0;
     }
 
-    @CalledByNative("GetOutputFormatResult")
-    private int textureWidth() {
-      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
-          ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
-          : 0;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int textureHeight() {
-      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
-          ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
-          : 0;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int cropLeft() {
-      return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_LEFT) : -1;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int cropTop() {
-      return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_TOP) : -1;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int cropRight() {
-      return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_RIGHT) : -1;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int cropBottom() {
-      return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_BOTTOM) : -1;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
+    @CalledByNative("MediaFormatWrapper")
     private int sampleRate() {
       return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
     }
 
-    @CalledByNative("GetOutputFormatResult")
+    @CalledByNative("MediaFormatWrapper")
     private int channelCount() {
       return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
     }
@@ -708,19 +693,26 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
+  private MediaFormatWrapper getOutputFormat() {
     MediaFormat format = null;
-    int status = MediaCodecStatus.OK;
     try {
       format = mMediaCodec.get().getOutputFormat();
     // Catches `RuntimeException` to handle any undocumented exceptions.
     // See http://b/445694177#comment4 for details.
     } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
-      status = MediaCodecStatus.ERROR;
+      return null;
     }
-    outGetOutputFormatResult.mStatus = status;
-    outGetOutputFormatResult.mFormat = format;
+    // https://developer.android.com/reference/android/media/MediaCodec#getOutputFormat()
+    // getOutputFormat should return non-null MediaForamt.
+    // If the format is null, we crash the app for dev builds to enforce the API contract.
+    // On release builds, we log the error and return null.
+    if (format == null) {
+      assert(false);
+      Log.e(TAG, "MediaCodec.getOutputFormat() returned null");
+      return null;
+    }
+    return new MediaFormatWrapper(format);
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */

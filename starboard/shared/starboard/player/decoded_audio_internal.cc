@@ -151,8 +151,16 @@ void DecodedAudio::AdjustForDiscardedDurations(
     int sample_rate,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
-  SB_DCHECK_GE(discarded_duration_from_front, 0);
-  SB_DCHECK_GE(discarded_duration_from_back, 0);
+  if (discarded_duration_from_front < 0) {
+    SB_LOG(WARNING) << "discarded_duration_from_front is negative with value "
+                    << discarded_duration_from_front << ". Setting to 0.";
+    discarded_duration_from_front = 0;
+  }
+  if (discarded_duration_from_back < 0) {
+    SB_LOG(WARNING) << "discarded_duration_from_back is negative with value "
+                    << discarded_duration_from_back << ". Setting to 0.";
+    discarded_duration_from_back = 0;
+  }
   SB_DCHECK_EQ(storage_type(), kSbMediaAudioFrameStorageTypeInterleaved);
 
   if (discarded_duration_from_front == 0 && discarded_duration_from_back == 0) {

@@ -30,13 +30,12 @@
 namespace starboard {
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
+using jni_zero::AttachCurrentThread;
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -97,16 +96,17 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
-  os << "{texture_size=" << size.texture_size;
-  if (size.has_crop_values()) {
-    os << ", crop={left=" << size.crop_left << ", top=" << size.crop_top
-       << ", right=" << size.crop_right << ", bottom=" << size.crop_bottom
-       << "}";
-  } else {
-    os << ", crop=(not set)";
-  }
-  os << "}";
-  return os;
+  return os << "{display_size=" << size.display_size
+            << ", has_crop_values=" << to_string(size.has_crop_values) << "}";
+}
+
+FrameSize::FrameSize()
+    : FrameSize(/*width=*/0, /*height=*/0, /*has_crop_values=*/false) {}
+
+FrameSize::FrameSize(int width, int height, bool has_crop_values)
+    : display_size({width, height}), has_crop_values(has_crop_values) {
+  SB_CHECK_GE(this->display_size.width, 0);
+  SB_CHECK_GE(this->display_size.height, 0);
 }
 
 // static
@@ -371,10 +371,12 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     encrypted_bytes[i] =
         drm_sample_info.subsample_mapping[i].encrypted_byte_count;
   }
-  ScopedJavaLocalRef<jintArray> j_clear_bytes =
-      ToJavaIntArray(env, clear_bytes.get(), subsample_count);
-  ScopedJavaLocalRef<jintArray> j_encrypted_bytes =
-      ToJavaIntArray(env, encrypted_bytes.get(), subsample_count);
+  ScopedJavaLocalRef<jintArray> j_clear_bytes = ToJavaIntArray(
+      env, base::span<const jint>(clear_bytes.get(),
+                                  static_cast<size_t>(subsample_count)));
+  ScopedJavaLocalRef<jintArray> j_encrypted_bytes = ToJavaIntArray(
+      env, base::span<const jint>(encrypted_bytes.get(),
+                                  static_cast<size_t>(subsample_count)));
 
   jint cipher_mode = CRYPTO_MODE_AES_CTR;
   jint blocks_to_encrypt = 0;
@@ -433,49 +435,32 @@ void MediaCodecBridge::Stop() {
   return Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
 }
 
-FrameSize MediaCodecBridge::GetOutputSize() {
+std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
-
-  jint textureWidth = Java_GetOutputFormatResult_textureWidth(
-      env, j_reused_get_output_format_result_);
-  jint textureHeight = Java_GetOutputFormatResult_textureHeight(
-      env, j_reused_get_output_format_result_);
-  jint cropLeft = Java_GetOutputFormatResult_cropLeft(
-      env, j_reused_get_output_format_result_);
-  jint cropTop = Java_GetOutputFormatResult_cropTop(
-      env, j_reused_get_output_format_result_);
-  jint cropRight = Java_GetOutputFormatResult_cropRight(
-      env, j_reused_get_output_format_result_);
-  jint cropBottom = Java_GetOutputFormatResult_cropBottom(
-      env, j_reused_get_output_format_result_);
-
-  FrameSize size = {
-      {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
-
-  size.DCheckValid();
-  return size;
-}
-
-AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
-  JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
-
-  jint status = Java_GetOutputFormatResult_status(
-      env, j_reused_get_output_format_result_);
-
-  if (status == MEDIA_CODEC_ERROR) {
-    return {status, 0, 0};
+  ScopedJavaLocalRef<jobject> result(
+      Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
+  if (!result) {
+    return std::nullopt;
   }
 
-  jint sample_rate = Java_GetOutputFormatResult_sampleRate(
-      env, j_reused_get_output_format_result_);
-  jint channel_count = Java_GetOutputFormatResult_channelCount(
-      env, j_reused_get_output_format_result_);
+  return FrameSize(Java_MediaFormatWrapper_width(env, result),
+                   Java_MediaFormatWrapper_height(env, result),
+                   Java_MediaFormatWrapper_formatHasCropValues(env, result));
+}
 
-  return {status, sample_rate, channel_count};
+std::optional<AudioOutputFormatResult>
+MediaCodecBridge::GetAudioOutputFormat() {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> result(
+      Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
+  if (!result) {
+    return std::nullopt;
+  }
+
+  return AudioOutputFormatResult{
+      Java_MediaFormatWrapper_sampleRate(env, result),
+      Java_MediaFormatWrapper_channelCount(env, result),
+  };
 }
 
 void MediaCodecBridge::OnMediaCodecError(
@@ -529,13 +514,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JNIEnv* env = AttachCurrentThread();
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
-
-  ScopedJavaLocalRef<jobject> j_reused_get_output_format_result =
-      Java_GetOutputFormatResult_Constructor(env);
-  SB_DCHECK(j_reused_get_output_format_result);
-
-  j_reused_get_output_format_result_.Reset(
-      env, j_reused_get_output_format_result.obj());
 }
 
 // static

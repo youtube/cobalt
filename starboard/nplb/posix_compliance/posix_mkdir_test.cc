@@ -85,7 +85,7 @@ TEST_F(PosixMkdirTest, SuccessfulCreation) {
   ASSERT_NE(dirp, nullptr);
   int entry_count = 0;
   errno = 0;
-  while (struct dirent* dp = readdir(dirp)) {
+  while (readdir(dirp)) {
     entry_count++;
   }
   EXPECT_EQ(errno, 0) << "readdir failed";

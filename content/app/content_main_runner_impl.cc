@@ -1096,7 +1096,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   }
 #endif  // BUILDFLAG(USE_ZYGOTE)
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   if (process_type.empty()) {
     // Check if Landlock is supported.
     sandbox::policy::SandboxLinux::ReportLandlockStatus();

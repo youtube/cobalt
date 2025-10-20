@@ -14,8 +14,8 @@
 
 # Note: This is copied from //content/test/BUILD.gn.
 
-import("//build/config/chrome_build.gni")
 import("//build/config/cast.gni")
+import("//build/config/chrome_build.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
@@ -37,8 +37,12 @@ import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/typescript/ts_library.gni")
 import("//v8/gni/v8.gni")
 
+# TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
+# true.
+shell_use_toolkit_views = toolkit_views && !is_castos
+
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_ios) {
@@ -153,7 +157,6 @@ if (is_android) {
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
-      "//base:jni_java",
       "//cobalt/shell/android:cobalt_shell_browsertests_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
@@ -161,6 +164,7 @@ if (is_android) {
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
       "//testing/android/native_test:native_test_java",
+      "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_java",
     ]
   }
@@ -408,15 +412,28 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
-    # TODO(b/428999732): move test switches files to cobalt/testing.
-    "//cobalt/shell/common/shell_test_switches.cc",
-    "//cobalt/shell/common/shell_test_switches.h",
+    "common/shell_content_test_client.cc",
+    "common/shell_content_test_client.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
   ]
+
   public_deps = [
     "//cobalt/shell:cobalt_shell_lib",
     "//components/custom_handlers:test_support",
     "//content/test:test_support",
   ]
+
+  if (shell_use_toolkit_views) {
+    if (use_aura) {
+      sources += [
+        "browser/shell_test_platform_delegate.cc",
+        "browser/shell_test_platform_delegate.h",
+      ]
+
+      public_deps += [ "//ui/views:test_support" ]
+    }
+  }
 }

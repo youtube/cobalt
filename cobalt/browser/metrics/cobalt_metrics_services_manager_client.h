@@ -59,13 +59,8 @@ class CobaltMetricsServicesManagerClient
     return nullptr;
   }
 
-  const ::metrics::EnabledStateProvider& GetEnabledStateProvider() override {
+  CobaltEnabledStateProvider& GetEnabledStateProvider() override {
     return *enabled_state_provider_;
-  }
-
-  // same as above, but mutable.
-  CobaltEnabledStateProvider* mutable_enabled_state_provider() {
-    return enabled_state_provider_.get();
   }
 
   CobaltMetricsServiceClient* metrics_service_client() {
@@ -74,15 +69,17 @@ class CobaltMetricsServicesManagerClient
 
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
+  void ClearMetricsServiceClientRawPtrForTest() { metrics_service_client_ = nullptr; }
+
  private:
+  // EnabledStateProvider to communicate if the client has consented to metrics
+  // reporting, and if it's enabled.
+  std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
+
   // MetricsStateManager which is passed as a parameter to service constructors.
   std::unique_ptr<::metrics::MetricsStateManager> metrics_state_manager_;
 
   base::raw_ptr<CobaltMetricsServiceClient> metrics_service_client_;
-
-  // EnabledStateProvider to communicate if the client has consented to metrics
-  // reporting, and if it's enabled.
-  std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
 
   // Any prefs/state specific to Cobalt Metrics.
   const raw_ptr<PrefService> local_state_;

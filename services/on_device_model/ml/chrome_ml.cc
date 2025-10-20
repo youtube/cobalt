@@ -22,7 +22,7 @@
 #include "services/on_device_model/ml/chrome_ml_api.h"
 #include "services/on_device_model/ml/chrome_ml_holder.h"
 #include "third_party/dawn/include/dawn/dawn_proc.h"
-#include "third_party/dawn/include/dawn/native/DawnNative.h"
+#include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
 #include "third_party/dawn/include/dawn/webgpu_cpp.h"
 #include "third_party/rust/chromium_crates_io/vendor/llguidance-v0_7/llguidance.h"
 

@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+  import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
+} else {
 import("//build_overrides/partition_alloc.gni")
 
 # -----------------------------------------------------------------------------
@@ -123,7 +126,15 @@ declare_args() {
   #     and doesn't wish to incur the library size increase (crbug.com/674570).
   # 2.  On NaCl (through this declaration), where PartitionAlloc doesn't
   #     build at all.
-  use_partition_alloc = !is_nacl && is_clang_or_gcc
+  #
+  # Cobalt comment: it would be a significant change to use PartitionAlloc as
+  # the default allocator in components built by partners. We're considering
+  # that change in b/447346129 but for now set this false in partner toolchains
+  # so that PartitionAlloc is not even linked into partner built binaries.
+  use_partition_alloc = (!is_nacl && is_clang_or_gcc &&
+      !(is_cobalt && ((current_toolchain == starboard_toolchain &&
+                       starboard_toolchain != default_toolchain) ||
+                      current_toolchain == native_target)))
 }
 
 if (!is_clang_or_gcc) {
@@ -546,4 +557,5 @@ declare_args() {
   # https://cs.android.com/android/platform/superproject/+/android14-qpr3-release:bionic/libc/bionic/pthread_mutex.cpp;drc=9108f258adad329a537e10461fbd526d5b9ad8bf;l=242
   enable_partition_lock_priority_inheritance =
       is_android && (current_cpu == "x64" || current_cpu == "arm64")
+}
 }

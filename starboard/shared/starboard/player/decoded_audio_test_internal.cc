@@ -292,7 +292,6 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
       auto duration_of_decoded_audio =
           AudioFramesToDuration(original_decoded_audio->frames(), kSampleRate);
       auto quarter_duration = duration_of_decoded_audio / 4;
-      auto duration_of_one_frame = AudioFramesToDuration(1, kSampleRate) + 1;
       adjusted_decoded_audio->AdjustForDiscardedDurations(
           kSampleRate, quarter_duration, quarter_duration);
       ASSERT_NEAR(adjusted_decoded_audio->frames(),

@@ -21,6 +21,9 @@ config("cobalt_config") {
     ":default_includes",
     ":buildflag_defines",
   ]
+  if (enable_cobalt_hermetic_hacks) {
+    configs += [ ":no_mallinfo" ]
+  }
   if ((current_toolchain == starboard_toolchain &&
        starboard_toolchain != default_toolchain) ||
       current_toolchain == native_target) {
@@ -61,6 +64,13 @@ config("default_includes") {
       "//starboard/android/shared/posix_emu/include",
     ]
   }
+}
+
+declare_args() {
+  # Toolchains can set this true in order to build //base using C++17. Our
+  # version of this upstream library assumes it will be built using C++20 and
+  # some customizations are needed to instead build using C++17.
+  build_base_with_cpp17 = false
 }
 
 config("buildflag_defines") {
@@ -147,4 +157,14 @@ config("buildflag_defines") {
   if (is_native_target_build) {
     defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
   }
+
+  # Use build_base_with_cpp17 and BUILDFLAG(BUILD_BASE_WITH_CPP17) to guard
+  # customizations to //base in order to build the library using C++17.
+  if (build_base_with_cpp17) {
+    defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
+  }
+}
+
+config("no_mallinfo") {
+  defines = [ "__NO_MALLINFO__" ]
 }

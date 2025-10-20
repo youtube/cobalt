@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+  import("//copied_base/base/allocator/allocator.gni")
+} else {
 import("//base/allocator/partition_allocator/partition_alloc.gni")
 
 # Chromium-specific asserts. External embedders _may_ elect to use these
@@ -25,3 +28,4 @@ if (!use_partition_alloc_as_malloc) {
 
 assert(use_allocator_shim || !use_partition_alloc_as_malloc,
        "PartitionAlloc-Everywhere requires the allocator shim")
+}

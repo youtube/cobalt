@@ -84,7 +84,7 @@ static_library("app") {
     "//third_party/crashpad/crashpad/util",
   ]
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  if (is_linux || is_chromeos) {
     sources += [ "crashpad_linux.cc" ]
     data_deps = [ ":chrome_crashpad_handler" ]
   }

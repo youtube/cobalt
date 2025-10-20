@@ -52,9 +52,15 @@ jobs:
           git pull origin experimental/rebase_tools --rebase
 
           # Create new commits json for m114
+          if [[ -f automated_commits_m114.json ]]; then
+              export START_COMMIT="$(jq -r '.[0].original_hexsha' automated_commits_m114.json)"
+          else
+              export START_COMMIT="$(git rev-parse --verify post-chrobalt-tag)"
+          fi
           python main.py commits --repo-path=${GITHUB_WORKSPACE} --source-branch=origin/automated/linear_main \
-            --start-commit-ref="$(git rev-parse --verify post-chrobalt-tag)" --end-commit-ref="$(git rev-parse --verify origin/automated/linear_main)" \
+            --start-commit-ref="${START_COMMIT}" --end-commit-ref="$(git rev-parse --verify origin/automated/linear_main)" \
             --output-file=${GITHUB_WORKSPACE}/automated_commits_m114.json
+
           git add automated_commits_m114.json
           git stash
           git checkout experimental/rebase_tools

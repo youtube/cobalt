@@ -26,12 +26,20 @@ import android.view.SurfaceView;
 import dev.cobalt.util.Log;
 import java.util.HashSet;
 import java.util.Set;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * A Surface view to be used by the video decoder. It informs the Starboard application when the
  * surface is available so that the decoder can get a reference to it.
  */
+@JNINamespace("starboard")
 public class VideoSurfaceView extends SurfaceView {
+  @NativeMethods
+  interface Natives {
+    void onVideoSurfaceChanged(Surface surface);
+    void setNeedResetSurface();
+  }
 
   private static Surface sCurrentSurface = null;
 
@@ -42,7 +50,7 @@ public class VideoSurfaceView extends SurfaceView {
 
     // Reset video surface on nexus player to avoid b/159073388.
     if (sNeedResetSurfaceList.contains(Build.MODEL)) {
-      // nativeSetNeedResetSurface();
+      // VideoSurfaceViewJni.get().setNeedResetSurface();
     }
   }
 
@@ -75,10 +83,6 @@ public class VideoSurfaceView extends SurfaceView {
     // punch-out video when the position / size is animated.
   }
 
-  private static native void nativeOnVideoSurfaceChanged(Surface surface);
-
-  // private static native void nativeSetNeedResetSurface();
-
   private class SurfaceHolderCallback implements SurfaceHolder.Callback {
 
     boolean mSawInitialChange = false;
@@ -86,7 +90,7 @@ public class VideoSurfaceView extends SurfaceView {
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
       sCurrentSurface = holder.getSurface();
-      nativeOnVideoSurfaceChanged(sCurrentSurface);
+      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
     }
 
     @Override
@@ -101,7 +105,7 @@ public class VideoSurfaceView extends SurfaceView {
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
       sCurrentSurface = null;
-      nativeOnVideoSurfaceChanged(sCurrentSurface);
+      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
     }
   }
 

@@ -18,7 +18,7 @@
 #include "gpu/config/gpu_info_collector.h"                    // nogncheck
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "third_party/dawn/include/dawn/dawn_proc.h"          // nogncheck
 #include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
 #include "third_party/dawn/include/dawn/webgpu_cpp.h"         // nogncheck
@@ -56,7 +56,7 @@ void UpdateSandboxOptionsForGpu(
 }
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // If this feature is enabled, a WebGPU device is created for each valid
 // adapter. This makes sure any relevant drivers or other libs are loaded before
 // enabling the sandbox.
@@ -91,7 +91,7 @@ bool OnDeviceModelService::PreSandboxInit() {
   }
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)) {
     // Warm any relevant drivers before attempting to bring up the sandbox. For
     // good measure we initialize a device instance for any adapter with an

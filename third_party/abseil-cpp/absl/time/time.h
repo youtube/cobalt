@@ -620,9 +620,17 @@ ABSL_ATTRIBUTE_CONST_FUNCTION Duration Hours(T n) {
 //
 //   absl::Duration d = absl::Milliseconds(1500);
 //   int64_t isec = absl::ToInt64Seconds(d);  // isec == 1
+#if defined(OS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
+// Not all Cobalt toolchains can compile these functions as constexpr as is
+// done upstream.
+ABSL_ATTRIBUTE_CONST_FUNCTION int64_t ToInt64Nanoseconds(Duration d);
+ABSL_ATTRIBUTE_CONST_FUNCTION int64_t ToInt64Microseconds(Duration d);
+ABSL_ATTRIBUTE_CONST_FUNCTION int64_t ToInt64Milliseconds(Duration d);
+#else
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Nanoseconds(Duration d);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(Duration d);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(Duration d);
+#endif
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Seconds(Duration d);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Minutes(Duration d);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Hours(Duration d);
@@ -1864,6 +1872,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Time FromTimeT(time_t t) {
   return time_internal::FromUnixDuration(Seconds(t));
 }
 
+#if !defined(OS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Nanoseconds(Duration d) {
   if (time_internal::GetRepHi(d) >= 0 &&
       time_internal::GetRepHi(d) >> 33 == 0) {
@@ -1894,6 +1903,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
   }
   return d / Milliseconds(1);
 }
+#endif  // !defined(OS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Seconds(Duration d) {
   int64_t hi = time_internal::GetRepHi(d);

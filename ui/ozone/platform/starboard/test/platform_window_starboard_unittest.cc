@@ -26,7 +26,7 @@ namespace {
 
 // Helper function to create a basic event.
 ui::Event* CreateTestEvent() {
-  return new ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(0, 0),
+  return new ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(0, 0),
                             gfx::Point(0, 0), base::TimeTicks::Now(), 0, 0);
 }
 
@@ -71,7 +71,7 @@ TEST(PlatformWindowStarboardTest, DispatchEvent) {
   const auto result = window->DispatchEvent(event);
   const auto dispatched_event_type = delegate.dispatched_event_type();
   EXPECT_TRUE(dispatched_event_type.has_value());
-  EXPECT_EQ(dispatched_event_type.value(), ui::ET_MOUSE_PRESSED);
+  EXPECT_EQ(dispatched_event_type.value(), ui::EventType::kMousePressed);
 
   EXPECT_EQ(result, ui::POST_DISPATCH_STOP_PROPAGATION);
 

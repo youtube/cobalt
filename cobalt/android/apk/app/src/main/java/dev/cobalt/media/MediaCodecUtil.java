@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /** Utility functions for dealing with MediaCodec related things. */
 @JNINamespace("starboard")
@@ -547,6 +547,58 @@ public class MediaCodecUtil {
     }
 
     return false;
+  }
+
+  @CalledByNative
+  public static int getRangeUpper(Range<Integer> range) {
+    return range.getUpper();
+  }
+
+  @CalledByNative
+  public static int getRangeLower(Range<Integer> range) {
+    return range.getLower();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getAudioBitrateRange(
+      MediaCodecInfo.AudioCapabilities audioCapabilities) {
+    return audioCapabilities.getBitrateRange();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoWidthRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getSupportedWidths();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoHeightRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getSupportedHeights();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoBitrateRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getBitrateRange();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoFrameRateRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getSupportedFrameRates();
+  }
+
+  @CalledByNative
+  public static boolean areSizeAndRateSupported(
+      MediaCodecInfo.VideoCapabilities videoCapabilities, int width, int height, double frameRate) {
+    return videoCapabilities.areSizeAndRateSupported(width, height, frameRate);
+  }
+
+  @CalledByNative
+  public static boolean isSizeSupported(
+      MediaCodecInfo.VideoCapabilities videoCapabilities, int width, int height) {
+    return videoCapabilities.isSizeSupported(width, height);
   }
 
   /**

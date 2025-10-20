@@ -15,21 +15,23 @@
 package dev.cobalt.coat;
 
 import android.view.accessibility.CaptioningManager;
-import dev.cobalt.util.UsedByNative;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /** Captures the system Caption style in properties as needed by the Starboard implementation. */
+@JNINamespace("starboard")
 public class CaptionSettings {
 
-  @UsedByNative public final boolean isEnabled;
-  @UsedByNative public final float fontScale;
-  @UsedByNative public final int edgeType;
-  @UsedByNative public final boolean hasEdgeType;
-  @UsedByNative public final int foregroundColor;
-  @UsedByNative public final boolean hasForegroundColor;
-  @UsedByNative public final int backgroundColor;
-  @UsedByNative public final boolean hasBackgroundColor;
-  @UsedByNative public final int windowColor;
-  @UsedByNative public final boolean hasWindowColor;
+  private final boolean isEnabled;
+  private final float fontScale;
+  private final int edgeType;
+  private final boolean hasEdgeType;
+  private final int foregroundColor;
+  private final boolean hasForegroundColor;
+  private final int backgroundColor;
+  private final boolean hasBackgroundColor;
+  private final int windowColor;
+  private final boolean hasWindowColor;
 
   public CaptionSettings(CaptioningManager cm) {
     CaptioningManager.CaptionStyle style = cm.getUserStyle();
@@ -43,5 +45,55 @@ public class CaptionSettings {
     hasBackgroundColor = style.hasBackgroundColor();
     windowColor = style.windowColor;
     hasWindowColor = style.hasWindowColor();
+  }
+
+  @CalledByNative
+  public boolean isEnabled() {
+    return isEnabled;
+  }
+
+  @CalledByNative
+  public float getFontScale() {
+    return fontScale;
+  }
+
+  @CalledByNative
+  public int getEdgeType() {
+    return edgeType;
+  }
+
+  @CalledByNative
+  public boolean hasEdgeType() {
+    return hasEdgeType;
+  }
+
+  @CalledByNative
+  public int getForegroundColor() {
+    return foregroundColor;
+  }
+
+  @CalledByNative
+  public boolean hasForegroundColor() {
+    return hasForegroundColor;
+  }
+
+  @CalledByNative
+  public int getBackgroundColor() {
+    return backgroundColor;
+  }
+
+  @CalledByNative
+  public boolean hasBackgroundColor() {
+    return hasBackgroundColor;
+  }
+
+  @CalledByNative
+  public int getWindowColor() {
+    return windowColor;
+  }
+
+  @CalledByNative
+  public boolean hasWindowColor() {
+    return hasWindowColor;
   }
 }
