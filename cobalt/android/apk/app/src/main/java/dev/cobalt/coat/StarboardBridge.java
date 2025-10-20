@@ -28,8 +28,6 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
-import android.util.Size;
-import android.util.SizeF;
 import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
@@ -38,7 +36,6 @@ import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -360,24 +357,18 @@ public class StarboardBridge {
     return ttsHelper;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/accessibility_get_caption_settings.cc
   /**
    * @return A new CaptionSettings object with the current system caption settings.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   CaptionSettings getCaptionSettings() {
     CaptioningManager cm =
         (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_locale_id.cc
   /** Java-layer implementation of SbSystemGetLocaleId. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
   }
@@ -394,17 +385,17 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  SizeF getDisplayDpi() {
+  DisplayUtil.DisplayDpi getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
 
+  @CalledByNative
   Size getDisplaySize() {
-    return DisplayUtil.getSystemDisplaySize();
+    android.util.Size size = DisplayUtil.getSystemDisplaySize();
+    return new Size(size.getWidth(), size.getHeight());
   }
 
-  // TODO: (cobalt b/372559388) migrate JNI.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public ResourceOverlay getResourceOverlay() {
     if (resourceOverlay == null) {
       throw new IllegalArgumentException("resourceOverlay cannot be null for native code");
@@ -580,12 +571,14 @@ public class StarboardBridge {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
+  @CalledByNative
   public boolean hasCobaltService(String serviceName) {
     return cobaltServiceFactories.get(serviceName) != null;
   }
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
+  @CalledByNative
   public CobaltService openCobaltService(
       Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
@@ -614,6 +607,7 @@ public class StarboardBridge {
     return cobaltServices.get(serviceName);
   }
 
+  @CalledByNative
   public void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
   }
@@ -677,6 +671,7 @@ public class StarboardBridge {
     }
   }
 
+  @CalledByNative
   public void setCrashContext(String key, String value) {
     CrashContext.INSTANCE.setCrashContext(key, value);
   }
@@ -734,6 +729,28 @@ public class StarboardBridge {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       ((CobaltActivity) activity).finishAffinity();
+    }
+  }
+
+  /** A wrapper of the android.util.Size class to be used by JNI. */
+  @JNINamespace("starboard")
+  public static class Size {
+    private final int mWidth;
+    private final int mHeight;
+
+    public Size(int width, int height) {
+      mWidth = width;
+      mHeight = height;
+    }
+
+    @CalledByNative("Size")
+    public int getWidth() {
+      return mWidth;
+    }
+
+    @CalledByNative("Size")
+    public int getHeight() {
+      return mHeight;
     }
   }
 }

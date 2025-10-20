@@ -123,11 +123,29 @@ source_set("zlib_adler32_simd") {
 }
 
 if (use_arm_neon_optimizations) {
+  if (is_cobalt) {
+    # TODO: b/446904317 - Cobalt: consider extracting this variable for use in
+    # other scopes.
+    _is_platform_defined_toolchain =
+        (current_toolchain == starboard_toolchain &&
+         starboard_toolchain != default_toolchain) ||
+        current_toolchain == native_target
+  }
+
   config("zlib_arm_crc32_config") {
     # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
     #  "All implementations of the ARMv8.1 architecture are required to
     #   implement the CRC32* instructions. These are optional in ARMv8.0."
-    if (!is_ios) {
+    # Cobalt comment: implementations of ARM version less than 8 are not
+    # expected to have CRC32 instructions. Some of our reference toolchains do -
+    # and some partner toolchains may - use ARMv7. This customization is ported
+    # forward from c25.
+    # TODO: b/446904317 - Cobalt: we in theory shouldn't need this exception for
+    # !_is_platform_defined_toolchain toolchains but it turns out that some of
+    # these, such as //build/toolchain/linux:clang_arm, require some of these
+    # defines even though they use ARMv7. We should address this eventually.
+    if (!is_ios && (!is_cobalt || !_is_platform_defined_toolchain ||
+                    current_cpu == "arm64" || arm_version >= 8)) {
       defines = [ "CRC32_ARMV8_CRC32" ]
       if (is_android) {
         defines += [ "ARMV8_OS_ANDROID" ]
@@ -151,7 +169,11 @@ if (use_arm_neon_optimizations) {
     if (!is_ios) {
       include_dirs = [ "." ]
 
-      if (!is_win && !is_clang) {
+      # Cobalt comment: this -march flag value is not recognized by some partner
+      # toolchain compilers, probably because of the GCC version. This
+      # customization is ported forward from c25.
+      if (!is_win && !is_clang &&
+          (!is_cobalt || !_is_platform_defined_toolchain)) {
         assert(!use_thin_lto,
                "ThinLTO fails mixing different module-level targets")
         cflags_c = [ "-march=armv8-a+aes+crc" ]

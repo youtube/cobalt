@@ -43,6 +43,7 @@ import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//cobalt/build/configs/hacks.gni")
+import("//cobalt/build/configs/cobalt_for_google.gni")
 
 if (is_mac) {
   # Used to generate fuzzer corpus :base_mach_port_rendezvous_convert_corpus.
@@ -182,6 +183,14 @@ buildflag_header("ios_cronet_buildflags") {
   header = "ios_cronet_buildflags.h"
   header_dir = "base/message_loop"
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
+}
+
+buildflag_header("cobalt_for_google3_buildflags") {
+  header = "cobalt_for_google3_buildflags.h"
+  header_dir = "base/android"
+  flags = [
+    "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
+  ]
 }
 
 use_epoll = is_linux || is_chromeos || is_android
@@ -1366,7 +1375,12 @@ component("base") {
       "android/trace_event_binding.cc",
       "android/trace_event_binding.h",
     ]
-    deps += [ ":base_jni_headers" ]
+    deps += [ 
+      ":base_jni_headers",
+      ":cobalt_for_google3_buildflags",
+    ]
+
+    
   }  # is_android || is_robolectric
 
   # Chromeos.
@@ -1786,8 +1800,6 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
-
-    all_dependent_configs += [ ":base_starboard_linker_stub" ]
   }
 
   # Windows.
@@ -5051,13 +5063,5 @@ source_set("partition_alloc_test_support") {
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
-  }
-}
-
-if (enable_cobalt_hermetic_hacks) {
-  # TODO: b/413130400 - Cobalt: Remove this config
-  # after removing base/starboard/linker_stub.h
-  config("base_starboard_linker_stub") {
-    cflags = ["-Wno-unreachable-code-break"]
   }
 }

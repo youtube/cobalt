@@ -31,6 +31,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/extension/crash_handler.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
@@ -277,6 +278,18 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   client->SendSanitizationInformationToHandler(sanitization_info);
 #endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
+  // |InsertCrashpadAnnotation| is injected into the extension implementation
+  // to avoid a build dependency from the extension implementation on this
+  // wrapper library. Such a dependency would introduce a cycle because this
+  // library indirectly depends on //base, and //base depends on //starboard.
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 3) {
+    crash_handler_extension->RegisterSetStringCallback(
+        &InsertCrashpadAnnotation);
+  }
+
   RecordStatus(CrashpadInstallationStatus::kSucceeded);
 }
 
@@ -286,14 +299,8 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
 }
 
 bool InsertCrashpadAnnotation(const char* key, const char* value) {
-// TODO: b/446908034 - enable annotations to be set using this API.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  SB_NOTIMPLEMENTED();
-  return false;
-#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
   return client->InsertAnnotationForHandler(key, value);
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }
 
 }  // namespace crashpad

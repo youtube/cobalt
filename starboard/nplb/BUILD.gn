@@ -14,7 +14,6 @@
 
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
-import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
 
 declare_args() {
@@ -41,8 +40,6 @@ test("nplb") {
 
   # TODO(b/432821616): Move |media_sources| to a source_set.
   media_sources = [
-    "//starboard/shared/starboard/drm/drm_test_helpers.cc",
-    "//starboard/shared/starboard/drm/drm_test_helpers.h",
     "//starboard/testing/fake_graphics_context_provider.cc",
     "//starboard/testing/fake_graphics_context_provider.h",
     "audio_sink_create_test.cc",
@@ -187,6 +184,7 @@ test("nplb") {
       "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_resource_limit_test.cc",
+      "posix_compliance/posix_sched_getaffinity_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -324,7 +322,9 @@ test("nplb") {
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/common:file_wrapper",
+    "//starboard/egl_and_gles:buildflags",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
+    "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",
     "//testing/gmock",

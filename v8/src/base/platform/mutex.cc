@@ -433,60 +433,7 @@ bool SharedMutex::TryLockExclusive() {
   return result;
 }
 
-#elif V8_OS_STARBOARD
-
-Mutex::Mutex() { SbMutexCreate(&native_handle_); }
-
-Mutex::~Mutex() { SbMutexDestroy(&native_handle_); }
-
-void Mutex::Lock() { SbMutexAcquire(&native_handle_); }
-
-void Mutex::Unlock() { SbMutexRelease(&native_handle_); }
-
-RecursiveMutex::RecursiveMutex() {}
-
-RecursiveMutex::~RecursiveMutex() {}
-
-void RecursiveMutex::Lock() { native_handle_.Acquire(); }
-
-void RecursiveMutex::Unlock() { native_handle_.Release(); }
-
-bool RecursiveMutex::TryLock() { return native_handle_.AcquireTry(); }
-
-SharedMutex::SharedMutex() = default;
-
-SharedMutex::~SharedMutex() = default;
-
-void SharedMutex::LockShared() {
-  DCHECK(TryHoldSharedMutex(this));
-  native_handle_.AcquireReadLock();
-}
-
-void SharedMutex::LockExclusive() {
-  DCHECK(TryHoldSharedMutex(this));
-  native_handle_.AcquireWriteLock();
-}
-
-void SharedMutex::UnlockShared() {
-  DCHECK(TryReleaseSharedMutex(this));
-  native_handle_.ReleaseReadLock();
-}
-
-void SharedMutex::UnlockExclusive() {
-  DCHECK(TryReleaseSharedMutex(this));
-  native_handle_.ReleaseWriteLock();
-}
-
-bool SharedMutex::TryLockShared() {
-  DCHECK(SharedMutexNotHeld(this));
-  return false;
-}
-
-bool SharedMutex::TryLockExclusive() {
-  DCHECK(SharedMutexNotHeld(this));
-  return false;
-}
-#endif  // V8_OS_STARBOARD
+#endif  // V8_OS_POSIX
 
 }  // namespace base
 }  // namespace v8

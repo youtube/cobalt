@@ -22,6 +22,8 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
+#include "cobalt/android/jni_headers/PlatformError_jni.h"
+
 namespace {
 using base::android::ScopedJavaGlobalRef;
 using starboard::ApplicationAndroid;
@@ -64,11 +66,9 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
   return true;
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_PlatformError_nativeSendResponse(JNIEnv* env,
-                                                      jobject unused_this,
-                                                      jint jni_response,
-                                                      jlong jni_data) {
+void JNI_PlatformError_SendResponse(JNIEnv* env,
+                                    jint jni_response,
+                                    jlong jni_data) {
   SendResponseCallback* send_response_callback =
       reinterpret_cast<SendResponseCallback*>(jni_data);
   if (send_response_callback) {

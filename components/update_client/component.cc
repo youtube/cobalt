@@ -44,6 +44,10 @@
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/cobalt_slot_management.h"
+#endif
+
 // The state machine representing how a CRX component changes during an update.
 //
 //     +------------------------- kNew
@@ -91,6 +95,8 @@
 //          |                              |
 //     kUpdateError                    kCanUpdate
 
+// TODO(b/448186580): consider replacing all LOG with D(V)LOG.
+
 namespace update_client {
 namespace {
 
@@ -101,17 +107,29 @@ void InstallComplete(scoped_refptr<base::SequencedTaskRunner> main_task_runner,
                      InstallOnBlockingTaskRunnerCompleteCallback callback,
                      const base::FilePath& unpack_path,
                      const CrxInstaller::Result& result) {
+#if BUILDFLAG(IS_STARBOARD)
+  DLOG(INFO) << "InstallComplete";
+#endif
   base::ThreadPool::PostTask(
-      FROM_HERE, kTaskTraits,
-      base::BindOnce(
-          [](scoped_refptr<base::SequencedTaskRunner> main_task_runner,
-             InstallOnBlockingTaskRunnerCompleteCallback callback,
-             const base::FilePath& unpack_path,
-             const CrxInstaller::Result& result) {
-            base::DeletePathRecursively(unpack_path);
-            const ErrorCategory error_category =
-                result.error ? ErrorCategory::kInstall : ErrorCategory::kNone;
-            main_task_runner->PostTask(
+       FROM_HERE, kTaskTraits,
+       base::BindOnce(
+           [](scoped_refptr<base::SequencedTaskRunner> main_task_runner,
+              InstallOnBlockingTaskRunnerCompleteCallback callback,
+              const base::FilePath& unpack_path,
+              const CrxInstaller::Result& result) {
+#if BUILDFLAG(IS_STARBOARD)
+              // TODO(b/448186580): Replace LOG with D(V)LOG
+              LOG(INFO) << "Closure kicked off from InstallComplete";
+              // For Cobalt, don't delete the unpack_path, which is not a
+              // temp directory.
+              // Cobalt uses a dedicated installation slot obtained from
+              // the Installation Manager.
+#else
+              base::DeletePathRecursively(unpack_path);
+#endif
+             const ErrorCategory error_category =
+                 result.error ? ErrorCategory::kInstall : ErrorCategory::kNone;
+             main_task_runner->PostTask(
                 FROM_HERE, base::BindOnce(std::move(callback), error_category,
                                           static_cast<int>(result.error),
                                           result.extended_error));
@@ -123,6 +141,12 @@ void InstallOnBlockingTaskRunner(
     scoped_refptr<base::SequencedTaskRunner> main_task_runner,
     const base::FilePath& unpack_path,
     const std::string& public_key,
+#if BUILDFLAG(IS_STARBOARD)
+    int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
+#endif
     const std::string& fingerprint,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
     scoped_refptr<CrxInstaller> installer,
@@ -130,9 +154,15 @@ void InstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   CHECK(base::DirectoryExists(unpack_path));
 
+#if BUILDFLAG(IS_STARBOARD)
+  DLOG(INFO) << "InstallOnBlockingTaskRunner";
+#endif
+
+#if !BUILDFLAG(IS_STARBOARD)
   // Acquire the ownership of the |unpack_path|.
   base::ScopedTempDir unpack_path_owner;
   std::ignore = unpack_path_owner.Set(unpack_path);
+#endif
 
   if (!base::WriteFile(
           unpack_path.Append(FILE_PATH_LITERAL("manifest.fingerprint")),
@@ -145,6 +175,43 @@ void InstallOnBlockingTaskRunner(
     return;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  InstallError install_error = InstallError::NONE;
+  const CobaltExtensionInstallationManagerApi* installation_api =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_api) {
+    LOG(ERROR) << "Failed to get installation manager api.";
+    install_error = InstallError::GENERIC_ERROR;
+  } else if (installation_index == IM_EXT_INVALID_INDEX) {
+    LOG(ERROR) << "Installation index is invalid.";
+    install_error = InstallError::GENERIC_ERROR;
+  } else {
+    char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
+    if (installation_api->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
+        IM_EXT_ERROR) {
+      LOG(ERROR) << "Failed to get app key.";
+      install_error = InstallError::GENERIC_ERROR;
+    } else if (CobaltFinishInstallation(installation_api, installation_index,
+                                    unpack_path.value(), app_key)) {
+      // Write the version of the unpacked update package to the persisted data.
+      if (metadata != nullptr) {
+        main_task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+              &PersistedData::SetLastInstalledEgAndSbVersion,
+              base::Unretained(metadata), id, version,
+              std::to_string(SB_API_VERSION)));
+      }
+    } else {
+      LOG(ERROR) << "CobaltFinishInstallation failed.";
+      install_error = InstallError::GENERIC_ERROR;
+    }
+  }
+
+  CrxInstaller::Result result(install_error);
+  InstallComplete(main_task_runner, std::move(callback), unpack_path, result);
+
+#else
   // Ensures that progress callback is not posted after the completion
   // callback. There is a current design limitation in the update client where a
   // poorly implemented installer could post progress after the completion, and
@@ -200,6 +267,7 @@ void InstallOnBlockingTaskRunner(
           callback_checker,
           base::BindOnce(&InstallComplete, main_task_runner,
                          std::move(callback), unpack_path_owner.Take())));
+#endif                        
 }
 
 #if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
@@ -281,16 +349,52 @@ void UnpackCompleteOnBlockingTaskRunner(
 #else
 void UnpackCompleteOnBlockingTaskRunner(
     scoped_refptr<base::SequencedTaskRunner> main_task_runner,
+#if defined(IN_MEMORY_UPDATES)
+    const base::FilePath& installation_dir,
+#else
     const base::FilePath& crx_path,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
+#endif
     const std::string& fingerprint,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
     scoped_refptr<CrxInstaller> installer,
     CrxInstaller::ProgressCallback progress_callback,
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const ComponentUnpacker::Result& result) {
+#if BUILDFLAG(IS_STARBOARD)
+  DLOG(INFO) << "UnpackCompleteOnBlockingTaskRunner";
+#if !defined(IN_MEMORY_UPDATES)
+  base::DeleteFile(crx_path);
+#endif  // !defined(IN_MEMORY_UPDATES)
+#else  // BUILDFLAG(IS_STARBOARD)
   update_client::DeleteFileAndEmptyParentDirectory(crx_path);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   if (result.error != UnpackerError::kNone) {
+#if BUILDFLAG(IS_STARBOARD)
+    // When there is an error unpacking the downloaded CRX, such as a failure to
+    // verify the package, we should remember to clear out any drain files.
+#if defined(IN_MEMORY_UPDATES)
+    if (base::DirectoryExists(installation_dir)) {
+#else  // defined(IN_MEMORY_UPDATES)
+    if (base::DirectoryExists(crx_path.DirName())) {
+#endif  // defined(IN_MEMORY_UPDATES)
+      const auto installation_api =
+        static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+      if (installation_api) {
+        CobaltSlotManagement cobalt_slot_management;
+        if (cobalt_slot_management.Init(installation_api)) {
+          cobalt_slot_management.CleanupAllDrainFiles();
+        }
+      }
+    }
+#endif  // #if BUILDFLAG(IS_STARBOARD)
     main_task_runner->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback), ErrorCategory::kUnpack,
@@ -301,7 +405,14 @@ void UnpackCompleteOnBlockingTaskRunner(
   base::ThreadPool::PostTask(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
-                     result.unpack_path, result.public_key, fingerprint,
+                     result.unpack_path, result.public_key, 
+#if BUILDFLAG(IS_STARBOARD)
+                     installation_index,
+                     metadata,
+                     id,
+                     version,
+#endif                     
+                     fingerprint,
                      std::move(install_params), installer, progress_callback,
                      std::move(callback)));
 }
@@ -334,7 +445,18 @@ void StartInstallOnBlockingTaskRunner(
 void StartInstallOnBlockingTaskRunner(
     scoped_refptr<base::SequencedTaskRunner> main_task_runner,
     const std::vector<uint8_t>& pk_hash,
+#if defined(IN_MEMORY_UPDATES)
+    const base::FilePath& installation_dir,
+    const std::string* crx_str,
+#else
     const base::FilePath& crx_path,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
+#endif
     const std::string& fingerprint,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
     scoped_refptr<CrxInstaller> installer,
@@ -343,12 +465,31 @@ void StartInstallOnBlockingTaskRunner(
     crx_file::VerifierFormat crx_format,
     CrxInstaller::ProgressCallback progress_callback,
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  DLOG(INFO) << "StartInstallOnBlockingTaskRunner";
+#endif
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
-      pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
+      pk_hash,
+#if defined(IN_MEMORY_UPDATES)
+      crx_str,
+      installation_dir,
+#else
+      crx_path,
+#endif
+      installer, std::move(unzipper_), std::move(patcher_),
       crx_format);
 
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
-                                  main_task_runner, crx_path, fingerprint,
+                                  main_task_runner,
+#if defined(IN_MEMORY_UPDATES)
+                                  installation_dir,
+#else
+                                  crx_path,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+                                  installation_index, metadata, id, version,
+#endif
+                                  fingerprint,
                                   std::move(install_params), installer,
                                   progress_callback, std::move(callback)));
 }
@@ -508,8 +649,20 @@ void Component::Handle(CallbackHandleComplete callback_handle_complete) {
       base::BindOnce(&Component::ChangeState, base::Unretained(this)));
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void Component::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  is_cancelled_ = true;
+  state_->Cancel();
+}
+#endif
+
 void Component::ChangeState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "Component::ChangeState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
+#endif
 
   previous_state_ = state();
   if (next_state)
@@ -646,6 +799,12 @@ void Component::AppendEvent(base::Value::Dict event) {
 void Component::NotifyObservers(UpdateClient::Observer::Events event) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if BUILDFLAG(IS_STARBOARD)
+  if (is_cancelled_) {
+    LOG(WARNING) << "Component::NotifyObservers: skip callback";
+    return;
+  }
+#endif
   // There is no corresponding component state for the COMPONENT_WAIT event.
   if (update_context_->crx_state_change_callback &&
       event != UpdateClient::Observer::Events::COMPONENT_WAIT) {
@@ -813,9 +972,21 @@ void Component::State::Handle(CallbackNextState callback_next_state) {
   DoHandle();
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void Component::State::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Further work may be needed to ensure cancellation during any state results
+  // in a clear result and no memory leaks.
+}
+#endif
+
 void Component::State::TransitionState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(next_state);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "Component::State::TransitionState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
+#endif
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -881,6 +1052,25 @@ void Component::StateChecking::DoHandle() {
   auto& component = State::component();
   CHECK(component.crx_component());
 
+#if BUILDFLAG(IS_STARBOARD)
+  auto& config = component.update_context_->config;
+  auto metadata = component.update_context_->update_checker->GetPersistedData();
+  if (metadata) {
+    auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+    task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetUpdaterChannel,
+                                  base::Unretained(metadata), component.id_,
+                                  config->GetChannel()));
+    task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetLatestChannel,
+                                  base::Unretained(metadata),
+                                  config->GetChannel()));
+  } else {
+    LOG(WARNING) << "Failed to get the persisted data store to write the "
+                       "updater channel.";
+  }
+#endif
+
   if (component.error_code_) {
     TransitionState(std::make_unique<StateUpdateError>(&component));
     return;
@@ -926,8 +1116,15 @@ void Component::StateUpdateError::DoHandle() {
   CHECK_NE(ErrorCategory::kNone, component.error_category_);
   CHECK_NE(0, component.error_code_);
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Create an event when the server response included an update, or when it's
+  // an update check error, like quick roll-forward or out of space
+  if (component.IsUpdateAvailable() ||
+      component.error_category_ == ErrorCategory::kUpdateCheck)
+#else
   // Create an event only when the server response included an update.
   if (component.IsUpdateAvailable())
+#endif
     component.AppendEvent(component.MakeEventUpdateComplete());
 
   EndState();
@@ -1016,6 +1213,13 @@ Component::StateDownloadingDiff::~StateDownloadingDiff() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void Component::StateDownloadingDiff::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  crx_downloader_->CancelDownload();
+}
+#endif
+
 void Component::StateDownloadingDiff::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -1025,14 +1229,22 @@ void Component::StateDownloadingDiff::DoHandle() {
   component.downloaded_bytes_ = -1;
   component.total_bytes_ = -1;
 
+#if BUILDFLAG(IS_STARBOARD)
+  crx_downloader_ = component.config()->GetCrxDownloaderFactory()->MakeCrxDownloader(
+          component.config());
+#else
   crx_downloader_ =
       component.config()->GetCrxDownloaderFactory()->MakeCrxDownloader(
           component.CanDoBackgroundDownload());
+#endif
   crx_downloader_->set_progress_callback(
       base::BindRepeating(&Component::StateDownloadingDiff::DownloadProgress,
                           base::Unretained(this)));
   crx_downloader_->StartDownload(
       component.crx_diffurls_, component.hashdiff_sha256_,
+#if defined(IN_MEMORY_UPDATES)
+      &component.crx_str_,
+#endif
       base::BindOnce(&Component::StateDownloadingDiff::DownloadComplete,
                      base::Unretained(this)));
 
@@ -1069,7 +1281,9 @@ void Component::StateDownloadingDiff::DownloadComplete(
   }
 
   if (download_result.error) {
+#if !defined(IN_MEMORY_UPDATES)
     CHECK(download_result.response.empty());
+#endif
     component.diff_error_category_ = ErrorCategory::kDownload;
     component.diff_error_code_ = download_result.error;
 
@@ -1077,7 +1291,15 @@ void Component::StateDownloadingDiff::DownloadComplete(
     return;
   }
 
+#if defined(IN_MEMORY_UPDATES)
+  component.installation_dir_ = download_result.installation_dir;
+#else
   component.payload_path_ = download_result.response;
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  component.installation_index_ = download_result.installation_index;
+#endif
 
   TransitionState(std::make_unique<StateUpdatingDiff>(&component));
 }
@@ -1089,6 +1311,13 @@ Component::StateDownloading::~StateDownloading() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void Component::StateDownloading::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  crx_downloader_->CancelDownload();
+}
+#endif
+
 void Component::StateDownloading::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -1098,13 +1327,21 @@ void Component::StateDownloading::DoHandle() {
   component.downloaded_bytes_ = -1;
   component.total_bytes_ = -1;
 
+#if BUILDFLAG(IS_STARBOARD)
+  crx_downloader_ = component.config()->GetCrxDownloaderFactory()->MakeCrxDownloader(
+          component.config());
+#else
   crx_downloader_ =
       component.config()->GetCrxDownloaderFactory()->MakeCrxDownloader(
           component.CanDoBackgroundDownload());
+#endif
   crx_downloader_->set_progress_callback(base::BindRepeating(
       &Component::StateDownloading::DownloadProgress, base::Unretained(this)));
   crx_downloader_->StartDownload(
       component.crx_urls_, component.hash_sha256_,
+#if defined(IN_MEMORY_UPDATES)
+      &component.crx_str_,
+#endif
       base::BindOnce(&Component::StateDownloading::DownloadComplete,
                      base::Unretained(this)));
 
@@ -1150,7 +1387,15 @@ void Component::StateDownloading::DownloadComplete(
     return;
   }
 
+#if defined(IN_MEMORY_UPDATES)
+  component.installation_dir_ = download_result.installation_dir;
+#else
   component.payload_path_ = download_result.response;
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  component.installation_index_ = download_result.installation_index;
+#endif
 
   TransitionState(std::make_unique<StateUpdating>(&component));
 }
@@ -1215,7 +1460,18 @@ void Component::StateUpdatingDiff::DoHandle() {
           base::BindOnce(
               &update_client::StartInstallOnBlockingTaskRunner,
               base::SequencedTaskRunner::GetCurrentDefault(),
-              component.crx_component()->pk_hash, component.payload_path_,
+              component.crx_component()->pk_hash,
+#if defined(IN_MEMORY_UPDATES)
+              component.installation_dir_,
+              &component.crx_str_,
+#else
+              component.payload_path_,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+              component.installation_index_,
+              update_context.update_checker->GetPersistedData(), component.id_,
+              component.next_version_.GetString(),
+#endif
               component.next_fp_, component.install_params(),
               component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
@@ -1316,7 +1572,18 @@ void Component::StateUpdating::DoHandle() {
           base::BindOnce(
               &update_client::StartInstallOnBlockingTaskRunner,
               main_task_runner, component.crx_component()->pk_hash,
-              component.payload_path_, component.next_fp_,
+#if defined(IN_MEMORY_UPDATES)
+              component.installation_dir_,
+              &component.crx_str_,
+#else
+              component.payload_path_,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+              component.installation_index_,
+              update_context.update_checker->GetPersistedData(),
+              component.id_, component.next_version_.GetString(),
+#endif
+              component.next_fp_,
               component.install_params(), component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
               update_context.config->GetPatcherFactory()->Create(),

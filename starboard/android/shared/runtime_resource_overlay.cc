@@ -15,10 +15,13 @@
 #include "starboard/android/shared/runtime_resource_overlay.h"
 
 #include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
+#include "base/android/scoped_java_ref.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/string.h"
+
+#include "cobalt/android/jni_headers/ResourceOverlay_jni.h"
 
 namespace starboard {
 
@@ -27,20 +30,24 @@ SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  jobject resource_overlay = JniCallObjectMethodOrAbort(
-      env, JNIState::GetStarboardBridge(), "getResourceOverlay",
-      "()Ldev/cobalt/coat/ResourceOverlay;");
+  base::android::ScopedJavaLocalRef<jobject> resource_overlay =
+      StarboardBridge::GetInstance()->GetResourceOverlay(env);
 
   // Retrieve all Runtime Resource Overlay variables during initialization, so
   // synchronization isn't needed on access.
-  min_audio_sink_buffer_size_in_frames_ = JniGetIntFieldOrAbort(
-      env, resource_overlay, "min_audio_sink_buffer_size_in_frames", "I");
-  max_video_buffer_budget_ = JniGetIntFieldOrAbort(
-      env, resource_overlay, "max_video_buffer_budget", "I");
+  min_audio_sink_buffer_size_in_frames_ =
+      Java_ResourceOverlay_getMinAudioSinkBufferSizeInFrames(env,
+                                                             resource_overlay);
+  max_video_buffer_budget_ =
+      Java_ResourceOverlay_getMaxVideoBufferBudget(env, resource_overlay);
 
-  SB_LOG(INFO) << "Loaded RRO values\n\tmin_audio_sink_buffer_size_in_frames: "
+  supports_spherical_videos_ =
+      Java_ResourceOverlay_getSupportsSphericalVideos(env, resource_overlay);
+  SB_LOG(INFO) << "Loaded RRO values: min_audio_sink_buffer_size_in_frames="
                << min_audio_sink_buffer_size_in_frames_
-               << "\n\tmax_video_buffer_budget: " << max_video_buffer_budget_;
+               << ", max_video_buffer_budget=" << max_video_buffer_budget_
+               << ", supports_spherical_videos="
+               << to_string(supports_spherical_videos_);
 }
 
 }  // namespace starboard

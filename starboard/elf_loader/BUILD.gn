@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/config/os_definitions.gni")
 
 _elf_loader_sources = [
   "dynamic_section.cc",
@@ -108,10 +107,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
-    # can build it and its deps.
-    if (sb_is_evergreen_compatible && target_os == "linux" &&
-        target_cpu == "x64") {
+    if (sb_is_evergreen_compatible && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
@@ -152,10 +148,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
     ]
 
-    # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
-    # can build it and its deps.
-    if (sb_is_evergreen_compatible && target_os == "linux" &&
-        target_cpu == "x64") {
+    if (sb_is_evergreen_compatible && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

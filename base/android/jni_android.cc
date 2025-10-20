@@ -17,6 +17,7 @@
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_utils.h"
+#include "base/android/cobalt_for_google3_buildflags.h"
 #include "base/base_jni_headers/PiiElider_jni.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/logging.h"
@@ -47,9 +48,6 @@ bool g_fatal_exception_occurred = false;
 const char* COBALT_ORG_CHROMIUM = "cobalt/org/chromium";
 const char* ORG_CHROMIUM = "org/chromium";
 
-bool g_add_cobalt_prefix = false;
-std::atomic<bool> g_checked_command_line(false);
-
 std::string getRepackagedName(const char* signature) {
   std::string holder(signature);
   size_t pos = 0;
@@ -61,13 +59,52 @@ std::string getRepackagedName(const char* signature) {
 }
 
 bool shouldAddCobaltPrefix() {
-  if (!g_checked_command_line && base::CommandLine::InitializedForCurrentProcess()) {
-    g_add_cobalt_prefix = base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kCobaltJniPrefix);
-    g_checked_command_line = true;
-  }
-  return g_add_cobalt_prefix;
-}
+#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+  // The flag is set in cobalt/build/android/package.py
+  return true;
+#else
+  return false;
 #endif
+}
+
+// Java exception stack trace example:
+//
+// java.lang.RuntimeException: Hello
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodC(VideoFrameReleaseTimeHelper.java:111)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodB(VideoFrameReleaseTimeHelper.java:115)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodA(VideoFrameReleaseTimeHelper.java:119)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.adjustReleaseTime(VideoFrameReleaseTimeHelper.java:135)
+std::string GetFirstLine(const std::string& stack_trace) {
+  return stack_trace.substr(0, stack_trace.find('\n'));
+}
+
+std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
+    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
+
+    std::vector<std::string> all_matches;
+    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
+    std::sregex_iterator end;
+
+    while (it != end && all_matches.size() < max_matches) {
+        std::smatch match = *it;
+
+        // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
+        all_matches.push_back(match[0].str());
+
+        ++it; // Move to the next match
+    }
+
+    std::ostringstream oss;
+    for (size_t i = 0; i < all_matches.size(); ++i) {
+        oss << all_matches[i];
+        if (i < all_matches.size() - 1) {
+            oss << "&";
+        }
+    }
+
+    return oss.str();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
 #if BUILDFLAG(IS_COBALT)
@@ -350,7 +387,9 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
       std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
       base::android::SetJavaException(exception_info.c_str());
-      exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
+      exception_token =
+          GetFirstLine(exception_info) + " at " +
+          FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
 #else
       // RVO should avoid any extra copies of the exception string.
       base::android::SetJavaException(
@@ -374,35 +413,6 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
 
   return ConvertJavaStringToUTF8(sanitized_exception_string);
 }
-
-#if BUILDFLAG(IS_COBALT)
-std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
-    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
-
-    std::vector<std::string> all_matches;
-    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
-    std::sregex_iterator end;
-
-    while (it != end && all_matches.size() < max_matches) {
-        std::smatch match = *it;
-        
-        // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
-        all_matches.push_back(match[0].str());
-        
-        ++it; // Move to the next match
-    }
-
-    std::ostringstream oss;
-    for (size_t i = 0; i < all_matches.size(); ++i) {
-        oss << all_matches[i];
-        if (i < all_matches.size() - 1) {
-            oss << "&";
-        }
-    }
-
-    return oss.str();
-}
-#endif
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 
