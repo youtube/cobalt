@@ -16,6 +16,10 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "net/quic/platform/impl/quic_chromium_clock.h"
+
+#ifdef UNSAFE_BUFFERS_BUILD
+#pragma allow_unsafe_buffers
+#endif
 #endif
 
 namespace net {
