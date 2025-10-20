@@ -31,15 +31,11 @@ namespace {
 
 struct EradicateParam {
   EradicateParam(MediaCodecBridgeEradicator* eradicator,
-                 jobject j_media_codec_bridge,
-                 jobject j_reused_get_output_format_result)
-      : eradicator(eradicator),
-        j_media_codec_bridge(j_media_codec_bridge),
-        j_reused_get_output_format_result(j_reused_get_output_format_result) {}
+                 jobject j_media_codec_bridge)
+      : eradicator(eradicator), j_media_codec_bridge(j_media_codec_bridge) {}
 
   MediaCodecBridgeEradicator* eradicator;
   jobject j_media_codec_bridge;
-  jobject j_reused_get_output_format_result;
 };
 
 }  // namespace
@@ -66,9 +62,7 @@ bool MediaCodecBridgeEradicator::WaitForPendingDestructions() {
   return true;
 }
 
-bool MediaCodecBridgeEradicator::Destroy(
-    jobject j_media_codec_bridge,
-    jobject j_reused_get_output_format_result) {
+bool MediaCodecBridgeEradicator::Destroy(jobject j_media_codec_bridge) {
   // Since the native media_codec_bridge object is about to be destroyed, remove
   // its reference from the Java MediaCodecBridge object to prevent further
   // access. Otherwise it could lead to an application crash.
@@ -84,8 +78,7 @@ bool MediaCodecBridgeEradicator::Destroy(
     j_media_codec_bridge_set_.insert(j_media_codec_bridge);
   }
 
-  EradicateParam* param = new EradicateParam(this, j_media_codec_bridge,
-                                             j_reused_get_output_format_result);
+  EradicateParam* param = new EradicateParam(this, j_media_codec_bridge);
   pthread_t thread_id;
   int result = pthread_create(
       &thread_id, nullptr, &MediaCodecBridgeEradicator::DestroyMediaCodecBridge,
@@ -113,8 +106,6 @@ void* MediaCodecBridgeEradicator::DestroyMediaCodecBridge(void* context) {
 
   MediaCodecBridgeEradicator* eradicator = param->eradicator;
   jobject j_media_codec_bridge = param->j_media_codec_bridge;
-  jobject j_reused_get_output_format_result =
-      param->j_reused_get_output_format_result;
 
   delete param;
   param = NULL;
@@ -126,9 +117,6 @@ void* MediaCodecBridgeEradicator::DestroyMediaCodecBridge(void* context) {
   env->CallVoidMethodOrAbort(j_media_codec_bridge, "stop", "()V");
   env->CallVoidMethodOrAbort(j_media_codec_bridge, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge);
-
-  SB_DCHECK(j_reused_get_output_format_result);
-  env->DeleteGlobalRef(j_reused_get_output_format_result);
 
   {
     // the work is finished, delete the j_media_codec_bridge from the set

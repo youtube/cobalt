@@ -407,8 +407,7 @@ MediaCodecBridge::~MediaCodecBridge() {
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
     if (MediaCodecBridgeEradicator::GetInstance()->Destroy(
-            j_media_codec_bridge_.obj(),
-            j_reused_get_output_format_result_.obj())) {
+            j_media_codec_bridge_.obj())) {
       return;
     }
     SB_LOG(WARNING)
@@ -526,21 +525,29 @@ void MediaCodecBridge::Stop() {
 
 FrameSize MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_get_output_format_result(
+      Java_GetOutputFormatResult_Constructor(env));
   Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
+                                        j_get_output_format_result);
 
-  jint textureWidth = Java_GetOutputFormatResult_textureWidth(
-      env, j_reused_get_output_format_result_);
-  jint textureHeight = Java_GetOutputFormatResult_textureHeight(
-      env, j_reused_get_output_format_result_);
-  jint cropLeft = Java_GetOutputFormatResult_cropLeft(
-      env, j_reused_get_output_format_result_);
-  jint cropTop = Java_GetOutputFormatResult_cropTop(
-      env, j_reused_get_output_format_result_);
-  jint cropRight = Java_GetOutputFormatResult_cropRight(
-      env, j_reused_get_output_format_result_);
-  jint cropBottom = Java_GetOutputFormatResult_cropBottom(
-      env, j_reused_get_output_format_result_);
+  jint status =
+      Java_GetOutputFormatResult_status(env, j_get_output_format_result);
+  if (status == MEDIA_CODEC_ERROR) {
+    return {};
+  }
+
+  jint textureWidth =
+      Java_GetOutputFormatResult_textureWidth(env, j_get_output_format_result);
+  jint textureHeight =
+      Java_GetOutputFormatResult_textureHeight(env, j_get_output_format_result);
+  jint cropLeft =
+      Java_GetOutputFormatResult_cropLeft(env, j_get_output_format_result);
+  jint cropTop =
+      Java_GetOutputFormatResult_cropTop(env, j_get_output_format_result);
+  jint cropRight =
+      Java_GetOutputFormatResult_cropRight(env, j_get_output_format_result);
+  jint cropBottom =
+      Java_GetOutputFormatResult_cropBottom(env, j_get_output_format_result);
 
   FrameSize size = {textureWidth, textureHeight, cropLeft,
                     cropTop,      cropRight,     cropBottom};
@@ -551,20 +558,22 @@ FrameSize MediaCodecBridge::GetOutputSize() {
 
 AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
   JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_get_output_format_result(
+      Java_GetOutputFormatResult_Constructor(env));
   Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
+                                        j_get_output_format_result);
 
-  jint status = Java_GetOutputFormatResult_status(
-      env, j_reused_get_output_format_result_);
+  jint status =
+      Java_GetOutputFormatResult_status(env, j_get_output_format_result);
 
   if (status == MEDIA_CODEC_ERROR) {
     return {status, 0, 0};
   }
 
-  jint sample_rate = Java_GetOutputFormatResult_sampleRate(
-      env, j_reused_get_output_format_result_);
-  jint channel_count = Java_GetOutputFormatResult_channelCount(
-      env, j_reused_get_output_format_result_);
+  jint sample_rate =
+      Java_GetOutputFormatResult_sampleRate(env, j_get_output_format_result);
+  jint channel_count =
+      Java_GetOutputFormatResult_channelCount(env, j_get_output_format_result);
 
   return {status, sample_rate, channel_count};
 }
@@ -610,17 +619,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JNIEnv* env_jni = AttachCurrentThread();
   j_media_codec_bridge_.Reset(env_jni, j_media_codec_bridge);
-
-  // TODO: (cobalt b/390481510) Consolidate env variables when the rest of
-  // MediaCodecBridge is migrated.
-  JniEnvExt* env = JniEnvExt::Get();
-
-  jobject j_reused_get_output_format_result_raw = env->NewObjectOrAbort(
-      "dev/cobalt/media/MediaCodecBridge$GetOutputFormatResult", "()V");
-  SB_DCHECK(j_reused_get_output_format_result_raw);
-
-  j_reused_get_output_format_result_.Reset(
-      env_jni, j_reused_get_output_format_result_raw);
 }
 
 // static
