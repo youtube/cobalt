@@ -166,16 +166,12 @@ source_set("browsertests_sources") {
   sources = [
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
     "common/shell_test_switches.cc",
     "common/shell_test_switches.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
     "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
   ]
 
   public_deps = [
@@ -479,7 +475,6 @@ mojom("browsertests_mojom") {
   testonly = true
   sources = [
     "common/main_frame_counter_test.mojom",
-    "common/power_monitor_test.mojom",
     "common/render_frame_test_helper.mojom",
   ]
   public_deps = [

@@ -18,7 +18,7 @@
 #include <memory>
 
 #include "build/chromeos_buildflags.h"
-#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -30,7 +30,7 @@
 namespace content {
 
 // Acts like normal ShellMainDelegate but inserts behaviour for browser tests.
-class ContentBrowserTestShellMainDelegate : public ShellMainDelegate {
+class ContentBrowserTestShellMainDelegate : public ShellMainTestDelegate {
  public:
   ContentBrowserTestShellMainDelegate();
   ~ContentBrowserTestShellMainDelegate() override;
@@ -39,7 +39,7 @@ class ContentBrowserTestShellMainDelegate : public ShellMainDelegate {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 #endif
-  // ShellMainDelegate overrides.
+  // ShellMainTestDelegate overrides.
   content::ContentBrowserClient* CreateContentBrowserClient() override;
 
  private:
