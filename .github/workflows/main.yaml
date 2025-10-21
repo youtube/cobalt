@@ -342,7 +342,7 @@ jobs:
 
   check_binary_size:
     needs: [initialize, build]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, chrobalt-linux-runner]
     name: Check Binary Sizes
     if: startsWith(inputs.platform, 'evergreen-arm') && contains(fromJson(needs.initialize.outputs.build_configs), 'gold')
     steps:
