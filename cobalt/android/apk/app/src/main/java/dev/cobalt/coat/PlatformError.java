@@ -34,6 +34,11 @@ import java.lang.annotation.RetentionPolicy;
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
+  /** A listener for when the dialog is created. */
+  public interface OnDialogCreatedListener {
+    void onDialogCreated(Dialog dialog);
+  }
+
   @Retention(RetentionPolicy.SOURCE)
   @IntDef({CONNECTION_ERROR})
   @interface ErrorType {}
@@ -70,7 +75,7 @@ public class PlatformError
   }
 
   /** Display the error. */
-  public void raise() {
+  public Dialog raise() {
     uiThreadHandler.post(
         new Runnable() {
           @Override
@@ -78,6 +83,11 @@ public class PlatformError
             showDialogOnUiThread();
           }
         });
+    return dialog;
+  }
+
+  public void setResponse(@Response int response) {
+    this.response = response;
   }
 
   private void showDialogOnUiThread() {
@@ -102,6 +112,19 @@ public class PlatformError
     dialog.show();
   }
 
+  public void dismiss() {
+    uiThreadHandler.post(
+        () -> {
+          if (dialog != null) {
+            dialog.dismiss();
+          }
+        });
+  }
+
+  public boolean isShowing() {
+    return dialog != null && dialog.isShowing();
+  }
+
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (errorType == CONNECTION_ERROR) {
@@ -124,7 +147,11 @@ public class PlatformError
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
           }
+          cobaltActivity.activeNetworkCheck();
           dialog.dismiss();
+          // Intent intent = cobaltActivity.getIntent();
+          // cobaltActivity.finish();
+          // cobaltActivity.startActivity(intent);
           break;
         default: // fall out
       }

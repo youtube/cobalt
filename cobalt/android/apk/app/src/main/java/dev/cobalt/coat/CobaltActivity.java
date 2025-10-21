@@ -17,11 +17,15 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+// import android.app.Dialog;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
+// import android.net.ConnectivityManager;
+// import android.net.Network;
+// import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -45,6 +49,9 @@ import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -96,6 +103,7 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private String diagnosticFinishReason = "Unknown";
+  private PlatformError mPlatformError;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -426,6 +434,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    // activeNetworkCheck();
+    Log.i(TAG, "Charley onStart()");
+
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -478,15 +489,9 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    activeNetworkCheck();
+    Log.i(TAG, "Charley onResume");
     diagnosticFinishReason = "Unknown";
-    if (mShouldReloadOnResume) {
-      WebContents webContents = getActiveWebContents();
-      if (webContents != null) {
-        webContents.getNavigationController().reload(true);
-      }
-      mShouldReloadOnResume = false;
-    }
-
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -684,6 +689,59 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
+  }
+
+  protected void activeNetworkCheck() {
+    new Thread(
+          () -> {
+            HttpURLConnection urlConnection = null;
+            try {
+              URL url = new URL("https://www.google.com/generate_204");
+              urlConnection = (HttpURLConnection) url.openConnection();
+              urlConnection.setConnectTimeout(5000);
+              urlConnection.setReadTimeout(5000);
+              urlConnection.connect();
+              if (urlConnection.getResponseCode() != 204) {
+                throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+              }
+              Log.i(TAG, "Charley Active Network check successful." + mPlatformError);
+              if (mPlatformError != null) {
+                Log.i(TAG, "Charley dismissing dialog");
+                mPlatformError.setResponse(PlatformError.POSITIVE);
+                mPlatformError.dismiss();
+                mPlatformError = null;
+              }
+              if (mShouldReloadOnResume) {
+                runOnUiThread(
+                    () -> {
+                      WebContents webContents = getActiveWebContents();
+                      if (webContents != null) {
+                        webContents.getNavigationController().reload(true);
+                      }
+                      mShouldReloadOnResume = false;
+                    });
+              }
+            } catch (IOException e) {
+              Log.w(TAG, "Charley Active Network check failed.", e);
+              runOnUiThread(
+                  () -> {
+                    if (mPlatformError == null || !mPlatformError.isShowing()) {
+                      mPlatformError =
+                          new PlatformError(
+                              getStarboardBridge().getActivityHolder(),
+                              PlatformError.CONNECTION_ERROR,
+                              0);
+                      mPlatformError.raise();
+                    }
+                  });
+              mShouldReloadOnResume = true;
+            } finally {
+              if (urlConnection != null) {
+                urlConnection.disconnect();
+              }
+            }
+          })
+      .start();
   }
 
   public long getAppStartTimestamp() {
