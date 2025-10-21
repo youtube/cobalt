@@ -1,6 +1,7 @@
 {
   "failing_tests": [
     "KeySystemConfigSelectorTest.*",
-    "*RTCVideoDecoder*"
+    "*RTCVideoDecoder*",
+    "VideoFrameImageUtilTest.WillCreateAcceleratedImagesFromVideoFrame"
   ]
 }

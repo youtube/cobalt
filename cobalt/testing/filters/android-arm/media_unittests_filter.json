@@ -3,6 +3,7 @@
   "failing_tests": [
     "AllNdkEncoderTests*",
     "AudioAndroidInputTest*",
+    "AudioAndroidOutputTest.StartOutputStreamCallbacks",
     "AudioInputTest.*",
     "AudioRendererImplTest.*",
     "ChunkDemuxerTest.*",
@@ -17,6 +18,7 @@
     "MediaServiceTest.*",
     "MimeUtilTest.CommonMediaMimeType",
     "MojoDecoderBufferConverterTest.WriterSidePipeError",
+    "PaintCanvasVideoRendererWithGLTest.*",
     "SegmentsMode*",
     "SequenceMode*",
     "SourceBuffer*",

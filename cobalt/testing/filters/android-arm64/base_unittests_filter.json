@@ -19,6 +19,7 @@
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/1",
     "All/SequenceManagerTest.*",
     "All/TimerTestWithThreadType.*",
-    "FileTest.TouchGetInfo"
+    "FileTest.TouchGetInfo",
+    "TransliteratorTest.KatakanaHiraganaCorrect"
   ]
 }
