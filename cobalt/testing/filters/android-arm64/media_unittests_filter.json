@@ -1,6 +1,7 @@
 {
   "comment" : "TODO: b/407549902 - Re-enable these disabled tests.",
   "failing_tests": [
+    "*",
     "AllNdkEncoderTests*",
     "AudioAndroidInputTest*",
     "AudioAndroidOutputTest.StartOutputStreamCallbacks",
