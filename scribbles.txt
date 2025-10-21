@@ -174,7 +174,8 @@ python3 main.py commits --repo-path=/usr/local/google/home/brianting/rebase/src 
 
 python3 main.py rebase --repo-path=/usr/local/google/home/brianting/rebase/src --rebase-branch=feature/rebase_m126 --conflicts-dir=m120_to_m126_conflicts --commits-file=commits_m120.json --resume-commit-index=696
 
-gclient config --name=src --custom-var=download_remoteexec_cfg=True git@github.com:youtube/cobalt.git
+gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' git@github.com:youtube/cobalt.git
+target_os = [ 'linux', 'android' ]
 cipd auth-login
 gclient sync --no-history -r $(git rev-parse @)
 build_telemetry opt-out
@@ -182,6 +183,9 @@ siso login
 gn gen out/Default
 gn args out/Default (use_remoteexec=true)
 time autoninja -C out/Default content_shell
+
+build/config/siso/.sisoenv
+build/config/siso/backend_config/backend.star
 
 debug/devel/qa/gold
 cobalt/build/gn.py -p linux-x64x11 -c devel
