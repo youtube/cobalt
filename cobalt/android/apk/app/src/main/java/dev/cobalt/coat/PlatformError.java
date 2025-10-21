@@ -149,9 +149,6 @@ public class PlatformError
           }
           cobaltActivity.activeNetworkCheck();
           dialog.dismiss();
-          // Intent intent = cobaltActivity.getIntent();
-          // cobaltActivity.finish();
-          // cobaltActivity.startActivity(intent);
           break;
         default: // fall out
       }

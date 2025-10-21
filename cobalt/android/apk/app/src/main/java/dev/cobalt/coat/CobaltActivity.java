@@ -17,15 +17,11 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
-// import android.app.Dialog;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
-// import android.net.ConnectivityManager;
-// import android.net.Network;
-// import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -434,9 +430,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-    // activeNetworkCheck();
-    Log.i(TAG, "Charley onStart()");
-
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -490,7 +483,6 @@ public abstract class CobaltActivity extends Activity {
   protected void onResume() {
     super.onResume();
     activeNetworkCheck();
-    Log.i(TAG, "Charley onResume");
     diagnosticFinishReason = "Unknown";
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -691,57 +683,56 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
+  // Try generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
+  // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
     new Thread(
-          () -> {
-            HttpURLConnection urlConnection = null;
-            try {
-              URL url = new URL("https://www.google.com/generate_204");
-              urlConnection = (HttpURLConnection) url.openConnection();
-              urlConnection.setConnectTimeout(5000);
-              urlConnection.setReadTimeout(5000);
-              urlConnection.connect();
-              if (urlConnection.getResponseCode() != 204) {
-                throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+      () -> {
+        HttpURLConnection urlConnection = null;
+        try {
+          URL url = new URL("https://www.google.com/generate_204");
+          urlConnection = (HttpURLConnection) url.openConnection();
+          urlConnection.setConnectTimeout(5000);
+          urlConnection.setReadTimeout(5000);
+          urlConnection.connect();
+          if (urlConnection.getResponseCode() != 204) {
+            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+          }
+          Log.i(TAG, "Active Network check successful." + mPlatformError);
+          if (mPlatformError != null) {
+            mPlatformError.setResponse(PlatformError.POSITIVE);
+            mPlatformError.dismiss();
+            mPlatformError = null;
+          }
+          if (mShouldReloadOnResume) {
+            runOnUiThread(
+              () -> {
+                WebContents webContents = getActiveWebContents();
+                if (webContents != null) {
+                  webContents.getNavigationController().reload(true);
+                }
+                mShouldReloadOnResume = false;
+              });
+          }
+        } catch (IOException e) {
+          Log.w(TAG, "Active Network check failed.", e);
+          runOnUiThread(
+            () -> {
+              if (mPlatformError == null || !mPlatformError.isShowing()) {
+                mPlatformError =
+                  new PlatformError(
+                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
+                mPlatformError.raise();
               }
-              Log.i(TAG, "Charley Active Network check successful." + mPlatformError);
-              if (mPlatformError != null) {
-                Log.i(TAG, "Charley dismissing dialog");
-                mPlatformError.setResponse(PlatformError.POSITIVE);
-                mPlatformError.dismiss();
-                mPlatformError = null;
-              }
-              if (mShouldReloadOnResume) {
-                runOnUiThread(
-                    () -> {
-                      WebContents webContents = getActiveWebContents();
-                      if (webContents != null) {
-                        webContents.getNavigationController().reload(true);
-                      }
-                      mShouldReloadOnResume = false;
-                    });
-              }
-            } catch (IOException e) {
-              Log.w(TAG, "Charley Active Network check failed.", e);
-              runOnUiThread(
-                  () -> {
-                    if (mPlatformError == null || !mPlatformError.isShowing()) {
-                      mPlatformError =
-                          new PlatformError(
-                              getStarboardBridge().getActivityHolder(),
-                              PlatformError.CONNECTION_ERROR,
-                              0);
-                      mPlatformError.raise();
-                    }
-                  });
-              mShouldReloadOnResume = true;
-            } finally {
-              if (urlConnection != null) {
-                urlConnection.disconnect();
-              }
-            }
-          })
-      .start();
+            });
+          mShouldReloadOnResume = true;
+        } finally {
+          if (urlConnection != null) {
+            urlConnection.disconnect();
+          }
+        }
+      })
+    .start();
   }
 
   public long getAppStartTimestamp() {
