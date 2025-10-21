@@ -697,9 +697,7 @@ class MediaCodecBridge {
     MediaFormat format = null;
     try {
       format = mMediaCodec.get().getOutputFormat();
-    // Catches `RuntimeException` to handle any undocumented exceptions.
-    // See http://b/445694177#comment4 for details.
-    } catch (RuntimeException e) {
+    } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to get output format", e);
       return null;
     }

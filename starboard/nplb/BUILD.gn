@@ -40,10 +40,6 @@ test("nplb") {
 
   # TODO(b/432821616): Move |media_sources| to a source_set.
   media_sources = [
-    "//starboard/shared/starboard/drm/drm_test_helpers.cc",
-    "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -326,8 +322,10 @@ test("nplb") {
     "//starboard/common:file_wrapper",
     "//starboard/egl_and_gles:buildflags",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
+    "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
     "//testing/gmock",
     "//testing/gtest",
   ]
