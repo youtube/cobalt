@@ -18,9 +18,6 @@ TEST(ThrottlingDecoderFlowControlTest, InitialState) {
 
   EXPECT_EQ(status.decoding_frames, 0);
   EXPECT_EQ(status.decoded_frames, 0);
-  EXPECT_EQ(status.decoding_frames_high_water_mark, 0);
-  EXPECT_EQ(status.decoded_frames_high_water_mark, 0);
-  EXPECT_EQ(status.total_frames_high_water_mark, 0);
 }
 
 TEST(ThrottlingDecoderFlowControlTest, AddFrame) {
@@ -32,9 +29,6 @@ TEST(ThrottlingDecoderFlowControlTest, AddFrame) {
 
   EXPECT_EQ(status.decoding_frames, 1);
   EXPECT_EQ(status.decoded_frames, 0);
-  EXPECT_EQ(status.decoding_frames_high_water_mark, 1);
-  EXPECT_EQ(status.decoded_frames_high_water_mark, 0);
-  EXPECT_EQ(status.total_frames_high_water_mark, 1);
 }
 
 TEST(ThrottlingDecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
@@ -57,9 +51,6 @@ TEST(ThrottlingDecoderFlowControlTest, SetFrameDecoded) {
 
   EXPECT_EQ(status.decoding_frames, 0);
   EXPECT_EQ(status.decoded_frames, 1);
-  EXPECT_EQ(status.decoding_frames_high_water_mark, 1);
-  EXPECT_EQ(status.decoded_frames_high_water_mark, 1);
-  EXPECT_EQ(status.total_frames_high_water_mark, 1);
 }
 
 TEST(ThrottlingDecoderFlowControlTest, SetFrameDecodedReturnsFalseWhenEmpty) {
@@ -69,32 +60,10 @@ TEST(ThrottlingDecoderFlowControlTest, SetFrameDecodedReturnsFalseWhenEmpty) {
   EXPECT_FALSE(decoder_flow_control->SetFrameDecoded(0));
 }
 
-TEST(ThrottlingDecoderFlowControlTest, HighWaterMark) {
-  auto decoder_flow_control =
-      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
-  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
-  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
-  ASSERT_TRUE(decoder_flow_control->ReleaseFrameAt(CurrentMonotonicTime()));
-
-  usleep(10'000);
-  DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
-
-  EXPECT_EQ(status.decoding_frames, 0);
-  EXPECT_EQ(status.decoded_frames, 1);
-  EXPECT_EQ(status.decoding_frames_high_water_mark, 2);
-  EXPECT_EQ(status.decoded_frames_high_water_mark, 2);
-  EXPECT_EQ(status.total_frames_high_water_mark, 2);
-}
-
 TEST(ThrottlingDecoderFlowControlTest, StreamInsertionOperator) {
   DecoderFlowControl::State status;
   status.decoding_frames = 1;
   status.decoded_frames = 2;
-  status.decoding_frames_high_water_mark = 3;
-  status.decoded_frames_high_water_mark = 4;
-  status.total_frames_high_water_mark = 5;
   status.min_decoding_time_us = 10'000;
   status.max_decoding_time_us = 20'000;
   status.avg_decoding_time_us = 15'000;
@@ -103,9 +72,8 @@ TEST(ThrottlingDecoderFlowControlTest, StreamInsertionOperator) {
   ss << status;
 
   EXPECT_EQ(ss.str(),
-            "{decoding: 1, decoded: 2, decoding (hw): 3, decoded (hw): 4, "
-            "total (hw): 5, min decoding(msec): 10, max decoding(msec): 20, "
-            "avg decoding(msec): 15}");
+            "{decoding: 1, decoded: 2, min decoding(msec): 10, max "
+            "decoding(msec): 20, avg decoding(msec): 15}");
 }
 
 TEST(ThrottlingDecoderFlowControlTest, ReleaseFrameAt) {
@@ -189,9 +157,6 @@ TEST(NoOpDecoderFlowControlTest, AllMethodsNoOp) {
   auto status = decoder_flow_control->GetCurrentState();
   EXPECT_EQ(status.decoding_frames, 0);
   EXPECT_EQ(status.decoded_frames, 0);
-  EXPECT_EQ(status.decoding_frames_high_water_mark, 0);
-  EXPECT_EQ(status.decoded_frames_high_water_mark, 0);
-  EXPECT_EQ(status.total_frames_high_water_mark, 0);
   EXPECT_EQ(status.min_decoding_time_us, 0);
   EXPECT_EQ(status.max_decoding_time_us, 0);
   EXPECT_EQ(status.avg_decoding_time_us, 0);

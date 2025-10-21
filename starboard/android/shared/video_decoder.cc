@@ -1291,7 +1291,6 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease(
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
-  // TODO: check thread correctness.
   if (media_decoder_ && media_decoder_->decoder_flow_control()) {
     media_decoder_->decoder_flow_control()->ReleaseFrameAt(
         release_us.value_or(CurrentMonotonicTime()));

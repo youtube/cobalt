@@ -572,7 +572,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(FATAL) << "QueueInputBuffer returns status=" << status;
+    SB_LOG(ERROR) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
@@ -782,19 +782,14 @@ void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
     frame_timestamps_.erase(it);
   }();
 
-  auto ValOrNA = [](std::optional<int64_t> val) {
-    return val.has_value() ? std::to_string(*val) : "(n/a)";
-  };
-
   SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
                << ", rendered gap(msec)=" << gap_ms
-               << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
-               << ", render(sceduled - actual in msec)="
-               << ValOrNA(render_gap_ms)
-               << ", pts(msec)=" << (frame_timestamp / 1'000)
-               << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
+               << ", decode_to_render(msec)=" << to_string(latency_ms)
+               << ", render(scheduled - actual in msec)="
+               << to_string(render_gap_ms)
+               << ", render/scheduled(msec)=" << to_string(render_scheduled_ms)
                << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
-               << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);
+               << ", decoded gap(msec)=" << to_string(decoded_gap_ms);
 }
 
 void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {
@@ -861,13 +856,13 @@ bool MediaCodecDecoder::Flush() {
 }
 
 void MediaCodecDecoder::ResetDecoderFlowControl() {
-  if (media_codec_bridge_ != nullptr) {
-    SB_LOG(INFO) << "DecoderFrameControl is already created";
+  if (media_codec_bridge_ == nullptr) {
+    SB_LOG(WARNING) << __func__ << ": media_codec_bridge_ is null. Aborted";
     return;
   }
 
   if (kForceLimiting) {
-    SB_LOG(INFO) << "kForceLimiting=" << (kForceLimiting ? "true" : "false");
+    SB_LOG(INFO) << "kForceLimiting=" << to_string(kForceLimiting);
   }
 
   std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();

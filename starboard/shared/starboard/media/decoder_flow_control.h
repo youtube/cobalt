@@ -14,9 +14,6 @@ class DecoderFlowControl {
   struct State {
     int decoding_frames = 0;
     int decoded_frames = 0;
-    int decoding_frames_high_water_mark = 0;
-    int decoded_frames_high_water_mark = 0;
-    int total_frames_high_water_mark = 0;
     int64_t min_decoding_time_us = 0;
     int64_t max_decoding_time_us = 0;
     int64_t avg_decoding_time_us = 0;
