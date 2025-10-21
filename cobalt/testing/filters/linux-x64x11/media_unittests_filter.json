@@ -1,5 +1,5 @@
 {
-  "comment" : "TODO: b/407549902 - Re-enable these disabled tests.",
+  "comment": "TODO: b/407549902 - Re-enable these disabled tests.",
   "failing_tests": [
     "AudioRendererImplTest.*",
     "CDM_10/CdmAdapterTestWithClearKeyCdm.*",
