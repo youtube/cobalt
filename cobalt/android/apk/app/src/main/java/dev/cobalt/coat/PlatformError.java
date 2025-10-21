@@ -34,11 +34,6 @@ import java.lang.annotation.RetentionPolicy;
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
-  /** A listener for when the dialog is created. */
-  public interface OnDialogCreatedListener {
-    void onDialogCreated(Dialog dialog);
-  }
-
   @Retention(RetentionPolicy.SOURCE)
   @IntDef({CONNECTION_ERROR})
   @interface ErrorType {}
