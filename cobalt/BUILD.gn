@@ -88,8 +88,6 @@ source_set("common") {
     ]
   }
 
-<<<<<<< HEAD
-=======
   if (use_evergreen) {
     sources += [
       "browser/loader_app_metrics.cc",
@@ -99,7 +97,6 @@ source_set("common") {
 
   public_deps = [ "//cobalt/browser" ]
 
->>>>>>> 93c4fc41926 (Finch Config Expiration (#7402))
   deps = [
     "//base",
     "//cobalt/browser:switches",
