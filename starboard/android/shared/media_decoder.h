@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "base/threading/thread.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/common/ref_counted.h"
@@ -177,6 +178,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
+  void LogPendingFrameCountAndReschedule();
 
   // MediaCodecBridge::Handler methods
   // Note that these methods are called from the default looper and is not on
@@ -243,6 +245,10 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 
   int64_t last_decoded_us_ = 0;
+
+  std::unique_ptr<base::Thread> frame_tracker_logging_thread_;
+  std::atomic<int> pending_encoded_frames_{0};
+  std::atomic<int64_t> pending_encoded_frames_size_{0};
 };
 
 }  // namespace starboard

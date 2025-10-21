@@ -34,7 +34,7 @@ using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 
 constexpr int kMaxFramesInDecoder = 6;
-constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
+constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -115,6 +115,15 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
     pending_inputs_.emplace_back(audio_stream_info.audio_specific_config);
     ++number_of_pending_inputs_;
   }
+
+  frame_tracker_logging_thread_ =
+      std::make_unique<base::Thread>("pending_frame_tracker");
+  frame_tracker_logging_thread_->Start();
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaCodecDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 MediaCodecDecoder::MediaCodecDecoder(
@@ -162,10 +171,23 @@ MediaCodecDecoder::MediaCodecDecoder(
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
+
+  frame_tracker_logging_thread_ =
+      std::make_unique<base::Thread>("pending_frame_tracker");
+  frame_tracker_logging_thread_->Start();
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaCodecDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  if (frame_tracker_logging_thread_) {
+    frame_tracker_logging_thread_->Stop();
+  }
 
   TerminateDecoderThread();
 
@@ -219,10 +241,14 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   std::lock_guard lock(mutex_);
   bool need_signal = pending_inputs_.empty();
+  int64_t total_size = 0;
   for (const auto& input_buffer : input_buffers) {
     pending_inputs_.emplace_back(input_buffer);
     ++number_of_pending_inputs_;
+    total_size += input_buffer->size();
   }
+  pending_encoded_frames_ += input_buffers.size();
+  pending_encoded_frames_size_ += total_size;
   if (need_signal) {
     condition_variable_.notify_one();
   }
@@ -578,6 +604,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     return false;
   }
 
+  if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    --pending_encoded_frames_;
+    pending_encoded_frames_size_ -= pending_input.input_buffer->size();
+  }
+
   is_output_restricted_ = false;
   return true;
 }
@@ -647,6 +678,24 @@ void MediaCodecDecoder::ReportError(const SbPlayerError error,
   if (error_cb_) {
     error_cb_(error_, error_message_);
   }
+}
+
+void MediaCodecDecoder::LogPendingFrameCountAndReschedule() {
+  SB_LOG(INFO) << "Number of pending encoded frames: "
+               << pending_encoded_frames_.load() << ", total size: "
+               << FormatWithDigitSeparators(
+                      pending_encoded_frames_size_.load() / 1024)
+               << " KB";
+
+  if (destroying_.load()) {
+    return;
+  }
+
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaCodecDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
@@ -743,10 +792,6 @@ void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                                                   int64_t frame_rendered_us) {
-  int64_t gap_ms = -1;
-  if (last_frame_rendered_us_) {
-    gap_ms = (frame_rendered_us - *last_frame_rendered_us_) / 1'000;
-  }
   last_frame_rendered_us_ = frame_rendered_us;
 
   std::optional<int64_t> latency_ms;
@@ -777,15 +822,6 @@ void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
     }
     frame_timestamps_.erase(it);
   }();
-
-  SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
-               << ", rendered gap(msec)=" << gap_ms
-               << ", decode_to_render(msec)=" << to_string(latency_ms)
-               << ", render(scheduled - actual in msec)="
-               << to_string(render_gap_ms)
-               << ", render/scheduled(msec)=" << to_string(render_scheduled_ms)
-               << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
-               << ", decoded gap(msec)=" << to_string(decoded_gap_ms);
 
   if (frame_rendered_cb_) {
     frame_rendered_cb_(frame_timestamp, frame_rendered_us);
