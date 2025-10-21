@@ -81,6 +81,10 @@ public class PlatformError
         });
   }
 
+  public void setResponse(@Response int response) {
+    this.response = response;
+  }
+
   private void showDialogOnUiThread() {
     Activity activity = activityHolder.get();
     if (activity == null) {
@@ -101,6 +105,19 @@ public class PlatformError
     }
     dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
     dialog.show();
+  }
+
+  public void dismiss() {
+    uiThreadHandler.post(
+        () -> {
+          if (dialog != null) {
+            dialog.dismiss();
+          }
+        });
+  }
+
+  public boolean isShowing() {
+    return dialog != null && dialog.isShowing();
   }
 
   @Override
@@ -125,6 +142,7 @@ public class PlatformError
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
           }
+          cobaltActivity.activeNetworkCheck();
           dialog.dismiss();
           break;
         default: // fall out
