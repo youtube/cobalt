@@ -3,7 +3,6 @@
   "disabled": {
     "base:base_unittests_loader": "b/418842688 - Compilation failure",
     "gpu:gpu_perftests_loader": "b/418842688 - Compilation failure",
-    "media:media_unittests_loader": "b/418842688 - Compilation failure",
     "net:net_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/controller:blink_unittests_loader": "b/418842688 - Compilation failure"
@@ -22,6 +21,7 @@
     "gpu:gl_tests_loader",
     "gpu:gpu_perftests_loader",
     "gpu:gpu_unittests_loader",
+    "media:media_unittests_loader",
     "media/capture:capture_unittests_loader",
     "media/midi:midi_unittests_loader",
     "mojo:mojo_perftests_loader",
@@ -63,6 +63,7 @@
     "out/evergreen-x64_devel/gl_tests_loader.py",
     "out/evergreen-x64_devel/gpu_perftests_loader.py",
     "out/evergreen-x64_devel/gpu_unittests_loader.py",
+    "out/evergreen-x64_devel/media_unittests_loader.py",
     "out/evergreen-x64_devel/midi_unittests_loader.py",
     "out/evergreen-x64_devel/mojo_perftests_loader.py",
     "out/evergreen-x64_devel/mojo_unittests_loader.py",
