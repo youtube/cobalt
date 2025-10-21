@@ -81,6 +81,7 @@ enum {
 };
 }  // namespace
 
+<<<<<<< HEAD
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -94,6 +95,13 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     starboard_bridge->RaisePlatformError(env, jni_error_type, data);
   }
 #endif
+=======
+void CobaltWebContentsObserver::DidStopLoading() {
+  // Set initial focus to the web content.
+  if (web_contents()->GetRenderWidgetHostView()) {
+    web_contents()->GetRenderWidgetHostView()->Focus();
+  }
+>>>>>>> e8df93b3260 (Display network connection dialog for all cases of no/weak connectivity (#7650))
 }
 
 }  // namespace cobalt
