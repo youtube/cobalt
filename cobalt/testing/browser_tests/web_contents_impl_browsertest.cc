@@ -35,7 +35,7 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"

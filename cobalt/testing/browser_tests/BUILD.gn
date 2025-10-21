@@ -412,6 +412,8 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
+    "browser/shell_content_browser_test_client.cc",
+    "browser/shell_content_browser_test_client.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
     "common/shell_test_switches.cc",
@@ -421,9 +423,18 @@ static_library("cobalt_shell_test_lib") {
   ]
 
   public_deps = [
+    "//cc/base",
+    "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/shell:shell_controller_mojom",
     "//components/custom_handlers:test_support",
+    "//components/metrics:test_support",
+    "//components/prefs",
+    "//components/prefs:test_support",
+    "//components/variations",
+    "//components/variations/service",
     "//content/test:test_support",
+    "//services/network/public/cpp",
   ]
 
   if (shell_use_toolkit_views) {
