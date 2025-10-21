@@ -75,7 +75,7 @@ public class PlatformError
   }
 
   /** Display the error. */
-  public Dialog raise() {
+  public void raise() {
     uiThreadHandler.post(
         new Runnable() {
           @Override
@@ -83,7 +83,7 @@ public class PlatformError
             showDialogOnUiThread();
           }
         });
-    return dialog;
+    // return dialog;
   }
 
   public void setResponse(@Response int response) {
