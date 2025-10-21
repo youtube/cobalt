@@ -128,7 +128,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   const std::map<int64_t, Timestamp>& frame_timestamps() const {
     return frame_timestamps_;
   }
-  int64_t last_decoded_us_ = 0;
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -168,7 +167,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  void ResetDecoderFlowControl();
   void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
@@ -243,6 +241,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // Working thread to avoid lengthy decoding work block the player thread.
   std::optional<pthread_t> decoder_thread_;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+
+  int64_t last_decoded_us_ = 0;
 };
 
 }  // namespace starboard

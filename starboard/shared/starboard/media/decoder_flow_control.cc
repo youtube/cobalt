@@ -160,11 +160,16 @@ bool ThrottlingDecoderFlowControl::ReleaseFrameAt(int64_t release_us) {
   int64_t delay_us = std::max<int64_t>(release_us - CurrentMonotonicTime(), 0);
   task_runner_.Schedule(
       [this] {
-        state_changed_cb_();
-
-        std::lock_guard lock(mutex_);
-        state_.decoded_frames--;
-        UpdateState_Locked();
+        bool was_full;
+        {
+          std::lock_guard lock(mutex_);
+          was_full = state_.total_frames() >= max_frames_;
+          state_.decoded_frames--;
+          UpdateState_Locked();
+        }
+        if (was_full) {
+          state_changed_cb_();
+        }
       },
       delay_us);
 

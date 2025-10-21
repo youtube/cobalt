@@ -34,7 +34,6 @@ using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 
 constexpr int kMaxFramesInDecoder = 6;
-constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
 const jint kNoOffset = 0;
@@ -854,33 +853,6 @@ bool MediaCodecDecoder::Flush() {
   stream_ended_.store(false);
   destroying_.store(false);
   return true;
-}
-
-void MediaCodecDecoder::ResetDecoderFlowControl() {
-  if (media_codec_bridge_ == nullptr) {
-    SB_LOG(WARNING) << __func__ << ": media_codec_bridge_ is null. Aborted";
-    return;
-  }
-
-  if (kForceLimiting) {
-    SB_LOG(INFO) << "kForceLimiting=" << to_string(kForceLimiting);
-  }
-
-  std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();
-  if (!frame_size) {
-    SB_LOG(WARNING) << __func__ << ": Cannot get frame_size. Aborted";
-    return;
-  }
-
-  constexpr int kArea4k = 3840 * 2160;
-  decoder_flow_control_ =
-      kForceLimiting ||
-              frame_size->display_size.width * frame_size->display_size.height >
-                  kArea4k
-          ? DecoderFlowControl::CreateThrottling(
-                kMaxFramesInDecoder, kFrameTrackerLogIntervalUs,
-                [this]() { condition_variable_.notify_one(); })
-          : DecoderFlowControl::CreateNoOp();
 }
 
 }  // namespace starboard
