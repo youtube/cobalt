@@ -55,6 +55,7 @@ class BlinkAttributeFuzzTestFixture
   }
 };
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // A domain which returns an integer within the total number of known
 // HTML elements, and can index into the html_names::HTMLTag array.
 // This is not quite the optimal choice: ideally, we'd have a domain
@@ -83,7 +84,7 @@ FUZZ_TEST_F(BlinkAttributeFuzzTestFixture, NoElementAttributeCrashes)
                  // the parsing code. But this seems a good compromise.
                  fuzztest::PrintableAsciiString(),
                  fuzztest::PrintableAsciiString());
-
+#endif
 }  // namespace
 
 }  // namespace blink

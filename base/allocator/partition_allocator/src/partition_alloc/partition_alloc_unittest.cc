@@ -2635,6 +2635,7 @@ TEST_P(PartitionAllocDeathTest, SuspendTagCheckingScope) {
 }
 #endif  // PA_BUILDFLAG(HAS_MEMORY_TAGGING)
 
+#if !BUILDFLAG(IS_COBALT)
 // Make sure that malloc(-1) dies.
 // In the past, we had an integer overflow that would alias malloc(-1) to
 // malloc(0), which is not good.
@@ -2645,6 +2646,7 @@ TEST_P(PartitionAllocDeathTest, LargeAllocs) {
   // TODO(bartekn): Separate into its own test, as it wouldn't run (same below).
   EXPECT_DEATH(allocator.root()->Alloc(MaxDirectMapped() + 1, type_name), "");
 }
+#endif
 
 // These tests don't work deterministically when BRP is enabled on certain
 // architectures. On Free(), BRP's ref-count inside in-slot metadata gets
@@ -5946,7 +5948,7 @@ TEST_P(PartitionAllocTest, SortFreelist) {
 }
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && PA_BUILDFLAG(IS_LINUX) && \
-    PA_BUILDFLAG(PA_ARCH_CPU_64_BITS)
+    PA_BUILDFLAG(PA_ARCH_CPU_64_BITS) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 TEST_P(PartitionAllocTest, CrashOnUnknownPointer) {
   int not_a_heap_object = 42;
   EXPECT_DEATH(allocator.root()->Free(&not_a_heap_object), "");

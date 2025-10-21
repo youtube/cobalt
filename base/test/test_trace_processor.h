@@ -15,7 +15,7 @@
 #include <string_view>
 
 #include "base/run_loop.h"
-#include "base/test/test_trace_processor_impl.h"
+#include "base/test/test_trace_processor_impl.h" //nogncheck
 #include "base/test/trace_test_utils.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"

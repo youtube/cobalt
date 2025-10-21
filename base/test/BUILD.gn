@@ -632,7 +632,6 @@ if (enable_base_tracing) {
            ] + rebase_path(sources, root_build_dir)
   }
 
-if (!is_cobalt_hermetic_build) {
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
   # base via a public_dep on libperfetto; libtrace_processor also depends on
@@ -695,7 +694,6 @@ if (!is_cobalt_hermetic_build) {
       public_deps = [ ":test_trace_processor" ]
     }
   }
-}
 } else if (!is_component_build && is_mac) {
   # Provide a dummy target in order for clients to not have to special-case
   # the dependency.

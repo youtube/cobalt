@@ -1231,11 +1231,13 @@ TEST(JSONReaderTest, ReadingJsonIntoDictAndList) {
   }
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 static void CanParseAnythingWithoutCrashing(std::string_view input,
                                             int options) {
   JSONReader::Read(input, options);
 }
 
 FUZZ_TEST(JSONReaderTest, CanParseAnythingWithoutCrashing);
+#endif
 
 }  // namespace base
