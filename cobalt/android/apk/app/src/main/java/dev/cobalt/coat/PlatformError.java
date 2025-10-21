@@ -78,7 +78,6 @@ public class PlatformError
             showDialogOnUiThread();
           }
         });
-    // return dialog;
   }
 
   public void setResponse(@Response int response) {
