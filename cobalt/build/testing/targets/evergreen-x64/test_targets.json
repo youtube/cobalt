@@ -2,7 +2,6 @@
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "disabled": {
     "base:base_unittests_loader": "b/418842688 - Compilation failure",
-    "gpu:gl_tests_loader": "b/418842688 - Compilation failure",
     "gpu:gpu_perftests_loader": "b/418842688 - Compilation failure",
     "media:media_unittests_loader": "b/418842688 - Compilation failure",
     "net:net_unittests_loader": "b/418842688 - Compilation failure",
@@ -22,6 +21,7 @@
     "google_apis:google_apis_unittests_loader",
     "google_apis/gcm:gcm_unit_tests_loader",
     "gpu:command_buffer_perftests_loader",
+    "gpu:gl_tests_loader",
     "gpu:gpu_perftests_loader",
     "gpu:gpu_unittests_loader",
     "media/capture:capture_unittests_loader",
@@ -59,6 +59,7 @@
     "out/evergreen-x64_devel/events_unittests_loader.py",
     "out/evergreen-x64_devel/gcm_unit_tests_loader.py",
     "out/evergreen-x64_devel/google_apis_unittests_loader.py",
+    "out/evergreen-x64_devel/gl_tests_loader.py",
     "out/evergreen-x64_devel/gpu_perftests_loader.py",
     "out/evergreen-x64_devel/gpu_unittests_loader.py",
     "out/evergreen-x64_devel/midi_unittests_loader.py",

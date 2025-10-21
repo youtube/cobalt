@@ -3,7 +3,6 @@
   "disabled": {
     "cobalt:cobalt_unittests": "b/453909269 - Devtools missing inputs",
     "gpu:gpu_benchmark": "b/453909269 - Devtools missing inputs",
-    "gpu:gl_tests": "b/453909269 - Linker missing symbol",
     "third_party/blink/renderer/controller:blink_unittests": "b/453909269 - Devtools missing inputs",
     "third_party/blink/renderer/platform:blink_platform_nocompile_tests": "b/453909269 - Packaging issue"
   },
@@ -18,6 +17,7 @@
     "google_apis:google_apis_unittests",
     "google_apis/gcm:gcm_unit_tests",
     "gpu:command_buffer_perftests",
+    "gpu:gl_tests",
     "gpu:gpu_perftests",
     "gpu:gpu_unittests",
     "media:media_unittests",
@@ -61,6 +61,7 @@
     "out/linux-x64x11_devel/crypto_unittests",
     "out/linux-x64x11_devel/gcm_unit_tests",
     "out/linux-x64x11_devel/google_apis_unittests",
+    "out/linux-x64x11_devel/gl_tests",
     "out/linux-x64x11_devel/gpu_perftests",
     "out/linux-x64x11_devel/gpu_unittests",
     "out/linux-x64x11_devel/media_unittests",
