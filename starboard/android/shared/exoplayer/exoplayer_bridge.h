@@ -95,52 +95,26 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void OnPlaybackEnded(JNIEnv*);
 
   // VideoSurfaceHolder method.
-  void OnSurfaceDestroyed() override {
-    if (is_playing_ && j_video_media_source_ &&
-        !IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-      SB_LOG(INFO) << "Error: Video surface was destroyed during playback.";
-      error_cb_(kSbPlayerErrorDecode,
-                "Video surface was destroyed during playback.");
-      error_occurred_ = true;
-    }
-  }
+  void OnSurfaceDestroyed() override;
 
   bool IsEndOfStreamWritten(SbMediaType type) const {
+    std::lock_guard lock(mutex_);
     return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
   }
 
   bool is_valid() const {
-    return !j_exoplayer_bridge_.is_null() && !j_sample_data_.is_null() &&
-           !error_occurred_;
+    return !j_exoplayer_bridge_.is_null() && !error_occurred_;
   }
 
   bool EnsurePlayerIsInitialized();
 
  private:
-  struct BatchedSampleData {
-    BatchedSampleData(JNIEnv* env, size_t size)
-        : sizes(base::android::ScopedJavaLocalRef<jintArray>(
-              env,
-              env->NewIntArray(size))),
-          timestamps(base::android::ScopedJavaLocalRef<jlongArray>(
-              env,
-              env->NewLongArray(size))),
-          key_frames(base::android::ScopedJavaLocalRef<jbooleanArray>(
-              env,
-              env->NewBooleanArray(size))) {}
-    std::vector<uint8_t> samples;
-    const base::android::ScopedJavaLocalRef<jintArray> sizes;
-    const base::android::ScopedJavaLocalRef<jlongArray> timestamps;
-    const base::android::ScopedJavaLocalRef<jbooleanArray> key_frames;
-  };
-
   void InitExoplayer();
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_audio_media_source_;
   base::android::ScopedJavaGlobalRef<jobject> j_video_media_source_;
-  base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
   base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
 
   bool error_occurred_ = false;
