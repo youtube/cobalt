@@ -3,7 +3,7 @@
   "platforms": [
     "android-arm"
   ],
-  "test_on_device": false,
+  "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
