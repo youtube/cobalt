@@ -14,14 +14,12 @@
 
 package dev.cobalt.media;
 
-import static androidx.media3.extractor.TrackOutput.SAMPLE_DATA_PART_MAIN;
 import static dev.cobalt.media.Log.TAG;
 
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.DataReader;
 import androidx.media3.common.Format;
-import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
@@ -52,14 +50,19 @@ public class ExoPlayerSampleStream implements SampleStream {
 
         @Override
         public int read(byte[] buffer, int offset, int length) {
+            if (sample.remaining() == 0) {
+                return C.RESULT_END_OF_INPUT;
+            }
             int bytesToRead = Math.min(length, sample.remaining());
-            Log.i(TAG, String.format(
-                            "Will read %d bytes, calculated from length: %d and remaining %d",
-                            bytesToRead, length, sample.remaining()));
+
             sample.get(buffer, offset, bytesToRead);
             return bytesToRead;
         }
     };
+
+    private boolean isVideo() {
+        return sampleQueue.getUpstreamFormat().channelCount == Format.NO_VALUE;
+    }
 
     ExoPlayerSampleStream(Allocator allocator, Format format, Object lock) {
         sampleQueue = SampleQueue.createWithoutDrm(allocator);
@@ -69,55 +72,39 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     void discardBuffer(long positionUs, boolean toKeyframe) {
         synchronized (queueLock) {
-            Log.i(TAG, "CALLING DISCARDBUFFER");
             sampleQueue.discardTo(positionUs, toKeyframe, false);
         }
     }
 
-    void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] keyFrames, int sampleCount) {
+    void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] keyFrames,
+            int sampleCount) {
         synchronized (queueLock) {
-            DataReader dataReader = new BufferDataReader(samples);
-            Log.i(TAG, String.format("GOT SAMPLE. CAPACITY %d, METADATA SIZE: %d, REMAINING: %d",
-                samples.capacity(), sizes[0], samples.remaining()));
-            // DataReader dataReader = new DataReader() {
-            //     @Override
-            //     public int read(byte[] buffer, int offset, int length) throws IOException {
-            //         int bytesToRead = Math.min(length, samples.remaining());
-            //         samples.get(buffer, offset, bytesToRead);
-            //         Log.i(TAG, String.format(
-            //             "Will read %d bytes, calculated from length: %d and remaining %d",
-            //             bytesToRead, length, samples.remaining()));
-            //         return bytesToRead;
-            //     }
-            // };
-
             for (int i = 0; i < sampleCount; ++i) {
                 int sampleSize = sizes[i];
                 long timestampUs = timestamps[i];
                 boolean isKeyFrame = keyFrames[i];
-
-                // int currentPosition = samples.position();
-                // samples.limit(currentPosition + sampleSize);
-                //
-                // ByteBuffer sample = samples.slice();
-                //
-                // samples.limit(samples.capacity());
-                //
-                // samples.position(currentPosition + sampleSize);
-                //
-                // DataReader dataReader = new BufferDataReader(sample);
 
                 int sampleFlags = 0;
                 if (isKeyFrame) {
                     sampleFlags |= C.BUFFER_FLAG_KEY_FRAME;
                 }
 
+                int currentPosition = samples.position();
+                // Limit the buffer to the end of the current sample so that the sampleQueue doesn't
+                // read beyond it.
+                samples.limit(currentPosition + sampleSize);
+                BufferDataReader dataReader = new BufferDataReader(samples);
+
                 try {
-                    Log.i(TAG,
-                        String.format("WRITING TIMESTAMP %d WITH FLAGS %d AND SAMPLE SIZE %d",
-                            timestampUs, sampleFlags, sampleSize));
-                    sampleQueue.sampleData(dataReader, sampleSize, false, SAMPLE_DATA_PART_MAIN);
+                    int result = 0;
+                    int remaining = sampleSize;
+                    while (remaining > 0) {
+                        result = sampleQueue.sampleData(dataReader, sampleSize, true);
+                        remaining -= result;
+                    }
                     sampleQueue.sampleMetadata(timestampUs, sampleFlags, sampleSize, 0, null);
+
+                    samples.limit(samples.capacity());
                 } catch (Exception e) {
                     Log.e(TAG, String.format("Error queueing sample %s", e.toString()));
                 }
@@ -126,52 +113,10 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     void writeEndOfStream() {
-        Log.i(TAG, "CALLING WRITEENDOFSTREAM");
-        sampleQueue.sampleMetadata(sampleQueue.getLargestQueuedTimestampUs(), C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
+        sampleQueue.sampleMetadata(
+                sampleQueue.getLargestQueuedTimestampUs(), C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
     }
 
-    synchronized void writeSample(byte[] data, int sizeInBytes, long timestampUs,
-            boolean isKeyFrame, boolean isEndOfStream) {
-        Log.i(TAG, "CALLING WRITESAMPLE WRONG!!!!!!!!!!!!!");
-        int sampleFlags = 0;
-        if (isKeyFrame) {
-            sampleFlags |= C.BUFFER_FLAG_KEY_FRAME;
-        }
-        if (isEndOfStream) {
-            sampleFlags |= C.BUFFER_FLAG_END_OF_STREAM;
-            endOfStream = true;
-        }
-
-        byte[] dataToWrite = data;
-
-        ParsableByteArray array = isEndOfStream ? null : new ParsableByteArray(dataToWrite);
-
-        try {
-            sampleQueue.sampleData(array, sizeInBytes);
-        } catch (Exception e) {
-            Log.i(TAG,
-                    String.format(
-                            "Caught exception from sampleQueue.sampleData() %s", e.toString()));
-        }
-        try {
-            sampleQueue.sampleMetadata(timestampUs, sampleFlags, sizeInBytes, 0, null);
-        } catch (Exception e) {
-            Log.i(TAG,
-                    String.format(
-                            "Caught exception from sampleQueue.sampleMetaData() %s", e.toString()));
-        }
-
-        if (lastWrittenTimeUs != Long.MIN_VALUE) {
-            if (timestampUs <= lastWrittenTimeUs && !isEndOfStream) {
-                Log.i(TAG,
-                        String.format(
-                                "Latest written timestamp %d is less than or equal to last written timestamp %d, with a delta of %d",
-                                timestampUs, lastWrittenTimeUs, lastWrittenTimeUs - timestampUs));
-            }
-        }
-        lastWrittenTimeUs = timestampUs;
-        wroteFirstSample = true;
-    }
 
     @Override
     public boolean isReady() {
@@ -202,7 +147,6 @@ public class ExoPlayerSampleStream implements SampleStream {
     @Override
     public int skipData(long positionUs) {
         synchronized (queueLock) {
-            Log.i(TAG, "CALLING SKIPDATA");
             int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
             sampleQueue.skip(skipCount);
             return skipCount;
@@ -215,7 +159,6 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     public void seek(long timestampUs, boolean seekToKeyFrame) {
         synchronized (queueLock) {
-            Log.i(TAG, "CALLING SEEK");
             sampleQueue.discardTo(timestampUs, true, true);
             endOfStream = false;
 
@@ -225,7 +168,6 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     public void destroy() {
         synchronized (queueLock) {
-            Log.i(TAG, "CALLING DESTROY");
             sampleQueue.reset();
             sampleQueue.release();
         }

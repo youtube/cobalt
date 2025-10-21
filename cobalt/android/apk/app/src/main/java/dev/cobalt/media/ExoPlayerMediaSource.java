@@ -89,12 +89,6 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
 
     @CalledByNative
-    public boolean writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
-            boolean isEndOfStream) {
-        return mediaPeriod.writeSample(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
-    }
-
-    @CalledByNative
     public void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] isKeyFrame, int sampleCount) {
         mediaPeriod.writeSamples(samples, sizes, timestamps, isKeyFrame, sampleCount);
     }
@@ -102,6 +96,11 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     @CalledByNative
     public void writeEndOfStream() {
         mediaPeriod.writeEndOfStream();
+    }
+
+    @CalledByNative
+    public ByteBuffer getSampleBuffer(int size) {
+        return ByteBuffer.allocateDirect(size);
     }
 
     public boolean isInitialized() {
@@ -249,16 +248,6 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
         public void destroySampleStream() {
             stream.destroy();
-        }
-
-        public boolean writeSample(byte[] data, int sizeInBytes, long timestampUs,
-                boolean isKeyFrame, boolean isEndOfStream) {
-            if (isEndOfStream) {
-                reachedEos = true;
-            }
-            stream.writeSample(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
-
-            return true;
         }
 
         public void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] isKeyFrame, int sampleCount) {

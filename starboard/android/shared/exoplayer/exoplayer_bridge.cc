@@ -27,9 +27,9 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
@@ -132,7 +132,7 @@ void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
   Java_ExoPlayerBridge_seek(AttachCurrentThread(), j_exoplayer_bridge_,
                             seek_to_timestamp);
 
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   ended_ = false;
   seek_time_ = seek_to_timestamp;
   playback_ended_ = false;
@@ -162,47 +162,60 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
                    : kNoOffset;
 
   JNIEnv* env = AttachCurrentThread();
-  size_t number_of_samples = input_buffers.size();
+  const size_t number_of_samples = input_buffers.size();
 
-  std::vector<uint8_t> j_samples;
-  base::android::ScopedJavaLocalRef<jintArray> j_sizes(
-      env, env->NewIntArray(number_of_samples));
-  base::android::ScopedJavaLocalRef<jlongArray> j_timestamps(
-      env, env->NewLongArray(number_of_samples));
-  base::android::ScopedJavaLocalRef<jbooleanArray> j_key_frames(
-      env, env->NewBooleanArray(number_of_samples));
-
-  // Get pointers to the Java arrays to allow us to write directly to them.
-  jint* j_sizes_ptr = static_cast<jint*>(
-      env->GetPrimitiveArrayCritical(j_sizes.obj(), nullptr));
-  jlong* j_timestamps_ptr = static_cast<jlong*>(
-      env->GetPrimitiveArrayCritical(j_timestamps.obj(), nullptr));
-  jboolean* j_key_frames_ptr = static_cast<jboolean*>(
-      env->GetPrimitiveArrayCritical(j_key_frames.obj(), nullptr));
+  std::vector<jint> sizes(number_of_samples);
+  std::vector<jlong> timestamps(number_of_samples);
+  std::vector<jboolean> key_frames(number_of_samples);
+  size_t total_size = 0;
 
   for (size_t i = 0; i < number_of_samples; ++i) {
     auto& input_buffer = input_buffers[i];
+    total_size += input_buffer->size() - offset;
     const uint8_t* data_start = input_buffer->data() + offset;
-    const uint8_t* data_end = data_start + input_buffer->size();
-    j_samples.insert(j_samples.end(), data_start, data_end);
-    j_sizes_ptr[i] = input_buffer->size() - offset;
-    j_timestamps_ptr[i] = static_cast<jlong>(input_buffer->timestamp());
-    j_key_frames_ptr[i] = type == kSbMediaTypeVideo
-                              ? input_buffer->video_sample_info().is_key_frame
-                              : true;
+    const int data_size = input_buffer->size() - offset;
+    sizes[i] = data_size;
+    timestamps[i] = static_cast<jlong>(input_buffer->timestamp());
+    key_frames[i] = type == kSbMediaTypeVideo
+                        ? input_buffer->video_sample_info().is_key_frame
+                        : true;
   }
 
-  env->ReleasePrimitiveArrayCritical(j_sizes.obj(), j_sizes_ptr, 0);
-  env->ReleasePrimitiveArrayCritical(j_timestamps.obj(), j_timestamps_ptr, 0);
-  env->ReleasePrimitiveArrayCritical(j_key_frames.obj(), j_key_frames_ptr, 0);
+  ScopedJavaLocalRef<jintArray> j_sizes(env,
+                                        env->NewIntArray(number_of_samples));
+  env->SetIntArrayRegion(j_sizes.obj(), 0, number_of_samples, sizes.data());
 
-  // Set sample data directly to a buffer without copying.
-  ScopedJavaLocalRef<jobject> j_combined_samples(
-      env, env->NewDirectByteBuffer(reinterpret_cast<void*>(j_samples.data()),
-                                    j_samples.size()));
+  ScopedJavaLocalRef<jlongArray> j_timestamps(
+      env, env->NewLongArray(number_of_samples));
+  env->SetLongArrayRegion(j_timestamps.obj(), 0, number_of_samples,
+                          timestamps.data());
+
+  ScopedJavaLocalRef<jbooleanArray> j_key_frames(
+      env, env->NewBooleanArray(number_of_samples));
+  env->SetBooleanArrayRegion(j_key_frames.obj(), 0, number_of_samples,
+                             key_frames.data());
 
   auto j_media_source =
       type == kSbMediaTypeAudio ? j_audio_media_source_ : j_video_media_source_;
+  ScopedJavaLocalRef<jobject> j_combined_samples =
+      Java_ExoPlayerMediaSource_getSampleBuffer(env, j_media_source,
+                                                total_size);
+  SB_CHECK(j_combined_samples);
+
+  uint8_t* j_combined_samples_ptr = static_cast<uint8_t*>(
+      env->GetDirectBufferAddress(j_combined_samples.obj()));
+  SB_CHECK(j_combined_samples_ptr);
+
+  uint8_t* current_write_ptr = j_combined_samples_ptr;
+  for (size_t i = 0; i < number_of_samples; ++i) {
+    auto& input_buffer = input_buffers[i];
+    const uint8_t* data_start = input_buffer->data() + offset;
+    int sample_size = sizes[i];
+
+    memcpy(current_write_ptr, data_start, sample_size);
+    current_write_ptr += sample_size;
+  }
+
   Java_ExoPlayerMediaSource_writeSamples(
       env, j_media_source, j_combined_samples, j_sizes, j_timestamps,
       j_key_frames, input_buffers.size());
@@ -214,6 +227,7 @@ void ExoPlayerBridge::WriteEndOfStream(SbMediaType stream_type) {
   Java_ExoPlayerMediaSource_writeEndOfStream(AttachCurrentThread(),
                                              media_source);
 
+  std::lock_guard lock(mutex_);
   if (stream_type == kSbMediaTypeAudio) {
     audio_eos_written_ = true;
   } else {
@@ -243,7 +257,7 @@ void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) {
                                        j_exoplayer_bridge_,
                                        static_cast<float>(playback_rate));
 
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -270,7 +284,7 @@ int64_t ExoPlayerBridge::GetCurrentMediaTime(MediaInfo& info) const {
 
 void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
   {
-    std::unique_lock<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     initialized_ = true;
   }
   initialized_cv_.notify_one();
@@ -286,10 +300,12 @@ void ExoPlayerBridge::OnError(JNIEnv* env, jstring error_message) {
 }
 
 void ExoPlayerBridge::OnBuffering(JNIEnv* env) {
+  std::lock_guard lock(mutex_);
   underflow_ = true;
 }
 
 void ExoPlayerBridge::SetPlayingStatus(JNIEnv* env, jboolean is_playing) {
+  std::lock_guard lock(mutex_);
   if (error_occurred_) {
     SB_LOG(WARNING) << "Playing status is updated after an error.";
     return;
@@ -304,6 +320,17 @@ void ExoPlayerBridge::SetPlayingStatus(JNIEnv* env, jboolean is_playing) {
 void ExoPlayerBridge::OnPlaybackEnded(JNIEnv* env) {
   playback_ended_ = true;
   ended_cb_();
+}
+
+void ExoPlayerBridge::OnSurfaceDestroyed() {
+  std::lock_guard lock(mutex_);
+  if (is_playing_ && j_video_media_source_ &&
+      !IsEndOfStreamWritten(kSbMediaTypeVideo)) {
+    SB_LOG(INFO) << "Error: Video surface was destroyed during playback.";
+    error_cb_(kSbPlayerErrorDecode,
+              "Video surface was destroyed during playback.");
+    error_occurred_ = true;
+  }
 }
 
 bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
@@ -430,8 +457,10 @@ void ExoPlayerBridge::InitExoplayer() {
     j_video_media_source_.Reset(j_video_media_source);
   }
 
-  j_sample_data_.Reset(env, env->NewByteArray(kMediaBufferSize));
-  SB_CHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|";
+  int max_samples_per_write = 256;
+  j_sizes_.Reset(env, env->NewIntArray(max_samples_per_write));
+  j_timestamps_.Reset(env, env->NewLongArray(max_samples_per_write));
+  j_key_frames_.Reset(env, env->NewBooleanArray(max_samples_per_write));
 
   Java_ExoPlayerBridge_preparePlayer(env, j_exoplayer_bridge_);
 }
