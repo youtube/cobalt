@@ -18,7 +18,8 @@ h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
   assert_true(mockH5vccExperiments.hasCalledSetExperimentState());
 
   assert_true(mockH5vccExperiments.getStubResult('fake_feature'));
-  // All feature params are stored as strings.
+  // All feature params are stored as strings and all numbers are 64-bit
+  // floating-point value in JS.
   assert_equals(mockH5vccExperiments.getStubResult('fake_feature_param'), "1.000000");
 }, 'setExperimentState() sends expected config content to browser endpoint');
 

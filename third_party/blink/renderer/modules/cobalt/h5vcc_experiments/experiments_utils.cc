@@ -18,6 +18,12 @@
 
 namespace blink {
 
+bool IsTrueDouble(double num) {
+  double integral_part;
+  double fractional_part = std::modf(num, &integral_part);
+  return (fractional_part != 0.0);
+}
+
 std::optional<base::Value::Dict> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
   base::Value::Dict experiment_config_dict;
@@ -55,7 +61,12 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
     } else if (param_name_and_value.second->IsLong()) {
       param_value = std::to_string(param_name_and_value.second->GetAsLong());
     } else if (param_name_and_value.second->IsDouble()) {
-      param_value = std::to_string(param_name_and_value.second->GetAsDouble());
+      double received_double = param_name_and_value.second->GetAsDouble();
+      // Record the number as a whole number without decimal place if the
+      // underlying value is an int.
+      param_value = IsTrueDouble(received_double)
+                        ? std::to_string(received_double)
+                        : std::to_string(static_cast<int>(received_double));
     } else if (param_name_and_value.second->GetAsBoolean()) {
       param_value = "true";
     } else if (!param_name_and_value.second->GetAsBoolean()) {
@@ -87,8 +98,12 @@ std::optional<base::Value::Dict> ParseSettingsToDictionary(
       int param_value = setting_name_and_value.second->GetAsLong();
       settings_dict.Set(setting_name, param_value);
     } else if (setting_name_and_value.second->IsDouble()) {
-      double param_value = setting_name_and_value.second->GetAsDouble();
-      settings_dict.Set(setting_name, param_value);
+      double received_double = setting_name_and_value.second->GetAsDouble();
+      if (IsTrueDouble(received_double)) {
+        settings_dict.Set(setting_name, received_double);
+      } else {
+        settings_dict.Set(setting_name, static_cast<int>(received_double));
+      }
     } else if (setting_name_and_value.second->IsBoolean()) {
       bool param_value = setting_name_and_value.second->GetAsBoolean();
       settings_dict.Set(setting_name, param_value);

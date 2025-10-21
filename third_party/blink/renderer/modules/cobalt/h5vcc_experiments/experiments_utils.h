@@ -22,6 +22,10 @@
 
 namespace blink {
 
+// Helper function to process determine if the underlying value of |num| is an
+// int or a double.
+bool IsTrueDouble(double num);
+
 // Tries to parse an ExperimentConfiguration and convert it to
 // base::value::Dict.
 // Returns an empty optional when featureParams field in the |config| contains
