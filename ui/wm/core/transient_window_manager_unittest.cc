@@ -103,6 +103,7 @@ class TransientWindowManagerTest : public aura::test::AuraTestBase {
   }
 };
 
+#if GTEST_HAS_DEATH_TEST
 // Tests that creating a transient tree with a cycle in it will crash on a
 // CHECK. See a crash that can happen if we allow cycles http://b/286947509.
 TEST_F(TransientWindowManagerTest, TransientCycle) {
@@ -121,6 +122,7 @@ TEST_F(TransientWindowManagerTest, TransientCycle) {
   wm::AddTransientChild(w2.get(), w3.get());
   EXPECT_DEATH(wm::AddTransientChild(w3.get(), w1.get()), "");
 }
+#endif
 
 // Various assertions for transient children.
 TEST_F(TransientWindowManagerTest, TransientChildren) {
