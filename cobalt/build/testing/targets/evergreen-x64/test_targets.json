@@ -26,6 +26,7 @@
     "media/midi:midi_unittests_loader",
     "mojo:mojo_perftests_loader",
     "mojo:mojo_unittests_loader",
+    "net:net_unittests_loader",
     "sql:sql_unittests_loader",
     "starboard/nplb:nplb_loader",
     "third_party/blink/renderer/platform:blink_platform_perftests_loader",
