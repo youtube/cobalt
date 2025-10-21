@@ -53,12 +53,15 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
+import org.chromium.components.external_intents.InterceptNavigationDelegateImpl;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -78,6 +81,8 @@ public abstract class CobaltActivity extends Activity {
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
+
+  private InterceptNavigationDelegateClientImpl mInterceptNavigationDelegateClient;
 
   private VideoSurfaceView videoSurfaceView;
 
@@ -250,6 +255,8 @@ public abstract class CobaltActivity extends Activity {
             // Inject JavaBridge objects to the WebContents.
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
+
+            mInterceptNavigationDelegateClient = new InterceptNavigationDelegateClientImpl(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
@@ -505,6 +512,9 @@ public abstract class CobaltActivity extends Activity {
     if ("Unknown".equals(diagnosticFinishReason)) {
       diagnosticFinishReason = "ON_DESTROY_UNKNOWN";
     }
+    mInterceptNavigationDelegateClient.destroy();
+    mInterceptNavigationDelegateClient = null;
+
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
