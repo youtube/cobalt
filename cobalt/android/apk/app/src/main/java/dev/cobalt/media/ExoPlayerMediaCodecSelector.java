@@ -21,7 +21,6 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -45,8 +44,6 @@ public class ExoPlayerMediaCodecSelector implements MediaCodecSelector {
             return defaultDecoderInfos;
         }
 
-        List<MediaCodecInfo> filteredDecoderInfos = new ArrayList<>();
-
         if (mimeType.startsWith("video/")) {
             for (MediaCodecInfo decoderInfo : defaultDecoderInfos) {
                 if (!isSoftwareDecoder(decoderInfo)) {
@@ -58,6 +55,10 @@ public class ExoPlayerMediaCodecSelector implements MediaCodecSelector {
                     ? defaultDecoderInfos
                     : filteredDecoderInfos; // Fallback to default if no hardware decoders found
         } else {
+            for (MediaCodecInfo decoderInfo : defaultDecoderInfos) {
+                Log.i(TAG, String.format("Decoder: %s", decoderInfo.name));
+            }
+
             // Return default decoders for non-video.
             return defaultDecoderInfos;
         }

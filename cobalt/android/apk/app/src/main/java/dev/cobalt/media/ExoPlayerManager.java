@@ -38,7 +38,6 @@ public class ExoPlayerManager {
   @CalledByNative
   ExoPlayerBridge createExoPlayerBridge(long nativeExoPlayerBridge, boolean preferTunnelMode) {
     ExoPlayerBridge exoPlayerBridge = new ExoPlayerBridge(nativeExoPlayerBridge, context, preferTunnelMode);
-    // TODO: Check for validity here.
     exoPlayerBridgeList.add(exoPlayerBridge);
     return exoPlayerBridge;
   }

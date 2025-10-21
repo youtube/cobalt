@@ -2,11 +2,13 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import androidx.media3.common.ColorInfo;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
 import dev.cobalt.util.Log;
 import java.util.Arrays;
 import java.util.Collections;
+import org.chromium.base.annotations.CalledByNative;
 
 /** Creates Formats for specified codec configurations */
 public class ExoPlayerFormatCreator {
@@ -71,7 +73,7 @@ public class ExoPlayerFormatCreator {
     }
 
     public static Format createVideoFormat(
-            String mime, int width, int height, float fps, int bitrate) {
+            String mime, int width, int height, float fps, int bitrate, ColorInfo colorInfo) {
         Format.Builder builder = new Format.Builder();
         builder.setSampleMimeType(mime).setWidth(width).setHeight(height);
         if (bitrate > 0) {
@@ -82,6 +84,32 @@ public class ExoPlayerFormatCreator {
             builder.setFrameRate(fps);
         }
 
+        if (colorInfo != null) {
+            builder.setColorInfo(colorInfo);
+        }
+
         return builder.build();
+    }
+
+    @CalledByNative
+    public static ColorInfo createColorInfo(int colorRange,
+        int colorSpace,
+        int colorTransfer,
+        float primaryRChromaticityX,
+        float primaryRChromaticityY,
+        float primaryGChromaticityX,
+        float primaryGChromaticityY,
+        float primaryBChromaticityX,
+        float primaryBChromaticityY,
+        float whitePointChromaticityX,
+        float whitePointChromaticityY,
+        float maxMasteringLuminance,
+        float minMasteringLuminance,
+        int maxCll,
+        int maxFall) {
+
+        MediaCodecBridge.ColorInfo info = new MediaCodecBridge.ColorInfo(colorRange, colorSpace, colorTransfer, primaryRChromaticityX, primaryRChromaticityY, primaryGChromaticityX, primaryGChromaticityY, primaryBChromaticityX, primaryBChromaticityY, whitePointChromaticityX, whitePointChromaticityY, maxMasteringLuminance, minMasteringLuminance, maxCll, maxFall, false);
+    return new ColorInfo.Builder().setColorRange(info.colorRange).setColorSpace(info.colorStandard).setColorTransfer(info.colorTransfer).setHdrStaticInfo(info.hdrStaticInfo.array()).build();
+
     }
 }

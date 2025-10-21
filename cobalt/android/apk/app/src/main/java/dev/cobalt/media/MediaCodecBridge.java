@@ -187,7 +187,7 @@ class MediaCodecBridge {
     }
   }
 
-  private static class ColorInfo {
+  public static class ColorInfo {
     private static final int MAX_CHROMATICITY = 50000; // Defined in CTA-861.3.
     private static final int DEFAULT_MAX_CLL = 1000;
     private static final int DEFAULT_MAX_FALL = 200;

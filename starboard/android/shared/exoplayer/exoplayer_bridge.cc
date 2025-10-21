@@ -33,6 +33,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
+#include "cobalt/android/jni_headers/ExoPlayerFormatCreator_jni.h"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
 #include "cobalt/android/jni_headers/ExoPlayerMediaSource_jni.h"
 
@@ -49,9 +50,77 @@ using base::android::ToJavaByteArray;
 constexpr int kADTSHeaderSize = 7;
 constexpr int kNoOffset = 0;
 constexpr int kWaitForInitializedTimeoutUs = 250'000;  // 250 ms.
-constexpr int kMediaBufferSize = 2 * 65536 * 32;       // ~4 MB.
+const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+
+const jint COLOR_RANGE_FULL = 1;
+const jint COLOR_RANGE_LIMITED = 2;
+// Not defined in MediaFormat. Represents unspecified color ID range.
+const jint COLOR_RANGE_UNSPECIFIED = 0;
+
+const jint COLOR_STANDARD_BT2020 = 6;
+const jint COLOR_STANDARD_BT709 = 1;
+
+const jint COLOR_TRANSFER_HLG = 7;
+const jint COLOR_TRANSFER_SDR_VIDEO = 3;
+const jint COLOR_TRANSFER_ST2084 = 6;
+
+// A special value to represent that no mapping between an SbMedia* HDR
+// metadata value and Android HDR metadata value is possible.  This value
+// implies that HDR playback should not be attempted.
+const jint COLOR_VALUE_UNKNOWN = -1;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
+
+// From //starboard/android/shared/video_decoder.cc.
+bool Equal(const SbMediaMasteringMetadata& lhs,
+           const SbMediaMasteringMetadata& rhs) {
+  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+}
+
+bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
+  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
+         color_metadata.transfer == kSbMediaTransferIdBt709 &&
+         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
+         color_metadata.range == kSbMediaRangeIdLimited &&
+         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
+}
+
+jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
+  switch (primary_id) {
+    case kSbMediaPrimaryIdBt709:
+      return COLOR_STANDARD_BT709;
+    case kSbMediaPrimaryIdBt2020:
+      return COLOR_STANDARD_BT2020;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
+  switch (transfer_id) {
+    case kSbMediaTransferIdBt709:
+      return COLOR_TRANSFER_SDR_VIDEO;
+    case kSbMediaTransferIdSmpteSt2084:
+      return COLOR_TRANSFER_ST2084;
+    case kSbMediaTransferIdAribStdB67:
+      return COLOR_TRANSFER_HLG;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
+  switch (range_id) {
+    case kSbMediaRangeIdLimited:
+      return COLOR_RANGE_LIMITED;
+    case kSbMediaRangeIdFull:
+      return COLOR_RANGE_FULL;
+    case kSbMediaRangeIdUnspecified:
+      return COLOR_RANGE_UNSPECIFIED;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
 
 std::optional<ExoPlayerAudioCodec> SbAudioCodecToExoPlayerAudioCodec(
     SbMediaAudioCodec codec) {
@@ -172,7 +241,6 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
   for (size_t i = 0; i < number_of_samples; ++i) {
     auto& input_buffer = input_buffers[i];
     total_size += input_buffer->size() - offset;
-    const uint8_t* data_start = input_buffer->data() + offset;
     const int data_size = input_buffer->size() - offset;
     sizes[i] = data_size;
     timestamps[i] = static_cast<jlong>(input_buffer->timestamp());
@@ -445,10 +513,38 @@ void ExoPlayerBridge::InitExoplayer() {
       bitrate = mime_type.GetParamIntValue("bitrate", 0);
     }
 
+    ScopedJavaLocalRef<jobject> j_color_info(nullptr);
+    SbMediaColorMetadata color_metadata = video_stream_info_.color_metadata;
+    if (!IsIdentity(color_metadata)) {
+      jint color_standard =
+          SbMediaPrimaryIdToColorStandard(color_metadata.primaries);
+      jint color_transfer =
+          SbMediaTransferIdToColorTransfer(color_metadata.transfer);
+      jint color_range = SbMediaRangeIdToColorRange(color_metadata.range);
+
+      if (color_standard != COLOR_VALUE_UNKNOWN &&
+          color_transfer != COLOR_VALUE_UNKNOWN &&
+          color_range != COLOR_VALUE_UNKNOWN) {
+        const auto& mastering_metadata = color_metadata.mastering_metadata;
+        j_color_info.Reset(Java_ExoPlayerFormatCreator_createColorInfo(
+            env, color_range, color_standard, color_transfer,
+            mastering_metadata.primary_r_chromaticity_x,
+            mastering_metadata.primary_r_chromaticity_y,
+            mastering_metadata.primary_g_chromaticity_x,
+            mastering_metadata.primary_g_chromaticity_y,
+            mastering_metadata.primary_b_chromaticity_x,
+            mastering_metadata.primary_b_chromaticity_y,
+            mastering_metadata.white_point_chromaticity_x,
+            mastering_metadata.white_point_chromaticity_y,
+            mastering_metadata.luminance_max, mastering_metadata.luminance_min,
+            color_metadata.max_cll, color_metadata.max_fall));
+      }
+    }
+
     ScopedJavaLocalRef<jobject> j_video_media_source(
         Java_ExoPlayerBridge_createVideoMediaSource(
             env, j_exoplayer_bridge_, j_mime, j_output_surface_, width, height,
-            framerate, bitrate));
+            framerate, bitrate, j_color_info));
     if (!j_video_media_source) {
       SB_LOG(ERROR) << "Could not create ExoPlayer video MediaSource.";
       error_occurred_ = true;

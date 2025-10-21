@@ -17,11 +17,9 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Process;
 import android.view.Surface;
 import androidx.annotation.NonNull;
+import androidx.media3.common.ColorInfo;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -48,7 +46,6 @@ public class ExoPlayerBridge {
     private ExoPlayerMediaSource audioMediaSource;
     private ExoPlayerMediaSource videoMediaSource;
     private long mNativeExoPlayerBridge;
-    private HandlerThread exoplayerThread;
     private Handler exoplayerHandler;
     private long lastPlaybackPos = 0;
     private volatile boolean stopped = false;
@@ -111,9 +108,7 @@ public class ExoPlayerBridge {
     }
 
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context, boolean preferTunnelMode) {
-        this.exoplayerThread = new HandlerThread("ExoPlayerThread", Process.THREAD_PRIORITY_AUDIO);
-        exoplayerThread.start();
-        this.exoplayerHandler = new Handler(exoplayerThread.getLooper());
+        this.exoplayerHandler = new Handler(Looper.getMainLooper());
 
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
@@ -133,7 +128,7 @@ public class ExoPlayerBridge {
         player = new ExoPlayer.Builder(context)
                          .setRenderersFactory(renderersFactory)
                          .setLoadControl(createLoadControl())
-                         .setLooper(exoplayerThread.getLooper())
+                         .setLooper(exoplayerHandler.getLooper())
                          .setTrackSelector(trackSelector)
                          .setReleaseTimeoutMs(300)
                          .build();
@@ -165,7 +160,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     private ExoPlayerMediaSource createVideoMediaSource(
-            String mime, Surface surface, int width, int height, int fps, int bitrate) {
+            String mime, Surface surface, int width, int height, int fps, int bitrate, ColorInfo colorInfo) {
         if (videoMediaSource != null) {
             Log.e(TAG,
                     "Attempted to create an ExoPlayer video MediaSource while one already exists.");
@@ -180,7 +175,7 @@ public class ExoPlayerBridge {
         }
 
         videoMediaSource = new ExoPlayerMediaSource(this,
-                ExoPlayerFormatCreator.createVideoFormat(mime, width, height, (float) fps, bitrate),
+                ExoPlayerFormatCreator.createVideoFormat(mime, width, height, (float) fps, bitrate, colorInfo),
                 ExoPlayerRendererType.VIDEO);
 
         exoplayerHandler.post(() -> {
@@ -231,7 +226,7 @@ public class ExoPlayerBridge {
             return;
         }
         destroying = true;
-        exoplayerHandler.removeCallbacksAndMessages(null);
+        // exoplayerHandler.removeCallbacksAndMessages(null);
 
         final CountDownLatch releaseLatch = new CountDownLatch(1);
         exoplayerHandler.post(() -> {
@@ -251,11 +246,8 @@ public class ExoPlayerBridge {
         });
 
         releaseLatch.await(5, TimeUnit.SECONDS);
-        exoplayerThread.quit();
-        exoplayerThread.join();
 
         exoplayerHandler = null;
-        exoplayerThread = null;
         audioMediaSource = null;
         videoMediaSource = null;
         prerolled = false;
@@ -297,7 +289,7 @@ public class ExoPlayerBridge {
             // Skip, setting the playback rate to 0 is unsupported.
         } else if (playbackRate > 0.0f) {
             exoplayerHandler.post(() -> {
-                player.setPlaybackParameters(new PlaybackParameters(playbackRate));
+                player.setPlaybackParameters(new PlaybackParameters(playbackRate, 1.0f));
             });
         } else {
             return false;
@@ -387,7 +379,7 @@ public class ExoPlayerBridge {
     }
 
     private boolean isAbleToProcessCommands() {
-        return !destroying && player != null && exoplayerThread != null && exoplayerHandler != null;
+        return !destroying && player != null && exoplayerHandler != null;
     }
 
     @NativeMethods
