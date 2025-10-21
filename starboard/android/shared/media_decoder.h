@@ -34,7 +34,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/media/decoder_flow_control.h"
+#include "starboard/shared/starboard/media/decoder_state_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -54,8 +54,8 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t)> FrameRenderedCB;
-  typedef std::function<void(void)> FirstTunnelFrameReadyCB;
+  using FrameRenderedCB = std::function<void(int64_t, int64_t)>;
+  using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -125,16 +125,17 @@ class MediaDecoder final
 
   bool Flush();
 
-  DecoderFlowControl* decoder_flow_control() {
-    return decoder_flow_control_.get();
+  DecoderStateTracker* decoder_state_tracker() {
+    return decoder_state_tracker_.get();
   }
 
   struct Timestamp {
     int64_t decoded_us = 0;
     int64_t render_scheduled_us = 0;
   };
-  std::map<int64_t, Timestamp>& frame_timestamps() { return frame_timestamps_; }
-  int64_t last_decoded_us_ = 0;
+  const std::map<int64_t, Timestamp>& frame_timestamps() const {
+    return frame_timestamps_;
+  }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -173,7 +174,7 @@ class MediaDecoder final
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  void ResetDecoderFlowControl();
+  void ResetDecoderStateTracker();
   void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
@@ -232,7 +233,7 @@ class MediaDecoder final
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
-  std::unique_ptr<DecoderFlowControl> decoder_flow_control_;
+  std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
@@ -248,6 +249,8 @@ class MediaDecoder final
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+
+  int64_t last_decoded_us_ = 0;
 };
 
 }  // namespace starboard::android::shared

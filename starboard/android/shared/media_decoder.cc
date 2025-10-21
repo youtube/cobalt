@@ -37,7 +37,7 @@ namespace {
 
 const jlong kDequeueTimeout = 0;
 
-constexpr int kMaxFramesInDecoder = 100;
+constexpr int kMaxFramesInDecoder = 6;
 constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
@@ -94,7 +94,7 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_),
-      decoder_flow_control_(DecoderFlowControl::CreateThrottling(
+      decoder_state_tracker_(DecoderStateTracker::CreateThrottling(
           kMaxFramesInDecoder,
           kFrameTrackerLogIntervalUs,
           [this]() { condition_variable_.Signal(); })) {
@@ -147,7 +147,7 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
-      decoder_flow_control_(DecoderFlowControl::CreateThrottling(
+      decoder_state_tracker_(DecoderStateTracker::CreateThrottling(
           kMaxFramesInDecoder,
           kFrameTrackerLogIntervalUs,
           [this]() { condition_variable_.Signal(); })) {
@@ -380,7 +380,7 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (decoder_flow_control_->CanAcceptMore() && can_process_input) {
+      if (decoder_state_tracker_->CanAcceptMore() && can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -534,7 +534,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (size > 0) {
-    decoder_flow_control_->AddFrame(input_buffer->timestamp());
+    decoder_state_tracker_->AddFrame(input_buffer->timestamp());
   } else {
     SB_LOG(WARNING) << __func__ << " > size=" << size;
   }
@@ -568,7 +568,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(FATAL) << "QueueInputBuffer returns status=" << status;
+    SB_LOG(ERROR) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
@@ -699,15 +699,13 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   }
 
   if (size > 0) {
-    if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
+    if (!decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
-    {
-      std::lock_guard lock(frame_timestamps_mutex_);
-      frame_timestamps_[presentation_time_us] = {
-          .decoded_us = CurrentMonotonicTime(),
-      };
-    }
+    std::lock_guard lock(frame_timestamps_mutex_);
+    frame_timestamps_[presentation_time_us] = {
+        .decoded_us = CurrentMonotonicTime(),
+    };
   } else {
     SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
@@ -791,7 +789,9 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
                << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);
 
-  frame_rendered_cb_(frame_timestamp);
+  if (frame_rendered_cb_) {
+    frame_rendered_cb_(frame_timestamp, frame_rendered_us);
+  }
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
@@ -857,7 +857,7 @@ bool MediaDecoder::Flush() {
   return true;
 }
 
-void MediaDecoder::ResetDecoderFlowControl() {
+void MediaDecoder::ResetDecoderStateTracker() {
   if (!media_codec_bridge_) {
     SB_LOG(WARNING) << __func__ << ": media_codec_bridge_ is null.";
     return;
@@ -875,12 +875,12 @@ void MediaDecoder::ResetDecoderFlowControl() {
   constexpr int kArea4k = 3840 * 2160;
   int area = frame_size.display_width() * frame_size.display_height();
 
-  decoder_flow_control_ =
+  decoder_state_tracker_ =
       kForceLimiting || area > kArea4k
-          ? DecoderFlowControl::CreateThrottling(
+          ? DecoderStateTracker::CreateThrottling(
                 kMaxFramesInDecoder, kFrameTrackerLogIntervalUs,
                 [this]() { condition_variable_.Signal(); })
-          : DecoderFlowControl::CreateNoOp();
+          : DecoderStateTracker::CreateNoOp();
 }
 
 }  // namespace starboard::android::shared

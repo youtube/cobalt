@@ -54,6 +54,10 @@ std::string HexEncode(const void* data,
                       int size,
                       const char* delimiter = nullptr);
 
+inline std::string to_string(bool val) {
+  return val ? "true" : "false";
+}
+
 // Formats a number as a string with single-quote thousands separators
 // (e.g., 1'234'567).
 // NOTE: This function is for logging and debugging purposes only. It should not
