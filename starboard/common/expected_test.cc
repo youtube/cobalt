@@ -113,5 +113,51 @@ TEST(ExpectedTest, OperatorStar) {
   EXPECT_EQ((*expected).value, 123);
 }
 
+TEST(ExpectedTest, CopyAssignmentSuccess) {
+  Expected<std::string, int> expected("copy me");
+  EXPECT_TRUE(expected.has_value());
+
+  Expected<std::string, int> copied_expected("initial value");
+  copied_expected = expected;
+  EXPECT_TRUE(copied_expected.has_value());
+  EXPECT_EQ(copied_expected.value(), "copy me");
+  EXPECT_TRUE(expected.has_value());
+}
+
+TEST(ExpectedTest, MoveAssignmentSuccess) {
+  Expected<std::string, int> expected("move me");
+  EXPECT_TRUE(expected.has_value());
+
+  Expected<std::string, int> moved_expected("initial value");
+  moved_expected = std::move(expected);
+  EXPECT_TRUE(moved_expected.has_value());
+  EXPECT_EQ(moved_expected.value(), "move me");
+}
+
+TEST(ExpectedTest, MoveOnlyTypeMoveConstruction) {
+  auto ptr = std::make_unique<int>(42);
+  Expected<std::unique_ptr<int>, std::string> expected(std::move(ptr));
+  EXPECT_TRUE(expected.has_value());
+
+  Expected<std::unique_ptr<int>, std::string> moved_expected(
+      std::move(expected));
+  EXPECT_TRUE(moved_expected.has_value());
+  EXPECT_NE(moved_expected.value(), nullptr);
+  EXPECT_EQ(*moved_expected.value(), 42);
+}
+
+TEST(ExpectedTest, MoveOnlyTypeMoveAssignment) {
+  auto ptr = std::make_unique<int>(42);
+  Expected<std::unique_ptr<int>, std::string> expected(std::move(ptr));
+  EXPECT_TRUE(expected.has_value());
+
+  Expected<std::unique_ptr<int>, std::string> moved_expected(
+      Unexpected<std::string>("initial error"));
+  moved_expected = std::move(expected);
+  EXPECT_TRUE(moved_expected.has_value());
+  EXPECT_NE(moved_expected.value(), nullptr);
+  EXPECT_EQ(*moved_expected.value(), 42);
+}
+
 }  // namespace
 }  // namespace starboard
