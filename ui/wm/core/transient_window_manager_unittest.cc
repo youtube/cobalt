@@ -103,7 +103,7 @@ class TransientWindowManagerTest : public aura::test::AuraTestBase {
   }
 };
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if GTEST_HAS_DEATH_TEST
 // Tests that creating a transient tree with a cycle in it will crash on a
 // CHECK. See a crash that can happen if we allow cycles http://b/286947509.
 TEST_F(TransientWindowManagerTest, TransientCycle) {
