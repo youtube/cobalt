@@ -7,8 +7,7 @@
     "net:net_unittests_loader": "b/418842688 - Compilation failure",
     "mojo:mojo_perftests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
-    "third_party/blink/renderer/controller:blink_unittests_loader": "b/418842688 - Compilation failure",
-    "ui/wm:wm_unittests_loader": "b/418842688 - Compilation failure"
+    "third_party/blink/renderer/controller:blink_unittests_loader": "b/418842688 - Compilation failure"
   },
   "test_targets": [
     "base:base_perftests_loader",
@@ -39,6 +38,7 @@
     "third_party/zlib:zlib_unittests_loader",
     "ui/events:events_unittests_loader",
     "ui/ozone:ozone_unittests_loader",
+    "ui/wm:wm_unittests_loader",
     "url:url_perftests_loader",
     "url:url_unittests_loader"
   ],
@@ -73,6 +73,7 @@
     "out/evergreen-x64_devel/url_unittests_loader.py",
     "out/evergreen-x64_devel/viz_perftests_loader.py",
     "out/evergreen-x64_devel/viz_unittests_loader.py",
+    "out/evergreen-x64_devel/wm_unittests_loader.py",
     "out/evergreen-x64_devel/wtf_unittests_loader.py",
     "out/evergreen-x64_devel/zlib_unittests_loader.py"
   ]
