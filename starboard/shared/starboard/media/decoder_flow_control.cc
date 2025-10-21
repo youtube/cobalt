@@ -190,17 +190,13 @@ void ThrottlingDecoderFlowControl::UpdateDecodingStat_Locked() {
   if (previous_decoding_times_us_.empty()) {
     return;
   }
-  int64_t min_decoding_time_us = previous_decoding_times_us_[0];
-  int64_t max_decoding_time_us = previous_decoding_times_us_[0];
-  int64_t sum = 0;
-  for (auto decoding_us : previous_decoding_times_us_) {
-    min_decoding_time_us = std::min(min_decoding_time_us, decoding_us);
-    max_decoding_time_us = std::max(max_decoding_time_us, decoding_us);
-    sum += decoding_us;
-  }
+  const auto [min_it, max_it] = std::minmax_element(
+      previous_decoding_times_us_.cbegin(), previous_decoding_times_us_.cend());
+  state_.min_decoding_time_us = *min_it;
+  state_.max_decoding_time_us = *max_it;
 
-  state_.min_decoding_time_us = min_decoding_time_us;
-  state_.max_decoding_time_us = max_decoding_time_us;
+  const int64_t sum = std::accumulate(previous_decoding_times_us_.cbegin(),
+                                      previous_decoding_times_us_.cend(), 0LL);
   state_.avg_decoding_time_us = sum / previous_decoding_times_us_.size();
 }
 

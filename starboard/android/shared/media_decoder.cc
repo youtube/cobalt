@@ -545,7 +545,6 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
 
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
-    SB_NOTREACHED();
     // Drm system initialization is asynchronous. If there's a drm system, we
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
@@ -707,12 +706,10 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
-    {
-      std::lock_guard lock(frame_timestamps_mutex_);
-      frame_timestamps_[presentation_time_us] = {
-          .decoded_us = CurrentMonotonicTime(),
-      };
-    }
+    std::lock_guard lock(frame_timestamps_mutex_);
+    frame_timestamps_[presentation_time_us] = {
+        .decoded_us = CurrentMonotonicTime(),
+    };
   } else {
     SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
@@ -790,6 +787,10 @@ void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                << ", render/scheduled(msec)=" << to_string(render_scheduled_ms)
                << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
                << ", decoded gap(msec)=" << to_string(decoded_gap_ms);
+
+  if (frame_rendered_cb_) {
+    frame_rendered_cb_(frame_timestamp, frame_rendered_us);
+  }
 }
 
 void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {

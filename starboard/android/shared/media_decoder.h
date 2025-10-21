@@ -46,7 +46,7 @@ namespace starboard {
 class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                                 protected JobQueue::JobOwner {
  public:
-  using FrameRenderedCB = std::function<void(int64_t)>;
+  using FrameRenderedCB = std::function<void(int64_t, int64_t)>;
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
   // This class should be implemented by the users of MediaCodecDecoder to
@@ -125,7 +125,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     int64_t decoded_us = 0;
     int64_t render_scheduled_us = 0;
   };
-  std::map<int64_t, Timestamp>& frame_timestamps() { return frame_timestamps_; }
+  const std::map<int64_t, Timestamp>& frame_timestamps() const {
+    return frame_timestamps_;
+  }
   int64_t last_decoded_us_ = 0;
 
  private:
