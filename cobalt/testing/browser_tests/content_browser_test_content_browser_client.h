@@ -15,7 +15,7 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
 
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
 namespace content {
 
