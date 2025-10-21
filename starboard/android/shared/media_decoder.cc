@@ -118,6 +118,15 @@ MediaDecoder::MediaDecoder(Host* host,
     pending_inputs_.emplace_back(audio_stream_info.audio_specific_config);
     ++number_of_pending_inputs_;
   }
+
+  frame_tracker_logging_thread_ =
+      std::make_unique<base::Thread>("pending_frame_tracker");
+  frame_tracker_logging_thread_->Start();
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 MediaDecoder::MediaDecoder(
@@ -167,10 +176,23 @@ MediaDecoder::MediaDecoder(
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
+
+  frame_tracker_logging_thread_ =
+      std::make_unique<base::Thread>("pending_frame_tracker");
+  frame_tracker_logging_thread_->Start();
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 MediaDecoder::~MediaDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  if (frame_tracker_logging_thread_) {
+    frame_tracker_logging_thread_->Stop();
+  }
 
   TerminateDecoderThread();
 
@@ -222,10 +244,14 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   ScopedLock scoped_lock(mutex_);
   bool need_signal = pending_inputs_.empty();
+  int64_t total_size = 0;
   for (const auto& input_buffer : input_buffers) {
     pending_inputs_.emplace_back(input_buffer);
     ++number_of_pending_inputs_;
+    total_size += input_buffer->size();
   }
+  pending_encoded_frames_ += input_buffers.size();
+  pending_encoded_frames_size_ += total_size;
   if (need_signal) {
     condition_variable_.Signal();
   }
@@ -576,6 +602,11 @@ bool MediaDecoder::ProcessOneInputBuffer(
     return false;
   }
 
+  if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    --pending_encoded_frames_;
+    pending_encoded_frames_size_ -= pending_input.input_buffer->size();
+  }
+
   is_output_restricted_ = false;
   return true;
 }
@@ -644,6 +675,24 @@ void MediaDecoder::ReportError(const SbPlayerError error,
   if (error_cb_) {
     error_cb_(error_, error_message_);
   }
+}
+
+void MediaDecoder::LogPendingFrameCountAndReschedule() {
+  SB_LOG(INFO) << "Number of pending encoded frames: "
+               << pending_encoded_frames_.load() << ", total size: "
+               << FormatWithDigitSeparators(
+                      pending_encoded_frames_size_.load() / 1024)
+               << " KB";
+
+  if (destroying_.load()) {
+    return;
+  }
+
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 void MediaDecoder::OnMediaCodecError(bool is_recoverable,
@@ -859,7 +908,7 @@ bool MediaDecoder::Flush() {
 
 void MediaDecoder::ResetDecoderStateTracker() {
   if (!media_codec_bridge_) {
-    SB_LOG(WARNING) << __func__ << ": media_codec_bridge_ is null.";
+    SB_LOG(WARNING) << __func__ << " media_codec_bridge_ is null.";
     return;
   }
 

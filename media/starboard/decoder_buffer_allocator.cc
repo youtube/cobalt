@@ -14,10 +14,13 @@
 
 #include "media/starboard/decoder_buffer_allocator.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/system/sys_info.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
@@ -33,13 +36,23 @@
 #include "starboard/media.h"
 
 namespace media {
-using ::starboard::FormatWithDigitSeparators;
-
 namespace {
+using ::starboard::FormatWithDigitSeparators;
 
 // Used to determine if the memory allocated is large. The underlying logic can
 // be different.
 const size_t kSmallAllocationThreshold = 512;
+
+int64_t GetTotalCPUMemory() {
+  long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]
+  long page_size = sysconf(_SC_PAGE_SIZE);  // NOLINT[runtime/int]
+  if (pages == -1 || page_size == -1) {
+    SB_NOTREACHED();
+    return 0;
+  }
+
+  return static_cast<int64_t>(pages) * page_size;
+}
 
 }  // namespace
 
@@ -63,6 +76,11 @@ DecoderBufferAllocator::DecoderBufferAllocator(
             << FormatWithDigitSeparators(initial_capacity_ / 1024)
             << ", allocation_unit(KiB)="
             << FormatWithDigitSeparators(allocation_unit_ / 1024)
+            << ", physical memory (MiB)="
+            << FormatWithDigitSeparators(GetTotalCPUMemory() / 1024 / 1024)
+            << ", is_low_end_device="
+            << starboard::to_string(
+                   base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled())
             << ", is_memory_pool_allocated_on_demand="
             << starboard::to_string(is_memory_pool_allocated_on_demand_);
 
