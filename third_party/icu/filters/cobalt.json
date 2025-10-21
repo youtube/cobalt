@@ -1,12 +1,12 @@
-// Copyright 2019 the V8 project authors. All rights reserved.
+// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 {
 // To use implicithan for Collation UCAData.
   "collationUCAData": "implicithan",
-// Based on the ICU63 version of
-// https://cs.chromium.org/chromium/src/third_party/icu/source/data/locales/reslocal.mk?rcl=797b7c
-// Includes the items from GENRB_ALIAS_SOURCE and GENRB_SOURCE
+// Based on the Site Language Summary for Youtube
+// https://ytglobal.googleplex.com/config/languages
+// Includes only below locales.
   "localeFilter": {
     "filterType": "language",
     "includelist": [
@@ -14,49 +14,34 @@
       "root",
 
       "af",
-      "ak",
       "am",
-      "an",
       "ar",
-      "ast",
       "az",
       "be",
-      "bem",
       "bg",
       "bn",
-      "br",
       "bs",
       "ca",
-      "ckb",
       "cs",
-      "cy",
       "da",
       "de",
-      "ee",
       "el",
       "en",
-      "eo",
       "es",
       "et",
       "eu",
       "fa",
       "fi",
       "fil",
-      "fo",
       "fr",
-      "ga",
       "gl",
       "gu",
-      "ha",
-      "haw",
       "he",
       "hi",
       "hr",
       "hu",
       "hy",
       "id",
-      "ig",
-      "in",
       "is",
       "it",
       "iw",
@@ -68,62 +53,39 @@
       "ko",
       "ku",
       "ky",
-      "lg",
-      "ln",
       "lo",
       "lt",
       "lv",
-      "mfe",
-      "mg",
       "mk",
       "ml",
       "mn",
-      "mo",
       "mr",
       "ms",
-      "mt",
       "my",
-      "nb",
       "ne",
       "nl",
-      "nn",
       "no",
-      "nyn",
-      "om",
       "or",
       "pa",
       "pl",
-      "ps",
       "pt",
-      "rm",
-      "rn",
       "ro",
       "ru",
-      "rw",
-      "sh",
       "si",
       "sk",
       "sl",
-      "sn",
-      "so",
       "sq",
       "sr",
       "sv",
       "sw",
       "ta",
       "te",
-      "tg",
       "th",
-      "ti",
-      "tl",
-      "to",
       "tr",
       "uk",
       "ur",
       "uz",
       "vi",
-      "wa",
-      "yo",
       "zh",
       "zu"
     ]
@@ -193,12 +155,9 @@
         "koi8-u-html"
       ]
     },
-// Based on the ICU63 version of
-// https://cs.chromium.org/chromium/src/third_party/icu/source/data/curr/reslocal.mk?rcl=797b7c
-// Includes the items from CURR_ALIAS_SOURCE and CURR_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Based on the Site Language Summary for Youtube
+// https://ytglobal.googleplex.com/config/languages
+// Includes only below locales.
     "curr_tree": {
       "filterType": "language",
       "includelist": [
@@ -232,7 +191,6 @@
         "hu",
         "hy",
         "id",
-        "in",
         "is",
         "it",
         "iw",
@@ -249,11 +207,9 @@
         "mk",
         "ml",
         "mn",
-        "mo",
         "mr",
         "ms",
         "my",
-        "nb",
         "ne",
         "nl",
         "no",
@@ -263,7 +219,6 @@
         "ro",
         "ru",
         "si",
-        "sh",
         "sk",
         "sl",
         "sq",
@@ -273,7 +228,6 @@
         "ta",
         "te",
         "th",
-        "tl",
         "tr",
         "uk",
         "ur",
@@ -283,12 +237,9 @@
         "zu"
       ]
     },
-// Based on the ICU63 version of
-// https://cs.chromium.org/chromium/src/third_party/icu/source/data/coll/collocal.mk?rcl=797b7c
-// Includes the items from COLLATION_SYNTHETIC_ALIAS and COLLATION_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Based on the Site Language Summary for Youtube
+// https://ytglobal.googleplex.com/config/languages
+// Includes only below locales.
     "coll_tree": {
       "filterType": "union",
       "unionOf": [
@@ -330,7 +281,6 @@
             "hu",
             "hy",
             "id",
-            "in",
             "is",
             "it",
             "iw",
@@ -347,11 +297,9 @@
             "mk",
             "ml",
             "mn",
-            "mo",
             "mr",
             "ms",
             "my",
-            "nb",
             "ne",
             "nl",
             "no",
@@ -360,7 +308,6 @@
             "pt",
             "ro",
             "ru",
-            "sh",
             "si",
             "sk",
             "sl",
@@ -390,9 +337,9 @@
         "zh"
       ]
     },
-// Based on the ICU63 version of
-// https://cs.chromium.org/chromium/src/third_party/icu/source/data/region/reslocal.mk?rcl=797b7c
-// Includes the items from REGION_ALIAS_SOURCE and REGION_SOURCE
+// Based on the Site Language Summary for Youtube
+// https://ytglobal.googleplex.com/config/languages
+// Includes only below locales.
     "region_tree": {
       "filterType": "language",
       "includelist": [
@@ -426,7 +373,6 @@
         "hu",
         "hy",
         "id",
-        "in",
         "is",
         "it",
         "iw",
@@ -443,11 +389,9 @@
         "mk",
         "ml",
         "mn",
-        "mo",
         "mr",
         "ms",
         "my",
-        "nb",
         "ne",
         "nl",
         "no",
@@ -456,7 +400,6 @@
         "pt",
         "ro",
         "ru",
-        "sh",
         "si",
         "sk",
         "sl",
@@ -467,7 +410,6 @@
         "ta",
         "te",
         "th",
-        "tl",
         "tr",
         "uk",
         "ur",
@@ -486,12 +428,9 @@
          "root"
       ]
     },
-// Based on the ICU63 version of
-// https://cs.chromium.org/chromium/src/third_party/icu/source/data/unit/reslocal.mk?rcl=797b7c
-// Includes the items from UNIT_ALIAS_SOURCE and UNIT_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Based on the Site Language Summary for Youtube
+// https://ytglobal.googleplex.com/config/languages
+// Includes only below locales.
     "unit_tree": {
       "filterType": "language",
       "includelist": [
@@ -525,7 +464,6 @@
         "hu",
         "hy",
         "id",
-        "in",
         "is",
         "it",
         "iw",
@@ -542,11 +480,9 @@
         "mk",
         "ml",
         "mn",
-        "mo",
         "mr",
         "ms",
         "my",
-        "nb",
         "ne",
         "nl",
         "no",
@@ -555,7 +491,6 @@
         "pt",
         "ro",
         "ru",
-        "sh",
         "si",
         "sk",
         "sl",
@@ -566,7 +501,6 @@
         "ta",
         "te",
         "th",
-        "tl",
         "tr",
         "uk",
         "ur",
@@ -576,12 +510,9 @@
         "zu"
       ]
     },
-// Based on the ICU63 version of
-// https://cs.chromium.org/chromium/src/third_party/icu/source/data/zone/reslocal.mk?rcl=797b7c
-// Includes the items from ZONE_ALIAS_SOURCE and ZONE_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Based on the Site Language Summary for Youtube
+// https://ytglobal.googleplex.com/config/languages
+// Includes only below locales.
     "zone_tree": {
       "filterType": "language",
       "includelist": [
@@ -617,7 +548,6 @@
         "hu",
         "hy",
         "id",
-        "in",
         "is",
         "it",
         "iw",
@@ -634,11 +564,9 @@
         "mk",
         "ml",
         "mn",
-        "mo",
         "mr",
         "ms",
         "my",
-        "nb",
         "ne",
         "nl",
         "no",
@@ -648,7 +576,6 @@
         "ro",
         "ru",
         "si",
-        "sh",
         "sk",
         "sl",
         "sq",
@@ -657,8 +584,7 @@
         "sw",
         "ta",
         "te",
-        "th",
-        "tl",
+        "th",  
         "tr",
         "uk",
         "ur",
@@ -1814,36 +1740,22 @@
         "includelist": [
 // Created by diff scripts/chrome_ui_languages.list scripts/accept_lang.list|egrep "^>"|egrep -v "#"|cut -c3-10
           "ach",
-          "ak",
-          "an",
-          "ast",
           "ban",
           "be",
-          "bem",
           "bh",
-          "br",
           "bs",
           "ccp",
           "ceb",
           "chr",
-          "ckb",
           "co",
           "crs",
-          "cy",
-          "ee",
-          "eo",
-          "fo",
           "fy",
-          "ga",
           "gaa",
           "gd",
           "gn",
-          "ha",
-          "haw",
           "hmn",
           "ht",
           "ia",
-          "ig",
           "jv",
           "jw",
           "kg",
@@ -1851,49 +1763,30 @@
           "ku",
           "la",
           "lb",
-          "lg",
-          "ln",
           "loz",
           "lua",
-          "mfe",
-          "mg",
           "mi",
-          "mt",
-          "nn",
           "nso",
           "ny",
-          "nyn",
           "oc",
-          "om",
           "or",
           "osa",
           "pcm",
-          "ps",
           "qu",
-          "rm",
-          "rn",
-          "rw",
           "sd",
           "sm",
-          "sn",
-          "so",
           "st",
           "su",
-          "tg",
-          "ti",
           "tk",
           "tn",
-          "to",
           "tt",
           "tum",
           "tw",
           "ug",
-          "wa",
           "wo",
           "xh",
           "xx",
-          "yi",
-          "yo"
+          "yi"
 	]
       },
       "rules": [
@@ -1905,122 +1798,50 @@
         "+/Version"
       ]
     },
-// Based on filter_display_language_names
+// Based on
+// https://cs.chromium.org/chromium/src/third_party/icu/android/patch_locale.sh?rcl=797b7c
+// # On Android Java API is used to get lang data, except for the language and
+// # script names for zh_Hans and zh_Hant which are not supported by Java API.
+// # Here remove all lang data except those names.
+// # See the comments in GetDisplayNameForLocale() (in Chromium's
+// # src/ui/base/l10n/l10n_util.cc) about why we need the scripts.
     {
       "categories": [
         "lang_tree"
       ],
       "rules": [
+        "-/Keys",
         "-/Languages",
         "-/Languages%long",
-        "-/Languages%menu",
+        "-/Languages%short",
         "-/Languages%variant",
-        "+/*/af",
-        "+/*/am",
-        "+/*/ar",
-        "+/*/az",
-        "+/*/bg",
-        "+/*/bn",
-        "+/*/ca",
-        "+/*/cs",
-        "+/*/da",
-        "+/*/de",
-        "+/*/el",
-        "+/*/en",
-        "+/*/es",
-        "+/*/et",
-        "+/*/eu",
-        "+/*/fa",
-        "+/*/fi",
-        "+/*/fil",
-        "+/*/fr",
-        "+/*/gl",
-        "+/*/gu",
-        "+/*/he",
-        "+/*/hi",
-        "+/*/hr",
-        "+/*/hu",
-        "+/*/hy",
-        "+/*/id",
-        "+/*/in",
-        "+/*/is",
-        "+/*/it",
-        "+/*/iw",
-        "+/*/ja",
-        "+/*/ka",
-        "+/*/kk",
-        "+/*/km",
-        "+/*/kn",
-        "+/*/ko",
-        "+/*/ky",
-        "+/*/lo",
-        "+/*/lt",
-        "+/*/lv",
-        "+/*/mk",
-        "+/*/ml",
-        "+/*/mn",
-        "+/*/mo",
-        "+/*/mr",
-        "+/*/ms",
-        "+/*/my",
-        "+/*/nb",
-        "+/*/ne",
-        "+/*/nl",
-        "+/*/no",
-        "+/*/pa",
-        "+/*/pl",
-        "+/*/pt",
-        "+/*/ro",
-        "+/*/ru",
-        "+/*/sh",
-        "+/*/si",
-        "+/*/sk",
-        "+/*/sl",
-        "+/*/sq",
-        "+/*/sr",
-        "+/*/sr_Latn",
-        "+/*/sv",
-        "+/*/sw",
-        "+/*/ta",
-        "+/*/te",
-        "+/*/th",
-        "+/*/tl",
-        "+/*/tr",
-        "+/*/uk",
-        "+/*/ur",
-        "+/*/uz",
-        "+/*/vi",
-        "+/*/zh",
-        "+/*/zu",
-        "+/*/ar_001",
-        "+/*/az_Arab",
-        "+/*/de_AT",
-        "+/*/de_CH",
-        "+/*/en_AU",
-        "+/*/en_CA",
-        "+/*/en_GB",
-        "+/*/en_US",
-        "+/*/es_419",
-        "+/*/es_ES",
-        "+/*/es_MX",
-        "+/*/fa_AF",
-        "+/*/fr_CA",
-        "+/*/fr_CH",
-        "+/*/nl_BE",
-        "+/*/pt_BR",
-        "+/*/pt_PT",
-        "+/*/ro_MD",
-        "+/*/sr_ME",
-        "+/*/sw_CD",
-        "+/*/zh_Hans",
-        "+/*/zh_Hant",
-        "-/Keys",
+        "-/LanguagesShort",
+        "-/Scripts",
+        "-/Scripts%long",
+        "-/Scripts%short",
+        "-/Scripts%variant",
+        "-/Scripts%stand-alone",
         "-/Types",
         "-/Types%short",
-        "+/Types/calendar",
-        "-/characterLabelPattern",
         "-/Variants",
-        "+/Variants/OXENDICT"
+        "-/calendar",
+        "-/characterLabelPattern",
+        "-/codePatterns",
+        "-/localeDisplayPattern",
+        "+/Languages/zh",
+        "+/Languages%long/zh",
+        "+/Languages%short/zh",
+        "+/Languages%variant/zh",
+        "+/Scripts/Hans",
+        "+/Scripts%long/Hans",
+        "+/Scripts%short/Hans",
+        "+/Scripts%variant/Hans",
+        "+/Scripts%stand-alone/Hans",
+        "+/Scripts/Hant",
+        "+/Scripts%long/Hant",
+        "+/Scripts%short/Hant",
+        "+/Scripts%variant/Hant",
+        "+/Scripts%stand-alone/Hant"
       ]
     },
     {
