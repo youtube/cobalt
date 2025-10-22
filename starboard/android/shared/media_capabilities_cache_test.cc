@@ -30,6 +30,24 @@ using ::testing::ByMove;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 
+class MockAudioCodecCapability final : public AudioCodecCapability {
+ public:
+  MockAudioCodecCapability(const AudioCodecCapabilityData& test_data)
+      : AudioCodecCapability(test_data) {}
+};
+
+class MockVideoCodecCapability final : public VideoCodecCapability {
+ public:
+  MockVideoCodecCapability(const VideoCodecCapabilityData& test_data)
+      : VideoCodecCapability(test_data) {}
+
+  bool AreResolutionAndRateSupported(int frame_width,
+                                     int frame_height,
+                                     int fps) const override {
+    return ResolutionAndRateAreWithinBounds(frame_width, frame_height, fps);
+  }
+};
+
 class MockMediaCapabilitiesProvider : public MediaCapabilitiesProvider {
  public:
   MOCK_METHOD(bool, GetIsWidevineSupported, (), (override));
@@ -53,6 +71,22 @@ class MockMediaCapabilitiesProvider : public MediaCapabilitiesProvider {
        (std::map<std::string,
                  VideoCodecCapabilities>)&video_codec_capabilities),
       (override));
+  MOCK_METHOD(std::string,
+              FindAudioDecoder,
+              (const std::string& mime_type, int bitrate),
+              (override));
+  MOCK_METHOD(std::string,
+              FindVideoDecoder,
+              (const std::string& mime_type,
+               bool must_support_secure,
+               bool must_support_hdr,
+               bool require_software_codec,
+               bool must_support_tunnel_mode,
+               int frame_width,
+               int frame_height,
+               int bitrate,
+               int fps),
+              (override));
 };
 
 class MediaCapabilitiesCacheTest : public ::testing::Test {
@@ -231,6 +265,103 @@ TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_DisabledCache) {
   EXPECT_EQ(config.coding_type, kSbMediaAudioCodingTypeDolbyDigitalPlus);
 
   EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, HasAudioDecoderFor_EnabledCache) {
+  AudioCodecCapability::AudioCodecCapabilityData mock_data;
+  mock_data.base_data.name = "fake codec";
+  mock_data.supported_bitrates = Range(0, 1000);
+
+  typedef std::vector<std::unique_ptr<AudioCodecCapability>>
+      AudioCodecCapabilities;
+  typedef std::vector<std::unique_ptr<VideoCodecCapability>>
+      VideoCodecCapabilities;
+
+  std::map<std::string, AudioCodecCapabilities>
+      mock_audio_codec_capabilities_map;
+  mock_audio_codec_capabilities_map["fake mime_type"].push_back(
+      std::make_unique<MockAudioCodecCapability>(mock_data));
+
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(::testing::_, ::testing::_))
+      .WillOnce(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_map_internal,
+              std::map<std::string, VideoCodecCapabilities>&
+                  video_map_internal) {
+            audio_map_internal = std::move(mock_audio_codec_capabilities_map);
+          });
+
+  EXPECT_TRUE(cache_->HasAudioDecoderFor("fake mime_type", 500));
+  EXPECT_FALSE(cache_->HasAudioDecoderFor("fake mime_type", 2000));
+  EXPECT_FALSE(cache_->HasAudioDecoderFor("non-existent mime_type", 500));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, HasAudioDecoderFor_DisabledCache) {
+  cache_->SetCacheEnabled(false);
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              FindAudioDecoder(::testing::_, ::testing::_))
+      .Times(2)
+      .WillOnce(Return("non-empty string"))
+      .WillOnce(Return(""));
+
+  EXPECT_TRUE(cache_->HasAudioDecoderFor("test string", 100));
+  EXPECT_FALSE(cache_->HasAudioDecoderFor("test string", 100));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_EnabledCache) {
+  VideoCodecCapability::VideoCodecCapabilityData mock_data;
+  mock_data.base_data.name = "test video codec";
+  mock_data.base_data.is_secure_supported = true;
+  mock_data.base_data.is_secure_required = true;
+
+  mock_data.base_data.is_tunnel_mode_supported = true;
+  mock_data.base_data.is_tunnel_mode_required = true;
+  mock_data.is_hdr_capable = true;
+  mock_data.is_software_decoder = true;
+  mock_data.supported_bitrates = Range(0, 1000);
+  mock_data.supported_frame_rates = Range(0, 60);
+  mock_data.supported_widths = Range(0, 100);
+  mock_data.supported_heights = Range(0, 500);
+
+  typedef std::vector<std::unique_ptr<AudioCodecCapability>>
+      AudioCodecCapabilities;
+  typedef std::vector<std::unique_ptr<VideoCodecCapability>>
+      VideoCodecCapabilities;
+  std::map<std::string, VideoCodecCapabilities>
+      mock_video_codec_capabilities_map;
+  mock_video_codec_capabilities_map["fake mime_type"].push_back(
+      std::make_unique<MockVideoCodecCapability>(mock_data));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(::testing::_, ::testing::_))
+      .WillOnce(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_map_internal,
+              std::map<std::string, VideoCodecCapabilities>&
+                  video_map_internal) {
+            video_map_internal = std::move(mock_video_codec_capabilities_map);
+          });
+
+  EXPECT_TRUE(cache_->HasVideoDecoderFor("fake mime_type", true, true, true, 50,
+                                         50, 50, 50));
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("fake mime_type", false, false, false,
+                                          -1, -1, -1, -1));
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("non-existent mime_type", true, true,
+                                          true, 50, 50, 50, 50));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_DisabledCache) {
+  cache_->SetCacheEnabled(false);
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              FindVideoDecoder(testing::_, testing::_, testing::_, testing::_,
+                               testing::_, testing::_, testing::_, testing::_,
+                               testing::_))
+      .Times(2)
+      .WillOnce(Return("Non-empty string"))
+      .WillOnce(Return(""));
+
+  EXPECT_TRUE(cache_->HasVideoDecoderFor("fake mime_type", true, true, true, 50,
+                                         50, 50, 50));
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("fake mime_type", true, true, true,
+                                          50, 50, 50, 50));
 }
 
 TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
