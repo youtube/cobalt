@@ -42,11 +42,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
-<<<<<<< HEAD
-=======
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
-#include "components/variations/pref_names.h"
->>>>>>> 74bf69fc9dc ([Android] Flush cookies and local storage when activity is paused (#7587))
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
