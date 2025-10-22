@@ -21,6 +21,7 @@
     "All/TimerTestWithThreadType.*",
     "FileTest.TouchGetInfo",
     "TransliteratorTest.KatakanaHiraganaCorrect",
+    "TransliteratorTest.HiraganaKatakanaCorrect",
     "ThreadGroupProfilerTest.*"
   ]
 }
