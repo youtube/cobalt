@@ -232,6 +232,10 @@ static_library("test_support") {
       ]
     }
     if (is_cobalt_hermetic_build) {
+      sources -= [
+        "test_trace_processor.cc",
+        "test_trace_processor.h",
+      ]
       public_deps -= [ ":test_trace_processor" ]
     }
   }
