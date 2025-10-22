@@ -39,6 +39,7 @@ bool PathProviderStarboard(int key, FilePath* result) {
       return false;
     }
 
+    case base::DIR_SRC_TEST_DATA_ROOT:
     case base::DIR_EXE:
     case base::DIR_MODULE:
     case base::DIR_ASSETS: {
