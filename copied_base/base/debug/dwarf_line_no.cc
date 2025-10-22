@@ -1268,7 +1268,7 @@ void PopulateCompileUnitOffsets(int fd,
 }  // namespace
 
 bool GetDwarfSourceLineNumber(void* pc,
-                              uintptr_t cu_offset,
+                              uint64_t cu_offset,
                               char* out,
                               size_t out_size) {
   uint64_t pc0 = reinterpret_cast<uint64_t>(pc);
@@ -1344,7 +1344,7 @@ namespace base {
 namespace debug {
 
 bool GetDwarfSourceLineNumber(void* pc,
-                              uintptr_t cu_offset,
+                              uint64_t cu_offset,
                               char* out,
                               size_t out_size) {
   return false;
