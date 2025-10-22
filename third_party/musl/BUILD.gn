@@ -420,6 +420,7 @@ static_library("c_internal") {
     "src/starboard/internal/init_musl.c",
     "src/starboard/internal/stdio_init.c",
     "src/starboard/internal/stdio_stub.c",
+    "src/starboard/largefile.c",
     "src/starboard/misc/ioctl.c",
     "src/starboard/misc/syscall.c",
     "src/starboard/misc/syscall_helper.c",
