@@ -353,12 +353,16 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Set Up Depot Tools
-        uses: ./.github/actions/depot_tools
+        uses: ./src/.github/actions/depot_tools
       - name: Download all size artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: size_artifacts_evergreen-arm-*_gold
           path: size_artifacts
+
+      - name: Move size artifacts
+        run: mv size_artifacts src/
+        shell: bash
 
       - name: Process size artifacts
         run: |
