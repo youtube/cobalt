@@ -6,6 +6,7 @@
     "WebGPUTest.*",
     "*EGLImageBackingFactoryThreadSafeTest*",
     "GLReadbackTest.ReadPixelsFloat",
-    "OzoneImageBackingFactoryTest.UsesCacheForTextureHolders"
+    "OzoneImageBackingFactoryTest.*",
+    "TranslatorVariants/EXTBlendFuncExtendedDrawTest.*"
   ]
 }

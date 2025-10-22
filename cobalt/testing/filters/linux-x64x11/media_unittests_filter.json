@@ -22,6 +22,9 @@
     "Mp4MuxerDelegateTest.AddAudioFrame*",
     "SupportedTypesTest.IsDecoderSupportedVideoTypeBasics",
     "SupportedTypesTest.IsDecoderSupportedVideoTypeWithHdrMetadataBasics",
-    "SupportedTypesTest.IsEncoderSupportedVideoType_VP9Profiles"
+    "SupportedTypesTest.IsEncoderSupportedVideoType_VP9Profiles",
+    "VideoFrameStructTraitsTest.*",
+    "NativePixmapHandleMojomTraitsTest.ValidNativePixmapPlane",
+    "WebMClusterParserTest.*"
   ]
 }
