@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/player.h"
+#include "starboard/shared/starboard/features.h"
 
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                               SbMediaType sample_type) {

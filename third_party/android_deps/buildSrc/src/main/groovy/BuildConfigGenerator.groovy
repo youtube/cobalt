@@ -102,6 +102,7 @@ class BuildConfigGenerator extends DefaultTask {
       'androidx_documentfile',
       'androidx_legacy',
       'androidx_localbroadcastmanager_localbroadcastmanager',
+      'androidx_media3_media3',
       'androidx_multidex_multidex',
       'androidx_print',
       'androidx_test',
