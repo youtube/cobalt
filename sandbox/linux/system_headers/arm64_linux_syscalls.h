@@ -5,7 +5,9 @@
 #ifndef SANDBOX_LINUX_SYSTEM_HEADERS_ARM64_LINUX_SYSCALLS_H_
 #define SANDBOX_LINUX_SYSTEM_HEADERS_ARM64_LINUX_SYSCALLS_H_
 
+#if __has_include(<asm-generic/unistd.h>)
 #include <asm-generic/unistd.h>
+#endif
 
 #if !defined(__NR_io_setup)
 #define __NR_io_setup 0

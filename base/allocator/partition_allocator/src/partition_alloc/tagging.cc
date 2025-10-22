@@ -18,31 +18,54 @@
 #include <arm_acle.h>
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
+#if __has_include(<sys/ifunc.h>)
 #include <sys/ifunc.h>
+#endif
 #include <sys/prctl.h>
 #define PR_SET_TAGGED_ADDR_CTRL 55
 #define PR_GET_TAGGED_ADDR_CTRL 56
 #define PR_TAGGED_ADDR_ENABLE (1UL << 0)
 
 #if PA_BUILDFLAG(IS_LINUX)
+#if __has_include(<linux/version.h>)
 #include <linux/version.h>
-
 // Linux headers already provide these since v5.10.
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #define HAS_PR_MTE_MACROS
 #endif
 #endif
+#endif
 
+#include "partition_alloc/buildflags.h"
+
+#if PA_BUILDFLAG(IS_LINUX)
 #ifndef HAS_PR_MTE_MACROS
+#ifndef PR_MTE_TCF_SHIFT
 #define PR_MTE_TCF_SHIFT 1
+#endif
+#ifndef PR_MTE_TCF_NONE
 #define PR_MTE_TCF_NONE (0UL << PR_MTE_TCF_SHIFT)
+#endif
+#ifndef PR_MTE_TCF_SYNC
 #define PR_MTE_TCF_SYNC (1UL << PR_MTE_TCF_SHIFT)
+#endif
+#ifndef PR_MTE_TCF_ASYNC
 #define PR_MTE_TCF_ASYNC (2UL << PR_MTE_TCF_SHIFT)
+#endif
+#ifndef PR_MTE_TCF_MASK
 #define PR_MTE_TCF_MASK (3UL << PR_MTE_TCF_SHIFT)
+#endif
+#ifndef PR_MTE_TAG_SHIFT
 #define PR_MTE_TAG_SHIFT 3
+#endif
+#ifndef PR_MTE_TAG_MASK
 #define PR_MTE_TAG_MASK (0xffffUL << PR_MTE_TAG_SHIFT)
+#endif
+#ifndef HWCAP2_MTE
 #define HWCAP2_MTE (1 << 18)
 #endif
+#endif  // HAS_PR_MTE_MACROS
+#endif  // PA_BUILDFLAG(IS_STARBOARD)
 #endif
 
 #if PA_BUILDFLAG(IS_ANDROID)

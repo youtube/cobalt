@@ -14,7 +14,7 @@
 
 config("sabi_flags") {
   cflags = [
-    "-march=arm64v8a",
+    "-march=armv9-a+sve+sme+dotprod+i8mm",
     "-target",
     "arm64v8a-unknown-linux-elf",
 

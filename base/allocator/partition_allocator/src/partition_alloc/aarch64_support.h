@@ -14,9 +14,11 @@
 #define HAS_HW_CAPS
 #endif
 
-#if PA_BUILDFLAG(PA_ARCH_CPU_ARM64) && defined(HAS_HW_CAPS)
+#if PA_BUILDFLAG(PA_ARCH_CPU_ARM64) && defined(HAS_HW_CAPS) && \
+    __has_include(<sys/ifunc.h>)
 #include <asm/hwcap.h>
 #include <sys/ifunc.h>
+#define HAS_IFUNC_H
 #else
 struct __ifunc_arg_t;
 #endif
@@ -26,7 +28,7 @@ namespace partition_alloc::internal {
 constexpr bool IsBtiEnabled(uint64_t ifunc_hwcap,
                             struct __ifunc_arg_t* ifunc_hw) {
 #if PA_BUILDFLAG(PA_ARCH_CPU_ARM64) && defined(HAS_HW_CAPS) && \
-    !PA_BUILDFLAG(IS_HWASAN)
+    !PA_BUILDFLAG(IS_HWASAN) && defined(HAS_IFUNC_H)
   return (ifunc_hwcap & _IFUNC_ARG_HWCAP) && (ifunc_hw->_hwcap2 & HWCAP2_BTI);
 #else
   return false;
@@ -36,7 +38,7 @@ constexpr bool IsBtiEnabled(uint64_t ifunc_hwcap,
 constexpr bool IsMteEnabled(uint64_t ifunc_hwcap,
                             struct __ifunc_arg_t* ifunc_hw) {
 #if PA_BUILDFLAG(PA_ARCH_CPU_ARM64) && defined(HAS_HW_CAPS) && \
-    PA_BUILDFLAG(HAS_MEMORY_TAGGING)
+    PA_BUILDFLAG(HAS_MEMORY_TAGGING) && defined(HAS_IFUNC_H)
   return (ifunc_hwcap & _IFUNC_ARG_HWCAP) && (ifunc_hw->_hwcap2 & HWCAP2_MTE);
 #else
   return false;
