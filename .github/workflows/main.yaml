@@ -361,9 +361,8 @@ jobs:
           path: size_artifacts
 
       - name: Process size artifacts
-        with:
-          path: src
         run: |
+          cd src
           cobalt/testing/tools/process_size_artifacts.sh
         shell: bash
 
