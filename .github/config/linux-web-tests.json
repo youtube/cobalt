@@ -6,8 +6,8 @@
   "web_tests": true,
   "targets": [
     "blink_web_tests",
-    "dump_syms",
-    "minidump_stackwalk"
+    "clang_x64_with_system_allocator/dump_syms",
+    "clang_x64_with_system_allocator/minidump_stackwalk"
   ],
   "build_configs": [
     "devel"
