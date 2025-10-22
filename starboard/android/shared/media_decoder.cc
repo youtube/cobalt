@@ -35,11 +35,8 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-const jlong kDequeueTimeout = 0;
-
-constexpr int kMaxFramesInDecoder = 6;
-constexpr bool kForceLimiting = true;
-constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
+constexpr int kMaxFramesInDecoder = 100;
+constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -905,31 +902,4 @@ bool MediaDecoder::Flush() {
   destroying_.store(false);
   return true;
 }
-
-void MediaDecoder::ResetDecoderStateTracker() {
-  if (!media_codec_bridge_) {
-    SB_LOG(WARNING) << __func__ << " media_codec_bridge_ is null.";
-    return;
-  }
-
-  if (kForceLimiting) {
-    SB_LOG(INFO) << "kForceLimiting=" << (kForceLimiting ? "true" : "false");
-  }
-
-  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
-  if (frame_size.texture_width == 0 || frame_size.texture_height == 0) {
-    return;
-  }
-
-  constexpr int kArea4k = 3840 * 2160;
-  int area = frame_size.display_width() * frame_size.display_height();
-
-  decoder_state_tracker_ =
-      kForceLimiting || area > kArea4k
-          ? DecoderStateTracker::CreateThrottling(
-                kMaxFramesInDecoder, kFrameTrackerLogIntervalUs,
-                [this]() { condition_variable_.Signal(); })
-          : DecoderStateTracker::CreateNoOp();
-}
-
 }  // namespace starboard::android::shared

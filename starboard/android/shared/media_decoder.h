@@ -175,7 +175,6 @@ class MediaDecoder final
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  void ResetDecoderStateTracker();
   void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
