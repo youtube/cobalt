@@ -33,7 +33,9 @@ namespace {
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 
-constexpr int kMaxFramesInDecoder = 6;
+// Set very high value of kMaxFramesInDecoder, virtually unlimiting the frames
+// in decoder.
+constexpr int kMaxFramesInDecoder = 1'000'000;
 constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
 
 const jint kNoOffset = 0;

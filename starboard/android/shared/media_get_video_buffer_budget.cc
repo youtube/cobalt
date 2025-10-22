@@ -36,7 +36,7 @@ namespace {
 // TODO: b/416039556 - Allow starboard::feature to override this value, once
 // b/416039556 is completed.
 // constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
-constexpr int kMaxVideoBufferBudget = 50 * 1024 * 1024;
+constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
 
 }  // namespace
 
