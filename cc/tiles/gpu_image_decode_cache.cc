@@ -99,12 +99,12 @@ constexpr base::FeatureParam<int> kCacheSizeLimitMb{&kLimitImageDecodeCacheSize,
 // kCacheAgeLimitSeconds parameter defined below.
 BASE_FEATURE(kLimitImageDecodeCacheAge,
              "LimitImageDecodeCacheAge",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // The max number of seconds since an LRUCache entry has been used before we
 // will try to evict it from the cache.
 constexpr base::FeatureParam<int> kCacheAgeLimitSeconds{
-    &kLimitImageDecodeCacheAge, "seconds", 10};
+    &kLimitImageDecodeCacheAge, "seconds", 5};
 
 // The maximum number of images that we can lock simultaneously in our working
 // set. This is separate from the memory limit, as keeping very large numbers
