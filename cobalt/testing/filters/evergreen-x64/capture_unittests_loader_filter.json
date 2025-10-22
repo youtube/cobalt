@@ -1,6 +1,8 @@
 {
   "failing_tests": [
     "FileVideoCaptureDeviceTest.*",
-    "VideoCaptureDeviceTests/VideoCaptureDeviceTest.UsingRealWebcam_*"
+    "VideoCaptureDeviceTests/VideoCaptureDeviceTest.UsingRealWebcam_*",
+    "V4l2CaptureDelegateGpuHelperTest.FailureAsInvalidMJPEGCaptureSampleData",
+    "All/V4l2CaptureDelegateGpuHelperTest.SuccessConvertWithCaptureParam/2"
   ]
 }

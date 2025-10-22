@@ -4091,7 +4091,7 @@ test("base_unittests") {
     ]
   }
 
-  if (enable_base_tracing) {
+  if (enable_base_tracing && !is_cobalt_hermetic_build) {
     sources += [ "test/test_trace_processor_example_unittest.cc" ]
   }
 

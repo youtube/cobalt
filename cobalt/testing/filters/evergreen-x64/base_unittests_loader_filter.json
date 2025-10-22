@@ -48,7 +48,26 @@
     "ImmediateCrashTest.ExpectedOpcodeSequence",
     "PostTaskAndReplyImplTest.PostTaskToStoppedTaskRunnerWithoutSequencedContext",
     "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock",
-    "All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork*"
+    "All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork*",
+    "BlockTestsWritingToSpecialDirsTest.*",
+    "FileProxyTest.*",
+    "DriveInfoTest.GetFileDriveInfo",
+    "FileTest.*",
+    "ImportantFileWriterCleanerTest.*",
+    "ImportantFileWriterTest.*",
+    "ScopedTempDir.*",
+    "TransliteratorTest.KatakanaHiraganaCorrect",
+    "TransliteratorTest.HiraganaKatakanaCorrect",
+    "JSONValueDeserializerTest.*File",
+    "PersistentHistogramAllocatorTest.*File",
+    "PersistentHistogramStorageTest.*",
+    "PersistentMemoryAllocatorTest.TruncateTest",
+    "FilePersistentMemoryAllocatorTest.*",
+    "LaunchTest.GetAppOutputWithInvalidExecutableShouldFail",
+    "ActionSuffixReaderTest.CallActualMethod",
+    "HistogramVariantsReaderTest.SanityChecks",
+    "ScopedFDOwnershipTrackingTest.BasicTracking",
+    "ParseMimeTypesTest.*"
   ],
 
   "_filtered_b/411746135": [

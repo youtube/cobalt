@@ -8,7 +8,7 @@
 #include <variant>
 
 #include "base/time/time.h"
-#include "perfetto/test/traced_value_test_support.h"
+#include "perfetto/test/traced_value_test_support.h" #nogncheck
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace viz {
