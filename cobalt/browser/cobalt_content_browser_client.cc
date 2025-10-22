@@ -42,7 +42,6 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
-#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
@@ -386,12 +385,11 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   CHECK(rfh);
   auto* storage_partition = rfh->GetStoragePartition();
   CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   CHECK(cookie_manager);
-  auto flush_cookies =
-      base::BindOnce(&network::mojom::CookieManager::FlushCookieStore,
-                     base::Unretained(cookie_manager), std::move(callback));
-  storage_partition->GetLocalStorageControl()->Flush(std::move(flush_cookies));
+  cookie_manager->FlushCookieStore(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
