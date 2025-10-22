@@ -198,14 +198,13 @@ buildflag_header("ios_cronet_buildflags") {
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
-<<<<<<< HEAD
 enable_message_pump_epoll = is_linux || is_chromeos || is_android
 buildflag_header("message_pump_buildflags") {
   header = "message_pump_buildflags.h"
   header_dir = "base/message_loop"
   flags = [ "ENABLE_MESSAGE_PUMP_EPOLL=$enable_message_pump_epoll" ]
 }
-=======
+
 buildflag_header("cobalt_for_google3_buildflags") {
   header = "cobalt_for_google3_buildflags.h"
   header_dir = "base/android"
@@ -213,9 +212,6 @@ buildflag_header("cobalt_for_google3_buildflags") {
     "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
   ]
 }
-
-use_epoll = is_linux || is_chromeos || is_android
->>>>>>> d62092807cc (Reapply "android: Replace JNI prefix flag with GN build flag" (#7631) (#7661))
 
 # Base and everything it depends on should be a static library rather than
 # a source set. Base is more of a "library" in the classic sense in that many
