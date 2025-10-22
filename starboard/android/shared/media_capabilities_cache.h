@@ -43,6 +43,14 @@ struct Range {
 
 class CodecCapability {
  public:
+  struct CodecCapabilityData {
+    std::string name;
+    bool is_secure_required;
+    bool is_secure_supported;
+    bool is_tunnel_mode_required;
+    bool is_tunnel_mode_supported;
+  };
+
   CodecCapability(JNIEnv* env,
                   base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
   virtual ~CodecCapability() {}
@@ -52,6 +60,12 @@ class CodecCapability {
   bool is_secure_supported() const { return is_secure_supported_; }
   bool is_tunnel_mode_required() const { return is_tunnel_mode_required_; }
   bool is_tunnel_mode_supported() const { return is_tunnel_mode_supported_; }
+
+ protected:
+  CodecCapability(const CodecCapabilityData& data);
+  CodecCapabilityData BuildData(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
 
  private:
   CodecCapability(const CodecCapability&) = delete;
@@ -66,6 +80,10 @@ class CodecCapability {
 
 class AudioCodecCapability : public CodecCapability {
  public:
+  struct AudioCodecCapabilityData {
+    CodecCapabilityData base_data;
+    Range supported_bitrates;
+  };
   AudioCodecCapability(
       JNIEnv* env,
       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
@@ -74,20 +92,39 @@ class AudioCodecCapability : public CodecCapability {
 
   bool IsBitrateSupported(int bitrate) const;
 
+ protected:
+  AudioCodecCapability(const AudioCodecCapabilityData& data);
+
  private:
   AudioCodecCapability(const AudioCodecCapability&) = delete;
   AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
+
+  AudioCodecCapabilityData BuildData(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+      base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
 
   const Range supported_bitrates_;
 };
 
 class VideoCodecCapability : public CodecCapability {
  public:
+  struct VideoCodecCapabilityData {
+    CodecCapabilityData base_data;
+    bool is_software_decoder;
+    bool is_hdr_capable;
+    base::android::ScopedJavaGlobalRef<jobject> j_video_capabilities;
+    Range supported_widths;
+    Range supported_heights;
+    Range supported_bitrates;
+    Range supported_frame_rates;
+  };
+
   VideoCodecCapability(
       JNIEnv* env,
       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
       base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
-  ~VideoCodecCapability() override;
+  ~VideoCodecCapability() override = default;
 
   bool is_software_decoder() const { return is_software_decoder_; }
   bool is_hdr_capable() const { return is_hdr_capable_; }
@@ -98,13 +135,24 @@ class VideoCodecCapability : public CodecCapability {
   // VideoCapabilities.areSizeAndRateSupported() or
   // VideoCapabilities.isSizeSupported() will be used to check the
   // supportability.
-  bool AreResolutionAndRateSupported(int frame_width,
-                                     int frame_height,
-                                     int fps) const;
+  virtual bool AreResolutionAndRateSupported(int frame_width,
+                                             int frame_height,
+                                             int fps) const;
+
+ protected:
+  VideoCodecCapability(const VideoCodecCapabilityData& data);
+  bool ResolutionAndRateAreWithinBounds(int frame_width,
+                                        int frame_height,
+                                        int fps) const;
 
  private:
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
+
+  VideoCodecCapabilityData BuildData(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+      base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
 
   const bool is_software_decoder_;
   const bool is_hdr_capable_;
@@ -134,6 +182,17 @@ class MediaCapabilitiesProvider {
       std::map<std::string, AudioCodecCapabilities>& audio_codec_capabilities,
       std::map<std::string, VideoCodecCapabilities>&
           video_codec_capabilities) = 0;
+  virtual std::string FindAudioDecoder(const std::string& mime_type,
+                                       int bitrate) = 0;
+  virtual std::string FindVideoDecoder(const std::string& mime_type,
+                                       bool must_support_secure,
+                                       bool must_support_hdr,
+                                       bool require_software_codec,
+                                       bool must_support_tunnel_mode,
+                                       int frame_width,
+                                       int frame_height,
+                                       int bitrate,
+                                       int fps) = 0;
 };
 
 class MediaCapabilitiesCache {
