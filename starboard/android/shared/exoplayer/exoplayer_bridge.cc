@@ -394,7 +394,7 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
   std::lock_guard lock(mutex_);
   if (is_playing_ && j_video_media_source_ &&
       !IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-    SB_LOG(INFO) << "Error: Video surface was destroyed during playback.";
+    SB_LOG(ERROR) << "Error: Video surface was destroyed during playback.";
     error_cb_(kSbPlayerErrorDecode,
               "Video surface was destroyed during playback.");
     error_occurred_ = true;
@@ -488,7 +488,7 @@ void ExoPlayerBridge::InitExoplayer() {
   }
 
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
-    ScopedJavaGlobalRef<jobject> j_output_surface(env, AcquireVideoSurface());
+    ScopedJavaLocalRef<jobject> j_output_surface(env, AcquireVideoSurface());
     if (!j_output_surface) {
       SB_LOG(ERROR) << "Could not acquire video surface for ExoPlayer.";
       error_occurred_ = true;
