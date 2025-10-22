@@ -9,8 +9,8 @@
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/history/core/browser/web_history_service.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/version_info/version_info.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
@@ -57,7 +57,7 @@ void ShouldShowNoticeAboutOtherFormsOfBrowsingHistory(
     const syncer::SyncService* sync_service,
     history::WebHistoryService* history_service,
     base::OnceCallback<void(bool)> callback) {
-  if (!sync_service || !sync_service->IsSyncFeatureActive() ||
+  if (!sync_service ||
       !sync_service->GetActiveDataTypes().Has(
           syncer::HISTORY_DELETE_DIRECTIVES) ||
       sync_service->GetUserSettings()->IsUsingExplicitPassphrase() ||
@@ -100,7 +100,7 @@ void ShouldPopupDialogAboutOtherFormsOfBrowsingHistory(
     history::WebHistoryService* history_service,
     version_info::Channel channel,
     base::OnceCallback<void(bool)> callback) {
-  if (!sync_service || !sync_service->IsSyncFeatureActive() ||
+  if (!sync_service ||
       !sync_service->GetActiveDataTypes().Has(
           syncer::HISTORY_DELETE_DIRECTIVES) ||
       sync_service->GetUserSettings()->IsUsingExplicitPassphrase() ||

@@ -4,13 +4,19 @@
 
 package org.chromium.chrome.browser.download;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.DownloadLocationDialogMetrics.DownloadLocationSuggestionEvent;
 import org.chromium.chrome.browser.download.dialogs.DownloadDialogUtils;
 import org.chromium.chrome.browser.download.dialogs.DownloadLocationDialogController;
@@ -26,25 +32,22 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
 
-/**
- * Glues download dialogs UI code and handles the communication to download native backend.
- */
+/** Glues download dialogs UI code and handles the communication to download native backend. */
+@NullMarked
 public class DownloadDialogBridge implements DownloadLocationDialogController {
-    private static final long INVALID_START_TIME = -1;
     private long mNativeDownloadDialogBridge;
 
     private final DownloadLocationDialogCoordinator mLocationDialog;
 
-    private Context mContext;
-    private ModalDialogManager mModalDialogManager;
-    private WindowAndroid mWindowAndroid;
-    private long mTotalBytes;
-    private @ConnectionType int mConnectionType = ConnectionType.CONNECTION_NONE;
+    private @Nullable Context mContext;
+    private @Nullable ModalDialogManager mModalDialogManager;
+    private @Nullable WindowAndroid mWindowAndroid;
     private @DownloadLocationDialogType int mLocationDialogType;
-    private String mSuggestedPath;
-    private PrefService mPrefService;
+    private @Nullable String mSuggestedPath;
+    private @Nullable Profile mProfile;
 
-    public DownloadDialogBridge(
+    @VisibleForTesting
+    DownloadDialogBridge(
             long nativeDownloadDialogBridge, DownloadLocationDialogCoordinator locationDialog) {
         mNativeDownloadDialogBridge = nativeDownloadDialogBridge;
         mLocationDialog = locationDialog;
@@ -66,64 +69,82 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
     }
 
     @CalledByNative
-    private void showDialog(WindowAndroid windowAndroid, long totalBytes,
-            @ConnectionType int connectionType, @DownloadLocationDialogType int dialogType,
-            String suggestedPath, boolean isIncognito) {
+    private void showDialog(
+            WindowAndroid windowAndroid,
+            long totalBytes,
+            @ConnectionType int connectionType,
+            @DownloadLocationDialogType int dialogType,
+            @JniType("std::string") String suggestedPath,
+            Profile profile) {
         mWindowAndroid = windowAndroid;
+        mProfile = profile;
         Activity activity = windowAndroid.getActivity().get();
         if (activity == null) {
             onCancel();
             return;
         }
 
-        DownloadDirectoryProvider.getInstance().getAllDirectoriesOptions((dirs) -> {
-            ModalDialogManager modalDialogManager =
-                    ((ModalDialogManagerHolder) activity).getModalDialogManager();
+        DownloadDirectoryProvider.getInstance()
+                .getAllDirectoriesOptions(
+                        (dirs) -> {
+                            ModalDialogManager modalDialogManager =
+                                    ((ModalDialogManagerHolder) activity).getModalDialogManager();
 
-            // Suggests an alternative download location.
-            @DownloadLocationDialogType
-            int suggestedDialogType = dialogType;
-            if (ChromeFeatureList.isEnabled(ChromeFeatureList.SMART_SUGGESTION_FOR_LARGE_DOWNLOADS)
-                    && DownloadDialogUtils.shouldSuggestDownloadLocation(
-                            dirs, getDownloadDefaultDirectory(), totalBytes)) {
-                suggestedDialogType = DownloadLocationDialogType.LOCATION_SUGGESTION;
-                DownloadLocationDialogMetrics.recordDownloadLocationSuggestionEvent(
-                        DownloadLocationSuggestionEvent.LOCATION_SUGGESTION_SHOWN);
-            }
+                            // Suggests an alternative download location.
+                            @DownloadLocationDialogType int suggestedDialogType = dialogType;
+                            if (ChromeFeatureList.isEnabled(
+                                            ChromeFeatureList.SMART_SUGGESTION_FOR_LARGE_DOWNLOADS)
+                                    && DownloadDialogUtils.shouldSuggestDownloadLocation(
+                                            dirs,
+                                            getDownloadDefaultDirectory(profile),
+                                            totalBytes)) {
+                                suggestedDialogType =
+                                        DownloadLocationDialogType.LOCATION_SUGGESTION;
+                                DownloadLocationDialogMetrics.recordDownloadLocationSuggestionEvent(
+                                        DownloadLocationSuggestionEvent.LOCATION_SUGGESTION_SHOWN);
+                            }
 
-            showDialog(activity, modalDialogManager, getPrefService(), totalBytes, connectionType,
-                    suggestedDialogType, suggestedPath, isIncognito);
-        });
+                            showDialog(
+                                    activity,
+                                    modalDialogManager,
+                                    totalBytes,
+                                    connectionType,
+                                    suggestedDialogType,
+                                    suggestedPath,
+                                    profile);
+                        });
     }
 
     @VisibleForTesting
-    void showDialog(Context context, ModalDialogManager modalDialogManager, PrefService prefService,
-            long totalBytes, @ConnectionType int connectionType,
-            @DownloadLocationDialogType int dialogType, String suggestedPath, boolean isIncognito) {
+    void showDialog(
+            Context context,
+            ModalDialogManager modalDialogManager,
+            long totalBytes,
+            @ConnectionType int connectionType,
+            @DownloadLocationDialogType int dialogType,
+            String suggestedPath,
+            Profile profile) {
         mContext = context;
         mModalDialogManager = modalDialogManager;
-        mPrefService = prefService;
 
-        mTotalBytes = totalBytes;
-        mConnectionType = connectionType;
         mLocationDialogType = dialogType;
         mSuggestedPath = suggestedPath;
 
         mLocationDialog.showDialog(
-                mContext, mModalDialogManager, totalBytes, dialogType, suggestedPath, isIncognito);
+                mContext, mModalDialogManager, totalBytes, dialogType, suggestedPath, profile);
     }
 
     private void onComplete() {
         if (mNativeDownloadDialogBridge == 0) return;
 
-        DownloadDialogBridgeJni.get().onComplete(
-                mNativeDownloadDialogBridge, DownloadDialogBridge.this, mSuggestedPath);
+        DownloadDialogBridgeJni.get()
+                .onComplete(mNativeDownloadDialogBridge, DownloadDialogBridge.this, mSuggestedPath);
     }
 
     private void onCancel() {
         if (mNativeDownloadDialogBridge == 0) return;
-        DownloadDialogBridgeJni.get().onCanceled(
-                mNativeDownloadDialogBridge, DownloadDialogBridge.this);
+        DownloadDialogBridgeJni.get()
+                .onCanceled(mNativeDownloadDialogBridge, DownloadDialogBridge.this);
         if (mWindowAndroid != null) {
             NewDownloadTab.closeExistingNewDownloadTab(mWindowAndroid);
             mWindowAndroid = null;
@@ -136,7 +157,8 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
         mSuggestedPath = returnedPath;
 
         if (mLocationDialogType == DownloadLocationDialogType.LOCATION_SUGGESTION) {
-            boolean isSelected = !mSuggestedPath.equals(getDownloadDefaultDirectory());
+            assumeNonNull(mProfile);
+            boolean isSelected = !mSuggestedPath.equals(getDownloadDefaultDirectory(mProfile));
             DownloadLocationDialogMetrics.recordDownloadLocationSuggestionChoice(isSelected);
         }
 
@@ -148,65 +170,67 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
         onCancel();
     }
 
-    void setPrefServiceForTesting(PrefService prefService) {
-        mPrefService = prefService;
-    }
-
     /**
      * @return The stored download default directory.
      */
-    public static String getDownloadDefaultDirectory() {
-        return DownloadDialogBridgeJni.get().getDownloadDefaultDirectory();
+    public static String getDownloadDefaultDirectory(Profile profile) {
+        return UserPrefs.get(profile.getOriginalProfile())
+                .getString(Pref.DOWNLOAD_DEFAULT_DIRECTORY);
     }
 
     /**
      * @param directory New directory to set as the download default directory.
      */
-    public static void setDownloadAndSaveFileDefaultDirectory(String directory) {
-        DownloadDialogBridgeJni.get().setDownloadAndSaveFileDefaultDirectory(directory);
+    public static void setDownloadAndSaveFileDefaultDirectory(
+            Profile profile, @Nullable String directory) {
+        DownloadDialogBridgeJni.get()
+                .setDownloadAndSaveFileDefaultDirectory(
+                        UserPrefs.get(profile.getOriginalProfile()), directory);
     }
 
     /**
      * @return The status of prompt for download pref, defined by {@link DownloadPromptStatus}.
      */
-    @DownloadPromptStatus
-    public static int getPromptForDownloadAndroid() {
-        return getPrefService().getInteger(Pref.PROMPT_FOR_DOWNLOAD_ANDROID);
+    public static @DownloadPromptStatus int getPromptForDownloadAndroid(Profile profile) {
+        return UserPrefs.get(profile.getOriginalProfile())
+                .getInteger(Pref.PROMPT_FOR_DOWNLOAD_ANDROID);
     }
 
     /**
      * @param status New status to update the prompt for download preference.
      */
-    public static void setPromptForDownloadAndroid(@DownloadPromptStatus int status) {
-        getPrefService().setInteger(Pref.PROMPT_FOR_DOWNLOAD_ANDROID, status);
+    public static void setPromptForDownloadAndroid(
+            Profile profile, @DownloadPromptStatus int status) {
+        UserPrefs.get(profile.getOriginalProfile())
+                .setInteger(Pref.PROMPT_FOR_DOWNLOAD_ANDROID, status);
     }
 
     /**
      * @return The value for {@link Pref#PROMPT_FOR_DOWNLOAD}. This is currently only used by
-     * enterprise policy.
+     *     enterprise policy.
      */
-    public static boolean getPromptForDownloadPolicy() {
-        return getPrefService().getBoolean(Pref.PROMPT_FOR_DOWNLOAD);
+    public static boolean getPromptForDownloadPolicy(Profile profile) {
+        return UserPrefs.get(profile.getOriginalProfile()).getBoolean(Pref.PROMPT_FOR_DOWNLOAD);
     }
 
     /**
      * @return whether to prompt the download location dialog is controlled by enterprise policy.
      */
-    public static boolean isLocationDialogManaged() {
-        return DownloadDialogBridgeJni.get().isLocationDialogManaged();
-    }
-
-    private static PrefService getPrefService() {
-        return UserPrefs.get(Profile.getLastUsedRegularProfile());
+    public static boolean isLocationDialogManaged(Profile profile) {
+        return UserPrefs.get(profile.getOriginalProfile())
+                .isManagedPreference(Pref.PROMPT_FOR_DOWNLOAD);
     }
 
     @NativeMethods
     public interface Natives {
         void onComplete(
-                long nativeDownloadDialogBridge, DownloadDialogBridge caller, String returnedPath);
+                long nativeDownloadDialogBridge,
+                DownloadDialogBridge caller,
+                @JniType("std::string") @Nullable String returnedPath);
+
         void onCanceled(long nativeDownloadDialogBridge, DownloadDialogBridge caller);
-        String getDownloadDefaultDirectory();
-        void setDownloadAndSaveFileDefaultDirectory(String directory);
-        boolean isLocationDialogManaged();
+
+        void setDownloadAndSaveFileDefaultDirectory(
+                PrefService prefs, @JniType("std::string") @Nullable String directory);
     }
 }

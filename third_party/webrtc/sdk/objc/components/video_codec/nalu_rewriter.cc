@@ -32,7 +32,7 @@ const size_t kAvccHeaderByteSize = sizeof(uint32_t);
 
 bool H264CMSampleBufferToAnnexBBuffer(CMSampleBufferRef avcc_sample_buffer,
                                       bool is_keyframe,
-                                      rtc::Buffer* annexb_buffer) {
+                                      webrtc::Buffer* annexb_buffer) {
   RTC_DCHECK(avcc_sample_buffer);
 
   // Get format description from the sample buffer.
@@ -259,7 +259,8 @@ AnnexBBufferReader::AnnexBBufferReader(const uint8_t* annexb_buffer,
                                        size_t length)
     : start_(annexb_buffer), length_(length) {
   RTC_DCHECK(annexb_buffer);
-  offsets_ = H264::FindNaluIndices(annexb_buffer, length);
+  offsets_ =
+      H264::FindNaluIndices(webrtc::MakeArrayView(annexb_buffer, length));
   offset_ = offsets_.begin();
 }
 

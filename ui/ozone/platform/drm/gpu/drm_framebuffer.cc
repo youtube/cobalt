@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/ozone/platform/drm/gpu/drm_framebuffer.h"
 
 #include <utility>
@@ -48,7 +53,7 @@ DrmFramebuffer::AddFramebufferParams::~AddFramebufferParams() = default;
 scoped_refptr<DrmFramebuffer> DrmFramebuffer::AddFramebuffer(
     scoped_refptr<DrmDevice> drm_device,
     DrmFramebuffer::AddFramebufferParams params) {
-  uint64_t modifiers[4] = {0};
+  uint64_t modifiers[4] = {};
   if (params.modifier != DRM_FORMAT_MOD_INVALID) {
     for (size_t i = 0; i < params.num_planes; ++i)
       modifiers[i] = params.modifier;
@@ -67,7 +72,9 @@ scoped_refptr<DrmFramebuffer> DrmFramebuffer::AddFramebuffer(
                                    params.handles, params.strides,
                                    params.offsets, modifiers, &framebuffer_id,
                                    params.flags)) {
-    DPLOG(WARNING) << "AddFramebuffer2";
+    VLOG(4) << "AddFramebuffer2:" << "size=" << params.width << "x"
+            << params.height << " drm_format=" << DrmFormatToString(drm_format)
+            << " fb_id=" << framebuffer_id << " flags=" << params.flags;
     return nullptr;
   }
 
@@ -77,7 +84,9 @@ scoped_refptr<DrmFramebuffer> DrmFramebuffer::AddFramebuffer(
                                    params.handles, params.strides,
                                    params.offsets, modifiers,
                                    &opaque_framebuffer_id, params.flags)) {
-    DPLOG(WARNING) << "AddFramebuffer2";
+    VLOG(4) << "AddFramebuffer2:" << "size=" << params.width << "x"
+            << params.height << " drm_format=" << DrmFormatToString(drm_format)
+            << " fb_id=" << opaque_framebuffer_id << " flags=" << params.flags;
     drm_device->RemoveFramebuffer(framebuffer_id);
     return nullptr;
   }
@@ -144,11 +153,14 @@ DrmFramebuffer::DrmFramebuffer(scoped_refptr<DrmDevice> drm_device,
       modeset_sequence_id_at_allocation_(drm_device_->modeset_sequence_id()) {}
 
 DrmFramebuffer::~DrmFramebuffer() {
-  if (!drm_device_->RemoveFramebuffer(framebuffer_id_))
-    PLOG(WARNING) << "RemoveFramebuffer";
+  if (!drm_device_->RemoveFramebuffer(framebuffer_id_)) {
+    VLOG(4) << "RemoveFramebuffer";
+  }
+
   if (opaque_framebuffer_id_ &&
-      !drm_device_->RemoveFramebuffer(opaque_framebuffer_id_))
-    PLOG(WARNING) << "RemoveFramebuffer";
+      !drm_device_->RemoveFramebuffer(opaque_framebuffer_id_)) {
+    VLOG(4) << "RemoveFramebuffer";
+  }
 }
 
 }  // namespace ui

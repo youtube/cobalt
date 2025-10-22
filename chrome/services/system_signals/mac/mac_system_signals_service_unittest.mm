@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/device_signals/core/common/common_types.h"
@@ -39,8 +40,9 @@ class MacSystemSignalsServiceTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-  MockFileSystemService* file_system_service_;
   std::unique_ptr<MacSystemSignalsService> mac_system_signals_service_;
+  // Owned by mac_system_signals_service_.
+  raw_ptr<MockFileSystemService> file_system_service_;
 };
 
 // Tests that GetFileSystemSignals forwards the signal collection to

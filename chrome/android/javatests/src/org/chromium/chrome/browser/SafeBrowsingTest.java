@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser;
 
-import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 
 import org.hamcrest.Matchers;
@@ -14,53 +13,54 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.util.browser.Features;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.safe_browsing.SafeBrowsingApiBridge;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.ui.base.PageTransition;
 
-/**
- * Test integration with the SafeBrowsingApiHandler.
- */
+/** Test integration with the SafeBrowsingApiHandler. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@Features.DisableFeatures({ChromeFeatureList.SAFE_BROWSING_DELAYED_WARNINGS})
+@DisableFeatures({ChromeFeatureList.SAFE_BROWSING_DELAYED_WARNINGS})
 public final class SafeBrowsingTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
-    private EmbeddedTestServer mTestServer;
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     /**
-     * Wait for an interstitial (or lack thereof) to be shown.
-     * Disclaimer: when |shouldBeShown| is false, it isn't clear that the interstitial would never
-     * be shown at some point in the near future. There isn't currently a way to wait for some event
-     * that would indicate this, unfortunately.
+     * Wait for an interstitial (or lack thereof) to be shown. Disclaimer: when |shouldBeShown| is
+     * false, it isn't clear that the interstitial would never be shown at some point in the near
+     * future. There isn't currently a way to wait for some event that would indicate this,
+     * unfortunately.
      */
     private void waitForInterstitial(final boolean shouldBeShown) {
-        CriteriaHelper.pollUiThread(() -> {
-            // TODO(carlosil): For now, we check the presence of an interstitial through the
-            // title since isShowingInterstitialPage does not work with committed interstitials.
-            // Once we fully migrate to committed interstitials, this should be changed to a
-            // more robust check.
-            String title = getWebContents().getTitle();
-            String errorTitle = "Security error";
-            if (shouldBeShown) {
-                Criteria.checkThat(title, Matchers.is(errorTitle));
-            } else {
-                Criteria.checkThat(title, Matchers.not(errorTitle));
-            }
-        });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    // TODO(carlosil): For now, we check the presence of an interstitial through the
+                    // title since isShowingInterstitialPage does not work with committed
+                    // interstitials.
+                    // Once we fully migrate to committed interstitials, this should be changed to a
+                    // more robust check.
+                    String title = getWebContents().getTitle();
+                    String errorTitle = "Security error";
+                    if (shouldBeShown) {
+                        Criteria.checkThat(title, Matchers.is(errorTitle));
+                    } else {
+                        Criteria.checkThat(title, Matchers.not(errorTitle));
+                    }
+                });
     }
 
     private WebContents getWebContents() {
@@ -73,44 +73,39 @@ public final class SafeBrowsingTest {
      */
     private void loadUrlNonBlocking(String url) {
         Tab tab = mActivityTestRule.getActivity().getActivityTab();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 (Runnable) () -> tab.loadUrl(new LoadUrlParams(url, PageTransition.TYPED)));
     }
 
     @Before
     public void setUp() {
-        SafeBrowsingApiBridge.setHandler(new MockSafeBrowsingApiHandler());
+        SafeBrowsingApiBridge.setSafeBrowsingApiHandler(new MockSafeBrowsingApiHandler());
     }
 
     @After
     public void tearDown() {
-        if (mTestServer != null) {
-            mTestServer.stopAndDestroyServer();
-        }
         MockSafeBrowsingApiHandler.clearMockResponses();
+        SafeBrowsingApiBridge.clearHandlerForTesting();
     }
 
     @Test
     @MediumTest
-    public void noInterstitialPage() throws Exception {
-        mTestServer = EmbeddedTestServer.createAndStartServer(
-                ApplicationProvider.getApplicationContext());
-        mActivityTestRule.startMainActivityOnBlankPage();
-
-        String url = mTestServer.getURL("/chrome/test/data/android/about.html");
-        mActivityTestRule.loadUrl(url);
+    public void noInterstitialPage() {
+        WebPageStation page = mActivityTestRule.startOnBlankPage();
+        page.loadWebPageProgrammatically(
+                mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html"));
         waitForInterstitial(false);
     }
 
     @Test
     @MediumTest
-    public void interstitialPage() throws Exception {
-        mTestServer = EmbeddedTestServer.createAndStartServer(
-                ApplicationProvider.getApplicationContext());
-        String url = mTestServer.getURL("/chrome/test/data/android/about.html");
-        MockSafeBrowsingApiHandler.addMockResponse(url, "{\"matches\":[{\"threat_type\":\"5\"}]}");
-        mActivityTestRule.startMainActivityOnBlankPage();
+    public void interstitialPage() {
+        String url =
+                mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html");
+        MockSafeBrowsingApiHandler.addMockResponse(
+                url, MockSafeBrowsingApiHandler.SOCIAL_ENGINEERING_CODE);
 
+        mActivityTestRule.startOnBlankPage();
         loadUrlNonBlocking(url);
         waitForInterstitial(true);
     }

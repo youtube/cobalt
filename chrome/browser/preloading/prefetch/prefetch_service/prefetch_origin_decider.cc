@@ -81,15 +81,13 @@ void PrefetchOriginDecider::LoadFromPrefs() {
       // This may happen in the case of corrupted prefs, or otherwise. Handle
       // gracefully.
       NOTREACHED();
-      continue;
     }
 
-    absl::optional<base::Time> retry_after = base::ValueToTime(element.second);
+    std::optional<base::Time> retry_after = base::ValueToTime(element.second);
     if (!retry_after) {
       // This may happen in the case of corrupted prefs, or otherwise. Handle
       // gracefully.
       NOTREACHED();
-      continue;
     }
 
     url::Origin origin = url::Origin::Create(url_origin);

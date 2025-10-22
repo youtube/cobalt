@@ -4,16 +4,19 @@
 
 package org.chromium.chrome.browser.app.download.home;
 
+
 import android.graphics.Bitmap;
 import android.util.LruCache;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.FaviconProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.url.GURL;
 
 /** Implementation for {@link FaviconHelper}. */
+@NullMarked
 class FaviconProviderImpl implements FaviconProvider {
     private static final int MAX_NUM_FAVICONS_TO_CACHE = 128;
 
@@ -28,6 +31,11 @@ class FaviconProviderImpl implements FaviconProvider {
         mFaviconCache = new FaviconCache(MAX_NUM_FAVICONS_TO_CACHE);
     }
 
+    @Override
+    public void destroy() {
+        mFaviconHelper.destroy();
+    }
+
     // FaviconProvider implementation.
     @Override
     public void getFavicon(String url, int faviconSizePx, Callback<Bitmap> callback) {
@@ -37,11 +45,12 @@ class FaviconProviderImpl implements FaviconProvider {
             return;
         }
 
-        FaviconHelper.FaviconImageCallback imageCallback = (bitmap, iconUrl) -> {
-            // TODO(shaktisahu): Handle no favicon case.
-            if (bitmap != null) mFaviconCache.putFaviconImage(url, bitmap);
-            callback.onResult(bitmap);
-        };
+        FaviconHelper.FaviconImageCallback imageCallback =
+                (bitmap, iconUrl) -> {
+                    // TODO(shaktisahu): Handle no favicon case.
+                    if (bitmap != null) mFaviconCache.putFaviconImage(url, bitmap);
+                    callback.onResult(bitmap);
+                };
 
         mFaviconHelper.getLocalFaviconImageForURL(
                 mProfile, new GURL(url), faviconSizePx, imageCallback);

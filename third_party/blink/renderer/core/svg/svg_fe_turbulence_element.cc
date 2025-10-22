@@ -31,19 +31,20 @@ namespace blink {
 
 template <>
 CORE_EXPORT const SVGEnumerationMap& GetEnumerationMap<SVGStitchOptions>() {
-  static const SVGEnumerationMap::Entry enum_items[] = {
-      {kSvgStitchtypeStitch, "stitch"}, {kSvgStitchtypeNostitch, "noStitch"},
-  };
+  static constexpr auto enum_items = std::to_array<const char* const>({
+      "stitch",
+      "noStitch",
+  });
   static const SVGEnumerationMap entries(enum_items);
   return entries;
 }
 
 template <>
 CORE_EXPORT const SVGEnumerationMap& GetEnumerationMap<TurbulenceType>() {
-  static const SVGEnumerationMap::Entry enum_items[] = {
-      {FETURBULENCE_TYPE_FRACTALNOISE, "fractalNoise"},
-      {FETURBULENCE_TYPE_TURBULENCE, "turbulence"},
-  };
+  static constexpr auto enum_items = std::to_array<const char* const>({
+      "fractalNoise",
+      "turbulence",
+  });
   static const SVGEnumerationMap entries(enum_items);
   return entries;
 }
@@ -70,13 +71,7 @@ SVGFETurbulenceElement::SVGFETurbulenceElement(Document& document)
       num_octaves_(
           MakeGarbageCollected<SVGAnimatedInteger>(this,
                                                    svg_names::kNumOctavesAttr,
-                                                   1)) {
-  AddToPropertyMap(base_frequency_);
-  AddToPropertyMap(seed_);
-  AddToPropertyMap(stitch_tiles_);
-  AddToPropertyMap(type_);
-  AddToPropertyMap(num_octaves_);
-}
+                                                   1)) {}
 
 SVGAnimatedNumber* SVGFETurbulenceElement::baseFrequencyX() {
   return base_frequency_->FirstNumber();
@@ -129,7 +124,6 @@ void SVGFETurbulenceElement::SvgAttributeChanged(
       attr_name == svg_names::kSeedAttr ||
       attr_name == svg_names::kStitchTilesAttr ||
       attr_name == svg_names::kTypeAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     PrimitiveAttributeChanged(attr_name);
     return;
   }
@@ -144,6 +138,32 @@ FilterEffect* SVGFETurbulenceElement::Build(SVGFilterBuilder*, Filter* filter) {
       baseFrequencyY()->CurrentValue()->Value(),
       num_octaves_->CurrentValue()->Value(), seed_->CurrentValue()->Value(),
       stitch_tiles_->CurrentEnumValue() == kSvgStitchtypeStitch);
+}
+
+SVGAnimatedPropertyBase* SVGFETurbulenceElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kBaseFrequencyAttr) {
+    return base_frequency_.Get();
+  } else if (attribute_name == svg_names::kSeedAttr) {
+    return seed_.Get();
+  } else if (attribute_name == svg_names::kStitchTilesAttr) {
+    return stitch_tiles_.Get();
+  } else if (attribute_name == svg_names::kTypeAttr) {
+    return type_.Get();
+  } else if (attribute_name == svg_names::kNumOctavesAttr) {
+    return num_octaves_.Get();
+  } else {
+    return SVGFilterPrimitiveStandardAttributes::PropertyFromAttribute(
+        attribute_name);
+  }
+}
+
+void SVGFETurbulenceElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{base_frequency_.Get(), seed_.Get(),
+                                   stitch_tiles_.Get(), type_.Get(),
+                                   num_octaves_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGFilterPrimitiveStandardAttributes::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

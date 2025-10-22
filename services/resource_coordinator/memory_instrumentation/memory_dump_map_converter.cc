@@ -54,11 +54,11 @@ perfetto::trace_processor::LevelOfDetail
 MemoryDumpMapConverter::ConvertLevelOfDetail(
     const base::trace_event::MemoryDumpLevelOfDetail& input) const {
   switch (input) {
-    case base::trace_event::MemoryDumpLevelOfDetail::BACKGROUND:
+    case base::trace_event::MemoryDumpLevelOfDetail::kBackground:
       return perfetto::trace_processor::LevelOfDetail::kBackground;
-    case base::trace_event::MemoryDumpLevelOfDetail::LIGHT:
+    case base::trace_event::MemoryDumpLevelOfDetail::kLight:
       return perfetto::trace_processor::LevelOfDetail::kLight;
-    case base::trace_event::MemoryDumpLevelOfDetail::DETAILED:
+    case base::trace_event::MemoryDumpLevelOfDetail::kDetailed:
       return perfetto::trace_processor::LevelOfDetail::kDetailed;
   }
   return perfetto::trace_processor::LevelOfDetail::kDetailed;
@@ -99,7 +99,7 @@ void MemoryDumpMapConverter::CopyAndConvertAllocatorDumpFlags(
     perfetto::trace_processor::RawMemoryGraphNode* output) const {
   output->clear_flags(output->flags());
   output->set_flags(
-      input.flags() & base::trace_event::MemoryAllocatorDump::WEAK
+      input.flags() & base::trace_event::MemoryAllocatorDump::kWeak
           ? perfetto::trace_processor::RawMemoryGraphNode::kWeak
           : perfetto::trace_processor::RawMemoryGraphNode::kDefault);
 }

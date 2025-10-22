@@ -28,12 +28,12 @@ const base::FilePath::CharType kTestFile[] =
 
 class DefaultAppOrderTest : public testing::Test {
  public:
-  DefaultAppOrderTest() {}
+  DefaultAppOrderTest() = default;
 
   DefaultAppOrderTest(const DefaultAppOrderTest&) = delete;
   DefaultAppOrderTest& operator=(const DefaultAppOrderTest&) = delete;
 
-  ~DefaultAppOrderTest() override {}
+  ~DefaultAppOrderTest() override = default;
 
   // testing::Test overrides:
   void SetUp() override { default_app_order::Get(&built_in_default_); }
@@ -53,7 +53,8 @@ class DefaultAppOrderTest : public testing::Test {
 
   void SetExternalFile(const base::FilePath& path) {
     path_override_ = std::make_unique<base::ScopedPathOverride>(
-        ash::FILE_DEFAULT_APP_ORDER, path);
+        ash::FILE_DEFAULT_APP_ORDER, path, /*is_absolute=*/true,
+        /*create=*/false);
   }
 
   void CreateExternalOrderFile(const std::string& content) {

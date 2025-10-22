@@ -30,7 +30,11 @@ class BrowserContext;
 }
 
 namespace extensions {
+
+namespace mojom {
 enum class ChannelType;
+}
+
 class ChannelEndpoint;
 class Extension;
 class ExtensionHost;
@@ -78,14 +82,19 @@ class MessageService : public BrowserContextKeyedAPI,
   // MessagePort::ChannelDelegate implementation.
   void CloseChannel(const PortId& port_id,
                     const std::string& error_message) override;
+  void ClosePort(const PortId& port_id,
+                 int process_id,
+                 const PortContext& port_context,
+                 bool force_close) override;
   void PostMessage(const PortId& port_id, const Message& message) override;
+  void NotifyResponsePending(const PortId& port_id) override;
 
   // Convenience method to get the MessageService for a browser context.
   static MessageService* Get(content::BrowserContext* context);
 
   // Given an extension's ID, opens a channel between the given renderer "port"
-  // and every listening context owned by that extension. |channel_name| is
-  // an optional identifier for use by extension developers. |opener_port| is an
+  // and every listening context owned by that extension. `channel_name` is
+  // an optional identifier for use by extension developers. `opener_port` is an
   // optional pre-opened port that should be attached to the opened channel.
   void OpenChannelToExtension(const ChannelEndpoint& source,
                               const PortId& source_port_id,
@@ -93,42 +102,55 @@ class MessageService : public BrowserContextKeyedAPI,
                               std::unique_ptr<MessagePort> opener_port,
                               const std::string& target_extension_id,
                               const GURL& source_url,
-                              ChannelType channel_type,
+                              mojom::ChannelType channel_type,
                               const std::string& channel_name);
 
-  // Same as above, but opens a channel to the tab with the given ID.  Messages
-  // are restricted to that tab, so if there are multiple tabs in that process,
-  // only the targeted tab will receive messages.
-  void OpenChannelToTab(const ChannelEndpoint& source,
-                        const PortId& source_port_id,
-                        int tab_id,
-                        int frame_id,
-                        const std::string& document_id,
-                        const std::string& extension_id,
-                        ChannelType channel_type,
-                        const std::string& channel_name);
+  using ExternalConnectionInfo = mojom::ExternalConnectionInfo;
+  void OpenChannelToExtension(
+      const ChannelEndpoint& source,
+      const PortId& source_port_id,
+      const ExternalConnectionInfo& info,
+      mojom::ChannelType channel_type,
+      const std::string& channel_name,
+      mojo::PendingAssociatedRemote<extensions::mojom::MessagePort> port,
+      mojo::PendingAssociatedReceiver<extensions::mojom::MessagePortHost>
+          port_host);
+  void OpenChannelToNativeApp(
+      const ChannelEndpoint& source,
+      const PortId& source_port_id,
+      const std::string& native_app_name,
+      mojo::PendingAssociatedRemote<extensions::mojom::MessagePort> port,
+      mojo::PendingAssociatedReceiver<extensions::mojom::MessagePortHost>
+          port_host);
+  void OpenChannelToTab(
+      const ChannelEndpoint& source,
+      const PortId& source_port_id,
+      int tab_id,
+      int frame_id,
+      const std::string& document_id,
+      mojom::ChannelType channel_type,
+      const std::string& channel_name,
+      mojo::PendingAssociatedRemote<extensions::mojom::MessagePort> port,
+      mojo::PendingAssociatedReceiver<extensions::mojom::MessagePortHost>
+          port_host);
 
-  void OpenChannelToNativeApp(const ChannelEndpoint& source,
-                              const PortId& source_port_id,
-                              const std::string& native_app_name);
-
-  // Marks the given port as opened by |port_context| in the render process
-  // with id |process_id|.
-  void OpenPort(const PortId& port_id,
-                int process_id,
+  // Marks the given port as opened by `port_context` in the render process
+  // with id `process_id`.
+  void OpenPort(content::RenderProcessHost* process,
+                const PortId& port_id,
                 const PortContext& port_context);
 
-  // Closes the given port in the given |port_context|. If this was the last
-  // context or if |force_close| is true, then the other side is closed as well.
-  void ClosePort(const PortId& port_id,
-                 int process_id,
+  // Closes the given port in the given `port_context`. If this was the last
+  // context or if `force_close` is true, then the other side is closed as well.
+  void ClosePort(content::RenderProcessHost* process,
+                 const PortId& port_id,
                  const PortContext& port_context,
                  bool force_close);
 
   // Notifies the port that one of the receivers of a message indicated that
   // they plan to respond to the message later.
-  void NotifyResponsePending(const PortId& port_id,
-                             int process_id,
+  void NotifyResponsePending(content::RenderProcessHost* process,
+                             const PortId& port_id,
                              const PortContext& port_context);
 
   // Returns the number of open channels for test.
@@ -142,6 +164,42 @@ class MessageService : public BrowserContextKeyedAPI,
   friend class MockMessageService;
   friend class BrowserContextKeyedAPIFactory<MessageService>;
   struct OpenChannelParams;
+
+  // Same as `OpenChannelToExtension`, but opens a channel to the tab with the
+  // given ID.  Messages are restricted to that tab, so if there are multiple
+  // tabs in that process, only the targeted tab will receive messages.
+  void OpenChannelToTabImpl(
+      const ChannelEndpoint& source,
+      const PortId& source_port_id,
+      int tab_id,
+      int frame_id,
+      const std::string& document_id,
+      const ExtensionId& extension_id,
+      mojom::ChannelType channel_type,
+      const std::string& channel_name,
+      mojo::PendingAssociatedRemote<extensions::mojom::MessagePort> port,
+      mojo::PendingAssociatedReceiver<extensions::mojom::MessagePortHost>
+          port_host);
+
+  // Creates a MessagePort for the tab with the given `web_contents`.
+  // Returns nullptr if the tab is not available.
+  std::unique_ptr<MessagePort> CreateReceiverForTab(
+      const ExtensionId& extension_id,
+      const PortId& receiver_port_id,
+      content::WebContents* receiver_contents,
+      int receiver_frame_id,
+      const std::string& receiver_document_id);
+
+  void OpenChannelToNativeAppImpl(
+      const ChannelEndpoint& source,
+      const PortId& source_port_id,
+      const std::string& native_app_name,
+      mojo::PendingAssociatedRemote<extensions::mojom::MessagePort> port,
+      mojo::PendingAssociatedReceiver<extensions::mojom::MessagePortHost>
+          port_host);
+  void OpenPortImpl(const PortId& port_id,
+                    int process_id,
+                    const PortContext& port_context);
 
   // A map of channel ID to its channel object.
   using MessageChannelMap =
@@ -158,12 +216,12 @@ class MessageService : public BrowserContextKeyedAPI,
   // Workers.
   using PendingLazyContextChannelMap = std::map<ChannelId, LazyContextId>;
 
-  // Common implementation for opening a channel configured by |params|.
+  // Common implementation for opening a channel configured by `params`.
   //
-  // |target_extension| will be non-null if |params->target_extension_id| is
+  // `target_extension` will be non-null if |params->target_extension_id| is
   // non-empty, that is, if the target is an extension, it must exist.
   //
-  // |did_enqueue| will be true if the channel opening was delayed while
+  // `did_enqueue` will be true if the channel opening was delayed while
   // waiting for an event page to start, false otherwise.
   void OpenChannelImpl(content::BrowserContext* browser_context,
                        std::unique_ptr<OpenChannelParams> params,
@@ -182,7 +240,7 @@ class MessageService : public BrowserContextKeyedAPI,
                         const std::string& error_message,
                         bool notify_other_port);
 
-  // Have MessageService take ownership of |channel|, and remove any pending
+  // Have MessageService take ownership of `channel`, and remove any pending
   // channels with the same id.
   void AddChannel(std::unique_ptr<MessageChannel> channel,
                   const PortId& receiver_port_id);
@@ -209,7 +267,7 @@ class MessageService : public BrowserContextKeyedAPI,
 
   // Potentially registers a pending task with lazy context task queue
   // to open a channel. Returns true if a task was queued.
-  // Takes ownership of |params| if true is returned.
+  // Takes ownership of `params` if true is returned.
   bool MaybeAddPendingLazyContextOpenChannelTask(
       content::BrowserContext* context,
       const Extension* extension,
@@ -221,6 +279,7 @@ class MessageService : public BrowserContextKeyedAPI,
   // use that argument.
   void PendingLazyContextOpenChannel(
       std::unique_ptr<OpenChannelParams> params,
+      const base::UnguessableToken& open_channel_wakeup_context_tracking_id,
       std::unique_ptr<LazyContextTaskQueue::ContextInfo> context_info);
   void PendingLazyContextClosePort(
       const PortId& port_id,
@@ -239,8 +298,9 @@ class MessageService : public BrowserContextKeyedAPI,
       const PortId& port_id,
       const Message& message,
       std::unique_ptr<LazyContextTaskQueue::ContextInfo> context_info) {
-    if (context_info)
+    if (context_info) {
       PostMessage(port_id, message);
+    }
   }
 
   void DispatchPendingMessages(const PendingMessagesQueue& queue,
@@ -255,7 +315,7 @@ class MessageService : public BrowserContextKeyedAPI,
   const raw_ptr<content::BrowserContext> context_;
 
   // Delegate for embedder-specific messaging, e.g. for Chrome tabs.
-  // Owned by the ExtensionsAPIClient and guaranteed to outlive |this|.
+  // Owned by the ExtensionsAPIClient and guaranteed to outlive `this`.
   raw_ptr<MessagingDelegate> messaging_delegate_;
 
   MessageChannelMap channels_;

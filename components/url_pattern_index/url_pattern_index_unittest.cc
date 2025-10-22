@@ -2,21 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/url_pattern_index/url_pattern_index.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <numeric>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/string_number_conversions.h"
 #include "components/url_pattern_index/url_pattern.h"
 #include "components/url_pattern_index/url_rule_test_support.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -97,8 +103,8 @@ class UrlPatternIndexTest : public ::testing::Test {
   }
 
   const flat::UrlRule* FindMatch(
-      base::StringPiece url_string,
-      base::StringPiece document_origin_string = base::StringPiece(),
+      std::string_view url_string,
+      std::string_view document_origin_string = std::string_view(),
       proto::ElementType element_type = testing::kOther,
       proto::ActivationType activation_type = kNoActivation,
       bool disable_generic_rules = false,
@@ -114,8 +120,8 @@ class UrlPatternIndexTest : public ::testing::Test {
   }
 
   const flat::UrlRule* FindMatch(
-      base::StringPiece url_string,
-      base::StringPiece document_origin_string,
+      std::string_view url_string,
+      std::string_view document_origin_string,
       flat::ElementType element_type,
       flat::ActivationType activation_type,
       flat::RequestMethod request_method,
@@ -134,8 +140,8 @@ class UrlPatternIndexTest : public ::testing::Test {
   }
 
   std::vector<const flat::UrlRule*> FindAllMatches(
-      base::StringPiece url_string,
-      base::StringPiece document_origin_string,
+      std::string_view url_string,
+      std::string_view document_origin_string,
       proto::ElementType element_type,
       proto::ActivationType activation_type,
       bool disable_generic_rules,
@@ -150,7 +156,7 @@ class UrlPatternIndexTest : public ::testing::Test {
   }
 
   const flat::UrlRule* FindHighestPriorityMatch(
-      base::StringPiece url_string,
+      std::string_view url_string,
       const base::flat_set<int>& disabled_rule_ids = {}) const {
     return index_matcher_->FindMatch(
         GURL(url_string), url::Origin(), testing::kOther /*element_type*/,
@@ -190,7 +196,7 @@ class UrlPatternIndexTest : public ::testing::Test {
 
 TEST_F(UrlPatternIndexTest, EmptyIndex) {
   Finish();
-  EXPECT_FALSE(FindMatch(base::StringPiece() /* url */));
+  EXPECT_FALSE(FindMatch(std::string_view() /* url */));
   EXPECT_FALSE(FindMatch("http://example.com"));
   EXPECT_FALSE(FindMatch("http://another.example.com?param=val"));
 }
@@ -272,6 +278,16 @@ TEST_F(UrlPatternIndexTest, OneRuleWithoutMetaInfo) {
       {{"ex.com", kSubdomain, kAnchorNone}, "https://test.ex.com.com", true},
       {{"ex.com", kSubdomain, kAnchorNone}, "https://test.rest.ex.com", true},
       {{"ex.com", kSubdomain, kAnchorNone}, "https://test_ex.com", false},
+      {{"abcd.ex.com/", kSubdomain, kAnchorNone},
+       "http://abcd.ex.com?xyz=1",
+       true},
+      {{"abcd.ex.com/", kSubdomain, kAnchorNone},
+       "http://abcd.ex.com#xyz",
+       true},
+      {{"ex.co/", kSubdomain, kAnchorNone}, "https://test.ex.co", true},
+      {{"abcd.ex.com/", kSubdomain, kAnchorNone},
+       "https://abcd.ex.com.",
+       false},
 
       {{"http://ex.com", kBoundary, kAnchorNone}, "http://ex.com/", true},
       {{"http://ex.com", kBoundary, kAnchorNone}, "http://ex.com/42", true},
@@ -410,7 +426,7 @@ TEST_F(UrlPatternIndexTest, OneRuleWithThirdParty) {
 TEST_F(UrlPatternIndexTest, OneRuleWithDomainList) {
   const struct {
     std::vector<std::string> domains;
-    base::StringPiece url_or_origin;
+    std::string_view url_or_origin;
     bool expect_match;
   } kTestCases[] = {
       {std::vector<std::string>(), "", true},
@@ -620,7 +636,7 @@ TEST_F(UrlPatternIndexTest, OneRuleWithLongDomainList) {
 
   std::vector<std::string> domains;
   for (size_t i = 0; i < kDomains; ++i) {
-    const std::string domain = "domain" + std::to_string(i) + ".com";
+    const std::string domain = "domain" + base::NumberToString(i) + ".com";
     domains.push_back(domain);
     domains.push_back("~sub." + domain);
     domains.push_back("a.sub." + domain);
@@ -640,7 +656,7 @@ TEST_F(UrlPatternIndexTest, OneRuleWithLongDomainList) {
 
   for (size_t i = 0; i < kDomains; ++i) {
     SCOPED_TRACE(::testing::Message() << "Iteration: " << i);
-    const std::string domain = "domain" + std::to_string(i) + ".com";
+    const std::string domain = "domain" + base::NumberToString(i) + ".com";
 
     EXPECT_TRUE(FindMatch(kUrl, "http://" + domain));
     EXPECT_FALSE(FindMatch(kUrl, "http://sub." + domain));
@@ -974,7 +990,7 @@ TEST_F(UrlPatternIndexTest, FindMatchReturnsCorrectRules) {
 
   std::vector<std::string> url_patterns(kNumOfPatterns);
   for (size_t i = 0; i < kNumOfPatterns; ++i) {
-    url_patterns[i] = "http://example." + std::to_string(i) + ".com";
+    url_patterns[i] = "http://example." + base::NumberToString(i) + ".com";
     ASSERT_TRUE(
         AddUrlRule(MakeUrlRule(UrlPattern(url_patterns[i], kSubstring))))
         << "Rule #" << i;
@@ -992,11 +1008,11 @@ TEST_F(UrlPatternIndexTest, FindMatchReturnsCorrectRules) {
     const flatbuffers::String* rule_pattern = rule->url_pattern();
     ASSERT_TRUE(rule_pattern);
     EXPECT_EQ(url_pattern,
-              base::StringPiece(rule_pattern->data(), rule_pattern->size()));
+              std::string_view(rule_pattern->data(), rule_pattern->size()));
   }
 
-  EXPECT_FALSE(
-      FindMatch("http://example." + std::to_string(kNumOfPatterns) + ".com"));
+  EXPECT_FALSE(FindMatch("http://example." +
+                         base::NumberToString(kNumOfPatterns) + ".com"));
 }
 
 // Tests UrlPatternIndexMatcher::FindMatch works with the kHighestPriority match
@@ -1006,7 +1022,7 @@ TEST_F(UrlPatternIndexTest, FindMatchHighestPriority) {
 
   int id = 1;
   auto pattern_for_number = [](size_t num) {
-    return "http://" + std::to_string(num) + ".com";
+    return "http://" + base::NumberToString(num) + ".com";
   };
 
   for (size_t i = 1; i <= kNumPatternTypes; i++) {
@@ -1066,16 +1082,19 @@ TEST_F(UrlPatternIndexTest, RequestMethod) {
   const flat::ActivationType no_activation = flat::ActivationType_NONE;
   const std::string origin = "http://foo.com";
 
-  const struct {
+  struct RequestMethods {
     std::string name;
     flat::RequestMethod request_method;
-  } request_methods[] = {{"delete", flat::RequestMethod_DELETE},
-                         {"get", flat::RequestMethod_GET},
-                         {"head", flat::RequestMethod_HEAD},
-                         {"options", flat::RequestMethod_OPTIONS},
-                         {"patch", flat::RequestMethod_PATCH},
-                         {"post", flat::RequestMethod_POST},
-                         {"put", flat::RequestMethod_PUT}};
+  };
+  const auto request_methods = std::to_array<RequestMethods>({
+      {"delete", flat::RequestMethod_DELETE},
+      {"get", flat::RequestMethod_GET},
+      {"head", flat::RequestMethod_HEAD},
+      {"options", flat::RequestMethod_OPTIONS},
+      {"patch", flat::RequestMethod_PATCH},
+      {"post", flat::RequestMethod_POST},
+      {"put", flat::RequestMethod_PUT},
+  });
 
   int next_rule_id = 0;
   for (auto request_method : request_methods) {
@@ -1126,24 +1145,27 @@ TEST_F(UrlPatternIndexTest, EmbedderConditions) {
       });
   EmbedderConditionsMatcher match_has_evens =
       base::BindRepeating([](const flatbuffers::Vector<uint8_t>& conditions) {
-        return base::ranges::any_of(conditions,
-                                    [](int i) { return i % 2 == 0; });
+        return std::ranges::any_of(conditions,
+                                   [](int i) { return i % 2 == 0; });
       });
 
-  struct {
+  struct Cases {
     const std::string url;
     const EmbedderConditionsMatcher matcher;
     const bool expect_match;
     // Fields below are valid iff `expect_match` is true.
     const uint32_t expected_id = 0;
-    const absl::optional<std::vector<uint8_t>> expected_embedder_data;
-  } cases[] = {{url_1, match_first_element_one, true, 1, embedder_data_1},
-               {url_1, match_has_evens, true, 1, embedder_data_1},
-               {url_1, match_first_element_three, false},
-               {url_2, match_first_element_one, false},
-               {url_2, match_has_evens, true, 2, embedder_data_2},
-               {url_2, match_first_element_three, false},
-               {"http://abc.com", match_first_element_one, false}};
+    const std::optional<std::vector<uint8_t>> expected_embedder_data;
+  };
+  auto cases = std::to_array<Cases>({
+      {url_1, match_first_element_one, true, 1, embedder_data_1},
+      {url_1, match_has_evens, true, 1, embedder_data_1},
+      {url_1, match_first_element_three, false},
+      {url_2, match_first_element_one, false},
+      {url_2, match_has_evens, true, 2, embedder_data_2},
+      {url_2, match_first_element_three, false},
+      {"http://abc.com", match_first_element_one, false},
+  });
 
   for (size_t i = 0; i < std::size(cases); ++i) {
     SCOPED_TRACE(::testing::Message() << "Testing case " << i);
@@ -1211,7 +1233,7 @@ TEST_F(UrlPatternIndexTest, FindMatchWithDisabledRuleIds) {
                  << ::testing::PrintToString(test_case.disabled_rule_ids));
 
     const flat::UrlRule* rule = FindMatch(
-        test_case.url, base::StringPiece(), testing::kOther, kNoActivation,
+        test_case.url, std::string_view(), testing::kOther, kNoActivation,
         false /* disable_generic_rules */, test_case.disabled_rule_ids);
 
     EXPECT_EQ(test_case.expected_match, !!rule);

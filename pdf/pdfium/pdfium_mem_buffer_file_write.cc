@@ -4,6 +4,10 @@
 
 #include "pdf/pdfium/pdfium_mem_buffer_file_write.h"
 
+#include <utility>
+
+#include "base/compiler_specific.h"
+
 namespace chrome_pdf {
 
 PDFiumMemBufferFileWrite::PDFiumMemBufferFileWrite() {
@@ -27,7 +31,8 @@ int PDFiumMemBufferFileWrite::WriteBlockImpl(FPDF_FILEWRITE* this_file_write,
 
 int PDFiumMemBufferFileWrite::DoWriteBlock(const uint8_t* data,
                                            unsigned long size) {
-  buffer_.insert(buffer_.end(), data, data + size);
+  // SAFETY: required from caller across PDF public API.
+  buffer_.insert(buffer_.end(), data, UNSAFE_BUFFERS(data + size));
   return 1;
 }
 

@@ -59,7 +59,7 @@ class ASH_EXPORT AccessibilityPanelLayoutManager
 
   // DisplayObserver:
   void OnDisplayAdded(const display::Display& new_display) override {}
-  void OnDisplayRemoved(const display::Display& old_display) override {}
+  void OnDisplaysRemoved(const display::Displays& removed_displays) override {}
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override;
 
@@ -82,7 +82,7 @@ class ASH_EXPORT AccessibilityPanelLayoutManager
   void UpdateWorkAreaForPanelHeight();
 
   // The panel being managed (e.g. the ChromeVoxPanel's native aura window).
-  raw_ptr<aura::Window, ExperimentalAsh> panel_window_ = nullptr;
+  raw_ptr<aura::Window> panel_window_ = nullptr;
 
   // Window bounds when not in fullscreen
   gfx::Rect panel_bounds_ = gfx::Rect(0, 0, 0, 0);

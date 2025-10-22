@@ -9,7 +9,7 @@ import subprocess
 import sys
 import unittest
 
-from . import commands
+from signing import commands
 
 
 class TestCommands(unittest.TestCase):
@@ -30,6 +30,19 @@ class TestCommands(unittest.TestCase):
 
         os.unlink(path)
         self.assertFalse(commands.file_exists(path))
+
+    def test_delete_file_if_exists(self):
+        file_path = os.path.join(self.tempdir, 'file.txt')
+
+        commands.write_file(file_path, 'moo')
+        self.assertTrue(commands.file_exists(file_path))
+
+        commands.delete_file_if_exists(file_path)
+        self.assertFalse(commands.file_exists(file_path))
+
+        # Execute it one more time, just to make sure the exception
+        # is ignored in the event the file does not exist.
+        commands.delete_file_if_exists(file_path)
 
     def test_copy_dir_overwrite_and_count_changes(self):
         source_dir = os.path.join(self.tempdir, 'source')

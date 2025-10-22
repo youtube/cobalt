@@ -5,12 +5,14 @@
 #include <stddef.h>
 
 #include <functional>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/json/json_string_value_serializer.h"
+#include "base/json/json_writer.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -31,6 +33,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/unloaded_extension_reason.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "services/device/public/cpp/test/fake_usb_device_manager.h"
@@ -40,7 +43,7 @@ namespace extensions {
 
 namespace {
 
-using ContextType = ExtensionBrowserTest::ContextType;
+using ContextType = extensions::browser_test_util::ContextType;
 
 using GetPrintersRepeatingFuture =
     base::test::RepeatingTestFuture<base::Value::List, bool>;
@@ -67,11 +70,8 @@ std::pair<bool, std::string> ParsePrintResult(const base::Value& status) {
   return {success, status_str};
 }
 
-std::string SerializeDict(const base::Value::Dict& value) {
-  std::string result;
-  JSONStringValueSerializer serializer(&result);
-  EXPECT_TRUE(serializer.Serialize(value));
-  return result;
+std::optional<std::string> SerializeDict(const base::Value::Dict& value) {
+  return base::WriteJson(value);
 }
 
 // Tests for chrome.printerProvider API.
@@ -96,7 +96,7 @@ class PrinterProviderApiTest : public ExtensionApiTest,
         ->DispatchGetPrintersRequested(callback);
   }
 
-  void StartPrintRequestWithNoData(const std::string& extension_id,
+  void StartPrintRequestWithNoData(const ExtensionId& extension_id,
                                    PrinterProviderAPI::PrintCallback callback) {
     PrinterProviderPrintJob job;
     job.printer_id = extension_id + ":printer_id";
@@ -108,15 +108,14 @@ class PrinterProviderApiTest : public ExtensionApiTest,
   }
 
   void StartPrintRequestUsingDocumentBytes(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       PrinterProviderAPI::PrintCallback callback) {
     PrinterProviderPrintJob job;
     job.printer_id = extension_id + ":printer_id";
     job.job_title = u"Print job";
     job.content_type = "application/pdf";
     const unsigned char kDocumentBytes[] = {'b', 'y', 't', 'e', 's'};
-    job.document_bytes =
-        new base::RefCountedBytes(kDocumentBytes, std::size(kDocumentBytes));
+    job.document_bytes = new base::RefCountedBytes(kDocumentBytes);
 
     PrinterProviderAPIFactory::GetInstance()
         ->GetForBrowserContext(profile())
@@ -124,7 +123,7 @@ class PrinterProviderApiTest : public ExtensionApiTest,
   }
 
   void StartCapabilityRequest(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       PrinterProviderAPI::GetCapabilityCallback callback) {
     PrinterProviderAPIFactory::GetInstance()
         ->GetForBrowserContext(profile())
@@ -143,7 +142,7 @@ class PrinterProviderApiTest : public ExtensionApiTest,
   // set to the loaded extension's id, otherwise it will remain unchanged.
   void InitializePrinterProviderTestExtension(const std::string& extension_path,
                                               const std::string& test_param,
-                                              std::string* extension_id_out) {
+                                              ExtensionId* extension_id_out) {
     ExtensionTestMessageListener loaded_listener("loaded",
                                                  ReplyBehavior::kWillReply);
     ExtensionTestMessageListener ready_listener("ready");
@@ -168,7 +167,7 @@ class PrinterProviderApiTest : public ExtensionApiTest,
                                     const std::string& expected_result) {
     ResultCatcher catcher;
 
-    std::string extension_id;
+    ExtensionId extension_id;
     InitializePrinterProviderTestExtension("printer_provider/request_print",
                                            test_param, &extension_id);
     if (extension_id.empty())
@@ -206,7 +205,7 @@ class PrinterProviderApiTest : public ExtensionApiTest,
                                          const std::string& expected_result) {
     ResultCatcher catcher;
 
-    std::string extension_id;
+    ExtensionId extension_id;
     InitializePrinterProviderTestExtension(
         "printer_provider/request_capability", test_param, &extension_id);
     if (extension_id.empty())
@@ -218,15 +217,15 @@ class PrinterProviderApiTest : public ExtensionApiTest,
     ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 
     auto result = SerializeDict(capability_future.Get());
-    EXPECT_EQ(expected_result, result);
+    ASSERT_TRUE(result);
+    EXPECT_EQ(expected_result, *result);
   }
 
-  bool SimulateExtensionUnload(const std::string& extension_id) {
+  bool SimulateExtensionUnload(const ExtensionId& extension_id) {
     ExtensionRegistry* extension_registry = ExtensionRegistry::Get(profile());
 
     scoped_refptr<const Extension> extension =
-        extension_registry->GetExtensionById(extension_id,
-                                             ExtensionRegistry::ENABLED);
+        extension_registry->enabled_extensions().GetByID(extension_id);
     if (!extension)
       return false;
 
@@ -292,7 +291,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintRequestDataNotSet) {
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintRequestExtensionUnloaded) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_print",
                                          "IGNORE_CALLBACK", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -339,7 +338,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, CapabilityInvalidValue) {
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetCapabilityExtensionUnloaded) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_capability",
                                          "IGNORE_CALLBACK", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -350,13 +349,14 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetCapabilityExtensionUnloaded) {
 
   ASSERT_TRUE(SimulateExtensionUnload(extension_id));
   auto result = SerializeDict(capability_future.Get());
-  EXPECT_EQ("{}", result);
+  ASSERT_TRUE(result);
+  EXPECT_EQ("{}", *result);
 }
 
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersSuccess) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "OK", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -391,7 +391,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersSuccess) {
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersAsyncSuccess) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "ASYNC_RESPONSE", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -419,12 +419,12 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersAsyncSuccess) {
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersTwoExtensions) {
   ResultCatcher catcher;
 
-  std::string extension_id_1;
+  ExtensionId extension_id_1;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "OK", &extension_id_1);
   ASSERT_FALSE(extension_id_1.empty());
 
-  std::string extension_id_2;
+  ExtensionId extension_id_2;
   InitializePrinterProviderTestExtension(
       "printer_provider/request_printers_second", "OK", &extension_id_2);
   ASSERT_FALSE(extension_id_2.empty());
@@ -475,12 +475,12 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
                        GetPrintersTwoExtensionsBothUnloaded) {
   ResultCatcher catcher;
 
-  std::string extension_id_1;
+  ExtensionId extension_id_1;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "IGNORE_CALLBACK", &extension_id_1);
   ASSERT_FALSE(extension_id_1.empty());
 
-  std::string extension_id_2;
+  ExtensionId extension_id_2;
   InitializePrinterProviderTestExtension(
       "printer_provider/request_printers_second", "IGNORE_CALLBACK",
       &extension_id_2);
@@ -505,12 +505,12 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
                        GetPrintersTwoExtensionsOneFails) {
   ResultCatcher catcher;
 
-  std::string extension_id_1;
+  ExtensionId extension_id_1;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "NOT_ARRAY", &extension_id_1);
   ASSERT_FALSE(extension_id_1.empty());
 
-  std::string extension_id_2;
+  ExtensionId extension_id_2;
   InitializePrinterProviderTestExtension(
       "printer_provider/request_printers_second", "OK", &extension_id_2);
   ASSERT_FALSE(extension_id_2.empty());
@@ -547,12 +547,12 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
                        GetPrintersTwoExtensionsOneWithNoListener) {
   ResultCatcher catcher;
 
-  std::string extension_id_1;
+  ExtensionId extension_id_1;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "NO_LISTENER", &extension_id_1);
   ASSERT_FALSE(extension_id_1.empty());
 
-  std::string extension_id_2;
+  ExtensionId extension_id_2;
   InitializePrinterProviderTestExtension(
       "printer_provider/request_printers_second", "OK", &extension_id_2);
   ASSERT_FALSE(extension_id_2.empty());
@@ -588,7 +588,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNoListener) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "NO_LISTENER", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -607,7 +607,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNoListener) {
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNotArray) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "NOT_ARRAY", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -627,7 +627,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
                        GetPrintersInvalidPrinterValueType) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "INVALID_PRINTER_TYPE", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -646,7 +646,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
 IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersInvalidPrinterValue) {
   ResultCatcher catcher;
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/request_printers",
                                          "INVALID_PRINTER", &extension_id);
   ASSERT_FALSE(extension_id.empty());
@@ -673,7 +673,7 @@ class PrinterProviderUsbApiTest : public PrinterProviderApiTest {
 
  protected:
   void StartGetUsbPrinterInfoRequest(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const device::mojom::UsbDeviceInfo& device,
       PrinterProviderAPI::GetPrinterInfoCallback callback) {
     PrinterProviderAPIFactory::GetInstance()
@@ -691,7 +691,7 @@ class PrinterProviderUsbApiTest : public PrinterProviderApiTest {
     device::mojom::UsbDeviceInfoPtr device =
         usb_manager_.CreateAndAddDevice(0, 0, "Google", "USB Printer", "");
 
-    std::string extension_id;
+    ExtensionId extension_id;
     InitializePrinterProviderTestExtension("printer_provider/usb_printers",
                                            test_param, &extension_id);
     ASSERT_FALSE(extension_id.empty());
@@ -716,7 +716,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderUsbApiTest, GetUsbPrinterInfo) {
   device::mojom::UsbDeviceInfoPtr device =
       usb_manager_.CreateAndAddDevice(0, 0, "Google", "USB Printer", "");
 
-  std::string extension_id;
+  ExtensionId extension_id;
   InitializePrinterProviderTestExtension("printer_provider/usb_printers", "OK",
                                          &extension_id);
   ASSERT_FALSE(extension_id.empty());

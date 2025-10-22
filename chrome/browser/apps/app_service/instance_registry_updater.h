@@ -8,9 +8,11 @@
 #include "base/memory/raw_ref.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/apps/app_service/browser_app_instance_observer.h"
-#include "chrome/browser/apps/app_service/browser_app_instance_registry.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance_observer.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance_registry.h"
 #include "components/services/app_service/public/cpp/instance.h"
+#include "ui/aura/env.h"
+#include "ui/aura/env_observer.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 
@@ -47,15 +49,15 @@ class InstanceRegistryUpdater : public BrowserAppInstanceObserver,
   void OnWindowDestroying(aura::Window* window) override;
 
  private:
-  const raw_ref<BrowserAppInstanceRegistry, ExperimentalAsh>
-      browser_app_instance_registry_;
-  const raw_ref<InstanceRegistry, ExperimentalAsh> instance_registry_;
+  const raw_ref<BrowserAppInstanceRegistry> browser_app_instance_registry_;
+  const raw_ref<InstanceRegistry> instance_registry_;
 
   void OnInstance(const base::UnguessableToken& instance_id,
                   const std::string& app_id,
                   aura::Window* window,
                   InstanceState state);
 
+  base::ScopedObservation<aura::Env, aura::EnvObserver> env_observer_{this};
   base::ScopedMultiSourceObservation<aura::Window, aura::WindowObserver>
       window_observations_{this};
   base::ScopedObservation<BrowserAppInstanceRegistry,

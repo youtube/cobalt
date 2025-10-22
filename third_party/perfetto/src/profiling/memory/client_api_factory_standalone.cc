@@ -22,8 +22,8 @@
 #include "perfetto/ext/base/unix_task_runner.h"
 #include "perfetto/ext/base/utils.h"
 #include "perfetto/ext/base/watchdog.h"
-#include "perfetto/ext/tracing/ipc/default_socket.h"
 #include "perfetto/heap_profile.h"
+#include "perfetto/tracing/default_socket.h"
 #include "src/profiling/common/proc_utils.h"
 #include "src/profiling/memory/client.h"
 #include "src/profiling/memory/heap_profile_internal.h"
@@ -55,7 +55,7 @@ bool MonitorFdOnce() {
   char buf[1];
   ssize_t r = g_client_sock->Receive(buf, sizeof(buf));
   if (r == 0) {
-    PERFETTO_ELOG("Server disconneced.");
+    PERFETTO_ELOG("Server disconnected.");
     return false;
   }
   if (r < 0) {

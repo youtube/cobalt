@@ -24,12 +24,6 @@ const base::FilePath::CharType kDefaultAppOrderFileName[] =
 const base::FilePath::CharType kMachineHardwareInfoFileName[] =
     FILE_PATH_LITERAL("/tmp/machine-info");
 
-const base::FilePath::CharType kVpdFileName[] = FILE_PATH_LITERAL(
-    "/mnt/stateful_partition/unencrypted/cache/vpd/filtered.txt");
-
-const base::FilePath::CharType kVpdStatusFileName[] = FILE_PATH_LITERAL(
-    "/mnt/stateful_partition/unencrypted/cache/vpd/status.txt");
-
 const base::FilePath::CharType kUptimeFileName[] =
     FILE_PATH_LITERAL("/proc/uptime");
 
@@ -63,11 +57,14 @@ const base::FilePath::CharType kSigninProfileComponentPolicy[] =
 const base::FilePath::CharType kSigninProfileExtensionsDir[] =
     FILE_PATH_LITERAL("/var/cache/signin_profile_extensions");
 
-const base::FilePath::CharType kPreinstalledComponents[] =
-    FILE_PATH_LITERAL("/mnt/stateful_partition/unencrypted/");
-
 const base::FilePath::CharType kDevicePolicyExternalDataDir[] =
     FILE_PATH_LITERAL("/var/cache/device_policy_external_data");
+
+const base::FilePath::CharType kDevicePolicyScreensaverDataDir[] =
+    FILE_PATH_LITERAL("/var/cache/managed_screensaver");
+
+const base::FilePath::CharType kDeviceLocalAccountIwaCacheDir[] =
+    FILE_PATH_LITERAL("/var/cache/device_local_account_iwa");
 
 bool PathProvider(int key, base::FilePath* result) {
   switch (key) {
@@ -76,12 +73,6 @@ bool PathProvider(int key, base::FilePath* result) {
       break;
     case FILE_MACHINE_INFO:
       *result = base::FilePath(kMachineHardwareInfoFileName);
-      break;
-    case FILE_VPD:
-      *result = base::FilePath(kVpdFileName);
-      break;
-    case FILE_VPD_STATUS:
-      *result = base::FilePath(kVpdStatusFileName);
       break;
     case FILE_UPTIME:
       *result = base::FilePath(kUptimeFileName);
@@ -116,12 +107,16 @@ bool PathProvider(int key, base::FilePath* result) {
     case DIR_SIGNIN_PROFILE_EXTENSIONS:
       *result = base::FilePath(kSigninProfileExtensionsDir);
       break;
-    case DIR_PREINSTALLED_COMPONENTS:
-      *result = base::FilePath(kPreinstalledComponents);
-      break;
     case DIR_DEVICE_POLICY_EXTERNAL_DATA:
       *result = base::FilePath(kDevicePolicyExternalDataDir);
       break;
+    case DIR_DEVICE_POLICY_SCREENSAVER_DATA:
+      *result = base::FilePath(kDevicePolicyScreensaverDataDir);
+      break;
+    case DIR_DEVICE_LOCAL_ACCOUNT_IWA_CACHE:
+      *result = base::FilePath(kDeviceLocalAccountIwaCacheDir);
+      break;
+
     default:
       return false;
   }
@@ -144,8 +139,6 @@ void RegisterStubPathOverrides(const base::FilePath& stubs_dir) {
   base::PathService::OverrideAndCreateIfNeeded(
       FILE_MACHINE_INFO, parent.AppendASCII("stub_machine-info"), is_absolute,
       create);
-  base::PathService::OverrideAndCreateIfNeeded(
-      FILE_VPD, parent.AppendASCII("stub_vpd"), is_absolute, create);
   base::PathService::Override(
       DIR_DEVICE_LOCAL_ACCOUNT_EXTENSIONS,
       parent.AppendASCII("stub_device_local_account_extensions"));
@@ -165,11 +158,11 @@ void RegisterStubPathOverrides(const base::FilePath& stubs_dir) {
       DIR_SIGNIN_PROFILE_EXTENSIONS,
       parent.AppendASCII("stub_signin_profile_extensions"));
   base::PathService::Override(
-      DIR_PREINSTALLED_COMPONENTS,
-      parent.AppendASCII("stub_preinstalled_components"));
-  base::PathService::Override(
       DIR_DEVICE_POLICY_EXTERNAL_DATA,
       parent.AppendASCII("stub_device_policy_external_data"));
+  base::PathService::Override(
+      DIR_DEVICE_POLICY_SCREENSAVER_DATA,
+      parent.AppendASCII("stub_device_policy_screensaver_data"));
 }
 
 }  // namespace ash

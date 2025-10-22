@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/accessibility/features/mojo/mojo_handle.h"
 
 #include <memory>
 
 #include "base/logging.h"
+#include "base/types/fixed_array.h"
 #include "gin/arguments.h"
 #include "gin/array_buffer.h"
 #include "gin/converter.h"
@@ -55,8 +61,8 @@ void MojoHandle::Watch(gin::Arguments* arguments) {
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = arguments->GetHolderCreationContext();
 
-  std::vector<v8::Local<v8::Value>> args = arguments->GetAll();
-  DCHECK_EQ(args.size(), 2u);
+  v8::LocalVector<v8::Value> args = arguments->GetAll();
+  CHECK_EQ(args.size(), 2u);
 
   // See third_party/blink/renderer/core/mojo/mojo_handle_signals.idl,
   // which defines the first argument as:
@@ -65,7 +71,7 @@ void MojoHandle::Watch(gin::Arguments* arguments) {
   //   boolean writable = false;
   //   boolean peerClosed = false;
   // };
-  DCHECK(args[0]->IsObject());
+  CHECK(args[0]->IsObject());
   gin::Dictionary signals(isolate, args[0].As<v8::Object>());
   bool readable, writable, peer_closed = false;
   signals.Get("readable", &readable);
@@ -74,7 +80,7 @@ void MojoHandle::Watch(gin::Arguments* arguments) {
 
   // Now need to extract the MojoWatchCallback from the second
   // argument, see third_party/blink/renderer/core/mojo/mojo_handle.idl.
-  DCHECK(args[1]->IsFunction());
+  CHECK(args[1]->IsFunction());
   v8::Local<v8::Function> v8_callback = args[1].As<v8::Function>();
   auto context_holder = std::make_unique<gin::ContextHolder>(isolate);
   context_holder->SetContext(context);
@@ -180,7 +186,7 @@ void MojoHandle::WriteMessage(gin::Arguments* arguments) {
   // third_party/blink/renderer/core/mojo/mojo_handle.idl defines this
   // method as:
   // MojoResult writeMessage(BufferSource buffer, sequence<MojoHandle> handles);
-  std::vector<v8::Local<v8::Value>> args = arguments->GetAll();
+  v8::LocalVector<v8::Value> args = arguments->GetAll();
   DCHECK_EQ(args.size(), 2u);
   DCHECK(args[0]->IsArrayBuffer() || args[0]->IsArrayBufferView());
   DCHECK(args[1]->IsArray());
@@ -208,23 +214,19 @@ void MojoHandle::WriteMessage(gin::Arguments* arguments) {
     return;
   }
 
-  const void* bytes = nullptr;
-  size_t num_bytes = 0;
+  base::span<const uint8_t> bytes;
   if (args[0]->IsArrayBuffer()) {
     v8::Local<v8::ArrayBuffer> array = args[0].As<v8::ArrayBuffer>();
-    bytes = array->Data();
-    num_bytes = array->ByteLength();
+    bytes = base::span(static_cast<const uint8_t*>(array->Data()),
+                       array->ByteLength());
   } else {
     v8::Local<v8::ArrayBufferView> view = args[0].As<v8::ArrayBufferView>();
-    num_bytes = view->ByteLength();
-    void* bites[num_bytes];
-    view->CopyContents(bites, num_bytes);
-    bytes = bites;
+    base::FixedArray<uint8_t> bites(view->ByteLength());
+    view->CopyContents(bites.data(), bites.size());
+    bytes = base::span(bites);
   }
 
-  auto message = mojo::Message(
-      base::make_span(static_cast<const uint8_t*>(bytes), num_bytes),
-      base::make_span(scoped_handles));
+  auto message = mojo::Message(bytes, base::span(scoped_handles));
   DCHECK(!message.IsNull());
   MojoResult result = mojo::WriteMessageNew(
       mojo::MessagePipeHandle(handle_.get().value()), message.TakeMojoMessage(),

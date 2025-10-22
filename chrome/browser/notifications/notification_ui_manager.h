@@ -36,7 +36,7 @@ class NotificationUIManager {
  public:
   NotificationUIManager(const NotificationUIManager&) = delete;
   NotificationUIManager& operator=(const NotificationUIManager&) = delete;
-  virtual ~NotificationUIManager() {}
+  virtual ~NotificationUIManager() = default;
 
   // Creates an initialized UI manager.
   static std::unique_ptr<NotificationUIManager> Create();
@@ -71,6 +71,12 @@ class NotificationUIManager {
   virtual std::set<std::string> GetAllIdsByProfile(
       ProfileNotification::ProfileID profile_id) = 0;
 
+  // Returns the set of all delegate IDs for notifications from `profile_id` and
+  // `origin`.
+  virtual std::set<std::string> GetAllIdsByProfileAndOrigin(
+      ProfileNotification::ProfileID profile_id,
+      const GURL& origin) = 0;
+
   // Removes notifications matching the |source_origin| (which could be an
   // extension ID). Returns true if anything was removed.
   virtual bool CancelAllBySourceOrigin(const GURL& source_origin) = 0;
@@ -85,7 +91,7 @@ class NotificationUIManager {
   virtual void StartShutdown() = 0;
 
  protected:
-  NotificationUIManager() {}
+  NotificationUIManager() = default;
 };
 
 #endif  // CHROME_BROWSER_NOTIFICATIONS_NOTIFICATION_UI_MANAGER_H_

@@ -22,50 +22,48 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
 import org.chromium.chrome.browser.night_mode.PowerSavingModeMonitor;
 import org.chromium.chrome.browser.night_mode.SystemNightModeMonitor;
 
-/**
- * Tests for {@link CustomTabNightModeStateController}.
- */
+/** Tests for {@link CustomTabNightModeStateController}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@Batch(Batch.UNIT_TESTS)
 @Config(manifest = Config.NONE)
 public class CustomTabNightModeStateControllerTest {
-    @Mock
-    private PowerSavingModeMonitor mPowerSavingModeMonitor;
-    @Mock
-    private SystemNightModeMonitor mSystemNightModeMonitor;
-    @Mock
-    private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
-    @Mock
-    private AppCompatDelegate mAppCompatDelegate;
-    @Captor
-    private ArgumentCaptor<SystemNightModeMonitor.Observer> mSystemNightModeObserverCaptor;
-    @Captor
-    private ArgumentCaptor<Runnable> mPowerSavingObserverCaptor;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private PowerSavingModeMonitor mPowerSavingModeMonitor;
+    @Mock private SystemNightModeMonitor mSystemNightModeMonitor;
+    @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
+    @Mock private AppCompatDelegate mAppCompatDelegate;
+    @Captor private ArgumentCaptor<SystemNightModeMonitor.Observer> mSystemNightModeObserverCaptor;
+    @Captor private ArgumentCaptor<Runnable> mPowerSavingObserverCaptor;
 
     private CustomTabNightModeStateController mNightModeController;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        doNothing().when(mSystemNightModeMonitor).addObserver(
-                mSystemNightModeObserverCaptor.capture());
-        doNothing().when(mPowerSavingModeMonitor).addObserver(
-                mPowerSavingObserverCaptor.capture());
-        mNightModeController = new CustomTabNightModeStateController(mActivityLifecycleDispatcher,
-                mSystemNightModeMonitor, mPowerSavingModeMonitor);
+        doNothing()
+                .when(mSystemNightModeMonitor)
+                .addObserver(mSystemNightModeObserverCaptor.capture());
+        doNothing().when(mPowerSavingModeMonitor).addObserver(mPowerSavingObserverCaptor.capture());
+        SystemNightModeMonitor.setInstanceForTesting(mSystemNightModeMonitor);
+        mNightModeController =
+                new CustomTabNightModeStateController(
+                        mActivityLifecycleDispatcher, mPowerSavingModeMonitor);
     }
 
     @Test
@@ -167,5 +165,4 @@ public class CustomTabNightModeStateControllerTest {
             observer.onSystemNightModeChanged();
         }
     }
-
 }

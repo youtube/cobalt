@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/apple/foundation_util.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/mac/foundation_util.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
@@ -77,8 +77,8 @@ void CreateTestApp(const base::FilePath& test_dir) {
   };
 
   ASSERT_TRUE([launchd_plist
-      writeToURL:base::mac::FilePathToNSURL(test_app_info_plist_path)
-      atomically:YES]);
+      writeToURL:base::apple::FilePathToNSURL(test_app_info_plist_path)
+           error:nil]);
 }
 
 void CreateTestSuiteTestDir(const base::FilePath& test_dir) {
@@ -113,9 +113,7 @@ const base::FilePath& GetTestSuiteDirPath() {
 }  // namespace
 
 class ChromeUpdaterMacSetupTest : public testing::Test {
- public:
-  ~ChromeUpdaterMacSetupTest() override = default;
-
+ protected:
   static void SetUpTestSuite() {
     // SetUpTestSuite will run a script (install_test_helper.sh), which will set
     // up all the necessary things for running the mac installer test. This will
@@ -143,7 +141,7 @@ class ChromeUpdaterMacSetupTest : public testing::Test {
         FILE_PATH_LITERAL(base::StrCat({kTestDirName, "-",
                                         ::testing::UnitTest::GetInstance()
                                             ->current_test_info()
-                                            ->test_case_name()})));
+                                            ->test_suite_name()})));
     ASSERT_TRUE(base::CopyDirectory(GetTestSuiteDirPath(), test_dir_, true));
   }
 
@@ -228,7 +226,7 @@ TEST_F(ChromeUpdaterMacSetupTest, InstallFromArchivePreinstallPostinstall) {
 
   ASSERT_EQ(updater::InstallFromArchive(
                 test_dir.Append("setup_test_envcheck").Append("marker.app"),
-                base::FilePath::FromASCII("xc_path"), "ap",
+                base::FilePath().Append("xc_path"), "ap",
                 updater::UpdaterScope::kUser, base::Version("0"), "arg1 arg2",
                 {}, false, TestTimeouts::action_timeout()),
             0);

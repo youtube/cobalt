@@ -5,8 +5,6 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_TEST_MOCK_CONTENT_BROWSER_CLIENT_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_TEST_MOCK_CONTENT_BROWSER_CLIENT_H_
 
-#include "build/build_config.h"
-#include "build/buildflag.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/test/test_content_browser_client.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -24,6 +22,12 @@ template <class SuperClass>
 class MockAttributionReportingContentBrowserClientBase : public SuperClass {
  public:
   // ContentBrowserClient:
+  MOCK_METHOD(network::mojom::AttributionSupport,
+              GetAttributionSupport,
+              (ContentBrowserClient::AttributionReportingOsApiState state,
+               bool client_os_disabled),
+              (override));
+
   MOCK_METHOD(bool,
               IsAttributionReportingOperationAllowed,
               (BrowserContext*,
@@ -31,12 +35,23 @@ class MockAttributionReportingContentBrowserClientBase : public SuperClass {
                RenderFrameHost*,
                const url::Origin* source_origin,
                const url::Origin* destination_origin,
-               const url::Origin* reporting_origin),
+               const url::Origin* reporting_origin,
+               bool* can_bypass),
               (override));
 
-#if BUILDFLAG(IS_ANDROID)
-  MOCK_METHOD(bool, IsWebAttributionReportingAllowed, (), (override));
-#endif
+  MOCK_METHOD(bool,
+              IsPrivacySandboxReportingDestinationAttested,
+              (content::BrowserContext * browser_context,
+               const url::Origin& destination_origin,
+               content::PrivacySandboxInvokingAPI invoking_api),
+              (override));
+  MOCK_METHOD(bool,
+              IsAttributionReportingAllowedForContext,
+              (content::BrowserContext*,
+               RenderFrameHost*,
+               const url::Origin& context_origin,
+               const url::Origin& reporting_origin),
+              (override));
 };
 
 using MockAttributionReportingContentBrowserClient =

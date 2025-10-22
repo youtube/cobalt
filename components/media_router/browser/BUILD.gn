@@ -17,18 +17,19 @@ source_set("browser") {
     "media_routes_observer.h",
     "media_sinks_observer.cc",
     "media_sinks_observer.h",
-    "mirroring_media_controller_host.cc",
     "mirroring_media_controller_host.h",
+    "mirroring_media_controller_host_impl.cc",
+    "mirroring_media_controller_host_impl.h",
     "presentation/browser_presentation_connection_proxy.cc",
     "presentation/browser_presentation_connection_proxy.h",
+    "presentation/controller_presentation_service_delegate_impl.cc",
+    "presentation/controller_presentation_service_delegate_impl.h",
     "presentation/local_presentation_manager.cc",
     "presentation/local_presentation_manager.h",
     "presentation/local_presentation_manager_factory.cc",
     "presentation/local_presentation_manager_factory.h",
     "presentation/presentation_media_sinks_observer.cc",
     "presentation/presentation_media_sinks_observer.h",
-    "presentation/presentation_service_delegate_impl.cc",
-    "presentation/presentation_service_delegate_impl.h",
     "presentation/presentation_service_delegate_observers.cc",
     "presentation/presentation_service_delegate_observers.h",
     "presentation/receiver_presentation_service_delegate_impl.cc",
@@ -65,6 +66,7 @@ source_set("browser") {
     "//components/media_router/common",
     "//components/media_router/common/mojom:media_router",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   if (is_android) {
     sources += [
@@ -124,7 +126,7 @@ source_set("unit_tests") {
     "media_router_factory_unittest.cc",
     "media_router_metrics_unittest.cc",
     "media_sinks_observer_unittest.cc",
-    "mirroring_media_controller_host_unittest.cc",
+    "mirroring_media_controller_host_impl_unittest.cc",
     "presentation/browser_presentation_connection_proxy_unittest.cc",
     "presentation/local_presentation_manager_unittest.cc",
     "presentation/presentation_media_sinks_observer_unittest.cc",

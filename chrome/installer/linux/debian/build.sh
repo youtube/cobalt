@@ -18,6 +18,7 @@ set -u
 # have any type of "significant/visible changes" log that we could use for this?
 gen_changelog() {
   rm -f "${DEB_CHANGELOG}"
+  DATE_RFC5322="$(date --rfc-email)"
   process_template "${SCRIPTDIR}/changelog.template" "${DEB_CHANGELOG}"
   debchange -a --nomultimaint -m --changelog "${DEB_CHANGELOG}" \
     "Release Notes: ${RELEASENOTES}"
@@ -61,6 +62,10 @@ stage_install_debian() {
     # Make it possible to distinguish between menu entries
     # for different channels.
     local MENUNAME="${MENUNAME} (${CHANNEL})"
+
+    local RDN_DESKTOP="${RDN}.${CHANNEL}"
+  else
+    local RDN_DESKTOP="${RDN}"
   fi
   prep_staging_debian
   SHLIB_PERMS=644
@@ -142,7 +147,7 @@ usage() {
   echo "usage: $(basename $0) [-a target_arch] -c channel -d branding"
   echo "                      [-f] [-o 'dir'] -s 'dir' -t target_os"
   echo "-a arch      deb package architecture"
-  echo "-c channel   the package channel (unstable, beta, stable)"
+  echo "-c channel   the package channel (canary, unstable, beta, stable)"
   echo "-d brand     either chromium or google_chrome"
   echo "-f           indicates that this is an official build"
   echo "-h           this help message"
@@ -165,6 +170,12 @@ verify_channel() {
     dev|unstable|alpha )
       CHANNEL=unstable
       RELEASENOTES="https://chromereleases.googleblog.com/search/label/Dev%20updates"
+      ;;
+    # Canary is released twice a day automatically, so no release notes
+    # attached.
+    canary )
+      CHANNEL=canary
+      RELEASENOTES="N/A"
       ;;
     * )
       echo
@@ -249,7 +260,7 @@ if [ "$BRANDING" = "google_chrome" ]; then
 else
   source "${OUTPUTDIR}/installer/common/chromium-browser.info"
 fi
-eval $(sed -e "s/^\([^=]\+\)=\(.*\)$/export \1='\2'/" \
+eval $(sed -e "s/^\([^=]\+\)=\(.*\)$/\1='\2'/" \
   "${OUTPUTDIR}/installer/theme/BRANDING")
 
 verify_channel
@@ -271,7 +282,7 @@ BASEREPOCONFIG="dl.google.com/linux/chrome/deb/ stable main"
 REPOCONFIG="${REPOCONFIG-deb [arch=${ARCHITECTURE}] https://${BASEREPOCONFIG}}"
 # Allowed configs include optional HTTPS support and explicit multiarch
 # platforms.
-REPOCONFIGREGEX="deb (\\\\[arch=[^]]*\\\\b${ARCHITECTURE}\\\\b[^]]*\\\\]"
+REPOCONFIGREGEX="deb (\\[arch=[^]]*\\b${ARCHITECTURE}\\b[^]]*\\]"
 REPOCONFIGREGEX+="[[:space:]]*) https?://${BASEREPOCONFIG}"
 stage_install_debian
 

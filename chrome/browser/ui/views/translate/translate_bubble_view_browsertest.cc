@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/translate/translate_bubble_model.h"
@@ -59,7 +60,7 @@ class TranslateBubbleViewBrowserTest : public InProcessBrowserTest {
     command_line->AppendSwitchASCII(
         switches::kTranslateScriptURL,
         embedded_test_server()->GetURL("/mock_translate_script.js").spec());
-    // TODO(crbug.com/1258185): Migrate to better mechanism for testing around
+    // TODO(crbug.com/40200965): Migrate to better mechanism for testing around
     // language detection.
     command_line->AppendSwitch(::switches::kOverrideLanguageDetection);
   }
@@ -93,17 +94,19 @@ class TranslateBubbleViewBrowserTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest,
                        CloseBrowserWithoutTranslating) {
-  EXPECT_FALSE(TranslateBubbleController::FromWebContents(
-      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .translate_bubble_controller()
+                   ->GetTranslateBubble());
 
   // Show a French page and wait until the bubble is shown.
   GURL french_url = GURL(embedded_test_server()->GetURL("/french_page.html"));
   NavigateAndWaitForLanguageDetection(french_url, "fr");
 
-  TranslateBubbleView* bubble =
-      TranslateBubbleController::FromWebContents(
-          browser()->tab_strip_model()->GetActiveWebContents())
-          ->GetTranslateBubble();
+  TranslateBubbleView* bubble = browser()
+                                    ->GetFeatures()
+                                    .translate_bubble_controller()
+                                    ->GetTranslateBubble();
   EXPECT_TRUE(bubble);
   views::ViewTracker bubble_tracker(bubble);
   EXPECT_EQ(bubble, bubble_tracker.view());
@@ -119,17 +122,19 @@ IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest,
                        CloseLastTabWithoutTranslating) {
-  EXPECT_FALSE(TranslateBubbleController::FromWebContents(
-      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .translate_bubble_controller()
+                   ->GetTranslateBubble());
 
   // Show a French page and wait until the bubble is shown.
   GURL french_url = GURL(embedded_test_server()->GetURL("/french_page.html"));
   NavigateAndWaitForLanguageDetection(french_url, "fr");
 
-  TranslateBubbleView* bubble =
-      TranslateBubbleController::FromWebContents(
-          browser()->tab_strip_model()->GetActiveWebContents())
-          ->GetTranslateBubble();
+  TranslateBubbleView* bubble = browser()
+                                    ->GetFeatures()
+                                    .translate_bubble_controller()
+                                    ->GetTranslateBubble();
   EXPECT_TRUE(bubble);
   views::ViewTracker bubble_tracker(bubble);
   EXPECT_EQ(bubble, bubble_tracker.view());
@@ -147,8 +152,10 @@ IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest,
                        CloseAnotherTabWithoutTranslating) {
-  EXPECT_FALSE(TranslateBubbleController::FromWebContents(
-      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .translate_bubble_controller()
+                   ->GetTranslateBubble());
 
   int active_index = browser()->tab_strip_model()->active_index();
 
@@ -163,29 +170,33 @@ IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest,
       browser()->tab_strip_model()->GetWebContentsAt(french_index);
 
   // The bubble is not shown because the tab is not activated.
-  EXPECT_FALSE(TranslateBubbleController::FromWebContents(web_contents));
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .translate_bubble_controller()
+                   ->GetTranslateBubble());
 
   // Close the French page tab immediately.
   chrome::CloseWebContents(browser(), web_contents, false);
   EXPECT_EQ(active_index, browser()->tab_strip_model()->active_index());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
-  EXPECT_FALSE(TranslateBubbleController::FromWebContents(
-      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .translate_bubble_controller()
+                   ->GetTranslateBubble());
 
   // Close the last tab.
-  chrome::CloseWebContents(browser(),
-                           browser()->tab_strip_model()->GetActiveWebContents(),
-                           false);
+  chrome::CloseWebContents(
+      browser(), browser()->tab_strip_model()->GetActiveWebContents(), false);
 }
 
 IN_PROC_BROWSER_TEST_F(TranslateBubbleViewBrowserTest, AlertAccessibleEvent) {
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   EXPECT_EQ(0, counter.GetCount(ax::mojom::Event::kAlert));
 
   GURL french_url = GURL(embedded_test_server()->GetURL("/french_page.html"));
   NavigateAndWaitForLanguageDetection(french_url, "fr");
 
-  // TODO(crbug.com/1082217): This should produce one event instead of two.
+  // TODO(crbug.com/40691800): This should produce one event instead of two.
   EXPECT_LT(0, counter.GetCount(ax::mojom::Event::kAlert));
 }
 
@@ -200,8 +211,9 @@ class TranslateBubbleVisualTest
   TranslateBubbleVisualTest() = default;
 
   TranslateBubbleView* GetCurrentTranslateBubble() {
-    return TranslateBubbleController::FromWebContents(
-               browser()->tab_strip_model()->GetActiveWebContents())
+    return browser()
+        ->GetFeatures()
+        .translate_bubble_controller()
         ->GetTranslateBubble();
   }
 

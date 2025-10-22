@@ -1,12 +1,13 @@
 Name: libvpx
 URL: https://chromium.googlesource.com/webm/libvpx
-Version: 0
-Date: Tuesday September 26 2023
-Revision: 7aaffe2df4c9426ab204a272ca5ca52286ca86d4
-CPEPrefix: cpe:/a:webmproject:libvpx:1.13.0
-License: BSD
-License File: source/libvpx/LICENSE
+Version: N/A
+Revision: b84ca9b63730e7d4563573a56a66317eb0087ebf
+CPEPrefix: cpe:/a:webmproject:libvpx:1.15.1
+License: BSD-3-Clause, Patent
+License Android Compatible: yes
+License File: source/libvpx/LICENSE, source/libvpx/PATENTS
 Security Critical: yes
+Shipped: yes
 
 Description:
 Contains the sources used to compile libvpx binaries used by Google Chrome and
@@ -26,16 +27,18 @@ Please follow these steps to update libvpx source code:
 
    Use the generated commit message for the roll.
 
-2. Generate .gni and config files.
+2. Generate .gni and config files:
 
      cd third_party/libvpx
      ./generate_gni.sh
 
-   Update 'Version' and 'CPEPrefix' in this file if necessary.
+   Update 'Revision' and 'CPEPrefix' in this file if necessary.
 
 3. Amend the commit created by the first step:
 
      git commit -a --amend
+
+   Add `Bug: b:308446709` to the commit message.
 
 4. Upload the change to Gerrit:
 
@@ -58,3 +61,12 @@ Configuration for the build is taken from vpx_config.h for each platform.
 
 A tool to verify vpx_config.h and vpx_config.asm are matched. This also
 prints the final configuration after checking.
+
+The PGO (Profile-Guided Optimization) test cases located in the tests/pgo
+directory require a set of test data. To download this test data, execute
+the following command:
+
+     python3 ./source/libvpx/test/android/get_files.py \
+       -i tests/pgo/pgo-test-data.sha1 \
+       -o ../../out/Default/ \
+       -u http://downloads.webmproject.org/test_data/libvpx

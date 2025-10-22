@@ -4,7 +4,8 @@
 
 package org.chromium.chrome.browser.lifecycle;
 
-/**
- * Parent interface for lifecycle observer interfaces.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Parent interface for lifecycle observer interfaces. */
+@NullMarked
 public interface LifecycleObserver {}

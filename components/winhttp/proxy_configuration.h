@@ -6,12 +6,15 @@
 #define COMPONENTS_WINHTTP_PROXY_CONFIGURATION_H_
 
 #include <windows.h>
+
 #include <winhttp.h>
+
+#include <optional>
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "components/winhttp/proxy_info.h"
 #include "components/winhttp/scoped_winttp_proxy_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -36,10 +39,11 @@ class ProxyConfiguration : public base::RefCounted<ProxyConfiguration> {
   ProxyConfiguration& operator=(const ProxyConfiguration&) = delete;
 
   int access_type() const;
-  absl::optional<ScopedWinHttpProxyInfo> GetProxyForUrl(
-      HINTERNET session_handle,
-      const GURL& url) const;
+  std::wstring proxy() const;
+  std::wstring proxy_bypass() const;
 
+  std::optional<ScopedWinHttpProxyInfo> GetProxyForUrl(HINTERNET session_handle,
+                                                       const GURL& url) const;
  protected:
   virtual ~ProxyConfiguration() = default;
 
@@ -47,7 +51,7 @@ class ProxyConfiguration : public base::RefCounted<ProxyConfiguration> {
   friend class base::RefCounted<ProxyConfiguration>;
 
   virtual int DoGetAccessType() const;
-  virtual absl::optional<ScopedWinHttpProxyInfo> DoGetProxyForUrl(
+  virtual std::optional<ScopedWinHttpProxyInfo> DoGetProxyForUrl(
       HINTERNET session_handle,
       const GURL& url) const;
 
@@ -63,15 +67,16 @@ class AutoProxyConfiguration final : public ProxyConfiguration {
  private:
   // Overrides for ProxyConfiguration.
   int DoGetAccessType() const override;
-  absl::optional<ScopedWinHttpProxyInfo> DoGetProxyForUrl(
+  std::optional<ScopedWinHttpProxyInfo> DoGetProxyForUrl(
       HINTERNET session_handle,
       const GURL& url) const override;
 };
 
 // Sets proxy info on a request handle, if WINHTTP_PROXY_INFO is provided.
 void SetProxyForRequest(
-    const HINTERNET request_handle,
-    const absl::optional<ScopedWinHttpProxyInfo>& winhttp_proxy_info);
+    HINTERNET request_handle,
+    std::optional<ScopedWinHttpProxyInfo> winhttp_proxy_info);
+
 }  // namespace winhttp
 
 #endif  // COMPONENTS_WINHTTP_PROXY_CONFIGURATION_H_

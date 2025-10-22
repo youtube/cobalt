@@ -4,8 +4,8 @@
 
 #include "components/sync/engine/cycle/status_controller.h"
 
-#include "components/sync/base/model_type.h"
-#include "components/sync/protocol/sync_protocol_error.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/engine/sync_protocol_error.h"
 
 namespace syncer {
 
@@ -13,11 +13,11 @@ StatusController::StatusController() = default;
 
 StatusController::~StatusController() = default;
 
-ModelTypeSet StatusController::get_updated_types() const {
+DataTypeSet StatusController::get_updated_types() const {
   return model_neutral_.updated_types;
 }
 
-void StatusController::add_updated_type(ModelType type) {
+void StatusController::add_updated_type(DataType type) {
   model_neutral_.updated_types.Put(type);
 }
 
@@ -54,8 +54,8 @@ void StatusController::increment_num_server_conflicts() {
   model_neutral_.num_server_conflicts++;
 }
 
-void StatusController::set_last_get_key_result(const SyncerError result) {
-  model_neutral_.last_get_key_result = result;
+void StatusController::set_last_get_key_failed(bool failed) {
+  model_neutral_.last_get_key_failed = failed;
 }
 
 void StatusController::set_last_download_updates_result(
@@ -67,8 +67,8 @@ void StatusController::set_commit_result(const SyncerError result) {
   model_neutral_.commit_result = result;
 }
 
-SyncerError StatusController::last_get_key_result() const {
-  return model_neutral_.last_get_key_result;
+bool StatusController::last_get_key_failed() const {
+  return model_neutral_.last_get_key_failed;
 }
 
 int StatusController::num_server_conflicts() const {

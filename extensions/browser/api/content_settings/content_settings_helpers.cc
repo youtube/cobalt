@@ -26,7 +26,6 @@ std::string GetDefaultPort(const std::string& scheme) {
   if (scheme == url::kHttpsScheme)
     return "443";
   NOTREACHED();
-  return std::string();
 }
 
 }  // namespace

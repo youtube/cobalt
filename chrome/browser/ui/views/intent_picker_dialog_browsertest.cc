@@ -9,23 +9,24 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_features.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_helpers.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
+#include "chrome/browser/ui/views/location_bar/intent_chip_button_test_base.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ui/base/models/image_model.h"
 #include "ui/events/test/event_generator.h"
-#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/image/image.h"
 #include "ui/views/widget/widget_utils.h"
@@ -39,12 +40,9 @@ class IntentPickerDialogTest : public DialogBrowserTest {
 
   // DialogBrowserTest:
   void ShowUi(const std::string& name) override {
-    animation_mode_reset_ = gfx::AnimationTestApi::SetRichAnimationRenderMode(
-        gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
-
     std::vector<apps::IntentPickerAppInfo> app_info;
     const auto add_entry = [&app_info](const std::string& str) {
-      auto icon_size = apps::GetIntentPickerBubbleIconSize();
+      auto icon_size = IntentPickerTabHelper::GetIntentPickerBubbleIconSize();
       app_info.emplace_back(
           apps::PickerEntryType::kUnknown,
           ui::ImageModel::FromImage(
@@ -70,9 +68,6 @@ class IntentPickerDialogTest : public DialogBrowserTest {
         ->toolbar_button_provider()
         ->GetPageActionIconView(PageActionIconType::kIntentPicker);
   }
-
-  std::unique_ptr<base::AutoReset<gfx::Animation::RichAnimationRenderMode>>
-      animation_mode_reset_;
 };
 
 #if BUILDFLAG(IS_MAC)
@@ -82,14 +77,28 @@ class IntentPickerDialogTest : public DialogBrowserTest {
 #define MAYBE_InvokeUi_default InvokeUi_default
 #endif
 IN_PROC_BROWSER_TEST_F(IntentPickerDialogTest, MAYBE_InvokeUi_default) {
-  set_baseline("3742640");
+  set_baseline("5428271");
   ShowAndVerifyUi();
 }
 
-class IntentPickerDialogGridViewTest : public IntentPickerDialogTest {
+class IntentPickerDialogGridViewTest
+    : public IntentPickerDialogTest,
+      public testing::WithParamInterface<
+          std::tuple<apps::test::LinkCapturingFeatureVersion, bool>>,
+      public IntentChipButtonTestBase {
  public:
   IntentPickerDialogGridViewTest() {
-    feature_list_.InitAndEnableFeature(apps::features::kLinkCapturingUiUpdate);
+    std::vector<base::test::FeatureRefAndParams> features_to_enable =
+        apps::test::GetFeaturesToEnableLinkCapturingUX(
+            std::get<apps::test::LinkCapturingFeatureVersion>(GetParam()));
+
+    if (IsMigrationEnabled()) {
+      features_to_enable.push_back(
+          {::features::kPageActionsMigration,
+           {{::features::kPageActionsMigrationIntentPicker.name, "true"}}});
+    }
+
+    feature_list_.InitWithFeaturesAndParameters(features_to_enable, {});
   }
 
   void ShowUi(const std::string& name) override {
@@ -101,22 +110,37 @@ class IntentPickerDialogGridViewTest : public IntentPickerDialogTest {
         ui::test::EventGenerator(views::GetRootWindow(bubble->GetWidget()));
     auto* button =
         bubble->GetViewByID(IntentPickerBubbleView::ViewId::kItemContainer)
-            ->children()[0];
+            ->children()[0]
+            .get();
     event_generator.MoveMouseTo(button->GetBoundsInScreen().CenterPoint());
     event_generator.ClickLeftButton();
   }
+  bool IsMigrationEnabled() const { return std::get<bool>(GetParam()); }
 
  private:
-  views::Button* GetAnchorButton() override {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->toolbar_button_provider()
-        ->GetIntentChipButton();
-  }
+  views::Button* GetAnchorButton() override { return GetIntentChip(browser()); }
 
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(IntentPickerDialogGridViewTest, InvokeUi_default) {
-  set_baseline("3742640");
+IN_PROC_BROWSER_TEST_P(IntentPickerDialogGridViewTest, InvokeUi_default) {
+  set_baseline("5428271");
   ShowAndVerifyUi();
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    IntentPickerDialogGridViewTest,
+    testing::Combine(
+#if BUILDFLAG(IS_CHROMEOS)
+        testing::Values(apps::test::LinkCapturingFeatureVersion::kV1DefaultOff,
+                        apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
+#else
+        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
+                        apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        testing::Bool()),
+    [](const testing::TestParamInfo<
+        std::tuple<apps::test::LinkCapturingFeatureVersion, bool>>& info) {
+      return IntentChipButtonTestBase::GenerateIntentChipTestName(info);
+    });

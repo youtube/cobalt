@@ -20,7 +20,10 @@
 #include "chrome/browser/ui/webui/downloads/downloads.mojom.h"
 #include "chrome/browser/ui/webui/downloads/mock_downloads_page.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/download/public/common/download_item.h"
+#include "components/download/public/common/download_item_rename_handler.h"
 #include "components/download/public/common/mock_download_item.h"
+#include "content/public/browser/download_item_utils.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/mock_download_manager.h"
 #include "content/public/test/test_web_ui.h"
@@ -28,12 +31,20 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
+#include "chrome/browser/safe_browsing/download_protection/download_protection_service.h"
+#include "components/safe_browsing/core/common/proto/csd.pb.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
+#endif  // BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
+
 using download::DownloadItem;
 using download::MockDownloadItem;
-using DownloadVector = std::vector<DownloadItem*>;
+using downloads::mojom::SafeBrowsingState;
+using DownloadVector = std::vector<raw_ptr<DownloadItem, VectorExperimental>>;
 using testing::_;
 using testing::Return;
 using testing::ReturnRefOfCopy;
+using TailoredVerdict = safe_browsing::ClientDownloadResponse::TailoredVerdict;
 
 namespace {
 
@@ -41,6 +52,16 @@ bool ShouldShowItem(const DownloadItem& item) {
   DownloadItemModel model(const_cast<DownloadItem*>(&item));
   return model.ShouldShowInShelf();
 }
+
+class FakeRenameHandler : public download::DownloadItemRenameHandler {
+ public:
+  explicit FakeRenameHandler(DownloadItem* download_item)
+      : DownloadItemRenameHandler(download_item) {}
+  ~FakeRenameHandler() override = default;
+
+  // DownloadItemRenameHandler interface:
+  bool ShowRenameProgress() override { return true; }
+};
 
 }  // namespace
 
@@ -52,10 +73,10 @@ class TestDownloadsListTracker : public DownloadsListTracker {
       : DownloadsListTracker(manager,
                              std::move(page),
                              base::BindRepeating(&ShouldShowItem)) {}
-  ~TestDownloadsListTracker() override {}
+  ~TestDownloadsListTracker() override = default;
 
-  using DownloadsListTracker::IsIncognito;
   using DownloadsListTracker::GetItemForTesting;
+  using DownloadsListTracker::IsIncognito;
   using DownloadsListTracker::SetChunkSizeForTesting;
 
  protected:
@@ -70,18 +91,20 @@ class TestDownloadsListTracker : public DownloadsListTracker {
 // A fixture to test DownloadsListTracker.
 class DownloadsListTrackerTest : public testing::Test {
  public:
-  DownloadsListTrackerTest() {}
+  DownloadsListTrackerTest() = default;
 
   ~DownloadsListTrackerTest() override {
-    for (const auto& mock_item : mock_items_)
+    for (const auto& mock_item : mock_items_) {
       testing::Mock::VerifyAndClear(mock_item.get());
+    }
   }
 
   // testing::Test:
   void SetUp() override {
     ON_CALL(manager_, GetBrowserContext()).WillByDefault(Return(&profile_));
-    ON_CALL(manager_, GetAllDownloads(_)).WillByDefault(
-        testing::Invoke(this, &DownloadsListTrackerTest::GetAllDownloads));
+    ON_CALL(manager_, GetAllDownloads(_))
+        .WillByDefault(
+            testing::Invoke(this, &DownloadsListTrackerTest::GetAllDownloads));
   }
 
   MockDownloadItem* CreateMock(uint64_t id, const base::Time& started) {
@@ -94,6 +117,14 @@ class DownloadsListTrackerTest : public testing::Test {
     ON_CALL(*new_item, GetTargetFilePath())
         .WillByDefault(
             ReturnRefOfCopy(base::FilePath(FILE_PATH_LITERAL("foo.txt"))));
+    ON_CALL(*new_item, GetURL())
+        .WillByDefault(ReturnRefOfCopy(GURL("https://example.test")));
+    ON_CALL(*new_item, GetReferrerUrl())
+        .WillByDefault(ReturnRefOfCopy(GURL("https://referrerexample.test")));
+    ON_CALL(*new_item, HasUserGesture()).WillByDefault(Return(true));
+
+    content::DownloadItemUtils::AttachInfoForTesting(new_item, profile(),
+                                                     nullptr);
 
     return new_item;
   }
@@ -117,8 +148,9 @@ class DownloadsListTrackerTest : public testing::Test {
 
  private:
   void GetAllDownloads(DownloadVector* result) {
-    for (const auto& mock_item : mock_items_)
+    for (const auto& mock_item : mock_items_) {
       result->push_back(mock_item.get());
+    }
   }
 
   // NOTE: The initialization order of these members matters.
@@ -149,12 +181,14 @@ TEST_F(DownloadsListTrackerTest, SetSearchTerms) {
 }
 
 MATCHER_P(MatchIds, expected, "") {
-  if (arg.size() != expected.size())
+  if (arg.size() != expected.size()) {
     return false;
+  }
 
   for (size_t i = 0; i < arg.size(); ++i) {
-    if (arg[i]->id != base::NumberToString(expected[i]))
+    if (arg[i]->id != base::NumberToString(expected[i])) {
       return false;
+    }
   }
   return true;
 }
@@ -239,8 +273,9 @@ TEST_F(DownloadsListTrackerTest, StartExcludesHiddenItems) {
 
 TEST_F(DownloadsListTrackerTest, Incognito) {
   testing::NiceMock<content::MockDownloadManager> incognito_manager;
-  ON_CALL(incognito_manager, GetBrowserContext()).WillByDefault(Return(
-      TestingProfile::Builder().BuildIncognito(profile())));
+  ON_CALL(incognito_manager, GetBrowserContext())
+      .WillByDefault(
+          Return(TestingProfile::Builder().BuildIncognito(profile())));
 
   MockDownloadItem item;
   EXPECT_CALL(item, GetId()).WillRepeatedly(Return(0));
@@ -319,6 +354,97 @@ TEST_F(DownloadsListTrackerTest, IgnoreTransientDownloads) {
   EXPECT_CALL(page_, InsertItems(0, MatchIds(expected)));
 }
 
+TEST_F(DownloadsListTrackerTest, NumDangerousItemsSent) {
+  MockDownloadItem* dangerous_item0 = CreateNextItem();
+  ON_CALL(*dangerous_item0, IsDangerous()).WillByDefault(Return(true));
+  CreateNextItem();
+  CreateNextItem();
+  CreateNextItem();
+  CreateNextItem();
+  MockDownloadItem* dangerous_item5 = CreateNextItem();
+  ON_CALL(*dangerous_item5, IsDangerous()).WillByDefault(Return(true));
+  CreateNextItem();
+
+  CreateTracker();
+  tracker()->SetChunkSizeForTesting(3);
+  EXPECT_EQ(tracker()->NumDangerousItemsSent(), 0);
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {6, 5, 4};
+    EXPECT_CALL(page_, InsertItems(0, MatchIds(expected)));
+    EXPECT_EQ(tracker()->NumDangerousItemsSent(), 1);
+  }
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {3, 2, 1};
+    EXPECT_CALL(page_, InsertItems(3, MatchIds(expected)));
+    EXPECT_EQ(tracker()->NumDangerousItemsSent(), 1);
+  }
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {0};
+    EXPECT_CALL(page_, InsertItems(6, MatchIds(expected)));
+    EXPECT_EQ(tracker()->NumDangerousItemsSent(), 2);
+  }
+}
+
+TEST_F(DownloadsListTrackerTest, GetFirstActiveWarningItem) {
+  // Create the items in the reverse order from how they are displayed.
+  MockDownloadItem* second_dangerous_active_item = CreateNextItem();
+  ON_CALL(*second_dangerous_active_item, IsDangerous())
+      .WillByDefault(Return(true));
+  ON_CALL(*second_dangerous_active_item, GetState())
+      .WillByDefault(Return(download::DownloadItem::IN_PROGRESS));
+  CreateNextItem();
+  MockDownloadItem* dangerous_active_item = CreateNextItem();
+  ON_CALL(*dangerous_active_item, IsDangerous()).WillByDefault(Return(true));
+  ON_CALL(*dangerous_active_item, GetState())
+      .WillByDefault(Return(download::DownloadItem::IN_PROGRESS));
+  MockDownloadItem* dangerous_cancelled_item = CreateNextItem();
+  ON_CALL(*dangerous_cancelled_item, IsDangerous()).WillByDefault(Return(true));
+  ON_CALL(*dangerous_cancelled_item, GetState())
+      .WillByDefault(Return(download::DownloadItem::CANCELLED));
+  CreateNextItem();
+
+  CreateTracker();
+  tracker()->SetChunkSizeForTesting(1);
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {4};
+    EXPECT_CALL(page_, InsertItems(0, MatchIds(expected)));
+    // Item is not dangerous.
+    EXPECT_EQ(tracker()->GetFirstActiveWarningItem(), nullptr);
+  }
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {3};
+    EXPECT_CALL(page_, InsertItems(1, MatchIds(expected)));
+    // Item is cancelled.
+    EXPECT_EQ(tracker()->GetFirstActiveWarningItem(), nullptr);
+  }
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {2};
+    EXPECT_CALL(page_, InsertItems(2, MatchIds(expected)));
+    // Item is active and warning so it is returned.
+    EXPECT_EQ(tracker()->GetFirstActiveWarningItem(), dangerous_active_item);
+  }
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {1};
+    EXPECT_CALL(page_, InsertItems(3, MatchIds(expected)));
+    // Next item is not dangerous and active, so it doesn't change the answer.
+    EXPECT_EQ(tracker()->GetFirstActiveWarningItem(), dangerous_active_item);
+  }
+  {
+    tracker()->StartAndSendChunk();
+    std::vector<uint64_t> expected = {0};
+    EXPECT_CALL(page_, InsertItems(4, MatchIds(expected)));
+    // A second dangerous active item doesn't change the answer.
+    EXPECT_EQ(tracker()->GetFirstActiveWarningItem(), dangerous_active_item);
+  }
+}
+
 TEST_F(DownloadsListTrackerTest,
        CreateDownloadData_UrlFormatting_OmitUserPass) {
   MockDownloadItem* item = CreateNextItem();
@@ -348,10 +474,28 @@ TEST_F(DownloadsListTrackerTest, CreateDownloadData_UrlFormatting_Idn) {
   EXPECT_EQ(data->display_url, u"https://\u4f60\u597d\u4f60\u597d.test");
 }
 
+// URL longer than 16K but less than 2M.
+TEST_F(DownloadsListTrackerTest, CreateDownloadData_UrlFormatting_Long) {
+  std::string url = "https://" + std::string(16 * 1024, 'a') + ".test";
+  // The string should truncate the beginning to 16K.
+  std::u16string expected = std::u16string(16 * 1024 - 5, 'a') + u".test";
+
+  MockDownloadItem* item = CreateNextItem();
+  ON_CALL(*item, GetURL()).WillByDefault(ReturnRefOfCopy(GURL(url)));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_TRUE(data->url);
+  EXPECT_EQ(data->display_url, expected);
+}
+
+// URL longer than 2M.
 TEST_F(DownloadsListTrackerTest, CreateDownloadData_UrlFormatting_VeryLong) {
   std::string url = "https://" + std::string(2 * 1024 * 1024, 'a') + ".test";
-  std::u16string expected =
-      u"https://" + std::u16string(2 * 1024 * 1024 - 8, 'a');
+  // The string should truncate the beginning to 16K.
+  std::u16string expected = std::u16string(16 * 1024 - 5, 'a') + u".test";
 
   MockDownloadItem* item = CreateNextItem();
   ON_CALL(*item, GetURL()).WillByDefault(ReturnRefOfCopy(GURL(url)));
@@ -363,3 +507,200 @@ TEST_F(DownloadsListTrackerTest, CreateDownloadData_UrlFormatting_VeryLong) {
   EXPECT_FALSE(data->url);
   EXPECT_EQ(data->display_url, expected);
 }
+
+TEST_F(DownloadsListTrackerTest, CreateDownloadData_ReferrerUrlPresent) {
+  MockDownloadItem* item = CreateNextItem();
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_EQ(*data->url, "https://example.test/");
+  EXPECT_EQ(*data->referrer_url, "https://referrerexample.test/");
+  EXPECT_EQ(data->display_url, u"https://example.test");
+  EXPECT_EQ(data->display_referrer_url, u"https://referrerexample.test");
+}
+
+TEST_F(DownloadsListTrackerTest, CreateDownloadData_ReferrerUrlNotPresent) {
+  MockDownloadItem* item = CreateNextItem();
+  ON_CALL(*item, GetReferrerUrl()).WillByDefault(ReturnRefOfCopy(GURL()));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_TRUE(data->url);
+  EXPECT_FALSE(data->referrer_url);
+  EXPECT_EQ(data->display_referrer_url, u"");
+}
+
+TEST_F(DownloadsListTrackerTest,
+       CreateDownloadData_ReferrerUrlFormatting_OmitUserPass) {
+  MockDownloadItem* item = CreateNextItem();
+  ON_CALL(*item, GetReferrerUrl())
+      .WillByDefault(ReturnRefOfCopy(GURL("https://user:pass@example.test")));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_TRUE(data->referrer_url);
+  EXPECT_EQ(*data->referrer_url, "https://user:pass@example.test/");
+  EXPECT_EQ(data->display_referrer_url, u"https://example.test");
+}
+
+TEST_F(DownloadsListTrackerTest, CreateDownloadData_ReferrerUrlFormatting_Idn) {
+  MockDownloadItem* item = CreateNextItem();
+  ON_CALL(*item, GetReferrerUrl())
+      .WillByDefault(ReturnRefOfCopy(GURL("https://xn--6qqa088eba.test")));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_TRUE(data->referrer_url);
+  EXPECT_EQ(*data->referrer_url, "https://xn--6qqa088eba.test/");
+  EXPECT_EQ(data->display_referrer_url,
+            u"https://\u4f60\u597d\u4f60\u597d.test");
+}
+
+// URL longer than 16K but less than 2M.
+TEST_F(DownloadsListTrackerTest,
+       CreateDownloadData_ReferrerUrlFormatting_Long) {
+  std::string url = "https://" + std::string(16 * 1024, 'a') + ".test";
+  // The string should truncate the beginning to 16K.
+  std::u16string expected = std::u16string(16 * 1024 - 5, 'a') + u".test";
+
+  MockDownloadItem* item = CreateNextItem();
+  ON_CALL(*item, GetReferrerUrl()).WillByDefault(ReturnRefOfCopy(GURL(url)));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_TRUE(data->referrer_url);
+  EXPECT_EQ(data->display_referrer_url, expected);
+}
+
+// URL longer than 2M.
+TEST_F(DownloadsListTrackerTest,
+       CreateDownloadData_ReferrerUrlFormatting_VeryLong) {
+  std::string url = "https://" + std::string(2 * 1024 * 1024, 'a') + ".test";
+  // The string should truncate the beginning to 16K.
+  std::u16string expected = std::u16string(16 * 1024 - 5, 'a') + u".test";
+
+  MockDownloadItem* item = CreateNextItem();
+  ON_CALL(*item, GetReferrerUrl()).WillByDefault(ReturnRefOfCopy(GURL(url)));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_FALSE(data->referrer_url);
+  EXPECT_EQ(data->display_referrer_url, expected);
+}
+
+TEST_F(DownloadsListTrackerTest, RenamingProgress) {
+  MockDownloadItem* item = CreateNextItem();
+  FakeRenameHandler renamer(item);
+  ON_CALL(*item, GetRenameHandler()).WillByDefault(Return(&renamer));
+  ON_CALL(*item, GetReceivedBytes()).WillByDefault(Return(10));
+  ON_CALL(*item, GetUploadedBytes()).WillByDefault(Return(4));
+  ON_CALL(*item, GetTotalBytes()).WillByDefault(Return(10));
+
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+  EXPECT_EQ(data->percent, 70);
+}
+
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
+TEST_F(DownloadsListTrackerTest, CreateDownloadData_SafeBrowsing) {
+  auto tracker = std::make_unique<DownloadsListTracker>(
+      manager(), page_.BindAndGetRemote());
+
+  // Enable Safe Browsing.
+  profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
+  {
+    MockDownloadItem* item = CreateNextItem();
+
+    downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->safe_browsing_state,
+              SafeBrowsingState::kStandardProtection);
+    EXPECT_FALSE(data->has_safe_browsing_verdict);
+  }
+
+  // Add a Safe Browsing verdict.
+  {
+    MockDownloadItem* item = CreateNextItem();
+    safe_browsing::DownloadProtectionService::SetDownloadProtectionData(
+        item, "token", safe_browsing::ClientDownloadResponse::Verdict(),
+        safe_browsing::ClientDownloadResponse::TailoredVerdict());
+
+    downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->safe_browsing_state,
+              SafeBrowsingState::kStandardProtection);
+    EXPECT_TRUE(data->has_safe_browsing_verdict);
+
+    // Now turn off Safe Browsing on the profile. The DownloadsListTracker
+    // should not assume that there's no verdict. (crbug.com/1499703)
+    profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, false);
+    data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->safe_browsing_state, SafeBrowsingState::kNoSafeBrowsing);
+    EXPECT_TRUE(data->has_safe_browsing_verdict);
+  }
+
+  // Enable Enhanced Safe Browsing.
+  profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
+  profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, true);
+  {
+    MockDownloadItem* item = CreateNextItem();
+
+    downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->safe_browsing_state,
+              SafeBrowsingState::kStandardProtection);
+    EXPECT_FALSE(data->has_safe_browsing_verdict);
+  }
+
+  // Disable Safe Browsing.
+  profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, false);
+  {
+    MockDownloadItem* item = CreateNextItem();
+
+    downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->safe_browsing_state, SafeBrowsingState::kNoSafeBrowsing);
+    EXPECT_FALSE(data->has_safe_browsing_verdict);
+  }
+
+  // Make Safe Browsing disabled by policy.
+  profile()->GetTestingPrefService()->SetManagedPref(
+      prefs::kSafeBrowsingEnabled,
+      base::Value::ToUniquePtrValue(base::Value(false)));
+  {
+    MockDownloadItem* item = CreateNextItem();
+
+    downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->safe_browsing_state, SafeBrowsingState::kNoSafeBrowsing);
+    EXPECT_FALSE(data->has_safe_browsing_verdict);
+  }
+
+  // Tailored warning fields.
+  {
+    MockDownloadItem* item = CreateNextItem();
+    ON_CALL(*item, GetDangerType())
+        .WillByDefault(Return(
+            download::DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE));
+    TailoredVerdict tailored_verdict;
+    tailored_verdict.set_tailored_verdict_type(TailoredVerdict::COOKIE_THEFT);
+    safe_browsing::DownloadProtectionService::SetDownloadProtectionData(
+        item, "token",
+        safe_browsing::ClientDownloadResponse::SAFE,  // placeholder
+        tailored_verdict);
+
+    downloads::mojom::DataPtr data = tracker->CreateDownloadData(item);
+    EXPECT_EQ(data->tailored_warning_type,
+              downloads::mojom::TailoredWarningType::kCookieTheft);
+  }
+}
+#endif  // BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)

@@ -8,7 +8,6 @@
 #include "ash/public/cpp/test/test_new_window_delegate.h"
 #include "ash/system/phonehub/continue_browsing_chip.h"
 #include "ash/test/ash_test_base.h"
-#include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/ash/components/phonehub/fake_user_action_recorder.h"
 #include "chromeos/ash/components/phonehub/mutable_phone_model.h"
@@ -42,10 +41,6 @@ class TaskContinuationViewTest : public AshTestBase {
   // AshTestBase:
   void SetUp() override {
     feature_list_.InitAndEnableFeature(features::kPhoneHub);
-    auto delegate = std::make_unique<MockNewWindowDelegate>();
-    new_window_delegate_ = delegate.get();
-    delegate_provider_ =
-        std::make_unique<TestNewWindowDelegateProvider>(std::move(delegate));
     AshTestBase::SetUp();
 
     task_continuation_view_ = std::make_unique<TaskContinuationView>(
@@ -60,15 +55,14 @@ class TaskContinuationViewTest : public AshTestBase {
  protected:
   TaskContinuationView* task_view() { return task_continuation_view_.get(); }
   phonehub::MutablePhoneModel* phone_model() { return &phone_model_; }
-  MockNewWindowDelegate& new_window_delegate() { return *new_window_delegate_; }
+  MockNewWindowDelegate& new_window_delegate() { return new_window_delegate_; }
 
  private:
   std::unique_ptr<TaskContinuationView> task_continuation_view_;
   phonehub::FakeUserActionRecorder fake_user_action_recorder_;
   phonehub::MutablePhoneModel phone_model_;
   base::test::ScopedFeatureList feature_list_;
-  raw_ptr<MockNewWindowDelegate, ExperimentalAsh> new_window_delegate_;
-  std::unique_ptr<TestNewWindowDelegateProvider> delegate_provider_;
+  MockNewWindowDelegate new_window_delegate_;
 };
 
 TEST_F(TaskContinuationViewTest, TaskViewVisibility) {
@@ -115,7 +109,7 @@ TEST_F(TaskContinuationViewTest, TaskChipsView) {
   expected_tabs = 2;
   EXPECT_EQ(expected_tabs, task_view()->chips_view_->children().size());
 
-  for (auto* child : task_view()->chips_view_->children()) {
+  for (views::View* child : task_view()->chips_view_->children()) {
     ContinueBrowsingChip* chip = static_cast<ContinueBrowsingChip*>(child);
     // OpenUrl is expected to call after button pressed simulation.
     EXPECT_CALL(new_window_delegate(),

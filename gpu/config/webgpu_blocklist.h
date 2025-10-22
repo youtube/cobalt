@@ -9,13 +9,19 @@
 
 #include "gpu/gpu_export.h"
 
-struct WGPUAdapterProperties;
+namespace wgpu {
+class Adapter;
+}
 
 namespace gpu {
 
-GPU_EXPORT bool IsWebGPUAdapterBlocklisted(const WGPUAdapterProperties&);
-GPU_EXPORT bool IsWebGPUAdapterBlocklisted(const WGPUAdapterProperties&,
-                                           const std::string& blocklist);
+struct WebGPUBlocklistResult {
+  bool blocked;
+  std::string reason;
+};
+
+GPU_EXPORT WebGPUBlocklistResult
+IsWebGPUAdapterBlocklisted(const wgpu::Adapter& adapter);
 
 }  // namespace gpu
 

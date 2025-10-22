@@ -5,30 +5,24 @@
 package org.chromium.mojo.system.impl;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.mojo.system.Core;
 import org.chromium.mojo.system.Core.HandleSignalsState;
 import org.chromium.mojo.system.Handle;
 import org.chromium.mojo.system.UntypedHandle;
 
-/**
- * Implementation of {@link Handle}.
- */
+/** Implementation of {@link Handle}. */
+@NullMarked
 abstract class HandleBase implements Handle {
     private static final String TAG = "HandleImpl";
 
-    /**
-     * The pointer to the scoped handle owned by this object.
-     */
+    /** The pointer to the scoped handle owned by this object. */
     private long mMojoHandle;
 
-    /**
-     * The core implementation. Will be used to delegate all behavior.
-     */
+    /** The core implementation. Will be used to delegate all behavior. */
     protected CoreImpl mCore;
 
-    /**
-     * Base constructor. Takes ownership of the passed handle.
-     */
+    /** Base constructor. Takes ownership of the passed handle. */
     HandleBase(CoreImpl core, long mojoHandle) {
         mCore = core;
         mMojoHandle = mojoHandle;
@@ -110,9 +104,7 @@ abstract class HandleBase implements Handle {
         return mMojoHandle;
     }
 
-    /**
-     * invalidate the handle. The caller must ensures that the handle does not leak.
-     */
+    /** invalidate the handle. The caller must ensures that the handle does not leak. */
     void invalidateHandle() {
         mMojoHandle = CoreImpl.INVALID_HANDLE;
     }
@@ -124,6 +116,7 @@ abstract class HandleBase implements Handle {
      * @see java.lang.Object#finalize()
      */
     @Override
+    @SuppressWarnings("Finalize") // TODO(crbug.com/40286193): Use LifetimeAssert instead.
     protected final void finalize() throws Throwable {
         if (isValid()) {
             // This should not happen, as the user of this class should close the handle. Adding a

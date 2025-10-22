@@ -4,6 +4,9 @@
 
 #include "quiche/quic/qbone/qbone_stream.h"
 
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -68,10 +71,9 @@ class MockQuicSession : public QboneSessionBase {
   void RegisterReliableStream(QuicStreamId stream_id) {
     // The priority effectively does not matter. Put all streams on the same
     // priority.
-    write_blocked_streams()->RegisterStream(
-        stream_id,
-        /* is_static_stream = */ false,
-        QuicStreamPriority::Default(priority_type()));
+    write_blocked_streams()->RegisterStream(stream_id,
+                                            /* is_static_stream = */ false,
+                                            QuicStreamPriority());
   }
 
   // The session take ownership of the stream.
@@ -101,7 +103,8 @@ class DummyPacketWriter : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     return WriteResult(WRITE_STATUS_ERROR, 0);
   }
 
@@ -109,8 +112,8 @@ class DummyPacketWriter : public QuicPacketWriter {
 
   void SetWritable() override {}
 
-  absl::optional<int> MessageTooBigErrorCode() const override {
-    return absl::nullopt;
+  std::optional<int> MessageTooBigErrorCode() const override {
+    return std::nullopt;
   }
 
   QuicByteCount GetMaxPacketSize(
@@ -121,6 +124,8 @@ class DummyPacketWriter : public QuicPacketWriter {
   bool SupportsReleaseTime() const override { return false; }
 
   bool IsBatchMode() const override { return false; }
+
+  bool SupportsEcn() const override { return false; }
 
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& self_address,

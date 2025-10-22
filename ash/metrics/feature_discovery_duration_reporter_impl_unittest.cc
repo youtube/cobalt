@@ -3,11 +3,14 @@
 // found in the LICENSE file.
 
 #include "ash/metrics/feature_discovery_duration_reporter_impl.h"
+
 #include "ash/public/cpp/ash_prefs.h"
 #include "ash/public/cpp/feature_discovery_metric_util.h"
 #include "ash/public/cpp/tablet_mode.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
+#include "base/compiler_specific.h"
+#include "base/containers/contains.h"
 #include "base/test/metrics/histogram_tester.h"
 
 namespace ash {
@@ -55,9 +58,8 @@ class FeatureDiscoveryDurationReporterImplTest : public AshTestBase {
   bool IsMockFeatureUnderActiveObservation() {
     const auto& active_time_recordings =
         GetFeatureDiscoveryDurationReporter()->active_time_recordings_;
-    return active_time_recordings.find(
-               feature_discovery::TrackableFeature::kMockFeature) !=
-           active_time_recordings.cend();
+    return base::Contains(active_time_recordings,
+                          feature_discovery::TrackableFeature::kMockFeature);
   }
 
   // AshTestBase:
@@ -66,25 +68,11 @@ class FeatureDiscoveryDurationReporterImplTest : public AshTestBase {
 
     // Set up the primary account and the secondary account.
     GetSessionController()->ClearUserSessionsForTest();
-    TestSessionControllerClient* session_client = GetSessionControllerClient();
-    session_client->AddUserSession(kPrimaryUserEmail,
-                                   user_manager::USER_TYPE_REGULAR,
-                                   /*provide_pref_service=*/false);
-    session_client->AddUserSession(kSecondaryUserEmail,
-                                   user_manager::USER_TYPE_REGULAR,
-                                   /*provide_pref_service=*/false);
-
-    auto user_1_prefs = std::make_unique<TestingPrefServiceSimple>();
-    RegisterUserProfilePrefs(user_1_prefs->registry(), /*for_test=*/true);
-    auto user_2_prefs = std::make_unique<TestingPrefServiceSimple>();
-    RegisterUserProfilePrefs(user_2_prefs->registry(), /*for_test=*/true);
-    session_client->SetUserPrefService(primary_account_id_,
-                                       std::move(user_1_prefs));
-    session_client->SetUserPrefService(secondary_account_id_,
-                                       std::move(user_2_prefs));
+    SimulateUserLogin({kPrimaryUserEmail});
+    SimulateUserLogin({kSecondaryUserEmail});
 
     // Switch to the primary account and lock the screen.
-    session_client->SwitchActiveUser(primary_account_id_);
+    SwitchActiveUser(primary_account_id_);
     GetSessionControllerClient()->SetSessionState(
         session_manager::SessionState::LOCKED);
   }
@@ -103,9 +91,7 @@ TEST_F(FeatureDiscoveryDurationReporterImplTest, OnlyRecordForNewPrimaryUser) {
   EXPECT_TRUE(IsReporterActive());
 
   // Switch to the secondary account. The session should still be active.
-  TestSessionControllerClient* session_controller =
-      GetSessionControllerClient();
-  session_controller->SwitchActiveUser(secondary_account_id_);
+  SwitchActiveUser(secondary_account_id_);
   EXPECT_EQ(session_manager::SessionState::ACTIVE,
             GetSessionController()->GetSessionState());
 
@@ -223,7 +209,9 @@ TEST_F(FeatureDiscoveryDurationReporterImplTest,
 // Verifies each feature that is supported by the feature discovery duration
 // reporter has the unique feature name.
 TEST_F(FeatureDiscoveryDurationReporterImplTest, VerifyFeatureNameIsUnique) {
-  auto cmp = [](const char* a, const char* b) { return std::strcmp(a, b) > 0; };
+  auto cmp = [](const char* a, const char* b) {
+    return UNSAFE_TODO(std::strcmp(a, b)) > 0;
+  };
   std::set<const char*, decltype(cmp)> feature_names(cmp);
   for (const auto& feature_info : feature_discovery::kTrackableFeatureArray) {
     bool success = feature_names.emplace(feature_info.name).second;

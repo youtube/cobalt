@@ -6,6 +6,7 @@
 #define COMPONENTS_VIZ_TEST_FAKE_SURFACE_OBSERVER_H_
 
 #include "base/containers/flat_set.h"
+#include "base/scoped_observation.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/common/surfaces/surface_info.h"
@@ -13,11 +14,14 @@
 
 namespace viz {
 
+class SurfaceManager;
+
 class FakeSurfaceObserver : public SurfaceObserver {
  public:
   // If |damage_display| is true, the observer will indicate display damage when
   // a surface is damaged.
-  explicit FakeSurfaceObserver(bool damage_display = true);
+  explicit FakeSurfaceObserver(SurfaceManager* manager,
+                               bool damage_display = true);
   ~FakeSurfaceObserver() override;
 
   const BeginFrameAck& last_ack() const { return last_ack_; }
@@ -41,14 +45,13 @@ class FakeSurfaceObserver : public SurfaceObserver {
  private:
   // SurfaceObserver implementation:
   bool OnSurfaceDamaged(const SurfaceId& surface_id,
-                        const BeginFrameAck& ack) override;
+                        const BeginFrameAck& ack,
+                        HandleInteraction handle_interaction) override;
   void OnFirstSurfaceActivation(const SurfaceInfo& surface_info) override;
   void OnSurfaceActivated(const SurfaceId& surface_id) override;
-  void OnSurfaceDestroyed(const SurfaceId& surface_id) override {}
-  void OnSurfaceMarkedForDestruction(const SurfaceId& surface_id) override {}
-  void OnSurfaceDamageExpected(const SurfaceId& surface_id,
-                               const BeginFrameArgs& args) override {}
 
+  base::ScopedObservation<SurfaceManager, SurfaceObserver>
+      observer_registration_{this};
   bool damage_display_;
   BeginFrameAck last_ack_;
   base::flat_set<SurfaceId> damaged_surfaces_;

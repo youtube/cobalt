@@ -206,7 +206,7 @@ double AAudioWrapper::EstimateLatencyMillis() const {
     // For input streams. Best guess we can do is to use the current burst size
     // as delay estimate.
     latency_millis = static_cast<double>(frames_per_burst()) / sample_rate() *
-                     rtc::kNumMillisecsPerSec;
+                     webrtc::kNumMillisecsPerSec;
   } else {
     int64_t existing_frame_index;
     int64_t existing_frame_presentation_time;
@@ -221,17 +221,17 @@ double AAudioWrapper::EstimateLatencyMillis() const {
       // Number of frames between next frame and the existing frame.
       int64_t frame_index_delta = next_frame_index - existing_frame_index;
       // Assume the next frame will be written now.
-      int64_t next_frame_write_time = rtc::TimeNanos();
+      int64_t next_frame_write_time = webrtc::TimeNanos();
       // Calculate time when next frame will be presented to the hardware taking
       // sample rate into account.
       int64_t frame_time_delta =
-          (frame_index_delta * rtc::kNumNanosecsPerSec) / sample_rate();
+          (frame_index_delta * webrtc::kNumNanosecsPerSec) / sample_rate();
       int64_t next_frame_presentation_time =
           existing_frame_presentation_time + frame_time_delta;
       // Derive a latency estimate given results above.
       latency_millis = static_cast<double>(next_frame_presentation_time -
                                            next_frame_write_time) /
-                       rtc::kNumNanosecsPerMillisec;
+                       webrtc::kNumNanosecsPerMillisec;
     }
   }
   return latency_millis;
@@ -409,7 +409,7 @@ void AAudioWrapper::CloseStream() {
 void AAudioWrapper::LogStreamConfiguration() {
   RTC_DCHECK(stream_);
   char ss_buf[1024];
-  rtc::SimpleStringBuilder ss(ss_buf);
+  webrtc::SimpleStringBuilder ss(ss_buf);
   ss << "Stream Configuration: ";
   ss << "sample rate=" << sample_rate() << ", channels=" << channel_count();
   ss << ", samples per frame=" << samples_per_frame();

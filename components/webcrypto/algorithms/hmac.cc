@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -112,7 +117,7 @@ Status SignHmac(const std::vector<uint8_t>& raw_key,
 
 class HmacImplementation : public AlgorithmImplementation {
  public:
-  HmacImplementation() {}
+  HmacImplementation() = default;
 
   Status GenerateKey(const blink::WebCryptoAlgorithm& algorithm,
                      bool extractable,
@@ -275,10 +280,7 @@ class HmacImplementation : public AlgorithmImplementation {
     if (status.IsError())
       return status;
 
-    // Do not allow verification of truncated MACs.
-    *signature_match = result.size() == signature.size() &&
-                       crypto::SecureMemEqual(result.data(), signature.data(),
-                                              signature.size());
+    *signature_match = crypto::SecureMemEqual(result, signature);
 
     return Status::Success();
   }
@@ -297,9 +299,8 @@ class HmacImplementation : public AlgorithmImplementation {
                                     key);
   }
 
-  Status GetKeyLength(
-      const blink::WebCryptoAlgorithm& key_length_algorithm,
-      absl::optional<unsigned int>* length_bits) const override {
+  Status GetKeyLength(const blink::WebCryptoAlgorithm& key_length_algorithm,
+                      std::optional<unsigned int>* length_bits) const override {
     const blink::WebCryptoHmacImportParams* params =
         key_length_algorithm.HmacImportParams();
 

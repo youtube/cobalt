@@ -14,12 +14,11 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/apps/app_service/web_contents_app_id_utils.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_service_log.h"
 #include "chrome/browser/sessions/session_service_utils.h"
@@ -27,9 +26,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
-#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_keyed_service.h"
-#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_service_factory.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "components/sessions/content/content_serialized_navigation_builder.h"
@@ -37,14 +34,27 @@
 #include "components/sessions/core/command_storage_manager.h"
 #include "components/sessions/core/session_command.h"
 #include "components/sessions/core/session_constants.h"
+#include "components/sessions/core/session_id.h"
 #include "components/sessions/core/session_types.h"
+#include "components/tabs/public/tab_group.h"
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/session_storage_namespace.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/app_controller_mac.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#include "ui/ozone/public/platform_session_manager.h"
 #endif
 
 using base::Time;
@@ -196,9 +206,10 @@ void SessionServiceBase::SetTabWindow(SessionID window_id, SessionID tab_id) {
   ScheduleCommand(sessions::CreateSetTabWindowCommand(window_id, tab_id));
 }
 
-void SessionServiceBase::SetWindowBounds(SessionID window_id,
-                                         const gfx::Rect& bounds,
-                                         ui::WindowShowState show_state) {
+void SessionServiceBase::SetWindowBounds(
+    SessionID window_id,
+    const gfx::Rect& bounds,
+    ui::mojom::WindowShowState show_state) {
   if (!ShouldTrackChangesToWindow(window_id))
     return;
 
@@ -277,7 +288,7 @@ void SessionServiceBase::TabRestored(WebContents* tab, bool pinned) {
   if (!ShouldTrackChangesToWindow(session_tab_helper->window_id()))
     return;
 
-  BuildCommandsForTab(session_tab_helper->window_id(), tab, -1, absl::nullopt,
+  BuildCommandsForTab(session_tab_helper->window_id(), tab, -1, std::nullopt,
                       pinned, nullptr);
   command_storage_manager()->StartSaveTimer();
 }
@@ -309,7 +320,7 @@ void SessionServiceBase::SetTabExtensionAppID(
 
 void SessionServiceBase::SetLastActiveTime(SessionID window_id,
                                            SessionID tab_id,
-                                           base::TimeTicks last_active_time) {
+                                           base::Time last_active_time) {
   if (!ShouldTrackChangesToWindow(window_id))
     return;
 
@@ -374,7 +385,6 @@ void SessionServiceBase::SetTabUserAgentOverride(
   // We still need it here because we derive from
   // sessions::SessionTabHelperDelegate.
   NOTREACHED();
-  return;
 }
 
 void SessionServiceBase::SetSelectedNavigationIndex(SessionID window_id,
@@ -461,6 +471,37 @@ void SessionServiceBase::TabNavigationPathEntriesDeleted(SessionID window_id,
   command_storage_manager_->StartSaveTimer();
 }
 
+#if DCHECK_IS_ON()
+base::Value SessionServiceBase::ToDebugValue() const {
+  base::Value::Dict result;
+  result.Set("profile", base::ToString(profile_.get()));
+  if (command_storage_manager_) {
+    result.Set("command_storage_manager",
+               command_storage_manager_->ToDebugValue());
+  }
+  for (const auto& [id, range] : tab_to_available_range_) {
+    base::Value::Dict* range_dict =
+        result.EnsureDict("tab_to_available_range")
+            ->EnsureDict(base::NumberToString(id.id()));
+    range_dict->Set("first", range.first);
+    range_dict->Set("second", range.first);
+  }
+  result.Set("rebuild_on_next_save", rebuild_on_next_save_);
+  for (const auto& [id, tab_index] : last_selected_tab_in_window_) {
+    result.EnsureDict("last_selected_tab_in_window")
+        ->Set(base::NumberToString(id.id()), tab_index);
+  }
+  for (const SessionID& window_tracking : windows_tracking_) {
+    result.EnsureList("windows_tracking")
+        ->Append(base::NumberToString(window_tracking.id()));
+  }
+  result.Set("is_saving_enabled", is_saving_enabled_);
+  result.Set("did_save_commands_at_least_once",
+             did_save_commands_at_least_once_);
+  return base::Value(std::move(result));
+}
+#endif  // DCHECK_IS_ON()
+
 void SessionServiceBase::DestroyCommandStorageManager() {
   command_storage_manager_.reset(nullptr);
 }
@@ -490,10 +531,15 @@ void SessionServiceBase::OnGotSessionCommands(
     bool read_error) {
   std::vector<std::unique_ptr<sessions::SessionWindow>> valid_windows;
   SessionID active_window_id = SessionID::InvalidValue();
+  std::string platform_session_id;
+  std::set<SessionID> discarded_window_ids;
 
   sessions::RestoreSessionFromCommands(commands, &valid_windows,
-                                       &active_window_id);
+                                       &active_window_id, &platform_session_id,
+                                       &discarded_window_ids);
   RemoveUnusedRestoreWindows(&valid_windows);
+
+  InitializePlatformSessionIfNeeded(platform_session_id, discarded_window_ids);
 
   std::move(callback).Run(std::move(valid_windows), active_window_id,
                           read_error);
@@ -503,7 +549,7 @@ void SessionServiceBase::BuildCommandsForTab(
     SessionID window_id,
     WebContents* tab,
     int index_in_window,
-    absl::optional<tab_groups::TabGroupId> group,
+    std::optional<tab_groups::TabGroupId> group,
     bool is_pinned,
     IdToRange* tab_to_available_range) {
   DCHECK(tab);
@@ -624,21 +670,20 @@ void SessionServiceBase::BuildCommandsForBrowser(
   TabStripModel* tab_strip = browser->tab_strip_model();
   if (tab_strip->SupportsTabGroups()) {
     TabGroupModel* group_model = tab_strip->group_model();
-    const SavedTabGroupKeyedService* const saved_tab_group_keyed_service =
-        base::FeatureList::IsEnabled(features::kTabGroupsSave)
-            ? SavedTabGroupServiceFactory::GetForProfile(browser->profile())
-            : nullptr;
+    tab_groups::TabGroupSyncService* tab_group_service =
+        tab_groups::SavedTabGroupUtils::GetServiceForProfile(
+            browser->profile());
 
     for (const tab_groups::TabGroupId& group_id :
          group_model->ListTabGroups()) {
       const tab_groups::TabGroupVisualData* visual_data =
           group_model->GetTabGroup(group_id)->visual_data();
 
-      absl::optional<std::string> saved_guid;
-      if (saved_tab_group_keyed_service) {
-        const SavedTabGroup* const saved_group =
-            saved_tab_group_keyed_service->model()->Get(group_id);
-        if (saved_group) {
+      std::optional<std::string> saved_guid;
+      if (tab_group_service) {
+        const std::optional<tab_groups::SavedTabGroup> saved_group =
+            tab_group_service->GetGroup(group_id);
+        if (saved_group.has_value()) {
           saved_guid = saved_group->saved_guid().AsLowercaseString();
         }
       }
@@ -652,7 +697,7 @@ void SessionServiceBase::BuildCommandsForBrowser(
   for (int i = 0; i < tab_strip->count(); ++i) {
     WebContents* tab = tab_strip->GetWebContentsAt(i);
     DCHECK(tab);
-    const absl::optional<tab_groups::TabGroupId> group_id =
+    const std::optional<tab_groups::TabGroupId> group_id =
         tab_strip->GetTabGroupForTab(i);
     BuildCommandsForTab(browser->session_id(), tab, i, group_id,
                         tab_strip->IsTabPinned(i), tab_to_available_range);
@@ -665,7 +710,7 @@ void SessionServiceBase::BuildCommandsFromBrowsers(
     IdToRange* tab_to_available_range,
     std::set<SessionID>* windows_to_track) {
   DCHECK(is_saving_enabled_);
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     // Make sure the browser has tabs and a window. Browser's destructor
     // removes itself from the BrowserList. When a browser is closed the
     // destructor is not necessarily run immediately. This means it's possible
@@ -720,6 +765,22 @@ bool SessionServiceBase::ShouldTrackBrowser(Browser* browser) const {
     return false;
   }
 
+#if BUILDFLAG(IS_CHROMEOS)
+  // Windows that are auto-started and prevented from closing are exempted from
+  // tracking for session restore to prevent multiple unclosable open instances
+  // of the same app.
+  web_app::AppBrowserController* app_controller = browser->app_controller();
+  web_app::WebAppProvider* provider =
+      web_app::WebAppProvider::GetForWebApps(profile());
+  // Checking for close prevention does not require an `AppLock` and
+  // therefore `registrar_unsafe()` is safe to use.
+  if (app_controller && provider &&
+      provider->registrar_unsafe().IsPreventCloseEnabled(
+          app_controller->app_id())) {
+    return false;
+  }
+#endif  // #if BUILDFLAG(IS_CHROMEOS)
+
   return ShouldRestoreWindowOfType(WindowTypeForBrowserType(browser->type()));
 }
 
@@ -758,4 +819,55 @@ void SessionServiceBase::SetSavingEnabled(bool enabled) {
   } else {
     ScheduleResetCommands();
   }
+}
+
+std::optional<std::string> SessionServiceBase::GetPlatformSessionId() {
+  InitializePlatformSessionIfNeeded(/*restored_platform_session_id=*/{},
+                                    /*discarded_window_ids=*/{});
+  return platform_session_id_;
+}
+
+void SessionServiceBase::SetPlatformSessionIdForTesting(const std::string& id) {
+  platform_session_id_ = id;
+  ScheduleCommand(sessions::CreateSetPlatformSessionIdCommand(
+      platform_session_id_.value()));
+}
+
+void SessionServiceBase::InitializePlatformSessionIfNeeded(
+    const std::string& restored_platform_session_id,
+    const std::set<SessionID>& discarded_window_ids) {
+#if BUILDFLAG(IS_OZONE)
+  ui::OzonePlatform* platform = ui::OzonePlatform::GetInstance();
+  if (!platform->GetPlatformRuntimeProperties().supports_session_management ||
+      platform_session_id_.has_value()) {
+    return;
+  }
+
+  DCHECK(platform->GetSessionManager());
+  ui::PlatformSessionManager* session_manager = platform->GetSessionManager();
+  const bool should_restore = !restored_platform_session_id.empty();
+
+  // TODO(crbug.com/352081012): Support post-crash restore reason.
+  std::optional<std::string> actual_platform_session_id =
+      should_restore ? session_manager->RestoreSession(
+                           restored_platform_session_id,
+                           ui::PlatformSessionManager::RestoreReason::kLaunch)
+                     : platform->GetSessionManager()->CreateSession();
+
+  if (actual_platform_session_id.has_value()) {
+    DVLOG(1) << "Successfully initialized platform session."
+             << " session_service=" << this
+             << " session_id=" << actual_platform_session_id.value()
+             << " discarded_windows=" << discarded_window_ids.size();
+    platform_session_id_ = std::move(actual_platform_session_id);
+
+    for (const SessionID& session_id : discarded_window_ids) {
+      session_manager->RemoveWindow(platform_session_id_.value(),
+                                    session_id.id());
+    }
+
+    ScheduleCommand(sessions::CreateSetPlatformSessionIdCommand(
+        platform_session_id_.value()));
+  }
+#endif
 }

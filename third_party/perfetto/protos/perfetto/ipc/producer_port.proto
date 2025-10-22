@@ -185,6 +185,11 @@ message InitializeConnectionResponse {
   // chunks that have not yet been committed to it.
   // This field has been introduced in Android S.
   optional bool direct_smb_patching_supported = 2;
+
+  // Indicates whether the service would like to use SMB emulation for the
+  // connection, and request the client to send chunk data over the socket e.g.
+  // for remote connection from a VM guest.
+  optional bool use_shmem_emulation = 3;
 }
 
 // Arguments for rpc RegisterDataSource().
@@ -291,7 +296,9 @@ message GetAsyncCommandResponse {
     optional protos.DataSourceConfig config = 2;
   }
 
-  message StopDataSource { optional uint64 instance_id = 1; }
+  message StopDataSource {
+    optional uint64 instance_id = 1;
+  }
 
   // On Android/Linux/Mac this message also transports the file descriptor for
   // the shared memory buffer (not a proto field).
@@ -313,6 +320,10 @@ message GetAsyncCommandResponse {
     // expected to copy this value back into the CommitDataRequest, so the
     // service can tell when the data for this flush has been committed.
     optional uint64 request_id = 2;
+
+    // More details such as flush reason and originator. Introduced in v38 / V.
+    // See FlushFlags in include/perfetto/ext/tracing/core/flush_flags.h.
+    optional uint64 flags = 3;
   }
 
   // Instructs the given data sources to stop referring to any trace contents

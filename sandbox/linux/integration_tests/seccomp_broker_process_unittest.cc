@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/inotify.h>
@@ -25,6 +30,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -592,7 +598,7 @@ class BPFTesterBrokerDelegate : public BPFTesterDelegate {
     BrokerTestDelegate::BrokerParams broker_params =
         broker_test_delegate_->ChildSetUpPreSandbox();
 
-    auto policy = absl::make_optional<syscall_broker::BrokerSandboxConfig>(
+    auto policy = std::make_optional<syscall_broker::BrokerSandboxConfig>(
         broker_params.allowed_command_set, broker_params.permissions,
         broker_params.denied_errno);
     broker_process_ = std::make_unique<BrokerProcess>(
@@ -623,11 +629,11 @@ class BPFTesterBrokerDelegate : public BPFTesterDelegate {
       case SyscallerType::DirectSyscaller:
 #if defined(DIRECT_SYSCALLER_ENABLED)
         syscaller_ = std::make_unique<DirectSyscaller>();
+        break;
 #else
-        CHECK(false) << "Requested instantiation of DirectSyscaller on a "
+        NOTREACHED() << "Requested instantiation of DirectSyscaller on a "
                         "platform that doesn't support it";
 #endif
-        break;
       case SyscallerType::LibcSyscaller:
         syscaller_ = std::make_unique<LibcSyscaller>();
         break;

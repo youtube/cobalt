@@ -5,10 +5,9 @@
 #ifndef CHROME_BROWSER_CHAINED_BACK_NAVIGATION_TRACKER_H_
 #define CHROME_BROWSER_CHAINED_BACK_NAVIGATION_TRACKER_H_
 
+#include "base/gtest_prod_util.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
-
-namespace chrome {
 
 // This class tracks chained back navigations (consecutive back navigations with
 // a short interval between them) by observing navigation events from
@@ -55,6 +54,11 @@ class ChainedBackNavigationTracker
   FRIEND_TEST_ALL_PREFIXES(
       ChainedBackNavigationTrackerTest,
       ChainedBackNavigationStatus_ResetCountIfNonBackForwardNavigationHappens);
+  FRIEND_TEST_ALL_PREFIXES(ChainedBackNavigationTrackerBrowserTest,
+                           SubframeBackNavigationIsCountedAsChained);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChainedBackNavigationTrackerBrowserTest,
+      RendererInitiatedBackNavigationIsNotCountedAsChained);
 
   explicit ChainedBackNavigationTracker(content::WebContents* contents);
 
@@ -78,7 +82,5 @@ class ChainedBackNavigationTracker
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };
-
-}  // namespace chrome
 
 #endif  // CHROME_BROWSER_CHAINED_BACK_NAVIGATION_TRACKER_H_

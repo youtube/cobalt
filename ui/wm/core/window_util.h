@@ -11,7 +11,8 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
-#include "ui/base/ui_base_types.h"
+#include "base/memory/raw_ptr.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/display/types/display_constants.h"
 
 namespace aura {
@@ -38,11 +39,16 @@ void SetWindowFullscreen(
 
 // Returns true if |window|'s show state is |state|.
 COMPONENT_EXPORT(UI_WM)
-bool WindowStateIs(const aura::Window* window, ui::WindowShowState state);
+bool WindowStateIs(const aura::Window* window,
+                   ui::mojom::WindowShowState state);
+
+// Returns |window|'s current show state.
+COMPONENT_EXPORT(UI_WM)
+ui::mojom::WindowShowState GetWindowState(const aura::Window* window);
 
 // Sets the window state to |state|.
 COMPONENT_EXPORT(UI_WM)
-void SetWindowState(aura::Window* window, ui::WindowShowState state);
+void SetWindowState(aura::Window* window, ui::mojom::WindowShowState state);
 
 // Restores the window state from the current state to its previous applicable
 // state. As an example, if the current state is minimized, Restore() will
@@ -102,8 +108,8 @@ COMPONENT_EXPORT(UI_WM) aura::Window* GetTransientParent(aura::Window* window);
 COMPONENT_EXPORT(UI_WM)
 const aura::Window* GetTransientParent(const aura::Window* window);
 COMPONENT_EXPORT(UI_WM)
-const std::vector<aura::Window*>& GetTransientChildren(
-    const aura::Window* window);
+const std::vector<raw_ptr<aura::Window, VectorExperimental>>&
+GetTransientChildren(const aura::Window* window);
 COMPONENT_EXPORT(UI_WM)
 void AddTransientChild(aura::Window* parent, aura::Window* child);
 COMPONENT_EXPORT(UI_WM)

@@ -33,7 +33,15 @@ enum class PrivacyGuideSettingsStates {
   kSafeBrowsingEnhancedToStandard = 13,
   kSafeBrowsingStandardToEnhanced = 14,
   kSafeBrowsingStandardToStandard = 15,
-  kMaxValue = kSafeBrowsingStandardToStandard,
+  kSearchSuggestionsOnToOn = 16,
+  kSearchSuggestionsOnToOff = 17,
+  kSearchSuggestionsOffToOn = 18,
+  kSearchSuggestionsOffToOff = 19,
+  kAdTopicsOnToOn = 20,
+  kAdTopicsOnToOff = 21,
+  kAdTopicsOffToOn = 22,
+  kAdTopicsOffToOff = 23,
+  kMaxValue = kAdTopicsOffToOff,
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -56,7 +64,11 @@ enum class PrivacyGuideInteractions {
   kPromoEntry = 7,
   kSWAACompletionLink = 8,
   kPrivacySandboxCompletionLink = 9,
-  kMaxValue = kPrivacySandboxCompletionLink,
+  kSearchSuggestionsNextButton = 10,
+  kTrackingProtectionCompletionLink = 11,
+  kAdTopicsNextButton = 12,
+  kAiSettingsCompletionLink = 13,
+  kMaxValue = kAiSettingsCompletionLink,
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -79,6 +91,10 @@ enum class PrivacyGuideStepsEligibleAndReached {
   kCookiesReached = 7,
   kCompletionEligible = 8,
   kCompletionReached = 9,
+  kSearchSuggestionsEligible = 10,
+  kSearchSuggestionsReached = 11,
+  kAdTopicsEligible = 12,
+  kAdTopicsReached = 13,
 };
 
 }  // namespace privacy_guide_metrics

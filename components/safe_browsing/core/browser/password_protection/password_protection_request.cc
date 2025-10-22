@@ -51,7 +51,7 @@ std::vector<std::string> GetMatchingDomains(
     // to be special handing and should use affiliation information instead of
     // the signon_realm.
     std::string domain = base::UTF16ToUTF8(url_formatter::FormatUrl(
-        GURL(credential.signon_realm),
+        credential.url,
         url_formatter::kFormatUrlOmitDefaults |
             url_formatter::kFormatUrlOmitHTTPS |
             url_formatter::kFormatUrlOmitTrivialSubdomains |
@@ -126,32 +126,16 @@ void PasswordProtectionRequest::CheckAllowlist() {
     return;
   }
 
-  // Start a task on the IO thread to check the allowlist. It may
-  // callback immediately on the IO thread or take some time if a full-hash-
+  // Start a task on the UI thread to check the allowlist. It may
+  // callback immediately on the UI thread or take some time if a full-hash-
   // check is required.
-  auto result_callback =
-      base::BindOnce(&OnAllowlistCheckDoneOnSB, ui_task_runner(), AsWeakPtr());
-  auto task_runner =
-      base::FeatureList::IsEnabled(safe_browsing::kSafeBrowsingOnUIThread)
-          ? ui_task_runner()
-          : io_task_runner_;
+  auto result_callback = base::BindOnce(
+      &PasswordProtectionRequest::OnAllowlistCheckDone, AsWeakPtr());
   tracker_.PostTask(
-      task_runner.get(), FROM_HERE,
+      ui_task_runner().get(), FROM_HERE,
       base::BindOnce(&AllowlistCheckerClient::StartCheckCsdAllowlist,
                      password_protection_service_->database_manager(),
                      main_frame_url_, std::move(result_callback)));
-}
-
-// static
-void PasswordProtectionRequest::OnAllowlistCheckDoneOnSB(
-    scoped_refptr<base::SequencedTaskRunner> ui_task_runner,
-    base::WeakPtr<PasswordProtectionRequest> weak_request,
-    bool match_allowlist) {
-  // Don't access weak_request on IO thread. Move it back to UI thread first.
-  ui_task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(&PasswordProtectionRequest::OnAllowlistCheckDone,
-                     weak_request, match_allowlist));
 }
 
 void PasswordProtectionRequest::OnAllowlistCheckDone(bool match_allowlist) {
@@ -224,6 +208,7 @@ void PasswordProtectionRequest::FillRequestProto(bool is_sampled_ping) {
 
   password_protection_service_->FillUserPopulation(main_frame_url_,
                                                    request_proto_.get());
+
   request_proto_->set_stored_verdict_cnt(
       password_protection_service_->GetStoredVerdictCount(trigger_type_));
 
@@ -267,16 +252,9 @@ void PasswordProtectionRequest::FillRequestProto(bool is_sampled_ping) {
       main_frame->set_has_password_field(password_field_exists_);
       LoginReputationClientRequest::PasswordReuseEvent* reuse_event =
           request_proto_->mutable_password_reuse_event();
-      bool matches_signin_password =
-          password_type_ == PasswordType::PRIMARY_ACCOUNT_PASSWORD;
       reuse_event->set_reused_password_type(
           password_protection_service_->GetPasswordProtectionReusedPasswordType(
               password_type_));
-      if (matches_signin_password) {
-        reuse_event->set_sync_account_type(
-            password_protection_service_->GetSyncAccountType());
-        LogSyncAccountType(reuse_event->sync_account_type());
-      }
 
       if (password_protection_service_->IsExtendedReporting() &&
           !password_protection_service_->IsIncognito()) {
@@ -293,6 +271,7 @@ void PasswordProtectionRequest::FillRequestProto(bool is_sampled_ping) {
                                                                username_);
       *reuse_event->mutable_reused_password_account_type() =
           password_account_type_to_add;
+      LogReusedPasswordAccountType(password_account_type_to_add);
       break;
     }
     default:
@@ -326,9 +305,8 @@ void PasswordProtectionRequest::SendRequest() {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
   if (password_protection_service_->CanGetAccessToken() &&
       password_protection_service_->token_fetcher()) {
-    password_protection_service_->token_fetcher()->Start(
-        base::BindOnce(&PasswordProtectionRequest::SendRequestWithToken,
-                       weak_factory_.GetWeakPtr()));
+    password_protection_service_->token_fetcher()->Start(base::BindOnce(
+        &PasswordProtectionRequest::SendRequestWithToken, AsWeakPtr()));
     return;
   }
   std::string empty_access_token;
@@ -342,7 +320,7 @@ void PasswordProtectionRequest::SendRequestWithToken(
   MaybeAddPingToWebUI(access_token);
 
   std::string serialized_request;
-  // TODO(crbug.com/1158582): Return early if request serialization fails.
+  // TODO(crbug.com/40054172): Return early if request serialization fails.
   request_proto_->SerializeToString(&serialized_request);
 
   net::NetworkTrafficAnnotationTag traffic_annotation =
@@ -381,6 +359,9 @@ void PasswordProtectionRequest::SendRequestWithToken(
   bool has_access_token = !access_token.empty();
   LogPasswordProtectionRequestTokenHistogram(trigger_type_, has_access_token);
   if (has_access_token) {
+    LogAuthenticatedCookieResets(
+        *resource_request,
+        SafeBrowsingAuthenticatedEndpoint::kPasswordProtection);
     SetAccessTokenAndClearCookieInResourceRequest(resource_request.get(),
                                                   access_token);
   }
@@ -393,10 +374,12 @@ void PasswordProtectionRequest::SendRequestWithToken(
   url_loader_->AttachStringForUpload(serialized_request,
                                      "application/octet-stream");
   request_start_time_ = base::TimeTicks::Now();
-  url_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-      password_protection_service_->url_loader_factory().get(),
-      base::BindOnce(&PasswordProtectionRequest::OnURLLoaderComplete,
-                     AsWeakPtr()));
+  if (!prevent_initiating_url_loader_for_testing_) {
+    url_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
+        password_protection_service_->url_loader_factory().get(),
+        base::BindOnce(&PasswordProtectionRequest::OnURLLoaderComplete,
+                       AsWeakPtr()));
+  }
 }
 
 void PasswordProtectionRequest::StartTimeout() {

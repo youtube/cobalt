@@ -28,6 +28,9 @@ class TestHistoryBackendForSync : public HistoryBackendForSync {
   bool UpdateURL(URLRow row);
   VisitID AddVisit(VisitRow row);
   bool UpdateVisit(VisitRow row);
+  void AddOrReplaceContentAnnotation(
+      VisitID visit_id,
+      const VisitContentAnnotations& content_annotation);
 
   void RemoveURLAndVisits(URLID url_id);
   void Clear();
@@ -48,23 +51,24 @@ class TestHistoryBackendForSync : public HistoryBackendForSync {
   bool GetForeignVisit(const std::string& originator_cache_guid,
                        VisitID originator_visit_id,
                        VisitRow* visit_row) override;
-  std::vector<AnnotatedVisit> ToAnnotatedVisits(
-      const VisitVector& visit_rows) override;
+  std::vector<AnnotatedVisit> ToAnnotatedVisitsFromRows(
+      const VisitVector& visit_rows,
+      bool compute_redirect_chain_start_properties) override;
   VisitID AddSyncedVisit(
       const GURL& url,
       const std::u16string& title,
       bool hidden,
       const VisitRow& visit,
-      const absl::optional<VisitContextAnnotations>& context_annotations,
-      const absl::optional<VisitContentAnnotations>& content_annotations)
+      const std::optional<VisitContextAnnotations>& context_annotations,
+      const std::optional<VisitContentAnnotations>& content_annotations)
       override;
   VisitID UpdateSyncedVisit(
       const GURL& url,
       const std::u16string& title,
       bool hidden,
       const VisitRow& visit,
-      const absl::optional<VisitContextAnnotations>& context_annotations,
-      const absl::optional<VisitContentAnnotations>& content_annotations)
+      const std::optional<VisitContextAnnotations>& context_annotations,
+      const std::optional<VisitContentAnnotations>& content_annotations)
       override;
   bool UpdateVisitReferrerOpenerIDs(VisitID visit_id,
                                     VisitID referrer_id,

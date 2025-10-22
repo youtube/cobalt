@@ -111,9 +111,6 @@ void main()
                             float expect1,
                             float expect2)
     {
-        // TODO(anglebug.com/5491) iOS doesn't support float32 framebuffers.
-        ANGLE_SKIP_TEST_IF(IsIOS() && IsOpenGLES());
-
         GLint vec2Location = glGetUniformLocation(program, "v");
 
         glUseProgram(program);
@@ -237,7 +234,6 @@ TEST_P(PackUnpackTest, PackUnpackSnormOverflow)
     compareBeforeAfter(mSNormProgram, 67000.0f, -67000.0f, 1.0f, -1.0f);
 }
 
-// http://anglebug.com/4092 Not instantiating on other backends currently
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PackUnpackTest);
-ANGLE_INSTANTIATE_TEST(PackUnpackTest, ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES3(PackUnpackTest);
 }  // namespace

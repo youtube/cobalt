@@ -17,7 +17,7 @@
 #include <jni.h>
 
 #include "perfetto/ext/traced/traced.h"
-#include "perfetto/ext/tracing/ipc/default_socket.h"
+#include "perfetto/tracing/default_socket.h"
 
 #include "perfetto/ext/base/unix_task_runner.h"
 
@@ -57,8 +57,7 @@ void ListenAndRespond(const std::string& name, base::UnixTaskRunner** tr) {
   });
 
   FakeProducer producer(name, &task_runner);
-  producer.Connect(
-      GetProducerSocket(), [] {}, [] {}, [] {});
+  producer.Connect(GetProducerSocket(), [] {}, [] {}, [] {});
   task_runner.Run();
 
   // Cleanup the task runner again to remove outside visibilty so we can

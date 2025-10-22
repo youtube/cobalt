@@ -6,11 +6,13 @@
 #define COMPONENTS_VIZ_COMMON_FRAME_SINKS_COPY_OUTPUT_REQUEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "base/functional/callback.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/frame_sinks/blit_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
@@ -18,7 +20,6 @@
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d.h"
 
@@ -71,9 +72,26 @@ class VIZ_COMMON_EXPORT CopyOutputRequest {
   // Returns the requested result destination.
   ResultDestination result_destination() const { return result_destination_; }
 
+  base::TimeDelta send_result_delay() const { return send_result_delay_; }
+
+  // Optionally set a delay for sending the result.
+  // You can use this when you know that the CPU will be busy at the time of
+  // requesting the output and the result can wait.
+  // Because holding tasks can be expensive, we limit the number of pending
+  // tasks to kMaxPendingSendResult. When the limit is reached, results are sent
+  // immediately.
+  // There are no guarantees as to the order in which the SendResults are
+  // called.
+  //
+  // To provide ordering guarantees, we would have to include some form of
+  // queueing and track it across multiple threads. This complexity was not
+  // worth it when this was first introduced with only one usage with minimal
+  // delays.
+  void set_send_result_delay(base::TimeDelta d) { send_result_delay_ = d; }
+
   // Requests that the result callback be run as a task posted to the given
-  // |task_runner|. If this is not set, the result callback could be run from
-  // any context.
+  // |task_runner|. If this is not set, the result callback will be run on the
+  // thread that the `CopyOutputRequest` was created on.
   void set_result_task_runner(
       scoped_refptr<base::SequencedTaskRunner> task_runner) {
     result_task_runner_ = std::move(task_runner);
@@ -167,15 +185,16 @@ class VIZ_COMMON_EXPORT CopyOutputRequest {
 
   const ResultFormat result_format_;
   const ResultDestination result_destination_;
+  base::TimeDelta send_result_delay_;
   CopyOutputRequestCallback result_callback_;
   scoped_refptr<base::SequencedTaskRunner> result_task_runner_;
   gfx::Vector2d scale_from_;
   gfx::Vector2d scale_to_;
-  absl::optional<base::UnguessableToken> source_;
-  absl::optional<gfx::Rect> area_;
-  absl::optional<gfx::Rect> result_selection_;
+  std::optional<base::UnguessableToken> source_;
+  std::optional<gfx::Rect> area_;
+  std::optional<gfx::Rect> result_selection_;
 
-  absl::optional<BlitRequest> blit_request_;
+  std::optional<BlitRequest> blit_request_;
 };
 
 }  // namespace viz

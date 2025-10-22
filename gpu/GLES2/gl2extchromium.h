@@ -21,17 +21,6 @@ extern "C" {
 #ifndef GL_MAILBOX_SIZE_CHROMIUM
 #define GL_MAILBOX_SIZE_CHROMIUM 16
 #endif
-#ifdef GL_GLEXT_PROTOTYPES
-GL_APICALL void GL_APIENTRY glProduceTextureDirectCHROMIUM(GLuint texture,
-                                                           GLbyte* mailbox);
-GL_APICALL GLuint GL_APIENTRY
-glCreateAndConsumeTextureCHROMIUM(const GLbyte* mailbox);
-#endif
-typedef void (GL_APIENTRYP PFNGLGENMAILBOXCHROMIUMPROC) (GLbyte* mailbox);
-typedef void (GL_APIENTRYP PFNGLPRODUCETEXTUREDIRECTCHROMIUMPROC) (
-    GLuint texture, GLenum target, const GLbyte* mailbox);
-typedef GLuint(GL_APIENTRYP PFNGLCREATEANDCONSUMETEXTURECHROMIUMPROC)(
-    const GLbyte* mailbox);
 #endif  /* GL_CHROMIUM_texture_mailbox */
 
 /* GL_CHROMIUM_pixel_transfer_buffer_object */
@@ -62,22 +51,6 @@ typedef GLboolean (GL_APIENTRY PFNGLUNMAPBUFFERCHROMIUM) (GLuint target);
 #define GL_STREAM_READ 0x88E1
 #endif
 #endif  /* GL_CHROMIUM_pixel_transfer_buffer_object */
-
-#ifndef GL_RGB_YCRCB_420_CHROMIUM
-#define GL_RGB_YCRCB_420_CHROMIUM 0x78FA
-#endif
-
-#ifndef GL_RGB_YCBCR_422_CHROMIUM
-#define GL_RGB_YCBCR_422_CHROMIUM 0x78FB
-#endif
-
-#ifndef GL_RGB_YCBCR_420V_CHROMIUM
-#define GL_RGB_YCBCR_420V_CHROMIUM 0x78FC
-#endif
-
-#ifndef GL_RGB_YCBCR_P010_CHROMIUM
-#define GL_RGB_YCBCR_P010_CHROMIUM 0x78FD
-#endif
 
 /* GL_CHROMIUM_deschedule */
 #ifndef GL_CHROMIUM_deschedule
@@ -309,60 +282,56 @@ typedef void(GL_APIENTRYP PFNGLPROVOKINGVERTEXANGLEPROC)(GLenum provokeMode);
 #define GL_MAX_PIXEL_LOCAL_STORAGE_PLANES_ANGLE 0x96E0
 #endif
 
-#ifndef GL_MAX_COLOR_ATTACHMENTS_WITH_ACTIVE_PIXEL_LOCAL_STORAGE_ANGLE
-#define GL_MAX_COLOR_ATTACHMENTS_WITH_ACTIVE_PIXEL_LOCAL_STORAGE_ANGLE 0x96E1
-#endif
-
 #ifndef GL_MAX_COMBINED_DRAW_BUFFERS_AND_PIXEL_LOCAL_STORAGE_PLANES_ANGLE
-#define GL_MAX_COMBINED_DRAW_BUFFERS_AND_PIXEL_LOCAL_STORAGE_PLANES_ANGLE 0x96E2
+#define GL_MAX_COMBINED_DRAW_BUFFERS_AND_PIXEL_LOCAL_STORAGE_PLANES_ANGLE 0x96E1
 #endif
 
 #ifndef GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE
-#define GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE 0x96E3
+#define GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE 0x96E2
 #endif
 
 #ifndef GL_LOAD_OP_ZERO_ANGLE
-#define GL_LOAD_OP_ZERO_ANGLE 0x96E4
+#define GL_LOAD_OP_ZERO_ANGLE 0x96E3
 #endif
 
 #ifndef GL_LOAD_OP_CLEAR_ANGLE
-#define GL_LOAD_OP_CLEAR_ANGLE 0x96E5
+#define GL_LOAD_OP_CLEAR_ANGLE 0x96E4
 #endif
 
 #ifndef GL_LOAD_OP_LOAD_ANGLE
-#define GL_LOAD_OP_LOAD_ANGLE 0x96E6
+#define GL_LOAD_OP_LOAD_ANGLE 0x96E5
 #endif
 
 #ifndef GL_STORE_OP_STORE_ANGLE
-#define GL_STORE_OP_STORE_ANGLE 0x96E7
+#define GL_STORE_OP_STORE_ANGLE 0x96E6
 #endif
 
 #ifndef GL_PIXEL_LOCAL_FORMAT_ANGLE
-#define GL_PIXEL_LOCAL_FORMAT_ANGLE 0x96E8
+#define GL_PIXEL_LOCAL_FORMAT_ANGLE 0x96E7
 #endif
 
 #ifndef GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE
-#define GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE 0x96E9
+#define GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE 0x96E8
 #endif
 
 #ifndef GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE
-#define GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE 0x96EA
+#define GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE 0x96E9
 #endif
 
 #ifndef GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE
-#define GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE 0x96EB
+#define GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE 0x96EA
 #endif
 
 #ifndef GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE
-#define GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE 0x96EC
+#define GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE 0x96EB
 #endif
 
 #ifndef GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE
-#define GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE 0x96ED
+#define GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE 0x96EC
 #endif
 
 #ifndef GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE
-#define GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE 0x96EE
+#define GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE 0x96ED
 #endif
 
 #ifdef GL_GLEXT_PROTOTYPES
@@ -481,6 +450,45 @@ typedef void(
 #endif
 #endif /* GL_ANGLE_clip_cull_distance */
 
+/* GL_ANGLE_polygon_mode */
+#ifndef GL_ANGLE_polygon_mode
+#define GL_ANGLE_polygon_mode 1
+
+#ifndef GL_POLYGON_MODE_ANGLE
+#define GL_POLYGON_MODE_ANGLE 0x0B40
+#endif
+
+#ifndef GL_POLYGON_OFFSET_LINE_ANGLE
+#define GL_POLYGON_OFFSET_LINE_ANGLE 0x2A02
+#endif
+
+#ifndef GL_LINE_ANGLE
+#define GL_LINE_ANGLE 0x1B01
+#endif
+
+#ifndef GL_FILL_ANGLE
+#define GL_FILL_ANGLE 0x1B02
+#endif
+
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glPolygonModeANGLE(GLenum face, GLenum mode);
+#endif
+typedef void(GL_APIENTRYP PFNGLPOLYGONMODEANGLEPROC)(GLenum face, GLenum mode);
+#endif /* GL_ANGLE_polygon_mode */
+
+/* GL_ANGLE_stencil_texturing */
+#ifndef GL_ANGLE_stencil_texturing
+#define GL_ANGLE_stencil_texturing 1
+
+#ifndef GL_DEPTH_STENCIL_TEXTURE_MODE_ANGLE
+#define GL_DEPTH_STENCIL_TEXTURE_MODE_ANGLE 0x90EA
+#endif
+
+#ifndef GL_STENCIL_INDEX_ANGLE
+#define GL_STENCIL_INDEX_ANGLE 0x1901
+#endif
+#endif /* GL_ANGLE_stencil_texturing */
+
 /* GL_CHROMIUM_async_pixel_transfers */
 #ifndef GL_CHROMIUM_async_pixel_transfers
 #define GL_CHROMIUM_async_pixel_transfers 1
@@ -596,16 +604,6 @@ GL_APICALL GLboolean GL_APIENTRY glEnableFeatureCHROMIUM(const char* feature);
 typedef GLboolean (GL_APIENTRYP PFNGLENABLEFEATURECHROMIUMPROC) (
     const char* feature);
 #endif  /* GL_CHROMIUM_enable_feature */
-
-/* GL_CHROMIUM_command_buffer_latency_query */
-#ifndef GL_CHROMIUM_command_buffer_latency_query
-#define GL_CHROMIUM_command_buffer_latency_query 1
-
-#ifndef GL_LATENCY_QUERY_CHROMIUM
-// TODO(gman): Get official numbers for these constants.
-#define GL_LATENCY_QUERY_CHROMIUM 0x6007
-#endif
-#endif  /* GL_CHROMIUM_command_buffer_latency_query */
 
 /* GL_ARB_robustness */
 #ifndef GL_ARB_robustness
@@ -887,11 +885,6 @@ typedef GLint(GL_APIENTRYP PFNGLGETFRAGDATAINDEXEXT)(GLuint program,
 #define GL_ARB_occlusion_query 1
 #define GL_SAMPLES_PASSED_ARB 0x8914
 #endif /* GL_ARB_occlusion_query */
-
-#ifndef GL_CHROMIUM_texture_filtering_hint
-#define GL_CHROMIUM_texture_filtering_hint 1
-#define GL_TEXTURE_FILTERING_HINT_CHROMIUM 0x8AF0
-#endif /* GL_CHROMIUM_texture_filtering_hint */
 
 #ifndef GL_QUERY_RESULT_AVAILABLE_NO_FLUSH_CHROMIUM_EXT
 #define GL_QUERY_RESULT_AVAILABLE_NO_FLUSH_CHROMIUM_EXT 0x8868

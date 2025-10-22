@@ -18,7 +18,7 @@
 #include "chrome/browser/ash/arc/app_shortcuts/arc_app_shortcuts_request.h"
 #include "chrome/browser/profiles/profile.h"
 #include "ui/base/models/image_model.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace arc {
 
@@ -57,10 +57,10 @@ void ArcAppShortcutsMenuBuilder::BuildMenu(
   // |arc_app_shortcuts_request_|. When |this| is deleted,
   // |arc_app_shortcuts_request_| is also deleted, and once that happens,
   // |arc_app_shortcuts_request_| will never run the callback.
-  arc_app_shortcuts_request_ = std::make_unique<ArcAppShortcutsRequest>(
-      base::BindOnce(&ArcAppShortcutsMenuBuilder::OnGetAppShortcutItems,
-                     base::Unretained(this), base::TimeTicks::Now(),
-                     std::move(menu_model), std::move(callback)));
+  arc_app_shortcuts_request_ =
+      std::make_unique<ArcAppShortcutsRequest>(base::BindOnce(
+          &ArcAppShortcutsMenuBuilder::OnGetAppShortcutItems,
+          base::Unretained(this), std::move(menu_model), std::move(callback)));
   arc_app_shortcuts_request_->StartForPackage(package_name);
 }
 
@@ -78,7 +78,7 @@ void ArcAppShortcutsMenuBuilder::ExecuteCommand(int command_id) {
   if (!app_list_client_impl)
     return;
   app_list::LaunchData launch_data;
-  // TODO(crbug.com/1199206): This should set launch_data.launched_from.
+  // TODO(crbug.com/40177716): This should set launch_data.launched_from.
   launch_data.id = ConstructArcAppShortcutUrl(
       app_id_, app_shortcut_items_->at(index).shortcut_id),
   launch_data.result_type = ash::AppListSearchResultType::kArcAppShortcut;
@@ -87,7 +87,6 @@ void ArcAppShortcutsMenuBuilder::ExecuteCommand(int command_id) {
 }
 
 void ArcAppShortcutsMenuBuilder::OnGetAppShortcutItems(
-    const base::TimeTicks& start_time,
     std::unique_ptr<ui::SimpleMenuModel> menu_model,
     GetMenuModelCallback callback,
     std::unique_ptr<apps::AppShortcutItems> app_shortcut_items) {
@@ -116,10 +115,6 @@ void ArcAppShortcutsMenuBuilder::OnGetAppShortcutItems(
   }
   std::move(callback).Run(std::move(menu_model));
   arc_app_shortcuts_request_.reset();
-
-  // Record user metrics.
-  UMA_HISTOGRAM_TIMES("Arc.AppShortcuts.BuildMenuTime",
-                      base::TimeTicks::Now() - start_time);
 }
 
 }  // namespace arc

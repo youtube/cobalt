@@ -1,18 +1,14 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.chrome.browser.segmentation_platform;
 
-import static android.os.Looper.getMainLooper;
-
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.robolectric.Shadows.shadowOf;
 
 import android.os.Handler;
 
@@ -20,65 +16,63 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
-import org.chromium.base.FeatureList;
-import org.chromium.base.FeatureList.TestValues;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.dom_distiller.DistillerHeuristicsType;
 import org.chromium.chrome.browser.dom_distiller.DomDistillerTabUtils;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.dom_distiller.TabDistillabilityProvider;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.preferences.Pref;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.segmentation_platform.ContextualPageActionController.ActionProvider;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
-import org.chromium.chrome.test.util.browser.Features;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
+import org.chromium.components.prefs.PrefService;
+import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Unit tests for {@link ReaderModeActionProvider}
- */
+/** Unit tests for {@link ReaderModeActionProvider} */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures({ChromeFeatureList.CONTEXTUAL_PAGE_ACTIONS})
 public class ReaderModeActionProviderTest {
-    @Rule
-    public final TestRule mFeatureProcessor = new Features.JUnitProcessor();
 
-    @Mock
-    private Tab mMockTab;
-    @Mock
-    private ReaderModeManager mMockReaderModeManager;
-    @Mock
-    private SignalAccumulator mMockSignalAccumulator;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Tab mMockTab;
+    @Mock private ReaderModeManager mMockReaderModeManager;
+    @Mock private SignalAccumulator mMockSignalAccumulator;
+    @Mock private Profile mProfile;
+    @Mock private UserPrefs.Natives mUserPrefsJniMock;
+    @Mock private PrefService mPrefService;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         initializeReaderModeBackend();
-        DomDistillerTabUtils.setDistillerHeuristicsForTesting(null);
 
-        mMockTab.getUserDataHost().setUserData(
-                ReaderModeManager.USER_DATA_KEY, mMockReaderModeManager);
-        doReturn(false).when(mMockReaderModeManager).isReaderModeUiRateLimited();
+        mMockTab.getUserDataHost()
+                .setUserData(ReaderModeManager.USER_DATA_KEY, mMockReaderModeManager);
     }
 
     private void initializeReaderModeBackend() {
         UserDataHost userDataHost = new UserDataHost();
         when(mMockTab.getUserDataHost()).thenReturn(userDataHost);
+        when(mMockTab.getProfile()).thenReturn(mProfile);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
+        when(mUserPrefsJniMock.get(mProfile)).thenReturn(mPrefService);
+        when(mPrefService.getBoolean(Pref.READER_FOR_ACCESSIBILITY)).thenReturn(false);
+
         TabDistillabilityProvider.createForTab(mMockTab);
         DomDistillerTabUtils.setExcludeMobileFriendlyForTesting(true);
     }
@@ -86,7 +80,7 @@ public class ReaderModeActionProviderTest {
     private void setReaderModeBackendSignal(boolean isDistillable) {
         TabDistillabilityProvider tabDistillabilityProvider =
                 TabDistillabilityProvider.get(mMockTab);
-        tabDistillabilityProvider.onIsPageDistillableResult(isDistillable, true, false);
+        tabDistillabilityProvider.onIsPageDistillableResult(isDistillable, true, false, false);
     }
 
     @Test
@@ -97,6 +91,8 @@ public class ReaderModeActionProviderTest {
         SignalAccumulator accumulator = new SignalAccumulator(new Handler(), mMockTab, providers);
         setReaderModeBackendSignal(true);
         provider.getAction(mMockTab, accumulator);
+        ShadowLooper.idleMainLooper();
+
         Assert.assertTrue(accumulator.hasReaderMode());
     }
 
@@ -105,6 +101,8 @@ public class ReaderModeActionProviderTest {
         ReaderModeActionProvider provider = new ReaderModeActionProvider();
         // Get action before distillability is determined.
         provider.getAction(mMockTab, mMockSignalAccumulator);
+        ShadowLooper.idleMainLooper();
+
         verify(mMockSignalAccumulator, never()).setHasReaderMode(anyBoolean());
         verify(mMockSignalAccumulator, never()).notifySignalAvailable();
 
@@ -112,6 +110,56 @@ public class ReaderModeActionProviderTest {
         setReaderModeBackendSignal(true);
         verify(mMockSignalAccumulator).setHasReaderMode(true);
         verify(mMockSignalAccumulator).notifySignalAvailable();
+    }
+
+    @Test
+    public void testReaderModeSignalRecordsMetricsOnCPASuccess() {
+        when(mMockSignalAccumulator.hasTimedOut()).thenReturn(false);
+        ReaderModeActionProvider provider = new ReaderModeActionProvider();
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectBooleanRecord(
+                                ReaderModeActionProvider
+                                        .SIGNAL_ACCUMULATOR_WITHIN_TIMEOUT_HISTOGRAM,
+                                true)
+                        .expectBooleanRecord(
+                                ReaderModeActionProvider
+                                        .SIGNAL_ACCUMULATOR_DISTILLABLE_WITHIN_TIMEOUT_HISTOGRAM,
+                                true)
+                        .build();
+        setReaderModeBackendSignal(true);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        ShadowLooper.idleMainLooper();
+
+        verify(mMockSignalAccumulator).setHasReaderMode(true);
+        verify(mMockSignalAccumulator).notifySignalAvailable();
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testReaderModeSignalRecordsMetricsOnCPATimeout() {
+        when(mMockSignalAccumulator.hasTimedOut()).thenReturn(true);
+        ReaderModeActionProvider provider = new ReaderModeActionProvider();
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectBooleanRecord(
+                                ReaderModeActionProvider
+                                        .SIGNAL_ACCUMULATOR_WITHIN_TIMEOUT_HISTOGRAM,
+                                false)
+                        .expectBooleanRecord(
+                                ReaderModeActionProvider
+                                        .SIGNAL_ACCUMULATOR_DISTILLABLE_WITHIN_TIMEOUT_HISTOGRAM,
+                                false)
+                        .build();
+        setReaderModeBackendSignal(true);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        ShadowLooper.idleMainLooper();
+
+        verify(mMockSignalAccumulator).setHasReaderMode(true);
+        verify(mMockSignalAccumulator).notifySignalAvailable();
+        watcher.assertExpected();
     }
 
     @Test
@@ -129,6 +177,8 @@ public class ReaderModeActionProviderTest {
 
         setReaderModeBackendSignal(true);
         provider.getAction(mMockTab, mMockSignalAccumulator);
+        ShadowLooper.idleMainLooper();
+
         verify(mMockSignalAccumulator).setHasReaderMode(false);
         verify(mMockSignalAccumulator).notifySignalAvailable();
     }
@@ -149,79 +199,21 @@ public class ReaderModeActionProviderTest {
 
         setReaderModeBackendSignal(true);
         provider.getAction(mMockTab, mMockSignalAccumulator);
+        ShadowLooper.idleMainLooper();
+
         verify(mMockSignalAccumulator).setHasReaderMode(true);
         verify(mMockSignalAccumulator).notifySignalAvailable();
     }
 
     @Test
-    public void testUsingReaderModeManagerRateLimiting() {
-        TestValues testValues = new TestValues();
-        testValues.addFieldTrialParamOverride(ChromeFeatureList.CONTEXTUAL_PAGE_ACTIONS,
-                "reader_mode_session_rate_limiting", "true");
-        FeatureList.setTestValues(testValues);
-        when(mMockReaderModeManager.isReaderModeUiRateLimited()).thenReturn(true);
-
+    public void testDestroy() {
         ReaderModeActionProvider provider = new ReaderModeActionProvider();
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        provider.destroy();
+        ShadowLooper.idleMainLooper();
 
         setReaderModeBackendSignal(true);
-        provider.getAction(mMockTab, mMockSignalAccumulator);
-        verify(mMockSignalAccumulator).setHasReaderMode(false);
-        verify(mMockSignalAccumulator).notifySignalAvailable();
-    }
-
-    @Test
-    public void testProviderDelaysSettingOnShown() throws TimeoutException {
-        TestValues testValues = new TestValues();
-        testValues.addFieldTrialParamOverride(ChromeFeatureList.CONTEXTUAL_PAGE_ACTIONS,
-                "reader_mode_session_rate_limiting", "true");
-        FeatureList.setTestValues(testValues);
-        when(mMockReaderModeManager.isReaderModeUiRateLimited()).thenReturn(false);
-
-        ReaderModeActionProvider provider = new ReaderModeActionProvider();
-
-        // Call onActionShown and wait 10 milliseconds.
-        provider.onActionShown(mMockTab, AdaptiveToolbarButtonVariant.READER_MODE);
-        shadowOf(getMainLooper()).idleFor(10, TimeUnit.MILLISECONDS);
-
-        // ReaderModeManager shouldn't be notified yet.
-        verify(mMockReaderModeManager, never()).setReaderModeUiShown();
-    }
-
-    @Test
-    public void testProviderSetsOnShownAfterDelay() throws TimeoutException {
-        TestValues testValues = new TestValues();
-        testValues.addFieldTrialParamOverride(ChromeFeatureList.CONTEXTUAL_PAGE_ACTIONS,
-                "reader_mode_session_rate_limiting", "true");
-        FeatureList.setTestValues(testValues);
-        when(mMockReaderModeManager.isReaderModeUiRateLimited()).thenReturn(false);
-
-        ReaderModeActionProvider provider = new ReaderModeActionProvider();
-
-        // Call onActionShown and wait 5 seconds.
-        provider.onActionShown(mMockTab, AdaptiveToolbarButtonVariant.READER_MODE);
-        shadowOf(getMainLooper()).idleFor(5, TimeUnit.SECONDS);
-
-        // ReaderModeManager should have been notified.
-        verify(mMockReaderModeManager).setReaderModeUiShown();
-    }
-
-    @Test
-    public void testProviderSetsOnShownAfterDelay_ExceptIfTabIsDestroyed() throws TimeoutException {
-        TestValues testValues = new TestValues();
-        testValues.addFieldTrialParamOverride(ChromeFeatureList.CONTEXTUAL_PAGE_ACTIONS,
-                "reader_mode_session_rate_limiting", "true");
-        FeatureList.setTestValues(testValues);
-        when(mMockReaderModeManager.isReaderModeUiRateLimited()).thenReturn(false);
-
-        ReaderModeActionProvider provider = new ReaderModeActionProvider();
-
-        // Call onActionShown and wait 5 seconds.
-        provider.onActionShown(mMockTab, AdaptiveToolbarButtonVariant.READER_MODE);
-        when(mMockTab.isDestroyed()).thenReturn(true);
-        mMockTab.getUserDataHost().destroy();
-        shadowOf(getMainLooper()).idleFor(5, TimeUnit.SECONDS);
-
-        // ReaderModeManager should not have been notified, as the tab was destroyed.
-        verify(mMockReaderModeManager, never()).setReaderModeUiShown();
+        verify(mMockSignalAccumulator, never()).setHasReaderMode(anyBoolean());
+        verify(mMockSignalAccumulator, never()).notifySignalAvailable();
     }
 }

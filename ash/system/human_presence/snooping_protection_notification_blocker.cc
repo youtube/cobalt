@@ -20,9 +20,10 @@
 #include "ash/system/human_presence/snooping_protection_notification_blocker_internal.h"
 #include "ash/system/model/system_tray_model.h"
 #include "ash/system/network/sms_observer.h"
+#include "ash/system/notification_center/notification_center_tray.h"
 #include "ash/system/status_area_widget.h"
-#include "ash/system/unified/unified_system_tray.h"
 #include "base/check_op.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -208,8 +209,8 @@ void SnoopingProtectionNotificationBlocker::OnBlockingStateChanged(
 void SnoopingProtectionNotificationBlocker::Close(bool by_user) {}
 
 void SnoopingProtectionNotificationBlocker::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index,
+    const std::optional<std::u16string>& reply) {
   if (!button_index.has_value())
     return;
   switch (button_index.value()) {
@@ -218,7 +219,7 @@ void SnoopingProtectionNotificationBlocker::Click(
       Shell::Get()
           ->GetPrimaryRootWindowController()
           ->GetStatusAreaWidget()
-          ->unified_system_tray()
+          ->notification_center_tray()
           ->ShowBubble();
       break;
     // Show privacy settings button
@@ -284,16 +285,18 @@ SnoopingProtectionNotificationBlocker::CreateInfoNotification() const {
   for (const message_center::Notification* notification :
        message_center_->GetPopupNotificationsWithoutBlocker(*this)) {
     const std::string& id = notification->id();
-    if (blocked_popups_.find(id) == blocked_popups_.end())
+    if (!base::Contains(blocked_popups_, id)) {
       continue;
+    }
 
     // Use a human readable-title (e.g. "Web" vs "https://somesite.com:443").
     const std::u16string& title =
         hps_internal::GetNotifierTitle<apps::AppRegistryCacheWrapper>(
             notification->notifier_id(),
             Shell::Get()->session_controller()->GetActiveAccountId());
-    if (seen_titles.find(title) != seen_titles.end())
+    if (base::Contains(seen_titles, title)) {
       continue;
+    }
 
     titles.push_back(title);
     seen_titles.insert(title);

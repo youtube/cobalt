@@ -5,6 +5,7 @@
 #include "components/policy/core/common/cloud/component_cloud_policy_updater.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -29,11 +30,11 @@
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/sha2.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace em = enterprise_management;
@@ -64,7 +65,7 @@ const char kTestPolicy[] =
 class MockComponentCloudPolicyStoreDelegate
     : public ComponentCloudPolicyStore::Delegate {
  public:
-  ~MockComponentCloudPolicyStoreDelegate() override {}
+  ~MockComponentCloudPolicyStoreDelegate() override = default;
 
   MOCK_METHOD0(OnComponentCloudPolicyStoreUpdated, void());
 };
@@ -81,6 +82,7 @@ class ComponentCloudPolicyUpdaterTest : public testing::Test {
 
   const PolicyNamespace kTestPolicyNS{POLICY_DOMAIN_EXTENSIONS, kTestExtension};
   base::test::TaskEnvironment task_env_;
+  std::unique_ptr<ResourceCache> cache_;
   std::unique_ptr<ComponentCloudPolicyStore> store_;
   MockComponentCloudPolicyStoreDelegate store_delegate_;
   network::TestURLLoaderFactory loader_factory_;
@@ -90,7 +92,6 @@ class ComponentCloudPolicyUpdaterTest : public testing::Test {
 
  private:
   base::ScopedTempDir temp_dir_;
-  std::unique_ptr<ResourceCache> cache_;
   std::string public_key_;
 };
 
@@ -116,13 +117,13 @@ void ComponentCloudPolicyUpdaterTest::SetUp() {
   ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   cache_ = std::make_unique<ResourceCache>(temp_dir_.GetPath(),
                                            task_env_.GetMainThreadTaskRunner(),
-                                           /* max_cache_size */ absl::nullopt);
+                                           /* max_cache_size */ std::nullopt);
   store_ = std::make_unique<ComponentCloudPolicyStore>(
       &store_delegate_, cache_.get(), dm_protocol::kChromeExtensionPolicyType);
-  store_->SetCredentials(PolicyBuilder::kFakeUsername,
-                         PolicyBuilder::kFakeGaiaId, PolicyBuilder::kFakeToken,
-                         PolicyBuilder::kFakeDeviceId, public_key_,
-                         PolicyBuilder::kFakePublicKeyVersion);
+  store_->SetCredentials(
+      PolicyBuilder::kFakeUsername, GaiaId(PolicyBuilder::kFakeGaiaId),
+      PolicyBuilder::kFakeToken, PolicyBuilder::kFakeDeviceId, public_key_,
+      PolicyBuilder::kFakePublicKeyVersion);
   auto url_loader_factory =
       base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
           &loader_factory_);
@@ -198,7 +199,7 @@ TEST_F(ComponentCloudPolicyUpdaterTest, PolicyFetchResponseInvalid) {
 
   // Submit two valid policy fetch responses.
   builder_.policy_data().set_username(PolicyBuilder::kFakeUsername);
-  builder_.policy_data().set_gaia_id(PolicyBuilder::kFakeGaiaId);
+  builder_.policy_data().set_gaia_id(PolicyBuilder::kFakeGaiaId.ToString());
   builder_.policy_data().set_settings_entity_id(kTestExtension2);
   builder_.payload().set_download_url(kTestDownload2);
   updater_->UpdateExternalPolicy(

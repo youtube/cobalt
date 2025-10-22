@@ -6,7 +6,9 @@
 #define CONTENT_BROWSER_SERVICE_WORKER_SERVICE_WORKER_LOADER_HELPERS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/common/content_export.h"
@@ -21,10 +23,6 @@ class GURL;
 namespace base {
 class TimeDelta;
 }  // namespace base
-
-namespace url {
-class Origin;
-}  // namespace url
 
 namespace blink {
 namespace mojom {
@@ -68,7 +66,7 @@ void CheckVersionStatusBeforeWorkerScriptLoad(
 
 network::ResourceRequest CreateRequestForServiceWorkerScript(
     const GURL& script_url,
-    const url::Origin& origin,
+    const blink::StorageKey& storage_key,
     bool is_main_script,
     blink::mojom::ScriptType worker_script_type,
     const blink::mojom::FetchClientSettingsObject& fetch_client_settings_object,
@@ -81,7 +79,7 @@ network::ResourceRequest CreateRequestForServiceWorkerScript(
 CONTENT_EXPORT bool IsPathRestrictionSatisfied(
     const GURL& scope,
     const GURL& script_url,
-    const std::string* service_worker_allowed_header_value,
+    const std::optional<std::string_view>& service_worker_allowed_header_value,
     std::string* error_message);
 
 // Same as above IsPathRestrictionSatisfied, but without considering
@@ -93,6 +91,13 @@ CONTENT_EXPORT bool IsPathRestrictionSatisfiedWithoutHeader(
 
 // Returns the set of hash strings of fetch handlers which can be bypassed.
 const base::flat_set<std::string> FetchHandlerBypassedHashStrings();
+
+// Check if `client_url` is eligible for Synsthtic Response.
+// Exposes one method which accepts `allowed_urls` for testing.
+bool IsEligibleForSyntheticResponse(const GURL& client_url);
+CONTENT_EXPORT bool IsEligibleForSyntheticResponseForTesting(
+    const GURL& client_url,
+    const std::string& allowed_urls);
 
 }  // namespace service_worker_loader_helpers
 

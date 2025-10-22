@@ -10,13 +10,15 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ScrollView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 
 /**
  * View that is used when asking the user to choose between options during First Run.
  *
- * Manages the appearance of a large header at the top of the dialog.
+ * <p>Manages the appearance of a large header at the top of the dialog.
  */
+@NullMarked
 public class FirstRunChooserView extends ScrollView {
     private View mChooserTitleView;
 
@@ -43,15 +45,20 @@ public class FirstRunChooserView extends ScrollView {
         if (height > width) {
             // Sets the title aspect ratio to be 16:9.
             params.height = width * 9 / 16;
-            mChooserTitleView.setPadding(mChooserTitleView.getPaddingLeft(), 0,
-                    mChooserTitleView.getPaddingRight(), mChooserTitleView.getPaddingBottom());
+            mChooserTitleView.setPadding(
+                    mChooserTitleView.getPaddingLeft(),
+                    0,
+                    mChooserTitleView.getPaddingRight(),
+                    mChooserTitleView.getPaddingBottom());
         } else {
             params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
 
             // Adds top padding.
-            mChooserTitleView.setPadding(mChooserTitleView.getPaddingLeft(),
+            mChooserTitleView.setPadding(
+                    mChooserTitleView.getPaddingLeft(),
                     getResources().getDimensionPixelOffset(R.dimen.signin_screen_top_padding),
-                    mChooserTitleView.getPaddingRight(), mChooserTitleView.getPaddingBottom());
+                    mChooserTitleView.getPaddingRight(),
+                    mChooserTitleView.getPaddingBottom());
         }
         mChooserTitleView.setLayoutParams(params);
 

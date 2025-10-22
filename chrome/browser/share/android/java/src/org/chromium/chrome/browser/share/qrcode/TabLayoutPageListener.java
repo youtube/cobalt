@@ -15,7 +15,7 @@ import java.util.ArrayList;
  * the camera on and off.
  */
 public class TabLayoutPageListener extends TabLayout.TabLayoutOnPageChangeListener {
-    private ArrayList<QrCodeDialogTab> mTabs;
+    private final ArrayList<QrCodeDialogTab> mTabs;
     private int mVisibleTab;
 
     /**
@@ -42,8 +42,8 @@ public class TabLayoutPageListener extends TabLayout.TabLayoutOnPageChangeListen
             if (mVisibleTab == i) {
                 mTabs.get(i).onResume();
             } else {
-                // Let the other tabs know that they are
-                // no longer in the foreground and pause them.
+                // Let the other tabs know that they are no longer in the foreground and pause
+                // them.
                 mTabs.get(i).onPause();
             }
         }

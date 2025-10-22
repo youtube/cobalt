@@ -59,6 +59,10 @@ class SiteDataCacheFacadeFactory : public ProfileKeyedServiceFactory {
   static std::unique_ptr<base::AutoReset<bool>> EnableForTesting();
   static void DisassociateForTesting(Profile* profile);
 
+  // Returns the SiteDataCacheFacade for `profile` so that it can be directly
+  // manipulated in tests.
+  SiteDataCacheFacade* GetProfileFacadeForTesting(Profile* profile);
+
  protected:
   friend class base::NoDestructor<SiteDataCacheFacadeFactory>;
   friend class SiteDataCacheFacade;
@@ -66,9 +70,7 @@ class SiteDataCacheFacadeFactory : public ProfileKeyedServiceFactory {
 
   SiteDataCacheFacadeFactory();
 
-  base::SequenceBound<SiteDataCacheFactory>* cache_factory() {
-    return &cache_factory_;
-  }
+  SiteDataCacheFactory* cache_factory() { return cache_factory_.get(); }
 
   // Should be called early in the creation of a SiteDataCacheFacade to make
   // sure that |cache_factory_| gets created.
@@ -80,13 +82,15 @@ class SiteDataCacheFacadeFactory : public ProfileKeyedServiceFactory {
 
  private:
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   bool ServiceIsCreatedWithBrowserContext() const override;
   bool ServiceIsNULLWhileTesting() const override;
 
-  // The counterpart of this factory living on the SiteDataCache's sequence.
-  base::SequenceBound<SiteDataCacheFactory> cache_factory_;
+  // The counterpart of this factory.
+  // TODO(pmonette): Get rid of this separation now that the performance manager
+  // lives on the UI thread.
+  std::unique_ptr<SiteDataCacheFactory> cache_factory_;
 
   // The number of SiteDataCacheFacade currently in existence.
   size_t service_instance_count_ = 0;

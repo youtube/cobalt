@@ -18,6 +18,7 @@
 #include "chrome/browser/ash/guest_os/dbus_test_helper.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service_factory.h"
 #include "chrome/browser/ash/guest_os/guest_os_session_tracker.h"
+#include "chrome/browser/ash/guest_os/guest_os_session_tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/test/base/testing_profile.h"
@@ -47,10 +48,8 @@ class BruschettaAppsTest : public testing::Test,
     web_app::test::AwaitStartWebAppProviderAndSubsystems(profile_.get());
     registry_ =
         guest_os::GuestOsRegistryServiceFactory::GetForProfile(profile_.get());
-    scoped_feature_list_.InitAndEnableFeature(ash::features::kBruschetta);
-    bruschetta::BruschettaServiceFactory::EnableForTesting(profile_.get());
     const guest_os::GuestId id(bruschetta::kBruschettaVmName, "test_container");
-    guest_os::GuestOsSessionTracker::GetForProfile(profile_.get())
+    guest_os::GuestOsSessionTrackerFactory::GetForProfile(profile_.get())
         ->AddGuestForTesting(id);
   }
 
@@ -59,9 +58,9 @@ class BruschettaAppsTest : public testing::Test,
  private:
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfile> profile_;
-  base::raw_ptr<AppServiceProxy> app_service_proxy_ = nullptr;
-  base::raw_ptr<guest_os::GuestOsRegistryService> registry_ = nullptr;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  raw_ptr<AppServiceProxy, DanglingUntriaged> app_service_proxy_ = nullptr;
+  raw_ptr<guest_os::GuestOsRegistryService, DanglingUntriaged> registry_ =
+      nullptr;
 };
 
 class BruschettaAppsTestHelper {
@@ -99,7 +98,7 @@ TEST_F(BruschettaAppsTest, LaunchApp) {
       "desktop_file_id", bruschetta::kBruschettaVmName, "test_container");
 
   // Set up FakeBruschettaLauncher to pretend to launch the VM.
-  bruschetta::BruschettaService::GetForProfile(profile())
+  bruschetta::BruschettaServiceFactory::GetForProfile(profile())
       ->SetLauncherForTesting(
           bruschetta::kBruschettaVmName,
           std::make_unique<bruschetta::FakeBruschettaLauncher>());

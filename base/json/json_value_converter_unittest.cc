@@ -5,14 +5,14 @@
 #include "base/json/json_value_converter.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/json/json_reader.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace {
@@ -23,16 +23,16 @@ struct SimpleMessage {
     FOO,
     BAR,
   };
-  int foo;
+  int foo = 0;
   std::string bar;
-  bool baz;
-  bool bstruct;
-  SimpleEnum simple_enum;
+  bool baz = false;
+  bool bstruct = false;
+  SimpleEnum simple_enum = FOO;
   std::vector<std::unique_ptr<int>> ints;
   std::vector<std::unique_ptr<std::string>> string_values;
-  SimpleMessage() : foo(0), baz(false), bstruct(false), simple_enum(FOO) {}
+  SimpleMessage() = default;
 
-  static bool ParseSimpleEnum(StringPiece value, SimpleEnum* field) {
+  static bool ParseSimpleEnum(std::string_view value, SimpleEnum* field) {
     if (value == "foo") {
       *field = FOO;
       return true;
@@ -51,13 +51,16 @@ struct SimpleMessage {
 
   static bool GetValueString(const base::Value* value, std::string* result) {
     const Value::Dict* dict = value->GetIfDict();
-    if (!dict)
+    if (!dict) {
       return false;
+    }
     const std::string* str = dict->FindString("val");
-    if (!str)
+    if (!str) {
       return false;
-    if (result)
+    }
+    if (result) {
       *result = *str;
+    }
     return true;
   }
 
@@ -78,11 +81,11 @@ struct SimpleMessage {
 
 // For nested messages.
 struct NestedMessage {
-  double foo;
+  double foo = 0;
   SimpleMessage child;
   std::vector<std::unique_ptr<SimpleMessage>> children;
 
-  NestedMessage() : foo(0) {}
+  NestedMessage() = default;
 
   static void RegisterJSONConverter(
       base::JSONValueConverter<NestedMessage>* converter) {
@@ -106,7 +109,7 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  std::optional<Value> value = base::JSONReader::Read(normal_data);
   ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
@@ -149,7 +152,7 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
       "  }]\n"
       "}\n";
 
-  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  std::optional<Value> value = base::JSONReader::Read(normal_data);
   ASSERT_TRUE(value);
   NestedMessage message;
   base::JSONValueConverter<NestedMessage> converter;
@@ -192,7 +195,7 @@ TEST(JSONValueConverterTest, ParseFailures) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  std::optional<Value> value = base::JSONReader::Read(normal_data);
   ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
@@ -209,7 +212,7 @@ TEST(JSONValueConverterTest, ParseWithMissingFields) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  std::optional<Value> value = base::JSONReader::Read(normal_data);
   ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
@@ -233,7 +236,7 @@ TEST(JSONValueConverterTest, EnumParserFails) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  std::optional<Value> value = base::JSONReader::Read(normal_data);
   ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
@@ -251,7 +254,7 @@ TEST(JSONValueConverterTest, RepeatedValueErrorInTheMiddle) {
       "  \"ints\": [1, false]"
       "}\n";
 
-  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  std::optional<Value> value = base::JSONReader::Read(normal_data);
   ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;

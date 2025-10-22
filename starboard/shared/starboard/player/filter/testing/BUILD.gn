@@ -18,6 +18,8 @@ if (current_toolchain == starboard_toolchain) {
     testonly = true
 
     sources = [
+      "//starboard/testing/fake_graphics_context_provider.cc",
+      "//starboard/testing/fake_graphics_context_provider.h",
       "adaptive_audio_decoder_test.cc",
       "audio_channel_layout_mixer_test.cc",
       "audio_decoder_test.cc",
@@ -28,22 +30,25 @@ if (current_toolchain == starboard_toolchain) {
       "media_time_provider_impl_test.cc",
       "player_components_test.cc",
       "video_decoder_test.cc",
+      "video_decoder_test_fixture.cc",
+      "video_decoder_test_fixture.h",
       "video_frame_cadence_pattern_generator_test.cc",
       "video_frame_rate_estimator_test.cc",
       "wsola_internal_test.cc",
     ]
 
+    public_deps = [
+      ":test_util",
+      "//starboard:starboard_with_main",
+      "//starboard/shared/starboard/media:media_util",
+      "//testing/gmock",
+    ]
+
     deps = cobalt_platform_dependencies
     deps += [
-      ":test_util",
-      ":video_decoder_test_fixture",
       "//$starboard_path:starboard_platform",
-      "//starboard:starboard_with_main",
       "//starboard/egl_and_gles:buildflags",
-      "//starboard/shared/starboard/media:media_util",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
-      "//starboard/testing:fake_graphics_context_provider",
-      "//testing/gmock",
     ]
 
     data_deps =
@@ -88,27 +93,6 @@ if (current_toolchain == starboard_toolchain) {
     deps = [
       "//$starboard_path:starboard_platform",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
-    ]
-  }
-
-  static_library("video_decoder_test_fixture") {
-    testonly = true
-
-    sources = [
-      "video_decoder_test_fixture.cc",
-      "video_decoder_test_fixture.h",
-    ]
-
-    public_deps = [ "//$starboard_path:starboard_platform" ]
-
-    deps = [
-      "//starboard/common",
-      "//starboard/shared/starboard/media:media_util",
-      "//starboard/shared/starboard/player:video_dmp",
-      "//starboard/shared/starboard/player/filter:filter_based_player_sources",
-      "//starboard/shared/starboard/player/filter/testing:test_util",
-      "//starboard/testing:fake_graphics_context_provider",
-      "//testing/gtest",
     ]
   }
 }

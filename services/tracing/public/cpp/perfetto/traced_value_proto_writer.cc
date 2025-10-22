@@ -1,14 +1,19 @@
 // Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 #include "services/tracing/public/cpp/perfetto/traced_value_proto_writer.h"
 
 #include <memory>
 #include <stack>
+#include <string_view>
 
 #include "base/hash/hash.h"
 #include "base/json/string_escape.h"
-#include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
 #include "third_party/perfetto/include/perfetto/protozero/message_handle.h"
@@ -22,22 +27,6 @@ using TracedValue = base::trace_event::TracedValue;
 using TraceEvent = base::trace_event::TraceEvent;
 
 namespace tracing {
-
-PerfettoProtoAppender::PerfettoProtoAppender(DebugAnnotation* proto)
-    : annotation_proto_(proto) {}
-
-PerfettoProtoAppender::~PerfettoProtoAppender() = default;
-
-void PerfettoProtoAppender::AddBuffer(uint8_t* begin, uint8_t* end) {
-  ranges_.emplace_back();
-  ranges_.back().begin = begin;
-  ranges_.back().end = end;
-}
-
-size_t PerfettoProtoAppender::Finalize(uint32_t field_id) {
-  return annotation_proto_->AppendScatteredBytes(field_id, ranges_.data(),
-                                                 ranges_.size());
-}
 
 namespace {
 
@@ -77,7 +66,7 @@ class ProtoWriter final : public TracedValue::Writer {
     AddDictEntry(name)->set_int_value(value);
   }
 
-  void SetIntegerWithCopiedName(base::StringPiece name, int value) override {
+  void SetIntegerWithCopiedName(std::string_view name, int value) override {
     AddDictEntry(name)->set_int_value(value);
   }
 
@@ -85,7 +74,7 @@ class ProtoWriter final : public TracedValue::Writer {
     AddDictEntry(name)->set_double_value(value);
   }
 
-  void SetDoubleWithCopiedName(base::StringPiece name, double value) override {
+  void SetDoubleWithCopiedName(std::string_view name, double value) override {
     AddDictEntry(name)->set_double_value(value);
   }
 
@@ -93,16 +82,16 @@ class ProtoWriter final : public TracedValue::Writer {
     AddDictEntry(name)->set_bool_value(value);
   }
 
-  void SetBooleanWithCopiedName(base::StringPiece name, bool value) override {
+  void SetBooleanWithCopiedName(std::string_view name, bool value) override {
     AddDictEntry(name)->set_bool_value(value);
   }
 
-  void SetString(const char* name, base::StringPiece value) override {
+  void SetString(const char* name, std::string_view value) override {
     AddDictEntry(name)->set_string_value(value.data(), value.size());
   }
 
-  void SetStringWithCopiedName(base::StringPiece name,
-                               base::StringPiece value) override {
+  void SetStringWithCopiedName(std::string_view name,
+                               std::string_view value) override {
     AddDictEntry(name)->set_string_value(value.data(), value.size());
   }
 
@@ -125,7 +114,7 @@ class ProtoWriter final : public TracedValue::Writer {
     DCHECK_EQ(full_child_size, appended_size);
   }
 
-  void SetValueWithCopiedName(base::StringPiece name, Writer* value) override {
+  void SetValueWithCopiedName(std::string_view name, Writer* value) override {
     SetValue(std::string(name).c_str(), value);
   }
 
@@ -144,8 +133,8 @@ class ProtoWriter final : public TracedValue::Writer {
     node_stack_.top()->set_nested_type(ProtoValue::DICT);
   }
 
-  void BeginDictionaryWithCopiedName(base::StringPiece name) override {
-    node_stack_.emplace(ProtoValueHandle(AddDictEntry(name)));
+  void BeginDictionaryWithCopiedName(std::string_view name) override {
+    node_stack_.emplace(AddDictEntry(name));
     node_stack_.top()->set_nested_type(ProtoValue::DICT);
   }
 
@@ -154,8 +143,8 @@ class ProtoWriter final : public TracedValue::Writer {
     node_stack_.top()->set_nested_type(ProtoValue::ARRAY);
   }
 
-  void BeginArrayWithCopiedName(base::StringPiece name) override {
-    node_stack_.emplace(ProtoValueHandle(AddDictEntry(name)));
+  void BeginArrayWithCopiedName(std::string_view name) override {
+    node_stack_.emplace(AddDictEntry(name));
     node_stack_.top()->set_nested_type(ProtoValue::ARRAY);
   }
 
@@ -181,7 +170,7 @@ class ProtoWriter final : public TracedValue::Writer {
     AddArrayEntry()->set_bool_value(value);
   }
 
-  void AppendString(base::StringPiece value) override {
+  void AppendString(std::string_view value) override {
     AddArrayEntry()->set_string_value(value.data(), value.size());
   }
 
@@ -219,15 +208,6 @@ class ProtoWriter final : public TracedValue::Writer {
     return true;
   }
 
-  void EstimateTraceMemoryOverhead(
-      base::trace_event::TraceEventMemoryOverhead* overhead) override {
-    overhead->Add(base::trace_event::TraceEventMemoryOverhead::kTracedValue,
-                  /* allocated size */
-                  buffer_.GetTotalSize(),
-                  /* resident size */
-                  buffer_.GetTotalSize());
-  }
-
  private:
   ProtoValue* AddDictEntry(const char* name) {
     DCHECK(!node_stack_.empty() && !node_stack_.top()->is_finalized());
@@ -235,7 +215,7 @@ class ProtoWriter final : public TracedValue::Writer {
     return node_stack_.top()->add_dict_values();
   }
 
-  ProtoValue* AddDictEntry(base::StringPiece name) {
+  ProtoValue* AddDictEntry(std::string_view name) {
     DCHECK(!node_stack_.empty() && !node_stack_.top()->is_finalized());
     node_stack_.top()->add_dict_keys(name.data(), name.length());
     return node_stack_.top()->add_dict_values();

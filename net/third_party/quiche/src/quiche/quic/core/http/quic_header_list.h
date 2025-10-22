@@ -11,34 +11,30 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/quiche_circular_deque.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 
 namespace quic {
 
 // A simple class that accumulates header pairs
-class QUIC_EXPORT_PRIVATE QuicHeaderList
-    : public spdy::SpdyHeadersHandlerInterface {
+class QUICHE_EXPORT QuicHeaderList {
  public:
   using ListType =
       quiche::QuicheCircularDeque<std::pair<std::string, std::string>>;
   using value_type = ListType::value_type;
   using const_iterator = ListType::const_iterator;
 
-  QuicHeaderList();
-  QuicHeaderList(QuicHeaderList&& other);
-  QuicHeaderList(const QuicHeaderList& other);
-  QuicHeaderList& operator=(QuicHeaderList&& other);
-  QuicHeaderList& operator=(const QuicHeaderList& other);
-  ~QuicHeaderList() override;
+  QuicHeaderList() = default;
+  QuicHeaderList(QuicHeaderList&& other) = default;
+  QuicHeaderList(const QuicHeaderList& other) = default;
+  QuicHeaderList& operator=(QuicHeaderList&& other) = default;
+  QuicHeaderList& operator=(const QuicHeaderList& other) = default;
 
-  // From SpdyHeadersHandlerInteface.
-  void OnHeaderBlockStart() override;
-  void OnHeader(absl::string_view name, absl::string_view value) override;
+  void OnHeader(absl::string_view name, absl::string_view value);
   void OnHeaderBlockEnd(size_t uncompressed_header_bytes,
-                        size_t compressed_header_bytes) override;
+                        size_t compressed_header_bytes);
 
   void Clear();
 
@@ -51,28 +47,13 @@ class QUIC_EXPORT_PRIVATE QuicHeaderList
   }
   size_t compressed_header_bytes() const { return compressed_header_bytes_; }
 
-  // Deprecated.  TODO(b/145909215): remove.
-  void set_max_header_list_size(size_t max_header_list_size) {
-    max_header_list_size_ = max_header_list_size;
-  }
-
   std::string DebugString() const;
 
  private:
   quiche::QuicheCircularDeque<std::pair<std::string, std::string>> header_list_;
 
-  // The limit on the size of the header list (defined by spec as name + value +
-  // overhead for each header field). Headers over this limit will not be
-  // buffered, and the list will be cleared upon OnHeaderBlockEnd.
-  size_t max_header_list_size_;
-
-  // Defined per the spec as the size of all header fields with an additional
-  // overhead for each field.
-  size_t current_header_list_size_;
-
-  // TODO(dahollings) Are these fields necessary?
-  size_t uncompressed_header_bytes_;
-  size_t compressed_header_bytes_;
+  size_t uncompressed_header_bytes_ = 0;
+  size_t compressed_header_bytes_ = 0;
 };
 
 inline bool operator==(const QuicHeaderList& l1, const QuicHeaderList& l2) {

@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include "base/memory/raw_ref.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "media/base/feedback_signal_accumulator.h"
@@ -17,15 +18,16 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
-class VideoFrame;
-}
 
-namespace media {
+class VideoEncoderMetricsProvider;
+class VideoFrame;
+
 namespace cast {
 
 class VpxEncoder final : public SoftwareVideoEncoder {
  public:
-  explicit VpxEncoder(const FrameSenderConfig& video_config);
+  VpxEncoder(const FrameSenderConfig& video_config,
+             std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider);
 
   ~VpxEncoder() final;
 
@@ -56,8 +58,11 @@ class VpxEncoder final : public SoftwareVideoEncoder {
   void ConfigureForNewFrameSize(const gfx::Size& frame_size);
 
   const FrameSenderConfig cast_config_;
+  const raw_ref<const VideoCodecParams> codec_params_;
 
   const double target_encoder_utilization_;
+
+  const std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider_;
 
   // VPX internal objects.  These are valid for use only while is_initialized()
   // returns true.

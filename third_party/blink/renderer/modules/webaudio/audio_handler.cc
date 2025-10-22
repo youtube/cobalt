@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/modules/webaudio/audio_handler.h"
 
+#include <inttypes.h>
+
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node_input.h"
@@ -26,7 +28,7 @@ AudioHandler::AudioHandler(NodeType node_type,
       context_(node.context()),
       deferred_task_handler_(&context_->GetDeferredTaskHandler()) {
   SetNodeType(node_type);
-  SetInternalChannelCountMode(kMax);
+  SetInternalChannelCountMode(V8ChannelCountMode::Enum::kMax);
   SetInternalChannelInterpretation(AudioBus::kSpeakers);
 
 #if DEBUG_AUDIONODE_REFERENCES
@@ -37,8 +39,7 @@ AudioHandler::AudioHandler(NodeType node_type,
 #endif
   InstanceCounters::IncrementCounter(InstanceCounters::kAudioHandlerCounter);
 
-  SendLogMessage(
-      String::Format("%s({sample_rate=%0.f})", __func__, sample_rate));
+  SendLogMessage(__func__, String::Format("({sample_rate=%0.f})", sample_rate));
 #if DEBUG_AUDIONODE_REFERENCES
   fprintf(
       stderr,
@@ -94,67 +95,66 @@ AudioNode* AudioHandler::GetNode() const {
 }
 
 BaseAudioContext* AudioHandler::Context() const {
-  return context_;
+  return context_.Get();
 }
 
 String AudioHandler::NodeTypeName() const {
   switch (node_type_) {
-    case kNodeTypeDestination:
+    case NodeType::kNodeTypeDestination:
       return "AudioDestinationNode";
-    case kNodeTypeOscillator:
+    case NodeType::kNodeTypeOscillator:
       return "OscillatorNode";
-    case kNodeTypeAudioBufferSource:
+    case NodeType::kNodeTypeAudioBufferSource:
       return "AudioBufferSourceNode";
-    case kNodeTypeMediaElementAudioSource:
+    case NodeType::kNodeTypeMediaElementAudioSource:
       return "MediaElementAudioSourceNode";
-    case kNodeTypeMediaStreamAudioDestination:
+    case NodeType::kNodeTypeMediaStreamAudioDestination:
       return "MediaStreamAudioDestinationNode";
-    case kNodeTypeMediaStreamAudioSource:
+    case NodeType::kNodeTypeMediaStreamAudioSource:
       return "MediaStreamAudioSourceNode";
-    case kNodeTypeScriptProcessor:
+    case NodeType::kNodeTypeScriptProcessor:
       return "ScriptProcessorNode";
-    case kNodeTypeBiquadFilter:
+    case NodeType::kNodeTypeBiquadFilter:
       return "BiquadFilterNode";
-    case kNodeTypePanner:
+    case NodeType::kNodeTypePanner:
       return "PannerNode";
-    case kNodeTypeStereoPanner:
+    case NodeType::kNodeTypeStereoPanner:
       return "StereoPannerNode";
-    case kNodeTypeConvolver:
+    case NodeType::kNodeTypeConvolver:
       return "ConvolverNode";
-    case kNodeTypeDelay:
+    case NodeType::kNodeTypeDelay:
       return "DelayNode";
-    case kNodeTypeGain:
+    case NodeType::kNodeTypeGain:
       return "GainNode";
-    case kNodeTypeChannelSplitter:
+    case NodeType::kNodeTypeChannelSplitter:
       return "ChannelSplitterNode";
-    case kNodeTypeChannelMerger:
+    case NodeType::kNodeTypeChannelMerger:
       return "ChannelMergerNode";
-    case kNodeTypeAnalyser:
+    case NodeType::kNodeTypeAnalyser:
       return "AnalyserNode";
-    case kNodeTypeDynamicsCompressor:
+    case NodeType::kNodeTypeDynamicsCompressor:
       return "DynamicsCompressorNode";
-    case kNodeTypeWaveShaper:
+    case NodeType::kNodeTypeWaveShaper:
       return "WaveShaperNode";
-    case kNodeTypeIIRFilter:
+    case NodeType::kNodeTypeIIRFilter:
       return "IIRFilterNode";
-    case kNodeTypeConstantSource:
+    case NodeType::kNodeTypeConstantSource:
       return "ConstantSourceNode";
-    case kNodeTypeAudioWorklet:
+    case NodeType::kNodeTypeAudioWorklet:
       return "AudioWorkletNode";
-    case kNodeTypeUnknown:
-    case kNodeTypeEnd:
+    case NodeType::kNodeTypeUnknown:
+    case NodeType::kNodeTypeEnd:
     default:
       NOTREACHED();
-      return "UnknownNode";
   }
 }
 
 void AudioHandler::SetNodeType(NodeType type) {
   // Don't allow the node type to be changed to a different node type, after
   // it's already been set.  And the new type can't be unknown or end.
-  DCHECK_EQ(node_type_, kNodeTypeUnknown);
-  DCHECK_NE(type, kNodeTypeUnknown);
-  DCHECK_NE(type, kNodeTypeEnd);
+  DCHECK_EQ(node_type_, NodeType::kNodeTypeUnknown);
+  DCHECK_NE(type, NodeType::kNodeTypeUnknown);
+  DCHECK_NE(type, NodeType::kNodeTypeEnd);
 
   node_type_ = type;
 
@@ -193,7 +193,7 @@ unsigned AudioHandler::ChannelCount() {
   return channel_count_;
 }
 
-void AudioHandler::SetInternalChannelCountMode(ChannelCountMode mode) {
+void AudioHandler::SetInternalChannelCountMode(V8ChannelCountMode::Enum mode) {
   channel_count_mode_ = mode;
   new_channel_count_mode_ = mode;
 }
@@ -207,13 +207,13 @@ void AudioHandler::SetInternalChannelInterpretation(
 void AudioHandler::SetChannelCount(unsigned channel_count,
                                    ExceptionState& exception_state) {
   DCHECK(IsMainThread());
-  BaseAudioContext::GraphAutoLocker locker(Context());
+  DeferredTaskHandler::GraphAutoLocker locker(Context());
 
   if (channel_count > 0 &&
       channel_count <= BaseAudioContext::MaxNumberOfChannels()) {
     if (channel_count_ != channel_count) {
       channel_count_ = channel_count;
-      if (channel_count_mode_ != kMax) {
+      if (channel_count_mode_ != V8ChannelCountMode::Enum::kMax) {
         UpdateChannelsForInputs();
       }
     }
@@ -228,68 +228,48 @@ void AudioHandler::SetChannelCount(unsigned channel_count,
   }
 }
 
-String AudioHandler::GetChannelCountMode() {
+V8ChannelCountMode::Enum AudioHandler::GetChannelCountMode() {
   // Because we delay the actual setting of the mode to the pre or post
   // rendering phase, we want to return the value that was set, not the actual
   // current mode.
-  switch (new_channel_count_mode_) {
-    case kMax:
-      return "max";
-    case kClampedMax:
-      return "clamped-max";
-    case kExplicit:
-      return "explicit";
-  }
-  NOTREACHED();
-  return "";
+  return new_channel_count_mode_;
 }
 
-void AudioHandler::SetChannelCountMode(const String& mode,
+void AudioHandler::SetChannelCountMode(V8ChannelCountMode::Enum mode,
                                        ExceptionState& exception_state) {
   DCHECK(IsMainThread());
-  BaseAudioContext::GraphAutoLocker locker(Context());
+  DeferredTaskHandler::GraphAutoLocker locker(Context());
 
-  ChannelCountMode old_mode = channel_count_mode_;
-
-  if (mode == "max") {
-    new_channel_count_mode_ = kMax;
-  } else if (mode == "clamped-max") {
-    new_channel_count_mode_ = kClampedMax;
-  } else if (mode == "explicit") {
-    new_channel_count_mode_ = kExplicit;
-  } else {
-    NOTREACHED();
-  }
-
-  if (new_channel_count_mode_ != old_mode) {
+  new_channel_count_mode_ = mode;
+  if (new_channel_count_mode_ != channel_count_mode_) {
     Context()->GetDeferredTaskHandler().AddChangedChannelCountMode(this);
   }
 }
 
-String AudioHandler::ChannelInterpretation() {
+V8ChannelInterpretation::Enum AudioHandler::ChannelInterpretation() {
   // Because we delay the actual setting of the interpretation to the pre or
   // post rendering phase, we want to return the value that was set, not the
   // actual current interpretation.
   switch (new_channel_interpretation_) {
     case AudioBus::kSpeakers:
-      return "speakers";
+      return V8ChannelInterpretation::Enum::kSpeakers;
     case AudioBus::kDiscrete:
-      return "discrete";
+      return V8ChannelInterpretation::Enum::kDiscrete;
   }
   NOTREACHED();
-  return "";
 }
 
-void AudioHandler::SetChannelInterpretation(const String& interpretation,
-                                            ExceptionState& exception_state) {
+void AudioHandler::SetChannelInterpretation(
+    V8ChannelInterpretation::Enum interpretation,
+    ExceptionState& exception_state) {
   DCHECK(IsMainThread());
-  BaseAudioContext::GraphAutoLocker locker(Context());
+  DeferredTaskHandler::GraphAutoLocker locker(Context());
 
   AudioBus::ChannelInterpretation old_mode = channel_interpretation_;
 
-  if (interpretation == "speakers") {
+  if (interpretation == V8ChannelInterpretation::Enum::kSpeakers) {
     new_channel_interpretation_ = AudioBus::kSpeakers;
-  } else if (interpretation == "discrete") {
+  } else if (interpretation == V8ChannelInterpretation::Enum::kDiscrete) {
     new_channel_interpretation_ = AudioBus::kDiscrete;
   } else {
     NOTREACHED();
@@ -315,7 +295,8 @@ void AudioHandler::ProcessIfNecessary(uint32_t frames_to_process) {
 
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("webaudio.audionode"),
                "AudioHandler::ProcessIfNecessary", "this",
-               static_cast<void*>(this), "node type", NodeTypeName().Ascii());
+               reinterpret_cast<void*>(this), "node type",
+               NodeTypeName().Ascii());
 
   // Ensure that we only process once per rendering quantum.
   // This handles the "fanout" problem where an output is connected to multiple
@@ -356,8 +337,9 @@ void AudioHandler::ProcessIfNecessary(uint32_t frames_to_process) {
     }
 
     if (!is_processing_) {
-      SendLogMessage(String::Format("%s => (processing is alive [frames=%u])",
-                                    __func__, frames_to_process));
+      SendLogMessage(__func__,
+                     String::Format("=> (processing is alive [frames=%u])",
+                                    frames_to_process));
       is_processing_ = true;
     }
   }
@@ -397,7 +379,9 @@ bool AudioHandler::InputsAreSilent() {
 
 void AudioHandler::SilenceOutputs() {
   for (auto& output : outputs_) {
-    output->Bus()->Zero();
+    if (output->IsConnectedDuringRendering()) {
+      output->Bus()->Zero();
+    }
   }
 }
 
@@ -573,16 +557,18 @@ void AudioHandler::UpdateChannelInterpretation() {
 unsigned AudioHandler::NumberOfOutputChannels() const {
   // This should only be called for ScriptProcessorNodes which are the only
   // nodes where you can have an output with 0 channels.  All other nodes have
-  // have at least one output channel, so there's no reason other nodes should
+  // at least one output channel, so there's no reason other nodes should
   // ever call this function.
   DCHECK(0) << "numberOfOutputChannels() not valid for node type "
-            << GetNodeType();
+            << NodeTypeName();
   return 1;
 }
 
-void AudioHandler::SendLogMessage(const String& message) {
-  WebRtcLogMessage(String::Format("[WA]AH::%s [type=%s, this=0x%" PRIXPTR "]",
-                                  message.Utf8().c_str(),
+void AudioHandler::SendLogMessage(const char* const function_name,
+                                  const String& message) {
+  WebRtcLogMessage(String::Format("[WA]AH::%s %s [type=%s, this=0x%" PRIXPTR
+                                  "]",
+                                  function_name, message.Utf8().c_str(),
                                   NodeTypeName().Utf8().c_str(),
                                   reinterpret_cast<uintptr_t>(this))
                        .Utf8());

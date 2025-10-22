@@ -56,16 +56,12 @@ bool VideoColorSpace::operator!=(const VideoColorSpace& other) const {
 }
 
 bool VideoColorSpace::IsSpecified() const {
-  if (primaries != PrimaryID::INVALID && primaries != PrimaryID::UNSPECIFIED)
-    return true;
-  if (transfer != TransferID::INVALID && transfer != TransferID::UNSPECIFIED)
-    return true;
-  if (matrix != MatrixID::INVALID && matrix != MatrixID::UNSPECIFIED)
-    return true;
-  // Note that it's not enough to have a range for a video color space to
-  // be considered valid, because often the range is just specified with
-  // a bool, so there is no way to know if it was set specifically or not.
-  return false;
+  return primaries != PrimaryID::INVALID &&
+         primaries != PrimaryID::UNSPECIFIED &&
+         transfer != TransferID::INVALID &&
+         transfer != TransferID::UNSPECIFIED && matrix != MatrixID::INVALID &&
+         matrix != MatrixID::UNSPECIFIED &&
+         range != gfx::ColorSpace::RangeID::INVALID;
 }
 
 gfx::ColorSpace VideoColorSpace::ToGfxColorSpace() const {
@@ -134,6 +130,9 @@ VideoColorSpace VideoColorSpace::FromGfxColorSpace(
     case gfx::ColorSpace::PrimaryID::P3:
       primaries = VideoColorSpace::PrimaryID::SMPTEST432_1;
       break;
+    case gfx::ColorSpace::PrimaryID::EBU_3213_E:
+      primaries = VideoColorSpace::PrimaryID::EBU_3213_E;
+      break;
     default:
       break;
   }
@@ -141,6 +140,7 @@ VideoColorSpace VideoColorSpace::FromGfxColorSpace(
   VideoColorSpace::TransferID transfer = VideoColorSpace::TransferID::INVALID;
   switch (color_space.GetTransferID()) {
     case gfx::ColorSpace::TransferID::BT709:
+    case gfx::ColorSpace::TransferID::BT709_APPLE:
       transfer = VideoColorSpace::TransferID::BT709;
       break;
     case gfx::ColorSpace::TransferID::GAMMA22:
@@ -218,9 +218,6 @@ VideoColorSpace VideoColorSpace::FromGfxColorSpace(
     case gfx::ColorSpace::MatrixID::BT2020_NCL:
       matrix = VideoColorSpace::MatrixID::BT2020_NCL;
       break;
-    case gfx::ColorSpace::MatrixID::BT2020_CL:
-      matrix = VideoColorSpace::MatrixID::BT2020_CL;
-      break;
     case gfx::ColorSpace::MatrixID::YDZDX:
       matrix = VideoColorSpace::MatrixID::YDZDX;
       break;
@@ -288,8 +285,7 @@ gfx::ColorSpace VideoColorSpace::ToGfxColorSpaceInternal(
       primary_id = gfx::ColorSpace::PrimaryID::P3;
       break;
     case PrimaryID::EBU_3213_E:
-      // TODO(uzair.jaleel) Need to check this once.
-      primary_id = gfx::ColorSpace::PrimaryID::INVALID;
+      primary_id = gfx::ColorSpace::PrimaryID::EBU_3213_E;
       break;
     case PrimaryID::INVALID:
     case PrimaryID::UNSPECIFIED:
@@ -384,12 +380,10 @@ gfx::ColorSpace VideoColorSpace::ToGfxColorSpaceInternal(
     case MatrixID::BT2020_NCL:
       matrix_id = gfx::ColorSpace::MatrixID::BT2020_NCL;
       break;
-    case MatrixID::BT2020_CL:
-      matrix_id = gfx::ColorSpace::MatrixID::BT2020_CL;
-      break;
     case MatrixID::YDZDX:
       matrix_id = gfx::ColorSpace::MatrixID::YDZDX;
       break;
+    case MatrixID::BT2020_CL:
     case MatrixID::INVALID:
     case MatrixID::UNSPECIFIED:
       break;

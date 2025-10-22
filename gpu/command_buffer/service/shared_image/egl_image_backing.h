@@ -8,7 +8,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/service/shared_image/gl_common_image_backing_factory.h"
-#include "gpu/command_buffer/service/shared_image/gl_texture_image_backing_helper.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gl/gl_bindings.h"
@@ -30,18 +29,20 @@ struct Mailbox;
 // group. This is achieved by using locks and fences for proper synchronization.
 class EGLImageBacking : public ClearTrackingSharedImageBacking {
  public:
-  EGLImageBacking(const Mailbox& mailbox,
-                  viz::SharedImageFormat format,
-                  const gfx::Size& size,
-                  const gfx::ColorSpace& color_space,
-                  GrSurfaceOrigin surface_origin,
-                  SkAlphaType alpha_type,
-                  uint32_t usage,
-                  size_t estimated_size,
-                  const GLCommonImageBackingFactory::FormatInfo& format_into,
-                  const GpuDriverBugWorkarounds& workarounds,
-                  bool use_passthrough,
-                  base::span<const uint8_t> pixel_data);
+  EGLImageBacking(
+      const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      gpu::SharedImageUsageSet usage,
+      std::string debug_label,
+      size_t estimated_size,
+      const std::vector<GLCommonImageBackingFactory::FormatInfo>& format_into,
+      const GpuDriverBugWorkarounds& workarounds,
+      bool use_passthrough,
+      base::span<const uint8_t> pixel_data);
 
   EGLImageBacking(const EGLImageBacking&) = delete;
   EGLImageBacking& operator=(const EGLImageBacking&) = delete;
@@ -70,9 +71,10 @@ class EGLImageBacking : public ClearTrackingSharedImageBacking {
   std::unique_ptr<DawnImageRepresentation> ProduceDawn(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker,
-      WGPUDevice device,
-      WGPUBackendType backend_type,
-      std::vector<WGPUTextureFormat> view_formats) final;
+      const wgpu::Device& device,
+      wgpu::BackendType backend_type,
+      std::vector<wgpu::TextureFormat> view_formats,
+      scoped_refptr<SharedContextState> context_state) final;
 
  private:
   class TextureHolder;
@@ -92,14 +94,17 @@ class EGLImageBacking : public ClearTrackingSharedImageBacking {
   // Use to create EGLImage texture target from the same EGLImage object.
   // Optional |pixel_data| to initialize a texture with before EGLImage object
   // is created from it.
-  scoped_refptr<TextureHolder> GenEGLImageSibling(
+  gl::ScopedEGLImage GenEGLImageSibling(base::span<const uint8_t> pixel_data,
+                                        std::vector<GLuint>& service_ids,
+                                        int plane);
+  std::vector<scoped_refptr<TextureHolder>> GenEGLImageSiblings(
       base::span<const uint8_t> pixel_data);
 
-  const GLCommonImageBackingFactory::FormatInfo format_info_;
-  scoped_refptr<TextureHolder> source_texture_holder_;
+  const std::vector<GLCommonImageBackingFactory::FormatInfo> format_info_;
+  std::vector<scoped_refptr<TextureHolder>> source_texture_holders_;
   raw_ptr<gl::GLApi> created_on_context_;
 
-  gl::ScopedEGLImage egl_image_ GUARDED_BY(lock_);
+  std::vector<gl::ScopedEGLImage> egl_images_ GUARDED_BY(lock_);
 
   // All reads and writes must wait for exiting writes to complete.
   // TODO(vikassoni): Use SharedGLFenceEGL here instead of GLFenceEGL here in
@@ -114,8 +119,8 @@ class EGLImageBacking : public ClearTrackingSharedImageBacking {
   // signalled.
   base::flat_map<gl::GLApi*, scoped_refptr<gl::SharedGLFenceEGL>> read_fences_
       GUARDED_BY(lock_);
-  base::flat_set<const GLRepresentationShared*> active_readers_
-      GUARDED_BY(lock_);
+  base::flat_set<raw_ptr<const GLRepresentationShared, CtnExperimental>>
+      active_readers_ GUARDED_BY(lock_);
 
   const bool use_passthrough_;
 };

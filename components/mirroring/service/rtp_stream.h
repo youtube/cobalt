@@ -34,7 +34,7 @@ namespace mirroring {
 
 class COMPONENT_EXPORT(MIRRORING_SERVICE) RtpStreamClient {
  public:
-  virtual ~RtpStreamClient() {}
+  virtual ~RtpStreamClient() = default;
 
   // Called when error happened during streaming.
   virtual void OnError(const std::string& message) = 0;
@@ -45,7 +45,6 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) RtpStreamClient {
   // The VEA is necessary for hardware encoding.
   virtual void CreateVideoEncodeAccelerator(
       media::cast::ReceiveVideoEncodeAcceleratorCallback callback) = 0;
-
 };
 
 // Receives video frames and submits the data to media::cast::VideoSender. It
@@ -55,8 +54,12 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) RtpStreamClient {
 // intervals `refresh_interval` apart for a short period of time. This provides
 // the video encoder, downstream, several copies of the last frame so that it
 // may clear up lossy encoding artifacts.
-class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoRtpStream
-    : public base::SupportsWeakPtr<VideoRtpStream> {
+//
+// Note that this mostly calls through to the media::cast::VideoSender, and the
+// refresh frame logic could be factored out into a separate object.
+// TODO(issues.chromium.org/329781397): Remove unnecessary wrapper objects in
+// Chrome's implementation of the Cast sender.
+class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoRtpStream final {
  public:
   VideoRtpStream(std::unique_ptr<media::cast::VideoSender> video_sender,
                  base::WeakPtr<RtpStreamClient> client,
@@ -73,6 +76,10 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoRtpStream
 
   void SetTargetPlayoutDelay(base::TimeDelta playout_delay);
   base::TimeDelta GetTargetPlayoutDelay() const;
+
+  base::WeakPtr<VideoRtpStream> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
  private:
   void OnRefreshTimerFired();
@@ -92,12 +99,19 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoRtpStream
   // cleared once the next frame is received.
   bool expecting_a_refresh_frame_{false};
 
+  base::WeakPtrFactory<VideoRtpStream> weak_ptr_factory_{this};
+
   friend class RtpStreamTest;
 };
 
 // Receives audio data and submits the data to media::cast::AudioSender.
-class COMPONENT_EXPORT(MIRRORING_SERVICE) AudioRtpStream
-    : public base::SupportsWeakPtr<AudioRtpStream> {
+// Note that this mostly calls through to the media::cast::VideoSender, and the
+// refresh frame logic could be factored out into a separate object.
+//
+// NOTE: This is a do-nothing wrapper over the underlying AudioSender.
+// TODO(issues.chromium.org/329781397): Remove unnecessary wrapper objects in
+// Chrome's implementation of the Cast sender.
+class COMPONENT_EXPORT(MIRRORING_SERVICE) AudioRtpStream final {
  public:
   AudioRtpStream(std::unique_ptr<media::cast::AudioSender> audio_sender,
                  base::WeakPtr<RtpStreamClient> client);
@@ -118,9 +132,14 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) AudioRtpStream
   // changing the bitrate in realtime.
   int GetEncoderBitrate() const;
 
+  base::WeakPtr<AudioRtpStream> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   const std::unique_ptr<media::cast::AudioSender> audio_sender_;
   const base::WeakPtr<RtpStreamClient> client_;
+  base::WeakPtrFactory<AudioRtpStream> weak_ptr_factory_{this};
 };
 
 }  // namespace mirroring

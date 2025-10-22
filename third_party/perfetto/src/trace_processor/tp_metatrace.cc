@@ -24,19 +24,20 @@ namespace {
 
 using ProtoEnum = protos::pbzero::MetatraceCategories;
 ProtoEnum MetatraceCategoriesToProtoEnum(MetatraceCategories categories) {
-  switch (categories) {
-    case MetatraceCategories::TOPLEVEL:
-      return ProtoEnum::TOPLEVEL;
-    case MetatraceCategories::FUNCTION:
-      return ProtoEnum::FUNCTION;
-    case MetatraceCategories::QUERY:
-      return ProtoEnum::QUERY;
-    case MetatraceCategories::ALL:
-      return ProtoEnum::ALL;
-    case MetatraceCategories::NONE:
-      return ProtoEnum::NONE;
-  }
-  return ProtoEnum::NONE;
+  // Note: these are intentionally chained ifs and not else-ifs as it's possible
+  // for multiple of these if statements to be true.
+  ProtoEnum result = ProtoEnum::NONE;
+  if (categories & MetatraceCategories::QUERY_TIMELINE)
+    result = static_cast<ProtoEnum>(result | ProtoEnum::QUERY_TIMELINE);
+  if (categories & MetatraceCategories::FUNCTION_CALL)
+    result = static_cast<ProtoEnum>(result | ProtoEnum::FUNCTION_CALL);
+  if (categories & MetatraceCategories::QUERY_DETAILED)
+    result = static_cast<ProtoEnum>(result | ProtoEnum::QUERY_DETAILED);
+  if (categories & MetatraceCategories::DB)
+    result = static_cast<ProtoEnum>(result | ProtoEnum::DB);
+  if (categories & MetatraceCategories::API_TIMELINE)
+    result = static_cast<ProtoEnum>(result | ProtoEnum::API_TIMELINE);
+  return result;
 }
 
 }  // namespace
@@ -82,11 +83,11 @@ void RingBuffer::ReadAll(std::function<void(Record*)> fn) {
   uint64_t end = write_idx_;
 
   // Increment the write index by kCapacity + 1. This ensures that if
-  // ScopedEntry is destoryed in |fn| below, we won't get overwrites
+  // ScopedEntry is destroyed in |fn| below, we won't get overwrites
   // while reading the buffer.
   // This works because of the logic in ~ScopedEntry and
   // RingBuffer::HasOverwritten which ensures that we don't overwrite entries
-  // more than kCapcity elements in the past.
+  // more than kCapacity elements in the past.
   write_idx_ += data_.size() + 1;
 
   for (uint64_t i = start; i < end; ++i) {

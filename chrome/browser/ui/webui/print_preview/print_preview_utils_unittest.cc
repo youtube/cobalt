@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/webui/print_preview/print_preview_utils.h"
+
 #include <memory>
+#include <string_view>
 
 #include "base/strings/string_number_conversions.h"
 #include "base/test/values_test_util.h"
-#include "chrome/browser/ui/webui/print_preview/print_preview_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -20,6 +22,10 @@ const char kDpi[] = "dpi";
 const char kHorizontalDpi[] = "horizontal_dpi";
 const char kId[] = "id";
 const char kIsDefault[] = "is_default";
+const char kMediaHeight[] = "height_microns";
+const char kMediaIsContinuousFeed[] = "is_continuous_feed";
+const char kMediaSizeKey[] = "media_size";
+const char kMediaWidth[] = "width_microns";
 const char kMediaSizes[] = "media_sizes";
 const char kPagesPerSheet[] = "Pages per sheet";
 const char kPaperType[] = "Paper Type";
@@ -58,8 +64,9 @@ base::Value::Dict GetCapabilitiesFull() {
     base::Value::Dict option;
     option.Set(kDisplayName, base::NumberToString(i));
     option.Set(kValue, i);
-    if (i == 1)
+    if (i == 1) {
       option.Set(kIsDefault, true);
+    }
     pages_per_sheet.Append(std::move(option));
   }
   base::Value::Dict pages_per_sheet_option;
@@ -101,8 +108,9 @@ base::Value::Dict* GetVendorCapabilityAtIndex(base::Value::Dict& printer,
                                               size_t index) {
   base::Value::List* vendor_capabilities_list =
       printer.FindList(kVendorCapability);
-  if (!vendor_capabilities_list || index >= vendor_capabilities_list->size())
+  if (!vendor_capabilities_list || index >= vendor_capabilities_list->size()) {
     return nullptr;
+  }
 
   auto& ret = (*vendor_capabilities_list)[index];
   return ret.is_dict() ? &ret.GetDict() : nullptr;
@@ -120,7 +128,7 @@ bool HasValidEntry(const base::Value::List* list) {
 
 void CompareStringKeys(const base::Value::Dict& expected,
                        const base::Value::Dict& actual,
-                       base::StringPiece key) {
+                       std::string_view key) {
   EXPECT_EQ(*expected.FindString(key), *actual.FindString(key));
 }
 
@@ -163,7 +171,7 @@ void ValidateDpi(const base::Value::Dict* printer_out,
 }
 
 void ValidateCollate(const base::Value::Dict* printer_out) {
-  absl::optional<bool> collate_out = printer_out->FindBool(kCollate);
+  std::optional<bool> collate_out = printer_out->FindBool(kCollate);
   ASSERT_TRUE(collate_out.has_value());
   EXPECT_TRUE(collate_out.value());
 }
@@ -224,12 +232,24 @@ void ValidatePrinter(const base::Value::Dict& cdd_out,
 bool GetDpiResetToDefault(base::Value::Dict cdd) {
   const base::Value::Dict* printer = cdd.FindDict(kPrinter);
   const base::Value::Dict* dpi = printer->FindDict(kDpi);
-  absl::optional<bool> reset_to_default = dpi->FindBool(kResetToDefault);
+  std::optional<bool> reset_to_default = dpi->FindBool(kResetToDefault);
   if (!reset_to_default.has_value()) {
     ADD_FAILURE();
     return false;
   }
   return reset_to_default.value();
+}
+
+// Returns a CDD with the media size options populated with `options`.
+base::Value::Dict CreateCddWithMediaOptions(base::Value::List options) {
+  base::Value::Dict media_size;
+  media_size.Set(kOptionKey, std::move(options));
+  base::Value::Dict printer;
+  printer.Set(kMediaSizeKey, std::move(media_size));
+  base::Value::Dict cdd;
+  cdd.Set(kPrinter, std::move(printer));
+
+  return cdd;
 }
 
 }  // namespace
@@ -363,8 +383,9 @@ TEST_F(PrintPreviewUtilsTest, FilterBadVendorCapabilityOneElement) {
     base::Value::Dict option;
     option.Set(kDisplayName, base::NumberToString(i));
     option.Set(kValue, i);
-    if (i == 1)
+    if (i == 1) {
       option.Set(kIsDefault, true);
+    }
     pages_per_sheet.Append(std::move(option));
   }
   vendor_dict->Set(kOptionKey, std::move(pages_per_sheet));
@@ -493,6 +514,71 @@ TEST_F(PrintPreviewUtilsTest, ExistingValidDpiCapabilityDoesNotChange) {
   cdd.Set(kPrinter, printer.Clone());
   auto cdd_out = ValidateCddForPrintPreview(std::move(cdd));
   ValidatePrinter(UpdateCddWithDpiIfMissing(std::move(cdd_out)), printer);
+}
+
+TEST_F(PrintPreviewUtilsTest, FilterMediaSizesNoContinuousFeed) {
+  base::Value::Dict media_1;
+  media_1.Set(kMediaWidth, 100);
+  media_1.Set(kMediaHeight, 200);
+  base::Value::Dict media_2;
+  media_2.Set(kMediaWidth, 300);
+  media_2.Set(kMediaHeight, 400);
+  base::Value::List option_list;
+  option_list.Append(std::move(media_1));
+  option_list.Append(std::move(media_2));
+
+  base::Value::List expected_list = option_list.Clone();
+
+  base::Value::Dict cdd = CreateCddWithMediaOptions(std::move(option_list));
+
+  FilterContinuousFeedMediaSizes(cdd);
+
+  const base::Value::List* options = GetMediaSizeOptionsFromCdd(cdd);
+  ASSERT_TRUE(options);
+  EXPECT_EQ(expected_list, *options);
+}
+
+TEST_F(PrintPreviewUtilsTest, FilterMediaSizesWithContinuousFeed) {
+  base::Value::Dict media_1;
+  media_1.Set(kMediaWidth, 100);
+  media_1.Set(kMediaHeight, 200);
+  base::Value::Dict media_2;
+  media_2.Set(kMediaWidth, 300);
+  media_2.Set(kMediaIsContinuousFeed, true);
+  base::Value::List option_list;
+  option_list.Append(media_1.Clone());
+  option_list.Append(std::move(media_2));
+
+  base::Value::List expected_list;
+  expected_list.Append(std::move(media_1));
+
+  base::Value::Dict cdd = CreateCddWithMediaOptions(std::move(option_list));
+
+  FilterContinuousFeedMediaSizes(cdd);
+
+  const base::Value::List* options = GetMediaSizeOptionsFromCdd(cdd);
+  ASSERT_TRUE(options);
+  EXPECT_EQ(expected_list, *options);
+}
+
+TEST_F(PrintPreviewUtilsTest, FilterMediaSizesAllContinuousFeed) {
+  base::Value::Dict media_1;
+  media_1.Set(kMediaWidth, 100);
+  media_1.Set(kMediaIsContinuousFeed, true);
+  base::Value::Dict media_2;
+  media_2.Set(kMediaWidth, 300);
+  media_2.Set(kMediaIsContinuousFeed, true);
+  base::Value::List option_list;
+  option_list.Append(std::move(media_1));
+  option_list.Append(std::move(media_2));
+
+  base::Value::Dict cdd = CreateCddWithMediaOptions(std::move(option_list));
+
+  FilterContinuousFeedMediaSizes(cdd);
+
+  const base::Value::List* options = GetMediaSizeOptionsFromCdd(cdd);
+  ASSERT_TRUE(options);
+  EXPECT_TRUE(options->empty());
 }
 
 }  // namespace printing

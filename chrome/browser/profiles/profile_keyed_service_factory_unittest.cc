@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
-#include "chrome/browser/profiles/refcounted_profile_keyed_service_factory.h"
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_testing_helper.h"
+#include "chrome/browser/profiles/refcounted_profile_keyed_service_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // This unittest file contains both tests for `ProfileKeyedServiceFactory` and
@@ -32,10 +32,9 @@ class ProfileKeyedServiceFactoryTest : public ProfileKeyedServiceFactory {
 
  protected:
   // Implementation is not for testing.
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override {
     NOTREACHED();
-    return nullptr;
   }
 };
 
@@ -60,31 +59,14 @@ class RefcountedProfileKeyedServiceFactoryTest
   scoped_refptr<RefcountedKeyedService> BuildServiceInstanceFor(
       content::BrowserContext* context) const override {
     NOTREACHED();
-    return nullptr;
   }
 };
 
-// Param:
-// - bool system_experiment: used to activate/deactivate the
-// `kSystemProfileSelectionDefaultNone` experiment.
-class ProfileKeyedServiceFactoryUnittest
-    : public testing::Test,
-      public ::testing::WithParamInterface<bool> {
+class ProfileKeyedServiceFactoryUnittest : public testing::Test {
  public:
   void SetUp() override {
     testing::Test::SetUp();
     profile_testing_helper_.SetUp();
-
-    // TODO(rsult): move the below code to be in the
-    // `ProfileSelectionsTestWithParams` constructor, once the System and Guest
-    // Profiles can be created with the experiment activated.
-    bool activate_system_experiment = GetParam();
-    std::vector<base::test::FeatureRef> enabled_features;
-    std::vector<base::test::FeatureRef> disabled_features;
-    activate_system_experiment
-        ? enabled_features.push_back(kSystemProfileSelectionDefaultNone)
-        : disabled_features.push_back(kSystemProfileSelectionDefaultNone);
-    feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
  protected:
@@ -94,10 +76,6 @@ class ProfileKeyedServiceFactoryUnittest
                         Profile* expected_profile) {
     EXPECT_EQ(factory.GetProfileToUseForTesting(given_profile),
               expected_profile);
-  }
-
-  bool IsSystemExperimentActive() const {
-    return base::FeatureList::IsEnabled(kSystemProfileSelectionDefaultNone);
   }
 
   TestingProfile* regular_profile() {
@@ -114,14 +92,32 @@ class ProfileKeyedServiceFactoryUnittest
     return profile_testing_helper_.guest_profile_otr();
   }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
   TestingProfile* system_profile() {
     return profile_testing_helper_.system_profile();
   }
   Profile* system_profile_otr() {
     return profile_testing_helper_.system_profile_otr();
   }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  TestingProfile* signin_profile() {
+    return profile_testing_helper_.signin_profile();
+  }
+
+  Profile* signin_profile_otr() {
+    return profile_testing_helper_.signin_profile_otr();
+  }
+
+  TestingProfile* lockscreen_profile() {
+    return profile_testing_helper_.lockscreen_profile();
+  }
+
+  Profile* lockscreen_profile_otr() {
+    return profile_testing_helper_.lockscreen_profile_otr();
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
  private:
   ProfileTestingHelper profile_testing_helper_;
@@ -134,7 +130,7 @@ class DefaultFactoryTest : public ProfileKeyedServiceFactoryTest {
   DefaultFactoryTest() : ProfileKeyedServiceFactoryTest("DefaultFactory") {}
 };
 
-TEST_P(ProfileKeyedServiceFactoryUnittest, DefaultFactoryTest) {
+TEST_F(ProfileKeyedServiceFactoryUnittest, DefaultFactoryTest) {
   DefaultFactoryTest factory;
   TestProfileToUse(factory, regular_profile(), regular_profile());
   TestProfileToUse(factory, incognito_profile(), nullptr);
@@ -142,60 +138,51 @@ TEST_P(ProfileKeyedServiceFactoryUnittest, DefaultFactoryTest) {
   TestProfileToUse(factory, guest_profile(), nullptr);
   TestProfileToUse(factory, guest_profile_otr(), nullptr);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-  bool system_experiment = IsSystemExperimentActive();
-  TestProfileToUse(factory, system_profile(),
-                   system_experiment ? nullptr : system_profile());
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+  TestProfileToUse(factory, system_profile(), nullptr);
   TestProfileToUse(factory, system_profile_otr(), nullptr);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  TestProfileToUse(factory, signin_profile(), nullptr);
+  TestProfileToUse(factory, signin_profile_otr(), nullptr);
+
+  TestProfileToUse(factory, lockscreen_profile(), nullptr);
+  TestProfileToUse(factory, lockscreen_profile_otr(), nullptr);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 // Factory using predefined `ProfileSelections` built
 class PredefinedProfileSelectionsFactoryTest
     : public ProfileKeyedServiceFactoryTest {
  public:
-  // Simulates the normal default value for Guest Profile. Guest Profile will
-  // then follow the behavior of the Regular Profile.
-  explicit PredefinedProfileSelectionsFactoryTest(bool force_guest = true)
+  PredefinedProfileSelectionsFactoryTest()
       : ProfileKeyedServiceFactoryTest(
             "PredefinedProfileSelectionsFactoryTest",
-            ProfileSelections::BuildRedirectedInIncognito(force_guest)) {}
+            ProfileSelections::BuildRedirectedInIncognito()) {}
 };
 
-TEST_P(ProfileKeyedServiceFactoryUnittest,
+TEST_F(ProfileKeyedServiceFactoryUnittest,
        PredefinedProfileSelectionsFactoryTest) {
   PredefinedProfileSelectionsFactoryTest factory;
-  TestProfileToUse(factory, regular_profile(), regular_profile());
-  TestProfileToUse(factory, incognito_profile(), regular_profile());
-
-  TestProfileToUse(factory, guest_profile(), guest_profile());
-  TestProfileToUse(factory, guest_profile_otr(), guest_profile());
-
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-  bool system_experiment = IsSystemExperimentActive();
-  TestProfileToUse(factory, system_profile(),
-                   system_experiment ? nullptr : system_profile());
-  TestProfileToUse(factory, system_profile_otr(),
-                   system_experiment ? nullptr : system_profile());
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-}
-
-TEST_P(ProfileKeyedServiceFactoryUnittest,
-       PredefinedProfileSelectionsFactoryTest_WithForceGuestFalse) {
-  PredefinedProfileSelectionsFactoryTest factory(/*force_guest=*/false);
   TestProfileToUse(factory, regular_profile(), regular_profile());
   TestProfileToUse(factory, incognito_profile(), regular_profile());
 
   TestProfileToUse(factory, guest_profile(), nullptr);
   TestProfileToUse(factory, guest_profile_otr(), nullptr);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-  bool system_experiment = IsSystemExperimentActive();
-  TestProfileToUse(factory, system_profile(),
-                   system_experiment ? nullptr : system_profile());
-  TestProfileToUse(factory, system_profile_otr(),
-                   system_experiment ? nullptr : system_profile());
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+  TestProfileToUse(factory, system_profile(), nullptr);
+  TestProfileToUse(factory, system_profile_otr(), nullptr);
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  TestProfileToUse(factory, signin_profile(), nullptr);
+  TestProfileToUse(factory, signin_profile_otr(), nullptr);
+
+  TestProfileToUse(factory, lockscreen_profile(), nullptr);
+  TestProfileToUse(factory, lockscreen_profile_otr(), nullptr);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 // Factory using customized `ProfileSelections` using
@@ -210,10 +197,11 @@ class CustomizedProfileSelectionsFactoryTest
                 .WithRegular(ProfileSelection::kOriginalOnly)
                 .WithGuest(ProfileSelection::kOffTheRecordOnly)
                 .WithSystem(ProfileSelection::kNone)
+                .WithAshInternals(ProfileSelection::kOwnInstance)
                 .Build()) {}
 };
 
-TEST_P(ProfileKeyedServiceFactoryUnittest,
+TEST_F(ProfileKeyedServiceFactoryUnittest,
        CustomizedProfileSelectionsFactoryTest) {
   CustomizedProfileSelectionsFactoryTest factory;
   TestProfileToUse(factory, regular_profile(), regular_profile());
@@ -222,10 +210,18 @@ TEST_P(ProfileKeyedServiceFactoryUnittest,
   TestProfileToUse(factory, guest_profile(), nullptr);
   TestProfileToUse(factory, guest_profile_otr(), guest_profile_otr());
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
   TestProfileToUse(factory, system_profile(), nullptr);
   TestProfileToUse(factory, system_profile_otr(), nullptr);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  TestProfileToUse(factory, signin_profile(), signin_profile());
+  TestProfileToUse(factory, signin_profile_otr(), signin_profile_otr());
+
+  TestProfileToUse(factory, lockscreen_profile(), lockscreen_profile());
+  TestProfileToUse(factory, lockscreen_profile_otr(), lockscreen_profile_otr());
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 // Factory using default `ProfileKeyedServiceFactory` constructor
@@ -237,7 +233,7 @@ class DefaultRefcountedFactoryTest
             "DefaultRefcountedFactoryTest") {}
 };
 
-TEST_P(ProfileKeyedServiceFactoryUnittest, DefaultRefcountedFactoryTest) {
+TEST_F(ProfileKeyedServiceFactoryUnittest, DefaultRefcountedFactoryTest) {
   DefaultRefcountedFactoryTest factory;
   TestProfileToUse(factory, regular_profile(), regular_profile());
   TestProfileToUse(factory, incognito_profile(), nullptr);
@@ -245,42 +241,54 @@ TEST_P(ProfileKeyedServiceFactoryUnittest, DefaultRefcountedFactoryTest) {
   TestProfileToUse(factory, guest_profile(), nullptr);
   TestProfileToUse(factory, guest_profile_otr(), nullptr);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-  bool system_experiment = IsSystemExperimentActive();
-  TestProfileToUse(factory, system_profile(),
-                   system_experiment ? nullptr : system_profile());
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+  TestProfileToUse(factory, system_profile(), nullptr);
   TestProfileToUse(factory, system_profile_otr(), nullptr);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  TestProfileToUse(factory, signin_profile(), nullptr);
+  TestProfileToUse(factory, signin_profile_otr(), nullptr);
+
+  TestProfileToUse(factory, lockscreen_profile(), nullptr);
+  TestProfileToUse(factory, lockscreen_profile_otr(), nullptr);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
-// Factory using predefined `ProfileSelections` built
-class PredefinedRefcountedProfileSelectionsFactoryTest
+// Factory using customized `ProfileSelections` built
+class CustomizedRefcountedProfileSelectionsFactoryTest
     : public RefcountedProfileKeyedServiceFactoryTest {
  public:
-  PredefinedRefcountedProfileSelectionsFactoryTest()
+  CustomizedRefcountedProfileSelectionsFactoryTest()
       : RefcountedProfileKeyedServiceFactoryTest(
             "PredefinedRefcountedProfileSelectionsFactoryTest",
-            ProfileSelections::BuildForRegularAndIncognito()) {}
+            ProfileSelections::Builder()
+                .WithRegular(ProfileSelection::kOwnInstance)
+                .WithGuest(ProfileSelection::kNone)
+                .WithSystem(ProfileSelection::kNone)
+                .WithAshInternals(ProfileSelection::kOffTheRecordOnly)
+                .Build()) {}
 };
 
-TEST_P(ProfileKeyedServiceFactoryUnittest,
-       PredefinedRefcountedProfileSelectionsFactoryTest) {
-  PredefinedRefcountedProfileSelectionsFactoryTest factory;
+TEST_F(ProfileKeyedServiceFactoryUnittest,
+       CustomizedRefcountedProfileSelectionsFactoryTest) {
+  CustomizedRefcountedProfileSelectionsFactoryTest factory;
   TestProfileToUse(factory, regular_profile(), regular_profile());
   TestProfileToUse(factory, incognito_profile(), incognito_profile());
 
-  TestProfileToUse(factory, guest_profile(), guest_profile());
-  TestProfileToUse(factory, guest_profile_otr(), guest_profile_otr());
+  TestProfileToUse(factory, guest_profile(), nullptr);
+  TestProfileToUse(factory, guest_profile_otr(), nullptr);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-  bool system_experiment = IsSystemExperimentActive();
-  TestProfileToUse(factory, system_profile(),
-                   system_experiment ? nullptr : system_profile());
-  TestProfileToUse(factory, system_profile_otr(),
-                   system_experiment ? nullptr : system_profile_otr());
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+  TestProfileToUse(factory, system_profile(), nullptr);
+  TestProfileToUse(factory, system_profile_otr(), nullptr);
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  TestProfileToUse(factory, signin_profile(), nullptr);
+  TestProfileToUse(factory, signin_profile_otr(), signin_profile_otr());
+
+  TestProfileToUse(factory, lockscreen_profile(), nullptr);
+  TestProfileToUse(factory, lockscreen_profile_otr(), lockscreen_profile_otr());
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
-
-INSTANTIATE_TEST_SUITE_P(ExperimentalProfileKeyedServiceFactory,
-                         ProfileKeyedServiceFactoryUnittest,
-                         ::testing::Bool());

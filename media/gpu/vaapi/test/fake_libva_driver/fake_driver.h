@@ -7,10 +7,13 @@
 
 #include <va/va.h>
 
+#include "media/gpu/vaapi/test/fake_libva_driver/fake_buffer.h"
 #include "media/gpu/vaapi/test/fake_libva_driver/fake_config.h"
 #include "media/gpu/vaapi/test/fake_libva_driver/fake_context.h"
+#include "media/gpu/vaapi/test/fake_libva_driver/fake_image.h"
 #include "media/gpu/vaapi/test/fake_libva_driver/fake_surface.h"
 #include "media/gpu/vaapi/test/fake_libva_driver/object_tracker.h"
+#include "media/gpu/vaapi/test/fake_libva_driver/scoped_bo_mapping_factory.h"
 
 namespace media::internal {
 
@@ -19,7 +22,10 @@ namespace media::internal {
 // thread-safe.
 class FakeDriver {
  public:
-  FakeDriver();
+  // FakeDriver doesn't dup() or close() |drm_fd|, i.e., it's expected that the
+  // driver's user maintains the FD valid at least until after vaTerminate()
+  // returns.
+  explicit FakeDriver(int drm_fd);
   FakeDriver(const FakeDriver&) = delete;
   FakeDriver& operator=(const FakeDriver&) = delete;
   ~FakeDriver();
@@ -48,10 +54,37 @@ class FakeDriver {
   const FakeContext& GetContext(FakeContext::IdType id);
   void DestroyContext(FakeContext::IdType id);
 
+  FakeBuffer::IdType CreateBuffer(VAContextID context,
+                                  VABufferType type,
+                                  unsigned int size_per_element,
+                                  unsigned int num_elements,
+                                  const void* data);
+  bool BufferExists(FakeBuffer::IdType id);
+  const FakeBuffer& GetBuffer(FakeBuffer::IdType id);
+  void DestroyBuffer(FakeBuffer::IdType id);
+
+  void CreateImage(const VAImageFormat& format,
+                   int width,
+                   int height,
+                   VAImage* va_image);
+  bool ImageExists(FakeImage::IdType id);
+  const FakeImage& GetImage(FakeImage::IdType id);
+  void DestroyImage(FakeImage::IdType id);
+
  private:
+  // |scoped_bo_mapping_factory_| is used by FakeSurface to map BOs. It needs
+  // to be declared before |surface_| since we pass a reference to
+  // |scoped_bo_mapping_factory_| when creating a FakeSurface. Therefore,
+  // |scoped_bo_mapping_factory_| should outlive all FakeSurface instances.
+  ScopedBOMappingFactory scoped_bo_mapping_factory_;
   ObjectTracker<FakeConfig> config_;
   ObjectTracker<FakeSurface> surface_;
   ObjectTracker<FakeContext> context_;
+  ObjectTracker<FakeBuffer> buffers_;
+
+  // The FakeImage instances in |images_| reference FakeBuffer instances in
+  // |buffers_|, so the latter should outlive the former.
+  ObjectTracker<FakeImage> images_;
 };
 
 }  // namespace media::internal

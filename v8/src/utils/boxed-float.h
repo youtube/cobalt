@@ -6,7 +6,10 @@
 #define V8_UTILS_BOXED_FLOAT_H_
 
 #include <cmath>
+
+#include "src/base/hashing.h"
 #include "src/base/macros.h"
+#include "src/base/numbers/double.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -72,9 +75,14 @@ class Float64 {
     DCHECK(!std::isnan(value));
   }
 
+  explicit Float64(base::Double value) : bit_pattern_(value.AsUint64()) {}
+
   uint64_t get_bits() const { return bit_pattern_; }
   double get_scalar() const { return base::bit_cast<double>(bit_pattern_); }
   bool is_hole_nan() const { return bit_pattern_ == kHoleNanInt64; }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  bool is_undefined_nan() const { return bit_pattern_ == kUndefinedNanInt64; }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   bool is_nan() const {
     // Even though {get_scalar()} might flip the quiet NaN bit, it's ok here,
     // because this does not change the is_nan property.
@@ -87,6 +95,18 @@ class Float64 {
 
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
 
+  // Unlike doubles, equality is defined as equally behaving as far as the
+  // optimizers are concerned. I.e., two NaN's are equal as long as they are
+  // both the hole nor not.
+  bool operator==(const Float64& other) const {
+    if (is_nan() && other.is_nan()) {
+      return is_hole_nan() == other.is_hole_nan();
+    }
+    return get_scalar() == other.get_scalar();
+  }
+
+  friend size_t hash_value(internal::Float64 f64) { return f64.bit_pattern_; }
+
  private:
   uint64_t bit_pattern_ = 0;
 
@@ -97,6 +117,15 @@ class Float64 {
 ASSERT_TRIVIALLY_COPYABLE(Float64);
 
 }  // namespace internal
+
+namespace base {
+
+inline size_t hash_value(const i::Float64& f64) {
+  return f64.is_nan() ? hash_value(f64.is_hole_nan())
+                      : hash_value(f64.get_bits());
+}
+
+}  // namespace base
 }  // namespace v8
 
 #endif  // V8_UTILS_BOXED_FLOAT_H_

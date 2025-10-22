@@ -20,7 +20,11 @@ class MockResourceFactory final : public NonTextResourceFactory {
 
   Resource* Create(const ResourceRequest& request,
                    const ResourceLoaderOptions& options) const override {
-    return MakeGarbageCollected<MockResource>(request, options);
+    Resource* resource = MakeGarbageCollected<MockResource>(request, options);
+    if ((request.GetKnownTransparentPlaceholderImageIndex() != kNotFound)) {
+      resource->SetStatus(ResourceStatus::kCached);
+    }
+    return resource;
   }
 };
 

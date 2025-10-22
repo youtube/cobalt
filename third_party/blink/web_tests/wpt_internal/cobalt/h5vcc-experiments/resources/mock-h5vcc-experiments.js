@@ -16,9 +16,6 @@ class MockH5vccExperiments {
     this.called_set_experiment_state_ = false;
   }
 
-  STUB_KEY_ACTIVE_CONFIG_DATA = "activeConfigData";
-  STUB_KEY_CONFIG_CONFIG_HASH = 'latestConfigHash';
-
   start() {
     this.interceptor_.start();
   }
@@ -30,7 +27,6 @@ class MockH5vccExperiments {
   reset() {
     this.called_reset_experiment_state_ = false;
     this.called_set_experiment_state_ = false;
-    this.called_set_latest_experiment_config_hash_data = false;
     this.stub_result_ = new Map();
     this.experiment_ids_ = [];
     this.receiver_.$.close();
@@ -40,26 +36,18 @@ class MockH5vccExperiments {
     this.receiver_.$.bindHandle(handle);
   }
 
-  stubActiveConfigData(config_data) {
-    this.stubResult(this.STUB_KEY_ACTIVE_CONFIG_DATA, config_data);
-  }
-
-  stubConfigHashData(hash_data) {
-    this.stubResult(this.STUB_KEY_CONFIG_CONFIG_HASH, hash_data);
-    this.called_set_latest_experiment_config_hash_data = true;
-  }
-
   // Added for stubbing getFeature() and getFeatureParam() result in tests.
   stubResult(key, value) {
     this.stub_result_.set(key, value);
   }
 
-  async getActiveExperimentConfigData() {
-    return this.stub_result_.get(this.STUB_KEY_ACTIVE_CONFIG_DATA);
+  getActiveExperimentIds() {
+    throw new Error('Sync methods not supported in MojoJS (b/406809316');
   }
 
-  getConfigHash() {
-    return this.STUB_KEY_CONFIG_CONFIG_HASH;
+  // Added for verifying setExperimentState result in tests.
+  getExperimentIds() {
+    return this.experiment_ids_;
   }
 
   getFeature(feature_name) {
@@ -70,13 +58,8 @@ class MockH5vccExperiments {
     throw new Error('Sync methods not supported in MojoJS (b/406809316');
   }
 
-  // Helper function to get stubbed feature state.
-  getStubResult(key) {
-    return this.stub_result_.get(key);
-  }
-
-  async getLatestExperimentConfigHashData() {
-    return this.stub_result_.get(this.STUB_KEY_CONFIG_CONFIG_HASH);
+  getFeatureState(feature_name) {
+    return this.stub_result_.get(feature_name);
   }
 
   hasCalledResetExperimentState() {
@@ -85,10 +68,6 @@ class MockH5vccExperiments {
 
   hasCalledSetExperimentState() {
     return this.called_set_experiment_state_;
-  }
-
-  hasCalledSetLatestExperimentConfigHashData() {
-    return this.called_set_latest_experiment_config_hash_data;
   }
 
   async resetExperimentState() {
@@ -124,41 +103,25 @@ class MockH5vccExperiments {
       }
     }
 
-    // Process active experiment config data.
-    const config_data = root_storage['experiment_config.active_experiment_config_data']?.stringValue?.storage;
-    if (config_data) {
-      this.stubActiveConfigData(config_data);
-    }
-
-    // Process latest experiment config hash data.
-    const config_hash = root_storage['experiment_config.latest_experiment_config_hash_data']?.stringValue?.storage;
-    if (config_hash) {
-      this.stubConfigHashData(config_hash);
+    // Process Experiment IDs
+    const ids_container = root_storage['experiment_config.exp_ids']?.listValue?.storage;
+    if (ids_container) {
+      const id_list = [];
+      for (const id_key of Object.keys(ids_container)) {
+        const id_object = ids_container[id_key];
+        // Mojom often stores numbers as strings.
+        const value = id_object?.stringValue ?? id_object?.intValue;
+        if (value !== undefined) {
+          // Convert to number for consistency with the test.
+          id_list.push(Number(value));
+        }
+      }
+      this.experiment_ids_ = id_list;
     }
 
     this.called_set_experiment_state_ = true;
     return;
   }
-
-  async setFinchParameters(settings) {
-    const root_storage = settings.storage;
-    if (!root_storage) {
-      return;
-    }
-
-    for (const key of Object.keys(root_storage)) {
-      const value_obj = root_storage[key];
-      const value = value_obj?.stringValue ?? value_obj?.boolValue ?? value_obj?.intValue;
-      this.stubResult(key, value);
-    }
-    return;
-  }
-
-  async setLatestExperimentConfigHashData(config_hash) {
-    this.stubConfigHashData(config_hash);
-    return;
-  }
 }
-
 
 export const mockH5vccExperiments = new MockH5vccExperiments();

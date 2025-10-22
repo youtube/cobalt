@@ -60,7 +60,6 @@ static ClientNavigationReason ToReason(
       break;
   }
   NOTREACHED();
-  return ClientNavigationReason::kMetaTagRefresh;
 }
 
 HttpRefreshScheduler::HttpRefreshScheduler(Document* document)
@@ -105,7 +104,7 @@ void HttpRefreshScheduler::NavigateTask() {
   FrameLoadRequest request(document_->domWindow(),
                            ResourceRequest(refresh->url));
   request.SetInputStartTime(refresh->input_timestamp);
-  request.SetClientRedirectReason(refresh->reason);
+  request.SetClientNavigationReason(refresh->reason);
 
   WebFrameLoadType load_type = WebFrameLoadType::kStandard;
   // If the urls match, process the refresh as a reload. However, if an initial

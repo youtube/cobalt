@@ -4,44 +4,45 @@
 
 #include "components/autofill/core/browser/payments/payments_util.h"
 
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
-#include "components/autofill/core/browser/payments/payments_customer_data.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
+#include <algorithm>
+#include <string_view>
 
-namespace autofill {
-namespace payments {
+#include "base/check_op.h"
+#include "base/strings/string_number_conversions.h"
+#include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
+#include "components/autofill/core/browser/payments/payments_customer_data.h"
+#include "components/autofill/core/common/credit_card_number_validation.h"
+
+namespace autofill::payments {
 
 namespace {
 constexpr int kCustomerHasNoBillingCustomerNumber = 0;
 }
 
-int64_t GetBillingCustomerId(PersonalDataManager* personal_data_manager) {
-  DCHECK(personal_data_manager);
-
+int64_t GetBillingCustomerId(const PaymentsDataManager& payments_data_manager) {
   // Get billing customer ID from the synced PaymentsCustomerData.
-  PaymentsCustomerData* customer_data =
-      personal_data_manager->GetPaymentsCustomerData();
+  const PaymentsCustomerData* const customer_data =
+      payments_data_manager.GetPaymentsCustomerData();
   if (customer_data && !customer_data->customer_id.empty()) {
     int64_t billing_customer_id = 0;
-    if (base::StringToInt64(base::StringPiece(customer_data->customer_id),
-                            &billing_customer_id)) {
+    if (base::StringToInt64(customer_data->customer_id, &billing_customer_id)) {
       return billing_customer_id;
     }
   }
   return kCustomerHasNoBillingCustomerNumber;
 }
 
-bool HasGooglePaymentsAccount(PersonalDataManager* personal_data_manager) {
-  return GetBillingCustomerId(personal_data_manager) !=
+bool HasGooglePaymentsAccount(
+    const PaymentsDataManager& payments_data_manager) {
+  return GetBillingCustomerId(payments_data_manager) !=
          kCustomerHasNoBillingCustomerNumber;
 }
 
 bool IsCreditCardNumberSupported(
     const std::u16string& card_number,
     const std::vector<std::pair<int, int>>& supported_card_bin_ranges) {
-  std::u16string stripped_number = CreditCard::StripSeparators(card_number);
-  return base::ranges::any_of(supported_card_bin_ranges, [&](const auto& p) {
+  std::u16string stripped_number = StripCardNumberSeparators(card_number);
+  return std::ranges::any_of(supported_card_bin_ranges, [&](const auto& p) {
     auto& [bin_low, bin_high] = p;
     unsigned long range_num_of_digits = base::NumberToString(bin_low).size();
     DCHECK_EQ(range_num_of_digits, base::NumberToString(bin_high).size());
@@ -56,5 +57,4 @@ bool IsCreditCardNumberSupported(
   });
 }
 
-}  // namespace payments
-}  // namespace autofill
+}  // namespace autofill::payments

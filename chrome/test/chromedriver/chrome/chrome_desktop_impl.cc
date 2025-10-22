@@ -23,6 +23,7 @@
 #include "chrome/test/chromedriver/chrome/devtools_event_listener.h"
 #include "chrome/test/chromedriver/chrome/devtools_http_client.h"
 #include "chrome/test/chromedriver/chrome/status.h"
+#include "chrome/test/chromedriver/chrome/target_utils.h"
 #include "chrome/test/chromedriver/chrome/web_view_impl.h"
 #include "chrome/test/chromedriver/constants/version.h"
 #include "chrome/test/chromedriver/net/timeout.h"
@@ -39,9 +40,9 @@ namespace {
 // Enables wifi and data only, not airplane mode.
 const int kDefaultConnectionType = 6;
 
-bool KillProcess(const base::Process& process, bool kill_gracefully) {
+bool KillProcess(const base::Process& process, bool quit_gracefully) {
 #if BUILDFLAG(IS_POSIX)
-  if (!kill_gracefully) {
+  if (!quit_gracefully) {
     kill(process.Pid(), SIGKILL);
     base::TimeTicks deadline = base::TimeTicks::Now() + base::Seconds(30);
     while (base::TimeTicks::Now() < deadline) {
@@ -73,28 +74,34 @@ bool KillProcess(const base::Process& process, bool kill_gracefully) {
 }  // namespace
 
 ChromeDesktopImpl::ChromeDesktopImpl(
-    std::unique_ptr<DevToolsHttpClient> http_client,
+    BrowserInfo browser_info,
+    std::set<WebViewInfo::Type> window_types,
     std::unique_ptr<DevToolsClient> websocket_client,
     std::vector<std::unique_ptr<DevToolsEventListener>>
         devtools_event_listeners,
-    absl::optional<MobileDevice> mobile_device,
-    SyncWebSocketFactory socket_factory,
+    std::optional<MobileDevice> mobile_device,
     std::string page_load_strategy,
     base::Process process,
     const base::CommandLine& command,
     base::ScopedTempDir* user_data_dir,
     base::ScopedTempDir* extension_dir,
-    bool network_emulation_enabled)
-    : ChromeImpl(std::move(http_client),
+    bool network_emulation_enabled,
+    bool autoaccept_beforeunload,
+    bool enable_extension_targets,
+    bool quit_gracefully)
+    : ChromeImpl(std::move(browser_info),
+                 std::move(window_types),
                  std::move(websocket_client),
                  std::move(devtools_event_listeners),
                  std::move(mobile_device),
-                 std::move(socket_factory),
-                 page_load_strategy),
+                 page_load_strategy,
+                 autoaccept_beforeunload,
+                 enable_extension_targets),
       process_(std::move(process)),
       command_(command),
       network_connection_enabled_(network_emulation_enabled),
-      network_connection_(kDefaultConnectionType) {
+      network_connection_(kDefaultConnectionType),
+      quit_gracefully_(quit_gracefully) {
   if (user_data_dir->IsValid())
     CHECK(user_data_dir_.Set(user_data_dir->Take()));
   if (extension_dir->IsValid())
@@ -118,63 +125,52 @@ ChromeDesktopImpl::~ChromeDesktopImpl() {
   }
 }
 
-Status ChromeDesktopImpl::WaitForPageToLoad(
+Status ChromeDesktopImpl::WaitForExtensionPageToLoad(
     const std::string& url,
     const base::TimeDelta& timeout_raw,
-    std::unique_ptr<WebView>* web_view,
     bool w3c_compliant) {
   Timeout timeout(timeout_raw);
-  std::string id;
-  WebViewInfo::Type type = WebViewInfo::Type::kPage;
-  while (timeout.GetRemainingTime().is_positive()) {
-    WebViewsInfo views_info;
-    Status status = GetWebViewsInfo(&views_info);
-    if (status.IsError())
+  WebView* extension_page = nullptr;
+  while (!timeout.IsExpired()) {
+    std::list<std::string> tabview_ids;
+    Status status = GetTopLevelWebViewIds(&tabview_ids, w3c_compliant);
+    if (status.IsError()) {
       return status;
+    }
 
-    for (size_t i = 0; i < views_info.GetSize(); ++i) {
-      const WebViewInfo& view_info = views_info.Get(i);
-      if (base::StartsWith(view_info.url, url, base::CompareCase::SENSITIVE)) {
-        id = view_info.id;
-        type = view_info.type;
+    for (auto& tab_id : tabview_ids) {
+      WebView* active_page = nullptr;
+      status = GetActivePageByWebViewId(tab_id, &active_page,
+                                        /*wait_for_page=*/false);
+      if (status.IsError()) {
+        if (status.code() == kNoActivePage) {
+          continue;
+        }
+        return status;
+      }
+
+      std::string page_url = "";
+      status = active_page->GetUrl(&page_url);
+      if (status.IsError()) {
+        return status;
+      }
+
+      if (base::StartsWith(page_url, url, base::CompareCase::SENSITIVE)) {
+        extension_page = active_page;
         break;
       }
     }
-    if (!id.empty())
+    if (extension_page) {
       break;
+    }
     base::PlatformThread::Sleep(base::Milliseconds(100));
   }
-  if (id.empty())
+  if (extension_page == nullptr) {
     return Status(kUnknownError, "page could not be found: " + url);
-
-  absl::optional<MobileDevice> mobile_device = mobile_device_;
-  if (type == WebViewInfo::Type::kApp ||
-      type == WebViewInfo::Type::kBackgroundPage) {
-    // Apps and extensions don't work on Android, so it doesn't make sense to
-    // provide mobile_device in mobile emulation mode, and can also
-    // potentially crash the renderer, for more details see:
-    // https://code.google.com/p/chromedriver/issues/detail?id=1205
-    mobile_device.reset();
   }
 
-  std::unique_ptr<DevToolsClientImpl> client;
-  Status status = CreateClient(id, &client);
-  if (status.IsError())
-    return status;
-  std::unique_ptr<WebViewImpl> web_view_tmp(new WebViewImpl(
-      id, w3c_compliant, nullptr, devtools_http_client_->browser_info(),
-      std::move(client), mobile_device, page_load_strategy()));
-  DevToolsClientImpl* parent =
-      static_cast<DevToolsClientImpl*>(devtools_websocket_client_.get());
-  status = web_view_tmp->AttachTo(parent);
-  if (status.IsError()) {
-    return status;
-  }
-
-  status = web_view_tmp->WaitForPendingNavigations(
-      std::string(), timeout, false);
-  if (status.IsOk())
-    *web_view = std::move(web_view_tmp);
+  Status status =
+      extension_page->WaitForPendingNavigations(std::string(), timeout, false);
   return status;
 }
 
@@ -206,27 +202,24 @@ Status ChromeDesktopImpl::QuitImpl() {
   // everything back out to the user data directory and exit cleanly. If we're
   // using a temporary user data directory, we're going to delete the temporary
   // directory anyway, so just send SIGKILL immediately.
-  bool kill_gracefully = !user_data_dir_.IsValid();
+  bool quit_gracefully = quit_gracefully_ || !user_data_dir_.IsValid();
   // If the Chrome session is being run with --log-net-log, send SIGTERM first
   // to allow Chrome to write out all the net logs to the log path.
-  kill_gracefully = kill_gracefully || command_.HasSwitch("log-net-log");
-  if (kill_gracefully) {
-    Status status{kOk};
-    if (!devtools_websocket_client_->IsConnected())
-      status = devtools_websocket_client_->Connect();
-    if (status.IsOk()) {
-      status = devtools_websocket_client_->SendCommandAndIgnoreResponse(
-          "Browser.close", base::Value::Dict());
-      // If status is not okay, we will try the old method of KillProcess
-      if (status.IsOk() &&
-          process_.WaitForExitWithTimeout(base::Seconds(10), nullptr))
-        return status;
+  quit_gracefully = quit_gracefully || command_.HasSwitch("log-net-log");
+  if (quit_gracefully) {
+    Status status = devtools_websocket_client_->SendCommandAndIgnoreResponse(
+        "Browser.close", base::Value::Dict());
+    // If status is not okay, we will try the old method of KillProcess
+    if (status.IsOk() &&
+        process_.WaitForExitWithTimeout(base::Seconds(10), nullptr)) {
+      return status;
     }
   }
 
-  if (!KillProcess(process_, kill_gracefully))
+  if (!KillProcess(process_, quit_gracefully)) {
     return Status(kUnknownError,
                   base::StringPrintf("cannot kill %s", kBrowserShortName));
+  }
   return Status(kOk);
 }
 

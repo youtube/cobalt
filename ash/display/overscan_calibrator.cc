@@ -87,7 +87,6 @@ gfx::Insets RotateInsets(display::Display::Rotation rotation,
                                insets.top());
   }
   NOTREACHED();
-  return std::move(insets);
 }
 
 gfx::Insets ConvertToDisplay(const display::Display& display,
@@ -123,8 +122,8 @@ OverscanCalibrator::OverscanCalibrator(const display::Display& target_display,
       committed_(false) {
   // Undo the overscan calibration temporarily so that the user can see
   // dark boundary and current overscan region.
-  Shell::Get()->window_tree_host_manager()->SetOverscanInsets(display_.id(),
-                                                              gfx::Insets());
+  Shell::Get()->display_manager()->SetOverscanInsets(display_.id(),
+                                                     gfx::Insets());
   UpdateUILayer();
 }
 
@@ -132,13 +131,13 @@ OverscanCalibrator::~OverscanCalibrator() {
   // Overscan calibration has finished without commit, so the display has to
   // be the original offset.
   if (!committed_) {
-    Shell::Get()->window_tree_host_manager()->SetOverscanInsets(
-        display_.id(), initial_insets_);
+    Shell::Get()->display_manager()->SetOverscanInsets(display_.id(),
+                                                       initial_insets_);
   }
 }
 
 void OverscanCalibrator::Commit() {
-  Shell::Get()->window_tree_host_manager()->SetOverscanInsets(
+  Shell::Get()->display_manager()->SetOverscanInsets(
       display_.id(), ConvertToHost(display_, insets_));
   committed_ = true;
 }

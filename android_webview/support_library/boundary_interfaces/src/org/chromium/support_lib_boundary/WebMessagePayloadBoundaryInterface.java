@@ -5,27 +5,26 @@
 package org.chromium.support_lib_boundary;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Boundary interface for WebMessagePayload.
- */
+/** Boundary interface for WebMessagePayload. */
+@NullMarked
 public interface WebMessagePayloadBoundaryInterface extends FeatureFlagHolderBoundaryInterface {
     @WebMessagePayloadType
     int getType();
 
-    @Nullable
-    String getAsString();
+    @Nullable String getAsString();
 
-    @NonNull
     byte[] getAsArrayBuffer();
 
     @Retention(RetentionPolicy.SOURCE)
-    @IntDef(flag = true,
+    @IntDef(
+            flag = true,
             value = {WebMessagePayloadType.TYPE_STRING, WebMessagePayloadType.TYPE_ARRAY_BUFFER})
     @interface WebMessagePayloadType {
         int TYPE_STRING = 0;

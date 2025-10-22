@@ -12,12 +12,13 @@
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 
 using content::OpenURLParams;
 using content::Referrer;
@@ -56,9 +57,9 @@ std::u16string AccessibilityLabelsBubbleModel::GetMessageText() const {
 }
 
 std::u16string AccessibilityLabelsBubbleModel::GetButtonLabel(
-    ui::DialogButton button) const {
+    ui::mojom::DialogButton button) const {
   return l10n_util::GetStringUTF16(
-      button == ui::DIALOG_BUTTON_OK
+      button == ui::mojom::DialogButton::kOk
           ? IDS_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_BUBBLE_ENABLE
           : IDS_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_BUBBLE_DISABLE);
 }
@@ -73,8 +74,10 @@ void AccessibilityLabelsBubbleModel::Accept() {
     SetPref(true);
     return;
   }
-  AccessibilityLabelsServiceFactory::GetForProfile(profile_)
-      ->EnableLabelsServiceOnce();
+  if (auto* const web_contents = web_contents_.get(); web_contents) {
+    AccessibilityLabelsServiceFactory::GetForProfile(profile_)
+        ->EnableLabelsServiceOnce(web_contents);
+  }
 }
 
 void AccessibilityLabelsBubbleModel::Cancel() {
@@ -97,12 +100,12 @@ void AccessibilityLabelsBubbleModel::OpenHelpPage() {
                        WindowOpenDisposition::NEW_FOREGROUND_TAB,
                        ui::PAGE_TRANSITION_LINK, false);
   if (web_contents_) {
-    web_contents_->OpenURL(params);
+    web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
     return;
   }
   // The web contents used to open this dialog have been destroyed.
   Browser* browser = chrome::ScopedTabbedBrowserDisplayer(profile_).browser();
-  browser->OpenURL(params);
+  browser->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 void AccessibilityLabelsBubbleModel::SetPref(bool enabled) {

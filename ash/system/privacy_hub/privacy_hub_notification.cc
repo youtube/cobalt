@@ -5,21 +5,31 @@
 #include "ash/system/privacy_hub/privacy_hub_notification.h"
 
 #include <iterator>
+#include <optional>
 #include <string>
 
-#include "ash/public/cpp/sensor_disabled_notification_delegate.h"
+#include "ash/accessibility/accessibility_controller.h"
+#include "ash/app_list/app_list_controller_impl.h"
+#include "ash/capture_mode/capture_mode_controller.h"
+#include "ash/public/cpp/projector/projector_session.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/system/privacy_hub/privacy_hub_controller.h"
 #include "ash/system/privacy_hub/privacy_hub_metrics.h"
 #include "ash/system/privacy_hub/privacy_hub_notification_controller.h"
+#include "ash/system/privacy_hub/sensor_disabled_notification_delegate.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/containers/enum_set.h"
 #include "components/vector_icons/vector_icons.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "privacy_hub_notification_controller.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/public/cpp/notification.h"
+
+namespace {
+constexpr size_t kMaxNotificationMessageLength = 150;
+}
 
 namespace ash {
 
@@ -48,8 +58,8 @@ PrivacyHubNotificationClickDelegate::~PrivacyHubNotificationClickDelegate() =
     default;
 
 void PrivacyHubNotificationClickDelegate::Click(
-    const absl::optional<int>& button_index_opt,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index_opt,
+    const std::optional<std::u16string>& reply) {
   if (button_index_opt.has_value()) {
     const unsigned int button_index = button_index_opt.value();
     CHECK_GT(button_callbacks_.size(), button_index);
@@ -90,7 +100,7 @@ PrivacyHubNotificationDescriptor::PrivacyHubNotificationDescriptor(
       message_ids_(message_ids),
       delegate_(delegate) {
   DCHECK(!message_ids.empty());
-  DCHECK(message_ids.size() < 2u || !sensors.Empty())
+  DCHECK(message_ids.size() < 2u || !sensors.empty())
       << "Specify at least one sensor when providing more than one message ID";
   DCHECK_LE(button_ids.size(), 2u) << "Privacy hub notifications are not "
                                       "supposed to have more than two buttons.";
@@ -115,6 +125,19 @@ PrivacyHubNotificationDescriptor& PrivacyHubNotificationDescriptor::operator=(
 
 PrivacyHubNotificationDescriptor::~PrivacyHubNotificationDescriptor() = default;
 
+namespace {
+
+// Default throttler implementation that never suppress a notification.
+class DefaultThrottler : public PrivacyHubNotification::Throttler {
+ public:
+  // PrivacyHubNotification::Throttler:
+  bool ShouldThrottle() final { return false; }
+
+  void RecordDismissalByUser() final {}
+};
+
+}  // namespace
+
 PrivacyHubNotification::PrivacyHubNotification(
     const std::string& id,
     const ash::NotificationCatalogName catalog_name,
@@ -127,6 +150,10 @@ PrivacyHubNotification::PrivacyHubNotification(
       .SetCatalogName(catalog_name)
       .SetSmallImage(vector_icons::kSettingsIcon)
       .SetWarningLevel(message_center::SystemNotificationWarningLevel::NORMAL);
+
+  // Sets up the observation / throttling logic
+  SetThrottler(std::make_unique<DefaultThrottler>());
+  StartDismissalObservation();
 }
 
 PrivacyHubNotification::PrivacyHubNotification(
@@ -141,18 +168,34 @@ PrivacyHubNotification::PrivacyHubNotification(
   }
 }
 
-PrivacyHubNotification::~PrivacyHubNotification() = default;
+PrivacyHubNotification::~PrivacyHubNotification() {
+  StopDismissalObservation();
+}
+
+void PrivacyHubNotification::OnNotificationRemoved(
+    const std::string& notification_id,
+    bool by_user) {
+  if (by_user && notification_id == id_) {
+    CHECK(throttler_);
+    throttler_->RecordDismissalByUser();
+  }
+}
 
 void PrivacyHubNotification::Show() {
+  CHECK(throttler_);
+  if (throttler_->ShouldThrottle()) {
+    return;
+  }
   SetNotificationContent();
   if (IsShown()) {
     // The notification is already in the message center. Update the content and
     // pop it up again.
     message_center::MessageCenter::Get()->UpdateNotification(
-        id_, builder_.BuildPtr());
+        id_, builder_.BuildPtr(false));
     message_center::MessageCenter::Get()->ResetSinglePopup(id_);
   } else {
-    message_center::MessageCenter::Get()->AddNotification(builder_.BuildPtr());
+    message_center::MessageCenter::Get()->AddNotification(
+        builder_.BuildPtr(false));
   }
 }
 
@@ -169,7 +212,7 @@ void PrivacyHubNotification::Update() {
   if (IsShown()) {
     SetNotificationContent();
     message_center::MessageCenter::Get()->UpdateNotification(
-        id_, builder_.BuildPtr());
+        id_, builder_.BuildPtr(true));
   }
 }
 
@@ -193,6 +236,27 @@ void PrivacyHubNotification::SetSensors(
   }
 }
 
+void PrivacyHubNotification::SetThrottler(
+    std::unique_ptr<Throttler> throttler) {
+  throttler_ = std::move(throttler);
+}
+
+void PrivacyHubNotification::StartDismissalObservation() {
+  message_center::MessageCenter* message_center =
+      message_center::MessageCenter::Get();
+  if (message_center) {
+    message_center->AddObserver(this);
+  }
+}
+
+void PrivacyHubNotification::StopDismissalObservation() {
+  message_center::MessageCenter* message_center =
+      message_center::MessageCenter::Get();
+  if (message_center) {
+    message_center->RemoveObserver(this);
+  }
+}
+
 std::vector<std::u16string> PrivacyHubNotification::GetAppsAccessingSensors(
     const size_t number_of_apps) const {
   std::vector<std::u16string> app_names;
@@ -213,21 +277,67 @@ std::vector<std::u16string> PrivacyHubNotification::GetAppsAccessingSensors(
         sensor_apps = controller->GetActiveApps(remaining_capacity);
       }
     } else {
-      if (SensorDisabledNotificationDelegate* delegate =
-              SensorDisabledNotificationDelegate::Get()) {
+      if (PrivacyHubNotificationController* controller =
+              PrivacyHubNotificationController::Get()) {
+        SensorDisabledNotificationDelegate* delegate =
+            controller->sensor_disabled_notification_delegate();
+        CHECK(delegate);
         sensor_apps = delegate->GetAppsAccessingSensor(sensor);
       }
     }
-    // Copy de-duplicated app names.
-    std::sort(std::begin(sensor_apps), std::end(sensor_apps));
-    const auto unique_end =
-        std::unique(std::begin(sensor_apps), std::end(sensor_apps));
-    const auto elements_to_copy = std::min(
-        remaining_capacity, std::distance(std::begin(sensor_apps), unique_end));
-    std::copy(std::begin(sensor_apps),
-              std::next(std::begin(sensor_apps), elements_to_copy),
+    // Copy app names for the given sensor.
+    std::copy(std::begin(sensor_apps), std::end(sensor_apps),
               std::back_inserter(app_names));
   }
+
+  // For the  microphone sensor, check Assist, Screen cast & capture, and
+  // Dictation and add to apps names.
+  if (sensors_.Has(SensorDisabledNotificationDelegate::Sensor::kMicrophone)) {
+    // Add dictation if it's enabled.
+    bool is_dictation_enabled =
+        Shell::Get()->accessibility_controller()->dictation_active();
+    if (is_dictation_enabled) {
+      app_names.push_back(l10n_util::GetStringUTF16(
+          IDS_ASH_STATUS_TRAY_ACCESSIBILITY_DICTATION));
+    }
+
+    // Add Screencast (i.e. ProjectorSession) if it's active.
+    ProjectorSession* projector_session = ProjectorSession::Get();
+    bool is_projector_session_active =
+        projector_session != nullptr && projector_session->is_active();
+    if (is_projector_session_active) {
+      app_names.push_back(
+          l10n_util::GetStringUTF16(IDS_ASH_PROJECTOR_DISPLAY_SOURCE));
+    } else {
+      // Checking the Screen capture (triggered via keyboard) only if the
+      // Screencast is not active.
+      CaptureModeController* capture_mode_controller =
+          CaptureModeController::Get();
+      bool is_capture_mode_active =
+          capture_mode_controller != nullptr &&
+          capture_mode_controller->IsAudioRecordingInProgress();
+      if (is_capture_mode_active) {
+        app_names.push_back(
+            l10n_util::GetStringUTF16(IDS_ASH_SCREEN_CAPTURE_DISPLAY_SOURCE));
+      }
+    }
+
+    // Consider assistant only if no other apps were added to the list of app
+    // names.
+    if (app_names.size() == 0) {
+      bool is_assist_enabled =
+          Shell::Get()->app_list_controller()->IsAssistantAllowedAndEnabled();
+      if (is_assist_enabled) {
+        app_names.push_back(
+            l10n_util::GetStringUTF16(IDS_ASH_ASSISTANT_WINDOW));
+      }
+    }
+  }
+
+  // De-duplicate app names.
+  std::sort(std::begin(app_names), std::end(app_names));
+  app_names.erase(std::unique(std::begin(app_names), std::end(app_names)),
+                  std::end(app_names));
 
   CHECK_LE(app_names.size(), number_of_apps);
   return app_names;
@@ -267,10 +377,15 @@ void PrivacyHubNotification::SetNotificationContent() {
 
   if (const size_t num_apps = apps.size();
       num_apps < descriptor->message_ids().size()) {
-    builder_.SetMessageWithArgs(descriptor->message_ids().at(num_apps), apps);
-  } else {
-    builder_.SetMessageId(descriptor->message_ids().at(0));
+    const std::u16string message =
+        l10n_util::GetStringFUTF16(descriptor->message_ids().at(num_apps), apps,
+                                   /*offsets=*/nullptr);
+    if (message.size() <= kMaxNotificationMessageLength) {
+      builder_.SetMessage(message);
+      return;
+    }
   }
+  builder_.SetMessageId(descriptor->message_ids().at(0));
 }
 
 }  // namespace ash

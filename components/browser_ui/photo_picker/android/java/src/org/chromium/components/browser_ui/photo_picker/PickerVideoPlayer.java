@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.animation.Animator;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -33,23 +35,24 @@ import androidx.annotation.VisibleForTesting;
 import androidx.core.math.MathUtils;
 import androidx.core.view.GestureDetectorCompat;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.ViewUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Encapsulates the video player functionality of the Photo Picker dialog.
- */
-public class PickerVideoPlayer
-        extends FrameLayout implements View.OnClickListener, SeekBar.OnSeekBarChangeListener,
-                                       View.OnSystemUiVisibilityChangeListener {
-    /**
-     * A callback interface for notifying about video playback status.
-     */
+/** Encapsulates the video player functionality of the Photo Picker dialog. */
+@NullMarked
+public class PickerVideoPlayer extends FrameLayout
+        implements View.OnClickListener,
+                SeekBar.OnSeekBarChangeListener,
+                View.OnSystemUiVisibilityChangeListener {
+    /** A callback interface for notifying about video playback status. */
     public interface VideoPlaybackStatusCallback {
         // Called when the video starts playing.
         void onVideoPlaying();
@@ -59,13 +62,19 @@ public class PickerVideoPlayer
 
         // Animation events for UI elements (views) fading in and out of view.
         void onAnimationStart(long viewId, float currentAlpha);
+
         void onAnimationCancel(long viewId, float currentAlpha);
+
         void onAnimationEnd(long viewId, float currentAlpha);
     }
 
     // The possible types of fade out animations.
-    @IntDef({FadeOut.NO_FADE_OUT, FadeOut.FADE_OUT_PLAY_QUICKLY, FadeOut.FADE_OUT_ALL_SLOWLY,
-            FadeOut.FADE_OUT_ALL_QUICKLY})
+    @IntDef({
+        FadeOut.NO_FADE_OUT,
+        FadeOut.FADE_OUT_PLAY_QUICKLY,
+        FadeOut.FADE_OUT_ALL_SLOWLY,
+        FadeOut.FADE_OUT_ALL_QUICKLY
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface FadeOut {
         // This is used when the video controls should remain on screen and not fade away, for
@@ -91,7 +100,7 @@ public class PickerVideoPlayer
     }
 
     // The callback to use for reporting playback progress in tests.
-    private static VideoPlaybackStatusCallback sProgressCallback;
+    private static @Nullable VideoPlaybackStatusCallback sProgressCallback;
 
     // The amount of time (in milliseconds) to skip when fast forwarding/rewinding.
     private static final int SKIP_LENGTH_IN_MS = 10000;
@@ -115,10 +124,10 @@ public class PickerVideoPlayer
     private static boolean sShortAnimationTimesForTesting;
 
     // The Window for the dialog the player is shown in.
-    private Window mWindow;
+    private @Nullable Window mWindow;
 
     // The Context to use.
-    private Context mContext;
+    private final Context mContext;
 
     // The Back button in the top corner.
     private final ImageView mBackButton;
@@ -130,7 +139,7 @@ public class PickerVideoPlayer
     private final VideoView mVideoView;
 
     // The MediaPlayer object used to control the VideoView.
-    private MediaPlayer mMediaPlayer;
+    private @Nullable MediaPlayer mMediaPlayer;
 
     // The container view for all the UI elements overlaid on top of the video.
     private final View mVideoOverlayContainer;
@@ -192,7 +201,7 @@ public class PickerVideoPlayer
     private boolean mPreviousNavBarColorsSaved;
 
     // The object to convert touch events into gestures.
-    private GestureDetectorCompat mGestureDetector;
+    private final GestureDetectorCompat mGestureDetector;
 
     // An OnGestureListener class for handling double tap.
     private class DoubleTapGestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -207,9 +216,7 @@ public class PickerVideoPlayer
         }
     }
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public PickerVideoPlayer(Context context, AttributeSet attrs) {
         super(context, attrs);
         mContext = context;
@@ -238,13 +245,14 @@ public class PickerVideoPlayer
         mSeekBar.setOnSeekBarChangeListener(this);
 
         mGestureDetector = new GestureDetectorCompat(context, new DoubleTapGestureListener());
-        mVideoOverlayContainer.setOnTouchListener(new OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                mGestureDetector.onTouchEvent(event);
-                return false;
-            }
-        });
+        mVideoOverlayContainer.setOnTouchListener(
+                new OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+                        mGestureDetector.onTouchEvent(event);
+                        return false;
+                    }
+                });
     }
 
     @Override
@@ -253,24 +261,29 @@ public class PickerVideoPlayer
         // size. Post a task, so that size adjustments happen after layout of the video controls has
         // completed (so that the calculations for the view have had time to account for the
         // existence of the nav bar and status bar -- or lack thereof).
+        assumeNonNull(getHandler());
         getHandler().post(() -> adjustVideoLayoutParamsToOrientation());
         super.onConfigurationChanged(newConfig);
     }
 
     /**
      * Start playback of a video in an overlay above the photo picker.
+     *
      * @param uri The uri of the video to start playing.
      * @param window The window for the dialog.
      */
-    public void startVideoPlaybackAsync(Uri uri, Window window) {
+    public void startVideoPlaybackAsync(Uri uri, @Nullable Window window) {
         mWindow = window;
         syncNavBarColorToPlaybackStatus(/* playerOpening= */ true);
 
         // Make the filename (uri) of the video visible at the top and de-emphasize the scheme part.
         SpannableString fileName = new SpannableString(uri.toString());
+        assumeNonNull(uri.getScheme());
         fileName.setSpan(
-                new TextAppearanceSpan(mContext, R.style.TextAppearance_TextMedium_Secondary), 0,
-                uri.getScheme().length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                new TextAppearanceSpan(mContext, R.style.TextAppearance_TextMedium_Secondary),
+                0,
+                uri.getScheme().length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         mFileName.setText(fileName, TextView.BufferType.SPANNABLE);
 
         setVisibility(View.VISIBLE);
@@ -278,47 +291,52 @@ public class PickerVideoPlayer
         mVideoView.setVisibility(View.VISIBLE);
         mVideoView.setVideoURI(uri);
 
-        mVideoView.setOnPreparedListener((MediaPlayer mediaPlayer) -> {
-            mMediaPlayer = mediaPlayer;
-            startVideoPlayback();
+        mVideoView.setOnPreparedListener(
+                (MediaPlayer mediaPlayer) -> {
+                    mMediaPlayer = mediaPlayer;
+                    startVideoPlayback();
 
-            mMediaPlayer.setOnVideoSizeChangedListener(
-                    (MediaPlayer player, int width, int height) -> {
-                        adjustVideoLayoutParamsToOrientation();
-                        mVideoOverlayContainer.setVisibility(View.VISIBLE);
-                    });
+                    mMediaPlayer.setOnVideoSizeChangedListener(
+                            (MediaPlayer player, int width, int height) -> {
+                                adjustVideoLayoutParamsToOrientation();
+                                mVideoOverlayContainer.setVisibility(View.VISIBLE);
+                            });
 
-            if (sProgressCallback != null) {
-                mMediaPlayer.setOnInfoListener((MediaPlayer player, int what, int extra) -> {
-                    if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
-                        sProgressCallback.onVideoPlaying();
-                        return true;
+                    if (sProgressCallback != null) {
+                        mMediaPlayer.setOnInfoListener(
+                                (MediaPlayer player, int what, int extra) -> {
+                                    if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                                        assumeNonNull(sProgressCallback);
+                                        sProgressCallback.onVideoPlaying();
+                                        return true;
+                                    }
+                                    return false;
+                                });
                     }
-                    return false;
                 });
-            }
-        });
 
-        mVideoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mediaPlayer) {
-                // Once we reach the completion point, show the overlay controls (without fading
-                // away) to indicate that playback has reached the end of the video (and didn't
-                // break before reaching the end). This also allows the user to restart playback
-                // from the start, by pressing Play.
-                switchToPlayButton();
-                updateProgress();
-                showAndMaybeHideVideoControls(/* animateIn= */ false, FadeOut.NO_FADE_OUT);
-                if (sProgressCallback != null) {
-                    sProgressCallback.onVideoEnded();
-                }
-            }
-        });
+        mVideoView.setOnCompletionListener(
+                new MediaPlayer.OnCompletionListener() {
+                    @Override
+                    public void onCompletion(MediaPlayer mediaPlayer) {
+                        // Once we reach the completion point, show the overlay controls (without
+                        // fading away) to indicate that playback has reached the end of the video
+                        // (and didn't break before reaching the end). This also allows the user
+                        // to restart playback from the start, by pressing Play.
+                        switchToPlayButton();
+                        updateProgress();
+                        showAndMaybeHideVideoControls(/* animateIn= */ false, FadeOut.NO_FADE_OUT);
+                        if (sProgressCallback != null) {
+                            sProgressCallback.onVideoEnded();
+                        }
+                    }
+                });
     }
 
     /**
      * Ends video playback (if a video is playing) and closes the video player. Aborts if the video
      * playback container is not showing.
+     *
      * @return true if a video container was showing, false otherwise.
      */
     public boolean closeVideoPlayer() {
@@ -337,10 +355,12 @@ public class PickerVideoPlayer
     /**
      * Updates the color of the navigation bar, divider and icons to reflect whether in playback
      * mode or not. This function does nothing on Android O and older.
+     *
      * @param playerOpening True when the video player is opening (false when closing).
      */
     private void syncNavBarColorToPlaybackStatus(boolean playerOpening) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            assumeNonNull(mWindow);
             if (playerOpening) {
                 if (mPreviousNavBarColorsSaved) {
                     return; // Don't overwrite previously saved colors.
@@ -358,18 +378,24 @@ public class PickerVideoPlayer
     }
 
     private void adjustVideoLayoutParamsToOrientation() {
-        if (mMediaPlayer == null || mMediaPlayer.getVideoWidth() == 0
+        if (mMediaPlayer == null
+                || mMediaPlayer.getVideoWidth() == 0
                 || mMediaPlayer.getVideoHeight() == 0) {
             return;
         }
         float aspectRatio = (float) mMediaPlayer.getVideoWidth() / mMediaPlayer.getVideoHeight();
 
-        boolean landscapeMode = mContext.getResources().getConfiguration().orientation
-                == Configuration.ORIENTATION_LANDSCAPE;
-        int viewWidth = landscapeMode ? Math.max(getWidth(), getHeight())
-                                      : Math.min(getWidth(), getHeight());
-        int viewHeight = landscapeMode ? Math.min(getWidth(), getHeight())
-                                       : Math.max(getWidth(), getHeight());
+        boolean landscapeMode =
+                mContext.getResources().getConfiguration().orientation
+                        == Configuration.ORIENTATION_LANDSCAPE;
+        int viewWidth =
+                landscapeMode
+                        ? Math.max(getWidth(), getHeight())
+                        : Math.min(getWidth(), getHeight());
+        int viewHeight =
+                landscapeMode
+                        ? Math.min(getWidth(), getHeight())
+                        : Math.max(getWidth(), getHeight());
 
         ViewGroup.LayoutParams layoutParams = mVideoView.getLayoutParams();
         if (landscapeMode) {
@@ -407,7 +433,8 @@ public class PickerVideoPlayer
         ViewUtils.requestLayout(
                 mVideoView, "PickerVideoPlayer.adjustVideoLayoutParamsToOrientation mVideoView");
         mVideoControls.setLayoutParams(layoutParams);
-        ViewUtils.requestLayout(mVideoControls,
+        ViewUtils.requestLayout(
+                mVideoControls,
                 "PickerVideoPlayer.adjustVideoLayoutParamsToOrientation mVideoControls");
     }
 
@@ -426,12 +453,13 @@ public class PickerVideoPlayer
     }
 
     private boolean onDoubleTapVideo(float x) {
+        assumeNonNull(mMediaPlayer);
         int videoPos = mMediaPlayer.getCurrentPosition();
         int duration = mMediaPlayer.getDuration();
 
         // A click to the left (of the center of) the Play button counts as rewinding, and a click
         // to the right of it counts as fast forwarding.
-        float midX = mLargePlayButton.getX() + (mLargePlayButton.getWidth() / 2);
+        float midX = mLargePlayButton.getX() + (mLargePlayButton.getWidth() / 2f);
         videoPos += (x > midX) ? SKIP_LENGTH_IN_MS : -SKIP_LENGTH_IN_MS;
         MathUtils.clamp(videoPos, 0, duration);
 
@@ -462,6 +490,7 @@ public class PickerVideoPlayer
     @Override
     public void onSystemUiVisibilityChange(int visibility) {
         if ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+            assumeNonNull(mWindow);
             mWindow.getDecorView().setOnSystemUiVisibilityChangeListener(null);
             onExitFullScreenMode();
 
@@ -470,6 +499,7 @@ public class PickerVideoPlayer
                 // from the top of the screen, the system sends the visibility change event before
                 // the resize has happened, so the new video size isn't known yet. Syncing
                 // immediately would make the overlay controls appear in the wrong location.
+                assumeNonNull(getHandler());
                 getHandler().post(() -> adjustVideoLayoutParamsToOrientation());
                 return;
             }
@@ -518,6 +548,7 @@ public class PickerVideoPlayer
 
     private void videoSeekTo(int position) {
         if (Build.VERSION.SDK_INT >= 26) {
+            assumeNonNull(mMediaPlayer);
             mMediaPlayer.seekTo(position, MediaPlayer.SEEK_CLOSEST);
         } else {
             // On older versions, sync to nearest previous key frame.
@@ -539,83 +570,91 @@ public class PickerVideoPlayer
         mLargePlayButton.animate().cancel();
 
         int delay = fadeOutType != FadeOut.FADE_OUT_ALL_QUICKLY ? OVERLAY_FADE_OUT_DELAY_MS : 0;
-        mVideoControlsGradient.animate()
+        mVideoControlsGradient
+                .animate()
                 .alpha(0.0f)
                 .setStartDelay(scaledTiming(delay))
                 .setDuration(scaledTiming(OVERLAY_SCRIM_FADE_OUT_DURATION_MS));
 
-        mVideoControls.animate()
+        mVideoControls
+                .animate()
                 .alpha(0.0f)
                 .setStartDelay(scaledTiming(delay))
                 .setDuration(scaledTiming(OVERLAY_CONTROLS_FADE_OUT_DURATION_MS))
-                .setListener(new Animator.AnimatorListener() {
-                    @Override
-                    public void onAnimationStart(Animator animation) {
-                        notifyTestOfAnimationStart(mVideoControls);
-                    }
+                .setListener(
+                        new Animator.AnimatorListener() {
+                            @Override
+                            public void onAnimationStart(Animator animation) {
+                                notifyTestOfAnimationStart(mVideoControls);
+                            }
 
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        enableClickableButtons(false);
-                        stopPlaybackMonitor();
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                enableClickableButtons(false);
+                                stopPlaybackMonitor();
 
-                        notifyTestOfAnimationEnd(mVideoControls);
-                    }
+                                notifyTestOfAnimationEnd(mVideoControls);
+                            }
 
-                    @Override
-                    public void onAnimationCancel(Animator animation) {
-                        notifyTestOfAnimationCancel(mVideoControls);
-                    }
+                            @Override
+                            public void onAnimationCancel(Animator animation) {
+                                notifyTestOfAnimationCancel(mVideoControls);
+                            }
 
-                    @Override
-                    public void onAnimationRepeat(Animator animation) {}
-                });
+                            @Override
+                            public void onAnimationRepeat(Animator animation) {}
+                        });
 
         int animationDelay = 0;
         if (fadeOutType != FadeOut.FADE_OUT_ALL_QUICKLY) {
-            animationDelay = fadeOutType == FadeOut.FADE_OUT_PLAY_QUICKLY
-                    ? PLAY_BUTTON_FADE_OUT_DELAY_MS
-                    : OVERLAY_FADE_OUT_DELAY_MS;
+            animationDelay =
+                    fadeOutType == FadeOut.FADE_OUT_PLAY_QUICKLY
+                            ? PLAY_BUTTON_FADE_OUT_DELAY_MS
+                            : OVERLAY_FADE_OUT_DELAY_MS;
         }
 
-        mLargePlayButton.animate()
+        mLargePlayButton
+                .animate()
                 .alpha(0.0f)
                 .setStartDelay(scaledTiming(animationDelay))
                 .setDuration(scaledTiming(PLAY_BUTTON_FADE_OUT_DURATION_MS))
-                .setListener(new Animator.AnimatorListener() {
-                    @Override
-                    public void onAnimationStart(Animator animation) {
-                        // The Play button is always the first control to fade away, and any click
-                        // after that point should be considered a request to cancel fading away.
-                        // Therefore this is a good time to flip this to false.
-                        mOverlayControlsShowing = false;
+                .setListener(
+                        new Animator.AnimatorListener() {
+                            @Override
+                            public void onAnimationStart(Animator animation) {
+                                // The Play button is always the first control to fade away, and any
+                                // click after that point should be considered a request to cancel
+                                // fading away.
+                                // Therefore this is a good time to flip this to false.
+                                mOverlayControlsShowing = false;
 
-                        notifyTestOfAnimationStart(mLargePlayButton);
-                    }
+                                notifyTestOfAnimationStart(mLargePlayButton);
+                            }
 
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        mLargePlayButton.setClickable(false);
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                mLargePlayButton.setClickable(false);
 
-                        notifyTestOfAnimationEnd(mLargePlayButton);
-                    }
+                                notifyTestOfAnimationEnd(mLargePlayButton);
+                            }
 
-                    @Override
-                    public void onAnimationCancel(Animator animation) {
-                        notifyTestOfAnimationCancel(mLargePlayButton);
-                    }
+                            @Override
+                            public void onAnimationCancel(Animator animation) {
+                                notifyTestOfAnimationCancel(mLargePlayButton);
+                            }
 
-                    @Override
-                    public void onAnimationRepeat(Animator animation) {}
-                });
+                            @Override
+                            public void onAnimationRepeat(Animator animation) {}
+                        });
     }
 
     /**
      * Shows video controls overlaid on top of the video. The controls can optionally be faded in
      * and out of view.
+     *
      * @param animateIn True if the overlay controls should animate into view.
      * @param fadeOutType Whether and how to animate the controls out of view. If fadeOutType is
-              NO_FADE_OUT the controls will remain on screen once the function is done.
+     *     NO_FADE_OUT the controls will remain on screen once the function is done.
      */
     private void showAndMaybeHideVideoControls(boolean animateIn, @FadeOut int fadeOutType) {
         mVideoControls.animate().cancel();
@@ -636,63 +675,70 @@ public class PickerVideoPlayer
             mLargePlayButton.setClickable(true);
             fadeAwayVideoControls(fadeOutType);
         } else {
-            mVideoControlsGradient.animate().alpha(1.0f).setStartDelay(0).setDuration(
-                    scaledTiming(OVERLAY_SCRIM_FADE_IN_DURATION_MS));
+            mVideoControlsGradient
+                    .animate()
+                    .alpha(1.0f)
+                    .setStartDelay(0)
+                    .setDuration(scaledTiming(OVERLAY_SCRIM_FADE_IN_DURATION_MS));
 
-            mVideoControls.animate()
+            mVideoControls
+                    .animate()
                     .alpha(1.0f)
                     .setStartDelay(0)
                     .setDuration(scaledTiming(OVERLAY_CONTROLS_FADE_IN_DURATION_MS))
-                    .setListener(new Animator.AnimatorListener() {
-                        @Override
-                        public void onAnimationStart(Animator animation) {
-                            notifyTestOfAnimationStart(mVideoControls);
-                        }
+                    .setListener(
+                            new Animator.AnimatorListener() {
+                                @Override
+                                public void onAnimationStart(Animator animation) {
+                                    notifyTestOfAnimationStart(mVideoControls);
+                                }
 
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            enableClickableButtons(true);
-                            // After animating the controls into view, start a timer for fading them
-                            // out again, if needed.
-                            fadeAwayVideoControls(fadeOutType);
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    enableClickableButtons(true);
+                                    // After animating the controls into view, start a timer for
+                                    // fading them out again, if needed.
+                                    fadeAwayVideoControls(fadeOutType);
 
-                            notifyTestOfAnimationEnd(mVideoControls);
-                        }
+                                    notifyTestOfAnimationEnd(mVideoControls);
+                                }
 
-                        @Override
-                        public void onAnimationCancel(Animator animation) {
-                            notifyTestOfAnimationCancel(mVideoControls);
-                        }
+                                @Override
+                                public void onAnimationCancel(Animator animation) {
+                                    notifyTestOfAnimationCancel(mVideoControls);
+                                }
 
-                        @Override
-                        public void onAnimationRepeat(Animator animation) {}
-                    });
+                                @Override
+                                public void onAnimationRepeat(Animator animation) {}
+                            });
 
-            mLargePlayButton.animate()
+            mLargePlayButton
+                    .animate()
                     .alpha(1.0f)
                     .setStartDelay(0)
                     .setDuration(scaledTiming(PLAY_BUTTON_FADE_IN_DURATION_MS))
-                    .setListener(new Animator.AnimatorListener() {
-                        @Override
-                        public void onAnimationStart(Animator animation) {
-                            notifyTestOfAnimationStart(mLargePlayButton);
-                        }
+                    .setListener(
+                            new Animator.AnimatorListener() {
+                                @Override
+                                public void onAnimationStart(Animator animation) {
+                                    notifyTestOfAnimationStart(mLargePlayButton);
+                                }
 
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            mLargePlayButton.setClickable(true);
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    mLargePlayButton.setClickable(true);
 
-                            notifyTestOfAnimationEnd(mLargePlayButton);
-                        }
+                                    notifyTestOfAnimationEnd(mLargePlayButton);
+                                }
 
-                        @Override
-                        public void onAnimationCancel(Animator animation) {
-                            notifyTestOfAnimationCancel(mLargePlayButton);
-                        }
+                                @Override
+                                public void onAnimationCancel(Animator animation) {
+                                    notifyTestOfAnimationCancel(mLargePlayButton);
+                                }
 
-                        @Override
-                        public void onAnimationRepeat(Animator animation) {}
-                    });
+                                @Override
+                                public void onAnimationRepeat(Animator animation) {}
+                            });
         }
     }
 
@@ -713,14 +759,15 @@ public class PickerVideoPlayer
             return;
         }
 
-        String formattedProgress = mContext.getResources().getString(
-                R.string.photo_picker_video_duration, current, total);
+        String formattedProgress =
+                mContext.getString(R.string.photo_picker_video_duration, current, total);
         mRemainingTime.setText(formattedProgress);
-        mRemainingTime.setContentDescription(mContext.getResources().getString(
-                R.string.accessibility_playback_time, current, total));
-        int percentage = mVideoView.getDuration() == 0
-                ? 0
-                : mVideoView.getCurrentPosition() * 100 / mVideoView.getDuration();
+        mRemainingTime.setContentDescription(
+                mContext.getString(R.string.accessibility_playback_time, current, total));
+        int percentage =
+                mVideoView.getDuration() == 0
+                        ? 0
+                        : mVideoView.getCurrentPosition() * 100 / mVideoView.getDuration();
         mSeekBar.setProgress(percentage);
 
         if (mVideoView.isPlaying() && mRunPlaybackMonitoringTask) {
@@ -729,6 +776,7 @@ public class PickerVideoPlayer
     }
 
     private void startVideoPlayback() {
+        assumeNonNull(mMediaPlayer);
         mMediaPlayer.start();
         switchToPauseButton();
         showAndMaybeHideVideoControls(/* animateIn= */ false, FadeOut.FADE_OUT_PLAY_QUICKLY);
@@ -737,6 +785,7 @@ public class PickerVideoPlayer
     private void stopVideoPlayback() {
         stopPlaybackMonitor();
 
+        assumeNonNull(mMediaPlayer);
         mMediaPlayer.pause();
         switchToPlayButton();
         showAndMaybeHideVideoControls(/* animateIn= */ false, FadeOut.NO_FADE_OUT);
@@ -753,27 +802,28 @@ public class PickerVideoPlayer
     private void switchToPlayButton() {
         mLargePlayButton.setImageResource(R.drawable.ic_play_circle_filled_white_24dp);
         mLargePlayButton.setContentDescription(
-                mContext.getResources().getString(R.string.accessibility_play_video));
+                mContext.getString(R.string.accessibility_play_video));
     }
 
     private void switchToPauseButton() {
         mLargePlayButton.setImageResource(R.drawable.ic_pause_circle_outline_white_24dp);
         mLargePlayButton.setContentDescription(
-                mContext.getResources().getString(R.string.accessibility_pause_video));
+                mContext.getString(R.string.accessibility_pause_video));
     }
 
     private void toggleMute() {
         mAudioOn = !mAudioOn;
+        assumeNonNull(mMediaPlayer);
         if (mAudioOn) {
             mMediaPlayer.setVolume(1f, 1f);
             mMuteButton.setImageResource(R.drawable.ic_volume_on_white_24dp);
             mMuteButton.setContentDescription(
-                    mContext.getResources().getString(R.string.accessibility_mute_video));
+                    mContext.getString(R.string.accessibility_mute_video));
         } else {
             mMediaPlayer.setVolume(0f, 0f);
             mMuteButton.setImageResource(R.drawable.ic_volume_off_white_24dp);
             mMuteButton.setContentDescription(
-                    mContext.getResources().getString(R.string.accessibility_unmute_video));
+                    mContext.getString(R.string.accessibility_unmute_video));
         }
     }
 
@@ -781,7 +831,7 @@ public class PickerVideoPlayer
         assert !mFullScreenEnabled;
         mFullscreenButton.setImageResource(R.drawable.ic_full_screen_exit_white_24dp);
         mFullscreenButton.setContentDescription(
-                mContext.getResources().getString(R.string.accessibility_exit_full_screen));
+                mContext.getString(R.string.accessibility_exit_full_screen));
         mFullScreenEnabled = true;
     }
 
@@ -789,20 +839,24 @@ public class PickerVideoPlayer
         assert mFullScreenEnabled;
         mFullscreenButton.setImageResource(R.drawable.ic_full_screen_white_24dp);
         mFullscreenButton.setContentDescription(
-                mContext.getResources().getString(R.string.accessibility_full_screen));
+                mContext.getString(R.string.accessibility_full_screen));
         mFullScreenEnabled = false;
     }
 
     private void toggleAndroidSystemUiForFullscreen() {
         mFullScreenToggledInApp = true;
+        assumeNonNull(mWindow);
         View decorView = mWindow.getDecorView();
         if (!mFullScreenEnabled) {
             decorView.setOnSystemUiVisibilityChangeListener(this);
             mPreviousSystemUiVisibilityOptions = decorView.getSystemUiVisibility();
-            decorView.setSystemUiVisibility(mPreviousSystemUiVisibilityOptions
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LOW_PROFILE);
+            decorView.setSystemUiVisibility(
+                    mPreviousSystemUiVisibilityOptions
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LOW_PROFILE);
         } else {
             decorView.setSystemUiVisibility(mPreviousSystemUiVisibilityOptions);
         }
@@ -833,17 +887,15 @@ public class PickerVideoPlayer
     }
 
     /** Sets whether to use shorter timeouts and durations. For testing use only. */
-    @VisibleForTesting
     public static void setShortAnimationTimesForTesting(boolean value) {
         sShortAnimationTimesForTesting = value;
+        ResettersForTesting.register(() -> sShortAnimationTimesForTesting = false);
     }
 
-    @VisibleForTesting
     public void singleTapForTesting() {
         onSingleTapVideo();
     }
 
-    @VisibleForTesting
     public void doubleTapForTesting(float x) {
         onDoubleTapVideo(x);
     }

@@ -9,9 +9,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/chromeos/policy/dlp/dialogs/dlp_warn_dialog.h"
 #include "chrome/browser/chromeos/policy/dlp/dialogs/dlp_warn_notifier.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_confidential_contents.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "ui/gfx/native_widget_types.h"
 #include "ui/views/widget/widget.h"
 
 using ::testing::Mock;
@@ -32,9 +30,8 @@ class MockDlpWarnNotifier : public DlpWarnNotifier {
 
   MOCK_METHOD(base::WeakPtr<views::Widget>,
               ShowDlpWarningDialog,
-              (OnDlpRestrictionCheckedCallback callback,
-               DlpWarnDialog::DlpWarnDialogOptions options,
-               gfx::NativeWindow modal_parent),
+              (WarningCallback callback,
+               DlpWarnDialog::DlpWarnDialogOptions options),
               (override));
 
  private:

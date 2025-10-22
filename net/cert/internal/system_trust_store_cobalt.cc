@@ -27,14 +27,30 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
   explicit SystemTrustStoreChromeOnly(std::unique_ptr<TrustStoreChrome> trust_store_chrome)
       : trust_store_chrome_(std::move(trust_store_chrome)) {}
 
-  TrustStore* GetTrustStore() override { return trust_store_chrome_.get(); }
-  bool UsesSystemTrustStore() const override { return false; }
-  bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
+  bssl::TrustStore* GetTrustStore() override { return trust_store_chrome_.get(); }
+  bool IsKnownRoot(const bssl::ParsedCertificate* trust_anchor) const override {
     return trust_store_chrome_->Contains(trust_anchor);
   }
-  int64_t chrome_root_store_version() override {
+  int64_t chrome_root_store_version() const override {
     return trust_store_chrome_->version();
   }
+
+  net::PlatformTrustStore* GetPlatformTrustStore() override { return nullptr; }
+
+  bool IsLocallyTrustedRoot(
+      const bssl::ParsedCertificate* trust_anchor) override {
+    return false;
+  }
+
+  base::span<const ChromeRootCertConstraints> GetChromeRootConstraints(
+      const bssl::ParsedCertificate* cert) const override {
+    return trust_store_chrome_->GetConstraintsForCert(cert);
+  }
+
+  bssl::TrustStore* eutl_trust_store() override {
+    return trust_store_chrome_->eutl_trust_store();
+  }
+
  private:
   std::unique_ptr<TrustStoreChrome> trust_store_chrome_;
 };

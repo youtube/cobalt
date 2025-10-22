@@ -11,24 +11,21 @@
 #import "base/path_service.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "base/test/test_timeouts.h"
 #import "ios/web/public/test/http_server/http_server.h"
 #import "ios/web/public/test/http_server/string_response_provider.h"
 #import "ios/web/test/web_int_test.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 #import "net/http/http_response_headers.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
 // Resonse body for requests sent to web::test::HttpServer.
 const char kHelloWorld[] = "Hello World";
 
-}  // namespave
+}  // namespace
 
 using web::test::HttpServer;
 
@@ -43,7 +40,8 @@ class HttpServerTest : public web::WebIntTest {
 
     HttpServer& server = HttpServer::GetSharedInstance();
     base::FilePath test_data_dir;
-    ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
     server.StartOrDie(test_data_dir.Append("."));
     server.AddResponseProvider(std::move(provider));
   }
@@ -62,16 +60,17 @@ TEST_F(HttpServerTest, StartAndInterfaceWithResponseProvider) {
   __block NSString* page_result;
   id completion_handler =
       ^(NSData* data, NSURLResponse* response, NSError* error) {
-        page_result =
-            [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        page_result = [[NSString alloc] initWithData:data
+                                            encoding:NSUTF8StringEncoding];
       };
   GURL url = HttpServer::GetSharedInstance().MakeUrl("http://whatever");
   NSURLSessionDataTask* data_task =
       [[NSURLSession sharedSession] dataTaskWithURL:net::NSURLWithGURL(url)
                                   completionHandler:completion_handler];
   [data_task resume];
-  base::test::ios::WaitUntilCondition(^bool() {
-    return page_result;
-  });
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      TestTimeouts::action_timeout(), ^bool() {
+        return page_result;
+      }));
   EXPECT_NSEQ(page_result, base::SysUTF8ToNSString(kHelloWorld));
 }

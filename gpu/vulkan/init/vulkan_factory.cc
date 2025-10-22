@@ -56,7 +56,6 @@ std::unique_ptr<VulkanImplementation> CreateVulkanImplementation(
   return std::make_unique<VulkanImplementationMac>(use_swiftshader);
 #else
   NOTREACHED();
-  return {};
 #endif
 #endif
 }

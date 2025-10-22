@@ -42,6 +42,9 @@ mojom("url_mojom_gurl") {
   ]
 
   webui_module_path = "chrome://resources/mojo/url/mojom"
+
+  # Legacy JS bindings are needed for Blink regardless of platform.
+  generate_legacy_js_bindings = true
 }
 
 mojom("url_mojom_origin") {
@@ -86,6 +89,7 @@ mojom("url_mojom_origin") {
   ]
 
   webui_module_path = "chrome://resources/mojo/url/mojom"
+  generate_legacy_js_bindings = true
 }
 
 mojom("url_mojom_scheme_host_port") {
@@ -104,6 +108,8 @@ mojom("url_mojom_scheme_host_port") {
       traits_public_deps = [ "//url" ]
     },
   ]
+
+  blink_cpp_typemaps = cpp_typemaps
 }
 
 mojom("test_url_mojom_gurl") {
@@ -138,4 +144,6 @@ component("mojom_traits") {
     "//mojo/public/cpp/base:shared_typemap_traits",
     "//url",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }

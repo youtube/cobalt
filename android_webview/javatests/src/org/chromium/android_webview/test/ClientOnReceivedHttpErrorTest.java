@@ -16,32 +16,38 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
-import org.chromium.android_webview.AwContentsClient.AwWebResourceRequest;
+import org.chromium.android_webview.AwWebResourceRequest;
 import org.chromium.android_webview.test.util.AwTestTouchUtils;
 import org.chromium.android_webview.test.util.CommonResources;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Feature;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer;
+import org.chromium.content_public.browser.test.util.WebContentsUtils;
 import org.chromium.net.test.util.TestWebServer;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for the ContentViewClient.onReceivedHttpError() method.
- */
-@RunWith(AwJUnit4ClassRunner.class)
-public class ClientOnReceivedHttpErrorTest {
-    @Rule
-    public AwActivityTestRule mActivityTestRule = new AwActivityTestRule();
+/** Tests for the ContentViewClient.onReceivedHttpError() method. */
+@RunWith(Parameterized.class)
+@UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
+public class ClientOnReceivedHttpErrorTest extends AwParameterizedTest {
+    @Rule public AwActivityTestRule mActivityTestRule;
 
     private VerifyOnReceivedHttpErrorCallClient mContentsClient;
     private AwTestContainerView mTestContainerView;
     private AwContents mAwContents;
     private TestWebServer mWebServer;
+
+    public ClientOnReceivedHttpErrorTest(AwSettingsMutation param) {
+        this.mActivityTestRule = new AwActivityTestRule(param.getMutation());
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -71,7 +77,8 @@ public class ClientOnReceivedHttpErrorTest {
                         "onPageFinished called twice for " + url, false, mIsOnPageFinishedCalled);
                 mIsOnPageFinishedCalled = true;
                 Assert.assertEquals(
-                        "onReceivedHttpError not called before onPageFinished for " + url, true,
+                        "onReceivedHttpError not called before onPageFinished for " + url,
+                        true,
                         mIsOnReceivedHttpErrorCalled);
             }
             super.onPageFinished(url);
@@ -81,7 +88,9 @@ public class ClientOnReceivedHttpErrorTest {
         public void onReceivedHttpError(
                 AwWebResourceRequest request, WebResourceResponseInfo response) {
             if (!mBypass) {
-                Assert.assertEquals("onReceivedHttpError called twice for " + request.url, false,
+                Assert.assertEquals(
+                        "onReceivedHttpError called twice for " + request.getUrl(),
+                        false,
                         mIsOnReceivedHttpErrorCalled);
                 mIsOnReceivedHttpErrorCalled = true;
             }
@@ -111,12 +120,12 @@ public class ClientOnReceivedHttpErrorTest {
                 mContentsClient.getOnReceivedHttpErrorHelper();
         AwWebResourceRequest request = onReceivedHttpErrorHelper.getRequest();
         Assert.assertNotNull(request);
-        Assert.assertEquals(url, request.url);
-        Assert.assertEquals("GET", request.method);
-        Assert.assertNotNull(request.requestHeaders);
-        Assert.assertFalse(request.requestHeaders.isEmpty());
-        Assert.assertTrue(request.isOutermostMainFrame);
-        Assert.assertFalse(request.hasUserGesture);
+        Assert.assertEquals(url, request.getUrl());
+        Assert.assertEquals("GET", request.getMethod());
+        Assert.assertNotNull(request.getRequestHeaders());
+        Assert.assertFalse(request.getRequestHeaders().isEmpty());
+        Assert.assertTrue(request.isOutermostMainFrame());
+        Assert.assertFalse(request.hasUserGesture());
         WebResourceResponseInfo response = onReceivedHttpErrorHelper.getResponse();
         Assert.assertEquals(404, response.getStatusCode());
         Assert.assertEquals("Not Found", response.getReasonPhrase());
@@ -138,10 +147,15 @@ public class ClientOnReceivedHttpErrorTest {
         List<Pair<String, String>> headers = new ArrayList<Pair<String, String>>();
         headers.add(Pair.create("Content-Type", "text/html; charset=utf-8"));
         final String badUrl = mWebServer.setResponseWithNotFoundStatus("/404.html", headers);
-        final String pageWithLinkUrl = mWebServer.setResponse("/page_with_link.html",
-                CommonResources.makeHtmlPageWithSimpleLinkTo(badUrl), null);
+        final String pageWithLinkUrl =
+                mWebServer.setResponse(
+                        "/page_with_link.html",
+                        CommonResources.makeHtmlPageWithSimpleLinkTo(badUrl),
+                        null);
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
         mActivityTestRule.loadUrlAsync(mAwContents, pageWithLinkUrl);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> WebContentsUtils.simulateEndOfPaintHolding(mAwContents.getWebContents()));
         mActivityTestRule.waitForPixelColorAtCenterOfView(
                 mAwContents, mTestContainerView, CommonResources.LINK_COLOR);
 
@@ -149,18 +163,19 @@ public class ClientOnReceivedHttpErrorTest {
                 mContentsClient.getOnReceivedHttpErrorHelper();
         int onReceivedHttpErrorCallCount = onReceivedHttpErrorHelper.getCallCount();
         AwTestTouchUtils.simulateTouchCenterOfView(mTestContainerView);
-        onReceivedHttpErrorHelper.waitForCallback(onReceivedHttpErrorCallCount,
-                1 /* numberOfCallsToWaitFor */,
+        onReceivedHttpErrorHelper.waitForCallback(
+                onReceivedHttpErrorCallCount,
+                /* numberOfCallsToWaitFor= */ 1,
                 WAIT_TIMEOUT_MS,
                 TimeUnit.MILLISECONDS);
         AwWebResourceRequest request = onReceivedHttpErrorHelper.getRequest();
         Assert.assertNotNull(request);
-        Assert.assertEquals(badUrl, request.url);
-        Assert.assertEquals("GET", request.method);
-        Assert.assertNotNull(request.requestHeaders);
-        Assert.assertFalse(request.requestHeaders.isEmpty());
-        Assert.assertTrue(request.isOutermostMainFrame);
-        Assert.assertTrue(request.hasUserGesture);
+        Assert.assertEquals(badUrl, request.getUrl());
+        Assert.assertEquals("GET", request.getMethod());
+        Assert.assertNotNull(request.getRequestHeaders());
+        Assert.assertFalse(request.getRequestHeaders().isEmpty());
+        Assert.assertTrue(request.isOutermostMainFrame());
+        Assert.assertTrue(request.hasUserGesture());
         WebResourceResponseInfo response = onReceivedHttpErrorHelper.getResponse();
         Assert.assertEquals(404, response.getStatusCode());
         Assert.assertEquals("Not Found", response.getReasonPhrase());
@@ -175,12 +190,14 @@ public class ClientOnReceivedHttpErrorTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
+    @SkipMutations(reason = "This test depends on AwSettings.setImagesEnabled(true)")
     public void testForSubresource() throws Throwable {
         List<Pair<String, String>> headers = new ArrayList<Pair<String, String>>();
         headers.add(Pair.create("Content-Type", "text/html; charset=utf-8"));
         final String imageUrl = mWebServer.setResponseWithNotFoundStatus("/404.png", headers);
-        final String pageHtml = CommonResources.makeHtmlPageFrom(
-                "", "<img src='" + imageUrl + "' class='img.big' />");
+        final String pageHtml =
+                CommonResources.makeHtmlPageFrom(
+                        "", "<img src='" + imageUrl + "' class='img.big' />");
         final String pageUrl = mWebServer.setResponse("/page.html", pageHtml, null);
         mActivityTestRule.loadUrlSync(
                 mAwContents, mContentsClient.getOnPageFinishedHelper(), pageUrl);
@@ -189,12 +206,12 @@ public class ClientOnReceivedHttpErrorTest {
                 mContentsClient.getOnReceivedHttpErrorHelper();
         AwWebResourceRequest request = onReceivedHttpErrorHelper.getRequest();
         Assert.assertNotNull(request);
-        Assert.assertEquals(imageUrl, request.url);
-        Assert.assertEquals("GET", request.method);
-        Assert.assertNotNull(request.requestHeaders);
-        Assert.assertFalse(request.requestHeaders.isEmpty());
-        Assert.assertFalse(request.isOutermostMainFrame);
-        Assert.assertFalse(request.hasUserGesture);
+        Assert.assertEquals(imageUrl, request.getUrl());
+        Assert.assertEquals("GET", request.getMethod());
+        Assert.assertNotNull(request.getRequestHeaders());
+        Assert.assertFalse(request.getRequestHeaders().isEmpty());
+        Assert.assertFalse(request.isOutermostMainFrame());
+        Assert.assertFalse(request.hasUserGesture());
         WebResourceResponseInfo response = onReceivedHttpErrorHelper.getResponse();
         Assert.assertEquals(404, response.getStatusCode());
         Assert.assertEquals("Not Found", response.getReasonPhrase());
@@ -223,13 +240,14 @@ public class ClientOnReceivedHttpErrorTest {
         // a load that will result in a error, and check that we have only got one callback,
         // originating from the last attempt.
         mActivityTestRule.loadUrlAsync(mAwContents, badUrl);
-        onReceivedHttpErrorHelper.waitForCallback(onReceivedHttpErrorCallCount,
-                1 /* numberOfCallsToWaitFor */,
+        onReceivedHttpErrorHelper.waitForCallback(
+                onReceivedHttpErrorCallCount,
+                /* numberOfCallsToWaitFor= */ 1,
                 WAIT_TIMEOUT_MS,
                 TimeUnit.MILLISECONDS);
         Assert.assertEquals(
                 onReceivedHttpErrorCallCount + 1, onReceivedHttpErrorHelper.getCallCount());
-        Assert.assertEquals(badUrl, onReceivedHttpErrorHelper.getRequest().url);
+        Assert.assertEquals(badUrl, onReceivedHttpErrorHelper.getRequest().getUrl());
     }
 
     @Test
@@ -247,12 +265,12 @@ public class ClientOnReceivedHttpErrorTest {
                 mContentsClient.getOnReceivedHttpErrorHelper();
         AwWebResourceRequest request = onReceivedHttpErrorHelper.getRequest();
         Assert.assertNotNull(request);
-        Assert.assertEquals(secondUrl, request.url);
-        Assert.assertEquals("GET", request.method);
-        Assert.assertNotNull(request.requestHeaders);
-        Assert.assertFalse(request.requestHeaders.isEmpty());
-        Assert.assertTrue(request.isOutermostMainFrame);
-        Assert.assertFalse(request.hasUserGesture);
+        Assert.assertEquals(secondUrl, request.getUrl());
+        Assert.assertEquals("GET", request.getMethod());
+        Assert.assertNotNull(request.getRequestHeaders());
+        Assert.assertFalse(request.getRequestHeaders().isEmpty());
+        Assert.assertTrue(request.isOutermostMainFrame());
+        Assert.assertFalse(request.hasUserGesture());
         WebResourceResponseInfo response = onReceivedHttpErrorHelper.getResponse();
         Assert.assertEquals(404, response.getStatusCode());
         Assert.assertEquals("Not Found", response.getReasonPhrase());
@@ -284,16 +302,22 @@ public class ClientOnReceivedHttpErrorTest {
 
         // Navigate to a URL that doesn't exist.
         mActivityTestRule.loadUrlSync(mAwContents, onPageFinishedHelper, badUrl);
-        Assert.assertEquals("onReceivedHttpErrorHelper should be called once",
-                initialOnHttpErrorCount + 1, onReceivedHttpErrorHelper.getCallCount());
+        Assert.assertEquals(
+                "onReceivedHttpErrorHelper should be called once",
+                initialOnHttpErrorCount + 1,
+                onReceivedHttpErrorHelper.getCallCount());
         AwWebResourceRequest request = onReceivedHttpErrorHelper.getRequest();
         Assert.assertNotNull("onReceivedHttpError should have a non-null request", request);
-        Assert.assertEquals(badUrl, request.url);
-        Assert.assertEquals("onPageStartedHelper should be called once",
-                initialOnPageStartedCount + 1, onPageStartedHelper.getCallCount());
+        Assert.assertEquals(badUrl, request.getUrl());
+        Assert.assertEquals(
+                "onPageStartedHelper should be called once",
+                initialOnPageStartedCount + 1,
+                onPageStartedHelper.getCallCount());
         Assert.assertEquals(badUrl, onPageStartedHelper.getUrl());
-        Assert.assertEquals("onPageFinishedHelper should be called once",
-                initialOnPageFinishedCount + 1, onPageFinishedHelper.getCallCount());
+        Assert.assertEquals(
+                "onPageFinishedHelper should be called once",
+                initialOnPageFinishedCount + 1,
+                onPageFinishedHelper.getCallCount());
         Assert.assertEquals(badUrl, onPageFinishedHelper.getUrl());
 
         // Rather than wait a fixed time to see that additional callbacks for badUrl aren't
@@ -327,16 +351,22 @@ public class ClientOnReceivedHttpErrorTest {
         // Navigate to a URL that 404s but has a non-empty body (because
         // setResponseWithNotFoundStatus will add some content to 404 responses).
         mActivityTestRule.loadUrlSync(mAwContents, onPageFinishedHelper, badUrl);
-        Assert.assertEquals("onReceivedHttpErrorHelper should be called once",
-                initialOnHttpErrorCount + 1, onReceivedHttpErrorHelper.getCallCount());
+        Assert.assertEquals(
+                "onReceivedHttpErrorHelper should be called once",
+                initialOnHttpErrorCount + 1,
+                onReceivedHttpErrorHelper.getCallCount());
         AwWebResourceRequest request = onReceivedHttpErrorHelper.getRequest();
         Assert.assertNotNull("onReceivedHttpError should have a non-null request", request);
-        Assert.assertEquals(badUrl, request.url);
-        Assert.assertEquals("onPageStartedHelper should be called once",
-                initialOnPageStartedCount + 1, onPageStartedHelper.getCallCount());
+        Assert.assertEquals(badUrl, request.getUrl());
+        Assert.assertEquals(
+                "onPageStartedHelper should be called once",
+                initialOnPageStartedCount + 1,
+                onPageStartedHelper.getCallCount());
         Assert.assertEquals(badUrl, onPageStartedHelper.getUrl());
-        Assert.assertEquals("onPageFinishedHelper should be called once",
-                initialOnPageFinishedCount + 1, onPageFinishedHelper.getCallCount());
+        Assert.assertEquals(
+                "onPageFinishedHelper should be called once",
+                initialOnPageFinishedCount + 1,
+                onPageFinishedHelper.getCallCount());
         Assert.assertEquals(badUrl, onPageFinishedHelper.getUrl());
 
         // Rather than wait a fixed time to see that additional callbacks for badUrl aren't

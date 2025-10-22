@@ -10,53 +10,6 @@ option optimize_for = LITE_RUNTIME;
 
 package autofill;
 
-import "password_requirements.proto";
-
-// Request to query field suggestions for forms in a page from legacy Autofill
-// API.
-// Next available id: 15
-message AutofillQueryContents {
-  reserved 11;  // Reserved for server use.
-  required string client_version = 1;
-  repeated group Form = 2 {
-    required fixed64 signature = 3;
-    optional AutofillRandomizedFormMetadata form_metadata = 12;
-    repeated group Field = 4 {
-      required fixed32 signature = 5;
-      optional string name = 8;
-      optional string type = 9;  // Control type.
-      optional AutofillRandomizedFieldMetadata field_metadata = 13;
-    }
-  }
-  repeated int64 experiments = 14;
-}
-
-// Response from Autofill query on the legacy API that gives field suggestions
-// for forms of a page in a flattened representation. The fields are returned in
-// the exact same order as filled in the request.
-// Next available id: 10
-message AutofillQueryResponseContents {
-  optional bool upload_required = 1 [deprecated = true];
-  repeated group Field = 2 {
-    required fixed32 overall_type_prediction = 3;
-    // Detailed list of all possible predictions (including
-    // |overall_type_prediction| as the first item).
-    message FieldPrediction {
-      // The predicted field type.
-      optional fixed32 type = 1;
-
-      // True if the serverside classification believes that the field
-      // may be pre-filled with a placeholder in the value attribute.
-      optional bool may_use_prefilled_placeholder = 2;
-    }
-    repeated FieldPrediction predictions = 7;
-
-    // For fields of type NEW_PASSWORD and ACCOUNT_CREATION_PASSWORD, this may
-    // specify requirements for the generation of passwords.
-    optional PasswordRequirementsSpec password_requirements = 9;
-  }
-}
-
 // This message contains a randomized encoding of a string, where each bit
 // in the encoded string is randomly sent as either the true value seen by
 // the client, or random noise. The mapping of specific bits in the encoded
@@ -221,11 +174,42 @@ message AutofillRandomizedFieldMetadata {
 
   // Value of the autocomplete attribute. Example: <input autocomplete="XXX">
   optional AutofillRandomizedValue autocomplete = 10;
+
+  // Value of the pattern attribute. Example: <input pattern="XXXXX">
+  optional AutofillRandomizedValue pattern = 11;
+
+  // Value of the maxlength attribute. Example: <input maxlength=4>
+  optional AutofillRandomizedValue max_length = 12;
+
+  // Corresponds to a `autofill::SelectOption`.
+  message AutofillRandomizedSelectOption {
+    // The option's "value" attribute, or, if not present, its text content.
+    optional AutofillRandomizedValue value = 1;
+    // The option's "label" attribute, or, if not present, its text content.
+    // Emitted only if it is not the same as the "value" field above.
+    optional AutofillRandomizedValue text = 2;
+  }
+
+  // The <option>s if the field is a <select>. Note that if the <select>
+  // has more than 3 options, this only includes the first, the second, and the
+  // last option.
+  repeated AutofillRandomizedSelectOption select_option = 13;
+}
+
+// A format string describes a value pattern.
+message FormatString {
+  enum Type {
+    // The format string represents a date as documented
+    // autofill::data_util::IsValidDateFormat().
+    DATE = 0;
+  }
+  optional Type type = 49;
+  optional string format_string = 50;
 }
 
 // This message contains information about the field types in a single form.
 // It is sent by the toolbar to contribute to the field type statistics.
-// Next available id: 46
+// Next available id: 49
 message AutofillUploadContents {
   required string client_version = 1;
   required fixed64 form_signature = 2;
@@ -245,7 +229,7 @@ message AutofillUploadContents {
   required string data_present = 4;
 
   // List of the fields in the form and their types.
-  repeated group Field = 5 {
+  message Field {
     // Field identification inside the current form.
     required fixed32 signature = 6;
 
@@ -329,24 +313,9 @@ message AutofillUploadContents {
     // context of the vote.
     optional VoteType vote_type = 23;
 
-    message AutofillTypeValiditiesPair {
-      // Type of the field, e.g. what type of personal data the user entered in
-      // that field before form submission. A list of all data types can be
-      // found in: components/autofill/core/browser/field_types.h
-      required int32 type = 1;
-      // The validity of the type, which is determined based on the validity of
-      // the user's profile data. A list of all validity states can be found
-      // here: components/autofill/core/browser/data_model/autofill_data_model.h
-      // The validity state of a type is used to experiment if only using valid
-      // data would result in better predictions.
-      // TODO(crbug.com/1174203): Remove the validity.
-      repeated int32 validity = 2;
-    }
-    // A list of possible types for the field with their corresponding validity
-    // states based on the user's data. Deprecated in M99 after unsuccessful
-    // experiments.
-    repeated AutofillTypeValiditiesPair autofill_type_validities = 35
-        [deprecated = true];
+    // Deleted field.
+    reserved 35;
+    reserved "autofill_type_validities";
 
     // A low-entropy hash of the field's initial value before user-interactions
     // or automatic fillings. This field is used to detect static
@@ -357,17 +326,50 @@ message AutofillUploadContents {
     enum SingleUsernameVoteType {
       DEFAULT = 0;
       // Votes with low confidence (i.e. recorded if Save/Update prompt was
-      // accepted without username edits).
+      // accepted without username edits) for UFF classifier.
       WEAK = 1;
       // Votes with high confidence (i.e. recorded if Save/Update prompt was
-      // accepted after username edits).
+      // accepted after username edits) for UFF classifier.
       STRONG = 2;
+      // Votes with low confidence (i.e. recorded if Save/Update prompt was
+      // accepted without username edits) for forgot password form classifier.
+      WEAK_FORGOT_PASSWORD = 3;
+      // Votes with high confidence (i.e. recorded if Save/Update prompt was
+      // accepted after username edits) for forgot password form classifier.
+      STRONG_FORGOT_PASSWORD = 4;
+      // If positive (`autofill_type` is `SINGLE_USERNAME`), votes signal that
+      // user was prompted with a Save/Update bubble with a username value found
+      // inside the password form and edited it to one of the values that was
+      // found outside of the password form. If negative (`autofill_type` is
+      // `NOT_USERNAME`), user was prompted with a username value outside the
+      // password form and edited it to one of the values that is found inside
+      // the password form.
+      IN_FORM_OVERRULE = 5;
     }
 
     // The type of the username first flow vote signal, set iff |autofill_type|
-    // is SINGLE_USERNAME or NOT_USERNAME.
+    // is SINGLE_USERNAME, SINGLE_USERNAME_FORGOT_PASSWORD or NOT_USERNAME.
     optional SingleUsernameVoteType single_username_vote_type = 41;
+
+    // Only set for Username First Flow votes (`autofill_type` is
+    // `SINGLE_USERNAME` or `NOT_USERNAME`). Otherwise, set to `std::nullopt`.
+    // If set to true, the field is username candidate in Username First Flow
+    // and the field has no intermediate fields (like OTP/Captcha) between the
+    // candidate and the password form.
+    // If set to false, the field is username candidate in Username First Flow,
+    // but has intermediate fields between the candidate and the password
+    // form.
+    optional bool is_most_recent_single_username_candidate = 46;
+
+    // Set to `true` if the field had a value on page load and it was changed
+    // between then and form submission. Set to `false` if the pre-filled value
+    // wasn't changed. Not set if the field didn't have a pre-filled value.
+    optional bool initial_value_changed = 47;
+
+    // List of format strings which match the field's value.
+    repeated FormatString format_string = 51;
   }
+  repeated Field field_data = 48;
   // Signature of the form action host (e.g. Hash64Bit("example.com")).
   optional fixed64 action_signature = 13;
 
@@ -423,12 +425,14 @@ message AutofillUploadContents {
     XHR_SUCCEEDED = 3;
     FRAME_DETACHED = 4;
     DEPRECATED_MANUAL_SAVE = 5;  // obsolete
-    DOM_MUTATION_AFTER_XHR = 6;
-    PROVISIONALLY_SAVED_FORM_ON_START_PROVISIONAL_LOAD = 7;
+    DEPRECATED_DOM_MUTATION_AFTER_XHR = 6;  // obsolete
+    DEPRECATED_PROVISIONALLY_SAVED_FORM_ON_START_PROVISIONAL_LOAD =
+        7;                                                           // unused
     DEPRECATED_FILLED_FORM_ON_START_PROVISIONAL_LOAD = 8;            // unused
     DEPRECATED_FILLED_INPUT_ELEMENTS_ON_START_PROVISIONAL_LOAD = 9;  // unused
     PROBABLE_FORM_SUBMISSION = 10;
     CHANGE_PASSWORD_FORM_CLEARED = 11;
+    DOM_MUTATION_AFTER_AUTOFILL = 12;
   }
 
   // The type of the event that was taken as an indication that the form has
@@ -458,22 +462,8 @@ message AutofillUploadContents {
   optional bool has_form_tag = 37;
 
   // Captures whether or not this upload was a candidate for throttling.
-  optional bool was_throttleable = 38;
+  optional bool was_throttleable = 38 [deprecated = true];
 
-  // Type of the value seen in the potential single username field.
-  enum ValueType {
-    TYPE_UNSPECIFIED = 0;
-    NO_VALUE_TYPE = 1;
-    STORED_FOR_CURRENT_DOMAIN = 2;
-    // TODO(crbug.com/959776) Not used yet. Check against all domains to be
-    // implemented.
-    STORED_FOR_ANOTHER_DOMAIN = 3;
-    EMAIL = 4;
-    PHONE = 5;
-    USERNAME_LIKE = 6;
-    VALUE_WITH_NO_WHITESPACE = 7;
-    VALUE_WITH_WHITESPACE = 8;
-  }
   // Information received from user interaction with the prompt.
   enum SingleUsernamePromptEdit {
     EDIT_UNSPECIFIED = 0;
@@ -482,16 +472,8 @@ message AutofillUploadContents {
     EDITED_POSITIVE = 3;
     EDITED_NEGATIVE = 4;
   }
-  message SingleUsernameData {
-    optional fixed64 username_form_signature = 1;
-    optional fixed32 username_field_signature = 2;
-    optional ValueType value_type = 3;
-    optional SingleUsernamePromptEdit prompt_edit = 4;
-  }
-  // This message is recorded on forms that do not have a username field.
-  // The message contains data on a preceding form with potential username
-  // field.
-  optional SingleUsernameData single_username_data = 42;
+
+  reserved 42;
 
   // The form signature of related forms, which were submitted on the same
   // origin shortly prior. If set, `last_address_form_submitted` or
@@ -499,25 +481,7 @@ message AutofillUploadContents {
   optional fixed64 last_address_form_submitted = 43;
   optional fixed64 second_last_address_form_submitted = 44;
   optional fixed64 last_credit_card_form_submitted = 45;
-}
 
-// This proto contains information about the validity of each field in an
-// autofill profile. It is used to transfer the results of running the profile
-// validation pipeline on the server side to the client via ChromeSync
-// PriorityPreferences. An identical copy of this proto is maintained in
-// the server code base.
-message ProfileValidityMap {
-  // Map from autofill type to the validity of its value in the profile.
-  //
-  // Key should be one of the enum values from ServerFieldType. Values should be
-  // from the AutofillProfile::ValidityState. Plain integers are used
-  // instead of enums because proto2 treats unknown enum values as unknown
-  // fields, which is confusing when the enums are in maps.
-  map<int32, int32> field_validity_states = 1;
-}
-
-// Map from profile GUIDs to profile validity maps for that profile. Each
-// message should contain entries for all profiles from a single user.
-message UserProfileValidityMap {
-  map<string, ProfileValidityMap> profile_validity = 1;
+  reserved 5;
+  reserved "Field";
 }

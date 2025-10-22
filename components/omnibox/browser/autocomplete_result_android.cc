@@ -17,10 +17,11 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/omnibox/browser/jni_headers/AutocompleteResult_jni.h"
 #include "components/omnibox/browser/search_suggestion_parser.h"
-#include "components/query_tiles/android/tile_conversion_bridge.h"
 #include "url/android/gurl_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/omnibox/browser/jni_headers/AutocompleteResult_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -51,6 +52,8 @@ enum class MatchVerificationPoint {
   DELETE_MATCH = 3,
   GROUP_BY_SEARCH_VS_URL_BEFORE = 4,
   GROUP_BY_SEARCH_VS_URL_AFTER = 5,
+  ON_TOUCH_MATCH = 6,
+  GET_MATCHING_TAB = 7,
 };
 
 const char* MatchVerificationPointToString(int verification_point) {
@@ -65,9 +68,14 @@ const char* MatchVerificationPointToString(int verification_point) {
       return "Group/Before";
     case MatchVerificationPoint::GROUP_BY_SEARCH_VS_URL_AFTER:
       return "Group/After";
-    default:
+    case MatchVerificationPoint::ON_TOUCH_MATCH:
+      return "OnTouch";
+    case MatchVerificationPoint::GET_MATCHING_TAB:
+      return "GetMatchingTab";
+    case MatchVerificationPoint::INVALID:
       return "Invalid";
   }
+  NOTREACHED();
 }
 
 bool sInvalidMatchMetricsUploaded = false;
@@ -137,27 +145,6 @@ ScopedJavaLocalRef<jobjectArray> AutocompleteResult::BuildJavaMatches(
   }
 
   return j_matches;
-}
-
-void AutocompleteResult::GroupSuggestionsBySearchVsURL(JNIEnv* env,
-                                                       int first_index,
-                                                       int last_index) {
-  if (first_index == last_index)
-    return;
-  const int num_elements = matches_.size();
-  if (first_index < 0 || last_index <= first_index ||
-      last_index > num_elements) {
-    DCHECK(false) << "Range [" << first_index << "; " << last_index
-                  << ") is not valid for grouping; accepted range: [0; "
-                  << num_elements << ").";
-    return;
-  }
-
-  auto range_start = const_cast<ACMatches&>(matches_).begin();
-  GroupSuggestionsBySearchVsURL(range_start + first_index,
-                                range_start + last_index);
-  Java_AutocompleteResult_updateMatches(env, java_result_,
-                                        BuildJavaMatches(env));
 }
 
 bool AutocompleteResult::VerifyCoherency(

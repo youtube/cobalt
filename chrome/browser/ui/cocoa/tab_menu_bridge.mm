@@ -7,15 +7,18 @@
 #import <Cocoa/Cocoa.h>
 
 #include "base/functional/callback.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/l10n_util_mac.h"
+#include "ui/base/models/image_model.h"
+#include "ui/gfx/image/image_skia_util_mac.h"
 
 using MenuItemCallback = base::RepeatingCallback<void(NSMenuItem*)>;
 
@@ -23,7 +26,10 @@ namespace {
 
 void UpdateItemForWebContents(NSMenuItem* item,
                               content::WebContents* web_contents) {
-  TabUIHelper* tab_ui_helper = TabUIHelper::FromWebContents(web_contents);
+  tabs::TabInterface* const tab_interface =
+      tabs::TabInterface::GetFromContents(web_contents);
+  TabUIHelper* const tab_ui_helper =
+      tab_interface->GetTabFeatures()->tab_ui_helper();
 
   auto* audio_helper = RecentlyAudibleHelper::FromWebContents(web_contents);
   if (audio_helper && audio_helper->WasRecentlyAudible()) {
@@ -45,7 +51,8 @@ void UpdateItemForWebContents(NSMenuItem* item,
   } else {
     item.title = base::SysUTF16ToNSString(tab_ui_helper->GetTitle());
   }
-  item.image = tab_ui_helper->GetFavicon().AsNSImage();
+  item.image = NSImageFromImageSkia(
+      tab_ui_helper->GetFavicon().Rasterize(&web_contents->GetColorProvider()));
 }
 
 void RemoveMenuItems(NSArray* menu_items) {
@@ -81,20 +88,21 @@ void RemoveMenuItems(NSArray* menu_items) {
 
 TabMenuBridge::TabMenuBridge(TabStripModel* model, NSMenuItem* menu_item)
     : model_(model), menu_item_(menu_item) {
-  menu_listener_.reset([[TabMenuListener alloc]
+  menu_listener_ = [[TabMenuListener alloc]
       initWithCallback:base::BindRepeating(
                            &TabMenuBridge::OnDynamicItemChosen,
                            // Unretained is safe here: this class owns
                            // MenuListener, which holds the callback
                            // being constructed here, so the callback
                            // will be destructed before this class.
-                           base::Unretained(this))]);
+                           base::Unretained(this))];
   model_->AddObserver(this);
 }
 
 TabMenuBridge::~TabMenuBridge() {
-  if (model_)
+  if (model_) {
     model_->RemoveObserver(this);
+  }
   RemoveMenuItems(DynamicMenuItems());
 }
 
@@ -105,12 +113,13 @@ void TabMenuBridge::BuildMenu() {
 
 NSMutableArray* TabMenuBridge::DynamicMenuItems() {
   NSMenu* tabMenu = menu_item_.submenu;
-  NSMutableArray* array = [[[NSMutableArray alloc]
-      initWithCapacity:[tabMenu numberOfItems]] autorelease];
+  NSMutableArray* array =
+      [[NSMutableArray alloc] initWithCapacity:[tabMenu numberOfItems]];
 
   for (NSMenuItem* item in menu_item_.submenu.itemArray) {
-    if (item.target == menu_listener_.get())
+    if (item.target == menu_listener_) {
       [array addObject:item];
+    }
   }
 
   return array;
@@ -122,17 +131,17 @@ void TabMenuBridge::AddDynamicItemsFromModel() {
 
   dynamic_items_start_ = tabMenu.numberOfItems - recyclable_items.count;
   for (int i = 0; i < model_->count(); ++i) {
-    base::scoped_nsobject<NSMenuItem> item;
+    NSMenuItem* item;
 
     if (recyclable_items.count) {
-      item.reset([[recyclable_items firstObject] retain]);
+      item = [recyclable_items firstObject];
       [recyclable_items removeObjectAtIndex:0];
-      [item setState:NSControlStateValueOff];
+      item.state = NSControlStateValueOff;
     } else {
-      item.reset([[NSMenuItem alloc] initWithTitle:@""
-                                            action:@selector(activateTab:)
-                                     keyEquivalent:@""]);
-      [item setTarget:menu_listener_.get()];
+      item = [[NSMenuItem alloc] initWithTitle:@""
+                                        action:@selector(activateTab:)
+                                 keyEquivalent:@""];
+      [item setTarget:menu_listener_];
     }
 
     if (model_->active_index() == i) {
@@ -141,7 +150,7 @@ void TabMenuBridge::AddDynamicItemsFromModel() {
     UpdateItemForWebContents(item, model_->GetWebContentsAt(i));
 
     if ([item menu] == nil) {
-      [tabMenu addItem:item.get()];
+      [tabMenu addItem:item];
     }
   }
 
@@ -149,10 +158,11 @@ void TabMenuBridge::AddDynamicItemsFromModel() {
 }
 
 void TabMenuBridge::OnDynamicItemChosen(NSMenuItem* item) {
-  if (!model_)
+  if (!model_) {
     return;
+  }
 
-  DCHECK_EQ(item.target, menu_listener_.get());
+  DCHECK_EQ(item.target, menu_listener_);
   int index = [menu_item_.submenu indexOfItem:item] - dynamic_items_start_;
   model_->ActivateTabAt(index,
                         TabStripUserGestureDetails(
@@ -172,7 +182,7 @@ void TabMenuBridge::OnTabStripModelChanged(
     const TabStripModelChange::Replace* replace = change.GetReplace();
     int menu_index = replace->index + dynamic_items_start_;
     UpdateItemForWebContents([menu_item_.submenu itemAtIndex:menu_index],
-                             replace->new_contents);
+                             replace -> new_contents);
     return;
   }
 
@@ -186,8 +196,9 @@ void TabMenuBridge::TabChangedAt(content::WebContents* contents,
 
   // Ignore loading state changes - they happen very often during page load and
   // are used to drive the load spinner, which is not interesting to this menu.
-  if (change_type == TabChangeType::kLoadingOnly)
+  if (change_type == TabChangeType::kLoadingOnly) {
     return;
+  }
 
   int menu_index = index + dynamic_items_start_;
 
@@ -203,8 +214,9 @@ void TabMenuBridge::TabChangedAt(content::WebContents* contents,
   // As such, this code early-outs instead of DCHECKing. The newly-added
   // WebContents will be picked up later anyway when this object does get
   // notified of the addition.
-  if (menu_index < 0 || menu_index >= menu_item_.submenu.numberOfItems)
+  if (menu_index < 0 || menu_index >= menu_item_.submenu.numberOfItems) {
     return;
+  }
 
   NSMenuItem* item = [menu_item_.submenu itemAtIndex:menu_index];
   UpdateItemForWebContents(item, contents);

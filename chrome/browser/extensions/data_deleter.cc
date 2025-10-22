@@ -10,19 +10,18 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/task/task_runner.h"
 #include "chrome/browser/extensions/chrome_extension_cookies.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_special_storage_policy.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_io_data.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
+#include "chrome/common/pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
 #include "extensions/browser/api/storage/storage_frontend.h"
-#include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/common/constants.h"
@@ -68,8 +67,8 @@ void DeleteOrigin(Profile* profile,
 
     // Delete cookies separately from other data so that the request context
     // for extensions doesn't need to be passed into the StoragePartition.
-    extensions::ChromeExtensionCookies::Get(profile)->ClearCookies(
-        origin, subtask_done_callback);
+    ChromeExtensionCookies::Get(profile)->ClearCookies(origin,
+                                                       subtask_done_callback);
   } else {
     // We don't need to worry about the media request context because that
     // shares the same cookie store as the main request context.
@@ -80,9 +79,11 @@ void DeleteOrigin(Profile* profile,
   }
 }
 
-void OnNeedsToGarbageCollectIsolatedStorage(WeakPtr<ExtensionService> es) {
-  if (es)
-    ExtensionPrefs::Get(es->profile())->SetNeedsStorageGarbageCollection(true);
+void OnNeedsToGarbageCollectIsolatedStorage(WeakPtr<Profile> profile) {
+  if (profile) {
+    profile->GetPrefs()->SetBoolean(
+        prefs::kShouldGarbageCollectStoragePartitions, true);
+  }
 }
 
 }  // namespace
@@ -92,6 +93,7 @@ void DataDeleter::StartDeleting(Profile* profile,
                                 const Extension* extension,
                                 base::OnceClosure done_callback) {
   DCHECK(profile);
+  DCHECK(!profile->IsOffTheRecord());
   DCHECK(extension);
 
   // Storage deletion can take a couple different tasks, depending on the
@@ -106,7 +108,7 @@ void DataDeleter::StartDeleting(Profile* profile,
   GURL launch_web_url_origin;
   StoragePartition* partition = nullptr;
 
-  if (extensions::util::HasIsolatedStorage(*extension, profile)) {
+  if (util::HasIsolatedStorage(*extension, profile)) {
     has_isolated_storage = true;
     ++num_tasks;
   } else {
@@ -140,9 +142,7 @@ void DataDeleter::StartDeleting(Profile* profile,
     profile->AsyncObliterateStoragePartition(
         util::GetPartitionDomainForExtension(extension),
         base::BindOnce(&OnNeedsToGarbageCollectIsolatedStorage,
-                       ExtensionSystem::Get(profile)
-                           ->extension_service()
-                           ->AsExtensionServiceWeakPtr()),
+                       profile->GetWeakPtr()),
         subtask_done_callback);
   }
   if (delete_extension_origin) {

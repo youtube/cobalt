@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Next min version: 11
+// Next min version: 16
 
 module cros.mojom;
 
-import "chromeos/components/sensors/mojom/cros_sensor_service.mojom";
 import "components/chromeos_camera/common/jpeg_encode_accelerator.mojom";
 import "components/chromeos_camera/common/mjpeg_decode_accelerator.mojom";
 import "media/capture/video/chromeos/mojom/camera_common.mojom";
@@ -16,8 +15,9 @@ import "mojo/public/mojom/base/unguessable_token.mojom";
 
 // CameraClientType indicates the type of a CameraHalClient.
 // It should be kept in sync with the ChromeOSCameraClientType enum in
-// tools/metrics/histograms/enums.xml in chromium.
+// tools/metrics/histograms/metadata/chromeos/enums.xml in chromium.
 [Extensible]
+// LINT.IfChange(CameraClientType)
 enum CameraClientType {
   UNKNOWN = 0,
   TESTING = 1,
@@ -25,8 +25,9 @@ enum CameraClientType {
   ANDROID = 3,
   PLUGINVM = 4,
   ASH_CHROME = 5,
-  LACROS_CHROME = 6,
+  // LACROS_CHROME = 6,  // this value is deprecated, as Lacros was sunsetted
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/chromeos/enums.xml:ChromeOSCameraClientType)
 
 // CameraPrivacySwitchState indicates the state of the camera privacy switch.
 // This can represent both software and hardware privacy switch statuses.
@@ -63,6 +64,101 @@ enum CameraAutoFramingState {
   ON_MULTI = 2,
 };
 
+// Interface called by CrosCameraService to notify Chrome of Kiosk Vision
+// events. The data being transferred and the processes involved are trusted.
+//
+// Next method ID: 3
+interface KioskVisionObserver {
+  // Notifies the observer that a new detection has happened.
+  OnFrameProcessed@0(KioskVisionDetection detection);
+
+  // Notifies the observer that a track has completed. Emitted when a previously
+  // detected person goes undetected long enough and the tracker forgets them.
+  OnTrackCompleted@1(KioskVisionTrack track);
+
+  // Notifies the observer that an error has happened.
+  OnError@2(KioskVisionError error);
+};
+
+// Output detection of the Kiosk Vision graph.
+struct KioskVisionDetection {
+  // The timestamp in microseconds of this detection.
+  int64 timestamp_in_us;
+  // The persons detected.
+  array<KioskVisionAppearance> appearances;
+};
+
+// A track is the full sequence of appearances of a given person.
+struct KioskVisionTrack {
+  // The ID of the person in this track.
+  int32 person_id;
+  // The timestamp in microseconds for when this track started.
+  int64 start_timestamp_in_us;
+  // The timestamp in microseconds for when this track ended.
+  int64 end_timestamp_in_us;
+  // The appearances in this track. Must be non-empty. All appearances must have
+  // the same `person_id`. Appearances are sorted by `timestamp_in_us`.
+  array<KioskVisionAppearance> appearances;
+};
+
+// An appearance represents one person in a detection set.
+struct KioskVisionAppearance {
+  // The timestamp in microseconds of this appearance.
+  int64 timestamp_in_us;
+  // The tracking ID of this person.
+  int32 person_id;
+  // The face detection of this person.  At least one of `body` and `face` must
+  // be present.
+  KioskVisionFaceDetection? face;
+  // The detection of this person. At least one of `body` and `face` must be
+  // present.
+  KioskVisionBodyDetection? body;
+};
+
+// The face angles of a person detected.
+struct KioskVisionFaceDetection {
+  // The confidence level of this detection. Value in the [0,1] interval.
+  double confidence;
+  // The roll angle of this face in the [-180, 180] interval.
+  float roll;
+  // The pan angle of this face in the [-180, 180] interval.
+  float pan;
+  // The tilt angle of this face in the [-180, 180] interval.
+  float tilt;
+  // The bounding box of this face.
+  KioskVisionBoundingBox box;
+};
+
+// The body description of a detected person.
+struct KioskVisionBodyDetection {
+  // The confidence level of this detection. Value in the [0,1] interval.
+  double confidence;
+  // The bounding box of this body.
+  KioskVisionBoundingBox box;
+};
+
+// Describes the size and coordinates of a bounding box.
+struct KioskVisionBoundingBox {
+  // The x of the top-left point of the bounding box.
+  int32 x;
+  // The y of the top-left point of the bounding box.
+  int32 y;
+  // The width of the bounding box.
+  int32 width;
+  // The height of the bounding box.
+  int32 height;
+};
+
+// Describes errors that may happen when running the Kiosk Vision feature.
+[Extensible]
+enum KioskVisionError {
+  [Default] UNKNOWN = 0,
+  // E.g. failed to open the shared library from the DLC path.
+  DLC_ERROR = 1,
+  // E.g. failed to start or run the ML model.
+  MODEL_ERROR = 2,
+};
+
 // The CrOS camera HAL v3 Mojo dispatcher.  The dispatcher acts as a proxy and
 // waits for the server and the clients to register.  There can only be one
 // server registered, with multiple clients requesting connections to the
@@ -70,38 +166,9 @@ enum CameraAutoFramingState {
 // channel to the server and pass the established Mojo channel to the client in
 // order to set up a Mojo channel between the client and the server.
 //
-// Next method ID: 7
+// Next method ID: 8
+// Deprecated method IDs: 0, 1, 2, 3, 4, 6, 7
 interface CameraHalDispatcher {
-  // [Deprecated in version 4]
-  // A CameraHalServer calls RegisterServer to register itself with the
-  // dispatcher.
-  RegisterServer@0(pending_remote<CameraHalServer> server);
-
-  // [Deprecated in version 4]
-  // A CameraHalClient calls RegisterClient to register itself with the
-  // dispatcher.
-  RegisterClient@1(pending_remote<CameraHalClient> client);
-
-  // Get MjpegDecodeAccelerator from dispatcher.
-  [MinVersion=1] GetMjpegDecodeAccelerator@2(
-      pending_receiver<chromeos_camera.mojom.MjpegDecodeAccelerator>
-        jda_receiver);
-
-  // Get JpegEncodeAccelerator from dispatcher.
-  [MinVersion=2] GetJpegEncodeAccelerator@3(
-      pending_receiver<chromeos_camera.mojom.JpegEncodeAccelerator>
-        jea_receiver);
-
-  // A CameraHalServer calls RegisterServerWithToken to register itself with the
-  // dispatcher. CameraHalDispatcher would authenticate the server with the
-  // supplied |auth_token|. |callbacks| is fired by CameraHalServer to notify
-  // CameraHalDispatcher about CameraHalClient updates, for example when a
-  // CameraHalClient opens or closes a camera device.
-  [MinVersion=4] RegisterServerWithToken@4(
-      pending_remote<CameraHalServer> server,
-      mojo_base.mojom.UnguessableToken auth_token) =>
-      (int32 result, pending_remote<CameraHalServerCallbacks> callbacks);
-
   // A CameraHalClient calls RegisterClient to register itself with the
   // dispatcher. CameraHalDispatcher would authenticate the client with the
   // given |type| and |auth_token|.
@@ -109,80 +176,71 @@ interface CameraHalDispatcher {
       pending_remote<CameraHalClient> client,
       CameraClientType type,
       mojo_base.mojom.UnguessableToken auth_token) => (int32 result);
-
-  // A SensorHalClient calls RegisterSensorClient to register itself with
-  // SensorHalDispatcher through CameraHalDispatcher. |auth_token| is used to
-  // prove the caller has been granted permission to access SensorHalClient.
-  // CameraHalDispatcher will send back |result| as the errno.
-  [MinVersion=6] RegisterSensorClientWithToken@6(
-      pending_remote<chromeos.sensors.mojom.SensorHalClient> client,
-      mojo_base.mojom.UnguessableToken auth_token) => (int32 result);
-
-  // Workaround for cros-camera service to request other services via
-  // mojo service manager.
-  // TODO(b/258095854): Remove this once camera mojo network is migrated to
-  // mojo service manager.
-  [MinVersion=10] BindServiceToMojoServiceManager@7(string service_name,
-      handle<message_pipe> receiver);
 };
 
-// The CrOS camera HAL v3 Mojo server.
-//
-// Next method ID: 7
-interface CameraHalServer {
-  // A caller calls CreateChannel to create a new Mojo channel to the camera
-  // HAL v3 adapter.  Upon successfully binding of |camera_module_receiver|, the
-  // caller will have a established Mojo channel to the camera HAL v3 adapter
-  // process.
-  CreateChannel@0(pending_receiver<CameraModule> camera_module_receiver,
-                  [MinVersion=4] CameraClientType type);
-
-  // Enable or disable tracing.
-  [MinVersion=3]
-  SetTracingEnabled@1(bool enabled);
-
-  // Enable or disable auto framing.
-  [MinVersion=7]
-  SetAutoFramingState@2(CameraAutoFramingState state);
-
-  // Get the current camera software privacy switch state.
-  [MinVersion=8]
-  GetCameraSWPrivacySwitchState@3() => (CameraPrivacySwitchState state);
-
-  // Enable or disable the camera software privacy switch.
-  [MinVersion=8]
-  SetCameraSWPrivacySwitchState@4(CameraPrivacySwitchState state);
-
-  // Get if the HAL supports auto framing.
-  [MinVersion=9]
-  GetAutoFramingSupported@5() => (bool supported);
-
-  // Turn ON/OFF and configure specified effect.
-  [MinVersion=10]
-  SetCameraEffect@6(EffectsConfig config) => (SetEffectResult result);
-};
-
-// CameraHalServerCallbacks is an interface for CameraHalServer to notify
-// CameraHalDispatcher for any changes on the server side, for example when a
+// CrosCameraServiceObserver is an interface for CrosCameraService to notify
+// observers for any changes on the server side, for example when a
 // CameraHalClient opens or closes a camera device.
 //
-// Next method ID: 3
-interface CameraHalServerCallbacks {
-  // Fired when a CameraHalClient opens or closes a camera device. |camera_id|
-  // is always >=0, which represents a unique id of a physical camera.
+// Next method ID: 5
+interface CrosCameraServiceObserver {
+  // Fired when a CameraHalClient opens or closes a camera device. When a
+  // CameraHalClient loses mojo connection to CameraHalServer, CameraHalServer
+  // would also use this to notify that cameras are closed (not being used).
   CameraDeviceActivityChange@0(int32 camera_id,
                                bool opened,
                                CameraClientType type);
 
   // Fired when the camera privacy switch status is changed. If the device has
-  // such switch, this callback will be fired immediately for once to notify its
-  // current status when the callbacks are registered. |camera_id| is always
-  // >=0, which represents a unique id of a physical camera.
-  [MinVersion=5]
+  // such switch, this observer will get the notification.
   CameraPrivacySwitchStateChange@1(CameraPrivacySwitchState state,
-                                   [MinVersion=9] int32 camera_id);
+                                   int32 camera_id);
 
   // Fired when the camera software privacy switch status is changed.
-  [MinVersion=8]
   CameraSWPrivacySwitchStateChange@2(CameraPrivacySwitchState state);
+
+  // Fired when the camera effect is changed.
+  [MinVersion=14] CameraEffectChange@3(EffectsConfig config);
+
+  // Fired when the auto framing state is changed.
+  [MinVersion=15] AutoFramingStateChange@4(CameraAutoFramingState state);
+};
+
+// A client can request the CrosCameraService service from Mojo Service Manager
+// and get the camera module or set/get the camera states.
+//
+// Next method ID: 9
+interface CrosCameraService {
+  // A caller calls GetCameraModule to create a new Mojo channel to the camera
+  // HAL v3 adapter.
+  GetCameraModule@0(CameraClientType type)
+                    => (pending_remote<CameraModule> camera_module_receiver);
+
+  // Enable or disable tracing.
+  SetTracingEnabled@1(bool enabled);
+
+  // Enable or disable auto framing.
+  SetAutoFramingState@2(CameraAutoFramingState state);
+
+  // Get the current camera software privacy switch state.
+  GetCameraSWPrivacySwitchState@3() => (CameraPrivacySwitchState state);
+
+  // Enable or disable the camera software privacy switch.
+  SetCameraSWPrivacySwitchState@4(CameraPrivacySwitchState state);
+
+  // Get if the HAL supports auto framing.
+  GetAutoFramingSupported@5() => (bool supported);
+
+  // Turn ON/OFF and configure specified effect.
+  SetCameraEffect@6(EffectsConfig config) => (SetEffectResult result);
+
+  // Add an obersever which observes the event of the camera service.
+  AddCrosCameraServiceObserver@7(
+      pending_remote<CrosCameraServiceObserver> observer);
+
+  // Start and observe Kiosk Vision detections. There is no separate "stop"
+  // method. The feature should remain active for the lifetime of the
+  // connection to the observer remote.
+  StartKioskVisionDetection@8(
+      string dlc_path, pending_remote<KioskVisionObserver> observer);
 };

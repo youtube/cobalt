@@ -36,7 +36,6 @@ unsigned AbstractRange::LengthOfContents(const Node* node) {
       return 0;
   }
   NOTREACHED();
-  return 0;
 }
 
 }  // namespace blink

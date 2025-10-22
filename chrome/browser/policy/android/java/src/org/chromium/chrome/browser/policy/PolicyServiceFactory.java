@@ -4,10 +4,13 @@
 
 package org.chromium.chrome.browser.policy;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.policy.PolicyService;
 
@@ -17,8 +20,9 @@ import org.chromium.components.policy.PolicyService;
  * is still valid.
  */
 @JNINamespace("policy::android")
+@NullMarked
 public class PolicyServiceFactory {
-    private static PolicyService sPolicyServiceForTest;
+    private static @Nullable PolicyService sPolicyServiceForTest;
 
     /**
      * Returns the PolicyService instance that contains browser policies.
@@ -44,14 +48,15 @@ public class PolicyServiceFactory {
     /**
      * @param policyService Mock {@link PolicyService} for testing.
      */
-    @VisibleForTesting
     public static void setPolicyServiceForTest(PolicyService policyService) {
         sPolicyServiceForTest = policyService;
+        ResettersForTesting.register(() -> sPolicyServiceForTest = null);
     }
 
     @NativeMethods
     public interface Natives {
         PolicyService getGlobalPolicyService();
-        PolicyService getProfilePolicyService(Profile profile);
+
+        PolicyService getProfilePolicyService(@JniType("Profile*") Profile profile);
     }
 }

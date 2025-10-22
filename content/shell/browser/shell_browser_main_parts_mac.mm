@@ -6,11 +6,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "base/mac/bundle_locations.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#include "base/apple/bundle_locations.h"
 
 namespace {
 

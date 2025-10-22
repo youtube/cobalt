@@ -4,10 +4,11 @@
 
 #include "components/cast_streaming/common/message_serialization.h"
 
+#include <optional>
+
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cast_streaming {
 
@@ -51,32 +52,33 @@ const char kInitialConnectMessage[] = R"(
     }
     )";
 
-bool DeserializeCastMessage(base::StringPiece buffer,
+bool DeserializeCastMessage(std::string_view buffer,
                             std::string* sender_id,
                             std::string* message_namespace,
                             std::string* message) {
-  absl::optional<base::Value> converted_value = base::JSONReader::Read(buffer);
-  if (!converted_value)
+  std::optional<base::Value::Dict> converted_dict =
+      base::JSONReader::ReadDict(buffer);
+  if (!converted_dict) {
     return false;
+  }
 
-  if (!converted_value->is_dict())
+  const std::string* sender_id_value = converted_dict->FindString(kKeySenderId);
+  if (!sender_id_value) {
     return false;
-
-  const base::Value::Dict& converted_dict = converted_value->GetDict();
-  const std::string* sender_id_value = converted_dict.FindString(kKeySenderId);
-  if (!sender_id_value)
-    return false;
+  }
   *sender_id = *sender_id_value;
 
   const std::string* message_namespace_value =
-      converted_dict.FindString(kKeyNamespace);
-  if (!message_namespace_value)
+      converted_dict->FindString(kKeyNamespace);
+  if (!message_namespace_value) {
     return false;
+  }
   *message_namespace = *message_namespace_value;
 
-  const std::string* message_value = converted_dict.FindString(kKeyData);
-  if (!message_value)
+  const std::string* message_value = converted_dict->FindString(kKeyData);
+  if (!message_value) {
     return false;
+  }
   *message = *message_value;
 
   return true;

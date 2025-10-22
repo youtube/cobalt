@@ -56,19 +56,17 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
-import org.chromium.components.version_info.VersionInfo;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
-@JNINamespace("cobalt")
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
@@ -96,6 +94,7 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
+  protected Boolean shouldSetJNIPrefix = true;
   // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
   protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
@@ -115,10 +114,10 @@ public abstract class CobaltActivity extends Activity {
       }
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
+              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
     }
 
-    DeviceUtils.addDeviceSpecificUserAgentSwitch();
+    DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -145,7 +144,13 @@ public abstract class CobaltActivity extends Activity {
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+    mWindowAndroid =
+        new ActivityWindowAndroid(
+            this,
+            listenToActivityState,
+            mIntentRequestTracker,
+            /* insetObserver= */ null,
+            /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
     // Set up the animation placeholder to be the SurfaceView. This disables the
@@ -407,7 +412,7 @@ public abstract class CobaltActivity extends Activity {
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
-    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents);
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
@@ -417,7 +422,8 @@ public abstract class CobaltActivity extends Activity {
       javascriptInjector.addPossiblyUnsafeInterface(
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class);
+          CobaltJavaScriptInterface.class,
+          /* originAllowlist= */ new ArrayList<String>());
     }
   }
 
@@ -454,18 +460,9 @@ public abstract class CobaltActivity extends Activity {
       // document.onresume event
       webContents.onResume();
       // visibility:visible event
-      webContents.onShow();
+      webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
-    MemoryPressureMonitor.INSTANCE.enablePolling();
-  }
-
-  @Override
-  protected void onPause() {
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      CobaltActivityJni.get().flushCookiesAndLocalStorage();
-    }
-    super.onPause();
+    MemoryPressureMonitor.INSTANCE.enablePolling(false);
   }
 
   @Override
@@ -476,7 +473,7 @@ public abstract class CobaltActivity extends Activity {
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
-      webContents.onHide();
+      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
     }
@@ -794,10 +791,5 @@ public abstract class CobaltActivity extends Activity {
   public void onLowMemory() {
     diagnosticFinishReason = "ON_LOW_MEMORY";
     super.onLowMemory();
-  }
-
-  @NativeMethods
-  interface Natives {
-    void flushCookiesAndLocalStorage();
   }
 }

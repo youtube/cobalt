@@ -49,7 +49,7 @@ class HistoryDeleteDirectivesEqualityChecker
   bool IsExitConditionSatisfied(std::ostream* os) override {
     *os << "Waiting server side HISTORY_DELETE_DIRECTIVES to match expected.";
     const std::vector<sync_pb::SyncEntity> entities =
-        fake_server_->GetSyncEntitiesByModelType(
+        fake_server_->GetSyncEntitiesByDataType(
             syncer::HISTORY_DELETE_DIRECTIVES);
 
     if (entities.size() == num_expected_directives_) {
@@ -123,8 +123,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistoryDeleteDirectivesSyncTest,
 
   history_service->DeleteLocalAndRemoteHistoryBetween(
       WebHistoryServiceFactory::GetForProfile(GetProfile(0)),
-      /*begin_time=*/base::Time(), /*end_time=*/base::Time(), base::DoNothing(),
-      &task_tracker);
+      /*begin_time=*/base::Time(), /*end_time=*/base::Time(),
+      history::kNoAppIdFilter, base::DoNothing(), &task_tracker);
 
   EXPECT_TRUE(WaitForHistoryDeleteDirectives(1));
 }

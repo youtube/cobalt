@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/app_list/search/system_info/system_info_card_provider.h"
 
 #include <iomanip>
@@ -9,27 +14,26 @@
 #include <optional>
 #include <string>
 
+#include "ash/app_list/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/webui/settings/public/constants/routes.mojom-forward.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/ash/app_list/search/common/icon_constants.h"
 #include "chrome/browser/ash/app_list/search/system_info/battery_answer_result.h"
 #include "chrome/browser/ash/app_list/search/system_info/cpu_answer_result.h"
-#include "chrome/browser/ash/app_list/search/system_info/cpu_data.h"
-#include "chrome/browser/ash/app_list/search/system_info/cpu_usage_data.h"
 #include "chrome/browser/ash/app_list/search/system_info/memory_answer_result.h"
 #include "chrome/browser/ash/app_list/search/system_info/system_info_answer_result.h"
-#include "chrome/browser/ash/app_list/search/system_info/system_info_util.h"
-#include "chrome/browser/ash/app_list/vector_icons/vector_icons.h"
-#include "chrome/browser/ui/webui/settings/ash/calculator/size_calculator.h"
-#include "chrome/browser/ui/webui/settings/ash/device_storage_util.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom-forward.h"
+#include "chrome/browser/ui/webui/ash/settings/calculator/size_calculator.h"
+#include "chrome/browser/ui/webui/ash/settings/pages/storage/device_storage_util.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/components/launcher_search/system_info/launcher_util.h"
 #include "chromeos/ash/components/string_matching/fuzzy_tokenized_string_match.h"
+#include "chromeos/ash/components/system_info/cpu_data.h"
+#include "chromeos/ash/components/system_info/cpu_usage_data.h"
+#include "chromeos/ash/components/system_info/system_info_util.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/service_connection.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom-shared.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom.h"
@@ -56,7 +60,18 @@ using ::chromeos::settings::mojom::kAboutChromeOsSectionPath;
 using ::chromeos::settings::mojom::kStorageSubpagePath;
 using AnswerCardInfo = ::ash::SystemInfoAnswerCardData;
 
-constexpr double kRelevanceThreshold = 0.64;
+constexpr double kMinimumRelevance = 0.0;
+constexpr double kRelevanceThreshold = 0.79;
+constexpr double kMinimumQueryLength = 3;
+
+constexpr char kHistogramMemoryCrosHealthdProbeErrorPrefix[] =
+    "Apps.AppList.SystemInfoProvider.CrosHealthdProbeError.MemoryInfo";
+constexpr char kHistogramCpuCrosHealthdProbeErrorPrefix[] =
+    "Apps.AppList.SystemInfoProvider.CrosHealthdProbeError.CpuInfo";
+constexpr char kHistogramBatteryCrosHealthdProbeErrorPrefix[] =
+    "Apps.AppList.SystemInfoProvider.CrosHealthdProbeError.BatteryInfo";
+constexpr char kHistogramBatteryErrorPrefix[] =
+    "Apps.AppList.SystemInfoProvider.Error.Battery";
 
 double ConvertKBtoBytes(uint32_t amount) {
   return static_cast<double>(amount) * 1024;
@@ -65,15 +80,15 @@ double ConvertKBtoBytes(uint32_t amount) {
 }  // namespace
 
 SystemInfoCardProvider::SystemInfoCardProvider(Profile* profile)
-    : total_disk_space_calculator_(profile),
+    : SearchProvider(SearchCategory::kSystemInfoCard),
+      total_disk_space_calculator_(profile),
       free_disk_space_calculator_(profile),
       my_files_size_calculator_(profile),
       drive_offline_size_calculator_(profile),
       browsing_data_size_calculator_(profile),
-      apps_size_calculator_(profile),
       crostini_size_calculator_(profile),
       profile_(profile),
-      keywords_(GetSystemInfoKeywordVector()) {
+      keywords_(launcher_search::GetSystemInfoKeywordVector()) {
   DCHECK(profile_);
   ash::cros_healthd::ServiceConnection::GetInstance()->BindProbeService(
       probe_service_.BindNewPipeAndPassReceiver());
@@ -98,9 +113,13 @@ SystemInfoCardProvider::~SystemInfoCardProvider() {
 }
 
 void SystemInfoCardProvider::Start(const std::u16string& query) {
+  if (query.length() < kMinimumQueryLength) {
+    return;
+  }
+
   double max_relevance = 0;
-  SystemInfoKeywordInput* most_relevant_keyword_input;
-  for (SystemInfoKeywordInput& keyword_input : keywords_) {
+  launcher_search::SystemInfoKeywordInput* most_relevant_keyword_input;
+  for (launcher_search::SystemInfoKeywordInput& keyword_input : keywords_) {
     double relevance = CalculateRelevance(query, keyword_input.GetKeyword());
     if (relevance > kRelevanceThreshold && relevance > max_relevance) {
       max_relevance = relevance;
@@ -111,26 +130,26 @@ void SystemInfoCardProvider::Start(const std::u16string& query) {
   if (max_relevance > kRelevanceThreshold) {
     relevance_ = max_relevance;
     switch (most_relevant_keyword_input->GetInputType()) {
-      case SystemInfoInputType::kMemory:
+      case launcher_search::SystemInfoInputType::kMemory:
         UpdateMemoryUsage(/*create_result=*/true);
         break;
-      case SystemInfoInputType::kCPU:
+      case launcher_search::SystemInfoInputType::kCPU:
         UpdateCpuUsage(/*create_result=*/true);
         break;
-      case SystemInfoInputType::kVersion:
+      case launcher_search::SystemInfoInputType::kVersion:
         UpdateChromeOsVersion();
         break;
       // Do not calculate the storage size again if already
       // calculated recently.
       // TODO(b/263994165): Add in a refresh period here.
-      case SystemInfoInputType::kStorage:
+      case launcher_search::SystemInfoInputType::kStorage:
         if (!calculation_state_.all()) {
           UpdateStorageInfo();
         } else {
           CreateStorageAnswerCard();
         }
         break;
-      case SystemInfoInputType::kBattery:
+      case launcher_search::SystemInfoInputType::kBattery:
         UpdateBatteryInfo();
         break;
     }
@@ -145,19 +164,14 @@ void SystemInfoCardProvider::StopQuery() {
 double SystemInfoCardProvider::CalculateRelevance(const std::u16string& query,
                                                   const std::u16string& title) {
   const TokenizedString tokenized_title(title, TokenizedString::Mode::kWords);
-  const TokenizedString tokenized_query(query,
-                                        TokenizedString::Mode::kCamelCase);
+  const TokenizedString tokenized_query(query, TokenizedString::Mode::kWords);
 
   if (tokenized_query.text().empty() || tokenized_title.text().empty()) {
-    static constexpr double kDefaultRelevance = 0.0;
-    return kDefaultRelevance;
+    return kMinimumRelevance;
   }
 
-  FuzzyTokenizedStringMatch match;
-  return match.Relevance(tokenized_query, tokenized_title,
-                         /*use_weighted_ratio=*/false,
-                         /*strip_diacritics=*/true,
-                         /*use_acronym_matcher=*/true);
+  return FuzzyTokenizedStringMatch::TokenSortRatio(
+      tokenized_query, tokenized_title, /*partial=*/false);
 }
 
 void SystemInfoCardProvider::BindCrosHealthdProbeServiceIfNecessary() {
@@ -185,7 +199,8 @@ void SystemInfoCardProvider::OnMemoryUsageUpdated(bool create_result,
     return;
   }
 
-  memory_info_ = GetMemoryInfo(*info_ptr);
+  memory_info_ = system_info::GetMemoryInfo(
+      *info_ptr, kHistogramMemoryCrosHealthdProbeErrorPrefix);
   if (!memory_info_) {
     LOG(ERROR) << "Memory information not provided by croshealthd";
     return;
@@ -206,15 +221,22 @@ void SystemInfoCardProvider::OnMemoryUsageUpdated(bool create_result,
       l10n_util::GetStringFUTF16(IDS_ASH_MEMORY_USAGE_IN_LAUNCHER_DESCRIPTION,
                                  available_memory_gb, total_memory_gb);
 
+  std::u16string accessibility_label_details = l10n_util::GetStringFUTF16(
+      IDS_ASH_MEMORY_USAGE_IN_LAUNCHER_ACCESSIBILITY_LABEL, available_memory_gb,
+      total_memory_gb);
+
   if (create_result) {
     AnswerCardInfo answer_card_info(memory_usage_percentage);
+    // The bar chart will turn red if there is less than 10% of memory free.
+    answer_card_info.SetUpperLimitForBarChart(90);
     SearchProvider::Results new_results;
     DCHECK(memory_timer_);
     new_results.emplace_back(std::make_unique<MemoryAnswerResult>(
-        profile_, last_query_, /*url_path=*/"", diagnostics_icon_, relevance_,
-        /*title=*/u"", description,
+        profile_, last_query_, /*url_path=*/std::string(), diagnostics_icon_,
+        relevance_,
+        /*title=*/std::u16string(), description, accessibility_label_details,
         SystemInfoAnswerResult::SystemInfoCategory::kDiagnostics,
-        answer_card_info,
+        SystemInfoAnswerResult::SystemInfoCardType::kMemory, answer_card_info,
         base::BindRepeating(&SystemInfoCardProvider::UpdateMemoryUsage,
                             weak_factory_.GetWeakPtr()),
         std::move(memory_timer_), this));
@@ -222,7 +244,8 @@ void SystemInfoCardProvider::OnMemoryUsageUpdated(bool create_result,
     memory_timer_ = std::make_unique<base::RepeatingTimer>();
   } else {
     for (auto& observer : memory_observers_) {
-      observer.OnMemoryUpdated(memory_usage_percentage, description);
+      observer.OnMemoryUpdated(memory_usage_percentage, description,
+                               accessibility_label_details);
     }
   }
 }
@@ -243,7 +266,8 @@ void SystemInfoCardProvider::OnCpuUsageUpdated(bool create_result,
     return;
   }
 
-  const CpuInfo* cpu_info = GetCpuInfo(*info_ptr);
+  const CpuInfo* cpu_info = system_info::GetCpuInfo(
+      *info_ptr, kHistogramCpuCrosHealthdProbeErrorPrefix);
   if (cpu_info == nullptr) {
     LOG(ERROR) << "No CpuInfo in response from cros_healthd.";
     return;
@@ -267,27 +291,32 @@ void SystemInfoCardProvider::OnCpuUsageUpdated(bool create_result,
 
   const PhysicalCpuInfoPtr& physical_cpu_ptr = cpu_info->physical_cpus[0];
 
-  CpuUsageData new_cpu_usage_data =
-      CalculateCpuUsage(physical_cpu_ptr->logical_cpus);
-  std::unique_ptr<CpuData> new_cpu_usage = std::make_unique<CpuData>();
+  system_info::CpuUsageData new_cpu_usage_data =
+      system_info::CalculateCpuUsage(physical_cpu_ptr->logical_cpus);
+  std::unique_ptr<system_info::CpuData> new_cpu_usage =
+      std::make_unique<system_info::CpuData>();
 
-  PopulateCpuUsage(new_cpu_usage_data, previous_cpu_usage_data_,
-                   *new_cpu_usage.get());
-  PopulateAverageCpuTemperature(*cpu_info, *new_cpu_usage.get());
-  PopulateAverageScaledClockSpeed(*cpu_info, *new_cpu_usage.get());
+  system_info::PopulateCpuUsage(new_cpu_usage_data, previous_cpu_usage_data_,
+                                *new_cpu_usage.get());
+  system_info::PopulateAverageCpuTemperature(*cpu_info, *new_cpu_usage.get());
+  system_info::PopulateAverageScaledClockSpeed(*cpu_info, *new_cpu_usage.get());
 
   previous_cpu_usage_data_ = new_cpu_usage_data;
+  std::u16string cpu_temp =
+      base::NumberToString16(new_cpu_usage->GetAverageCpuTempCelsius());
+  // Provide the frequency in GHz and round the value to 2 decimal places.
+  std::u16string cpu_speed = base::NumberToString16(
+      static_cast<double>(
+          new_cpu_usage->GetScalingAverageCurrentFrequencyKhz() / 10000) /
+      100);
   std::u16string title =
       l10n_util::GetStringFUTF16(IDS_ASH_CPU_IN_LAUNCHER_TITLE,
                                  new_cpu_usage->GetPercentUsageTotalString());
   std::u16string description = l10n_util::GetStringFUTF16(
-      IDS_ASH_CPU_IN_LAUNCHER_DESCRIPTION,
-      base::NumberToString16(new_cpu_usage->GetAverageCpuTempCelsius()),
-      // Provide the frequency in GHz and round the value to 2 decimal places.
-      base::NumberToString16(
-          static_cast<double>(
-              new_cpu_usage->GetScalingAverageCurrentFrequencyKhz() / 10000) /
-          100));
+      IDS_ASH_CPU_IN_LAUNCHER_DESCRIPTION, cpu_temp, cpu_speed);
+  std::u16string accessibility_label_details = l10n_util::GetStringFUTF16(
+      IDS_ASH_CPU_IN_LAUNCHER_ACCESSIBILITY_LABEL,
+      new_cpu_usage->GetPercentUsageTotalString(), cpu_temp, cpu_speed);
 
   if (create_result) {
     AnswerCardInfo answer_card_info(
@@ -295,10 +324,10 @@ void SystemInfoCardProvider::OnCpuUsageUpdated(bool create_result,
     SearchProvider::Results new_results;
     DCHECK(cpu_usage_timer_);
     new_results.emplace_back(std::make_unique<CpuAnswerResult>(
-        profile_, last_query_, /*url_path=*/"", diagnostics_icon_, relevance_,
-        title, description,
+        profile_, last_query_, /*url_path=*/std::string(), diagnostics_icon_,
+        relevance_, title, description, accessibility_label_details,
         SystemInfoAnswerResult::SystemInfoCategory::kDiagnostics,
-        answer_card_info,
+        SystemInfoAnswerResult::SystemInfoCardType::kCPU, answer_card_info,
         base::BindRepeating(&SystemInfoCardProvider::UpdateCpuUsage,
                             weak_factory_.GetWeakPtr()),
         std::move(cpu_usage_timer_), this));
@@ -306,7 +335,8 @@ void SystemInfoCardProvider::OnCpuUsageUpdated(bool create_result,
     cpu_usage_timer_ = std::make_unique<base::RepeatingTimer>();
   } else {
     for (auto& observer : cpu_observers_) {
-      observer.OnCpuDataUpdated(title, description);
+      observer.OnCpuDataUpdated(title, description,
+                                accessibility_label_details);
     }
   }
 }
@@ -336,38 +366,59 @@ void SystemInfoCardProvider::OnBatteryInfoUpdated(
     return;
   }
 
-  const BatteryInfo* battery_info_ptr = GetBatteryInfo(*info_ptr);
+  const BatteryInfo* battery_info_ptr = system_info::GetBatteryInfo(
+      *info_ptr, kHistogramBatteryCrosHealthdProbeErrorPrefix,
+      kHistogramBatteryErrorPrefix);
   if (!battery_info_ptr) {
     LOG(ERROR) << "BatteryInfo requested by device does not have a battery.";
     return;
   }
 
-  std::unique_ptr<BatteryHealth> new_battery_health =
-      std::make_unique<BatteryHealth>();
+  std::unique_ptr<system_info::BatteryHealth> new_battery_health =
+      std::make_unique<system_info::BatteryHealth>();
 
-  PopulateBatteryHealth(*battery_info_ptr, *new_battery_health.get());
+  system_info::PopulateBatteryHealth(*battery_info_ptr,
+                                     *new_battery_health.get());
 
-  const absl::optional<power_manager::PowerSupplyProperties>& proto =
+  const std::optional<power_manager::PowerSupplyProperties>& proto =
       chromeos::PowerManagerClient::Get()->GetLastStatus();
   if (!proto) {
-    EmitBatteryDataError(BatteryDataError::kNoData);
+    system_info::EmitBatteryDataError(system_info::BatteryDataError::kNoData,
+                                      kHistogramBatteryErrorPrefix);
     return;
   }
 
-  PopulatePowerStatus(proto.value(), *new_battery_health.get());
+  launcher_search::PopulatePowerStatus(proto.value(),
+                                       *new_battery_health.get());
 
-  std::u16string description = l10n_util::GetStringFUTF16(
-      IDS_ASH_BATTERY_STATUS_IN_LAUNCHER_DESCRIPTION,
+  std::u16string battery_health_info = l10n_util::GetStringFUTF16(
+      IDS_ASH_BATTERY_STATUS_IN_LAUNCHER_DESCRIPTION_RIGHT,
       base::NumberToString16(new_battery_health->GetBatteryWearPercentage()),
       base::NumberToString16(new_battery_health->GetCycleCount()));
 
+  std::u16string accessibility_extra_details = l10n_util::GetStringFUTF16(
+      IDS_ASH_BATTERY_STATUS_IN_LAUNCHER_EXTRA_DETAILS_ACCESSIBILITY_LABEL,
+      base::NumberToString16(new_battery_health->GetBatteryWearPercentage()),
+      base::NumberToString16(new_battery_health->GetCycleCount()));
+
+  std::u16string accessibility_label_details =
+      base::JoinString({new_battery_health->GetAccessibilityLabel(),
+                        accessibility_extra_details},
+                       u". ");
+
   AnswerCardInfo answer_card_info(new_battery_health->GetBatteryPercentage());
+  // The bar chart will turn red if there is less than 20 of battery
+  // charge left.
+  answer_card_info.SetLowerLimitForBarChart(20);
+  answer_card_info.SetExtraDetails(battery_health_info);
   SearchProvider::Results new_results;
   new_results.emplace_back(std::make_unique<BatteryAnswerResult>(
-      profile_, last_query_, /*url_path=*/"", diagnostics_icon_, relevance_,
-      new_battery_health->GetPowerTime(), description,
+      profile_, last_query_, /*url_path=*/std::string(), diagnostics_icon_,
+      relevance_,
+      /*title=*/std::u16string(), new_battery_health->GetPowerTime(),
+      accessibility_label_details,
       SystemInfoAnswerResult::SystemInfoCategory::kDiagnostics,
-      answer_card_info));
+      SystemInfoAnswerResult::SystemInfoCardType::kBattery, answer_card_info));
   SwapResults(&new_results);
 
   battery_health_ = std::move(new_battery_health);
@@ -381,22 +432,26 @@ void SystemInfoCardProvider::UpdateChromeOsVersion() {
                                       : IDS_VERSION_UI_UNOFFICIAL);
   std::u16string processor_variation = l10n_util::GetStringUTF16(
       sizeof(void*) == 8 ? IDS_VERSION_UI_64BIT : IDS_VERSION_UI_32BIT);
+  std::u16string channel_name = base::UTF8ToUTF16(
+      chrome::GetChannelName(chrome::WithExtendedStable(true)));
 
   std::u16string version_string = l10n_util::GetStringFUTF16(
-      IDS_ASH_VERSION_IN_LAUNCHER_MESSAGE, version, is_official,
-      base::UTF8ToUTF16(
-          chrome::GetChannelName(chrome::WithExtendedStable(true))),
+      IDS_ASH_VERSION_IN_LAUNCHER_MESSAGE, version, is_official, channel_name,
       processor_variation);
   std::u16string description =
-      l10n_util::GetStringUTF16(IDS_SETTINGS_ABOUT_PAGE_CHECK_FOR_UPDATES);
+      l10n_util::GetStringUTF16(IDS_ASH_VERSION_IN_LAUNCHER_DESCRIPTION);
+  std::u16string accessibility_label_details = l10n_util::GetStringFUTF16(
+      IDS_ASH_VERSION_IN_LAUNCHER_ACCESSIBILITY_LABEL, version, is_official,
+      channel_name, processor_variation);
 
   AnswerCardInfo answer_card_info(
       ash::SystemInfoAnswerCardDisplayType::kTextCard);
   SearchProvider::Results new_results;
   new_results.emplace_back(std::make_unique<SystemInfoAnswerResult>(
       profile_, last_query_, kAboutChromeOsSectionPath, os_settings_icon_,
-      relevance_, version_string, description,
-      SystemInfoAnswerResult::SystemInfoCategory::kSettings, answer_card_info));
+      relevance_, version_string, description, accessibility_label_details,
+      SystemInfoAnswerResult::SystemInfoCategory::kSettings,
+      SystemInfoAnswerResult::SystemInfoCardType::kVersion, answer_card_info));
   SwapResults(&new_results);
 }
 
@@ -406,7 +461,6 @@ void SystemInfoCardProvider::UpdateStorageInfo() {
   my_files_size_calculator_.StartCalculation();
   drive_offline_size_calculator_.StartCalculation();
   browsing_data_size_calculator_.StartCalculation();
-  apps_size_calculator_.StartCalculation();
   crostini_size_calculator_.StartCalculation();
   other_users_size_calculator_.StartCalculation();
 }
@@ -417,7 +471,14 @@ void SystemInfoCardProvider::StartObservingCalculators() {
   my_files_size_calculator_.AddObserver(this);
   drive_offline_size_calculator_.AddObserver(this);
   browsing_data_size_calculator_.AddObserver(this);
-  apps_size_calculator_.AddObserver(this);
+  // TODO(b/324478253): Currently, observing `apps_size_calculator_` at
+  // construction causes deterministic failure of ArcIntegrationTest on
+  // betty-pi-arc (b/329337572) . As apps size is not currently in use, we
+  // remove it from the code. If we are interested in the apps size at some
+  // point, consider delaying the observing to the first time launcher search is
+  // used.
+  calculation_state_.set(
+      static_cast<int>(SizeCalculator::CalculationType::kAppsExtensions));
   crostini_size_calculator_.AddObserver(this);
   other_users_size_calculator_.AddObserver(this);
 }
@@ -428,7 +489,6 @@ void SystemInfoCardProvider::StopObservingCalculators() {
   my_files_size_calculator_.RemoveObserver(this);
   drive_offline_size_calculator_.RemoveObserver(this);
   browsing_data_size_calculator_.RemoveObserver(this);
-  apps_size_calculator_.RemoveObserver(this);
   crostini_size_calculator_.RemoveObserver(this);
   other_users_size_calculator_.RemoveObserver(this);
 }
@@ -469,32 +529,7 @@ void SystemInfoCardProvider::OnStorageInfoUpdated() {
     // We can't get useful information from the storage page if total_bytes <=
     // 0 or available_bytes is less than 0. This is not expected to happen.
     NOTREACHED() << "Unable to retrieve total or available disk space";
-    return;
   }
-
-  int64_t system_bytes = 0;
-  for (int i = 0; i < SizeCalculator::kCalculationTypeCount; ++i) {
-    const int64_t total_bytes_for_current_item =
-        std::max(storage_items_total_bytes_[i], static_cast<int64_t>(0));
-    // The total amount of disk space counts positively towards system's size.
-    if (i == static_cast<int>(SizeCalculator::CalculationType::kTotal)) {
-      if (total_bytes_for_current_item <= 0) {
-        return;
-      }
-      system_bytes += total_bytes_for_current_item;
-      continue;
-    }
-    // All other items are subtracted from the total amount of disk space.
-    if (i == static_cast<int>(SizeCalculator::CalculationType::kAvailable) &&
-        total_bytes_for_current_item < 0) {
-      return;
-    }
-    system_bytes -= total_bytes_for_current_item;
-  }
-  const int system_space_index =
-      static_cast<int>(SizeCalculator::CalculationType::kSystem);
-  storage_items_total_bytes_[system_space_index] = system_bytes;
-
   CreateStorageAnswerCard();
 }
 
@@ -508,40 +543,20 @@ void SystemInfoCardProvider::CreateStorageAnswerCard() {
   int64_t in_use_bytes = total_bytes - available_bytes;
   std::u16string in_use_size = ui::FormatBytes(in_use_bytes);
   std::u16string total_size = ui::FormatBytes(total_bytes);
-  std::u16string title = l10n_util::GetStringFUTF16(
-      IDS_ASH_STORAGE_STATUS_IN_LAUNCHER_TITLE, in_use_size, total_size);
-  std::map<ash::SearchResultSystemInfoStorageType, int64_t>
-      storage_type_to_size = {
-          {ash::SearchResultSystemInfoStorageType::kMyFiles,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kMyFiles)]},
-          {ash::SearchResultSystemInfoStorageType::kDriveOfflineFiles,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kDriveOfflineFiles)]},
-          {ash::SearchResultSystemInfoStorageType::kBrowsingData,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kBrowsingData)]},
-          {ash::SearchResultSystemInfoStorageType::kAppsExtensions,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kAppsExtensions)]},
-          {ash::SearchResultSystemInfoStorageType::kCrostini,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kCrostini)]},
-          {ash::SearchResultSystemInfoStorageType::kOtherUsers,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kOtherUsers)]},
-          {ash::SearchResultSystemInfoStorageType::kSystem,
-           storage_items_total_bytes_[static_cast<int>(
-               SizeCalculator::CalculationType::kSystem)]},
-          {ash::SearchResultSystemInfoStorageType::kTotal, total_bytes}};
+  std::u16string description = l10n_util::GetStringFUTF16(
+      IDS_ASH_STORAGE_STATUS_IN_LAUNCHER_DESCRIPTION, in_use_size, total_size);
 
-  AnswerCardInfo answer_card_info(storage_type_to_size);
+  std::u16string accessibility_label_details = l10n_util::GetStringFUTF16(
+      IDS_ASH_STORAGE_STATUS_IN_LAUNCHER_ACCESSIBILITY_LABEL, in_use_size,
+      total_size);
+
+  AnswerCardInfo answer_card_info(in_use_bytes * 100 / total_bytes);
   SearchProvider::Results new_results;
   new_results.emplace_back(std::make_unique<SystemInfoAnswerResult>(
       profile_, last_query_, kStorageSubpagePath, os_settings_icon_, relevance_,
-      title,
-      /*description=*/u"",
-      SystemInfoAnswerResult::SystemInfoCategory::kSettings, answer_card_info));
+      /*title=*/std::u16string(), description, accessibility_label_details,
+      SystemInfoAnswerResult::SystemInfoCategory::kSettings,
+      SystemInfoAnswerResult::SystemInfoCardType::kStorage, answer_card_info));
   SwapResults(&new_results);
 }
 

@@ -7,6 +7,7 @@
 #include <set>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
@@ -64,12 +65,11 @@ void MockPlatformNotificationService::CloseNotification(
     const std::string& notification_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  const auto non_persistent_iter =
-      non_persistent_notifications_.find(notification_id);
-  if (non_persistent_iter == non_persistent_notifications_.end())
+  if (!base::Contains(non_persistent_notifications_, notification_id)) {
     return;
+  }
 
-  non_persistent_notifications_.erase(non_persistent_iter);
+  non_persistent_notifications_.erase(notification_id);
 }
 
 void MockPlatformNotificationService::ClosePersistentNotification(
@@ -96,14 +96,20 @@ void MockPlatformNotificationService::GetDisplayedNotifications(
                                 true /* supports_synchronization */));
 }
 
+void MockPlatformNotificationService::GetDisplayedNotificationsForOrigin(
+    const GURL& origin,
+    DisplayedNotificationsCallback callback) {
+  GetDisplayedNotifications(std::move(callback));
+}
+
 void MockPlatformNotificationService::ScheduleTrigger(base::Time timestamp) {
   if (timestamp > base::Time::Now())
     return;
 
   context_->ForEachLoadedStoragePartition(
-      base::BindRepeating([](content::StoragePartition* partition) {
+      [](content::StoragePartition* partition) {
         partition->GetPlatformNotificationContext()->TriggerNotifications();
-      }));
+      });
 }
 
 base::Time MockPlatformNotificationService::ReadNextTriggerTimestamp() {
@@ -119,8 +125,8 @@ void MockPlatformNotificationService::RecordNotificationUkmEvent(
 
 void MockPlatformNotificationService::SimulateClick(
     const std::string& title,
-    const absl::optional<int>& action_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& action_index,
+    const std::optional<std::u16string>& reply) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   const auto notification_id_iter = notification_id_map_.find(title);
   if (notification_id_iter == notification_id_map_.end())

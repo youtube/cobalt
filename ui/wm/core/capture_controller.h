@@ -40,6 +40,9 @@ class COMPONENT_EXPORT(UI_WM) CaptureController
   // Removes |root| from the list of root windows notified when capture changes.
   void Detach(aura::Window* root);
 
+  // Resets the current capture window and prevents it from being set again.
+  void PrepareForShutdown();
+
   // Returns true if this CaptureController is installed on at least one
   // root window.
   bool is_active() const { return !delegates_.empty(); }
@@ -57,6 +60,10 @@ class COMPONENT_EXPORT(UI_WM) CaptureController
 
   static CaptureController* instance_;
 
+  // Set to true by `PrepareForShutdown()`. If this is true, `SetCapture()` will
+  // have no effect.
+  bool destroying_ = false;
+
   // The current capture window. NULL if there is no capture window.
   raw_ptr<aura::Window> capture_window_;
 
@@ -67,7 +74,9 @@ class COMPONENT_EXPORT(UI_WM) CaptureController
   raw_ptr<aura::client::CaptureDelegate> capture_delegate_;
 
   // The delegates notified when capture changes.
-  std::map<aura::Window*, aura::client::CaptureDelegate*> delegates_;
+  std::map<aura::Window*,
+           raw_ptr<aura::client::CaptureDelegate, CtnExperimental>>
+      delegates_;
 
   base::ObserverList<aura::client::CaptureClientObserver>::Unchecked observers_;
 };

@@ -6,13 +6,11 @@ package org.chromium.chrome.browser.multiwindow;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.os.Bundle;
 
 import org.chromium.base.ObserverList;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 
-/**
- * Implementation of {@link MultiWindowModeStateDispatcher}.
- */
+/** Implementation of {@link MultiWindowModeStateDispatcher}. */
 public class MultiWindowModeStateDispatcherImpl implements MultiWindowModeStateDispatcher {
     private final Activity mActivity;
     private final ObserverList<MultiWindowModeObserver> mObservers;
@@ -72,6 +70,12 @@ public class MultiWindowModeStateDispatcherImpl implements MultiWindowModeStateD
     }
 
     @Override
+    public boolean isMoveToOtherWindowSupported(TabModelSelector tabModelSelector) {
+        return MultiWindowUtils.getInstance()
+                .isMoveToOtherWindowSupported(mActivity, tabModelSelector);
+    }
+
+    @Override
     public boolean canEnterMultiWindowMode() {
         return MultiWindowUtils.getInstance().canEnterMultiWindowMode(mActivity);
     }
@@ -90,11 +94,6 @@ public class MultiWindowModeStateDispatcherImpl implements MultiWindowModeStateD
         MultiWindowUtils.setOpenInOtherWindowIntentExtras(intent, mActivity, targetActivity);
 
         return intent;
-    }
-
-    @Override
-    public Bundle getOpenInOtherWindowActivityOptions() {
-        return MultiWindowUtils.getOpenInOtherWindowActivityOptions(mActivity);
     }
 
     @Override

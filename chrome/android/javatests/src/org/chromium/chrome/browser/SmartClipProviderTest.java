@@ -24,6 +24,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
@@ -33,19 +34,17 @@ import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.Coordinates;
 import org.chromium.content_public.browser.test.util.DOMUtils;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.test.util.UiRestriction;
+import org.chromium.ui.base.DeviceFormFactor;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Tests for the SmartClipProvider.
- */
+/** Tests for the SmartClipProvider. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class SmartClipProviderTest implements Handler.Callback {
@@ -54,17 +53,22 @@ public class SmartClipProviderTest implements Handler.Callback {
     // interface.
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private static final String MOUNTAIN = "Mountain";
 
-    private static final String DATA_URL = UrlUtils.encodeHtmlDataUri(
-            "<html><head><meta name=\"viewport\""
-            + "content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0\" /></head>"
-            + "<style type=\"text/css\"> #text {white-space:nowrap;}</style>"
-            + "<title>" + MOUNTAIN + "</title>"
-            + "<body><p><span id=\"simple_text\">" + MOUNTAIN + "</span></p>"
-            + "</body></html>");
+    private static final String DATA_URL =
+            UrlUtils.encodeHtmlDataUri(
+                    "<html><head><meta name=\"viewport\"content=\"width=device-width,"
+                            + " initial-scale=1.0, maximum-scale=1.0\" /></head><style"
+                            + " type=\"text/css\"> #text {white-space:nowrap;}</style><title>"
+                            + MOUNTAIN
+                            + "</title>"
+                            + "<body><p><span id=\"simple_text\">"
+                            + MOUNTAIN
+                            + "</span></p>"
+                            + "</body></html>");
 
     private static final String SMART_CLIP_PROVIDER_KEY =
             "org.chromium.content.browser.SMART_CLIP_PROVIDER";
@@ -117,10 +121,12 @@ public class SmartClipProviderTest implements Handler.Callback {
 
     @Before
     public void setUp() throws Exception {
-        mActivityTestRule.startMainActivityWithURL(DATA_URL);
+        mActivityTestRule.startOnUrl(DATA_URL);
         mActivity = mActivityTestRule.getActivity();
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mWebContents = mActivityTestRule.getWebContents(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mWebContents = mActivityTestRule.getWebContents();
+                });
 
         DOMUtils.waitForNonZeroNodeBounds(mWebContents, "simple_text");
 
@@ -131,11 +137,13 @@ public class SmartClipProviderTest implements Handler.Callback {
 
         mSmartClipProviderClass = getSmartClipProviderClass();
         Assert.assertNotNull(mSmartClipProviderClass);
-        mSetSmartClipResultHandlerMethod = mSmartClipProviderClass.getDeclaredMethod(
-                "setSmartClipResultHandler", new Class[] { Handler.class });
-        mExtractSmartClipDataMethod = mSmartClipProviderClass.getDeclaredMethod(
-                "extractSmartClipData",
-                new Class[] { Integer.TYPE, Integer.TYPE, Integer.TYPE, Integer.TYPE });
+        mSetSmartClipResultHandlerMethod =
+                mSmartClipProviderClass.getDeclaredMethod(
+                        "setSmartClipResultHandler", new Class[] {Handler.class});
+        mExtractSmartClipDataMethod =
+                mSmartClipProviderClass.getDeclaredMethod(
+                        "extractSmartClipData",
+                        new Class[] {Integer.TYPE, Integer.TYPE, Integer.TYPE, Integer.TYPE});
     }
 
     @After
@@ -164,8 +172,11 @@ public class SmartClipProviderTest implements Handler.Callback {
 
     // Create SmartClipProvider interface from package meta-data.
     private Class<?> getSmartClipProviderClass() throws Exception {
-        ApplicationInfo ai = mActivity.getPackageManager().getApplicationInfo(
-                mActivity.getPackageName(), PackageManager.GET_META_DATA);
+        ApplicationInfo ai =
+                mActivity
+                        .getPackageManager()
+                        .getApplicationInfo(
+                                mActivity.getPackageName(), PackageManager.GET_META_DATA);
         Bundle bundle = ai.metaData;
         String className = bundle.getString(SMART_CLIP_PROVIDER_KEY);
         Assert.assertNotNull(className);
@@ -189,7 +200,7 @@ public class SmartClipProviderTest implements Handler.Callback {
     }
 
     // Disable test on tablet since it fails consistently on M tablet. See https://crbug.com/853816
-    @Restriction(UiRestriction.RESTRICTION_TYPE_PHONE)
+    @Restriction(DeviceFormFactor.PHONE)
     @Test
     @MediumTest
     @Feature({"SmartClip"})
@@ -197,24 +208,31 @@ public class SmartClipProviderTest implements Handler.Callback {
     public void testSmartClipDataCallback() throws TimeoutException {
         final float dpi = Coordinates.createFor(mWebContents).getDeviceScaleFactor();
         final Rect bounds = DOMUtils.getNodeBounds(mWebContents, "simple_text");
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            // This emulates what OEM will be doing when they want to call
-            // functions on SmartClipProvider through view hierarchy.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // This emulates what OEM will be doing when they want to call
+                    // functions on SmartClipProvider through view hierarchy.
 
-            Object scp = findSmartClipProvider(
-                    mActivityTestRule.getActivity().findViewById(android.R.id.content));
-            Assert.assertNotNull(scp);
-            try {
-                mSetSmartClipResultHandlerMethod.invoke(scp, mHandler);
-                mExtractSmartClipDataMethod.invoke(scp, (int) (bounds.left * dpi),
-                        (int) (bounds.right * dpi), (int) (bounds.width() * dpi),
-                        (int) (bounds.height() * dpi));
-            } catch (Exception e) {
-                e.printStackTrace();
-                Assert.fail();
-            }
-        });
-        mCallbackHelper.waitForCallback(0, 1);  // call count: 0 --> 1
+                    Object scp =
+                            findSmartClipProvider(
+                                    mActivityTestRule
+                                            .getActivity()
+                                            .findViewById(android.R.id.content));
+                    Assert.assertNotNull(scp);
+                    try {
+                        mSetSmartClipResultHandlerMethod.invoke(scp, mHandler);
+                        mExtractSmartClipDataMethod.invoke(
+                                scp,
+                                (int) (bounds.left * dpi),
+                                (int) (bounds.right * dpi),
+                                (int) (bounds.width() * dpi),
+                                (int) (bounds.height() * dpi));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Assert.fail();
+                    }
+                });
+        mCallbackHelper.waitForCallback(0, 1); // call count: 0 --> 1
         Assert.assertEquals(MOUNTAIN, mCallbackHelper.getTitle());
         Assert.assertEquals(DATA_URL, mCallbackHelper.getUrl());
         Assert.assertNotNull(mCallbackHelper.getText());
@@ -226,24 +244,28 @@ public class SmartClipProviderTest implements Handler.Callback {
     @MediumTest
     @Feature({"SmartClip"})
     public void testSmartClipNoHandlerDoesntCrash() throws TimeoutException {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Object scp = findSmartClipProvider(
-                    mActivityTestRule.getActivity().findViewById(android.R.id.content));
-            Assert.assertNotNull(scp);
-            try {
-                // Galaxy Note 4 has a bug where it doesn't always set the handler first; in
-                // that case, we shouldn't crash: http://crbug.com/710147
-                mExtractSmartClipDataMethod.invoke(scp, 10, 20, 100, 70);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Object scp =
+                            findSmartClipProvider(
+                                    mActivityTestRule
+                                            .getActivity()
+                                            .findViewById(android.R.id.content));
+                    Assert.assertNotNull(scp);
+                    try {
+                        // Galaxy Note 4 has a bug where it doesn't always set the handler first; in
+                        // that case, we shouldn't crash: http://crbug.com/710147
+                        mExtractSmartClipDataMethod.invoke(scp, 10, 20, 100, 70);
 
-                // Add a wait for a valid callback to make sure we have time to
-                // hit the crash from the above call if any.
-                mSetSmartClipResultHandlerMethod.invoke(scp, mHandler);
-                mExtractSmartClipDataMethod.invoke(scp, 10, 20, 100, 70);
-            } catch (Exception e) {
-                e.printStackTrace();
-                Assert.fail();
-            }
-        });
+                        // Add a wait for a valid callback to make sure we have time to
+                        // hit the crash from the above call if any.
+                        mSetSmartClipResultHandlerMethod.invoke(scp, mHandler);
+                        mExtractSmartClipDataMethod.invoke(scp, 10, 20, 100, 70);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Assert.fail();
+                    }
+                });
         mCallbackHelper.waitForCallback(0, 1); // call count: 0 --> 1
     }
 }

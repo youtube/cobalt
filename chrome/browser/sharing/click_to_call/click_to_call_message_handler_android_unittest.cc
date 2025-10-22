@@ -5,13 +5,13 @@
 #include "chrome/browser/sharing/click_to_call/click_to_call_message_handler_android.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_helpers.h"
-#include "chrome/browser/sharing/proto/click_to_call_message.pb.h"
-#include "chrome/browser/sharing/proto/sharing_message.pb.h"
+#include "components/sharing_message/proto/click_to_call_message.pb.h"
+#include "components/sharing_message/proto/sharing_message.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -22,7 +22,7 @@ class TestClickToCallMessageHandler : public ClickToCallMessageHandler {
   TestClickToCallMessageHandler() = default;
   ~TestClickToCallMessageHandler() override = default;
 
-  absl::optional<std::string> last_phone_number() { return last_phone_number_; }
+  std::optional<std::string> last_phone_number() { return last_phone_number_; }
 
  protected:
   void HandlePhoneNumber(const std::string& phone_number) override {
@@ -30,14 +30,14 @@ class TestClickToCallMessageHandler : public ClickToCallMessageHandler {
   }
 
  private:
-  absl::optional<std::string> last_phone_number_;
+  std::optional<std::string> last_phone_number_;
 };
 
 }  // namespace
 
 TEST(ClickToCallMessageHandlerTest, HandlesValidPhoneNumber) {
   TestClickToCallMessageHandler handler;
-  chrome_browser_sharing::SharingMessage message;
+  components_sharing_message::SharingMessage message;
 
   message.mutable_click_to_call_message()->set_phone_number("12345678");
   handler.OnMessage(std::move(message), base::DoNothing());
@@ -46,7 +46,7 @@ TEST(ClickToCallMessageHandlerTest, HandlesValidPhoneNumber) {
 
 TEST(ClickToCallMessageHandlerTest, IgnoresInvalidPhoneNumbers) {
   TestClickToCallMessageHandler handler;
-  chrome_browser_sharing::SharingMessage message;
+  components_sharing_message::SharingMessage message;
 
   message.mutable_click_to_call_message()->set_phone_number("*#06#");
   handler.OnMessage(std::move(message), base::DoNothing());

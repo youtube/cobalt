@@ -8,19 +8,15 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
-#include "chrome/browser/profiles/profile_manager_observer.h"
-#include "components/flags_ui/flags_state.h"
-#include "components/flags_ui/flags_storage.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/webui/flags/flags_state.h"
+#include "components/webui/flags/flags_storage.h"
 #include "ui/display/display_observer.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/profiles/profile_manager.h"
-#endif
 
 class ChromeBrowserMainParts;
 class PrefRegistrySimple;
@@ -28,6 +24,7 @@ class PrefService;
 
 #if !BUILDFLAG(IS_ANDROID)
 class BatteryDischargeReporter;
+class PerformanceInterventionMetricsReporter;
 class PowerMetricsReporter;
 class ProcessMonitor;
 #endif
@@ -36,17 +33,21 @@ class ProcessMonitor;
 class PressureMetricsReporter;
 #endif  // BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_ANDROID)
+bool IsBundleForMixedDeviceAccordingToVersionCode(
+    const std::string& version_code);
+#endif
+
+namespace web_app {
+class SamplingMetricsProvider;
+}  // namespace web_app
+
 namespace chrome {
 void AddMetricsExtraParts(ChromeBrowserMainParts* main_parts);
 }
 
-namespace ui {
-class InputDeviceEventObserver;
-}  // namespace ui
-
 class ChromeBrowserMainExtraPartsMetrics : public ChromeBrowserMainExtraParts,
-                                           public display::DisplayObserver,
-                                           public ProfileManagerObserver {
+                                           public display::DisplayObserver {
  public:
   ChromeBrowserMainExtraPartsMetrics();
 
@@ -58,12 +59,13 @@ class ChromeBrowserMainExtraPartsMetrics : public ChromeBrowserMainExtraParts,
   ~ChromeBrowserMainExtraPartsMetrics() override;
 
   // Overridden from ChromeBrowserMainExtraParts:
+  void PreCreateThreads() override;
   void PostCreateMainMessageLoop() override;
   void PreProfileInit() override;
   void PreBrowserStart() override;
   void PostBrowserStart() override;
   void PreMainMessageLoopRun() override;
-  void PostMainMessageLoopRun() override;
+  void PostDestroyThreads() override;
 
   // Registers local state prefs used by this class.
   static void RegisterPrefs(PrefRegistrySimple* registry);
@@ -93,33 +95,19 @@ class ChromeBrowserMainExtraPartsMetrics : public ChromeBrowserMainExtraParts,
   virtual void HandleEnableBenchmarkingCountdownAsync();
 
  private:
-#if BUILDFLAG(IS_MAC)
-  // Records Mac specific metrics.
-  void RecordMacMetrics();
-#endif  // BUILDFLAG(IS_MAC)
-
   // DisplayObserver overrides.
   void OnDisplayAdded(const display::Display& new_display) override;
-  void OnDisplayRemoved(const display::Display& old_display) override;
+  void OnDisplaysRemoved(const display::Displays& removed_displays) override;
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override;
 
   // If the number of displays has changed, emit a UMA metric.
   void EmitDisplaysChangedMetric();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // On ChromeOS, we must wait for post login to have a valid browser Profile*.
-  void OnProfileAdded(Profile* profile) override;
-#endif
-
   // A cached value for the number of displays.
   int display_count_;
 
-  absl::optional<display::ScopedDisplayObserver> display_observer_;
-
-#if BUILDFLAG(IS_OZONE)
-  std::unique_ptr<ui::InputDeviceEventObserver> input_device_event_observer_;
-#endif  // BUILDFLAG(IS_OZONE)
+  std::optional<display::ScopedDisplayObserver> display_observer_;
 
 #if !BUILDFLAG(IS_ANDROID)
   // The process monitor instance. Allows collecting metrics about every child
@@ -130,17 +118,18 @@ class ChromeBrowserMainExtraPartsMetrics : public ChromeBrowserMainExtraParts,
   std::unique_ptr<PowerMetricsReporter> power_metrics_reporter_;
 
   std::unique_ptr<BatteryDischargeReporter> battery_discharge_reporter_;
+
+  std::unique_ptr<PerformanceInterventionMetricsReporter>
+      performance_intervention_metrics_reporter_;
+
+  // Reports PWA metrics.
+  std::unique_ptr<web_app::SamplingMetricsProvider> web_app_metrics_provider_;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_LINUX)
   // Reports pressure metrics.
   std::unique_ptr<PressureMetricsReporter> pressure_metrics_reporter_;
 #endif  // BUILDFLAG(IS_LINUX)
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  base::ScopedObservation<ProfileManager, ChromeBrowserMainExtraPartsMetrics>
-      profile_manager_observation_{this};
-#endif
 };
 
 #endif  // CHROME_BROWSER_METRICS_CHROME_BROWSER_MAIN_EXTRA_PARTS_METRICS_H_

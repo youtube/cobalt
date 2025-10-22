@@ -7,14 +7,14 @@
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow DIV",
+      "name": "LayoutBlockFlow DIV",
       "bounds": [200, 200],
       "contentsOpaque": true,
       "backgroundColor": "#D3D3D3",
       "transform": 1
     },
     {
-      "name": "LayoutIFrame (positioned) IFRAME",
+      "name": "LayoutIFrame (positioned, block) IFRAME",
       "bounds": [104, 104],
       "contentsOpaque": true,
       "backgroundColor": "#ADD8E6"

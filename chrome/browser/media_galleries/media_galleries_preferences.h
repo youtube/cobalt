@@ -33,10 +33,11 @@ class PrefRegistrySyncable;
 }
 
 typedef uint64_t MediaGalleryPrefId;
-const MediaGalleryPrefId kInvalidMediaGalleryPrefId = 0;
+inline constexpr MediaGalleryPrefId kInvalidMediaGalleryPrefId = 0;
 
-const char kMediaGalleriesPrefsVersionKey[] = "preferencesVersion";
-const char kMediaGalleriesDefaultGalleryTypeKey[] = "defaultGalleryType";
+inline constexpr char kMediaGalleriesPrefsVersionKey[] = "preferencesVersion";
+inline constexpr char kMediaGalleriesDefaultGalleryTypeKey[] =
+    "defaultGalleryType";
 
 struct MediaGalleryPermission {
   MediaGalleryPrefId pref_id;
@@ -360,7 +361,8 @@ class MediaGalleriesPreferences
   // The ExtensionPrefs used in a testing environment, where KeyedServices
   // aren't used. This will be nullptr unless it is set with
   // SetExtensionPrefsForTesting().
-  raw_ptr<extensions::ExtensionPrefs> extension_prefs_for_testing_;
+  raw_ptr<extensions::ExtensionPrefs, DanglingUntriaged>
+      extension_prefs_for_testing_;
 
   // An in-memory cache of known galleries.
   MediaGalleriesPrefInfoMap known_galleries_;
@@ -369,7 +371,7 @@ class MediaGalleriesPreferences
   // All pref ids in |device_map_| are also in |known_galleries_|.
   DeviceIdPrefIdsMap device_map_;
 
-  base::ObserverList<GalleryChangeObserver>::Unchecked
+  base::ObserverList<GalleryChangeObserver>::UncheckedAndDanglingUntriaged
       gallery_change_observers_;
 
   base::WeakPtrFactory<MediaGalleriesPreferences> weak_factory_{this};

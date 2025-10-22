@@ -6,11 +6,11 @@
 #define CHROME_BROWSER_ENTERPRISE_SIGNALS_DEVICE_INFO_FETCHER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "chrome/browser/enterprise/signals/signals_common.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/device_signals/core/common/common_types.h"
 
 namespace enterprise_signals {
 
@@ -26,13 +26,13 @@ struct DeviceInfo {
   std::string device_host_name;
   std::string device_model;
   std::string serial_number;
-  SettingValue screen_lock_secured;
-  SettingValue disk_encrypted;
+  device_signals::SettingValue screen_lock_secured;
+  device_signals::SettingValue disk_encrypted;
 
   std::vector<std::string> mac_addresses;
-  absl::optional<std::string> windows_machine_domain;
-  absl::optional<std::string> windows_user_domain;
-  absl::optional<SettingValue> secure_boot_enabled;
+  std::optional<std::string> windows_machine_domain;
+  std::optional<std::string> windows_user_domain;
+  std::optional<device_signals::SettingValue> secure_boot_enabled;
 };
 
 // Interface used by the chrome.enterprise.reportingPrivate.getDeviceInfo()
@@ -57,8 +57,16 @@ class DeviceInfoFetcher {
   // return a stubbed instance. Used for testing.
   static void SetForceStubForTesting(bool should_force);
 
+  // Sets a value controlling whether DeviceInfoFetcher returns duplicate mac
+  // addresses. Used for testing.
+  static void SetForceDuplicateMacAddressesForTesting(bool should_force);
+
   // Fetches the device information for the current platform.
   virtual DeviceInfo Fetch() = 0;
+
+ protected:
+  // Implements a platform specific instance of DeviceInfoFetcher.
+  static std::unique_ptr<DeviceInfoFetcher> CreateInstanceInternal();
 };
 
 }  // namespace enterprise_signals

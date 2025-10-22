@@ -40,7 +40,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
-#include "content/public/common/user_agent.h"
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_server_socket.h"
@@ -220,11 +219,13 @@ void ShellDevToolsManagerDelegate::ClientDetached(
 
 scoped_refptr<DevToolsAgentHost> ShellDevToolsManagerDelegate::CreateNewTarget(
     const GURL& url,
-    bool for_tab) {
+    content::DevToolsManagerDelegate::TargetType target_type,
+    bool new_window) {
   Shell* shell = Shell::CreateNewWindow(browser_context_, url, nullptr,
                                         Shell::GetShellDefaultSize());
-  return for_tab ? DevToolsAgentHost::GetOrCreateForTab(shell->web_contents())
-                 : DevToolsAgentHost::GetOrCreateFor(shell->web_contents());
+  return target_type == content::DevToolsManagerDelegate::kTab
+             ? DevToolsAgentHost::GetOrCreateForTab(shell->web_contents())
+             : DevToolsAgentHost::GetOrCreateFor(shell->web_contents());
 }
 
 std::string ShellDevToolsManagerDelegate::GetDiscoveryPageHTML() {

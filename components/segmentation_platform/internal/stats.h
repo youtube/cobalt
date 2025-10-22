@@ -5,6 +5,19 @@
 #ifndef COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_STATS_H_
 #define COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_STATS_H_
 
+#include <list>
+#include <optional>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/no_destructor.h"
+#include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "components/segmentation_platform/internal/execution/model_execution_status.h"
 #include "components/segmentation_platform/internal/metadata/metadata_utils.h"
 #include "components/segmentation_platform/internal/selection/segment_result_provider.h"
@@ -12,9 +25,7 @@
 #include "components/segmentation_platform/public/model_provider.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
 #include "components/segmentation_platform/public/proto/types.pb.h"
-#include "components/segmentation_platform/public/result.h"
 #include "components/segmentation_platform/public/segment_selection_result.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace segmentation_platform::stats {
 
@@ -59,7 +70,7 @@ void RecordModelUpdateTimeDifference(SegmentId segment_id,
 void RecordSegmentSelectionComputed(
     const Config& config,
     SegmentId new_selection,
-    absl::optional<SegmentId> previous_selection);
+    std::optional<SegmentId> previous_selection);
 
 // Records the post processed result whenever computed. This is recorded when
 // results are obtained by eithier executing the model or getting a valid score
@@ -72,7 +83,7 @@ void RecordClassificationResultComputed(
 // to when prefs expired and is updated with new result.
 void RecordClassificationResultUpdated(
     const Config& config,
-    const absl::optional<proto::PredictionResult>& old_result,
+    const proto::PredictionResult* old_result,
     const proto::PredictionResult& new_result);
 
 // Database Maintenance metrics.
@@ -87,27 +98,40 @@ void RecordMaintenanceCompactionResult(proto::SignalType signal_type,
 void RecordMaintenanceSignalIdentifierCount(size_t count);
 
 // Model Delivery metrics.
-// Records whether any incoming ML model had metadata attached that we were able
-// to parse.
+// Records whether any incoming ML had metadata attached that
+// we were able to parse.
 void RecordModelDeliveryHasMetadata(SegmentId segment_id, bool has_metadata);
-// Records the number of tensor features an updated ML model has.
+// Records the number of tensor features an updated server or embedded model
+// has.
 void RecordModelDeliveryMetadataFeatureCount(SegmentId segment_id,
+                                             proto::ModelSource model_source,
                                              size_t count);
-// Records the result of validating the metadata of an incoming ML model.
-// Recorded before and after it has been merged with the already stored
-// metadata.
+// Records the result of validating the metadata of an incoming server or
+// embedded model. Recorded before and after it has been merged with the already
+// stored metadata.
 void RecordModelDeliveryMetadataValidation(
     SegmentId segment_id,
+    proto::ModelSource model_source,
     bool processed,
     metadata_utils::ValidationResult validation_result);
-// Record what type of model metadata we received.
-void RecordModelDeliveryReceived(SegmentId segment_id);
-// Records the result of attempting to save an updated version of the model
-// metadata.
-void RecordModelDeliverySaveResult(SegmentId segment_id, bool success);
+// Record what type of server or embedded model metadata we received .
+void RecordModelDeliveryReceived(SegmentId segment_id,
+                                 proto::ModelSource model_source);
+// Records the result of attempting to save an updated version of the server or
+// embedded model metadata.
+void RecordModelDeliverySaveResult(SegmentId segment_id,
+                                   proto::ModelSource model_source,
+                                   bool success);
+// Records the result of attempting to delete the previous version of a server
+// model metadata.
+void RecordModelDeliveryDeleteResult(SegmentId segment_id,
+                                     proto::ModelSource model_source,
+                                     bool success);
 // Records whether the currently stored segment_id matches the incoming
-// segment_id, as these are expected to match.
-void RecordModelDeliverySegmentIdMatches(SegmentId segment_id, bool matches);
+// segment_id for a particular model_source, as these are expected to match.
+void RecordModelDeliverySegmentIdMatches(SegmentId segment_id,
+                                         proto::ModelSource model_source,
+                                         bool matches);
 
 // Model Execution metrics.
 // Records the duration of processing a single ML feature. This only takes into
@@ -132,14 +156,13 @@ void RecordModelExecutionDurationTotal(SegmentId segment_id,
 // Records the total duration for GetClassificationResult API starting from the
 // time request arrives in segmentation service until the result has been
 // returned. It includes feature processing and model execution as well.
-void RecordClassificationRequestTotalDuration(
-    const std::string& segmentation_key,
-    base::TimeDelta duration);
+void RecordClassificationRequestTotalDuration(const Config& config,
+                                              base::TimeDelta duration);
 
 // Records the total duration of on-demand segment selection which includes
 // running all the models associated with the client and computing result.
 void RecordOnDemandSegmentSelectionDuration(
-    const std::string& segmentation_key,
+    const Config& config,
     const SegmentSelectionResult& result,
     base::TimeDelta duration);
 // Records the result value after successfully executing an ML model.
@@ -180,6 +203,10 @@ void RecordSignalDatabaseGetSamplesResult(bool success);
 // database entry count, since each entry can contain multiple samples.
 void RecordSignalDatabaseGetSamplesSampleCount(size_t count);
 
+// Records the result of persisting SegmentInfo changes to disk.
+void RecordSegmentInfoDatabaseUpdateEntriesResult(SegmentId segment_id,
+                                                  bool success);
+
 // Records the number of unique user action and histogram signals that we are
 // currently tracking.
 void RecordSignalsListeningCount(
@@ -193,8 +220,8 @@ void RecordSignalsListeningCount(
 enum class SegmentationSelectionFailureReason {
   kDeprecatedPlatformDisabled = 0,
   kSelectionAvailableInPrefs = 1,
-  kAtLeastOneSegmentNotReady = 2,
-  kAtLeastOneSegmentSignalsNotCollected = 3,
+  kServerModelDatabaseScoreNotReady = 2,
+  kServerModelSignalsNotCollected = 3,
   kSelectionTtlNotExpired = 4,
   kAtLeastOneModelFailedExecution = 5,
   kAtLeastOneModelNeedsMoreSignals = 6,
@@ -202,31 +229,31 @@ enum class SegmentationSelectionFailureReason {
   kFailedToSaveModelResult = 8,
   kInvalidSelectionResultInPrefs = 9,
   kDBInitFailure = 10,
-  kAtLeastOneSegmentNotAvailable = 11,
-  kAtLeastOneSegmentDefaultSignalNotCollected = 12,
-  kAtLeastOneSegmentDefaultExecFailed = 13,
-  kAtLeastOneSegmentDefaultMissingMetadata = 14,
-  kAtLeastOneSegmentTfliteExecFailed = 15,
+  kServerModelSegmentInfoNotAvailable = 11,
+  kDefaultModelSignalsNotCollected = 12,
+  kDefaultModelExecutionFailed = 13,
+  kDefaultModelSegmentInfoNotAvailable = 14,
+  kServerModelExecutionFailed = 15,
   kSelectionAvailableInProtoPrefs = 16,
   kInvalidSelectionResultInProtoPrefs = 17,
   kProtoPrefsUpdateNotRequired = 18,
   kProtoPrefsUpdated = 19,
-  kScoreUsedFromDatabase = 20,
-  kScoreComputedFromDefaultModel = 21,
-  kScoreComputedFromTfliteModel = 22,
+  kServerModelDatabaseScoreUsed = 20,
+  kDefaultModelExecutionScoreUsed = 21,
+  kServerModelExecutionScoreUsed = 22,
   kMultiOutputNotSupported = 23,
   kOnDemandModelExecutionFailed = 24,
   kClassificationResultFromPrefs = 25,
   kClassificationResultNotAvailableInPrefs = 26,
-  kMaxValue = kClassificationResultNotAvailableInPrefs,
+  kDefaultModelDatabaseScoreUsed = 27,
+  kDefaultModelDatabaseScoreNotReady = 28,
+  kCachedResultUnavailableExecutingOndemand = 29,
+  kOnDemandExecutionFailedReturningCachedResult = 30,
+  kMaxValue = kOnDemandExecutionFailedReturningCachedResult,
 };
 
 // Records the reason for failure or success to compute a segment selection.
 void RecordSegmentSelectionFailure(const Config& config,
-                                   SegmentationSelectionFailureReason reason);
-
-// Records the reason for failure or success to compute a segment selection.
-void RecordSegmentSelectionFailure(const std::string& segmentation_key,
                                    SegmentationSelectionFailureReason reason);
 
 // Keep in sync with SegmentationPlatformFeatureProcessingError in
@@ -239,7 +266,8 @@ enum class FeatureProcessingError {
   kSqlBindValuesError = 4,
   kSqlQueryRunError = 5,
   kResultTensorError = 6,
-  kMaxValue = kResultTensorError,
+  kSuccess = 7,
+  kMaxValue = kSuccess,
 };
 
 // Return a string display for the given FeatureProcessingError.
@@ -256,7 +284,8 @@ enum class SegmentationModelAvailability {
   kModelHandlerCreated = 0,
   kModelAvailable = 1,
   kMetadataInvalid = 2,
-  kMaxValue = kMetadataInvalid
+  kNoModelAvailable = 3,
+  kMaxValue = kNoModelAvailable
 };
 // Records the availability of segmentation models for each target needed.
 void RecordModelAvailability(SegmentId segment_id,
@@ -289,8 +318,15 @@ enum class TrainingDataCollectionEvent {
   kDisallowedForRecording = 17,
   kObservationDisallowed = 18,
   kTrainingDataMissing = 19,
-  kMaxValue = kTrainingDataMissing,
+  kOnDecisionTimeTypeMistmatch = 20,
+  kDelayTriggerSampled = 21,
+  kContinousExactPredictionTimeCollectionStart = 22,
+  kContinousExactPredictionTimeCollectionSuccess = 23,
+  kMaxValue = kContinousExactPredictionTimeCollectionSuccess
 };
+
+std::string TrainingDataCollectionEventToErrorMsg(
+    TrainingDataCollectionEvent event);
 
 // Records analytics for training data collection.
 void RecordTrainingDataCollectionEvent(SegmentId segment_id,
@@ -298,6 +334,52 @@ void RecordTrainingDataCollectionEvent(SegmentId segment_id,
 
 SegmentationSelectionFailureReason GetSuccessOrFailureReason(
     SegmentResultProvider::ResultState result_state);
+
+// Helper to collect UMA metrics and record in a non-blocking thread.
+class BackgroundUmaRecorder {
+ public:
+  // Delay to collect metrics and record. Set to short time so if Chrome dies we
+  // don't lose too many metrics.
+  constexpr static base::TimeDelta kMetricsCollectionDelay = base::Seconds(5);
+
+  static BackgroundUmaRecorder& GetInstance();
+
+  BackgroundUmaRecorder(const BackgroundUmaRecorder&) = delete;
+  BackgroundUmaRecorder& operator=(const BackgroundUmaRecorder&) = delete;
+
+  // If initialized then records metrics in a worker thread, otherwise records
+  // metrics in current thread, blocking. Can be called multiple times safely.
+  void Initialize();
+  void InitializeForTesting(
+      scoped_refptr<base::SequencedTaskRunner> bg_task_runner);
+
+  // Force flush all samples in current thread.
+  void FlushSamples();
+
+  // Add metrics to UMA.
+  void AddMetric(base::OnceClosure add_sample);
+
+  scoped_refptr<base::SequencedTaskRunner> bg_task_runner_for_testing() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_check_);
+    return bg_task_runner_;
+  }
+
+ private:
+  friend class base::NoDestructor<BackgroundUmaRecorder>;
+
+  BackgroundUmaRecorder();
+  ~BackgroundUmaRecorder();
+
+  base::Lock lock_;
+  std::list<base::OnceClosure> add_samples_ GUARDED_BY(lock_);
+  bool pending_task_ GUARDED_BY(lock_){false};
+
+  scoped_refptr<base::SequencedTaskRunner> bg_task_runner_;
+  // Protects `bg_task_runner_`. If we need to record metrics from non-main
+  // thread, do not use this class and record directly.
+  SEQUENCE_CHECKER(sequence_check_);
+  base::WeakPtrFactory<BackgroundUmaRecorder> weak_factory_{this};
+};
 
 }  // namespace segmentation_platform::stats
 

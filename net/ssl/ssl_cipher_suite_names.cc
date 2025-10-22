@@ -156,8 +156,6 @@ void SSLVersionToString(const char** name, int ssl_version) {
       break;
     default:
       NOTREACHED() << ssl_version;
-      *name = "???";
-      break;
   }
 }
 

@@ -5,19 +5,29 @@
 #ifndef COMPONENTS_DEVICE_SIGNALS_CORE_BROWSER_SIGNALS_TYPES_H_
 #define COMPONENTS_DEVICE_SIGNALS_CORE_BROWSER_SIGNALS_TYPES_H_
 
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/device_signals/core/common/common_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/enterprise/connectors/core/reporting_constants.h"
+#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "components/device_signals/core/common/win/win_types.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace device_signals {
+
+// Possible values for the trigger which generated the device signals.
+enum class Trigger {
+  kUnspecified = 0,
+  kBrowserNavigation = 1,  // Ash only
+  kLoginScreen = 2,        // Ash only
+  kSignalsReport = 3,
+};
 
 // Enum of names representing signals bundles that can be aggregated via the
 // SignalsAggregator.
@@ -30,7 +40,9 @@ enum class SignalName {
   kFileSystemInfo,
   kSystemSettings,
   kAgent,
-  kMaxValue = kAgent
+  kOsSignals,
+  kBrowserContextSignals,
+  kMaxValue = kBrowserContextSignals
 };
 
 // Superset of all signal collection errors that can occur, including top-level
@@ -60,21 +72,34 @@ const std::string ErrorToString(SignalCollectionError error);
 struct BaseSignalResponse {
   virtual ~BaseSignalResponse();
 
+  bool operator==(const BaseSignalResponse&) const;
+
   // If set, represents a collection error that occurred while getting the
   // signal.
-  absl::optional<SignalCollectionError> collection_error = absl::nullopt;
+  std::optional<SignalCollectionError> collection_error = std::nullopt;
 };
 
 #if BUILDFLAG(IS_WIN)
+// Values representing the overall antivirus software state of a device.
+enum class InstalledAntivirusState {
+  kNone = 0,
+  kDisabled = 1,
+  kEnabled = 2,
+};
+
 struct AntiVirusSignalResponse : BaseSignalResponse {
   AntiVirusSignalResponse();
 
   AntiVirusSignalResponse(const AntiVirusSignalResponse&);
   AntiVirusSignalResponse& operator=(const AntiVirusSignalResponse&);
 
+  bool operator==(const AntiVirusSignalResponse&) const;
+
   ~AntiVirusSignalResponse() override;
 
   std::vector<AvProduct> av_products{};
+
+  InstalledAntivirusState antivirus_state{InstalledAntivirusState::kNone};
 };
 
 struct HotfixSignalResponse : BaseSignalResponse {
@@ -82,6 +107,8 @@ struct HotfixSignalResponse : BaseSignalResponse {
 
   HotfixSignalResponse(const HotfixSignalResponse&);
   HotfixSignalResponse& operator=(const HotfixSignalResponse&);
+
+  bool operator==(const HotfixSignalResponse&) const;
 
   ~HotfixSignalResponse() override;
 
@@ -101,6 +128,8 @@ struct GetSettingsOptions {
 
   GetSettingsOptions(const GetSettingsOptions&);
   GetSettingsOptions& operator=(const GetSettingsOptions&);
+
+  bool operator==(const GetSettingsOptions&) const;
 
   ~GetSettingsOptions();
 
@@ -128,9 +157,7 @@ struct GetSettingsOptions {
 
   // Windows registry hive containing the desired value. This values is required
   // on Windows, but will be ignored on Mac.
-  absl::optional<RegistryHive> hive = absl::nullopt;
-
-  bool operator==(const GetSettingsOptions& other) const;
+  std::optional<RegistryHive> hive = std::nullopt;
 };
 
 struct SettingsItem {
@@ -139,13 +166,15 @@ struct SettingsItem {
   SettingsItem(const SettingsItem&);
   SettingsItem& operator=(const SettingsItem&);
 
+  bool operator==(const SettingsItem&) const;
+
   ~SettingsItem();
 
   std::string path{};
 
   std::string key{};
 
-  absl::optional<RegistryHive> hive = absl::nullopt;
+  std::optional<RegistryHive> hive = std::nullopt;
 
   // Value indicating whether the specific resource could be found or not.
   PresenceValue presence = PresenceValue::kUnspecified;
@@ -153,9 +182,7 @@ struct SettingsItem {
   // JSON string representing the value of the setting. Only set when the
   // setting was found and `get_value` was true on the corresponding request
   // options.
-  absl::optional<std::string> setting_json_value = absl::nullopt;
-
-  bool operator==(const SettingsItem& other) const;
+  std::optional<std::string> setting_json_value = std::nullopt;
 };
 
 struct SettingsResponse : BaseSignalResponse {
@@ -164,9 +191,74 @@ struct SettingsResponse : BaseSignalResponse {
   SettingsResponse(const SettingsResponse&);
   SettingsResponse& operator=(const SettingsResponse&);
 
+  bool operator==(const SettingsResponse&) const;
+
   ~SettingsResponse() override;
 
   std::vector<SettingsItem> settings_items{};
+};
+
+struct OsSignalsResponse : BaseSignalResponse {
+  OsSignalsResponse();
+
+  OsSignalsResponse(const OsSignalsResponse&);
+  OsSignalsResponse& operator=(const OsSignalsResponse&);
+
+  bool operator==(const OsSignalsResponse&) const;
+
+  ~OsSignalsResponse() override;
+
+  // Common to all platforms
+  std::optional<std::string> display_name = std::nullopt;
+  std::string browser_version{};
+  std::optional<std::string> device_enrollment_domain = std::nullopt;
+  std::string device_manufacturer{};
+  std::string device_model{};
+  device_signals::SettingValue disk_encryption =
+      device_signals::SettingValue::UNKNOWN;
+  std::optional<std::string> hostname = std::nullopt;
+  std::optional<std::vector<std::string>> mac_addresses = std::nullopt;
+  std::string operating_system{};
+  device_signals::SettingValue os_firewall =
+      device_signals::SettingValue::UNKNOWN;
+  std::string os_version{};
+  device_signals::SettingValue screen_lock_secured =
+      device_signals::SettingValue::UNKNOWN;
+  std::optional<std::string> serial_number = std::nullopt;
+  std::optional<std::vector<std::string>> system_dns_servers = std::nullopt;
+
+  // Windows specific
+  std::optional<std::string> machine_guid = std::nullopt;
+  std::optional<device_signals::SettingValue> secure_boot_mode = std::nullopt;
+  std::optional<std::string> windows_machine_domain = std::nullopt;
+  std::optional<std::string> windows_user_domain = std::nullopt;
+};
+
+struct ProfileSignalsResponse : BaseSignalResponse {
+  ProfileSignalsResponse();
+
+  ProfileSignalsResponse(const ProfileSignalsResponse&);
+  ProfileSignalsResponse& operator=(const ProfileSignalsResponse&);
+
+  bool operator==(const ProfileSignalsResponse&) const;
+
+  ~ProfileSignalsResponse() override;
+
+  bool built_in_dns_client_enabled;
+  bool chrome_remote_desktop_app_blocked;
+  std::optional<safe_browsing::PasswordProtectionTrigger>
+      password_protection_warning_trigger = std::nullopt;
+  std::optional<std::string> profile_enrollment_domain = std::nullopt;
+  safe_browsing::SafeBrowsingState safe_browsing_protection_level;
+  bool site_isolation_enabled;
+
+  // Enterprise cloud content analysis exclusives
+  enterprise_connectors::EnterpriseRealTimeUrlCheckMode realtime_url_check_mode;
+  std::vector<std::string> file_downloaded_providers{};
+  std::vector<std::string> file_attached_providers{};
+  std::vector<std::string> bulk_data_entry_providers{};
+  std::vector<std::string> print_providers{};
+  std::vector<std::string> security_event_providers{};
 };
 
 struct FileSystemInfoResponse : BaseSignalResponse {
@@ -174,6 +266,8 @@ struct FileSystemInfoResponse : BaseSignalResponse {
 
   FileSystemInfoResponse(const FileSystemInfoResponse&);
   FileSystemInfoResponse& operator=(const FileSystemInfoResponse&);
+
+  bool operator==(const FileSystemInfoResponse&) const;
 
   ~FileSystemInfoResponse() override;
 
@@ -186,9 +280,11 @@ struct AgentSignalsResponse : BaseSignalResponse {
   AgentSignalsResponse(const AgentSignalsResponse&);
   AgentSignalsResponse& operator=(const AgentSignalsResponse&);
 
+  bool operator==(const AgentSignalsResponse&) const;
+
   ~AgentSignalsResponse() override;
 
-  absl::optional<CrowdStrikeSignals> crowdstrike_signals = absl::nullopt;
+  std::optional<CrowdStrikeSignals> crowdstrike_signals = std::nullopt;
 };
 
 // Request struct containing properties that will be used by the
@@ -199,7 +295,11 @@ struct SignalsAggregationRequest {
   SignalsAggregationRequest();
 
   SignalsAggregationRequest(const SignalsAggregationRequest&);
+  SignalsAggregationRequest(SignalsAggregationRequest&&);
   SignalsAggregationRequest& operator=(const SignalsAggregationRequest&);
+  SignalsAggregationRequest& operator=(SignalsAggregationRequest&&);
+
+  bool operator==(const SignalsAggregationRequest&) const;
 
   ~SignalsAggregationRequest();
 
@@ -208,11 +308,13 @@ struct SignalsAggregationRequest {
 
   // Parameters required when requesting the collection of signals living on
   // the device's file system.
-  std::vector<GetFileSystemInfoOptions> file_system_signal_parameters{};
+  std::vector<GetFileSystemInfoOptions> file_system_signal_parameters;
 
-  std::vector<GetSettingsOptions> settings_signal_parameters{};
+  std::vector<GetSettingsOptions> settings_signal_parameters;
 
-  bool operator==(const SignalsAggregationRequest& other) const;
+  // Trigger source of the report, for non-ash platforms the default is
+  // `kUnspecified`.
+  Trigger trigger = Trigger::kUnspecified;
 };
 
 // Response from a signal collection request sent through the SignalsAggregator.
@@ -222,24 +324,30 @@ struct SignalsAggregationResponse {
   SignalsAggregationResponse();
 
   SignalsAggregationResponse(const SignalsAggregationResponse&);
+  SignalsAggregationResponse(SignalsAggregationResponse&&);
   SignalsAggregationResponse& operator=(const SignalsAggregationResponse&);
+  SignalsAggregationResponse& operator=(SignalsAggregationResponse&&);
+
+  bool operator==(const SignalsAggregationResponse&) const;
 
   ~SignalsAggregationResponse();
 
   // If set, represents an error that occurred before any signal could be
   // collected.
-  absl::optional<SignalCollectionError> top_level_error = absl::nullopt;
+  std::optional<SignalCollectionError> top_level_error = std::nullopt;
 
 #if BUILDFLAG(IS_WIN)
-  absl::optional<AntiVirusSignalResponse> av_signal_response = absl::nullopt;
-  absl::optional<HotfixSignalResponse> hotfix_signal_response = absl::nullopt;
+  std::optional<AntiVirusSignalResponse> av_signal_response = std::nullopt;
+  std::optional<HotfixSignalResponse> hotfix_signal_response = std::nullopt;
 #endif  // BUILDFLAG(IS_WIN)
-  absl::optional<SettingsResponse> settings_response = absl::nullopt;
+  std::optional<SettingsResponse> settings_response = std::nullopt;
+  std::optional<OsSignalsResponse> os_signals_response = std::nullopt;
+  std::optional<ProfileSignalsResponse> profile_signals_response = std::nullopt;
 
-  absl::optional<FileSystemInfoResponse> file_system_info_response =
-      absl::nullopt;
+  std::optional<FileSystemInfoResponse> file_system_info_response =
+      std::nullopt;
 
-  absl::optional<AgentSignalsResponse> agent_signals_response = absl::nullopt;
+  std::optional<AgentSignalsResponse> agent_signals_response = std::nullopt;
 };
 
 }  // namespace device_signals

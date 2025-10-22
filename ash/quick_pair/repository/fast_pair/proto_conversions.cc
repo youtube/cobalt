@@ -19,7 +19,7 @@ nearby::fastpair::FastPairInfo BuildFastPairInfo(
     const std::string& hex_model_id,
     const std::vector<uint8_t>& account_key,
     const std::string& mac_address,
-    const absl::optional<std::string>& display_name,
+    const std::optional<std::string>& display_name,
     DeviceMetadata* device_metadata) {
   nearby::fastpair::FastPairInfo proto;
   auto* device = proto.mutable_device();
@@ -49,15 +49,14 @@ nearby::fastpair::FastPairInfo BuildFastPairInfo(
   discovery_item.set_action_url_type(nearby::fastpair::ResolvedUrlType::APP);
   discovery_item.set_action_url(details.intent_uri());
   discovery_item.set_last_observation_timestamp_millis(
-      base::Time::Now().ToJavaTime());
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
   discovery_item.set_first_observation_timestamp_millis(
-      base::Time::Now().ToJavaTime());
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
   discovery_item.set_state(nearby::fastpair::StoredDiscoveryItem_State::
                                StoredDiscoveryItem_State_STATE_ENABLED);
 
   auto image_memory = device_metadata->image().As1xPNGBytes();
-  std::string png_encoded_image(image_memory->front_as<char>(),
-                                image_memory->size());
+  std::string png_encoded_image(base::as_string_view(*image_memory));
   discovery_item.set_icon_png(png_encoded_image);
 
   discovery_item.add_stored_relevances()->mutable_relevance()->set_evaluation(

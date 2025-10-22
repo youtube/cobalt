@@ -5,23 +5,26 @@
 #include "ash/wallpaper/wallpaper_pref_manager.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/wallpaper/wallpaper_info.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/session/test_pref_service_provider.h"
 #include "ash/session/test_session_controller_client.h"
 #include "ash/wallpaper/test_wallpaper_controller_client.h"
+#include "ash/wallpaper/wallpaper_constants.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/user_manager/user_type.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -33,7 +36,8 @@ using testing::Gt;
 using testing::Lt;
 
 constexpr char kUser1[] = "user1@test.com";
-const AccountId account_id_1 = AccountId::FromUserEmailGaiaId(kUser1, kUser1);
+const AccountId account_id_1 =
+    AccountId::FromUserEmailGaiaId(kUser1, GaiaId::Literal("1234"));
 
 constexpr char kDummyUrl[] = "https://best_wallpaper/1";
 constexpr char kDummyUrl2[] = "https://best_wallpaper/2";
@@ -52,64 +56,13 @@ WallpaperInfo InfoWithType(WallpaperType type) {
                        base::Time::Now());
 }
 
-base::Value CreateWallpaperInfoDict(WallpaperInfo info) {
-  base::Value::Dict wallpaper_info_dict;
-  if (info.asset_id.has_value()) {
-    wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperAssetIdNodeName,
-                            base::NumberToString(info.asset_id.value()));
-  }
-  if (info.dedup_key.has_value()) {
-    wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperDedupKeyNodeName,
-                            info.dedup_key.value());
-  }
-  if (info.unit_id.has_value()) {
-    wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperUnitIdNodeName,
-                            base::NumberToString(info.unit_id.value()));
-  }
-  base::Value::List online_wallpaper_variant_list;
-  for (const auto& variant : info.variants) {
-    base::Value::Dict online_wallpaper_variant_dict;
-    online_wallpaper_variant_dict.Set(
-        WallpaperPrefManager::kNewWallpaperAssetIdNodeName,
-        base::NumberToString(variant.asset_id));
-    online_wallpaper_variant_dict.Set(
-        WallpaperPrefManager::kOnlineWallpaperUrlNodeName,
-        variant.raw_url.spec());
-    online_wallpaper_variant_dict.Set(
-        WallpaperPrefManager::kOnlineWallpaperTypeNodeName,
-        static_cast<int>(variant.type));
-    online_wallpaper_variant_list.Append(
-        std::move(online_wallpaper_variant_dict));
-  }
-  wallpaper_info_dict.Set(
-      WallpaperPrefManager::kNewWallpaperVariantListNodeName,
-      std::move(online_wallpaper_variant_list));
-  wallpaper_info_dict.Set(
-      WallpaperPrefManager::kNewWallpaperCollectionIdNodeName,
-      info.collection_id);
-  wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperDateNodeName,
-                          base::NumberToString(info.date.ToInternalValue()));
-  wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperLocationNodeName,
-                          info.location);
-  wallpaper_info_dict.Set(
-      WallpaperPrefManager::kNewWallpaperUserFilePathNodeName,
-      info.user_file_path);
-  wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperLayoutNodeName,
-                          info.layout);
-  wallpaper_info_dict.Set(WallpaperPrefManager::kNewWallpaperTypeNodeName,
-                          static_cast<int>(info.type));
-  return base::Value(std::move(wallpaper_info_dict));
-}
-
 void PutWallpaperInfoInPrefs(AccountId account_id,
                              WallpaperInfo info,
                              PrefService* pref_service,
                              const std::string& pref_name) {
   DCHECK(pref_service);
   ScopedDictPrefUpdate wallpaper_update(pref_service, pref_name);
-  base::Value wallpaper_info_dict = CreateWallpaperInfoDict(info);
-  wallpaper_update->Set(account_id.GetUserEmail(),
-                        std::move(wallpaper_info_dict));
+  wallpaper_update->Set(account_id.GetUserEmail(), info.ToDict());
 }
 
 void AssertWallpaperInfoInPrefs(const PrefService* pref_service,
@@ -119,8 +72,7 @@ void AssertWallpaperInfoInPrefs(const PrefService* pref_service,
   const base::Value::Dict* stored_info_dict =
       pref_service->GetDict(pref_name).FindDict(account_id.GetUserEmail());
   DCHECK(stored_info_dict);
-  base::Value expected_info_dict = CreateWallpaperInfoDict(info);
-  EXPECT_EQ(expected_info_dict, *stored_info_dict);
+  EXPECT_EQ(info.ToDict(), *stored_info_dict);
 }
 
 std::string GetDummyFileName(const AccountId& account_id) {
@@ -141,8 +93,9 @@ class TestProfileHelper : public WallpaperProfileHelper {
   void SetClient(WallpaperControllerClient*) override {}
 
   PrefService* GetUserPrefServiceSyncable(const AccountId& id) override {
-    if (!is_sync_enabled)
+    if (!is_sync_enabled) {
       return nullptr;
+    }
 
     const auto& pref = synced_prefs_.find(id);
     return pref == synced_prefs_.end() ? nullptr : &(pref->second);
@@ -169,10 +122,15 @@ class TestProfileHelper : public WallpaperProfileHelper {
   std::map<AccountId, TestingPrefServiceSimple> synced_prefs_;
 };
 
-class WallpaperPrefManagerTest : public testing::Test {
+class WallpaperPrefManagerTestBase : public testing::Test {
  public:
-  WallpaperPrefManagerTest()
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::UI) {}
+  WallpaperPrefManagerTestBase() = default;
+
+  WallpaperPrefManagerTestBase(const WallpaperPrefManagerTestBase&) = delete;
+  WallpaperPrefManagerTestBase& operator=(const WallpaperPrefManagerTestBase&) =
+      delete;
+
+  ~WallpaperPrefManagerTestBase() override = default;
 
   void SetUp() override {
     local_state_ = std::make_unique<TestingPrefServiceSimple>();
@@ -184,29 +142,33 @@ class WallpaperPrefManagerTest : public testing::Test {
         local_state_.get(), std::move(profile_helper));
   }
 
-  void TearDown() override {}
-
   PrefService* GetLocalPrefService() { return local_state_.get(); }
 
   void SimulateUserLogin(const AccountId& id) {
     profile_helper_->RegisterPrefsForAccount(id);
   }
 
-  void StoreWallpaper(const AccountId& account_id, base::StringPiece location) {
+  void StoreWallpaper(const AccountId& account_id, std::string_view location) {
     WallpaperInfo info = InfoWithType(WallpaperType::kCustomized);
     info.location = std::string(location);
     ASSERT_TRUE(pref_manager_->SetUserWallpaperInfo(account_id, info));
   }
 
  protected:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::UI};
 
-  raw_ptr<TestProfileHelper, ExperimentalAsh> profile_helper_;
+  raw_ptr<TestProfileHelper, DanglingUntriaged> profile_helper_;
 
   TestWallpaperControllerClient client_;
   std::unique_ptr<TestingPrefServiceSimple> local_state_;
 
   std::unique_ptr<WallpaperPrefManager> pref_manager_;
+};
+
+class WallpaperPrefManagerTest : public WallpaperPrefManagerTestBase {
+ public:
+  WallpaperPrefManagerTest() = default;
 };
 
 TEST_F(WallpaperPrefManagerTest, GetWallpaperInfo_Normal) {
@@ -251,6 +213,16 @@ TEST_F(WallpaperPrefManagerTest,
   EXPECT_TRUE(actual_info.MatchesSelection(expected_info));
 }
 
+TEST_F(WallpaperPrefManagerTest, RemoveUserWallpaperInfo_Ephemeral) {
+  profile_helper_->is_ephemeral = true;
+  WallpaperInfo expected_info = InfoWithType(WallpaperType::kDaily);
+  pref_manager_->SetUserWallpaperInfo(account_id_1, expected_info);
+
+  pref_manager_->RemoveUserWallpaperInfo(account_id_1);
+  WallpaperInfo actual_info;
+  EXPECT_FALSE(pref_manager_->GetUserWallpaperInfo(account_id_1, &actual_info));
+}
+
 TEST_F(WallpaperPrefManagerTest, SetWallpaperInfo_EphemeralDoesNotChangeLocal) {
   profile_helper_->is_ephemeral = true;
   WallpaperInfo expected_info = InfoWithType(WallpaperType::kDaily);
@@ -263,7 +235,7 @@ TEST_F(WallpaperPrefManagerTest, SetWallpaperInfo_EphemeralDoesNotChangeLocal) {
 TEST_F(WallpaperPrefManagerTest, SetWallpaperInfoLocal) {
   WallpaperInfo info(
       GetDummyFileName(account_id_1), WALLPAPER_LAYOUT_CENTER_CROPPED,
-      WallpaperType::kThirdParty, base::Time::Now().LocalMidnight());
+      WallpaperType::kCustomized, base::Time::Now().LocalMidnight());
   EXPECT_TRUE(pref_manager_->SetUserWallpaperInfo(account_id_1, info));
   AssertWallpaperInfoInPrefs(local_state_.get(), prefs::kUserWallpaperInfo,
                              account_id_1, info);
@@ -385,21 +357,6 @@ TEST_F(WallpaperPrefManagerTest, GetNextDailyRefreshUpdate_Recent) {
                     Lt(base::Hours(22) + base::Minutes(1))));
 }
 
-TEST_F(WallpaperPrefManagerTest, CacheProminentColors) {
-  WallpaperInfo info = InfoWithType(WallpaperType::kCustomized);
-
-  const char location[] = "/test/location";
-  info.location = location;
-
-  const std::vector<SkColor> expected_colors = {
-      SK_ColorGREEN, SK_ColorGREEN, SK_ColorGREEN,
-      SkColorSetRGB(0xAB, 0xBC, 0xEF)};
-
-  pref_manager_->CacheProminentColors(location, expected_colors);
-  EXPECT_EQ(expected_colors,
-            *pref_manager_->GetCachedProminentColors(location));
-}
-
 TEST_F(WallpaperPrefManagerTest, CacheKMeansColor) {
   WallpaperInfo info = InfoWithType(WallpaperType::kCustomized);
   const char location[] = "/test/location";
@@ -429,7 +386,7 @@ TEST_F(WallpaperPrefManagerTest, CacheCelebiColor) {
   const SkColor expected_color = SkColorSetRGB(0xAB, 0xBC, 0xEF);
   pref_manager_->CacheCelebiColor(location, expected_color);
 
-  absl::optional<SkColor> color = pref_manager_->GetCelebiColor(location);
+  std::optional<SkColor> color = pref_manager_->GetCelebiColor(location);
   ASSERT_TRUE(color);
   EXPECT_EQ(expected_color, *color);
 }
@@ -446,41 +403,7 @@ TEST_F(WallpaperPrefManagerTest, RemoveCelebiColor) {
   EXPECT_FALSE(pref_manager_->GetCelebiColor(location));
 }
 
-TEST_F(WallpaperPrefManagerTest, SetCalculatedColors) {
-  const char location[] = "location";
-
-  // Cache a prominent and KMean color entry
-  const std::vector<SkColor> prominent_colors = {
-      SK_ColorGREEN, SK_ColorGREEN, SK_ColorGREEN,
-      SkColorSetRGB(0xAB, 0xBC, 0xEF)};
-  pref_manager_->CacheProminentColors(location, prominent_colors);
-
-  const SkColor k_mean_color = SkColorSetRGB(0xAB, 0xBC, 0xEF);
-  pref_manager_->CacheKMeanColor(location, k_mean_color);
-
-  absl::optional<WallpaperCalculatedColors> actual_colors =
-      pref_manager_->GetCachedWallpaperColors(location);
-  ASSERT_TRUE(actual_colors);
-  EXPECT_THAT(actual_colors->prominent_colors,
-              testing::ContainerEq(prominent_colors));
-  EXPECT_EQ(actual_colors->k_mean_color, k_mean_color);
-}
-
-TEST_F(WallpaperPrefManagerTest, CalculatedColorsEmptyIfKMeanMissing) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature({chromeos::features::kJelly});
-  const char location[] = "location";
-
-  const std::vector<SkColor> prominent_colors = {
-      SK_ColorGREEN, SK_ColorGREEN, SK_ColorGREEN,
-      SkColorSetRGB(0xAB, 0xBC, 0xEF)};
-  pref_manager_->CacheProminentColors(location, prominent_colors);
-
-  EXPECT_FALSE(pref_manager_->GetCachedWallpaperColors(location));
-}
-
-TEST_F(WallpaperPrefManagerTest, CalculatedColorsWhenJellyEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list(chromeos::features::kJelly);
+TEST_F(WallpaperPrefManagerTest, CalculatedColors) {
   const char location[] = "location";
 
   const SkColor k_mean_color = SkColorSetRGB(0xAB, 0xBC, 0xEF);
@@ -489,16 +412,23 @@ TEST_F(WallpaperPrefManagerTest, CalculatedColorsWhenJellyEnabled) {
   const SkColor celebi_color = SkColorSetRGB(0xFF, 0xCC, 0x22);
   pref_manager_->CacheCelebiColor(location, celebi_color);
 
-  absl::optional<WallpaperCalculatedColors> actual_colors =
+  std::optional<WallpaperCalculatedColors> actual_colors =
       pref_manager_->GetCachedWallpaperColors(location);
   ASSERT_TRUE(actual_colors);
   EXPECT_EQ(k_mean_color, actual_colors->k_mean_color);
   EXPECT_EQ(celebi_color, actual_colors->celebi_color);
 }
 
-TEST_F(WallpaperPrefManagerTest,
-       CalculatedColorsEmptyIfCelebiMissingWhenJellyEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list(chromeos::features::kJelly);
+TEST_F(WallpaperPrefManagerTest, CalculatedColorsEmptyIfKMeanMissing) {
+  const char location[] = "location";
+
+  const SkColor celebi_color = SkColorSetRGB(0xFF, 0xCC, 0x22);
+  pref_manager_->CacheCelebiColor(location, celebi_color);
+
+  EXPECT_FALSE(pref_manager_->GetCachedWallpaperColors(location));
+}
+
+TEST_F(WallpaperPrefManagerTest, CalculatedColorsEmptyIfCelebiMissing) {
   const char location[] = "location";
 
   const SkColor k_mean_color = SkColorSetRGB(0xAB, 0xBC, 0xEF);
@@ -522,13 +452,15 @@ TEST_F(WallpaperPrefManagerTest, ShouldSyncOut) {
                         backdrop::Image::IMAGE_TYPE_LATE_AFTERNOON_MODE);
   WallpaperInfo info = InfoWithType(WallpaperType::kOnline);
   info.variants = variants;
+  info.collection_id = wallpaper_constants::kTimeOfDayWallpaperCollectionId;
   EXPECT_FALSE(WallpaperPrefManager::ShouldSyncOut(info));
 }
 
 TEST_F(WallpaperPrefManagerTest, ShouldSyncIn) {
   WallpaperInfo local_info = InfoWithType(WallpaperType::kOnline);
   WallpaperInfo synced_info = InfoWithType(WallpaperType::kDaily);
-  EXPECT_TRUE(WallpaperPrefManager::ShouldSyncIn(synced_info, local_info));
+  EXPECT_TRUE(WallpaperPrefManager::ShouldSyncIn(synced_info, local_info,
+                                                 /*is_oobe=*/false));
 
   std::vector<OnlineWallpaperVariant> variants;
   variants.emplace_back(kAssetId, GURL(kDummyUrl),
@@ -540,7 +472,100 @@ TEST_F(WallpaperPrefManagerTest, ShouldSyncIn) {
   variants.emplace_back(kAssetId4, GURL(kDummyUrl4),
                         backdrop::Image::IMAGE_TYPE_LATE_AFTERNOON_MODE);
   local_info.variants = variants;
-  EXPECT_FALSE(WallpaperPrefManager::ShouldSyncIn(synced_info, local_info));
+  local_info.collection_id =
+      wallpaper_constants::kTimeOfDayWallpaperCollectionId;
+  EXPECT_FALSE(WallpaperPrefManager::ShouldSyncIn(synced_info, local_info,
+                                                  /*is_oobe=*/false));
+  EXPECT_TRUE(WallpaperPrefManager::ShouldSyncIn(synced_info, local_info,
+                                                 /*is_oobe=*/true));
+}
+
+TEST_F(WallpaperPrefManagerTest, ShouldNotSyncInIfLocalWallpaperIsSeaPen) {
+  WallpaperInfo local_info = InfoWithType(WallpaperType::kSeaPen);
+  WallpaperInfo synced_info = InfoWithType(WallpaperType::kDaily);
+  local_info.location = "6868";
+  EXPECT_FALSE(WallpaperPrefManager::ShouldSyncIn(synced_info, local_info,
+                                                  /*is_oobe=*/false));
+}
+
+// Verifies that creating a wallpaper info from prefs with an invalid layout
+// enum fails.
+TEST_F(WallpaperPrefManagerTest, GetSyncedWallpaperInfo_InvalidLayoutEnum) {
+  profile_helper_->RegisterPrefsForAccount(account_id_1);
+
+  WallpaperInfo info = InfoWithType(WallpaperType::kCustomized);
+  base::Value::Dict wallpaper_info_dict = info.ToDict();
+
+  // Mangles pref data with invalid layout.
+  int invalid_layout = 1000;
+  wallpaper_info_dict.Set(WallpaperInfo::kNewWallpaperLayoutNodeName,
+                          invalid_layout);
+
+  PrefService* syncable_prefs =
+      profile_helper_->GetUserPrefServiceSyncable(account_id_1);
+  DCHECK(syncable_prefs);
+  ScopedDictPrefUpdate wallpaper_update(syncable_prefs,
+                                        prefs::kSyncableWallpaperInfo);
+  wallpaper_update->Set(account_id_1.GetUserEmail(),
+                        std::move(wallpaper_info_dict));
+  WallpaperInfo actual_info;
+  EXPECT_FALSE(
+      pref_manager_->GetSyncedWallpaperInfo(account_id_1, &actual_info));
+}
+
+// Verifies that creating a wallpaper info from prefs with an invalid wallpaper
+// type fails.
+TEST_F(WallpaperPrefManagerTest, GetSyncedWallpaperInfo_InvalidWallpaperType) {
+  profile_helper_->RegisterPrefsForAccount(account_id_1);
+
+  WallpaperInfo info = InfoWithType(WallpaperType::kCustomized);
+  base::Value::Dict wallpaper_info_dict = info.ToDict();
+
+  // Mangles pref data with invalid wallpaper type.
+  int invalid_wallpaper_type = 1000;
+  wallpaper_info_dict.Set(WallpaperInfo::kNewWallpaperTypeNodeName,
+                          invalid_wallpaper_type);
+
+  PrefService* syncable_prefs =
+      profile_helper_->GetUserPrefServiceSyncable(account_id_1);
+  DCHECK(syncable_prefs);
+  ScopedDictPrefUpdate wallpaper_update(syncable_prefs,
+                                        prefs::kSyncableWallpaperInfo);
+  wallpaper_update->Set(account_id_1.GetUserEmail(),
+                        std::move(wallpaper_info_dict));
+  WallpaperInfo actual_info;
+  EXPECT_FALSE(
+      pref_manager_->GetSyncedWallpaperInfo(account_id_1, &actual_info));
+}
+
+// Verifies that creating a wallpaper info from prefs with an invalid online
+// variant type succeeds.
+TEST_F(WallpaperPrefManagerTest,
+       GetSyncedWallpaperInfo_InvalidOnlineVariantType) {
+  profile_helper_->RegisterPrefsForAccount(account_id_1);
+
+  WallpaperInfo info = InfoWithType(WallpaperType::kOnline);
+  std::vector<OnlineWallpaperVariant> variants;
+  // Mangles pref data with invalid wallpaper type.
+  variants.emplace_back(kAssetId, GURL(kDummyUrl),
+                        static_cast<backdrop::Image::ImageType>(
+                            backdrop::Image::IMAGE_TYPE_LIGHT_MODE + 1000));
+  info.variants = variants;
+  info.collection_id = "_test_collection_id";
+  info.asset_id = kAssetId;
+  info.unit_id = kAssetId;
+  base::Value::Dict wallpaper_info_dict = info.ToDict();
+
+  PrefService* syncable_prefs =
+      profile_helper_->GetUserPrefServiceSyncable(account_id_1);
+  DCHECK(syncable_prefs);
+  ScopedDictPrefUpdate wallpaper_update(syncable_prefs,
+                                        prefs::kSyncableWallpaperInfo);
+  wallpaper_update->Set(account_id_1.GetUserEmail(),
+                        std::move(wallpaper_info_dict));
+  WallpaperInfo actual_info;
+  EXPECT_TRUE(
+      pref_manager_->GetSyncedWallpaperInfo(account_id_1, &actual_info));
 }
 
 }  // namespace

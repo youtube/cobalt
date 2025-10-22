@@ -56,8 +56,11 @@ class BASE_EXPORT DeferredSequencedTaskRunner : public SequencedTaskRunner {
   void StartWithTaskRunner(
       scoped_refptr<SequencedTaskRunner> target_task_runner);
 
+  // Returns true if task execution has been started.
+  bool Started() const;
+
  private:
-  struct DeferredTask  {
+  struct DeferredTask {
     DeferredTask();
     DeferredTask(DeferredTask&& other);
     ~DeferredTask();

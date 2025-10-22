@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/browser_switch/browser_switch_ui.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
@@ -19,11 +20,10 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_switch_resources.h"
 #include "chrome/grit/browser_switch_resources_map.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/grit/components_resources.h"
 #include "content/public/browser/page_navigator.h"
@@ -33,6 +33,7 @@
 #include "content/public/browser/web_ui_message_handler.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/webui/webui_util.h"
 #include "url/gurl.h"
 
 namespace {
@@ -42,7 +43,7 @@ void GotoNewTabPage(content::WebContents* web_contents) {
   content::OpenURLParams params(url, content::Referrer(),
                                 WindowOpenDisposition::CURRENT_TAB,
                                 ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false);
-  web_contents->OpenURL(params);
+  web_contents->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 // Returns true if there's only 1 tab left open in this profile. Incognito
@@ -51,11 +52,13 @@ bool IsLastTab(const Profile* profile) {
   profile = profile->GetOriginalProfile();
   int tab_count = 0;
   for (const Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile()->GetOriginalProfile() != profile)
+    if (browser->profile()->GetOriginalProfile() != profile) {
       continue;
+    }
     tab_count += browser->tab_strip_model()->count();
-    if (tab_count > 1)
+    if (tab_count > 1) {
       return false;
+    }
   }
   return true;
 }
@@ -68,18 +71,18 @@ bool IsLastTab(const Profile* profile) {
 // }
 base::Value::Dict RuleSetToDict(const browser_switcher::RuleSet& ruleset) {
   base::Value::List sitelist;
-  for (const auto& rule : ruleset.sitelist)
+  for (const auto& rule : ruleset.sitelist) {
     sitelist.Append(rule->ToString());
+  }
 
   base::Value::List greylist;
-  for (const auto& rule : ruleset.greylist)
+  for (const auto& rule : ruleset.greylist) {
     greylist.Append(rule->ToString());
+  }
 
-  base::Value::Dict dict;
-  dict.Set("sitelist", std::move(sitelist));
-  dict.Set("greylist", std::move(greylist));
-
-  return dict;
+  return base::Value::Dict()
+      .Set("sitelist", std::move(sitelist))
+      .Set("greylist", std::move(greylist));
 }
 
 browser_switcher::BrowserSwitcherService* GetBrowserSwitcherService(
@@ -190,10 +193,8 @@ void CreateAndAddBrowserSwitchUIHTMLSource(content::WebUI* web_ui) {
                              IDS_ABOUT_BROWSER_SWITCH_PROTOCOL_ERROR);
   source->AddLocalizedString("title", IDS_ABOUT_BROWSER_SWITCH_TITLE);
 
-  webui::SetupWebUIDataSource(
-      source,
-      base::make_span(kBrowserSwitchResources, kBrowserSwitchResourcesSize),
-      IDR_BROWSER_SWITCH_BROWSER_SWITCH_HTML);
+  webui::SetupWebUIDataSource(source, kBrowserSwitchResources,
+                              IDR_BROWSER_SWITCH_BROWSER_SWITCH_HTML);
 
   // Setup chrome://browser-switch/internals debug UI.
   source->AddResourcePath(
@@ -303,7 +304,7 @@ class BrowserSwitchHandler : public content::WebUIMessageHandler {
   base::WeakPtrFactory<BrowserSwitchHandler> weak_ptr_factory_{this};
 };
 
-BrowserSwitchHandler::BrowserSwitchHandler() {}
+BrowserSwitchHandler::BrowserSwitchHandler() = default;
 
 BrowserSwitchHandler::~BrowserSwitchHandler() = default;
 
@@ -427,21 +428,15 @@ void BrowserSwitchHandler::HandleGotoNewTabPage(const base::Value::List& args) {
 
 void BrowserSwitchHandler::HandleGetAllRulesets(const base::Value::List& args) {
   AllowJavascript();
-
   auto* service = GetBrowserSwitcherService(web_ui());
-
-  base::Value::Dict retval;
-  auto gpo_dict = RuleSetToDict(service->prefs().GetRules());
-  retval.Set("gpo", std::move(gpo_dict));
-  auto ieem_dict = RuleSetToDict(*service->sitelist()->GetIeemSitelist());
-  retval.Set("ieem", std::move(ieem_dict));
-  auto external_sitelist_dict =
-      RuleSetToDict(*service->sitelist()->GetExternalSitelist());
-  retval.Set("external_sitelist", std::move(external_sitelist_dict));
-  auto external_greylist_dict =
-      RuleSetToDict(*service->sitelist()->GetExternalGreylist());
-  retval.Set("external_greylist", std::move(external_greylist_dict));
-
+  auto retval =
+      base::Value::Dict()
+          .Set("gpo", RuleSetToDict(service->prefs().GetRules()))
+          .Set("ieem", RuleSetToDict(*service->sitelist()->GetIeemSitelist()))
+          .Set("external_sitelist",
+               RuleSetToDict(*service->sitelist()->GetExternalSitelist()))
+          .Set("external_greylist",
+               RuleSetToDict(*service->sitelist()->GetExternalGreylist()));
   ResolveJavascriptCallback(args[0], retval);
 }
 
@@ -457,13 +452,10 @@ void BrowserSwitchHandler::HandleGetDecision(const base::Value::List& args) {
   auto* service = GetBrowserSwitcherService(web_ui());
   browser_switcher::Decision decision = service->sitelist()->GetDecision(url);
 
-  base::Value::Dict retval;
-
-  base::StringPiece action_name =
+  std::string_view action_name =
       (decision.action == browser_switcher::kStay) ? "stay" : "go";
-  retval.Set("action", action_name);
 
-  base::StringPiece reason_name;
+  std::string_view reason_name;
   switch (decision.reason) {
     case browser_switcher::kDisabled:
       reason_name = "globally_disabled";
@@ -481,7 +473,13 @@ void BrowserSwitchHandler::HandleGetDecision(const base::Value::List& args) {
       reason_name = "default";
       break;
   }
-  retval.Set("reason", reason_name);
+
+  // clang-format off
+  auto retval =
+      base::Value::Dict()
+          .Set("action", action_name)
+          .Set("reason", reason_name);
+  // clang-format on
 
   if (decision.matching_rule) {
     retval.Set("matching_rule", decision.matching_rule->ToString());
@@ -501,9 +499,12 @@ void BrowserSwitchHandler::HandleGetTimestamps(const base::Value::List& args) {
     return;
   }
 
-  base::Value::Dict retval;
-  retval.Set("last_fetch", downloader->last_refresh_time().ToJsTime());
-  retval.Set("next_fetch", downloader->next_refresh_time().ToJsTime());
+  auto retval =
+      base::Value::Dict()
+          .Set("last_fetch",
+               downloader->last_refresh_time().InMillisecondsFSinceUnixEpoch())
+          .Set("next_fetch",
+               downloader->next_refresh_time().InMillisecondsFSinceUnixEpoch());
 
   ResolveJavascriptCallback(args[0], retval);
 }
@@ -519,8 +520,9 @@ void BrowserSwitchHandler::HandleGetRulesetSources(
   base::Value::Dict retval;
   for (const auto& source : sources) {
     base::Value val;
-    if (source.url.is_valid())
+    if (source.url.is_valid()) {
       val = base::Value(source.url.spec());
+    }
     // |pref_name| is something like "browser_switcher.blah"; however path
     // expansion is not expected on it as the JavaScript expects to see
     // "browser_switcher.blah" as a key in the object, not a nested hierarchy.
@@ -540,6 +542,11 @@ void BrowserSwitchHandler::HandleIsBrowserSwitchEnabled(
 
   auto* service = GetBrowserSwitcherService(web_ui());
   ResolveJavascriptCallback(args[0], base::Value(service->prefs().IsEnabled()));
+}
+
+bool BrowserSwitchUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  return browser_context && !browser_context->IsOffTheRecord();
 }
 
 BrowserSwitchUI::BrowserSwitchUI(content::WebUI* web_ui)

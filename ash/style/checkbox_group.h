@@ -24,13 +24,15 @@ namespace ash {
 // unselected button will select it, vise versa.
 class ASH_EXPORT CheckboxGroup : public OptionButtonGroup,
                                  public OptionButtonBase::Delegate {
+  METADATA_HEADER(CheckboxGroup, OptionButtonGroup)
+
  public:
-  METADATA_HEADER(CheckboxGroup);
   explicit CheckboxGroup(int group_width);
   CheckboxGroup(int group_width,
                 const gfx::Insets& inside_border_insets,
                 int between_child_spacing,
-                const gfx::Insets& checkbox_padding);
+                const gfx::Insets& checkbox_padding,
+                int image_label_spacing);
   CheckboxGroup(const CheckboxGroup&) = delete;
   CheckboxGroup& operator=(const CheckboxGroup&) = delete;
   ~CheckboxGroup() override;

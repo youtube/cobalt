@@ -11,21 +11,50 @@
 
 #import <Foundation/Foundation.h>
 
-#import "RTCMacros.h"
+#import "RTCNativeVideoEncoder.h"
+#import "RTCNativeVideoEncoderBuilder+Native.h"
 #import "RTCVideoEncoderAV1.h"
-#import "RTCWrappedNativeVideoEncoder.h"
+#import "helpers/NSString+StdString.h"
+#import "sdk/objc/base/RTCMacros.h"
+
+#include "api/video_codecs/scalability_mode.h"
+#include "modules/video_coding/codecs/av1/av1_svc_config.h"
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 
-@implementation RTC_OBJC_TYPE (RTCVideoEncoderAV1)
-
-+ (id<RTC_OBJC_TYPE(RTCVideoEncoder)>)av1Encoder {
-  std::unique_ptr<webrtc::VideoEncoder> nativeEncoder(webrtc::CreateLibaomAv1Encoder());
-  return [[RTC_OBJC_TYPE(RTCWrappedNativeVideoEncoder) alloc]
-      initWithNativeEncoder:std::move(nativeEncoder)];
-}
-
-+ (bool)isSupported {
-  return true;
-}
-
+@interface RTC_OBJC_TYPE (RTCVideoEncoderAV1Builder)
+    : RTC_OBJC_TYPE(RTCNativeVideoEncoder) <RTC_OBJC_TYPE (RTCNativeVideoEncoderBuilder)>
 @end
+
+    @implementation RTC_OBJC_TYPE (RTCVideoEncoderAV1Builder)
+
+    - (std::unique_ptr<webrtc::VideoEncoder>)build:
+        (const webrtc::Environment&)env {
+      return webrtc::CreateLibaomAv1Encoder(env);
+    }
+
+    @end
+
+    @implementation RTC_OBJC_TYPE (RTCVideoEncoderAV1)
+
+    + (id<RTC_OBJC_TYPE(RTCVideoEncoder)>)av1Encoder {
+      return [[RTC_OBJC_TYPE(RTCVideoEncoderAV1Builder) alloc] init];
+    }
+
+    + (NSArray<NSString*>*)supportedScalabilityModes {
+      // `LibaomAv1EncoderSupportedScalabilityModes` returns an std::vector-like
+      // container, but exact type might change, thus use `auto`.
+      auto modes = webrtc::LibaomAv1EncoderSupportedScalabilityModes();
+      NSMutableArray<NSString*>* result =
+          [NSMutableArray arrayWithCapacity:std::size(modes)];
+      for (webrtc::ScalabilityMode mode : modes) {
+        [result addObject:[NSString stringForAbslStringView:
+                                        webrtc::ScalabilityModeToString(mode)]];
+      }
+      return result;
+    }
+
+    + (bool)isSupported {
+      return true;
+    }
+
+    @end

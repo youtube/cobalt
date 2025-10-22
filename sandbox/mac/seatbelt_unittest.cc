@@ -11,7 +11,9 @@
 #include <unistd.h>
 
 #include <iterator>
+#include <optional>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/mac/mac_util.h"
@@ -59,11 +61,11 @@ MULTIPROCESS_TEST_MAIN(Ftruncate) {
 
   std::unique_ptr<base::Environment> env = base::Environment::Create();
 
-  std::string fd_string;
-  CHECK(env->GetVar("FD_TO_TRUNCATE", &fd_string));
+  std::optional<std::string> fd_string = env->GetVar("FD_TO_TRUNCATE");
+  CHECK(fd_string.has_value());
 
   int fd;
-  CHECK(base::StringToInt(fd_string, &fd));
+  CHECK(base::StringToInt(*fd_string, &fd));
 
   const char kTestBuf[] = "hello";
   CHECK_EQ(static_cast<ssize_t>(strlen(kTestBuf)),
@@ -72,10 +74,9 @@ MULTIPROCESS_TEST_MAIN(Ftruncate) {
   return ftruncate(fd, 0) == 0 ? 0 : 15;
 }
 
-// Tests ftruncate() behavior on an inherited, open, writable FD. Prior to
-// macOS 10.15, the sandbox did not permit ftruncate (but it did permit regular
-// writing) on such FDs. This verifies the behavior before, on, and after macOS
-// 10.15. See https://crbug.com/1084565 for details.
+// Tests ftruncate() behavior on an inherited, open, writable FD. Prior to macOS
+// 10.15, the sandbox did not permit ftruncate on such FDs, but now it does.
+// This verifies the new behavior. See https://crbug.com/1084565 for details.
 TEST_F(SeatbeltTest, Ftruncate) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -87,8 +88,7 @@ TEST_F(SeatbeltTest, Ftruncate) {
 
   const std::string contents =
       "Wouldn't it be nice to be able to use ftruncate?\n";
-  EXPECT_EQ(static_cast<int>(contents.length()),
-            file.WriteAtCurrentPos(contents.data(), contents.length()));
+  EXPECT_TRUE(file.WriteAtCurrentPosAndCheck(base::as_byte_span(contents)));
   EXPECT_EQ(static_cast<int64_t>(contents.length()), file.GetLength());
 
   base::PlatformFile fd = file.GetPlatformFile();
@@ -104,13 +104,8 @@ TEST_F(SeatbeltTest, Ftruncate) {
   EXPECT_TRUE(process.WaitForExitWithTimeout(TestTimeouts::action_max_timeout(),
                                              &exit_code));
 
-  if (base::mac::IsAtLeastOS10_15()) {
-    EXPECT_EQ(0, exit_code);
-    EXPECT_EQ(0, file.GetLength());
-  } else {
-    EXPECT_EQ(15, exit_code);
-    EXPECT_GT(file.GetLength(), static_cast<int64_t>(contents.length()));
-  }
+  EXPECT_EQ(0, exit_code);
+  EXPECT_EQ(0, file.GetLength());
 }
 
 MULTIPROCESS_TEST_MAIN(ProcessSelfInfo) {
@@ -126,16 +121,17 @@ MULTIPROCESS_TEST_MAIN(ProcessSelfInfo) {
   std::string error;
   CHECK(Seatbelt::Init(profile, 0, &error)) << error;
 
-  int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()};
+  std::array<int, 4> mib = {CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()};
   kinfo_proc proc;
   size_t size = sizeof(proc);
 
-  int rv = sysctl(mib, std::size(mib), &proc, &size, nullptr, 0);
+  int rv = sysctl(mib.data(), mib.size(), &proc, &size, nullptr, 0);
   PCHECK(rv == 0);
 
-  mib[std::size(mib) - 1] = getppid();
+  mib.back() = getppid();
+
   errno = 0;
-  rv = sysctl(mib, std::size(mib), &proc, &size, nullptr, 0);
+  rv = sysctl(mib.data(), mib.size(), &proc, &size, nullptr, 0);
   PCHECK(rv == -1);
   PCHECK(errno == EPERM);
 

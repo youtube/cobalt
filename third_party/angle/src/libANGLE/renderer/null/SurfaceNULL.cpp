@@ -25,7 +25,7 @@ egl::Error SurfaceNULL::initialize(const egl::Display *display)
     return egl::NoError();
 }
 
-egl::Error SurfaceNULL::swap(const gl::Context *context)
+egl::Error SurfaceNULL::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     return egl::NoError();
 }
@@ -60,16 +60,16 @@ egl::Error SurfaceNULL::releaseTexImage(const gl::Context *context, EGLint buffe
 egl::Error SurfaceNULL::getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 egl::Error SurfaceNULL::getMscRate(EGLint *numerator, EGLint *denominator)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
-void SurfaceNULL::setSwapInterval(EGLint interval) {}
+void SurfaceNULL::setSwapInterval(const egl::Display *display, EGLint interval) {}
 
 EGLint SurfaceNULL::getWidth() const
 {

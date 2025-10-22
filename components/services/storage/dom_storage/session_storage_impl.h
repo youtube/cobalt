@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -29,8 +30,8 @@
 #include "components/services/storage/public/mojom/session_storage_control.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-
 #include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom.h"
+#include "third_party/leveldatabase/src/include/leveldb/status.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -69,7 +70,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
       scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
       scoped_refptr<base::SequencedTaskRunner> memory_dump_task_runner,
       BackingMode backing_option,
-      std::string leveldb_name,
+      std::string database_name,
       mojo::PendingReceiver<mojom::SessionStorageControl> receiver);
 
   ~SessionStorageImpl() override;
@@ -91,7 +92,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void CleanUpStorage(CleanUpStorageCallback callback) override;
   void ScavengeUnusedNamespaces(
       ScavengeUnusedNamespacesCallback callback) override;
-  void Flush(FlushCallback callback) override;
+  void Flush() override;
   void PurgeMemory() override;
   void CreateNamespace(const std::string& namespace_id) override;
   void CloneNamespace(const std::string& namespace_id_to_clone,
@@ -240,7 +241,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   SessionStorageMetadata metadata_;
 
   BackingMode backing_mode_;
-  std::string leveldb_name_;
+  std::string database_name_;
 
   enum ConnectionState {
     NO_CONNECTION,
@@ -251,7 +252,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   bool database_initialized_ = false;
 
   const base::FilePath partition_directory_;
-  const scoped_refptr<base::SequencedTaskRunner> leveldb_task_runner_;
+  const scoped_refptr<base::SequencedTaskRunner> database_task_runner_;
 
   base::trace_event::MemoryAllocatorDumpGuid memory_dump_id_;
 
@@ -266,7 +267,9 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // The removal of items from this map is managed by the refcounting in
   // SessionStorageDataMap.
   // Populated after the database is connected.
-  std::map<std::vector<uint8_t>, SessionStorageDataMap*> data_maps_;
+  std::map<std::vector<uint8_t>,
+           raw_ptr<SessionStorageDataMap, CtnExperimental>>
+      data_maps_;
   // Populated in CreateNamespace, CloneNamespace, and sometimes
   // RegisterShallowClonedNamespace. Items are removed in
   // DeleteNamespace.

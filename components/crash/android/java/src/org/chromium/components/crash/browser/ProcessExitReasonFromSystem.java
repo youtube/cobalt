@@ -11,10 +11,14 @@ import android.os.Build;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -24,10 +28,14 @@ import java.util.List;
  * Wrapper to get the process exit reason of a dead process with same UID as current from
  * ActivityManager, and record to UMA.
  */
+@NullMarked
 public class ProcessExitReasonFromSystem {
+    private static @Nullable ActivityManager sActivityManager;
+
     /**
      * Get the exit reason of the most recent chrome process that died and had |pid| as the process
      * ID. Only available on R+ devices, returns -1 otherwise.
+     *
      * @return ApplicationExitInfo.Reason
      */
     @RequiresApi(Build.VERSION_CODES.R)
@@ -36,11 +44,14 @@ public class ProcessExitReasonFromSystem {
             return -1;
         }
         ActivityManager am =
-                (ActivityManager) ContextUtils.getApplicationContext().getSystemService(
-                        Context.ACTIVITY_SERVICE);
+                sActivityManager != null
+                        ? sActivityManager
+                        : (ActivityManager)
+                                ContextUtils.getApplicationContext()
+                                        .getSystemService(Context.ACTIVITY_SERVICE);
         // Set maxNum to 1 since we want the latest reason with the pid.
         List<ApplicationExitInfo> reasons =
-                am.getHistoricalProcessExitReasons(/*package_name=*/null, pid, /*maxNum=*/1);
+                am.getHistoricalProcessExitReasons(/* package_name= */ null, pid, /* maxNum= */ 1);
         if (reasons.isEmpty() || reasons.get(0) == null || reasons.get(0).getPid() != pid) {
             return -1;
         }
@@ -49,15 +60,28 @@ public class ProcessExitReasonFromSystem {
 
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
-    @IntDef({ExitReason.REASON_ANR, ExitReason.REASON_CRASH, ExitReason.REASON_CRASH_NATIVE,
-            ExitReason.REASON_DEPENDENCY_DIED, ExitReason.REASON_EXCESSIVE_RESOURCE_USAGE,
-            ExitReason.REASON_EXIT_SELF, ExitReason.REASON_INITIALIZATION_FAILURE,
-            ExitReason.REASON_LOW_MEMORY, ExitReason.REASON_OTHER,
-            ExitReason.REASON_PERMISSION_CHANGE, ExitReason.REASON_SIGNALED,
-            ExitReason.REASON_UNKNOWN, ExitReason.REASON_USER_REQUESTED,
-            ExitReason.REASON_USER_STOPPED})
+    @IntDef({
+        ExitReason.REASON_ANR,
+        ExitReason.REASON_CRASH,
+        ExitReason.REASON_CRASH_NATIVE,
+        ExitReason.REASON_DEPENDENCY_DIED,
+        ExitReason.REASON_EXCESSIVE_RESOURCE_USAGE,
+        ExitReason.REASON_EXIT_SELF,
+        ExitReason.REASON_INITIALIZATION_FAILURE,
+        ExitReason.REASON_LOW_MEMORY,
+        ExitReason.REASON_OTHER,
+        ExitReason.REASON_PERMISSION_CHANGE,
+        ExitReason.REASON_SIGNALED,
+        ExitReason.REASON_UNKNOWN,
+        ExitReason.REASON_USER_REQUESTED,
+        ExitReason.REASON_USER_STOPPED,
+        ExitReason.REASON_API_FAILED,
+        ExitReason.REASON_FREEZER,
+        ExitReason.REASON_PACKAGE_STATE_CHANGE,
+        ExitReason.REASON_PACKAGE_UPDATED,
+    })
     @Retention(RetentionPolicy.SOURCE)
-    @interface ExitReason {
+    public @interface ExitReason {
         int REASON_ANR = 0;
         int REASON_CRASH = 1;
         int REASON_CRASH_NATIVE = 2;
@@ -72,7 +96,11 @@ public class ProcessExitReasonFromSystem {
         int REASON_UNKNOWN = 11;
         int REASON_USER_REQUESTED = 12;
         int REASON_USER_STOPPED = 13;
-        int NUM_ENTRIES = 14;
+        int REASON_API_FAILED = 14;
+        int REASON_FREEZER = 15;
+        int REASON_PACKAGE_STATE_CHANGE = 16;
+        int REASON_PACKAGE_UPDATED = 17;
+        int NUM_ENTRIES = 18;
     }
 
     @CalledByNative
@@ -82,12 +110,22 @@ public class ProcessExitReasonFromSystem {
 
     /**
      * Records the given |systemReason| (given by #getExitReason) to UMA with the given |umaName|.
+     *
      * @see #getExitReason
      */
     public static void recordAsEnumHistogram(String umaName, int systemReason) {
-        @ExitReason
-        int reason;
+        Integer exitReason = convertToExitReason(systemReason);
+        if (exitReason != null) {
+            RecordHistogram.recordEnumeratedHistogram(umaName, exitReason, ExitReason.NUM_ENTRIES);
+        }
+    }
+
+    public static @Nullable Integer convertToExitReason(int systemReason) {
+        @ExitReason Integer reason = null;
         switch (systemReason) {
+            case -1:
+                reason = ExitReason.REASON_API_FAILED;
+                break;
             case ApplicationExitInfo.REASON_ANR:
                 reason = ExitReason.REASON_ANR;
                 break;
@@ -130,10 +168,22 @@ public class ProcessExitReasonFromSystem {
             case ApplicationExitInfo.REASON_USER_STOPPED:
                 reason = ExitReason.REASON_USER_STOPPED;
                 break;
-            default:
-                // Reason is unavailable in current platform, so skip recording.
-                return;
+            case ApplicationExitInfo.REASON_FREEZER:
+                reason = ExitReason.REASON_FREEZER;
+                break;
+            case ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE:
+                reason = ExitReason.REASON_PACKAGE_STATE_CHANGE;
+                break;
+            case ApplicationExitInfo.REASON_PACKAGE_UPDATED:
+                reason = ExitReason.REASON_PACKAGE_UPDATED;
+                break;
         }
-        RecordHistogram.recordEnumeratedHistogram(umaName, reason, ExitReason.NUM_ENTRIES);
+
+        return reason;
     }
-};
+
+    @VisibleForTesting
+    public static void setActivityManagerForTest(ActivityManager am) {
+        sActivityManager = am;
+    }
+}

@@ -12,8 +12,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
 
 // static
 MemoryDumpScheduler* MemoryDumpScheduler::GetInstance() {
@@ -37,8 +36,9 @@ void MemoryDumpScheduler::Start(
 }
 
 void MemoryDumpScheduler::Stop() {
-  if (!task_runner_)
+  if (!task_runner_) {
     return;
+  }
   task_runner_->PostTask(FROM_HERE, BindOnce(&MemoryDumpScheduler::StopInternal,
                                              Unretained(this)));
   task_runner_ = nullptr;
@@ -51,13 +51,13 @@ void MemoryDumpScheduler::StartInternal(MemoryDumpScheduler::Config config) {
   for (const Config::Trigger& trigger : config.triggers) {
     DCHECK_GT(trigger.period_ms, 0u);
     switch (trigger.level_of_detail) {
-      case MemoryDumpLevelOfDetail::BACKGROUND:
+      case MemoryDumpLevelOfDetail::kBackground:
         break;
-      case MemoryDumpLevelOfDetail::LIGHT:
+      case MemoryDumpLevelOfDetail::kLight:
         DCHECK_EQ(0u, light_dump_period_ms);
         light_dump_period_ms = trigger.period_ms;
         break;
-      case MemoryDumpLevelOfDetail::DETAILED:
+      case MemoryDumpLevelOfDetail::kDetailed:
         DCHECK_EQ(0u, heavy_dump_period_ms);
         heavy_dump_period_ms = trigger.period_ms;
         break;
@@ -91,14 +91,18 @@ void MemoryDumpScheduler::StopInternal() {
 }
 
 void MemoryDumpScheduler::Tick(uint32_t expected_generation) {
-  if (period_ms_ == 0 || generation_ != expected_generation)
+  if (period_ms_ == 0 || generation_ != expected_generation) {
     return;
+  }
 
-  MemoryDumpLevelOfDetail level_of_detail = MemoryDumpLevelOfDetail::BACKGROUND;
-  if (light_dump_rate_ > 0 && tick_count_ % light_dump_rate_ == 0)
-    level_of_detail = MemoryDumpLevelOfDetail::LIGHT;
-  if (heavy_dump_rate_ > 0 && tick_count_ % heavy_dump_rate_ == 0)
-    level_of_detail = MemoryDumpLevelOfDetail::DETAILED;
+  MemoryDumpLevelOfDetail level_of_detail =
+      MemoryDumpLevelOfDetail::kBackground;
+  if (light_dump_rate_ > 0 && tick_count_ % light_dump_rate_ == 0) {
+    level_of_detail = MemoryDumpLevelOfDetail::kLight;
+  }
+  if (heavy_dump_rate_ > 0 && tick_count_ % heavy_dump_rate_ == 0) {
+    level_of_detail = MemoryDumpLevelOfDetail::kDetailed;
+  }
   tick_count_++;
 
   callback_.Run(level_of_detail);
@@ -115,5 +119,4 @@ MemoryDumpScheduler::Config::~Config() = default;
 MemoryDumpScheduler::Config::Config(const MemoryDumpScheduler::Config&) =
     default;
 
-}  // namespace trace_event
-}  // namespace base
+}  // namespace base::trace_event

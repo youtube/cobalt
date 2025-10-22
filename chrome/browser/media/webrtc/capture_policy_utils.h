@@ -8,14 +8,19 @@
 #include <vector>
 
 #include "chrome/browser/media/webrtc/desktop_media_list.h"
+#include "content/public/common/buildflags.h"
 
 class GURL;
+class PrefRegistrySimple;
 class PrefService;
 
 namespace content {
-class BrowserContext;
 class WebContents;
-}
+}  // namespace content
+
+namespace crosapi::mojom {
+class MultiCaptureService;
+}  // namespace crosapi::mojom
 
 // This enum represents the various levels in priority order from most
 // restrictive to least restrictive, to which capture may be restricted by
@@ -31,6 +36,17 @@ enum class AllowedScreenCaptureLevel {
 };
 
 namespace capture_policy {
+
+#if BUILDFLAG(IS_CHROMEOS)
+extern const char kManagedMultiScreenCaptureAllowedForUrls[];
+
+// Sets a multi capture service mock for testing.
+void SetMultiCaptureServiceForTesting(
+    crosapi::mojom::MultiCaptureService* service);
+
+crosapi::mojom::MultiCaptureService* GetMultiCaptureService();
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 // Gets the highest capture level that the requesting origin is allowed to
 // request based on any configured enterprise policies. This is a convenience
 // overload which extracts the PrefService from the WebContents.
@@ -60,18 +76,19 @@ void FilterMediaList(std::vector<DesktopMediaList::Type>& media_types,
 
 void ShowCaptureTerminatedDialog(content::WebContents* contents);
 
-// TODO(crbug.com/1342069): Use Origin instead of GURL.
-bool IsGetDisplayMediaSetSelectAllScreensAllowed(
-    content::BrowserContext* context,
-    const GURL& url);
+void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
-bool IsGetDisplayMediaSetSelectAllScreensAllowedForAnySite(
-    content::BrowserContext* context);
+// TODO(crbug.com/40230867): Use Origin instead of GURL.
+void CheckGetAllScreensMediaAllowed(const GURL& url,
+                                    base::OnceCallback<void(bool)> callback);
 
-#if !BUILDFLAG(IS_ANDROID)
+void CheckGetAllScreensMediaAllowedForAnyOrigin(
+    base::OnceCallback<void(bool)> callback);
+
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 bool IsTransientActivationRequiredForGetDisplayMedia(
     content::WebContents* contents);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 }  // namespace capture_policy
 

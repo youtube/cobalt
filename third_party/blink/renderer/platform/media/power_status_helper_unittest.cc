@@ -18,6 +18,7 @@
 #include "services/device/public/mojom/battery_status.mojom-blink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
@@ -54,8 +55,8 @@ class PowerStatusHelperTest : public testing::Test {
         case RemoteType::kConnected:
         case RemoteType::kDisconnected: {
           auto pending = receiver_.BindNewPipeAndPassRemote();
-          receiver_.set_disconnect_handler(base::BindOnce(
-              &MockBatteryMonitor::DidDisconnect, base::Unretained(this)));
+          receiver_.set_disconnect_handler(WTF::BindOnce(
+              &MockBatteryMonitor::DidDisconnect, WTF::Unretained(this)));
           if (remote_type_ == RemoteType::kDisconnected)
             receiver_.reset();
           base::RunLoop().RunUntilIdle();
@@ -69,8 +70,8 @@ class PowerStatusHelperTest : public testing::Test {
     // Would be nice if this were base::MockCallback, but move-only types don't
     // seem to work.
     PowerStatusHelper::CreateBatteryMonitorCB cb() {
-      return base::BindRepeating(&MockBatteryMonitor::GetBatteryMonitor,
-                                 base::Unretained(this));
+      return WTF::BindRepeating(&MockBatteryMonitor::GetBatteryMonitor,
+                                WTF::Unretained(this));
     }
 
     // Provide a battery update via |callback_|.
@@ -137,24 +138,6 @@ class PowerStatusHelperTest : public testing::Test {
                       : PowerStatusHelper::kFullScreenNo);
   }
 
-  void FastForward(base::TimeDelta delta) {
-    task_environment_.FastForwardBy(delta);
-  }
-
-  // Verify that we've added |battery_delta| and |time_delta| to |bucket| in
-  // both histograms.
-  void VerifyHistogramDelta(int bucket,
-                            int battery_delta,
-                            base::TimeDelta time_delta) {
-    // Since histograms are cumulative, include the new counts.
-    total_battery_delta += battery_delta;
-    total_time_delta += time_delta.InMilliseconds();
-    histogram_tester_.ExpectBucketCount(helper_->BatteryDeltaHistogram(),
-                                        bucket, total_battery_delta);
-    histogram_tester_.ExpectBucketCount(helper_->ElapsedTimeHistogram(), bucket,
-                                        total_time_delta);
-  }
-
  protected:
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -196,32 +179,13 @@ TEST_F(PowerStatusHelperTest, BasicReportingWithFractionalAmounts) {
   // over to the next call.
   EXPECT_CALL(monitor_, DidGetBatteryMonitor()).Times(1);
   EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
-  const int bucket = MakeRecordable();
+  MakeRecordable();
 
   const float baseline_level = 0.9;
-  // Will round to 10%.
-  const float second_level = baseline_level - 0.106;
-  // Will round to 11% (plus a little).
-  const float third_level = second_level - 0.106;
 
   // This should be the baseline.
   EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
   monitor_.ProvidePowerUpdate(false, baseline_level);
-
-  // This should trigger recording.
-  base::TimeDelta time_delta = base::Seconds(1);
-  FastForward(time_delta);
-
-  EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
-  monitor_.ProvidePowerUpdate(false, second_level);
-  VerifyHistogramDelta(bucket, 10, time_delta);
-
-  // This should also record, and pick up the fractional percentage drop that
-  // wasn't included in the previous one.
-  FastForward(time_delta);
-  EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
-  monitor_.ProvidePowerUpdate(false, third_level);
-  VerifyHistogramDelta(bucket, 11, time_delta);
 }
 
 TEST_F(PowerStatusHelperTest, ChargingResetsBaseline) {
@@ -229,7 +193,7 @@ TEST_F(PowerStatusHelperTest, ChargingResetsBaseline) {
   // Make sure that the baseline resets.
   EXPECT_CALL(monitor_, DidGetBatteryMonitor()).Times(1);
   EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
-  const int bucket = MakeRecordable();
+  MakeRecordable();
 
   const float fake_baseline_level = 0.95;
   const float baseline_level = 0.9;
@@ -246,13 +210,6 @@ TEST_F(PowerStatusHelperTest, ChargingResetsBaseline) {
   // This should be the correct baseline.
   EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
   monitor_.ProvidePowerUpdate(false, baseline_level);
-
-  // This should trigger recording.
-  base::TimeDelta time_delta = base::Seconds(1);
-  FastForward(time_delta);
-  EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
-  monitor_.ProvidePowerUpdate(false, second_level);
-  VerifyHistogramDelta(bucket, 10, time_delta);
 }
 
 TEST_F(PowerStatusHelperTest, ExperimentStateStopsRecording) {
@@ -280,7 +237,6 @@ TEST_F(PowerStatusHelperTest, ChangingBucketsWorks) {
 
   const float fake_baseline_level = 0.95;
   const float baseline_level = 0.9;
-  const float second_level = baseline_level - 0.10;
 
   // Send the fake baseline.
   EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
@@ -293,13 +249,6 @@ TEST_F(PowerStatusHelperTest, ChangingBucketsWorks) {
   // This should be the correct baseline.
   EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
   monitor_.ProvidePowerUpdate(false, baseline_level);
-
-  // This should trigger recording.
-  base::TimeDelta time_delta = base::Seconds(1);
-  FastForward(time_delta);
-  EXPECT_CALL(monitor_, DidQueryNextStatus()).Times(1);
-  monitor_.ProvidePowerUpdate(false, second_level);
-  VerifyHistogramDelta(second_bucket, 10, time_delta);
 }
 
 TEST_F(PowerStatusHelperTest, UnbucketedVideoStopsRecording) {
@@ -340,13 +289,13 @@ using PlaybackParamsTuple = std::tuple<bool,                    /* is_playing */
 class PowerStatusHelperBucketTest
     : public testing::TestWithParam<PlaybackParamsTuple> {
  public:
-  absl::optional<int> BucketFor(bool is_playing,
-                                bool has_video,
-                                media::VideoCodec codec,
-                                media::VideoCodecProfile profile,
-                                gfx::Size coded_size,
-                                bool is_fullscreen,
-                                absl::optional<int> average_fps) {
+  std::optional<int> BucketFor(bool is_playing,
+                               bool has_video,
+                               media::VideoCodec codec,
+                               media::VideoCodecProfile profile,
+                               gfx::Size coded_size,
+                               bool is_fullscreen,
+                               std::optional<int> average_fps) {
     return PowerStatusHelper::BucketFor(is_playing, has_video, codec, profile,
                                         coded_size, is_fullscreen, average_fps);
   }
@@ -397,7 +346,7 @@ TEST_P(PowerStatusHelperBucketTest, TestBucket) {
   }
 
   auto fps = std::get<4>(GetParam());
-  absl::optional<int> average_fps;
+  std::optional<int> average_fps;
   if (fps == PowerStatusHelper::Bits::kFrameRate30) {
     average_fps = 30;
   } else if (fps == PowerStatusHelper::Bits::kFrameRate60) {

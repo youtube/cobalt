@@ -53,7 +53,7 @@ void FakeBluetoothDelegate::ShowDevicePairPrompt(
     const std::u16string& device_identifier,
     PairPromptCallback callback,
     PairingKind pairing_kind,
-    const absl::optional<std::u16string>& pin) {
+    const std::optional<std::u16string>& pin) {
   std::move(callback).Run(content::BluetoothDelegate::PairPromptResult(
       content::BluetoothDelegate::PairPromptStatus::kCancelled));
 }
@@ -112,6 +112,10 @@ void FakeBluetoothDelegate::RevokeDevicePermissionWebInitiated(
   auto& device_address_to_id_map = GetAddressToIdMapForOrigin(frame);
   base::EraseIf(device_address_to_id_map,
                 [device_id](auto& entry) { return entry.second == device_id; });
+}
+
+bool FakeBluetoothDelegate::MayUseBluetooth(RenderFrameHost* rfh) {
+  return true;
 }
 
 bool FakeBluetoothDelegate::IsAllowedToAccessService(

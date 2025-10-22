@@ -4,8 +4,11 @@
 
 #include "ash/app_menu/notification_overflow_view.h"
 
+#include <algorithm>
+
 #include "ash/public/cpp/app_menu_constants.h"
-#include "base/ranges/algorithm.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/menu_separator_types.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -42,6 +45,9 @@ namespace ash {
 // The icon which represents a notification.
 class NotificationOverflowImageView
     : public message_center::ProportionalImageView {
+  METADATA_HEADER(NotificationOverflowImageView,
+                  message_center::ProportionalImageView)
+
  public:
   NotificationOverflowImageView(const ui::ImageModel& image,
                                 const std::string& notification_id)
@@ -62,6 +68,9 @@ class NotificationOverflowImageView
  private:
   std::string const notification_id_;
 };
+
+BEGIN_METADATA(NotificationOverflowImageView)
+END_METADATA
 
 NotificationOverflowView::NotificationOverflowView()
     : separator_(AddChildView(std::make_unique<views::MenuSeparator>(
@@ -98,21 +107,21 @@ void NotificationOverflowView::AddIcon(
     overflow_icon_->SetVisible(true);
     image_views_.at(kMaxOverflowIcons)->SetVisible(false);
   }
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void NotificationOverflowView::RemoveIcon(const std::string& notification_id) {
-  auto it = base::ranges::find(image_views_, notification_id,
-                               &NotificationOverflowImageView::notification_id);
+  auto it = std::ranges::find(image_views_, notification_id,
+                              &NotificationOverflowImageView::notification_id);
   if (it != image_views_.end()) {
     RemoveChildViewT(*it);
     image_views_.erase(it);
     MaybeRemoveOverflowIcon();
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 }
 
-void NotificationOverflowView::Layout() {
+void NotificationOverflowView::Layout(PassKey) {
   separator_->SetBoundsRect(
       gfx::Rect(width(), separator_->GetPreferredSize().height()));
 
@@ -131,7 +140,8 @@ void NotificationOverflowView::Layout() {
   }
 }
 
-gfx::Size NotificationOverflowView::CalculatePreferredSize() const {
+gfx::Size NotificationOverflowView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   // This view is the last element in a MenuItemView, which means it has extra
   // padding on the bottom due to the corner radius of the root MenuItemView. If
   // the corner radius changes, |kOverflowSeparatorToIconPadding| must be
@@ -147,5 +157,8 @@ void NotificationOverflowView::MaybeRemoveOverflowIcon() {
 
   overflow_icon_->SetVisible(false);
 }
+
+BEGIN_METADATA(NotificationOverflowView)
+END_METADATA
 
 }  // namespace ash

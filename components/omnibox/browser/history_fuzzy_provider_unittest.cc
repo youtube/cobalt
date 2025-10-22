@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/omnibox/browser/history_fuzzy_provider.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -21,7 +22,7 @@ struct TestCase {
 
 template <typename Container, typename Item>
 void SwapRemoveElement(Container& container, const Item& item) {
-  typename Container::iterator it = base::ranges::find(container, item);
+  typename Container::iterator it = std::ranges::find(container, item);
   if (it == container.end()) {
     return;
   }
@@ -58,7 +59,6 @@ std::ostream& operator<<(std::ostream& os, const fuzzy::Edit& edit) {
     }
     default: {
       NOTREACHED();
-      break;
     }
   }
   os << "," << edit.at << "," << static_cast<char>(edit.new_char) << "}";

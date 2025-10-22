@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -63,10 +64,9 @@ class NetworkConnectImpl : public NetworkConnect {
   // NetworkConnect
   void ConnectToNetworkId(const std::string& network_id) override;
   void DisconnectFromNetworkId(const std::string& network_id) override;
-  void SetTechnologyEnabled(const NetworkTypePattern& technology,
-                            bool enabled_state) override;
   void ShowMobileSetup(const std::string& network_id) override;
   void ShowCarrierAccountDetail(const std::string& network_id) override;
+  void ShowCarrierUnlockNotification() override;
   void ShowPortalSignin(const std::string& network_id, Source source) override;
   void ConfigureNetworkIdAndConnect(const std::string& network_id,
                                     const base::Value::Dict& shill_properties,
@@ -103,7 +103,7 @@ class NetworkConnectImpl : public NetworkConnect {
   void ConfigureSetProfileSucceeded(const std::string& network_id,
                                     base::Value::Dict properties_to_set);
 
-  raw_ptr<Delegate, ExperimentalAsh> delegate_;
+  raw_ptr<Delegate> delegate_;
   base::WeakPtrFactory<NetworkConnectImpl> weak_factory_{this};
 };
 
@@ -154,8 +154,12 @@ void NetworkConnectImpl::HandleUnconfiguredNetwork(
 
     // If network is unconfigured because it's SIM locked, do nothing, as this
     // is handled by NetworkStateNotifier.
-    if (network->GetError() == shill::kErrorSimLocked)
+    if (network->GetError() == shill::kErrorSimLocked) {
       return;
+    }
+    if (network->GetError() == shill::kErrorSimCarrierLocked) {
+      return;
+    }
 
     // No special configure or setup for |network|, show the settings UI.
     if (LoginState::Get()->IsUserLoggedIn())
@@ -175,7 +179,7 @@ void NetworkConnectImpl::HandleUnconfiguredNetwork(
     return;
   }
 
-  NOTREACHED();
+  DUMP_WILL_BE_NOTREACHED();
 }
 
 // If |shared| is true, sets |profile_path| to the shared profile path.
@@ -395,59 +399,6 @@ void NetworkConnectImpl::DisconnectFromNetworkId(
       base::BindOnce(&IgnoreDisconnectError));
 }
 
-void NetworkConnectImpl::SetTechnologyEnabled(
-    const NetworkTypePattern& technology,
-    bool enabled_state) {
-  const std::string technology_string = technology.ToDebugString();
-  std::string log_string = base::StringPrintf(
-      "technology %s, target state: %s", technology_string.c_str(),
-      (enabled_state ? "ENABLED" : "DISABLED"));
-  NET_LOG(USER) << "SetTechnologyEnabled: " << log_string;
-  NetworkStateHandler* handler = NetworkHandler::Get()->network_state_handler();
-  TechnologyStateController* controller =
-      NetworkHandler::Get()->technology_state_controller();
-  bool enabled = handler->IsTechnologyEnabled(technology);
-  if (enabled_state == enabled) {
-    NET_LOG(USER) << "Technology already in target state: " << log_string;
-    return;
-  }
-  if (enabled) {
-    // User requested to disable the technology.
-    NET_LOG(USER) << __func__ << " " << technology_string << ":" << false;
-    controller->SetTechnologiesEnabled(technology, false,
-                                       network_handler::ErrorCallback());
-    return;
-  }
-  // If we're dealing with a cellular network, then handle SIM lock here.
-  // SIM locking only applies to cellular.
-  if (technology.MatchesPattern(NetworkTypePattern::Cellular())) {
-    const DeviceState* mobile = handler->GetDeviceStateByType(technology);
-    if (!mobile) {
-      NET_LOG(ERROR) << "SetTechnologyEnabled with no device: " << log_string;
-      return;
-    }
-    if (mobile->IsSimAbsent()) {
-      // If this is true, then we have a cellular device with no SIM
-      // inserted. TODO(armansito): Chrome should display a notification here,
-      // prompting the user to insert a SIM card and restart the device to
-      // enable cellular. See crbug.com/125171.
-      NET_LOG(USER) << "Cannot enable cellular device without SIM: "
-                    << log_string;
-      return;
-    }
-    if (!mobile->IsSimLocked()) {
-      // A SIM has been inserted, but it is locked. Let the user unlock it
-      // via Settings or the details dialog.
-      const NetworkState* network = handler->FirstNetworkByType(technology);
-      delegate_->ShowNetworkSettings(network ? network->guid() : "");
-      return;
-    }
-  }
-  NET_LOG(USER) << __func__ << " " << technology_string << ":" << true;
-  controller->SetTechnologiesEnabled(technology, true,
-                                     network_handler::ErrorCallback());
-}
-
 void NetworkConnectImpl::ActivateCellular(const std::string& network_id) {
   NET_LOG(USER) << "ActivateCellular: " << NetworkGuidId(network_id);
   const NetworkState* cellular = GetNetworkStateFromId(network_id);
@@ -488,15 +439,12 @@ void NetworkConnectImpl::ShowCarrierAccountDetail(
   delegate_->ShowCarrierAccountDetail(network_id);
 }
 
+void NetworkConnectImpl::ShowCarrierUnlockNotification() {
+  delegate_->ShowCarrierUnlockNotification();
+}
+
 void NetworkConnectImpl::ShowPortalSignin(const std::string& network_id,
                                           Source source) {
-  const NetworkState* network = GetNetworkStateFromId(network_id);
-  if (!network || !network->IsConnectedState() ||
-      !NetworkState::StateIsPortalled(network->connection_state())) {
-    NET_LOG(ERROR) << "ShowPortalSignin without a portalled state: "
-                   << NetworkGuidId(network_id);
-    return;
-  }
   delegate_->ShowPortalSignin(network_id, source);
 }
 

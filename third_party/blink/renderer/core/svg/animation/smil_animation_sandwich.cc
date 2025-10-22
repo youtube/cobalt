@@ -25,7 +25,9 @@
 
 #include "third_party/blink/renderer/core/svg/animation/smil_animation_sandwich.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/core/svg/animation/smil_animation_value.h"
 #include "third_party/blink/renderer/core/svg/svg_animation_element.h"
 
@@ -37,7 +39,7 @@ struct PriorityCompare {
   PriorityCompare(SMILTime elapsed) : elapsed_(elapsed) {}
   bool operator()(const Member<SVGSMILElement>& a,
                   const Member<SVGSMILElement>& b) {
-    return b->IsHigherPriorityThan(a, elapsed_);
+    return b->IsHigherPriorityThan(a.Get(), elapsed_);
   }
   SMILTime elapsed_;
 };
@@ -52,8 +54,8 @@ void SMILAnimationSandwich::Add(SVGAnimationElement* animation) {
 }
 
 void SMILAnimationSandwich::Remove(SVGAnimationElement* animation) {
-  auto* position = base::ranges::find(sandwich_, animation);
-  DCHECK(sandwich_.end() != position);
+  auto position = std::ranges::find(sandwich_, animation);
+  CHECK(sandwich_.end() != position);
   sandwich_.erase(position);
   // Clear the animated value when there are active animation elements but the
   // sandwich is empty.
@@ -96,9 +98,9 @@ bool SMILAnimationSandwich::ApplyAnimationValues() {
   // Only calculate the relevant animations. If we actually set the
   // animation value, we don't need to calculate what is beneath it
   // in the sandwich.
-  auto* sandwich_start = active_.end();
+  auto sandwich_start = active_.end();
   while (sandwich_start != active_.begin()) {
-    --sandwich_start;
+    UNSAFE_TODO(--sandwich_start);
     if ((*sandwich_start)->OverwritesUnderlyingAnimationValue())
       break;
   }
@@ -112,8 +114,8 @@ bool SMILAnimationSandwich::ApplyAnimationValues() {
   // contributes to a particular element/attribute pair.
   SMILAnimationValue animation_value = animation->CreateAnimationValue();
 
-  for (auto* sandwich_it = sandwich_start; sandwich_it != active_.end();
-       sandwich_it++) {
+  for (auto sandwich_it = sandwich_start; sandwich_it != active_.end();
+       UNSAFE_TODO(sandwich_it++)) {
     (*sandwich_it)->ApplyAnimation(animation_value);
   }
 

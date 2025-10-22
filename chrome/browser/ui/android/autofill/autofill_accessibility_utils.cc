@@ -7,6 +7,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/AutofillAccessibilityUtils_jni.h"
 
 using base::android::ScopedJavaLocalRef;
@@ -15,8 +16,7 @@ namespace autofill {
 
 void AnnounceTextForA11y(const std::u16string& message) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_AutofillAccessibilityUtils_announce(
-      env, base::android::ConvertUTF16ToJavaString(env, message));
+  Java_AutofillAccessibilityUtils_announce(env, message);
 }
 
 }  // namespace autofill

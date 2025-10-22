@@ -38,9 +38,15 @@ public abstract class OverlayPanelRepaddingTextView extends OverlayPanelInflater
      * @param peekedDimension   The dimension resource for the padding when the Overlay is Peeked.
      * @param expandedDimension The dimension resource for the padding when the Overlay is Expanded.
      */
-    public OverlayPanelRepaddingTextView(OverlayPanel panel, int layoutResource, int layoutId,
-            Context context, ViewGroup container, DynamicResourceLoader resourceLoader,
-            int peekedDimension, int expandedDimension) {
+    public OverlayPanelRepaddingTextView(
+            OverlayPanel panel,
+            int layoutResource,
+            int layoutId,
+            Context context,
+            ViewGroup container,
+            DynamicResourceLoader resourceLoader,
+            int peekedDimension,
+            int expandedDimension) {
         super(panel, layoutResource, layoutId, context, container, resourceLoader);
         mPeekedEndButtonsWidth =
                 peekedDimension == 0 ? 0 : context.getResources().getDimension(peekedDimension);
@@ -72,13 +78,17 @@ public abstract class OverlayPanelRepaddingTextView extends OverlayPanelInflater
     protected void invalidateIfNeeded(boolean alwaysInvalidate) {
         View view = getView();
         if (view == null
-                || !alwaysInvalidate && mIsPanelExpandedBeyondHalf == mWasPanelExpandedBeyondHalf) {
+                || (!alwaysInvalidate
+                        && mIsPanelExpandedBeyondHalf == mWasPanelExpandedBeyondHalf)) {
             return;
         }
 
         mWasPanelExpandedBeyondHalf = mIsPanelExpandedBeyondHalf;
-        int barPaddingWidth = (int) (mIsPanelExpandedBeyondHalf ? mExpandedEndButtonsWidth
-                                                                : mPeekedEndButtonsWidth);
+        int barPaddingWidth =
+                (int)
+                        (mIsPanelExpandedBeyondHalf
+                                ? mExpandedEndButtonsWidth
+                                : mPeekedEndButtonsWidth);
         view.setPaddingRelative(mPaddingStart, mPaddingTop, barPaddingWidth, mPaddingBottom);
         super.invalidate();
     }

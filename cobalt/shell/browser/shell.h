@@ -24,7 +24,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/session_storage_namespace.h"
@@ -120,15 +119,19 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 #endif
 
   // WebContentsDelegate
-  WebContents* OpenURLFromTab(WebContents* source,
-                              const OpenURLParams& params) override;
-  void AddNewContents(WebContents* source,
-                      std::unique_ptr<WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) override;
+  WebContents* OpenURLFromTab(
+      WebContents* source,
+      const OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+  WebContents* AddNewContents(
+      WebContents* source,
+      std::unique_ptr<WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   void LoadingStateChanged(WebContents* source,
                            bool should_show_loading_ui) override;
 #if BUILDFLAG(IS_ANDROID)
@@ -141,7 +144,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool IsFullscreenForTabOrPending(const WebContents* web_contents) override;
   blink::mojom::DisplayMode GetDisplayMode(
       const WebContents* web_contents) override;
-  void RequestToLockMouse(WebContents* web_contents,
+  void RequestPointerLock(WebContents* web_contents,
                           bool user_gesture,
                           bool last_unlocked_by_target) override;
   void CloseContents(WebContents* source) override;
@@ -155,7 +158,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                               const std::u16string& message,
                               int32_t line_no,
                               const std::u16string& source_id) override;
-  void PortalWebContentsCreated(WebContents* portal_web_contents) override;
   void RendererUnresponsive(
       WebContents* source,
       RenderWidgetHost* render_widget_host,
@@ -164,16 +166,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void RunFileChooser(RenderFrameHost* render_frame_host,
                       scoped_refptr<FileSelectListener> listener,
                       const blink::mojom::FileChooserParams& params) override;
-  bool IsBackForwardCacheSupported() override;
+  void EnumerateDirectory(WebContents* web_contents,
+                          scoped_refptr<FileSelectListener> listener,
+                          const base::FilePath& path) override;
+  bool IsBackForwardCacheSupported(WebContents& contents) override;
   PreloadingEligibility IsPrerender2Supported(
-      WebContents& web_contents) override;
-  std::unique_ptr<WebContents> ActivatePortalWebContents(
-      WebContents* predecessor_contents,
-      std::unique_ptr<WebContents> portal_contents) override;
-  void UpdateInspectedWebContentsIfNecessary(
-      WebContents* old_contents,
-      WebContents* new_contents,
-      base::OnceCallback<void()> callback) override;
+      WebContents& web_contents,
+      PreloadingTriggerType trigger_type) override;
   bool ShouldAllowRunningInsecureContent(WebContents* web_contents,
                                          bool allowed_per_prefs,
                                          const url::Origin& origin,
@@ -188,6 +187,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void set_delay_popup_contents_delegate_for_testing(bool delay) {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
+
+  void set_hold_file_chooser() { hold_file_chooser_ = true; }
+
+  // Counts both RunFileChooser and EnumerateDirectory.
+  size_t run_file_chooser_count() const { return run_file_chooser_count_; }
 
  protected:
   // Finishes initialization of a new shell window.
@@ -233,10 +237,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
   bool is_fullscreen_ = false;
-
   gfx::Size content_size_;
 
   bool delay_popup_contents_delegate_for_testing_ = false;
+
+  bool hold_file_chooser_ = false;
+  scoped_refptr<FileSelectListener> held_file_chooser_listener_;
+  size_t run_file_chooser_count_ = 0u;
 
   // A container of all the open windows. We use a vector so we can keep track
   // of ordering.

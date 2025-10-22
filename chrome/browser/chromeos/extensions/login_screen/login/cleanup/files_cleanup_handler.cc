@@ -4,6 +4,7 @@
 
 #include "chrome/browser/chromeos/extensions/login_screen/login/cleanup/files_cleanup_handler.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/files/file_enumerator.h"
@@ -13,7 +14,6 @@
 #include "base/task/task_traits.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 
@@ -24,7 +24,7 @@ constexpr char kFolderNameMyFiles[] = "MyFiles";
 
 bool DeleteFilesAndDirectoriesUnderPath(
     const base::FilePath& directory_path,
-    const absl::optional<base::FilePath>& ignore_path) {
+    const std::optional<base::FilePath>& ignore_path) {
   bool success = true;
 
   base::FileEnumerator e(
@@ -65,11 +65,14 @@ bool EnsureDirectoryIsEmpty(const base::FilePath& directory_path,
 
 }  // namespace
 
-FilesCleanupHandler::FilesCleanupHandler() {
-  task_runner_ = base::ThreadPool::CreateTaskRunner(
-      {base::MayBlock(), base::TaskPriority::USER_BLOCKING,
-       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
-}
+FilesCleanupHandler::FilesCleanupHandler()
+    : FilesCleanupHandler(base::ThreadPool::CreateTaskRunner(
+          {base::MayBlock(), base::TaskPriority::USER_BLOCKING,
+           base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})) {}
+
+FilesCleanupHandler::FilesCleanupHandler(
+    scoped_refptr<base::TaskRunner> task_runner)
+    : task_runner_(task_runner) {}
 
 FilesCleanupHandler::~FilesCleanupHandler() = default;
 
@@ -94,13 +97,13 @@ bool FilesCleanupHandler::CleanupTaskOnTaskRunner(Profile* profile) {
   base::FilePath downloads_path =
       my_files_path.AppendASCII(kFolderNameDownloads);
 
-  // Delete all files and directories under My Files other than Downloads.
+  // Delete all files and directories under MyFiles other than Downloads.
   bool success =
       DeleteFilesAndDirectoriesUnderPath(my_files_path, downloads_path);
 
   // Delete all files and directories under Downloads.
   success &= DeleteFilesAndDirectoriesUnderPath(downloads_path,
-                                                /*ignore_path=*/absl::nullopt);
+                                                /*ignore_path=*/std::nullopt);
 
   if (!success) {
     return false;
@@ -119,7 +122,7 @@ void FilesCleanupHandler::CleanupTaskDone(CleanupHandlerCallback callback,
     return;
   }
 
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
 }
 
 }  // namespace chromeos

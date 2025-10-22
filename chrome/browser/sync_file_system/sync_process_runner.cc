@@ -28,7 +28,7 @@ namespace {
 
 class BaseTimerHelper : public SyncProcessRunner::TimerHelper {
  public:
-  BaseTimerHelper() {}
+  BaseTimerHelper() = default;
 
   bool IsRunning() override { return timer_.IsRunning(); }
 
@@ -43,7 +43,7 @@ class BaseTimerHelper : public SyncProcessRunner::TimerHelper {
   BaseTimerHelper(const BaseTimerHelper&) = delete;
   BaseTimerHelper& operator=(const BaseTimerHelper&) = delete;
 
-  ~BaseTimerHelper() override {}
+  ~BaseTimerHelper() override = default;
 
  private:
   base::OneShotTimer timer_;
@@ -76,7 +76,7 @@ SyncProcessRunner::SyncProcessRunner(const std::string& name,
     timer_helper_ = std::make_unique<BaseTimerHelper>();
 }
 
-SyncProcessRunner::~SyncProcessRunner() {}
+SyncProcessRunner::~SyncProcessRunner() = default;
 
 void SyncProcessRunner::Schedule() {
   if (pending_changes_ == 0) {
@@ -111,7 +111,6 @@ void SyncProcessRunner::Schedule() {
   }
 
   NOTREACHED();
-  ScheduleInternal(kSyncDelayMaxInMilliseconds);
 }
 
 void SyncProcessRunner::ThrottleSync(int64_t base_delay) {
@@ -153,9 +152,9 @@ void SyncProcessRunner::OnChangesUpdated(int64_t pending_changes) {
   pending_changes_ = pending_changes;
   if (old_pending_changes != pending_changes) {
     CheckIfIdle();
-    util::Log(logging::LOG_VERBOSE, FROM_HERE,
-              "[%s] pending_changes updated: %" PRId64,
-              name_.c_str(), pending_changes);
+    util::Log(logging::LOGGING_VERBOSE, FROM_HERE,
+              "[%s] pending_changes updated: %" PRId64, name_.c_str(),
+              pending_changes);
   }
   Schedule();
 }
@@ -170,7 +169,7 @@ void SyncProcessRunner::Finished(const base::TimeTicks& start_time,
   DCHECK_LE(running_tasks_, max_parallel_task_);
   --running_tasks_;
   CheckIfIdle();
-  util::Log(logging::LOG_VERBOSE, FROM_HERE,
+  util::Log(logging::LOGGING_VERBOSE, FROM_HERE,
             "[%s] * Finished (elapsed: %" PRId64 " ms)", name_.c_str(),
             (timer_helper_->Now() - start_time).InMilliseconds());
 
@@ -195,8 +194,8 @@ void SyncProcessRunner::Run() {
   base::TimeTicks now = timer_helper_->Now();
   last_run_ = now;
 
-  util::Log(logging::LOG_VERBOSE, FROM_HERE,
-            "[%s] * Started", name_.c_str());
+  util::Log(logging::LOGGING_VERBOSE, FROM_HERE, "[%s] * Started",
+            name_.c_str());
 
   StartSync(
       base::BindOnce(&SyncProcessRunner::Finished, factory_.GetWeakPtr(), now));
@@ -223,9 +222,9 @@ void SyncProcessRunner::ScheduleInternal(int64_t delay) {
   if (timer_helper_->IsRunning() && last_scheduled_ == next_scheduled)
     return;
 
-  util::Log(logging::LOG_VERBOSE, FROM_HERE,
-            "[%s] Scheduling task in %" PRId64 " ms",
-            name_.c_str(), (next_scheduled - now).InMilliseconds());
+  util::Log(logging::LOGGING_VERBOSE, FROM_HERE,
+            "[%s] Scheduling task in %" PRId64 " ms", name_.c_str(),
+            (next_scheduled - now).InMilliseconds());
 
   last_scheduled_ = next_scheduled;
 

@@ -14,10 +14,10 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/policy/web_app_policy_constants.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/fake_web_app_ui_manager.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -26,12 +26,15 @@
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_database_factory.h"
+#include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
+#include "components/services/app_service/public/cpp/app_launch_util.h"
+#include "components/webapps/common/web_app_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
 #include "url/gurl.h"
@@ -54,12 +57,9 @@ const char kWebAppSettings[] = R"([
   }
 ])";
 
-class WebAppRunOnOsLoginManagerTest
-    : public WebAppTest,
-      public testing::WithParamInterface<TestParam> {
+class WebAppRunOnOsLoginManagerTestBase : public WebAppTest {
  public:
   void SetUp() override {
-    BuildAndInitFeatureList();
     WebAppTest::SetUp();
 
     provider_ = FakeWebAppProvider::Get(profile());
@@ -67,17 +67,17 @@ class WebAppRunOnOsLoginManagerTest
     // Set up policy before managers are started.
     SetWebAppSettingsPref();
 
-    static_cast<FakeWebAppUiManager*>(&provider_->GetUiManager())
-        ->SetOnLaunchWebAppCallback(base::BindLambdaForTesting(
-            [this](apps::AppLaunchParams params,
-                   LaunchWebAppWindowSetting launch_setting) {
-              launched_apps_.push_back(std::move(params));
-            }));
+    ui_manager_ = static_cast<FakeWebAppUiManager*>(&provider_->GetUiManager());
+    ui_manager_->SetOnLaunchWebAppCallback(base::BindLambdaForTesting(
+        [this](apps::AppLaunchParams params,
+               LaunchWebAppWindowSetting launch_setting) {
+          launched_apps_.push_back(std::move(params));
+        }));
 
     TestingBrowserProcess::GetGlobal()->SetSystemNotificationHelper(
         std::make_unique<SystemNotificationHelper>());
     tester_ = std::make_unique<NotificationDisplayServiceTester>(
-        /*profile=*/nullptr);
+        /*profile=*/profile());
     tester_->SetNotificationAddedClosure(
         base::BindLambdaForTesting([this]() { notification_count_++; }));
     notification_count_ = 0u;
@@ -91,28 +91,44 @@ class WebAppRunOnOsLoginManagerTest
     // WebAppRunOnOsLoginManager until all subsystems are ready and then
     // manually trigger the RunOnOsLogin, so that we can install a PWA before
     // that happens.
-    provider_->GetWebAppRunOnOsLoginManager().SetSkipStartupForTesting(true);
+    skip_run_on_os_login_startup_ = std::make_unique<base::AutoReset<bool>>(
+        WebAppRunOnOsLoginManager::SkipStartupForTesting());
     test::AwaitStartWebAppProviderAndSubsystems(profile());
-    InstallWebApp();
-    provider_->GetWebAppRunOnOsLoginManager().RunAppsOnOsLoginForTesting();
   }
 
   void TearDown() override {
+    ui_manager_ = nullptr;
     provider_->Shutdown();
     WebAppTest::TearDown();
   }
 
  protected:
-  void BuildAndInitFeatureList() {
-    std::vector<base::test::FeatureRef> enabled_features;
-    std::vector<base::test::FeatureRef> disabled_features;
-    enabled_features.push_back(
-        features::kDesktopPWAsEnforceWebAppSettingsPolicy);
-    enabled_features.push_back(features::kDesktopPWAsRunOnOsLogin);
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  virtual void SetWebAppSettingsPref() = 0;
+
+  void AwaitAllCommandsComplete() {
+    provider_->command_manager().AwaitAllCommandsCompleteForTesting();
   }
 
-  void SetWebAppSettingsPref() {
+  const std::vector<apps::AppLaunchParams>& launched_apps() {
+    return launched_apps_;
+  }
+
+  unsigned int notification_count_;
+  std::string notification_text_;
+  raw_ptr<FakeWebAppUiManager> ui_manager_ = nullptr;
+  std::unique_ptr<NotificationDisplayServiceTester> tester_;
+  std::vector<apps::AppLaunchParams> launched_apps_;
+  raw_ptr<FakeWebAppProvider, DanglingUntriaged> provider_ = nullptr;
+  std::unique_ptr<base::AutoReset<bool>> skip_run_on_os_login_startup_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kDesktopPWAsRunOnOsLogin};
+};
+
+class WebAppRunOnOsLoginManagerParameterizedTest
+    : public WebAppRunOnOsLoginManagerTestBase,
+      public testing::WithParamInterface<TestParam> {
+ protected:
+  void SetWebAppSettingsPref() override {
     PolicyRunOnOsLoginValue policy = GetPolicyRunOnOsLoginValue();
     if (policy.empty()) {
       return;
@@ -141,8 +157,10 @@ class WebAppRunOnOsLoginManagerTest
       web_app->SetUserDisplayMode(mojom::UserDisplayMode::kBrowser);
     }
 
+    ui_manager_->SetNumWindowsForApp(web_app->app_id(), 0);
+
     WebAppSyncBridge& sync_bridge = provider_->sync_bridge_unsafe();
-    ScopedRegistryUpdate update(&sync_bridge);
+    ScopedRegistryUpdate update = sync_bridge.BeginUpdate();
     update->CreateApp(std::move(web_app));
   }
 
@@ -153,32 +171,77 @@ class WebAppRunOnOsLoginManagerTest
   RunOnOsLoginMode GetUserRunOnOsLoginMode() { return std::get<1>(GetParam()); }
 
   blink::mojom::DisplayMode GetDisplayMode() { return std::get<2>(GetParam()); }
-
-  void AwaitAllCommandsComplete() {
-    provider_->command_manager().AwaitAllCommandsCompleteForTesting();
-  }
-
-  const std::vector<apps::AppLaunchParams>& launched_apps() {
-    return launched_apps_;
-  }
-
-  unsigned int notification_count_;
-  std::unique_ptr<NotificationDisplayServiceTester> tester_;
-  std::vector<apps::AppLaunchParams> launched_apps_;
-  raw_ptr<FakeWebAppProvider> provider_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_P(WebAppRunOnOsLoginManagerTest, WebAppRunOnOsLogin) {
+class WebAppRunOnOsLoginManagerSimpleSettingsTest
+    : public WebAppRunOnOsLoginManagerTestBase {
+ protected:
+  void SetWebAppSettingsPref() override {
+    profile()->GetPrefs()->SetList(
+        prefs::kWebAppSettings,
+        base::Value::List().Append(base::Value::Dict()
+                                       .Set(kManifestId, kTestApp)
+                                       .Set(kRunOnOsLogin, kRunWindowed)));
+  }
+
+  void InstallWebApp() {
+    std::unique_ptr<WebApp> web_app = test::CreateWebApp(
+        GURL(kTestApp), WebAppManagement::Type::kWebAppStore);
+
+    RunOnOsLoginMode run_mode = RunOnOsLoginMode::kWindowed;
+    web_app->SetRunOnOsLoginMode(run_mode);
+
+    blink::mojom::DisplayMode display_mode = DisplayMode::kStandalone;
+    web_app->SetDisplayMode(display_mode);
+
+    app_id_ = web_app->app_id();
+
+    ui_manager_->SetNumWindowsForApp(app_id_, 0);
+
+    WebAppSyncBridge& sync_bridge = provider_->sync_bridge_unsafe();
+    ScopedRegistryUpdate update = sync_bridge.BeginUpdate();
+    update->CreateApp(std::move(web_app));
+  }
+
+  void OpenWindowForTestApp() { ui_manager_->SetNumWindowsForApp(app_id_, 1); }
+
+ private:
+  webapps::AppId app_id_;
+};
+
+TEST_F(WebAppRunOnOsLoginManagerSimpleSettingsTest, SimpleAppStarted) {
+  InstallWebApp();
+  provider_->run_on_os_login_manager().RunAppsOnOsLoginForTesting();
+
+  AwaitAllCommandsComplete();
+
+  const std::vector<apps::AppLaunchParams>& launched_apps_ = launched_apps();
+
+  ASSERT_EQ(1u, launched_apps_.size());
+}
+
+TEST_F(WebAppRunOnOsLoginManagerSimpleSettingsTest, NoDuplicateAppStarted) {
+  InstallWebApp();
+  OpenWindowForTestApp();
+  provider_->run_on_os_login_manager().RunAppsOnOsLoginForTesting();
+
+  AwaitAllCommandsComplete();
+
+  const std::vector<apps::AppLaunchParams>& launched_apps_ = launched_apps();
+
+  ASSERT_EQ(0u, launched_apps_.size());
+}
+
+TEST_P(WebAppRunOnOsLoginManagerParameterizedTest, WebAppRunOnOsLogin) {
+  // Arrange: Install PWA, then perform ROOL
+  InstallWebApp();
+  provider_->run_on_os_login_manager().RunAppsOnOsLoginForTesting();
+
   bool launch_by_policy = GetPolicyRunOnOsLoginValue() == "run_windowed";
   bool launch_by_user_mode =
       GetPolicyRunOnOsLoginValue() != "blocked" &&
       GetUserRunOnOsLoginMode() != RunOnOsLoginMode::kNotRun;
   bool launched = launch_by_policy || launch_by_user_mode;
-
-  auto launch_container = GetDisplayMode() == DisplayMode::kBrowser
-                              ? apps::LaunchContainer::kLaunchContainerTab
-                              : apps::LaunchContainer::kLaunchContainerWindow;
 
   AwaitAllCommandsComplete();
 
@@ -188,17 +251,16 @@ TEST_P(WebAppRunOnOsLoginManagerTest, WebAppRunOnOsLogin) {
 
   if (launched) {
     auto actual_container = launched_apps_[0].container;
-    ASSERT_EQ(launch_container, actual_container);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+    // should always open in new window
+    ASSERT_EQ(apps::LaunchContainer::kLaunchContainerWindow, actual_container);
     ASSERT_EQ(notification_count_, 1u);
-#endif
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    WebAppRunOnOsLoginManagerTest,
-    WebAppRunOnOsLoginManagerTest,
-    testing::Combine(testing::Values("", "allowed", "blocked", "run_windowed"),
+    WebAppRunOnOsLoginManagerParameterizedTest,
+    WebAppRunOnOsLoginManagerParameterizedTest,
+    testing::Combine(testing::Values("", kAllowed, kBlocked, kRunWindowed),
                      testing::Values(RunOnOsLoginMode::kNotRun,
                                      RunOnOsLoginMode::kWindowed,
                                      RunOnOsLoginMode::kMinimized),

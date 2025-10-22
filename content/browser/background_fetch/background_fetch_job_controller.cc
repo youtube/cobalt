@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/background_fetch/background_fetch_job_controller.h"
+
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "content/browser/background_fetch/background_fetch_cross_origin_filter.h"
 #include "content/browser/background_fetch/background_fetch_data_manager.h"
-#include "content/browser/background_fetch/background_fetch_job_controller.h"
 #include "content/browser/background_fetch/background_fetch_request_match_params.h"
 #include "content/public/browser/browser_thread.h"
 #include "services/network/public/cpp/cors/cors.h"
@@ -35,7 +36,7 @@ bool IsMixedContent(const BackgroundFetchRequestInfo& request) {
 // Whether the |request| needs CORS preflight.
 // Requests that require CORS preflights are temporarily blocked, because the
 // browser side of Background Fetch doesn't yet support performing CORS
-// checks. TODO(crbug.com/711354): Remove this temporary block.
+// checks. TODO(crbug.com/40515511): Remove this temporary block.
 bool RequiresCorsPreflight(const BackgroundFetchRequestInfo& request,
                            const url::Origin& origin) {
   const blink::mojom::FetchAPIRequestPtr& fetch_request =
@@ -43,7 +44,8 @@ bool RequiresCorsPreflight(const BackgroundFetchRequestInfo& request,
 
   // Same origin requests don't require a CORS preflight.
   // https://fetch.spec.whatwg.org/#main-fetch
-  // TODO(crbug.com/711354): Make sure that cross-origin redirects are disabled.
+  // TODO(crbug.com/40515511): Make sure that cross-origin redirects are
+  // disabled.
   if (url::IsSameOriginWith(origin.GetURL(), fetch_request->url))
     return false;
 
@@ -97,7 +99,7 @@ void BackgroundFetchJobController::InitializeRequestStatus(
     std::vector<scoped_refptr<BackgroundFetchRequestInfo>>
         active_fetch_requests,
     bool start_paused,
-    absl::optional<net::IsolationInfo> isolation_info) {
+    std::optional<net::IsolationInfo> isolation_info) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // Don't allow double initialization.
@@ -174,7 +176,7 @@ void BackgroundFetchJobController::DidStartRequest(
 
   request->PopulateWithResponse(std::move(response));
 
-  // TODO(crbug.com/884672): Stop the fetch if the cross origin filter fails.
+  // TODO(crbug.com/40593934): Stop the fetch if the cross origin filter fails.
   BackgroundFetchCrossOriginFilter filter(
       registration_id_.storage_key().origin(), *request);
   request->set_can_populate_body(filter.CanPopulateBody());
@@ -365,7 +367,7 @@ void BackgroundFetchJobController::NotifyDownloadComplete(
   --pending_downloads_;
   ++completed_downloads_;
   auto it = active_request_finished_callbacks_.find(request->download_guid());
-  DCHECK(it != active_request_finished_callbacks_.end());
+  CHECK(it != active_request_finished_callbacks_.end());
   std::move(it->second).Run(registration_id(), std::move(request));
   active_request_finished_callbacks_.erase(it);
 }

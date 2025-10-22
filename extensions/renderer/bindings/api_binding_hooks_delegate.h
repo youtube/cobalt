@@ -17,7 +17,7 @@ class APIBindingHooksDelegate {
   virtual ~APIBindingHooksDelegate();
 
   // Allows custom implementations to return a different event object.
-  // Populates |event_out| and returns true if a custom implementation should
+  // Populates `event_out` and returns true if a custom implementation should
   // be used, otherwise returns false.
   virtual bool CreateCustomEvent(v8::Local<v8::Context> context,
                                  const std::string& event_name,
@@ -28,7 +28,7 @@ class APIBindingHooksDelegate {
       const std::string& method_name,
       const APISignature* signature,
       v8::Local<v8::Context> context,
-      std::vector<v8::Local<v8::Value>>* arguments,
+      v8::LocalVector<v8::Value>* arguments,
       const APITypeReferenceMap& refs);
 
   // Allows custom implementations to add additional properties or types to an

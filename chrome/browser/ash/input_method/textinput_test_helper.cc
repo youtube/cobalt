@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/input_method/textinput_test_helper.h"
 
+#include <string_view>
+
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -73,19 +75,24 @@ ui::TextInputClient* TextInputTestHelper::GetTextInputClient() const {
 }
 
 void TextInputTestHelper::OnInputMethodDestroyed(
-    const ui::InputMethod* input_method) {
-}
+    const ui::InputMethod* input_method) {}
 
 void TextInputTestHelper::OnFocus() {
   focus_state_ = true;
-  if (waiting_type_ == WAIT_ON_FOCUS)
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+  if (waiting_type_ == WAIT_ON_FOCUS) {
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
 }
 
 void TextInputTestHelper::OnBlur() {
   focus_state_ = false;
-  if (waiting_type_ == WAIT_ON_BLUR)
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+  if (waiting_type_ == WAIT_ON_BLUR) {
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
 }
 
 void TextInputTestHelper::OnCaretBoundsChanged(
@@ -95,19 +102,26 @@ void TextInputTestHelper::OnCaretBoundsChanged(
     if (!GetTextInputClient()->GetTextRange(&text_range) ||
         !GetTextInputClient()->GetTextFromRange(text_range,
                                                 &surrounding_text_) ||
-        !GetTextInputClient()->GetEditableSelectionRange(&selection_range_))
+        !GetTextInputClient()->GetEditableSelectionRange(&selection_range_)) {
       return;
+    }
   }
-  if (waiting_type_ == WAIT_ON_CARET_BOUNDS_CHANGED)
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+  if (waiting_type_ == WAIT_ON_CARET_BOUNDS_CHANGED) {
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
 }
 
 void TextInputTestHelper::OnTextInputStateChanged(
     const ui::TextInputClient* client) {
   latest_text_input_type_ =
       client ? client->GetTextInputType() : ui::TEXT_INPUT_TYPE_NONE;
-  if (waiting_type_ == WAIT_ON_TEXT_INPUT_TYPE_CHANGED)
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+  if (waiting_type_ == WAIT_ON_TEXT_INPUT_TYPE_CHANGED) {
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
 }
 
 void TextInputTestHelper::WaitForTextInputStateChanged(
@@ -115,8 +129,8 @@ void TextInputTestHelper::WaitForTextInputStateChanged(
   CHECK_EQ(NO_WAIT, waiting_type_);
   waiting_type_ = WAIT_ON_TEXT_INPUT_TYPE_CHANGED;
   while (latest_text_input_type_ != expected_type) {
-    base::RunLoop run_loop;
-    run_loop.Run();
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
   }
   waiting_type_ = NO_WAIT;
 }
@@ -125,8 +139,8 @@ void TextInputTestHelper::WaitForFocus() {
   CHECK_EQ(NO_WAIT, waiting_type_);
   waiting_type_ = WAIT_ON_FOCUS;
   while (focus_state_) {
-    base::RunLoop run_loop;
-    run_loop.Run();
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
   }
   waiting_type_ = NO_WAIT;
 }
@@ -135,8 +149,8 @@ void TextInputTestHelper::WaitForBlur() {
   CHECK_EQ(NO_WAIT, waiting_type_);
   waiting_type_ = WAIT_ON_BLUR;
   while (!focus_state_) {
-    base::RunLoop run_loop;
-    run_loop.Run();
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
   }
   waiting_type_ = NO_WAIT;
 }
@@ -147,8 +161,8 @@ void TextInputTestHelper::WaitForCaretBoundsChanged(
   waiting_type_ = WAIT_ON_CARET_BOUNDS_CHANGED;
   while (expected_caret_rect != caret_rect_ ||
          expected_composition_head != composition_head_) {
-    base::RunLoop run_loop;
-    run_loop.Run();
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
   }
   waiting_type_ = NO_WAIT;
 }
@@ -157,8 +171,8 @@ void TextInputTestHelper::WaitForSurroundingTextChanged(
     const std::u16string& expected_text) {
   waiting_type_ = WAIT_ON_CARET_BOUNDS_CHANGED;
   while (expected_text != surrounding_text_) {
-    base::RunLoop run_loop;
-    run_loop.Run();
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
   }
   waiting_type_ = NO_WAIT;
 }
@@ -169,8 +183,8 @@ void TextInputTestHelper::WaitForSurroundingTextChanged(
   waiting_type_ = WAIT_ON_CARET_BOUNDS_CHANGED;
   while (expected_text != surrounding_text_ ||
          expected_selection != selection_range_) {
-    base::RunLoop run_loop;
-    run_loop.Run();
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
   }
   waiting_type_ = NO_WAIT;
 }
@@ -186,19 +200,24 @@ void TextInputTestHelper::WaitForPassageOfTimeMillis(const int milliseconds) {
 bool TextInputTestHelper::ConvertRectFromString(const std::string& str,
                                                 gfx::Rect* rect) {
   DCHECK(rect);
-  std::vector<base::StringPiece> rect_piece = base::SplitStringPiece(
+  std::vector<std::string_view> rect_piece = base::SplitStringPiece(
       str, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  if (rect_piece.size() != 4UL)
+  if (rect_piece.size() != 4UL) {
     return false;
+  }
   int x, y, width, height;
-  if (!base::StringToInt(rect_piece[0], &x))
+  if (!base::StringToInt(rect_piece[0], &x)) {
     return false;
-  if (!base::StringToInt(rect_piece[1], &y))
+  }
+  if (!base::StringToInt(rect_piece[1], &y)) {
     return false;
-  if (!base::StringToInt(rect_piece[2], &width))
+  }
+  if (!base::StringToInt(rect_piece[2], &width)) {
     return false;
-  if (!base::StringToInt(rect_piece[3], &height))
+  }
+  if (!base::StringToInt(rect_piece[3], &height)) {
     return false;
+  }
   *rect = gfx::Rect(x, y, width, height);
   return true;
 }
@@ -212,8 +231,9 @@ bool TextInputTestHelper::ClickElement(const std::string& id,
           .ExtractString();
 
   gfx::Rect rect;
-  if (!ConvertRectFromString(coordinate, &rect))
+  if (!ConvertRectFromString(coordinate, &rect)) {
     return false;
+  }
 
   blink::WebMouseEvent mouse_event(
       blink::WebInputEvent::Type::kMouseDown,
@@ -228,6 +248,14 @@ bool TextInputTestHelper::ClickElement(const std::string& id,
   mouse_event.SetType(blink::WebInputEvent::Type::kMouseUp);
   tab->GetRenderViewHost()->GetWidget()->ForwardMouseEvent(mouse_event);
   return true;
+}
+
+// static
+std::string TextInputTestHelper::GetElementInnerText(
+    const std::string& id,
+    content::WebContents* tab) {
+  return content::EvalJs(tab, "document.getElementById('" + id + "').innerText")
+      .ExtractString();
 }
 
 }  // namespace input_method

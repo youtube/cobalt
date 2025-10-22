@@ -25,6 +25,7 @@
 #include "build/build_config.h"
 #include "content/common/content_constants_internal.h"
 #include "content/common/pseudonymization_salt.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_host_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
@@ -41,16 +42,9 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/linux_util.h"
 #elif BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "content/browser/mac_helpers.h"
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-
-namespace {
-
-// Global atomic to generate child process unique IDs.
-base::AtomicSequenceNumber g_unique_id;
-
-}  // namespace
 
 namespace content {
 
@@ -87,7 +81,7 @@ base::FilePath ChildProcessHost::GetChildPath(int flags) {
 #if BUILDFLAG(IS_MAC)
   std::string child_base_name = child_path.BaseName().value();
 
-  if (flags != CHILD_NORMAL && base::mac::AmIBundled()) {
+  if (flags != CHILD_NORMAL && base::apple::AmIBundled()) {
     // This is a specialized helper, with the |child_path| at
     // ../Framework.framework/Versions/X/Helpers/Chromium Helper.app/Contents/
     // MacOS/Chromium Helper. Go back up to the "Helpers" directory to select
@@ -152,12 +146,15 @@ ChildProcessHostImpl::~ChildProcessHostImpl() {
     return;
   }
 
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
   for (auto& filter : filters_) {
     filter->OnChannelClosing();
     filter->OnFilterRemoved();
   }
+#endif
 }
 
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
 void ChildProcessHostImpl::AddFilter(IPC::MessageFilter* filter) {
   filters_.push_back(filter);
 
@@ -165,12 +162,13 @@ void ChildProcessHostImpl::AddFilter(IPC::MessageFilter* filter) {
     filter->OnFilterAdded(channel_.get());
   }
 }
+#endif
 
 void ChildProcessHostImpl::BindReceiver(mojo::GenericPendingReceiver receiver) {
   child_process_->BindReceiver(std::move(receiver));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void ChildProcessHostImpl::ReinitializeLogging(
     uint32_t logging_dest,
     base::ScopedFD log_file_descriptor) {
@@ -180,7 +178,7 @@ void ChildProcessHostImpl::ReinitializeLogging(
       mojo::PlatformHandle(std::move(log_file_descriptor));
   child_process()->ReinitializeLogging(std::move(logging_settings));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 base::Process& ChildProcessHostImpl::GetPeerProcess() {
   if (!peer_process_.IsValid()) {
@@ -197,20 +195,11 @@ base::Process& ChildProcessHostImpl::GetPeerProcess() {
   return peer_process_;
 }
 
-// TODO(crbug.com/1328879): Remove this method when fixing the bug.
-#if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
-void ChildProcessHostImpl::RunServiceDeprecated(
-    const std::string& service_name,
-    mojo::ScopedMessagePipeHandle service_pipe) {
-  child_process_->RunServiceDeprecated(service_name, std::move(service_pipe));
-}
-#endif
-
 void ChildProcessHostImpl::ForceShutdown() {
   child_process_->ProcessShutdown();
 }
 
-absl::optional<mojo::OutgoingInvitation>&
+std::optional<mojo::OutgoingInvitation>&
 ChildProcessHostImpl::GetMojoInvitation() {
   return mojo_invitation_;
 }
@@ -248,9 +237,11 @@ bool ChildProcessHostImpl::InitChannel() {
     return false;
   }
 
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
   for (auto& filter : filters_) {
     filter->OnFilterAdded(channel_.get());
   }
+#endif
 
   delegate_->OnChannelInitialized(channel_.get());
 
@@ -269,9 +260,11 @@ void ChildProcessHostImpl::OnDisconnectedFromChildProcess() {
   if (channel_) {
     opening_channel_ = false;
     delegate_->OnChannelError();
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
     for (auto& filter : filters_) {
       filter->OnChannelError();
     }
+#endif
   }
 
   // This will delete host_, which will also destroy this!
@@ -290,22 +283,18 @@ bool ChildProcessHostImpl::Send(IPC::Message* message) {
   return channel_->Send(message);
 }
 
-int ChildProcessHostImpl::GenerateChildProcessUniqueId() {
-  // This function must be threadsafe.
-  //
+// static
+ChildProcessId ChildProcessHost::GenerateChildProcessUniqueId() {
+  CHECK_CURRENTLY_ON(BrowserThread::UI);
   // Historically, this function returned ids started with 1, so in several
   // places in the code a value of 0 (rather than kInvalidUniqueID) was used as
   // an invalid value. So we retain those semantics.
-  int id = g_unique_id.GetNext() + 1;
-
-  CHECK_NE(0, id);
-  CHECK_NE(kInvalidUniqueID, id);
-
-  return id;
+  static ChildProcessId::Generator child_process_id_generator;
+  return child_process_id_generator.GenerateNextId();
 }
 
-uint64_t ChildProcessHostImpl::ChildProcessUniqueIdToTracingProcessId(
-    int child_process_id) {
+uint64_t ChildProcessHostImpl::ChildProcessIdToTracingProcessId(
+    ChildProcessId child_process_id) {
   // In single process mode, all the children are hosted in the same process,
   // therefore the generated memory dump guids should not be conditioned by the
   // child process id. The clients need not be aware of SPM and the conversion
@@ -318,9 +307,14 @@ uint64_t ChildProcessHostImpl::ChildProcessUniqueIdToTracingProcessId(
 
   // The hash value is incremented so that the tracing id is never equal to
   // MemoryDumpManager::kInvalidTracingProcessId.
-  return static_cast<uint64_t>(base::PersistentHash(
-             base::as_bytes(base::make_span(&child_process_id, 1u)))) +
+  return static_cast<uint64_t>(
+             base::PersistentHash(base::byte_span_from_ref(child_process_id))) +
          1;
+}
+
+uint64_t ChildProcessHostImpl::ChildProcessUniqueIdToTracingProcessId(
+    int child_process_id) {
+  return ChildProcessIdToTracingProcessId(ChildProcessId(child_process_id));
 }
 
 void ChildProcessHostImpl::Ping(PingCallback callback) {
@@ -333,6 +327,7 @@ void ChildProcessHostImpl::BindHostReceiver(
 }
 
 bool ChildProcessHostImpl::OnMessageReceived(const IPC::Message& msg) {
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
 #if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
   IPC::Logging* logger = IPC::Logging::GetInstance();
   if (msg.type() == IPC_LOGGING_ID) {
@@ -343,7 +338,7 @@ bool ChildProcessHostImpl::OnMessageReceived(const IPC::Message& msg) {
   if (logger->Enabled()) {
     logger->OnPreDispatchMessage(msg);
   }
-#endif
+#endif  // IPC_MESSAGE_LOG_ENABLED
 
   bool handled = false;
   for (auto& filter : filters_) {
@@ -361,12 +356,19 @@ bool ChildProcessHostImpl::OnMessageReceived(const IPC::Message& msg) {
   if (logger->Enabled()) {
     logger->OnPostDispatchMessage(msg);
   }
-#endif
+#endif  // IPC_MESSAGE_LOG_ENABLED
   return handled;
+#else
+  return false;
+#endif  // CONTENT_ENABLE_LEGACY_IPC
 }
 
 void ChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
   // Propagate the pseudonymization salt to all the child processes.
+  //
+  // Doing this as the first step in this method helps to minimize scenarios
+  // where child process runs code that depends on the pseudonymization salt
+  // before it has been set.  See also https://crbug.com/1479308#c5
   //
   // TODO(dullweber, lukasza): Figure out if it is possible to reset the salt
   // at a regular interval (on the order of hours?).  The browser would need
@@ -381,16 +383,18 @@ void ChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
   // really no need to get this information from the child process when we
   // already have it.
   //
-  // TODO(crbug.com/616980): Remove the peer_pid argument altogether from
+  // TODO(crbug.com/41256971): Remove the peer_pid argument altogether from
   // IPC::Listener::OnChannelConnected.
   const base::Process& peer_process = GetPeerProcess();
   base::ProcessId pid =
       peer_process.IsValid() ? peer_process.Pid() : base::GetCurrentProcId();
   opening_channel_ = false;
   delegate_->OnChannelConnected(pid);
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
   for (auto& filter : filters_) {
     filter->OnChannelConnected(pid);
   }
+#endif
 }
 
 void ChildProcessHostImpl::OnChannelError() {
@@ -418,5 +422,10 @@ void ChildProcessHostImpl::NotifyMemoryPressureToChildProcess(
   child_process()->OnMemoryPressure(level);
 }
 #endif
+
+void ChildProcessHostImpl::SetBatterySaverMode(
+    bool battery_saver_mode_enabled) {
+  child_process()->SetBatterySaverMode(battery_saver_mode_enabled);
+}
 
 }  // namespace content

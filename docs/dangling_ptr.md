@@ -1,5 +1,8 @@
 # Dangling Pointer Detector
 
+A pointer is dangling when it references freed memory. Typical examples can be
+found [here](https://docs.google.com/document/d/11YYsyPF9rQv_QFf982Khie3YuNPXV0NdhzJPojpZfco/edit?resourcekey=0-h1dr1uDzZGU7YWHth5TRAQ#heading=h.wxt96wl0k0sq).
+
 Dangling pointers are not a problem unless they are subsequently dereferenced
 and/or used for other purposes. Proving that pointers are unused has turned out
 to be difficult in general, especially in face of future modifications to
@@ -36,7 +39,10 @@ is meant to be either refactored to avoid dangling, or turned into
 
 # How to check for dangling pointers?
 
-It is gated behind both build and runtime flags:
+On **Linux**, it is **enabled by default** on most configurations.
+To be precise: (`is_debug` or `dcheck_always_on`) and non `is_official` builds.
+
+For the other operating systems, this is gated by both build and runtime flags:
 
 ## Build flags
 
@@ -45,7 +51,7 @@ gn args ./out/dangling/
 ```
 
 ```gn
-use_goma = true
+use_remoteexec = true
 is_debug = false  # Important! (*)
 is_component_build = false  # Important! (*)
 dcheck_always_on = true
@@ -90,7 +96,7 @@ Example usage:
 The logs can be filtered and transformed into a tab separated table:
 ```bash
 cat output \
- | grep "[DanglingRawPtrSignature]" \
+ | grep "[DanglingSignature]" \
  | cut -f2,3,4,5 \
  | sort \
  | uniq -c \
@@ -144,7 +150,7 @@ enable_backup_ref_ptr_support=false
 is_asan=true
 is_component_build=false
 use_asan_backup_ref_ptr=false
-use_asan_unowned_ptr=true
+use_raw_ptr_asan_unowned_impl=true
 ```
 
 This will crash when the object containing the dangling ptr is destructed,

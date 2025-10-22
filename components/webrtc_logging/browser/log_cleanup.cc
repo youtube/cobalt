@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
 
 #include "base/files/file_enumerator.h"
@@ -15,7 +16,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "components/webrtc_logging/browser/text_log_list.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace webrtc_logging {
 
@@ -28,7 +28,7 @@ namespace {
 // be populated with the relevant values. Note that |upload_time| is optional.
 bool ReadLineFromIndex(const std::string& line,
                        base::Time* capture_time,
-                       absl::optional<base::Time>* upload_time) {
+                       std::optional<base::Time>* upload_time) {
   DCHECK(capture_time);
   DCHECK(upload_time);
 
@@ -55,7 +55,7 @@ bool ReadLineFromIndex(const std::string& line,
   if (token_end == std::string::npos) {
     return false;
   }
-  // TODO(crbug.com/826253): Validate report ID (length and characters).
+  // TODO(crbug.com/41379180): Validate report ID (length and characters).
 
   // Skip |local_id|. (May be empty.)
   token_start = token_end + 1;  // Start beyond the previous token.
@@ -66,7 +66,7 @@ bool ReadLineFromIndex(const std::string& line,
   if (token_end == std::string::npos) {
     return false;
   }
-  // TODO(crbug.com/826253): Validate local ID (length and characters).
+  // TODO(crbug.com/41379180): Validate local ID (length and characters).
 
   // Parse |capture_time|. (May NOT be empty.)
   token_start = token_end + 1;  // Start beyond the previous token.
@@ -81,11 +81,11 @@ bool ReadLineFromIndex(const std::string& line,
     return false;
   }
 
-  *capture_time = base::Time::FromDoubleT(capture_time_double);
-  *upload_time =
-      has_upload_time
-          ? absl::make_optional(base::Time::FromDoubleT(upload_time_double))
-          : absl::nullopt;
+  *capture_time = base::Time::FromSecondsSinceUnixEpoch(capture_time_double);
+  *upload_time = has_upload_time
+                     ? std::make_optional(base::Time::FromSecondsSinceUnixEpoch(
+                           upload_time_double))
+                     : std::nullopt;
 
   return true;
 }
@@ -122,7 +122,7 @@ std::string RemoveObsoleteEntriesFromLogIndex(
     const std::string line = log_index.substr(pos, line_end - pos);
 
     base::Time capture_time;
-    absl::optional<base::Time> upload_time;
+    std::optional<base::Time> upload_time;
     if (ReadLineFromIndex(line, &capture_time, &upload_time)) {
       bool line_retained;
       if (delete_begin_time.is_max()) {
@@ -194,7 +194,7 @@ void DeleteOldAndRecentWebRtcLogFiles(const base::FilePath& log_dir,
     if (name == log_list_path)
       continue;
     base::FileEnumerator::FileInfo file_info(log_files.GetInfo());
-    // TODO(crbug.com/827167): Handle mismatch between timestamps of the .gz
+    // TODO(crbug.com/40569303): Handle mismatch between timestamps of the .gz
     // file and the .meta file, as well as with the index.
     base::TimeDelta file_age = now - file_info.GetLastModifiedTime();
     if (file_age > kTimeToKeepLogs ||

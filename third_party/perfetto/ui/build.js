@@ -26,11 +26,11 @@
 // and the rollup bundler in --watch mode. Any other attempt, leads to O(10s)
 // incremental-build times.
 // This script allows mixing build tools that support --watch mode (tsc and
-// rollup) and auto-triggering-on-file-change rules via node-watch.
+// rollup) and auto-triggering-on-file-change rules via fs.watch.
 // When invoked without any argument (e.g., for production builds), this script
 // just runs all the build tasks serially. It doesn't to do any mtime-based
 // check, it always re-runs all the tasks.
-// When invoked with --watch, it mounts a pipeline of tasks based on node-watch
+// When invoked with --watch, it mounts a pipeline of tasks based on fs.watch
 // and runs them together with tsc --watch and rollup --watch.
 // The output directory structure is carefully crafted so that any change to UI
 // sources causes cascading triggers of the next steps.
@@ -71,7 +71,6 @@ const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const fswatch = require('node-watch');  // Like fs.watch(), but works on Linux.
 const pjoin = path.join;
 
 const ROOT_DIR = path.dirname(__dirname);  // The repo root.
@@ -79,13 +78,16 @@ const VERSION_SCRIPT = pjoin(ROOT_DIR, 'tools/write_version_header.py');
 const GEN_IMPORTS_SCRIPT = pjoin(ROOT_DIR, 'tools/gen_ui_imports');
 
 const cfg = {
+  minifyJs: '',
   watch: false,
   verbose: false,
   debug: false,
+  bigtrace: false,
   startHttpServer: false,
   httpServerListenHost: '127.0.0.1',
   httpServerListenPort: 10000,
-  wasmModules: ['trace_processor', 'traceconv'],
+  onlyWasmMemory64: false,
+  wasmModules: [],
   crossOriginIsolation: false,
   testFilter: '',
   noOverrideGnArgs: false,
@@ -108,22 +110,21 @@ const cfg = {
   outGenDir: '',
   outDistDir: '',
   outExtDir: '',
+  outBigtraceDistDir: '',
+  outOpenPerfettoTraceDistDir: '',
 };
 
 const RULES = [
   {r: /ui\/src\/assets\/index.html/, f: copyIndexHtml},
+  {r: /ui\/src\/assets\/bigtrace.html/, f: copyBigtraceHtml},
+  {r: /ui\/src\/open_perfetto_trace\/index.html/, f: copyOpenPerfettoTraceHtml},
   {r: /ui\/src\/assets\/((.*)[.]png)/, f: copyAssets},
   {r: /buildtools\/typefaces\/(.+[.]woff2)/, f: copyAssets},
   {r: /buildtools\/catapult_trace_viewer\/(.+(js|html))/, f: copyAssets},
-  {r: /ui\/src\/assets\/.+[.]scss/, f: compileScss},
-  {r: /ui\/src\/assets\/.+[.]scss/, f: compileScss},
+  {r: /ui\/src\/assets\/.+[.]scss|ui\/src\/(?:plugins|core_plugins)\/.+\/styles[.]scss/, f: compileScss},
   {r: /ui\/src\/chrome_extension\/.*/, f: copyExtensionAssets},
-  {
-    r: /ui\/src\/test\/diff_viewer\/(.+[.](?:html|js))/,
-    f: copyUiTestArtifactsAssets,
-  },
   {r: /.*\/dist\/.+\/(?!manifest\.json).*/, f: genServiceWorkerManifestJson},
-  {r: /.*\/dist\/.*/, f: notifyLiveServer},
+  {r: /.*\/dist\/.*[.](js|html|css|wasm)$/, f: notifyLiveServer},
 ];
 
 const tasks = [];
@@ -136,6 +137,10 @@ const subprocesses = [];
 async function main() {
   const parser = new argparse.ArgumentParser();
   parser.add_argument('--out', {help: 'Output directory'});
+  parser.add_argument('--minify-js', {
+    help: 'Minify js files',
+    choices: ['preserve_comments', 'all'],
+  });
   parser.add_argument('--watch', '-w', {action: 'store_true'});
   parser.add_argument('--serve', '-s', {action: 'store_true'});
   parser.add_argument('--serve-host', {help: '--serve bind host'});
@@ -143,9 +148,11 @@ async function main() {
   parser.add_argument('--verbose', '-v', {action: 'store_true'});
   parser.add_argument('--no-build', '-n', {action: 'store_true'});
   parser.add_argument('--no-wasm', '-W', {action: 'store_true'});
+  parser.add_argument('--only-wasm-memory64', {action: 'store_true'});
   parser.add_argument('--run-unittests', '-t', {action: 'store_true'});
-  parser.add_argument('--run-integrationtests', '-T', {action: 'store_true'});
   parser.add_argument('--debug', '-d', {action: 'store_true'});
+  parser.add_argument('--bigtrace', {action: 'store_true'});
+  parser.add_argument('--open-perfetto-trace', {action: 'store_true'});
   parser.add_argument('--interactive', '-i', {action: 'store_true'});
   parser.add_argument('--rebaseline', '-r', {action: 'store_true'});
   parser.add_argument('--no-depscheck', {action: 'store_true'});
@@ -171,8 +178,20 @@ async function main() {
   cfg.watch = !!args.watch;
   cfg.verbose = !!args.verbose;
   cfg.debug = !!args.debug;
+  cfg.bigtrace = !!args.bigtrace;
+  cfg.openPerfettoTrace = !!args.open_perfetto_trace;
   cfg.startHttpServer = args.serve;
   cfg.noOverrideGnArgs = !!args.no_override_gn_args;
+  if (args.minify_js) {
+    cfg.minifyJs = args.minify_js;
+  }
+  if (args.bigtrace) {
+    cfg.outBigtraceDistDir = ensureDir(pjoin(cfg.outDistDir, 'bigtrace'));
+  }
+  if (cfg.openPerfettoTrace) {
+    cfg.outOpenPerfettoTraceDistDir = ensureDir(pjoin(cfg.outDistRootDir,
+                                                      'open_perfetto_trace'));
+  }
   if (args.serve_host) {
     cfg.httpServerListenHost = args.serve_host;
   }
@@ -188,12 +207,18 @@ async function main() {
   if (args.cross_origin_isolation) {
     cfg.crossOriginIsolation = true;
   }
+  cfg.onlyWasmMemory64 = !!args.only_wasm_memory64;
+  cfg.wasmModules = ['traceconv', 'trace_config_utils', 'trace_processor_memory64'];
+  if (!cfg.onlyWasmMemory64) {
+    cfg.wasmModules.push('trace_processor');
+  }
 
   process.on('SIGINT', () => {
     console.log('\nSIGINT received. Killing all child processes and exiting');
     for (const proc of subprocesses) {
-      if (proc) proc.kill('SIGINT');
+      if (proc) proc.kill('SIGKILL');
     }
+    process.kill(0, 'SIGKILL');  // Kill the whole process group.
     process.exit(130);  // 130 -> Same behavior of bash when killed by SIGINT.
   });
 
@@ -231,20 +256,37 @@ async function main() {
     updateSymlinks();  // Links //ui/out -> //out/xxx/ui/
 
     buildWasm(args.no_wasm);
+    generateImports('ui/src/core_plugins', 'all_core_plugins');
+    generateImports('ui/src/plugins', 'all_plugins');
     scanDir('ui/src/assets');
+    scanDir('ui/src/plugins', /styles[.]scss$/);
+    scanDir('ui/src/core_plugins', /styles[.]scss$/);
     scanDir('ui/src/chrome_extension');
-    scanDir('ui/src/test/diff_viewer');
     scanDir('buildtools/typefaces');
     scanDir('buildtools/catapult_trace_viewer');
-    generateImports('ui/src/tracks', 'all_tracks.ts');
     compileProtos();
     genVersion();
-    transpileTsProject('ui');
-    transpileTsProject('ui/src/service_worker');
+    generateStdlibDocs();
+
+    const tsProjects = [
+      'ui',
+      'ui/src/service_worker'
+    ];
+    if (cfg.bigtrace) tsProjects.push('ui/src/bigtrace');
+    if (cfg.openPerfettoTrace) {
+      scanDir('ui/src/open_perfetto_trace');
+      tsProjects.push('ui/src/open_perfetto_trace');
+    }
+
+
+    for (const prj of tsProjects) {
+      transpileTsProject(prj);
+    }
 
     if (cfg.watch) {
-      transpileTsProject('ui', {watch: cfg.watch});
-      transpileTsProject('ui/src/service_worker', {watch: cfg.watch});
+      for (const prj of tsProjects) {
+        transpileTsProject(prj, {watch: cfg.watch});
+      }
     }
 
     bundleJs('rollup.config.js');
@@ -279,9 +321,6 @@ async function main() {
   if (args.run_unittests) {
     runTests('jest.unittest.config.js');
   }
-  if (args.run_integrationtests) {
-    runTests('jest.integrationtest.config.js');
-  }
 }
 
 // -----------
@@ -304,33 +343,49 @@ function runTests(cfgFile) {
   }
   if (cfg.watch) {
     args.push('--watchAll');
-    addTask(execNode, ['jest', args, {async: true}]);
+    addTask(execModule, ['jest', args, {async: true}]);
   } else {
-    addTask(execNode, ['jest', args]);
+    addTask(execModule, ['jest', args]);
   }
 }
 
-function copyIndexHtml(src) {
-  const indexHtml = () => {
-    let html = fs.readFileSync(src).toString();
-    // First copy the index.html as-is into the dist/v1.2.3/ directory. This is
-    // only used for archival purporses, so one can open
-    // ui.perfetto.dev/v1.2.3/ to skip the auto-update and channel logic.
-    fs.writeFileSync(pjoin(cfg.outDistDir, 'index.html'), html);
+function cpHtml(src, filename) {
+  let html = fs.readFileSync(src).toString();
+  // First copy the html as-is into the dist/v1.2.3/ directory. This is
+  // only used for archival purporses, so one can open
+  // ui.perfetto.dev/v1.2.3/ to skip the auto-update and channel logic.
+  fs.writeFileSync(pjoin(cfg.outDistDir, filename), html);
 
-    // Then copy it into the dist/ root by patching the version code.
-    // TODO(primiano): in next CLs, this script should take a
-    // --release_map=xxx.json argument, to populate this with multiple channels.
-    const versionMap = JSON.stringify({'stable': cfg.version});
-    const bodyRegex = /data-perfetto_version='[^']*'/;
-    html = html.replace(bodyRegex, `data-perfetto_version='${versionMap}'`);
-    fs.writeFileSync(pjoin(cfg.outDistRootDir, 'index.html'), html);
-  };
-  addTask(indexHtml);
+  // Then copy it into the dist/ root by patching the version code.
+  // TODO(primiano): in next CLs, this script should take a
+  // --release_map=xxx.json argument, to populate this with multiple channels.
+  const versionMap = JSON.stringify({'stable': cfg.version});
+  const bodyRegex = /data-perfetto_version='[^']*'/;
+  html = html.replace(bodyRegex, `data-perfetto_version='${versionMap}'`);
+  fs.writeFileSync(pjoin(cfg.outDistRootDir, filename), html);
+}
+
+function copyIndexHtml(src) {
+  addTask(cpHtml, [src, 'index.html']);
+}
+
+function copyBigtraceHtml(src) {
+  if (cfg.bigtrace) {
+    addTask(cpHtml, [src, 'bigtrace.html']);
+  }
+}
+
+function copyOpenPerfettoTraceHtml(src) {
+  if (cfg.openPerfettoTrace) {
+    addTask(cp, [src, pjoin(cfg.outOpenPerfettoTraceDistDir, 'index.html')]);
+  }
 }
 
 function copyAssets(src, dst) {
   addTask(cp, [src, pjoin(cfg.outDistDir, 'assets', dst)]);
+  if (cfg.bigtrace) {
+    addTask(cp, [src, pjoin(cfg.outBigtraceDistDir, 'assets', dst)]);
+  }
 }
 
 function copyUiTestArtifactsAssets(src, dst) {
@@ -343,26 +398,24 @@ function compileScss() {
   // In watch mode, don't exit(1) if scss fails. It can easily happen by
   // having a typo in the css. It will still print an error.
   const noErrCheck = !!cfg.watch;
-  addTask(execNode, ['node-sass', ['--quiet', src, dst], {noErrCheck}]);
+  const args = [src, dst];
+  if (!cfg.verbose) {
+    args.unshift('--quiet');
+  }
+  addTask(execModule, ['sass', args, {noErrCheck}]);
+  if (cfg.bigtrace) {
+    addTask(cp, [dst, pjoin(cfg.outBigtraceDistDir, 'perfetto.css')]);
+  }
 }
 
 function compileProtos() {
   const dstJs = pjoin(cfg.outGenDir, 'protos.js');
   const dstTs = pjoin(cfg.outGenDir, 'protos.d.ts');
-  // We've ended up pulling in all the protos (via trace.proto,
-  // trace_packet.proto) below which means |dstJs| ends up being
-  // 23k lines/12mb. We should probably not do that.
-  // TODO(hjd): Figure out how to use lazy with pbjs/pbts.
   const inputs = [
-    'protos/perfetto/common/trace_stats.proto',
-    'protos/perfetto/common/tracing_service_capabilities.proto',
-    'protos/perfetto/config/perfetto_config.proto',
     'protos/perfetto/ipc/consumer_port.proto',
     'protos/perfetto/ipc/wire_protocol.proto',
-    'protos/perfetto/metrics/metrics.proto',
     'protos/perfetto/trace/perfetto/perfetto_metatrace.proto',
-    'protos/perfetto/trace/trace.proto',
-    'protos/perfetto/trace/trace_packet.proto',
+    'protos/perfetto/perfetto_sql/structured_query.proto',
     'protos/perfetto/trace_processor/trace_processor.proto',
   ];
   // Can't put --no-comments here - The comments are load bearing for
@@ -381,14 +434,14 @@ function compileProtos() {
     '-o',
     dstJs,
   ].concat(inputs);
-  addTask(execNode, ['pbjs', pbjsArgs]);
+  addTask(execModule, ['pbjs', pbjsArgs]);
 
   // Note: If you are looking into slowness of pbts it is not pbts
   // itself that is slow. It invokes jsdoc to parse the comments out of
   // the |dstJs| with https://github.com/hegemonic/catharsis which is
   // pinning a CPU core the whole time.
   const pbtsArgs = ['--no-comments', '-p', ROOT_DIR, '-o', dstTs, dstJs];
-  addTask(execNode, ['pbts', pbtsArgs]);
+  addTask(execModule, ['pbts', pbtsArgs]);
 }
 
 function generateImports(dir, name) {
@@ -410,6 +463,25 @@ function genVersion() {
   const args =
       [VERSION_SCRIPT, '--ts_out', pjoin(cfg.outGenDir, 'perfetto_version.ts')];
   addTask(exec, [cmd, args]);
+}
+
+function generateStdlibDocs() {
+  const cmd = pjoin(ROOT_DIR, 'tools/gen_stdlib_docs_json.py');
+  const stdlibDir = pjoin(ROOT_DIR, 'src/trace_processor/perfetto_sql/stdlib');
+
+  const stdlibFiles =
+    listFilesRecursive(stdlibDir)
+    .filter((filePath) => path.extname(filePath) === '.sql');
+
+  addTask(exec, [
+    cmd,
+    [
+      '--json-out',
+      pjoin(cfg.outDistDir, 'stdlib_docs.json'),
+      '--minify',
+      ...stdlibFiles,
+    ],
+  ]);
 }
 
 function updateSymlinks() {
@@ -440,17 +512,21 @@ function updateSymlinks() {
 function buildWasm(skipWasmBuild) {
   if (!skipWasmBuild) {
     if (!cfg.noOverrideGnArgs) {
-      const gnArgs = ['gen', `--args=is_debug=${cfg.debug}`, cfg.outDir];
+      let gnVars = `is_debug=${cfg.debug}`;
+      if (childProcess.spawnSync('which', ['ccache']).status === 0) {
+        gnVars += ` cc_wrapper="ccache"`;
+      }
+      const gnArgs = ['gen', `--args=${gnVars}`, cfg.outDir];
       addTask(exec, [pjoin(ROOT_DIR, 'tools/gn'), gnArgs]);
     }
-
     const ninjaArgs = ['-C', cfg.outDir];
     ninjaArgs.push(...cfg.wasmModules.map((x) => `${x}_wasm`));
     addTask(exec, [pjoin(ROOT_DIR, 'tools/ninja'), ninjaArgs]);
   }
 
-  const wasmOutDir = pjoin(cfg.outDir, 'wasm');
   for (const wasmMod of cfg.wasmModules) {
+    const isMem64 = wasmMod.endsWith('_memory64');
+    const wasmOutDir = pjoin(cfg.outDir, isMem64 ? 'wasm_memory64' : 'wasm');
     // The .wasm file goes directly into the dist dir (also .map in debug)
     for (const ext of ['.wasm'].concat(cfg.debug ? ['.wasm.map'] : [])) {
       const src = `${wasmOutDir}/${wasmMod}${ext}`;
@@ -471,9 +547,9 @@ function transpileTsProject(project, options) {
 
   if (options !== undefined && options.watch) {
     args.push('--watch', '--preserveWatchOutput');
-    addTask(execNode, ['tsc', args, {async: true}]);
+    addTask(execModule, ['tsc', args, {async: true}]);
   } else {
-    addTask(execNode, ['tsc', args]);
+    addTask(execModule, ['tsc', args]);
   }
 }
 
@@ -481,14 +557,26 @@ function transpileTsProject(project, options) {
 function bundleJs(cfgName) {
   const rcfg = pjoin(ROOT_DIR, 'ui/config', cfgName);
   const args = ['-c', rcfg, '--no-indent'];
+  if (cfg.bigtrace) {
+    args.push('--environment', 'ENABLE_BIGTRACE:true');
+  }
+  if (cfg.openPerfettoTrace) {
+    args.push('--environment', 'ENABLE_OPEN_PERFETTO_TRACE:true');
+  }
+  if (cfg.minifyJs) {
+    args.push('--environment', `MINIFY_JS:${cfg.minifyJs}`);
+  }
+  if (cfg.onlyWasmMemory64) {
+    args.push('--environment', `IS_MEMORY64_ONLY:${cfg.onlyWasmMemory64}`);
+  }
   args.push(...(cfg.verbose ? [] : ['--silent']));
   if (cfg.watch) {
     // --waitForBundleInput is sadly quite busted so it is required ts
     // has build at least once before invoking this.
     args.push('--watch', '--no-watch.clearScreen');
-    addTask(execNode, ['rollup', args, {async: true}]);
+    addTask(execModule, ['rollup', args, {async: true}]);
   } else {
-    addTask(execNode, ['rollup', args]);
+    addTask(execModule, ['rollup', args]);
   }
 }
 
@@ -512,9 +600,10 @@ function genServiceWorkerManifestJson() {
 }
 
 function startServer() {
+  const host = cfg.httpServerListenHost == '127.0.0.1' ? 'localhost' : cfg.httpServerListenHost;
   console.log(
       'Starting HTTP server on',
-      `http://${cfg.httpServerListenHost}:${cfg.httpServerListenPort}`);
+      `http://${host}:${cfg.httpServerListenPort}`);
   http.createServer(function(req, res) {
         console.debug(req.method, req.url);
         let uri = req.url.split('?', 1)[0];
@@ -592,8 +681,8 @@ function isDistComplete() {
     'frontend_bundle.js',
     'engine_bundle.js',
     'traceconv_bundle.js',
-    'trace_processor.wasm',
     'perfetto.css',
+    ...cfg.wasmModules.map((wasmMod) => `${wasmMod}.wasm`),
   ];
   const relPaths = new Set();
   walk(cfg.outDistDir, (absPath) => {
@@ -677,7 +766,8 @@ function scanDir(dir, regex) {
   const absDir = path.isAbsolute(dir) ? dir : pjoin(ROOT_DIR, dir);
   // Add a fs watch if in watch mode.
   if (cfg.watch) {
-    fswatch(absDir, {recursive: true}, (_eventType, filePath) => {
+    fs.watch(absDir, {recursive: true}, (_eventType, relFilePath) => {
+      const filePath = pjoin(absDir, relFilePath);
       if (!filterFn(filePath)) return;
       if (cfg.verbose) {
         console.log('File change detected', _eventType, filePath);
@@ -722,11 +812,9 @@ function exec(cmd, args, opts) {
   }
 }
 
-function execNode(module, args, opts) {
+function execModule(module, args, opts) {
   const modPath = pjoin(ROOT_DIR, 'ui/node_modules/.bin', module);
-  const nodeBin = pjoin(ROOT_DIR, 'tools/node');
-  args = [modPath].concat(args || []);
-  return exec(nodeBin, args, opts);
+  return exec(modPath, args || [], opts);
 }
 
 // ------------------------------------------
@@ -767,6 +855,18 @@ function walk(dir, callback, skipRegex) {
       callback(childPath);
     }
   }
+}
+
+// Recursively build a list of files in a given directory and return a list of
+// file paths, similar to `find -type f`.
+function listFilesRecursive(dir) {
+  const fileList = [];
+
+  walk(dir, (filePath) => {
+    fileList.push(filePath);
+  });
+
+  return fileList;
 }
 
 function ensureDir(dirPath, clean) {

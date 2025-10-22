@@ -9,7 +9,7 @@
 #include <tuple>
 #include <utility>
 
-#include "base/auto_reset.h"
+#include "base/check_is_test.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -38,6 +38,31 @@ namespace storage {
 
 const int64_t kFlushIntervalInBytes = 10 << 20;  // 10MB.
 
+namespace {
+
+base::File::Error MaybeSuppressError(
+    base::File::Error error,
+    CopyOrMoveHookDelegate::ErrorAction error_action) {
+  if (error_action == CopyOrMoveHookDelegate::ErrorAction::kSkip) {
+    return base::File::FILE_OK;
+  }
+  return error;
+}
+
+CopyOrMoveHookDelegate::ErrorCallback CreateErrorSuppressCallback(
+    CopyOrMoveHookDelegate::StatusCallback callback,
+    base::File::Error error) {
+  return base::BindOnce(
+      [](CopyOrMoveHookDelegate::StatusCallback callback,
+         base::File::Error error,
+         CopyOrMoveHookDelegate::ErrorAction error_action) {
+        std::move(callback).Run(MaybeSuppressError(error, error_action));
+      },
+      std::move(callback), error);
+}
+
+}  // namespace
+
 class CopyOrMoveOperationDelegate::CopyOrMoveImpl {
  public:
   CopyOrMoveImpl(const CopyOrMoveImpl&) = delete;
@@ -58,42 +83,60 @@ class CopyOrMoveOperationDelegate::CopyOrMoveImpl {
       const FileSystemURL& src_url,
       const FileSystemURL& dest_url,
       const CopyOrMoveOperationDelegate::CopyOrMoveOptionSet options,
-      base::WeakPtr<storage::CopyOrMoveHookDelegate>
-          copy_or_move_hook_delegate_weak_ptr)
+      CopyOrMoveOperationDelegate* operation_delegate)
       : operation_runner_(operation_runner),
         operation_type_(operation_type),
         src_url_(src_url),
         dest_url_(dest_url),
         options_(options),
-        copy_or_move_hook_delegate_weak_ptr_(
-            copy_or_move_hook_delegate_weak_ptr) {}
+        operation_delegate_(operation_delegate) {}
 
   // Callback for sending progress events with the current number of processed
   // bytes.
   void OnCopyOrMoveFileProgress(int64_t size) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&CopyOrMoveHookDelegate::OnProgress,
-                                  copy_or_move_hook_delegate_weak_ptr_,
-                                  src_url_, dest_url_, size));
+    // `operation_delegate_` owns `this` and the delayed callbacks will not run
+    // after it's destroyed.
+    operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnProgress, src_url_, dest_url_, size);
   }
 
   // Callback for sending progress events notifying the end of a copy, for a
   // copy operation or a cross-filesystem move.
   void DidEndCopy(CopyOrMoveOperationDelegate::StatusCallback callback,
                   base::File::Error error) {
-    if (error == base::File::FILE_OK) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&CopyOrMoveHookDelegate::OnEndCopy,
-                                    copy_or_move_hook_delegate_weak_ptr_,
-                                    src_url_, dest_url_));
-
-    } else if (error != base::File::FILE_ERROR_NOT_A_FILE) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                                    copy_or_move_hook_delegate_weak_ptr_,
-                                    src_url_, dest_url_, error));
+    if (error == base::File::FILE_ERROR_NOT_A_FILE) {
+      // The item appears to be a directory: don't trigger the delegate,
+      // continue recursive operations right away.
+      if (!callback.is_null()) {
+        std::move(callback).Run(error);
+      }
+      return;
     }
+    if (error != base::File::FILE_OK) {
+      // `operation_delegate_` owns `this` and the delayed callbacks will not
+      // run after it's destroyed.
+      operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+          &CopyOrMoveHookDelegate::OnError, src_url_, dest_url_, error,
+          base::BindOnce(&CopyOrMoveImpl::DidEndCopyAfterError,
+                         weak_factory_.GetWeakPtr(), std::move(callback),
+                         error));
+      return;
+    }
+    // `operation_delegate_` owns `this` and the delayed callbacks will not run
+    // after it's destroyed.
+    operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnEndCopy, src_url_, dest_url_);
+    if (!callback.is_null()) {
+      std::move(callback).Run(error);
+    }
+  }
 
+  // Callback to continue (or not, in case of a non-skipped error) operation
+  // after notifying about a possible error.
+  void DidEndCopyAfterError(
+      CopyOrMoveOperationDelegate::StatusCallback callback,
+      base::File::Error error,
+      CopyOrMoveHookDelegate::ErrorAction error_action) {
     if (options_.Has(FileSystemOperation::CopyOrMoveOption::
                          kRemovePartiallyCopiedFilesOnError) &&
         error != base::File::FILE_OK &&
@@ -111,25 +154,31 @@ class CopyOrMoveOperationDelegate::CopyOrMoveImpl {
     // null if the operation type is OPERATION_MOVE (implemented as copy +
     // delete) and no error occurred.
     if (!callback.is_null())
-      std::move(callback).Run(error);
+      std::move(callback).Run(MaybeSuppressError(error, error_action));
   }
 
   // Callback for sending progress events notifying the end of a move operation
   // in the case of a local (same-filesystem) move.
   void DidEndMove(CopyOrMoveOperationDelegate::StatusCallback callback,
                   base::File::Error error) {
-    if (error == base::File::FILE_OK) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&CopyOrMoveHookDelegate::OnEndMove,
-                                    copy_or_move_hook_delegate_weak_ptr_,
-                                    src_url_, dest_url_));
-    } else {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                                    copy_or_move_hook_delegate_weak_ptr_,
-                                    src_url_, dest_url_, error));
+    if (error == base::File::FILE_ERROR_NOT_A_FILE) {
+      // The item appears to be a directory: don't trigger the delegate,
+      // continue recursive operations right away.
+      std::move(callback).Run(error);
+      return;
     }
-
+    if (error != base::File::FILE_OK) {
+      // `operation_delegate_` owns `this` and the delayed callbacks will not
+      // run after it's destroyed.
+      operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+          &CopyOrMoveHookDelegate::OnError, src_url_, dest_url_, error,
+          CreateErrorSuppressCallback(std::move(callback), error));
+      return;
+    }
+    // `operation_delegate_` owns `this` and the delayed callbacks will not run
+    // after it's destroyed.
+    operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnEndMove, src_url_, dest_url_);
     std::move(callback).Run(error);
   }
 
@@ -138,18 +187,18 @@ class CopyOrMoveOperationDelegate::CopyOrMoveImpl {
   void DidEndRemoveSourceForMove(
       CopyOrMoveOperationDelegate::StatusCallback callback,
       base::File::Error error) {
-    if (error == base::File::FILE_OK) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&CopyOrMoveHookDelegate::OnEndRemoveSource,
-                         copy_or_move_hook_delegate_weak_ptr_, src_url_));
-    } else {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                                    copy_or_move_hook_delegate_weak_ptr_,
-                                    src_url_, dest_url_, error));
+    if (error != base::File::FILE_OK) {
+      // `operation_delegate_` owns `this` and the delayed callbacks will not
+      // run after it's destroyed.
+      operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+          &CopyOrMoveHookDelegate::OnError, src_url_, dest_url_, error,
+          CreateErrorSuppressCallback(std::move(callback), error));
+      return;
     }
-
+    // `operation_delegate_` owns `this` and the delayed callbacks will not run
+    // after it's destroyed.
+    operation_delegate_->RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnEndRemoveSource, src_url_);
     std::move(callback).Run(error);
   }
 
@@ -177,12 +226,15 @@ class CopyOrMoveOperationDelegate::CopyOrMoveImpl {
   bool force_error_for_test_ = false;
 
  private:
-  base::WeakPtr<storage::CopyOrMoveHookDelegate>
-      copy_or_move_hook_delegate_weak_ptr_;
+  raw_ptr<CopyOrMoveOperationDelegate> operation_delegate_;
   base::WeakPtrFactory<CopyOrMoveImpl> weak_factory_{this};
 };
 
 namespace {
+
+// A non-owning pointer. Whoever calls `SetErrorUrlForTest` of
+// `CopyOrMoveOperationDelegate` should take care of its lifespan.
+const FileSystemURL* g_error_url_for_test = nullptr;
 
 // Copies or moves a file on a (same) file system. Just delegate the operation
 // to |operation_runner|.
@@ -195,14 +247,13 @@ class CopyOrMoveOnSameFileSystemImpl
       const FileSystemURL& src_url,
       const FileSystemURL& dest_url,
       const CopyOrMoveOperationDelegate::CopyOrMoveOptionSet options,
-      base::WeakPtr<storage::CopyOrMoveHookDelegate>
-          copy_or_move_hook_delegate_weak_ptr)
+      CopyOrMoveOperationDelegate* operation_delegate)
       : CopyOrMoveImpl(operation_runner,
                        operation_type,
                        src_url,
                        dest_url,
                        options,
-                       copy_or_move_hook_delegate_weak_ptr) {}
+                       operation_delegate) {}
 
   CopyOrMoveOnSameFileSystemImpl(const CopyOrMoveOnSameFileSystemImpl&) =
       delete;
@@ -250,14 +301,13 @@ class SnapshotCopyOrMoveImpl
       const FileSystemURL& dest_url,
       CopyOrMoveOperationDelegate::CopyOrMoveOptionSet options,
       CopyOrMoveFileValidatorFactory* validator_factory,
-      base::WeakPtr<storage::CopyOrMoveHookDelegate>
-          copy_or_move_hook_delegate_weak_ptr)
+      CopyOrMoveOperationDelegate* operation_delegate)
       : CopyOrMoveImpl(operation_runner,
                        operation_type,
                        src_url,
                        dest_url,
                        options,
-                       copy_or_move_hook_delegate_weak_ptr),
+                       operation_delegate),
 
         validator_factory_(validator_factory),
         cancel_requested_(false) {}
@@ -347,7 +397,7 @@ class SnapshotCopyOrMoveImpl
 
     OnCopyOrMoveFileProgress(file_info.size);
 
-    if (options_.Empty()) {
+    if (options_.empty()) {
       RunAfterTouchFile(std::move(callback), base::File::FILE_OK);
       return;
     }
@@ -520,14 +570,13 @@ class StreamCopyOrMoveImpl
       CopyOrMoveOperationDelegate::CopyOrMoveOptionSet options,
       std::unique_ptr<FileStreamReader> reader,
       std::unique_ptr<FileStreamWriter> writer,
-      base::WeakPtr<storage::CopyOrMoveHookDelegate>
-          copy_or_move_hook_delegate_weak_ptr)
+      CopyOrMoveOperationDelegate* operation_delegate)
       : CopyOrMoveImpl(operation_runner,
                        operation_type,
                        src_url,
                        dest_url,
                        options,
-                       copy_or_move_hook_delegate_weak_ptr),
+                       operation_delegate),
         file_system_context_(file_system_context),
         reader_(std::move(reader)),
         writer_(std::move(writer)),
@@ -542,8 +591,8 @@ class StreamCopyOrMoveImpl
     // check metadata first.
     operation_runner_->GetMetadata(
         src_url_,
-        FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY |
-            FileSystemOperation::GET_METADATA_FIELD_LAST_MODIFIED,
+        {storage::FileSystemOperation::GetMetadataField::kIsDirectory,
+         storage::FileSystemOperation::GetMetadataField::kLastModified},
         base::BindOnce(&StreamCopyOrMoveImpl::RunAfterGetMetadataForSource,
                        weak_factory_.GetWeakPtr(), std::move(callback)));
   }
@@ -680,7 +729,8 @@ class StreamCopyOrMoveImpl
       return;
     }
 
-    if (options_.Empty()) {
+    if (!options_.Has(
+            FileSystemOperation::CopyOrMoveOption::kPreserveLastModified)) {
       RunAfterTouchFile(std::move(callback), base::File::FILE_OK);
       return;
     }
@@ -795,7 +845,7 @@ void CopyOrMoveOperationDelegate::StreamCopyHelper::DidRead(int result) {
   if (result == 0) {
     // Here is the EOF.
     if (flush_policy_ == FlushPolicy::FLUSH_ON_COMPLETION)
-      Flush(true /* is_eof */);
+      Flush(FlushMode::kEndOfFile);
     else
       std::move(completion_callback_).Run(base::File::FILE_OK);
     return;
@@ -850,31 +900,38 @@ void CopyOrMoveOperationDelegate::StreamCopyHelper::DidWrite(
 
   if (flush_policy_ == FlushPolicy::FLUSH_ON_COMPLETION &&
       (num_copied_bytes_ - previous_flush_offset_) > kFlushIntervalInBytes) {
-    Flush(false /* not is_eof */);
+    Flush(FlushMode::kDefault);
   } else {
     Read();
   }
 }
 
-void CopyOrMoveOperationDelegate::StreamCopyHelper::Flush(bool is_eof) {
-  int result = writer_->Flush(base::BindOnce(
-      &StreamCopyHelper::DidFlush, weak_factory_.GetWeakPtr(), is_eof));
+void CopyOrMoveOperationDelegate::StreamCopyHelper::Flush(
+    FlushMode flush_mode) {
+  int result = writer_->Flush(
+      flush_mode, base::BindOnce(&StreamCopyHelper::DidFlush,
+                                 weak_factory_.GetWeakPtr(), flush_mode));
   if (result != net::ERR_IO_PENDING)
-    DidFlush(is_eof, result);
+    DidFlush(flush_mode, result);
 }
 
-void CopyOrMoveOperationDelegate::StreamCopyHelper::DidFlush(bool is_eof,
-                                                             int result) {
+void CopyOrMoveOperationDelegate::StreamCopyHelper::DidFlush(
+    FlushMode flush_mode,
+    int result) {
   if (cancel_requested_) {
     std::move(completion_callback_).Run(base::File::FILE_ERROR_ABORT);
     return;
   }
 
   previous_flush_offset_ = num_copied_bytes_;
-  if (is_eof)
-    std::move(completion_callback_).Run(NetErrorToFileError(result));
-  else
-    Read();
+  switch (flush_mode) {
+    case FlushMode::kEndOfFile:
+      std::move(completion_callback_).Run(NetErrorToFileError(result));
+      break;
+    case FlushMode::kDefault:
+      Read();
+      break;
+  }
 }
 
 CopyOrMoveOperationDelegate::CopyOrMoveOperationDelegate(
@@ -949,19 +1006,19 @@ void CopyOrMoveOperationDelegate::RunRecursively() {
 void CopyOrMoveOperationDelegate::FinishOperation(base::File::Error error) {
   // We post the callback as a task to ensure that other posted tasks are
   // completed before finishing the operation.
-  PostTask(base::BindOnce(std::move(callback_), error));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback_), error));
 }
 
 void CopyOrMoveOperationDelegate::ProcessFile(const FileSystemURL& src_url,
                                               StatusCallback callback) {
   const FileSystemURL dest_url = CreateDestURL(src_url);
 
-  PostTask(base::BindOnce(
-      &CopyOrMoveHookDelegate::OnBeginProcessFile,
-      copy_or_move_hook_delegate_->AsWeakPtr(), src_url, dest_url,
+  RunCopyOrMoveHookDelegateCallbackLater(
+      &CopyOrMoveHookDelegate::OnBeginProcessFile, src_url, dest_url,
       base::BindOnce(&CopyOrMoveOperationDelegate::DoProcessFile,
                      weak_factory_.GetWeakPtr(), src_url, dest_url,
-                     std::move(callback))));
+                     std::move(callback)));
 }
 
 void CopyOrMoveOperationDelegate::DoProcessFile(const FileSystemURL& src_url,
@@ -969,10 +1026,9 @@ void CopyOrMoveOperationDelegate::DoProcessFile(const FileSystemURL& src_url,
                                                 StatusCallback callback,
                                                 base::File::Error error) {
   if (error != base::File::FILE_OK) {
-    PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                            copy_or_move_hook_delegate_->AsWeakPtr(), src_url,
-                            dest_url, error));
-    std::move(callback).Run(error);
+    RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnError, src_url, dest_url, error,
+        CreateErrorSuppressCallback(std::move(callback), error));
     return;
   }
 
@@ -983,8 +1039,7 @@ void CopyOrMoveOperationDelegate::DoProcessFile(const FileSystemURL& src_url,
            ->HasInplaceCopyImplementation(src_url.type()) ||
        operation_type_ == OPERATION_MOVE)) {
     impl = std::make_unique<CopyOrMoveOnSameFileSystemImpl>(
-        operation_runner(), operation_type_, src_url, dest_url, options_,
-        copy_or_move_hook_delegate_->AsWeakPtr());
+        operation_runner(), operation_type_, src_url, dest_url, options_, this);
   } else {
     // Cross filesystem case.
     base::File::Error get_validator_factory_error =
@@ -993,11 +1048,11 @@ void CopyOrMoveOperationDelegate::DoProcessFile(const FileSystemURL& src_url,
         file_system_context()->GetCopyOrMoveFileValidatorFactory(
             dest_root_.type(), &get_validator_factory_error);
     if (get_validator_factory_error != base::File::FILE_OK) {
-      PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                              copy_or_move_hook_delegate_->AsWeakPtr(), src_url,
-                              dest_url, get_validator_factory_error));
-
-      std::move(callback).Run(get_validator_factory_error);
+      RunCopyOrMoveHookDelegateCallbackLater(
+          &CopyOrMoveHookDelegate::OnError, src_url, dest_url,
+          get_validator_factory_error,
+          CreateErrorSuppressCallback(std::move(callback),
+                                      get_validator_factory_error));
       return;
     }
 
@@ -1010,22 +1065,22 @@ void CopyOrMoveOperationDelegate::DoProcessFile(const FileSystemURL& src_url,
       if (reader && writer) {
         impl = std::make_unique<StreamCopyOrMoveImpl>(
             operation_runner(), file_system_context(), operation_type_, src_url,
-            dest_url, options_, std::move(reader), std::move(writer),
-            copy_or_move_hook_delegate_->AsWeakPtr());
+            dest_url, options_, std::move(reader), std::move(writer), this);
       }
     }
 
     if (!impl) {
       impl = std::make_unique<SnapshotCopyOrMoveImpl>(
           operation_runner(), operation_type_, src_url, dest_url, options_,
-          validator_factory, copy_or_move_hook_delegate_->AsWeakPtr());
+          validator_factory, this);
     }
   }
 
   // Register the running task.
   CopyOrMoveImpl* impl_ptr = impl.get();
   running_copy_set_[impl_ptr] = std::move(impl);
-  if (src_url == error_url_for_test_) {
+  if (g_error_url_for_test && src_url == *g_error_url_for_test) {
+    CHECK_IS_TEST();
     impl_ptr->ForceCopyErrorForTest();  // IN-TEST
   }
   impl_ptr->Run(base::BindOnce(&CopyOrMoveOperationDelegate::DidCopyOrMoveFile,
@@ -1050,33 +1105,37 @@ void CopyOrMoveOperationDelegate::ProcessDirectory(const FileSystemURL& src_url,
 
   const FileSystemURL dest_url = CreateDestURL(src_url);
 
-  PostTask(base::BindOnce(
-      &CopyOrMoveHookDelegate::OnBeginProcessDirectory,
-      copy_or_move_hook_delegate_->AsWeakPtr(), src_url, dest_url,
+  RunCopyOrMoveHookDelegateCallbackLater(
+      &CopyOrMoveHookDelegate::OnBeginProcessDirectory, src_url, dest_url,
       base::BindOnce(&CopyOrMoveOperationDelegate::ProcessDirectoryInternal,
                      weak_factory_.GetWeakPtr(), src_url, dest_url,
-                     std::move(callback))));
+                     std::move(callback)));
 }
 
 void CopyOrMoveOperationDelegate::PostProcessDirectory(
     const FileSystemURL& src_url,
     StatusCallback callback) {
-  if (options_.Empty()) {
+  if (options_.empty()) {
     PostProcessDirectoryAfterTouchFile(src_url, std::move(callback),
                                        base::File::FILE_OK);
     return;
   }
 
   operation_runner()->GetMetadata(
-      src_url, FileSystemOperation::GET_METADATA_FIELD_LAST_MODIFIED,
+      src_url, {storage::FileSystemOperation::GetMetadataField::kLastModified},
       base::BindOnce(
           &CopyOrMoveOperationDelegate::PostProcessDirectoryAfterGetMetadata,
           weak_factory_.GetWeakPtr(), src_url, std::move(callback)));
 }
 
-void CopyOrMoveOperationDelegate::PostTask(base::OnceClosure closure) {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
-                                                           std::move(closure));
+base::WeakPtr<RecursiveOperationDelegate>
+CopyOrMoveOperationDelegate::AsWeakPtr() {
+  return weak_factory_.GetWeakPtr();
+}
+
+// static
+void CopyOrMoveOperationDelegate::SetErrorUrlForTest(const FileSystemURL* url) {
+  g_error_url_for_test = url;
 }
 
 void CopyOrMoveOperationDelegate::OnCancel() {
@@ -1116,10 +1175,9 @@ void CopyOrMoveOperationDelegate::ProcessDirectoryInternal(
     StatusCallback callback,
     base::File::Error error) {
   if (error != base::File::FILE_OK) {
-    PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                            copy_or_move_hook_delegate_->AsWeakPtr(), src_url,
-                            dest_url, error));
-    std::move(callback).Run(error);
+    RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnError, src_url, dest_url, error,
+        CreateErrorSuppressCallback(std::move(callback), error));
     return;
   }
 
@@ -1139,16 +1197,14 @@ void CopyOrMoveOperationDelegate::DidCreateDirectory(
     const FileSystemURL& dest_url,
     StatusCallback callback,
     base::File::Error error) {
-  if (error == base::File::FILE_OK) {
-    PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnEndCopy,
-                            copy_or_move_hook_delegate_->AsWeakPtr(), src_url,
-                            dest_url));
-  } else {
-    PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                            copy_or_move_hook_delegate_->AsWeakPtr(), src_url,
-                            dest_url, error));
+  if (error != base::File::FILE_OK) {
+    RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnError, src_url, dest_url, error,
+        CreateErrorSuppressCallback(std::move(callback), error));
+    return;
   }
-
+  RunCopyOrMoveHookDelegateCallbackLater(&CopyOrMoveHookDelegate::OnEndCopy,
+                                         src_url, dest_url);
   std::move(callback).Run(error);
 }
 
@@ -1197,15 +1253,15 @@ void CopyOrMoveOperationDelegate::DidRemoveSourceForMove(
     const FileSystemURL& src_url,
     StatusCallback callback,
     base::File::Error error) {
-  if (error == base::File::FILE_OK ||
-      error == base::File::FILE_ERROR_NOT_FOUND) {
-    PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnEndRemoveSource,
-                            copy_or_move_hook_delegate_->AsWeakPtr(), src_url));
-  } else {
-    PostTask(base::BindOnce(&CopyOrMoveHookDelegate::OnError,
-                            copy_or_move_hook_delegate_->AsWeakPtr(), src_url,
-                            FileSystemURL(), error));
+  if (error != base::File::FILE_OK &&
+      error != base::File::FILE_ERROR_NOT_FOUND) {
+    RunCopyOrMoveHookDelegateCallbackLater(
+        &CopyOrMoveHookDelegate::OnError, src_url, FileSystemURL(), error,
+        CreateErrorSuppressCallback(std::move(callback), error));
+    return;
   }
+  RunCopyOrMoveHookDelegateCallbackLater(
+      &CopyOrMoveHookDelegate::OnEndRemoveSource, src_url);
   std::move(callback).Run(error);
 }
 

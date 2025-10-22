@@ -15,11 +15,11 @@
 namespace webrtc {
 namespace jni {
 
-absl::optional<CryptoOptions> JavaToNativeOptionalCryptoOptions(
+std::optional<CryptoOptions> JavaToNativeOptionalCryptoOptions(
     JNIEnv* jni,
     const JavaRef<jobject>& j_crypto_options) {
   if (j_crypto_options.is_null()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   ScopedJavaLocalRef<jobject> j_srtp =
@@ -36,7 +36,7 @@ absl::optional<CryptoOptions> JavaToNativeOptionalCryptoOptions(
       Java_Srtp_getEnableEncryptedRtpHeaderExtensions(jni, j_srtp);
   native_crypto_options.sframe.require_frame_encryption =
       Java_SFrame_getRequireFrameEncryption(jni, j_sframe);
-  return absl::optional<CryptoOptions>(native_crypto_options);
+  return std::optional<CryptoOptions>(native_crypto_options);
 }
 
 }  // namespace jni

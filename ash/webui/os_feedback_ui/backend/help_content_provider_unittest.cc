@@ -7,13 +7,13 @@
 #include <memory>
 #include <string>
 
-#include "ash/webui/os_feedback_ui/mojom/os_feedback_ui.mojom-test-utils.h"
 #include "ash/webui/os_feedback_ui/mojom/os_feedback_ui.mojom.h"
 #include "base/json/json_reader.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "base/values.h"
 #include "content/public/test/browser_task_environment.h"
 #include "google_apis/google_api_keys.h"
@@ -30,7 +30,6 @@ namespace feedback {
 
 using data_decoder::test::InProcessDataDecoder;
 using os_feedback_ui::mojom::HelpContent;
-using os_feedback_ui::mojom::HelpContentProviderAsyncWaiter;
 using os_feedback_ui::mojom::HelpContentPtr;
 using os_feedback_ui::mojom::HelpContentType;
 using os_feedback_ui::mojom::SearchRequest;
@@ -82,10 +81,10 @@ class HelpContentProviderTest : public testing::Test {
   // Call the GetHelpContents of the remote provider async and return the
   // response.
   SearchResponsePtr GetHelpContentsAndWait(SearchRequestPtr request) {
-    SearchResponsePtr response;
-    HelpContentProviderAsyncWaiter(provider_remote_.get())
-        .GetHelpContents(std::move(request), &response);
-    return response;
+    base::test::TestFuture<SearchResponsePtr> response;
+    provider_remote_->GetHelpContents(std::move(request),
+                                      response.GetCallback());
+    return response.Take();
   }
 
   // Initialize provider.
@@ -98,7 +97,7 @@ class HelpContentProviderTest : public testing::Test {
   // Parse the json and call PopulateSearchResponse if successful.
   void PopulateSearchResponseHelper(const std::string& json,
                                     SearchResponsePtr& search_response) {
-    absl::optional<base::Value> search_result = base::JSONReader::Read(json);
+    std::optional<base::Value> search_result = base::JSONReader::Read(json);
     if (search_result) {
       PopulateSearchResponse("en-gb", /*is_child_account=*/false, 5u,
                              search_result.value(), search_response);

@@ -154,12 +154,6 @@ const char *getBasicString(TBasicType t)
             return "isubpassInput";
         case EbtUSubpassInput:
             return "usubpassInput";
-        case EbtSubpassInputMS:
-            return "subpassInputMS";
-        case EbtISubpassInputMS:
-            return "isubpassInputMS";
-        case EbtUSubpassInputMS:
-            return "usubpassInputMS";
         default:
             UNREACHABLE();
             return "unknown type";
@@ -172,7 +166,7 @@ TType::TType() : TType(EbtVoid, 0, 0) {}
 TType::TType(TBasicType t, uint8_t ps, uint8_t ss) : TType(t, EbpUndefined, EvqGlobal, ps, ss) {}
 
 TType::TType(TBasicType t, TPrecision p, TQualifier q, uint8_t ps, uint8_t ss)
-    : TType(t, p, q, ps, ss, TSpan<const unsigned int>(), nullptr)
+    : TType(t, p, q, ps, ss, angle::Span<const unsigned int>(), nullptr)
 {}
 
 TType::TType(const TPublicType &p)
@@ -181,6 +175,7 @@ TType::TType(const TPublicType &p)
       qualifier(p.qualifier),
       invariant(p.invariant),
       precise(p.precise),
+      interpolant(false),
       memoryQualifier(p.memoryQualifier),
       layoutQualifier(p.layoutQualifier),
       primarySize(p.getPrimarySize()),
@@ -233,6 +228,7 @@ TType &TType::operator=(const TType &t)
     qualifier                 = t.qualifier;
     invariant                 = t.invariant;
     precise                   = t.precise;
+    interpolant               = t.interpolant;
     memoryQualifier           = t.memoryQualifier;
     layoutQualifier           = t.layoutQualifier;
     primarySize               = t.primarySize;
@@ -600,7 +596,7 @@ bool TType::isElementTypeOf(const TType &arrayType) const
     return true;
 }
 
-void TType::sizeUnsizedArrays(const TSpan<const unsigned int> &newArraySizes)
+void TType::sizeUnsizedArrays(const angle::Span<const unsigned int> &newArraySizes)
 {
     ASSERT(!isArray() || mArraySizesStorage != nullptr);
     for (size_t i = 0u; i < getNumArraySizes(); ++i)
@@ -667,7 +663,7 @@ void TType::makeArray(unsigned int s)
     onArrayDimensionsChange(*mArraySizesStorage);
 }
 
-void TType::makeArrays(const TSpan<const unsigned int> &sizes)
+void TType::makeArrays(const angle::Span<const unsigned int> &sizes)
 {
     if (mArraySizesStorage == nullptr)
     {
@@ -706,7 +702,7 @@ void TType::toArrayBaseType()
     {
         mArraySizesStorage->clear();
     }
-    onArrayDimensionsChange(TSpan<const unsigned int>());
+    onArrayDimensionsChange(angle::Span<const unsigned int>());
 }
 
 void TType::toMatrixColumnType()
@@ -979,6 +975,56 @@ void TPublicType::clearArrayness()
 bool TPublicType::isAggregate() const
 {
     return isArray() || typeSpecifierNonArray.isMatrix() || typeSpecifierNonArray.isVector();
+}
+
+bool TPublicType::isUnsizedArray() const
+{
+    if (!arraySizes)
+    {
+        return false;
+    }
+    for (unsigned int arraySize : *arraySizes)
+    {
+        if (arraySize == 0u)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void TPublicType::sizeUnsizedArrays()
+{
+    auto *sizes = new TVector<unsigned int>(arraySizes->size(), 1);
+    for (size_t i = 0; i < arraySizes->size(); ++i)
+    {
+        auto value = (*arraySizes)[i];
+        if (value != 0)
+        {
+            (*sizes)[i] = value;
+        }
+    }
+    arraySizes = sizes;
+}
+
+void TPublicType::makeArrays(TVector<unsigned int> *sizes)
+{
+    if (arraySizes == nullptr)
+    {
+        arraySizes = sizes;
+        return;
+    }
+    auto *newSizes = new TVector<unsigned int>(arraySizes->size() + sizes->size());
+    size_t i       = 0;
+    for (; i < arraySizes->size(); ++i)
+    {
+        (*newSizes)[i] = (*arraySizes)[i];
+    }
+    for (size_t j = 0; j < sizes->size(); ++j, ++i)
+    {
+        (*newSizes)[i] = (*sizes)[j];
+    }
+    arraySizes = newSizes;
 }
 
 }  // namespace sh

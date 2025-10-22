@@ -4,10 +4,14 @@
 
 #include "quiche/quic/core/congestion_control/bbr2_misc.h"
 
+#include <algorithm>
+#include <limits>
+
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -42,6 +46,9 @@ MinRttFilter::MinRttFilter(QuicTime::Delta initial_min_rtt,
       min_rtt_timestamp_(initial_min_rtt_timestamp) {}
 
 void MinRttFilter::Update(QuicTime::Delta sample_rtt, QuicTime now) {
+  if (sample_rtt <= QuicTime::Delta::Zero()) {
+    return;
+  }
   if (sample_rtt < min_rtt_ || min_rtt_timestamp_ == QuicTime::Zero()) {
     min_rtt_ = sample_rtt;
     min_rtt_timestamp_ = now;
@@ -49,6 +56,9 @@ void MinRttFilter::Update(QuicTime::Delta sample_rtt, QuicTime now) {
 }
 
 void MinRttFilter::ForceUpdate(QuicTime::Delta sample_rtt, QuicTime now) {
+  if (sample_rtt <= QuicTime::Delta::Zero()) {
+    return;
+  }
   min_rtt_ = sample_rtt;
   min_rtt_timestamp_ = now;
 }
@@ -146,7 +156,7 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         congestion_event->prior_bytes_in_flight -
         congestion_event->bytes_acked - congestion_event->bytes_lost;
   } else {
-    QUIC_LOG_FIRST_N(ERROR, 1)
+    QUIC_BUG(quic_bbr2_prior_in_flight_too_small)
         << "prior_bytes_in_flight:" << congestion_event->prior_bytes_in_flight
         << " is smaller than the sum of bytes_acked:"
         << congestion_event->bytes_acked
@@ -216,6 +226,21 @@ void Bbr2NetworkModel::AdaptLowerBounds(
           std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - Params().beta));
       QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
                     << ", bandwidth_latest_ is " << bandwidth_latest_;
+      if (enable_app_driven_pacing_) {
+        // In this mode, we forcibly cap bandwidth_lo_ at the application driven
+        // pacing rate when congestion_event.bytes_lost > 0. The idea is to
+        // avoid going over what the application needs at the earliest signs of
+        // network congestion.
+        if (application_bandwidth_target_ < bandwidth_lo_) {
+          QUIC_CODE_COUNT(quic_bbr2_app_driven_pacing_in_effect);
+        } else {
+          QUIC_CODE_COUNT(quic_bbr2_app_driven_pacing_no_effect);
+        }
+        bandwidth_lo_ = std::min(application_bandwidth_target_, bandwidth_lo_);
+        QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
+                      << "after applying application_driven_pacing at "
+                      << application_bandwidth_target_;
+      }
 
       if (Params().ignore_inflight_lo) {
         return;

@@ -60,12 +60,25 @@ config("extra_warnings") {
       "-Wextra",
       "-Wpedantic",
     ]
+
+    # Apple Clang tends to lag upstream Clang by several major versions, so add
+    # additional warnings on Mac to get warning behavior that more closely
+    # mimics the newer Clang used in Perfetto CI on Linux.
+    if (is_mac && is_clang) {
+      cflags += [
+        "-Wextra-semi",
+        "-Wsign-conversion",
+      ]
+    }
   }
 
   # Disable variadic macro warning as we make extensive use of them in trace
   # processor and client API.
   if (is_clang) {
-    if (!is_fuzzer) {
+    # Only enable -Weverything on hermetic clang as system clang might be quite
+    # out of date.
+    if (is_hermetic_clang && current_toolchain == host_toolchain &&
+        !is_fuzzer) {
       # Disable Weverything on fuzzers to avoid breakages when new versions of
       # clang are rolled into OSS-fuzz.
       cflags += [ "-Weverything" ]
@@ -80,14 +93,26 @@ config("extra_warnings") {
       "-Wno-gnu-zero-variadic-macro-arguments",
       "-Wno-padded",
       "-Wno-poison-system-directories",
+      "-Wno-pre-c11-compat",
       "-Wno-reserved-id-macro",
       "-Wno-reserved-identifier",
       "-Wno-shadow-uncaptured-local",
       "-Wno-unknown-sanitizers",
       "-Wno-unknown-warning-option",
       "-Wno-unsafe-buffer-usage",
+
+      # TODO(primiano): -Wswitch-default could be useful but will require a mass
+      # codebase cleanup.
+      "-Wno-switch-default",
     ]
-  } else if (!is_clang && !is_win) {
+
+    if (perfetto_thread_safety_annotations) {
+      cflags += [
+        "-Wthread-safety",
+        "-Wno-thread-safety-negative",
+      ]
+    }
+  } else if (is_gcc) {
     # Use return std::move(...) for compatibility with old GCC compilers.
     cflags_cc = [ "-Wno-redundant-move" ]
 
@@ -100,6 +125,18 @@ config("extra_warnings") {
     # TODO(lalitm): remove this when we upgrade to a GCC version which is good
     # enough to handle this.
     cflags_cc += [ "-Wno-maybe-uninitialized" ]
+
+    # GCC's handling of detecting infinite recursion is flaky at best and
+    # causes some false positives.
+    # TODO(lalitm): remove this when we upgrade to a GCC version which is good
+    # enough to handle this.
+    cflags_cc += [ "-Wno-infinite-recursion" ]
+
+    # GCC's handling of detecting non null arguments is flaky at best and
+    # causes some false positives.
+    # TODO(lalitm): remove this when we upgrade to a GCC version which is good
+    # enough to handle this.
+    cflags_cc += [ "-Wno-nonnull" ]
   }
 }
 
@@ -159,8 +196,11 @@ config("default") {
   ldflags = []
   libs = []
 
-  if ((is_android || is_linux) && !is_wasm) {
-    ldflags += [ "-Wl,--build-id" ]
+  if ((is_android || is_linux || is_qnx) && !is_wasm) {
+    ldflags += [
+      "-Wl,--build-id",
+      "-Wl,-z,max-page-size=16384",
+    ]
   }
 
   if (is_clang || !is_win) {  # Clang or GCC, but not MSVC.
@@ -175,6 +215,11 @@ config("default") {
     # constexpr, even in C++14 mode. Disable the deprecated warnings to work
     # around the problem.
     cflags += [ "-Wno-deprecated" ]
+  }
+
+  if (!is_clang && is_win) {
+    # MSVC
+    cflags += [ "/permissive-" ]
   }
 
   if (is_win) {
@@ -246,6 +291,11 @@ config("default") {
       "-mfpu=neon",
       "-mthumb",
     ]
+  } else if (current_cpu == "riscv64") {
+    if (!is_clang) {
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104338
+      libs += [ "atomic" ]
+    }
   } else if (current_cpu == "x86") {
     asmflags += [ "-m32" ]
     cflags += [
@@ -253,10 +303,7 @@ config("default") {
       "-msse2",
       "-mfpmath=sse",
     ]
-    ldflags += [
-      "-m32",
-      "-lgcc",
-    ]
+    ldflags += [ "-m32" ]
   } else if (current_cpu == "arm64") {
     cflags += [ "-fno-omit-frame-pointer" ]
   } else if (current_cpu == "x64") {
@@ -274,6 +321,21 @@ config("default") {
     }
   }
 
+  if (is_wasm) {
+    # As of writing (2023-06-12) WASM 128bit SIMD is supported on
+    # stable Chrome, Safari, and Firefox. See:
+    # - https://webassembly.org/roadmap/
+    # - https://emscripten.org/docs/porting/simd.html
+    cflags += [ "-msimd128" ]
+  }
+
+  if (is_wasm_memory64) {
+    cflags += [
+      "-s",
+      "MEMORY64=1",
+    ]
+  }
+
   if (is_linux) {
     # Enable LFS (large file support) for stat() and other syscalls.
     cflags += [
@@ -287,6 +349,16 @@ config("default") {
     ]
   }
 
+  if (is_qnx) {
+    cflags += [
+      "-D_QNX_SOURCE",
+      "-D_FILE_OFFSET_BITS=64",
+      "-D_LARGEFILE_SOURCE",
+      "-D_LARGEFILE64_SOURCE",
+    ]
+    libs += [ "socket" ]
+  }
+
   if (is_win && !is_clang) {
     # When using MSVC we need to manually pass the include dirs. clang-cl.exe
     # doesn't need them because it's smart enough to figure out the right path
@@ -294,15 +366,17 @@ config("default") {
     include_dirs = win_msvc_inc_dirs  # Defined in msvc.gni.
   }
 
+  if (is_win) {
+    cflags += [ "/Zi" ]
+  }
   if (is_debug) {
     if (is_win) {
-      cflags += [ "/Z7" ]
       if (is_clang) {
         # Required to see symbols in windbg when building with clang-cl.exe.
         cflags += [ "-gcodeview-ghash" ]
         ldflags = [ "/DEBUG:GHASH" ]
       }
-    } else {
+    } else if (!is_qnx) {
       libs += [ "dl" ]
     }
   }
@@ -315,33 +389,14 @@ config("default") {
       "-D__ANDROID_API__=${android_api_level}",
       "--target=$android_abi_target",
     ]
-    cflags_cc += [
-      "-isystem$android_ndk_root/sources/cxx-stl/llvm-libc++/include",
-      "-isystem$android_ndk_root/sources/android/support/include",
-      "-isystem$android_ndk_root/sources/cxx-stl/llvm-libc++abi/include",
-    ]
+    cflags_cc += [ "-isystem$android_compile_sysroot/c++/v1" ]
 
-    # Keep these include paths *after* the above to prevent the wrong include
-    # being used for some headers (e.g. math.h).
-    # We need to add to each language (cflags_c, cflags_cc etc.) separately as
-    # we added to cflags directly, these inludes would end up before the
-    # languge and thus the above includes.
-    sysroot_cflags = [
-      "-isystem$android_compile_sysroot/$android_compile_sysroot_subdir",
-      "-isystem$android_compile_sysroot",
-    ]
-    cflags_c += sysroot_cflags
-    cflags_cc += sysroot_cflags
-
+    android_lib_dir = "$android_compile_sysroot/usr/lib/$android_abi_target/$android_api_level"
     ldflags += [
       "-Wl,-z,nocopyreloc",
-      "-gcc-toolchain",
-      "$android_toolchain_root",
-      "--sysroot=$android_ndk_root/$android_link_sysroot_subdir",
+      "--sysroot=$android_compile_sysroot",
+      "-B${android_lib_dir}",
       "--target=$android_abi_target",
-      "-Wl,--exclude-libs,libunwind.a",
-      "-Wl,--exclude-libs,libgcc.a",
-      "-Wl,--exclude-libs,libc++_static.a",
       "-Wl,--no-undefined",
       "-Wl,-z,noexecstack",
       "-Wl,-z,relro",
@@ -349,27 +404,15 @@ config("default") {
       "-Wl,--warn-shared-textrel",
       "-Wl,--fatal-warnings",
 
-      # New NDKs need setting this to not give "unable to find library -lc++".
-      # See https://github.com/android/ndk/issues/951#issuecomment-501017894.
-      "-nostdlib++",
+      # From NDK docs: "although the option uses the name "libstdc++" for
+      # historical reasons, this is correct for libc++ as well.
+      "-static-libstdc++",
     ]
-    lib_dirs = [
-      "$android_ndk_root/sources/cxx-stl/llvm-libc++/libs/$android_app_abi",
-    ]
-    libs += [
-      "gcc",
-      "c++_static",
-      "c++abi",
-    ]
-
-    if (current_cpu == "arm") {
-      # New NDKs don't have libandroid_support for arm64.
-      libs += [ "android_support" ]
-    }
+    lib_dirs = [ android_lib_dir ]
   }
 }
 
-config("debug_symbols") {
+config("debug_noopt") {
   cflags = []
   if (is_win) {
     cflags = [ "/Od" ]
@@ -412,7 +455,13 @@ config("release") {
     ]
   } else if (is_mac) {
     ldflags = [ "-dead_strip" ]
-  } else if (!is_win && !is_wasm) {
+  } else if (is_qnx) {
+    # QNX doesn't support the --icf linker option
+    ldflags = [
+      "-Wl,--gc-sections",
+      "-Wl,-O1",
+    ]
+  } else if (!is_wasm && (is_android || (is_linux && is_hermetic_clang))) {
     ldflags = [
       "-Wl,--gc-sections",
       "-Wl,--icf=all",
@@ -466,9 +515,12 @@ config("android_liblog") {
 
 # Checks that tools/install-build-deps has been run since it last changed.
 perfetto_check_build_deps("check_build_deps") {
-  args = []
+  args = [ "--no-dev-tools" ]
 }
 
 perfetto_check_build_deps("check_build_deps_android") {
-  args = [ "--android" ]
+  args = [
+    "--no-dev-tools",
+    "--android",
+  ]
 }

@@ -11,16 +11,19 @@ namespace floss {
 class DEVICE_BLUETOOTH_EXPORT FakeFlossBatteryManagerClient
     : public FlossBatteryManagerClient {
  public:
+  static constexpr int kDefaultBatteryPercentage = 85;
+
   FakeFlossBatteryManagerClient();
   ~FakeFlossBatteryManagerClient() override;
 
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
   void GetBatteryInformation(
-      ResponseCallback<absl::optional<BatterySet>> callback,
+      ResponseCallback<std::optional<BatterySet>> callback,
       const FlossDeviceId& device) override;
 
   void AddObserver(FlossBatteryManagerClientObserver* observer) override;

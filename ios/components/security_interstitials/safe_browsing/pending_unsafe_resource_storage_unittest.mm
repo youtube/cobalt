@@ -8,10 +8,6 @@
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using safe_browsing::SBThreatType;
 using security_interstitials::UnsafeResource;
 
@@ -19,7 +15,7 @@ class PendingUnsafeResourceStorageTest : public PlatformTest {
  protected:
   PendingUnsafeResourceStorageTest()
       : url_("http://www.chromium.test"),
-        threat_type_(safe_browsing::SB_THREAT_TYPE_URL_PHISHING) {
+        threat_type_(safe_browsing::SBThreatType::SB_THREAT_TYPE_URL_PHISHING) {
     // Create a resource and add it as a pending decision.
     UnsafeResource resource;
     resource.url = url_;
@@ -40,7 +36,7 @@ class PendingUnsafeResourceStorageTest : public PlatformTest {
     return SafeBrowsingUrlAllowList::FromWebState(&web_state_);
   }
 
-  void ResourceCallback(bool proceed, bool showed_interstitial) {
+  void ResourceCallback(UnsafeResource::UrlCheckResult result) {
     resource_callback_executed_ = true;
   }
 
@@ -64,7 +60,10 @@ TEST_F(PendingUnsafeResourceStorageTest, PendingResourceValue) {
 TEST_F(PendingUnsafeResourceStorageTest, NoOpCallback) {
   const UnsafeResource* resource = storage_.resource();
   ASSERT_TRUE(resource);
-  resource->callback.Run(/*proceed=*/false, /*showed_interstitial=*/false);
+  UnsafeResource::UrlCheckResult result(
+      /*proceed=*/false, /*showed_interstitial=*/false,
+      /*has_post_commit_interstitial_skipped=*/false);
+  resource->callback.Run(result);
   EXPECT_FALSE(resource_callback_executed_);
 }
 

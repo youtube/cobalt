@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <memory>
 
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
@@ -30,12 +31,6 @@ class MediaStreamDevicesControllerBrowserTest
     : public PolicyTest,
       public testing::WithParamInterface<bool> {
  public:
-  MediaStreamDevicesControllerBrowserTest()
-      : request_url_allowed_via_allowlist_(false) {
-    policy_value_ = GetParam();
-  }
-  virtual ~MediaStreamDevicesControllerBrowserTest() {}
-
   void SetUpOnMainThread() override {
     PolicyTest::SetUpOnMainThread();
 
@@ -67,14 +62,16 @@ class MediaStreamDevicesControllerBrowserTest
     EXPECT_EQ(request_url_,
               web_contents->GetPrimaryMainFrame()->GetLastCommittedURL());
     int render_process_id =
-        web_contents->GetPrimaryMainFrame()->GetProcess()->GetID();
+        web_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
     int render_frame_id = web_contents->GetPrimaryMainFrame()->GetRoutingID();
     return content::MediaStreamRequest(
         render_process_id, render_frame_id, 0,
-        request_url_.DeprecatedGetOriginAsURL(), false,
-        blink::MEDIA_DEVICE_ACCESS, std::string(), std::string(),
-        audio_request_type, video_request_type, /*disable_local_echo=*/false,
-        /*request_pan_tilt_zoom_permission=*/false);
+        url::Origin::Create(request_url_), false, blink::MEDIA_GENERATE_STREAM,
+        /*requested_audio_device_ids=*/{}, /*requested_video_device_ids=*/{},
+        audio_request_type, video_request_type,
+        /*disable_local_echo=*/false,
+        /*request_pan_tilt_zoom_permission=*/false,
+        /*captured_surface_control_active=*/false);
   }
 
   // Configure a given policy map. The |policy_name| is the name of either the
@@ -118,8 +115,8 @@ class MediaStreamDevicesControllerBrowserTest
       const blink::mojom::StreamDevices& devices =
           *stream_devices_set.stream_devices[0];
       if (policy_value_ || request_url_allowed_via_allowlist_) {
-        ASSERT_EQ(1, devices.audio_device.has_value() +
-                         devices.video_device.has_value());
+        ASSERT_NE(devices.audio_device.has_value(),
+                  devices.video_device.has_value());
         if (devices.audio_device.has_value()) {
           ASSERT_EQ("fake_dev", devices.audio_device.value().id);
         } else if (devices.video_device.has_value()) {
@@ -134,10 +131,11 @@ class MediaStreamDevicesControllerBrowserTest
     }
   }
 
-  void FinishAudioTest() {
+  void FinishAudioTest(std::string requested_device_id) {
     content::MediaStreamRequest request(
         CreateRequest(blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE,
                       blink::mojom::MediaStreamType::NO_SERVICE));
+    request.requested_audio_device_ids = {requested_device_id};
     // TODO(raymes): Test MEDIA_DEVICE_OPEN (Pepper) which grants both webcam
     // and microphone permissions at the same time.
     webrtc::MediaStreamDevicesController::RequestPermissions(
@@ -147,10 +145,11 @@ class MediaStreamDevicesControllerBrowserTest
     quit_closure_.Run();
   }
 
-  void FinishVideoTest() {
+  void FinishVideoTest(std::string requested_device_id) {
     content::MediaStreamRequest request(
         CreateRequest(blink::mojom::MediaStreamType::NO_SERVICE,
                       blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE));
+    request.requested_video_device_ids = {requested_device_id};
     // TODO(raymes): Test MEDIA_DEVICE_OPEN (Pepper) which grants both webcam
     // and microphone permissions at the same time.
     webrtc::MediaStreamDevicesController::RequestPermissions(
@@ -161,8 +160,8 @@ class MediaStreamDevicesControllerBrowserTest
   }
 
   std::unique_ptr<permissions::MockPermissionPromptFactory> prompt_factory_;
-  bool policy_value_;
-  bool request_url_allowed_via_allowlist_;
+  bool policy_value_ = GetParam();
+  bool request_url_allowed_via_allowlist_ = false;
   GURL request_url_;
   std::string request_pattern_;
   base::RepeatingClosure quit_closure_;
@@ -187,7 +186,7 @@ IN_PROC_BROWSER_TEST_P(MediaStreamDevicesControllerBrowserTest,
           base::Unretained(MediaCaptureDevicesDispatcher::GetInstance()),
           audio_devices),
       base::BindOnce(&MediaStreamDevicesControllerBrowserTest::FinishAudioTest,
-                     base::Unretained(this)));
+                     base::Unretained(this), fake_audio_device.id));
 
   base::RunLoop loop;
   quit_closure_ = loop.QuitWhenIdleClosure();
@@ -202,13 +201,13 @@ IN_PROC_BROWSER_TEST_P(MediaStreamDevicesControllerBrowserTest,
       "Fake Audio Device");
   audio_devices.push_back(fake_audio_device);
 
-  const char* allow_pattern[] = {
+  auto allow_pattern = std::to_array<const char*>({
       request_pattern_.c_str(),
       // This will set an allow-all policy allowlist.  Since we do not allow
       // setting an allow-all entry in the allowlist, this entry should be
       // ignored and therefore the request should be denied.
       nullptr,
-  };
+  });
 
   for (size_t i = 0; i < std::size(allow_pattern); ++i) {
     PolicyMap policies;
@@ -224,7 +223,7 @@ IN_PROC_BROWSER_TEST_P(MediaStreamDevicesControllerBrowserTest,
             audio_devices),
         base::BindOnce(
             &MediaStreamDevicesControllerBrowserTest::FinishAudioTest,
-            base::Unretained(this)));
+            base::Unretained(this), fake_audio_device.id));
 
     base::RunLoop loop;
     quit_closure_ = loop.QuitWhenIdleClosure();
@@ -251,7 +250,7 @@ IN_PROC_BROWSER_TEST_P(MediaStreamDevicesControllerBrowserTest,
           base::Unretained(MediaCaptureDevicesDispatcher::GetInstance()),
           video_devices),
       base::BindOnce(&MediaStreamDevicesControllerBrowserTest::FinishVideoTest,
-                     base::Unretained(this)));
+                     base::Unretained(this), std::move(fake_video_device.id)));
 
   base::RunLoop loop;
   quit_closure_ = loop.QuitWhenIdleClosure();
@@ -266,13 +265,13 @@ IN_PROC_BROWSER_TEST_P(MediaStreamDevicesControllerBrowserTest,
       "Fake Video Device");
   video_devices.push_back(fake_video_device);
 
-  const char* allow_pattern[] = {
+  auto allow_pattern = std::to_array<const char*>({
       request_pattern_.c_str(),
       // This will set an allow-all policy allowlist.  Since we do not allow
       // setting an allow-all entry in the allowlist, this entry should be
       // ignored and therefore the request should be denied.
       nullptr,
-  };
+  });
 
   for (size_t i = 0; i < std::size(allow_pattern); ++i) {
     PolicyMap policies;
@@ -288,7 +287,7 @@ IN_PROC_BROWSER_TEST_P(MediaStreamDevicesControllerBrowserTest,
             video_devices),
         base::BindOnce(
             &MediaStreamDevicesControllerBrowserTest::FinishVideoTest,
-            base::Unretained(this)));
+            base::Unretained(this), fake_video_device.id));
 
     base::RunLoop loop;
     quit_closure_ = loop.QuitWhenIdleClosure();

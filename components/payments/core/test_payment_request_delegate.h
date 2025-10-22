@@ -11,10 +11,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/single_thread_task_runner.h"
+#include "components/autofill/core/browser/data_quality/addresses/test_address_normalizer.h"
+#include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/payments/full_card_request.h"
-#include "components/autofill/core/browser/payments/payments_client.h"
-#include "components/autofill/core/browser/test_address_normalizer.h"
-#include "components/autofill/core/browser/test_autofill_client.h"
+#include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/payments/core/payment_request_delegate.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -64,7 +64,7 @@ class TestPaymentRequestDelegate : public PaymentRequestDelegate {
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
   autofill::TestAutofillClient autofill_client_;
-  autofill::payments::PaymentsClient payments_client_;
+  autofill::payments::PaymentsNetworkInterface payments_network_interface_;
   autofill::payments::FullCardRequest full_card_request_;
 
   bool instantaneous_full_card_request_result_ = true;

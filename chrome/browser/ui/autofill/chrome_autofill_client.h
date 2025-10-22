@@ -6,52 +6,60 @@
 #define CHROME_BROWSER_UI_AUTOFILL_CHROME_AUTOFILL_CLIENT_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
-#include "chrome/browser/autofill/autofill_gstatic_reader.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/autofill/payments/autofill_error_dialog_controller_impl.h"
-#include "chrome/browser/ui/autofill/payments/autofill_progress_dialog_controller_impl.h"
+#include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
+#include "chrome/browser/ui/autofill/autofill_suggestion_controller.h"
+#include "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h"
+#include "components/autofill/content/browser/autofill_log_router_factory.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
-#include "components/autofill/core/browser/autofill_download_manager.h"
-#include "components/autofill/core/browser/autofill_driver.h"
+#include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/content/browser/content_identity_credential_delegate.h"
+#include "components/autofill/core/browser/country_type.h"
+#include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
+#include "components/autofill/core/browser/crowdsourcing/votes_uploader.h"
+#include "components/autofill/core/browser/filling/filling_product.h"
+#include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
+#include "components/autofill/core/browser/integrators/password_form_classification.h"
+#include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
-#include "components/autofill/core/browser/payments/legal_message_line.h"
-#include "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller_impl.h"
+#include "components/autofill/core/browser/metrics/form_interactions_ukm_logger.h"
+#include "components/autofill/core/browser/single_field_fillers/single_field_fill_router.h"
+#include "components/autofill/core/browser/studies/autofill_ablation_study.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_options.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents_observer.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/touch_to_fill/payments/android/touch_to_fill_credit_card_controller.h"
-#include "chrome/browser/ui/android/autofill/save_update_address_profile_flow_manager.h"
-#include "components/autofill/core/browser/ui/fast_checkout_client.h"
-#include "components/autofill/core/browser/ui/payments/card_expiration_date_fix_flow_controller_impl.h"
-#include "components/autofill/core/browser/ui/payments/card_name_fix_flow_controller_impl.h"
-#else
-#include "chrome/browser/ui/autofill/payments/manage_migration_ui_controller.h"
-#include "chrome/browser/ui/autofill/payments/save_card_bubble_controller.h"
-#include "components/zoom/zoom_observer.h"
+#include "chrome/browser/ui/autofill/autofill_snackbar_controller_impl.h"
+#include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace autofill {
 
-struct AutofillErrorDialogContext;
-class AutofillOptimizationGuide;
-class AutofillPopupControllerImpl;
 #if BUILDFLAG(IS_ANDROID)
-class AutofillSnackbarControllerImpl;
-#endif  // BUILDFLAG(IS_ANDROID)
-struct VirtualCardEnrollmentFields;
-class VirtualCardEnrollmentManager;
-struct VirtualCardManualFallbackBubbleOptions;
+// TODO(crbug.com/364089352): When //c/b/ui/android/autofill gets modularized,
+// //c/b/ui/autofill/ can depend directly on it. Now, forward declare the
+// SaveUpdateAddressProfileFlowManager.
+class SaveUpdateAddressProfileFlowManager;
+#endif
+
+class AutofillOptimizationGuide;
+class AutofillAiDelegate;
+class FormFieldData;
+class LogRouter;
+enum class SuggestionType;
 
 // Chrome implementation of AutofillClient.
 //
@@ -63,13 +71,14 @@ struct VirtualCardManualFallbackBubbleOptions;
 // ContentAutofillClient. This ensures that tests can inject different
 // implementations of ContentAutofillClient without causing invalid casts to
 // ChromeAutofillClient.
+//
+// BEWARE OF SUBCLASSING in tests: virtual function calls during construction
+// may lead to very surprising behavior. The class is not `final` because a few
+// tests derive from it. Member functions should be final unless they need to be
+// mocked or overridden in subclasses and you have verified that they are not
+// called, directly or indirectly, from the constructor.
 class ChromeAutofillClient : public ContentAutofillClient,
-                             public content::WebContentsObserver
-#if !BUILDFLAG(IS_ANDROID)
-    ,
-                             public zoom::ZoomObserver
-#endif  // !BUILDFLAG(IS_ANDROID)
-{
+                             public content::WebContentsObserver {
  public:
   // Creates a new ChromeAutofillClient for the given `web_contents` if no
   // ContentAutofillClient is associated with the `web_contents` yet. Otherwise,
@@ -92,244 +101,204 @@ class ChromeAutofillClient : public ContentAutofillClient,
   ~ChromeAutofillClient() override;
 
   // AutofillClient:
-  version_info::Channel GetChannel() const override;
-  bool IsOffTheRecord() override;
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
-  AutofillDownloadManager* GetDownloadManager() override;
-  AutofillOptimizationGuide* GetAutofillOptimizationGuide() const override;
-  PersonalDataManager* GetPersonalDataManager() override;
-  AutocompleteHistoryManager* GetAutocompleteHistoryManager() override;
-  IBANManager* GetIBANManager() override;
-  MerchantPromoCodeManager* GetMerchantPromoCodeManager() override;
-  CreditCardCvcAuthenticator* GetCvcAuthenticator() override;
-  CreditCardOtpAuthenticator* GetOtpAuthenticator() override;
-  PrefService* GetPrefs() override;
-  const PrefService* GetPrefs() const override;
-  syncer::SyncService* GetSyncService() override;
-  signin::IdentityManager* GetIdentityManager() override;
-  FormDataImporter* GetFormDataImporter() override;
-  payments::PaymentsClient* GetPaymentsClient() override;
-  StrikeDatabase* GetStrikeDatabase() override;
-  ukm::UkmRecorder* GetUkmRecorder() override;
-  ukm::SourceId GetUkmSourceId() override;
-  AddressNormalizer* GetAddressNormalizer() override;
-  AutofillOfferManager* GetAutofillOfferManager() override;
-  const GURL& GetLastCommittedPrimaryMainFrameURL() const override;
-  url::Origin GetLastCommittedPrimaryMainFrameOrigin() const override;
-  security_state::SecurityLevel GetSecurityLevelForUmaHistograms() override;
-  const translate::LanguageState* GetLanguageState() override;
-  translate::TranslateDriver* GetTranslateDriver() override;
-  std::string GetVariationConfigCountryCode() const override;
-  profile_metrics::BrowserProfileType GetProfileType() const override;
-  FastCheckoutClient* GetFastCheckoutClient() override;
-  std::unique_ptr<webauthn::InternalAuthenticator>
-  CreateCreditCardInternalAuthenticator(AutofillDriver* driver) override;
-
-  void ShowAutofillSettings(PopupType popup_type) override;
-  void ShowCardUnmaskOtpInputDialog(
-      const CardUnmaskChallengeOption& challenge_option,
-      base::WeakPtr<OtpUnmaskDelegate> delegate) override;
-  void OnUnmaskOtpVerificationResult(OtpUnmaskResult unmask_result) override;
-  void ShowUnmaskPrompt(
-      const CreditCard& card,
-      const CardUnmaskPromptOptions& card_unmask_prompt_options,
-      base::WeakPtr<CardUnmaskDelegate> delegate) override;
-  void OnUnmaskVerificationResult(PaymentsRpcResult result) override;
-  void ShowUnmaskAuthenticatorSelectionDialog(
-      const std::vector<CardUnmaskChallengeOption>& challenge_options,
-      base::OnceCallback<void(const std::string&)>
-          confirm_unmask_challenge_option_callback,
-      base::OnceClosure cancel_unmasking_closure) override;
-  void DismissUnmaskAuthenticatorSelectionDialog(bool server_success) override;
-  VirtualCardEnrollmentManager* GetVirtualCardEnrollmentManager() override;
-  void ShowVirtualCardEnrollDialog(
-      const VirtualCardEnrollmentFields& virtual_card_enrollment_fields,
-      base::OnceClosure accept_virtual_card_callback,
-      base::OnceClosure decline_virtual_card_callback) override;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  void HideVirtualCardEnrollBubbleAndIconIfVisible() override;
-#endif
-#if !BUILDFLAG(IS_ANDROID)
-  std::vector<std::string> GetAllowedMerchantsForVirtualCards() override;
-  std::vector<std::string> GetAllowedBinRangesForVirtualCards() override;
-  void ShowLocalCardMigrationDialog(
-      base::OnceClosure show_migration_dialog_closure) override;
-  void ConfirmMigrateLocalCardToCloud(
-      const LegalMessageLines& legal_message_lines,
-      const std::string& user_email,
-      const std::vector<MigratableCreditCard>& migratable_credit_cards,
-      LocalCardMigrationCallback start_migrating_cards_callback) override;
-  void ShowLocalCardMigrationResults(
-      const bool has_server_error,
-      const std::u16string& tip_message,
-      const std::vector<MigratableCreditCard>& migratable_credit_cards,
-      MigrationDeleteCardCallback delete_local_card_callback) override;
-  void ConfirmSaveIBANLocally(const IBAN& iban,
-                              bool should_show_prompt,
-                              LocalSaveIBANPromptCallback callback) override;
-  void ShowWebauthnOfferDialog(
-      WebauthnDialogCallback offer_dialog_callback) override;
-  void ShowWebauthnVerifyPendingDialog(
-      WebauthnDialogCallback verify_pending_dialog_callback) override;
-  void UpdateWebauthnOfferDialogWithError() override;
-  bool CloseWebauthnDialog() override;
-  void ConfirmSaveUpiIdLocally(
-      const std::string& upi_id,
-      base::OnceCallback<void(bool accept)> callback) override;
-  void OfferVirtualCardOptions(
-      const std::vector<CreditCard*>& candidates,
-      base::OnceCallback<void(const std::string&)> callback) override;
-#else  // !BUILDFLAG(IS_ANDROID)
-  void ConfirmAccountNameFixFlow(
-      base::OnceCallback<void(const std::u16string&)> callback) override;
-  void ConfirmExpirationDateFixFlow(
-      const CreditCard& card,
-      base::OnceCallback<void(const std::u16string&, const std::u16string&)>
-          callback) override;
-#endif
-  void ConfirmSaveCreditCardLocally(
-      const CreditCard& card,
-      SaveCreditCardOptions options,
-      LocalSaveCardPromptCallback callback) override;
-  void ConfirmSaveCreditCardToCloud(
-      const CreditCard& card,
-      const LegalMessageLines& legal_message_lines,
-      SaveCreditCardOptions options,
-      UploadSaveCardPromptCallback callback) override;
-  void CreditCardUploadCompleted(bool card_saved) override;
-  void ConfirmCreditCardFillAssist(const CreditCard& card,
-                                   base::OnceClosure callback) override;
+  base::WeakPtr<AutofillClient> GetWeakPtr() final;
+  const std::string& GetAppLocale() const final;
+  version_info::Channel GetChannel() const final;
+  bool IsOffTheRecord() const final;
+  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() final;
+  AutofillCrowdsourcingManager& GetCrowdsourcingManager() final;
+  VotesUploader& GetVotesUploader() final;
+  AutofillOptimizationGuide* GetAutofillOptimizationGuide() const final;
+  FieldClassificationModelHandler* GetAutofillFieldClassificationModelHandler()
+      final;
+  FieldClassificationModelHandler*
+  GetPasswordManagerFieldClassificationModelHandler() final;
+  PersonalDataManager& GetPersonalDataManager() final;
+  ValuablesDataManager* GetValuablesDataManager() final;
+  EntityDataManager* GetEntityDataManager() final;
+  SingleFieldFillRouter& GetSingleFieldFillRouter() final;
+  AutocompleteHistoryManager* GetAutocompleteHistoryManager() final;
+  AutofillComposeDelegate* GetComposeDelegate() final;
+  AutofillPlusAddressDelegate* GetPlusAddressDelegate() final;
+  PasswordManagerDelegate* GetPasswordManagerDelegate(
+      const FieldGlobalId& field_id) final;
+  void GetAiPageContent(GetAiPageContentCallback callback) final;
+  AutofillAiDelegate* GetAutofillAiDelegate() final;
+  AutofillAiModelCache* GetAutofillAiModelCache() final;
+  AutofillAiModelExecutor* GetAutofillAiModelExecutor() final;
+  IdentityCredentialDelegate* GetIdentityCredentialDelegate() final;
+  void OfferPlusAddressCreation(const url::Origin& main_frame_origin,
+                                bool is_manual_fallback,
+                                PlusAddressCallback callback) final;
+  void ShowPlusAddressError(PlusAddressErrorDialogType error_dialog_type,
+                            base::OnceClosure on_accepted) final;
+  void ShowPlusAddressAffiliationError(std::u16string affiliated_domain,
+                                       std::u16string affiliated_plus_address,
+                                       base::OnceClosure on_accepted) final;
+  PrefService* GetPrefs() final;
+  const PrefService* GetPrefs() const final;
+  syncer::SyncService* GetSyncService() final;
+  signin::IdentityManager* GetIdentityManager() final;
+  const signin::IdentityManager* GetIdentityManager() const final;
+  const GoogleGroupsManager* GetGoogleGroupsManager() const final;
+  FormDataImporter* GetFormDataImporter() final;
+  payments::ChromePaymentsAutofillClient* GetPaymentsAutofillClient() final;
+  StrikeDatabase* GetStrikeDatabase() final;
+  ukm::UkmRecorder* GetUkmRecorder() final;
+  AddressNormalizer* GetAddressNormalizer() final;
+  const GURL& GetLastCommittedPrimaryMainFrameURL() const final;
+  url::Origin GetLastCommittedPrimaryMainFrameOrigin() const final;
+  security_state::SecurityLevel GetSecurityLevelForUmaHistograms() final;
+  const translate::LanguageState* GetLanguageState() final;
+  translate::TranslateDriver* GetTranslateDriver() final;
+  GeoIpCountryCode GetVariationConfigCountryCode() const final;
+  profile_metrics::BrowserProfileType GetProfileType() const final;
+  FastCheckoutClient* GetFastCheckoutClient() final;
+  void ShowAutofillSettings(SuggestionType suggestion_type) final;
   void ConfirmSaveAddressProfile(
       const AutofillProfile& profile,
       const AutofillProfile* original_profile,
-      SaveAddressProfilePromptOptions options,
-      AddressProfileSavePromptCallback callback) override;
-  bool HasCreditCardScanFeature() override;
-  void ScanCreditCard(CreditCardScanCallback callback) override;
-  bool IsTouchToFillCreditCardSupported() override;
-  bool ShowTouchToFillCreditCard(
-      base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const autofill::CreditCard> cards_to_suggest) override;
-  void HideTouchToFillCreditCard() override;
-  void ShowAutofillPopup(
+      bool is_migration_to_account,
+      AddressProfileSavePromptCallback callback) final;
+  // Not called during construction -- safe to override in tests.
+  SuggestionUiSessionId ShowAutofillSuggestions(
       const PopupOpenArgs& open_args,
-      base::WeakPtr<AutofillPopupDelegate> delegate) override;
-  void UpdateAutofillPopupDataListValues(
-      const std::vector<std::u16string>& values,
-      const std::vector<std::u16string>& labels) override;
-  std::vector<Suggestion> GetPopupSuggestions() const override;
-  void PinPopupView() override;
-  PopupOpenArgs GetReopenPopupArgs() const override;
-  void UpdatePopup(const std::vector<Suggestion>& suggestions,
-                   PopupType popup_type) override;
-  void HideAutofillPopup(PopupHidingReason reason) override;
-  void UpdateOfferNotification(const AutofillOfferData* offer,
-                               bool notification_has_been_shown) override;
-  void DismissOfferNotification() override;
-  void OnVirtualCardDataAvailable(
-      const VirtualCardManualFallbackBubbleOptions& options) override;
-  void ShowVirtualCardErrorDialog(
-      const AutofillErrorDialogContext& context) override;
-  void ShowAutofillProgressDialog(
-      AutofillProgressDialogType autofill_progress_dialog_type,
-      base::OnceClosure cancel_callback) override;
-  void CloseAutofillProgressDialog(
-      bool show_confirmation_before_closing) override;
-  bool IsAutocompleteEnabled() const override;
-  bool IsPasswordManagerEnabled() override;
-  void PropagateAutofillPredictions(
-      AutofillDriver* driver,
-      const std::vector<FormStructure*>& forms) override;
-  void DidFillOrPreviewForm(mojom::RendererFormDataAction action,
-                            AutofillTriggerSource trigger_source,
-                            bool is_refill) override;
-  void DidFillOrPreviewField(const std::u16string& autofilled_value,
-                             const std::u16string& profile_full_name) override;
-  bool IsContextSecure() const override;
-  void ExecuteCommand(int id) override;
-  void OpenPromoCodeOfferDetailsURL(const GURL& url) override;
-  LogManager* GetLogManager() const override;
-  FormInteractionsFlowId GetCurrentFormInteractionsFlowId() override;
-  scoped_refptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator()
-      const override;
+      base::WeakPtr<AutofillSuggestionDelegate> delegate) override;
+  void ShowPlusAddressEmailOverrideNotification(
+      const std::string& original_email,
+      EmailOverrideUndoCallback email_final) final;
+  void UpdateAutofillDataListValues(
+      base::span<const SelectOption> datalist) final;
+  base::span<const Suggestion> GetAutofillSuggestions() const final;
+  std::optional<PopupScreenLocation> GetPopupScreenLocation() const final;
+  std::optional<SuggestionUiSessionId>
+  GetSessionIdForCurrentAutofillSuggestions() const final;
+  void UpdateAutofillSuggestions(
+      const std::vector<Suggestion>& suggestions,
+      FillingProduct main_filling_product,
+      AutofillSuggestionTriggerSource trigger_source) final;
+  void HideAutofillSuggestions(SuggestionHidingReason reason) final;
+  void TriggerUserPerceptionOfAutofillSurvey(
+      FillingProduct filling_product,
+      const std::map<std::string, std::string>& field_filling_stats_data) final;
+  bool IsAutofillEnabled() const final;
+  bool IsAutofillProfileEnabled() const final;
+  bool IsAutofillPaymentMethodsEnabled() const final;
+  bool IsAutocompleteEnabled() const final;
+  bool IsPasswordManagerEnabled() const final;
+  void DidFillForm(AutofillTriggerSource trigger_source, bool is_refill) final;
+  bool IsContextSecure() const final;
+  LogManager* GetCurrentLogManager() final;
+  autofill_metrics::FormInteractionsUkmLogger& GetFormInteractionsUkmLogger()
+      final;
 
-  // RiskDataLoader:
-  void LoadRiskData(
-      base::OnceCallback<void(const std::string&)> callback) override;
-
-  // content::WebContentsObserver implementation.
-  void PrimaryMainFrameWasResized(bool width_changed) override;
-  void WebContentsDestroyed() override;
-  void OnWebContentsLostFocus(
-      content::RenderWidgetHost* render_widget_host) override;
-  void OnWebContentsFocused(
-      content::RenderWidgetHost* render_widget_host) override;
-
-  base::WeakPtr<AutofillPopupControllerImpl> popup_controller_for_testing() {
-    return popup_controller_;
-  }
-  void KeepPopupOpenForTesting() { keep_popup_open_for_testing_ = true; }
-  std::unique_ptr<CardUnmaskPromptControllerImpl>
-  SetCardUnmaskControllerForTesting(
-      std::unique_ptr<CardUnmaskPromptControllerImpl> test_controller) {
-    return std::exchange(unmask_controller_, std::move(test_controller));
-  }
-
-#if !BUILDFLAG(IS_ANDROID)
-  // ZoomObserver:
-  void OnZoomControllerDestroyed(zoom::ZoomController* source) override;
-  void OnZoomChanged(
-      const zoom::ZoomController::ZoomChangedEventData& data) override;
+  const AutofillAblationStudy& GetAblationStudy() const final;
+#if BUILDFLAG(IS_ANDROID)
+  // The AutofillSnackbarController is used to show a snackbar notification
+  // on Android.
+  AutofillSnackbarControllerImpl* GetAutofillSnackbarController() final;
 #endif
+  FormInteractionsFlowId GetCurrentFormInteractionsFlowId() final;
+  std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator()
+      final;
+  bool ShowAutofillFieldIphForFeature(const FormFieldData& field,
+                                      AutofillClient::IphFeature feature) final;
+  void HideAutofillFieldIph() final;
+  void NotifyIphFeatureUsed(AutofillClient::IphFeature feature) final;
+  void set_test_addresses(std::vector<AutofillProfile> test_addresses) final;
+  base::span<const AutofillProfile> GetTestAddresses() const final;
+  PasswordFormClassification ClassifyAsPasswordForm(
+      AutofillManager& manager,
+      FormGlobalId form_id,
+      FieldGlobalId field_id) const final;
+  void TriggerPlusAddressUserPerceptionSurvey(
+      plus_addresses::hats::SurveyType survey_type) final;
+
+  // TODO(crbug.com/407666146): Create a test API.
+  base::WeakPtr<AutofillSuggestionController>
+  suggestion_controller_for_testing() {
+    return suggestion_controller_;
+  }
+#if defined(UNIT_TEST)
+  void SetKeepPopupOpenForTesting(bool keep_popup_open_for_testing) {
+    keep_popup_open_for_testing_ = keep_popup_open_for_testing;
+    if (suggestion_controller_) {
+      suggestion_controller_->SetKeepPopupOpenForTesting(
+          keep_popup_open_for_testing);
+    }
+  }
+  void SetAutofillFieldPromoTesting(
+      std::unique_ptr<AutofillFieldPromoController> test_controller) {
+    autofill_field_promo_controller_ = std::move(test_controller);
+  }
+#if BUILDFLAG(IS_ANDROID)
+  void SetAutofillSnackbarControllerImplForTesting(
+      std::unique_ptr<AutofillSnackbarControllerImpl>
+          autofill_snackbar_controller_impl) {
+    autofill_snackbar_controller_impl_ =
+        std::move(autofill_snackbar_controller_impl);
+  }
+#endif
+#endif  // defined(UNIT_TEST)
+
+  // ContentAutofillClient:
+  std::unique_ptr<AutofillManager> CreateManager(
+      base::PassKey<ContentAutofillDriver> pass_key,
+      ContentAutofillDriver& driver) final;
 
  protected:
   explicit ChromeAutofillClient(content::WebContents* web_contents);
 
  private:
   Profile* GetProfile() const;
-  bool IsMultipleAccountUser();
-  std::u16string GetAccountHolderName();
-  std::u16string GetAccountHolderEmail();
   bool SupportsConsentlessExecution(const url::Origin& origin);
+  void ShowAutofillSuggestionsImpl(
+      SuggestionUiSessionId session_id,
+      const PopupOpenArgs& open_args,
+      base::WeakPtr<AutofillSuggestionDelegate> delegate);
 
+  const raw_ptr<LogRouter> log_router_ =
+      AutofillLogRouterFactory::GetForBrowserContext(
+          GetWebContents().GetBrowserContext());
   std::unique_ptr<LogManager> log_manager_;
+  autofill_metrics::FormInteractionsUkmLogger form_interactions_ukm_logger_{
+      this};
 
   // These members are initialized lazily in their respective getters.
   // Therefore, do not access the members directly.
-  std::unique_ptr<AutofillDownloadManager> download_manager_;
-  std::unique_ptr<payments::PaymentsClient> payments_client_;
-  std::unique_ptr<CreditCardCvcAuthenticator> cvc_authenticator_;
-  std::unique_ptr<CreditCardOtpAuthenticator> otp_authenticator_;
+  std::unique_ptr<AutofillCrowdsourcingManager> crowdsourcing_manager_;
+  VotesUploader votes_uploader_{this};
   std::unique_ptr<FormDataImporter> form_data_importer_;
 
-  base::WeakPtr<AutofillPopupControllerImpl> popup_controller_;
-  FormInteractionsFlowId flow_id_{};
+  payments::ChromePaymentsAutofillClient payments_autofill_client_{this};
+  SingleFieldFillRouter single_field_fill_router_{
+      // This call is during construction, so GetAutocompleteHistoryManager()
+      // does not dispatch to more-derived classes, should there be any.
+      GetAutocompleteHistoryManager(),
+      payments_autofill_client_.GetIbanManager(),
+      payments_autofill_client_.GetMerchantPromoCodeManager()};
+
+  base::WeakPtr<AutofillSuggestionController> suggestion_controller_;
+  FormInteractionsFlowId flow_id_;
   base::Time flow_id_date_;
   // If set to true, the popup will stay open regardless of external changes on
   // the test machine, that may normally cause the popup to be hidden
   bool keep_popup_open_for_testing_ = false;
 #if BUILDFLAG(IS_ANDROID)
-  CardExpirationDateFixFlowControllerImpl
-      card_expiration_date_fix_flow_controller_;
-  CardNameFixFlowControllerImpl card_name_fix_flow_controller_;
-  SaveUpdateAddressProfileFlowManager save_update_address_profile_flow_manager_;
-  TouchToFillCreditCardController touch_to_fill_credit_card_controller_{this};
+  std::unique_ptr<SaveUpdateAddressProfileFlowManager>
+      save_update_address_profile_flow_manager_;
+  std::unique_ptr<FastCheckoutClient> fast_checkout_client_;
   std::unique_ptr<AutofillSnackbarControllerImpl>
       autofill_snackbar_controller_impl_;
-  std::unique_ptr<FastCheckoutClient> fast_checkout_client_;
 #endif
-  std::unique_ptr<CardUnmaskPromptControllerImpl> unmask_controller_;
-  AutofillErrorDialogControllerImpl autofill_error_dialog_controller_;
-  std::unique_ptr<AutofillProgressDialogControllerImpl>
-      autofill_progress_dialog_controller_;
+  std::unique_ptr<AutofillFieldPromoController>
+      autofill_field_promo_controller_;
+  // Test addresses used to allow developers to test their forms.
+  std::vector<AutofillProfile> test_addresses_;
+  const AutofillAblationStudy ablation_study_;
 
-#if !BUILDFLAG(IS_ANDROID)
-  base::ScopedObservation<zoom::ZoomController, zoom::ZoomObserver>
-      zoom_observation_{this};
-#endif
-
-  // True if and only if the associated web_contents() is currently focused.
-  bool has_focus_ = false;
+  ContentIdentityCredentialDelegate identity_credential_delegate_;
+  base::WeakPtrFactory<ChromeAutofillClient> weak_ptr_factory_{this};
 };
 
 }  // namespace autofill

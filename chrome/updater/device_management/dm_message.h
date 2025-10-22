@@ -9,6 +9,11 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
+
+namespace policy {
+enum class PolicyFetchReason;
+}  // namespace policy
 
 namespace updater {
 
@@ -19,7 +24,7 @@ struct PolicyValidationResult;
 using DMPolicyMap = base::flat_map<std::string, std::string>;
 
 // The policy type for Omaha policy settings.
-extern const char kGoogleUpdatePolicyType[];
+inline constexpr char kGoogleUpdatePolicyType[] = "google/machine-level-omaha";
 
 // Returns the serialized data from a DeviceManagementRequest, which wraps
 // a RegisterBrowserRequest, to register the current device.
@@ -27,8 +32,10 @@ std::string GetRegisterBrowserRequestData();
 
 // Returns the serialized data from a DeviceManagementRequest, which wraps
 // a PolicyFetchRequest, to fetch policies for the given type.
-std::string GetPolicyFetchRequestData(const std::string& policy_type,
-                                      const CachedPolicyInfo& policy_info);
+std::string GetPolicyFetchRequestData(
+    policy::PolicyFetchReason reason,
+    const std::string& policy_type,
+    const device_management_storage::CachedPolicyInfo& policy_info);
 
 // Returns the serialized data from a DeviceManagementRequest, which wraps
 // a PolicyValidationReportRequest, to report possible policy validation errors.
@@ -51,7 +58,7 @@ bool ShouldDeleteDmToken(const std::string& response_data);
 // response's the signatures and whether it is intended for current device.
 DMPolicyMap ParsePolicyFetchResponse(
     const std::string& response_data,
-    const CachedPolicyInfo& policy_info,
+    const device_management_storage::CachedPolicyInfo& policy_info,
     const std::string& expected_dm_token,
     const std::string& expected_device_id,
     std::vector<PolicyValidationResult>& validation_results);

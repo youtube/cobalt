@@ -5,39 +5,32 @@
 #ifndef COMPONENTS_AUTOFILL_CONTENT_BROWSER_CONTENT_AUTOFILL_DRIVER_TEST_API_H_
 #define COMPONENTS_AUTOFILL_CONTENT_BROWSER_CONTENT_AUTOFILL_DRIVER_TEST_API_H_
 
-#include "base/memory/raw_ptr.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/core/browser/foundations/autofill_driver_test_api.h"
 
 namespace autofill {
 
-class ContentAutofillRouter;
-
 // Exposes some testing operations for ContentAutofillDriver.
-class ContentAutofillDriverTestApi {
+class ContentAutofillDriverTestApi : public AutofillDriverTestApi {
  public:
   explicit ContentAutofillDriverTestApi(ContentAutofillDriver* driver)
-      : driver_(driver) {
-    DCHECK(driver_);
+      : AutofillDriverTestApi(driver) {}
+
+  void set_autofill_manager(std::unique_ptr<AutofillManager> autofill_manager) {
+    driver().autofill_manager_ = std::move(autofill_manager);
   }
 
-  ContentAutofillRouter& autofill_router() {
-    return *driver_->autofill_router_;
-  }
-
-  void SetFrameAndFormMetaData(FormData& form, FormFieldData* field) const {
-    driver_->SetFrameAndFormMetaData(form, field);
-  }
-
-  FormData GetFormWithFrameAndFormMetaData(const FormData& form) const {
-    return driver_->GetFormWithFrameAndFormMetaData(form);
-  }
-
-  bool should_suppress_keyboard() { return driver_->should_suppress_keyboard_; }
+  void LiftForTest(FormData& form) { driver().LiftForTest(form); }
 
  private:
-  // Non-null pointer to wrapped ContentAutofillDriver.
-  raw_ptr<ContentAutofillDriver> driver_;
+  ContentAutofillDriver& driver() {
+    return static_cast<ContentAutofillDriver&>(*driver_);
+  }
 };
+
+inline ContentAutofillDriverTestApi test_api(ContentAutofillDriver& driver) {
+  return ContentAutofillDriverTestApi(&driver);
+}
 
 }  // namespace autofill
 

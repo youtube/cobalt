@@ -12,8 +12,12 @@
     to { transform: translateX(100px); }
   }
 
+  :root {
+    print-color-adjust: exact;
+  }
+
   #scroller {
-    scroll-timeline: timeline;
+    scroll-timeline: --timeline;
     overflow: scroll;
     width: 100px;
     height: 100px;
@@ -29,10 +33,10 @@
     height: 100px;
     background-color: green;
     animation: anim 1s linear;
-    animation-timeline: timeline;
+    animation-timeline: --timeline;
   }
 
-  @supports not (animation-timeline:timeline) {
+  @supports not (animation-timeline:--timeline) {
     #box {
       animation-play-state: paused;
     }

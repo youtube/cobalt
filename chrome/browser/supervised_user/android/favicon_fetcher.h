@@ -11,8 +11,6 @@
 #include "components/favicon/core/large_icon_service.h"
 #include "components/favicon_base/favicon_callback.h"
 #include "components/favicon_base/favicon_types.h"
-#include "ui/gfx/image/image.h"
-#include "ui/gfx/image/image_skia.h"
 #include "url/gurl.h"
 
 class FaviconFetcher {
@@ -79,4 +77,4 @@ class FaviconFetcher {
   base::WeakPtrFactory<FaviconFetcher> weak_factory_{this};
 };
 
-#endif  // CHROME_BROWSER_SUPERVISED_USER_ANDROID_FAVICON_CALLER_H_
+#endif  // CHROME_BROWSER_SUPERVISED_USER_ANDROID_FAVICON_FETCHER_H_

@@ -12,12 +12,14 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
-#include "pdf/pdf_engine.h"
+#include "pdf/buildflags.h"
+#include "pdf/pdfium/pdfium_engine_client.h"
+#include "services/screen_ai/buildflags/buildflags.h"
 
 namespace chrome_pdf {
 
 // The interface that's provided to the print preview rendering engine.
-class PreviewModeClient : public PDFEngine::Client {
+class PreviewModeClient : public PDFiumEngineClient {
  public:
   class Client {
    public:
@@ -28,7 +30,7 @@ class PreviewModeClient : public PDFEngine::Client {
   explicit PreviewModeClient(Client* client);
   ~PreviewModeClient() override;
 
-  // PDFEngine::Client implementation.
+  // PDFiumEngineClient:
   void ProposeDocumentLayout(const DocumentLayout& layout) override;
   void Invalidate(const gfx::Rect& rect) override;
   void DidScroll(const gfx::Vector2d& offset) override;
@@ -60,18 +62,26 @@ class PreviewModeClient : public PDFEngine::Client {
                   const void* data,
                   int length) override;
   std::unique_ptr<UrlLoader> CreateUrlLoader() override;
-  std::vector<SearchStringResult> SearchString(const char16_t* string,
-                                               const char16_t* term,
+  v8::Isolate* GetIsolate() override;
+  std::vector<SearchStringResult> SearchString(const std::u16string& needle,
+                                               const std::u16string& haystack,
                                                bool case_sensitive) override;
   void DocumentLoadComplete() override;
   void DocumentLoadFailed() override;
   void DocumentHasUnsupportedFeature(const std::string& feature) override;
-  void FormFieldFocusChange(PDFEngine::FocusFieldType type) override;
+  void FormFieldFocusChange(FocusFieldType type) override;
   bool IsPrintPreview() const override;
   SkColor GetBackgroundColor() const override;
   void SetSelectedText(const std::string& selected_text) override;
   void SetLinkUnderCursor(const std::string& link_under_cursor) override;
   bool IsValidLink(const std::string& url) override;
+#if BUILDFLAG(ENABLE_PDF_INK2)
+  bool IsInAnnotationMode() const override;
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  void OnSearchifyStateChange(bool busy) override;
+  void OnHasSearchifyText() override;
+#endif
 
  private:
   const raw_ptr<Client> client_;

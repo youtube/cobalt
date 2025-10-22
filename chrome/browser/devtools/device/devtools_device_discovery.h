@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
@@ -35,7 +36,7 @@ class DevToolsDeviceDiscovery {
     RemotePage(scoped_refptr<AndroidDeviceManager::Device> device,
                const std::string& browser_id,
                const std::string& browser_version,
-               base::Value dict);
+               base::Value::Dict dict);
 
     virtual ~RemotePage();
 
@@ -43,7 +44,7 @@ class DevToolsDeviceDiscovery {
     std::string browser_id_;
     std::string browser_version_;
     std::string frontend_url_;
-    base::Value dict_;
+    base::Value::Dict dict_;
     scoped_refptr<content::DevToolsAgentHost> agent_host_;
   };
 
@@ -145,7 +146,7 @@ class DevToolsDeviceDiscovery {
   void RequestDeviceList();
   void ReceivedDeviceList(const CompleteDevices& complete_devices);
 
-  AndroidDeviceManager* device_manager_;
+  raw_ptr<AndroidDeviceManager, DanglingUntriaged> device_manager_;
   const DeviceListCallback callback_;
   base::RepeatingCallback<void(base::OnceClosure)> task_scheduler_;
   base::WeakPtrFactory<DevToolsDeviceDiscovery> weak_factory_{this};

@@ -298,11 +298,15 @@ fo{
         ZW{"Simbabvi"}
         ZZ{"ókent øki"}
     }
+    Countries%chagos{
+        IO{"Khagosoyggjar"}
+    }
     Countries%short{
         GB{"UK"}
         US{"USA"}
     }
     Countries%variant{
+        NZ{"Aotearoa Nýsæland"}
         SZ{"Svasiland"}
     }
 }

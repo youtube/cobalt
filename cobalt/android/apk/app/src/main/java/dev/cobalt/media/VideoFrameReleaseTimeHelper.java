@@ -35,8 +35,8 @@ import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
 import dev.cobalt.util.DisplayUtil;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
 @JNINamespace("starboard")

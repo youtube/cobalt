@@ -8,9 +8,11 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 
+#include "base/notreached.h"
 #include "base/rand_util.h"
 #include "base/values.h"
 #include "cc/base/math_util.h"
@@ -18,7 +20,6 @@
 #include "cc/layers/picture_layer.h"
 #include "cc/trees/draw_property_utils.h"
 #include "cc/trees/layer_tree_host.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace cc {
@@ -54,7 +55,7 @@ InvalidationBenchmark::InvalidationBenchmark(
   } else if (mode_string == "viewport") {
     mode_ = VIEWPORT;
   } else {
-    CHECK(false) << "Invalid mode: " << mode_string
+    NOTREACHED() << "Invalid mode: " << mode_string
                  << ". One of {fixed_size, layer, viewport, random} expected.";
   }
 }

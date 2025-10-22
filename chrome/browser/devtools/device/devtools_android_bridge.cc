@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <set>
@@ -20,7 +21,6 @@
 #include "base/json/json_reader.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -90,18 +90,22 @@ DevToolsAndroidBridge::Factory::Factory()
           "DevToolsAndroidBridge",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-DevToolsAndroidBridge::Factory::~Factory() {}
+DevToolsAndroidBridge::Factory::~Factory() = default;
 
-KeyedService* DevToolsAndroidBridge::Factory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+DevToolsAndroidBridge::Factory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
-  return new DevToolsAndroidBridge(profile);
+  return std::make_unique<DevToolsAndroidBridge>(profile);
 }
 
 void DevToolsAndroidBridge::Shutdown() {
@@ -193,8 +197,8 @@ void DevToolsAndroidBridge::AddDeviceListListener(
 void DevToolsAndroidBridge::RemoveDeviceListListener(
     DeviceListListener* listener) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  auto it = base::ranges::find(device_list_listeners_, listener);
-  DCHECK(it != device_list_listeners_.end());
+  auto it = std::ranges::find(device_list_listeners_, listener);
+  CHECK(it != device_list_listeners_.end());
   device_list_listeners_.erase(it);
   if (!NeedsDeviceListPolling())
     StopDeviceListPolling();
@@ -210,8 +214,8 @@ void DevToolsAndroidBridge::AddDeviceCountListener(
 void DevToolsAndroidBridge::RemoveDeviceCountListener(
     DeviceCountListener* listener) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  auto it = base::ranges::find(device_count_listeners_, listener);
-  DCHECK(it != device_count_listeners_.end());
+  auto it = std::ranges::find(device_count_listeners_, listener);
+  CHECK(it != device_count_listeners_.end());
   device_count_listeners_.erase(it);
   if (device_count_listeners_.empty())
     StopDeviceCountPolling();
@@ -227,8 +231,8 @@ void DevToolsAndroidBridge::AddPortForwardingListener(
 
 void DevToolsAndroidBridge::RemovePortForwardingListener(
     PortForwardingListener* listener) {
-  auto it = base::ranges::find(port_forwarding_listeners_, listener);
-  DCHECK(it != port_forwarding_listeners_.end());
+  auto it = std::ranges::find(port_forwarding_listeners_, listener);
+  CHECK(it != port_forwarding_listeners_.end());
   port_forwarding_listeners_.erase(it);
   if (!NeedsDeviceListPolling())
     StopDeviceListPolling();
@@ -272,14 +276,17 @@ void DevToolsAndroidBridge::ReceivedDeviceList(
   }
 
   DeviceListListeners copy(device_list_listeners_);
-  for (auto* listener : copy)
+  for (DevToolsAndroidBridge::DeviceListListener* listener : copy) {
     listener->DeviceListChanged(remote_devices);
+  }
 
   ForwardingStatus status =
       port_forwarding_controller_->DeviceListChanged(complete_devices);
   PortForwardingListeners forwarding_listeners(port_forwarding_listeners_);
-  for (auto* listener : forwarding_listeners)
+  for (DevToolsAndroidBridge::PortForwardingListener* listener :
+       forwarding_listeners) {
     listener->PortStatusChanged(status);
+  }
 }
 
 void DevToolsAndroidBridge::StartDeviceCountPolling() {
@@ -306,8 +313,9 @@ void DevToolsAndroidBridge::ReceivedDeviceCount(int count) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   DeviceCountListeners copy(device_count_listeners_);
-  for (auto* listener : copy)
+  for (DevToolsAndroidBridge::DeviceCountListener* listener : copy) {
     listener->DeviceCountChanged(count);
+  }
 
   if (device_count_listeners_.empty())
     return;

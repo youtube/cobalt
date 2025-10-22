@@ -212,9 +212,9 @@ SmartChargingManager::SmartChargingManager(
 SmartChargingManager::~SmartChargingManager() = default;
 
 std::unique_ptr<SmartChargingManager> SmartChargingManager::CreateInstance() {
-  // TODO(crbug.com/1028853): we are collecting data from Chromebook only. Since
-  // this action is discouraged, we will modify the condition latter using dbus
-  // calls.
+  // TODO(crbug.com/40109338): we are collecting data from Chromebook only.
+  // Since this action is discouraged, we will modify the condition latter using
+  // dbus calls.
   if (chromeos::GetDeviceType() != chromeos::DeviceType::kChromebook)
     return nullptr;
 
@@ -469,7 +469,7 @@ void SmartChargingManager::LogEvent(const EventReason& reason) {
   proto.mutable_event()->set_reason(reason);
   PopulateUserChargingEventProto(&proto);
 
-  // TODO(crbug.com/1028853): This is for testing only. Need to remove when
+  // TODO(crbug.com/40109338): This is for testing only. Need to remove when
   // ukm logger is available.
   user_charging_event_for_test_ = proto;
 
@@ -497,14 +497,14 @@ void SmartChargingManager::UpdateChargeHistory() {
 }
 
 void SmartChargingManager::OnReceiveScreenBrightnessPercent(
-    absl::optional<double> screen_brightness_percent) {
+    std::optional<double> screen_brightness_percent) {
   if (screen_brightness_percent.has_value()) {
     screen_brightness_percent_ = *screen_brightness_percent;
   }
 }
 
 void SmartChargingManager::OnReceiveSwitchStates(
-    const absl::optional<chromeos::PowerManagerClient::SwitchStates>
+    const std::optional<chromeos::PowerManagerClient::SwitchStates>
         switch_states) {
   if (switch_states.has_value()) {
     lid_state_ = switch_states->lid_state;
@@ -653,7 +653,7 @@ std::tuple<PastEvent, PastEvent> SmartChargingManager::GetLastChargeEvents() {
 }
 
 void SmartChargingManager::OnChargeHistoryReceived(
-    absl::optional<power_manager::ChargeHistoryState> proto) {
+    std::optional<power_manager::ChargeHistoryState> proto) {
   if (proto.has_value()) {
     charge_history_ = proto.value();
     return;

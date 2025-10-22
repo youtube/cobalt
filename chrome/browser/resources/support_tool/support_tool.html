@@ -19,42 +19,42 @@ found in the LICENSE file.
 </style>
 
 <div id="support-tool-pages">
-  <iron-pages selected="[[selectedPage_]]" attr-for-selected="page-index">
+  <cr-page-selector selected="[[selectedPage_]]" attr-for-selected="page-index">
     <issue-details id="issueDetails"
-        page-index="[[supportToolPageIndex_.ISSUE_DETAILS]]">
+        page-index$="[[supportToolPageIndexEnum_.ISSUE_DETAILS]]">
     </issue-details>
     <data-collectors id="dataCollectors"
-        page-index="[[supportToolPageIndex_.DATA_COLLECTOR_SELECTION]]">
+        page-index$="[[supportToolPageIndexEnum_.DATA_COLLECTOR_SELECTION]]">
     </data-collectors>
-    <spinner-page id="spinnerPage"  page-title="Collecting diagnostic data"
-        page-index="[[supportToolPageIndex_.SPINNER]]">
+    <spinner-page id="spinnerPage"  page-title="$i18n{dataCollectionSpinner}"
+        page-index$="[[supportToolPageIndexEnum_.SPINNER]]">
     </spinner-page>
     <pii-selection id="piiSelection"
-        page-index="[[supportToolPageIndex_.PII_SELECTION]]">
+        page-index$="[[supportToolPageIndexEnum_.PII_SELECTION]]">
     </pii-selection>
-    <spinner-page id="exportSpinner" page-title="Exporting diagnostic data"
-        page-index="[[supportToolPageIndex_.EXPORT_SPINNER]]">
+    <spinner-page id="exportSpinner" page-title="$i18n{dataExportSpinner}"
+        page-index$="[[supportToolPageIndexEnum_.EXPORT_SPINNER]]">
     </spinner-page>
     <data-export-done id="dataExportDone"
-        page-index="[[supportToolPageIndex_.DATA_EXPORT_DONE]]">
+        page-index$="[[supportToolPageIndexEnum_.DATA_EXPORT_DONE]]">
     </data-export-done>
-  </iron-pages>
+  </cr-page-selector>
 </div>
 <div class="navigation-buttons" id="continueButtonContainer"
     hidden$="[[shouldHideContinueButtonContainer_(selectedPage_)]]">
   <cr-button id="backButton" hidden$="[[shouldHideBackButton_(selectedPage_)]]"
       on-click="onBackClick_">
-    Back
+    $i18n{backButtonText}
   </cr-button>
   <cr-button id="continueButton" class="action-button"
       on-click="onContinueClick_">
-    Continue
+    $i18n{continueButtonText}
   </cr-button>
 </div>
 <cr-toast id="errorMessageToast" duration="0" tabindex="0"
     aria-labelledby="error-message">
   <span id="error-message">[[errorMessage_]]</span>
   <cr-button on-click="onErrorMessageToastCloseClicked_">
-    Dismiss
+    $i18n{dismissButtonText}
   </cr-button>
 </cr-toast>

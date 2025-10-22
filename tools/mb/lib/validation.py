@@ -56,32 +56,6 @@ def CheckAllConfigsAndMixinsReferenced(errs, all_configs, configs, mixins):
   return errs
 
 
-def EnsureNoProprietaryMixins(errs, builder_groups, configs, mixins):
-  """If we're checking the Chromium config, check that the 'chromium' bots
-  which build public artifacts do not include the chrome_with_codecs mixin.
-  """
-  if 'chromium' in builder_groups:
-    for builder in builder_groups['chromium']:
-      config = builder_groups['chromium'][builder]
-
-      def RecurseMixins(current_mixin):
-        if current_mixin == 'chrome_with_codecs':
-          errs.append('Public artifact builder "%s" can not contain the '
-                      '"chrome_with_codecs" mixin.' % builder)
-          return
-        if not 'mixins' in mixins[current_mixin]:
-          return
-        for mixin in mixins[current_mixin]['mixins']:
-          RecurseMixins(mixin)
-
-      for mixin in configs[config]:
-        RecurseMixins(mixin)
-  else:
-    errs.append('Missing "chromium" builder_group. Please update this '
-                'proprietary codecs check with the name of the builder_group '
-                'responsible for public build artifacts.')
-
-
 def _GetConfigsByBuilder(builder_groups):
   """Builds a mapping from buildername -> [config]
 
@@ -140,7 +114,7 @@ def CheckDuplicateConfigs(errs, config_pool, mixin_pool, grouping,
 
 
 def CheckDebugDCheckOrOfficial(errs, gn_args, builder_group, builder, phase):
-  # TODO(crbug.com/1227171): Figure out how to check this properly
+  # TODO(crbug.com/40189120): Figure out how to check this properly
   # for simplechrome-based bots.
   if gn_args.get('is_chromeos_device'):
     return

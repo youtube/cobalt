@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/loader/interactive_detector.h"
+
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/profiler/sample_metadata.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
-#include "services/metrics/public/cpp/ukm_builders.h"
-#include "services/metrics/public/cpp/ukm_recorder.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -61,7 +61,7 @@ InteractiveDetector* InteractiveDetector::From(Document& document) {
       Supplement<Document>::From<InteractiveDetector>(document);
   if (!detector) {
     detector = MakeGarbageCollected<InteractiveDetector>(
-        document, new NetworkActivityChecker(&document));
+        document, std::make_unique<NetworkActivityChecker>(&document));
     Supplement<Document>::ProvideTo(document, detector);
   }
   return detector;
@@ -73,17 +73,16 @@ const char* InteractiveDetector::SupplementName() {
 
 InteractiveDetector::InteractiveDetector(
     Document& document,
-    NetworkActivityChecker* network_activity_checker)
+    std::unique_ptr<NetworkActivityChecker> network_activity_checker)
     : Supplement<Document>(document),
       ExecutionContextLifecycleObserver(document.GetExecutionContext()),
       clock_(base::DefaultTickClock::GetInstance()),
-      network_activity_checker_(network_activity_checker),
+      network_activity_checker_(std::move(network_activity_checker)),
       time_to_interactive_timer_(
           document.GetTaskRunner(TaskType::kInternalDefault),
           this,
           &InteractiveDetector::TimeToInteractiveTimerFired),
-      initially_hidden_(document.hidden()),
-      ukm_recorder_(document.UkmRecorder()) {}
+      initially_hidden_(document.hidden()) {}
 
 void InteractiveDetector::SetNavigationStartTime(
     base::TimeTicks navigation_start_time) {
@@ -141,42 +140,26 @@ void InteractiveDetector::StartOrPostponeCITimer(
   }
 }
 
-absl::optional<base::TimeDelta> InteractiveDetector::GetFirstInputDelay()
-    const {
+std::optional<base::TimeDelta> InteractiveDetector::GetFirstInputDelay() const {
   return page_event_times_.first_input_delay;
 }
 
-WTF::Vector<absl::optional<base::TimeDelta>>
+WTF::Vector<std::optional<base::TimeDelta>>
 InteractiveDetector::GetFirstInputDelaysAfterBackForwardCacheRestore() const {
   return page_event_times_.first_input_delays_after_back_forward_cache_restore;
 }
 
-absl::optional<base::TimeTicks> InteractiveDetector::GetFirstInputTimestamp()
+std::optional<base::TimeTicks> InteractiveDetector::GetFirstInputTimestamp()
     const {
   return page_event_times_.first_input_timestamp;
 }
 
-absl::optional<base::TimeDelta> InteractiveDetector::GetLongestInputDelay()
-    const {
-  return page_event_times_.longest_input_delay;
-}
-
-absl::optional<base::TimeTicks> InteractiveDetector::GetLongestInputTimestamp()
-    const {
-  return page_event_times_.longest_input_timestamp;
-}
-
-absl::optional<base::TimeDelta>
-InteractiveDetector::GetFirstInputProcessingTime() const {
-  return page_event_times_.first_input_processing_time;
-}
-
-absl::optional<base::TimeTicks> InteractiveDetector::GetFirstScrollTimestamp()
+std::optional<base::TimeTicks> InteractiveDetector::GetFirstScrollTimestamp()
     const {
   return page_event_times_.first_scroll_timestamp;
 }
 
-absl::optional<base::TimeDelta> InteractiveDetector::GetFirstScrollDelay()
+std::optional<base::TimeDelta> InteractiveDetector::GetFirstScrollDelay()
     const {
   return page_event_times_.frist_scroll_delay;
 }
@@ -314,25 +297,12 @@ void InteractiveDetector::HandleForInputDelay(
         .back() = delay;
   }
 
-  if (GetSupplementable()->Loader()) {
-    GetSupplementable()->Loader()->DidObserveInputDelay(delay);
-  }
-
   UMA_HISTOGRAM_CUSTOM_TIMES(kHistogramInputDelay, delay, base::Milliseconds(1),
                              base::Seconds(60), 50);
   UMA_HISTOGRAM_CUSTOM_TIMES(kHistogramInputTimestamp,
                              event_timestamp - page_event_times_.nav_start,
                              base::Milliseconds(10), base::Minutes(10), 100);
 
-  // Only update longest input delay if page was not backgrounded while the
-  // input was queued.
-  if ((!page_event_times_.longest_input_delay.has_value() ||
-       delay > *page_event_times_.longest_input_delay) &&
-      !PageWasBackgroundedSinceEvent(event_timestamp)) {
-    page_event_times_.longest_input_delay = delay;
-    page_event_times_.longest_input_timestamp = event_timestamp;
-    interactive_timing_metrics_changed = true;
-  }
 
   if (GetSupplementable()->Loader() && interactive_timing_metrics_changed) {
     GetSupplementable()->Loader()->DidChangePerformanceTiming();
@@ -363,7 +333,7 @@ void InteractiveDetector::EndNetworkQuietPeriod(base::TimeTicks current_time) {
 // clock_->NowTicks().
 void InteractiveDetector::UpdateNetworkQuietState(
     double request_count,
-    absl::optional<base::TimeTicks> opt_current_time) {
+    std::optional<base::TimeTicks> opt_current_time) {
   if (request_count <= kNetworkQuietMaximumConnections &&
       active_network_quiet_window_start_.is_null()) {
     // Not using `value_or(clock_->NowTicks())` here because arguments to
@@ -380,7 +350,7 @@ void InteractiveDetector::UpdateNetworkQuietState(
 }
 
 void InteractiveDetector::OnResourceLoadBegin(
-    absl::optional<base::TimeTicks> load_begin_time) {
+    std::optional<base::TimeTicks> load_begin_time) {
   if (!GetSupplementable())
     return;
   if (!interactive_time_.is_null())
@@ -393,7 +363,7 @@ void InteractiveDetector::OnResourceLoadBegin(
 // The optional load_finish_time, if provided, saves us a call to
 // clock_->NowTicks.
 void InteractiveDetector::OnResourceLoadEnd(
-    absl::optional<base::TimeTicks> load_finish_time) {
+    std::optional<base::TimeTicks> load_finish_time) {
   if (!GetSupplementable())
     return;
   if (!interactive_time_.is_null())
@@ -484,32 +454,38 @@ base::TimeTicks InteractiveDetector::FindInteractiveCandidate(
     base::TimeTicks lower_bound,
     base::TimeTicks current_time) {
   // Network iterator.
-  auto* it_net = network_quiet_windows_.begin();
+  auto it_net = network_quiet_windows_.CheckedBegin();
+  auto net_end = network_quiet_windows_.CheckedEnd();
   // Long tasks iterator.
-  auto* it_lt = long_tasks_.begin();
+  auto it_lt = long_tasks_.CheckedBegin();
+  auto lt_end = long_tasks_.CheckedEnd();
 
   base::TimeTicks main_quiet_start = page_event_times_.nav_start;
 
-  while (main_quiet_start < current_time &&
-         it_net < network_quiet_windows_.end()) {
+  while (main_quiet_start < current_time && it_net < net_end) {
     base::TimeTicks main_quiet_end =
-        it_lt == long_tasks_.end() ? current_time : it_lt->Low();
+        it_lt == lt_end ? current_time : it_lt->Low();
     base::TimeTicks next_main_quiet_start =
-        it_lt == long_tasks_.end() ? current_time : it_lt->High();
+        it_lt == lt_end ? current_time : it_lt->High();
     if (main_quiet_end - main_quiet_start < kTimeToInteractiveWindow) {
       // The main thread quiet window is too short.
-      ++it_lt;
+      if (it_lt != lt_end) {
+        ++it_lt;
+      }
       main_quiet_start = next_main_quiet_start;
       continue;
     }
     if (main_quiet_end <= lower_bound) {
-      // The main thread quiet window is before |lower_bound|.
+      // The main thread quiet window is before `lower_bound`.
+      // If `it_lt`==`lt_end`, `main_quit_end` will be assigned to
+      // `current_time`, which should be strictly larger than all the other
+      // times, so we can't get here.
       ++it_lt;
       main_quiet_start = next_main_quiet_start;
       continue;
     }
     if (it_net->High() <= lower_bound) {
-      // The network quiet window is before |lower_bound|.
+      // The network quiet window is before `lower_bound`.
       ++it_net;
       continue;
     }
@@ -518,6 +494,8 @@ base::TimeTicks InteractiveDetector::FindInteractiveCandidate(
     // [ main thread interval ]
     //                                     [ network interval ]
     if (main_quiet_end <= it_net->Low()) {
+      // See the comment about `++it_lt` in the "main_quiet_end <= lower_bound"
+      // case above.
       ++it_lt;
       main_quiet_start = next_main_quiet_start;
       continue;
@@ -541,6 +519,8 @@ base::TimeTicks InteractiveDetector::FindInteractiveCandidate(
     // The interval with earlier end time will not produce any more overlap, so
     // we move on from it.
     if (main_quiet_end <= it_net->High()) {
+      // See the comment about `++it_lt` in the "main_quiet_end <= lower_bound"
+      // case above.
       ++it_lt;
       main_quiet_start = next_main_quiet_start;
     } else {
@@ -557,26 +537,34 @@ void InteractiveDetector::CheckTimeToInteractiveReached() {
   if (!interactive_time_.is_null())
     return;
 
+  const bool ignore_fcp =
+      base::FeatureList::IsEnabled(features::kInteractiveDetectorIgnoreFcp);
   // FCP and DCL have not been detected yet.
-  if (page_event_times_.first_contentful_paint.is_null() ||
-      page_event_times_.dom_content_loaded_end.is_null())
+  if ((page_event_times_.first_contentful_paint.is_null() && !ignore_fcp) ||
+      page_event_times_.dom_content_loaded_end.is_null()) {
     return;
+  }
 
   const base::TimeTicks current_time = clock_->NowTicks();
-  if (current_time - page_event_times_.first_contentful_paint <
-      kTimeToInteractiveWindow) {
+  if (!ignore_fcp && (current_time - page_event_times_.first_contentful_paint <
+                      kTimeToInteractiveWindow)) {
     // Too close to FCP to determine Time to Interactive.
     return;
   }
 
   AddCurrentlyActiveNetworkQuietInterval(current_time);
-  const base::TimeTicks interactive_candidate = FindInteractiveCandidate(
+  base::TimeTicks interactive_candidate = FindInteractiveCandidate(
       page_event_times_.first_contentful_paint, current_time);
   RemoveCurrentlyActiveNetworkQuietInterval();
 
   // No Interactive Candidate found.
-  if (interactive_candidate.is_null())
-    return;
+  if (interactive_candidate.is_null()) {
+    if (ignore_fcp) {
+      interactive_candidate = page_event_times_.dom_content_loaded_end;
+    } else {
+      return;
+    }
+  }
 
   interactive_time_ = std::max(
       {interactive_candidate, page_event_times_.dom_content_loaded_end});
@@ -590,7 +578,7 @@ void InteractiveDetector::OnTimeToInteractiveDetected() {
   LocalFrame* frame = GetSupplementable()->GetFrame();
   DocumentLoader* loader = GetSupplementable()->Loader();
   probe::LifecycleEvent(frame, loader, "InteractiveTime",
-                        base::TimeTicks::Now().since_origin().InSecondsF());
+                        interactive_time_.since_origin().InSecondsF());
 
   TRACE_EVENT_MARK_WITH_TIMESTAMP2(
       "loading,rail", "InteractiveTime", interactive_time_, "frame",
@@ -652,52 +640,13 @@ void InteractiveDetector::SetTaskRunnerForTesting(
   time_to_interactive_timer_.MoveToNewTaskRunner(task_runner_for_testing);
 }
 
-ukm::UkmRecorder* InteractiveDetector::GetUkmRecorder() const {
-  return ukm_recorder_;
-}
-
-void InteractiveDetector::SetUkmRecorderForTesting(
-    ukm::UkmRecorder* test_ukm_recorder) {
-  ukm_recorder_ = test_ukm_recorder;
-}
-
-void InteractiveDetector::RecordInputEventTimingUKM(
-    base::TimeDelta input_delay,
+void InteractiveDetector::RecordInputEventTimingUMA(
     base::TimeDelta processing_time,
-    base::TimeDelta time_to_next_paint,
-    AtomicString event_type) {
-  auto EventTypeToEnum = [](const AtomicString& name) -> InputEventType {
-    if (name == "mousedown")
-      return InputEventType::kMousedown;
-    if (name == "click")
-      return InputEventType::kClick;
-    if (name == "keydown")
-      return InputEventType::kKeydown;
-    if (name == "pointerup")
-      return InputEventType::kPointerup;
-    CHECK(false) << "Unknown event name: " << name;
-    return InputEventType();
-  };
-  ukm::SourceId source_id = GetSupplementable()->UkmSourceID();
-  DCHECK_NE(source_id, ukm::kInvalidSourceId);
-  ukm::builders::InputEvent(source_id)
-      .SetEventType(static_cast<int>(EventTypeToEnum(event_type)))
-      .SetInteractiveTiming_InputDelay(input_delay.InMilliseconds())
-      .SetInteractiveTiming_ProcessingTime(processing_time.InMilliseconds())
-      .SetInteractiveTiming_ProcessingFinishedToNextPaint(
-          time_to_next_paint.InMilliseconds())
-      .Record(GetUkmRecorder());
-
+    base::TimeDelta time_to_next_paint) {
   UmaHistogramCustomTimes(kHistogramProcessingTime, processing_time,
                           base::Milliseconds(1), base::Seconds(60), 50);
   UmaHistogramCustomTimes(kHistogramTimeToNextPaint, time_to_next_paint,
                           base::Milliseconds(1), base::Seconds(60), 50);
-  if (!page_event_times_.first_input_processing_time) {
-    page_event_times_.first_input_processing_time = processing_time;
-    if (GetSupplementable()->Loader()) {
-      GetSupplementable()->Loader()->DidChangePerformanceTiming();
-    }
-  }
 }
 
 void InteractiveDetector::DidObserveFirstScrollDelay(
@@ -716,7 +665,7 @@ void InteractiveDetector::OnRestoredFromBackForwardCache() {
   // Allocate the last element with 0, which indicates that the first input
   // after this navigation doesn't happen yet.
   page_event_times_.first_input_delays_after_back_forward_cache_restore
-      .push_back(absl::nullopt);
+      .push_back(std::nullopt);
 }
 
 }  // namespace blink

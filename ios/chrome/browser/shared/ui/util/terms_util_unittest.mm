@@ -4,15 +4,11 @@
 
 #import "ios/chrome/browser/shared/ui/util/terms_util.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 extern std::string GetLocalizedFileName(const std::string& base_name,
                                         const std::string& locale,
@@ -74,7 +70,7 @@ TEST_F(FileLocationsTest, TestFileNameLocaleWithExtension) {
 // Tests that locale/languages available on iOS are mapped to either a
 // translated Chrome Terms of Service or to English.
 TEST_F(FileLocationsTest, TestTermsOfServiceForSupportedLanguages) {
-  // TODO(crbug.com/522638): List of available localized terms_*.html files.
+  // TODO(crbug.com/41195990): List of available localized terms_*.html files.
   // This list is manually maintained as new locales are added to
   // components/resources/terms/.
   NSSet* localizedTermsHtml = [NSSet
@@ -108,7 +104,8 @@ TEST_F(FileLocationsTest, TestTermsOfServiceForSupportedLanguages) {
   NSUInteger numberOfMissingFiles = [incorrectFallback count];
   EXPECT_EQ(numberOfMissingFiles, 0U);
   if (numberOfMissingFiles) {
-    NSLog(@"Add the following file%@ to ios/chrome/browser/ui/BUILD.gn",
+    NSLog(@"Add the following file%@ to "
+          @"components/resources/terms_resources.filelist",
           numberOfMissingFiles > 1 ? @"s" : @"");
     for (NSString* language in incorrectFallback) {
       NSLog(@"  terms_%@.html", language);

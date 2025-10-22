@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/wallpaper/wallpaper_utils/scored_sample.h"
 
 #include <type_traits>
@@ -70,7 +75,16 @@ SkColor ComputeWallpaperSeedColor(gfx::ImageSkia image) {
     return gfx::kGoogleBlue400;
   }
 
-  std::vector<Argb> best_colors = RankedSuggestions(result.color_to_count);
+  // TODO(b/314178502): Remove this re-packing when the type of QuantizerResult
+  // is fixed.
+  std::map<Argb, uint32_t> color_to_count;
+  for (const auto& it : result.color_to_count) {
+    // Re-pack the color_to_count map so that we can pass it to
+    // `RankedSuggestions`.
+    color_to_count.emplace(it.first, static_cast<uint32_t>(it.second));
+  }
+
+  std::vector<Argb> best_colors = RankedSuggestions(color_to_count);
 
   return best_colors.front();
 }

@@ -12,6 +12,10 @@
 #include "gpu/ipc/common/surface_handle.h"
 #include "services/viz/privileged/mojom/compositing/display_private.mojom.h"
 
+namespace gpu {
+class Scheduler;
+}  // namespace gpu
+
 namespace viz {
 
 struct DebugRendererSettings;
@@ -22,7 +26,7 @@ class OutputSurface;
 // Handles creating OutputSurface for FrameSinkManagerImpl.
 class OutputSurfaceProvider {
  public:
-  virtual ~OutputSurfaceProvider() {}
+  virtual ~OutputSurfaceProvider() = default;
 
   // Needs to be called before calling the CreateOutputSurface function. Output
   // of this should feed into the CreateOutputSurface function.
@@ -39,8 +43,12 @@ class OutputSurfaceProvider {
       DisplayCompositorMemoryAndTaskController* gpu_dependency,
       const RendererSettings& renderer_settings,
       const DebugRendererSettings* debug_settings) = 0;
+
+  virtual gpu::SharedImageManager* GetSharedImageManager() = 0;
+  virtual gpu::SyncPointManager* GetSyncPointManager() = 0;
+  virtual gpu::Scheduler* GetGpuScheduler() = 0;
 };
 
 }  // namespace viz
 
-#endif  //  COMPONENTS_VIZ_SERVICE_DISPLAY_EMBEDDER_OUTPUT_SURFACE_PROVIDER_H_
+#endif  // COMPONENTS_VIZ_SERVICE_DISPLAY_EMBEDDER_OUTPUT_SURFACE_PROVIDER_H_

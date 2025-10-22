@@ -24,8 +24,12 @@ class DragDropControllerTestApi {
 
   bool enabled() const { return controller_->enabled_; }
 
+  views::Widget* drag_image_widget() {
+    return controller_->drag_image_widget_.get();
+  }
+
  private:
-  raw_ptr<DragDropController, ExperimentalAsh> controller_;
+  raw_ptr<DragDropController> controller_;
 };
 
 }  // namespace ash

@@ -17,8 +17,8 @@ const int WindowSizer::kWindowMaxDefaultWidth = 1200;
 
 // static
 gfx::Point WindowSizer::GetDefaultPopupOrigin(const gfx::Size& size) {
-  NSRect work_area = [[NSScreen mainScreen] visibleFrame];
-  NSRect main_area = [[[NSScreen screens] firstObject] frame];
+  NSRect work_area = NSScreen.mainScreen.visibleFrame;
+  NSRect main_area = NSScreen.screens.firstObject.frame;
   NSPoint corner = NSMakePoint(NSMinX(work_area), NSMaxY(work_area));
 
   if (Browser* browser = chrome::FindLastActive()) {
@@ -26,16 +26,16 @@ gfx::Point WindowSizer::GetDefaultPopupOrigin(const gfx::Size& size) {
     NSRect window_frame = [window frame];
 
     // Limit to not overflow the work area right and bottom edges.
-    NSPoint limit = NSMakePoint(
-        std::min(NSMinX(window_frame) + kWindowTilePixels,
-                 NSMaxX(work_area) - size.width()),
-        std::max(NSMaxY(window_frame) - kWindowTilePixels,
-                 NSMinY(work_area) + size.height()));
+    NSPoint limit =
+        NSMakePoint(std::min(NSMinX(window_frame) + kWindowTilePixels,
+                             NSMaxX(work_area) - size.width()),
+                    std::max(NSMaxY(window_frame) - kWindowTilePixels,
+                             NSMinY(work_area) + size.height()));
 
     // Adjust corner to now overflow the work area left and top edges, so
     // that if a popup does not fit the title-bar is remains visible.
-    corner = NSMakePoint(std::max(corner.x, limit.x),
-                         std::min(corner.y, limit.y));
+    corner =
+        NSMakePoint(std::max(corner.x, limit.x), std::min(corner.y, limit.y));
   }
 
   return gfx::Point(corner.x, NSHeight(main_area) - corner.y);

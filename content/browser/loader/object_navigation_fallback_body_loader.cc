@@ -97,7 +97,7 @@ void ObjectNavigationFallbackBodyLoader::OnReceiveEarlyHints(
 void ObjectNavigationFallbackBodyLoader::OnReceiveResponse(
     network::mojom::URLResponseHeadPtr,
     mojo::ScopedDataPipeConsumerHandle body,
-    absl::optional<mojo_base::BigBuffer> cached_metadata) {
+    std::optional<mojo_base::BigBuffer> cached_metadata) {
   // Should have already happened.
   NOTREACHED();
 }
@@ -137,8 +137,8 @@ void ObjectNavigationFallbackBodyLoader::OnComplete(
   navigation_request_->RenderFallbackContentForObjectTag();
 }
 
-void ObjectNavigationFallbackBodyLoader::OnDataAvailable(const void* data,
-                                                         size_t num_bytes) {}
+void ObjectNavigationFallbackBodyLoader::OnDataAvailable(
+    base::span<const uint8_t> data) {}
 
 void ObjectNavigationFallbackBodyLoader::OnDataComplete() {}
 

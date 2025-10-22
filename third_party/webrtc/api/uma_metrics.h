@@ -119,16 +119,6 @@ enum AddIceCandidateResult {
   kAddIceCandidateMax
 };
 
-// Metric for recording which api surface was used to enable simulcast.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum SimulcastApiVersion {
-  kSimulcastApiVersionNone = 0,
-  kSimulcastApiVersionLegacy = 1,
-  kSimulcastApiVersionSpecCompliant = 2,
-  kSimulcastApiVersionMax
-};
-
 // Metrics for reporting usage of BUNDLE.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -183,6 +173,67 @@ enum RtcpMuxPolicyUsage {
   kRtcpMuxPolicyUsageRequire = 0,
   kRtcpMuxPolicyUsageNegotiate = 1,
   kRtcpMuxPolicyUsageMax
+};
+
+// Metrics for SDP munging.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. Keep in sync with SdpMungingType from
+// tools/metrics/histograms/metadata/web_rtc/enums.xml
+enum SdpMungingType {
+  kNoModification = 0,
+  kUnknownModification = 1,
+  kWithoutCreateAnswer = 2,
+  kWithoutCreateOffer = 3,
+  kNumberOfContents = 4,
+  // Transport-related munging.
+  kIceOptions = 20,
+  kIcePwd = 21,
+  kIceUfrag = 22,
+  kIceMode = 23,
+  kDtlsSetup = 24,
+  kMid = 25,
+  kPayloadTypes = 26,
+  kSsrcs = 27,
+  kIceOptionsRenomination = 28,
+  kDirection = 29,
+  // RTP header extension munging.
+  kRtpHeaderExtensionRemoved = 40,
+  kRtpHeaderExtensionAdded = 41,
+  kRtpHeaderExtensionModified = 42,
+  // Audio-related munging.
+  kAudioCodecsRemoved = 60,
+  kAudioCodecsAdded = 61,
+  kAudioCodecsReordered = 62,
+  kAudioCodecsAddedMultiOpus = 63,
+  kAudioCodecsAddedL16 = 64,
+  kAudioCodecsRtcpFbAudioNack = 65,
+  kAudioCodecsFmtpOpusFec = 66,
+  kAudioCodecsFmtpOpusCbr = 67,
+  kAudioCodecsFmtpOpusStereo = 68,
+  kAudioCodecsFmtpOpusDtx = 69,
+  kAudioCodecsFmtp = 70,
+  kAudioCodecsRtcpFb = 71,
+  kAudioCodecsRtcpFbRrtr = 72,
+  // Video-related munging.
+  kVideoCodecsRemoved = 80,
+  kVideoCodecsAdded = 81,
+  kVideoCodecsReordered = 82,
+  kVideoCodecsLegacySimulcast = 83,
+  kVideoCodecsFmtpH264SpsPpsIdrInKeyframe = 84,
+  kVideoCodecsFmtp = 85,
+  kVideoCodecsRtcpFb = 86,
+  kVideoCodecsAddedWithRawPacketization = 87,
+  kVideoCodecsModifiedWithRawPacketization = 88,
+  kMaxValue,
+};
+
+// The outcome of setting the local description, whether SDP munging is detected
+// and if the should be accepted or rejected. Keep in sync with
+// SdpMungingOutcome from tools/metrics/histograms/metadata/web_rtc/enums.xml
+enum class SdpMungingOutcome {
+  kAccepted = 0,
+  kRejected = 1,
+  kMaxValue = kRejected,
 };
 
 // When adding new metrics please consider using the style described in

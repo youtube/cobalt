@@ -75,7 +75,7 @@ class BufferRequesterTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner());
 
     std::vector<uint8_t> data = {1, 2, 3};
-    buffer_ = media::DecoderBuffer::CopyFrom(data.data(), 3);
+    buffer_ = media::DecoderBuffer::CopyFrom(data);
     buffer_->set_duration(base::Seconds(1));
     buffer_->set_timestamp(base::Seconds(2));
 
@@ -147,8 +147,8 @@ TEST_F(BufferRequesterTest, ConfigReceivedOverMojoCallsClientCallback) {
   EXPECT_CALL(mojo_receiver_, GetBuffer(testing::_))
       .WillOnce([this](GetBufferCallback cb) {
         MojoPipePair pipes = GetMojoPipePair();
-        mojom::AudioStreamInfoPtr stream_info(
-            absl::in_place_t(), second_config_, std::move(pipes.second));
+        mojom::AudioStreamInfoPtr stream_info(std::in_place_t(), second_config_,
+                                              std::move(pipes.second));
         data_producer_ = std::move(pipes.first);
         std::move(cb).Run(mojom::GetAudioBufferResponse::NewStreamInfo(
             std::move(stream_info)));

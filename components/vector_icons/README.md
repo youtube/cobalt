@@ -12,6 +12,8 @@ Some of the `.icon` files have multiple variants of the same icon (contained wit
 
 ## Converting an SVG to .icon format
 
+**Note: If you are a Google employee, please reference [go/chrome-gm3-icons](http://go/chrome-gm3-icons) to ensure standardized icon sizes and weights.**
+
 [This tool](http://evanstade.github.io/skiafy/) generates `.icon` file output from SVGs. (If you want to contribute improvements, [here's the project](https://github.com/evanstade/skiafy).)
 
 It handles only a small subset of SVG (paths, circles, etc.) and it's finicky about what it expects as the format, but with a minor amount of manual intervention beforehand, it mostly spits out usable `.icon` output. It will often work better if you run the SVG through SVGO first, which is a separate project (an SVG minifier). [Jake Archibald's SVGOMG](https://jakearchibald.github.io/svgomg/) is a web interface to SVGO. If any manual adjustments need to be made to the output, the [SVG Path spec](https://www.w3.org/TR/SVG/paths.html) is a helpful reference; compare with the relevant [Chromium drawing commands](https://cs.chromium.org/chromium/src/ui/gfx/vector_icon_types.h?rcl=b9bf332694f083c6767416b69d0f8539d1c44707&l=22).
@@ -21,6 +23,8 @@ Some SVGs are already pretty minimal, like the ones at [the Material Design Icon
 ### Troubleshooting icon generation
 
 + **My colors are inverted!** There is probably a surplus square path encompassing your icon. For example, `<path d="M0 0h16v16H0z"/>`. Delete this and try again.
+
++ **Nothing is rendering!** Lately, [Google repo icons](https://fonts.google.com/icons) have tended to include an odd viewbox directive: `viewBox="0 -960 960 960"`. Address this by entering 960 as the y offset in Skiafy (see "Translate" `<input>`). Bonus points for [patching Skiafy](https://github.com/evanstade/skiafy/issues/46) to do this automatically.
 
 ## Using .icon files
 
@@ -46,6 +50,16 @@ If the size argument is unspecified, the size will be taken from the smallest ic
 
 `CreateVectorIcon()` will use the icon definition that best matches the final pixel size required, which is the product of DIP and the device scale factor (DSF). For example, for a DIP size of 32 and DSF of 100%, a rep with `CANVAS_DIMENSIONS, 32,` would be used, whereas a configuration with DSF of 150% would prefer a rep with `CANVAS_DIMENSIONS, 48`.
 
+### Preparing for review
+
+1. Prefer to add new icons in the same commit that introduces the code which uses the icons, rather than as a standalone change. This will:
+    1. give reviewers a chance to verify that the icon is being used correctly and is added to the appropriate directory.
+    1. create an easily discoverable two-way connection between icon and code in git history.
+    1. ensure the icon is removed if the code change ends up being reverted for any reason.
+1. In the commit description,
+    1. reference the source SVG.
+    1. link to a screenshot, preferably hosted on a publicly visible site such as the Chromium issue tracker.
+
 ## FAQ
 
 ### Where can I use vector icons?
@@ -55,6 +69,8 @@ Chrome's native UI on desktop platforms. Currently the vector icons are in exten
 ### How can I preview vector icons?
 
 Use [this extension](https://github.com/sadrulhc/vector-icons) to preview icons in [codesearch](http://cs.chromium.org/).
+
+You can also use the [Vector Icon Viewer](https://marketplace.visualstudio.com/items?itemName=adolfdaniel.vscode-chromium-vector-icons) extension for VS Code to preview icons in Visual Studio. This is especially helpful when adding new icons.
 
 You can also build and run the `views_examples_exe` (or `views_examples_with_content_exe`) target and select "Vector Icons" from the dropdown menu. This loads a simple interface which allows you view a provided vector icon file at a specified size and color. Contributions to improve this interface are welcome ([bug](https://bugs.chromium.org/p/chromium/issues/detail?id=630295)).
 

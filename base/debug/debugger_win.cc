@@ -4,8 +4,9 @@
 
 #include "base/debug/debugger.h"
 
-#include <stdlib.h>
 #include <windows.h>
+
+#include <stdlib.h>
 
 namespace base {
 namespace debug {
@@ -15,8 +16,9 @@ bool BeingDebugged() {
 }
 
 void BreakDebuggerAsyncSafe() {
-  if (IsDebugUISuppressed())
+  if (IsDebugUISuppressed()) {
     _exit(1);
+  }
 
   __debugbreak();
 }

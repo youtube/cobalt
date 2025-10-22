@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include <stdlib.h>
+
+#include <array>
 
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -77,43 +79,33 @@ class ScreenOrientationBrowserTest : public ContentBrowserTest  {
   }
 
   int GetOrientationAngle() {
-    int angle =
-        ExecuteScriptAndGetValue(shell()->web_contents()->GetPrimaryMainFrame(),
-                                 "screen.orientation.angle")
-            .GetInt();
-    return angle;
+    return EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                  "screen.orientation.angle")
+        .ExtractInt();
   }
 
   std::string GetOrientationType() {
-    std::string type =
-        ExecuteScriptAndGetValue(shell()->web_contents()->GetPrimaryMainFrame(),
-                                 "screen.orientation.type")
-            .GetString();
-    return type;
+    return EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                  "screen.orientation.type")
+        .ExtractString();
   }
 
   bool ScreenOrientationSupported() {
-    bool support =
-        ExecuteScriptAndGetValue(shell()->web_contents()->GetPrimaryMainFrame(),
-                                 "'orientation' in screen")
-            .GetBool();
-    return support;
+    return EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                  "'orientation' in screen")
+        .ExtractBool();
   }
 
   bool WindowOrientationSupported() {
-    bool support =
-        ExecuteScriptAndGetValue(shell()->web_contents()->GetPrimaryMainFrame(),
-                                 "'orientation' in window")
-            .GetBool();
-    return support;
+    return EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                  "'orientation' in window")
+        .ExtractBool();
   }
 
   int GetWindowOrientationAngle() {
-    int angle =
-        ExecuteScriptAndGetValue(shell()->web_contents()->GetPrimaryMainFrame(),
-                                 "window.orientation")
-            .GetInt();
-    return angle;
+    return EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                  "window.orientation")
+        .ExtractInt();
   }
 };
 
@@ -142,17 +134,16 @@ class ScreenOrientationOOPIFBrowserTest : public ScreenOrientationBrowserTest {
 // actually support MacOS X if and when it switches to Aura.
 #if defined(USE_AURA) || BUILDFLAG(IS_ANDROID)
 // Flaky on Chrome OS: http://crbug.com/468259
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ScreenOrientationChange DISABLED_ScreenOrientationChange
 #else
 #define MAYBE_ScreenOrientationChange ScreenOrientationChange
 #endif
 IN_PROC_BROWSER_TEST_F(ScreenOrientationBrowserTest,
                        MAYBE_ScreenOrientationChange) {
-  std::string types[] = { "portrait-primary",
-                          "portrait-secondary",
-                          "landscape-primary",
-                          "landscape-secondary" };
+  auto types =
+      std::to_array<std::string>({"portrait-primary", "portrait-secondary",
+                                  "landscape-primary", "landscape-secondary"});
   GURL test_url = GetTestUrl("screen_orientation",
                              "screen_orientation_screenorientationchange.html");
 
@@ -178,7 +169,7 @@ IN_PROC_BROWSER_TEST_F(ScreenOrientationBrowserTest,
 #endif  // defined(USE_AURA) || BUILDFLAG(IS_ANDROID)
 
 // Flaky on Chrome OS: http://crbug.com/468259
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_WindowOrientationChange DISABLED_WindowOrientationChange
 #else
 #define MAYBE_WindowOrientationChange WindowOrientationChange
@@ -297,8 +288,9 @@ IN_PROC_BROWSER_TEST_F(ScreenOrientationOOPIFBrowserTest, ScreenOrientation) {
   WaitForResizeComplete(shell()->web_contents());
 #endif  // USE_AURA || BUILDFLAG(IS_ANDROID)
 
-  std::string types[] = {"portrait-primary", "portrait-secondary",
-                         "landscape-primary", "landscape-secondary"};
+  auto types =
+      std::to_array<std::string>({"portrait-primary", "portrait-secondary",
+                                  "landscape-primary", "landscape-secondary"});
 
   int angle = GetOrientationAngle();
 
@@ -333,7 +325,7 @@ IN_PROC_BROWSER_TEST_F(ScreenOrientationOOPIFBrowserTest, ScreenOrientation) {
 // blink::mojom::FrameWidget::EnableDeviceEmulation, which calls
 // RenderWidget::Resize on the renderer side.  The test fakes this by directly
 // sending the resize message to the widget.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ScreenOrientationInPendingMainFrame \
   DISABLED_ScreenOrientationInPendingMainFrame
 #else
@@ -358,7 +350,7 @@ IN_PROC_BROWSER_TEST_F(ScreenOrientationOOPIFBrowserTest,
   GURL second_url(embedded_test_server()->GetURL("b.com", "/title1.html"));
   TestNavigationManager delayer(shell()->web_contents(), second_url);
   shell()->LoadURL(second_url);
-  EXPECT_TRUE(delayer.WaitForRequestStart());
+  delayer.WaitForSpeculativeRenderFrameHostCreation();
 
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
   RenderFrameHostImpl* pending_rfh =
@@ -432,7 +424,7 @@ class ScreenOrientationLockForPrerenderBrowserTest
 
   // ScreenOrientationBrowserTest:
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     ScreenOrientationBrowserTest::SetUp();
   }
 
@@ -488,8 +480,9 @@ IN_PROC_BROWSER_TEST_F(ScreenOrientationLockForPrerenderBrowserTest,
   GURL initial_url = embedded_test_server()->GetURL("/empty.html");
   NavigateToURLBlockUntilNavigationsComplete(shell(), initial_url, 1);
 
-  EXPECT_TRUE(ExecuteScript(web_contents()->GetPrimaryMainFrame(),
-                            "screen.orientation.lock('portrait')"));
+  EXPECT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
+                     "screen.orientation.lock('portrait')",
+                     EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
 
   // Delegate did apply lock once.
   EXPECT_EQ(1, delegate.lock_count());
@@ -528,8 +521,8 @@ IN_PROC_BROWSER_TEST_F(ScreenOrientationLockForPrerenderBrowserTest,
 
   // Start a prerender.
   const GURL prerender_url = embedded_test_server()->GetURL("/title1.html");
-  int host_id = prerender_helper_.AddPrerender(prerender_url);
-  ASSERT_NE(host_id, content::RenderFrameHost::kNoFrameTreeNodeId);
+  FrameTreeNodeId host_id = prerender_helper_.AddPrerender(prerender_url);
+  ASSERT_TRUE(host_id);
 
   // Shut down the prerendered page. It shouldn't trigger orientation unlock.
   test::PrerenderHostObserver prerender_observer(*web_contents(), host_id);

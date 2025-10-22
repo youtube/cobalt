@@ -14,8 +14,8 @@
 
 # Note: This is copied from //content/test/BUILD.gn.
 
+import("//build/config/cast.gni")
 import("//build/config/chrome_build.gni")
-import("//build/config/chromecast_build.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
@@ -42,7 +42,7 @@ import("//v8/gni/v8.gni")
 shell_use_toolkit_views = toolkit_views && !is_castos
 
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_ios) {
@@ -98,6 +98,7 @@ static_library("browsertest_support") {
     "//base:i18n",
     "//base/test:test_config",
     "//base/test:test_support",
+    "//build:chromeos_buildflags",
     "//cobalt/shell:cobalt_shell_app",
     "//components/network_session_configurator/common:common",
     "//components/services/storage:storage",
@@ -156,7 +157,6 @@ if (is_android) {
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
-      "//base:jni_java",
       "//cobalt/shell/android:cobalt_shell_browsertests_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
@@ -164,6 +164,7 @@ if (is_android) {
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
       "//testing/android/native_test:native_test_java",
+      "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_java",
     ]
   }
@@ -213,7 +214,6 @@ test("cobalt_browsertests") {
 
   public_deps = [
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/test:test_interfaces",
     "//content/test:web_ui_mojo_test_resources",
   ]
@@ -223,10 +223,10 @@ test("cobalt_browsertests") {
     ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
+    "//build:chromeos_buildflags",
     "//cc/slim",
     "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:pak",
-    "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
     "//components/discardable_memory/common",
@@ -246,10 +246,9 @@ test("cobalt_browsertests") {
     "//components/web_package",
     "//components/web_package/test_support",
     "//content/app:for_content_tests",
-    "//content/browser:buildflags",
     "//content/browser:for_content_tests",
-    "//content/browser/attribution_reporting:attribution_reporting_proto",
     "//content/browser/attribution_reporting:mojo_bindings",
+    "//content/browser/attribution_reporting:registration_result_mojom",
     "//content/browser/background_sync:background_sync_proto",
     "//content/child:for_content_tests",
     "//content/gpu",
@@ -264,7 +263,7 @@ test("cobalt_browsertests") {
 
     # This may need to be modified for cobalt-specific testing
     "//content/test:test_support",
-    "//content/test:web_ui_test_mojo_bindings",
+    "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
     "//device/bluetooth:mocks",
@@ -404,7 +403,6 @@ test("cobalt_browsertests") {
       "//mojo/public/cpp/platform",
       "//mojo/public/mojom/base",
     ]
-    data_deps += [ "//mojo/core:shared_library" ]
     if (use_ozone) {
       deps += [ "//ui/ozone" ]
     }

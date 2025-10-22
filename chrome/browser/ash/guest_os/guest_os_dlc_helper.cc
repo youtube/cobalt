@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/guest_os/guest_os_dlc_helper.h"
 
+#include <string_view>
+
 #include "base/memory/ptr_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -74,16 +76,15 @@ Actionability GetActionability(GuestOsDlcInstallation::Error err) {
 
 GuestOsDlcInstallation::GuestOsDlcInstallation(
     std::string dlc_id,
-    bool retry,
     base::OnceCallback<void(Result)> completion_callback,
     ProgressCallback progress_callback)
     : dlc_id_(std::move(dlc_id)),
-      retries_remaining_(retry ? kMaxRetries : 0),
+      retries_remaining_(kMaxRetries),
       completion_callback_(std::move(completion_callback)),
       progress_callback_(std::move(progress_callback)) {
   // This object represents the installation so begin that installation in
-  // its constructor.
-  StartInstall();
+  // its constructor. First, check if the DLC is installed.
+  CheckState();
 }
 
 GuestOsDlcInstallation::~GuestOsDlcInstallation() {
@@ -92,7 +93,49 @@ GuestOsDlcInstallation::~GuestOsDlcInstallation() {
   }
 }
 
+void GuestOsDlcInstallation::CancelGracefully() {
+  gracefully_cancelled_ = true;
+  retries_remaining_ = 0;
+}
+
+void GuestOsDlcInstallation::CheckState() {
+  ash::DlcserviceClient::Get()->GetDlcState(
+      dlc_id_, base::BindOnce(&GuestOsDlcInstallation::OnGetDlcStateCompleted,
+                              weak_factory_.GetWeakPtr()));
+}
+
+void GuestOsDlcInstallation::OnGetDlcStateCompleted(
+    std::string_view err,
+    const dlcservice::DlcState& dlc_state) {
+  ash::DlcserviceClient::InstallResult result;
+  switch (dlc_state.state()) {
+    case dlcservice::DlcState::INSTALLED:
+      result.dlc_id = dlc_state.id();
+      result.root_path = dlc_state.root_path();
+      result.error = dlcservice::kErrorNone;
+      OnDlcInstallCompleted(result);
+      break;
+    case dlcservice::DlcState::NOT_INSTALLED:
+      StartInstall();
+      break;
+    case dlcservice::DlcState::INSTALLING:
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&GuestOsDlcInstallation::CheckState,
+                         weak_factory_.GetWeakPtr()),
+          kBetweenRetryDelay);
+      break;
+    default:
+      NOTREACHED();
+  }
+}
+
 void GuestOsDlcInstallation::StartInstall() {
+  // Skip calling install if we've canceled.
+  if (gracefully_cancelled_) {
+    OnDlcInstallCompleted({});
+    return;
+  }
   dlcservice::InstallRequest install_request;
   install_request.set_id(dlc_id_);
   ash::DlcserviceClient::Get()->Install(
@@ -104,6 +147,10 @@ void GuestOsDlcInstallation::StartInstall() {
 
 void GuestOsDlcInstallation::OnDlcInstallCompleted(
     const ash::DlcserviceClient::InstallResult& result) {
+  if (gracefully_cancelled_) {
+    std::move(completion_callback_).Run(base::unexpected(Error::Cancelled));
+    return;
+  }
   CHECK(result.dlc_id == dlc_id_);
   if (result.error == dlcservice::kErrorNone) {
     std::move(completion_callback_)
@@ -129,7 +176,7 @@ void GuestOsDlcInstallation::OnDlcInstallCompleted(
         return;
       }
       // If we're out of retries then we can't action this error ourselves.
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
 
     case Actionability::None:
       // Unless we know the cause of an error (because it was actionable or we

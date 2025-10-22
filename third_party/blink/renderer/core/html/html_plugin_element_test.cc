@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
 
+#include "base/containers/to_vector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/web/web_plugin_params.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -38,8 +39,8 @@ class TestPluginLocalFrameClient : public EmptyLocalFrameClient {
     WebPluginParams params;
     params.url = url;
     params.mime_type = mime_type;
-    params.attribute_names = param_names;
-    params.attribute_values = param_values;
+    params.attribute_names = base::ToVector(param_names, ToWebString);
+    params.attribute_values = base::ToVector(param_values, ToWebString);
     params.load_manually = load_manually;
 
     WebPlugin* web_plugin = new FakeWebPlugin(params);
@@ -108,8 +109,8 @@ TEST_P(HTMLPlugInElementTest, RemovePlugin) {
   GetDocument().body()->setInnerHTML(
       String::Format(kDivWithPlugin, container_type, container_type));
 
-  auto* plugin =
-      To<HTMLPlugInElement>(GetDocument().getElementById("test_plugin"));
+  auto* plugin = To<HTMLPlugInElement>(
+      GetDocument().getElementById(AtomicString("test_plugin")));
   ASSERT_TRUE(plugin);
   EXPECT_EQ(container_type, plugin->tagName().LowerASCII());
 
@@ -125,7 +126,7 @@ TEST_P(HTMLPlugInElementTest, RemovePlugin) {
   ASSERT_TRUE(GetFrameView().Plugins().Contains(owned_plugin));
 
   plugin->parentNode()->removeChild(plugin);
-  EXPECT_FALSE(GetDocument().HasElementWithId("test_plugin"));
+  EXPECT_FALSE(GetDocument().HasElementWithId(AtomicString("test_plugin")));
 
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0u, GetFrameView().Plugins().size());

@@ -19,53 +19,61 @@ import android.widget.EditText;
 import android.widget.NumberPicker;
 import android.widget.TextView;
 
-public class MemConsumer extends Activity {
-    public static final String NOTIFICATION_ACTION =
-            MemConsumer.class.toString() + ".NOTIFICATION";
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-    private ResidentService mResidentService;
+@NullMarked
+public class MemConsumer extends Activity {
+    public static final String NOTIFICATION_ACTION = MemConsumer.class.toString() + ".NOTIFICATION";
+
+    private @Nullable ResidentService mResidentService;
     private int mMemory;
     private NumberPicker mMemoryPicker;
 
-    private ServiceConnection mServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder binder) {
-            mResidentService = ((ResidentService.ServiceBinder) binder).getService();
-            mResidentService.useMemory(mMemory);
-        }
+    private final ServiceConnection mServiceConnection =
+            new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder binder) {
+                    mResidentService = ((ResidentService.ServiceBinder) binder).getService();
+                    mResidentService.useMemory(mMemory);
+                }
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            mResidentService = null;
-        }
-    };
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    mResidentService = null;
+                }
+            };
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mMemoryPicker = new NumberPicker(this);
         mMemoryPicker.setGravity(Gravity.CENTER);
         mMemoryPicker.setMaxValue(Integer.MAX_VALUE);
         mMemoryPicker.setMinValue(0);
-        mMemoryPicker.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
-            @Override
-            public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
-                updateMemoryConsumption(picker.getValue());
-            }
-        });
+        mMemoryPicker.setOnValueChangedListener(
+                new NumberPicker.OnValueChangeListener() {
+                    @Override
+                    public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
+                        updateMemoryConsumption(picker.getValue());
+                    }
+                });
         for (int i = 0; i < mMemoryPicker.getChildCount(); i++) {
             View child = mMemoryPicker.getChildAt(i);
             if (child instanceof EditText) {
                 EditText editText = (EditText) child;
-                editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-                    @Override
-                    public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                        if (v.getText().length() > 0) {
-                            updateMemoryConsumption(Integer.parseInt(v.getText().toString()));
-                        }
-                        return false;
-                    }
-                });
+                editText.setOnEditorActionListener(
+                        new TextView.OnEditorActionListener() {
+                            @Override
+                            public boolean onEditorAction(
+                                    TextView v, int actionId, KeyEvent event) {
+                                if (v.getText().length() > 0) {
+                                    updateMemoryConsumption(
+                                            Integer.parseInt(v.getText().toString()));
+                                }
+                                return false;
+                            }
+                        });
             }
         }
         setContentView(mMemoryPicker);
@@ -92,9 +100,10 @@ public class MemConsumer extends Activity {
                 Intent resident = new Intent();
                 resident.setClass(this, ResidentService.class);
                 startService(resident);
-                bindService(new Intent(this, ResidentService.class),
-                            mServiceConnection,
-                            Context.BIND_AUTO_CREATE);
+                bindService(
+                        new Intent(this, ResidentService.class),
+                        mServiceConnection,
+                        Context.BIND_AUTO_CREATE);
             }
         } else {
             mResidentService.useMemory(mMemory);

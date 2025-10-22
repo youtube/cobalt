@@ -8,12 +8,13 @@
 #include <stddef.h>
 
 #include <map>
+#include <optional>
 
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_span.h"
 #include "components/cbor/cbor_export.h"
 #include "components/cbor/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // Concise Binary Object Representation (CBOR) decoder as defined by
 // https://tools.ietf.org/html/rfc7049. This decoder only accepts canonical CBOR
@@ -26,7 +27,7 @@
 //  - 3: UTF-8 strings.
 //  - 4: Definite-length arrays.
 //  - 5: Definite-length maps.
-//  - 7: Simple values.
+//  - 7: Simple values or floating point values.
 //
 //  * Note: For simplicity, this implementation represents both signed and
 //    unsigned integers with signed int64_t. This reduces the effective range
@@ -123,6 +124,13 @@ class CBOR_EXPORT Reader {
     // Enabling this option will still not allow duplicate keys, in case of
     // which the DUPLICATE_KEY error will be emitted.
     bool allow_and_canonicalize_out_of_order_keys = false;
+
+    // Causes floating point in CBOR to be decoded. This is an option as
+    // several users of this library do not want to accept floats in CBOR. When
+    // this option is set to `false` any floating point values encountered
+    // during decoding will set raise the `UNSUPPORTED_FLOATING_POINT_VALUE`
+    // error.
+    bool allow_floating_point = false;
   };
 
   Reader(const Reader&) = delete;
@@ -142,21 +150,21 @@ class CBOR_EXPORT Reader {
   //
   // Returns an empty Optional if not all the data was consumed, and sets
   // |error_code_out| to EXTRANEOUS_DATA in this case.
-  static absl::optional<Value> Read(base::span<const uint8_t> input_data,
-                                    DecoderError* error_code_out = nullptr,
-                                    int max_nesting_level = kCBORMaxDepth);
+  static std::optional<Value> Read(base::span<const uint8_t> input_data,
+                                   DecoderError* error_code_out = nullptr,
+                                   int max_nesting_level = kCBORMaxDepth);
 
   // A version of |Read|, above, that takes a |Config| structure to allow
   // additional controls.
-  static absl::optional<Value> Read(base::span<const uint8_t> input_data,
-                                    const Config& config);
+  static std::optional<Value> Read(base::span<const uint8_t> input_data,
+                                   const Config& config);
 
   // A version of |Read| that takes some fields of |Config| as parameters to
   // avoid having to construct a |Config| object explicitly.
-  static absl::optional<Value> Read(base::span<const uint8_t> input_data,
-                                    size_t* num_bytes_consumed,
-                                    DecoderError* error_code_out = nullptr,
-                                    int max_nesting_level = kCBORMaxDepth);
+  static std::optional<Value> Read(base::span<const uint8_t> input_data,
+                                   size_t* num_bytes_consumed,
+                                   DecoderError* error_code_out = nullptr,
+                                   int max_nesting_level = kCBORMaxDepth);
 
   // Translates errors to human-readable error messages.
   static const char* ErrorCodeToString(DecoderError error_code);
@@ -179,24 +187,26 @@ class CBOR_EXPORT Reader {
     uint64_t value;
   };
 
-  absl::optional<DataItemHeader> DecodeDataItemHeader();
-  absl::optional<Value> DecodeCompleteDataItem(const Config& config,
-                                               int max_nesting_level);
-  absl::optional<Value> DecodeValueToNegative(uint64_t value);
-  absl::optional<Value> DecodeValueToUnsigned(uint64_t value);
-  absl::optional<Value> DecodeToSimpleValue(const DataItemHeader& header);
-  absl::optional<uint64_t> ReadVariadicLengthInteger(uint8_t additional_info);
-  absl::optional<Value> ReadByteStringContent(const DataItemHeader& header);
-  absl::optional<Value> ReadStringContent(const DataItemHeader& header,
-                                          const Config& config);
-  absl::optional<Value> ReadArrayContent(const DataItemHeader& header,
-                                         const Config& config,
-                                         int max_nesting_level);
-  absl::optional<Value> ReadMapContent(const DataItemHeader& header,
-                                       const Config& config,
-                                       int max_nesting_level);
-  absl::optional<uint8_t> ReadByte();
-  absl::optional<base::span<const uint8_t>> ReadBytes(uint64_t num_bytes);
+  std::optional<DataItemHeader> DecodeDataItemHeader();
+  std::optional<Value> DecodeCompleteDataItem(const Config& config,
+                                              int max_nesting_level);
+  std::optional<Value> DecodeValueToNegative(uint64_t value);
+  std::optional<Value> DecodeValueToUnsigned(uint64_t value);
+  std::optional<Value> DecodeToSimpleValueOrFloat(const DataItemHeader& header,
+                                                  const Config& config);
+  std::optional<uint64_t> ReadVariadicLengthInteger(Value::Type type,
+                                                    uint8_t additional_info);
+  std::optional<Value> ReadByteStringContent(const DataItemHeader& header);
+  std::optional<Value> ReadStringContent(const DataItemHeader& header,
+                                         const Config& config);
+  std::optional<Value> ReadArrayContent(const DataItemHeader& header,
+                                        const Config& config,
+                                        int max_nesting_level);
+  std::optional<Value> ReadMapContent(const DataItemHeader& header,
+                                      const Config& config,
+                                      int max_nesting_level);
+  std::optional<uint8_t> ReadByte();
+  std::optional<base::span<const uint8_t>> ReadBytes(uint64_t num_bytes);
   bool IsKeyInOrder(const Value& new_key,
                     const std::map<Value, Value, Value::Less>& map);
   // Check if `new_key` is a duplicate of a key that already exists in the
@@ -209,7 +219,7 @@ class CBOR_EXPORT Reader {
 
   size_t num_bytes_remaining() const { return rest_.size(); }
 
-  base::span<const uint8_t> rest_;
+  base::raw_span<const uint8_t> rest_;
   DecoderError error_code_;
 };
 

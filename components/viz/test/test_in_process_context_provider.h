@@ -22,7 +22,7 @@ class GrDirectContext;
 
 namespace gpu {
 class GLInProcessContext;
-class GpuProcessActivityFlags;
+class GpuProcessShmCount;
 class RasterInProcessContext;
 
 namespace raster {
@@ -35,10 +35,10 @@ class GrContextForGLES2Interface;
 }
 
 namespace viz {
+class GpuServiceImpl;
 
 enum TestContextType {
   kGLES2,            // Provides GLES2Interface.
-  kGLES2WithRaster,  // Provides GLES2Interface and RasterInterface.
   kSoftwareRaster,   // Provides RasterInterface for software raster.
   kGpuRaster         // Provides RasterInterface for GPU raster.
 };
@@ -52,7 +52,7 @@ class TestInProcessContextProvider
       TestContextType type,
       bool support_locking,
       gpu::raster::GrShaderCache* gr_shader_cache = nullptr,
-      gpu::GpuProcessActivityFlags* activity_flags = nullptr);
+      gpu::GpuProcessShmCount* use_shader_cache_shm_count = nullptr);
 
   // ContextProvider / RasterContextProvider implementation.
   void AddRef() const override;
@@ -69,6 +69,8 @@ class TestInProcessContextProvider
   const gpu::GpuFeatureInfo& GetGpuFeatureInfo() const override;
   void AddObserver(ContextLostObserver* obs) override;
   void RemoveObserver(ContextLostObserver* obs) override;
+  unsigned int GetGrGLTextureFormat(SharedImageFormat format) const override;
+  GpuServiceImpl* GpuService();
 
   // Calls OnContextLost() on all observers. This doesn't modify the context.
   void SendOnContextLost();
@@ -84,7 +86,7 @@ class TestInProcessContextProvider
 
   const TestContextType type_;
   raw_ptr<gpu::raster::GrShaderCache> gr_shader_cache_ = nullptr;
-  raw_ptr<gpu::GpuProcessActivityFlags> activity_flags_ = nullptr;
+  raw_ptr<gpu::GpuProcessShmCount> use_shader_cache_shm_count_ = nullptr;
   bool is_bound_ = false;
 
   base::ThreadChecker main_thread_checker_;
@@ -95,13 +97,12 @@ class TestInProcessContextProvider
   // Used for GLES2 contexts only.
   std::unique_ptr<gpu::GLInProcessContext> gles2_context_;
   std::unique_ptr<skia_bindings::GrContextForGLES2Interface> gr_context_;
-  std::unique_ptr<gpu::raster::RasterInterface> gles2_raster_impl_;
 
   // Used for raster contexts only.
   std::unique_ptr<gpu::RasterInProcessContext> raster_context_;
 
   std::unique_ptr<ContextCacheController> cache_controller_;
-  absl::optional<base::Lock> context_lock_;
+  std::optional<base::Lock> context_lock_;
 
   base::ObserverList<ContextLostObserver>::Unchecked observers_;
 };

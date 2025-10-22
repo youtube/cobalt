@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/host/clipboard.h"
 
 #include <windows.h>
@@ -49,7 +54,6 @@ class ScopedClipboard {
 
     if (opened_) {
       NOTREACHED();
-      return true;
     }
 
     // This code runs on the UI thread, so we can block only very briefly.
@@ -68,7 +72,6 @@ class ScopedClipboard {
   BOOL Empty() {
     if (!opened_) {
       NOTREACHED();
-      return false;
     }
     return ::EmptyClipboard();
   }
@@ -76,7 +79,6 @@ class ScopedClipboard {
   void SetData(UINT uFormat, HANDLE hMem) {
     if (!opened_) {
       NOTREACHED();
-      return;
     }
     // The caller must not close the handle that ::SetClipboardData returns.
     ::SetClipboardData(uFormat, hMem);
@@ -88,7 +90,6 @@ class ScopedClipboard {
   HANDLE GetData(UINT format) {
     if (!opened_) {
       NOTREACHED();
-      return nullptr;
     }
     return ::GetClipboardData(format);
   }
@@ -217,11 +218,11 @@ void ClipboardWin::OnClipboardUpdate() {
       }
 
       base::win::ScopedHGlobal<WCHAR*> text_lock(text_global);
-      if (!text_lock.get()) {
+      if (!text_lock.data()) {
         LOG(WARNING) << "Couldn't lock clipboard data: " << GetLastError();
         return;
       }
-      text.assign(text_lock.get());
+      text.assign(text_lock.data());
     }
 
     protocol::ClipboardEvent event;

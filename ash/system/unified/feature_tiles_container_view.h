@@ -24,9 +24,9 @@ class UnifiedSystemTrayController;
 class ASH_EXPORT FeatureTilesContainerView : public views::View,
                                              public PaginationModelObserver,
                                              public views::FocusChangeListener {
- public:
-  METADATA_HEADER(FeatureTilesContainerView);
+  METADATA_HEADER(FeatureTilesContainerView, views::View)
 
+ public:
   explicit FeatureTilesContainerView(UnifiedSystemTrayController* controller);
 
   FeatureTilesContainerView(const FeatureTilesContainerView&) = delete;
@@ -36,9 +36,6 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   ~FeatureTilesContainerView() override;
 
   // Adds feature tiles to display in the tiles container.
-  // This function temporarily adds a primary and a compact tile along with
-  // other empty FeatureTile placeholders.
-  // TODO(b/252871301): Apply each feature tile.
   void AddTiles(std::vector<std::unique_ptr<FeatureTile>> tiles);
 
   // Lays out the existing tiles into rows. Used when the visibility of a tile
@@ -49,6 +46,10 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   // container can have.
   void SetRowsFromHeight(int max_height);
 
+  // Caps the number of rows of feature tiles when media view is shown, based on
+  // the `max_height` the container can have.
+  void AdjustRowsForMediaViewVisibility(bool visible, int max_height);
+
   // PaginationModelObserver:
   void SelectedPageChanged(int old_selected, int new_selected) override;
   void TransitionChanged() override;
@@ -57,12 +58,11 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   void OnGestureEvent(ui::GestureEvent* event) override;
   void OnScrollEvent(ui::ScrollEvent* event) override;
   bool OnMouseWheel(const ui::MouseWheelEvent& event) override;
-  void Layout() override;
+  void Layout(PassKey) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
 
   // views::FocusChangeListener:
-  void OnWillChangeFocus(views::View* before, views::View* now) override;
   void OnDidChangeFocus(views::View* before, views::View* now) override;
 
   // Returns the number of children that are visible.
@@ -95,22 +95,24 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   void UpdateTotalPages();
 
   // Owned by `UnifiedSystemTrayBubble`.
-  const raw_ptr<UnifiedSystemTrayController, ExperimentalAsh> controller_;
+  const raw_ptr<UnifiedSystemTrayController> controller_;
 
   // Owned by `UnifiedSystemTrayModel`.
-  const raw_ptr<PaginationModel, ExperimentalAsh> pagination_model_;
+  const raw_ptr<PaginationModel> pagination_model_;
 
   // List of pages that contain `RowContainer` elements.
   // Owned by views hierarchy.
-  std::vector<PageContainer*> pages_;
+  std::vector<raw_ptr<PageContainer, VectorExperimental>> pages_;
 
   // List of rows that contain `FeatureTile` elements.
   // Owned by views hierarchy.
-  std::vector<RowContainer*> rows_;
+  std::vector<raw_ptr<RowContainer, VectorExperimental>> rows_;
 
   // Number of rows that can be displayed based on the available
   // max height.
   int displayable_rows_ = 0;
+
+  bool is_media_view_shown_ = false;
 
   // Used for preventing reentrancy issue in ChildVisibilityChanged. Should be
   // always false if FeatureTilesContainerView is not in the call stack.

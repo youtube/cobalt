@@ -92,6 +92,10 @@ bool SendBeaconCommon(const ScriptState& state,
       fetch_initiator_type_names::kBeacon;
 
   frame->Client()->DidDispatchPingLoader(url);
+
+  FetchUtils::LogFetchKeepAliveRequestMetric(
+      params.GetResourceRequest().GetRequestContext(),
+      FetchUtils::FetchKeepAliveRequestState::kTotal);
   Resource* resource =
       RawResource::Fetch(params, frame->DomWindow()->Fetcher(), nullptr);
   return resource->GetStatus() != ResourceStatus::kLoadError;
@@ -108,9 +112,10 @@ void PingLoader::SendLinkAuditPing(LocalFrame* frame,
 
   ResourceRequest request(ping_url);
   request.SetHttpMethod(http_names::kPOST);
-  request.SetHTTPContentType("text/ping");
-  request.SetHttpBody(EncodedFormData::Create("PING"));
-  request.SetHttpHeaderField(http_names::kCacheControl, "max-age=0");
+  request.SetHTTPContentType(AtomicString("text/ping"));
+  request.SetHttpBody(EncodedFormData::Create(base::span_from_cstring("PING")));
+  request.SetHttpHeaderField(http_names::kCacheControl,
+                             AtomicString("max-age=0"));
   request.SetHttpHeaderField(http_names::kPingTo,
                              AtomicString(destination_url.GetString()));
   scoped_refptr<const SecurityOrigin> ping_origin =
@@ -133,21 +138,34 @@ void PingLoader::SendLinkAuditPing(LocalFrame* frame,
       fetch_initiator_type_names::kPing;
 
   frame->Client()->DidDispatchPingLoader(ping_url);
+  FetchUtils::LogFetchKeepAliveRequestMetric(
+      params.GetResourceRequest().GetRequestContext(),
+      FetchUtils::FetchKeepAliveRequestState::kTotal);
   RawResource::Fetch(params, frame->DomWindow()->Fetcher(), nullptr);
 }
 
 void PingLoader::SendViolationReport(ExecutionContext* execution_context,
                                      const KURL& report_url,
-                                     scoped_refptr<EncodedFormData> report) {
+                                     scoped_refptr<EncodedFormData> report,
+                                     bool is_frame_ancestors_violation) {
   ResourceRequest request(report_url);
   request.SetHttpMethod(http_names::kPOST);
-  request.SetHTTPContentType("application/csp-report");
+  request.SetHTTPContentType(AtomicString("application/csp-report"));
   request.SetKeepalive(true);
   request.SetHttpBody(std::move(report));
   request.SetCredentialsMode(network::mojom::CredentialsMode::kSameOrigin);
   request.SetRequestContext(mojom::blink::RequestContextType::CSP_REPORT);
   request.SetRequestDestination(network::mojom::RequestDestination::kReport);
-  request.SetRequestorOrigin(execution_context->GetSecurityOrigin());
+
+  // For frame-ancestors violations, execution_context->GetSecurityOrigin() is
+  // the origin of the embedding frame, while violations should be sent by the
+  // (blocked) embedded frame.
+  if (is_frame_ancestors_violation) {
+    request.SetRequestorOrigin(SecurityOrigin::CreateUniqueOpaque());
+  } else {
+    request.SetRequestorOrigin(execution_context->GetSecurityOrigin());
+  }
+
   request.SetRedirectMode(network::mojom::RedirectMode::kError);
   FetchParameters params(
       std::move(request),
@@ -159,6 +177,9 @@ void PingLoader::SendViolationReport(ExecutionContext* execution_context,
   if (window && window->GetFrame())
     window->GetFrame()->Client()->DidDispatchPingLoader(report_url);
 
+  FetchUtils::LogFetchKeepAliveRequestMetric(
+      params.GetResourceRequest().GetRequestContext(),
+      FetchUtils::FetchKeepAliveRequestState::kTotal);
   RawResource::Fetch(params, execution_context->Fetcher(), nullptr);
 }
 

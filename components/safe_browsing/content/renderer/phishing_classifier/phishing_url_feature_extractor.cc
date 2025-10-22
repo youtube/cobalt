@@ -6,10 +6,10 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/metrics/histogram_macros.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/timer/elapsed_timer.h"
@@ -19,9 +19,9 @@
 
 namespace safe_browsing {
 
-PhishingUrlFeatureExtractor::PhishingUrlFeatureExtractor() {}
+PhishingUrlFeatureExtractor::PhishingUrlFeatureExtractor() = default;
 
-PhishingUrlFeatureExtractor::~PhishingUrlFeatureExtractor() {}
+PhishingUrlFeatureExtractor::~PhishingUrlFeatureExtractor() = default;
 
 bool PhishingUrlFeatureExtractor::ExtractFeatures(const GURL& url,
                                                   FeatureMap* features) {
@@ -93,7 +93,6 @@ bool PhishingUrlFeatureExtractor::ExtractFeatures(const GURL& url,
       return false;
   }
 
-  UMA_HISTOGRAM_TIMES("SBClientPhishing.URLFeatureTime", timer.Elapsed());
   return true;
 }
 
@@ -104,7 +103,7 @@ void PhishingUrlFeatureExtractor::SplitStringIntoLongAlphanumTokens(
   // Split on common non-alphanumerics.
   // TODO(bryner): Split on all(?) non-alphanumerics and handle %XX properly.
   static const char kTokenSeparators[] = ".,\\/_-|=%:!&";
-  for (const base::StringPiece& token :
+  for (std::string_view token :
        base::SplitStringPiece(full, kTokenSeparators, base::KEEP_WHITESPACE,
                               base::SPLIT_WANT_NONEMPTY)) {
     // Copy over only the splits that are 3 or more chars long.

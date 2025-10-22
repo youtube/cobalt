@@ -44,12 +44,6 @@ SVGPoint* SVGPoint::Clone() const {
   return MakeGarbageCollected<SVGPoint>(value_);
 }
 
-SVGPropertyBase* SVGPoint::CloneForAnimation(const String& value) const {
-  // SVGPoint is not animated by itself.
-  NOTREACHED();
-  return nullptr;
-}
-
 String SVGPoint::ValueAsString() const {
   StringBuilder builder;
   builder.AppendNumber(X());
@@ -79,7 +73,6 @@ float SVGPoint::CalculateDistance(const SVGPropertyBase* to,
                                   const SVGElement* context_element) const {
   // SVGPoint is not animated by itself.
   NOTREACHED();
-  return 0.0f;
 }
 
 }  // namespace blink

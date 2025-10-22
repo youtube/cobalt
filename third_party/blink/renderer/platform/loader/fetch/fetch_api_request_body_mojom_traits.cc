@@ -7,7 +7,6 @@
 #include "base/time/time.h"
 #include "mojo/public/cpp/base/file_mojom_traits.h"
 #include "mojo/public/cpp/base/file_path_mojom_traits.h"
-#include "mojo/public/cpp/bindings/array_traits_wtf_vector.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
@@ -84,14 +83,12 @@ bool StructTraits<blink::mojom::FetchAPIRequestBodyDataView,
     switch (element.type()) {
       case network::DataElement::Tag::kBytes: {
         const auto& bytes = element.As<network::DataElementBytes>();
-        form_data->AppendData(
-            bytes.bytes().data(),
-            base::checked_cast<wtf_size_t>(bytes.bytes().size()));
+        form_data->AppendData(bytes.bytes());
         break;
       }
       case network::DataElement::Tag::kFile: {
         const auto& file = element.As<network::DataElementFile>();
-        absl::optional<base::Time> expected_modification_time;
+        std::optional<base::Time> expected_modification_time;
         if (!file.expected_modification_time().is_null()) {
           expected_modification_time = file.expected_modification_time();
         }
@@ -110,7 +107,6 @@ bool StructTraits<blink::mojom::FetchAPIRequestBodyDataView,
       }
       case network::DataElement::Tag::kChunkedDataPipe:
         NOTREACHED();
-        return false;
     }
   }
 

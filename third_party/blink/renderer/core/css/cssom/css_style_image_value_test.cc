@@ -6,6 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
 
@@ -17,21 +18,17 @@ class FakeCSSStyleImageValue : public CSSStyleImageValue {
       : cache_pending_(cache_pending), size_(size) {}
 
   // CSSStyleImageValue
-  absl::optional<gfx::Size> IntrinsicSize() const final {
+  std::optional<gfx::Size> IntrinsicSize() const final {
     if (cache_pending_) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return size_;
   }
 
   // CanvasImageSource
-  scoped_refptr<Image> GetSourceImageForCanvas(
-      CanvasResourceProvider::FlushReason,
-      SourceImageStatus*,
-      const gfx::SizeF&,
-      const AlphaDisposition alpha_disposition = kPremultiplyAlpha) final {
-    // Only cover premultiply alpha cases.
-    DCHECK_EQ(alpha_disposition, kPremultiplyAlpha);
+  scoped_refptr<Image> GetSourceImageForCanvas(FlushReason,
+                                               SourceImageStatus*,
+                                               const gfx::SizeF&) final {
     return nullptr;
   }
   ResourceStatus Status() const final {
@@ -54,20 +51,22 @@ class FakeCSSStyleImageValue : public CSSStyleImageValue {
 }  // namespace
 
 TEST(CSSStyleImageValueTest, PendingCache) {
-  FakeCSSStyleImageValue style_image_value(true, gfx::Size(100, 100));
+  FakeCSSStyleImageValue* style_image_value =
+      MakeGarbageCollected<FakeCSSStyleImageValue>(true, gfx::Size(100, 100));
   bool is_null = false;
-  EXPECT_EQ(style_image_value.intrinsicWidth(is_null), 0);
-  EXPECT_EQ(style_image_value.intrinsicHeight(is_null), 0);
-  EXPECT_EQ(style_image_value.intrinsicRatio(is_null), 0);
+  EXPECT_EQ(style_image_value->intrinsicWidth(is_null), 0);
+  EXPECT_EQ(style_image_value->intrinsicHeight(is_null), 0);
+  EXPECT_EQ(style_image_value->intrinsicRatio(is_null), 0);
   EXPECT_TRUE(is_null);
 }
 
 TEST(CSSStyleImageValueTest, ValidLoadedImage) {
-  FakeCSSStyleImageValue style_image_value(false, gfx::Size(480, 120));
+  FakeCSSStyleImageValue* style_image_value =
+      MakeGarbageCollected<FakeCSSStyleImageValue>(false, gfx::Size(480, 120));
   bool is_null = false;
-  EXPECT_EQ(style_image_value.intrinsicWidth(is_null), 480);
-  EXPECT_EQ(style_image_value.intrinsicHeight(is_null), 120);
-  EXPECT_EQ(style_image_value.intrinsicRatio(is_null), 4);
+  EXPECT_EQ(style_image_value->intrinsicWidth(is_null), 480);
+  EXPECT_EQ(style_image_value->intrinsicHeight(is_null), 120);
+  EXPECT_EQ(style_image_value->intrinsicRatio(is_null), 4);
   EXPECT_FALSE(is_null);
 }
 

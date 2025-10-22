@@ -12,7 +12,8 @@
 
 #include <stddef.h>
 
-#include "absl/types/optional.h"
+#include <optional>
+
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
@@ -44,7 +45,6 @@ bool FakeVp8Decoder::Configure(const Settings& settings) {
 }
 
 int32_t FakeVp8Decoder::Decode(const EncodedImage& input,
-                               bool missing_frames,
                                int64_t render_time_ms) {
   constexpr size_t kMinPayLoadHeaderLength = 10;
   if (input.size() < kMinPayLoadHeaderLength) {
@@ -55,14 +55,14 @@ int32_t FakeVp8Decoder::Decode(const EncodedImage& input,
   VideoFrame frame =
       VideoFrame::Builder()
           .set_video_frame_buffer(I420Buffer::Create(width_, height_))
-          .set_rotation(webrtc::kVideoRotation_0)
+          .set_rotation(kVideoRotation_0)
           .set_timestamp_ms(render_time_ms)
           .build();
-  frame.set_timestamp(input.Timestamp());
+  frame.set_rtp_timestamp(input.RtpTimestamp());
   frame.set_ntp_time_ms(input.ntp_time_ms_);
 
-  callback_->Decoded(frame, /*decode_time_ms=*/absl::nullopt,
-                     /*qp=*/absl::nullopt);
+  callback_->Decoded(frame, /*decode_time_ms=*/std::nullopt,
+                     /*qp=*/std::nullopt);
 
   return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -77,7 +77,6 @@ int32_t FakeVp8Decoder::Release() {
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
-const char* FakeVp8Decoder::kImplementationName = "fake_vp8_decoder";
 VideoDecoder::DecoderInfo FakeVp8Decoder::GetDecoderInfo() const {
   DecoderInfo info;
   info.implementation_name = kImplementationName;

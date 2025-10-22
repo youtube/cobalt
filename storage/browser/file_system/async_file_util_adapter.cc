@@ -131,7 +131,9 @@ void ReadDirectoryHelper(FileSystemFileUtil* file_util,
 
   base::FilePath current;
   while (!(current = file_enum->Next()).empty()) {
-    entries.emplace_back(VirtualPath::BaseName(current),
+    auto name = base::SafeBaseName::Create(current);
+    CHECK(name) << current;
+    entries.emplace_back(*name, file_enum->GetName().AsUTF8Unsafe(),
                          file_enum->IsDirectory()
                              ? filesystem::mojom::FsFileType::DIRECTORY
                              : filesystem::mojom::FsFileType::REGULAR_FILE);
@@ -143,9 +145,16 @@ void ReadDirectoryHelper(FileSystemFileUtil* file_util,
       entries.clear();
     }
   }
-  origin_runner->PostTask(FROM_HERE,
-                          base::BindOnce(callback, base::File::FILE_OK, entries,
-                                         false /* has_more */));
+
+  error = file_enum->GetError();
+  if ((error != base::File::FILE_OK) && !entries.empty()) {
+    origin_runner->PostTask(
+        FROM_HERE, base::BindOnce(callback, base::File::FILE_OK, entries,
+                                  true /* has_more */));
+    entries.clear();
+  }
+  origin_runner->PostTask(FROM_HERE, base::BindOnce(callback, error, entries,
+                                                    false /* has_more */));
 }
 
 void RunCreateOrOpenCallback(FileSystemOperationContext* context,
@@ -221,12 +230,12 @@ void AsyncFileUtilAdapter::CreateDirectory(
 void AsyncFileUtilAdapter::GetFileInfo(
     std::unique_ptr<FileSystemOperationContext> context,
     const FileSystemURL& url,
-    int fields,
+    GetMetadataFieldSet fields,
     GetFileInfoCallback callback) {
   FileSystemOperationContext* context_ptr = context.release();
   GetFileInfoHelper* helper = new GetFileInfoHelper;
   bool calculate_total_size =
-      (fields & FileSystemOperation::GET_METADATA_FIELD_TOTAL_SIZE);
+      fields.Has(FileSystemOperation::GetMetadataField::kRecursiveSize);
   const bool success = context_ptr->task_runner()->PostTaskAndReply(
       FROM_HERE,
       base::BindOnce(&GetFileInfoHelper::GetFileInfo, Unretained(helper),

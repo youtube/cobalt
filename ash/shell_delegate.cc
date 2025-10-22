@@ -40,4 +40,8 @@ void ShellDelegate::ShouldExitFullscreenBeforeLock(
   std::move(callback).Run(false);
 }
 
+bool ShellDelegate::IsNoFirstRunSwitchOn() const {
+  return false;
+}
+
 }  // namespace ash

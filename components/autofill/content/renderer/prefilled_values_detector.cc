@@ -12,7 +12,7 @@ namespace autofill {
 namespace {
 
 constexpr auto kKnownUsernamePlaceholders =
-    base::MakeFixedFlatSet<base::StringPiece>({
+    base::MakeFixedFlatSet<std::string_view>({
         "___.___.___-__",
         "+1",
         "3~15个字符,中文字符7个以内",
@@ -79,9 +79,8 @@ constexpr auto kKnownUsernamePlaceholders =
 
 }  // namespace
 
-base::span<const base::StringPiece> KnownUsernamePlaceholders() {
-  return base::make_span(kKnownUsernamePlaceholders.begin(),
-                         kKnownUsernamePlaceholders.end());
+base::span<const std::string_view> KnownUsernamePlaceholders() {
+  return kKnownUsernamePlaceholders;
 }
 
 bool PossiblePrefilledUsernameValue(const std::string& username_value,

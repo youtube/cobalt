@@ -4,15 +4,15 @@
 
 package org.chromium.mojo.system.impl;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.mojo.system.DataPipe.ProducerHandle;
 import org.chromium.mojo.system.DataPipe.WriteFlags;
 import org.chromium.mojo.system.ResultAnd;
 
 import java.nio.ByteBuffer;
 
-/**
- * Implementation of {@link ProducerHandle}.
- */
+/** Implementation of {@link ProducerHandle}. */
+@NullMarked
 class DataPipeProducerHandleImpl extends HandleBase implements ProducerHandle {
     /**
      * @see HandleBase#HandleBase(CoreImpl, long)

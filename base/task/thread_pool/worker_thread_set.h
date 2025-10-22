@@ -10,6 +10,7 @@
 #include <set>
 
 #include "base/base_export.h"
+#include "base/memory/raw_ptr.h"
 
 namespace base {
 namespace internal {
@@ -34,8 +35,8 @@ class BASE_EXPORT WorkerThreadSet {
   ~WorkerThreadSet();
 
   // Inserts |worker| in the set. |worker| must not already be on the set. Flags
-  // the WorkerThread previously at the front of the set, if it changed, or
-  // |worker| as unused.
+  // the WorkerThread previously at the front of the set, if it
+  // changed, or |worker| as unused.
   void Insert(WorkerThread* worker);
 
   // Removes the front WorkerThread from the set and returns it. Returns nullptr
@@ -60,7 +61,7 @@ class BASE_EXPORT WorkerThreadSet {
   bool IsEmpty() const { return set_.empty(); }
 
  private:
-  std::set<WorkerThread*, Compare> set_;
+  std::set<raw_ptr<WorkerThread, SetExperimental>, Compare> set_;
 };
 
 }  // namespace internal

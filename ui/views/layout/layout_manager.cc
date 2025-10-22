@@ -5,6 +5,7 @@
 #include "ui/views/layout/layout_manager.h"
 
 #include "base/auto_reset.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -24,7 +25,7 @@ gfx::Size LayoutManager::GetMinimumSize(const View* host) const {
   // to call GetPreferredSize() on the host view instead. The default
   // views::View behavior will be to call GetPreferredSize() on this layout
   // manager, so the fallback behavior in all other cases is as expected.
-  return host->GetPreferredSize();
+  return host->GetPreferredSize({});
 }
 
 int LayoutManager::GetPreferredHeightForWidth(const View* host,
@@ -50,19 +51,20 @@ void LayoutManager::ViewVisibilitySet(View* host,
   // for most legacy layouts (none of which override this method).
   // TODO(dfried): Remove this if/when LayoutManager and LayoutManagerBase can
   // be merged.
-  if (old_visibility != new_visibility)
+  if (old_visibility != new_visibility) {
     host->InvalidateLayout();
+  }
 }
 
 void LayoutManager::SetViewVisibility(View* view, bool visible) {
   DCHECK(!view->parent() || view->parent()->GetLayoutManager() == this ||
          view->parent()->GetLayoutManager() == nullptr);
-  base::AutoReset<View*> setter(&view_setting_visibility_on_, view);
+  base::AutoReset<raw_ptr<View>> setter(&view_setting_visibility_on_, view);
   view->SetVisible(visible);
 }
 
-std::vector<View*> LayoutManager::GetChildViewsInPaintOrder(
-    const View* host) const {
+std::vector<raw_ptr<View, VectorExperimental>>
+LayoutManager::GetChildViewsInPaintOrder(const View* host) const {
   return host->children();
 }
 

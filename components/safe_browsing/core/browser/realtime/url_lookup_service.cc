@@ -8,18 +8,23 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/rand_util.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/realtime/policy_engine.h"
 #include "components/safe_browsing/core/browser/referrer_chain_provider.h"
 #include "components/safe_browsing/core/browser/safe_browsing_token_fetcher.h"
+#include "components/safe_browsing/core/browser/utils/safe_browsing_web_app_utils.h"
+#include "components/safe_browsing/core/browser/verdict_cache_manager.h"
+#include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/safe_browsing/core/common/utils.h"
 #include "components/unified_consent/pref_names.h"
 #include "net/base/ip_address.h"
 #include "net/base/load_flags.h"
@@ -36,6 +41,13 @@ constexpr int kDefaultRealTimeUrlLookupReferrerLength = 2;
 // Probability for sending protego requests for urls on the allowlist
 const float kProbabilityForSendingSampledRequests = 0.01;
 
+constexpr char kCookieHistogramPrefix[] = "SafeBrowsing.RT.Request.HadCookie";
+
+GURL* GetRealTimeLookupUrlTestOverride() {
+  static base::NoDestructor<GURL> test_override;
+  return test_override.get();
+}
+
 }  // namespace
 
 namespace safe_browsing {
@@ -49,67 +61,58 @@ RealTimeUrlLookupService::RealTimeUrlLookupService(
     std::unique_ptr<SafeBrowsingTokenFetcher> token_fetcher,
     const ClientConfiguredForTokenFetchesCallback& client_token_config_callback,
     bool is_off_the_record,
-    variations::VariationsService* variations_service,
-    ReferrerChainProvider* referrer_chain_provider)
+    base::RepeatingCallback<variations::VariationsService*()>
+        variations_service_getter,
+    base::RepeatingCallback<base::Time()>
+        min_allowed_timestamp_for_referrer_chains_getter,
+    ReferrerChainProvider* referrer_chain_provider,
+    WebUIDelegate* delegate)
     : RealTimeUrlLookupServiceBase(url_loader_factory,
                                    cache_manager,
                                    get_user_population_callback,
-                                   referrer_chain_provider),
+                                   referrer_chain_provider,
+                                   pref_service,
+                                   delegate),
       pref_service_(pref_service),
       token_fetcher_(std::move(token_fetcher)),
       client_token_config_callback_(client_token_config_callback),
       is_off_the_record_(is_off_the_record),
-      variations_(variations_service) {
-  pref_change_registrar_.Init(pref_service_);
-  pref_change_registrar_.Add(
-      prefs::kSafeBrowsingEnhanced,
-      base::BindRepeating(&RealTimeUrlLookupService::OnPrefChanged,
-                          base::Unretained(this)));
-  pref_change_registrar_.Add(
-      unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled,
-      base::BindRepeating(&RealTimeUrlLookupService::OnPrefChanged,
-                          base::Unretained(this)));
-}
+      variations_service_getter_(variations_service_getter),
+      min_allowed_timestamp_for_referrer_chains_getter_(
+          min_allowed_timestamp_for_referrer_chains_getter) {}
 
 void RealTimeUrlLookupService::GetAccessToken(
     const GURL& url,
-    const GURL& last_committed_url,
-    bool is_mainframe,
-    RTLookupRequestCallback request_callback,
     RTLookupResponseCallback response_callback,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner) {
+    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+    SessionID tab_id,
+    std::optional<internal::ReferringAppInfo> referring_app_info) {
   token_fetcher_->Start(base::BindOnce(
       &RealTimeUrlLookupService::OnGetAccessToken, weak_factory_.GetWeakPtr(),
-      url, last_committed_url, is_mainframe, std::move(request_callback),
-      std::move(response_callback), std::move(callback_task_runner),
-      base::TimeTicks::Now()));
-}
-
-void RealTimeUrlLookupService::OnPrefChanged() {
-  if (CanPerformFullURLLookup()) {
-    url_lookup_enabled_timestamp_ = base::Time::Now().ToDoubleT();
-  }
+      url, std::move(response_callback), std::move(callback_task_runner),
+      base::TimeTicks::Now(), tab_id, std::move(referring_app_info)));
 }
 
 void RealTimeUrlLookupService::OnGetAccessToken(
     const GURL& url,
-    const GURL& last_committed_url,
-    bool is_mainframe,
-    RTLookupRequestCallback request_callback,
     RTLookupResponseCallback response_callback,
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     base::TimeTicks get_token_start_time,
+    SessionID tab_id,
+    std::optional<internal::ReferringAppInfo> referring_app_info,
     const std::string& access_token) {
-  if (shutting_down_)
+  if (shutting_down()) {
     return;
+  }
 
   base::UmaHistogramTimes("SafeBrowsing.RT.GetToken.Time",
                           base::TimeTicks::Now() - get_token_start_time);
   base::UmaHistogramBoolean("SafeBrowsing.RT.HasTokenFromFetcher",
                             !access_token.empty());
-  SendRequest(url, last_committed_url, is_mainframe, access_token,
-              std::move(request_callback), std::move(response_callback),
-              std::move(callback_task_runner), /* is_sampled_report */ false);
+  MaybeSendRequest(url, access_token, std::move(response_callback),
+                   std::move(callback_task_runner),
+                   /* is_sampled_report */ false, tab_id,
+                   std::move(referring_app_info));
 }
 
 void RealTimeUrlLookupService::OnResponseUnauthorized(
@@ -121,13 +124,13 @@ RealTimeUrlLookupService::~RealTimeUrlLookupService() = default;
 
 bool RealTimeUrlLookupService::CanPerformFullURLLookup() const {
   return RealTimePolicyEngine::CanPerformFullURLLookup(
-      pref_service_, is_off_the_record_, variations_);
+      pref_service_, is_off_the_record_, variations_service_getter_.Run());
 }
 
 bool RealTimeUrlLookupService::CanPerformFullURLLookupWithToken() const {
   return RealTimePolicyEngine::CanPerformFullURLLookupWithToken(
       pref_service_, is_off_the_record_, client_token_config_callback_,
-      variations_);
+      variations_service_getter_.Run());
 }
 
 int RealTimeUrlLookupService::GetReferrerUserGestureLimit() const {
@@ -138,8 +141,9 @@ bool RealTimeUrlLookupService::CanSendPageLoadToken() const {
   return true;
 }
 
-bool RealTimeUrlLookupService::CanCheckSubresourceURL() const {
-  return IsEnhancedProtectionEnabled(*pref_service_);
+bool RealTimeUrlLookupService::CanIncludeSubframeUrlInReferrerChain() const {
+  return IsEnhancedProtectionEnabled(*pref_service_) &&
+         CanPerformFullURLLookup();
 }
 
 bool RealTimeUrlLookupService::CanCheckSafeBrowsingDb() const {
@@ -161,20 +165,38 @@ bool RealTimeUrlLookupService::CanSendRTSampleRequest() const {
           base::RandDouble() <= kProbabilityForSendingSampledRequests);
 }
 
+std::string RealTimeUrlLookupService::GetUserEmail() const {
+  return "";
+}
+
+std::string RealTimeUrlLookupService::GetBrowserDMTokenString() const {
+  return "";
+}
+
+std::string RealTimeUrlLookupService::GetProfileDMTokenString() const {
+  return "";
+}
+
+std::unique_ptr<enterprise_connectors::ClientMetadata>
+RealTimeUrlLookupService::GetClientMetadata() const {
+  return nullptr;
+}
+
 void RealTimeUrlLookupService::Shutdown() {
-  shutting_down_ = true;
+  RealTimeUrlLookupServiceBase::Shutdown();
 
   // Clear state that was potentially bound to the lifetime of other
   // KeyedServices by the embedder.
   token_fetcher_.reset();
   client_token_config_callback_ = ClientConfiguredForTokenFetchesCallback();
-
-  pref_change_registrar_.RemoveAll();
-
-  RealTimeUrlLookupServiceBase::Shutdown();
 }
 
 GURL RealTimeUrlLookupService::GetRealTimeLookupUrl() const {
+  GURL* url_for_tests = GetRealTimeLookupUrlTestOverride();
+  if (url_for_tests->is_valid()) {
+    return *url_for_tests;
+  }
+
   return GURL(
       "https://safebrowsing.google.com/safebrowsing/clientreport/realtime");
 }
@@ -215,22 +237,78 @@ RealTimeUrlLookupService::GetTrafficAnnotationTag() const {
         })");
 }
 
-absl::optional<std::string> RealTimeUrlLookupService::GetDMTokenString() const {
+std::optional<std::string> RealTimeUrlLookupService::GetDMTokenString() const {
   // DM token should only be set for enterprise requests.
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::string RealTimeUrlLookupService::GetMetricSuffix() const {
   return ".Consumer";
 }
 
+bool RealTimeUrlLookupService::CanCheckUrl(const GURL& url) {
+  if (VerdictCacheManager::has_artificial_cached_url()) {
+    return true;
+  }
+  return CanGetReputationOfUrl(url);
+}
+
+// static
+void RealTimeUrlLookupService::OverrideUrlForTesting(const GURL& url) {
+  *GetRealTimeLookupUrlTestOverride() = url;
+}
+
 bool RealTimeUrlLookupService::ShouldIncludeCredentials() const {
   return true;
 }
 
-double RealTimeUrlLookupService::GetMinAllowedTimestampForReferrerChains()
-    const {
-  return url_lookup_enabled_timestamp_;
+std::optional<base::Time>
+RealTimeUrlLookupService::GetMinAllowedTimestampForReferrerChains() const {
+  CHECK(!min_allowed_timestamp_for_referrer_chains_getter_.is_null());
+  return min_allowed_timestamp_for_referrer_chains_getter_.Run();
+}
+
+void RealTimeUrlLookupService::MaybeLogLastProtegoPingTimeToPrefs(
+    bool sent_with_token) {
+  // `pref_service_` can be null in tests.
+  if (pref_service_ && IsEnhancedProtectionEnabled(*pref_service_)) {
+    pref_service_->SetTime(
+        sent_with_token
+            ? prefs::kSafeBrowsingEsbProtegoPingWithTokenLastLogTime
+            : prefs::kSafeBrowsingEsbProtegoPingWithoutTokenLastLogTime,
+        base::Time::Now());
+  }
+}
+
+void RealTimeUrlLookupService::MaybeLogProtegoPingCookieHistograms(
+    bool request_had_cookie,
+    bool was_first_request,
+    bool sent_with_token) {
+  std::string histogram_name = kCookieHistogramPrefix;
+  base::StrAppend(&histogram_name,
+                  {was_first_request ? ".FirstRequest" : ".SubsequentRequest"});
+  base::UmaHistogramBoolean(histogram_name, request_had_cookie);
+  // `pref_service_` can be null in tests.
+  // This histogram variant is only logged for signed-out ESB users.
+  if (!sent_with_token && pref_service_ &&
+      IsEnhancedProtectionEnabled(*pref_service_)) {
+    base::StrAppend(&histogram_name, {".SignedOutEsbUser"});
+    base::UmaHistogramBoolean(histogram_name, request_had_cookie);
+  }
+}
+
+void RealTimeUrlLookupService::MaybeFillReferringWebApk(
+    const internal::ReferringAppInfo& referring_app_info,
+    RTLookupRequest& request) {
+  CHECK(request.has_referring_app_info());
+  std::optional<SafeBrowsingWebAppKey> webapk =
+      GetSafeBrowsingWebAppKey(referring_app_info.referring_webapk_start_url,
+                               referring_app_info.referring_webapk_manifest_id);
+  if (!webapk) {
+    return;
+  }
+  *request.mutable_referring_app_info()->mutable_referring_webapk() =
+      std::move(*webapk);
 }
 
 }  // namespace safe_browsing

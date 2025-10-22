@@ -4,20 +4,22 @@
 
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 UIFont* PreferredFontForTextStyleWithMaxCategory(
     UIFontTextStyle style,
     UIContentSizeCategory currentCategory,
     UIContentSizeCategory maxCategory) {
-  NSComparisonResult result =
-      UIContentSizeCategoryCompareToCategory(currentCategory, maxCategory);
   UIContentSizeCategory category =
-      result == NSOrderedDescending ? maxCategory : currentCategory;
+      ContentSizeCategoryWithMaxCategory(currentCategory, maxCategory);
   return [UIFont preferredFontForTextStyle:style
              compatibleWithTraitCollection:
                  [UITraitCollection
                      traitCollectionWithPreferredContentSizeCategory:category]];
+}
+
+UIContentSizeCategory ContentSizeCategoryWithMaxCategory(
+    UIContentSizeCategory currentCategory,
+    UIContentSizeCategory maxCategory) {
+  NSComparisonResult result =
+      UIContentSizeCategoryCompareToCategory(currentCategory, maxCategory);
+  return result == NSOrderedDescending ? maxCategory : currentCategory;
 }

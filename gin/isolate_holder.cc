@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/check_op.h"
@@ -22,7 +23,9 @@
 #include "gin/v8_initializer.h"
 #include "gin/v8_isolate_memory_dump_provider.h"
 #include "gin/v8_shared_memory_dump_provider.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-isolate.h"
+#include "v8/include/v8-locker.h"
 #include "v8/include/v8-snapshot.h"
 
 namespace gin {
@@ -37,13 +40,16 @@ std::unique_ptr<v8::Isolate::CreateParams> getModifiedIsolateParams(
     std::unique_ptr<v8::Isolate::CreateParams> params,
     IsolateHolder::AllowAtomicsWaitMode atomics_wait_mode,
     v8::CreateHistogramCallback create_histogram_callback,
-    v8::AddHistogramSampleCallback add_histogram_sample_callback) {
+    v8::AddHistogramSampleCallback add_histogram_sample_callback,
+    std::unique_ptr<v8::CppHeap> cpp_heap) {
   params->create_histogram_callback = create_histogram_callback;
   params->add_histogram_sample_callback = add_histogram_sample_callback;
   params->allow_atomics_wait =
       atomics_wait_mode ==
       IsolateHolder::AllowAtomicsWaitMode::kAllowAtomicsWait;
   params->array_buffer_allocator = g_array_buffer_allocator;
+  // V8 takes ownership of the CppHeap.
+  params->cpp_heap = cpp_heap.release();
   return params;
 }
 }  // namespace
@@ -72,22 +78,30 @@ IsolateHolder::IsolateHolder(
     IsolateType isolate_type,
     IsolateCreationMode isolate_creation_mode,
     v8::CreateHistogramCallback create_histogram_callback,
-    v8::AddHistogramSampleCallback add_histogram_sample_callback)
-    : IsolateHolder(task_runner,
+    v8::AddHistogramSampleCallback add_histogram_sample_callback,
+    scoped_refptr<base::SingleThreadTaskRunner> user_visible_task_runner,
+    scoped_refptr<base::SingleThreadTaskRunner> best_effort_task_runner,
+    std::unique_ptr<v8::CppHeap> cpp_heap)
+    : IsolateHolder(std::move(task_runner),
                     access_mode,
                     isolate_type,
                     getModifiedIsolateParams(getDefaultIsolateParams(),
                                              atomics_wait_mode,
                                              create_histogram_callback,
-                                             add_histogram_sample_callback),
-                    isolate_creation_mode) {}
+                                             add_histogram_sample_callback,
+                                             std::move(cpp_heap)),
+                    isolate_creation_mode,
+                    std::move(user_visible_task_runner),
+                    std::move(best_effort_task_runner)) {}
 
 IsolateHolder::IsolateHolder(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     AccessMode access_mode,
     IsolateType isolate_type,
     std::unique_ptr<v8::Isolate::CreateParams> params,
-    IsolateCreationMode isolate_creation_mode)
+    IsolateCreationMode isolate_creation_mode,
+    scoped_refptr<base::SingleThreadTaskRunner> user_visible_task_runner,
+    scoped_refptr<base::SingleThreadTaskRunner> best_effort_task_runner)
     : access_mode_(access_mode), isolate_type_(isolate_type) {
   CHECK(Initialized())
       << "You need to invoke gin::IsolateHolder::Initialize first";
@@ -99,15 +113,17 @@ IsolateHolder::IsolateHolder(
   DCHECK(allocator);
 
   isolate_ = v8::Isolate::Allocate();
-  isolate_data_ = std::make_unique<PerIsolateData>(isolate_, allocator,
-                                                   access_mode_, task_runner);
-  //  TODO(https://crbug.com/1347092): Refactor such that caller need not
-  //  provide params when creating a snapshot.
+  isolate_data_ = std::make_unique<PerIsolateData>(
+      isolate_, allocator, access_mode_, task_runner,
+      std::move(user_visible_task_runner), std::move(best_effort_task_runner));
   if (isolate_creation_mode == IsolateCreationMode::kCreateSnapshot) {
     // This branch is called when creating a V8 snapshot for Blink.
-    // Note SnapshotCreator calls isolate->Enter() in its construction.
+    // SnapshotCreator initializes the Isolate using the CreateParams and calls
+    // isolate->Enter() in its construction. The Isolate is still owned by the
+    // IsolateHolder.
+    params->external_references = g_reference_table;
     snapshot_creator_ =
-        std::make_unique<v8::SnapshotCreator>(isolate_, g_reference_table);
+        std::make_unique<v8::SnapshotCreator>(isolate_, *params);
     DCHECK_EQ(isolate_, snapshot_creator_->GetIsolate());
   } else {
     v8::Isolate::Initialize(isolate_, *params);
@@ -123,9 +139,18 @@ IsolateHolder::IsolateHolder(
 
 IsolateHolder::~IsolateHolder() {
   isolate_memory_dump_provider_.reset();
+  {
+    std::optional<v8::Locker> locker;
+    if (access_mode_ == AccessMode::kUseLocker) {
+      locker.emplace(isolate_);
+    }
+    v8::Isolate::Scope isolate_scope(isolate_);
+    isolate_data_->NotifyBeforeDispose();
+  }
   // Calling Isolate::Dispose makes sure all threads which might access
   // PerIsolateData are finished.
   isolate_->Dispose();
+  isolate_data_->NotifyDisposed();
   isolate_data_.reset();
   isolate_ = nullptr;
 }
@@ -134,11 +159,14 @@ IsolateHolder::~IsolateHolder() {
 void IsolateHolder::Initialize(ScriptMode mode,
                                v8::ArrayBuffer::Allocator* allocator,
                                const intptr_t* reference_table,
-                               const std::string js_command_line_flags,
+                               std::string js_command_line_flags,
+                               bool disallow_v8_feature_flag_overrides,
                                v8::FatalErrorCallback fatal_error_callback,
                                v8::OOMErrorCallback oom_error_callback) {
   CHECK(allocator);
-  V8Initializer::Initialize(mode, js_command_line_flags, oom_error_callback);
+  V8Initializer::Initialize(mode, js_command_line_flags,
+                            disallow_v8_feature_flag_overrides,
+                            oom_error_callback);
   g_array_buffer_allocator = allocator;
   g_reference_table = reference_table;
   g_fatal_error_callback = fatal_error_callback;
@@ -165,7 +193,6 @@ IsolateHolder::getDefaultIsolateParams() {
   params->array_buffer_allocator = g_array_buffer_allocator;
   params->allow_atomics_wait = true;
   params->external_references = g_reference_table;
-  params->only_terminate_in_safe_scope = true;
   params->embedder_wrapper_type_index = kWrapperInfoIndex;
   params->embedder_wrapper_object_index = kEncodedValueIndex;
   params->fatal_error_callback = g_fatal_error_callback;

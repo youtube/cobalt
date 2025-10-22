@@ -11,6 +11,7 @@
 #include "base/barrier_closure.h"
 #include "base/containers/adapters.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -20,6 +21,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -28,6 +30,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
+#include "base/types/expected.h"
 #include "components/reporting/compression/compression_module.h"
 #include "components/reporting/encryption/encryption_module_interface.h"
 #include "components/reporting/encryption/primitives.h"
@@ -38,6 +41,7 @@
 #include "components/reporting/storage/storage_queue.h"
 #include "components/reporting/storage/storage_uploader_interface.h"
 #include "components/reporting/util/file.h"
+#include "components/reporting/util/reporting_errors.h"
 #include "components/reporting/util/status.h"
 #include "components/reporting/util/status_macros.h"
 #include "components/reporting/util/statusor.h"
@@ -105,13 +109,14 @@ class Storage::QueueUploaderInterface : public UploaderInterface {
       Priority priority,
       UploaderInterfaceResultCb start_uploader_cb,
       StatusOr<std::unique_ptr<UploaderInterface>> uploader_result) {
-    if (!uploader_result.ok()) {
-      std::move(start_uploader_cb).Run(uploader_result.status());
+    if (!uploader_result.has_value()) {
+      std::move(start_uploader_cb)
+          .Run(base::unexpected(std::move(uploader_result).error()));
       return;
     }
     std::move(start_uploader_cb)
         .Run(std::make_unique<QueueUploaderInterface>(
-            priority, std::move(uploader_result.ValueOrDie())));
+            priority, std::move(uploader_result.value())));
   }
 
   const Priority priority_;
@@ -161,8 +166,8 @@ class Storage::KeyDelivery {
   }
 
   void EuqueueRequestAndPossiblyStart(RequestCallback callback) {
+    CHECK(callback);
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK(callback);
     const bool first_call = callbacks_.empty();
     callbacks_.push_back(std::move(callback));
     if (!first_call) {
@@ -193,22 +198,23 @@ class Storage::KeyDelivery {
       Priority priority,
       UploaderInterface::UploaderInterfaceResultCb start_uploader_cb,
       StatusOr<std::unique_ptr<UploaderInterface>> uploader_result) {
-    if (!uploader_result.ok()) {
-      std::move(start_uploader_cb).Run(uploader_result.status());
+    if (!uploader_result.has_value()) {
+      std::move(start_uploader_cb)
+          .Run(base::unexpected(std::move(uploader_result).error()));
       return;
     }
     std::move(start_uploader_cb)
         .Run(std::make_unique<QueueUploaderInterface>(
-            priority, std::move(uploader_result.ValueOrDie())));
+            priority, std::move(uploader_result.value())));
   }
 
   void EncryptionKeyReceiverReady(
       StatusOr<std::unique_ptr<UploaderInterface>> uploader_result) {
-    if (!uploader_result.ok()) {
-      OnCompletion(uploader_result.status());
+    if (!uploader_result.has_value()) {
+      OnCompletion(uploader_result.error());
       return;
     }
-    uploader_result.ValueOrDie()->Completed(Status::StatusOK());
+    uploader_result.value()->Completed(Status::StatusOK());
   }
 
   const scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner_;
@@ -223,7 +229,7 @@ class Storage::KeyDelivery {
 
 class Storage::KeyInStorage {
  public:
-  KeyInStorage(base::StringPiece signature_verification_public_key,
+  KeyInStorage(std::string_view signature_verification_public_key,
                const base::FilePath& directory)
       : verifier_(signature_verification_public_key), directory_(directory) {}
   ~KeyInStorage() = default;
@@ -236,7 +242,8 @@ class Storage::KeyInStorage {
     // Atomically reserve file index (none else will get the same index).
     uint64_t new_file_index = next_key_file_index_.fetch_add(1);
     // Write into file.
-    RETURN_IF_ERROR(WriteKeyInfoFile(new_file_index, signed_encryption_key));
+    RETURN_IF_ERROR_STATUS(
+        WriteKeyInfoFile(new_file_index, signed_encryption_key));
 
     // Enumerate data files and delete all files with lower index.
     RemoveKeyFilesWithLowerIndexes(new_file_index);
@@ -252,11 +259,11 @@ class Storage::KeyInStorage {
     // Make sure the assigned directory exists.
     base::File::Error error;
     if (!base::CreateDirectoryAndGetError(directory_, &error)) {
-      return Status(
+      return base::unexpected(Status(
           error::UNAVAILABLE,
           base::StrCat(
               {"Storage directory '", directory_.MaybeAsASCII(),
-               "' does not exist, error=", base::File::ErrorToString(error)}));
+               "' does not exist, error=", base::File::ErrorToString(error)})));
     }
 
     // Enumerate possible key files, collect the ones that have valid name,
@@ -270,7 +277,8 @@ class Storage::KeyInStorage {
 
     // If not found, return error.
     if (!signed_encryption_key_result.has_value()) {
-      return Status(error::NOT_FOUND, "No valid encryption key found");
+      return base::unexpected(
+          Status(error::NOT_FOUND, "No valid encryption key found"));
     }
 
     // Found and validated, delete all other files.
@@ -291,17 +299,14 @@ class Storage::KeyInStorage {
     if (signed_encryption_key.public_asymmetric_key().size() != kKeySize) {
       return Status{error::FAILED_PRECONDITION, "Key size mismatch"};
     }
-    char value_to_verify[sizeof(EncryptionModuleInterface::PublicKeyId) +
-                         kKeySize];
+    std::string value_to_verify;
     const EncryptionModuleInterface::PublicKeyId public_key_id =
         signed_encryption_key.public_key_id();
-    memcpy(value_to_verify, &public_key_id,
-           sizeof(EncryptionModuleInterface::PublicKeyId));
-    memcpy(value_to_verify + sizeof(EncryptionModuleInterface::PublicKeyId),
-           signed_encryption_key.public_asymmetric_key().data(), kKeySize);
-    return verifier_.Verify(
-        std::string(value_to_verify, sizeof(value_to_verify)),
-        signed_encryption_key.signature());
+    value_to_verify.assign(std::string_view(
+        reinterpret_cast<const char*>(&public_key_id), sizeof(public_key_id)));
+    value_to_verify.append(
+        std::string_view(signed_encryption_key.public_asymmetric_key()));
+    return verifier_.Verify(value_to_verify, signed_encryption_key.signature());
   }
 
  private:
@@ -314,6 +319,10 @@ class Storage::KeyInStorage {
     base::File key_file(key_file_path,
                         base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_APPEND);
     if (!key_file.IsValid()) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_OPEN_KEY_FILE,
+          DataLossErrorReason::MAX_VALUE);
       return Status(
           error::DATA_LOSS,
           base::StrCat({"Cannot open key file='", key_file_path.MaybeAsASCII(),
@@ -322,20 +331,32 @@ class Storage::KeyInStorage {
     std::string serialized_key;
     if (!signed_encryption_key.SerializeToString(&serialized_key) ||
         serialized_key.empty()) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_SERIALIZE_KEY,
+          DataLossErrorReason::MAX_VALUE);
       return Status(error::DATA_LOSS,
                     base::StrCat({"Failed to seralize key into file='",
                                   key_file_path.MaybeAsASCII(), "'"}));
     }
-    const int32_t write_result = key_file.Write(
-        /*offset=*/0, serialized_key.data(), serialized_key.size());
-    if (write_result < 0) {
+    const auto write_result = key_file.Write(
+        /*offset=*/0, base::as_byte_span(serialized_key));
+    if (!write_result.has_value() || write_result.value() < 0) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_WRITE_KEY_FILE,
+          DataLossErrorReason::MAX_VALUE);
       return Status(
           error::DATA_LOSS,
           base::StrCat({"File write error=",
                         key_file.ErrorToString(key_file.GetLastFileError()),
                         " file=", key_file_path.MaybeAsASCII()}));
     }
-    if (static_cast<size_t>(write_result) != serialized_key.size()) {
+    if (write_result.value() != serialized_key.size()) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_WRITE_KEY_FILE,
+          DataLossErrorReason::MAX_VALUE);
       return Status(error::DATA_LOSS,
                     base::StrCat({"Failed to seralize key into file='",
                                   key_file_path.MaybeAsASCII(), "'"}));
@@ -356,8 +377,9 @@ class Storage::KeyInStorage {
             [](uint64_t new_file_index, const base::FilePath& full_name) {
               const auto file_index =
                   StorageQueue::GetFileSequenceIdFromPath(full_name);
-              if (!file_index.ok() ||  // Should not happen, will remove file.
-                  file_index.ValueOrDie() <
+              if (!file_index
+                       .has_value() ||  // Should not happen, will remove file.
+                  file_index.value() <
                       static_cast<int64_t>(
                           new_file_index)) {  // Lower index file, will remove
                                               // it.
@@ -386,12 +408,11 @@ class Storage::KeyInStorage {
       }
       const auto file_index =
           StorageQueue::GetFileSequenceIdFromPath(full_name);
-      if (!file_index.ok()) {  // Shouldn't happen, something went wrong.
+      if (!file_index.has_value()) {  // Shouldn't happen, something went wrong.
         continue;
       }
       if (!found_key_files
-               ->emplace(static_cast<uint64_t>(file_index.ValueOrDie()),
-                         full_name)
+               ->emplace(static_cast<uint64_t>(file_index.value()), full_name)
                .second) {
         // Duplicate extension (e.g., 01 and 001). Should not happen (file is
         // corrupt).
@@ -399,9 +420,9 @@ class Storage::KeyInStorage {
       }
       // Set 'next_key_file_index_' to a number which is definitely not used.
       if (static_cast<int64_t>(next_key_file_index_.load()) <=
-          file_index.ValueOrDie()) {
+          file_index.value()) {
         next_key_file_index_.store(
-            static_cast<uint64_t>(file_index.ValueOrDie() + 1));
+            static_cast<uint64_t>(file_index.value() + 1));
       }
     }
   }
@@ -409,7 +430,7 @@ class Storage::KeyInStorage {
   // Enumerates found key files and locates one with the highest index and
   // valid key. Returns pair of file name and loaded signed key proto.
   // Called once, during initialization.
-  absl::optional<std::pair<base::FilePath, SignedEncryptionInfo>>
+  std::optional<std::pair<base::FilePath, SignedEncryptionInfo>>
   LocateValidKeyAndParse(
       const base::flat_map<uint64_t, base::FilePath>& found_key_files) {
     // Try to unserialize the key from each found file (latest first).
@@ -422,20 +443,21 @@ class Storage::KeyInStorage {
 
       SignedEncryptionInfo signed_encryption_key;
       {
-        char key_file_buffer[kEncryptionKeyMaxFileSize];
-        const int32_t read_result = key_file.Read(
-            /*offset=*/0, key_file_buffer, kEncryptionKeyMaxFileSize);
-        if (read_result < 0) {
+        std::array<uint8_t, kEncryptionKeyMaxFileSize> key_file_buffer;
+        const auto read_result = key_file.Read(
+            /*offset=*/0, key_file_buffer);
+        if (!read_result.has_value() || read_result.value() < 0) {
           LOG(WARNING) << "File read error="
                        << key_file.ErrorToString(key_file.GetLastFileError())
                        << " " << file_path.MaybeAsASCII();
           continue;  // File read error.
         }
-        if (read_result == 0 || read_result >= kEncryptionKeyMaxFileSize) {
+        if (read_result.value() == 0 ||
+            read_result.value() >= kEncryptionKeyMaxFileSize) {
           continue;  // Unexpected file size.
         }
         google::protobuf::io::ArrayInputStream key_stream(  // Zero-copy stream.
-            key_file_buffer, read_result);
+            key_file_buffer.data(), read_result.value());
         if (!signed_encryption_key.ParseFromZeroCopyStream(&key_stream)) {
           LOG(WARNING) << "Failed to parse key file, full_name='"
                        << file_path.MaybeAsASCII() << "'";
@@ -458,7 +480,7 @@ class Storage::KeyInStorage {
     }
 
     // Not found, return error.
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Index of the file to serialize the signed key to.
@@ -497,7 +519,7 @@ void Storage::Create(
     // Context can only be deleted by calling Response method.
     ~StorageInitContext() override {
       DCHECK_CALLED_ON_VALID_SEQUENCE(storage_->sequence_checker_);
-      DCHECK_EQ(count_, 0u);
+      CHECK_EQ(count_, 0u);
     }
 
     void OnStart() override {
@@ -513,17 +535,16 @@ void Storage::Create(
       // with matching key signature after deserialization.
       const auto download_key_result =
           storage_->key_in_storage_->DownloadKeyFile();
-      if (!download_key_result.ok()) {
+      if (!download_key_result.has_value()) {
         // Key not found or corrupt. Proceed with queues creation directly.
         // We will download the key on the first Enqueue.
-        EncryptionSetUp(download_key_result.status());
+        EncryptionSetUp(download_key_result.error());
         return;
       }
 
       // Key found, verified and downloaded.
       storage_->encryption_module_->UpdateAsymmetricKey(
-          download_key_result.ValueOrDie().first,
-          download_key_result.ValueOrDie().second,
+          download_key_result.value().first, download_key_result.value().second,
           base::BindOnce(&StorageInitContext::ScheduleEncryptionSetUp,
                          base::Unretained(this)));
     }
@@ -538,7 +559,7 @@ void Storage::Create(
 
       if (status.ok()) {
         // Encryption key has been found and set up. Must be available now.
-        DCHECK(storage_->encryption_module_->has_encryption_key());
+        CHECK(storage_->encryption_module_->has_encryption_key());
       } else {
         LOG(WARNING)
             << "Encryption is enabled, but the key is not available yet, "
@@ -581,37 +602,36 @@ void Storage::Create(
                   StatusOr<scoped_refptr<StorageQueue>> storage_queue_result) {
       CheckOnValidSequence();
       DCHECK_CALLED_ON_VALID_SEQUENCE(storage_->sequence_checker_);
-      if (storage_queue_result.ok()) {
-        auto add_result = storage_->queues_.emplace(
-            priority, storage_queue_result.ValueOrDie());
-        DCHECK(add_result.second);
+      if (storage_queue_result.has_value()) {
+        auto add_result =
+            storage_->queues_.emplace(priority, storage_queue_result.value());
+        CHECK(add_result.second);
       } else {
         LOG(ERROR) << "Could not create queue, priority=" << priority
-                   << ", status=" << storage_queue_result.status();
+                   << ", status=" << storage_queue_result.error();
         if (final_status_.ok()) {
-          final_status_ = storage_queue_result.status();
+          final_status_ = storage_queue_result.error();
         }
       }
-      DCHECK_GT(count_, 0u);
+      CHECK_GT(count_, 0u);
       if (--count_ > 0u) {
         return;
       }
       if (!final_status_.ok()) {
-        Response(final_status_);
+        Response(base::unexpected(final_status_));
         return;
       }
       // Now all queues are ready, assign degradation vectors to them
       // in an ascending priorities order. The lowest priority queue has
       // an empty vector.
       std::vector<scoped_refptr<StorageQueue>> degradation_queues;
-      DCHECK_EQ(storage_->queues_.size(), queues_options_.size());
+      CHECK_EQ(storage_->queues_.size(), queues_options_.size());
       for (const auto& queue_options : queues_options_) {
         const auto queue_or_error = storage_->GetQueue(queue_options.first);
-        DCHECK(queue_or_error.ok()) << queue_or_error.status();
-        queue_or_error.ValueOrDie()->AssignDegradationQueues(
-            degradation_queues);
+        CHECK(queue_or_error.has_value()) << queue_or_error.error();
+        queue_or_error.value()->AssignDegradationQueues(degradation_queues);
         // Add newly created queue to the list to be used by all the later ones.
-        degradation_queues.emplace_back(queue_or_error.ValueOrDie());
+        degradation_queues.emplace_back(queue_or_error.value());
       }
 
       Response(std::move(storage_));
@@ -775,15 +795,15 @@ void Storage::AsyncGetQueueAndProceed(
              base::OnceCallback<void(Status)> completion_cb) {
             // Attempt to get queue by priority on the Storage task runner.
             auto queue_result = self->GetQueue(priority);
-            if (!queue_result.ok()) {
+            if (!queue_result.has_value()) {
               // Queue not found, abort.
-              std::move(completion_cb).Run(queue_result.status());
+              std::move(completion_cb).Run(queue_result.error());
               return;
             }
             // Queue found, execute the action (it should relocate on
             // queue thread soon, to not block Storage task runner).
             std::move(queue_action)
-                .Run(queue_result.ValueOrDie(), std::move(completion_cb));
+                .Run(queue_result.value(), std::move(completion_cb));
           },
           base::WrapRefCounted(this), priority, std::move(queue_action),
           std::move(completion_cb)));
@@ -794,9 +814,9 @@ StatusOr<scoped_refptr<StorageQueue>> Storage::GetQueue(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto it = queues_.find(priority);
   if (it == queues_.end()) {
-    return Status(
+    return base::unexpected(Status(
         error::NOT_FOUND,
-        base::StrCat({"Undefined priority=", base::NumberToString(priority)}));
+        base::StrCat({"Undefined priority=", base::NumberToString(priority)})));
   }
   return it->second;
 }
@@ -806,7 +826,7 @@ void Storage::RegisterCompletionCallback(base::OnceClosure callback) {
   // destructed until the callback is registered - StorageQueue is held by added
   // reference here. Thus, the callback being registered is guaranteed
   // to be called when the Storage is being destructed.
-  DCHECK(callback);
+  CHECK(callback);
   sequenced_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(

@@ -20,7 +20,6 @@
 #include "base/version.h"
 #include "components/component_updater/component_updater_paths.h"
 #include "components/safe_browsing/content/common/file_type_policies.h"
-#include "components/safe_browsing/core/common/features.h"
 
 using component_updater::ComponentUpdateService;
 
@@ -39,8 +38,9 @@ const uint8_t kFileTypePoliciesPublicKeySHA256[32] = {
 const char kFileTypePoliciesManifestName[] = "File Type Policies";
 
 void LoadFileTypesFromDisk(const base::FilePath& pb_path) {
-  if (pb_path.empty())
+  if (pb_path.empty()) {
     return;
+  }
 
   VLOG(1) << "Reading Download File Types from file: " << pb_path.value();
   std::string binary_pb;
@@ -111,9 +111,8 @@ base::FilePath FileTypePoliciesComponentInstallerPolicy::GetRelativeInstallDir()
 
 void FileTypePoliciesComponentInstallerPolicy::GetHash(
     std::vector<uint8_t>* hash) const {
-  hash->assign(kFileTypePoliciesPublicKeySHA256,
-               kFileTypePoliciesPublicKeySHA256 +
-                   std::size(kFileTypePoliciesPublicKeySHA256));
+  hash->assign(std::begin(kFileTypePoliciesPublicKeySHA256),
+               std::end(kFileTypePoliciesPublicKeySHA256));
 }
 
 std::string FileTypePoliciesComponentInstallerPolicy::GetName() const {
@@ -122,9 +121,7 @@ std::string FileTypePoliciesComponentInstallerPolicy::GetName() const {
 
 update_client::InstallerAttributes
 FileTypePoliciesComponentInstallerPolicy::GetInstallerAttributes() const {
-  update_client::InstallerAttributes attributes;
-  attributes["tag"] = safe_browsing::GetFileTypePoliciesTag();
-  return attributes;
+  return update_client::InstallerAttributes();
 }
 
 void RegisterFileTypePoliciesComponent(ComponentUpdateService* cus) {

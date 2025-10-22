@@ -6,9 +6,11 @@ package org.chromium.ui.widget;
 
 import android.graphics.Rect;
 
-/**
- * Provides a {@link Rect} object that represents a position in screen space.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Provides a {@link Rect} object that represents a position in screen space. */
+@NullMarked
 public class RectProvider {
     /** An observer to be notified of changes to the {@Rect} position. */
     public interface Observer {
@@ -28,7 +30,7 @@ public class RectProvider {
      */
     protected final Rect mRect = new Rect();
 
-    private Observer mObserver;
+    private @Nullable Observer mObserver;
 
     /** Creates an instance of a {@link RectProvider}. */
     public RectProvider() {}
@@ -61,9 +63,7 @@ public class RectProvider {
         mObserver = observer;
     }
 
-    /**
-     * Stop observing changes to the {@link Rect}'s position in the window.
-     */
+    /** Stop observing changes to the {@link Rect}'s position in the window. */
     public void stopObserving() {
         mObserver = null;
     }

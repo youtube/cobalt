@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/devtools/devtools_http_handler.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -17,6 +21,7 @@
 #include "base/json/json_writer.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_macros.h"
@@ -29,9 +34,8 @@
 #include "base/threading/thread.h"
 #include "base/uuid.h"
 #include "base/values.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "content/browser/devtools/devtools_http_handler.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "content/browser/devtools/devtools_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -43,7 +47,6 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
-#include "content/public/common/user_agent.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -54,14 +57,13 @@
 #include "net/server/http_server_response_info.h"
 #include "net/socket/server_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8-version-string.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 extern const int kCcompressedProtocolJSON;
 #endif
 
@@ -86,17 +88,13 @@ const char kTargetUrlField[] = "url";
 const char kTargetFaviconUrlField[] = "faviconUrl";
 const char kTargetWebSocketDebuggerUrlField[] = "webSocketDebuggerUrl";
 const char kTargetDevtoolsFrontendUrlField[] = "devtoolsFrontendUrl";
+const char kMissingGitRevision[] = "@0000000000000000000000000000000000000000";
 
 const int32_t kSendBufferSizeForDevTools = 256 * 1024 * 1024;  // 256Mb
 const int32_t kReceiveBufferSizeForDevTools = 100 * 1024 * 1024;  // 100Mb
 
 const char kRemoteUrlPattern[] =
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-    "https://chrome-devtools-frontend.appspot.com/serve_internal_file/%s/"
-    "%s.html";
-#else
     "https://chrome-devtools-frontend.appspot.com/serve_rev/%s/%s.html";
-#endif
 
 constexpr net::NetworkTrafficAnnotationTag
     kDevtoolsHttpHandlerTrafficAnnotation =
@@ -353,8 +351,7 @@ class DevToolsAgentHostClientImpl : public DevToolsAgentHostClient {
     constexpr char kMsg[] =
         "{\"method\":\"Inspector.detached\","
         "\"params\":{\"reason\":\"target_closed\"}}";
-    DispatchProtocolMessage(
-        agent_host, base::as_bytes(base::make_span(kMsg, strlen(kMsg))));
+    DispatchProtocolMessage(agent_host, base::byte_span_from_cstring(kMsg));
 
     agent_host_ = nullptr;
     task_runner_->PostTask(
@@ -382,7 +379,7 @@ class DevToolsAgentHostClientImpl : public DevToolsAgentHostClient {
 
  private:
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  ServerWrapper* const server_wrapper_;
+  const raw_ptr<ServerWrapper> server_wrapper_;
   const int connection_id_;
   scoped_refptr<DevToolsAgentHost> agent_host_;
 };
@@ -417,6 +414,8 @@ static std::string GetMimeType(const std::string& filename) {
                             base::CompareCase::INSENSITIVE_ASCII)) {
     return "text/css";
   } else if (base::EndsWith(filename, ".js",
+                            base::CompareCase::INSENSITIVE_ASCII) ||
+             base::EndsWith(filename, ".mjs",
                             base::CompareCase::INSENSITIVE_ASCII)) {
     return "text/javascript";
   } else if (base::EndsWith(filename, ".png",
@@ -519,15 +518,16 @@ std::string DevToolsHttpHandler::GetFrontendURLInternal(
     const std::string& id,
     const std::string& host) {
   std::string frontend_url;
-  if (delegate_->HasBundledFrontendResources()) {
+  std::string git_revision = embedder_support::GetChromiumGitRevision();
+  if (git_revision == kMissingGitRevision &&
+      delegate_->HasBundledFrontendResources()) {
     frontend_url = "/devtools/inspector.html";
   } else {
     std::string type = agent_host->GetType();
     bool is_worker = type == DevToolsAgentHost::kTypeServiceWorker ||
                      type == DevToolsAgentHost::kTypeSharedWorker;
-    frontend_url =
-        base::StringPrintf(kRemoteUrlPattern, GetChromiumGitRevision().c_str(),
-                           is_worker ? "worker_app" : "inspector");
+    frontend_url = base::StringPrintf(kRemoteUrlPattern, git_revision.c_str(),
+                                      is_worker ? "worker_app" : "inspector");
   }
   return base::StringPrintf("%s?ws=%s%s%s", frontend_url.c_str(), host.c_str(),
                             kPageUrlPrefix, id.c_str());
@@ -579,7 +579,7 @@ void DevToolsHttpHandler::OnJsonRequest(
   std::string command;
   std::string target_id;
   if (!ParseJsonPath(path, &command, &target_id)) {
-    SendJson(connection_id, net::HTTP_NOT_FOUND, absl::nullopt,
+    SendJson(connection_id, net::HTTP_NOT_FOUND, std::nullopt,
              "Malformed query: " + info.path);
     return;
   }
@@ -587,7 +587,7 @@ void DevToolsHttpHandler::OnJsonRequest(
   if (command == "version") {
     base::Value::Dict version;
     version.Set("Protocol-Version", DevToolsAgentHost::GetProtocolVersion());
-    version.Set("WebKit-Version", GetWebKitVersion());
+    version.Set("WebKit-Version", embedder_support::GetWebKitVersion());
     version.Set("Browser", GetContentClient()->browser()->GetProduct());
     version.Set("User-Agent", GetContentClient()->browser()->GetUserAgent());
     version.Set("V8-Version", V8_VERSION_STRING);
@@ -607,14 +607,21 @@ void DevToolsHttpHandler::OnJsonRequest(
     DecompressAndSendJsonProtocol(connection_id);
     return;
   }
+  std::vector<std::string_view> query_components = base::SplitStringPiece(
+      query, "&", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  bool for_tab = base::Contains(query_components, "for_tab");
 
   if (command == "list") {
     DevToolsManager* manager = DevToolsManager::GetInstance();
     DevToolsAgentHost::List list =
-        manager->delegate() ? manager->delegate()->RemoteDebuggingTargets()
-                            : DevToolsAgentHost::GetOrCreateAll();
+        manager->delegate() ? manager->delegate()->RemoteDebuggingTargets(
+                                  for_tab ? DevToolsManagerDelegate::kTab
+                                          : DevToolsManagerDelegate::kFrame)
+            : DevToolsAgentHost::GetOrCreateAll();
+
     RespondToJsonList(connection_id, info.GetHeaderValue("host"),
-                      std::move(list));
+                      std::move(list), for_tab);
     return;
   }
 
@@ -622,26 +629,27 @@ void DevToolsHttpHandler::OnJsonRequest(
     if (!base::EqualsCaseInsensitiveASCII(
             info.method, net::HttpRequestHeaders::kPutMethod)) {
       SendJson(
-          connection_id, net::HTTP_METHOD_NOT_ALLOWED, absl::nullopt,
+          connection_id, net::HTTP_METHOD_NOT_ALLOWED, std::nullopt,
           base::StringPrintf("Using unsafe HTTP verb %s to invoke /json/new. "
                              "This action supports only PUT verb.",
                              info.method.c_str()));
       return;
     }
 
-    std::vector<base::StringPiece> query_components = base::SplitStringPiece(
-        query, "&", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    base::StringPiece escaped_url =
+    std::string_view escaped_url =
         query_components.empty() ? "" : query_components[0];
     GURL url(base::UnescapeBinaryURLComponent(escaped_url));
     if (!url.is_valid())
       url = GURL(url::kAboutBlankURL);
     // TODO(dsv): Remove for "for_tab" support once DevTools Frontend
     // no longer needs it for e2e tests
-    scoped_refptr<DevToolsAgentHost> agent_host = delegate_->CreateNewTarget(
-        url, query_components.size() > 1 && query_components[1] == "for_tab");
+    scoped_refptr<DevToolsAgentHost> agent_host =
+        delegate_->CreateNewTarget(url,
+                                   for_tab ? DevToolsManagerDelegate::kTab
+                                           : DevToolsManagerDelegate::kFrame,
+                                   /*new_window=*/false);
     if (!agent_host) {
-      SendJson(connection_id, net::HTTP_INTERNAL_SERVER_ERROR, absl::nullopt,
+      SendJson(connection_id, net::HTTP_INTERNAL_SERVER_ERROR, std::nullopt,
                "Could not create new page");
       return;
     }
@@ -655,17 +663,16 @@ void DevToolsHttpHandler::OnJsonRequest(
     scoped_refptr<DevToolsAgentHost> agent_host =
         DevToolsAgentHost::GetForId(target_id);
     if (!agent_host) {
-      SendJson(connection_id, net::HTTP_NOT_FOUND, absl::nullopt,
+      SendJson(connection_id, net::HTTP_NOT_FOUND, std::nullopt,
                "No such target id: " + target_id);
       return;
     }
 
     if (command == "activate") {
       if (agent_host->Activate()) {
-        SendJson(connection_id, net::HTTP_OK, absl::nullopt,
-                 "Target activated");
+        SendJson(connection_id, net::HTTP_OK, std::nullopt, "Target activated");
       } else {
-        SendJson(connection_id, net::HTTP_INTERNAL_SERVER_ERROR, absl::nullopt,
+        SendJson(connection_id, net::HTTP_INTERNAL_SERVER_ERROR, std::nullopt,
                  "Could not activate target id: " + target_id);
       }
       return;
@@ -673,51 +680,49 @@ void DevToolsHttpHandler::OnJsonRequest(
 
     if (command == "close") {
       if (agent_host->Close()) {
-        SendJson(connection_id, net::HTTP_OK, absl::nullopt,
+        SendJson(connection_id, net::HTTP_OK, std::nullopt,
                  "Target is closing");
       } else {
-        SendJson(connection_id, net::HTTP_INTERNAL_SERVER_ERROR, absl::nullopt,
+        SendJson(connection_id, net::HTTP_INTERNAL_SERVER_ERROR, std::nullopt,
                  "Could not close target id: " + target_id);
       }
       return;
     }
   }
-  SendJson(connection_id, net::HTTP_NOT_FOUND, absl::nullopt,
+  SendJson(connection_id, net::HTTP_NOT_FOUND, std::nullopt,
            "Unknown command: " + command);
 }
 
 void DevToolsHttpHandler::DecompressAndSendJsonProtocol(int connection_id) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
-  NOTREACHED();
-#else
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   scoped_refptr<base::RefCountedMemory> bytes =
       GetContentClient()->GetDataResourceBytes(kCcompressedProtocolJSON);
   CHECK(bytes) << "Could not load protocol";
-  std::string json_protocol(reinterpret_cast<const char*>(bytes->front()),
-                            bytes->size());
 
   net::HttpServerResponseInfo response(net::HTTP_OK);
-  response.SetBody(json_protocol, "application/json; charset=UTF-8");
+  response.SetBody(std::string(base::as_string_view(*bytes)),
+                   "application/json; charset=UTF-8");
 
   thread_->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServerWrapper::SendResponse,
                                 base::Unretained(server_wrapper_.get()),
                                 connection_id, response));
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
+#else
+  NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 }
 
-void DevToolsHttpHandler::RespondToJsonList(
-    int connection_id,
-    const std::string& host,
-    DevToolsAgentHost::List hosts) {
+void DevToolsHttpHandler::RespondToJsonList(int connection_id,
+                                            const std::string& host,
+                                            DevToolsAgentHost::List hosts,
+                                            bool for_tab) {
   DevToolsAgentHost::List agent_hosts = std::move(hosts);
   std::sort(agent_hosts.begin(), agent_hosts.end(), TimeComparator);
   base::Value::List list_value;
   for (auto& agent_host : agent_hosts) {
-    // TODO(caseq): figure out if it makes sense exposing tab target to
-    // HTTP clients and potentially compatibility risks involved.
-    if (agent_host->GetType() != DevToolsAgentHost::kTypeTab)
+    if (agent_host->GetType() != DevToolsAgentHost::kTypeTab || for_tab) {
       list_value.Append(SerializeDescriptor(agent_host, host));
+    }
   }
   SendJson(connection_id, net::HTTP_OK, list_value, std::string());
 }
@@ -736,12 +741,12 @@ void DevToolsHttpHandler::OnDiscoveryPageRequest(int connection_id) {
 
 void DevToolsHttpHandler::OnFrontendResourceRequest(
     int connection_id, const std::string& path) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  Send404(connection_id);
-#else
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   Send200(connection_id,
           content::DevToolsFrontendHost::GetFrontendResource(path),
           GetMimeType(path));
+#else
+  Send404(connection_id);
 #endif
 }
 
@@ -806,7 +811,7 @@ void DevToolsHttpHandler::OnWebSocketMessage(int connection_id,
                                              std::string data) {
   auto it = connection_to_client_.find(connection_id);
   if (it != connection_to_client_.end()) {
-    it->second->OnMessage(base::as_bytes(base::make_span(data)));
+    it->second->OnMessage(base::as_byte_span(data));
   }
 }
 
@@ -862,7 +867,7 @@ void DevToolsHttpHandler::ServerStarted(
 
 void DevToolsHttpHandler::SendJson(int connection_id,
                                    net::HttpStatusCode status_code,
-                                   absl::optional<base::ValueView> value,
+                                   std::optional<base::ValueView> value,
                                    const std::string& message) {
   if (!thread_)
     return;

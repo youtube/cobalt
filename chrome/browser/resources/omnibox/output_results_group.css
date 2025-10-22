@@ -2,8 +2,6 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file. */
 
-@import url(omnibox_output_column_widths.css);
-
 :host {
   --header-color: #555;
   display: inline-block;
@@ -162,6 +160,14 @@ tbody.head th {
   font-weight: bold;
 }
 
+.cell-image-and-icon .icon-image,
+.cell-image-and-icon .image-image {
+  max-height: 28px;
+  width: 28px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin: 0 2px;
+}
 .cell-contents-and-description .pair-container,
 .cell-destination-url .pair-container,
 .cell-fill-and-inline .pair-container {
@@ -177,11 +183,6 @@ tbody.head th {
 .cell-contents-and-description .pair-item,
 .cell-destination-url .pair-item {
   margin-inline-end: 15px;
-}
-
-.cell-contents-and-description img.pair-item {
-  border-radius: 3px;
-  height: 28px;
 }
 
 .cell-contents-and-description .pair-item.contents::after {
@@ -204,10 +205,6 @@ tbody.head th {
 
 .cell-contents-and-description .pair-item.answer {
   color: orange;
-}
-
-.cell-contents-and-description .pair-item.image-url {
-  font-size: .5rem;
 }
 
 .cell-destination-url .pair-item:first-child img {
@@ -236,9 +233,9 @@ tbody.head th {
   color: red;
 }
 
-.cell-additional-info a {
-  /* Inlined version of cr:file-download icon */
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24" width="24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>');
+/* icons */
+
+.icon {
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
@@ -247,27 +244,24 @@ tbody.head th {
   width: 16px;
 }
 
-.cell-additional-info:not(:hover) a {
-  visibility: hidden;
+td:not(:hover) a.icon {
+  display: none;
 }
 
-/* boolean cells */
-
-.check-mark,
-.x-mark {
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  height: 16px;
-  width: 16px;
-}
-
-.check-mark {
+.icon.check-icon {
   background-image: url(chrome://resources/images/check_circle_green.svg);
 }
 
-.x-mark {
+.icon.x-icon {
   background-image: url(chrome://resources/images/cancel_red.svg);
+}
+
+.icon.edit-icon {
+  background-image: url(chrome://resources/images/icon_edit.svg);
+}
+
+.icon.download-icon {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24" width="24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>');
 }
 
 /* json cells */
@@ -277,22 +271,8 @@ pre.json .key {
   font-weight: bold;
 }
 
-pre.json .string {
-  color: green;
-}
-
-pre.json .number {
+pre.json .value {
   color: blue;
-}
-
-pre.json .boolean {
-  color: slateblue;
-  font-weight: bold;
-}
-
-pre.json .null {
-  color: magenta;
-  font-weight: bold;
 }
 
 /* misc cells */

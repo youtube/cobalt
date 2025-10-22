@@ -67,14 +67,14 @@ class MESSAGE_CENTER_EXPORT DesktopMessagePopupCollection
 
   // Overridden from display::DisplayObserver:
   void OnDisplayAdded(const display::Display& new_display) override;
-  void OnDisplayRemoved(const display::Display& old_display) override;
+  void OnDisplaysRemoved(const display::Displays& removed_displays) override;
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t metrics) override;
 
   int32_t alignment_ = POPUP_ALIGNMENT_BOTTOM | POPUP_ALIGNMENT_RIGHT;
   int64_t primary_display_id_ = display::kInvalidDisplayId;
   raw_ptr<display::Screen> screen_ = nullptr;
-  absl::optional<display::ScopedDisplayObserver> display_observer_;
+  std::optional<display::ScopedDisplayObserver> display_observer_;
   gfx::Rect work_area_;
 };
 

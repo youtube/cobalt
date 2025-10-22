@@ -17,60 +17,59 @@ using base::trace_event::ProcessMemoryDump;
 
 namespace {
 
-bool IsMemoryInfraTracingEnabled() {
-  bool enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(
-      base::trace_event::MemoryDumpManager::kTraceCategory, &enabled);
-  return enabled;
-}
-
 }  // namespace
 
-TracingObserver::TracingObserver(
-    base::trace_event::TraceLog* trace_log,
-    base::trace_event::MemoryDumpManager* memory_dump_manager)
-    : memory_dump_manager_(memory_dump_manager), trace_log_(trace_log) {
-  // If tracing was enabled before initializing MemoryDumpManager, we missed the
-  // OnTraceLogEnabled() event. Synthesize it so we can late-join the party.
-  // IsEnabled is called before adding observer to avoid calling
-  // OnTraceLogEnabled twice.
-  bool is_tracing_already_enabled = trace_log_->IsEnabled();
-  trace_log_->AddEnabledStateObserver(this);
-  if (is_tracing_already_enabled)
-    OnTraceLogEnabled();
+TracingObserver::TracingObserver()
+    : tracing::PerfettoTracedProcess::DataSourceBase(
+          tracing::mojom::kMemoryInstrumentationDataSourceName) {
+  perfetto::DataSourceDescriptor dsd;
+  dsd.set_name(name());
+  DataSourceProxy::Register(dsd, this);
 }
 
-TracingObserver::~TracingObserver() {
-  trace_log_->RemoveEnabledStateObserver(this);
-}
+TracingObserver::~TracingObserver() = default;
 
-void TracingObserver::OnTraceLogEnabled() {
-  if (!IsMemoryInfraTracingEnabled())
-    return;
-
-  // Initialize the TraceLog for the current thread. This is to avoids that the
-  // TraceLog memory dump provider is registered lazily during the MDM
-  // SetupForTracing().
-  base::trace_event::TraceLog::GetInstance()
-      ->InitializeThreadLocalEventBufferIfSupported();
-
-  const base::trace_event::TraceConfig& trace_config =
-      base::trace_event::TraceLog::GetInstance()->GetCurrentTraceConfig();
+void TracingObserver::StartTracingImpl(
+    const perfetto::DataSourceConfig& data_source_config) {
+  const base::trace_event::TraceConfig trace_config{
+      data_source_config.chrome_config().trace_config()};
   const base::trace_event::TraceConfig::MemoryDumpConfig& memory_dump_config =
       trace_config.memory_dump_config();
 
-  memory_dump_config_ =
-      std::make_unique<base::trace_event::TraceConfig::MemoryDumpConfig>(
-          memory_dump_config);
+  {
+    base::AutoLock lock(memory_dump_config_lock_);
+    memory_dump_config_ =
+        std::make_unique<base::trace_event::TraceConfig::MemoryDumpConfig>(
+            memory_dump_config);
+  }
 
-  if (memory_dump_manager_)
-    memory_dump_manager_->SetupForTracing(memory_dump_config);
+  auto* mdm = base::trace_event::MemoryDumpManager::GetInstance();
+  if (mdm->IsInitialized()) {
+    mdm->SetupForTracing(memory_dump_config);
+  }
 }
 
-void TracingObserver::OnTraceLogDisabled() {
-  if (memory_dump_manager_)
-    memory_dump_manager_->TeardownForTracing();
-  memory_dump_config_.reset();
+void TracingObserver::StopTracingImpl(
+    base::OnceClosure stop_complete_callback) {
+  base::trace_event::MemoryDumpManager::GetInstance()->TeardownForTracing();
+
+  {
+    base::AutoLock lock(memory_dump_config_lock_);
+    memory_dump_config_.reset();
+  }
+
+  if (stop_complete_callback) {
+    std::move(stop_complete_callback).Run();
+  }
+}
+
+void TracingObserver::Flush(base::RepeatingClosure flush_complete_callback) {
+  DataSourceProxy::Trace(
+      [&](DataSourceProxy::TraceContext ctx) { ctx.Flush(); });
+
+  if (flush_complete_callback) {
+    std::move(flush_complete_callback).Run();
+  }
 }
 
 bool TracingObserver::AddChromeDumpToTraceIfEnabled(
@@ -116,9 +115,17 @@ std::string TracingObserver::ApplyPathFiltering(
 
 bool TracingObserver::IsDumpModeAllowed(
     base::trace_event::MemoryDumpLevelOfDetail dump_mode) const {
+  base::AutoLock lock(memory_dump_config_lock_);
   if (!memory_dump_config_)
     return false;
   return memory_dump_config_->allowed_dump_modes.count(dump_mode) != 0;
+}
+
+bool TracingObserver::IsMemoryInfraTracingEnabled() const {
+  bool enabled = false;
+  DataSourceProxy::Trace(
+      [&](DataSourceProxy::TraceContext) { enabled = true; });
+  return enabled;
 }
 
 }  // namespace memory_instrumentation

@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "chrome/browser/translate/chrome_translate_client.h"
-#include "chrome/browser/ui/translate/translate_bubble_ui_action_logger.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/translate_ui_delegate.h"
 #include "components/translate/core/browser/translate_ui_languages_manager.h"
@@ -25,8 +24,9 @@ TranslateBubbleModelImpl::TranslateBubbleModelImpl(
   DCHECK_NE(VIEW_STATE_TARGET_LANGUAGE, view_state);
   current_view_state_ = view_state;
 
-  if (GetViewState() != TranslateBubbleModel::VIEW_STATE_BEFORE_TRANSLATE)
+  if (GetViewState() != TranslateBubbleModel::VIEW_STATE_BEFORE_TRANSLATE) {
     translate_executed_ = true;
+  }
 }
 
 TranslateBubbleModelImpl::~TranslateBubbleModelImpl() = default;
@@ -47,7 +47,6 @@ TranslateBubbleModelImpl::TranslateStepToViewState(
   }
 
   NOTREACHED();
-  return TranslateBubbleModel::VIEW_STATE_ERROR;
 }
 
 TranslateBubbleModel::ViewState TranslateBubbleModelImpl::GetViewState() const {
@@ -164,8 +163,9 @@ void TranslateBubbleModelImpl::OnBubbleClosing() {
   // the UI shown. https://crbug.com/1114868.
   ui_delegate_->OnUIClosedByUser();
 
-  if (!translate_executed_)
+  if (!translate_executed_) {
     ui_delegate_->TranslationDeclined(translation_declined_);
+  }
 }
 
 bool TranslateBubbleModelImpl::IsPageTranslatedInCurrentLanguages() const {

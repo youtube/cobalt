@@ -6,24 +6,23 @@
 
 #include <inttypes.h>
 
+#include <algorithm>
+
 #include "base/metrics/metrics_hashes.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/time/time.h"
 #include "components/segmentation_platform/internal/database/signal_key.h"
 #include "components/segmentation_platform/internal/proto/model_prediction.pb.h"
-#include "components/segmentation_platform/public/features.h"
 #include "components/segmentation_platform/public/proto/aggregation.pb.h"
 #include "components/segmentation_platform/public/proto/model_metadata.pb.h"
 #include "components/segmentation_platform/public/proto/output_config.pb.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
 #include "components/segmentation_platform/public/proto/types.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace segmentation_platform {
-namespace metadata_utils {
+namespace segmentation_platform::metadata_utils {
 
 namespace {
 uint64_t GetExpectedTensorLength(const proto::UMAFeature& feature) {
@@ -46,7 +45,6 @@ uint64_t GetExpectedTensorLength(const proto::UMAFeature& feature) {
       return 1;
     case proto::Aggregation::UNKNOWN:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -77,6 +75,30 @@ std::string FeatureToString(const proto::UMAFeature& feature) {
   return result;
 }
 
+ValidationResult ValidateBinaryClassifier(
+    const proto::Predictor::BinaryClassifier& classifier) {
+  if (classifier.positive_label().empty() ||
+      classifier.negative_label().empty()) {
+    return ValidationResult::kBinaryClassifierEmptyLabels;
+  }
+  return ValidationResult::kValidationSuccess;
+}
+
+ValidationResult ValidateBinnedClassifier(
+    const proto::Predictor::BinnedClassifier& classifier) {
+  float prev = std::numeric_limits<float>::lowest();
+  for (const auto& bin : classifier.bins()) {
+    if (bin.label().empty()) {
+      return ValidationResult::kBinnedClassifierEmptyLabels;
+    }
+    if (bin.min_range() < prev) {
+      return ValidationResult::kBinnedClassifierBinsUnsorted;
+    }
+    prev = bin.min_range();
+  }
+  return ValidationResult::kValidationSuccess;
+}
+
 }  // namespace
 
 ValidationResult ValidateSegmentInfo(const proto::SegmentInfo& segment_info) {
@@ -103,6 +125,19 @@ ValidationResult ValidateMetadata(
   if (model_metadata.features_size() != 0 &&
       model_metadata.input_features_size() != 0) {
     return ValidationResult::kFeatureListInvalid;
+  }
+
+  if (model_metadata.has_output_config() &&
+      model_metadata.discrete_mappings_size() > 0) {
+    return ValidationResult::kDiscreteMappingAndOutputConfigFound;
+  }
+
+  if (model_metadata.has_output_config()) {
+    auto output_config_result =
+        ValidateOutputConfig(model_metadata.output_config());
+    if (output_config_result != ValidationResult::kValidationSuccess) {
+      return output_config_result;
+    }
   }
 
   return ValidationResult::kValidationSuccess;
@@ -152,7 +187,7 @@ ValidationResult ValidateMetadataSqlFeature(const proto::SqlFeature& feature) {
     total_tensor_length += bind_value.value().tensor_length();
   }
 
-  if (total_tensor_length != base::ranges::count(feature.sql(), '?')) {
+  if (total_tensor_length != std::ranges::count(feature.sql(), '?')) {
     return ValidationResult::kFeatureBindValuesInvalid;
   }
 
@@ -165,8 +200,9 @@ ValidationResult ValidateMetadataCustomInput(
     // If the current fill policy is not supported or not filled, we must use
     // the given default value list, therefore the default value list must
     // provide enough input values as specified by tensor length.
-    if (custom_input.tensor_length() > custom_input.default_value_size())
+    if (custom_input.tensor_length() > custom_input.default_value_size()) {
       return ValidationResult::kCustomInputInvalid;
+    }
   } else if (custom_input.default_value_size() != 0) {
     // The default value should be longer than the tensor length.
     if (custom_input.tensor_length() > custom_input.default_value_size()) {
@@ -182,15 +218,23 @@ ValidationResult ValidateMetadataAndFeatures(
   if (metadata_result != ValidationResult::kValidationSuccess)
     return metadata_result;
 
+  if (model_metadata.has_output_config()) {
+    auto output_config_result =
+        ValidateOutputConfig(model_metadata.output_config());
+    if (output_config_result != ValidationResult::kValidationSuccess) {
+      return output_config_result;
+    }
+  }
+
   for (int i = 0; i < model_metadata.features_size(); ++i) {
-    auto feature = model_metadata.features(i);
+    const auto& feature = model_metadata.features(i);
     auto feature_result = ValidateMetadataUmaFeature(feature);
     if (feature_result != ValidationResult::kValidationSuccess)
       return feature_result;
   }
 
   for (int i = 0; i < model_metadata.input_features_size(); ++i) {
-    auto feature = model_metadata.input_features(i);
+    const auto& feature = model_metadata.input_features(i);
     if (feature.has_uma_feature()) {
       auto feature_result = ValidateMetadataUmaFeature(feature.uma_feature());
       if (feature_result != ValidationResult::kValidationSuccess)
@@ -232,6 +276,73 @@ ValidationResult ValidateSegmentInfoMetadataAndFeatures(
   return ValidateMetadataAndFeatures(segment_info.model_metadata());
 }
 
+ValidationResult ValidateOutputConfig(
+    const proto::OutputConfig& output_config) {
+  if (!output_config.has_predictor()) {
+    return ValidationResult::kPredictorTypeMissing;
+  }
+  const auto& predictor = output_config.predictor();
+  if (predictor.has_generic_predictor()) {
+    if (predictor.generic_predictor().output_labels_size() == 0) {
+      return ValidationResult::kGenericPredictorMissingLabels;
+    }
+  }
+  if (predictor.has_binary_classifier()) {
+    ValidationResult result =
+        ValidateBinaryClassifier(predictor.binary_classifier());
+    if (result != ValidationResult::kValidationSuccess) {
+      return result;
+    }
+  }
+  if (predictor.has_binned_classifier()) {
+    ValidationResult result =
+        ValidateBinnedClassifier(predictor.binned_classifier());
+    if (result != ValidationResult::kValidationSuccess) {
+      return result;
+    }
+  }
+  if (predictor.has_multi_class_classifier()) {
+    ValidationResult result =
+        ValidateMultiClassClassifier(predictor.multi_class_classifier());
+    if (result != ValidationResult::kValidationSuccess) {
+      return result;
+    }
+  }
+
+  if (output_config.has_predicted_result_ttl()) {
+    const auto& result_ttl = output_config.predicted_result_ttl();
+    if (!result_ttl.has_default_ttl()) {
+      return ValidationResult::kDefaultTtlIsMissing;
+    }
+    if (result_ttl.time_unit() == proto::TimeUnit::UNKNOWN_TIME_UNIT) {
+      return ValidationResult::kPredictionTtlTimeUnitInvalid;
+    }
+  }
+
+  return ValidationResult::kValidationSuccess;
+}
+
+ValidationResult ValidateMultiClassClassifier(
+    const proto::Predictor_MultiClassClassifier& multi_class_classifier) {
+  if (multi_class_classifier.class_labels_size() == 0) {
+    return ValidationResult::kMultiClassClassifierHasNoLabels;
+  }
+
+  if (multi_class_classifier.has_threshold() &&
+      multi_class_classifier.class_thresholds_size() > 0) {
+    return ValidationResult::kMultiClassClassifierUsesBothThresholdTypes;
+  }
+
+  if (multi_class_classifier.class_thresholds_size() > 0 &&
+      multi_class_classifier.class_thresholds_size() !=
+          multi_class_classifier.class_labels_size()) {
+    return ValidationResult::
+        kMultiClassClassifierClassAndThresholdCountMismatch;
+  }
+
+  return ValidationResult::kValidationSuccess;
+}
+
 void SetFeatureNameHashesFromName(
     proto::SegmentationModelMetadata* model_metadata) {
   for (int i = 0; i < model_metadata->features_size(); ++i) {
@@ -244,6 +355,9 @@ bool HasExpiredOrUnavailableResult(const proto::SegmentInfo& segment_info,
                                    const base::Time& now) {
   if (!segment_info.has_prediction_result())
     return true;
+  if (segment_info.prediction_result().result_size() == 0) {
+    return true;
+  }
 
   base::Time last_result_timestamp = base::Time::FromDeltaSinceWindowsEpoch(
       base::Microseconds(segment_info.prediction_result().timestamp_us()));
@@ -297,7 +411,6 @@ base::TimeDelta ConvertToTimeDelta(proto::TimeUnit time_unit) {
       [[fallthrough]];
     default:
       NOTREACHED();
-      return base::TimeDelta();
   }
 }
 
@@ -315,6 +428,19 @@ SignalKey::Kind SignalTypeToSignalKind(proto::SignalType signal_type) {
   }
 }
 
+proto::SignalType SignalKindToSignalType(SignalKey::Kind kind) {
+  switch (kind) {
+    case SignalKey::Kind::USER_ACTION:
+      return proto::SignalType::USER_ACTION;
+    case SignalKey::Kind::HISTOGRAM_ENUM:
+      return proto::SignalType::HISTOGRAM_ENUM;
+    case SignalKey::Kind::HISTOGRAM_VALUE:
+      return proto::SignalType::HISTOGRAM_VALUE;
+    case SignalKey::Kind::UNKNOWN:
+      return proto::SignalType::UNKNOWN_SIGNAL_TYPE;
+  }
+}
+
 float ConvertToDiscreteScore(const std::string& mapping_key,
                              float input_score,
                              const proto::SegmentationModelMetadata& metadata) {
@@ -325,7 +451,7 @@ float ConvertToDiscreteScore(const std::string& mapping_key,
     if (iter == metadata.discrete_mappings().end())
       return input_score;
   }
-  DCHECK(iter != metadata.discrete_mappings().end());
+  CHECK(iter != metadata.discrete_mappings().end());
 
   const auto& mapping = iter->second;
 
@@ -373,9 +499,8 @@ std::string SegmetationModelMetadataToString(
                                      model_metadata.result_time_to_live()));
   }
   if (model_metadata.has_upload_tensors()) {
-    result.append(
-        base::StringPrintf("upload_tensors: %s",
-                           model_metadata.upload_tensors() ? "true" : "false"));
+    result.append(base::StringPrintf(
+        "upload_tensors: %s", base::ToString(model_metadata.upload_tensors())));
   }
 
   if (base::EndsWith(result, ", "))
@@ -387,15 +512,31 @@ std::vector<proto::UMAFeature> GetAllUmaFeatures(
     const proto::SegmentationModelMetadata& model_metadata,
     bool include_outputs) {
   std::vector<proto::UMAFeature> features;
+  VisitAllUmaFeatures(model_metadata, include_outputs,
+                      base::BindRepeating(
+                          [](std::vector<proto::UMAFeature>* features,
+                             const proto::UMAFeature& feature) {
+                            features->push_back(feature);
+                          },
+                          base::Unretained(&features)));
+  return features;
+}
+
+using VisitUmaFeature =
+    base::RepeatingCallback<void(const proto::UMAFeature& feature)>;
+void VisitAllUmaFeatures(const proto::SegmentationModelMetadata& model_metadata,
+                         bool include_outputs,
+                         VisitUmaFeature visit) {
+  std::vector<proto::UMAFeature> features;
   for (int i = 0; i < model_metadata.features_size(); ++i) {
-    features.push_back(model_metadata.features(i));
+    visit.Run(model_metadata.features(i));
   }
 
   // Add training/inference inputs.
   for (int i = 0; i < model_metadata.input_features_size(); ++i) {
-    auto feature = model_metadata.input_features(i);
+    const auto& feature = model_metadata.input_features(i);
     if (feature.has_uma_feature())
-      features.push_back(feature.uma_feature());
+      visit.Run(feature.uma_feature());
   }
 
   // Add training/inference outputs.
@@ -403,7 +544,7 @@ std::vector<proto::UMAFeature> GetAllUmaFeatures(
     for (const auto& output : model_metadata.training_outputs().outputs()) {
       DCHECK(output.has_uma_output()) << "Currently only support UMA output.";
       if (output.has_uma_output())
-        features.push_back(output.uma_output().uma_feature());
+        visit.Run(output.uma_output().uma_feature());
     }
   }
 
@@ -415,18 +556,17 @@ std::vector<proto::UMAFeature> GetAllUmaFeatures(
       const auto& trigger = training_config.observation_trigger(i);
       if (trigger.has_uma_trigger() &&
           trigger.uma_trigger().has_uma_feature()) {
-        features.push_back(trigger.uma_trigger().uma_feature());
+        visit.Run(trigger.uma_trigger().uma_feature());
       }
     }
   }
-
-  return features;
 }
 
 proto::PredictionResult CreatePredictionResult(
     const std::vector<float>& model_scores,
     const proto::OutputConfig& output_config,
-    base::Time timestamp) {
+    base::Time timestamp,
+    int64_t model_version) {
   proto::PredictionResult result;
   result.mutable_result()->Add(model_scores.begin(), model_scores.end());
   if (output_config.has_predictor()) {
@@ -434,6 +574,7 @@ proto::PredictionResult CreatePredictionResult(
   }
   result.set_timestamp_us(
       timestamp.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  result.set_model_version(model_version);
   return result;
 }
 
@@ -447,30 +588,55 @@ proto::ClientResult CreateClientResultFromPredResult(
   return client_result;
 }
 
-bool ConfigUsesLegacyOutput(Config* config) {
-  // List of config segments ids that doesn't support multi output and uses
-  // legacy output. Please delete `SegmentId` from this list if segment is
-  // migrated to support multi output.
-  base::flat_set<SegmentId> config_ids_use_legacy{
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_NEW_TAB,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHARE,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_VOICE,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_CHROME_START_ANDROID,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_QUERY_TILES,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_CHROME_LOW_USER_ENGAGEMENT,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_FEED_USER,
-      SegmentId::OPTIMIZATION_TARGET_CONTEXTUAL_PAGE_ACTION_PRICE_TRACKING,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_CHROME_START_ANDROID_V2,
-      SegmentId::POWER_USER_SEGMENT,
-      SegmentId::CROSS_DEVICE_USER_SEGMENT,
-      SegmentId::FREQUENT_FEATURE_USER_SEGMENT,
-      SegmentId::INTENTIONAL_USER_SEGMENT,
-      SegmentId::RESUME_HEAVY_USER_SEGMENT};
-
-  return (config->segments.size() >= 1 &&
-          config_ids_use_legacy.contains(config->segments.begin()->first));
+std::string GetInputKeyForInputContextCustomInput(
+    const proto::CustomInput& custom_input) {
+  std::string input_name = custom_input.name();
+  DCHECK_EQ(custom_input.fill_policy(),
+            proto::CustomInput::FILL_FROM_INPUT_CONTEXT);
+  auto custom_input_iter = custom_input.additional_args().find("name");
+  if (custom_input_iter != custom_input.additional_args().end()) {
+    input_name = custom_input_iter->second;
+  }
+  return input_name;
 }
 
-}  // namespace metadata_utils
-}  // namespace segmentation_platform
+std::set<std::string> GetInputKeysForMetadata(
+    const proto::SegmentationModelMetadata& metadata) {
+  std::set<std::string> input_keys;
+  for (const auto& feature : metadata.input_features()) {
+    if (feature.has_custom_input()) {
+      // This only gets keys needed for FILL_FROM_INPUT_CONTEXT, consider adding
+      // other data sources keys.
+      if (feature.custom_input().fill_policy() ==
+          proto::CustomInput::FILL_FROM_INPUT_CONTEXT) {
+        input_keys.insert(
+            GetInputKeyForInputContextCustomInput(feature.custom_input()));
+      }
+    } else if (feature.has_sql_feature()) {
+      for (const auto& bind_value : feature.sql_feature().bind_values()) {
+        input_keys.insert(
+            GetInputKeyForInputContextCustomInput(bind_value.value()));
+      }
+    }
+  }
+  return input_keys;
+}
+
+bool ConfigUsesLegacyOutput(const Config* config) {
+  return (config->segments.size() >= 1 &&
+          SegmentUsesLegacyOutput(config->segments.begin()->first));
+}
+
+bool SegmentUsesLegacyOutput(proto::SegmentId segment_id) {
+  // List of segments ids that doesn't support multi output and uses
+  // legacy output. Please delete `SegmentId` from this list if segment is
+  // migrated to support multi output.
+  base::flat_set<SegmentId> segment_ids_use_legacy{
+      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_NEW_TAB,
+      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHARE,
+      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_VOICE};
+
+  return segment_ids_use_legacy.contains(segment_id);
+}
+
+}  // namespace segmentation_platform::metadata_utils

@@ -16,12 +16,10 @@
 
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
 
 namespace blink {
-
-using V8Union = V8UnionBooleanOrDoubleOrLongOrString;
 
 TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
@@ -31,20 +29,22 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
       std::make_pair(String::FromUTF8("FeatureB"), false));
   config->setFeatures(features_vector);
 
-  HeapVector<std::pair<String, Member<V8Union>>> feature_params_vector;
+  HeapVector<std::pair<String, Member<V8UnionBooleanOrLongOrString>>>
+      feature_params_vector;
 
   const String str = "value1";
-  Member<V8Union> union_str = MakeGarbageCollected<V8Union>(str);
-  Member<V8Union> union_long = MakeGarbageCollected<V8Union>(123);
-  Member<V8Union> union_double = MakeGarbageCollected<V8Union>(1.23);
-  Member<V8Union> union_bool_true = MakeGarbageCollected<V8Union>(true);
-  Member<V8Union> union_bool_false = MakeGarbageCollected<V8Union>(false);
+  Member<V8UnionBooleanOrLongOrString> union_str =
+      MakeGarbageCollected<V8UnionBooleanOrLongOrString>(str);
+  Member<V8UnionBooleanOrLongOrString> union_long =
+      MakeGarbageCollected<V8UnionBooleanOrLongOrString>(123);
+  Member<V8UnionBooleanOrLongOrString> union_bool_true =
+      MakeGarbageCollected<V8UnionBooleanOrLongOrString>(true);
+  Member<V8UnionBooleanOrLongOrString> union_bool_false =
+      MakeGarbageCollected<V8UnionBooleanOrLongOrString>(false);
   feature_params_vector.push_back(
       std::make_pair(String::FromUTF8("ParamString"), union_str));
   feature_params_vector.push_back(
       std::make_pair(String::FromUTF8("ParamLong"), union_long));
-  feature_params_vector.push_back(
-      std::make_pair(String::FromUTF8("ParamDouble"), union_double));
   feature_params_vector.push_back(
       std::make_pair(String::FromUTF8("ParamBoolTrue"), union_bool_true));
   feature_params_vector.push_back(
@@ -54,10 +54,7 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   Vector<uint32_t> exp_ids_vector;
   exp_ids_vector.push_back(1001);
   exp_ids_vector.push_back(1002);
-
-  config->setActiveExperimentConfigData(String::FromUTF8("active_config_data"));
-  config->setLatestExperimentConfigHashData(
-      String::FromUTF8("latest_hash_data"));
+  config->setExperimentIds(exp_ids_vector);
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
 
@@ -75,63 +72,59 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   ASSERT_NE(nullptr, feature_params_dict);
   EXPECT_EQ("value1", *feature_params_dict->FindString("ParamString"));
   EXPECT_EQ("123", *feature_params_dict->FindString("ParamLong"));
-  EXPECT_EQ("1.230000", *feature_params_dict->FindString("ParamDouble"));
   EXPECT_EQ("true", *feature_params_dict->FindString("ParamBoolTrue"));
   EXPECT_EQ("false", *feature_params_dict->FindString("ParamBoolFalse"));
 
-  const std::string active_config_data =
-      *dict.FindString(cobalt::kExperimentConfigActiveConfigData);
-  EXPECT_EQ("active_config_data", active_config_data);
-
-  const std::string latest_hash_data =
-      *dict.FindString(cobalt::kLatestConfigHash);
-  EXPECT_EQ("latest_hash_data", latest_hash_data);
+  const base::Value::List* exp_ids_list =
+      dict.FindList(cobalt::kExperimentConfigExpIds);
+  ASSERT_NE(nullptr, exp_ids_list);
+  ASSERT_EQ(2u, exp_ids_list->size());
+  EXPECT_EQ(1001, (*exp_ids_list)[0].GetInt());
+  EXPECT_EQ(1002, (*exp_ids_list)[1].GetInt());
 }
 
 TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatures) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   // setFeatures NOT called in this test.
-  config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setActiveExperimentConfigData(String::FromUTF8(""));
-  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
+  config->setFeatureParams(
+      HeapVector<std::pair<String, Member<V8UnionBooleanOrLongOrString>>>());
+  config->setExperimentIds(Vector<uint32_t>());
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
-  ASSERT_FALSE(result.has_value());
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(result.value()
+                  .Find(cobalt::kExperimentConfigFeatures)
+                  ->GetIfDict()
+                  ->empty());
 }
 
 TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatureParams) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   config->setFeatures(Vector<std::pair<String, bool>>());
   // setFeatureParams NOT called in this test.
-  config->setActiveExperimentConfigData(String::FromUTF8(""));
-  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
+  config->setExperimentIds(Vector<uint32_t>());
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
-  ASSERT_FALSE(result.has_value());
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(result.value()
+                  .Find(cobalt::kExperimentConfigFeatureParams)
+                  ->GetIfDict()
+                  ->empty());
 }
 
-TEST(ExperimentsUtilsTest,
-     ParseConfigToDictionary_MissingActiveExperimentConfigData) {
+TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingExperimentIds) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   config->setFeatures(Vector<std::pair<String, bool>>());
-  config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
-  // setActiveExperimentConfigData NOT called in this test.
+  config->setFeatureParams(
+      HeapVector<std::pair<String, Member<V8UnionBooleanOrLongOrString>>>());
+  // setExperimentIds NOT called in this test.
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
-  ASSERT_FALSE(result.has_value());
-}
-
-TEST(ExperimentsUtilsTest,
-     ParseConfigToDictionary_MissingLatestExperimentConfigHashData) {
-  auto* config = MakeGarbageCollected<ExperimentConfiguration>();
-  config->setFeatures(Vector<std::pair<String, bool>>());
-  config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setActiveExperimentConfigData(String::FromUTF8(""));
-  // setLatestExperimentConfigHashData NOT called in this test.
-
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
-  ASSERT_FALSE(result.has_value());
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(result.value()
+                  .Find(cobalt::kExperimentConfigExpIds)
+                  ->GetIfList()
+                  ->empty());
 }
 
 TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
@@ -139,9 +132,9 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
 
   ASSERT_TRUE(true);
   config->setFeatures(Vector<std::pair<String, bool>>());
-  config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setActiveExperimentConfigData(String::FromUTF8(""));
-  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
+  config->setFeatureParams(
+      HeapVector<std::pair<String, Member<V8UnionBooleanOrLongOrString>>>());
+  config->setExperimentIds(Vector<uint32_t>());
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
   ASSERT_TRUE(result.has_value());
@@ -157,99 +150,10 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
   ASSERT_NE(nullptr, feature_params_dict);
   EXPECT_TRUE(feature_params_dict->empty());
 
-  const std::string active_config_data =
-      *dict.FindString(cobalt::kExperimentConfigActiveConfigData);
-  EXPECT_EQ("", active_config_data);
-
-  const std::string latest_hash_data =
-      *dict.FindString(cobalt::kLatestConfigHash);
-  EXPECT_EQ("", latest_hash_data);
-}
-
-TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryEmpty) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
-  auto result = ParseSettingsToDictionary(settings);
-  EXPECT_TRUE(result.has_value());
-  EXPECT_TRUE(result->empty());
-}
-
-TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryString) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
-  settings.push_back(
-      std::make_pair("key", MakeGarbageCollected<V8Union>(String("value"))));
-  auto result = ParseSettingsToDictionary(settings);
-  EXPECT_TRUE(result.has_value());
-  EXPECT_EQ(1u, result->size());
-  const std::string* value = result->FindString("key");
-  EXPECT_TRUE(value);
-  EXPECT_EQ("value", *value);
-}
-
-TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryLong) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
-  settings.push_back(std::make_pair("key", MakeGarbageCollected<V8Union>(123)));
-  auto result = ParseSettingsToDictionary(settings);
-  EXPECT_TRUE(result.has_value());
-  EXPECT_EQ(1u, result->size());
-  absl::optional<int> value = result->FindInt("key");
-  EXPECT_TRUE(value.has_value());
-  EXPECT_EQ(123, value.value());
-}
-
-TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryDouble) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
-  settings.push_back(
-      std::make_pair("key", MakeGarbageCollected<V8Union>(123.456)));
-  auto result = ParseSettingsToDictionary(settings);
-  EXPECT_TRUE(result.has_value());
-  EXPECT_EQ(1u, result->size());
-  absl::optional<double> value = result->FindDouble("key");
-  EXPECT_TRUE(value.has_value());
-  EXPECT_EQ(123.456, value.value());
-}
-
-TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryBoolean) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
-  settings.push_back(
-      std::make_pair("key", MakeGarbageCollected<V8Union>(true)));
-  auto result = ParseSettingsToDictionary(settings);
-  EXPECT_TRUE(result.has_value());
-  EXPECT_EQ(1u, result->size());
-  absl::optional<bool> value = result->FindBool("key");
-  EXPECT_TRUE(value.has_value());
-  EXPECT_TRUE(value.value());
-}
-
-TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryMixed) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
-  settings.push_back(std::make_pair(
-      "string_key", MakeGarbageCollected<V8Union>(String("string_value"))));
-  settings.push_back(
-      std::make_pair("long_key", MakeGarbageCollected<V8Union>(123)));
-  settings.push_back(
-      std::make_pair("double_key", MakeGarbageCollected<V8Union>(123.456)));
-  settings.push_back(
-      std::make_pair("bool_key", MakeGarbageCollected<V8Union>(true)));
-
-  auto result = ParseSettingsToDictionary(settings);
-  EXPECT_TRUE(result.has_value());
-  EXPECT_EQ(4u, result->size());
-
-  const std::string* string_value = result->FindString("string_key");
-  EXPECT_TRUE(string_value);
-  EXPECT_EQ("string_value", *string_value);
-
-  absl::optional<int> long_value = result->FindInt("long_key");
-  EXPECT_TRUE(long_value.has_value());
-  EXPECT_EQ(123, long_value.value());
-
-  absl::optional<double> double_value = result->FindDouble("double_key");
-  EXPECT_TRUE(double_value.has_value());
-  EXPECT_EQ(123.456, double_value.value());
-
-  absl::optional<bool> bool_value = result->FindBool("bool_key");
-  EXPECT_TRUE(bool_value.has_value());
-  EXPECT_TRUE(bool_value.value());
+  const base::Value::List* exp_ids_list =
+      dict.FindList(cobalt::kExperimentConfigExpIds);
+  ASSERT_NE(nullptr, exp_ids_list);
+  EXPECT_TRUE(exp_ids_list->empty());
 }
 
 }  // namespace blink

@@ -39,6 +39,7 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
   ~CobaltMetricsLogUploader() = default;
 
   void UploadLog(const std::string& compressed_log_data,
+                 const metrics::LogMetadata& log_metadata,
                  const std::string& log_hash,
                  const std::string& log_signature,
                  const metrics::ReportingInfo& reporting_info) override;

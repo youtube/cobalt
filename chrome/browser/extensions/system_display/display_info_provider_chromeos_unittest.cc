@@ -13,7 +13,6 @@
 #include "ash/display/cros_display_config.h"
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/display/screen_orientation_controller_test_api.h"
-#include "ash/public/cpp/tablet_mode.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/shell.h"
 #include "base/command_line.h"
@@ -31,6 +30,7 @@
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/manager/test/touch_transform_controller_test_api.h"
 #include "ui/display/manager/touch_transform_setter.h"
+#include "ui/display/screen.h"
 #include "ui/display/test/display_manager_test_api.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/gfx/geometry/rect.h"
@@ -43,7 +43,7 @@ using DisplayLayoutList = DisplayInfoProvider::DisplayLayoutList;
 
 void ErrorCallback(std::string* result,
                    base::OnceClosure callback,
-                   absl::optional<std::string> error) {
+                   std::optional<std::string> error) {
   *result = error ? *error : "";
   std::move(callback).Run();
 }
@@ -85,7 +85,7 @@ class DisplayInfoProviderChromeosTest : public ChromeAshTestBase {
     // Wait for TabletModeController to take its initial state from the power
     // manager.
     base::RunLoop().RunUntilIdle();
-    EXPECT_FALSE(ash::TabletMode::Get()->InTabletMode());
+    EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   }
 
   void TearDown() override {
@@ -198,7 +198,7 @@ class DisplayInfoProviderChromeosTest : public ChromeAshTestBase {
   std::unique_ptr<ash::CrosDisplayConfig> cros_display_config_;
 
  protected:
-  raw_ptr<DisplayInfoProvider, ExperimentalAsh> provider_;
+  raw_ptr<DisplayInfoProvider> provider_;
 };
 
 TEST_F(DisplayInfoProviderChromeosTest, GetBasic) {
@@ -220,6 +220,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetBasic) {
   EXPECT_EQ(96, result[0].dpi_y);
   EXPECT_TRUE(result[0].mirroring_source_id.empty());
   EXPECT_TRUE(result[0].is_enabled);
+  EXPECT_EQ(api::system_display::ActiveState::kActive, result[0].active_state);
 
   ASSERT_TRUE(base::StringToInt64(result[1].id, &display_id))
       << "Display id must be convertible to integer: " << result[0].id;
@@ -237,6 +238,39 @@ TEST_F(DisplayInfoProviderChromeosTest, GetBasic) {
   EXPECT_EQ(96, result[1].dpi_y);
   EXPECT_TRUE(result[1].mirroring_source_id.empty());
   EXPECT_TRUE(result[1].is_enabled);
+  EXPECT_EQ(api::system_display::ActiveState::kActive, result[1].active_state);
+
+  // Disconnect all displays.
+  UpdateDisplay("");
+  result = GetAllDisplaysInfo();
+
+  ASSERT_EQ(2u, result.size());
+
+  ASSERT_TRUE(base::StringToInt64(result[0].id, &display_id))
+      << "Display id must be convertible to integer: " << result[0].id;
+  ASSERT_TRUE(DisplayExists(display_id)) << display_id << " not found";
+  EXPECT_TRUE(result[0].is_primary);
+  EXPECT_EQ(api::system_display::ActiveState::kInactive,
+            result[0].active_state);
+
+  ASSERT_TRUE(base::StringToInt64(result[1].id, &display_id))
+      << "Display id must be convertible to integer: " << result[0].id;
+  ASSERT_TRUE(DisplayExists(display_id)) << display_id << " not found";
+  EXPECT_EQ("500,0 400x520", SystemInfoDisplayBoundsToString(result[1].bounds));
+  EXPECT_FALSE(result[1].is_primary);
+  EXPECT_EQ(api::system_display::ActiveState::kInactive,
+            result[1].active_state);
+
+  // Reconnect first display.
+  UpdateDisplay("500x600");
+  result = GetAllDisplaysInfo();
+  ASSERT_EQ(1u, result.size());
+
+  ASSERT_TRUE(base::StringToInt64(result[0].id, &display_id))
+      << "Display id must be convertible to integer: " << result[0].id;
+  ASSERT_TRUE(DisplayExists(display_id)) << display_id << " not found";
+  EXPECT_TRUE(result[0].is_primary);
+  EXPECT_EQ(api::system_display::ActiveState::kActive, result[0].active_state);
 }
 
 TEST_F(DisplayInfoProviderChromeosTest, GetWithUnifiedDesktop) {
@@ -592,7 +626,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetVisibleArea) {
 }
 
 TEST_F(DisplayInfoProviderChromeosTest, GetMirroring) {
-  UpdateDisplay("600x600, 400x520/o");
+  UpdateDisplay("600x500, 400x520/o");
   DisplayUnitInfoList result;
   result = GetAllDisplaysInfo();
 
@@ -615,7 +649,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetMirroring) {
   EXPECT_TRUE(result[1].mirroring_source_id.empty());
 
   GetDisplayManager()->SetMirrorMode(display::MirrorMode::kNormal,
-                                     absl::nullopt);
+                                     std::nullopt);
   ASSERT_TRUE(GetDisplayManager()->IsInMirrorMode());
 
   result = GetAllDisplaysInfo();
@@ -625,7 +659,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetMirroring) {
   EXPECT_EQ(base::NumberToString(display_id_primary),
             result[0].mirroring_source_id);
 
-  GetDisplayManager()->SetMirrorMode(display::MirrorMode::kOff, absl::nullopt);
+  GetDisplayManager()->SetMirrorMode(display::MirrorMode::kOff, std::nullopt);
   ASSERT_FALSE(GetDisplayManager()->IsInMirrorMode());
 
   result = GetAllDisplaysInfo();
@@ -638,7 +672,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetMirroring) {
 }
 
 TEST_F(DisplayInfoProviderChromeosTest, GetBounds) {
-  UpdateDisplay("600x600, 400x520");
+  UpdateDisplay("600x500, 400x520");
   GetDisplayManager()->SetLayoutForCurrentDisplays(
       display::test::CreateDisplayLayout(display_manager(),
                                          display::DisplayPlacement::LEFT, -40));
@@ -646,7 +680,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetBounds) {
   DisplayUnitInfoList result = GetAllDisplaysInfo();
 
   ASSERT_EQ(2u, result.size());
-  EXPECT_EQ("0,0 600x600", SystemInfoDisplayBoundsToString(result[0].bounds));
+  EXPECT_EQ("0,0 600x500", SystemInfoDisplayBoundsToString(result[0].bounds));
   EXPECT_EQ("-400,-40 400x520",
             SystemInfoDisplayBoundsToString(result[1].bounds));
 
@@ -657,7 +691,7 @@ TEST_F(DisplayInfoProviderChromeosTest, GetBounds) {
   result = GetAllDisplaysInfo();
 
   ASSERT_EQ(2u, result.size());
-  EXPECT_EQ("0,0 600x600", SystemInfoDisplayBoundsToString(result[0].bounds));
+  EXPECT_EQ("0,0 600x500", SystemInfoDisplayBoundsToString(result[0].bounds));
   EXPECT_EQ("40,-520 400x520",
             SystemInfoDisplayBoundsToString(result[1].bounds));
 
@@ -667,8 +701,8 @@ TEST_F(DisplayInfoProviderChromeosTest, GetBounds) {
 
   result = GetAllDisplaysInfo();
   ASSERT_EQ(2u, result.size());
-  EXPECT_EQ("0,0 600x600", SystemInfoDisplayBoundsToString(result[0].bounds));
-  EXPECT_EQ("80,600 400x520",
+  EXPECT_EQ("0,0 600x500", SystemInfoDisplayBoundsToString(result[0].bounds));
+  EXPECT_EQ("80,500 400x520",
             SystemInfoDisplayBoundsToString(result[1].bounds));
 }
 
@@ -774,8 +808,9 @@ TEST_F(DisplayInfoProviderChromeosTest, UnifiedModeLayout) {
   EXPECT_TRUE(SetDisplayLayout(layout));
   EXPECT_EQ(gfx::Size(650, 743),
             display::Screen::GetScreen()->GetPrimaryDisplay().size());
-  EXPECT_EQ(displays[2].id,
-            std::to_string(ash::Shell::Get()
+  EXPECT_EQ(
+      displays[2].id,
+      base::NumberToString(ash::Shell::Get()
                                ->display_configuration_controller()
                                ->GetPrimaryMirroringDisplayForUnifiedDesktop()
                                .id()));
@@ -870,7 +905,7 @@ TEST_F(DisplayInfoProviderChromeosTest, SetUnifiedMirrored) {
   UpdateDisplay("500x400,500x400");
 
   GetDisplayManager()->SetMirrorMode(display::MirrorMode::kNormal,
-                                     absl::nullopt);
+                                     std::nullopt);
   EXPECT_TRUE(GetDisplayManager()->IsInMirrorMode());
 
   EXPECT_FALSE(GetDisplayManager()->unified_desktop_enabled());
@@ -885,7 +920,7 @@ TEST_F(DisplayInfoProviderChromeosTest, SetUnifiedMirrored) {
   EXPECT_FALSE(GetDisplayManager()->IsInUnifiedMode());
 
   // Turning off mirroring should set unified mode.
-  GetDisplayManager()->SetMirrorMode(display::MirrorMode::kOff, absl::nullopt);
+  GetDisplayManager()->SetMirrorMode(display::MirrorMode::kOff, std::nullopt);
   EXPECT_TRUE(GetDisplayManager()->IsInUnifiedMode());
 
   // Restore extended mode.
@@ -1071,7 +1106,7 @@ TEST_F(DisplayInfoProviderChromeosTest,
 }
 
 TEST_F(DisplayInfoProviderChromeosTest, SetBoundsOriginPrimaryHiDPI) {
-  UpdateDisplay("1200x600*2,500x500");
+  UpdateDisplay("1200x600*2,500x400");
 
   const display::Display& secondary =
       display::test::DisplayManagerTestApi(display_manager())
@@ -1083,7 +1118,7 @@ TEST_F(DisplayInfoProviderChromeosTest, SetBoundsOriginPrimaryHiDPI) {
   EXPECT_TRUE(
       CallSetDisplayUnitInfo(base::NumberToString(secondary.id()), info));
 
-  EXPECT_EQ("600,-100 500x500", secondary.bounds().ToString());
+  EXPECT_EQ("600,-100 500x400", secondary.bounds().ToString());
 }
 
 TEST_F(DisplayInfoProviderChromeosTest, SetBoundsOriginSecondaryHiDPI) {
@@ -1551,7 +1586,7 @@ TEST_F(DisplayInfoProviderChromeosTest, SetDisplayZoomFactor) {
 
   // Initialize displays that have bounds outside the valid width range of 640px
   // to 4096px.
-  UpdateDisplay("400x400, 4500x1000#4500x1000");
+  UpdateDisplay("400x350, 4500x1000#4500x1000");
 
   display_id_list = display_manager()->GetConnectedDisplayIdList();
 
@@ -1677,7 +1712,7 @@ TEST_F(DisplayInfoProviderChromeosTest, SetMIXEDMode) {
   }
 
   // Add more displays.
-  UpdateDisplay("200x200,600x600,700x700");
+  UpdateDisplay("200x150,600x550,700x650");
   display::DisplayIdList id_list =
       display_manager()->GetConnectedDisplayIdList();
   EXPECT_EQ(3U, id_list.size());

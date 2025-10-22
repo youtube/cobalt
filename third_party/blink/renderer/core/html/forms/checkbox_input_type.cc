@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 
@@ -46,12 +47,8 @@ void CheckboxInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeCheckbox);
 }
 
-const AtomicString& CheckboxInputType::FormControlType() const {
-  return input_type_names::kCheckbox;
-}
-
-ControlPart CheckboxInputType::AutoAppearance() const {
-  return kCheckboxPart;
+AppearanceValue CheckboxInputType::AutoAppearance() const {
+  return AppearanceValue::kCheckbox;
 }
 
 bool CheckboxInputType::ValueMissing(const String&) const {
@@ -67,7 +64,7 @@ void CheckboxInputType::HandleKeyupEvent(KeyboardEvent& event) {
   // Use Enter key simulated click when Spatial Navigation enabled.
   if (event.key() == " " ||
       (IsSpatialNavigationEnabled(GetElement().GetDocument().GetFrame()) &&
-       event.key() == "Enter")) {
+       event.key() == keywords::kCapitalEnter)) {
     DispatchSimulatedClickIfActive(event);
   }
 }
@@ -97,6 +94,10 @@ void CheckboxInputType::DidDispatchClick(Event& event,
     GetElement().setIndeterminate(state.indeterminate);
     GetElement().SetChecked(state.checked);
   } else {
+    if (event.isTrusted()) {
+      // This is needed in order to match :user-valid/:user-invalid
+      GetElement().SetUserHasEditedTheField();
+    }
     GetElement().DispatchInputAndChangeEventIfNeeded();
   }
   is_in_click_handler_ = false;

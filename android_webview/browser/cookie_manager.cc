@@ -7,18 +7,20 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "android_webview/browser/aw_browser_context.h"
+#include "android_webview/browser/aw_browser_context_store.h"
 #include "android_webview/browser/aw_client_hints_controller_delegate.h"
 #include "android_webview/browser/aw_cookie_access_policy.h"
-#include "android_webview/browser_jni_headers/AwCookieManager_jni.h"
 #include "android_webview/common/aw_switches.h"
 #include "base/android/build_info.h"
 #include "base/android/callback_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/path_utils.h"
+#include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
 #include "base/containers/circular_deque.h"
 #include "base/files/file_util.h"
@@ -45,6 +47,7 @@
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_options.h"
+#include "net/cookies/cookie_partition_key.h"
 #include "net/cookies/cookie_store.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/parsed_cookie.h"
@@ -52,8 +55,10 @@
 #include "services/network/cookie_access_delegate_impl.h"
 #include "services/network/network_service.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/url_constants.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwCookieManager_jni.h"
 
 using base::WaitableEvent;
 using base::android::ConvertJavaStringToUTF16;
@@ -179,8 +184,8 @@ const bool kDefaultFileSchemeAllowed = false;
 }  // namespace
 
 // static
-CookieManager* CookieManager::GetInstance() {
-  static base::NoDestructor<CookieManager> instance;
+CookieManager* CookieManager::GetDefaultInstance() {
+  static base::NoDestructor<CookieManager> instance(nullptr);
   return instance.get();
 }
 
@@ -195,8 +200,9 @@ base::FilePath GetPathInAppDirectory(std::string path) {
 }
 }  // namespace
 
-CookieManager::CookieManager()
-    : allow_file_scheme_cookies_(kDefaultFileSchemeAllowed),
+CookieManager::CookieManager(AwBrowserContext* const parent_context)
+    : parent_context_(parent_context),
+      allow_file_scheme_cookies_(kDefaultFileSchemeAllowed),
       cookie_store_created_(false),
       workaround_http_secure_cookies_(
           base::android::BuildInfo::GetInstance()->target_sdk_version() <
@@ -207,11 +213,11 @@ CookieManager::CookieManager()
   cookie_store_client_thread_.Start();
   cookie_store_backend_thread_.Start();
   cookie_store_task_runner_ = cookie_store_client_thread_.task_runner();
-
-  // TODO(amalova): initialize cookie_store_path_ for non-default profile
-  // Do not migrate cookies for non-default profile.
-  cookie_store_path_ = GetPathInAppDirectory("Default/Cookies");
-  MigrateCookieStorePath();
+  cookie_store_path_ = GetContextPath().Append(FILE_PATH_LITERAL("Cookies"));
+  if (!parent_context_) {
+    // Default profile
+    MigrateCookieStorePath();
+  }
 }
 
 CookieManager::~CookieManager() = default;
@@ -235,10 +241,11 @@ void CookieManager::MigrateCookieStorePath() {
 //
 // To execute a CookieTask synchronously you must arrange for Signal to be
 // called on the waitable event at some point. You can call the bool or int
-// versions of ExecCookieTaskSync, these will supply the caller with a dummy
-// callback which takes an int/bool, throws it away and calls Signal.
-// Alternatively you can call the version which supplies a Closure in which
-// case you must call Run on it when you want the unblock the calling code.
+// versions of ExecCookieTaskSync, these will supply the caller with a
+// placeholder callback which takes an int/bool, throws it away and calls
+// Signal. Alternatively you can call the version which supplies a Closure in
+// which case you must call Run on it when you want the unblock the calling
+// code.
 //
 // Ignore a bool callback.
 void CookieManager::ExecCookieTaskSync(
@@ -314,6 +321,8 @@ base::FilePath CookieManager::GetCookieStorePath() {
 }
 
 net::CookieStore* CookieManager::GetCookieStore() {
+  // This should only be called for the default context.
+  CHECK(!parent_context_);
   DCHECK(cookie_store_task_runner_->RunsTasksInCurrentSequence());
 
   if (!cookie_store_) {
@@ -333,17 +342,16 @@ net::CookieStore* CookieManager::GetCookieStore() {
       // TODO(mmenke): This call should be removed once we can deprecate and
       // remove the Android WebView 'CookieManager::SetAllowFileSchemeCookies'
       // method. Until then, note that this is just not a great idea.
-      cookie_config.cookieable_schemes.insert(
-          cookie_config.cookieable_schemes.begin(),
-          net::CookieMonster::kDefaultCookieableSchemes,
-          net::CookieMonster::kDefaultCookieableSchemes +
-              net::CookieMonster::kDefaultCookieableSchemesCount);
-      if (allow_file_scheme_cookies_)
-        cookie_config.cookieable_schemes.push_back(url::kFileScheme);
+      cookie_config.cookieable_schemes =
+          net::CookieMonster::GetDefaultCookieableSchemes();
+      if (allow_file_scheme_cookies_) {
+        cookie_config.cookieable_schemes.emplace_back(url::kFileScheme);
+      }
       cookie_store_created_ = true;
     }
 
-    cookie_store_ = content::CreateCookieStore(cookie_config, nullptr);
+    cookie_store_ =
+        content::CreateCookieStore(std::move(cookie_config), nullptr);
     auto cookie_access_delegate_type =
         base::CommandLine::ForCurrentProcess()->HasSwitch(
             switches::kWebViewEnableModernCookieSameSite)
@@ -405,6 +413,16 @@ void CookieManager::SwapMojoCookieManagerAsync(
   RunPendingCookieTasks();
 }
 
+base::android::ScopedJavaLocalRef<jobject>
+CookieManager::GetJavaCookieManager() {
+  if (!java_obj_) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    java_obj_ =
+        Java_AwCookieManager_create(env, reinterpret_cast<intptr_t>(this));
+  }
+  return base::android::ScopedJavaLocalRef<jobject>(java_obj_);
+}
+
 void CookieManager::SetWorkaroundHttpSecureCookiesForTesting(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
@@ -425,23 +443,22 @@ void CookieManager::SetWorkaroundHttpSecureCookiesAsyncHelper(
 void CookieManager::SetShouldAcceptCookies(JNIEnv* env,
                                            const JavaParamRef<jobject>& obj,
                                            jboolean accept) {
-  AwCookieAccessPolicy::GetInstance()->SetShouldAcceptCookies(accept);
+  cookie_access_policy_.SetShouldAcceptCookies(accept);
 }
 
 jboolean CookieManager::GetShouldAcceptCookies(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj) {
-  return AwCookieAccessPolicy::GetInstance()->GetShouldAcceptCookies();
+  return cookie_access_policy_.GetShouldAcceptCookies();
 }
 
 void CookieManager::SetCookie(JNIEnv* env,
                               const JavaParamRef<jobject>& obj,
                               const JavaParamRef<jstring>& url,
-                              const JavaParamRef<jstring>& value,
+                              std::string& cookie_value,
                               const JavaParamRef<jobject>& java_callback) {
   DCHECK(java_callback) << "Unexpected null Java callback";
   GURL host(ConvertJavaStringToUTF16(env, url));
-  std::string cookie_value(ConvertJavaStringToUTF8(env, value));
   base::OnceCallback<void(bool)> callback =
       base::BindOnce(&base::android::RunBooleanCallbackAndroid,
                      ScopedJavaGlobalRef<jobject>(java_callback));
@@ -454,9 +471,9 @@ void CookieManager::SetCookie(JNIEnv* env,
 void CookieManager::SetCookieSync(JNIEnv* env,
                                   const JavaParamRef<jobject>& obj,
                                   const JavaParamRef<jstring>& url,
-                                  const JavaParamRef<jstring>& value) {
+                                  std::string& value) {
   GURL host(ConvertJavaStringToUTF16(env, url));
-  std::string cookie_value(ConvertJavaStringToUTF8(env, value));
+  std::string cookie_value(value);
 
   ExecCookieTaskSync(base::BindOnce(&CookieManager::SetCookieHelper,
                                     base::Unretained(this), host,
@@ -471,10 +488,17 @@ void CookieManager::SetCookieHelper(const GURL& host,
   bool should_allow_cookie = true;
   const GURL& new_host = MaybeFixUpSchemeForSecureCookie(
       host, value, workaround_http_secure_cookies_, &should_allow_cookie);
+  std::optional<net::CookiePartitionKey> cookie_partition_key =
+      net::CookiePartitionKey::IsPartitioningDisabledInWebView()
+          ? std::nullopt
+          : std::make_optional(net::CookiePartitionKey::FromWire(
+                net::SchemefulSite(new_host),
+                net::CookiePartitionKey::AncestorChainBit::kSameSite));
 
   std::unique_ptr<net::CanonicalCookie> cc(net::CanonicalCookie::Create(
-      new_host, value, base::Time::Now(), absl::nullopt /* server_time */,
-      absl::nullopt /* cookie_partition_key */));
+      new_host, value, base::Time::Now(), std::nullopt /* server_time */,
+      cookie_partition_key, net::CookieSourceType::kOther,
+      /*status=*/nullptr));
 
   if (!cc || !should_allow_cookie) {
     MaybeRunCookieCallback(std::move(callback), false);
@@ -500,10 +524,9 @@ void CookieManager::SetCookieHelper(const GURL& host,
   }
 }
 
-ScopedJavaLocalRef<jstring> CookieManager::GetCookie(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jstring>& url) {
+std::string CookieManager::GetCookie(JNIEnv* env,
+                                     const JavaParamRef<jobject>& obj,
+                                     const JavaParamRef<jstring>& url) {
   GURL host(ConvertJavaStringToUTF16(env, url));
 
   net::CookieList cookie_list;
@@ -511,8 +534,7 @@ ScopedJavaLocalRef<jstring> CookieManager::GetCookie(
                                     base::Unretained(this), host,
                                     &cookie_list));
 
-  return base::android::ConvertUTF8ToJavaString(
-      env, net::CanonicalCookie::BuildCookieLine(cookie_list));
+  return net::CanonicalCookie::BuildCookieLine(cookie_list);
 }
 
 ScopedJavaLocalRef<jobjectArray> CookieManager::GetCookieInfo(
@@ -539,21 +561,23 @@ void CookieManager::GetCookieListAsyncHelper(const GURL& host,
                                              base::OnceClosure complete) {
   net::CookieOptions options = net::CookieOptions::MakeAllInclusive();
 
-  // TODO(crbug.com/1225444): Complete partitioned cookies implementation for
+  // TODO(crbug.com/40188414): Complete partitioned cookies implementation for
   // WebView. The current implementation is a temporary fix for
   // crbug.com/1442333 to let the app access its 1p partitioned cookie.
   if (GetMojoCookieManager()) {
     GetMojoCookieManager()->GetCookieList(
         host, options,
-        net::CookiePartitionKeyCollection(
-            net::CookiePartitionKey::FromWire(net::SchemefulSite(host))),
+        net::CookiePartitionKeyCollection(net::CookiePartitionKey::FromWire(
+            net::SchemefulSite(host),
+            net::CookiePartitionKey::AncestorChainBit::kSameSite)),
         base::BindOnce(&CookieManager::GetCookieListCompleted,
                        base::Unretained(this), std::move(complete), result));
   } else {
     GetCookieStore()->GetCookieListWithOptionsAsync(
         host, options,
-        net::CookiePartitionKeyCollection(
-            net::CookiePartitionKey::FromWire(net::SchemefulSite(host))),
+        net::CookiePartitionKeyCollection(net::CookiePartitionKey::FromWire(
+            net::SchemefulSite(host),
+            net::CookiePartitionKey::AncestorChainBit::kSameSite)),
         base::BindOnce(&CookieManager::GetCookieListCompleted,
                        base::Unretained(this), std::move(complete), result));
   }
@@ -647,7 +671,7 @@ void CookieManager::RemoveAllCookiesHelper(
         base::BindOnce(&CookieManager::RemoveCookiesCompleted,
                        base::Unretained(this), std::move(callback)));
   } else {
-    // TODO(crbug.com/921655): Support clearing client hints here as well.
+    // TODO(crbug.com/40609350): Support clearing client hints here as well.
     GetCookieStore()->DeleteAllAsync(
         base::BindOnce(&CookieManager::RemoveCookiesCompleted,
                        base::Unretained(this), std::move(callback)));
@@ -758,17 +782,38 @@ void CookieManager::ClearClientHintsCachedPerOriginMapIfNeeded() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // If we had a client hint cache clear pending, we should do it as soon as we
   // next check and see that the browser has been started.
-  if (should_clear_client_hints_cached_per_origin_map_ &&
-      AwBrowserContext::GetDefault() &&
-      AwBrowserContext::GetDefault()->GetPrefService()) {
-    AwBrowserContext::GetDefault()->GetPrefService()->SetDict(
+  if (should_clear_client_hints_cached_per_origin_map_) {
+    GetContext()->GetPrefService()->SetDict(
         prefs::kClientHintsCachedPerOriginMap, base::Value::Dict());
     should_clear_client_hints_cached_per_origin_map_ = false;
   }
 }
 
 static jlong JNI_AwCookieManager_GetDefaultCookieManager(JNIEnv* env) {
-  return reinterpret_cast<intptr_t>(CookieManager::GetInstance());
+  return reinterpret_cast<intptr_t>(CookieManager::GetDefaultInstance());
+}
+
+AwBrowserContext* CookieManager::GetContext() const {
+  if (parent_context_) {
+    return parent_context_;
+  } else {
+    return AwBrowserContext::GetDefault();
+  }
+}
+
+base::FilePath CookieManager::GetContextPath() const {
+  if (parent_context_) {
+    // Non-default profile
+    return parent_context_->GetPath();
+  } else {
+    // Default profile
+    return AwBrowserContext::BuildStoragePath(
+        base::FilePath(AwBrowserContextStore::kDefaultContextPath));
+  }
+}
+
+void JNI_AwCookieManager_DisablePartitionedCookies(JNIEnv* env) {
+  net::CookiePartitionKey::DisablePartitioningInWebView();
 }
 
 }  // namespace android_webview

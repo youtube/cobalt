@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "components/media_router/common/providers/cast/channel/cast_message_util.h"
+
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/strings/string_util.h"
 #include "base/values.h"
-#include "components/media_router/common/providers/cast/channel/cast_message_util.h"
 #include "components/media_router/common/providers/cast/channel/enum_table.h"
 #include "components/media_router/common/providers/cast/channel/fuzz_proto/fuzzer_inputs.pb.h"
 #include "testing/libfuzzer/proto/lpm_interface.h"
@@ -19,16 +21,34 @@ namespace fuzz {
 
 namespace {
 
+base::Value MakeValue(const JunkValue::Field& field) {
+  if (field.has_int_value()) {
+    return base::Value(field.int_value());
+  }
+  if (field.has_string_value() &&
+      // base::Value DCHECKs this property, but proto2 does not enforce it.
+      // https://github.com/google/libprotobuf-mutator/blob/master/README.md#utf-8-strings
+      base::IsStringUTF8AllowingNoncharacters(field.string_value())) {
+    return base::Value(field.string_value());
+  }
+  if (field.has_float_value()) {
+    return std::isfinite(field.float_value()) ? base::Value(field.float_value())
+                                              : base::Value();
+  }
+  if (field.has_bool_value()) {
+    return base::Value(field.bool_value());
+  }
+  return base::Value();
+}
+
 base::Value::Dict MakeDict(const JunkValue& junk) {
   base::Value::Dict result;
-  for (int i = 0; i < junk.field_size(); i++) {
-    const auto& field = junk.field(i);
-    base::Value field_value =
-        field.has_int_value()      ? base::Value(field.int_value())
-        : field.has_string_value() ? base::Value(field.string_value())
-        : field.has_float_value()  ? base::Value(field.float_value())
-                                   : base::Value(field.bool_value());
-    result.Set(field.name(), std::move(field_value));
+  for (const auto& field : junk.field()) {
+    // base::Value DCHECKs this property, but proto2 does not enforce it.
+    // https://github.com/google/libprotobuf-mutator/blob/master/README.md#utf-8-strings
+    if (base::IsStringUTF8AllowingNoncharacters(field.name())) {
+      result.Set(field.name(), MakeValue(field));
+    }
   }
   return result;
 }
@@ -45,21 +65,14 @@ std::vector<T> MakeVector(const Field& field) {
 }  // namespace
 
 DEFINE_PROTO_FUZZER(const CastMessageUtilInputs& input_union) {
-  // TODO(crbug.com/796717): Add test for CreateAuthChallengeMessage()
+  // TODO(crbug.com/40555657): Add test for CreateAuthChallengeMessage()
   switch (input_union.input_case()) {
-    case CastMessageUtilInputs::kCreateBroadcastRequestInput: {
-      const auto& input = input_union.create_broadcast_request_input();
-      CreateBroadcastRequest(input.source_id(), input.request_id(),
-                             MakeVector(input.app_id()),
-                             BroadcastRequest(input.broadcast_namespace(),
-                                              input.broadcast_message()));
-      break;
-    }
     case CastMessageUtilInputs::kCreateLaunchRequestInput: {
       const auto& input = input_union.create_launch_request_input();
-      absl::optional<base::Value> app_params;
-      if (input.has_app_params())
+      std::optional<base::Value> app_params;
+      if (input.has_app_params()) {
         app_params = MakeValue(input.app_params());
+      }
       CreateLaunchRequest(input.source_id(), input.request_id(), input.app_id(),
                           input.locale(),
                           MakeVector(input.supported_app_types()), app_params);
@@ -135,8 +148,9 @@ DEFINE_PROTO_FUZZER(const CastMessageUtilInputs& input_union) {
     case CastMessageUtilInputs::kGetRequestIdFromResponseInput: {
       const auto& input = input_union.get_request_id_from_response_input();
       base::Value::Dict payload = MakeDict(input.payload());
-      if (input.has_request_id())
+      if (input.has_request_id()) {
         payload.Set("requestId", input.request_id());
+      }
       GetRequestIdFromResponse(payload);
       break;
     }
@@ -149,8 +163,9 @@ DEFINE_PROTO_FUZZER(const CastMessageUtilInputs& input_union) {
     case CastMessageUtilInputs::kParseMessageTypeFromPayloadInput: {
       const auto& input = input_union.parse_message_type_from_payload_input();
       base::Value::Dict payload = MakeDict(input.payload());
-      if (input.has_type())
+      if (input.has_type()) {
         payload.Set("type", input.type());
+      }
       ParseMessageTypeFromPayload(payload);
       break;
     }

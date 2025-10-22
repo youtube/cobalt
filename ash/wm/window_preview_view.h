@@ -13,6 +13,7 @@
 #include "ui/aura/client/transient_window_client_observer.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace ash {
@@ -23,8 +24,10 @@ class ASH_EXPORT WindowPreviewView
     : public views::View,
       public aura::client::TransientWindowClientObserver,
       public aura::WindowObserver {
+  METADATA_HEADER(WindowPreviewView, views::View)
+
  public:
-  WindowPreviewView(aura::Window* window, bool trilinear_filtering_on_init);
+  explicit WindowPreviewView(aura::Window* window);
 
   WindowPreviewView(const WindowPreviewView&) = delete;
   WindowPreviewView& operator=(const WindowPreviewView&) = delete;
@@ -36,8 +39,9 @@ class ASH_EXPORT WindowPreviewView
   void RecreatePreviews();
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
-  void Layout() override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  void Layout(PassKey) override;
 
   // aura::client::TransientWindowClientObserver:
   void OnTransientChildWindowAdded(aura::Window* parent,
@@ -62,16 +66,17 @@ class ASH_EXPORT WindowPreviewView
   // |mirror_views_|.
   gfx::RectF GetUnionRect() const;
 
-  raw_ptr<aura::Window, ExperimentalAsh> window_;
-  bool trilinear_filtering_on_init_;
+  raw_ptr<aura::Window> window_;
 
-  base::flat_map<aura::Window*, WindowMirrorView*> mirror_views_;
+  base::flat_map<aura::Window*, raw_ptr<WindowMirrorView, CtnExperimental>>
+      mirror_views_;
 
   // Transient children of |window_| may be added as transients before they're
   // actually parented; i.e. `OnTransientChildWindowAdded()` is called before
   // `transient_child->parent()` is set. We track those here so that we can add
   // them to the view once they're parented.
-  base::flat_set<aura::Window*> unparented_transient_children_;
+  base::flat_set<raw_ptr<aura::Window, CtnExperimental>>
+      unparented_transient_children_;
 };
 
 }  // namespace ash

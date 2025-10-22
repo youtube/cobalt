@@ -27,11 +27,14 @@
 // https://url.spec.whatwg.org/#url
 
 [
-    Exposed=(Window,Worker),
+    Exposed=(Window,Worker,ShadowRealm), // TODO(crbug.com/41480387): This should be Exposed=*
     ImplementedAs=DOMURL,
     LegacyWindowAlias=webkitURL
 ] interface URL {
     [RaisesException] constructor(USVString url, optional USVString base);
+
+    static URL? parse(USVString url, optional USVString base);
+    [MeasureAs="WebDXFeature::kUrlCanparse"] static boolean canParse(USVString url, optional USVString base);
 
     [RaisesException=Setter] stringifier attribute USVString href;
     readonly attribute USVString origin;
@@ -40,7 +43,7 @@
     attribute USVString password;
     attribute USVString host;
     attribute USVString hostname;
-    [CallWith=ExecutionContext] attribute USVString port;
+    attribute USVString port;
     attribute USVString pathname;
     attribute USVString search;
     [SameObject] readonly attribute URLSearchParams searchParams;

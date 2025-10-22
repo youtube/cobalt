@@ -8,6 +8,7 @@
 #import <WebKit/WebKit.h>
 
 #import "testing/platform_test.h"
+#import "url/gurl.h"
 
 namespace web {
 
@@ -18,9 +19,13 @@ class JavascriptTest : public PlatformTest {
   JavascriptTest();
   ~JavascriptTest() override;
 
-  // Loads `html` into `web_view()` and waits for the web view to finish
+  // Loads the `html` content at `base_url` into `web_view()` and waits for
+  // the web view to finish loading.
+  bool LoadHtml(NSString* html, std::optional<GURL> base_url = std::nullopt);
+
+  // Loads `url` into `web_view()` and waits for the web view to finish
   // loading.
-  bool LoadHtml(NSString* html);
+  bool LoadUrl(const GURL& url);
 
   // Adds the script which configures `__gCrWeb` to `web_view()`s
   // configuration.

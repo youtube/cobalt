@@ -14,6 +14,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
@@ -42,7 +46,7 @@ constexpr QuicSocketEventMask kAllEvents =
 class MockQuicSocketEventListener : public QuicSocketEventListener {
  public:
   MOCK_METHOD(void, OnSocketEvent,
-              (QuicEventLoop* /*event_loop*/, QuicUdpSocketFd /*fd*/,
+              (QuicEventLoop* /*event_loop*/, SocketFd /*fd*/,
                QuicSocketEventMask /*events*/),
               (override));
 };
@@ -61,9 +65,9 @@ void SetNonBlocking(int fd) {
 class QuicEventLoopFactoryTest
     : public QuicTestWithParam<QuicEventLoopFactory*> {
  public:
-  QuicEventLoopFactoryTest()
-      : loop_(GetParam()->Create(&clock_)),
-        factory_(loop_->CreateAlarmFactory()) {
+  void SetUp() override {
+    loop_ = GetParam()->Create(&clock_);
+    factory_ = loop_->CreateAlarmFactory();
     int fds[2];
     int result = ::pipe(fds);
     QUICHE_CHECK(result >= 0) << "Failed to create a pipe, errno: " << errno;
@@ -74,7 +78,11 @@ class QuicEventLoopFactoryTest
     SetNonBlocking(write_fd_);
   }
 
-  ~QuicEventLoopFactoryTest() {
+  void TearDown() override {
+    factory_.reset();
+    loop_.reset();
+    // Epoll-based event loop automatically removes registered FDs from the
+    // Epoll set, which should happen before these FDs are closed.
     close(read_fd_);
     close(write_fd_);
   }
@@ -185,6 +193,29 @@ TEST_P(QuicEventLoopFactoryTest, ArtificialNotifyFromCallback) {
   }
 }
 
+// Verify that artificial events are notified on the next iteration. This is to
+// prevent infinite loops in RunEventLoopOnce when the event callback keeps
+// adding artificial events.
+TEST_P(QuicEventLoopFactoryTest, ArtificialNotifyOncePerIteration) {
+  testing::StrictMock<MockQuicSocketEventListener> listener;
+  ASSERT_TRUE(loop_->RegisterSocket(read_fd_, kSocketEventReadable, &listener));
+
+  constexpr absl::string_view kData = "test test test test test test test ";
+  ASSERT_EQ(kData.size(), write(write_fd_, kData.data(), kData.size()));
+
+  int64_t read_event_count_ = 0;
+  EXPECT_CALL(listener, OnSocketEvent(_, read_fd_, kSocketEventReadable))
+      .WillRepeatedly([&]() {
+        read_event_count_++;
+        EXPECT_TRUE(
+            loop_->ArtificiallyNotifyEvent(read_fd_, kSocketEventReadable));
+      });
+  for (size_t i = 1; i < 5; i++) {
+    loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(10));
+    EXPECT_EQ(read_event_count_, i);
+  }
+}
+
 TEST_P(QuicEventLoopFactoryTest, WriterUnblocked) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_->RegisterSocket(write_fd_, kAllEvents, &listener));
@@ -280,10 +311,6 @@ TEST_P(QuicEventLoopFactoryTest, UnregisterSelfInsideEventHandler) {
 TEST_P(QuicEventLoopFactoryTest, ReadWriteSocket) {
   int sockets[2];
   ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets), 0);
-  auto close_sockets = absl::MakeCleanup([&]() {
-    close(sockets[0]);
-    close(sockets[1]);
-  });
   SetNonBlocking(sockets[0]);
   SetNonBlocking(sockets[1]);
 
@@ -319,6 +346,10 @@ TEST_P(QuicEventLoopFactoryTest, ReadWriteSocket) {
   EXPECT_CALL(listener,
               OnSocketEvent(_, sockets[0], HasFlagSet(kSocketEventWritable)));
   loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(4));
+
+  EXPECT_TRUE(loop_->UnregisterSocket(sockets[0]));
+  close(sockets[0]);
+  close(sockets[1]);
 }
 
 TEST_P(QuicEventLoopFactoryTest, AlarmInFuture) {

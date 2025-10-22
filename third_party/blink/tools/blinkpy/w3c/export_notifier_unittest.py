@@ -206,10 +206,11 @@ class ExportNotifierTest(LoggingTestCase):
         self.notifier.process_failing_prs(gerrit_dict)
 
         self.assertEqual(self.notifier.gerrit.cls_queried, ['abc'])
-        self.assertEqual(self.notifier.gerrit.request_posted,
-                         [('/a/changes/abc/revisions/current/review', {
-                             'message': expected
-                         })])
+        self.assertEqual(
+            self.notifier.gerrit.request_posted,
+            [('/a/changes/chromium%2Fsrc~main~abc/revisions/current/review', {
+                'message': expected
+            })])
 
     def test_process_failing_prs_has_commented(self):
         self.notifier.dry_run = False
@@ -276,10 +277,11 @@ class ExportNotifierTest(LoggingTestCase):
         self.notifier.process_failing_prs(gerrit_dict)
 
         self.assertEqual(self.notifier.gerrit.cls_queried, ['abc'])
-        self.assertEqual(self.notifier.gerrit.request_posted,
-                         [('/a/changes/abc/revisions/current/review', {
-                             'message': expected
-                         })])
+        self.assertEqual(
+            self.notifier.gerrit.request_posted,
+            [('/a/changes/chromium%2Fsrc~main~abc/revisions/current/review', {
+                'message': expected
+            })])
 
     def test_process_failing_prs_raise_gerrit_error(self):
         self.notifier.dry_run = False
@@ -302,8 +304,10 @@ class ExportNotifierTest(LoggingTestCase):
             PullRequest(
                 title='title1',
                 number=1234,
-                body='description\nWPT-Export-Revision: hash\nChange-Id: decafbad',
+                body=
+                'description\nWPT-Export-Revision: hash\nChange-Id: decafbad',
                 state='open',
+                node_id='PR_1',
                 labels=[''])
         ]
         self.notifier.wpt_github.check_runs = [
@@ -352,19 +356,20 @@ class ExportNotifierTest(LoggingTestCase):
         expected = self.generate_notifier_comment(1234, checks_results, 'hash',
                                                   2)
 
-        exit_code = self.notifier.main()
-
-        self.assertFalse(exit_code)
+        pr_by_change_id = self.notifier.main()
+        self.assertEqual(set(pr_by_change_id), {'decafbad'})
+        self.assertEqual(pr_by_change_id['decafbad'].pr_number, 1234)
         self.assertEqual(self.notifier.wpt_github.calls, [
             'recent_failing_chromium_exports',
             'get_pr_branch',
             'get_branch_check_runs',
         ])
         self.assertEqual(self.notifier.gerrit.cls_queried, ['decafbad'])
-        self.assertEqual(self.notifier.gerrit.request_posted,
-                         [('/a/changes/decafbad/revisions/current/review', {
-                             'message': expected
-                         })])
+        self.assertEqual(self.notifier.gerrit.request_posted, [(
+            '/a/changes/chromium%2Fsrc~main~decafbad/revisions/current/review',
+            {
+                'message': expected
+            })])
 
     def generate_notifier_comment(self,
                                   pr_number,
@@ -384,7 +389,7 @@ class ExportNotifierTest(LoggingTestCase):
                 'a look at the output and see if it can be fixed. '
                 'Unresolved failures will be looked at by the Ecosystem-Infra '
                 'sheriff after this CL has been landed in Chromium; if you '
-                'need earlier help please contact ecosystem-infra@chromium.org.\n\n'
+                'need earlier help please contact blink-dev@chromium.org.\n\n'
                 'Any suggestions to improve this service are welcome; '
                 'crbug.com/1027618.\n\n'
                 'Gerrit CL SHA: {}\n'
@@ -400,7 +405,7 @@ class ExportNotifierTest(LoggingTestCase):
                 'a look at the output and see if it can be fixed. '
                 'Unresolved failures will be looked at by the Ecosystem-Infra '
                 'sheriff after this CL has been landed in Chromium; if you '
-                'need earlier help please contact ecosystem-infra@chromium.org.\n\n'
+                'need earlier help please contact blink-dev@chromium.org.\n\n'
                 'Any suggestions to improve this service are welcome; '
                 'crbug.com/1027618.\n\n'
                 'Gerrit CL SHA: {}').format(pr_number, checks_results_comment,

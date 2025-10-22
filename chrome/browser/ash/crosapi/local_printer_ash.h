@@ -8,11 +8,12 @@
 #include <string>
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ash/printing/cups_print_job.h"
 #include "chrome/browser/ash/printing/cups_print_job_manager.h"
+#include "chrome/browser/ash/printing/cups_printers_manager.h"
 #include "chrome/browser/ash/printing/print_servers_manager.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chromeos/crosapi/mojom/local_printer.mojom.h"
@@ -24,7 +25,6 @@ class Profile;
 class ProfileManager;
 
 namespace ash {
-class PrinterConfigurer;
 struct PrintServersConfig;
 
 namespace printing {
@@ -33,9 +33,7 @@ class IppClientInfoCalculator;
 }  // namespace ash
 
 namespace chromeos {
-class CupsPrinterStatus;
 class PpdProvider;
-class Printer;
 }  // namespace chromeos
 
 namespace crosapi {
@@ -45,7 +43,8 @@ namespace crosapi {
 class LocalPrinterAsh : public mojom::LocalPrinter,
                         public ProfileManagerObserver,
                         public ash::CupsPrintJobManager::Observer,
-                        public ash::PrintServersManager::Observer {
+                        public ash::PrintServersManager::Observer,
+                        public ash::CupsPrintersManager::LocalPrintersObserver {
  public:
   LocalPrinterAsh();
   LocalPrinterAsh(const LocalPrinterAsh&) = delete;
@@ -62,16 +61,6 @@ class LocalPrinterAsh : public mojom::LocalPrinter,
   // PrintServersConfig object.
   static mojom::PrintServersConfigPtr ConfigToMojom(
       const ash::PrintServersConfig& config);
-
-  // The mojom LocalDestinationInfo object is a subset of the chromeos Printer
-  // object.
-  static mojom::LocalDestinationInfoPtr PrinterToMojom(
-      const chromeos::Printer& printer);
-
-  // The mojom PrinterStatus object contains all information in the
-  // CupsPrinterStatus object.
-  static mojom::PrinterStatusPtr StatusToMojom(
-      const chromeos::CupsPrinterStatus& status);
 
   void BindReceiver(mojo::PendingReceiver<mojom::LocalPrinter> receiver);
 
@@ -93,6 +82,9 @@ class LocalPrinterAsh : public mojom::LocalPrinter,
   void OnPrintServersChanged(const ash::PrintServersConfig& config) override;
   void OnServerPrintersChanged(
       const std::vector<ash::PrinterDetector::DetectedPrinter>&) override;
+
+  // CupsPrintersManager::LocalPrintersObserver:
+  void OnLocalPrintersUpdated() override;
 
   // crosapi::mojom::LocalPrinter:
   void GetPrinters(GetPrintersCallback callback) override;
@@ -121,6 +113,9 @@ class LocalPrinterAsh : public mojom::LocalPrinter,
   void AddPrintJobObserver(mojo::PendingRemote<mojom::PrintJobObserver> remote,
                            mojom::PrintJobSource source,
                            AddPrintJobObserverCallback callback) override;
+  void AddLocalPrintersObserver(
+      mojo::PendingRemote<mojom::LocalPrintersObserver> remote,
+      AddLocalPrintersObserverCallback callback) override;
   void GetOAuthAccessToken(const std::string& printer_id,
                            GetOAuthAccessTokenCallback callback) override;
   void GetIppClientInfo(const std::string& printer_id,
@@ -134,11 +129,10 @@ class LocalPrinterAsh : public mojom::LocalPrinter,
   virtual Profile* GetProfile();
   virtual scoped_refptr<chromeos::PpdProvider> CreatePpdProvider(
       Profile* profile);
-  virtual std::unique_ptr<ash::PrinterConfigurer> CreatePrinterConfigurer(
-      Profile* profile);
   virtual ash::printing::IppClientInfoCalculator* GetIppClientInfoCalculator();
 
-  raw_ptr<ProfileManager, ExperimentalAsh> profile_manager_ = nullptr;
+  base::ScopedObservation<ProfileManager, LocalPrinterAsh>
+      profile_manager_observer_{this};
 
   bool observers_registered_ = false;
 
@@ -156,6 +150,13 @@ class LocalPrinterAsh : public mojom::LocalPrinter,
 
   // Remotes which observe only extension print jobs.
   mojo::RemoteSet<mojom::PrintJobObserver> extension_print_job_remotes_;
+
+  // Remotes which observe only IWA print jobs.
+  mojo::RemoteSet<mojom::PrintJobObserver> iwa_print_job_remotes_;
+
+  // Remotes which observe local printer updates.
+  mojo::RemoteSet<mojom::LocalPrintersObserver>
+      local_printers_observer_remotes_;
 };
 
 }  // namespace crosapi

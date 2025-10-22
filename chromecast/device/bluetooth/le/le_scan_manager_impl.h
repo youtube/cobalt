@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list_threadsafe.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromecast/device/bluetooth/le/le_scan_manager.h"
@@ -42,7 +43,7 @@ class LeScanManagerImpl : public LeScanManager,
   void RequestScan(RequestScanCallback cb) override;
   void GetScanResults(
       GetScanResultsCallback cb,
-      absl::optional<ScanFilter> service_uuid = absl::nullopt) override;
+      std::optional<ScanFilter> service_uuid = std::nullopt) override;
   void ClearScanResults() override;
   void PauseScan() override;
   void ResumeScan() override;
@@ -60,11 +61,11 @@ class LeScanManagerImpl : public LeScanManager,
   // Returns a list of all BLE scan results. The results are sorted by RSSI.
   // Must be called on |io_task_runner|.
   std::vector<LeScanResult> GetScanResultsInternal(
-      absl::optional<ScanFilter> service_uuid);
+      std::optional<ScanFilter> service_uuid);
 
   void NotifyScanHandleDestroyed(int32_t id);
 
-  bluetooth_v2_shlib::LeScannerImpl* const le_scanner_;
+  const raw_ptr<bluetooth_v2_shlib::LeScannerImpl> le_scanner_;
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_;
 
   scoped_refptr<base::ObserverListThreadSafe<Observer>> observers_;

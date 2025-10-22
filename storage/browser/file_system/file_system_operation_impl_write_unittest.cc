@@ -21,7 +21,6 @@
 #include "storage/browser/file_system/file_system_file_util.h"
 #include "storage/browser/file_system/file_system_operation_context.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
-#include "storage/browser/file_system/file_system_util.h"
 #include "storage/browser/file_system/local_file_util.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/browser/test/mock_blob_util.h"
@@ -85,7 +84,8 @@ class FileSystemOperationImplWriteTest : public testing::Test {
         file_system_context_->GetFileSystemBackend(kFileSystemType))
         ->AddFileChangeObserver(change_observer());
   }
-
+  void RunUntilIdle() { loop_.RunUntilIdle(); }
+  void Run() { loop_.Run(); }
   void TearDown() override {
     quota_manager_ = nullptr;
     file_system_context_ = nullptr;
@@ -129,15 +129,19 @@ class FileSystemOperationImplWriteTest : public testing::Test {
   void DidWrite(base::File::Error status, int64_t bytes, bool complete) {
     if (status == base::File::FILE_OK) {
       add_bytes_written(bytes, complete);
-      if (complete)
-        base::RunLoop::QuitCurrentWhenIdleDeprecated();
+      if (complete) {
+        ASSERT_FALSE(loop_.AnyQuitCalled());
+        loop_.QuitWhenIdle();
+      }
     } else {
       EXPECT_FALSE(complete_);
       EXPECT_EQ(status_, base::File::FILE_OK);
       complete_ = true;
       status_ = status;
-      if (base::RunLoop::IsRunningOnCurrentThread())
-        base::RunLoop::QuitCurrentWhenIdleDeprecated();
+      if (base::RunLoop::IsRunningOnCurrentThread()) {
+        ASSERT_FALSE(loop_.AnyQuitCalled());
+        loop_.QuitWhenIdle();
+      }
     }
   }
 
@@ -151,6 +155,7 @@ class FileSystemOperationImplWriteTest : public testing::Test {
 
   base::ScopedTempDir data_dir_;
   base::test::TaskEnvironment task_environment_;
+  base::RunLoop loop_;
 
   scoped_refptr<FileSystemContext> file_system_context_;
   scoped_refptr<MockQuotaManager> quota_manager_;
@@ -177,7 +182,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestWriteSuccess) {
   file_system_context_->operation_runner()->Write(URLForPath(virtual_path_),
                                                   blob.GetBlobDataHandle(), 0,
                                                   RecordWriteCallback());
-  base::RunLoop().Run();
+  Run();
 
   EXPECT_EQ(14, bytes_written());
   EXPECT_EQ(base::File::FILE_OK, status());
@@ -191,7 +196,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestWriteZero) {
   file_system_context_->operation_runner()->Write(URLForPath(virtual_path_),
                                                   blob.GetBlobDataHandle(), 0,
                                                   RecordWriteCallback());
-  base::RunLoop().Run();
+  Run();
 
   EXPECT_EQ(0, bytes_written());
   EXPECT_EQ(base::File::FILE_OK, status());
@@ -205,7 +210,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestWriteInvalidBlob) {
   file_system_context_->operation_runner()->Write(URLForPath(virtual_path_),
                                                   std::move(null_handle), 0,
                                                   RecordWriteCallback());
-  base::RunLoop().Run();
+  Run();
 
   EXPECT_EQ(0, bytes_written());
   EXPECT_EQ(base::File::FILE_ERROR_FAILED, status());
@@ -220,7 +225,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestWriteInvalidFile) {
   file_system_context_->operation_runner()->Write(
       URLForPath(base::FilePath(FILE_PATH_LITERAL("nonexist"))),
       blob.GetBlobDataHandle(), 0, RecordWriteCallback());
-  base::RunLoop().Run();
+  Run();
 
   EXPECT_EQ(0, bytes_written());
   EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, status());
@@ -243,7 +248,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestWriteDir) {
   file_system_context_->operation_runner()->Write(URLForPath(virtual_dir_path),
                                                   blob.GetBlobDataHandle(), 0,
                                                   RecordWriteCallback());
-  base::RunLoop().Run();
+  Run();
 
   EXPECT_EQ(0, bytes_written());
   // TODO(kinuko): This error code is platform- or fileutil- dependent
@@ -260,12 +265,11 @@ TEST_F(FileSystemOperationImplWriteTest, TestWriteFailureByQuota) {
   ScopedTextBlob blob(blob_storage_context(), "blob:success",
                       "Hello, world!\n");
   quota_manager_->SetQuota(
-      blink::StorageKey::CreateFromStringForTesting(kOrigin),
-      FileSystemTypeToQuotaStorageType(kFileSystemType), 10);
+      blink::StorageKey::CreateFromStringForTesting(kOrigin), 10);
   file_system_context_->operation_runner()->Write(URLForPath(virtual_path_),
                                                   blob.GetBlobDataHandle(), 0,
                                                   RecordWriteCallback());
-  base::RunLoop().Run();
+  Run();
 
   EXPECT_EQ(10, bytes_written());
   EXPECT_EQ(base::File::FILE_ERROR_NO_SPACE, status());
@@ -285,7 +289,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestImmediateCancelSuccessfulWrite) {
   // We use RunAllPendings() instead of Run() here, because we won't dispatch
   // callbacks after Cancel() is issued (so no chance to Quit) nor do we need
   // to run another write cycle.
-  base::RunLoop().RunUntilIdle();
+  RunUntilIdle();
 
   // Issued Cancel() before receiving any response from Write(),
   // so nothing should have happen.
@@ -308,7 +312,7 @@ TEST_F(FileSystemOperationImplWriteTest, TestImmediateCancelFailingWrite) {
   // We use RunAllPendings() instead of Run() here, because we won't dispatch
   // callbacks after Cancel() is issued (so no chance to Quit) nor do we need
   // to run another write cycle.
-  base::RunLoop().RunUntilIdle();
+  RunUntilIdle();
 
   // Issued Cancel() before receiving any response from Write(),
   // so nothing should have happen.

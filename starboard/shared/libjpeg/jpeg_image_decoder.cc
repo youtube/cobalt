@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/linux/shared/decode_target_internal.h"
@@ -26,9 +27,8 @@
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {
 // clang-format off
-#include "third_party/libjpeg_turbo/jpeglib.h"
-#include "third_party/libjpeg_turbo/jpegint.h"
-#include "starboard/common/check_op.h"
+#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "third_party/libjpeg_turbo/src/jpegint.h"
 // clang-format on
 }
 

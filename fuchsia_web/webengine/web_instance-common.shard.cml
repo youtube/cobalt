@@ -5,9 +5,6 @@
   program: {
     runner: "elf",
     binary: "web_engine_exe",
-
-    // Required to allow JIT in child processes such as renderers.
-    job_policy_ambient_mark_vmo_exec: "true",
   },
   capabilities: [
     {
@@ -65,6 +62,15 @@
       rights: [ "r*" ],
       path: "/config/ssl",
       availability: "optional",
+    },
+
+    // Holds ICU time zone data files.
+    // See:
+    // https://fuchsia.dev/fuchsia-src/concepts/process/namespaces?typical_directory_structure
+    {
+      directory: "tzdata-icu",
+      rights: [ "r*" ],
+      path: "/config/tzdata/icu",
     },
 
     // Temporary directory specified by WebInstanceHost.set_tmp_dir.

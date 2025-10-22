@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 
 #include "base/compiler_specific.h"
@@ -35,12 +36,16 @@ namespace policy {
 
 namespace {
 
-const char* kExternalPolicyDataKeys[] = {"external_policy_data_1",
-                                         "external_policy_data_2",
-                                         "external_policy_data_3"};
-const char* kExternalPolicyDataURLs[] = {"http://example.com/data_1",
-                                         "http://example.com/data_2",
-                                         "http://example.com/data_3"};
+auto kExternalPolicyDataKeys = std::to_array<const char*>({
+    "external_policy_data_1",
+    "external_policy_data_2",
+    "external_policy_data_3",
+});
+auto kExternalPolicyDataURLs = std::to_array<const char*>({
+    "http://example.com/data_1",
+    "http://example.com/data_2",
+    "http://example.com/data_3",
+});
 
 const int64_t kExternalPolicyDataMaxSize = 20;
 

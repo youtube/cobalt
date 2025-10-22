@@ -4,37 +4,37 @@
 
 #include "chrome/browser/web_applications/web_app_system_web_app_delegate_map_utils.h"
 
-#include "chrome/browser/ash/system_web_apps/types/system_web_app_data.h"
-#include "chrome/browser/ash/system_web_apps/types/system_web_app_delegate.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chromeos/ash/experiences/system_web_apps/types/system_web_app_data.h"
+#include "chromeos/ash/experiences/system_web_apps/types/system_web_app_delegate.h"
 #include "url/gurl.h"
 
 namespace web_app {
 
-absl::optional<AppId> GetAppIdForSystemApp(
+std::optional<webapps::AppId> GetAppIdForSystemApp(
     const WebAppRegistrar& registrar,
     const ash::SystemWebAppDelegateMap& delegates,
     ash::SystemWebAppType type) {
   const ash::SystemWebAppDelegate* delegate =
       ash::GetSystemWebApp(delegates, type);
   if (!delegate)
-    return absl::nullopt;
+    return std::nullopt;
 
-  absl::optional<GURL> app_install_url = delegate->GetInstallUrl();
+  std::optional<GURL> app_install_url = delegate->GetInstallUrl();
   if (!app_install_url.has_value())
-    return absl::nullopt;
+    return std::nullopt;
 
   return registrar.LookupExternalAppId(app_install_url.value());
 }
 
-absl::optional<ash::SystemWebAppType> GetSystemAppTypeForAppId(
+std::optional<ash::SystemWebAppType> GetSystemAppTypeForAppId(
     const WebAppRegistrar& registrar,
     const ash::SystemWebAppDelegateMap& delegates,
-    const AppId& app_id) {
+    const webapps::AppId& app_id) {
   const WebApp* web_app = registrar.GetAppById(app_id);
   if (!web_app || !web_app->client_data().system_web_app_data.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // The registered system apps can change from previous runs (e.g. flipping a
@@ -49,12 +49,12 @@ absl::optional<ash::SystemWebAppType> GetSystemAppTypeForAppId(
     return proto_type;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool IsSystemWebApp(const WebAppRegistrar& registrar,
                     const ash::SystemWebAppDelegateMap& delegates,
-                    const AppId& app_id) {
+                    const webapps::AppId& app_id) {
   return GetSystemAppTypeForAppId(registrar, delegates, app_id).has_value();
 }
 

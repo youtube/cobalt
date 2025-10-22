@@ -138,12 +138,8 @@ os = struct(
 # Recipes
 
 _RECIPE_NAME_PREFIX = "recipe:"
-_DEFAULT_BUILDERLESS_OS_CATEGORIES = [os_category.LINUX, os_category.WINDOWS]
-_GOMA_RBE_PROD = {
-    "server_host": "goma.chromium.org",
-    "rpc_extra_params": "?prod",
-    "use_luci_auth": True,
-}
+_DEFAULT_BUILDERLESS_OS_CATEGORIES = [os_category.LINUX, os_category.WINDOWS, os_category.MAC]
+_CHROMIUM_POOL_OS_CATEGORIES = [os_category.MAC]
 
 def _recipe_for_package(cipd_package):
     def recipe(*, name, cipd_version = None, recipe = None, use_python3 = False):
@@ -199,18 +195,27 @@ def angle_builder(name, cpu):
     dimensions = {}
     dimensions["os"] = config_os.dimension
 
-    goma_props = {}
-    goma_props.update(_GOMA_RBE_PROD)
-
     if config_os.category in _DEFAULT_BUILDERLESS_OS_CATEGORIES:
         dimensions["builderless"] = "1"
-        goma_props["enable_ats"] = True
+
+    ci_dimensions = {}
+    try_dimensions = {}
+    ci_dimensions.update(dimensions)
+    try_dimensions.update(dimensions)
+
+    # TODO(crbug.com/375244064): Make the Chromium pools the default everywhere
+    # once all pool capacity is merged.
+    migrated_to_chromium_pool = config_os.category in _CHROMIUM_POOL_OS_CATEGORIES
+    if migrated_to_chromium_pool:
+        ci_dimensions["pool"] = "luci.chromium.gpu.ci"
+        try_dimensions["pool"] = "luci.chromium.gpu.try"
 
     is_asan = "-asan" in name
     is_tsan = "-tsan" in name
     is_debug = "-dbg" in name
     is_exp = "-exp" in name
     is_perf = name.endswith("-perf")
+    is_s24 = "s24" in name
     is_trace = name.endswith("-trace")
     is_uwp = "winuwp" in name
     is_msvc = is_uwp or "-msvc" in name
@@ -258,18 +263,31 @@ def angle_builder(name, cpu):
         short_name = get_gpu_type_from_builder_name(name)
     elif is_asan:
         short_name = "asan"
+        if is_exp:
+            short_name = "asan-exp"
     elif is_tsan:
         short_name = "tsan"
+        if is_exp:
+            short_name = "tsan-exp"
     elif is_debug:
         short_name = "dbg"
     elif is_exp:
         short_name = "exp"
+        if is_s24:
+            # This is a little clunky, but we'd like this to be cleanly "s24" rather than "s24-exp"
+            short_name = "s24"
     else:
         short_name = "rel"
 
     properties = {
         "builder_group": "angle",
-        "$build/goma": goma_props,
+        "$build/siso": {
+            "project": "rbe-chromium-untrusted",
+            "configs": ["builder"],
+            "enable_cloud_monitoring": True,
+            "enable_cloud_profiler": True,
+            "enable_cloud_trace": True,
+        },
         "platform": config_os.console_name,
         "toolchain": toolchain,
         "test_mode": test_mode,
@@ -277,12 +295,20 @@ def angle_builder(name, cpu):
 
     ci_properties = {
         "builder_group": "angle",
-        "$build/goma": goma_props,
+        "$build/siso": {
+            "project": "rbe-chromium-trusted",
+            "configs": ["builder"],
+            "enable_cloud_monitoring": True,
+            "enable_cloud_profiler": True,
+            "enable_cloud_trace": True,
+        },
         "platform": config_os.console_name,
         "toolchain": toolchain,
         "test_mode": test_mode,
     }
 
+    # TODO(343503161): Remove sheriff_rotations after SoM is updated.
+    ci_properties["gardener_rotations"] = ["angle"]
     ci_properties["sheriff_rotations"] = ["angle"]
 
     if is_perf:
@@ -297,8 +323,9 @@ def angle_builder(name, cpu):
         executable = "recipe:angle",
         experiments = build_experiments,
         service_account = "angle-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
+        shadow_service_account = "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
         properties = ci_properties,
-        dimensions = dimensions,
+        dimensions = ci_dimensions,
         build_numbers = True,
         resultdb_settings = resultdb.settings(enable = True),
         test_presentation = resultdb.test_presentation(
@@ -312,12 +339,26 @@ def angle_builder(name, cpu):
         execution_timeout = timeout_hours * time.hour,
     )
 
-    luci.console_view_entry(
-        console_view = "ci",
-        builder = "ci/" + name,
-        category = category + "|" + os_toolchain_name + "|" + cpu,
-        short_name = short_name,
-    )
+    active_experimental_builders = [
+        "android-arm64-exp-test",
+        "android-arm64-exp-s24-test",
+        "linux-exp-test",
+        "mac-exp-test",
+        "win-exp-test",
+    ]
+
+    if (not is_exp) or (name in active_experimental_builders):
+        luci.console_view_entry(
+            console_view = "ci",
+            builder = "ci/" + name,
+            category = category + "|" + os_toolchain_name + "|" + cpu,
+            short_name = short_name,
+        )
+    else:
+        luci.list_view_entry(
+            list_view = "exp",
+            builder = "ci/" + name,
+        )
 
     # Do not include perf tests in "try".
     if not is_perf:
@@ -326,6 +367,17 @@ def angle_builder(name, cpu):
             builder = "try/" + name,
         )
 
+        max_concurrent_builds = None
+
+        # Don't add experimental bots to CQ.
+        # Also exclude mac-arm64-test for now anglebug.com/42266214
+        add_to_cq = (not is_exp and not name == "mac-arm64-test")
+        if migrated_to_chromium_pool:
+            if add_to_cq:
+                max_concurrent_builds = 5
+            else:
+                max_concurrent_builds = 1
+
         luci.builder(
             name = name,
             bucket = "try",
@@ -333,17 +385,19 @@ def angle_builder(name, cpu):
             experiments = build_experiments,
             service_account = "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
             properties = properties,
-            dimensions = dimensions,
+            dimensions = try_dimensions,
             build_numbers = True,
             resultdb_settings = resultdb.settings(enable = True),
             test_presentation = resultdb.test_presentation(
                 column_keys = ["v.gpu"],
                 grouping_keys = ["status", "v.test_suite"],
             ),
+            max_concurrent_builds = max_concurrent_builds,
         )
 
         # Don't add experimental bots to CQ.
-        if not is_exp:
+        # Also exclude mac-arm64-test for now anglebug.com/42266214
+        if add_to_cq:
             luci.cq_tryjob_verifier(
                 cq_group = "main",
                 builder = "angle:try/" + name,
@@ -373,6 +427,81 @@ luci.bucket(
             ],
         ),
     ],
+)
+
+# Shadow buckets for LED jobs.
+luci.bucket(
+    name = "ci.shadow",
+    shadows = "ci",
+    constraints = luci.bucket_constraints(
+        pools = ["luci.angle.ci", "luci.chromium.gpu.ci"],
+    ),
+    bindings = [
+        luci.binding(
+            roles = "role/buildbucket.creator",
+            groups = [
+                "mdb/chrome-build-access-sphinx",
+                "mdb/chrome-troopers",
+                "chromium-led-users",
+            ],
+            users = [
+                "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+            ],
+        ),
+        luci.binding(
+            roles = "role/buildbucket.triggerer",
+            users = [
+                "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+            ],
+        ),
+        # Allow ci builders to create invocations in their own builds.
+        luci.binding(
+            roles = "role/resultdb.invocationCreator",
+            users = [
+                "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+            ],
+        ),
+    ],
+    dynamic = True,
+)
+
+luci.bucket(
+    name = "try.shadow",
+    shadows = "try",
+    constraints = luci.bucket_constraints(
+        pools = ["luci.angle.try", "luci.chromium.gpu.try"],
+        service_accounts = [
+            "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+        ],
+    ),
+    bindings = [
+        luci.binding(
+            roles = "role/buildbucket.creator",
+            groups = [
+                "mdb/chrome-build-access-sphinx",
+                "mdb/chrome-troopers",
+                "chromium-led-users",
+            ],
+            users = [
+                "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+            ],
+        ),
+        luci.binding(
+            roles = "role/buildbucket.triggerer",
+            users = [
+                "angle-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+            ],
+        ),
+        # Allow try builders to create invocations in their own builds.
+        luci.binding(
+            roles = "role/resultdb.invocationCreator",
+            groups = [
+                "project-angle-try-task-accounts",
+                "project-angle-tryjob-access",
+            ],
+        ),
+    ],
+    dynamic = True,
 )
 
 luci.builder(
@@ -410,14 +539,18 @@ luci.gitiles_poller(
 angle_builder("android-arm-compile", cpu = "arm")
 angle_builder("android-arm-dbg-compile", cpu = "arm")
 angle_builder("android-arm64-dbg-compile", cpu = "arm64")
+angle_builder("android-arm64-exp-s24-test", cpu = "arm64")
 angle_builder("android-arm64-exp-test", cpu = "arm64")
 angle_builder("android-arm64-test", cpu = "arm64")
 angle_builder("linux-asan-test", cpu = "x64")
+angle_builder("linux-exp-asan-test", cpu = "x64")
 angle_builder("linux-exp-test", cpu = "x64")
+angle_builder("linux-exp-tsan-test", cpu = "x64")
 angle_builder("linux-tsan-test", cpu = "x64")
 angle_builder("linux-dbg-compile", cpu = "x64")
 angle_builder("linux-test", cpu = "x64")
 angle_builder("mac-dbg-compile", cpu = "x64")
+angle_builder("mac-arm64-test", cpu = "arm64")
 angle_builder("mac-exp-test", cpu = "x64")
 angle_builder("mac-test", cpu = "x64")
 angle_builder("win-asan-test", cpu = "x64")
@@ -452,6 +585,11 @@ luci.console_view(
 )
 
 luci.list_view(
+    name = "exp",
+    title = "ANGLE Experimental CI Builders",
+)
+
+luci.list_view(
     name = "try",
     title = "ANGLE Try Builders",
 )
@@ -478,7 +616,7 @@ luci.cq_group(
     acls = [
         acl.entry(
             acl.CQ_COMMITTER,
-            groups = "project-angle-committers",
+            groups = "project-angle-submit-access",
         ),
         acl.entry(
             acl.CQ_DRY_RUNNER,
