@@ -99,8 +99,10 @@ int lchmod(const char *, mode_t);
 #endif
 
 #if defined(_LARGEFILE64_SOURCE)
-#define stat64 stat
-#define fstat64 fstat
+int stat64(const char* path, struct stat* info);
+int fstat64(int fildes, struct stat* info);
+// #define stat64 stat
+// #define fstat64 fstat
 #define lstat64 lstat
 #define fstatat64 fstatat
 #define blkcnt64_t blkcnt_t
