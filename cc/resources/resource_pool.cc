@@ -17,6 +17,7 @@
 #include "base/containers/contains.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -614,6 +615,7 @@ bool ResourcePool::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
 
 void ResourcePool::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
+  LOG(INFO) << __func__;
   switch (level) {
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:

@@ -19,6 +19,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
@@ -76,7 +77,6 @@ std::string to_string(const T& v) {
   oss << v;
   return oss.str();
 }
-
 }  // namespace
 
 MediaCodecDecoder::MediaCodecDecoder(Host* host,
@@ -316,7 +316,21 @@ void MediaCodecDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
+    int64_t started_us = CurrentMonotonicTime();
+    bool fired = false;
+
     while (!destroying_.load()) {
+      if (!fired) {
+        using base::MemoryPressureListener;
+        // Fire memory pressure signal 60 sec after playback starts.
+        if (int64_t elapsed_us = CurrentMonotonicTime() - started_us;
+            elapsed_us > 60'000'000) {
+          SB_LOG(INFO) << " Fire memory pressure signal";
+          MemoryPressureListener::NotifyMemoryPressure(
+              MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+          fired = true;
+        }
+      }
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
       bool has_input =
