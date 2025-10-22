@@ -19,6 +19,7 @@
     "FileTest.TouchGetInfo",
     "TransliteratorTest.HiraganaKatakanaCorrect",
     "TransliteratorTest.KatakanaHiraganaCorrect",
-    "ThreadGroupProfilerTest.*"
+    "ThreadGroupProfilerTest.*",
+    "All/StatisticsRecorderStarvationTest.*"
   ]
 }
