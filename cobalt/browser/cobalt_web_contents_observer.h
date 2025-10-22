@@ -27,7 +27,6 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   CobaltWebContentsObserver(content::WebContents* web_contents);
 
   void PrimaryMainDocumentElementAvailable() override;
-  void DidStopLoading() override;
 
  private:
   void RegisterInjectedJavaScript();

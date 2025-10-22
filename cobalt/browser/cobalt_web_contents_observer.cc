@@ -18,7 +18,6 @@
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -81,12 +80,5 @@ enum {
   kJniErrorTypeConnectionError = 0,
 };
 }  // namespace
-
-void CobaltWebContentsObserver::DidStopLoading() {
-  // Set initial focus to the web content.
-  if (web_contents()->GetRenderWidgetHostView()) {
-    web_contents()->GetRenderWidgetHostView()->Focus();
-  }
-}
 
 }  // namespace cobalt
