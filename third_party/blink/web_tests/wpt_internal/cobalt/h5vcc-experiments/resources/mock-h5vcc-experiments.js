@@ -55,15 +55,19 @@ class MockH5vccExperiments {
   }
 
   async getActiveExperimentConfigData() {
-    return this.stub_result_.get(this.STUB_KEY_ACTIVE_CONFIG_DATA);
+    return {
+      active_experiment_config_data: this.stub_result_.get(this.STUB_KEY_ACTIVE_CONFIG_DATA)
+    };
   }
 
   getConfigHash() {
     return this.STUB_KEY_CONFIG_CONFIG_HASH;
   }
 
-  getFeature(feature_name) {
-    throw new Error('Sync methods not supported in MojoJS (b/406809316');
+  async getFeature(feature_name) {
+    return {
+      feature_value: this.stub_result_.get(feature_name)
+    };
   }
 
   getFeatureParam(feature_param_name) {
@@ -76,7 +80,9 @@ class MockH5vccExperiments {
   }
 
   async getLatestExperimentConfigHashData() {
-    return this.stub_result_.get(this.STUB_KEY_CONFIG_CONFIG_HASH);
+    return {
+      latest_experiment_config_hash_data: this.stub_result_.get(this.STUB_KEY_CONFIG_CONFIG_HASH)
+    };
   }
 
   hasCalledResetExperimentState() {
@@ -154,8 +160,8 @@ class MockH5vccExperiments {
     return;
   }
 
-  async setLatestExperimentConfigHashData(config_hash) {
-    this.stubConfigHashData(config_hash);
+  async setLatestExperimentConfigHashData(hash_data) {
+    this.stubConfigHashData(hash_data);
     return;
   }
 }
