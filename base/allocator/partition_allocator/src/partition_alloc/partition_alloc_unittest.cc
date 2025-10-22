@@ -5946,7 +5946,7 @@ TEST_P(PartitionAllocTest, SortFreelist) {
 }
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && PA_BUILDFLAG(IS_LINUX) && \
-    PA_BUILDFLAG(PA_ARCH_CPU_64_BITS)
+    PA_BUILDFLAG(PA_ARCH_CPU_64_BITS) && GTEST_HAS_DEATH_TEST
 TEST_P(PartitionAllocTest, CrashOnUnknownPointer) {
   int not_a_heap_object = 42;
   EXPECT_DEATH(allocator.root()->Free(&not_a_heap_object), "");
