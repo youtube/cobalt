@@ -39,6 +39,20 @@ bool PathProviderStarboard(int key, FilePath* result) {
       return false;
     }
 
+    case DIR_SRC_TEST_DATA_ROOT: {
+      FilePath test_data_path;
+      // On POSIX, unit tests execute two levels deep from the source root.
+      // For example:  out/{Debug|Release}/net_unittest
+      if (PathProviderStarboard(DIR_EXE, &test_data_path)) {
+        *result = test_data_path.DirName().DirName();
+        return true;
+      }
+
+      DLOG(ERROR) << "Couldn't find your source root.  "
+                  << "Try running from your chromium/src directory.";
+      return false;
+    }
+
     case base::DIR_EXE:
     case base::DIR_MODULE:
     case base::DIR_ASSETS: {
