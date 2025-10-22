@@ -52,7 +52,9 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "services/network/public/cpp/features.h"
@@ -63,6 +65,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "cobalt/android/jni_headers/CobaltActivity_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if defined(RUN_BROWSER_TESTS)
@@ -88,6 +91,17 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
 }  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  // Possible if application is paused during startup.
+  if (!client) {
+    return;
+  }
+  client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
@@ -123,6 +137,12 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
 }
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
+
+// static
+CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
+  return static_cast<CobaltContentBrowserClient*>(
+      content::ShellContentBrowserClient::Get());
+}
 
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
@@ -343,6 +363,24 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
             std::move(receiver));
     cobalt_header_clients_.push_back(std::move(cobalt_header_client));
   }
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  if (!web_contents_observer_) {
+    return;
+  }
+  auto* web_contents = web_contents_observer_->web_contents();
+  CHECK(web_contents);
+  content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
+  CHECK(rfh);
+  auto* storage_partition = rfh->GetStoragePartition();
+  CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
+  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
+  CHECK(cookie_manager);
+  cookie_manager->FlushCookieStore(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
