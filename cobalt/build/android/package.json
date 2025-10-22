@@ -15,6 +15,7 @@
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
+                "libchrome_crashpad_handler.so",
                 "libchrobalt.so",
                 "libstarboard_jni_state.so",
                 "obj/components/metrics/metrics_java.javac.jar",
@@ -214,6 +215,10 @@
                 {
                     "from_file": "libchrobalt.so",
                     "to_file": "lib/libchrobalt.so"
+                },
+                {
+                    "from_file": "libchrome_crashpad_handler.so",
+                    "to_file": "lib/libchrome_crashpad_handler.so"
                 },
                 {
                     "from_file": "libstarboard_jni_state.so",
