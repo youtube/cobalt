@@ -22,6 +22,32 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include "starboard/thread.h"
+
+// Map syscall to `libc_wrapper_SYS_foo`.
+//
+// On Starboard, we have separate implementations for each function callable
+// with syscall. As a result, we can expand the syscall argument in a macro and
+// avoid having to do runtime disambiguation.
+//
+// Unimplemented syscall functions can be detected from their undefined
+// symbol references for names starting with the prefix "libc_wrapper_".
+//
+// Note: The  libc_wrapper_() functions available in Starboard are declared in
+// starboard/include/syscall_arch.h
+
+#define SYSCALL_PASTE_HELPER(a, b) a##b
+#define SYSCALL_PASTE(a, b) SYSCALL_PASTE_HELPER(a, b)
+#define syscall(name, ...) SYSCALL_PASTE(libc_wrapper_, name)(__VA_ARGS__)
+//#define syscall(name, ...) libc_wrapper_##name(__VA_ARGS__)
+
+// Map `libc_wrapper_SYS_ioctl(int fd, op,...)` to `ioctl_op(int fd,...)` calls
+// to allow separate implementation per ioctl operation.
+#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b) a##b
+#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT(a,b) __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b)
+#define __LIBC_WRAPPER_SYS_IOCTL_DISP(b, op,...) __LIBC_WRAPPER_SYS_IOCTL_CONCAT(b,op)(__VA_ARGS__)
+#define libc_wrapper_SYS_ioctl(fd, op,...) __LIBC_WRAPPER_SYS_IOCTL_DISP(ioctl_, op, fd, __VA_ARGS__)
+
 // Signal that we support these sycalls. This is only necessary for syscalls
 // where musl code uses non-existence of these defines to use fallbacks instead.
 #define SYS_lstat
@@ -48,6 +74,11 @@
 #define libc_wrapper_SYS_unlink(pathname) unlink(pathname)
 #define libc_wrapper_SYS_write(fildes, buf, nbyte) write(fildes, buf, nbyte)
 #define libc_wrapper_SYS_writev(fildes, iov, iovcnt) writev(fildes, iov, iovcnt)
+
+// Define wrappers for unsupported syscalls that it called by code that can
+// handle unsupported syscall functions.
+#define libc_wrapper_SYS_memfd_create(name, flags) (errno = ENOSYS, -1)
+
 
 static inline int libc_wrapper_SYS_fcntl(int fd, int op, ... /* arg */ ) {
   va_list ap;
