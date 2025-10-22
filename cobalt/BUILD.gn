@@ -88,13 +88,6 @@ source_set("common") {
     ]
   }
 
-  if (use_evergreen) {
-    sources += [
-      "browser/loader_app_metrics.cc",
-      "browser/loader_app_metrics.h",
-    ]
-  }
-
   public_deps = [ "//cobalt/browser" ]
 
   deps = [
