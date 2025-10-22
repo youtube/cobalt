@@ -18,9 +18,6 @@
 #include "base/functional/callback.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
-#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
-#include "content/public/browser/storage_partition.h"
-#include "services/network/public/mojom/cookie_manager.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -97,28 +94,6 @@ std::string GetTrackingAuthorizationStatusShared() {
   return "NOT_SUPPORTED";
 }
 
-void PerformExitStrategy() {
-#if BUILDFLAG(IS_STARBOARD)
-  auto strategy = GetUserOnExitStrategyInternal();
-  switch (strategy) {
-    case h5vcc_system::mojom::UserOnExitStrategy::kClose:
-      SbSystemRequestStop(/*error_level=*/0);
-      break;
-    case h5vcc_system::mojom::UserOnExitStrategy::kMinimize:
-      SbSystemRequestConceal();
-      break;
-    case h5vcc_system::mojom::UserOnExitStrategy::kNoExit:
-      return;
-  }
-#elif BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  starboard_bridge->RequestSuspend(env);
-#else
-#error "Unsupported platform."
-#endif
-}
-
 }  // namespace
 
 H5vccSystemImpl::H5vccSystemImpl(
@@ -193,30 +168,25 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
 }
 
 void H5vccSystemImpl::Exit() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // Same logic as CobaltContentBrowserClient::FlushCookiesAndLocalStorage().
-  // Consider moving to a utility that both can call.
-  //
-  // When the client is calling h5vcc.system.exit() in production or for
-  // testing, the application may suspend, close, or do nothing. Regardless of
-  // which exit strategy is performed, we want to flush the cookies and
-  // localStorage. Similarly if an app is suspended or closed through the
-  // platform handlers (for Android this is the Activity.onPause() and for
-  // starboard platforms this could be in the lifecycle event handler
-  // SbEventHandle()). If the client application called h5vcc.system.exit(),
-  // it is likely but not guaranteed that another flush operation will occur.
-  // For this reason, we'll need to flush cookies and localStorage both here and
-  // and in platform-specific lifecycle handlers.
-  auto* storage_partition = render_frame_host().GetStoragePartition();
-  CHECK(storage_partition);
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
-  auto flush_cookies = base::BindOnce(
-      &network::mojom::CookieManager::FlushCookieStore,
-      base::Unretained(cookie_manager), base::BindOnce(&PerformExitStrategy));
-  // Sequencing exit strategy after flushing delays performing exit strategy by
-  // 20ms when tested on a chromecast.
-  storage_partition->GetLocalStorageControl()->Flush(std::move(flush_cookies));
+#if BUILDFLAG(IS_STARBOARD)
+  auto strategy = GetUserOnExitStrategyInternal();
+  switch (strategy) {
+    case h5vcc_system::mojom::UserOnExitStrategy::kClose:
+      SbSystemRequestStop(0);
+      break;
+    case h5vcc_system::mojom::UserOnExitStrategy::kMinimize:
+      SbSystemRequestConceal();
+      break;
+    case h5vcc_system::mojom::UserOnExitStrategy::kNoExit:
+      return;
+  }
+#elif BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->RequestSuspend(env);
+#else
+#error "Unsupported platform."
+#endif
 }
 
 }  // namespace h5vcc_system
