@@ -32,6 +32,7 @@ config("runtime_library") {
     }
   }
 
+  # This include path is needed for |__config_site| in that folder.
   include_dirs += [ "//buildtools/third_party/libc++" ]
 
   # libc++ has two levels of additional checking:
@@ -83,22 +84,7 @@ config("runtime_library") {
       # Note that //third_party/musl/src/starboard/include MUST be included
       # before the general musl include directory to prefer Starboard-specific
       # posix headers over default posix headers.
-      cflags_cc += [
-        "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
-                                 root_build_dir),
-        "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
-        "-isystem" +
-            rebase_path("//third_party/musl/arch/generic", root_build_dir),
-        "-femulated-tls",
-      ]
-      cflags_c = [
-        "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
-                                 root_build_dir),
-        "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
-        "-isystem" +
-            rebase_path("//third_party/musl/arch/generic", root_build_dir),
-        "-femulated-tls",
-      ]
+      configs = [ "//third_party/musl:system_includes" ]
     }
 
     cflags_objcc = cflags_cc
