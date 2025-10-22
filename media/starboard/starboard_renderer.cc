@@ -16,6 +16,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
@@ -150,6 +151,14 @@ StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "Destructing StarboardRenderer.";
+
+  if (playback_started_) {
+    LOG(INFO) << "Firing MEMORY_PRESSURE_LEVEL_MODERATE due to renderer "
+                 "destruction.";
+    base::MemoryPressureListener::NotifyMemoryPressure(
+        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+    playback_started_ = false;
+  }
 
   player_bridge_.reset();
 
@@ -289,6 +298,13 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
+  if (playback_started_) {
+    LOG(INFO) << "Firing MEMORY_PRESSURE_LEVEL_MODERATE due to flush.";
+    base::MemoryPressureListener::NotifyMemoryPressure(
+        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+    playback_started_ = false;
+  }
+
   // It's possible that Flush() is called immediately after StartPlayingFrom(),
   // before the underlying SbPlayer is initialized.  Reset
   // `playing_start_from_time_` here as StartPlayingFrom() checks for
@@ -329,6 +345,12 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
             << '.';
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
+  if (!playback_started_) {
+    LOG(INFO) << "Firing MEMORY_PRESSURE_LEVEL_CRITICAL for playback start.";
+    base::MemoryPressureListener::NotifyMemoryPressure(
+        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+    playback_started_ = true;
+  }
 
   if (audio_read_in_progress_ || video_read_in_progress_) {
     constexpr TimeDelta kDelay = base::Milliseconds(50);
@@ -939,6 +961,13 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateEndOfStream:
       DCHECK(player_bridge_initialized_);
+      if (playback_started_) {
+        LOG(INFO) << "Firing MEMORY_PRESSURE_LEVEL_MODERATE due to end of "
+                     "stream.";
+        base::MemoryPressureListener::NotifyMemoryPressure(
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+        playback_started_ = false;
+      }
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
