@@ -34,7 +34,7 @@ runs:
 
         # Web-tests expect dump_syms and minidump_stackwalk to be present at the root of the out folder.
         out_dir="out/${{ matrix.platform}}_${{ matrix.config }}"
-        cp ${out_dir}/clang_x64/{dump_syms,minidump_stackwalk} ${out_dir}/
+        cp ${out_dir}/clang_x64_with_system_allocator/{dump_syms,minidump_stackwalk} ${out_dir}/
 
         RESULTS_DIR="out/${{ matrix.platform}}_${{ matrix.config }}/layout-test-results"
         echo "RESULTS_DIR=${RESULTS_DIR}" >> $GITHUB_ENV
