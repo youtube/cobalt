@@ -27,12 +27,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   CobaltWebContentsObserver(content::WebContents* web_contents);
 
   void PrimaryMainDocumentElementAvailable() override;
-<<<<<<< HEAD
-  void DidFinishNavigation(
-      content::NavigationHandle* navigation_handle) override;
-=======
   void DidStopLoading() override;
->>>>>>> e8df93b3260 (Display network connection dialog for all cases of no/weak connectivity (#7650))
 
  private:
   void RegisterInjectedJavaScript();

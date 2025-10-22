@@ -81,27 +81,11 @@ enum {
 };
 }  // namespace
 
-<<<<<<< HEAD
-void CobaltWebContentsObserver::DidFinishNavigation(
-    content::NavigationHandle* navigation_handle) {
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (navigation_handle->IsErrorPage() &&
-      navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
-    jint jni_error_type = kJniErrorTypeConnectionError;
-    jlong data = 0;
-
-    JNIEnv* env = base::android::AttachCurrentThread();
-    StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-    starboard_bridge->RaisePlatformError(env, jni_error_type, data);
-  }
-#endif
-=======
 void CobaltWebContentsObserver::DidStopLoading() {
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();
   }
->>>>>>> e8df93b3260 (Display network connection dialog for all cases of no/weak connectivity (#7650))
 }
 
 }  // namespace cobalt
