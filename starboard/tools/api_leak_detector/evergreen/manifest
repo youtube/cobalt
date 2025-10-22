@@ -29,7 +29,6 @@ flock
 fopen
 fprintf
 fputc
-fputs
 fread
 freelocale
 fseek

@@ -268,8 +268,9 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'write',
     'writev',
 
-    # Symbols below haven't been implemented yet but need to be investigated.
-    'putchar',  # TODO: b/406081586
+    # TODO: b/406081586 - Symbols that haven't been implemented yet but will be.
+    'putchar',
+    'fputs',
 ]
 
 
