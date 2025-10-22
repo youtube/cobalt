@@ -53,6 +53,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
@@ -68,6 +70,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
+@JNINamespace("cobalt")
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
@@ -469,6 +472,15 @@ public abstract class CobaltActivity extends Activity {
   }
 
   @Override
+  protected void onPause() {
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) {
+      CobaltActivityJni.get().flushCookiesAndLocalStorage();
+    }
+    super.onPause();
+  }
+
+  @Override
   protected void onStop() {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
@@ -794,5 +806,10 @@ public abstract class CobaltActivity extends Activity {
   public void onLowMemory() {
     diagnosticFinishReason = "ON_LOW_MEMORY";
     super.onLowMemory();
+  }
+
+  @NativeMethods
+  interface Natives {
+    void flushCookiesAndLocalStorage();
   }
 }
