@@ -2,7 +2,6 @@
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "disabled": {
     "base:base_unittests_loader": "b/418842688 - Compilation failure",
-    "gpu:gpu_perftests_loader": "b/418842688 - Compilation failure",
     "net:net_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/controller:blink_unittests_loader": "b/418842688 - Compilation failure",
