@@ -32,14 +32,23 @@ class ExperimentConfigManagerTest : public testing::Test {
     pref_service_ = std::make_unique<TestingPrefServiceSimple>();
     pref_service_->registry()->RegisterIntegerPref(
         variations::prefs::kVariationsCrashStreak, 0);
+    pref_service_->registry()->RegisterStringPref(
+        kExperimentConfigActiveConfigData, std::string());
     pref_service_->registry()->RegisterDictionaryPref(
         kExperimentConfigFeatures);
     pref_service_->registry()->RegisterDictionaryPref(
         kExperimentConfigFeatureParams);
-    pref_service_->registry()->RegisterListPref(kExperimentConfigExpIds);
+    pref_service_->registry()->RegisterStringPref(kSafeConfigActiveConfigData,
+                                                  std::string());
     pref_service_->registry()->RegisterDictionaryPref(kSafeConfigFeatures);
     pref_service_->registry()->RegisterDictionaryPref(kSafeConfigFeatureParams);
+<<<<<<< HEAD
     pref_service_->registry()->RegisterListPref(kSafeConfigExpIds);
+=======
+    pref_service_->registry()->RegisterDictionaryPref(kFinchParameters);
+    pref_service_->registry()->RegisterTimePref(
+        variations::prefs::kVariationsLastFetchTime, base::Time());
+>>>>>>> 2e92a125e3a (Add opaque config data to experiment config (#7063))
     experiment_config_manager_ =
         std::make_unique<ExperimentConfigManager>(pref_service_.get());
   }
