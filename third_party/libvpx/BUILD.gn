@@ -345,9 +345,9 @@ if (current_cpu == "arm" || current_cpu == "arm64" || current_cpu == "arm64e") {
 }
 
 if (current_cpu == "arm64" || current_cpu == "arm64e") {
-  print("YO WE HERE", is_cobalt)
+  print("YO WE HERE - HERMETIC?", is_cobalt_hermetic_build)
   source_set("libvpx_intrinsics_neon_dotprod") {
-    if (!is_cobalt) {
+    if (!is_cobalt_hermetic_build) {
     check_includes = false
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -366,7 +366,7 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
   }
 
   source_set("libvpx_intrinsics_neon_i8mm") {
-    if (!is_cobalt) {
+    if (!is_cobalt_hermetic_build) {
     check_includes = false
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -389,7 +389,7 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
   # error: cannot mangle this built-in __SVInt8_t type yet
   if (!is_win) {
     source_set("libvpx_intrinsics_sve") {
-      if (!is_cobalt) {
+      if (!is_cobalt_hermetic_build) {
       check_includes = false
       configs -= [ "//build/config/compiler:chromium_code" ]
       configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -406,7 +406,7 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
     }
 
     source_set("libvpx_intrinsics_sve2") {
-      if (!is_cobalt) {
+      if (!is_cobalt_hermetic_build) {
       check_includes = false
       configs -= [ "//build/config/compiler:chromium_code" ]
       configs += [ "//build/config/compiler:no_chromium_code" ]

@@ -4,3 +4,6 @@ target_os = "linux"
 target_cpu = "arm64"
 starboard_path = "starboard/no_platform"
 use_evergreen = true
+libyuv_use_neon = false
+libyuv_use_sme = false
+libyuv_use_sve = false
