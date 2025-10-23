@@ -27,8 +27,12 @@ FILTER_FILE="cobalt/testing/filters/${FILTER_PLATFORM}/${TEST_SUITE}_filter.json
 
 # Check if the TEST_SUITE string ends with "_loader"
 if [[ "$TEST_SUITE" == *_loader ]]; then
-  # Construct the Python script path
-  EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}.py"
+  if [[ "$PLATFORM" == evergreen* ]]; then
+    # Construct the Python script path
+    EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}.py"
+  else
+    EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}"
+  fi
 else
   # Construct the C++ executable path
   EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}"
