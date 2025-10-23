@@ -77,6 +77,11 @@ repos:
         language: python
         types: [java]
         args: [-i]
+        exclude: |
+            (?x)^(
+                starboard/|
+                cobalt/
+            )
     -   id: gcheckstyle
         name: gcheckstyle
         entry: python3 ./cobalt/precommit/gcheckstyle_wrapper.py
