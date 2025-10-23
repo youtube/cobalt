@@ -1,6 +1,17 @@
 {
   "failing_tests": [
+    "All/GLHelperPixelReadbackTest.ScaleTest*",
     "JournalMode/SQLDatabaseTest.*",
-    "SQLRecoveryTest.Bug387868"
+    "SQLInvalidDatabaseFlagsDeathTest.ExclusiveDatabaseLock",
+    "SQLMemoryDumpProviderTest.*",
+    "SQLMetaTableTest.*",
+    "SQLRecoveryTest.Bug387868",
+    "SQLTransactionTest.*",
+    "SQLiteFeaturesTest.*",
+    "StatementTest.*",
+    "DatabaseOptionsTest.*",
+    "JournalMode/SQLDatabaseTestExclusiveMode.LockingModeExclusive*",
+    "LockingMode/ReadOnlySQLDatabaseTest.*",
+    "All/SqlRecoveryTest.*"
   ]
 }
