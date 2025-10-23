@@ -5070,6 +5070,10 @@ void RenderProcessHostImpl::UpdateProcessPriority() {
       GetEffectiveImportance()
 #endif
   );
+#if BUILDFLAG(IS_ANDROIDTV)
+  priority.importance = priority.visible ? ChildProcessImportance::IMPORTANT
+                                         : priority.importance;
+#endif
 
   // If a priority override has been specified, use it instead.
   // TODO(chrisha): After experimentation, either integrate the experimental
@@ -5092,11 +5096,17 @@ void RenderProcessHostImpl::UpdateProcessPriority() {
     DCHECK_EQ(!foregrounded, priority.is_background());
   }
 
+  LOG(ERROR) << "miguelao, the Renderer is " << (priority.visible ? "" : "not ")
+             << "visible and its importance is " << (int)priority.importance;
+
   if (priority_ == priority)
     return;
   const bool background_state_changed =
       priority_.is_background() != priority.is_background();
   const bool visibility_state_changed = priority_.visible != priority.visible;
+
+  LOG(ERROR) << "miguelao visibility_state_changed="
+             << visibility_state_changed;
 
   TRACE_EVENT("renderer_host", "RenderProcessHostImpl::UpdateProcessPriority",
               ChromeTrackEvent::kRenderProcessHost, *this,
