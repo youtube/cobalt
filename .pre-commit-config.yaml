@@ -77,7 +77,7 @@ repos:
         language: python
         types: [java]
         args: [-i]
-        # (TODO:b/418842688) Re-enable. Temporarily disabled post m138 merge
+        # (TODO:b/454687024) Re-enable. Temporarily disabled post m138 merge
         # due to unintended update of java code formatting rules
         exclude: |
             (?x)^(
