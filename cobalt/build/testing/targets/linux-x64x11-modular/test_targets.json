@@ -11,7 +11,6 @@
     "third_party/blink/renderer/platform/heap:blink_heap_perftests_loader": "b/418842688 - Execution failure, crashes horribly",
     "third_party/blink/renderer/controller:blink_unittests_loader": "b/453909269 - Devtools missing inputs",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
-    "third_party/boringssl:boringssl_crypto_tests_loader": "b/418842688 - majority of tests are failing",
     "third_party/perfetto:perfetto_unittests_loader": "b/418842688 - Compilation failure",
     "ui/wm:wm_unittests_loader": "b/418842688 - Compilation failure"
   },
@@ -49,6 +48,7 @@
     "out/linux-x64x11-modular_devel/blink_heap_perftests_loader",
     "out/linux-x64x11-modular_devel/blink_heap_unittests_loader",
     "out/linux-x64x11-modular_devel/blink_platform_perftests_loader",
+    "out/linux-x64x11-modular_devel/boringssl_crypto_tests_loader",
     "out/linux-x64x11-modular_devel/boringssl_ssl_tests_loader",
     "out/linux-x64x11-modular_devel/capture_unittests_loader",
     "out/linux-x64x11-modular_devel/cc_perftests_loader",
