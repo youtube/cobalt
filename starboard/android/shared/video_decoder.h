@@ -122,7 +122,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease();
+  void OnVideoFrameRelease(std::optional<int64_t> release_us);
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
