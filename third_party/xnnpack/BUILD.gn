@@ -17,7 +17,6 @@
 import("//build/config/android/config.gni")
 
 config("xnnpack_config") {
-  print("YO READ GEN FILE")
   include_dirs = [
     "//third_party/pthreadpool/src/include",
     "src/deps/clog/include",
@@ -47,14 +46,11 @@ config("xnnpack_config") {
     "XNN_ENABLE_AVX512BF16=0",
   ]
 
-  if (!is_cobalt) {
-  print("NOT COBALT?!")
   if (current_cpu == "arm64") {
     defines += [
       "XNN_ENABLE_ARM_DOTPROD=1",
       "XNN_ENABLE_ARM_I8MM=1",
     ]
-  }
   }
 
   if (current_cpu == "x86" || current_cpu == "x64") {
@@ -1071,10 +1067,6 @@ if (current_cpu == "x64" || current_cpu == "x86") {
     ":xx-transposev_x64_standalone",
   ]
 } else if (current_cpu == "arm64") {
-  if (is_cobalt) {
-    xnnpack_deps = []
-    xnnpack_standalone_deps = []
-  } else {
   xnnpack_deps = [
     ":configs_arm64",
     ":enums_arm64",
@@ -1502,7 +1494,6 @@ if (current_cpu == "x64" || current_cpu == "x86") {
     ":xx-pad_arm64_standalone",
     ":xx-transposev_arm64_standalone",
   ]
-  }
 } else {
   xnnpack_deps = []
   xnnpack_standalone_deps = []

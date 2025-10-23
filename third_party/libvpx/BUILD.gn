@@ -345,7 +345,6 @@ if (current_cpu == "arm" || current_cpu == "arm64" || current_cpu == "arm64e") {
 }
 
 if (current_cpu == "arm64" || current_cpu == "arm64e") {
-  print("YO WE HERE - HERMETIC?", is_cobalt_hermetic_build)
   source_set("libvpx_intrinsics_neon_dotprod") {
     if (!is_cobalt_hermetic_build) {
     check_includes = false

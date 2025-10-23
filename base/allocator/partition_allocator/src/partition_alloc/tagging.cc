@@ -18,18 +18,14 @@
 #include <arm_acle.h>
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
-#if __has_include(<sys/ifunc.h>)
 #include <sys/ifunc.h>
-#endif
 #include <sys/prctl.h>
 #define PR_SET_TAGGED_ADDR_CTRL 55
 #define PR_GET_TAGGED_ADDR_CTRL 56
 #define PR_TAGGED_ADDR_ENABLE (1UL << 0)
 
 #if PA_BUILDFLAG(IS_LINUX)
-#if __has_include(<linux/version.h>)
 #include <linux/version.h>
-#endif
 
 // Linux headers already provide these since v5.10.
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
