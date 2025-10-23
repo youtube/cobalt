@@ -48,7 +48,11 @@ bool PathProviderStarboard(int key, FilePath* result) {
       // On POSIX, unit tests execute two levels deep from the source root.
       // For example:  out/{Debug|Release}/net_unittest
       if (PathProviderStarboard(DIR_EXE, &test_data_path)) {
+#if BUILDFLAG(USE_EVERGREEN)
         *result = test_data_path.DirName().DirName().DirName();
+#else
+        *result = test_data_path.DirName().DirName();
+#endif
         return true;
       }
 
