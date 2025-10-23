@@ -30,12 +30,8 @@ constexpr char kExperimentConfigActiveConfigData[] =
 constexpr char kExperimentConfigFeatures[] = "experiment_config.features";
 constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
-<<<<<<< HEAD
-constexpr char kExperimentConfigExpIds[] = "experiment_config.exp_ids";
-=======
 constexpr char kFinchParameters[] = "finch_parameters";
 constexpr char kLatestConfigHash[] = "latest_config_hash";
->>>>>>> 2e92a125e3a (Add opaque config data to experiment config (#7063))
 constexpr char kSafeConfig[] = "safe_config";
 constexpr char kSafeConfigActiveConfigData[] = "safe_config.active_config_data";
 constexpr char kSafeConfigFeatures[] = "safe_config.features";

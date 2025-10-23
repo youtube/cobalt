@@ -160,22 +160,14 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
                                std::string());
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
-<<<<<<< HEAD
-  registry->RegisterListPref(kExperimentConfigExpIds);
-=======
   registry->RegisterDictionaryPref(kFinchParameters);
   registry->RegisterStringPref(kLatestConfigHash, std::string());
->>>>>>> 2e92a125e3a (Add opaque config data to experiment config (#7063))
   registry->RegisterDictionaryPref(kSafeConfig);
   registry->RegisterStringPref(kSafeConfigActiveConfigData, std::string());
   registry->RegisterDictionaryPref(kSafeConfigFeatures);
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
-<<<<<<< HEAD
-  registry->RegisterListPref(kSafeConfigExpIds);
-=======
   registry->RegisterTimePref(variations::prefs::kVariationsLastFetchTime,
                              base::Time(), PrefRegistry::LOSSY_PREF);
->>>>>>> 2e92a125e3a (Add opaque config data to experiment config (#7063))
   metrics::MetricsService::RegisterPrefs(registry);
 }
 
