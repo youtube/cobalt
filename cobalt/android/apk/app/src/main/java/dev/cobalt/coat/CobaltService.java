@@ -18,6 +18,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.util.Base64;
 import dev.cobalt.util.Log;
+import java.util.Locale;
 import org.jni_zero.CalledByNative;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
@@ -94,9 +95,7 @@ public abstract class CobaltService {
 
   public abstract void close();
 
-  /**
-   * Send data from the service to the client.
-   */
+  /** Send data from the service to the client. */
   protected void sendToClient(long nativeService, byte[] data) {
     if (this.cobaltActivity == null) {
       Log.e(TAG, "CobaltActivity is null, can not run evaluateJavaScript()");
@@ -112,16 +111,16 @@ public abstract class CobaltService {
     // are registered within the Kabuki app's iframe, which needs to be the
     // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
     String jsCodeTemplate =
-      "((w) => {\n"
-      + "  let targetWindow = w;\n"
-      + "  const appIframe = document.getElementById('anchor');\n"
-      + "  if (appIframe?.contentWindow) {\n"
-      + "    targetWindow = appIframe.contentWindow;\n"
-      + "  }\n"
-      + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
-      + "})(window)";
+        "((w) => {\n"
+            + "  let targetWindow = w;\n"
+            + "  const appIframe = document.getElementById('anchor');\n"
+            + "  if (appIframe?.contentWindow) {\n"
+            + "    targetWindow = appIframe.contentWindow;\n"
+            + "  }\n"
+            + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
+            + "})(window)";
 
-    String jsCode = String.format(jsCodeTemplate, nativeService, base64Data);
+    String jsCode = String.format(Locale.US, jsCodeTemplate, nativeService, base64Data);
     this.cobaltActivity.evaluateJavaScript(jsCode);
   }
 }
