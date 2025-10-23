@@ -416,8 +416,6 @@ static_library("cobalt_shell_test_lib") {
     "browser/shell_content_browser_test_client.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
-    "common/shell_test_switches.cc",
-    "common/shell_test_switches.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
   ]
@@ -427,6 +425,7 @@ static_library("cobalt_shell_test_lib") {
     "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:shell_controller_mojom",
+    "//cobalt/shell:shell_test_switches_lib",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/prefs",
