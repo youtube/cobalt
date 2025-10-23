@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chrome_exclude.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 if (is_android) {
@@ -48,7 +49,7 @@ group("telemetry_chrome_test") {
     data_deps += [ "//third_party/perfetto/src/trace_processor:trace_processor_shell($default_toolchain)" ]
   }
 
-  if (!is_fuchsia && !is_android && !is_castos && !is_ios) {
+  if (!exclude_chrome_build && !is_android && !is_ios) {
     data_deps += [ "//chrome" ]
   }
 

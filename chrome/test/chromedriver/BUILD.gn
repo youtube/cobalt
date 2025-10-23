@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/buildflag_header.gni")
+import("//build/config/chrome_exclude.gni")
 import("//build/config/python.gni")
 import("//build/config/ui.gni")
 if (is_linux) {
@@ -479,53 +480,55 @@ if (is_win) {
   }
 }
 
-python_library("chromedriver_py_tests") {
-  testonly = true
-  deps = [
-    ":chromedriver_server",
-    "//chrome:chrome",
-  ]
+if (!exclude_chrome_build) {
+  python_library("chromedriver_py_tests") {
+    testonly = true
+    deps = [
+      ":chromedriver_server",
+      "//chrome:chrome",
+    ]
 
-  pydeps_file = "test/run_py_tests.pydeps"
-  data = [
-    "//chrome/test/data/chromedriver/",
-    "//chrome/test/chromedriver/js/",
-    "//testing/scripts/run_chromedriver_tests.py",
-  ]
+    pydeps_file = "test/run_py_tests.pydeps"
+    data = [
+      "//chrome/test/data/chromedriver/",
+      "//chrome/test/chromedriver/js/",
+      "//testing/scripts/run_chromedriver_tests.py",
+    ]
 
-  data_deps = [
-    "//chrome/test/chromedriver:chromedriver_server",
-    "//testing:test_scripts_shared",
-  ]
-  if (is_component_build && is_mac) {
-    data_deps += [ "//chrome:chrome_framework" ]
+    data_deps = [
+      "//chrome/test/chromedriver:chromedriver_server",
+      "//testing:test_scripts_shared",
+    ]
+    if (is_component_build && is_mac) {
+      data_deps += [ "//chrome:chrome_framework" ]
+    }
+
+    if (is_win) {
+      # On Windows, the following target produces the final chrome.exe
+      data_deps += [ "//chrome:reorder_imports" ]
+    }
   }
 
-  if (is_win) {
-    # On Windows, the following target produces the final chrome.exe
-    data_deps += [ "//chrome:reorder_imports" ]
+  python_library("chromedriver_py_tests_headless_shell") {
+    testonly = true
+    deps = [
+      ":chromedriver_server",
+      "//chrome:chrome",
+    ]
+
+    pydeps_file = "test/run_py_tests.pydeps"
+    data = [
+      "//chrome/test/data/chromedriver/",
+      "//chrome/test/chromedriver/js/",
+      "//testing/scripts/run_chromedriver_tests.py",
+    ]
+
+    data_deps = [
+      "//chrome/test/chromedriver:chromedriver_server",
+      "//headless:headless_shell",
+      "//testing:test_scripts_shared",
+    ]
   }
-}
-
-python_library("chromedriver_py_tests_headless_shell") {
-  testonly = true
-  deps = [
-    ":chromedriver_server",
-    "//chrome:chrome",
-  ]
-
-  pydeps_file = "test/run_py_tests.pydeps"
-  data = [
-    "//chrome/test/data/chromedriver/",
-    "//chrome/test/chromedriver/js/",
-    "//testing/scripts/run_chromedriver_tests.py",
-  ]
-
-  data_deps = [
-    "//chrome/test/chromedriver:chromedriver_server",
-    "//headless:headless_shell",
-    "//testing:test_scripts_shared",
-  ]
 }
 
 python_library("chromedriver_replay_unittests") {
@@ -621,10 +624,11 @@ test("chromedriver_unittests") {
     "//base",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
-    "//chrome/common",
+    "//chrome/common:constants",
     "//mojo/core/embedder",
     "//net",
     "//net:test_support",
+    "//services/network:network_service",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//testing/gmock",
@@ -638,7 +642,7 @@ test("chromedriver_unittests") {
   ]
 }
 
-if (is_win || is_posix) {
+if ((is_win || is_posix) && !exclude_chrome_build) {
   test("chromedriver_integrationtests") {
     sources = [
       "net/test_http_server.cc",

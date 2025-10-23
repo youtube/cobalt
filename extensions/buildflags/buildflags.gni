@@ -4,11 +4,12 @@
 
 import("//build/config/cast.gni")
 import("//build/config/chrome_build.gni")
+import("//build/config/chrome_exclude.gni")
 
 declare_args() {
   # `enable_extensions` controls whether the full and stable extensions platform
   # is compiled.
-  enable_extensions = !is_android && !is_ios && !is_castos && !is_fuchsia
+  enable_extensions = !is_android && !is_ios && !exclude_chrome_build
 
   # `enable_desktop_android_extensions` is an experimental flag used in
   # prototypes of desktop-focused android-powered builds. This is very much

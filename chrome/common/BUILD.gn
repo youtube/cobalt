@@ -4,6 +4,7 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/chrome_build.gni")
+import("//build/config/chrome_exclude.gni")
 import("//build/util/process_version.gni")
 import("//chrome/browser/downgrade/buildflags.gni")
 import("//chrome/common/features.gni")
@@ -107,345 +108,347 @@ source_set("ini_parser") {
   deps = [ "//base" ]
 }
 
-group("common") {
-  public_deps = [ ":common_lib" ]
-  if (is_win) {
-    public_deps += [ "//chrome/common/win:delay_load_hooks" ]
-  }
-}
-
-source_set("request_code_constants") {
-  sources = [ "chrome_resource_request_blocked_reason.h" ]
-  configs += [ "//build/config/compiler:wexit_time_destructors" ]
-  public_deps = [ "//content/public/common" ]
-}
-
-# Use a static library here because many test binaries depend on this but don't
-# require many files from it. This makes linking more efficient.
-static_library("common_lib") {
-  visibility = [
-    ":*",
-    "//chrome/common/win:eventlog_messages",
-  ]
-  sources = [
-    "all_messages.h",
-    "chrome_content_client.cc",
-    "chrome_content_client.h",
-    "chrome_content_client_constants.cc",
-    "chrome_descriptors.h",
-    "chrome_isolated_world_ids.h",
-    "chrome_result_codes.cc",
-    "chrome_result_codes.h",
-    "common_message_generator.cc",
-    "common_message_generator.h",
-    "content_restriction.h",
-    "crash_keys.cc",
-    "crash_keys.h",
-    "google_url_loader_throttle.cc",
-    "google_url_loader_throttle.h",
-    "logging_chrome.cc",
-    "logging_chrome.h",
-    "media/cdm_registration.cc",
-    "media/cdm_registration.h",
-    "media/media_resource_provider.cc",
-    "media/media_resource_provider.h",
-    "media_galleries/metadata_types.h",
-    "pdf_util.cc",
-    "pdf_util.h",
-    "pref_names_util.cc",
-    "pref_names_util.h",
-    "ref_counted_util.h",
-    "search/instant_mojom_traits.h",
-    "search/instant_types.cc",
-    "search/instant_types.h",
-    "search/ntp_logging_events.h",
-    "secure_origin_allowlist.cc",
-    "secure_origin_allowlist.h",
-    "webui_util.cc",
-    "webui_util.h",
-  ]
-  defines = []
-
-  configs += [
-    "//build/config:precompiled_headers",
-    "//build/config/compiler:wexit_time_destructors",
-  ]
-
-  public_deps = [
-    ":buildflags",
-    ":channel_info",
-    ":ini_parser",
-    ":mojo_bindings",
-    ":offline_page_auto_fetcher_mojom",
-    ":request_code_constants",
-    ":supervised_user_commands_mojom",
-    ":url_constants",
-    "//base",
-    "//base:base_static",
-    "//base:i18n",
-    "//chrome:resources",
-    "//chrome:strings",
-    "//chrome/app/theme:theme_resources",
-    "//chrome/common:constants",
-    "//chrome/common/net",
-    "//chrome/common/privacy_budget",
-    "//chrome/common/profiler",
-    "//chrome/common/search:mojo_bindings",
-    "//chrome/installer/util:with_no_strings",
-    "//components/client_hints/common",
-    "//components/cloud_devices/common",
-    "//components/component_updater",
-    "//components/content_settings/core/common",
-    "//components/crash/core/common",
-    "//components/device_signals/core/common:features",
-    "//components/dom_distiller/core",
-    "//components/embedder_support/origin_trials",
-    "//components/error_page/common",
-    "//components/favicon_base",
-    "//components/gcm_driver/common",
-    "//components/language_detection/content/common",
-    "//components/metrics",
-    "//components/metrics:net",
-    "//components/nacl/common:buildflags",
-    "//components/nacl/common:process_type",
-    "//components/nacl/common:switches",
-    "//components/net_log",
-    "//components/network_session_configurator/common",
-    "//components/ntp_tiles",
-    "//components/offline_pages/buildflags",
-    "//components/offline_pages/core:switches",
-    "//components/omnibox/common",
-    "//components/page_load_metrics/common:page_load_metrics_mojom",
-    "//components/password_manager/core/common",
-    "//components/policy:generated",
-    "//components/policy/core/common",
-    "//components/prefs",
-    "//components/safe_browsing:buildflags",
-    "//components/safe_search_api",
-    "//components/sampling_profiler",
-    "//components/services/app_service",
-    "//components/services/heap_profiling/public/cpp",
-    "//components/strings",
-    "//components/supervised_user/core/common",
-    "//components/translate/content/common",
-    "//components/translate/core/common",
-    "//components/url_formatter",
-    "//components/variations",
-    "//components/variations/net",
-    "//components/visitedlink/common",
-    "//components/webui/flags:switches",
-    "//google_apis",
-    "//gpu/command_buffer/service",
-    "//gpu/config",
-    "//ipc",
-    "//media",
-    "//mojo/public/cpp/bindings",
-    "//pdf:buildflags",
-    "//ppapi/buildflags",
-    "//sandbox/policy",
-    "//skia",
-    "//third_party/icu",
-    "//third_party/re2",
-    "//third_party/widevine/cdm:buildflags",
-    "//ui/accessibility",
-    "//ui/base",
-    "//ui/gfx/ipc",
-    "//ui/gfx/ipc/geometry",
-    "//ui/gfx/ipc/skia",
-    "//ui/gl",
-    "//ui/message_center/public/cpp",
-    "//ui/native_theme",
-    "//ui/resources:resources",
-    "//url",
-  ]
-
-  deps = [
-    "//components/cdm/common:buildflags",
-    "//components/crash/core/app",
-    "//components/google/core/common",
-    "//components/heap_profiling/in_process",
-    "//components/heap_profiling/in_process:mojom",
-    "//components/live_caption:constants",
-    "//components/metrics:call_stack_profile_builder",
-    "//components/no_state_prefetch/common",
-    "//components/no_state_prefetch/common:mojo_bindings",
-    "//components/page_load_metrics/common:common",
-    "//components/pdf/common:constants",
-    "//components/pdf/common:util",
-  ]
-
-  if (is_android || enable_library_cdms || enable_playready) {
-    public_deps += [ "//components/cdm/common" ]
-  }
-
-  if (enable_ppapi) {
-    public_deps += [ "//ppapi/shared_impl" ]
-  }
-
-  if (enable_extensions_core) {
-    public_deps += [
-      "//chrome/common/extensions",
-      "//extensions:extensions_resources",
-      "//extensions/common",
-      "//extensions/common:common_constants",
-      "//extensions/common:core_api_provider",
-    ]
-
-    sources += [
-      "initialize_extensions_client.cc",
-      "initialize_extensions_client.h",
-    ]
-
-    # TODO(https://crbug.com/356905053): Gradually include more of these sources
-    # in the desktop-android build (taking them out of this enable_extensions
-    # block), or put them behind more specific build flags.
-    if (enable_extensions) {
-      sources += [
-        "controlled_frame/controlled_frame.cc",
-        "controlled_frame/controlled_frame.h",
-      ]
-      deps += [
-        "//chrome/common/apps/platform_apps",
-        "//chrome/common/controlled_frame",
-        "//components/app_constants",
-      ]
-      public_deps += [
-        "//chrome/common/extensions/api",
-        "//chrome/common/extensions/api:extensions_features",
-        "//extensions/common/api",
-        "//extensions/strings",
-        "//services/device/public/cpp/usb",
-      ]
-    }  # if (enable_extensions)
-  }
-
-  if (is_mac) {
-    assert(enable_extensions)
-    sources += [
-      "extensions/image_writer/image_writer_util_mac.cc",
-      "extensions/image_writer/image_writer_util_mac.h",
-    ]
-    public_deps += [ ":app_mode_app_support" ]
-  }
-
-  if (is_chromeos) {
-    assert(enable_extensions)
-    public_deps += [ "//ash/keyboard/ui" ]
-    deps += [
-      "//ash/constants",
-      "//chrome/common/chromeos/extensions",
-    ]
-  }
-
-  if (enable_nacl) {
-    public_deps += [ "//components/nacl/common" ]
-  }
-
-  # Printing.
-  if (enable_printing) {
-    public_deps += [
-      "//components/printing/common",
-      "//printing",
-    ]
-  }
-
-  if (is_android) {
-    sources -= [ "media_galleries/metadata_types.h" ]
-    sources += [
-      "media/chrome_media_drm_bridge_client.cc",
-      "media/chrome_media_drm_bridge_client.h",
-    ]
-  } else {
-    # Non-Android.
-    public_deps += [ "//chrome/common/importer" ]
-    sources += [
-      "actor/action_result.cc",
-      "actor/action_result.h",
-      "actor/actor_logging.h",
-      "read_anything/read_anything_util.cc",
-      "read_anything/read_anything_util.h",
-    ]
-  }
-
-  if (is_win) {
-    sources += [
-      "conflicts/module_watcher_win.cc",
-      "conflicts/module_watcher_win.h",
-      "conflicts/remote_module_watcher_win.cc",
-      "conflicts/remote_module_watcher_win.h",
-    ]
-    deps += [ "//chrome/common/win:eventlog_messages" ]
-
-    public_deps += [
-      "//components/dom_distiller/core",  # Needed by chrome_content_client.cc.
-      "//third_party/wtl",
-    ]
-
-    libs = [ "wintrust.lib" ]
-  }
-
-  if (is_posix && !is_android) {
-    sources += [
-      "process_singleton_lock_posix.cc",
-      "process_singleton_lock_posix.h",
-    ]
-  }
-
-  if (is_mac) {
-    public_deps += [ "//third_party/google_toolbox_for_mac" ]
-
-    frameworks = [ "ServiceManagement.framework" ]
-  }
-
-  if (enable_plugins) {
-    sources += [
-      "ppapi_utils.cc",
-      "ppapi_utils.h",
-    ]
-  }
-  if (enable_plugins && enable_extensions) {
-    sources += [
-      "pepper_permission_util.cc",
-      "pepper_permission_util.h",
-    ]
-  }
-
-  if (enable_library_cdms) {
-    deps += [ "//media/cdm:cdm_paths" ]  # Needed by chrome_content_client.cc
-
-    if (enable_widevine) {
-      if (is_linux || is_chromeos) {
-        sources += [
-          "media/component_widevine_cdm_hint_file_linux.cc",
-          "media/component_widevine_cdm_hint_file_linux.h",
-        ]
-      }
-      deps += [ "//third_party/widevine/cdm:headers" ]
+if (!exclude_chrome_build) {
+  group("common") {
+    public_deps = [ ":common_lib" ]
+    if (is_win) {
+      public_deps += [ "//chrome/common/win:delay_load_hooks" ]
     }
   }
 
-  if (safe_browsing_mode != 0) {
-    public_deps += [ "//chrome/common/safe_browsing" ]
+  source_set("request_code_constants") {
+    sources = [ "chrome_resource_request_blocked_reason.h" ]
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
+    public_deps = [ "//content/public/common" ]
   }
 
-  if (is_linux || is_chromeos) {
-    sources += [
-      "auto_start_linux.cc",
-      "auto_start_linux.h",
+  # Use a static library here because many test binaries depend on this but don't
+  # require many files from it. This makes linking more efficient.
+  static_library("common_lib") {
+    visibility = [
+      ":*",
+      "//chrome/common/win:eventlog_messages",
     ]
-    deps += [ "//sandbox/linux:sandbox_services" ]
-  }
-
-  if (enable_cdm_host_verification) {
-    sources += [
-      "media/cdm_host_file_path.cc",
-      "media/cdm_host_file_path.h",
+    sources = [
+      "all_messages.h",
+      "chrome_content_client.cc",
+      "chrome_content_client.h",
+      "chrome_content_client_constants.cc",
+      "chrome_descriptors.h",
+      "chrome_isolated_world_ids.h",
+      "chrome_result_codes.cc",
+      "chrome_result_codes.h",
+      "common_message_generator.cc",
+      "common_message_generator.h",
+      "content_restriction.h",
+      "crash_keys.cc",
+      "crash_keys.h",
+      "google_url_loader_throttle.cc",
+      "google_url_loader_throttle.h",
+      "logging_chrome.cc",
+      "logging_chrome.h",
+      "media/cdm_registration.cc",
+      "media/cdm_registration.h",
+      "media/media_resource_provider.cc",
+      "media/media_resource_provider.h",
+      "media_galleries/metadata_types.h",
+      "pdf_util.cc",
+      "pdf_util.h",
+      "pref_names_util.cc",
+      "pref_names_util.h",
+      "ref_counted_util.h",
+      "search/instant_mojom_traits.h",
+      "search/instant_types.cc",
+      "search/instant_types.h",
+      "search/ntp_logging_events.h",
+      "secure_origin_allowlist.cc",
+      "secure_origin_allowlist.h",
+      "webui_util.cc",
+      "webui_util.h",
     ]
-    public_deps += [ "//chrome/common:version_header" ]
-  }
+    defines = []
 
-  if (enable_bound_session_credentials) {
-    sources += [ "bound_session_request_throttled_handler.h" ]
+    configs += [
+      "//build/config:precompiled_headers",
+      "//build/config/compiler:wexit_time_destructors",
+    ]
+
+    public_deps = [
+      ":buildflags",
+      ":channel_info",
+      ":ini_parser",
+      ":mojo_bindings",
+      ":offline_page_auto_fetcher_mojom",
+      ":request_code_constants",
+      ":supervised_user_commands_mojom",
+      ":url_constants",
+      "//base",
+      "//base:base_static",
+      "//base:i18n",
+      "//chrome:resources",
+      "//chrome:strings",
+      "//chrome/app/theme:theme_resources",
+      "//chrome/common:constants",
+      "//chrome/common/net",
+      "//chrome/common/privacy_budget",
+      "//chrome/common/profiler",
+      "//chrome/common/search:mojo_bindings",
+      "//chrome/installer/util:with_no_strings",
+      "//components/client_hints/common",
+      "//components/cloud_devices/common",
+      "//components/component_updater",
+      "//components/content_settings/core/common",
+      "//components/crash/core/common",
+      "//components/device_signals/core/common:features",
+      "//components/dom_distiller/core",
+      "//components/embedder_support/origin_trials",
+      "//components/error_page/common",
+      "//components/favicon_base",
+      "//components/gcm_driver/common",
+      "//components/language_detection/content/common",
+      "//components/metrics",
+      "//components/metrics:net",
+      "//components/nacl/common:buildflags",
+      "//components/nacl/common:process_type",
+      "//components/nacl/common:switches",
+      "//components/net_log",
+      "//components/network_session_configurator/common",
+      "//components/ntp_tiles",
+      "//components/offline_pages/buildflags",
+      "//components/offline_pages/core:switches",
+      "//components/omnibox/common",
+      "//components/page_load_metrics/common:page_load_metrics_mojom",
+      "//components/password_manager/core/common",
+      "//components/policy:generated",
+      "//components/policy/core/common",
+      "//components/prefs",
+      "//components/safe_browsing:buildflags",
+      "//components/safe_search_api",
+      "//components/sampling_profiler",
+      "//components/services/app_service",
+      "//components/services/heap_profiling/public/cpp",
+      "//components/strings",
+      "//components/supervised_user/core/common",
+      "//components/translate/content/common",
+      "//components/translate/core/common",
+      "//components/url_formatter",
+      "//components/variations",
+      "//components/variations/net",
+      "//components/visitedlink/common",
+      "//components/webui/flags:switches",
+      "//google_apis",
+      "//gpu/command_buffer/service",
+      "//gpu/config",
+      "//ipc",
+      "//media",
+      "//mojo/public/cpp/bindings",
+      "//pdf:buildflags",
+      "//ppapi/buildflags",
+      "//sandbox/policy",
+      "//skia",
+      "//third_party/icu",
+      "//third_party/re2",
+      "//third_party/widevine/cdm:buildflags",
+      "//ui/accessibility",
+      "//ui/base",
+      "//ui/gfx/ipc",
+      "//ui/gfx/ipc/geometry",
+      "//ui/gfx/ipc/skia",
+      "//ui/gl",
+      "//ui/message_center/public/cpp",
+      "//ui/native_theme",
+      "//ui/resources:resources",
+      "//url",
+    ]
+
+    deps = [
+      "//components/cdm/common:buildflags",
+      "//components/crash/core/app",
+      "//components/google/core/common",
+      "//components/heap_profiling/in_process",
+      "//components/heap_profiling/in_process:mojom",
+      "//components/live_caption:constants",
+      "//components/metrics:call_stack_profile_builder",
+      "//components/no_state_prefetch/common",
+      "//components/no_state_prefetch/common:mojo_bindings",
+      "//components/page_load_metrics/common:common",
+      "//components/pdf/common:constants",
+      "//components/pdf/common:util",
+    ]
+
+    if (is_android || enable_library_cdms || enable_playready) {
+      public_deps += [ "//components/cdm/common" ]
+    }
+
+    if (enable_ppapi) {
+      public_deps += [ "//ppapi/shared_impl" ]
+    }
+
+    if (enable_extensions_core) {
+      public_deps += [
+        "//chrome/common/extensions",
+        "//extensions:extensions_resources",
+        "//extensions/common",
+        "//extensions/common:common_constants",
+        "//extensions/common:core_api_provider",
+      ]
+
+      sources += [
+        "initialize_extensions_client.cc",
+        "initialize_extensions_client.h",
+      ]
+
+      # TODO(https://crbug.com/356905053): Gradually include more of these sources
+      # in the desktop-android build (taking them out of this enable_extensions
+      # block), or put them behind more specific build flags.
+      if (enable_extensions) {
+        sources += [
+          "controlled_frame/controlled_frame.cc",
+          "controlled_frame/controlled_frame.h",
+        ]
+        deps += [
+          "//chrome/common/apps/platform_apps",
+          "//chrome/common/controlled_frame",
+          "//components/app_constants",
+        ]
+        public_deps += [
+          "//chrome/common/extensions/api",
+          "//chrome/common/extensions/api:extensions_features",
+          "//extensions/common/api",
+          "//extensions/strings",
+          "//services/device/public/cpp/usb",
+        ]
+      }  # if (enable_extensions)
+    }
+
+    if (is_mac) {
+      assert(enable_extensions)
+      sources += [
+        "extensions/image_writer/image_writer_util_mac.cc",
+        "extensions/image_writer/image_writer_util_mac.h",
+      ]
+      public_deps += [ ":app_mode_app_support" ]
+    }
+
+    if (is_chromeos) {
+      assert(enable_extensions)
+      public_deps += [ "//ash/keyboard/ui" ]
+      deps += [
+        "//ash/constants",
+        "//chrome/common/chromeos/extensions",
+      ]
+    }
+
+    if (enable_nacl) {
+      public_deps += [ "//components/nacl/common" ]
+    }
+
+    # Printing.
+    if (enable_printing) {
+      public_deps += [
+        "//components/printing/common",
+        "//printing",
+      ]
+    }
+
+    if (is_android) {
+      sources -= [ "media_galleries/metadata_types.h" ]
+      sources += [
+        "media/chrome_media_drm_bridge_client.cc",
+        "media/chrome_media_drm_bridge_client.h",
+      ]
+    } else {
+      # Non-Android.
+      public_deps += [ "//chrome/common/importer" ]
+      sources += [
+        "actor/action_result.cc",
+        "actor/action_result.h",
+        "actor/actor_logging.h",
+        "read_anything/read_anything_util.cc",
+        "read_anything/read_anything_util.h",
+      ]
+    }
+
+    if (is_win) {
+      sources += [
+        "conflicts/module_watcher_win.cc",
+        "conflicts/module_watcher_win.h",
+        "conflicts/remote_module_watcher_win.cc",
+        "conflicts/remote_module_watcher_win.h",
+      ]
+      deps += [ "//chrome/common/win:eventlog_messages" ]
+
+      public_deps += [
+      "//components/dom_distiller/core",  # Needed by chrome_content_client.cc.
+        "//third_party/wtl",
+      ]
+
+      libs = [ "wintrust.lib" ]
+    }
+
+    if (is_posix && !is_android) {
+      sources += [
+        "process_singleton_lock_posix.cc",
+        "process_singleton_lock_posix.h",
+      ]
+    }
+
+    if (is_mac) {
+      public_deps += [ "//third_party/google_toolbox_for_mac" ]
+
+      frameworks = [ "ServiceManagement.framework" ]
+    }
+
+    if (enable_plugins) {
+      sources += [
+        "ppapi_utils.cc",
+        "ppapi_utils.h",
+      ]
+    }
+    if (enable_plugins && enable_extensions) {
+      sources += [
+        "pepper_permission_util.cc",
+        "pepper_permission_util.h",
+      ]
+    }
+
+    if (enable_library_cdms) {
+      deps += [ "//media/cdm:cdm_paths" ]  # Needed by chrome_content_client.cc
+
+      if (enable_widevine) {
+        if (is_linux || is_chromeos) {
+          sources += [
+            "media/component_widevine_cdm_hint_file_linux.cc",
+            "media/component_widevine_cdm_hint_file_linux.h",
+          ]
+        }
+        deps += [ "//third_party/widevine/cdm:headers" ]
+      }
+    }
+
+    if (safe_browsing_mode != 0) {
+      public_deps += [ "//chrome/common/safe_browsing" ]
+    }
+
+    if (is_linux || is_chromeos) {
+      sources += [
+        "auto_start_linux.cc",
+        "auto_start_linux.h",
+      ]
+      deps += [ "//sandbox/linux:sandbox_services" ]
+    }
+
+    if (enable_cdm_host_verification) {
+      sources += [
+        "media/cdm_host_file_path.cc",
+        "media/cdm_host_file_path.h",
+      ]
+      public_deps += [ "//chrome/common:version_header" ]
+    }
+
+    if (enable_bound_session_credentials) {
+      sources += [ "bound_session_request_throttled_handler.h" ]
+    }
   }
 }
 
@@ -629,52 +632,54 @@ static_library("constants") {
   }
 }
 
-# Use a static library here because many test binaries depend on this but don't
-# require many files from it. This makes linking more efficient.
-static_library("test_support") {
-  testonly = true
-  visibility = [ "//chrome/test:*" ]
+if (!exclude_chrome_build) {
+  # Use a static library here because many test binaries depend on this but don't
+  # require many files from it. This makes linking more efficient.
+  static_library("test_support") {
+    testonly = true
+    visibility = [ "//chrome/test:*" ]
 
-  sources = [
-    "search/mock_embedded_search_client.cc",
-    "search/mock_embedded_search_client.h",
-  ]
-
-  deps = [
-    ":common",
-    "//base",
-    "//chrome/common/search:mojo_bindings",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-
-  if (enable_extensions_core) {
-    sources += [
-      "extensions/extension_test_util.cc",
-      "extensions/extension_test_util.h",
-    ]
-    deps += [ "//chrome/common/extensions:test_features" ]
-  }
-}
-
-if (is_mac) {
-  source_set("app_mode_app_support") {
     sources = [
-      "mac/app_mode_chrome_locator.h",
-      "mac/app_mode_chrome_locator.mm",
-      "mac/app_mode_common.h",
-      "mac/app_mode_common.mm",
+      "search/mock_embedded_search_client.cc",
+      "search/mock_embedded_search_client.h",
     ]
-
-    configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
     deps = [
-      ":constants",
-      "//components/version_info",
-      "//mojo/core/embedder",
+      ":common",
+      "//base",
+      "//chrome/common/search:mojo_bindings",
+      "//testing/gmock",
+      "//testing/gtest",
     ]
 
-    public_deps = [ "//base" ]
+    if (enable_extensions_core) {
+      sources += [
+        "extensions/extension_test_util.cc",
+        "extensions/extension_test_util.h",
+      ]
+      deps += [ "//chrome/common/extensions:test_features" ]
+    }
+  }
+
+  if (is_mac) {
+    source_set("app_mode_app_support") {
+      sources = [
+        "mac/app_mode_chrome_locator.h",
+        "mac/app_mode_chrome_locator.mm",
+        "mac/app_mode_common.h",
+        "mac/app_mode_common.mm",
+      ]
+
+      configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+      deps = [
+        ":constants",
+        "//components/version_info",
+        "//mojo/core/embedder",
+      ]
+
+      public_deps = [ "//base" ]
+    }
   }
 }
 

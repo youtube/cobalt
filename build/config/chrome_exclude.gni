@@ -1,0 +1,33 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/cast.gni")
+import("//build/config/lightweight.gni")
+
+declare_args() {
+  # Controls whether to exclude //chrome directory from the build graph.
+  # This prevents unnecessary GN failures caused by //chrome dependencies when
+  # building only specific Chromium components without the Chrome browser.
+  #
+  # When true:
+  # - //chrome targets are excluded from the build
+  # - Prevents GN failures from unwanted //chrome dependencies
+  #
+  # Supported platforms:
+  # - Fuchsia, CastOS: Always true
+  # - Linux: Optional
+  #
+  # TODO: Consider adding is_cast_android support.
+  exclude_chrome_build =
+      is_fuchsia || is_castos || (enable_lightweight && !is_android)
+}
+
+if (exclude_chrome_build && !(is_fuchsia || is_castos || is_linux)) {
+  print("WARNING: exclude_chrome_build=true is only supported on Fuchsia, " +
+        "CastOS, and Linux platforms.")
+}
+
+# For Fuchsia and CastOS, exclude_chrome_build must be true.
+assert(!(is_fuchsia || is_castos) || exclude_chrome_build,
+       "exclude_chrome_build must be true for Fuchsia and CastOS.")
