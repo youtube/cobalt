@@ -5,7 +5,8 @@
     "net:net_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/blink/renderer/controller:blink_unittests_loader": "b/418842688 - Compilation failure",
-    "third_party/perfetto:perfetto_unittests_loader": "b/418842688 - Compilation failure"
+    "third_party/perfetto:perfetto_unittests_loader": "b/418842688 - Compilation failure",
+    "third_party/blink/renderer/platform/heap:blink_heap_perftests_loader": "b/418842688 - Execution failure, crashes horribly"
   },
   "test_targets": [
     "base:base_perftests_loader",
@@ -47,7 +48,6 @@
     "out/evergreen-x64_devel/base_perftests_loader.py",
     "out/evergreen-x64_devel/blink_heap_perftests_loader.py",
     "out/evergreen-x64_devel/blink_heap_unittests_loader.py",
-    "out/evergreen-x64_devel/blink_platform_perftests_loader.py",
     "out/evergreen-x64_devel/blink_platform_unittests_loader.py",
     "out/evergreen-x64_devel/boringssl_crypto_tests_loader.py",
     "out/evergreen-x64_devel/boringssl_ssl_tests_loader.py",
