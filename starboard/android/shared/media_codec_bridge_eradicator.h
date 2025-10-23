@@ -38,8 +38,7 @@ class MediaCodecBridgeEradicator {
 
   ~MediaCodecBridgeEradicator() { WaitForPendingDestructions(); }
 
-  bool Destroy(jobject j_media_codec_bridge,
-               jobject j_reused_get_output_format_result);
+  bool Destroy(jobject j_media_codec_bridge);
   // Returns false if the wait for pending destructions has timed out.
   bool WaitForPendingDestructions();
   bool IsEnabled() const { return is_enabled_.load(); }
