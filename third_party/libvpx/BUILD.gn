@@ -345,7 +345,9 @@ if (current_cpu == "arm" || current_cpu == "arm64" || current_cpu == "arm64e") {
 }
 
 if (current_cpu == "arm64" || current_cpu == "arm64e") {
+  print("YO WE HERE", is_cobalt)
   source_set("libvpx_intrinsics_neon_dotprod") {
+    if (!is_cobalt) {
     check_includes = false
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -360,9 +362,11 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
       sources = libvpx_srcs_arm64_highbd_neon_dotprod
       deps = [ ":libvpx_arm64_highbd_headers" ]
     }
+    }
   }
 
   source_set("libvpx_intrinsics_neon_i8mm") {
+    if (!is_cobalt) {
     check_includes = false
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -377,6 +381,7 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
       sources = libvpx_srcs_arm64_highbd_neon_i8mm
       deps = [ ":libvpx_arm64_highbd_headers" ]
     }
+    }
   }
 
   # SVE is disabled for Windows due to a limitation with clang-cl-18:
@@ -384,6 +389,7 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
   # error: cannot mangle this built-in __SVInt8_t type yet
   if (!is_win) {
     source_set("libvpx_intrinsics_sve") {
+      if (!is_cobalt) {
       check_includes = false
       configs -= [ "//build/config/compiler:chromium_code" ]
       configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -396,9 +402,11 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
         sources = libvpx_srcs_arm64_highbd_sve
         deps = [ ":libvpx_arm64_highbd_headers" ]
       }
+      }
     }
 
     source_set("libvpx_intrinsics_sve2") {
+      if (!is_cobalt) {
       check_includes = false
       configs -= [ "//build/config/compiler:chromium_code" ]
       configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -410,6 +418,7 @@ if (current_cpu == "arm64" || current_cpu == "arm64e") {
       } else if (cpu_arch_full == "arm64-highbd") {
         sources = libvpx_srcs_arm64_highbd_sve2
         deps = [ ":libvpx_arm64_highbd_headers" ]
+      }
       }
     }
   }

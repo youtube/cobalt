@@ -96,6 +96,7 @@ use_large_empty_slot_span_ring = true
 
 has_memory_tagging = current_cpu == "arm64" && is_clang && !is_asan &&
                      !is_hwasan && (is_linux || is_android)
+                     && !is_cobalt
 
 declare_args() {
   # Debug configuration.
