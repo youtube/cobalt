@@ -16,7 +16,7 @@ declare_args() {
 
   compile_credentials = is_linux || is_chromeos
 
-  compile_syscall_broker = is_linux || is_chromeos
+  compile_syscall_broker = is_linux  && !is_cobalt_hermetic_build || is_chromeos
 
   # On Android, use plain GTest.
   use_base_test_suite = is_linux || is_chromeos
