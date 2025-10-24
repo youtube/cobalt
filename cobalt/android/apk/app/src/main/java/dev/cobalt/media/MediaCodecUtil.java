@@ -510,7 +510,9 @@ public class MediaCodecUtil {
   /** Return true if and only if info belongs to a software decoder. */
   public static boolean isSoftwareDecoder(MediaCodecInfo codecInfo) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      return !codecInfo.isHardwareAccelerated();
+      if (!codecInfo.isHardwareAccelerated() || codecInfo.isSoftwareOnly()) {
+        return true;
+      }
     }
     String name = codecInfo.getName().toLowerCase(Locale.ROOT);
     // This is taken from libstagefright/OMXCodec.cpp for pre codec2.
@@ -578,6 +580,11 @@ public class MediaCodecUtil {
       String name = decoder.info.getName();
       if (!isVp9AllowListed && isCodecDenyListed(name)) {
         Log.v(TAG, "Rejecting " + name + ", reason: codec is on deny list");
+        continue;
+      }
+
+      if (!mustSupportSoftwareCodec && isSoftwareDecoder(decoder.info)) {
+        Log.v(TAG, "Rejecting " + name + ", reason: require hardware accelerated codec");
         continue;
       }
 
