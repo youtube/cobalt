@@ -25,6 +25,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
@@ -560,17 +561,28 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     if (require_software_codec && !video_capability->is_software_decoder()) {
       continue;
     }
+    // Reject low performance software codec if software codec is not required.
+    const bool reject_low_performance_software_deocder =
+        features::FeatureList::IsEnabled(
+            starboard::features::kRejectLowPerformanceSoftwareDecoder);
+    if (reject_low_performance_software_deocder && !require_software_codec &&
+        video_capability->is_software_decoder()) {
+      const int kMinimumWidth = 1920;
+      const int kMinimumHeight = 1080;
+      if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
+                                                           kMinimumHeight, 0)) {
+        continue;
+      }
+    }
     // Reject if hdr is required but codec doesn't support it.
     if (must_support_hdr && !video_capability->is_hdr_capable()) {
       continue;
     }
-
     // Reject if resolution or frame rate is not supported.
     if (!video_capability->AreResolutionAndRateSupported(frame_width,
                                                          frame_height, fps)) {
       continue;
     }
-
     // Reject if bitrate is not supported.
     if (bitrate != 0 && !video_capability->IsBitrateSupported(bitrate)) {
       continue;
