@@ -73,7 +73,7 @@ pipeline () {
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
     --script-executable=/usr/bin/python3
-  autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
+  autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   if [[ "${TARGET_PLATFORM}" =~ "linux-x64x11" ]]; then
     # Build the linux-x64x11-no-starboard configuration for chromedriver.
