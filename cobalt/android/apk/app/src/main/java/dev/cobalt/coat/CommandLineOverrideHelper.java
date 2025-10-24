@@ -44,6 +44,8 @@ public final class CommandLineOverrideHelper {
         private String[] mCommandLineArgs;
     }
 
+    public static final String MAX_OLD_SPACE_SIZE_MB = "1024";
+
     // This can be returned as a list, since it does not need to be a single
     // string object. The others can be combined into a single String because
     // they need to be enclosed in the feature's enable/disable header.
@@ -78,6 +80,10 @@ public final class CommandLineOverrideHelper {
 
         // Trades a little V8 performance for significant memory savings.
         paramOverrides.add("--optimize-for-size");
+
+        paramOverrides.add("--write_protect_code_memory");
+        paramOverrides.add("--noincremental_marking_wrappers");
+        paramOverrides.add("--max_old_space_size=" + MAX_OLD_SPACE_SIZE_MB);
 
         return paramOverrides;
     }

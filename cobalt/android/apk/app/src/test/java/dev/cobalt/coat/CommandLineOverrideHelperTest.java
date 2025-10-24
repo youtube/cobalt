@@ -43,6 +43,11 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultJsFlagOverridesList() {
         String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
         assertThat(overrides.contains("--optimize-for-size")).isTrue();
+        assertThat(overrides.contains("--write_protect_code_memory")).isTrue();
+        assertThat(overrides.contains("--noincremental_marking_wrappers")).isTrue();
+        assertThat(overrides.contains(
+            "--max_old_space_size="
+            + CommandLineOverrideHelper.MAX_OLD_SPACE_SIZE_MB)).isTrue();
     }
 
     @Test

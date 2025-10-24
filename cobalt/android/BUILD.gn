@@ -231,6 +231,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   ]
   deps = [
     ":cobalt_apk_java",
+    ":cobalt_main_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
