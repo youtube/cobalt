@@ -66,6 +66,8 @@ class GlobalFeatures {
 
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
+  void Shutdown();
+
  private:
   friend class base::NoDestructor<GlobalFeatures>;
 
