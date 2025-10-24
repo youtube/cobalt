@@ -14,6 +14,9 @@ namespace media {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
+
+// TODO: b/454441375 - Connect this to an experiment or a flag.
+constexpr bool kUseStarboardDecoderBufferAllocator = true;
 }  // namespace
 
 // static
@@ -57,7 +60,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   Initialize();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  memcpy(data_, data, size_);
+  memcpy(writable_data(), data, size_);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -84,9 +87,13 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-  Initialize(type);
 
-  memcpy(data_, data, size_);
+  if (allocator_data_) {
+    Initialize(type);
+  } else {
+    Initialize();
+  }
+  memcpy(writable_data(), data, size_);
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -121,37 +128,42 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  DCHECK(s_allocator);
-  s_allocator->Free(data_, allocated_size_);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-  data_.reset();
+  if (allocator_data_) {
+    CHECK(s_allocator);
+    s_allocator->Free(allocator_data_->data, allocator_data_->size);
+  }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset();
   side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // This is used by Mojo.
-  Initialize(DemuxerStream::UNKNOWN);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (allocator_data_) {
+    // This is used by Mojo.
+    Initialize(DemuxerStream::UNKNOWN);
+    return;
+  }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  CHECK(allocator_data_);
+  CHECK(kUseStarboardDecoderBufferAllocator);
   DCHECK(s_allocator);
   DCHECK(!data_);
 
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
-  allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
-                                                      allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
+  size_t allocated_size = size_ + padding;
+  allocator_data_.emplace(static_cast<uint8_t*>(s_allocator->Allocate(
+                            type, allocated_size, alignment)),
+                        allocated_size);
+  memset(allocator_data_->data + size_, 0, padding);
 
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
