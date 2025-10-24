@@ -117,6 +117,10 @@ struct musl_stat {
 #define MUSL_AT_FDCWD (-100)
 
 SB_EXPORT int __abi_wrap_fstat(int fildes, struct musl_stat* info);
+SB_EXPORT int __abi_wrap_fstatat(int fd,
+                                 const char* path,
+                                 struct musl_stat* buf,
+                                 int flag);
 
 SB_EXPORT int __abi_wrap_lstat(const char* path, struct musl_stat* info);
 
