@@ -88,7 +88,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   }
 
 
-  if (allocator_data_) {
+  if (kUseStarboardDecoderBufferAllocator) {
     Initialize(type);
   } else {
     Initialize();
@@ -139,7 +139,7 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (allocator_data_) {
+  if (kUseStarboardDecoderBufferAllocator) {
     // This is used by Mojo.
     Initialize(DemuxerStream::UNKNOWN);
     return;
@@ -152,7 +152,6 @@ void DecoderBuffer::Initialize() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
-  CHECK(allocator_data_);
   CHECK(kUseStarboardDecoderBufferAllocator);
   DCHECK(s_allocator);
   DCHECK(!data_);
