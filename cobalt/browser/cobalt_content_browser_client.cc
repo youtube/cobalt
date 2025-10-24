@@ -65,7 +65,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
-#include "cobalt/android/jni_headers/CobaltActivity_jni.h"
+#include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if defined(RUN_BROWSER_TESTS)
@@ -93,7 +93,8 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 }  // namespace
 
 #if BUILDFLAG(IS_ANDROID)
-static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
+static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
+    JNIEnv* env) {
   auto* client = CobaltContentBrowserClient::Get();
   // Possible if application is paused during startup.
   if (!client) {
