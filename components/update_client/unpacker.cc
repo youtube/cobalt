@@ -85,6 +85,10 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // The directory of path_ is the installation slot.
+  unpack_path_ = path_.DirName();
+#else  // BUILDFLAG(IS_STARBOARD)
   if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
@@ -92,6 +96,7 @@ void Unpacker::BeginUnzipping() {
                  ::logging::GetLastSystemErrorCode());
     return;
   }
+#endif  // BUILDFLAG(IS_STARBOARD)
   VLOG(1) << "Unpacking in: " << unpack_path_.value();
   unzipper_->Unzip(path_, unpack_path_,
                    base::BindOnce(&Unpacker::EndUnzipping, this));
@@ -152,9 +157,11 @@ void Unpacker::StoreVerifiedContentsInExtensionDir(
 
 void Unpacker::EndUnpacking(UnpackerError error, int extended_error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if !BUILDFLAG(IS_STARBOARD)
   if (error != UnpackerError::kNone && !unpack_path_.empty()) {
     RetryDeletePathRecursively(unpack_path_);
   }
+#endif
 
   Result result;
   result.error = error;
