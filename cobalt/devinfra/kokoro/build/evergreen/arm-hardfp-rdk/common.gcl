@@ -8,24 +8,28 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
-      key = 'EXTRA_GN_ARGUMENTS'
-      value = 'is_internal_build=true'
-    },
-    {
       key = 'PLATFORM'
-      value = 'linux-x64x11-internal'
+      value = 'evergreen-arm-hardfp-rdk-sbversion-17'
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt:gn_all chromedriver'
+      value = 'cobalt:gn_all'
+    },
+    {
+      key = 'TARGET_CPU'
+      value = 'target_cpu=\"arm\"'
+    },
+    {
+      key = 'TARGET_OS'
+      value = 'target_os=\"linux\"'
     },
     {
       key = 'TARGET_PLATFORM'
-      value = 'linux-x64x11'
+      value = 'evergreen-arm-hardfp-rdk'
     },
     {
       key = 'REGISTRY_IMAGE_NAME'
-      value = 'cobalt-build-linux'
+      value = 'cobalt-build-evergreen-arm-hardfp-rdk'
     },
   ]
 }

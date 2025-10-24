@@ -16,7 +16,7 @@ build = common.build {
       value = 'android-arm'
     },
     {
-      key = 'TARGET'
+      key = 'GN_TARGET'
       value = 'cobalt:gn_all'
     },
     {
