@@ -119,8 +119,6 @@ DownloadInterruptReason ConvertNetErrorToInterruptReason(
   }
 
   NOTREACHED();
-
-  return DOWNLOAD_INTERRUPT_REASON_NONE;
 }
 
 DownloadInterruptReason ConvertMojoNetworkRequestStatusToInterruptReason(
@@ -148,9 +146,7 @@ DownloadInterruptReason ConvertMojoNetworkRequestStatusToInterruptReason(
       return DOWNLOAD_INTERRUPT_REASON_NETWORK_FAILED;
     default:
       NOTREACHED();
-      break;
   }
-  return DOWNLOAD_INTERRUPT_REASON_NONE;
 }
 
 }  // namespace download

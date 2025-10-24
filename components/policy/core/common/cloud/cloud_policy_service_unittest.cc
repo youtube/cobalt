@@ -23,6 +23,8 @@ using testing::_;
 
 namespace policy {
 
+constexpr auto kTestReason = PolicyFetchReason::kTest;
+
 class CloudPolicyServiceTest : public testing::Test {
  public:
   CloudPolicyServiceTest()
@@ -64,9 +66,10 @@ TEST_F(CloudPolicyServiceTest, PolicyUpdateSuccess) {
                                          store_.policy()->device_id(),
                                          user_affiliation_ids))
       .Times(1);
-  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _)).Times(0);
+  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _, _)).Times(0);
   store_.NotifyStoreLoaded();
-  EXPECT_EQ(base::Time::FromJavaTime(32), client_.last_policy_timestamp_);
+  EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(32),
+            client_.last_policy_timestamp_);
   EXPECT_TRUE(client_.public_key_version_valid_);
   EXPECT_EQ(17, client_.public_key_version_);
 }
@@ -84,9 +87,11 @@ TEST_F(CloudPolicyServiceTest, RefreshPolicySuccess) {
   client_.SetDMToken("fake token");
 
   // Trigger a fetch on the client.
-  EXPECT_CALL(client_, FetchPolicy()).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(1);
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 
   // Client responds, push policy to store.
   em::PolicyFetchResponse policy;
@@ -111,10 +116,12 @@ TEST_F(CloudPolicyServiceTest, RefreshPolicyNotRegistered) {
   // Clear the token so the client is not registered.
   client_.SetDMToken(std::string());
 
-  EXPECT_CALL(client_, FetchPolicy()).Times(0);
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(0);
   EXPECT_CALL(*this, OnPolicyRefresh(false)).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 }
 
 TEST_F(CloudPolicyServiceTest, RefreshPolicyClientError) {
@@ -124,9 +131,11 @@ TEST_F(CloudPolicyServiceTest, RefreshPolicyClientError) {
   client_.SetDMToken("fake token");
 
   // Trigger a fetch on the client.
-  EXPECT_CALL(client_, FetchPolicy()).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(1);
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 
   // Client responds with an error, which should trigger the callback.
   client_.SetStatus(DM_STATUS_REQUEST_FAILED);
@@ -141,9 +150,11 @@ TEST_F(CloudPolicyServiceTest, RefreshPolicyStoreError) {
   client_.SetDMToken("fake token");
 
   // Trigger a fetch on the client.
-  EXPECT_CALL(client_, FetchPolicy()).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(1);
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 
   // Client responds, push policy to store.
   em::PolicyFetchResponse policy;
@@ -164,14 +175,18 @@ TEST_F(CloudPolicyServiceTest, RefreshPolicyConcurrent) {
   client_.SetDMToken("fake token");
 
   // Trigger a fetch on the client.
-  EXPECT_CALL(client_, FetchPolicy()).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(1);
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 
   // Triggering another policy refresh should generate a new fetch request.
-  EXPECT_CALL(client_, FetchPolicy()).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(1);
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 
   // Client responds, push policy to store.
   em::PolicyFetchResponse policy;
@@ -181,9 +196,11 @@ TEST_F(CloudPolicyServiceTest, RefreshPolicyConcurrent) {
   client_.NotifyPolicyFetched();
 
   // Trigger another policy fetch.
-  EXPECT_CALL(client_, FetchPolicy()).Times(1);
-  service_.RefreshPolicy(base::BindOnce(
-      &CloudPolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  EXPECT_CALL(client_, FetchPolicy(kTestReason)).Times(1);
+  service_.RefreshPolicy(
+      base::BindOnce(&CloudPolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      kTestReason);
 
   // The store finishing the first load should not generate callbacks.
   EXPECT_CALL(*this, OnPolicyRefresh(_)).Times(0);
@@ -232,7 +249,7 @@ TEST_F(CloudPolicyServiceTest, ReportValidationResult) {
   policy.set_policy_data_signature("fake-policy-data-signature");
   client_.SetPolicy(policy_type_, std::string(), policy);
   EXPECT_CALL(store_, Store(ProtoMatches(policy))).Times(1);
-  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _)).Times(0);
+  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _, _)).Times(0);
   client_.NotifyPolicyFetched();
 
   // Simulate a value validation error from the store and expect a validation
@@ -249,13 +266,13 @@ TEST_F(CloudPolicyServiceTest, ReportValidationResult) {
   EXPECT_CALL(client_,
               UploadPolicyValidationReport(
                   store_.validation_result_->status,
-                  store_.validation_result_->value_validation_issues,
+                  store_.validation_result_->value_validation_issues, kLoad,
                   policy_type_, store_.validation_result_->policy_token))
       .Times(1);
   store_.NotifyStoreError();
 
   // A second validation of the same policy should not trigger another upload.
-  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _)).Times(0);
+  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _, _)).Times(0);
   store_.NotifyStoreError();
 
   testing::Mock::VerifyAndClearExpectations(&client_);
@@ -268,7 +285,7 @@ TEST_F(CloudPolicyServiceTest, ReportValidationResultWrongSignature) {
   policy.set_policy_data_signature("fake-policy-data-signature-1");
   client_.SetPolicy(policy_type_, std::string(), policy);
   EXPECT_CALL(store_, Store(ProtoMatches(policy))).Times(1);
-  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _)).Times(0);
+  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _, _)).Times(0);
   client_.NotifyPolicyFetched();
 
   // Simulate a value validation error from the store with a different policy
@@ -282,7 +299,7 @@ TEST_F(CloudPolicyServiceTest, ReportValidationResultWrongSignature) {
   store_.validation_result_->policy_token = "fake-policy-token";
   store_.validation_result_->policy_data_signature =
       "fake-policy-data-signature-2";
-  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _)).Times(0);
+  EXPECT_CALL(client_, UploadPolicyValidationReport(_, _, _, _, _)).Times(0);
   store_.NotifyStoreError();
 
   testing::Mock::VerifyAndClearExpectations(&client_);

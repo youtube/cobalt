@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/hid/hid_chooser_controller.h"
+
+#include <array>
 #include <memory>
 #include <set>
 #include <string>
@@ -18,7 +21,6 @@
 #include "chrome/browser/hid/hid_chooser_context.h"
 #include "chrome/browser/hid/hid_chooser_context_factory.h"
 #include "chrome/browser/hid/mock_hid_device_observer.h"
-#include "chrome/browser/ui/hid/hid_chooser_controller.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
@@ -43,7 +45,8 @@ namespace {
 
 constexpr char kDefaultTestUrl[] = "https://www.google.com/";
 
-const char* const kTestPhysicalDeviceIds[] = {"1", "2", "3"};
+constexpr auto kTestPhysicalDeviceIds =
+    std::to_array<const char*>({"1", "2", "3"});
 
 constexpr uint16_t kVendorYubico = 0x1050;
 constexpr uint16_t kProductYubicoGnubby = 0x0200;
@@ -220,7 +223,21 @@ TEST_F(HidChooserControllerTest, AddUnknownFidoDevice) {
   EXPECT_EQ(0u, hid_chooser_controller->NumOptions());
 }
 
-TEST_F(HidChooserControllerTest, BlockedFidoDeviceAllowedWithFlag) {
+// Test fixture that disables the HID blocklist. This has to be done during test
+// setup, rather than the test body, to avoid modifications of the (globally
+// shared) CommandLine racing against other threads using it.
+class HidChooserControllerWithoutBlocklistTest
+    : public HidChooserControllerTest {
+ public:
+  HidChooserControllerWithoutBlocklistTest() {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kDisableHidBlocklist);
+  }
+  ~HidChooserControllerWithoutBlocklistTest() override = default;
+};
+
+TEST_F(HidChooserControllerWithoutBlocklistTest,
+       BlockedFidoDeviceAllowedWithFlag) {
   base::RunLoop device_added_loop;
   EXPECT_CALL(device_observer(), OnDeviceAdded(_))
       .WillOnce(RunClosure(device_added_loop.QuitClosure()));
@@ -229,18 +246,14 @@ TEST_F(HidChooserControllerTest, BlockedFidoDeviceAllowedWithFlag) {
   EXPECT_CALL(view(), OnOptionsInitialized())
       .WillOnce(RunClosure(options_initialized_loop.QuitClosure()));
 
-  // 1. Allow WebHID to access devices on the HID blocklist.
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      switches::kDisableHidBlocklist);
-
-  // 2. Connect a device with the FIDO usage page. The device uses
+  // 1. Connect a device with the FIDO usage page. The device uses
   // vendor/product IDs that are blocked by the HID blocklist.
   CreateAndAddFakeHidDevice(kTestPhysicalDeviceIds[0], kVendorYubico,
                             kProductYubicoGnubby, "gnubby", "001",
                             device::mojom::kPageFido, kUsageFidoU2f);
   device_added_loop.Run();
 
-  // 3. Create the HidChooserController. The blocked device should be included.
+  // 2. Create the HidChooserController. The blocked device should be included.
   auto hid_chooser_controller = CreateHidChooserController({});
   options_initialized_loop.Run();
 

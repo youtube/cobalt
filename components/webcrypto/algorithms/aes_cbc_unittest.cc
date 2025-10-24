@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -135,7 +141,7 @@ struct AesCbcKnownAnswer {
   const char* ciphertext;
 };
 
-const AesCbcKnownAnswer kAesCbcKnownAnswers[] = {
+constexpr auto kAesCbcKnownAnswers = std::to_array<AesCbcKnownAnswer>({
     // F.2.1 (CBC-AES128.Encrypt)
     // http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
     {"2b7e151628aed2a6abf7158809cf4f3c", "000102030405060708090a0b0c0d0e0f",
@@ -163,7 +169,8 @@ const AesCbcKnownAnswer kAesCbcKnownAnswers[] = {
 
     // Taken from encryptor_unittest.cc (EncryptorTest.EmptyEncrypt())
     {"3132383d5369787465656e4279746573", "5377656574205369787465656e204956", "",
-     "8518b8878d34e7185e300d0fcc426396"}};
+     "8518b8878d34e7185e300d0fcc426396"},
+});
 
 TEST_F(WebCryptoAesCbcTest, KnownAnswers) {
   for (const auto& test : kAesCbcKnownAnswers) {
@@ -570,8 +577,7 @@ TEST_F(WebCryptoAesCbcTest, ImportJwkUnknownKeyOps) {
         })";
 
   EXPECT_EQ(Status::Success(),
-            ImportKey(blink::kWebCryptoKeyFormatJwk,
-                      base::as_bytes(base::make_span(jwk)),
+            ImportKey(blink::kWebCryptoKeyFormatJwk, base::as_byte_span(jwk),
                       CreateAlgorithm(blink::kWebCryptoAlgorithmIdAesCbc),
                       false, blink::kWebCryptoKeyUsageEncrypt, &key));
 }
@@ -586,11 +592,11 @@ TEST_F(WebCryptoAesCbcTest, ImportJwkInvalidJson) {
 
   // Fail on invalid JSON.
   const std::string bad_json = R"({ "kty": "oct", "alg": "HS256", "use": )";
-  EXPECT_EQ(Status::ErrorJwkNotDictionary(),
-            ImportKey(blink::kWebCryptoKeyFormatJwk,
-                      base::as_bytes(base::make_span(bad_json)),
-                      CreateAlgorithm(blink::kWebCryptoAlgorithmIdAesCbc),
-                      false, blink::kWebCryptoKeyUsageEncrypt, &key));
+  EXPECT_EQ(
+      Status::ErrorJwkNotDictionary(),
+      ImportKey(blink::kWebCryptoKeyFormatJwk, base::as_byte_span(bad_json),
+                CreateAlgorithm(blink::kWebCryptoAlgorithmIdAesCbc), false,
+                blink::kWebCryptoKeyUsageEncrypt, &key));
 }
 
 // Fail on inconsistent key_ops - asking for "encrypt" however JWK contains
@@ -726,7 +732,7 @@ TEST_F(WebCryptoAesCbcTest, WrapUnwrapRoundtripSpkiPkcs8) {
                               &wrapping_key));
 
   // Generate an RSA key pair to be wrapped.
-  const unsigned int modulus_length = 256;
+  const unsigned int modulus_length = 2048;
   const std::vector<uint8_t> public_exponent = HexStringToBytes("010001");
 
   blink::WebCryptoKey public_key;

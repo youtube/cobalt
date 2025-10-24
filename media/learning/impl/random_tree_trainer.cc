@@ -6,10 +6,11 @@
 
 #include <math.h>
 
+#include <optional>
+
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 namespace learning {
@@ -96,7 +97,7 @@ struct InteriorNode : public Model {
 
 struct LeafNode : public Model {
   LeafNode(const TrainingData& training_data,
-           const std::vector<size_t> training_idx,
+           const std::vector<size_t>& training_idx,
            LearningTask::Ordering ordering) {
     for (size_t idx : training_idx)
       distribution_ += training_data[idx];
@@ -177,9 +178,9 @@ std::unique_ptr<Model> RandomTreeTrainer::Build(
   // and the target value, if the Optional has a value then it's the singular
   // value that we've found so far.  If we find a second one, then we'll clear
   // the Optional.
-  absl::optional<TargetValue> target_value(
+  std::optional<TargetValue> target_value(
       training_data[training_idx[0]].target_value);
-  std::vector<absl::optional<FeatureValue>> feature_values;
+  std::vector<std::optional<FeatureValue>> feature_values;
   feature_values.resize(training_data[0].features.size());
   for (size_t feature_idx : unused_set) {
     feature_values[feature_idx] =

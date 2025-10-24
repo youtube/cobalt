@@ -5,24 +5,20 @@
 #import "ios/web/shell/shell_web_main_parts.h"
 
 #import "ios/web/shell/shell_browser_state.h"
+#import "ui/display/screen.h"
 
 #if DCHECK_IS_ON()
 #import "ui/display/screen_base.h"
 #endif
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
-ShellWebMainParts::ShellWebMainParts() {
-}
+ShellWebMainParts::ShellWebMainParts()
+    : screen_(std::make_unique<display::ScopedNativeScreen>()) {}
 
 ShellWebMainParts::~ShellWebMainParts() {
 #if DCHECK_IS_ON()
-  // The screen object is never deleted on IOS. Make sure that all display
-  // observers are removed at the end.
+  // Make sure that all display observers are removed at the end.
   display::ScreenBase* screen =
       static_cast<display::ScreenBase*>(display::Screen::GetScreen());
   DCHECK(!screen->HasDisplayObservers());

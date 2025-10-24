@@ -5,6 +5,7 @@
 module os_crypt_async.mojom;
 
 import "components/os_crypt/async/common/algorithm.mojom";
+import "mojo/public/mojom/base/shared_memory.mojom";
 
 // Corresponds to `os_crypt_async::Encryptor::Key` in
 // components/os_crypt/async/common/encryptor.h. See documentation in that class
@@ -12,8 +13,9 @@ import "components/os_crypt/async/common/algorithm.mojom";
 struct Key {
   // The algorithm of this key.
   Algorithm algorithm;
-  // The key data.
-  array<uint8> key;
+  // The key data. Passed as a shared memory region to avoid the key entering
+  // any mojo buffers.
+  mojo_base.mojom.UnsafeSharedMemoryRegion key;
 };
 
 // Corresponds to `os_crypt_async::Encryptor` in
@@ -23,6 +25,8 @@ struct Encryptor {
   // The provider key to use for encryption from the `key_entries` map below.
   string provider_for_encryption;
   // A map of provider names to Key entries to use for encrypt and decrypt
-  // operations.
-  map<string, Key> key_entries;
+  // operations. If no key is present it means an attempt to obtain a key was
+  // made to the key provider, but a temporary failure resulted in none being
+  // provided.
+  map<string, Key?> key_entries;
 };

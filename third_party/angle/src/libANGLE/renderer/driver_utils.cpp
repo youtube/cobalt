@@ -10,19 +10,13 @@
 
 #include "libANGLE/renderer/driver_utils.h"
 
+#include "common/android_util.h"
 #include "common/platform.h"
 #include "common/system_utils.h"
-
-#if defined(ANGLE_PLATFORM_ANDROID)
-#    include <sys/system_properties.h>
-#endif
+#include "gpu_info_util/SystemInfo.h"
 
 #if defined(ANGLE_PLATFORM_LINUX)
 #    include <sys/utsname.h>
-#endif
-
-#if defined(ANGLE_PLATFORM_WINDOWS)
-#    include <versionhelpers.h>
 #endif
 
 namespace rx
@@ -109,6 +103,8 @@ const uint16_t CoffeeLake[] = {
     0x9BE6, 0x9BF6                                                                   // cfl_gt2
 };
 
+const uint16_t MeteorLake[] = {0x7d40, 0x7d45, 0x7d55, 0x7d60, 0x7dd5};
+
 const uint16_t IntelGen11[] = {
     // Ice Lake
     0x8A71,                                  // icl_gt0_5
@@ -117,7 +113,7 @@ const uint16_t IntelGen11[] = {
     0x8A50, 0x8A51, 0x8A52, 0x8A53,          // icl_gt2
 
     // Elkhart Lake
-    0x4500, 0x4541, 0x4551, 0x4555, 0x4557, 0x4571,
+    0x4541, 0x4551, 0x4555, 0x4557, 0x4570, 0x4571,
 
     // Jasper Lake
     0x4E51, 0x4E55, 0x4E57, 0x4E61, 0x4E71};
@@ -128,46 +124,23 @@ const uint16_t IntelGen12[] = {
     0x4C8A, 0x4C8B, 0x4C90, 0x4C9A,  // rkl_gt1
 
     // Alder Lake
-    0x4683, 0x4693,                                                          // adl_gt05
-    0x4680, 0x4681, 0x4682, 0x4688, 0x4689, 0x4690, 0x4691, 0x4692,          // adl_gt1
+    0x468B,                                                                  // adl_gt05
+    0x4680, 0x4682, 0x4688, 0x468A, 0x4690, 0x4692, 0x4693,                  // adl_gt1
     0x4626, 0x4628, 0x462A, 0x46A0, 0x46A1, 0x46A2, 0x46A3, 0x46A6, 0x46A8,  // adl_gt2
     0x46AA, 0x46B0, 0x46B1, 0x46B2, 0x46B3, 0x46C0, 0x46C1, 0x46C2, 0x46C3,  // adl_gt2
-    0x46D0, 0x46D1, 0x46D2,                                                  // adl_n
+    0x46D0, 0x46D1, 0x46D2, 0x46D3, 0x46D4,                                  // adl_n
 
     // Tiger Lake
     0x9A60, 0x9A68, 0x9A70,                                          // tgl_gt1
     0x9A40, 0x9A49, 0x9A59, 0x9A78, 0x9AC0, 0x9AC9, 0x9AD9, 0x9AF8,  // tgl_gt2
 
-    // Raptop Lake
-    0xA780, 0xA781, 0xA782, 0xA783, 0xA788, 0xA789,  // rpl
-    0xA720, 0xA721, 0xA7A0, 0xA7A1, 0xA7A8, 0xA7A9,  // rpl_p
+    // Raptor Lake
+    0xA780, 0xA781, 0xA782, 0xA783, 0xA788, 0xA789, 0xA78A, 0xA78B,                  // rpl
+    0xA720, 0xA721, 0xA7A0, 0xA7A1, 0xA7A8, 0xA7A9, 0xA7AA, 0xA7AB, 0xA7AC, 0xA7AD,  // rpl_p
 
     // DG1
     0x4905, 0x4906, 0x4907, 0x4908, 0x4909};
-
 }  // anonymous namespace
-
-IntelDriverVersion::IntelDriverVersion(uint32_t buildNumber) : mBuildNumber(buildNumber) {}
-
-bool IntelDriverVersion::operator==(const IntelDriverVersion &version)
-{
-    return mBuildNumber == version.mBuildNumber;
-}
-
-bool IntelDriverVersion::operator!=(const IntelDriverVersion &version)
-{
-    return !(*this == version);
-}
-
-bool IntelDriverVersion::operator<(const IntelDriverVersion &version)
-{
-    return mBuildNumber < version.mBuildNumber;
-}
-
-bool IntelDriverVersion::operator>=(const IntelDriverVersion &version)
-{
-    return !(*this < version);
-}
 
 bool IsSandyBridge(uint32_t DeviceId)
 {
@@ -223,6 +196,12 @@ bool IsCoffeeLake(uint32_t DeviceId)
            std::end(CoffeeLake);
 }
 
+bool IsMeteorLake(uint32_t DeviceId)
+{
+    return std::find(std::begin(MeteorLake), std::end(MeteorLake), DeviceId) !=
+           std::end(MeteorLake);
+}
+
 bool Is9thGenIntel(uint32_t DeviceId)
 {
     return IsSkylake(DeviceId) || IsBroxton(DeviceId) || IsKabyLake(DeviceId);
@@ -240,7 +219,7 @@ bool Is12thGenIntel(uint32_t DeviceId)
            std::end(IntelGen12);
 }
 
-const char *GetVendorString(uint32_t vendorId)
+std::string GetVendorString(uint32_t vendorId)
 {
     switch (vendorId)
     {
@@ -264,6 +243,7 @@ const char *GetVendorString(uint32_t vendorId)
             return "NVIDIA";
         case VENDOR_ID_POWERVR:
             return "Imagination Technologies";
+        case VENDOR_ID_QUALCOMM_DXGI:
         case VENDOR_ID_QUALCOMM:
             return "Qualcomm";
         case VENDOR_ID_SAMSUNG:
@@ -278,62 +258,43 @@ const char *GetVendorString(uint32_t vendorId)
             return "Test";
         case 0:
             return "NULL";
-        default:
-            // TODO(jmadill): More vendor IDs.
-            UNIMPLEMENTED();
-            return "Unknown";
     }
+
+    std::stringstream s;
+    s << gl::FmtHex(vendorId);
+    return s.str();
 }
 
-MajorMinorPatchVersion::MajorMinorPatchVersion() {}
-MajorMinorPatchVersion::MajorMinorPatchVersion(int major, int minor, int patch)
-    : majorVersion(major), minorVersion(minor), patchVersion(patch)
-{}
-
-bool operator==(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b)
+bool operator==(const angle::VersionInfo &a, const angle::VersionTriple &b)
 {
-    return std::tie(a.majorVersion, a.minorVersion, a.patchVersion) ==
-           std::tie(b.majorVersion, b.minorVersion, b.patchVersion);
-}
-bool operator!=(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b)
-{
-    return std::tie(a.majorVersion, a.minorVersion, a.patchVersion) !=
-           std::tie(b.majorVersion, b.minorVersion, b.patchVersion);
-}
-bool operator<(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b)
-{
-    return std::tie(a.majorVersion, a.minorVersion, a.patchVersion) <
-           std::tie(b.majorVersion, b.minorVersion, b.patchVersion);
-}
-bool operator>=(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b)
-{
-    return std::tie(a.majorVersion, a.minorVersion, a.patchVersion) >=
-           std::tie(b.majorVersion, b.minorVersion, b.patchVersion);
+    return angle::VersionTriple(a.major, a.minor, a.subMinor) == b;
 }
 
-ARMDriverVersion ParseARMDriverVersion(uint32_t driverVersion)
+bool operator!=(const angle::VersionInfo &a, const angle::VersionTriple &b)
 {
-    // ARM driver versions are built with the following macro:
-    // ((((uint32_t)(major)) << 22) | (((uint32_t)(minor)) << 12) | ((uint32_t)(patch)))
-    constexpr uint32_t kMinorVersionMask = angle::BitMask<uint32_t>(10);
-    constexpr uint32_t kPatchMask        = angle::BitMask<uint32_t>(12);
-    return ARMDriverVersion(driverVersion >> 22, (driverVersion >> 12) & kMinorVersionMask,
-                            driverVersion & kPatchMask);
+    return angle::VersionTriple(a.major, a.minor, a.subMinor) != b;
+}
+
+bool operator<(const angle::VersionInfo &a, const angle::VersionTriple &b)
+{
+    return angle::VersionTriple(a.major, a.minor, a.subMinor) < b;
+}
+
+bool operator>=(const angle::VersionInfo &a, const angle::VersionTriple &b)
+{
+    return angle::VersionTriple(a.major, a.minor, a.subMinor) >= b;
 }
 
 int GetAndroidSDKVersion()
 {
-#if defined(ANGLE_PLATFORM_ANDROID)
-    char apiVersion[PROP_VALUE_MAX];
-    int length = __system_property_get("ro.build.version.sdk", apiVersion);
-    if (length == 0)
+    std::string androidSdkLevel;
+    if (!angle::android::GetSystemProperty(angle::android::kSDKSystemPropertyName,
+                                           &androidSdkLevel))
     {
         return 0;
     }
-    return atoi(apiVersion);
-#else
-    return 0;
-#endif
+
+    return std::atoi(androidSdkLevel.c_str());
 }
 #if !defined(ANGLE_PLATFORM_MACOS)
 OSVersion GetMacOSVersion()
@@ -424,17 +385,6 @@ bool IsWayland()
         checked = true;
     }
     return isWayland;
-}
-
-bool IsWin10OrGreater()
-{
-#if defined(ANGLE_ENABLE_WINDOWS_UWP)
-    return true;
-#elif defined(ANGLE_PLATFORM_WINDOWS)
-    return IsWindows10OrGreater();
-#else
-    return false;
-#endif
 }
 
 }  // namespace rx

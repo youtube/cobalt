@@ -29,7 +29,16 @@ extern const char
     kUserInteractionLatencyHighPercentile2_MaxEventDuration_AfterBackForwardCacheRestore
         [];
 extern const char
+    kUserInteractionLatencyHighPercentile2_MaxEventDuration_AfterBackForwardCacheRestore_Incognito
+        [];
+extern const char
     kWorstUserInteractionLatency_MaxEventDuration_AfterBackForwardCacheRestore
+        [];
+
+extern const char
+    kLayoutInstability_MaxCumulativeShiftScore_AfterBackForwardCacheRestore[];
+extern const char
+    kLayoutInstability_MaxCumulativeShiftScore_AfterBackForwardCacheRestore_Incognito
         [];
 
 extern const char kHistogramFirstPaintAfterBackForwardCacheRestore[];
@@ -38,20 +47,22 @@ extern const char
 extern const char
     kHistogramSecondRequestAnimationFrameAfterBackForwardCacheRestore[];
 extern const char
+    kHistogramSecondRequestAnimationFrameAfterBackForwardCacheRestoreIncognito
+        [];
+extern const char
     kHistogramThirdRequestAnimationFrameAfterBackForwardCacheRestore[];
 extern const char kHistogramFirstInputDelayAfterBackForwardCacheRestore[];
 extern const char kHistogramCumulativeShiftScoreAfterBackForwardCacheRestore[];
 extern const char
     kHistogramCumulativeShiftScoreMainFrameAfterBackForwardCacheRestore[];
 extern const char kHistogramCumulativeShiftScoreAfterBackForwardCacheRestore[];
-BASE_DECLARE_FEATURE(kBackForwardCacheEmitZeroSamplesForKeyMetrics);
 
 }  // namespace internal
 
 class BackForwardCachePageLoadMetricsObserver
     : public page_load_metrics::PageLoadMetricsObserver {
  public:
-  BackForwardCachePageLoadMetricsObserver();
+  explicit BackForwardCachePageLoadMetricsObserver(bool is_incognito);
 
   BackForwardCachePageLoadMetricsObserver(
       const BackForwardCachePageLoadMetricsObserver&) = delete;
@@ -158,18 +169,21 @@ class BackForwardCachePageLoadMetricsObserver
   // from the BFCache.
   bool page_metrics_logged_due_to_backgrounding_ = false;
 
-  // TODO(crbug.com/1265307): Remove this when removing the DCHECK for lack of
+  // TODO(crbug.com/40203717): Remove this when removing the DCHECK for lack of
   // page end metrics logging from the back forward page load metrics observer.
   bool logged_page_end_metrics_ = false;
 
   // The layout shift score. These are updated whenever the page is restored
   // from the back-forward cache.
-  absl::optional<double> restored_main_frame_layout_shift_score_;
-  absl::optional<double> restored_layout_shift_score_;
+  std::optional<double> restored_main_frame_layout_shift_score_;
+  std::optional<double> restored_layout_shift_score_;
 
   // IDs for the navigations when the page is restored from the back-forward
   // cache.
   std::vector<ukm::SourceId> back_forward_cache_navigation_ids_;
+
+  // Whether the WebContents being observed is for an Incognito profile.
+  bool is_incognito_;
 };
 
 #endif  // COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_BACK_FORWARD_CACHE_PAGE_LOAD_METRICS_OBSERVER_H_

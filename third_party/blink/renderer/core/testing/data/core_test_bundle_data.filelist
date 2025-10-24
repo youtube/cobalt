@@ -23,6 +23,7 @@ testing/data/advance_focus_in_form_with_key_event_listeners.html
 testing/data/advance_focus_in_form_with_tabindex_elements.html
 testing/data/autofocus_input_field_iframe.html
 testing/data/back_forward_restore_scroll.html
+testing/data/background_image.png
 testing/data/bad_tap_targets_iframe.html
 testing/data/bar.html
 testing/data/black-and-white.ico
@@ -33,6 +34,7 @@ testing/data/body-overflow-hidden.html
 testing/data/button.html
 testing/data/cancelTest.html
 testing/data/clipped-body.html
+testing/data/close-on-pagehide.html
 testing/data/composited_selection_bounds_basic.html
 testing/data/composited_selection_bounds_basic_rtl.html
 testing/data/composited_selection_bounds_detached_frame.html
@@ -79,7 +81,9 @@ testing/data/display_mode_listener.html
 testing/data/display_none_frame.html
 testing/data/div_with_image.html
 testing/data/domfocusout_domfocusin_events.html
+testing/data/double_press_selection.html
 testing/data/dv-size.html
+testing/data/edit_context.html
 testing/data/editable_elements.html
 testing/data/email-form.html
 testing/data/enter_key_hint_default.html
@@ -94,6 +98,7 @@ testing/data/enter_key_hint_search.html
 testing/data/enter_key_hint_send.html
 testing/data/exif-orientation-1-ul.jpg
 testing/data/exif-orientation-5-lu.jpg
+testing/data/exported-names.wasm
 testing/data/fallback.html
 testing/data/find.html
 testing/data/find_in_generated_frame.html
@@ -243,6 +248,8 @@ testing/data/ime-on-focus-after-navigation-within-page.html
 testing/data/ime-on-focus-on-autofocus.html
 testing/data/ime-on-focus-on-load.html
 testing/data/ime-on-focus-on-user-gesture.html
+testing/data/inner_text_test1.html
+testing/data/inner_text_test2.html
 testing/data/input-image-broken.html
 testing/data/input_field_default.html
 testing/data/input_field_email.html
@@ -263,6 +270,7 @@ testing/data/input_mode_type_tel.html
 testing/data/input_mode_type_text.html
 testing/data/input_mode_type_url.html
 testing/data/input_placeholder.html
+testing/data/invalid-module.wasm
 testing/data/invisible_iframe.html
 testing/data/large-div.html
 testing/data/link-manifest-change.html
@@ -297,6 +305,7 @@ testing/data/move_caret.html
 testing/data/move_range.html
 testing/data/move_range_selection_extent.html
 testing/data/move_range_selection_extent_input_field.html
+testing/data/named-frame-a-b-c.html
 testing/data/navigate_to_same.html
 testing/data/navigation-api/onnavigate-preventDefault.html
 testing/data/navigation-api/onnavigate-window-stop.html
@@ -316,7 +325,7 @@ testing/data/notifications/48x48.png
 testing/data/notifications/500x500.png
 testing/data/notifications/file.txt
 testing/data/orientation-frame-detach.html
-testing/data/origin-trial-dummy.html
+testing/data/origin-trial-enabled.html
 testing/data/overflow-hidden.html
 testing/data/overflow-scrolling.html
 testing/data/overscroll/div-overscroll.html
@@ -400,6 +409,7 @@ testing/data/priorities/injected-async.js
 testing/data/priorities/injected.js
 testing/data/promote_img_in_viewport_priority.html
 testing/data/push_state.html
+testing/data/push_state_empty.html
 testing/data/reload_post.html
 testing/data/resize_scroll_fixed_layout.html
 testing/data/resize_scroll_fixed_width.html
@@ -445,13 +455,18 @@ testing/data/smartclip_reversed_positions.html
 testing/data/smartclip_user_select_none.html
 testing/data/sometext.html
 testing/data/specify_size.html
+testing/data/speculation_rules/document_rule_prefetch.json
 testing/data/speculation_rules/single_url_prefetch.json
+testing/data/speculation_rules/single_url_prefetch_invalid_no_vary_search_hint.json
+testing/data/speculation_rules/single_url_prefetch_not_a_string_no_vary_search_hint.json
+testing/data/speculation_rules/single_url_prefetch_relative.json
 testing/data/speedometer_saved_output.json
 testing/data/spell.html
 testing/data/sticky-position.html
 testing/data/subframe-a.html
 testing/data/subframe-b.html
 testing/data/subframe-c.html
+testing/data/subframe-d.html
 testing/data/subframe-hello.html
 testing/data/subtree-layout.html
 testing/data/sv-size.html

@@ -5,8 +5,9 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_PHONEHUB_CONNECTION_SCHEDULER_H_
 #define CHROMEOS_ASH_COMPONENTS_PHONEHUB_CONNECTION_SCHEDULER_H_
 
-namespace ash {
-namespace phonehub {
+#include "chromeos/ash/components/phonehub/phone_hub_structured_metrics_logger.h"
+
+namespace ash::phonehub {
 
 // Responsible for requesting connection from the local device
 // (e.g. this chromebook) to the user's phone. Will also attempt to connect
@@ -19,13 +20,12 @@ class ConnectionScheduler {
 
   // Attempts a connection immediately, will be exponentially backed-off upon
   // failing to establish a connection.
-  virtual void ScheduleConnectionNow() = 0;
+  virtual void ScheduleConnectionNow(DiscoveryEntryPoint entry_point) = 0;
 
  protected:
   ConnectionScheduler() = default;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_CONNECTION_SCHEDULER_H_

@@ -2,16 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <link.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/utsname.h>
 
-#include "base/android/linker/linker_jni.h"
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
 #include "base/system/sys_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/android/linker/linker_jni.h"
 
 extern char __executable_start;
 
@@ -70,6 +77,7 @@ int LibraryRangeFinder::VisitLibraryPhdrs(dl_phdr_info* info,
   ElfW(Addr) min_relro_vaddr = ~0;
   ElfW(Addr) max_relro_vaddr = 0;
 
+  const size_t kPageSize = sysconf(_SC_PAGESIZE);
   bool is_matching = false;
   for (int i = 0; i < info->dlpi_phnum; ++i) {
     const ElfW(Phdr)* phdr = &info->dlpi_phdr[i];
@@ -82,16 +90,19 @@ int LibraryRangeFinder::VisitLibraryPhdrs(dl_phdr_info* info,
         //     address == info->dlpi_addr + program_header->p_vaddr
         // that is, the p_vaddr fields is relative to the object base address.
         // See dl_iterate_phdr(3) for details.
-        if (lookup_address == info->dlpi_addr + phdr->p_vaddr)
+        if (lookup_address == info->dlpi_addr + phdr->p_vaddr) {
           is_matching = true;
+        }
 
-        if (phdr->p_vaddr < min_vaddr)
+        if (phdr->p_vaddr < min_vaddr) {
           min_vaddr = phdr->p_vaddr;
-        if (phdr->p_vaddr + phdr->p_memsz > max_vaddr)
+        }
+        if (phdr->p_vaddr + phdr->p_memsz > max_vaddr) {
           max_vaddr = phdr->p_vaddr + phdr->p_memsz;
+        }
         break;
       case PT_GNU_RELRO:
-        min_relro_vaddr = PAGE_START(phdr->p_vaddr);
+        min_relro_vaddr = PageStart(kPageSize, phdr->p_vaddr);
         max_relro_vaddr = phdr->p_vaddr + phdr->p_memsz;
 
         // As of 2020-11 in libmonochrome.so RELRO is covered by a LOAD segment.
@@ -99,10 +110,12 @@ int LibraryRangeFinder::VisitLibraryPhdrs(dl_phdr_info* info,
         // the future. Include the RELRO segment as part of the 'load size'.
         // This way a potential future change in layout of LOAD segments would
         // not open address space for racy mmap(MAP_FIXED).
-        if (min_relro_vaddr < min_vaddr)
+        if (min_relro_vaddr < min_vaddr) {
           min_vaddr = min_relro_vaddr;
-        if (max_vaddr < max_relro_vaddr)
+        }
+        if (max_vaddr < max_relro_vaddr) {
           max_vaddr = max_relro_vaddr;
+        }
         break;
       default:
         break;
@@ -111,14 +124,12 @@ int LibraryRangeFinder::VisitLibraryPhdrs(dl_phdr_info* info,
 
   // Fill out size and relro information if there was a match.
   if (is_matching) {
-    int page_size = sysconf(_SC_PAGESIZE);
-    if (page_size != PAGE_SIZE)
-      abort();
-
-    finder->load_size_ = PAGE_END(max_vaddr) - PAGE_START(min_vaddr);
-    finder->relro_size_ =
-        PAGE_END(max_relro_vaddr) - PAGE_START(min_relro_vaddr);
-    finder->relro_start_ = info->dlpi_addr + PAGE_START(min_relro_vaddr);
+    finder->load_size_ =
+        PageEnd(kPageSize, max_vaddr) - PageStart(kPageSize, min_vaddr);
+    finder->relro_size_ = PageEnd(kPageSize, max_relro_vaddr) -
+                          PageStart(kPageSize, min_relro_vaddr);
+    finder->relro_start_ =
+        info->dlpi_addr + PageStart(kPageSize, min_relro_vaddr);
 
     return 1;
   }
@@ -198,7 +209,7 @@ TEST_F(LinkerTest, FindReservedMemoryRegion) {
     return;
   }
 
-  // TODO(crbug.com/1223747): Check that only non-low-end Android Q+ devices
+  // TODO(crbug.com/40774803): Check that only non-low-end Android Q+ devices
   // reach this point.
 
   // Create a properly named synthetic region with a size smaller than a real

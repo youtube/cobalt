@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/html/forms/date_time_symbolic_field_element.h"
 
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
+#include "third_party/blink/renderer/core/layout/text_utils.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
 #include "third_party/blink/renderer/platform/text/text_run.h"
@@ -67,10 +68,11 @@ DateTimeSymbolicFieldElement::DateTimeSymbolicFieldElement(
 }
 
 float DateTimeSymbolicFieldElement::MaximumWidth(const ComputedStyle& style) {
-  float maximum_width = ComputeTextWidth(style, VisibleEmptyValue());
-  for (unsigned index = 0; index < symbols_.size(); ++index)
+  float maximum_width = ComputeTextWidth(VisibleEmptyValue(), style);
+  for (unsigned index = 0; index < symbols_.size(); ++index) {
     maximum_width =
-        std::max(maximum_width, ComputeTextWidth(style, symbols_[index]));
+        std::max(maximum_width, ComputeTextWidth(symbols_[index], style));
+  }
   return maximum_width + DateTimeFieldElement::MaximumWidth(style);
 }
 
@@ -84,6 +86,12 @@ void DateTimeSymbolicFieldElement::HandleKeyboardEvent(
     return;
 
   keyboard_event.SetDefaultHandled();
+
+  if (Type() == DateTimeField::kAMPM) {
+    // Since AM/PM field has only 2 options, the type_ahead session should be
+    // reset to enable fast toggling between the options.
+    type_ahead_.ResetSession();
+  }
 
   int index = type_ahead_.HandleEvent(keyboard_event, keyboard_event.charCode(),
                                       TypeAhead::kMatchPrefix |

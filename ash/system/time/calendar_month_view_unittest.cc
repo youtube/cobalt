@@ -12,12 +12,16 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/system/model/system_tray_model.h"
+#include "ash/system/time/calendar_list_model.h"
+#include "ash/system/time/calendar_model.h"
 #include "ash/system/time/calendar_unittest_utils.h"
 #include "ash/system/time/calendar_utils.h"
 #include "ash/system/time/calendar_view_controller.h"
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "chromeos/ash/components/settings/scoped_timezone_settings.h"
@@ -31,6 +35,7 @@ namespace {
 
 using ::google_apis::calendar::CalendarEvent;
 using ::google_apis::calendar::EventList;
+using ::google_apis::calendar::SingleCalendar;
 
 std::unique_ptr<google_apis::calendar::EventList> CreateMockEventList() {
   auto event_list = std::make_unique<google_apis::calendar::EventList>();
@@ -56,6 +61,12 @@ std::unique_ptr<google_apis::calendar::EventList> CreateMockEventList() {
 
   return event_list;
 }
+
+const char* kCalendarId1 = "user1@email.com";
+const char* kCalendarSummary1 = "user1@email.com";
+const char* kCalendarColorId1 = "12";
+bool kCalendarSelected1 = true;
+bool kCalendarPrimary1 = true;
 
 }  // namespace
 
@@ -318,10 +329,15 @@ TEST_F(CalendarMonthViewTest, OsloTimeDSTMonth) {
                       ->GetText());
 }
 
-class CalendarMonthViewFetchTest : public AshTestBase {
+class CalendarMonthViewFetchTest
+    : public AshTestBase,
+      public testing::WithParamInterface</*multi_calendar_enabled=*/bool> {
  public:
   CalendarMonthViewFetchTest()
-      : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+      : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    scoped_feature_list_.InitWithFeatureState(
+        ash::features::kMultiCalendarSupport, IsMultiCalendarEnabled());
+  }
   CalendarMonthViewFetchTest(const CalendarMonthViewFetchTest& other) = delete;
   CalendarMonthViewFetchTest& operator=(
       const CalendarMonthViewFetchTest& other) = delete;
@@ -335,6 +351,8 @@ class CalendarMonthViewFetchTest : public AshTestBase {
     account_id_ = AccountId::FromUserEmail(email);
     Shell::Get()->calendar_controller()->SetActiveUserAccountIdForTesting(
         account_id_);
+    calendar_list_model_ =
+        Shell::Get()->system_tray_model()->calendar_list_model();
     calendar_model_ = Shell::Get()->system_tray_model()->calendar_model();
     calendar_client_ =
         std::make_unique<calendar_test_utils::CalendarClientTestImpl>();
@@ -345,15 +363,27 @@ class CalendarMonthViewFetchTest : public AshTestBase {
         ash::prefs::kCalendarIntegrationEnabled, true);
     widget_ = CreateFramelessTestWidget();
     widget_->SetFullscreen(true);
+
+    if (IsMultiCalendarEnabled()) {
+      // Sets a mock calendar list so the calendar list fetch returns
+      // successfully.
+      SetCalendarList();
+    }
   }
 
   void TearDown() override {
-    widget_.reset();
+    calendar_list_model_ = nullptr;
+    calendar_model_ = nullptr;
+
+    DestroyCalendarMonthViewWidget();
     time_overrides_.reset();
     controller_.reset();
+    scoped_feature_list_.Reset();
 
     AshTestBase::TearDown();
   }
+
+  bool IsMultiCalendarEnabled() { return GetParam(); }
 
   void CreateMonthView(base::Time date) {
     if (!widget_) {
@@ -371,7 +401,20 @@ class CalendarMonthViewFetchTest : public AshTestBase {
     views::test::RunScheduledLayout(calendar_month_view_);
   }
 
-  void DestroyCalendarMonthViewWidget() { widget_.reset(); }
+  void DestroyCalendarMonthViewWidget() {
+    calendar_month_view_ = nullptr;
+    widget_.reset();
+  }
+
+  void SetCalendarList() {
+    // Sets a mock calendar list.
+    std::list<std::unique_ptr<google_apis::calendar::SingleCalendar>> calendars;
+    calendars.push_back(calendar_test_utils::CreateCalendar(
+        kCalendarId1, kCalendarSummary1, kCalendarColorId1, kCalendarSelected1,
+        kCalendarPrimary1));
+    calendar_client_->SetCalendarList(
+        calendar_test_utils::CreateMockCalendarList(std::move(calendars)));
+  }
 
   int EventsNumberOfDay(const char* day, SingleDayEventList* events) {
     base::Time day_base = calendar_test_utils::GetTimeFromString(day);
@@ -424,17 +467,25 @@ class CalendarMonthViewFetchTest : public AshTestBase {
         ->is_events_indicator_drawn;
   }
 
+  CalendarListModel* calendar_list_model() { return calendar_list_model_; }
+
   std::unique_ptr<base::subtle::ScopedTimeClockOverrides> time_overrides_;
 
   std::unique_ptr<views::Widget> widget_;
-  raw_ptr<CalendarModel, ExperimentalAsh> calendar_model_;
+  raw_ptr<CalendarListModel> calendar_list_model_ = nullptr;
+  raw_ptr<CalendarModel> calendar_model_ = nullptr;
   std::unique_ptr<calendar_test_utils::CalendarClientTestImpl> calendar_client_;
-  raw_ptr<CalendarMonthView, ExperimentalAsh> calendar_month_view_;
+  raw_ptr<CalendarMonthView> calendar_month_view_ = nullptr;
   std::unique_ptr<CalendarViewController> controller_;
   AccountId account_id_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(CalendarMonthViewFetchTest, FetchedBeforeMonthViewIsCreated) {
+INSTANTIATE_TEST_SUITE_P(MultiCalendar,
+                         CalendarMonthViewFetchTest,
+                         testing::Bool());
+
+TEST_P(CalendarMonthViewFetchTest, FetchedBeforeMonthViewIsCreated) {
   // Create a monthview based on Aug,1st 2021. Today is set to 18th.
   base::Time date;
   ASSERT_TRUE(base::Time::FromString("1 Aug 2021 10:00 GMT", &date));
@@ -446,6 +497,11 @@ TEST_F(CalendarMonthViewFetchTest, FetchedBeforeMonthViewIsCreated) {
 
   // Used to fetch events.
   base::Time month_start_midnight = calendar_utils::GetStartOfMonthUTC(today);
+
+  if (IsMultiCalendarEnabled()) {
+    calendar_list_model()->FetchCalendars();
+    WaitUntilFetched();
+  }
 
   // Sets the event list response and fetches the events.
   auto event_list = CreateMockEventList();
@@ -486,7 +542,7 @@ TEST_F(CalendarMonthViewFetchTest, FetchedBeforeMonthViewIsCreated) {
   EXPECT_TRUE(is_events_indicator_drawn(17));
 }
 
-TEST_F(CalendarMonthViewFetchTest, UpdateEvents) {
+TEST_P(CalendarMonthViewFetchTest, UpdateEvents) {
   // Create a monthview based on Aug,1st 2021. Today is set to 18th.
   base::Time date;
   ASSERT_TRUE(base::Time::FromString("1 Aug 2021 10:00 GMT", &date));
@@ -516,16 +572,23 @@ TEST_F(CalendarMonthViewFetchTest, UpdateEvents) {
       static_cast<CalendarDateCellView*>(calendar_month_view_->children()[17])
           ->GetTooltipText());
 
-  // Sets the event list response and fetches the events.
+  // Sets the event list response.
   auto event_list = CreateMockEventList();
   SingleDayEventList events;
   EXPECT_EQ(0, EventsNumberOfDay(today, &events));
   EXPECT_TRUE(events.empty());
   SetEventList(std::move(event_list));
-  calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
 
-  // After events are fetched before the response is back the event number
-  // is not updated.
+  if (IsMultiCalendarEnabled()) {
+    // Start a calendar list fetch, after which we expect an event fetch to be
+    // triggered.
+    calendar_list_model()->FetchCalendars();
+  } else {
+    calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
+  }
+
+  // After the fetch is triggered, before the response is back, the event
+  // number is not updated.
   EXPECT_EQ(u"2", static_cast<CalendarDateCellView*>(
                       calendar_month_view_->children()[32])
                       ->GetText());
@@ -561,7 +624,7 @@ TEST_F(CalendarMonthViewFetchTest, UpdateEvents) {
           ->GetTooltipText());
 }
 
-TEST_F(CalendarMonthViewFetchTest, RecordEventsDisplayedToUserOnce) {
+TEST_P(CalendarMonthViewFetchTest, RecordEventsDisplayedToUserOnce) {
   base::HistogramTester histogram_tester;
   // Create a monthview based on Aug,1st 2021. Today is set to 18th.
   base::Time date;
@@ -577,10 +640,17 @@ TEST_F(CalendarMonthViewFetchTest, RecordEventsDisplayedToUserOnce) {
   // Nothing logged before we've fetched events.
   histogram_tester.ExpectTotalCount("Ash.Calendar.EventsDisplayedToUser", 0);
 
-  // Sets the event list response and fetches the events.
+  // Sets the event list response.
   auto event_list = CreateMockEventList();
   SetEventList(std::move(event_list));
-  calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
+
+  if (IsMultiCalendarEnabled()) {
+    // Start a calendar list fetch, after which we expect an event fetch to be
+    // triggered.
+    calendar_list_model()->FetchCalendars();
+  } else {
+    calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
+  }
   WaitUntilFetched();
 
   // After fetching, we expect the metric to be logged.
@@ -596,7 +666,7 @@ TEST_F(CalendarMonthViewFetchTest, RecordEventsDisplayedToUserOnce) {
   histogram_tester.ExpectTotalCount("Ash.Calendar.EventsDisplayedToUser", 1);
 }
 
-TEST_F(CalendarMonthViewFetchTest, TimeZone) {
+TEST_P(CalendarMonthViewFetchTest, TimeZone) {
   // Create a monthview based on Aug,1st 2021. Today is set to 18th.
   base::Time date;
   ASSERT_TRUE(base::Time::FromString("1 Aug 2021 10:00 GMT", &date));
@@ -609,15 +679,20 @@ TEST_F(CalendarMonthViewFetchTest, TimeZone) {
   CreateMonthView(date);
   WaitUntilPainted();
 
-  // Sets the event list response and fetches the events.
+  // Sets the event list response.
   auto event_list = CreateMockEventList();
   SingleDayEventList events;
   EXPECT_EQ(0, EventsNumberOfDay(today, &events));
   EXPECT_TRUE(events.empty());
   SetEventList(std::move(event_list));
-  calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
 
-  // Waits the fetch to be completed.
+  if (IsMultiCalendarEnabled()) {
+    // Start a calendar list fetch, after which we expect an event fetch to be
+    // triggered.
+    calendar_list_model()->FetchCalendars();
+  } else {
+    calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
+  }
   WaitUntilFetched();
 
   EXPECT_EQ(u"18", static_cast<CalendarDateCellView*>(
@@ -647,7 +722,7 @@ TEST_F(CalendarMonthViewFetchTest, TimeZone) {
           ->GetTooltipText());
 }
 
-TEST_F(CalendarMonthViewFetchTest, InactiveUserSession) {
+TEST_P(CalendarMonthViewFetchTest, InactiveUserSession) {
   // Create a monthview based on Aug,1st 2021. Today is set to 18th.
   base::Time date;
   ASSERT_TRUE(base::Time::FromString("1 Aug 2021 10:00 GMT", &date));
@@ -660,15 +735,20 @@ TEST_F(CalendarMonthViewFetchTest, InactiveUserSession) {
   CreateMonthView(date);
   WaitUntilPainted();
 
-  // Sets the event list response and fetches the events.
+  // Sets the event list response.
   auto event_list = CreateMockEventList();
   SingleDayEventList events;
   EXPECT_EQ(0, EventsNumberOfDay(today, &events));
   EXPECT_TRUE(events.empty());
   SetEventList(std::move(event_list));
-  calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
 
-  // Waits the fetch to be completed.
+  if (IsMultiCalendarEnabled()) {
+    // Start a calendar list fetch, after which we expect an event fetch to be
+    // triggered.
+    calendar_list_model()->FetchCalendars();
+  } else {
+    calendar_model_->FetchEvents(calendar_utils::GetStartOfMonthUTC(today));
+  }
   WaitUntilFetched();
 
   EXPECT_EQ(u"18", static_cast<CalendarDateCellView*>(

@@ -4,7 +4,10 @@
 
 #include "net/cookies/test_cookie_access_delegate.h"
 
+#include <algorithm>
+#include <optional>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -12,16 +15,14 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "base/types/optional_util.h"
 #include "net/base/schemeful_site.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_util.h"
 #include "net/first_party_sets/first_party_set_entry.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
-#include "net/first_party_sets/same_party_context.h"
+#include "net/first_party_sets/first_party_sets_cache_filter.h"
 
 namespace net {
 
@@ -37,6 +38,17 @@ CookieAccessSemantics TestCookieAccessDelegate::GetAccessSemantics(
   return CookieAccessSemantics::UNKNOWN;
 }
 
+CookieScopeSemantics TestCookieAccessDelegate::GetScopeSemantics(
+    const std::string_view domain) const {
+  GURL cookie_domain_url = net::cookie_util::CookieOriginToURL(
+      std::string(domain), /*is_https=*/false);
+  auto it = expectations_scoped_.find(SchemefulSite(cookie_domain_url));
+  if (it != expectations_scoped_.end()) {
+    return it->second;
+  }
+  return CookieScopeSemantics::UNKNOWN;
+}
+
 bool TestCookieAccessDelegate::ShouldIgnoreSameSiteRestrictions(
     const GURL& url,
     const SiteForCookies& site_for_cookies) const {
@@ -49,38 +61,52 @@ bool TestCookieAccessDelegate::ShouldIgnoreSameSiteRestrictions(
   return true;
 }
 
-absl::optional<FirstPartySetMetadata>
+// Returns true if `url` has the same scheme://eTLD+1 as `trustworthy_site_`.
+bool TestCookieAccessDelegate::ShouldTreatUrlAsTrustworthy(
+    const GURL& url) const {
+  return trustworthy_site_.IsSameSiteWith(url);
+}
+
+std::optional<
+    std::pair<FirstPartySetMetadata, FirstPartySetsCacheFilter::MatchInfo>>
 TestCookieAccessDelegate::ComputeFirstPartySetMetadataMaybeAsync(
     const SchemefulSite& site,
     const SchemefulSite* top_frame_site,
-    const std::set<SchemefulSite>& party_context,
-    base::OnceCallback<void(FirstPartySetMetadata)> callback) const {
-  absl::optional<FirstPartySetEntry> top_frame_owner =
-      top_frame_site ? FindFirstPartySetEntry(*top_frame_site) : absl::nullopt;
-  return RunMaybeAsync(
-      FirstPartySetMetadata(SamePartyContext(),
-                            base::OptionalToPtr(FindFirstPartySetEntry(site)),
-                            base::OptionalToPtr(top_frame_owner)),
-      std::move(callback));
+    base::OnceCallback<void(FirstPartySetMetadata,
+                            FirstPartySetsCacheFilter::MatchInfo)> callback)
+    const {
+  FirstPartySetMetadata metadata(
+      FindFirstPartySetEntry(site),
+      top_frame_site ? FindFirstPartySetEntry(*top_frame_site) : std::nullopt);
+  FirstPartySetsCacheFilter::MatchInfo match_info(
+      first_party_sets_cache_filter_.GetMatchInfo(site));
+
+  if (invoke_callbacks_asynchronously_) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), std::move(metadata), match_info));
+    return std::nullopt;
+  }
+  return std::pair(std::move(metadata), match_info);
 }
 
-absl::optional<FirstPartySetEntry>
+std::optional<FirstPartySetEntry>
 TestCookieAccessDelegate::FindFirstPartySetEntry(
     const SchemefulSite& site) const {
   auto entry = first_party_sets_.find(site);
 
-  return entry != first_party_sets_.end() ? absl::make_optional(entry->second)
-                                          : absl::nullopt;
+  return entry != first_party_sets_.end() ? std::make_optional(entry->second)
+                                          : std::nullopt;
 }
 
-absl::optional<base::flat_map<SchemefulSite, FirstPartySetEntry>>
+std::optional<base::flat_map<SchemefulSite, FirstPartySetEntry>>
 TestCookieAccessDelegate::FindFirstPartySetEntries(
     const base::flat_set<SchemefulSite>& sites,
     base::OnceCallback<void(base::flat_map<SchemefulSite, FirstPartySetEntry>)>
         callback) const {
   std::vector<std::pair<SchemefulSite, FirstPartySetEntry>> mapping;
   for (const SchemefulSite& site : sites) {
-    absl::optional<FirstPartySetEntry> entry = FindFirstPartySetEntry(site);
+    std::optional<FirstPartySetEntry> entry = FindFirstPartySetEntry(site);
     if (entry)
       mapping.emplace_back(site, *entry);
   }
@@ -90,13 +116,13 @@ TestCookieAccessDelegate::FindFirstPartySetEntries(
 }
 
 template <class T>
-absl::optional<T> TestCookieAccessDelegate::RunMaybeAsync(
+std::optional<T> TestCookieAccessDelegate::RunMaybeAsync(
     T result,
     base::OnceCallback<void(T)> callback) const {
   if (invoke_callbacks_asynchronously_) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
-    return absl::nullopt;
+    return std::nullopt;
   }
   return result;
 }
@@ -105,6 +131,14 @@ void TestCookieAccessDelegate::SetExpectationForCookieDomain(
     const std::string& cookie_domain,
     CookieAccessSemantics access_semantics) {
   expectations_[GetKeyForDomainValue(cookie_domain)] = access_semantics;
+}
+
+void TestCookieAccessDelegate::SetExpectationForCookieScope(
+    const std::string_view& cookie_domain,
+    CookieScopeSemantics scoped_semantics) {
+  GURL cookie_domain_url = net::cookie_util::CookieOriginToURL(
+      std::string(cookie_domain), /*is_https=*/false);
+  expectations_scoped_[SchemefulSite(cookie_domain_url)] = scoped_semantics;
 }
 
 void TestCookieAccessDelegate::SetIgnoreSameSiteRestrictionsScheme(

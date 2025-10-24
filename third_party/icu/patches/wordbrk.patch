@@ -1,12 +1,11 @@
 diff --git a/source/data/brkitr/rules/word.txt b/source/data/brkitr/rules/word.txt
-index 0f0e734d27c0..b46038237859 100644
+index e9420c8c..b4603823 100644
 --- a/source/data/brkitr/rules/word.txt
 +++ b/source/data/brkitr/rules/word.txt
 @@ -38,12 +38,34 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
  $Format             = [\p{Word_Break = Format}];
  $Katakana           = [\p{Word_Break = Katakana}];
  $Hebrew_Letter      = [\p{Word_Break = Hebrew_Letter}];
--$ALetter            = [\p{Word_Break = ALetter} @];
 +
 +# Exclude '@' (commercial at, \u0040) from ALetter to maintain breaking at '@'.
 +# ICU 49d192fefe09, in ICU 72, stopped breaking at '@' in order to not break up
@@ -20,7 +19,7 @@ index 0f0e734d27c0..b46038237859 100644
 +#
 +# TODO: Determine whether it's feasible to drop the Chromium-specific behaviors
 +# (and thus this patch) for '.' and now '@'.
-+$ALetter            = [\p{Word_Break = ALetter}];
+ $ALetter            = [\p{Word_Break = ALetter}];
 +
  $Single_Quote       = [\p{Word_Break = Single_Quote}];
  $Double_Quote       = [\p{Word_Break = Double_Quote}];
@@ -41,14 +40,13 @@ index 0f0e734d27c0..b46038237859 100644
  $ExtendNumLet       = [\p{Word_Break = ExtendNumLet}];
  $WSegSpace          = [\p{Word_Break = WSegSpace}];
 diff --git a/source/data/brkitr/rules/word_POSIX.txt b/source/data/brkitr/rules/word_POSIX.txt
-index e62fd7fac3b1..1115b464d835 100644
+index 3cd0556e..8e63ee4c 100644
 --- a/source/data/brkitr/rules/word_POSIX.txt
 +++ b/source/data/brkitr/rules/word_POSIX.txt
-@@ -38,12 +38,30 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
+@@ -38,12 +38,29 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
  $Format             = [\p{Word_Break = Format}];
  $Katakana           = [\p{Word_Break = Katakana}];
  $Hebrew_Letter      = [\p{Word_Break = Hebrew_Letter}];
--$ALetter            = [\p{Word_Break = ALetter} @];
 +
 +# Exclude '@' (commercial at, \u0040) from ALetter to maintain breaking at '@'.
 +# ICU 49d192fefe09, in ICU 72, stopped breaking at '@' in order to not break up
@@ -62,12 +60,11 @@ index e62fd7fac3b1..1115b464d835 100644
 +#
 +# TODO: Determine whether it's feasible to drop the Chromium-specific behaviors
 +# (and thus this patch) for '.' and now '@'.
-+$ALetter            = [\p{Word_Break = ALetter}];
+ $ALetter            = [\p{Word_Break = ALetter}];
 +
  $Single_Quote       = [\p{Word_Break = Single_Quote}];
  $Double_Quote       = [\p{Word_Break = Double_Quote}];
 -$MidNumLet          = [\p{Word_Break = MidNumLet} - [.]];
-+
 +# Remove full-width full stop (\uff0e) from $MidNumLet and add it to $MidNum, in
 +# addition to the ordinary full stop (dot, period, '.', \u002e).
 +$MidNumLet          = [[\p{Word_Break = MidNumLet}] - [\u002E \uFF0E]];
@@ -79,14 +76,13 @@ index e62fd7fac3b1..1115b464d835 100644
  $ExtendNumLet       = [\p{Word_Break = ExtendNumLet}];
  $WSegSpace          = [\p{Word_Break = WSegSpace}];
 diff --git a/source/data/brkitr/rules/word_fi_sv.txt b/source/data/brkitr/rules/word_fi_sv.txt
-index 544558f91adf..da79385318d0 100644
+index daf5b355..ca2decfc 100644
 --- a/source/data/brkitr/rules/word_fi_sv.txt
 +++ b/source/data/brkitr/rules/word_fi_sv.txt
-@@ -38,12 +38,34 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
+@@ -38,12 +38,33 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
  $Format             = [\p{Word_Break = Format}];
  $Katakana           = [\p{Word_Break = Katakana}];
  $Hebrew_Letter      = [\p{Word_Break = Hebrew_Letter}];
--$ALetter            = [\p{Word_Break = ALetter} @];
 +
 +# Exclude '@' (commercial at, \u0040) from ALetter to maintain breaking at '@'.
 +# ICU 49d192fefe09, in ICU 72, stopped breaking at '@' in order to not break up
@@ -100,12 +96,11 @@ index 544558f91adf..da79385318d0 100644
 +#
 +# TODO: Determine whether it's feasible to drop the Chromium-specific behaviors
 +# (and thus this patch) for '.' and now '@'.
-+$ALetter            = [\p{Word_Break = ALetter}];
+ $ALetter            = [\p{Word_Break = ALetter}];
 +
  $Single_Quote       = [\p{Word_Break = Single_Quote}];
  $Double_Quote       = [\p{Word_Break = Double_Quote}];
 -$MidNumLet          = [\p{Word_Break = MidNumLet}];
-+
 +# Remove two full stop characters from $MidNumLet and add them to $MidNum
 +# to break a hostname into its components at the cost of breaking
 +# 'e.g.' and 'i.e.' as well.

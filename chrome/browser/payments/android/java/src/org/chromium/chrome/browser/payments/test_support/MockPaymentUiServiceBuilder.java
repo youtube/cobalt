@@ -25,12 +25,13 @@ public class MockPaymentUiServiceBuilder {
         mPaymentUiService = Mockito.mock(PaymentUiService.class);
         Mockito.doReturn(null)
                 .when(mPaymentUiService)
-                .buildPaymentRequestUI(
+                .buildPaymentRequestUi(
                         Mockito.anyBoolean(), Mockito.any(), Mockito.any(), Mockito.any());
-        Mockito.doAnswer((args) -> {
-                   mPaymentApps.addAll(args.getArgument(0));
-                   return null;
-               })
+        Mockito.doAnswer(
+                        (args) -> {
+                            mPaymentApps.addAll(args.getArgument(0));
+                            return null;
+                        })
                 .when(mPaymentUiService)
                 .setPaymentApps(Mockito.any());
         Mockito.doAnswer((args) -> mPaymentApps.size() > 0)
@@ -42,10 +43,10 @@ public class MockPaymentUiServiceBuilder {
                 .getSelectedPaymentApp();
     }
 
-    public MockPaymentUiServiceBuilder setBuildPaymentRequestUIResult(String result) {
+    public MockPaymentUiServiceBuilder setBuildPaymentRequestUiResult(String result) {
         Mockito.doReturn(result)
                 .when(mPaymentUiService)
-                .buildPaymentRequestUI(
+                .buildPaymentRequestUi(
                         Mockito.anyBoolean(), Mockito.any(), Mockito.any(), Mockito.any());
         return this;
     }

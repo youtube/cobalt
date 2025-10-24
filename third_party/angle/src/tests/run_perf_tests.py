@@ -45,9 +45,6 @@ DEFAULT_LOG = 'info'
 DEFAULT_SAMPLES = 10
 DEFAULT_TRIALS = 4
 DEFAULT_MAX_ERRORS = 3
-
-# These parameters condition the test warmup to stabilize the scores across runs.
-DEFAULT_WARMUP_TRIALS = 2
 DEFAULT_TRIAL_TIME = 3
 
 # Test expectations
@@ -253,28 +250,6 @@ def _run_test_suite(args, cmd_args, env):
         show_test_stdout=args.show_test_stdout)
 
 
-def _run_calibration(args, common_args, env):
-    exit_code, calibrate_output, json_results = _run_test_suite(
-        args, common_args + [
-            '--calibration',
-            '--warmup-trials',
-            str(args.warmup_trials),
-            '--calibration-time',
-            str(args.trial_time),
-        ], env)
-    if exit_code != EXIT_SUCCESS:
-        raise RuntimeError('%s failed. Output:\n%s' % (args.test_suite, calibrate_output))
-    if SKIP in json_results['num_failures_by_type']:
-        return SKIP, None
-
-    steps_per_trial = _get_results_from_output(calibrate_output, 'steps_to_run')
-    if not steps_per_trial:
-        return FAIL, None
-
-    assert (len(steps_per_trial) == 1)
-    return PASS, int(steps_per_trial[0])
-
-
 def _run_perf(args, common_args, env, steps_per_trial=None):
     run_args = common_args + [
         '--trials',
@@ -286,10 +261,8 @@ def _run_perf(args, common_args, env, steps_per_trial=None):
     else:
         run_args += ['--trial-time', str(args.trial_time)]
 
-    if args.smoke_test_mode:
-        run_args += ['--no-warmup']
-    else:
-        run_args += ['--warmup-trials', str(args.warmup_trials)]
+    if not args.smoke_test_mode:
+        run_args += ['--warmup']  # Render each frame once with glFinish
 
     if args.perf_counters:
         run_args += ['--perf-counters', args.perf_counters]
@@ -304,6 +277,12 @@ def _run_perf(args, common_args, env, steps_per_trial=None):
             raise RuntimeError('%s failed. Output:\n%s' % (args.test_suite, output))
         if SKIP in json_results['num_failures_by_type']:
             return SKIP, None, None
+
+        # Extract debug files for https://issuetracker.google.com/296921272
+        if args.isolated_script_test_output:
+            isolated_out_dir = os.path.dirname(args.isolated_script_test_output)
+            for path in glob.glob(os.path.join(render_output_dir, '*gzdbg*')):
+                shutil.move(path, isolated_out_dir)
 
         sample_metrics = _read_metrics(os.path.join(render_output_dir, 'angle_metrics'))
 
@@ -331,9 +310,37 @@ def _skipped_or_glmark2(test, test_status):
     return False
 
 
+def _sleep_until_temps_below(limit_temp):
+    while True:
+        max_temp = max(android_helper.GetTemps())
+        if max_temp < limit_temp:
+            break
+        logging.info('Waiting for device temps below %.1f, curently %.1f', limit_temp, max_temp)
+        time.sleep(10)
+
+
+def _maybe_throttle_or_log_temps(custom_throttling_temp):
+    is_debug = logging.getLogger().isEnabledFor(logging.DEBUG)
+
+    if angle_test_util.IsAndroid():
+        if custom_throttling_temp:
+            _sleep_until_temps_below(custom_throttling_temp)
+        elif is_debug:
+            android_helper.GetTemps()  # calls log.debug
+    elif sys.platform == 'linux' and is_debug:
+        out = subprocess.check_output('cat /sys/class/hwmon/hwmon*/temp*_input', shell=True)
+        logging.debug('hwmon temps: %s',
+                      ','.join([str(int(n) // 1000) for n in out.decode().split('\n') if n]))
+
+
 def _run_tests(tests, args, extra_flags, env):
-    result_suffix = '_shard%d' % (args.shard_index if args.shard_index != None else None)
-    results = Results(result_suffix)
+    if args.split_shard_samples and args.shard_index is not None:
+        test_suffix = Results('_shard%d' % args.shard_index)
+    else:
+        test_suffix = ''
+
+    results = Results(test_suffix)
+
     histograms = histogram_set.HistogramSet()
     metrics = []
     total_errors = 0
@@ -359,24 +366,6 @@ def _run_tests(tests, args, extra_flags, env):
         if args.steps_per_trial:
             steps_per_trial = args.steps_per_trial
             trial_limit = 'steps_per_trial=%d' % steps_per_trial
-        elif args.calibrate_steps_per_trial:
-            try:
-                test_status, steps_per_trial = _run_calibration(args, common_args, env)
-            except RuntimeError as e:
-                logging.fatal(e)
-                total_errors += 1
-                results.result_fail(test)
-                continue
-
-            if _skipped_or_glmark2(test, test_status):
-                results.result_skip(test)
-                continue
-
-            if not steps_per_trial:
-                logging.error('Test %s missing steps_per_trial' % test)
-                results.result_fail(test)
-                continue
-            trial_limit = 'steps_per_trial=%d' % steps_per_trial
         else:
             steps_per_trial = None
             trial_limit = 'trial_time=%d' % args.trial_time
@@ -389,6 +378,7 @@ def _run_tests(tests, args, extra_flags, env):
         test_histogram_set = histogram_set.HistogramSet()
         for sample in range(args.samples_per_test):
             try:
+                _maybe_throttle_or_log_temps(args.custom_throttling_temp)
                 test_status, sample_metrics, sample_histogram = _run_perf(
                     args, common_args, env, steps_per_trial)
             except RuntimeError as e:
@@ -553,10 +543,6 @@ def main():
         help='Number of seconds to run per trial. Default is %d.' % DEFAULT_TRIAL_TIME,
         type=int,
         default=DEFAULT_TRIAL_TIME)
-    trial_group.add_argument(
-        '--calibrate-steps-per-trial',
-        help='Automatically determine a number of steps per trial.',
-        action='store_true')
     parser.add_argument(
         '--max-errors',
         help='After this many errors, abort the run. Default is %d.' % DEFAULT_MAX_ERRORS,
@@ -564,12 +550,6 @@ def main():
         default=DEFAULT_MAX_ERRORS)
     parser.add_argument(
         '--smoke-test-mode', help='Do a quick run to validate correctness.', action='store_true')
-    parser.add_argument(
-        '--warmup-trials',
-        help='Number of warmup trials to run in the perf test. Default is %d.' %
-        DEFAULT_WARMUP_TRIALS,
-        type=int,
-        default=DEFAULT_WARMUP_TRIALS)
     parser.add_argument(
         '--show-test-stdout', help='Prints all test stdout during execution.', action='store_true')
     parser.add_argument(
@@ -583,6 +563,10 @@ def main():
         '--split-shard-samples',
         help='Attempt to mitigate variance between machines by splitting samples between shards.',
         action='store_true')
+    parser.add_argument(
+        '--custom-throttling-temp',
+        help='Android: custom thermal throttling with limit set to this temperature (off by default)',
+        type=float)
 
     args, extra_flags = parser.parse_known_args()
 
@@ -636,9 +620,6 @@ def main():
     if not tests:
         logging.error('No tests to run.')
         return EXIT_FAILURE
-
-    if angle_test_util.IsAndroid() and args.test_suite == android_helper.ANGLE_TRACE_TEST_SUITE:
-        android_helper.RunSmokeTest()
 
     logging.info('Running %d test%s' % (len(tests), 's' if len(tests) > 1 else ' '))
 

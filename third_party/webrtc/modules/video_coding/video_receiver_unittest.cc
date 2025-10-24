@@ -8,12 +8,21 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstddef>
+#include <cstdint>
+
+#include "api/rtp_headers.h"
 #include "api/test/mock_video_decoder.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame_type.h"
 #include "api/video_codecs/video_decoder.h"
-#include "modules/video_coding/include/video_coding.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
+#include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/timing.h"
 #include "modules/video_coding/video_coding_impl.h"
 #include "system_wrappers/include/clock.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
 
@@ -38,11 +47,7 @@ class MockVCMReceiveCallback : public VCMReceiveCallback {
   MockVCMReceiveCallback() {}
   virtual ~MockVCMReceiveCallback() {}
 
-  MOCK_METHOD(
-      int32_t,
-      FrameToRender,
-      (VideoFrame&, absl::optional<uint8_t>, TimeDelta, VideoContentType),
-      (override));
+  MOCK_METHOD(int32_t, OnFrameToRender, (const FrameToRender&), (override));
   MOCK_METHOD(void, OnIncomingPayloadType, (int), (override));
   MOCK_METHOD(void,
               OnDecoderInfoChanged,
@@ -106,7 +111,7 @@ class TestVideoReceiver : public ::testing::Test {
       ++header->sequenceNumber;
     }
     receiver_.Process();
-    EXPECT_CALL(decoder_, Decode(_, _, _)).Times(0);
+    EXPECT_CALL(decoder_, Decode(_, _)).Times(0);
     EXPECT_EQ(VCM_FRAME_NOT_READY, receiver_.Decode(kMaxWaitTimeMs));
   }
 
@@ -120,7 +125,7 @@ class TestVideoReceiver : public ::testing::Test {
     EXPECT_CALL(packet_request_callback_, ResendPackets(_, _)).Times(0);
 
     receiver_.Process();
-    EXPECT_CALL(decoder_, Decode(_, _, _)).Times(1);
+    EXPECT_CALL(decoder_, Decode(_, _)).Times(1);
     EXPECT_EQ(0, receiver_.Decode(kMaxWaitTimeMs));
   }
 

@@ -9,11 +9,12 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/unguessable_token.h"
 #include "media/capture/video_capture_types.h"
-#include "third_party/blink/public/common/media/video_capture.h"
+#include "third_party/blink/public/platform/media/video_capture.h"
 
 namespace content {
 class PepperMediaDeviceManager;
@@ -55,7 +56,7 @@ class PepperPlatformCameraDevice {
   base::UnguessableToken session_id_;
   base::OnceClosure release_device_cb_;
 
-  PepperCameraDeviceHost* handler_;
+  raw_ptr<PepperCameraDeviceHost> handler_;
 
   // Whether we have a pending request to open a device. We have to make sure
   // there isn't any pending request before this object goes away.

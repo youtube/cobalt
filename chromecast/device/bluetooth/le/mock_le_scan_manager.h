@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromecast/device/bluetooth/le/le_scan_manager.h"
@@ -48,14 +49,14 @@ class MockLeScanManager : public LeScanManager {
 
   MOCK_METHOD(std::vector<LeScanResult>,
               GetScanResults,
-              (absl::optional<ScanFilter> scan_filter));
+              (std::optional<ScanFilter> scan_filter));
   void GetScanResults(GetScanResultsCallback cb,
-                      absl::optional<ScanFilter> scan_filter) override {
+                      std::optional<ScanFilter> scan_filter) override {
     std::move(cb).Run(GetScanResults(std::move(scan_filter)));
   }
   MOCK_METHOD(void, ClearScanResults, (), (override));
 
-  Observer* observer_ = nullptr;
+  raw_ptr<Observer> observer_ = nullptr;
 };
 
 }  // namespace bluetooth

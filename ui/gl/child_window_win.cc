@@ -4,14 +4,19 @@
 
 #include "ui/gl/child_window_win.h"
 
-#include <memory>
-
+#include "base/at_exit.h"
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/no_destructor.h"
+#include "base/notreached.h"
+#include "base/threading/thread.h"
+#include "base/threading/thread_checker.h"
 #include "base/win/wrapped_window_proc.h"
 #include "ui/gfx/win/hwnd_util.h"
 #include "ui/gfx/win/window_impl.h"
@@ -61,6 +66,12 @@ class HiddenPopupWindow : public gfx::WindowImpl {
     // to gfx::WindowImpl instance.
     gfx::WindowImpl* window_data =
         reinterpret_cast<gfx::WindowImpl*>(gfx::GetWindowUserData(window));
+    if (!window_data) {
+      // If a `ChildWindowWin` object is created but `Initialize` is not called,
+      // window_data is expected to be nullptr. This can occur in certain tests.
+      DCHECK(!window);
+      return;
+    }
     DCHECK_EQ(window, window_data->hwnd());
     DestroyWindow(window);
     delete window_data;
@@ -103,16 +114,10 @@ void CreateWindowsOnThread(base::WaitableEvent* event,
   if (!window) {
     logging::SystemErrorCode error = logging::GetLastSystemErrorCode();
     base::debug::Alias(&error);
-    CHECK(false);
+    NOTREACHED();
   }
   *child_window = window;
   event->Signal();
-}
-
-// This runs on the main thread after the window was destroyed on window owner
-// thread.
-void DestroyThread(std::unique_ptr<base::Thread> thread) {
-  thread->Stop();
 }
 
 // This runs on the window owner thread.
@@ -123,39 +128,83 @@ void DestroyWindowsOnThread(HWND child_window, HWND hidden_popup_window) {
 
 }  // namespace
 
+class ChildWindowWin::ChildWindowThread {
+ public:
+  // Returns the singleton instance of the thread.
+  static ChildWindowThread* GetInstance() {
+    static base::NoDestructor<ChildWindowThread> instance;
+    return instance.get();
+  }
+
+  scoped_refptr<base::TaskRunner> task_runner() {
+    return thread_.task_runner();
+  }
+
+  void DestroyThread() { thread_.Stop(); }
+
+ private:
+  friend class base::NoDestructor<ChildWindowThread>;
+
+  ChildWindowThread() : thread_("Window owner thread") {
+    base::Thread::Options options(base::MessagePumpType::UI, 0);
+    thread_.StartWithOptions(std::move(options));
+    base::AtExitManager::RegisterCallback(
+        [](void*) { GetInstance()->DestroyThread(); }, NULL);
+  }
+
+  ~ChildWindowThread() {
+    thread_.Stop();
+  }
+
+  base::Thread thread_;
+};
+
 ChildWindowWin::ChildWindowWin() = default;
 
 void ChildWindowWin::Initialize() {
   if (window_)
     return;
 
-  thread_ = std::make_unique<base::Thread>("Window owner thread");
-  base::Thread::Options options(base::MessagePumpType::UI, 0);
-  thread_->StartWithOptions(std::move(options));
-
   base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                             base::WaitableEvent::InitialState::NOT_SIGNALED);
 
-  thread_->task_runner()->PostTask(
+  ChildWindowThread::GetInstance()->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&CreateWindowsOnThread, &event, &window_,
                                 &initial_parent_window_));
   event.Wait();
 }
 
 ChildWindowWin::~ChildWindowWin() {
-  if (thread_) {
-    scoped_refptr<base::TaskRunner> task_runner = thread_->task_runner();
-    task_runner->PostTaskAndReply(
-        FROM_HERE,
-        base::BindOnce(&DestroyWindowsOnThread, window_,
-                       initial_parent_window_),
-        base::BindOnce(&DestroyThread, std::move(thread_)));
+  scoped_refptr<base::TaskRunner> task_runner =
+      ChildWindowThread::GetInstance()->task_runner();
+  task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DestroyWindowsOnThread, window_, initial_parent_window_));
+}
+
+void ChildWindowWin::Resize(const gfx::Size& size) {
+  // Force a resize and redraw (but not a move, activate, etc.).
+  constexpr UINT kFlags = SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_NOMOVE |
+                          SWP_NOOWNERZORDER | SWP_NOREDRAW |
+                          SWP_NOSENDCHANGING | SWP_NOZORDER;
+  // When the browser process destroys its window, Windows will destroy
+  // all of its child windows, including our window. This leads to a race
+  // condition where SetWindowPos may return false if our window has been
+  // destroyed before we finish processing Reshape requests for the
+  // window.
+  // Returning a failure from ChildWindowWin::Resize will cause the
+  // outer Skia output device code to flag CONTEXT_LOST_RESHAPE_FAILED and
+  // terminate the GPU process. Instead of handling failures from SetWindowPos,
+  // we ignore its return value. The outer code will eventually be told of the
+  // window's demise.
+  if (!::SetWindowPos(window_, nullptr, 0, 0, size.width(), size.height(),
+                      kFlags)) {
+    DPLOG(WARNING) << "::SetWindowPos failed";
   }
 }
 
 scoped_refptr<base::TaskRunner> ChildWindowWin::GetTaskRunnerForTesting() {
-  DCHECK(thread_);
-  return thread_->task_runner();
+  return ChildWindowThread::GetInstance()->task_runner();
 }
 
 }  // namespace gl

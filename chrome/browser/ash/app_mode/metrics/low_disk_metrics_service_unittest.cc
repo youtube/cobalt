@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/app_mode/metrics/low_disk_metrics_service.h"
 
+#include "base/check_deref.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "chrome/common/pref_names.h"
@@ -44,11 +45,11 @@ class LowDiskMetricsServiceTest
   }
   base::HistogramTester* histogram_tester() { return histogram_tester_.get(); }
 
-  absl::optional<KioskLowDiskSeverity> GetLowDiskSeverityFromLocalState() {
+  std::optional<KioskLowDiskSeverity> GetLowDiskSeverityFromLocalState() {
     const auto& metrics_dict = local_state()->GetDict(prefs::kKioskMetrics);
     const auto severity_value = metrics_dict.FindInt(kKioskLowDiskSeverity);
     if (!severity_value) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     return static_cast<KioskLowDiskSeverity>(severity_value.value());
@@ -66,7 +67,8 @@ class LowDiskMetricsServiceTest
 };
 
 TEST_P(LowDiskMetricsServiceTest, Severity) {
-  auto service = LowDiskMetricsService::CreateForTesting(local_state());
+  auto service =
+      std::make_unique<LowDiskMetricsService>(CHECK_DEREF(local_state()));
 
   histogram_tester()->ExpectTotalCount(kKioskSessionLowDiskSeverityHistogram,
                                        0);
@@ -80,7 +82,7 @@ TEST_P(LowDiskMetricsServiceTest, Severity) {
                                        1);
   EXPECT_EQ(GetLowDiskSeverityFromLocalState().value(), severity());
 
-  service = LowDiskMetricsService::CreateForTesting(local_state());
+  service = std::make_unique<LowDiskMetricsService>(CHECK_DEREF(local_state()));
   histogram_tester()->ExpectBucketCount(
       kKioskSessionLowDiskHighestSeverityHistogram, severity(), 1);
   EXPECT_EQ(GetLowDiskSeverityFromLocalState().value(),
@@ -88,7 +90,8 @@ TEST_P(LowDiskMetricsServiceTest, Severity) {
 }
 
 TEST_F(LowDiskMetricsServiceTest, Update) {
-  auto service = LowDiskMetricsService::CreateForTesting(local_state());
+  auto service =
+      std::make_unique<LowDiskMetricsService>(CHECK_DEREF(local_state()));
 
   SendLowDiskSpaceEvent(kLowDiskMediumThreshold + 1);
   histogram_tester()->ExpectBucketCount(kKioskSessionLowDiskSeverityHistogram,

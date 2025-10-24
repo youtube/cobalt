@@ -27,7 +27,7 @@ GeoNotifier* GeolocationWatchers::Find(int id) const {
   IdToNotifierMap::const_iterator iter = id_to_notifier_map_.find(id);
   if (iter == id_to_notifier_map_.end())
     return nullptr;
-  return iter->value;
+  return iter->value.Get();
 }
 
 void GeolocationWatchers::Remove(int id) {
@@ -74,7 +74,7 @@ void GeolocationWatchers::Swap(GeolocationWatchers& other) {
 
 void GeolocationWatchers::CopyNotifiersToVector(
     HeapVector<Member<GeoNotifier>>& vector) const {
-  CopyValuesToVector(id_to_notifier_map_, vector);
+  vector.assign(id_to_notifier_map_.Values());
 }
 
 }  // namespace blink

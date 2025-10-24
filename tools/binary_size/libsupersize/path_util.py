@@ -155,14 +155,14 @@ def GetObjDumpPath():
 def GetDisassembleObjDumpPath(arch):
   path = None
   if arch == 'arm':
-    path = FromToolsSrcRoot('third_party', 'android_ndk', 'toolchains',
-                            'arm-linux-androideabi-4.9', 'prebuilt',
-                            'linux-x86_64', 'bin',
+    path = FromToolsSrcRoot('third_party', 'android_toolchain', 'ndk',
+                            'toolchains', 'arm-linux-androideabi-4.9',
+                            'prebuilt', 'linux-x86_64', 'bin',
                             'arm-linux-androideabi-objdump')
   elif arch == 'arm64':
-    path = FromToolsSrcRoot('third_party', 'android_ndk', 'toolchains',
-                            'aarch64-linux-android-4.9', 'prebuilt',
-                            'linux-x86_64', 'bin',
+    path = FromToolsSrcRoot('third_party', 'android_toolchain', 'ndk',
+                            'toolchains', 'aarch64-linux-android-4.9',
+                            'prebuilt', 'linux-x86_64', 'bin',
                             'aarch64-linux-android-objdump')
   if path and os.path.exists(path):
     return path
@@ -189,7 +189,7 @@ def GetApkAnalyzerPath():
 
 def GetAapt2Path():
   default_path = FromToolsSrcRoot('third_party', 'android_build_tools', 'aapt2',
-                                  'aapt2')
+                                  'cipd', 'aapt2')
   return os.environ.get('SUPERSIZE_AAPT2', default_path)
 
 

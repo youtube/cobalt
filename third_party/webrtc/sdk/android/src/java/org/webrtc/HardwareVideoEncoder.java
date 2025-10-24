@@ -236,8 +236,8 @@ class HardwareVideoEncoder implements VideoEncoder {
 
     try {
       codec = mediaCodecWrapperFactory.createByCodecName(codecName);
-    } catch (IOException | IllegalArgumentException e) {
-      Logging.e(TAG, "Cannot create media encoder " + codecName);
+    } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+      Logging.e(TAG, "Cannot create media encoder " + codecName, e);
       return VideoCodecStatus.FALLBACK_SOFTWARE;
     }
 
@@ -292,7 +292,7 @@ class HardwareVideoEncoder implements VideoEncoder {
       updateInputFormat(codec.getInputFormat());
 
       codec.start();
-    } catch (IllegalStateException e) {
+    } catch (IllegalArgumentException | IllegalStateException e) {
       Logging.e(TAG, "initEncodeInternal failed", e);
       release();
       return VideoCodecStatus.FALLBACK_SOFTWARE;
@@ -600,6 +600,7 @@ class HardwareVideoEncoder implements VideoEncoder {
           configBuffer = ByteBuffer.allocateDirect(info.size);
           configBuffer.put(outputBuffer);
         }
+        codec.releaseOutputBuffer(index, /* render= */ false);
         return;
       }
 

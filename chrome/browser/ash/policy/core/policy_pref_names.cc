@@ -12,5 +12,9 @@ namespace prefs {
 const char kStoreLogStatesAcrossReboots[] =
     "policy_store_log_states_across_reboots";
 
+// A preference to keep track of upload times of event based logs.
+const char kEventBasedLogLastUploadTimes[] =
+    "ash.policy.event_based_log_last_upload_times";
+
 }  // namespace prefs
 }  // namespace policy

@@ -10,21 +10,29 @@
 
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
-#include <utility>
 #include <vector>
 
+#include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
+#include "api/units/data_rate.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_bitrate_allocator.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/vp8_frame_buffer_controller.h"
 #include "api/video_codecs/vp8_frame_config.h"
-#include "api/video_codecs/vp8_temporal_layers.h"
 #include "rtc_base/checks.h"
-#include "test/field_trial.h"
+#include "test/explicit_key_value_config.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
+using test::ExplicitKeyValueConfig;
 using ::testing::_;
 
 constexpr uint32_t kFramerateFps = 5;
@@ -90,9 +98,8 @@ class SimulcastRateAllocatorTest : public ::testing::TestWithParam<bool> {
     EXPECT_EQ(sum, actual.get_sum_bps());
   }
 
-  void CreateAllocator(bool legacy_conference_mode = false) {
-    allocator_.reset(new SimulcastRateAllocator(codec_));
-    allocator_->SetLegacyConferenceMode(legacy_conference_mode);
+  void CreateAllocator(Environment env = CreateEnvironment()) {
+    allocator_ = std::make_unique<SimulcastRateAllocator>(env, codec_);
   }
 
   void SetupCodec3SL3TL(const std::vector<bool>& active_streams) {
@@ -298,11 +305,11 @@ TEST_F(SimulcastRateAllocatorTest, Regular3TLTemporalRateAllocation) {
 }
 
 TEST_F(SimulcastRateAllocatorTest, BaseHeavy3TLTemporalRateAllocation) {
-  test::ScopedFieldTrials field_trials(
+  ExplicitKeyValueConfig field_trials(
       "WebRTC-UseBaseHeavyVP8TL3RateAllocation/Enabled/");
 
   SetupCodec3SL3TL({true, true, true});
-  CreateAllocator();
+  CreateAllocator(CreateEnvironment(&field_trials));
 
   const VideoBitrateAllocation alloc = GetAllocation(kMinBitrateKbps);
   // 60/20/20.
@@ -583,13 +590,13 @@ TEST_F(SimulcastRateAllocatorTest, NonConferenceModeScreenshare) {
 }
 
 TEST_F(SimulcastRateAllocatorTest, StableRate) {
-  webrtc::test::ScopedFieldTrials field_trials(
+  ExplicitKeyValueConfig field_trials(
       "WebRTC-StableTargetRate/"
       "enabled:true,"
       "video_hysteresis_factor:1.1/");
 
   SetupCodec3SL3TL({true, true, true});
-  CreateAllocator();
+  CreateAllocator(CreateEnvironment(&field_trials));
 
   // Let the volatile rate always be be enough for all streams, in this test we
   // are only interested in how the stable rate affects enablement.
@@ -685,7 +692,8 @@ INSTANTIATE_TEST_SUITE_P(ScreenshareTest,
 
 TEST_P(ScreenshareRateAllocationTest, ConferenceBitrateBelowTl0) {
   SetupConferenceScreenshare(GetParam());
-  CreateAllocator(true);
+  CreateAllocator();
+  allocator_->SetLegacyConferenceMode(true);
 
   VideoBitrateAllocation allocation =
       allocator_->Allocate(VideoBitrateAllocationParameters(
@@ -700,7 +708,8 @@ TEST_P(ScreenshareRateAllocationTest, ConferenceBitrateBelowTl0) {
 
 TEST_P(ScreenshareRateAllocationTest, ConferenceBitrateAboveTl0) {
   SetupConferenceScreenshare(GetParam());
-  CreateAllocator(true);
+  CreateAllocator();
+  allocator_->SetLegacyConferenceMode(true);
 
   uint32_t target_bitrate_kbps =
       (kLegacyScreenshareTargetBitrateKbps + kLegacyScreenshareMaxBitrateKbps) /
@@ -721,7 +730,8 @@ TEST_P(ScreenshareRateAllocationTest, ConferenceBitrateAboveTl0) {
 TEST_F(ScreenshareRateAllocationTest, ConferenceBitrateAboveTl1) {
   // This test is only for the non-simulcast case.
   SetupConferenceScreenshare(false);
-  CreateAllocator(true);
+  CreateAllocator();
+  allocator_->SetLegacyConferenceMode(true);
 
   VideoBitrateAllocation allocation =
       allocator_->Allocate(VideoBitrateAllocationParameters(

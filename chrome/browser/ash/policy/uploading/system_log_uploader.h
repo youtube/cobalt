@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,9 +19,10 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/policy/uploading/upload_job.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+class GURL;
 
 namespace base {
 class SequencedTaskRunner;
@@ -60,9 +62,6 @@ class SystemLogUploader : public UploadJob::Delegate {
   static const char* const kZippedLogsFileName;
   static const char* const kContentTypeOctetStream;
 
-  // UMA histogram name.
-  static const char* const kSystemLogUploadResultHistogram;
-
   // A delegate interface used by SystemLogUploader to read the system logs
   // from the disk and create an upload job.
   class Delegate {
@@ -73,7 +72,7 @@ class SystemLogUploader : public UploadJob::Delegate {
     using ZippedLogUploadCallback =
         base::OnceCallback<void(std::string zipped_system_logs)>;
 
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     // Returns current policy dump in JSON format.
     virtual std::string GetPolicyAsJSON() = 0;
@@ -90,19 +89,6 @@ class SystemLogUploader : public UploadJob::Delegate {
     // Zips system logs in a single zip archive and invokes |upload_callback|.
     virtual void ZipSystemLogs(std::unique_ptr<SystemLogs> system_logs,
                                ZippedLogUploadCallback upload_callback) = 0;
-  };
-
-  // Enum used for UMA. Do NOT reorder or remove entry.
-  // Don't forget to update enums.xml when adding new entries.
-  enum SystemLogUploadResult : uint8_t {
-    NON_ZIPPED_LOGS_UPLOAD_SUCCESS = 0,
-    ZIPPED_LOGS_UPLOAD_SUCCESS = 1,
-    NON_ZIPPED_LOGS_UPLOAD_FAILURE = 2,
-    ZIPPED_LOGS_UPLOAD_FAILURE = 3,
-
-    // Magic constant used by the histogram macros.
-    // Always update it to the max value.
-    kMaxValue = ZIPPED_LOGS_UPLOAD_FAILURE
   };
 
   // Constructor. Callers can inject their own Delegate. A nullptr can be passed
@@ -144,25 +130,24 @@ class SystemLogUploader : public UploadJob::Delegate {
   void RefreshUploadSettings();
 
   // Starts the system log loading process.
-  void StartLogUpload(
-      absl::optional<RemoteCommandJob::UniqueIDType> command_id);
+  void StartLogUpload(std::optional<RemoteCommandJob::UniqueIDType> command_id);
 
   // The callback is invoked by the Delegate if system logs have been loaded
   // from disk, adds policy dump and calls UploadSystemLogs.
   void OnSystemLogsLoaded(
-      absl::optional<RemoteCommandJob::UniqueIDType> command_id,
+      std::optional<RemoteCommandJob::UniqueIDType> command_id,
       std::unique_ptr<SystemLogs> system_logs);
 
   // Uploads zipped system logs.
   void UploadZippedSystemLogs(
-      absl::optional<RemoteCommandJob::UniqueIDType> command_id,
+      std::optional<RemoteCommandJob::UniqueIDType> command_id,
       std::string zipped_system_logs);
 
   // Helper method that figures out when the next system log upload should
   // be scheduled.
   void ScheduleNextSystemLogUpload(
       base::TimeDelta frequency,
-      absl::optional<RemoteCommandJob::UniqueIDType> command_id);
+      std::optional<RemoteCommandJob::UniqueIDType> command_id);
 
   // The number of consequent retries after the failed uploads.
   int retry_count_;

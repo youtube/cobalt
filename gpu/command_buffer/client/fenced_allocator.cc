@@ -260,7 +260,7 @@ FencedAllocator::BlockIndex FencedAllocator::GetBlockByOffset(Offset offset) {
   Block templ = { IN_USE, offset, 0, kUnusedToken };
   Container::iterator it = std::lower_bound(blocks_.begin(), blocks_.end(),
                                             templ, OffsetCmp());
-  DCHECK(it != blocks_.end());
+  CHECK(it != blocks_.end());
   return it-blocks_.begin();
 }
 

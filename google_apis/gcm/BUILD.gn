@@ -70,8 +70,6 @@ component("gcm") {
   ]
   deps = [
     "//base",
-    "//base/third_party/dynamic_annotations",
-    "//build:chromeos_buildflags",
     "//mojo/public/cpp/system:system",
     "//net",
     "//services/network/public/cpp",
@@ -167,7 +165,6 @@ test("gcm_unit_tests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
-    "//build:chromeos_buildflags",
     "//google_apis",
     "//google_apis:run_all_unittests",
     "//google_apis:test_support",

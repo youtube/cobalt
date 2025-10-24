@@ -4,13 +4,9 @@
 
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
 
-#import "ios/chrome/browser/main/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/strings/grit/ui_strings.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface AlertCoordinator () {
   // Variable backing a property from Subclassing category.
@@ -20,26 +16,12 @@
 // Redefined to readwrite.
 @property(nonatomic, readwrite, getter=isVisible) BOOL visible;
 
-// Cancel action passed using the public API.
-// It will called from the overridden block stored in the `cancelAction`
-// property.
-@property(nonatomic, copy) ProceduralBlock rawCancelAction;
-
 // Called when the alert is dismissed to perform cleanup.
 - (void)alertDismissed;
 
 @end
 
 @implementation AlertCoordinator
-
-@synthesize visible = _visible;
-@synthesize cancelButtonAdded = _cancelButtonAdded;
-@synthesize cancelAction = _cancelAction;
-@synthesize startAction = _startAction;
-@synthesize noInteractionAction = _noInteractionAction;
-@synthesize rawCancelAction = _rawCancelAction;
-@synthesize message = _message;
-@synthesize title = _title;
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
@@ -81,12 +63,10 @@
                    style:(UIAlertActionStyle)style
                preferred:(BOOL)preferred
                  enabled:(BOOL)enabled {
-  if (self.visible ||
-      (style == UIAlertActionStyleCancel && self.cancelButtonAdded)) {
-    return;
-  }
+  CHECK(!self.visible);
 
   if (style == UIAlertActionStyleCancel) {
+    CHECK(!self.cancelButtonAdded);
     _cancelButtonAdded = YES;
   }
 
@@ -103,20 +83,13 @@
                              }];
 
   alertAction.accessibilityIdentifier =
-      [NSString stringWithFormat:@"%@%@", title, @"AlertAction"];
+      [title stringByAppendingString:@"AlertAction"];
   alertAction.enabled = enabled;
 
   [self.alertController addAction:alertAction];
   if (preferred) {
     DCHECK(![self.alertController preferredAction]);
     [self.alertController setPreferredAction:alertAction];
-  }
-}
-
-- (void)executeCancelHandler {
-  self.noInteractionAction = nil;
-  if (self.cancelAction) {
-    self.cancelAction();
   }
 }
 
@@ -135,11 +108,6 @@
                      style:UIAlertActionStyleDefault];
   }
 
-  // Call the start action before presenting the alert.
-  if (self.startAction) {
-    self.startAction();
-  }
-
   [self.baseViewController presentViewController:self.alertController
                                         animated:YES
                                       completion:nil];
@@ -147,14 +115,17 @@
 }
 
 - (void)stop {
-  if (_noInteractionAction) {
-    _noInteractionAction();
-    _noInteractionAction = nil;
-  }
+  ProceduralBlock noInteractionAction = _noInteractionAction;
+  _noInteractionAction = nil;
   [[_alertController presentingViewController]
       dismissViewControllerAnimated:NO
                          completion:nil];
   [self alertDismissed];
+  if (noInteractionAction) {
+    // This callback might deallocate `self`. Nothing should be done after
+    // calling `noInteractionAction()`.
+    noInteractionAction();
+  }
 }
 
 #pragma mark - Property Implementation.
@@ -175,27 +146,12 @@
   return _message;
 }
 
-- (void)setCancelAction:(ProceduralBlock)cancelAction {
-  __weak AlertCoordinator* weakSelf = self;
-
-  self.rawCancelAction = cancelAction;
-
-  _cancelAction = [^{
-    AlertCoordinator* strongSelf = weakSelf;
-    [strongSelf setNoInteractionAction:nil];
-    if ([strongSelf rawCancelAction]) {
-      [strongSelf rawCancelAction]();
-    }
-  } copy];
-}
-
 #pragma mark - Private Methods.
 
 - (void)alertDismissed {
   self.visible = NO;
   _cancelButtonAdded = NO;
   _alertController = nil;
-  _cancelAction = nil;
   _noInteractionAction = nil;
 }
 

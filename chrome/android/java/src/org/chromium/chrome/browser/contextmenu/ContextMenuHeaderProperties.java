@@ -7,11 +7,13 @@ package org.chromium.chrome.browser.contextmenu;
 import android.graphics.Bitmap;
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
+@NullMarked
 class ContextMenuHeaderProperties {
     /** Invalid value for OVERRIDE_*_PIXEL resources */
     static final int INVALID_OVERRIDE = -1;
@@ -52,8 +54,17 @@ class ContextMenuHeaderProperties {
     public static final WritableIntPropertyKey OVERRIDE_HEADER_CIRCLE_BG_MARGIN_PIXEL =
             new WritableIntPropertyKey();
 
-    public static final PropertyKey[] ALL_KEYS = {TITLE, TITLE_MAX_LINES, URL,
-            TITLE_AND_URL_CLICK_LISTENER, URL_MAX_LINES, IMAGE, CIRCLE_BG_VISIBLE,
-            MONOGRAM_SIZE_PIXEL, OVERRIDE_HEADER_IMAGE_MAX_SIZE_PIXEL,
-            OVERRIDE_HEADER_CIRCLE_BG_SIZE_PIXEL, OVERRIDE_HEADER_CIRCLE_BG_MARGIN_PIXEL};
+    public static final PropertyKey[] ALL_KEYS = {
+        TITLE,
+        TITLE_MAX_LINES,
+        URL,
+        TITLE_AND_URL_CLICK_LISTENER,
+        URL_MAX_LINES,
+        IMAGE,
+        CIRCLE_BG_VISIBLE,
+        MONOGRAM_SIZE_PIXEL,
+        OVERRIDE_HEADER_IMAGE_MAX_SIZE_PIXEL,
+        OVERRIDE_HEADER_CIRCLE_BG_SIZE_PIXEL,
+        OVERRIDE_HEADER_CIRCLE_BG_MARGIN_PIXEL
+    };
 }

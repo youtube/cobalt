@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,34 +6,25 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/string_util.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/bookmarks/bookmark_editor.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
+#include "components/commerce/core/price_tracking_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/layout/fill_layout.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/view_utils.h"
 
 namespace {
-
-const std::u16string& GetBookmarkParentNameOrDefault(Profile* profile,
-                                                     const GURL& url) {
-  bookmarks::BookmarkModel* const model =
-      BookmarkModelFactory::GetForBrowserContext(profile);
-
-  if (bookmarks::IsBookmarkedByUser(model, url)) {
-    const bookmarks::BookmarkNode* existing_node =
-        model->GetMostRecentlyAddedUserNodeForURL(url);
-    return existing_node->parent()->GetTitle();
-  }
-  const bookmarks::BookmarkNode* node = model->other_node();
-  return node->GetTitle();
-}
 
 std::unique_ptr<views::StyledLabel> CreateBodyLabel(std::u16string& body_text) {
   return views::Builder<views::StyledLabel>()
@@ -45,6 +36,8 @@ std::unique_ptr<views::StyledLabel> CreateBodyLabel(std::u16string& body_text) {
 }
 
 }  // namespace
+
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kPriceTrackingBubbleDialogId);
 
 PriceTrackingBubbleDialogView::PriceTrackingBubbleDialogView(
     View* anchor_view,
@@ -58,21 +51,24 @@ PriceTrackingBubbleDialogView::PriceTrackingBubbleDialogView(
       profile_(profile),
       url_(url),
       type_(type) {
+  SetProperty(views::kElementIdentifierKey, kPriceTrackingBubbleDialogId);
   SetShowCloseButton(true);
   SetLayoutManager(std::make_unique<views::FillLayout>());
-  SetButtons(ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kCancel) |
+             static_cast<int>(ui::mojom::DialogButton::kOk));
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
 
-  auto folder_name = GetBookmarkParentNameOrDefault(profile_, url);
+  auto folder_name = commerce::GetBookmarkParentName(
+      BookmarkModelFactory::GetForBrowserContext(profile_), url);
 
   if (type == PriceTrackingBubbleDialogView::Type::TYPE_FIRST_USE_EXPERIENCE) {
     SetTitle(l10n_util::GetStringUTF16(
         IDS_OMNIBOX_TRACK_PRICE_DIALOG_TITLE_FIRST_RUN));
-    SetButtonLabel(ui::DIALOG_BUTTON_OK,
+    SetButtonLabel(ui::mojom::DialogButton::kOk,
                    l10n_util::GetStringUTF16(
                        IDS_OMNIBOX_TRACK_PRICE_DIALOG_ACTION_BUTTON));
-    SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+    SetButtonLabel(ui::mojom::DialogButton::kCancel,
                    l10n_util::GetStringUTF16(
                        IDS_OMNIBOX_TRACK_PRICE_DIALOG_CANCEL_BUTTON));
     SetAcceptCallback(base::BindOnce(&PriceTrackingBubbleDialogView::OnAccepted,
@@ -82,15 +78,16 @@ PriceTrackingBubbleDialogView::PriceTrackingBubbleDialogView(
                                      weak_factory_.GetWeakPtr(),
                                      base::DoNothing()));
     auto body_text = l10n_util::GetStringFUTF16(
-        IDS_OMNIBOX_TRACK_PRICE_DIALOG_DESCRIPTION_FIRST_RUN, folder_name);
+        IDS_OMNIBOX_TRACK_PRICE_DIALOG_DESCRIPTION_FIRST_RUN,
+        folder_name.value_or(std::u16string()));
     body_label_ = AddChildView(CreateBodyLabel(body_text));
   } else if (type == PriceTrackingBubbleDialogView::Type::TYPE_NORMAL) {
     SetTitle(
         l10n_util::GetStringUTF16(IDS_OMNIBOX_TRACKING_PRICE_DIALOG_TITLE));
-    SetButtonLabel(ui::DIALOG_BUTTON_OK,
+    SetButtonLabel(ui::mojom::DialogButton::kOk,
                    l10n_util::GetStringUTF16(
                        IDS_OMNIBOX_TRACKING_PRICE_DIALOG_ACTION_BUTTON));
-    SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+    SetButtonLabel(ui::mojom::DialogButton::kCancel,
                    l10n_util::GetStringUTF16(
                        IDS_OMNIBOX_TRACKING_PRICE_DIALOG_UNTRACK_BUTTON));
     SetAcceptCallback(base::BindOnce(&PriceTrackingBubbleDialogView::OnAccepted,
@@ -100,17 +97,33 @@ PriceTrackingBubbleDialogView::PriceTrackingBubbleDialogView(
                                      weak_factory_.GetWeakPtr(),
                                      std::move(on_track_price_callback)));
 
-    auto body_text = l10n_util::GetStringFUTF16(
-        IDS_OMNIBOX_TRACKING_PRICE_DIALOG_DESCRIPTION, folder_name);
+    const bookmarks::BookmarkNode* bookmark =
+        BookmarkModelFactory::GetForBrowserContext(profile_)
+            ->GetMostRecentlyAddedUserNodeForURL(url);
+
+    auto body_text =
+        l10n_util::GetStringUTF16(IDS_PRICE_TRACKING_SAVE_DESCRIPTION);
+
+    // If there is a bookmark, add the location and link text.
+    if (bookmark) {
+      auto bookmark_location = l10n_util::GetStringFUTF16(
+          IDS_PRICE_TRACKING_SAVE_LOCATION, folder_name.value());
+      body_text += u" " + bookmark_location;
+    }
+
     body_label_ = AddChildView(CreateBodyLabel(body_text));
-    // Offset the period at the end by minus one.
-    int32_t offset = body_text.length() - folder_name.length() - 1;
-    views::StyledLabel::RangeStyleInfo style_info =
-        views::StyledLabel::RangeStyleInfo::CreateForLink(base::BindRepeating(
-            &PriceTrackingBubbleDialogView::ShowBookmarkEditor,
-            weak_factory_.GetWeakPtr()));
-    body_label_->AddStyleRange(
-        gfx::Range(offset, offset + folder_name.length()), style_info);
+
+    // Only set up the bookmark link if there was a bookmark for the URL.
+    if (bookmark) {
+      // Offset the period at the end by minus one.
+      int32_t offset = body_text.length() - folder_name->length() - 1;
+      views::StyledLabel::RangeStyleInfo style_info =
+          views::StyledLabel::RangeStyleInfo::CreateForLink(base::BindRepeating(
+              &PriceTrackingBubbleDialogView::ShowBookmarkEditor,
+              weak_factory_.GetWeakPtr()));
+      body_label_->AddStyleRange(
+          gfx::Range(offset, offset + folder_name->length()), style_info);
+    }
   }
   SetMainImage(std::move(image_model));
   body_label_->SetFocusBehavior(View::FocusBehavior::ACCESSIBLE_ONLY);
@@ -161,6 +174,9 @@ void PriceTrackingBubbleDialogView::OnCanceled(
   }
   std::move(on_track_price_callback).Run(false);
 }
+
+BEGIN_METADATA(PriceTrackingBubbleDialogView)
+END_METADATA
 
 // PriceTrackingBubbleCoordinator
 PriceTrackingBubbleCoordinator::PriceTrackingBubbleCoordinator(

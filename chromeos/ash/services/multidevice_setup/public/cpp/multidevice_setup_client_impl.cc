@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <utility>
-
 #include "chromeos/ash/services/multidevice_setup/public/cpp/multidevice_setup_client_impl.h"
+
+#include <algorithm>
+#include <utility>
 
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/services/multidevice_setup/public/mojom/multidevice_setup.mojom.h"
@@ -137,15 +137,15 @@ void MultiDeviceSetupClientImpl::RemoveHostDevice() {
 
 const MultiDeviceSetupClient::HostStatusWithDevice&
 MultiDeviceSetupClientImpl::GetHostStatus() const {
-  PA_LOG(VERBOSE) << "Responding to GetHostStatus() with the following host = "
-                  << HostStatusWithDeviceToString(host_status_with_device_);
+  PA_LOG(INFO) << "Responding to GetHostStatus() with the following host = "
+               << HostStatusWithDeviceToString(host_status_with_device_);
   return host_status_with_device_;
 }
 
 void MultiDeviceSetupClientImpl::SetFeatureEnabledState(
     mojom::Feature feature,
     bool enabled,
-    const absl::optional<std::string>& auth_token,
+    const std::optional<std::string>& auth_token,
     mojom::MultiDeviceSetup::SetFeatureEnabledStateCallback callback) {
   multidevice_setup_remote_->SetFeatureEnabledState(
       feature, enabled, auth_token, std::move(callback));
@@ -175,7 +175,7 @@ void MultiDeviceSetupClientImpl::SetQuickStartPhoneInstanceID(
 
 void MultiDeviceSetupClientImpl::OnHostStatusChanged(
     mojom::HostStatus host_status,
-    const absl::optional<multidevice::RemoteDevice>& host_device) {
+    const std::optional<multidevice::RemoteDevice>& host_device) {
   if (host_device) {
     remote_device_cache_->SetRemoteDevices({*host_device});
     host_status_with_device_ = std::make_pair(
@@ -183,7 +183,7 @@ void MultiDeviceSetupClientImpl::OnHostStatusChanged(
                          host_device->instance_id, host_device->GetDeviceId()));
   } else {
     host_status_with_device_ =
-        std::make_pair(host_status, absl::nullopt /* host_device */);
+        std::make_pair(host_status, std::nullopt /* host_device */);
   }
 
   PA_LOG(INFO) << "Host status with device has changed. New status: "
@@ -207,12 +207,12 @@ void MultiDeviceSetupClientImpl::OnGetEligibleHostDevicesCompleted(
   remote_device_cache_->SetRemoteDevices(eligible_host_devices);
 
   multidevice::RemoteDeviceRefList eligible_host_device_refs;
-  base::ranges::transform(eligible_host_devices,
-                          std::back_inserter(eligible_host_device_refs),
-                          [this](const auto& device) {
-                            return *remote_device_cache_->GetRemoteDevice(
-                                device.instance_id, device.GetDeviceId());
-                          });
+  std::ranges::transform(eligible_host_devices,
+                         std::back_inserter(eligible_host_device_refs),
+                         [this](const auto& device) {
+                           return *remote_device_cache_->GetRemoteDevice(
+                               device.instance_id, device.GetDeviceId());
+                         });
 
   std::move(callback).Run(eligible_host_device_refs);
 }

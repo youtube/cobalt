@@ -10,9 +10,12 @@
 
 namespace blink {
 
+OriginTrialsTest* OriginTrialsTest::Create() {
+  return MakeGarbageCollected<OriginTrialsTest>();
+}
+
 bool OriginTrialsTest::throwingAttribute(ScriptState* script_state,
                                          ExceptionState& exception_state) {
-  String error_message;
   if (!RuntimeEnabledFeatures::OriginTrialsSampleAPIEnabled(
           ExecutionContext::From(script_state))) {
     exception_state.ThrowDOMException(

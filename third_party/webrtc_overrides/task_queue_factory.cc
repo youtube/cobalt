@@ -4,14 +4,16 @@
 
 #include "third_party/webrtc_overrides/task_queue_factory.h"
 
-#include <map>
 #include <memory>
+#include <string_view>
+#include <utility>
 
-#include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "base/task/delay_policy.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
@@ -22,7 +24,6 @@
 #include "third_party/webrtc/api/units/time_delta.h"
 #include "third_party/webrtc_overrides/api/location.h"
 #include "third_party/webrtc_overrides/coalesced_tasks.h"
-#include "third_party/webrtc_overrides/metronome_source.h"
 #include "third_party/webrtc_overrides/timer_based_tick_provider.h"
 
 namespace blink {
@@ -153,25 +154,26 @@ base::TaskTraits TaskQueuePriority2Traits(
   // employs a PostTask/Wait pattern that uses TQ in a way that makes it
   // blocking and synchronous, which is why we allow WithBaseSyncPrimitives()
   // for OS_ANDROID.
+  // The libvpx threading adapters also need to wait for an event.
   switch (priority) {
     case webrtc::TaskQueueFactory::Priority::HIGH:
 #if defined(OS_ANDROID)
-      return {base::WithBaseSyncPrimitives(), base::TaskPriority::HIGHEST};
+      return {base::MayBlock(), base::WithBaseSyncPrimitives(),
+              base::TaskPriority::HIGHEST};
 #else
-      return {base::TaskPriority::HIGHEST};
+      return {base::MayBlock(), base::TaskPriority::HIGHEST};
 #endif
     case webrtc::TaskQueueFactory::Priority::LOW:
       return {base::MayBlock(), base::TaskPriority::BEST_EFFORT};
     case webrtc::TaskQueueFactory::Priority::NORMAL:
     default:
 #if defined(OS_ANDROID)
-      return {base::WithBaseSyncPrimitives()};
-#elif defined(OS_WIN)
-      // On Windows, software encoders need to map HW frames which requires
-      // blocking calls:
-      return {base::MayBlock()};
+      return {base::MayBlock(), base::WithBaseSyncPrimitives()};
 #else
-      return {};
+      // On Windows, software encoders need to map HW frames which requires
+      // blocking calls.
+      // The libvpx threading adapters also need to wait for an event.
+      return {base::MayBlock()};
 #endif
   }
 }
@@ -185,7 +187,7 @@ CreateTaskQueueHelper(webrtc::TaskQueueFactory::Priority priority) {
 class WebrtcTaskQueueFactory final : public webrtc::TaskQueueFactory {
  public:
   std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>
-  CreateTaskQueue(absl::string_view name, Priority priority) const override {
+  CreateTaskQueue(std::string_view name, Priority priority) const override {
     return CreateTaskQueueHelper(priority);
   }
 };

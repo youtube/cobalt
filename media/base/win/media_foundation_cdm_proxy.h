@@ -5,9 +5,10 @@
 #ifndef MEDIA_BASE_WIN_MEDIA_FOUNDATION_CDM_PROXY_H_
 #define MEDIA_BASE_WIN_MEDIA_FOUNDATION_CDM_PROXY_H_
 
+#include <unknwn.h>
+
 #include <mfobjects.h>
 #include <stdint.h>
-#include <unknwn.h>
 #include <windef.h>
 
 #include "base/memory/ref_counted.h"
@@ -19,6 +20,8 @@ namespace media {
 class MediaFoundationCdmProxy
     : public base::RefCountedThreadSafe<MediaFoundationCdmProxy> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   // Used by MediaFoundationProtectionManager to get
   // ABI::Windows::Media::Protection::IMediaProtectionPMPServer to implement
   // ABI::Windows::Media::Protection::IMediaProtectionManager::get_Properties

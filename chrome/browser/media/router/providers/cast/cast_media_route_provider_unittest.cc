@@ -9,9 +9,8 @@
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/test_simple_task_runner.h"
-#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/media/router/providers/cast/cast_activity_manager.h"
 #include "chrome/browser/media/router/providers/cast/cast_session_tracker.h"
 #include "chrome/browser/media/router/providers/cast/mock_mirroring_activity.h"
@@ -24,7 +23,6 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/test/browser_task_environment.h"
-#include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -110,9 +108,9 @@ class CastMediaRouteProviderTest : public testing::Test {
   }
 
   void ExpectCreateRouteSuccessAndSetRoute(
-      const absl::optional<MediaRoute>& route,
+      const std::optional<MediaRoute>& route,
       mojom::RoutePresentationConnectionPtr presentation_connections,
-      const absl::optional<std::string>& error,
+      const std::optional<std::string>& error,
       mojom::RouteRequestResultCode result) {
     EXPECT_TRUE(route);
     EXPECT_TRUE(presentation_connections);
@@ -123,9 +121,9 @@ class CastMediaRouteProviderTest : public testing::Test {
 
   void ExpectCreateRouteFailure(
       mojom::RouteRequestResultCode expected_result,
-      const absl::optional<MediaRoute>& route,
+      const std::optional<MediaRoute>& route,
       mojom::RoutePresentationConnectionPtr presentation_connections,
-      const absl::optional<std::string>& error,
+      const std::optional<std::string>& error,
       mojom::RouteRequestResultCode result) {
     EXPECT_FALSE(route);
     EXPECT_FALSE(presentation_connections);
@@ -133,7 +131,7 @@ class CastMediaRouteProviderTest : public testing::Test {
     EXPECT_EQ(expected_result, result);
   }
 
-  void ExpectTerminateRouteSuccess(const absl::optional<std::string>& error,
+  void ExpectTerminateRouteSuccess(const std::optional<std::string>& error,
                                    mojom::RouteRequestResultCode result) {
     EXPECT_FALSE(error);
     EXPECT_EQ(mojom::RouteRequestResultCode::OK, result);
@@ -153,6 +151,19 @@ class CastMediaRouteProviderTest : public testing::Test {
     response.result = cast_channel::LaunchSessionResponse::Result::kError;
     std::move(launch_session_callback_).Run(std::move(response), nullptr);
     base::RunLoop().RunUntilIdle();
+  }
+
+  void UpdateSinkQueryAndExpectSinkReceived(
+      const std::vector<MediaSinkInternal>& expected_received_sinks,
+      const MediaSource::Id& source_id,
+      const std::vector<MediaSinkInternal>& discovered_sinks) {
+    base::RunLoop run_loop;
+    EXPECT_CALL(mock_router_, OnSinksReceived(mojom::MediaRouteProviderId::CAST,
+                                              _, expected_received_sinks, _))
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+    provider_->OnSinkQueryUpdated(source_id, discovered_sinks);
+    run_loop.Run();
+    Mock::VerifyAndClearExpectations(&mock_router_);
   }
 
  protected:
@@ -190,30 +201,11 @@ TEST_F(CastMediaRouteProviderTest, StartObservingMediaSinks) {
   EXPECT_TRUE(app_discovery_service_.callbacks().empty());
 }
 
-TEST_F(CastMediaRouteProviderTest, BroadcastRequest) {
-  media_sink_service_.AddOrUpdateSink(CreateCastSink(1));
-  media_sink_service_.AddOrUpdateSink(CreateCastSink(2));
-  MediaSource::Id source_id(
-      "cast:ABCDEFAB?capabilities=video_out,audio_out"
-      "&clientId=123"
-      "&broadcastNamespace=namespace"
-      "&broadcastMessage=message");
-
-  std::vector<std::string> app_ids = {"ABCDEFAB"};
-  cast_channel::BroadcastRequest request("namespace", "message");
-  EXPECT_CALL(message_handler_, SendBroadcastMessage(1, app_ids, request));
-  EXPECT_CALL(message_handler_, SendBroadcastMessage(2, app_ids, request));
-  EXPECT_CALL(app_discovery_service_, DoStartObservingMediaSinks(_)).Times(0);
-  provider_->StartObservingMediaSinks(source_id);
-  EXPECT_TRUE(app_discovery_service_.callbacks().empty());
-}
-
 TEST_F(CastMediaRouteProviderTest, CreateRouteFailsInvalidSink) {
   // Sink does not exist.
   provider_->CreateRoute(
       kCastSource, "sinkId", kPresentationId, origin_, kFrameTreeNodeId,
       kRouteTimeout,
-      /* incognito */ false,
       base::BindOnce(&CastMediaRouteProviderTest::ExpectCreateRouteFailure,
                      base::Unretained(this),
                      mojom::RouteRequestResultCode::SINK_NOT_FOUND));
@@ -225,7 +217,7 @@ TEST_F(CastMediaRouteProviderTest, CreateRouteFailsInvalidSource) {
 
   provider_->CreateRoute(
       "invalidSource", sink.sink().id(), kPresentationId, origin_,
-      kFrameTreeNodeId, kRouteTimeout, /* incognito */ false,
+      kFrameTreeNodeId, kRouteTimeout,
       base::BindOnce(&CastMediaRouteProviderTest::ExpectCreateRouteFailure,
                      base::Unretained(this),
                      mojom::RouteRequestResultCode::NO_SUPPORTED_PROVIDER));
@@ -234,22 +226,24 @@ TEST_F(CastMediaRouteProviderTest, CreateRouteFailsInvalidSource) {
 TEST_F(CastMediaRouteProviderTest, CreateRoute) {
   MediaSinkInternal sink = CreateCastSink(1);
   media_sink_service_.AddOrUpdateSink(sink);
+  auto quit_closure = task_environment_.QuitClosure();
 
   std::vector<std::string> default_supported_app_types = {"WEB"};
   EXPECT_CALL(
       message_handler_,
       LaunchSession(sink.cast_data().cast_channel_id, kAppId,
                     kDefaultLaunchTimeout, default_supported_app_types, _, _))
-      .WillOnce(WithArg<5>([this](auto callback) {
+      .WillOnce(WithArg<5>([&, this](auto callback) {
         launch_session_callback_ = std::move(callback);
+        quit_closure.Run();
       }));
   provider_->CreateRoute(
       kCastSource, sink.sink().id(), kPresentationId, origin_, kFrameTreeNodeId,
-      kRouteTimeout, /* incognito */ false,
+      kRouteTimeout,
       base::BindOnce(
           &CastMediaRouteProviderTest::ExpectCreateRouteSuccessAndSetRoute,
           base::Unretained(this)));
-  base::RunLoop().RunUntilIdle();
+  task_environment_.RunUntilQuit();
   SendLaunchSessionResponseSuccess();
   ASSERT_TRUE(route_);
 }
@@ -257,18 +251,20 @@ TEST_F(CastMediaRouteProviderTest, CreateRoute) {
 TEST_F(CastMediaRouteProviderTest, TerminateRoute) {
   MediaSinkInternal sink = CreateCastSink(1);
   media_sink_service_.AddOrUpdateSink(sink);
+  auto quit_closure = task_environment_.QuitClosure();
 
   EXPECT_CALL(message_handler_, LaunchSession)
-      .WillOnce(WithArg<5>([this](auto callback) {
+      .WillOnce(WithArg<5>([&, this](auto callback) {
         launch_session_callback_ = std::move(callback);
+        quit_closure.Run();
       }));
   provider_->CreateRoute(
       kCastSource, sink.sink().id(), kPresentationId, origin_, kFrameTreeNodeId,
-      kRouteTimeout, /* incognito */ false,
+      kRouteTimeout,
       base::BindOnce(
           &CastMediaRouteProviderTest::ExpectCreateRouteSuccessAndSetRoute,
           base::Unretained(this)));
-  base::RunLoop().RunUntilIdle();
+  task_environment_.RunUntilQuit();
   SendLaunchSessionResponseSuccess();
 
   ASSERT_TRUE(route_);
@@ -311,78 +307,70 @@ TEST_F(CastMediaRouteProviderTest, GetState) {
     ASSERT_EQ(cast_state.session_state.size(), 1UL);
     const mojom::CastSessionState& session_state =
         *(cast_state.session_state[0]);
-    EXPECT_EQ(session_state.sink_id, "cast:<id1>");
+    EXPECT_EQ(session_state.sink_id, "cast:id1");
     EXPECT_EQ(session_state.app_id, "ABCDEFGH");
     EXPECT_EQ(session_state.session_id, "theSessionId");
     EXPECT_EQ(session_state.route_description, "App status");
   }));
 }
 
+// MediaRemotingWithoutFullscreen is enabled on Win/Mac/Linux.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 TEST_F(CastMediaRouteProviderTest, GetRemotePlaybackCompatibleSinks) {
   MediaSinkInternal cc = CreateCastSinkWithModelName("Chromecast");
   MediaSinkInternal cc_ultra = CreateCastSinkWithModelName("Chromecast Ultra");
   MediaSinkInternal nest = CreateCastSinkWithModelName("Nest");
+  std::vector<MediaSinkInternal> all_sinks{cc, cc_ultra, nest};
 
-  // It should not update sinks for RemotePlayback MediaSource when the feature
-  // is disabled.
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+  UpdateSinkQueryAndExpectSinkReceived(
+      {cc, cc_ultra},
+      "remote-playback:media-session?tab_id=1&video_codec=h264&audio_codec=aac",
+      all_sinks);
+
+  UpdateSinkQueryAndExpectSinkReceived(
+      {cc_ultra},
+      "remote-playback:media-session?tab_id=1&video_codec=hevc&audio_codec=aac",
+      all_sinks);
+#else
+
+  UpdateSinkQueryAndExpectSinkReceived(
+      {},
+      "remote-playback:media-session?tab_id=1&video_codec=h264&audio_codec=aac",
+      all_sinks);
+
+  UpdateSinkQueryAndExpectSinkReceived(
+      {cc, cc_ultra},
+      "remote-playback:media-session?tab_id=1&video_codec=vp8&audio_codec=opus",
+      all_sinks);
+
+#endif
+
+  UpdateSinkQueryAndExpectSinkReceived(
+      {},
+      "remote-playback:media-session?tab_id=1&video_codec=unknown&audio_codec="
+      "unknown",
+      all_sinks);
+
+  UpdateSinkQueryAndExpectSinkReceived({},
+                                       "remote-playback:media-session?tab_id=1&"
+                                       "video_codec=vp8&audio_codec=unknown",
+                                       all_sinks);
+
+  UpdateSinkQueryAndExpectSinkReceived(
+      std::vector<MediaSinkInternal>{cc, cc_ultra},
+      "remote-playback:media-session?tab_id=1&video_codec=vp8", all_sinks);
+}
+#else
+// MediaRemotingWithoutFullscreen is disabled on other desktop platforms. The
+// Cast MRP should not update sinks for RemotePlayback MediaSource.
+TEST_F(CastMediaRouteProviderTest, GetRemotePlaybackCompatibleSinks) {
   EXPECT_CALL(mock_router_, OnSinksReceived(_, _, _, _)).Times(0);
   provider_->OnSinkQueryUpdated(
       "remote-playback:media-session?tab_id=1&video_codec=vp8&audio_codec=aac",
-      {cc, cc_ultra, nest});
-  base::RunLoop().RunUntilIdle();
-  Mock::VerifyAndClearExpectations(&mock_router_);
-
-  // Enable the feature and it should return sinks compatible with the
-  // RemotePlayback MediaSource.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(media::kMediaRemotingWithoutFullscreen);
-
-#if BUILDFLAG(USE_PROPRIETARY_CODECS)
-  EXPECT_CALL(mock_router_,
-              OnSinksReceived(mojom::MediaRouteProviderId::CAST, _,
-                              std::vector<MediaSinkInternal>{cc, cc_ultra}, _));
-  provider_->OnSinkQueryUpdated(
-      "remote-playback:media-session?tab_id=1&video_codec=h264&audio_codec=aac",
-      {cc, cc_ultra, nest});
-  base::RunLoop().RunUntilIdle();
-  Mock::VerifyAndClearExpectations(&mock_router_);
-
-  EXPECT_CALL(mock_router_,
-              OnSinksReceived(mojom::MediaRouteProviderId::CAST, _,
-                              std::vector<MediaSinkInternal>{cc_ultra}, _));
-  provider_->OnSinkQueryUpdated(
-      "remote-playback:media-session?tab_id=1&video_codec=hevc&audio_codec=aac",
-      {cc, cc_ultra, nest});
-  base::RunLoop().RunUntilIdle();
-  Mock::VerifyAndClearExpectations(&mock_router_);
-#else
-  EXPECT_CALL(mock_router_,
-              OnSinksReceived(mojom::MediaRouteProviderId::CAST, _,
-                              std::vector<MediaSinkInternal>{}, _));
-  provider_->OnSinkQueryUpdated(
-      "remote-playback:media-session?tab_id=1&video_codec=h264&audio_codec=aac",
-      {cc, cc_ultra, nest});
-  base::RunLoop().RunUntilIdle();
-  Mock::VerifyAndClearExpectations(&mock_router_);
-
-  EXPECT_CALL(mock_router_,
-              OnSinksReceived(mojom::MediaRouteProviderId::CAST, _,
-                              std::vector<MediaSinkInternal>{cc, cc_ultra}, _));
-  provider_->OnSinkQueryUpdated(
-      "remote-playback:media-session?tab_id=1&video_codec=vp8&audio_codec=opus",
-      {cc, cc_ultra, nest});
-  base::RunLoop().RunUntilIdle();
-  Mock::VerifyAndClearExpectations(&mock_router_);
-#endif
-
-  EXPECT_CALL(mock_router_,
-              OnSinksReceived(mojom::MediaRouteProviderId::CAST, _,
-                              std::vector<MediaSinkInternal>{}, _));
-  provider_->OnSinkQueryUpdated(
-      "remote-playback:media-session?tab_id=1&video_codec=vp8&audio_codec="
-      "invalid",
-      {cc, cc_ultra, nest});
+      {CreateCastSinkWithModelName("Chromecast")});
   base::RunLoop().RunUntilIdle();
   Mock::VerifyAndClearExpectations(&mock_router_);
 }
+#endif
 }  // namespace media_router

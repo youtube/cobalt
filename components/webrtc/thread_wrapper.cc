@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -21,8 +22,6 @@
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/webrtc/rtc_base/physical_socket_server.h"
 #include "third_party/webrtc_overrides/api/location.h"
 #include "third_party/webrtc_overrides/metronome_source.h"
@@ -33,7 +32,7 @@ namespace {
 
 constexpr base::TimeDelta kTaskLatencySampleDuration = base::Seconds(3);
 
-ABSL_CONST_INIT thread_local ThreadWrapper* jingle_thread_wrapper = nullptr;
+constinit thread_local ThreadWrapper* jingle_thread_wrapper = nullptr;
 
 }  // namespace
 
@@ -43,7 +42,7 @@ ABSL_CONST_INIT thread_local ThreadWrapper* jingle_thread_wrapper = nullptr;
 class ThreadWrapper::PostTaskLatencySampler {
  public:
   PostTaskLatencySampler(
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      ::scoped_refptr<base::SingleThreadTaskRunner> task_runner,
       SampledDurationCallback task_latency_callback)
       : task_runner_(task_runner),
         task_latency_callback_(std::move(task_latency_callback)) {
@@ -83,19 +82,19 @@ class ThreadWrapper::PostTaskLatencySampler {
   }
 
   SEQUENCE_CHECKER(current_);
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  ::scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   base::RepeatingCallback<void(base::TimeDelta)> task_latency_callback_
       GUARDED_BY_CONTEXT(current_);
   bool should_sample_next_task_duration_ GUARDED_BY_CONTEXT(current_) = false;
 };
 
 struct ThreadWrapper::PendingSend {
-  explicit PendingSend(rtc::FunctionView<void()> functor)
+  explicit PendingSend(webrtc::FunctionView<void()> functor)
       : functor(functor),
         done_event(base::WaitableEvent::ResetPolicy::MANUAL,
                    base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
-  rtc::FunctionView<void()> functor;
+  webrtc::FunctionView<void()> functor;
   base::WaitableEvent done_event;
 };
 
@@ -107,11 +106,11 @@ void ThreadWrapper::EnsureForCurrentMessageLoop() {
     base::CurrentThread::Get()->AddDestructionObserver(wrapper.release());
   }
 
-  DCHECK_EQ(rtc::Thread::Current(), current());
+  DCHECK_EQ(webrtc::Thread::Current(), current());
 }
 
 std::unique_ptr<ThreadWrapper> ThreadWrapper::WrapTaskRunner(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
+    ::scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
   DCHECK(task_runner->BelongsToCurrentThread());
   return base::WrapUnique(new ThreadWrapper(task_runner));
 }
@@ -129,41 +128,41 @@ void ThreadWrapper::SetLatencyAndTaskDurationCallbacks(
 }
 
 ThreadWrapper::ThreadWrapper(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner)
-    : Thread(std::make_unique<rtc::PhysicalSocketServer>()),
+    ::scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+    : Thread(std::make_unique<webrtc::PhysicalSocketServer>()),
       resetter_(&jingle_thread_wrapper, this, nullptr),
       task_runner_(task_runner),
       send_allowed_(false),
       pending_send_event_(base::WaitableEvent::ResetPolicy::MANUAL,
                           base::WaitableEvent::InitialState::NOT_SIGNALED) {
   DCHECK(task_runner->BelongsToCurrentThread());
-  DCHECK(!rtc::Thread::Current());
+  DCHECK(!webrtc::Thread::Current());
   weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
-  rtc::ThreadManager::Add(this);
+  webrtc::ThreadManager::Add(this);
   SafeWrapCurrent();
 }
 
 ThreadWrapper::~ThreadWrapper() {
   DCHECK_EQ(this, ThreadWrapper::current());
-  DCHECK_EQ(this, rtc::Thread::Current());
+  DCHECK_EQ(this, webrtc::Thread::Current());
 
   UnwrapCurrent();
-  rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
-  rtc::ThreadManager::Remove(this);
+  webrtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
+  webrtc::ThreadManager::Remove(this);
 
   CHECK(pending_send_messages_.empty());
   coalesced_tasks_.Clear();
 }
 
-rtc::SocketServer* ThreadWrapper::SocketServer() {
-  return rtc::Thread::socketserver();
+webrtc::SocketServer* ThreadWrapper::SocketServer() {
+  return webrtc::Thread::socketserver();
 }
 
 void ThreadWrapper::WillDestroyCurrentMessageLoop() {
   delete this;
 }
 
-void ThreadWrapper::BlockingCallImpl(rtc::FunctionView<void()> functor,
+void ThreadWrapper::BlockingCallImpl(webrtc::FunctionView<void()> functor,
                                      const webrtc::Location& location) {
   ThreadWrapper* current_thread = ThreadWrapper::current();
   DCHECK(current_thread != nullptr) << "BlockingCall() can be called only from "
@@ -262,12 +261,12 @@ void ThreadWrapper::PostDelayedTaskImpl(absl::AnyInvocable<void() &&> task,
   }
 }
 
-absl::optional<base::TimeTicks> ThreadWrapper::PrepareRunTask() {
+std::optional<base::TimeTicks> ThreadWrapper::PrepareRunTask() {
   if (!latency_sampler_ && task_latency_callback_) {
     latency_sampler_ = std::make_unique<PostTaskLatencySampler>(
         task_runner_, std::move(task_latency_callback_));
   }
-  absl::optional<base::TimeTicks> task_start_timestamp;
+  std::optional<base::TimeTicks> task_start_timestamp;
   if (!task_duration_callback_.is_null() && latency_sampler_ &&
       latency_sampler_->ShouldSampleNextTaskDuration()) {
     task_start_timestamp = base::TimeTicks::Now();
@@ -276,7 +275,7 @@ absl::optional<base::TimeTicks> ThreadWrapper::PrepareRunTask() {
 }
 
 void ThreadWrapper::RunTaskQueueTask(absl::AnyInvocable<void() &&> task) {
-  absl::optional<base::TimeTicks> task_start_timestamp = PrepareRunTask();
+  std::optional<base::TimeTicks> task_start_timestamp = PrepareRunTask();
 
   std::move(task)();
   task = nullptr;
@@ -296,14 +295,13 @@ void ThreadWrapper::RunCoalescedTaskQueueTasks(base::TimeTicks scheduled_time) {
 }
 
 void ThreadWrapper::FinalizeRunTask(
-    absl::optional<base::TimeTicks> task_start_timestamp) {
+    std::optional<base::TimeTicks> task_start_timestamp) {
   if (task_start_timestamp.has_value())
     task_duration_callback_.Run(base::TimeTicks::Now() - *task_start_timestamp);
 }
 
 bool ThreadWrapper::IsQuitting() {
   NOTREACHED();
-  return false;
 }
 
 // All methods below are marked as not reached. See comments in the
@@ -318,7 +316,6 @@ void ThreadWrapper::Restart() {
 
 int ThreadWrapper::GetDelay() {
   NOTREACHED();
-  return 0;
 }
 
 void ThreadWrapper::Stop() {

@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/animation/ink_drop_host.h"
 
@@ -50,9 +50,11 @@ class InkDropHostTestApi {
 
   InkDropMode ink_drop_mode() const { return ink_drop_host_->ink_drop_mode_; }
 
+  void RemoveInkDropMask();
+
  private:
   // The InkDropHost to provide internal access to.
-  raw_ptr<InkDropHost, DanglingUntriaged> ink_drop_host_;
+  const raw_ref<InkDropHost> ink_drop_host_;
 };
 
 }  // namespace views::test

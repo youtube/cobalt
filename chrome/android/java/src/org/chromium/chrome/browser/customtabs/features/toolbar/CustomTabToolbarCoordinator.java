@@ -4,12 +4,9 @@
 
 package org.chromium.chrome.browser.customtabs.features.toolbar;
 
-import static org.chromium.chrome.browser.dependency_injection.ChromeCommonQualifiers.APP_CONTEXT;
-
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.net.Uri;
@@ -18,95 +15,152 @@ import android.view.View;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
-import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
+import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.TitleVisibility;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.customtabs.CloseButtonVisibilityManager;
 import org.chromium.chrome.browser.customtabs.CustomTabCompositorContentInitializer;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityNavigationController;
-import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabController;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.share.ShareDelegateSupplier;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab_ui.TabModelDotInfo;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
+import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
+import org.chromium.chrome.browser.ui.web_app_header.WebAppHeaderUtils;
+import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.share.ShareHelper;
+import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.util.TokenHolder;
 import org.chromium.url.GURL;
-
-import javax.inject.Inject;
-import javax.inject.Named;
-
-import dagger.Lazy;
 
 /**
  * Works with the toolbar in a Custom Tab. Encapsulates interactions with Chrome's toolbar-related
  * classes such as {@link ToolbarManager} and {@link BrowserControlsVisibilityManager}.
  *
- * TODO(pshmakov):
+ * <p>TODO(pshmakov): <br>
  * 1. Reduce the coupling between Custom Tab toolbar and Chrome's common code. In particular,
  * ToolbarLayout has Custom Tab specific methods that throw unless we're in a Custom Tab - we need a
- * better design.
+ * better design. <br>
  * 2. Make toolbar lazy. E.g. in Trusted Web Activities we always start without toolbar - delay
- * executing any initialization code and creating {@link ToolbarManager} until the toolbar needs
- * to appear.
+ * executing any initialization code and creating {@link ToolbarManager} until the toolbar needs to
+ * appear. <br>
  * 3. Refactor to MVC.
  */
-@ActivityScope
 public class CustomTabToolbarCoordinator {
     private final BrowserServicesIntentDataProvider mIntentDataProvider;
     private final CustomTabActivityTabProvider mTabProvider;
-    private final CustomTabsConnection mConnection;
     private final Activity mActivity;
-    private final Context mAppContext;
-    private final CustomTabActivityTabController mTabController;
-    private final Lazy<BrowserControlsVisibilityManager> mBrowserControlsVisibilityManager;
+    private final ActivityWindowAndroid mWindowAndroid;
+    private final BrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
     private final CustomTabActivityNavigationController mNavigationController;
     private final CloseButtonVisibilityManager mCloseButtonVisibilityManager;
     private final CustomTabBrowserControlsVisibilityDelegate mVisibilityDelegate;
     private final CustomTabToolbarColorController mToolbarColorController;
+    private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
 
-    @Nullable
-    private ToolbarManager mToolbarManager;
+    @Nullable private ToolbarManager mToolbarManager;
+    @Nullable private DesktopWindowStateManager.AppHeaderObserver mAppHeaderObserver;
 
     private int mControlsHidingToken = TokenHolder.INVALID_TOKEN;
+    private int mMenuButtonHideToken = TokenHolder.INVALID_TOKEN;
     private boolean mInitializedToolbarWithNative;
-    private PendingIntent.OnFinished mCustomButtonClickOnFinished;
+    private PendingIntent.OnFinished mButtonClickOnFinishedForTesting;
 
     private static final String TAG = "CustomTabToolbarCoor";
 
-    @Inject
-    public CustomTabToolbarCoordinator(BrowserServicesIntentDataProvider intentDataProvider,
-            CustomTabActivityTabProvider tabProvider, CustomTabsConnection connection,
-            Activity activity, @Named(APP_CONTEXT) Context appContext,
-            CustomTabActivityTabController tabController,
-            Lazy<BrowserControlsVisibilityManager> controlsVisiblityManager,
+    public CustomTabToolbarCoordinator(
+            BrowserServicesIntentDataProvider intentDataProvider,
+            CustomTabActivityTabProvider tabProvider,
+            Activity activity,
+            ActivityWindowAndroid windowAndroid,
+            BrowserControlsVisibilityManager browserControlsVisibilityManager,
             CustomTabActivityNavigationController navigationController,
             CloseButtonVisibilityManager closeButtonVisibilityManager,
             CustomTabBrowserControlsVisibilityDelegate visibilityDelegate,
-            CustomTabCompositorContentInitializer compositorContentInitializer,
-            CustomTabToolbarColorController toolbarColorController) {
+            CustomTabToolbarColorController toolbarColorController,
+            @Nullable DesktopWindowStateManager desktopWindowStateManager,
+            CustomTabCompositorContentInitializer customTabCompositorContentInitializer) {
         mIntentDataProvider = intentDataProvider;
         mTabProvider = tabProvider;
-        mConnection = connection;
         mActivity = activity;
-        mAppContext = appContext;
-        mTabController = tabController;
-        mBrowserControlsVisibilityManager = controlsVisiblityManager;
+        mWindowAndroid = windowAndroid;
+        mBrowserControlsVisibilityManager = browserControlsVisibilityManager;
         mNavigationController = navigationController;
         mCloseButtonVisibilityManager = closeButtonVisibilityManager;
         mVisibilityDelegate = visibilityDelegate;
         mToolbarColorController = toolbarColorController;
+        mDesktopWindowStateManager = desktopWindowStateManager;
 
-        compositorContentInitializer.addCallback(this::onCompositorContentInitialized);
+        customTabCompositorContentInitializer.addCallback(this::onCompositorContentInitialized);
+        observeDesktopWindowingState();
+    }
+
+    private void observeDesktopWindowingState() {
+        if (!WebAppHeaderUtils.isMinimalUiEnabled(mIntentDataProvider)) {
+            return;
+        }
+        // Guaranteed by the check above.
+        assert mDesktopWindowStateManager != null;
+
+        mAppHeaderObserver =
+                new DesktopWindowStateManager.AppHeaderObserver() {
+                    @Override
+                    public void onDesktopWindowingModeChanged(boolean isInDesktopWindow) {
+                        updateTitleBarVisibility();
+                        updateToolbarControlsVisibilityForDesktopWindowing();
+                    }
+                };
+        mDesktopWindowStateManager.addObserver(mAppHeaderObserver);
+    }
+
+    private void updateTitleBarVisibility() {
+        if (mToolbarManager == null) return;
+
+        int titleVisibilityState =
+                CustomTabsConnection.getInstance().getTitleVisibilityState(mIntentDataProvider);
+        switch (titleVisibilityState) {
+            case TitleVisibility.HIDDEN:
+                mToolbarManager.setShowTitle(false);
+                break;
+            case TitleVisibility.VISIBLE:
+                mToolbarManager.setShowTitle(true);
+                break;
+            case TitleVisibility.VISIBLE_IN_DESKTOP:
+                mToolbarManager.setShowTitle(
+                        AppHeaderUtils.isAppInDesktopWindow(mDesktopWindowStateManager));
+                break;
+            default:
+                assert false;
+        }
+    }
+
+    private void updateToolbarControlsVisibilityForDesktopWindowing() {
+        if (mToolbarManager == null) return;
+
+        boolean isInDesktopWindow = AppHeaderUtils.isAppInDesktopWindow(mDesktopWindowStateManager);
+        mToolbarManager.setCustomActionsVisibility(!isInDesktopWindow);
+
+        if (isInDesktopWindow) {
+            mMenuButtonHideToken = mToolbarManager.hideMenuButtonPersistently(mMenuButtonHideToken);
+        } else {
+            mToolbarManager.releaseHideMenuButtonToken(mMenuButtonHideToken);
+        }
     }
 
     /**
@@ -118,17 +172,23 @@ public class CustomTabToolbarCoordinator {
         assert manager != null : "Toolbar manager not initialized";
         mToolbarManager = manager;
         mToolbarColorController.onToolbarInitialized(manager);
+        mCloseButtonVisibilityManager.setVisibility(mIntentDataProvider.isCloseButtonEnabled());
         mCloseButtonVisibilityManager.onToolbarInitialized(manager);
+        updateTitleBarVisibility();
 
-        manager.setShowTitle(
-                mIntentDataProvider.getTitleVisibilityState() == CustomTabsIntent.SHOW_PAGE_TITLE);
-        if (mConnection.shouldHideDomainForSession(mIntentDataProvider.getSession())) {
+        if (CustomTabsConnection.getInstance()
+                .shouldHideDomainForSession(mIntentDataProvider.getSession())) {
             manager.setUrlBarHidden(true);
         }
         if (mIntentDataProvider.isMediaViewer()) {
             manager.setToolbarShadowVisibility(View.GONE);
         }
         showCustomButtonsOnToolbar();
+
+        if (WebAppHeaderUtils.isMinimalUiEnabled(mIntentDataProvider)
+                && mDesktopWindowStateManager != null) {
+            updateToolbarControlsVisibilityForDesktopWindowing();
+        }
     }
 
     /**
@@ -142,11 +202,33 @@ public class CustomTabToolbarCoordinator {
         }
     }
 
-    private void onCustomButtonClick(CustomButtonParams params) {
+    public void onCustomButtonClick(CustomButtonParams params) {
         Tab tab = mTabProvider.getTab();
         if (tab == null) return;
 
-        sendButtonPendingIntentWithUrlAndTitle(params, tab.getOriginalUrl(), tab.getTitle());
+        // The share button from CCT should have custom actions, however if the
+        // ShareDelegateSupplier is null, we should fallback to the default share action without
+        // custom buttons.
+        Supplier<ShareDelegate> supplier = ShareDelegateSupplier.from(mWindowAndroid);
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.SHARE_CUSTOM_ACTIONS_IN_CCT)
+                && params.getType() == CustomButtonParams.ButtonType.CCT_SHARE_BUTTON
+                && supplier != null
+                && supplier.get() != null) {
+            supplier.get()
+                    .share(
+                            tab,
+                            /* shareDirectly= */ false,
+                            ShareDelegate.ShareOrigin.CUSTOM_TAB_SHARE_BUTTON);
+        } else if (params.getType() == CustomButtonParams.ButtonType.CCT_OPEN_IN_BROWSER_BUTTON) {
+            RecordUserAction.record("CustomTabs.ToolbarOpenInBrowserClicked");
+            // Need to notify *before* opening in browser, to ensure engagement signal will be fired
+            // correctly.
+            CustomTabsConnection.getInstance()
+                    .notifyOpenInBrowser(mIntentDataProvider.getSession(), tab);
+            mNavigationController.openCurrentUrlInBrowser();
+        } else {
+            sendButtonPendingIntentWithUrlAndTitle(params, tab.getOriginalUrl(), tab.getTitle());
+        }
 
         RecordUserAction.record("CustomTabsCustomActionButtonClick");
         Resources resources = mActivity.getResources();
@@ -171,9 +253,16 @@ public class CustomTabToolbarCoordinator {
         addedIntent.putExtra(Intent.EXTRA_SUBJECT, title);
         try {
             ActivityOptions options = ActivityOptions.makeBasic();
-            ApiCompatibilityUtils.setActivityOptionsBackgroundActivityStartMode(options);
-            params.getPendingIntent().send(mAppContext, 0, addedIntent,
-                    mCustomButtonClickOnFinished, null, null, options.toBundle());
+            ApiCompatibilityUtils.setActivityOptionsBackgroundActivityStartAllowAlways(options);
+            params.getPendingIntent()
+                    .send(
+                            ContextUtils.getApplicationContext(),
+                            0,
+                            addedIntent,
+                            mButtonClickOnFinishedForTesting,
+                            null,
+                            null,
+                            options.toBundle());
         } catch (PendingIntent.CanceledException e) {
             Log.e(TAG, "CanceledException while sending pending intent in custom tab");
         }
@@ -181,7 +270,15 @@ public class CustomTabToolbarCoordinator {
 
     private void onCompositorContentInitialized(LayoutManagerImpl layoutDriver) {
         mToolbarManager.initializeWithNative(
-                layoutDriver, null, null, null, v -> onCloseButtonClick(), null);
+                layoutDriver,
+                /* stripLayoutHelperManager= */ null,
+                /* openGridTabSwitcherHandler= */ null,
+                /* bookmarkClickHandler= */ null,
+                /* customTabsBackClickHandler= */ v -> onCloseButtonClick(),
+                /* archivedTabCountSupplier= */ null,
+                /* tabModelNotificationDotSupplier= */ new ObservableSupplierImpl<TabModelDotInfo>(
+                        TabModelDotInfo.HIDE),
+                /* undoBarThrottle= */ null);
         mInitializedToolbarWithNative = true;
     }
 
@@ -198,27 +295,22 @@ public class CustomTabToolbarCoordinator {
         mVisibilityDelegate.setControlsState(controlsState);
         if (controlsState == BrowserControlsState.HIDDEN) {
             mControlsHidingToken =
-                    mBrowserControlsVisibilityManager.get().hideAndroidControlsAndClearOldToken(
+                    mBrowserControlsVisibilityManager.hideAndroidControlsAndClearOldToken(
                             mControlsHidingToken);
         } else {
-            mBrowserControlsVisibilityManager.get().releaseAndroidControlsHidingToken(
+            mBrowserControlsVisibilityManager.releaseAndroidControlsHidingToken(
                     mControlsHidingToken);
         }
     }
 
-    /**
-     * Shows toolbar temporarily, for a few seconds.
-     */
+    /** Shows toolbar temporarily, for a few seconds. */
     public void showToolbarTemporarily() {
-        mBrowserControlsVisibilityManager.get()
-                .getBrowserVisibilityDelegate()
-                .showControlsTransient();
+        mBrowserControlsVisibilityManager.getBrowserVisibilityDelegate().showControlsTransient();
     }
 
     /**
      * Updates a custom button with a new icon and description. Provided {@link CustomButtonParams}
-     * must have the updated data.
-     * Returns whether has succeeded.
+     * must have the updated data. Returns whether has succeeded.
      */
     public boolean updateCustomButton(CustomButtonParams params) {
         if (!params.doesIconFitToolbar(mActivity)) {
@@ -249,9 +341,14 @@ public class CustomTabToolbarCoordinator {
     /**
      * Set the callback object for the {@link PendingIntent} which is sent by the custom buttons.
      */
-    @VisibleForTesting
     public void setCustomButtonPendingIntentOnFinishedForTesting(
             PendingIntent.OnFinished onFinished) {
-        mCustomButtonClickOnFinished = onFinished;
+        mButtonClickOnFinishedForTesting = onFinished;
+        ResettersForTesting.register(() -> mButtonClickOnFinishedForTesting = null);
+    }
+
+    @VisibleForTesting
+    DesktopWindowStateManager.AppHeaderObserver getAppHeaderObserver() {
+        return mAppHeaderObserver;
     }
 }

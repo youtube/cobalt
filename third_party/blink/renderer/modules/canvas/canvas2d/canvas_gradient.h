@@ -27,16 +27,27 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_GRADIENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_GRADIENT_H_
 
+#include "base/memory/scoped_refptr.h"
+#include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_color_interpolation_method.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_hue_interpolation_method.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/identifiability_study_helper.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/graphics/gradient.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/blink/renderer/platform/heap/forward.h"  // IWYU pragma: keep (blink::Visitor)
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+
+// IWYU pragma: no_include "third_party/blink/renderer/platform/heap/visitor.h"
+
+namespace gfx {
+class PointF;
+}  // namespace gfx
 
 namespace blink {
 
 class ExceptionState;
+class ExecutionContext;
 
 class MODULES_EXPORT CanvasGradient final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
@@ -63,9 +74,33 @@ class MODULES_EXPORT CanvasGradient final : public ScriptWrappable {
 
   void Trace(Visitor* visitor) const override;
 
+  V8ColorInterpolationMethod colorInterpolationMethod() const {
+    return color_interpolation_method_;
+  }
+  void setColorInterpolationMethod(
+      const V8ColorInterpolationMethod& color_interpolation_method);
+
+  V8HueInterpolationMethod hueInterpolationMethod() const {
+    return hue_interpolation_method_;
+  }
+  void setHueInterpolationMethod(
+      const V8HueInterpolationMethod& hue_interpolation_method);
+
+  bool premultipliedAlpha() const { return premultiplied_alpha_; }
+  void setPremultipliedAlpha(bool premultiplied_alpha) {
+    premultiplied_alpha_ = premultiplied_alpha;
+    gradient_->SetPremultipliedAlphaForInterpolation(premultiplied_alpha);
+  }
+
  private:
   scoped_refptr<Gradient> gradient_;
   IdentifiabilityStudyHelper identifiability_study_helper_;
+
+  V8ColorInterpolationMethod color_interpolation_method_{
+      V8ColorInterpolationMethod::Enum::kSRGB};
+  V8HueInterpolationMethod hue_interpolation_method_{
+      V8HueInterpolationMethod::Enum::kShorter};
+  bool premultiplied_alpha_ = false;
 };
 
 }  // namespace blink

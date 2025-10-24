@@ -27,9 +27,8 @@ class RenderFrameProxyHost;
 class WebContentsImpl;
 
 // This is the browser-side host object for the <fencedframe> element
-// implemented in Blink. This is only used for the MPArch version of fenced
-// frames, not the ShadowDOM implementation. It is owned by and stored directly
-// on `RenderFrameHostImpl`.
+// implemented in Blink. It is owned by and stored directly on
+// `RenderFrameHostImpl`.
 class CONTENT_EXPORT FencedFrame : public blink::mojom::FencedFrameOwnerHost,
                                    public FrameTree::Delegate,
                                    public NavigationControllerDelegate {
@@ -56,7 +55,7 @@ class CONTENT_EXPORT FencedFrame : public blink::mojom::FencedFrameOwnerHost,
   // blink::mojom::FencedFrameOwnerHost implementation.
   void Navigate(const GURL& url,
                 base::TimeTicks navigation_start_time,
-                const absl::optional<std::u16string>&
+                const std::optional<std::u16string>&
                     embedder_shared_storage_context) override;
   void DidChangeFramePolicy(const blink::FramePolicy& frame_policy) override;
 
@@ -65,11 +64,15 @@ class CONTENT_EXPORT FencedFrame : public blink::mojom::FencedFrameOwnerHost,
   void DidStartLoading(FrameTreeNode* frame_tree_node) override {}
   void DidStopLoading() override {}
   bool IsHidden() override;
-  int GetOuterDelegateFrameTreeNodeId() override;
+  FrameTreeNodeId GetOuterDelegateFrameTreeNodeId() override;
   RenderFrameHostImpl* GetProspectiveOuterDocument() override;
-  bool IsPortal() override;
   FrameTree* LoadingTree() override;
   void SetFocusedFrame(FrameTreeNode* node, SiteInstanceGroup* source) override;
+  FrameTree* GetOwnedPictureInPictureFrameTree() override;
+  FrameTree* GetPictureInPictureOpenerFrameTree() override;
+  bool OnRenderFrameProxyVisibilityChanged(
+      RenderFrameProxyHost* render_frame_proxy_host,
+      blink::mojom::FrameVisibility visibility) override;
 
   // Returns the devtools frame token of the fenced frame's inner FrameTree's
   // main frame.
@@ -90,7 +93,6 @@ class CONTENT_EXPORT FencedFrame : public blink::mojom::FencedFrameOwnerHost,
   void NotifyNavigationEntriesDeleted() override;
   void ActivateAndShowRepostFormWarningDialog() override;
   bool ShouldPreserveAbortedURLs() override;
-  WebContents* DeprecatedGetWebContents() override;
   void UpdateOverridingUserAgent() override;
 
   const raw_ptr<WebContentsImpl> web_contents_;

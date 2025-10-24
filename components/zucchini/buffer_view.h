@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef COMPONENTS_ZUCCHINI_BUFFER_VIEW_H_
 #define COMPONENTS_ZUCCHINI_BUFFER_VIEW_H_
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
+#include <algorithm>
 #include <type_traits>
 
 #include "base/check_op.h"
-#include "base/ranges/algorithm.h"
 #include "components/zucchini/algorithm.h"
 
 namespace zucchini {
@@ -124,11 +130,13 @@ class BufferViewBase {
   }
 
   template <class U>
-  const U& read(size_type pos) const {
+  U read(size_type pos) const {
     // TODO(huangs): Use can_access<U>(pos) after fixing can_access().
     CHECK_LE(sizeof(U), size());
     CHECK_LE(pos, size() - sizeof(U));
-    return *reinterpret_cast<const U*>(begin() + pos);
+    U ret = {};
+    ::memcpy(&ret, begin() + pos, sizeof(U));
+    return ret;
   }
 
   template <class U>
@@ -136,17 +144,7 @@ class BufferViewBase {
     // TODO(huangs): Use can_access<U>(pos) after fixing can_access().
     CHECK_LE(sizeof(U), size());
     CHECK_LE(pos, size() - sizeof(U));
-    *reinterpret_cast<U*>(begin() + pos) = value;
-  }
-
-  // Returns a mutable reference to an object type U whose raw storage starts
-  // at location |pos|.
-  template <class U>
-  U& modify(size_type pos) {
-    // TODO(huangs): Use can_access<U>(pos) after fixing can_access().
-    CHECK_LE(sizeof(U), size());
-    CHECK_LE(pos, size() - sizeof(U));
-    return *reinterpret_cast<U*>(begin() + pos);
+    ::memcpy(begin() + pos, &value, sizeof(U));
   }
 
   template <class U>
@@ -160,7 +158,7 @@ class BufferViewBase {
   BufferRegion local_region() const { return BufferRegion{0, size()}; }
 
   bool equals(BufferViewBase other) const {
-    return base::ranges::equal(*this, other);
+    return std::ranges::equal(*this, other);
   }
 
   // Modifiers

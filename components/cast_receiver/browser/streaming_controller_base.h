@@ -5,11 +5,11 @@
 #ifndef COMPONENTS_CAST_RECEIVER_BROWSER_STREAMING_CONTROLLER_BASE_H_
 #define COMPONENTS_CAST_RECEIVER_BROWSER_STREAMING_CONTROLLER_BASE_H_
 
-#include "components/cast_receiver/browser/streaming_controller.h"
-
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
+#include "components/cast_receiver/browser/streaming_controller.h"
 #include "components/cast_streaming/browser/public/receiver_config.h"
 #include "components/cast_streaming/browser/public/receiver_session.h"
 #include "components/cast_streaming/common/public/mojom/demuxer_connector.mojom.h"
@@ -79,8 +79,8 @@ class StreamingControllerBase : public StreamingController,
   PlaybackStartedCB playback_started_cb_;
 
   // Populated in InitializeReceiverSession()
-  absl::optional<cast_streaming::ReceiverConfig> config_ = absl::nullopt;
-  cast_streaming::ReceiverSession::Client* client_ = nullptr;
+  std::optional<cast_streaming::ReceiverConfig> config_ = std::nullopt;
+  raw_ptr<cast_streaming::ReceiverSession::Client> client_ = nullptr;
 
   // Mojo connections. Initially populated in MainFrameReadyToCommitNavigation()
   // with connections to the Renderer process, and transferred to

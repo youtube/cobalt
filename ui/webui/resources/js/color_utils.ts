@@ -6,7 +6,7 @@
  * @fileoverview Helper functions for color manipulations.
  */
 
-import {SkColor} from '//resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
+import type {SkColor} from '//resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 
 /**
  * Converts an SkColor object to a string in the form
@@ -20,6 +20,21 @@ export function skColorToRgba(skColor: SkColor): string {
   const g = (skColor.value >> 8) & 0xff;
   const b = skColor.value & 0xff;
   return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(2)})`;
+}
+
+/**
+ * Converts an SkColor object to a string in the the form "#rrggbb".
+ * @param skColor The input color.
+ * @return The hex color string,
+ */
+export function skColorToHexColor(skColor: SkColor): string {
+  const r = (skColor.value >> 16) & 0xff;
+  const g = (skColor.value >> 8) & 0xff;
+  const b = skColor.value & 0xff;
+  const rHex = r.toString(16).padStart(2, '0');
+  const gHex = g.toString(16).padStart(2, '0');
+  const bHex = b.toString(16).padStart(2, '0');
+  return `#${rHex}${gHex}${bHex}`;
 }
 
 /**

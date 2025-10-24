@@ -14,7 +14,7 @@ namespace quic {
 // Records a QUIC trace protocol buffer for a QuicConnection.  It's the
 // responsibility of the user of this visitor to process or store the resulting
 // trace, which can be accessed via trace().
-class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
+class QUICHE_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
  public:
   explicit QuicTraceVisitor(const QuicConnection* connection);
 
@@ -24,7 +24,7 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
                     EncryptionLevel encryption_level,
                     const QuicFrames& retransmittable_frames,
                     const QuicFrames& nonretransmittable_frames,
-                    QuicTime sent_time) override;
+                    QuicTime sent_time, uint32_t batch_id) override;
 
   void OnIncomingAck(QuicPacketNumber ack_packet_number,
                      EncryptionLevel ack_decrypted_level,

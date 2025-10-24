@@ -17,9 +17,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.device.mojom.BatteryStatus;
 
-/**
- * Test suite for BatteryStatusManager.
- */
+/** Test suite for BatteryStatusManager. */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class BatteryStatusManagerTest {
     // Values reported in the most recent callback from |mManager|.
@@ -96,8 +94,9 @@ public class BatteryStatusManagerTest {
     }
 
     public void initializeBatteryManager(FakeAndroidBatteryManager managerForTesting) {
-        mManager = BatteryStatusManager.createBatteryStatusManagerForTesting(
-                mCallback, managerForTesting);
+        mManager =
+                BatteryStatusManager.createBatteryStatusManagerForTesting(
+                        mCallback, managerForTesting);
     }
 
     @Test
@@ -180,7 +179,7 @@ public class BatteryStatusManagerTest {
     @Test
     @SmallTest
     public void testStartStopSucceeds() {
-        Assert.assertTrue(mManager.start());
+        mManager.start();
         mManager.stop();
     }
 

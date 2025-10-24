@@ -14,7 +14,9 @@
 #ifndef API_RTP_RECEIVER_INTERFACE_H_
 #define API_RTP_RECEIVER_INTERFACE_H_
 
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api/crypto/frame_decryptor_interface.h"
@@ -22,10 +24,10 @@
 #include "api/frame_transformer_interface.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
+#include "api/ref_count.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/transport/rtp/rtp_source.h"
-#include "rtc_base/ref_count.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -38,21 +40,22 @@ class RtpReceiverObserverInterface {
   // In the future, it's likely that an RtpReceiver will only call
   // OnFirstPacketReceived when a packet is received specifically for its
   // SSRC/mid.
-  virtual void OnFirstPacketReceived(cricket::MediaType media_type) = 0;
+  virtual void OnFirstPacketReceived(webrtc::MediaType media_type) = 0;
 
  protected:
   virtual ~RtpReceiverObserverInterface() {}
 };
 
-class RTC_EXPORT RtpReceiverInterface : public rtc::RefCountInterface {
+class RTC_EXPORT RtpReceiverInterface : public webrtc::RefCountInterface,
+                                        public FrameTransformerHost {
  public:
-  virtual rtc::scoped_refptr<MediaStreamTrackInterface> track() const = 0;
+  virtual scoped_refptr<MediaStreamTrackInterface> track() const = 0;
 
   // The dtlsTransport attribute exposes the DTLS transport on which the
   // media is received. It may be null.
   // https://w3c.github.io/webrtc-pc/#dom-rtcrtpreceiver-transport
   // TODO(https://bugs.webrtc.org/907849) remove default implementation
-  virtual rtc::scoped_refptr<DtlsTransportInterface> dtls_transport() const;
+  virtual scoped_refptr<DtlsTransportInterface> dtls_transport() const;
 
   // The list of streams that `track` is associated with. This is the same as
   // the [[AssociatedRemoteMediaStreams]] internal slot in the spec.
@@ -62,10 +65,10 @@ class RTC_EXPORT RtpReceiverInterface : public rtc::RefCountInterface {
   // stream_ids() as soon as downstream projects are no longer dependent on
   // stream objects.
   virtual std::vector<std::string> stream_ids() const;
-  virtual std::vector<rtc::scoped_refptr<MediaStreamInterface>> streams() const;
+  virtual std::vector<scoped_refptr<MediaStreamInterface>> streams() const;
 
   // Audio or video receiver?
-  virtual cricket::MediaType media_type() const = 0;
+  virtual webrtc::MediaType media_type() const = 0;
 
   // Not to be confused with "mid", this is a field we can temporarily use
   // to uniquely identify a receiver until we implement Unified Plan SDP.
@@ -77,7 +80,9 @@ class RTC_EXPORT RtpReceiverInterface : public rtc::RefCountInterface {
   virtual RtpParameters GetParameters() const = 0;
   // TODO(dinosaurav): Delete SetParameters entirely after rolling to Chromium.
   // Currently, doesn't support changing any parameters.
-  virtual bool SetParameters(const RtpParameters& parameters) { return false; }
+  virtual bool SetParameters(const RtpParameters& /* parameters */) {
+    return false;
+  }
 
   // Does not take ownership of observer.
   // Must call SetObserver(nullptr) before the observer is destroyed.
@@ -88,7 +93,7 @@ class RTC_EXPORT RtpReceiverInterface : public rtc::RefCountInterface {
   // positive value including 0.0 measured in seconds. `nullopt` means default
   // value must be used.
   virtual void SetJitterBufferMinimumDelay(
-      absl::optional<double> delay_seconds) = 0;
+      std::optional<double> delay_seconds) = 0;
 
   // TODO(zhihuang): Remove the default implementation once the subclasses
   // implement this. Currently, the only relevant subclass is the
@@ -101,18 +106,27 @@ class RTC_EXPORT RtpReceiverInterface : public rtc::RefCountInterface {
   // enabled or not.
   // TODO(bugs.webrtc.org/12772): Remove.
   virtual void SetFrameDecryptor(
-      rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor);
+      scoped_refptr<FrameDecryptorInterface> frame_decryptor);
 
   // Returns a pointer to the frame decryptor set previously by the
   // user. This can be used to update the state of the object.
   // TODO(bugs.webrtc.org/12772): Remove.
-  virtual rtc::scoped_refptr<FrameDecryptorInterface> GetFrameDecryptor() const;
+  virtual scoped_refptr<FrameDecryptorInterface> GetFrameDecryptor() const;
 
   // Sets a frame transformer between the depacketizer and the decoder to enable
   // client code to transform received frames according to their own processing
   // logic.
+  // TODO: bugs.webrtc.org/15929 - add [[deprecated("Use SetFrameTransformer")]]
+  // when usage in Chrome is removed
   virtual void SetDepacketizerToDecoderFrameTransformer(
-      rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
+      scoped_refptr<FrameTransformerInterface> frame_transformer) {
+    SetFrameTransformer(std::move(frame_transformer));
+  }
+
+  // Default implementation of SetFrameTransformer.
+  // TODO: bugs.webrtc.org/15929 - Make pure virtual.
+  void SetFrameTransformer(
+      scoped_refptr<FrameTransformerInterface> frame_transformer) override;
 
  protected:
   ~RtpReceiverInterface() override = default;

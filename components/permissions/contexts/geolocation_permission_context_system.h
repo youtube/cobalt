@@ -18,7 +18,7 @@
 // have changed when the system permission is updated.
 
 #include "components/permissions/contexts//geolocation_permission_context.h"
-#include "services/device/public/cpp/geolocation/geolocation_manager.h"
+#include "services/device/public/cpp/geolocation/geolocation_system_permission_manager.h"
 
 namespace permissions {
 
@@ -26,12 +26,10 @@ using device::LocationSystemPermissionStatus;
 
 class GeolocationPermissionContextSystem
     : public GeolocationPermissionContext,
-      public device::GeolocationManager::PermissionObserver {
+      public device::GeolocationSystemPermissionManager::PermissionObserver {
  public:
-  GeolocationPermissionContextSystem(
-      content::BrowserContext* browser_context,
-      std::unique_ptr<Delegate> delegate,
-      device::GeolocationManager* geolocation_manager);
+  GeolocationPermissionContextSystem(content::BrowserContext* browser_context,
+                                     std::unique_ptr<Delegate> delegate);
   ~GeolocationPermissionContextSystem() override;
 
   GeolocationPermissionContextSystem(
@@ -46,15 +44,12 @@ class GeolocationPermissionContextSystem
       const GURL& requesting_origin,
       const GURL& embedding_origin) const override;
 
-  // device::GeolocationManager::PermissionObserver:
+  // device::GeolocationSystemPermissionManager::PermissionObserver:
   void OnSystemPermissionUpdated(
       LocationSystemPermissionStatus new_status) override;
 
   LocationSystemPermissionStatus system_permission_ =
       LocationSystemPermissionStatus::kNotDetermined;
-
-  scoped_refptr<device::GeolocationManager::PermissionObserverList>
-      system_permission_observers_;
 
   // Must be the last member, to ensure that it will be destroyed first, which
   // will invalidate weak pointers.

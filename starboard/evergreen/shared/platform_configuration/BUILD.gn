@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
+
 config("platform_configuration") {
   configs = [ "//starboard/build/config/modular" ]
   ldflags = []
@@ -46,7 +48,9 @@ config("platform_configuration") {
     # existing customizations that enable the legacy behavior for Cobalt builds,
     # change IN_MEMORY_UPDATES references to IS_COBALT references, and remove
     # this macro.
-    "IN_MEMORY_UPDATES",
+    # TODO(b/444006168): Uncomment this once in-memory updates is fully
+    # supported.
+    # "IN_MEMORY_UPDATES",
   ]
 
   if (use_asan) {

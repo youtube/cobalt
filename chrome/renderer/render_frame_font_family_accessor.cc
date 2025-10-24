@@ -11,7 +11,7 @@
 namespace {
 
 std::vector<std::string> WebStringVectorToStl(
-    const blink::WebVector<blink::WebString>& web_vector) {
+    const std::vector<blink::WebString>& web_vector) {
   std::vector<std::string> stl_vector;
   for (const blink::WebString& web_string : web_vector)
     stl_vector.push_back(web_string.Utf8());
@@ -96,7 +96,5 @@ void RenderFrameFontFamilyAccessor::ReadyToCommitNavigation(
 
 void RenderFrameFontFamilyAccessor::RunCallback(
     GetFontFamilyNamesCallback callback) {
-  std::move(callback).Run(
-      WebStringVectorToStl(family_names_->primary_family_names),
-      WebStringVectorToStl(family_names_->fallback_family_names));
+  std::move(callback).Run(WebStringVectorToStl(family_names_->font_names));
 }

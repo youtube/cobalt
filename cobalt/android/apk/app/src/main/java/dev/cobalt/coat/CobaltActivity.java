@@ -45,6 +45,9 @@ import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,11 +56,12 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
-import org.chromium.components.version_info.VersionInfo;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -96,6 +100,7 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private String diagnosticFinishReason = "Unknown";
+  private PlatformError mPlatformError;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -112,7 +117,7 @@ public abstract class CobaltActivity extends Activity {
               shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
     }
 
-    DeviceUtils.addDeviceSpecificUserAgentSwitch();
+    DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -124,7 +129,8 @@ public abstract class CobaltActivity extends Activity {
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
     String startDeepLink = getIntentUrlAsString(getIntent());
     if (startDeepLink == null) {
-      throw new IllegalArgumentException("startDeepLink cannot be null, set it to empty string");
+      Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
+      startDeepLink = "";
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
@@ -138,7 +144,13 @@ public abstract class CobaltActivity extends Activity {
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+    mWindowAndroid =
+        new ActivityWindowAndroid(
+            this,
+            listenToActivityState,
+            mIntentRequestTracker,
+            /* insetObserver= */ null,
+            /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
     // Set up the animation placeholder to be the SurfaceView. This disables the
@@ -400,7 +412,7 @@ public abstract class CobaltActivity extends Activity {
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
-    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents);
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
@@ -410,7 +422,8 @@ public abstract class CobaltActivity extends Activity {
       javascriptInjector.addPossiblyUnsafeInterface(
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class);
+          CobaltJavaScriptInterface.class,
+          /* originAllowlist= */ new ArrayList<String>());
     }
   }
 
@@ -447,9 +460,9 @@ public abstract class CobaltActivity extends Activity {
       // document.onresume event
       webContents.onResume();
       // visibility:visible event
-      webContents.onShow();
+      webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
-    MemoryPressureMonitor.INSTANCE.enablePolling();
+    MemoryPressureMonitor.INSTANCE.enablePolling(false);
   }
 
   @Override
@@ -460,7 +473,7 @@ public abstract class CobaltActivity extends Activity {
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
-      webContents.onHide();
+      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
     }
@@ -478,15 +491,8 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    activeNetworkCheck();
     diagnosticFinishReason = "Unknown";
-    if (mShouldReloadOnResume) {
-      WebContents webContents = getActiveWebContents();
-      if (webContents != null) {
-        webContents.getNavigationController().reload(true);
-      }
-      mShouldReloadOnResume = false;
-    }
-
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -684,6 +690,58 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
+  }
+
+  // Try generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
+  // error dialog on an unsuccessful network check
+  protected void activeNetworkCheck() {
+    new Thread(
+      () -> {
+        HttpURLConnection urlConnection = null;
+        try {
+          URL url = new URL("https://www.google.com/generate_204");
+          urlConnection = (HttpURLConnection) url.openConnection();
+          urlConnection.setConnectTimeout(5000);
+          urlConnection.setReadTimeout(5000);
+          urlConnection.connect();
+          if (urlConnection.getResponseCode() != 204) {
+            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+          }
+          Log.i(TAG, "Active Network check successful." + mPlatformError);
+          if (mPlatformError != null) {
+            mPlatformError.setResponse(PlatformError.POSITIVE);
+            mPlatformError.dismiss();
+            mPlatformError = null;
+          }
+          if (mShouldReloadOnResume) {
+            runOnUiThread(
+              () -> {
+                WebContents webContents = getActiveWebContents();
+                if (webContents != null) {
+                  webContents.getNavigationController().reload(true);
+                }
+                mShouldReloadOnResume = false;
+              });
+          }
+        } catch (IOException e) {
+          Log.w(TAG, "Active Network check failed.", e);
+          runOnUiThread(
+            () -> {
+              if (mPlatformError == null || !mPlatformError.isShowing()) {
+                mPlatformError =
+                  new PlatformError(
+                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
+                mPlatformError.raise();
+              }
+            });
+          mShouldReloadOnResume = true;
+        } finally {
+          if (urlConnection != null) {
+            urlConnection.disconnect();
+          }
+        }
+      })
+    .start();
   }
 
   public long getAppStartTimestamp() {

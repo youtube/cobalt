@@ -232,6 +232,17 @@ bool ValidateCreateDeviceANGLE(const ValidationContext *val,
                                const EGLAttrib *attrib_list);
 bool ValidateReleaseDeviceANGLE(const ValidationContext *val, const egl::Device *devicePacked);
 
+// EGL_ANGLE_device_vulkan
+bool ValidateLockVulkanQueueANGLE(const ValidationContext *val, const egl::Display *dpyPacked);
+bool ValidateUnlockVulkanQueueANGLE(const ValidationContext *val, const egl::Display *dpyPacked);
+
+// EGL_ANGLE_external_context_and_surface
+bool ValidateAcquireExternalContextANGLE(const ValidationContext *val,
+                                         const egl::Display *dpyPacked,
+                                         SurfaceID drawAndReadPacked);
+bool ValidateReleaseExternalContextANGLE(const ValidationContext *val,
+                                         const egl::Display *dpyPacked);
+
 // EGL_ANGLE_feature_control
 bool ValidateQueryStringiANGLE(const ValidationContext *val,
                                const egl::Display *dpyPacked,
@@ -246,6 +257,9 @@ bool ValidateQueryDisplayAttribANGLE(const ValidationContext *val,
 bool ValidateCopyMetalSharedEventANGLE(const ValidationContext *val,
                                        const egl::Display *dpyPacked,
                                        egl::SyncID syncPacked);
+
+// EGL_ANGLE_no_error
+bool ValidateSetValidationEnabledANGLE(const ValidationContext *val, EGLBoolean validationState);
 
 // EGL_ANGLE_power_preference
 bool ValidateReleaseHighPowerGPUANGLE(const ValidationContext *val,
@@ -304,12 +318,6 @@ bool ValidateStreamPostD3DTextureANGLE(const ValidationContext *val,
                                        const egl::Stream *streamPacked,
                                        const void *texture,
                                        const AttributeMap &attrib_listPacked);
-
-// EGL_ANGLE_swap_with_frame_token
-bool ValidateSwapBuffersWithFrameTokenANGLE(const ValidationContext *val,
-                                            const egl::Display *dpyPacked,
-                                            SurfaceID surfacePacked,
-                                            EGLFrameTokenANGLE frametoken);
 
 // EGL_ANGLE_sync_control_rate
 bool ValidateGetMscRateANGLE(const ValidationContext *val,
@@ -379,6 +387,15 @@ bool ValidateGetPlatformDisplayEXT(const ValidationContext *val,
                                    EGLenum platform,
                                    const void *native_display,
                                    const AttributeMap &attrib_listPacked);
+
+// EGL_EXT_surface_compression
+bool ValidateQuerySupportedCompressionRatesEXT(const ValidationContext *val,
+                                               const egl::Display *dpyPacked,
+                                               const egl::Config *configPacked,
+                                               const EGLAttrib *attrib_list,
+                                               const EGLint *rates,
+                                               EGLint rate_size,
+                                               const EGLint *num_rates);
 
 // EGL_KHR_debug
 bool ValidateDebugMessageControlKHR(const ValidationContext *val,

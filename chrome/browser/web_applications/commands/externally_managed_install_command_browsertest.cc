@@ -11,16 +11,19 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
-#include "chrome/browser/web_applications/commands/externally_managed_install_command.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/commands/fetch_manifest_and_install_command.h"
 #include "chrome/browser/web_applications/external_install_options.h"
+#include "chrome/browser/web_applications/externally_managed_app_manager.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/test/test_web_app_url_loader.h"
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
@@ -50,22 +53,13 @@ std::vector<apps::FileHandler::AcceptEntry> GetAcceptEntriesForFileHandler(
 }  // namespace
 
 class ExternallyManagedInstallCommandBrowserTest
-    : public WebAppControllerBrowserTest {
+    : public WebAppBrowserTestBase {
  public:
   ExternallyManagedInstallCommandBrowserTest() = default;
   ExternallyManagedInstallCommandBrowserTest(
       const ExternallyManagedInstallCommandBrowserTest&) = delete;
   ExternallyManagedInstallCommandBrowserTest& operator=(
       const ExternallyManagedInstallCommandBrowserTest&) = delete;
-
- protected:
-  WebAppUrlLoader* GetWebAppUrlLoader() {
-    url_loader_.SetPrepareForLoadResultLoaded();
-    return &url_loader_;
-  }
-
- private:
-  TestWebAppUrlLoader url_loader_;
 };
 
 IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
@@ -75,21 +69,24 @@ IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
       "manifest_test_page.html");
   EXPECT_TRUE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
 
+  // TODO(crbug.com/381408483): Review usage of ExternalInstallOptions in tests.
   ExternalInstallOptions install_options(
       kWebAppUrl,
-      /*user_display_mode=*/absl::nullopt,
+      /*user_display_mode=*/std::nullopt,
       ExternalInstallSource::kInternalDefault);
 
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool> future;
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult> future;
   provider().scheduler().InstallExternallyManagedApp(
-      install_options, future.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options,
+      /*installed_placeholder_app_id=*/std::nullopt, future.GetCallback());
 
-  const AppId& app_id = future.Get<0>();
-  webapps::InstallResultCode result_code = future.Get<1>();
-  EXPECT_EQ(result_code, webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(app_id));
+  const ExternallyManagedAppManager::InstallResult& result =
+      future.Get<ExternallyManagedAppManager::InstallResult>();
+  const webapps::AppId& app_id = *result.app_id;
+  webapps::InstallResultCode install_code = result.code;
+  EXPECT_EQ(install_code, webapps::InstallResultCode::kSuccessNewInstall);
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(app_id));
 }
 
 IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
@@ -99,19 +96,22 @@ IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
       "manifest_test_page.html");
   EXPECT_TRUE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
 
+  // TODO(crbug.com/381408483): Review usage of ExternalInstallOptions in tests.
   ExternalInstallOptions install_options(
       kWebAppUrl, mojom::UserDisplayMode::kStandalone,
       ExternalInstallSource::kExternalDefault);
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool> future;
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult> future;
   provider().scheduler().InstallExternallyManagedApp(
-      install_options, future.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options,
+      /*installed_placeholder_app_id=*/std::nullopt, future.GetCallback());
 
-  const AppId& app_id = future.Get<0>();
-  webapps::InstallResultCode result_code = future.Get<1>();
-  EXPECT_EQ(result_code, webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(app_id));
+  const ExternallyManagedAppManager::InstallResult& result =
+      future.Get<ExternallyManagedAppManager::InstallResult>();
+  const webapps::AppId& app_id = *result.app_id;
+  webapps::InstallResultCode install_code = result.code;
+  EXPECT_EQ(install_code, webapps::InstallResultCode::kSuccessNewInstall);
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(app_id));
   EXPECT_EQ(
       mojom::UserDisplayMode::kStandalone,
       provider().registrar_unsafe().GetAppUserDisplayMode(app_id).value());
@@ -124,21 +124,23 @@ IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
       "manifest_test_page.html");
   EXPECT_TRUE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
 
+  // TODO(crbug.com/381408483): Review usage of ExternalInstallOptions in tests.
   ExternalInstallOptions install_options(
       kWebAppUrl, mojom::UserDisplayMode::kBrowser,
       ExternalInstallSource::kInternalDefault);
 
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool> future;
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult> future;
   provider().scheduler().InstallExternallyManagedApp(
+      install_options,
+      /*installed_placeholder_app_id=*/std::nullopt, future.GetCallback());
 
-      install_options, future.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
-
-  const AppId& app_id = future.Get<0>();
-  webapps::InstallResultCode result_code = future.Get<1>();
-  EXPECT_EQ(result_code, webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(app_id));
+  const ExternallyManagedAppManager::InstallResult& result =
+      future.Get<ExternallyManagedAppManager::InstallResult>();
+  const webapps::AppId& app_id = *result.app_id;
+  webapps::InstallResultCode install_code = result.code;
+  EXPECT_EQ(install_code, webapps::InstallResultCode::kSuccessNewInstall);
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(app_id));
   EXPECT_EQ(
       mojom::UserDisplayMode::kBrowser,
       provider().registrar_unsafe().GetAppUserDisplayMode(app_id).value());
@@ -149,74 +151,52 @@ IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
   const GURL kWebAppUrl = https_server()->GetURL(
       "/banners/"
       "manifest_test_page.html");
-  EXPECT_TRUE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
 
   ExternalInstallOptions install_options(
       kWebAppUrl, mojom::UserDisplayMode::kBrowser,
       ExternalInstallSource::kExternalPolicy);
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool> future;
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult> future;
 
   provider().scheduler().InstallExternallyManagedApp(
-      install_options, future.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options,
+      /*installed_placeholder_app_id=*/std::nullopt, future.GetCallback());
 
-  const AppId& app_id = future.Get<0>();
-  webapps::InstallResultCode result_code = future.Get<1>();
-  EXPECT_EQ(result_code, webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(app_id));
+  const ExternallyManagedAppManager::InstallResult& result =
+      future.Get<ExternallyManagedAppManager::InstallResult>();
+  const webapps::AppId& app_id = *result.app_id;
+  webapps::InstallResultCode install_code = result.code;
+  EXPECT_EQ(install_code, webapps::InstallResultCode::kSuccessNewInstall);
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(app_id));
   EXPECT_TRUE(
       provider().registrar_unsafe().GetAppById(app_id)->IsPolicyInstalledApp());
 }
 
 IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
-                       InstallFailsWebContentsDestroyed) {
-  const GURL kWebAppUrl("https://external_app.com");
-  EXPECT_FALSE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
-
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool> future;
-  ExternalInstallOptions install_options(
-      kWebAppUrl, mojom::UserDisplayMode::kBrowser,
-      ExternalInstallSource::kExternalPolicy);
-  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
-
-  provider().scheduler().InstallExternallyManagedApp(
-      install_options, future.GetCallback(), web_contents->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
-
-  // Create a new tab to ensure that the browser isn't destroyed with the web
-  // contents closing.
-  chrome::NewTab(browser());
-  web_contents->Close();
-  const AppId& app_id = future.Get<0>();
-  webapps::InstallResultCode result_code = future.Get<1>();
-  EXPECT_EQ(result_code, webapps::InstallResultCode::kWebContentsDestroyed);
-  EXPECT_FALSE(provider().registrar_unsafe().IsLocallyInstalled(app_id));
-}
-
-IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
                        InstallFailsWithInvalidManifest) {
-  const GURL kWebAppUrl("https://external_app.com");
-  EXPECT_FALSE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
+  const GURL kWebAppUrl = https_server()->GetURL(
+      "/banners/"
+      "invalid_manifest_test_page.html");
 
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool> future;
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult> future;
   ExternalInstallOptions install_options(
       kWebAppUrl, mojom::UserDisplayMode::kBrowser,
       ExternalInstallSource::kExternalPolicy);
   // This should force the install_params to have a valid manifest, otherwise
   // install will not happen.
   install_options.require_manifest = true;
-  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
 
   provider().scheduler().InstallExternallyManagedApp(
-      install_options, future.GetCallback(), web_contents->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options,
+      /*installed_placeholder_app_id=*/std::nullopt, future.GetCallback());
 
-  const AppId& app_id = future.Get<0>();
-  webapps::InstallResultCode result_code = future.Get<1>();
-  EXPECT_EQ(result_code,
+  const ExternallyManagedAppManager::InstallResult& result =
+      future.Get<ExternallyManagedAppManager::InstallResult>();
+  const webapps::AppId& app_id = GenerateAppId(std::nullopt, kWebAppUrl);
+  webapps::InstallResultCode install_code = result.code;
+  EXPECT_EQ(install_code,
             webapps::InstallResultCode::kNotValidManifestForWebApp);
-  EXPECT_FALSE(provider().registrar_unsafe().IsLocallyInstalled(app_id));
+  EXPECT_FALSE(provider().registrar_unsafe().IsInRegistrar(app_id));
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -225,23 +205,26 @@ IN_PROC_BROWSER_TEST_F(
   const GURL kWebAppUrl = https_server()->GetURL(
       "/banners/"
       "manifest_test_page.html");
-  EXPECT_TRUE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
 
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool>
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult>
       future_first_install;
+  // TODO(crbug.com/381408483): Review usage of ExternalInstallOptions in tests.
   ExternalInstallOptions install_options(
       kWebAppUrl, mojom::UserDisplayMode::kBrowser,
       ExternalInstallSource::kInternalDefault);
 
   provider().scheduler().InstallExternallyManagedApp(
-      install_options, future_first_install.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options,
+      /*installed_placeholder_app_id=*/std::nullopt,
+      future_first_install.GetCallback());
 
-  const AppId& first_app_id = future_first_install.Get<0>();
-  webapps::InstallResultCode first_install_code = future_first_install.Get<1>();
+  const ExternallyManagedAppManager::InstallResult& first_result =
+      future_first_install.Get<0>();
+  const webapps::AppId& first_app_id = *first_result.app_id;
+  webapps::InstallResultCode first_install_code = first_result.code;
   EXPECT_EQ(first_install_code, webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(first_app_id));
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(first_app_id));
   EXPECT_EQ(mojom::UserDisplayMode::kBrowser,
             provider()
                 .registrar_unsafe()
@@ -256,24 +239,26 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kWebAppUrlDifferentManifest));
 
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool>
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult>
       future_second_install;
   ExternalInstallOptions install_options_policy(
       kWebAppUrlDifferentManifest, mojom::UserDisplayMode::kBrowser,
       ExternalInstallSource::kExternalPolicy);
 
   provider().scheduler().InstallExternallyManagedApp(
-      install_options_policy, future_second_install.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options_policy,
+      /*installed_placeholder_app_id=*/std::nullopt,
+      future_second_install.GetCallback());
 
-  const AppId& second_app_id = future_second_install.Get<0>();
-  webapps::InstallResultCode second_install_code =
-      future_second_install.Get<1>();
+  const ExternallyManagedAppManager::InstallResult& second_result =
+      future_second_install.Get<0>();
+  const webapps::AppId& second_app_id = *second_result.app_id;
+  webapps::InstallResultCode second_install_code = second_result.code;
   EXPECT_EQ(first_app_id, second_app_id);
   EXPECT_EQ(second_install_code,
             webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(second_app_id));
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(second_app_id));
   EXPECT_EQ(mojom::UserDisplayMode::kBrowser,
             provider()
                 .registrar_unsafe()
@@ -309,19 +294,20 @@ IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
   EXPECT_TRUE(NavigateAndAwaitInstallabilityCheck(browser(), kWebAppUrl));
 
   // Mock an user installing an app by clicking on the omnibox.
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode>
+  base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
       future_first_install;
   provider().scheduler().FetchManifestAndInstall(
       webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON,
       browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      /*bypass_service_worker_check=*/false,
       base::BindOnce(test::TestAcceptDialogCallback),
       future_first_install.GetCallback(),
-      /*use_fallback=*/false);
-  const AppId& first_app_id = future_first_install.Get<0>();
+      FallbackBehavior::kCraftedManifestOnly);
+
+  const webapps::AppId& first_app_id = future_first_install.Get<0>();
   webapps::InstallResultCode first_install_code = future_first_install.Get<1>();
   EXPECT_EQ(first_install_code, webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(first_app_id));
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(first_app_id));
 
   // Mock installation of the same web_app but with a different install URL
   // and updated manifest values.
@@ -331,24 +317,26 @@ IN_PROC_BROWSER_TEST_F(ExternallyManagedInstallCommandBrowserTest,
   EXPECT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kWebAppUrlDifferentManifest));
 
-  base::test::TestFuture<const AppId&, webapps::InstallResultCode, bool>
+  base::test::TestFuture<ExternallyManagedAppManager::InstallResult>
       future_second_install;
   ExternalInstallOptions install_options_policy(
       kWebAppUrlDifferentManifest, mojom::UserDisplayMode::kBrowser,
       ExternalInstallSource::kExternalPolicy);
 
   provider().scheduler().InstallExternallyManagedApp(
-      install_options_policy, future_second_install.GetCallback(),
-      browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
-      std::make_unique<WebAppDataRetriever>(), GetWebAppUrlLoader());
+      install_options_policy,
+      /*installed_placeholder_app_id=*/std::nullopt,
+      future_second_install.GetCallback());
 
-  const AppId& second_app_id = future_second_install.Get<0>();
-  webapps::InstallResultCode second_install_code =
-      future_second_install.Get<1>();
+  const ExternallyManagedAppManager::InstallResult& second_result =
+      future_second_install.Get<0>();
+  const webapps::AppId& second_app_id = *second_result.app_id;
+  webapps::InstallResultCode second_install_code = second_result.code;
   EXPECT_EQ(first_app_id, second_app_id);
   EXPECT_EQ(second_install_code,
             webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_TRUE(provider().registrar_unsafe().IsLocallyInstalled(second_app_id));
+  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
+            provider().registrar_unsafe().GetInstallState(second_app_id));
   EXPECT_EQ(mojom::UserDisplayMode::kBrowser,
             provider()
                 .registrar_unsafe()

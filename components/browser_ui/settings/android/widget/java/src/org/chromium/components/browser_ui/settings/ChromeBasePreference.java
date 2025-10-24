@@ -11,11 +11,12 @@ import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 
-import androidx.annotation.Nullable;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * A preference that supports some Chrome-specific customizations:
@@ -29,34 +30,27 @@ import org.chromium.base.metrics.RecordUserAction;
  * <p>This preference can set an icon color in XML through app:iconTint. Note that if a
  * ColorStateList is set, only the default color will be used.
  */
+@NullMarked
 public class ChromeBasePreference extends Preference {
-    private ColorStateList mIconTint;
-    private ManagedPreferenceDelegate mManagedPrefDelegate;
+    private final @Nullable ColorStateList mIconTint;
+    private @Nullable ManagedPreferenceDelegate mManagedPrefDelegate;
 
     /** Indicates if the preference uses a custom layout. */
     private final boolean mHasCustomLayout;
 
-    /**
-     * When null, the default Preferences Support Library logic will be used to determine dividers.
-     */
-    @Nullable
-    private Boolean mDividerAllowedAbove;
-    @Nullable
-    private Boolean mDividerAllowedBelow;
-    @Nullable
-    private String mUserAction;
+    /** When null, the default Preferences Support Library logic will be used to determine dividers. */
+    private @Nullable Boolean mDividerAllowedAbove;
 
-    /**
-     * Constructor for use in Java.
-     */
+    private @Nullable Boolean mDividerAllowedBelow;
+    private final @Nullable String mUserAction;
+
+    /** Constructor for use in Java. */
     public ChromeBasePreference(Context context) {
         this(context, null);
     }
 
-    /**
-     * Constructor for inflating from XML.
-     */
-    public ChromeBasePreference(Context context, AttributeSet attrs) {
+    /** Constructor for inflating from XML. */
+    public ChromeBasePreference(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
 
         setSingleLineTitle(false);
@@ -69,13 +63,14 @@ public class ChromeBasePreference extends Preference {
         mHasCustomLayout = ManagedPreferencesUtils.isCustomLayoutApplied(context, attrs);
     }
 
-    /**
-     * Sets the ManagedPreferenceDelegate which will determine whether this preference is managed.
-     */
+    /** Sets the ManagedPreferenceDelegate which will determine whether this preference is managed. */
     public void setManagedPreferenceDelegate(ManagedPreferenceDelegate delegate) {
         mManagedPrefDelegate = delegate;
-        ManagedPreferencesUtils.initPreference(mManagedPrefDelegate, this,
-                /*allowManagedIcon=*/true, /*hasCustomLayout=*/mHasCustomLayout);
+        ManagedPreferencesUtils.initPreference(
+                mManagedPrefDelegate,
+                this,
+                /* allowManagedIcon= */ true,
+                /* hasCustomLayout= */ mHasCustomLayout);
     }
 
     @Override

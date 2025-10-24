@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/browser/blob/blob_storage_context.h"
 
 #include <memory>
@@ -73,8 +78,7 @@ class BlobFlattenerTest : public testing::Test {
   }
 
   scoped_refptr<BlobDataItem> CreateDataItem(const char* memory, size_t size) {
-    return BlobDataItem::CreateBytes(
-        base::as_bytes(base::make_span(memory, size)));
+    return BlobDataItem::CreateBytes(base::as_bytes(base::span(memory, size)));
   }
 
   scoped_refptr<BlobDataItem> CreateFileItem(size_t offset, size_t size) {

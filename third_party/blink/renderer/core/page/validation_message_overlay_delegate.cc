@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/resources/grit/blink_resources.h"
@@ -45,11 +46,12 @@ class ValidationMessageChromeClient : public EmptyChromeClient {
   }
 
   void ScheduleAnimation(const LocalFrameView*,
-                         base::TimeDelta delay = base::TimeDelta()) override {
+                         base::TimeDelta delay,
+                         bool urgent) override {
     // Need to pass LocalFrameView for the anchor element because the Frame for
     // this overlay doesn't have an associated WebFrameWidget, which schedules
     // animation.
-    main_chrome_client_->ScheduleAnimation(anchor_view_, delay);
+    main_chrome_client_->ScheduleAnimation(anchor_view_, delay, urgent);
     anchor_view_->SetVisualViewportOrOverlayNeedsRepaint();
   }
 
@@ -145,8 +147,8 @@ void ValidationMessageOverlayDelegate::CreatePage(const FrameOverlay& overlay) {
       main_page_->GetChromeClient(), anchor_->GetDocument().View());
   Settings& main_settings = main_page_->GetSettings();
   page_ = Page::CreateNonOrdinary(
-      *chrome_client_,
-      main_page_->GetPageScheduler()->GetAgentGroupScheduler());
+      *chrome_client_, main_page_->GetPageScheduler()->GetAgentGroupScheduler(),
+      &main_page_->GetColorProviderColorMaps());
   page_->GetSettings().SetMinimumFontSize(main_settings.GetMinimumFontSize());
   page_->GetSettings().SetMinimumLogicalFontSize(
       main_settings.GetMinimumLogicalFontSize());
@@ -154,7 +156,7 @@ void ValidationMessageOverlayDelegate::CreatePage(const FrameOverlay& overlay) {
   auto* frame = MakeGarbageCollected<LocalFrame>(
       MakeGarbageCollected<EmptyLocalFrameClient>(), *page_, nullptr, nullptr,
       nullptr, FrameInsertType::kInsertInConstructor, LocalFrameToken(),
-      nullptr, nullptr);
+      nullptr, nullptr, mojo::NullRemote());
   frame->SetView(MakeGarbageCollected<LocalFrameView>(*frame, view_size));
   frame->Init(/*opener=*/nullptr, DocumentToken(), /*policy_container=*/nullptr,
               StorageKey(), /*document_ukm_source_id=*/ukm::kInvalidSourceId,
@@ -176,10 +178,10 @@ void ValidationMessageOverlayDelegate::CreatePage(const FrameOverlay& overlay) {
           ? mojom::blink::PreferredColorScheme::kDark
           : mojom::blink::PreferredColorScheme::kLight);
 
-  scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
-  WriteDocument(data.get());
-  float zoom_factor = anchor_->GetDocument().GetFrame()->PageZoomFactor();
-  frame->SetPageZoomFactor(zoom_factor);
+  SegmentedBuffer data;
+  WriteDocument(data);
+  float zoom_factor = anchor_->GetDocument().GetFrame()->LayoutZoomFactor();
+  frame->SetLayoutZoomFactor(zoom_factor);
 
   // ForceSynchronousDocumentInstall can cause another call to
   // ValidationMessageClientImpl::ShowValidationMessage, which will hide this
@@ -188,46 +190,49 @@ void ValidationMessageOverlayDelegate::CreatePage(const FrameOverlay& overlay) {
   bool destroyed = false;
   DCHECK(!destroyed_ptr_);
   destroyed_ptr_ = &destroyed;
-  frame->ForceSynchronousDocumentInstall("text/html", data);
+  frame->ForceSynchronousDocumentInstall(AtomicString("text/html"),
+                                         std::move(data));
   if (destroyed)
     return;
   destroyed_ptr_ = nullptr;
 
-  Element& main_message = GetElementById("main-message");
+  Element& main_message = GetElementById(AtomicString("main-message"));
   main_message.setTextContent(message_);
-  Element& sub_message = GetElementById("sub-message");
+  Element& sub_message = GetElementById(AtomicString("sub-message"));
   sub_message.setTextContent(sub_message_);
 
-  Element& container = GetElementById("container");
+  Element& container = GetElementById(AtomicString("container"));
   if (WebTestSupport::IsRunningWebTest()) {
     container.SetInlineStyleProperty(CSSPropertyID::kTransition, "none");
-    GetElementById("icon").SetInlineStyleProperty(CSSPropertyID::kTransition,
-                                                  "none");
+    GetElementById(AtomicString("icon"))
+        .SetInlineStyleProperty(CSSPropertyID::kTransition, "none");
     main_message.SetInlineStyleProperty(CSSPropertyID::kTransition, "none");
     sub_message.SetInlineStyleProperty(CSSPropertyID::kTransition, "none");
   }
-  // Get the size to decide position later.
-  // TODO(rendering-core): This gets a size, so we should only need to update
-  // to layout.
-  FrameView().UpdateAllLifecyclePhases(DocumentUpdateReason::kOverlay);
-  bubble_size_ = container.VisibleBoundsInLocalRoot().size();
-  // Add one because the content sometimes exceeds the exact width due to
-  // rounding errors.
-  bubble_size_.Enlarge(1, 0);
-  container.SetInlineStyleProperty(CSSPropertyID::kMinWidth,
-                                   bubble_size_.width() / zoom_factor,
-                                   CSSPrimitiveValue::UnitType::kPixels);
-  container.setAttribute(html_names::kClassAttr, "shown-initially");
-  FrameView().UpdateAllLifecyclePhases(DocumentUpdateReason::kOverlay);
+  if (!RuntimeEnabledFeatures::ValidationBubbleNoForcedLayoutEnabled()) {
+    // Get the size to decide position later.
+    // TODO(rendering-core): This gets a size, so we should only need to update
+    // to layout.
+    FrameView().UpdateAllLifecyclePhases(DocumentUpdateReason::kOverlay);
+    bubble_size_ = container.VisibleBoundsInLocalRoot().size();
+    // Add one because the content sometimes exceeds the exact width due to
+    // rounding errors.
+    bubble_size_.Enlarge(1, 0);
+    container.SetInlineStyleProperty(CSSPropertyID::kMinWidth,
+                                     bubble_size_.width() / zoom_factor,
+                                     CSSPrimitiveValue::UnitType::kPixels);
+    container.setAttribute(html_names::kClassAttr,
+                           AtomicString("shown-initially"));
+    FrameView().UpdateAllLifecyclePhases(DocumentUpdateReason::kOverlay);
+  }
 }
 
-void ValidationMessageOverlayDelegate::WriteDocument(SharedBuffer* data) {
-  DCHECK(data);
+void ValidationMessageOverlayDelegate::WriteDocument(SegmentedBuffer& data) {
   PagePopupClient::AddString(
       "<!DOCTYPE html><head><meta charset='UTF-8'><meta name='color-scheme' "
       "content='light dark'><style>",
       data);
-  data->Append(UncompressResourceAsBinary(IDR_VALIDATION_BUBBLE_CSS));
+  data.Append(UncompressResourceAsBinary(IDR_VALIDATION_BUBBLE_CSS));
   PagePopupClient::AddString("</style></head>", data);
   PagePopupClient::AddString(
       Locale::DefaultLocale().IsRTL() ? "<body dir=rtl>" : "<body dir=ltr>",
@@ -239,7 +244,7 @@ void ValidationMessageOverlayDelegate::WriteDocument(SharedBuffer* data) {
       "<div id=spacer-top></div>"
       "<main id=bubble-body>",
       data);
-  data->Append(UncompressResourceAsBinary(IDR_VALIDATION_BUBBLE_ICON));
+  data.Append(UncompressResourceAsBinary(IDR_VALIDATION_BUBBLE_ICON));
   PagePopupClient::AddString(message_dir_ == TextDirection::kLtr
                                  ? "<div dir=ltr id=main-message></div>"
                                  : "<div dir=rtl id=main-message></div>",
@@ -270,7 +275,7 @@ void ValidationMessageOverlayDelegate::AdjustBubblePosition(
     const gfx::Rect& view_rect) {
   if (IsHiding())
     return;
-  float zoom_factor = To<LocalFrame>(page_->MainFrame())->PageZoomFactor();
+  float zoom_factor = To<LocalFrame>(page_->MainFrame())->LayoutZoomFactor();
   gfx::Rect anchor_rect = anchor_->VisibleBoundsInLocalRoot();
 
   Page* anchor_page = anchor_->GetDocument().GetPage();
@@ -278,7 +283,7 @@ void ValidationMessageOverlayDelegate::AdjustBubblePosition(
   // account for the anchor's position relative to the visual viewport. If the
   // main frame is remote the overlay will be attached to the local root so the
   // visual viewport transform will already be applied to the overlay.
-  if (auto* overlay_frame = DynamicTo<LocalFrame>(anchor_page->MainFrame())) {
+  if (IsA<LocalFrame>(anchor_page->MainFrame())) {
     PhysicalRect rect(anchor_rect);
     anchor_->GetDocument()
         .GetFrame()
@@ -289,6 +294,13 @@ void ValidationMessageOverlayDelegate::AdjustBubblePosition(
     anchor_rect =
         anchor_page->GetVisualViewport().RootFrameToViewport(anchor_rect);
     anchor_rect.Intersect(gfx::Rect(anchor_page->GetVisualViewport().Size()));
+  }
+
+  Element& container = GetElementById(AtomicString("container"));
+  if (RuntimeEnabledFeatures::ValidationBubbleNoForcedLayoutEnabled()) {
+    // TODO(crbug.com/334963179): Replace bubble_size_ with a stack allocated
+    // variable here when the ValidationBubbleNoForcedLayout flag is removed.
+    bubble_size_ = container.VisibleBoundsInLocalRoot().size();
   }
 
   bool show_bottom_arrow = false;
@@ -304,7 +316,6 @@ void ValidationMessageOverlayDelegate::AdjustBubblePosition(
   else if (bubble_x + bubble_size_.width() > view_rect.right())
     bubble_x = view_rect.right() - bubble_size_.width();
 
-  Element& container = GetElementById("container");
   container.SetInlineStyleProperty(CSSPropertyID::kLeft, bubble_x / zoom_factor,
                                    CSSPrimitiveValue::UnitType::kPixels);
   container.SetInlineStyleProperty(CSSPropertyID::kTop, bubble_y / zoom_factor,
@@ -347,24 +358,25 @@ void ValidationMessageOverlayDelegate::AdjustBubblePosition(
   double arrow_x = arrow_anchor_x / zoom_factor - kArrowSize;
   double arrow_anchor_percent = arrow_anchor_x * 100 / bubble_size_.width();
   if (show_bottom_arrow) {
-    GetElementById("outer-arrow-bottom")
+    GetElementById(AtomicString("outer-arrow-bottom"))
         .SetInlineStyleProperty(CSSPropertyID::kLeft, arrow_x,
                                 CSSPrimitiveValue::UnitType::kPixels);
-    GetElementById("inner-arrow-bottom")
+    GetElementById(AtomicString("inner-arrow-bottom"))
         .SetInlineStyleProperty(CSSPropertyID::kLeft, arrow_x,
                                 CSSPrimitiveValue::UnitType::kPixels);
-    container.setAttribute(html_names::kClassAttr, "shown-fully bottom-arrow");
+    container.setAttribute(html_names::kClassAttr,
+                           AtomicString("shown-fully bottom-arrow"));
     container.SetInlineStyleProperty(
         CSSPropertyID::kTransformOrigin,
         String::Format("%.2f%% bottom", arrow_anchor_percent));
   } else {
-    GetElementById("outer-arrow-top")
+    GetElementById(AtomicString("outer-arrow-top"))
         .SetInlineStyleProperty(CSSPropertyID::kLeft, arrow_x,
                                 CSSPrimitiveValue::UnitType::kPixels);
-    GetElementById("inner-arrow-top")
+    GetElementById(AtomicString("inner-arrow-top"))
         .SetInlineStyleProperty(CSSPropertyID::kLeft, arrow_x,
                                 CSSPrimitiveValue::UnitType::kPixels);
-    container.setAttribute(html_names::kClassAttr, "shown-fully");
+    container.setAttribute(html_names::kClassAttr, AtomicString("shown-fully"));
     container.SetInlineStyleProperty(
         CSSPropertyID::kTransformOrigin,
         String::Format("%.2f%% top", arrow_anchor_percent));
@@ -375,9 +387,10 @@ void ValidationMessageOverlayDelegate::StartToHide() {
   anchor_ = nullptr;
   if (!page_)
     return;
-  GetElementById("container")
+  GetElementById(AtomicString("container"))
       .classList()
-      .replace("shown-fully", "hiding", ASSERT_NO_EXCEPTION);
+      .replace(AtomicString("shown-fully"), AtomicString("hiding"),
+               ASSERT_NO_EXCEPTION);
 }
 
 bool ValidationMessageOverlayDelegate::IsHiding() const {

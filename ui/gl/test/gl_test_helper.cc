@@ -7,7 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "base/compiler_specific.h"
+#include "base/containers/heap_array.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gl/gl_surface_egl.h"
+#include "ui/gl/init/gl_factory.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <wingdi.h>
@@ -15,7 +19,10 @@
 #include "base/win/scoped_gdi_object.h"
 #include "base/win/scoped_hdc.h"
 #include "base/win/scoped_select_object.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
 #include "ui/gfx/gdi_util.h"
+#include "ui/gl/direct_composition_support.h"
 #endif
 
 namespace gl {
@@ -55,70 +62,41 @@ GLuint GLTestHelper::SetupFramebuffer(int width, int height) {
   return framebuffer;
 }
 
-// static
-bool GLTestHelper::CheckPixels(int x,
-                               int y,
-                               int width,
-                               int height,
-                               const uint8_t expected_color[4]) {
-  return CheckPixelsWithError(x, y, width, height, 0, expected_color);
-}
+std::pair<scoped_refptr<GLSurface>, scoped_refptr<GLContext>>
+GLTestHelper::CreateOffscreenGLSurfaceAndContext() {
+  scoped_refptr<GLSurface> gl_surface = init::CreateOffscreenGLSurface(
+      gl::GLSurfaceEGL::GetGLDisplayEGL(), gfx::Size());
 
-// static
-bool GLTestHelper::CheckPixelsWithError(int x,
-                                        int y,
-                                        int width,
-                                        int height,
-                                        int error,
-                                        const uint8_t expected_color[4]) {
-  int size = width * height * 4;
-  std::unique_ptr<uint8_t[]> pixels(new uint8_t[size]);
-  const uint8_t kCheckClearValue = 123u;
-  memset(pixels.get(), kCheckClearValue, size);
-  glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
-  int bad_count = 0;
-  for (int yy = 0; yy < height; ++yy) {
-    for (int xx = 0; xx < width; ++xx) {
-      int offset = yy * width * 4 + xx * 4;
-      for (int jj = 0; jj < 4; ++jj) {
-        uint8_t actual = pixels[offset + jj];
-        uint8_t expected = expected_color[jj];
-        EXPECT_NEAR(expected, actual, error)
-            << " at " << (xx + x) << ", " << (yy + y) << " channel " << jj;
-        bad_count += actual != expected;
-        // Exit early just so we don't spam the log but we print enough to
-        // hopefully make it easy to diagnose the issue.
-        if (bad_count > 16)
-          return false;
-      }
-    }
-  }
-
-  return !bad_count;
+  scoped_refptr<GLContext> context =
+      gl::init::CreateGLContext(nullptr, gl_surface.get(), GLContextAttribs());
+  EXPECT_TRUE(context->MakeCurrent(gl_surface.get()));
+  return std::make_pair(std::move(gl_surface), std::move(context));
 }
 
 #if BUILDFLAG(IS_WIN)
-GLTestHelper::WindowPixels::WindowPixels(std::vector<SkColor> pixels,
-                                         const gfx::Size& size)
-    : pixels_(std::move(pixels)), size_(size) {
-  CHECK_EQ(
-      static_cast<size_t>(size_.width()) * static_cast<size_t>(size_.height()),
-      pixels_.size());
-}
 
-GLTestHelper::WindowPixels::~WindowPixels() = default;
-
-SkColor GLTestHelper::WindowPixels::GetPixel(gfx::Point location) const {
+// static
+SkColor GLTestHelper::GetColorAtPoint(const SkBitmap& bitmap,
+                                      const gfx::Point& location) {
   CHECK_GE(location.x(), 0);
-  CHECK_LT(location.x(), size_.width());
+  CHECK_LT(location.x(), bitmap.width());
   CHECK_GE(location.y(), 0);
-  CHECK_LT(location.y(), size_.height());
-  return pixels_[location.y() * size_.width() + location.x()];
+  CHECK_LT(location.y(), bitmap.height());
+  return bitmap.getColor(location.x(), location.y());
 }
 
 // static
-GLTestHelper::WindowPixels GLTestHelper::ReadBackWindow(HWND window,
-                                                        const gfx::Size& size) {
+SkBitmap GLTestHelper::ReadBackWindow(HWND window, const gfx::Size& size) {
+  {
+    // Ensure that the previous commit has been processed before trying to read
+    // back the window contents.
+    Microsoft::WRL::ComPtr<IDCompositionDevice2> dcomp_device =
+        GetDirectCompositionDevice();
+    if (dcomp_device) {
+      CHECK_EQ(S_OK, dcomp_device->WaitForCommitCompletion());
+    }
+  }
+
   base::win::ScopedCreateDC mem_hdc(::CreateCompatibleDC(nullptr));
   DCHECK(mem_hdc.IsValid());
 
@@ -126,7 +104,7 @@ GLTestHelper::WindowPixels GLTestHelper::ReadBackWindow(HWND window,
   gfx::CreateBitmapV4HeaderForARGB888(size.width(), size.height(), &hdr);
 
   void* bits = nullptr;
-  base::win::ScopedBitmap bitmap(
+  base::win::ScopedGDIObject<HBITMAP> bitmap(
       ::CreateDIBSection(mem_hdc.Get(), reinterpret_cast<BITMAPINFO*>(&hdr),
                          DIB_RGB_COLORS, &bits, nullptr, 0));
   DCHECK(bitmap.is_valid());
@@ -145,10 +123,15 @@ GLTestHelper::WindowPixels GLTestHelper::ReadBackWindow(HWND window,
 
   GdiFlush();
 
-  std::vector<SkColor> pixels(size.width() * size.height());
-  memcpy(pixels.data(), bits, pixels.size() * sizeof(SkColor));
+  SkBitmap sk_bitmap;
+  CHECK(sk_bitmap.tryAllocPixels(SkImageInfo::Make(
+      SkISize::Make(size.width(), size.height()),
+      SkColorInfo(SkColorType::kBGRA_8888_SkColorType,
+                  SkAlphaType::kPremul_SkAlphaType, nullptr))));
+  UNSAFE_TODO(
+      memcpy(sk_bitmap.getAddr(0, 0), bits, sk_bitmap.computeByteSize()));
 
-  return GLTestHelper::WindowPixels(std::move(pixels), size);
+  return sk_bitmap;
 }
 
 // static
@@ -156,7 +139,7 @@ SkColor GLTestHelper::ReadBackWindowPixel(HWND window,
                                           const gfx::Point& point) {
   gfx::Size size(point.x() + 1, point.y() + 1);
   auto pixels = ReadBackWindow(window, size);
-  return pixels.GetPixel(point);
+  return GetColorAtPoint(pixels, point);
 }
 #endif
 

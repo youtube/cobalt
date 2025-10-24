@@ -8,7 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "components/sync/model/model_type_store.h"
+#include "base/memory/weak_ptr.h"
+#include "components/sync/model/data_type_store.h"
 
 class GURL;
 
@@ -31,7 +32,7 @@ class SyncSessionsClient {
 
   // Getters for services that sessions depends on.
   virtual SessionSyncPrefs* GetSessionSyncPrefs() = 0;
-  virtual syncer::RepeatingModelTypeStoreFactory GetStoreFactory() = 0;
+  virtual syncer::RepeatingDataTypeStoreFactory GetStoreFactory() = 0;
 
   // Clears all on demand favicons (downloaded based on synced history data).
   virtual void ClearAllOnDemandFavicons() = 0;
@@ -39,8 +40,6 @@ class SyncSessionsClient {
   // Checks if the given url is considered interesting enough to sync. Most urls
   // are considered interesting. Examples of ones that are not are invalid urls,
   // files, and chrome internal pages.
-  // TODO(zea): make this a standalone function if the url constants are
-  // componentized.
   virtual bool ShouldSyncURL(const GURL& url) const = 0;
 
   // Returns if the provided |cache_guid| is the local device's current cache\
@@ -53,6 +52,9 @@ class SyncSessionsClient {
   // Returns a LocalSessionEventRouter instance that is customized for the
   // embedder's context.
   virtual LocalSessionEventRouter* GetLocalSessionEventRouter() = 0;
+
+  // Returns a weak pointer to the implementation instance.
+  virtual base::WeakPtr<SyncSessionsClient> AsWeakPtr() = 0;
 };
 
 }  // namespace sync_sessions

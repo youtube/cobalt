@@ -6,10 +6,11 @@
 #define UI_BASE_IME_FUCHSIA_VIRTUAL_KEYBOARD_CONTROLLER_FUCHSIA_H_
 
 #include <fidl/fuchsia.input.virtualkeyboard/cpp/fidl.h>
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
+#include <fidl/fuchsia.ui.views/cpp/fidl.h>
 
 #include "base/component_export.h"
 #include "base/fuchsia/fidl_event_handler.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/base/ime/input_method_base.h"
 #include "ui/base/ime/virtual_keyboard_controller.h"
 
@@ -49,7 +50,7 @@ class COMPONENT_EXPORT(UI_BASE_IME) VirtualKeyboardControllerFuchsia
   // Gets the Fuchsia TextType corresponding to the currently focused field.
   fuchsia_input_virtualkeyboard::TextType GetFocusedTextType() const;
 
-  ui::InputMethodBase* const input_method_;
+  const raw_ptr<ui::InputMethodBase> input_method_;
   fuchsia_input_virtualkeyboard::TextType requested_type_ =
       fuchsia_input_virtualkeyboard::TextType::kAlphanumeric;
   fidl::Client<fuchsia_input_virtualkeyboard::Controller> controller_client_;

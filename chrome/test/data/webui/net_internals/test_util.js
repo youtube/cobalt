@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// <if expr="chromeos_ash">
+// <if expr="is_chromeos">
 import {CrosView} from 'chrome://net-internals/chromeos_view.js';
 // </if>
 import {DnsView} from 'chrome://net-internals/dns_view.js';
@@ -10,8 +10,8 @@ import {DomainSecurityPolicyView} from 'chrome://net-internals/domain_security_p
 import {EventsView} from 'chrome://net-internals/events_view.js';
 import {MainView} from 'chrome://net-internals/main.js';
 import {ProxyView} from 'chrome://net-internals/proxy_view.js';
+import {SharedDictionaryView} from 'chrome://net-internals/shared_dictionary_view.js';
 import {SocketsView} from 'chrome://net-internals/sockets_view.js';
-
 import {assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 /**
@@ -81,7 +81,8 @@ function getTab(tabId) {
       dns: DnsView.TAB_ID,
       sockets: SocketsView.TAB_ID,
       hsts: DomainSecurityPolicyView.TAB_ID,
-      // <if expr="chromeos_ash">
+      sharedDictionary: SharedDictionaryView.TAB_ID,
+      // <if expr="is_chromeos">
       chromeos: CrosView.TAB_ID,
       // </if>
     };

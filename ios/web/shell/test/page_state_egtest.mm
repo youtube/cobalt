@@ -14,10 +14,6 @@
 #import "ios/web/shell/test/earl_grey/web_shell_test_case.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 const char kLongPage1[] = "/tall_page.html";
@@ -72,7 +68,7 @@ void ScrollLongPageToTop(const GURL& url) {
 // Tests that page scroll position of a page is restored upon returning to the
 // page via the back/forward buttons.
 // grey_scrollInDirection scrolls incorrect distance on iOS 13.
-// TODO(crbug.com/983144): Enable this test on iOS 13.
+// TODO(crbug.com/41470294): Enable this test on iOS 13.
 - (void)DISABLED_testScrollPositionRestoring {
   // Scroll the first page and verify the offset.
   ScrollLongPageToTop(self.testServer->GetURL(kLongPage1));
@@ -101,7 +97,14 @@ void ScrollLongPageToTop(const GURL& url) {
 
 // Tests that the content offset of the webview scroll view is {0, 0} after a
 // load.
-- (void)testZeroContentOffsetAfterLoad {
+// TODO(crbug.com/354699341): Test is flaky on devices.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testZeroContentOffsetAfterLoad testZeroContentOffsetAfterLoad
+#else
+#define MAYBE_testZeroContentOffsetAfterLoad \
+  FLAKY_testZeroContentOffsetAfterLoad
+#endif
+- (void)MAYBE_testZeroContentOffsetAfterLoad {
   // Set up the file-based server to load the tall page.
   const GURL baseURL = self.testServer->GetURL(kLongPage1);
   [ShellEarlGrey loadURL:baseURL];

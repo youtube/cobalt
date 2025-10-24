@@ -9,12 +9,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.consent_auditor.ConsentAuditorBridge;
 import org.chromium.chrome.browser.consent_auditor.ConsentAuditorFeature;
-import org.chromium.components.signin.base.CoreAccountId;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.signin.base.GaiaId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,10 +24,11 @@ import java.util.Map;
 
 /**
  * Tracks resource IDs for consent texts within TextViews inside the consent screen. The consent
- * screen is an arbitrary set of view hierarchies that are passed to {#link recordConsent()}.
- * Note that all TextView instances within these hierarchies MUST have their text assigned using
- * {@link #setText} and {@link #setTextNonRecordable}. This is verified in {#link recordConsent()}.
+ * screen is an arbitrary set of view hierarchies that are passed to {#link recordConsent()}. Note
+ * that all TextView instances within these hierarchies MUST have their text assigned using {@link
+ * #setText} and {@link #setTextNonRecordable}. This is verified in {#link recordConsent()}.
  */
+@NullMarked
 public class ConsentTextTracker {
     /**
      * Stores metadata about the text associated with a given TextView in order to extract and
@@ -100,14 +103,16 @@ public class ConsentTextTracker {
     }
 
     /**
-     * Assigns a |text| to the given |view| and remembers that this text should be out of scope
-     * for consent recording.
+     * Assigns a |text| to the given |view| and remembers that this text should be out of scope for
+     * consent recording.
+     *
      * @see #setText(TextView, int, TextTransformation)
      * @param view The TextView to which the text should be assigned.
      * @param text The text to be assigned.
      */
     public void setTextNonRecordable(TextView view, CharSequence text) {
-        // TODO(crbug.com/821908): The selected account name, which is assigned to its |view| using
+        // TODO(crbug.com/41376544): The selected account name, which is assigned to its |view|
+        // using
         // this method, can be null in rare circumstances.
         CharSequence textSanitized = text != null ? text : "";
 
@@ -128,16 +133,18 @@ public class ConsentTextTracker {
         TextViewMetadata metadata = mTextViewToMetadataMap.get(view);
 
         // Ensure that setText() was used to assign this text.
-        assert metadata
-                != null : "The text '" + view.getText().toString() + "' was not assigned "
-                          + "by setText() or setTextNonRecordable().";
+        assert metadata != null
+                : "The text '"
+                        + view.getText().toString()
+                        + "' was not assigned "
+                        + "by setText() or setTextNonRecordable().";
 
         // Ensure that the text hasn't changed since the assignment.
         assert view.getText().toString().equals(metadata.getString())
-            : "The text '"
-                + view.getText().toString()
-                + "' has been modified after it was assigned by setText() "
-                + "or setTextNonRecordable().";
+                : "The text '"
+                        + view.getText().toString()
+                        + "' has been modified after it was assigned by setText() "
+                        + "or setTextNonRecordable().";
         return metadata.getId();
     }
 
@@ -158,13 +165,19 @@ public class ConsentTextTracker {
 
     /**
      * Records the consent.
-     * @param accountId The account for which the consent is valid
+     *
+     * @param profile The {@link Profile} associated with this consent record.
+     * @param gaiaId The account for which the consent is valid
      * @param feature {@link ConsentAuditorFeature} that user has consented to
      * @param confirmationView The view that the user clicked when consenting
      * @param consentViews View hierarchies that implement the consent screen
      */
-    public void recordConsent(CoreAccountId accountId, @ConsentAuditorFeature int feature,
-            TextView confirmationView, View... consentViews) {
+    public void recordConsent(
+            Profile profile,
+            GaiaId gaiaId,
+            @ConsentAuditorFeature int feature,
+            TextView confirmationView,
+            View... consentViews) {
         int consentConfirmation = getConsentStringResource(confirmationView);
 
         ArrayList<Integer> consentDescription = new ArrayList<>();
@@ -175,13 +188,12 @@ public class ConsentTextTracker {
 
         for (View view : visibleViews) {
             if (!(view instanceof TextView)) continue; // This element doesn't hold any text.
-            @StringRes
-            int id = getConsentStringResource((TextView) view);
+            @StringRes int id = getConsentStringResource((TextView) view);
             if (id == 0) continue; // This text is not relevant for consent recording.
             consentDescription.add(id);
         }
 
-        ConsentAuditorBridge.getInstance().recordConsent(
-                accountId, feature, consentDescription, consentConfirmation);
+        ConsentAuditorBridge.getInstance()
+                .recordConsent(profile, gaiaId, feature, consentDescription, consentConfirmation);
     }
 }

@@ -10,6 +10,10 @@
 
 #include "api/video/video_frame_buffer.h"
 
+#include <string>
+
+#include "api/array_view.h"
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/i422_buffer.h"
 #include "api/video/i444_buffer.h"
@@ -18,14 +22,14 @@
 
 namespace webrtc {
 
-rtc::scoped_refptr<VideoFrameBuffer> VideoFrameBuffer::CropAndScale(
+scoped_refptr<VideoFrameBuffer> VideoFrameBuffer::CropAndScale(
     int offset_x,
     int offset_y,
     int crop_width,
     int crop_height,
     int scaled_width,
     int scaled_height) {
-  rtc::scoped_refptr<I420Buffer> result =
+  scoped_refptr<I420Buffer> result =
       I420Buffer::Create(scaled_width, scaled_height);
   result->CropAndScaleFrom(*this->ToI420(), offset_x, offset_y, crop_width,
                            crop_height);
@@ -73,10 +77,14 @@ const NV12BufferInterface* VideoFrameBuffer::GetNV12() const {
   return static_cast<const NV12BufferInterface*>(this);
 }
 
-rtc::scoped_refptr<VideoFrameBuffer> VideoFrameBuffer::GetMappedFrameBuffer(
-    rtc::ArrayView<Type> types) {
+scoped_refptr<VideoFrameBuffer> VideoFrameBuffer::GetMappedFrameBuffer(
+    ArrayView<Type> /* types */) {
   RTC_CHECK(type() == Type::kNative);
   return nullptr;
+}
+
+std::string VideoFrameBuffer::storage_representation() const {
+  return "?";
 }
 
 VideoFrameBuffer::Type I420BufferInterface::type() const {
@@ -116,8 +124,8 @@ int I420BufferInterface::ChromaHeight() const {
   return (height() + 1) / 2;
 }
 
-rtc::scoped_refptr<I420BufferInterface> I420BufferInterface::ToI420() {
-  return rtc::scoped_refptr<I420BufferInterface>(this);
+scoped_refptr<I420BufferInterface> I420BufferInterface::ToI420() {
+  return scoped_refptr<I420BufferInterface>(this);
 }
 
 const I420BufferInterface* I420BufferInterface::GetI420() const {
@@ -140,14 +148,14 @@ int I444BufferInterface::ChromaHeight() const {
   return height();
 }
 
-rtc::scoped_refptr<VideoFrameBuffer> I444BufferInterface::CropAndScale(
+scoped_refptr<VideoFrameBuffer> I444BufferInterface::CropAndScale(
     int offset_x,
     int offset_y,
     int crop_width,
     int crop_height,
     int scaled_width,
     int scaled_height) {
-  rtc::scoped_refptr<I444Buffer> result =
+  scoped_refptr<I444Buffer> result =
       I444Buffer::Create(scaled_width, scaled_height);
   result->CropAndScaleFrom(*this, offset_x, offset_y, crop_width, crop_height);
   return result;
@@ -165,14 +173,14 @@ int I422BufferInterface::ChromaHeight() const {
   return height();
 }
 
-rtc::scoped_refptr<VideoFrameBuffer> I422BufferInterface::CropAndScale(
+scoped_refptr<VideoFrameBuffer> I422BufferInterface::CropAndScale(
     int offset_x,
     int offset_y,
     int crop_width,
     int crop_height,
     int scaled_width,
     int scaled_height) {
-  rtc::scoped_refptr<I422Buffer> result =
+  scoped_refptr<I422Buffer> result =
       I422Buffer::Create(scaled_width, scaled_height);
   result->CropAndScaleFrom(*this, offset_x, offset_y, crop_width, crop_height);
   return result;
@@ -226,17 +234,29 @@ int NV12BufferInterface::ChromaHeight() const {
   return (height() + 1) / 2;
 }
 
-rtc::scoped_refptr<VideoFrameBuffer> NV12BufferInterface::CropAndScale(
+scoped_refptr<VideoFrameBuffer> NV12BufferInterface::CropAndScale(
     int offset_x,
     int offset_y,
     int crop_width,
     int crop_height,
     int scaled_width,
     int scaled_height) {
-  rtc::scoped_refptr<NV12Buffer> result =
+  scoped_refptr<NV12Buffer> result =
       NV12Buffer::Create(scaled_width, scaled_height);
   result->CropAndScaleFrom(*this, offset_x, offset_y, crop_width, crop_height);
   return result;
+}
+
+void CheckValidDimensions(int width,
+                          int height,
+                          int stride_y,
+                          int stride_u,
+                          int stride_v) {
+  RTC_CHECK_GT(width, 0);
+  RTC_CHECK_GT(height, 0);
+  RTC_CHECK_GE(stride_y, width);
+  RTC_CHECK_GT(stride_u, 0);
+  RTC_CHECK_GT(stride_v, 0);
 }
 
 }  // namespace webrtc

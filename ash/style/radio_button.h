@@ -21,9 +21,9 @@ namespace ash {
 // left or right side, check icon on left or right side. It's usually used in
 // the group of radio buttons. Please refer `RadioButtonGroup` for more details.
 class ASH_EXPORT RadioButton : public OptionButtonBase {
- public:
-  METADATA_HEADER(RadioButton);
+  METADATA_HEADER(RadioButton, OptionButtonBase)
 
+ public:
   enum class IconDirection {
     kLeading,
     kFollowing,
@@ -39,7 +39,8 @@ class ASH_EXPORT RadioButton : public OptionButtonBase {
                        const std::u16string& label = std::u16string(),
                        IconDirection icon_direction = IconDirection::kLeading,
                        IconType icon_type = IconType::kCircle,
-                       const gfx::Insets& insets = kDefaultPadding);
+                       const gfx::Insets& insets = kDefaultPadding,
+                       int image_label_spacing = kImageLabelSpacingDP);
   RadioButton(const RadioButton&) = delete;
   RadioButton& operator=(const RadioButton&) = delete;
   ~RadioButton() override;
@@ -50,7 +51,6 @@ class ASH_EXPORT RadioButton : public OptionButtonBase {
   // OptionButtonBase::
   const gfx::VectorIcon& GetVectorIcon() const override;
   bool IsIconOnTheLeftSide() override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
 
  private:
   const IconDirection icon_direction_;

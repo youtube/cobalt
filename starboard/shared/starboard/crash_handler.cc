@@ -14,6 +14,9 @@
 
 #include "starboard/shared/starboard/crash_handler.h"
 
+#include <pthread.h>
+
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/extension/crash_handler.h"
@@ -22,23 +25,35 @@ namespace starboard {
 
 namespace {
 
+SetStringCallback g_set_string_callback = nullptr;
+pthread_mutex_t g_set_string_callback_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
 }
 
 bool SetString(const char* key, const char* value) {
-#if SB_IS(MODULAR)
-  return false;
-#else
-  return crashpad::InsertCrashpadAnnotation(key, value);
-#endif  // SB_IS(MODULAR)
+  bool result = false;
+
+  SB_CHECK_EQ(pthread_mutex_lock(&g_set_string_callback_mutex), 0);
+  if (g_set_string_callback) {
+    result = g_set_string_callback(key, value);
+  }
+  SB_CHECK_EQ(pthread_mutex_unlock(&g_set_string_callback_mutex), 0);
+
+  return result;
+}
+
+void RegisterSetStringCallback(SetStringCallback callback) {
+  SB_CHECK_EQ(pthread_mutex_lock(&g_set_string_callback_mutex), 0);
+  g_set_string_callback = callback;
+  SB_CHECK_EQ(pthread_mutex_unlock(&g_set_string_callback_mutex), 0);
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
-    kCobaltExtensionCrashHandlerName,
-    2,
-    &OverrideCrashpadAnnotations,
-    &SetString,
+    kCobaltExtensionCrashHandlerName, 3,
+    &OverrideCrashpadAnnotations,     &SetString,
+    &RegisterSetStringCallback,
 };
 
 }  // namespace

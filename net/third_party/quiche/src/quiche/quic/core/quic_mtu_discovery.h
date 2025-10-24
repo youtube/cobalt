@@ -14,10 +14,10 @@ namespace quic {
 
 // The initial number of packets between MTU probes.  After each attempt the
 // number is doubled.
-const QuicPacketCount kPacketsBetweenMtuProbesBase = 100;
+inline constexpr QuicPacketCount kPacketsBetweenMtuProbesBase = 100;
 
 // The number of MTU probes that get sent before giving up.
-const size_t kMtuDiscoveryAttempts = 3;
+inline constexpr size_t kMtuDiscoveryAttempts = 3;
 
 // Ensure that exponential back-off does not result in an integer overflow.
 // The number of packets can be potentially capped, but that is not useful at
@@ -28,8 +28,8 @@ static_assert(kPacketsBetweenMtuProbesBase < (1 << 8),
               "The initial number of packets between MTU probes is too high");
 
 // The increased packet size targeted when doing path MTU discovery.
-const QuicByteCount kMtuDiscoveryTargetPacketSizeHigh = 1400;
-const QuicByteCount kMtuDiscoveryTargetPacketSizeLow = 1380;
+inline constexpr QuicByteCount kMtuDiscoveryTargetPacketSizeHigh = 1400;
+inline constexpr QuicByteCount kMtuDiscoveryTargetPacketSizeLow = 1380;
 
 static_assert(kMtuDiscoveryTargetPacketSizeLow <= kMaxOutgoingPacketSize,
               "MTU discovery target is too large");
@@ -50,7 +50,7 @@ static_assert(kMtuDiscoveryTargetPacketSizeHigh > kDefaultMaxPacketSize,
 // Note the discoverer does not actually send or process probing packets.
 //
 // Unit tests are in QuicConnectionTest.MtuDiscovery*.
-class QUIC_EXPORT_PRIVATE QuicConnectionMtuDiscoverer {
+class QUICHE_EXPORT QuicConnectionMtuDiscoverer {
  public:
   // Construct a discoverer in the disabled state.
   QuicConnectionMtuDiscoverer() = default;
@@ -88,7 +88,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionMtuDiscoverer {
 
   QuicPacketNumber next_probe_at() const { return next_probe_at_; }
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
+  QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicConnectionMtuDiscoverer& d);
 
  private:

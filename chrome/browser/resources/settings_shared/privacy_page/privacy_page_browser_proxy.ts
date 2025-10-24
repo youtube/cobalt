@@ -44,12 +44,20 @@ export interface SecureDnsSetting {
   config: string;
   managementMode: SecureDnsUiManagementMode;
   // <if expr="chromeos_ash">
+  // Secure DNS mode and config of ChromeOS might differ with Chrome. This is
+  // necessary when the DoH included or excluded domains config is set
+  // (b/351091814).
+  osMode: SecureDnsMode;
+  osConfig: string;
   // Indicates if the templates URI contain user identifiers configured via
   // policy.
   dohWithIdentifiersActive: boolean;
   // The template URI with plain text identifiers. In the effective template
   // URI `config` the identifiers are hashed and hex encoded.
   configForDisplay: string;
+  // Indicates if the DoH included or excluded domains config is configured via
+  // policy.
+  dohDomainConfigSet: boolean;
   // </if>
 }
 
@@ -57,12 +65,6 @@ export interface PrivacyPageBrowserProxy {
   // <if expr="_google_chrome and not chromeos_ash">
   getMetricsReporting(): Promise<MetricsReporting>;
   setMetricsReportingEnabled(enabled: boolean): void;
-
-  // </if>
-
-  // <if expr="is_win or is_macosx">
-  /** Invokes the native certificate manager (used by win and mac). */
-  showManageSslCertificates(): void;
 
   // </if>
 
@@ -80,15 +82,6 @@ export interface PrivacyPageBrowserProxy {
    *     configuration or the probe was cancelled.
    */
   probeConfig(entry: string): Promise<boolean>;
-
-
-  /**
-   * Records metrics on the user's interaction with the dropdown menu.
-   * @param oldSelection value of previously selected dropdown option
-   * @param newSelection value of newly selected dropdown option
-   */
-  recordUserDropdownInteraction(oldSelection: string, newSelection: string):
-      void;
 }
 
 export class PrivacyPageBrowserProxyImpl implements PrivacyPageBrowserProxy {
@@ -107,12 +100,6 @@ export class PrivacyPageBrowserProxyImpl implements PrivacyPageBrowserProxy {
     chrome.send('setBlockAutoplayEnabled', [enabled]);
   }
 
-  // <if expr="is_win or is_macosx">
-  showManageSslCertificates() {
-    chrome.send('showManageSSLCertificates');
-  }
-  // </if>
-
   getSecureDnsResolverList() {
     return sendWithPromise('getSecureDnsResolverList');
   }
@@ -127,10 +114,6 @@ export class PrivacyPageBrowserProxyImpl implements PrivacyPageBrowserProxy {
 
   probeConfig(entry: string): Promise<boolean> {
     return sendWithPromise('probeConfig', entry);
-  }
-
-  recordUserDropdownInteraction(oldSelection: string, newSelection: string) {
-    chrome.send('recordUserDropdownInteraction', [oldSelection, newSelection]);
   }
 
   static getInstance(): PrivacyPageBrowserProxy {

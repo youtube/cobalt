@@ -21,7 +21,8 @@ namespace ash::captions {
 class ASH_EXPORT CaptionBubbleContextAsh
     : public ::captions::CaptionBubbleContext {
  public:
-  CaptionBubbleContextAsh();
+  explicit CaptionBubbleContextAsh(
+      ::captions::OpenCaptionSettingsCallback callback);
   ~CaptionBubbleContextAsh() override;
   CaptionBubbleContextAsh(const CaptionBubbleContextAsh&) = delete;
   CaptionBubbleContextAsh& operator=(const CaptionBubbleContextAsh&) = delete;
@@ -31,8 +32,14 @@ class ASH_EXPORT CaptionBubbleContextAsh
   const std::string GetSessionId() const override;
   void Activate() override {}
   bool IsActivatable() const override;
+  bool ShouldAvoidOverlap() const override;
   std::unique_ptr<::captions::CaptionBubbleSessionObserver>
   GetCaptionBubbleSessionObserver() override;
+  ::captions::OpenCaptionSettingsCallback GetOpenCaptionSettingsCallback()
+      override;
+
+ private:
+  const ::captions::OpenCaptionSettingsCallback open_caption_settings_callback_;
 };
 
 }  // namespace ash::captions

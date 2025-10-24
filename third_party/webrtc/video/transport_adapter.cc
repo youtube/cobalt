@@ -10,6 +10,10 @@
 
 #include "video/transport_adapter.h"
 
+#include <cstdint>
+
+#include "api/array_view.h"
+#include "api/call/transport.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -22,20 +26,20 @@ TransportAdapter::TransportAdapter(Transport* transport)
 
 TransportAdapter::~TransportAdapter() = default;
 
-bool TransportAdapter::SendRtp(const uint8_t* packet,
-                               size_t length,
+bool TransportAdapter::SendRtp(ArrayView<const uint8_t> packet,
                                const PacketOptions& options) {
   if (!enabled_.load())
     return false;
 
-  return transport_->SendRtp(packet, length, options);
+  return transport_->SendRtp(packet, options);
 }
 
-bool TransportAdapter::SendRtcp(const uint8_t* packet, size_t length) {
+bool TransportAdapter::SendRtcp(ArrayView<const uint8_t> packet,
+                                const PacketOptions& options) {
   if (!enabled_.load())
     return false;
 
-  return transport_->SendRtcp(packet, length);
+  return transport_->SendRtcp(packet, options);
 }
 
 void TransportAdapter::Enable() {

@@ -58,8 +58,13 @@ void FakeConnectionToClient::SetEventHandler(EventHandler* event_handler) {
   event_handler_ = event_handler;
 }
 
+void FakeConnectionToClient::ApplyNetworkSettings(
+    const NetworkSettings& settings) {
+  network_settings_ = settings;
+}
+
 std::unique_ptr<VideoStream> FakeConnectionToClient::StartVideoStream(
-    const std::string& stream_name,
+    webrtc::ScreenId screen_id,
     std::unique_ptr<DesktopCapturer> desktop_capturer) {
   desktop_capturer_ = std::move(desktop_capturer);
   if (video_stub_ && video_encode_task_runner_) {
@@ -88,7 +93,9 @@ ClientStub* FakeConnectionToClient::client_stub() {
   return client_stub_;
 }
 
-void FakeConnectionToClient::Disconnect(ErrorCode disconnect_error) {
+void FakeConnectionToClient::Disconnect(ErrorCode disconnect_error,
+                                        std::string_view error_details,
+                                        const SourceLocation& error_location) {
   CHECK(is_connected_);
 
   is_connected_ = false;

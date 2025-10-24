@@ -182,6 +182,8 @@ static_library("starboard_platform") {
     "display_util.cc",
     "display_util.h",
     "drm_create_system.cc",
+    "drm_session_id_mapper.cc",
+    "drm_session_id_mapper.h",
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
@@ -317,7 +319,6 @@ static_library("starboard_platform") {
 
   deps = [
     "//base",
-    "//third_party/libevent",
     "//third_party/opus",
   ]
 
@@ -379,18 +380,22 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
-              "//starboard/shared/starboard/drm/drm_test_helpers.cc",
-              "//starboard/shared/starboard/drm/drm_test_helpers.h",
-              "//starboard/shared/starboard/starboard_feature_test.cc",
+              "drm_session_id_mapper_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
+              "video_frame_tracker_test.cc",
             ]
+
+  # Add starboard_feature_test to Android's starboard_platform_tests,
+  # since Android is the only platform that includes starboard_feature.
+  sources += [ "//starboard/shared/starboard/starboard_feature_test.cc" ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
     ":starboard_platform",
     "//starboard:starboard_group",
+    "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
     "//testing/gtest",

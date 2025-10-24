@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This is a copy of net/base/ip_address.cc circa 2023. It should be used only
 // by components/feedback/redaction_tool/. We need a copy because the
 // components/feedback/redaction_tool source code is shared into ChromeOS and
@@ -11,19 +16,18 @@
 
 #include <algorithm>
 #include <climits>
+#include <string_view>
 
 #include "base/check_op.h"
-#include "base/containers/stack_container.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/values.h"
 #include "components/feedback/redaction_tool/url_canon_ip.h"
 #include "components/feedback/redaction_tool/url_canon_stdstring.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace redaction_internal {
 namespace {
@@ -60,11 +64,10 @@ bool IPAddressPrefixCheck(const IPAddressBytes& ip_address,
   return true;
 }
 
-bool ParseIPLiteralToBytes(base::StringPiece ip_literal,
-                           IPAddressBytes* bytes) {
+bool ParseIPLiteralToBytes(std::string_view ip_literal, IPAddressBytes* bytes) {
   // |ip_literal| could be either an IPv4 or an IPv6 literal. If it contains
   // a colon however, it must be an IPv6 address.
-  if (ip_literal.find(':') != base::StringPiece::npos) {
+  if (ip_literal.find(':') != std::string_view::npos) {
     // GURL expects IPv6 hostnames to be surrounded with brackets.
     std::string host_brackets = base::StrCat({"[", ip_literal, "]"});
     Component host_comp(0, host_brackets.size());
@@ -109,11 +112,7 @@ bool IPAddressBytes::operator<(const IPAddressBytes& other) const {
 }
 
 bool IPAddressBytes::operator==(const IPAddressBytes& other) const {
-  return base::ranges::equal(*this, other);
-}
-
-bool IPAddressBytes::operator!=(const IPAddressBytes& other) const {
-  return !(*this == other);
+  return std::ranges::equal(*this, other);
 }
 
 // static
@@ -186,7 +185,7 @@ bool IPAddress::IsIPv4MappedIPv6() const {
   return IsIPv6() && IPAddressStartsWith(*this, kIPv4MappedPrefix);
 }
 
-bool IPAddress::AssignFromIPLiteral(base::StringPiece ip_literal) {
+bool IPAddress::AssignFromIPLiteral(std::string_view ip_literal) {
   bool success = ParseIPLiteralToBytes(ip_literal, &ip_address_);
   if (!success) {
     ip_address_.Resize(0);
@@ -212,14 +211,6 @@ IPAddress IPAddress::IPv4AllZeros() {
 // static
 IPAddress IPAddress::IPv6AllZeros() {
   return AllZeros(kIPv6AddressSize);
-}
-
-bool IPAddress::operator==(const IPAddress& that) const {
-  return ip_address_ == that.ip_address_;
-}
-
-bool IPAddress::operator!=(const IPAddress& that) const {
-  return ip_address_ != that.ip_address_;
 }
 
 bool IPAddress::operator<(const IPAddress& that) const {
@@ -249,21 +240,21 @@ IPAddress ConvertIPv4ToIPv4MappedIPv6(const IPAddress& address) {
   DCHECK(address.IsIPv4());
   // IPv4-mapped addresses are formed by:
   // <80 bits of zeros>  + <16 bits of ones> + <32-bit IPv4 address>.
-  base::StackVector<uint8_t, 16> bytes;
-  bytes->insert(bytes->end(), std::begin(kIPv4MappedPrefix),
-                std::end(kIPv4MappedPrefix));
-  bytes->insert(bytes->end(), address.bytes().begin(), address.bytes().end());
-  return IPAddress(bytes->data(), bytes->size());
+  absl::InlinedVector<uint8_t, 16> bytes;
+  bytes.insert(bytes.end(), std::begin(kIPv4MappedPrefix),
+               std::end(kIPv4MappedPrefix));
+  bytes.insert(bytes.end(), address.bytes().begin(), address.bytes().end());
+  return IPAddress(bytes.data(), bytes.size());
 }
 
 IPAddress ConvertIPv4MappedIPv6ToIPv4(const IPAddress& address) {
   DCHECK(address.IsIPv4MappedIPv6());
 
-  base::StackVector<uint8_t, 16> bytes;
-  bytes->insert(bytes->end(),
-                address.bytes().begin() + std::size(kIPv4MappedPrefix),
-                address.bytes().end());
-  return IPAddress(bytes->data(), bytes->size());
+  absl::InlinedVector<uint8_t, 16> bytes;
+  bytes.insert(bytes.end(),
+               address.bytes().begin() + std::size(kIPv4MappedPrefix),
+               address.bytes().end());
+  return IPAddress(bytes.data(), bytes.size());
 }
 
 bool IPAddressMatchesPrefix(const IPAddress& ip_address,

@@ -106,7 +106,7 @@ struct ElementIdentifierImpl {
 
 class ElementTracker;
 
-// Holds a globally-unqiue, value-typed identifier from a set of identifiers
+// Holds a globally-unique, value-typed identifier from a set of identifiers
 // which can be declared in any static scope.
 //
 // This type is comparable and supports operator bool and negation, where
@@ -128,22 +128,19 @@ class COMPONENT_EXPORT(UI_BASE) ElementIdentifier final {
 
   constexpr bool operator!() const { return !handle_; }
 
-  constexpr bool operator==(const ElementIdentifier& other) const {
-    return handle_ == other.handle_;
-  }
+  friend constexpr bool operator==(const ElementIdentifier&,
+                                   const ElementIdentifier&) = default;
 
-  constexpr bool operator!=(const ElementIdentifier& other) const {
-    return handle_ != other.handle_;
-  }
-
-  constexpr bool operator<(const ElementIdentifier& other) const {
-    return handle_ < other.handle_;
-  }
+  // TODO(crbug.com/333028921): Operator < cannot be constexpr because memory
+  // order of Impl objects is not strictly known at compile time. Fix this...
+  // somehow? Possibilities include compile-time hashing of identifier string.
+  friend auto operator<=>(const ElementIdentifier&,
+                          const ElementIdentifier&) = default;
 
   // Retrieves the element name, or the empty string if none.
   std::string GetName() const;
 
-  // Retrieve a known ElementIdentifer by name. An ElementIdentifier is *known*
+  // Retrieve a known ElementIdentifier by name. An ElementIdentifier is *known*
   // if a TrackedElement has been created with the id, or if the value of the
   // identifier has been serialized using GetRawValue() or GetName().
   static ElementIdentifier FromName(const char* name);
@@ -178,8 +175,8 @@ class COMPONENT_EXPORT(UI_BASE) ElementIdentifier final {
   // The value of the identifier. Because all non-null values point to static
   // ElementIdentifierImpl objects this can be treated as a value from a set of
   // unique, opaque handles.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union, #global-scope, #constexpr-ctor-field-initializer
+  // RAW_PTR_EXCLUSION: Since all ElementIdentifierImpl instances are
+  // statically-allocated, this pointer can never dangle.
   RAW_PTR_EXCLUSION const internal::ElementIdentifierImpl* handle_ = nullptr;
 };
 
@@ -220,15 +217,10 @@ class COMPONENT_EXPORT(UI_BASE) ElementContext {
   explicit operator intptr_t() const { return static_cast<intptr_t>(value_); }
   explicit operator bool() const { return value_ != 0; }
   bool operator!() const { return !value_; }
-  bool operator==(const ElementContext& other) const {
-    return value_ == other.value_;
-  }
-  bool operator!=(const ElementContext& other) const {
-    return value_ != other.value_;
-  }
-  bool operator<(const ElementContext& other) const {
-    return value_ < other.value_;
-  }
+  friend bool operator==(const ElementContext&,
+                         const ElementContext&) = default;
+  friend auto operator<=>(const ElementContext&,
+                          const ElementContext&) = default;
 
  private:
   uintptr_t value_ = 0;
@@ -261,23 +253,38 @@ class ClassPropertyCaster<ui::ElementIdentifier> {
 }  // namespace ui
 
 // Declaring identifiers outside a scope:
+//
+// Note: if you need to use the identifier outside the current component, use
+// DECLARE/DEFINE_EXPORTED_... below.
 
 // Use this code in the .h file to declare a new identifier.
-#define DECLARE_ELEMENT_IDENTIFIER_VALUE(IdentifierName) \
-  DECLARE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(, IdentifierName)
+#define DECLARE_ELEMENT_IDENTIFIER_VALUE(IdentifierName)                     \
+  extern const ui::internal::ElementIdentifierImpl IdentifierName##Provider; \
+  inline constexpr ui::ElementIdentifier IdentifierName(                     \
+      &IdentifierName##Provider)
+
+// Use this code in the .cc file to define a new identifier.
+#define DEFINE_ELEMENT_IDENTIFIER_VALUE(IdentifierName)                \
+  const ui::internal::ElementIdentifierImpl IdentifierName##Provider { \
+    #IdentifierName                                                    \
+  }
+
+// Declaring identifiers that can be used in other components:
+//
+// Note: unlike other declarations, this identifier will not be constexpr in
+// most cases.
 
 // Use this code in the .h file to declare a new exported identifier.
 #define DECLARE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(ExportName, IdentifierName) \
   ExportName extern const ui::internal::ElementIdentifierImpl                 \
       IdentifierName##Provider;                                               \
-  ExportName constexpr ui::ElementIdentifier IdentifierName(                  \
-      &IdentifierName##Provider)
+  ExportName extern const ui::ElementIdentifier IdentifierName
 
-// Use this code in the .cc file to define a new identifier.
-#define DEFINE_ELEMENT_IDENTIFIER_VALUE(IdentifierName)                    \
-  constexpr ui::internal::ElementIdentifierImpl IdentifierName##Provider { \
-#IdentifierName                                                        \
-  }
+// Use this code in the .cc file to define a new exported identifier.
+#define DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(IdentifierName)      \
+  const ui::internal::ElementIdentifierImpl IdentifierName##Provider{ \
+      #IdentifierName};                                               \
+  const ui::ElementIdentifier IdentifierName(&IdentifierName##Provider)
 
 // Declaring identifiers in a class:
 
@@ -285,7 +292,7 @@ class ClassPropertyCaster<ui::ElementIdentifier> {
 // identifier that is scoped to your class.
 #define DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(IdentifierName)               \
   static const ui::internal::ElementIdentifierImpl IdentifierName##Provider; \
-  static constexpr ui::ElementIdentifier IdentifierName {                    \
+  static constexpr ui::ElementIdentifier IdentifierName {             \
     &IdentifierName##Provider                                                \
   }
 
@@ -304,20 +311,23 @@ class ClassPropertyCaster<ui::ElementIdentifier> {
 // This helper macro is required because of how __LINE__ is handled when passed
 // between macros, you need an intermediate macro in order to stringify it.
 // DO NOT CALL DIRECTLY; used by DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE().
-#define LOCAL_ELEMENT_IDENTIFIER_NAME_HELPER(File, Line, Name) \
+#define LOCAL_ELEMENT_IDENTIFIER_NAME(File, Line, Name) \
   File "::" #Line "::" #Name
 
-// Intermediate macro required to stringify __LINE__; see
-// LOCAL_ELEMENT_IDENTIFIER_NAME_HELPER().
-// DO NOT CALL DIRECTLY; used by DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE().
-#define LOCAL_ELEMENT_IDENTIFIER_NAME(File, Line, Name) \
-  LOCAL_ELEMENT_IDENTIFIER_NAME_HELPER(File, Line, Name)
-
-// Use this code to declare a local identifier in a function body.
-#define DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(IdentifierName)                 \
-  static constexpr ui::internal::ElementIdentifierImpl                        \
-      IdentifierName##Provider{                                               \
-          LOCAL_ELEMENT_IDENTIFIER_NAME(__FILE__, __LINE__, IdentifierName)}; \
+// Use this code to declare a local identifier from within a macro; you should
+// pass the __FILE__ and __LINE__ values for `File` and `Line`. The name will be
+// mangled with the file and line so that it can be used in local or module
+// scope (typically in tests) without having to worry about name collisions.
+#define DEFINE_MACRO_ELEMENT_IDENTIFIER_VALUE(File, Line, IdentifierName) \
+  static constexpr ui::internal::ElementIdentifierImpl                    \
+      IdentifierName##Provider{                                           \
+          LOCAL_ELEMENT_IDENTIFIER_NAME(File, Line, IdentifierName)};     \
   constexpr ui::ElementIdentifier IdentifierName(&IdentifierName##Provider)
+
+// Use this code to declare a local identifier in a function body or module
+// scope. The name will be mangled with the file and line so that it can be used
+// (typically in tests) without having to worry about name collisions.
+#define DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(IdentifierName) \
+  DEFINE_MACRO_ELEMENT_IDENTIFIER_VALUE(__FILE__, __LINE__, IdentifierName)
 
 #endif  // UI_BASE_INTERACTION_ELEMENT_IDENTIFIER_H_

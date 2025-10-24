@@ -5,16 +5,20 @@
 #include "components/update_client/url_fetcher_downloader.h"
 
 #include <stdint.h>
+
 #include <utility>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "components/update_client/network.h"
 #include "components/update_client/task_traits.h"
+#include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "url/gurl.h"
 
@@ -28,12 +32,13 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 
 UrlFetcherDownloader::~UrlFetcherDownloader() = default;
 
-void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
+base::OnceClosure UrlFetcherDownloader::DoStartDownload(const GURL& url) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UrlFetcherDownloader::CreateDownloadDir, this),
       base::BindOnce(&UrlFetcherDownloader::StartURLFetch, this, url));
+  return base::BindOnce(&UrlFetcherDownloader::Cancel, this);
 }
 
 void UrlFetcherDownloader::CreateDownloadDir() {
@@ -44,9 +49,11 @@ void UrlFetcherDownloader::CreateDownloadDir() {
 void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (download_dir_.empty()) {
+  if (cancelled_ || download_dir_.empty()) {
     Result result;
-    result.error = -1;
+    result.error =
+        static_cast<int>(cancelled_ ? CrxDownloaderError::CANCELLED
+                                    : CrxDownloaderError::NO_DOWNLOAD_DIR);
 
     DownloadMetrics download_metrics;
     download_metrics.url = url;
@@ -62,15 +69,23 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
     return;
   }
 
-  file_path_ = download_dir_.AppendASCII(url.ExtractFileName());
+  file_path_ = download_dir_.AppendUTF8(url.ExtractFileName());
   network_fetcher_ = network_fetcher_factory_->Create();
-  network_fetcher_->DownloadToFile(
+  cancel_callback_ = network_fetcher_->DownloadToFile(
       url, file_path_,
-      base::BindOnce(&UrlFetcherDownloader::OnResponseStarted, this),
+      base::BindRepeating(&UrlFetcherDownloader::OnResponseStarted, this),
       base::BindRepeating(&UrlFetcherDownloader::OnDownloadProgress, this),
       base::BindOnce(&UrlFetcherDownloader::OnNetworkFetcherComplete, this));
 
   download_start_time_ = base::TimeTicks::Now();
+}
+
+void UrlFetcherDownloader::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  cancelled_ = true;
+  if (cancel_callback_) {
+    std::move(cancel_callback_).Run();
+  }
 }
 
 void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
@@ -87,24 +102,30 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
   // the request and avoid overloading the server in this case.
   // is not accepting requests for the moment.
   int error = -1;
-  if (!net_error && response_code_ == 200)
+  int extra_code1 = 0;
+  if (!net_error && response_code_ == 200) {
     error = 0;
-  else if (response_code_ != -1)
+  } else if (response_code_ != -1) {
     error = response_code_;
-  else
+    extra_code1 = net_error;
+  } else {
     error = net_error;
+  }
 
   const bool is_handled = error == 0 || IsHttpServerError(error);
 
   Result result;
   result.error = error;
-  if (!error)
+  result.extra_code1 = extra_code1;
+  if (!error) {
     result.response = file_path_;
+  }
 
   DownloadMetrics download_metrics;
   download_metrics.url = url();
   download_metrics.downloader = DownloadMetrics::kUrlFetcher;
   download_metrics.error = error;
+  download_metrics.extra_code1 = extra_code1;
   // Tests expected -1, in case of failures and no content is available.
   download_metrics.downloaded_bytes = error ? -1 : content_size;
   download_metrics.total_bytes = total_bytes_;
@@ -118,7 +139,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
   if (error && !download_dir_.empty()) {
     base::ThreadPool::PostTask(
         FROM_HERE, kTaskTraits,
-        base::BindOnce(IgnoreResult(&base::DeletePathRecursively),
+        base::BindOnce(IgnoreResult(&RetryDeletePathRecursively),
                        download_dir_));
   }
 

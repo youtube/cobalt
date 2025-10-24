@@ -98,7 +98,6 @@ int Yama::GetStatus() {
              STATUS_STRICT_ENFORCING;
     default:
       NOTREACHED();
-      return 0;
   }
 }
 

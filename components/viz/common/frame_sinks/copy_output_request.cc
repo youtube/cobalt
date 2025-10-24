@@ -4,12 +4,13 @@
 
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
+#include "base/synchronization/lock.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
@@ -18,6 +19,8 @@
 
 namespace {
 
+constexpr int kMaxPendingSendResult = 4;
+
 const char* ResultFormatToShortString(
     viz::CopyOutputRequest::ResultFormat result_format) {
   switch (result_format) {
@@ -25,7 +28,7 @@ const char* ResultFormatToShortString(
       return "RGBA";
     case viz::CopyOutputRequest::ResultFormat::I420_PLANES:
       return "I420";
-    case viz::CopyOutputRequest::ResultFormat::NV12_PLANES:
+    case viz::CopyOutputRequest::ResultFormat::NV12:
       return "NV12";
   }
 }
@@ -40,6 +43,13 @@ const char* ResultDestinationToShortString(
   }
 }
 
+int g_pending_send_result_count = 0;
+
+base::Lock& GetPendingSendResultLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
 }  // namespace
 
 namespace viz {
@@ -50,6 +60,7 @@ CopyOutputRequest::CopyOutputRequest(ResultFormat result_format,
     : result_format_(result_format),
       result_destination_(result_destination),
       result_callback_(std::move(result_callback)),
+      result_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       scale_from_(1, 1),
       scale_to_(1, 1) {
   // If format is I420_PLANES, the result must be in system memory. Returning
@@ -107,35 +118,17 @@ void CopyOutputRequest::SetUniformScaleRatio(int scale_from, int scale_to) {
 void CopyOutputRequest::set_blit_request(BlitRequest blit_request) {
   DCHECK(!blit_request_);
   DCHECK_EQ(result_destination(), ResultDestination::kNativeTextures);
-  DCHECK_EQ(result_format(), ResultFormat::NV12_PLANES);
+  DCHECK(result_format() == ResultFormat::NV12 ||
+         result_format() == ResultFormat::RGBA);
   DCHECK(has_result_selection());
 
-  // Destination region must start at an even offset for NV12 results:
-  DCHECK_EQ(blit_request.destination_region_offset().x() % 2, 0);
-  DCHECK_EQ(blit_request.destination_region_offset().y() % 2, 0);
-
-#if DCHECK_IS_ON()
-  {
-    const gpu::MailboxHolder* first_zeroed_mailbox_it =
-        base::ranges::find_if(blit_request.mailboxes(), &gpu::Mailbox::IsZero,
-                              &gpu::MailboxHolder::mailbox);
-
-    size_t num_nonzeroed_mailboxes =
-        first_zeroed_mailbox_it - blit_request.mailboxes().begin();
-
-    switch (result_format()) {
-      case ResultFormat::RGBA:
-        DCHECK_EQ(num_nonzeroed_mailboxes, CopyOutputResult::kRGBAMaxPlanes);
-        break;
-      case ResultFormat::NV12_PLANES:
-        DCHECK_EQ(num_nonzeroed_mailboxes, CopyOutputResult::kNV12MaxPlanes);
-        break;
-      case ResultFormat::I420_PLANES:
-        DCHECK_EQ(num_nonzeroed_mailboxes, CopyOutputResult::kI420MaxPlanes);
-        break;
-    }
+  if (result_format() == ResultFormat::NV12) {
+    // Destination region must start at an even offset for NV12 results:
+    DCHECK_EQ(blit_request.destination_region_offset().x() % 2, 0);
+    DCHECK_EQ(blit_request.destination_region_offset().y() % 2, 0);
   }
-#endif
+
+  CHECK(!blit_request.mailbox().IsZero());
 
   blit_request_ = std::move(blit_request);
 }
@@ -144,15 +137,29 @@ void CopyOutputRequest::SendResult(std::unique_ptr<CopyOutputResult> result) {
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       "viz", "CopyOutputRequest", this, "success", !result->IsEmpty(),
       "has_provided_task_runner", !!result_task_runner_);
-  // Serializing the result requires an expensive copy, so to not block the
-  // any important thread we PostTask onto the threadpool by default, but if the
-  // user has provided a task runner use that instead.
-  auto runner =
-      result_task_runner_
-          ? result_task_runner_
-          : base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
-  runner->PostTask(FROM_HERE, base::BindOnce(std::move(result_callback_),
-                                             std::move(result)));
+  CHECK(result_task_runner_);
+  auto task = base::BindOnce(std::move(result_callback_), std::move(result));
+
+  if (send_result_delay_.is_zero()) {
+    result_task_runner_->PostTask(FROM_HERE, std::move(task));
+  } else {
+    base::AutoLock locked_counter(GetPendingSendResultLock());
+    if (g_pending_send_result_count >= kMaxPendingSendResult) {
+      result_task_runner_->PostTask(FROM_HERE, std::move(task));
+    } else {
+      g_pending_send_result_count++;
+      result_task_runner_->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(
+              [](base::OnceClosure callback) {
+                std::move(callback).Run();
+                base::AutoLock locked_counter(GetPendingSendResultLock());
+                g_pending_send_result_count--;
+              },
+              std::move(task)),
+          send_result_delay_);
+    }
+  }
   // Remove the reference to the task runner (no-op if we didn't have one).
   result_task_runner_ = nullptr;
 }

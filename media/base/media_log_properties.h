@@ -10,10 +10,10 @@
 
 #include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/cdm_config.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log_type_enforcement.h"
 #include "media/base/renderer_factory_selector.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -23,6 +23,7 @@ namespace media {
 // property, it must be added in this enum and have it's type defined below
 // using MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(<name>, <type>) or with a custom
 // specializer. See MEDIA_LOG_PROEPRTY_SUPPORTS_GFX_SIZE as an example.
+// You may need to add a serializer for the `type` in media_serializer.h.
 enum class MediaLogProperty {
   // Video resolution.
   kResolution,
@@ -39,12 +40,17 @@ enum class MediaLogProperty {
   // The time at which media starts, in seconds.
   kStartTime,
 
-  // If the video decoder is using a decrypting decoder to playback media.
-  kIsVideoEncrypted,
+  // The Content Decryption Module (CDM) to be attached to the player, with the
+  // CdmConfig.
+  kSetCdm,
+
+  // Whether a Content Decryption Module (CDM) has been successfully attached
+  // to the player.
+  kIsCdmAttached,
 
   // Represents whether the media source supports range requests. A truthful
   // value here means that range requests aren't supported and seeking probably
-  // wont be supported.
+  // won't be supported.
   kIsStreaming,
 
   // The url and title of the frame containing the document that this media
@@ -84,7 +90,6 @@ enum class MediaLogProperty {
 
   // Track metadata.
   kAudioTracks,
-  kTextTracks,
   kVideoTracks,
 
   // Effective video playback frame rate adjusted for the playback speed.
@@ -97,6 +102,9 @@ enum class MediaLogProperty {
   // A playback quality metric that tries to account for large pauses and/or
   // discontinuities during playback.
   kVideoPlaybackFreezing,
+
+  // Triggered when buffered ranges are changed.
+  kHlsBufferedRanges,
 };
 
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kResolution, gfx::Size);
@@ -104,8 +112,8 @@ MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kTotalBytes, int64_t);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kBitrate, int);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kMaxDuration, float);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kStartTime, float);
-MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kIsVideoEncrypted, bool);
-MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kIsVideoEncrypted, std::string);
+MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kSetCdm, CdmConfig);
+MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kIsCdmAttached, bool);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kIsStreaming, bool);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kFrameUrl, std::string);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kFrameTitle, std::string);
@@ -121,11 +129,11 @@ MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kVideoEncoderName, std::string);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kIsPlatformVideoEncoder, bool);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kIsAudioDecryptingDemuxerStream, bool);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kAudioTracks, std::vector<AudioDecoderConfig>);
-MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kTextTracks, std::vector<TextTrackConfig>);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kVideoTracks, std::vector<VideoDecoderConfig>);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kFramerate, double);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kVideoPlaybackRoughness, double);
 MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kVideoPlaybackFreezing, base::TimeDelta);
+MEDIA_LOG_PROPERTY_SUPPORTS_TYPE(kHlsBufferedRanges, Ranges<base::TimeDelta>);
 
 // Convert the enum to a string (used for the front-end enum matching).
 MEDIA_EXPORT std::string MediaLogPropertyKeyToString(MediaLogProperty property);

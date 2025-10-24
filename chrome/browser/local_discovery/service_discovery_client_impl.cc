@@ -32,8 +32,7 @@ ServiceDiscoveryClientImpl::ServiceDiscoveryClientImpl(
     net::MDnsClient* mdns_client) : mdns_client_(mdns_client) {
 }
 
-ServiceDiscoveryClientImpl::~ServiceDiscoveryClientImpl() {
-}
+ServiceDiscoveryClientImpl::~ServiceDiscoveryClientImpl() = default;
 
 std::unique_ptr<ServiceWatcher>
 ServiceDiscoveryClientImpl::CreateServiceWatcher(
@@ -78,8 +77,7 @@ void ServiceWatcherImpl::Start() {
     ReadCachedServices();
 }
 
-ServiceWatcherImpl::~ServiceWatcherImpl() {
-}
+ServiceWatcherImpl::~ServiceWatcherImpl() = default;
 
 void ServiceWatcherImpl::DiscoverNewServices() {
   DCHECK(started_);
@@ -115,7 +113,7 @@ bool ServiceWatcherImpl::CreateTransaction(
     *transaction = mdns_client_->CreateTransaction(
         net::dns_protocol::kTypePTR, service_type_, transaction_flags,
         base::BindRepeating(&ServiceWatcherImpl::OnTransactionResponse,
-                            AsWeakPtr(), transaction));
+                            weak_ptr_factory_.GetWeakPtr(), transaction));
     return (*transaction)->Start();
   }
 
@@ -140,7 +138,6 @@ void ServiceWatcherImpl::OnRecordUpdate(
         break;
       case net::MDnsListener::RECORD_CHANGED:
         NOTREACHED();
-        break;
       case net::MDnsListener::RECORD_REMOVED:
         RemovePTR(rdata->ptrdomain());
         break;
@@ -199,8 +196,7 @@ ServiceWatcherImpl::ServiceListeners::ServiceListeners(
       net::dns_protocol::kTypeTXT, service_name, watcher);
 }
 
-ServiceWatcherImpl::ServiceListeners::~ServiceListeners() {
-}
+ServiceWatcherImpl::ServiceListeners::~ServiceListeners() = default;
 
 bool ServiceWatcherImpl::ServiceListeners::Start() {
   return srv_listener_->Start() && txt_listener_->Start();
@@ -265,7 +261,8 @@ void ServiceWatcherImpl::DeferUpdate(ServiceWatcher::UpdateType update_type,
     it->second->set_update_pending(true);
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&ServiceWatcherImpl::DeliverDeferredUpdate,
-                                  AsWeakPtr(), update_type, service_name));
+                                  weak_ptr_factory_.GetWeakPtr(), update_type,
+                                  service_name));
   }
 }
 
@@ -317,7 +314,8 @@ void ServiceWatcherImpl::ScheduleQuery(int timeout_seconds) {
   if (timeout_seconds <= kMaxRequeryTimeSeconds) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
-        base::BindOnce(&ServiceWatcherImpl::SendQuery, AsWeakPtr(),
+        base::BindOnce(&ServiceWatcherImpl::SendQuery,
+                       weak_ptr_factory_.GetWeakPtr(),
                        timeout_seconds * 2 /*next_timeout_seconds*/),
         base::Seconds(timeout_seconds));
   }
@@ -348,8 +346,7 @@ void ServiceResolverImpl::StartResolving() {
   }
 }
 
-ServiceResolverImpl::~ServiceResolverImpl() {
-}
+ServiceResolverImpl::~ServiceResolverImpl() = default;
 
 bool ServiceResolverImpl::CreateTxtTransaction() {
   txt_transaction_ = mdns_client_->CreateTransaction(
@@ -357,7 +354,7 @@ bool ServiceResolverImpl::CreateTxtTransaction() {
       net::MDnsTransaction::SINGLE_RESULT | net::MDnsTransaction::QUERY_CACHE |
           net::MDnsTransaction::QUERY_NETWORK,
       base::BindRepeating(&ServiceResolverImpl::TxtRecordTransactionResponse,
-                          AsWeakPtr()));
+                          weak_ptr_factory_.GetWeakPtr()));
   return txt_transaction_->Start();
 }
 
@@ -367,7 +364,7 @@ void ServiceResolverImpl::CreateATransaction() {
       net::dns_protocol::kTypeA, service_staging_.address.host(),
       net::MDnsTransaction::SINGLE_RESULT | net::MDnsTransaction::QUERY_CACHE,
       base::BindRepeating(&ServiceResolverImpl::ARecordTransactionResponse,
-                          AsWeakPtr()));
+                          weak_ptr_factory_.GetWeakPtr()));
   a_transaction_->Start();
 }
 
@@ -377,7 +374,7 @@ bool ServiceResolverImpl::CreateSrvTransaction() {
       net::MDnsTransaction::SINGLE_RESULT | net::MDnsTransaction::QUERY_CACHE |
           net::MDnsTransaction::QUERY_NETWORK,
       base::BindRepeating(&ServiceResolverImpl::SrvRecordTransactionResponse,
-                          AsWeakPtr()));
+                          weak_ptr_factory_.GetWeakPtr()));
   return srv_transaction_->Start();
 }
 
@@ -459,7 +456,6 @@ ServiceResolver::RequestStatus ServiceResolverImpl::MDnsStatusToRequestStatus(
     case net::MDnsTransaction::RESULT_DONE:  // Pass through.
     default:
       NOTREACHED();
-      return ServiceResolver::STATUS_REQUEST_TIMEOUT;
   }
 }
 

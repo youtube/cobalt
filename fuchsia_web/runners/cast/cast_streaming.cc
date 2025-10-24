@@ -4,10 +4,10 @@
 
 #include "fuchsia_web/runners/cast/cast_streaming.h"
 
+#include <optional>
 #include <string>
 
 #include "components/fuchsia_component_support/config_reader.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -26,7 +26,7 @@ bool IsAppConfigForCastStreaming(
 }
 
 std::string GetMessagePortOriginForAppId(const std::string& app_id) {
-  const absl::optional<base::Value::Dict>& config =
+  const std::optional<base::Value::Dict>& config =
       fuchsia_component_support::LoadPackageConfig();
   if (!config) {
     return kCastStreamingMessagePortOrigin;

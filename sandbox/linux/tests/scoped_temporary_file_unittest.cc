@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sandbox/linux/tests/scoped_temporary_file.h"
 
 #include <errno.h>
@@ -59,7 +64,7 @@ TEST(ScopedTemporaryFile, Basics) {
 
     ASSERT_TRUE(FullWrite(temp_file_1.fd(), kTestString, sizeof(kTestString)));
 
-    char test_string_read[sizeof(kTestString)] = {0};
+    char test_string_read[sizeof(kTestString)] = {};
     ASSERT_TRUE(FullRead(
         temp_file_2.get(), test_string_read, sizeof(test_string_read)));
     ASSERT_EQ(0, memcmp(kTestString, test_string_read, sizeof(kTestString)));

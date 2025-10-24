@@ -29,8 +29,7 @@ static void JNI_Metrics_Enable(JNIEnv* jni) {
 static ScopedJavaLocalRef<jobject> JNI_Metrics_GetAndReset(JNIEnv* jni) {
   ScopedJavaLocalRef<jobject> j_metrics = Java_Metrics_Constructor(jni);
 
-  std::map<std::string, std::unique_ptr<metrics::SampleInfo>,
-           rtc::AbslStringViewCmp>
+  std::map<std::string, std::unique_ptr<metrics::SampleInfo>, AbslStringViewCmp>
       histograms;
   metrics::GetAndReset(&histograms);
   for (const auto& kv : histograms) {

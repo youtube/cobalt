@@ -13,6 +13,7 @@
 #import "base/RTCLogging.h"
 #import "helpers/NSString+StdString.h"
 
+#include "api/jsep.h"
 #include "rtc_base/checks.h"
 
 @implementation RTC_OBJC_TYPE (RTCSessionDescription)
@@ -31,7 +32,8 @@
 }
 
 - (instancetype)initWithType:(RTCSdpType)type sdp:(NSString *)sdp {
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _type = type;
     _sdp = [sdp copy];
   }
@@ -39,9 +41,10 @@
 }
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"RTC_OBJC_TYPE(RTCSessionDescription):\n%@\n%@",
-                                    [[self class] stringForType:_type],
-                                    _sdp];
+  return [NSString
+      stringWithFormat:@"RTC_OBJC_TYPE(RTCSessionDescription):\n%@\n%@",
+                       [[self class] stringForType:_type],
+                       _sdp];
 }
 
 #pragma mark - Private
@@ -49,8 +52,9 @@
 - (std::unique_ptr<webrtc::SessionDescriptionInterface>)nativeDescription {
   webrtc::SdpParseError error;
 
-  std::unique_ptr<webrtc::SessionDescriptionInterface> description(webrtc::CreateSessionDescription(
-      [[self class] stdStringForType:_type], _sdp.stdString, &error));
+  std::unique_ptr<webrtc::SessionDescriptionInterface> description(
+      webrtc::CreateSessionDescription(
+          [[self class] nativeTypeForType:_type], _sdp.stdString, &error));
 
   if (!description) {
     RTCLogError(@"Failed to create session description: %s\nline: %s",
@@ -68,8 +72,7 @@
   nativeDescription->ToString(&sdp);
   RTCSdpType type = [[self class] typeForStdString:nativeDescription->type()];
 
-  return [self initWithType:type
-                        sdp:[NSString stringForStdString:sdp]];
+  return [self initWithType:type sdp:[NSString stringForStdString:sdp]];
 }
 
 + (std::string)stdStringForType:(RTCSdpType)type {
@@ -97,6 +100,19 @@
   } else {
     RTC_DCHECK_NOTREACHED();
     return RTCSdpTypeOffer;
+  }
+}
+
++ (webrtc::SdpType)nativeTypeForType:(RTCSdpType)type {
+  switch (type) {
+    case RTCSdpTypeOffer:
+      return webrtc::SdpType::kOffer;
+    case RTCSdpTypePrAnswer:
+      return webrtc::SdpType::kPrAnswer;
+    case RTCSdpTypeAnswer:
+      return webrtc::SdpType::kAnswer;
+    case RTCSdpTypeRollback:
+      return webrtc::SdpType::kRollback;
   }
 }
 

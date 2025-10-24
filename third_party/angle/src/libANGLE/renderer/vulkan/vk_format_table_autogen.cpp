@@ -19,7 +19,7 @@ namespace rx
 namespace vk
 {
 
-void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
+void Format::initialize(Renderer *renderer, const angle::Format &angleFormat)
 {
     switch (angleFormat.id)
     {
@@ -119,7 +119,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x10_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x10_SRGB_BLOCK;
@@ -133,7 +136,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x10_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x10_UNORM_BLOCK;
@@ -147,7 +153,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x5_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x5_SRGB_BLOCK;
@@ -161,7 +170,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x5_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x5_UNORM_BLOCK;
@@ -175,7 +187,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x6_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x6_SRGB_BLOCK;
@@ -189,7 +204,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x6_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x6_UNORM_BLOCK;
@@ -203,7 +221,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x8_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x8_SRGB_BLOCK;
@@ -217,7 +238,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_10x8_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_10x8_UNORM_BLOCK;
@@ -231,7 +255,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_12x10_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_12x10_SRGB_BLOCK;
@@ -245,7 +272,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_12x10_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_12x10_UNORM_BLOCK;
@@ -259,7 +289,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_12x12_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_12x12_SRGB_BLOCK;
@@ -273,7 +306,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_12x12_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_12x12_UNORM_BLOCK;
@@ -303,7 +339,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_4x4_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_4x4_SRGB_BLOCK;
@@ -317,7 +356,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_4x4_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_4x4_UNORM_BLOCK;
@@ -347,7 +389,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_5x4_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_5x4_SRGB_BLOCK;
@@ -361,7 +406,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_5x4_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_5x4_UNORM_BLOCK;
@@ -383,7 +431,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_5x5_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_5x5_SRGB_BLOCK;
@@ -397,7 +448,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_5x5_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_5x5_UNORM_BLOCK;
@@ -427,7 +481,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_6x5_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_6x5_SRGB_BLOCK;
@@ -441,7 +498,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_6x5_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_6x5_UNORM_BLOCK;
@@ -463,7 +523,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_6x6_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_6x6_SRGB_BLOCK;
@@ -477,7 +540,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_6x6_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_6x6_UNORM_BLOCK;
@@ -507,7 +573,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_8x5_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_8x5_SRGB_BLOCK;
@@ -521,7 +590,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_8x5_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_8x5_UNORM_BLOCK;
@@ -535,7 +607,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_8x6_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_8x6_SRGB_BLOCK;
@@ -549,7 +624,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_8x6_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_8x6_UNORM_BLOCK;
@@ -563,7 +641,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_8x8_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_8x8_SRGB_BLOCK;
@@ -577,7 +658,10 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ASTC_8x8_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+#ifdef ANGLE_HAS_ASTCENC
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+#endif
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ASTC_8x8_UNORM_BLOCK;
@@ -657,6 +741,16 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
         case angle::FormatID::B8G8R8X8_UNORM:
             mIntendedGLFormat              = GL_BGRX8_ANGLEX;
             mActualSampleOnlyImageFormatID = angle::FormatID::B8G8R8A8_UNORM;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::NONE;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = nullptr;
+            mVertexLoadRequiresConversion  = true;
+            break;
+
+        case angle::FormatID::B8G8R8X8_UNORM_SRGB:
+            mIntendedGLFormat              = GL_BGRX8_SRGB_ANGLEX;
+            mActualSampleOnlyImageFormatID = angle::FormatID::B8G8R8A8_UNORM_SRGB;
             mImageInitializerFunction      = nullptr;
             mActualBufferFormatID          = angle::FormatID::NONE;
             mVkBufferFormatIsPacked        = false;
@@ -840,7 +934,7 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::D24_UNORM_S8_UINT, nullptr},
                     {angle::FormatID::D32_FLOAT_S8X24_UINT, nullptr},
-                    {angle::FormatID::D24_UNORM_S8_UINT, nullptr}};
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::D24_UNORM_S8_UINT;
@@ -855,7 +949,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::D24_UNORM_X8_UINT, nullptr},
                     {angle::FormatID::D24_UNORM_S8_UINT, nullptr},
-                    {angle::FormatID::D32_FLOAT_S8X24_UINT, nullptr}};
+                    {angle::FormatID::D32_FLOAT_S8X24_UINT, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::D24_UNORM_X8_UINT;
@@ -880,7 +975,7 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::D32_FLOAT_S8X24_UINT, nullptr},
                     {angle::FormatID::D24_UNORM_S8_UINT, nullptr},
-                    {angle::FormatID::D32_FLOAT_S8X24_UINT, nullptr}};
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::D32_FLOAT_S8X24_UINT;
@@ -895,7 +990,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::D24_UNORM_X8_UINT, nullptr},
                     {angle::FormatID::D24_UNORM_S8_UINT, nullptr},
-                    {angle::FormatID::D32_FLOAT, nullptr}};
+                    {angle::FormatID::D32_FLOAT, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::NONE;
@@ -910,7 +1006,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::EAC_R11G11_SNORM_BLOCK, nullptr},
                     {angle::FormatID::R16G16_SNORM, nullptr},
-                    {angle::FormatID::R16G16_FLOAT, nullptr}};
+                    {angle::FormatID::R16G16_FLOAT, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::EAC_R11G11_SNORM_BLOCK;
@@ -925,7 +1022,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::EAC_R11G11_UNORM_BLOCK, nullptr},
                     {angle::FormatID::R16G16_UNORM, nullptr},
-                    {angle::FormatID::R16G16_FLOAT, nullptr}};
+                    {angle::FormatID::R16G16_FLOAT, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::EAC_R11G11_UNORM_BLOCK;
@@ -940,7 +1038,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::EAC_R11_SNORM_BLOCK, nullptr},
                     {angle::FormatID::R16_SNORM, nullptr},
-                    {angle::FormatID::R16_FLOAT, nullptr}};
+                    {angle::FormatID::R16_FLOAT, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::EAC_R11_SNORM_BLOCK;
@@ -955,7 +1054,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::EAC_R11_UNORM_BLOCK, nullptr},
                     {angle::FormatID::R16_UNORM, nullptr},
-                    {angle::FormatID::R16_FLOAT, nullptr}};
+                    {angle::FormatID::R16_FLOAT, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::EAC_R11_UNORM_BLOCK;
@@ -974,7 +1074,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8_UNORM_BLOCK, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::NONE;
@@ -989,7 +1090,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8A1_SRGB_BLOCK, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM_SRGB,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ETC2_R8G8B8A1_SRGB_BLOCK;
@@ -1004,7 +1106,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8A1_UNORM_BLOCK, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ETC2_R8G8B8A1_UNORM_BLOCK;
@@ -1018,7 +1121,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8A8_SRGB_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr}};
+                    {angle::FormatID::R8G8B8A8_UNORM_SRGB, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ETC2_R8G8B8A8_SRGB_BLOCK;
@@ -1032,7 +1136,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8A8_UNORM_BLOCK, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ETC2_R8G8B8A8_UNORM_BLOCK;
@@ -1047,7 +1152,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8_SRGB_BLOCK, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM_SRGB,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ETC2_R8G8B8_SRGB_BLOCK;
@@ -1062,13 +1168,102 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::ETC2_R8G8B8_UNORM_BLOCK, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::ETC2_R8G8B8_UNORM_BLOCK;
             mVkBufferFormatIsPacked       = false;
             mVertexLoadFunction           = CopyNativeVertexData<GLubyte, 3, 3, 0>;
             mVertexLoadRequiresConversion = false;
+            break;
+
+        case angle::FormatID::EXTERNAL0:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL0;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL0;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL0;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL1:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL1;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL1;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL1;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL2:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL2;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL2;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL2;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL3:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL3;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL3;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL3;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL4:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL4;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL4;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL4;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL5:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL5;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL5;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL5;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL6:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL6;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL6;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL6;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
+            break;
+
+        case angle::FormatID::EXTERNAL7:
+            mIntendedGLFormat              = GL_NONE;
+            mActualSampleOnlyImageFormatID = angle::FormatID::EXTERNAL7;
+            mActualRenderableImageFormatID = angle::FormatID::EXTERNAL7;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::EXTERNAL7;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = CopyNativeVertexData<GLbyte, 4, 4, 0>;
+            mVertexLoadRequiresConversion  = false;
             break;
 
         case angle::FormatID::G8_B8R8_2PLANE_420_UNORM:
@@ -1115,6 +1310,13 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
         case angle::FormatID::L32_FLOAT:
             mIntendedGLFormat              = GL_LUMINANCE32F_EXT;
             mActualSampleOnlyImageFormatID = angle::FormatID::R32_FLOAT;
+            mImageInitializerFunction      = nullptr;
+
+            break;
+
+        case angle::FormatID::L4A4_UNORM:
+            mIntendedGLFormat              = GL_LUMINANCE4_ALPHA4_OES;
+            mActualSampleOnlyImageFormatID = angle::FormatID::R8G8_UNORM;
             mImageInitializerFunction      = nullptr;
 
             break;
@@ -1326,13 +1528,23 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             break;
 
         case angle::FormatID::R10G10B10X2_UNORM:
-            mIntendedGLFormat              = GL_RGB10_UNORM_ANGLEX;
+            mIntendedGLFormat              = GL_RGB10_EXT;
             mActualSampleOnlyImageFormatID = angle::FormatID::R10G10B10A2_UNORM;
             mImageInitializerFunction      = nullptr;
             mActualBufferFormatID          = angle::FormatID::NONE;
             mVkBufferFormatIsPacked        = false;
             mVertexLoadFunction            = nullptr;
             mVertexLoadRequiresConversion  = true;
+            break;
+
+        case angle::FormatID::R10X6G10X6B10X6A10X6_UNORM:
+            mIntendedGLFormat              = GL_R10X6G10X6B10X6A10X6_UNORM_ANGLEX;
+            mActualSampleOnlyImageFormatID = angle::FormatID::R10X6G10X6B10X6A10X6_UNORM;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::R10X6G10X6B10X6A10X6_UNORM;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = nullptr;
+            mVertexLoadRequiresConversion  = false;
             break;
 
         case angle::FormatID::R11G11B10_FLOAT:
@@ -1433,7 +1645,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R16G16B16_FLOAT, nullptr},
                     {angle::FormatID::R16G16B16A16_FLOAT,
-                     Initialize4ComponentData<GLhalf, 0x0000, 0x0000, 0x0000, gl::Float16One>}};
+                     Initialize4ComponentData<GLhalf, 0x0000, 0x0000, 0x0000, gl::Float16One>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -1452,7 +1665,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R16G16B16_SINT, nullptr},
                     {angle::FormatID::R16G16B16A16_SINT,
-                     Initialize4ComponentData<GLshort, 0x0000, 0x0000, 0x0000, 0x0001>}};
+                     Initialize4ComponentData<GLshort, 0x0000, 0x0000, 0x0000, 0x0001>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -1475,7 +1689,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                     {angle::FormatID::R32G32B32_FLOAT, nullptr},
                     {angle::FormatID::R32G32B32A32_FLOAT,
                      Initialize4ComponentData<GLfloat, 0x00000000, 0x00000000, 0x00000000,
-                                              gl::Float32One>}};
+                                              gl::Float32One>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -1521,7 +1736,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R16G16B16_UINT, nullptr},
                     {angle::FormatID::R16G16B16A16_UINT,
-                     Initialize4ComponentData<GLushort, 0x0000, 0x0000, 0x0000, 0x0001>}};
+                     Initialize4ComponentData<GLushort, 0x0000, 0x0000, 0x0000, 0x0001>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -1544,7 +1760,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                     {angle::FormatID::R32G32B32_FLOAT, nullptr},
                     {angle::FormatID::R32G32B32A32_FLOAT,
                      Initialize4ComponentData<GLfloat, 0x00000000, 0x00000000, 0x00000000,
-                                              gl::Float32One>}};
+                                              gl::Float32One>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -1847,7 +2064,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                     {angle::FormatID::R32G32B32_FLOAT, nullptr},
                     {angle::FormatID::R32G32B32A32_FLOAT,
                      Initialize4ComponentData<GLfloat, 0x00000000, 0x00000000, 0x00000000,
-                                              gl::Float32One>}};
+                                              gl::Float32One>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -1869,7 +2087,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                     {angle::FormatID::R32G32B32_SINT, nullptr},
                     {angle::FormatID::R32G32B32A32_SINT,
                      Initialize4ComponentData<GLint, 0x00000000, 0x00000000, 0x00000000,
-                                              0x00000001>}};
+                                              0x00000001>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::R32G32B32_SINT;
@@ -1903,7 +2122,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                     {angle::FormatID::R32G32B32_UINT, nullptr},
                     {angle::FormatID::R32G32B32A32_UINT,
                      Initialize4ComponentData<GLuint, 0x00000000, 0x00000000, 0x00000000,
-                                              0x00000001>}};
+                                              0x00000001>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::R32G32B32_UINT;
@@ -2093,7 +2313,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R4G4B4A4_UNORM, nullptr},
-                    {angle::FormatID::R8G8B8A8_UNORM, nullptr}};
+                    {angle::FormatID::R8G8B8A8_UNORM, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::R4G4B4A4_UNORM;
@@ -2107,7 +2328,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R5G5B5A1_UNORM, nullptr},
-                    {angle::FormatID::A1R5G5B5_UNORM, nullptr}};
+                    {angle::FormatID::A1R5G5B5_UNORM, nullptr},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::R5G5B5A1_UNORM;
@@ -2222,13 +2444,24 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
             mVertexLoadRequiresConversion  = true;
             break;
 
+        case angle::FormatID::R8G8B8X8_UNORM_SRGB:
+            mIntendedGLFormat              = GL_RGBX8_SRGB_ANGLEX;
+            mActualSampleOnlyImageFormatID = angle::FormatID::R8G8B8A8_UNORM_SRGB;
+            mImageInitializerFunction      = nullptr;
+            mActualBufferFormatID          = angle::FormatID::NONE;
+            mVkBufferFormatIsPacked        = false;
+            mVertexLoadFunction            = nullptr;
+            mVertexLoadRequiresConversion  = true;
+            break;
+
         case angle::FormatID::R8G8B8_SINT:
             mIntendedGLFormat = GL_RGB8I;
             {
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R8G8B8_SINT, nullptr},
                     {angle::FormatID::R8G8B8A8_SINT,
-                     Initialize4ComponentData<GLbyte, 0x00, 0x00, 0x00, 0x01>}};
+                     Initialize4ComponentData<GLbyte, 0x00, 0x00, 0x00, 0x01>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -2247,7 +2480,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R8G8B8_SNORM, nullptr},
                     {angle::FormatID::R8G8B8A8_SNORM,
-                     Initialize4ComponentData<GLbyte, 0x00, 0x00, 0x00, 0x7F>}};
+                     Initialize4ComponentData<GLbyte, 0x00, 0x00, 0x00, 0x7F>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -2284,7 +2518,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R8G8B8_UINT, nullptr},
                     {angle::FormatID::R8G8B8A8_UINT,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0x01>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0x01>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -2303,7 +2538,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R8G8B8_UNORM, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             {
@@ -2323,7 +2559,8 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                 static constexpr ImageFormatInitInfo kInfo[] = {
                     {angle::FormatID::R8G8B8_UNORM_SRGB, nullptr},
                     {angle::FormatID::R8G8B8A8_UNORM_SRGB,
-                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>}};
+                     Initialize4ComponentData<GLubyte, 0x00, 0x00, 0x00, 0xFF>},
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::R8G8B8_UNORM_SRGB;
@@ -2527,7 +2764,7 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
                     {angle::FormatID::S8_UINT, nullptr},
                     {angle::FormatID::D24_UNORM_S8_UINT, nullptr},
                     {angle::FormatID::D32_FLOAT_S8X24_UINT, nullptr},
-                    {angle::FormatID::S8_UINT, nullptr}};
+                };
                 initImageFallback(renderer, kInfo, ArraySize(kInfo));
             }
             mActualBufferFormatID         = angle::FormatID::S8_UINT;
@@ -2602,7 +2839,7 @@ void Format::initialize(RendererVk *renderer, const angle::Format &angleFormat)
     }
 }
 
-VkFormat GetVkFormatFromFormatID(angle::FormatID formatID)
+VkFormat GetVkFormatFromFormatID(const Renderer *renderer, angle::FormatID formatID)
 {
     static constexpr angle::FormatMap<VkFormat> kMap = {
         {angle::FormatID::A1R5G5B5_UNORM, VK_FORMAT_A1R5G5B5_UNORM_PACK16},
@@ -2671,6 +2908,14 @@ VkFormat GetVkFormatFromFormatID(angle::FormatID formatID)
         {angle::FormatID::ETC2_R8G8B8A8_UNORM_BLOCK, VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK},
         {angle::FormatID::ETC2_R8G8B8_SRGB_BLOCK, VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK},
         {angle::FormatID::ETC2_R8G8B8_UNORM_BLOCK, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK},
+        {angle::FormatID::EXTERNAL0, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL1, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL2, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL3, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL4, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL5, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL6, VK_FORMAT_UNDEFINED},
+        {angle::FormatID::EXTERNAL7, VK_FORMAT_UNDEFINED},
         {angle::FormatID::G8_B8R8_2PLANE_420_UNORM, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM},
         {angle::FormatID::G8_B8_R8_3PLANE_420_UNORM, VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM},
         {angle::FormatID::NONE, VK_FORMAT_UNDEFINED},
@@ -2680,6 +2925,7 @@ VkFormat GetVkFormatFromFormatID(angle::FormatID formatID)
         {angle::FormatID::R10G10B10A2_UINT, VK_FORMAT_A2B10G10R10_UINT_PACK32},
         {angle::FormatID::R10G10B10A2_UNORM, VK_FORMAT_A2B10G10R10_UNORM_PACK32},
         {angle::FormatID::R10G10B10A2_USCALED, VK_FORMAT_A2B10G10R10_USCALED_PACK32},
+        {angle::FormatID::R10X6G10X6B10X6A10X6_UNORM, VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16},
         {angle::FormatID::R11G11B10_FLOAT, VK_FORMAT_B10G11R11_UFLOAT_PACK32},
         {angle::FormatID::R16G16B16A16_FLOAT, VK_FORMAT_R16G16B16A16_SFLOAT},
         {angle::FormatID::R16G16B16A16_SINT, VK_FORMAT_R16G16B16A16_SINT},
@@ -2755,7 +3001,7 @@ VkFormat GetVkFormatFromFormatID(angle::FormatID formatID)
         {angle::FormatID::R9G9B9E5_SHAREDEXP, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32},
         {angle::FormatID::S8_UINT, VK_FORMAT_S8_UINT}};
 
-    return kMap[formatID];
+    return AdjustASTCFormatForHDR(renderer, kMap[formatID]);
 }
 
 angle::FormatID GetFormatIDFromVkFormat(VkFormat vkFormat)
@@ -2912,6 +3158,8 @@ angle::FormatID GetFormatIDFromVkFormat(VkFormat vkFormat)
             return angle::FormatID::R10G10B10A2_UNORM;
         case VK_FORMAT_A2B10G10R10_USCALED_PACK32:
             return angle::FormatID::R10G10B10A2_USCALED;
+        case VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16:
+            return angle::FormatID::R10X6G10X6B10X6A10X6_UNORM;
         case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
             return angle::FormatID::R11G11B10_FLOAT;
         case VK_FORMAT_R16G16B16A16_SFLOAT:

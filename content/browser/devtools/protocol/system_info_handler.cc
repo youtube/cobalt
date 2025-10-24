@@ -10,8 +10,11 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ref.h"
+#include "base/notreached.h"
 #include "base/process/process_metrics.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "content/browser/gpu/compositor_util.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
@@ -21,7 +24,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_data.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/common/content_features.h"
 #include "gpu/config/gpu_feature_type.h"
 #include "gpu/config/gpu_info.h"
 #include "gpu/config/gpu_switches.h"
@@ -78,7 +80,7 @@ class AuxGPUInfoEnumerator : public gpu::GPUInfo::Enumerator {
   template <typename T>
   void MaybeSetAuxAttribute(const char* name, T value) {
     if (in_aux_attributes_)
-      dictionary_.Set(name, value);
+      dictionary_->Set(name, value);
   }
 
   void AddInt64(const char* name, int64_t value) override {
@@ -131,7 +133,7 @@ class AuxGPUInfoEnumerator : public gpu::GPUInfo::Enumerator {
     in_aux_attributes_ = false;
   }
 
-  protocol::DictionaryValue& dictionary_;
+  const raw_ref<protocol::DictionaryValue, DanglingUntriaged> dictionary_;
   bool in_aux_attributes_ = false;
 };
 
@@ -321,7 +323,7 @@ class SystemInfoHandlerGpuObserver : public content::GpuDataManagerObserver {
 
   void ObserverWatchdogCallback() {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
-    CHECK(false) << "Gathering system GPU info took more than "
+    NOTREACHED() << "Gathering system GPU info took more than "
                  << (kGPUInfoWatchdogTimeoutMs / 1000) << " seconds.";
   }
 
@@ -376,7 +378,8 @@ std::unique_ptr<protocol::SystemInfo::ProcessInfo> MakeProcessInfo(
     const String& process_type) {
   std::unique_ptr<base::ProcessMetrics> pm =
       CreateProcessMetrics(process.Handle());
-  base::TimeDelta cpu_usage = pm->GetCumulativeCPUUsage();
+  const base::TimeDelta cpu_usage =
+      pm->GetCumulativeCPUUsage().value_or(base::TimeDelta());
 
   return SystemInfo::ProcessInfo::Create()
       .SetId(process.Pid())
@@ -442,18 +445,6 @@ void SystemInfoHandler::GetProcessInfo(
 
 Response SystemInfoHandler::GetFeatureState(const String& in_featureState,
                                             bool* featureEnabled) {
-  if (in_featureState == "PrerenderHoldback") {
-    *featureEnabled =
-        base::FeatureList::IsEnabled(features::kPrerender2Holdback);
-    return Response::Success();
-  }
-
-  if (in_featureState == "PreloadingHoldback") {
-    *featureEnabled =
-        base::FeatureList::IsEnabled(features::kPreloadingHoldback);
-    return Response::Success();
-  }
-
   return Response::InvalidParams("Unknown feature");
 }
 

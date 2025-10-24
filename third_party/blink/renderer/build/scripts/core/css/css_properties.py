@@ -60,8 +60,6 @@ def validate_property(prop, props_by_name):
     assert not prop.is_internal or prop.computable is None, \
         'Internal properties are always non-computable [%s]' % name
     if prop.supports_incremental_style:
-        assert not prop.inherited, \
-            'We do not currently support incremental style on inherited properties [%s]' % name
         assert not prop.is_animation_property, \
             'Animation properties can not be applied incrementally [%s]' % name
         assert prop.idempotent, \
@@ -71,10 +69,6 @@ def validate_property(prop, props_by_name):
                 subprop = props_by_name[subprop_name]
                 assert subprop.supports_incremental_style, \
                     '%s must be incrementally applicable when its shorthand %s is' % (subprop_name, name)
-    assert not prop.valid_for_formatted_text or prop.is_longhand, \
-        'Only longhands can be valid_for_formatted_text [%s]' % name
-    assert not prop.valid_for_formatted_text_run or prop.is_longhand, \
-        'Only longhands can be valid_for_formatted_text_run [%s]' % name
     if prop.alias_for:
         assert not prop.is_internal, \
             'Internal aliases not supported [%s]' % name
@@ -90,7 +84,9 @@ def validate_property(prop, props_by_name):
     if prop.field_template == 'derived_flag':
         assert prop.mutable, 'Derived flags must be mutable [%s]' % name
         assert not prop.field_group, 'Derived flags may not have field groups [%s]' % name
-        assert prop.custom_copy, 'Derived flags must have custom_copy [%s]' % name
+        assert prop.reset_on_new_style, 'Derived flags must have reset_on_new_style [%s]' % name
+    if prop.is_logical:
+        assert not prop.field_group, 'Logical properties can not have fields [%s]' % name
 
 # Determines whether or not style builders (i.e. Apply functions)
 # should be generated for the given property.
@@ -206,7 +202,7 @@ def generate_property_class(parameters):
     additional = {
         'aliases': [],
         'custom_compare': False,
-        'custom_copy': False,
+        'reset_on_new_style': False,
         'mutable': False,
         'name': None,
         'alternative': None,
@@ -308,16 +304,23 @@ class CSSProperties(object):
             if (not property_.alias_for and not property_.longhands)
         ]
 
-        # Sort the properties by priority, then alphabetically. Ensure that
-        # the resulting order is deterministic.
-        # Sort properties by priority, then alphabetically.
+        # Sort the properties by priority, then internal-visited first,
+        # then alphabetically. Ensures that the resulting order is deterministic.
+        # (internal-visited is because we want to fit their number into an
+        # uint8_t for kPropertyVisitedIDs.)
         for property_ in self._longhands + self._shorthands:
-            priority_numbers = {'High': 0, 'Low': 1}
-            priority = priority_numbers[property_.priority]
             name_without_leading_dash = property_.name.original
             if name_without_leading_dash.startswith('-'):
                 name_without_leading_dash = name_without_leading_dash[1:]
-            property_.sorting_key = (priority, name_without_leading_dash)
+            internal_visited_order = 1
+            if name_without_leading_dash.startswith(
+                    'internal-visited-'
+            ) or name_without_leading_dash.startswith(
+                    'internal-forced-visited-'):
+                internal_visited_order = 0
+            property_.sorting_key = (-property_.priority,
+                                     internal_visited_order,
+                                     name_without_leading_dash)
 
         sorting_keys = {}
         for property_ in self._longhands + self._shorthands:
@@ -340,7 +343,7 @@ class CSSProperties(object):
                 ('property with ID {} appears more than once in the '
                  'properties list'.format(property_.property_id))
             self._properties_by_id[property_.property_id] = property_
-            if property_.priority == 'High':
+            if property_.priority > 0:
                 self._last_high_priority_property = property_
 
         self._alias_offset = self._last_used_enum_value
@@ -400,6 +403,7 @@ class CSSProperties(object):
             updated_alias.alternative = alias.alternative
             updated_alias.aliased_property = aliased_property.name.to_upper_camel_case(
             )
+            updated_alias.computable = alias.computable
             updated_alias.property_id = id_for_css_property_alias(alias.name)
             updated_alias.enum_key = enum_key_for_css_property_alias(
                 alias.name)
@@ -410,17 +414,23 @@ class CSSProperties(object):
                 'Shorthand' if aliased_property.longhands else 'Longhand'
             self._aliases[i] = updated_alias
 
-        # The above loop produces an "updated" alias for each (incoming) alias.
-        # The alternative_of/alternative references must be updated to point to
-        # the respective "updated" aliases.
         updated_aliases_by_name = {a.name: a for a in self._aliases}
-        for alias in self._aliases:
-            if alias.alternative_of:
-                alias.alternative_of = updated_aliases_by_name[
-                    alias.alternative_of.name]
-            if alias.alternative:
-                alias.alternative = updated_aliases_by_name[
-                    alias.alternative.name]
+
+        # The above loop produces an "updated" alias for each (incoming) alias.
+        # Any alternative_of/alternative references that point to aliases
+        # must be updated to point to the respective "updated" aliases.
+        def update_alternatives(properties):
+            for _property in properties:
+                if _property.alternative_of and _property.alternative_of.alias_for:
+                    _property.alternative_of = updated_aliases_by_name[
+                        _property.alternative_of.name]
+                if _property.alternative and _property.alternative.alias_for:
+                    _property.alternative = updated_aliases_by_name[
+                        _property.alternative.name]
+
+        update_alternatives(self.longhands)
+        update_alternatives(self.shorthands)
+        update_alternatives(self.aliases)
 
     def set_derived_attributes(self, property_):
         """Set new attributes on 'property_', based on existing attribute values
@@ -506,6 +516,9 @@ class CSSProperties(object):
         else:
             set_if_none(property_, 'converter', 'CSSIdentifierValue')
 
+        if property_.anchor_mode:
+            property_.anchor_mode = NameStyleConverter(property_.anchor_mode)
+
         if not property_.longhands:
             property_.superclass = 'Longhand'
             property_.namespace_group = 'Longhand'
@@ -546,7 +559,7 @@ class CSSProperties(object):
                         property_.wrapper_pointer_name, type_name)
 
         # Default values for extra parameters in computed_style_extra_fields.json5.
-        set_if_none(property_, 'custom_copy', False)
+        set_if_none(property_, 'reset_on_new_style', False)
         set_if_none(property_, 'custom_compare', False)
         set_if_none(property_, 'mutable', False)
 
@@ -567,7 +580,12 @@ class CSSProperties(object):
 
     @property
     def computable(self):
-        is_prefixed = lambda p: p.name.original.startswith('-')
+        # Use the name of the ultimate property as the sorting key,
+        # otherwise '-alternative-foo' will sort according to
+        # '-alternative-...', when it will really be exposed to
+        # parsing/serialization as just 'foo'.
+        sorting_name = lambda p: p.ultimate_property.name.original
+        is_prefixed = lambda p: sorting_name(p).startswith('-')
         is_not_prefixed = lambda p: not is_prefixed(p)
 
         prefixed = filter(is_prefixed, self._properties_including_aliases)
@@ -590,10 +608,12 @@ class CSSProperties(object):
         prefixed = filter(is_computable, prefixed)
         unprefixed = filter(is_computable, unprefixed)
 
-        original_name = lambda x: x.name.original
+        return sorted(unprefixed, key=sorting_name) + \
+            sorted(prefixed, key=sorting_name)
 
-        return sorted(unprefixed, key=original_name) + \
-            sorted(prefixed, key=original_name)
+    @property
+    def includes_currentcolor(self):
+        return [p for p in self._longhands if p.includes_currentcolor]
 
     @property
     def shorthands(self):

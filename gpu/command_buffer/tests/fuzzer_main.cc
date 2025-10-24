@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "base/at_exit.h"
@@ -16,7 +22,6 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/constants.h"
@@ -29,7 +34,6 @@
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
 #include "gpu/command_buffer/service/logger.h"
-#include "gpu/command_buffer/service/mailbox_manager_impl.h"
 #include "gpu/command_buffer/service/passthrough_discardable_manager.h"
 #include "gpu/command_buffer/service/raster_decoder.h"
 #include "gpu/command_buffer/service/service_discardable_manager.h"
@@ -116,7 +120,6 @@ constexpr const char* kExtensions[] = {
     "GL_CHROMIUM_color_buffer_float_rgba",
     "GL_CHROMIUM_copy_compressed_texture",
     "GL_CHROMIUM_copy_texture",
-    "GL_CHROMIUM_texture_filtering_hint",
     "GL_EXT_blend_func_extended",
     "GL_EXT_blend_minmax",
     "GL_EXT_float_blend",
@@ -231,15 +234,13 @@ class BitIterator {
 struct Config {
   size_t MakeFromBits(const uint8_t* bits, size_t size) {
     BitIterator it(bits, size);
+#if BUILDFLAG(IS_ANDROID)
     attrib_helper.red_size = 8;
     attrib_helper.green_size = 8;
     attrib_helper.blue_size = 8;
     attrib_helper.alpha_size = it.GetBit() ? 8 : 0;
-    attrib_helper.depth_size = it.GetBit() ? 24 : 0;
-    attrib_helper.stencil_size = it.GetBit() ? 8 : 0;
-    attrib_helper.buffer_preserved = it.GetBit();
+#endif
     attrib_helper.bind_generates_resource = it.GetBit();
-    attrib_helper.single_buffer = it.GetBit();
     [[maybe_unused]] bool es3 = it.GetBit();
 #if defined(GPU_FUZZER_USE_RASTER_DECODER)
     attrib_helper.context_type = CONTEXT_TYPE_OPENGLES2;
@@ -252,10 +253,10 @@ struct Config {
       attrib_helper.context_type = CONTEXT_TYPE_OPENGLES2;
     }
 #endif
-    attrib_helper.enable_oop_rasterization = it.GetBit();
+    attrib_helper.enable_gpu_rasterization = it.GetBit();
 
 #if defined(GPU_FUZZER_USE_STUB)
-    std::vector<base::StringPiece> enabled_extensions;
+    std::vector<std::string_view> enabled_extensions;
     enabled_extensions.reserve(kExtensionCount);
     for (const char* extension : kExtensions) {
       if (it.GetBit())
@@ -285,6 +286,7 @@ struct Config {
     gl_context_attribs.global_texture_share_group = true;
     gl_context_attribs.robust_resource_initialization = true;
     gl_context_attribs.robust_buffer_access = true;
+    gl_context_attribs.allow_client_arrays = false;
     gl_context_attribs.client_major_es_version =
         IsWebGL2OrES3OrHigherContextType(attrib_helper.context_type) ? 3 : 2;
     gl_context_attribs.client_minor_es_version =
@@ -318,7 +320,7 @@ class CommandBufferSetup {
         gpu_preferences_(GetGpuPreferences()),
         share_group_(new gl::GLShareGroup),
         translator_cache_(gpu_preferences_) {
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
     CHECK(base::i18n::InitializeICU());
     base::CommandLine::Init(0, nullptr);
 
@@ -341,9 +343,8 @@ class CommandBufferSetup {
 #endif
 
     CHECK(gl::init::InitializeStaticGLBindingsImplementation(
-        gl::GLImplementationParts(gl::kGLImplementationEGLANGLE), false));
+        gl::GLImplementationParts(gl::kGLImplementationEGLANGLE)));
     display_ = gl::init::InitializeGLOneOffPlatformImplementation(
-        /*fallback_to_software_gl=*/false,
         /*disable_gl_drawing=*/false,
         /*init_extensions=*/true,
         /*gpu_preference=*/gl::GpuPreference::kDefault);
@@ -364,7 +365,6 @@ class CommandBufferSetup {
     if (gpu_preferences_.use_passthrough_cmd_decoder)
       recreate_context_ = true;
 
-    surface_ = gl::init::CreateOffscreenGLSurface(display_, gfx::Size());
     if (!recreate_context_) {
       InitContext();
     }
@@ -382,10 +382,10 @@ class CommandBufferSetup {
       InitContext();
     }
 
-    context_->MakeCurrent(surface_.get());
+    context_->MakeCurrentDefault();
     GpuFeatureInfo gpu_feature_info;
 #if defined(GPU_FUZZER_USE_RASTER_DECODER)
-    gpu_feature_info.status_values[GPU_FEATURE_TYPE_GPU_RASTERIZATION] =
+    gpu_feature_info.status_values[GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
         kGpuFeatureStatusEnabled;
 #endif
     auto feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
@@ -403,9 +403,10 @@ class CommandBufferSetup {
     } else {
       shared_context = CreateContext();
     }
-    shared_context->MakeCurrent(surface_.get());
+    shared_context->MakeCurrentDefault();
     context_state_ = base::MakeRefCounted<SharedContextState>(
-        share_group_, surface_, std::move(shared_context),
+        share_group_, shared_context->default_surface(),
+        std::move(shared_context),
         config_.workarounds.use_virtualized_gl_contexts, base::DoNothing(),
         gpu_preferences_.gr_context_type);
     context_state_->InitializeSkia(gpu_preferences_, config_.workarounds);
@@ -417,8 +418,8 @@ class CommandBufferSetup {
         context_state_.get(), shared_image_manager_.get(),
         /*memory_tracker=*/nullptr,
         /*is_for_display_compositor=*/false);
-    for (uint32_t usage = SHARED_IMAGE_USAGE_GLES2; usage <= LAST_CLIENT_USAGE;
-         usage <<= 1) {
+    for (uint32_t usage = SHARED_IMAGE_USAGE_GLES2_READ;
+         usage <= LAST_CLIENT_USAGE; usage <<= 1) {
       Mailbox::Name name;
       memset(name, 0, sizeof(name));
       name[0] = usage;
@@ -430,13 +431,13 @@ class CommandBufferSetup {
 
       Mailbox mailbox;
       mailbox.SetName(name);
-      viz::SharedImageFormat si_format =
-          viz::SharedImageFormat::SinglePlane(viz::RGBA_8888);
+      viz::SharedImageFormat si_format = viz::SinglePlaneFormat::kRGBA_8888;
 
       shared_image_factory_->CreateSharedImage(
           mailbox, si_format, gfx::Size(256, 256),
           gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
-          kPremul_SkAlphaType, gfx::kNullAcceleratedWidget, usage, "TestLabel");
+          kPremul_SkAlphaType, gfx::kNullAcceleratedWidget,
+          SharedImageUsageSet(usage), "TestLabel");
     }
 
 #if defined(GPU_FUZZER_USE_RASTER_DECODER)
@@ -444,19 +445,19 @@ class CommandBufferSetup {
     auto* context = context_state_->context();
     decoder_.reset(raster::RasterDecoder::Create(
         command_buffer_.get(), command_buffer_->service(), &outputter_,
-        gpu_feature_info, gpu_preferences_, nullptr /* memory_tracker */,
-        shared_image_manager_.get(), context_state_, true /* is_privileged */));
+        gpu_feature_info, gpu_preferences_, /*memory_tracker=*/nullptr,
+        shared_image_manager_.get(), context_state_, /*is_privileged=*/true));
 #else
-    context_->MakeCurrent(surface_.get());
+    context_->MakeCurrentDefault();
     // GLES2Decoder may Initialize feature_info differently than
     // SharedContextState and should have its own.
     auto decoder_feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
         config_.workarounds, gpu_feature_info);
     scoped_refptr<gles2::ContextGroup> context_group = new gles2::ContextGroup(
-        gpu_preferences_, true, &mailbox_manager_, nullptr /* memory_tracker */,
-        &translator_cache_, &completeness_cache_, decoder_feature_info,
+        gpu_preferences_, /*memory_tracker=*/nullptr, &translator_cache_,
+        &completeness_cache_, decoder_feature_info,
         config_.attrib_helper.bind_generates_resource,
-        nullptr /* progress_reporter */, gpu_feature_info,
+        /*progress_reporter=*/nullptr, gpu_feature_info,
         discardable_manager_.get(), passthrough_discardable_manager_.get(),
         shared_image_manager_.get());
     auto* context = context_.get();
@@ -467,8 +468,8 @@ class CommandBufferSetup {
 
     decoder_->GetLogger()->set_log_synthesized_gl_errors(false);
 
-    auto result = decoder_->Initialize(surface_.get(), context, true,
-                                       gles2::DisallowedFeatures(),
+    auto result = decoder_->Initialize(context->default_surface(), context,
+                                       true, gles2::DisallowedFeatures(),
                                        config_.attrib_helper);
     if (result != gpu::ContextResult::kSuccess) {
       return false;
@@ -587,15 +588,20 @@ class CommandBufferSetup {
   }
 
   scoped_refptr<gl::GLContext> CreateContext() {
+    // The surface will be owned by the |context|.
+    auto surface = gl::init::CreateOffscreenGLSurface(display_, gfx::Size());
 #if defined(GPU_FUZZER_USE_STUB)
     auto stub = base::MakeRefCounted<gl::GLContextStub>(share_group_.get());
     stub->SetGLVersionString(config_.version);
     stub->SetExtensionsString(config_.extensions.c_str());
     stub->SetUseStubApi(true);
+    // The stub ctx needs to be initialized so that the gl::GLContext can
+    // store the |compatible_surface|.
+    stub->Initialize(surface.get(), {});
     return stub;
 #else
     auto context = base::MakeRefCounted<gl::GLContextEGL>(share_group_.get());
-    context->Initialize(surface_.get(), config_.gl_context_attribs);
+    context->Initialize(surface.get(), config_.gl_context_attribs);
     return context;
 #endif
   }
@@ -608,7 +614,7 @@ class CommandBufferSetup {
 // callback to catch them if it does.
 #if defined(GPU_FUZZER_USE_ANGLE) && \
     !defined(GPU_FUZZER_USE_PASSTHROUGH_CMD_DECODER)
-    context_->MakeCurrent(surface_.get());
+    context_->MakeCurrentDefault();
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
@@ -621,13 +627,13 @@ class CommandBufferSetup {
 #endif
   }
 
-  static void APIENTRY LogGLDebugMessage(GLenum source,
-                                         GLenum type,
-                                         GLuint id,
-                                         GLenum severity,
-                                         GLsizei length,
-                                         const GLchar* message,
-                                         const GLvoid* user_param) {
+  static void GL_APIENTRY LogGLDebugMessage(GLenum source,
+                                            GLenum type,
+                                            GLuint id,
+                                            GLenum severity,
+                                            GLsizei length,
+                                            const GLchar* message,
+                                            const GLvoid* user_param) {
     LOG_IF(FATAL, (id != GL_OUT_OF_MEMORY)) << "GL Driver Message: " << message;
   }
 
@@ -637,7 +643,6 @@ class CommandBufferSetup {
 
   Config config_;
 
-  gles2::MailboxManagerImpl mailbox_manager_;
   gles2::TraceOutputter outputter_;
   scoped_refptr<gl::GLShareGroup> share_group_;
   std::unique_ptr<ServiceDiscardableManager> discardable_manager_;
@@ -648,7 +653,6 @@ class CommandBufferSetup {
 
   bool recreate_context_ = false;
   raw_ptr<gl::GLDisplay> display_ = nullptr;
-  scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   scoped_refptr<SharedContextState> context_state_;
 

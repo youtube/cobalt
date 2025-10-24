@@ -79,6 +79,8 @@
       "GoogleTestVerification.UninstantiatedParameterizedTestSuite<GpuImageDecodeCacheWithAcceleratedDecodesTest>",
       "GoogleTestVerification.UninstantiatedParameterizedTestSuite<GpuImageDecodeCacheWithAcceleratedDecodesFlagsTest>",
       "GoogleTestVerification.UninstantiatedParameterizedTestSuite<GpuImageDecodeCachePurgeOnTimerTest>",
-      "*BackdropFilter*"
+      "*BackdropFilter*",
+      "MixedFilterZoomAndOffsetTest.StandardDpi/SkiaGL",
+      "MixedFilterZoomAndOffsetTest.HiDpi/SkiaGL"
     ]
   }

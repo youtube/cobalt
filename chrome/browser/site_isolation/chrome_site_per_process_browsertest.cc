@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/profiles/profile.h"
@@ -37,7 +37,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -54,6 +53,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "pdf/buildflags.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/display/display_switches.h"
@@ -61,7 +61,12 @@
 #include "ui/gfx/geometry/point.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(ENABLE_PDF)
+#include "chrome/browser/pdf/test_pdf_viewer_stream_manager.h"
+#include "pdf/pdf_features.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/screen.h"
@@ -204,13 +209,12 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   EXPECT_TRUE(frame_host->IsCrossProcessSubframe());
 
   // Check that JS storage APIs can be accessed successfully.
-  EXPECT_TRUE(
-      content::ExecuteScript(frame_host, "localStorage['foo'] = 'bar'"));
+  EXPECT_TRUE(content::ExecJs(frame_host, "localStorage['foo'] = 'bar'"));
   EXPECT_EQ(content::EvalJs(frame_host, "localStorage['foo'];"), "bar");
   EXPECT_EQ(true, EvalJs(frame_host, "!!indexedDB.open('testdb', 2);"));
-  EXPECT_TRUE(ExecuteScript(frame_host,
-                            "window.webkitRequestFileSystem("
-                            "window.TEMPORARY, 1024, function() {});"));
+  EXPECT_TRUE(ExecJs(frame_host,
+                     "window.webkitRequestFileSystem("
+                     "window.TEMPORARY, 1024, function() {});"));
 }
 
 // Ensure that creating a plugin in a cross-site subframe doesn't crash.  This
@@ -253,7 +257,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 #else
   std::string new_tab_click_script = "simulateClick({ ctrlKey: true });";
 #endif
-  EXPECT_TRUE(ExecuteScript(main_contents, new_tab_click_script));
+  EXPECT_TRUE(ExecJs(main_contents, new_tab_click_script));
 
   // Wait for a new tab to appear (the whole point of this test).
   content::WebContents* new_contents = new_tab_observer.GetWebContents();
@@ -267,24 +271,31 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   EXPECT_EQ(expected_url, new_contents->GetLastCommittedURL());
 }
 
-class ChromeSitePerProcessPDFTest : public ChromeSitePerProcessTest {
+#if BUILDFLAG(ENABLE_PDF)
+class ChromeSitePerProcessGuestViewPDFTest : public ChromeSitePerProcessTest {
  public:
-  ChromeSitePerProcessPDFTest() : test_guest_view_manager_(nullptr) {}
+  ChromeSitePerProcessGuestViewPDFTest() : test_guest_view_manager_(nullptr) {
+    feature_list()->Reset();
+    feature_list()->InitAndDisableFeature(chrome_pdf::features::kPdfOopif);
+  }
 
-  ChromeSitePerProcessPDFTest(const ChromeSitePerProcessPDFTest&) = delete;
-  ChromeSitePerProcessPDFTest& operator=(const ChromeSitePerProcessPDFTest&) =
-      delete;
+  ChromeSitePerProcessGuestViewPDFTest(
+      const ChromeSitePerProcessGuestViewPDFTest&) = delete;
+  ChromeSitePerProcessGuestViewPDFTest& operator=(
+      const ChromeSitePerProcessGuestViewPDFTest&) = delete;
 
-  ~ChromeSitePerProcessPDFTest() override {}
+  ~ChromeSitePerProcessGuestViewPDFTest() override = default;
 
   void SetUpOnMainThread() override {
     ChromeSitePerProcessTest::SetUpOnMainThread();
-    guest_view::GuestViewManager::set_factory_for_testing(&factory_);
-    test_guest_view_manager_ = static_cast<guest_view::TestGuestViewManager*>(
-        guest_view::GuestViewManager::CreateWithDelegate(
-            browser()->profile(),
-            extensions::ExtensionsAPIClient::Get()
-                ->CreateGuestViewManagerDelegate(browser()->profile())));
+    test_guest_view_manager_ = factory_.GetOrCreateTestGuestViewManager(
+        browser()->profile(), extensions::ExtensionsAPIClient::Get()
+                                  ->CreateGuestViewManagerDelegate());
+  }
+
+  void TearDownOnMainThread() override {
+    test_guest_view_manager_ = nullptr;
+    ChromeSitePerProcessTest::TearDownOnMainThread();
   }
 
  protected:
@@ -294,14 +305,13 @@ class ChromeSitePerProcessPDFTest : public ChromeSitePerProcessTest {
 
  private:
   guest_view::TestGuestViewManagerFactory factory_;
-  raw_ptr<guest_view::TestGuestViewManager, DanglingUntriaged>
-      test_guest_view_manager_;
+  raw_ptr<guest_view::TestGuestViewManager> test_guest_view_manager_;
 };
 
 // This test verifies that when navigating an OOPIF to a page with <embed>-ed
 // PDF, the guest is properly created, and by removing the embedder frame, the
 // guest is properly destroyed (https://crbug.com/649856).
-IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessPDFTest,
+IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessGuestViewPDFTest,
                        EmbeddedPDFInsideCrossOriginFrame) {
   // Navigate to a page with an <iframe>.
   GURL main_url(embedded_test_server()->GetURL("a.com", "/iframe.html"));
@@ -327,13 +337,122 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessPDFTest,
   ASSERT_NE(primary_main_frame, guest_view->GetGuestMainFrame());
 
   // Now detach the frame and observe that the guest is destroyed.
-  EXPECT_TRUE(ExecuteScript(
-      primary_main_frame,
-      "document.body.removeChild(document.querySelector('iframe'));"));
+  EXPECT_TRUE(
+      ExecJs(primary_main_frame,
+             "document.body.removeChild(document.querySelector('iframe'));"));
   test_guest_view_manager()->WaitForLastGuestDeleted();
 
   EXPECT_EQ(0U, test_guest_view_manager()->GetCurrentGuestCount());
 }
+
+class ChromeSitePerProcessOopifPDFTest : public ChromeSitePerProcessTest {
+ public:
+  ChromeSitePerProcessOopifPDFTest() {
+    feature_list()->Reset();
+    feature_list()->InitAndEnableFeature(chrome_pdf::features::kPdfOopif);
+  }
+
+  ChromeSitePerProcessOopifPDFTest(const ChromeSitePerProcessOopifPDFTest&) =
+      delete;
+  ChromeSitePerProcessOopifPDFTest& operator=(
+      const ChromeSitePerProcessOopifPDFTest&) = delete;
+
+  ~ChromeSitePerProcessOopifPDFTest() override = default;
+
+  // Return value could be nullptr.
+  pdf::PdfViewerStreamManager* GetPdfViewerStreamManager() {
+    return pdf::PdfViewerStreamManager::FromWebContents(
+        browser()->tab_strip_model()->GetActiveWebContents());
+  }
+
+  // Return value is always non-nullptr. This should only be called after a PDF
+  // navigation occurs in the active `content::WebContents`.
+  pdf::TestPdfViewerStreamManager* GetTestPdfViewerStreamManager() {
+    return factory_.GetTestPdfViewerStreamManager(
+        browser()->tab_strip_model()->GetActiveWebContents());
+  }
+
+ private:
+  pdf::TestPdfViewerStreamManagerFactory factory_;
+};
+
+// This test verifies that when navigating an OOPIF to a page with <embed>-ed
+// PDF, the PDF viewer stream manager is properly created, and by removing the
+// embedder frame, the stream manager is properly destroyed.
+IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessOopifPDFTest,
+                       EmbeddedPDFInsideCrossOriginFrame) {
+  // Navigate to a page with an <iframe>.
+  GURL main_url(embedded_test_server()->GetURL("a.com", "/iframe.html"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  // Initially, the stream manager shouldn't be created.
+  EXPECT_FALSE(GetPdfViewerStreamManager());
+
+  content::WebContents* active_web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Navigate subframe to a cross-site page with an embedded PDF.
+  GURL frame_url =
+      embedded_test_server()->GetURL("b.com", "/page_with_embedded_pdf.html");
+
+  // Ensure the page finishes loading without crashing.
+  EXPECT_TRUE(NavigateIframeToURL(active_web_contents, "test", frame_url));
+
+  // Wait until the PDF is fully loaded.
+  content::RenderFrameHost* subframe_main_host =
+      ChildFrameAt(active_web_contents->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(subframe_main_host);
+  content::RenderFrameHost* embedder_host = ChildFrameAt(subframe_main_host, 0);
+  ASSERT_TRUE(embedder_host);
+  ASSERT_TRUE(
+      GetTestPdfViewerStreamManager()->WaitUntilPdfLoaded(embedder_host));
+
+  // The primary main frame shouldn't be the PDF embedder and shouldn't have a
+  // PDF stream.
+  auto* primary_main_frame = active_web_contents->GetPrimaryMainFrame();
+  ASSERT_FALSE(
+      GetTestPdfViewerStreamManager()->GetStreamContainer(primary_main_frame));
+
+  // Now detach the frame and observe that the stream manager is destroyed.
+  EXPECT_TRUE(
+      ExecJs(primary_main_frame,
+             "document.body.removeChild(document.querySelector('iframe'));"));
+
+  EXPECT_FALSE(GetPdfViewerStreamManager());
+}
+
+// Check that navigating to a PDF and then trying to access localStorage or
+// sessionStorage in the context of the PDF document fails gracefully and
+// doesn't lead to a renderer kill. PDF documents don't access these interfaces
+// directly, but the access could still happen via DevTools.  See
+// https://crbug.com/357014503.
+IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessOopifPDFTest,
+                       AccessStorageInPDFDocument) {
+  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pdf_url));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  EXPECT_EQ(pdf_url, web_contents->GetLastCommittedURL());
+  ASSERT_TRUE(GetTestPdfViewerStreamManager()->WaitUntilPdfLoaded(
+      web_contents->GetPrimaryMainFrame()));
+
+  // The PDF document should be in the grandchild frame, embedded in the PDF
+  // viewer extension frame.
+  content::RenderFrameHost* pdf_extension_frame =
+      content::ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(pdf_extension_frame);
+  content::RenderFrameHost* pdf_frame =
+      content::ChildFrameAt(pdf_extension_frame, 0);
+  ASSERT_TRUE(pdf_frame);
+  EXPECT_TRUE(pdf_frame->GetProcess()->IsPdf());
+
+  // When accessed from the PDF document, both localStorage and sessionStorage
+  // should be null. These accesses shouldn't lead to a renderer kill.
+  EXPECT_EQ(nullptr, content::EvalJs(pdf_frame, "window.localStorage"));
+  EXPECT_EQ(nullptr, content::EvalJs(pdf_frame, "window.sessionStorage"));
+  EXPECT_TRUE(pdf_frame->IsRenderFrameLive());
+}
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 // A helper class to verify that a "mailto:" external protocol request succeeds.
 class MailtoExternalProtocolHandlerDelegate
@@ -352,7 +471,7 @@ class MailtoExternalProtocolHandlerDelegate
       content::WebContents* web_contents,
       ui::PageTransition page_transition,
       bool has_user_gesture,
-      const absl::optional<url::Origin>& initiating_origin,
+      const std::optional<url::Origin>& initiating_origin,
       const std::u16string& program_name) override {}
 
   scoped_refptr<shell_integration::DefaultSchemeClientWorker> CreateShellWorker(
@@ -455,7 +574,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   EXPECT_TRUE(NavigateIframeToURL(active_web_contents, "test", frame_url));
 
   // Run a script in the parent frame to (1) navigate iframe to another URL,
-  // and (2) open a popup.  Note that ExecuteScript will run this with a user
+  // and (2) open a popup.  Note that ExecJs will run this with a user
   // gesture, so both steps should succeed.
   frame_url = embedded_test_server()->GetURL("c.com", "/title1.html");
   content::TestNavigationObserver popup_observer(nullptr);
@@ -533,7 +652,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
       "c.com", "/server-redirect?" + dest_url.spec()));
   browser()->OpenURL(content::OpenURLParams(redirect_url, content::Referrer(),
                                             WindowOpenDisposition::CURRENT_TAB,
-                                            ui::PAGE_TRANSITION_TYPED, false));
+                                            ui::PAGE_TRANSITION_TYPED, false),
+                     /*navigation_handle_callback=*/{});
   javascript_dialogs::AppModalDialogController* alert =
       ui_test_utils::WaitForAppModalDialog();
   EXPECT_TRUE(alert->is_before_unload_dialog());
@@ -550,12 +670,12 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest, PrintIgnoredInUnloadHandler) {
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Create 2 iframes and navigate them to b.com.
-  EXPECT_TRUE(ExecuteScript(active_web_contents,
-                            "var i = document.createElement('iframe'); i.id = "
-                            "'child-0'; document.body.appendChild(i);"));
-  EXPECT_TRUE(ExecuteScript(active_web_contents,
-                            "var i = document.createElement('iframe'); i.id = "
-                            "'child-1'; document.body.appendChild(i);"));
+  EXPECT_TRUE(ExecJs(active_web_contents,
+                     "var i = document.createElement('iframe'); i.id = "
+                     "'child-0'; document.body.appendChild(i);"));
+  EXPECT_TRUE(ExecJs(active_web_contents,
+                     "var i = document.createElement('iframe'); i.id = "
+                     "'child-1'; document.body.appendChild(i);"));
   EXPECT_TRUE(NavigateIframeToURL(
       active_web_contents, "child-0",
       GURL(embedded_test_server()->GetURL("b.com", "/title1.html"))));
@@ -569,8 +689,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest, PrintIgnoredInUnloadHandler) {
       ChildFrameAt(active_web_contents->GetPrimaryMainFrame(), 1);
 
   // Add an unload handler that calls print() to child-0 iframe.
-  EXPECT_TRUE(ExecuteScript(
-      child_0, "document.body.onunload = function() { print(); }"));
+  EXPECT_TRUE(
+      ExecJs(child_0, "document.body.onunload = function() { print(); }"));
 
   // Transfer child-0 to a new process hosting c.com.
   EXPECT_TRUE(NavigateIframeToURL(
@@ -595,8 +715,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   GURL popup_url(embedded_test_server()->GetURL("b.com", "/title1.html"));
   content::TestNavigationObserver popup_observer(nullptr);
   popup_observer.StartWatchingNewWebContents();
-  EXPECT_TRUE(ExecuteScript(opener_contents,
-                            "window.open('" + popup_url.spec() + "');"));
+  EXPECT_TRUE(
+      ExecJs(opener_contents, "window.open('" + popup_url.spec() + "');"));
   popup_observer.Wait();
   ASSERT_EQ(2, browser()->tab_strip_model()->count());
   content::WebContents* popup_contents =
@@ -615,14 +735,17 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   GURL b_url(embedded_test_server()->GetURL("b.com", "/title2.html"));
   content::TestNavigationManager manager(opener_contents, b_url);
   EXPECT_TRUE(
-      ExecuteScript(popup_contents, "opener.location='" + b_url.spec() + "';"));
+      ExecJs(popup_contents, "opener.location='" + b_url.spec() + "';"));
+  // Since the pending RPH for b.com will be checked, we need to wait for it
+  // to be created.
+  manager.WaitForSpeculativeRenderFrameHostCreation();
 
   // Close the popup.  This should *not* kill the b.com process, as it still
   // has a pending navigation in the opener window.
   content::RenderProcessHost* b_com_rph =
       popup_contents->GetPrimaryMainFrame()->GetProcess();
   content::WebContentsDestroyedWatcher destroyed_watcher(popup_contents);
-  EXPECT_TRUE(ExecuteScript(popup_contents, "window.close();"));
+  EXPECT_TRUE(ExecJs(popup_contents, "window.close();"));
   destroyed_watcher.Wait();
   EXPECT_TRUE(b_com_rph->IsInitializedAndNotDead());
 
@@ -697,22 +820,22 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Add a postMessage handler in the top frame.  The handler opens a new
   // popup.
   GURL popup_url(embedded_test_server()->GetURL("a.com", "/title2.html"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
+  EXPECT_TRUE(ExecJs(
       web_contents,
       base::StringPrintf("window.addEventListener('message', function() {\n"
                          "  window.w = window.open('%s');\n"
                          "});",
-                         popup_url.spec().c_str())));
+                         popup_url.spec().c_str()),
+      content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Send a postMessage from the child frame to its parent.  Note that by
-  // default ExecuteScript runs with a user gesture, which should be
+  // default ExecJs runs with a user gesture, which should be
   // transferred to the parent via postMessage. The parent should open the
   // popup in its message handler, and the popup shouldn't be blocked.
   content::TestNavigationObserver popup_observer(nullptr);
   popup_observer.StartWatchingNewWebContents();
-  EXPECT_TRUE(
-      ExecuteScript(ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0),
-                    "parent.postMessage('foo', '*')"));
+  EXPECT_TRUE(ExecJs(ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0),
+                     "parent.postMessage('foo', '*')"));
   popup_observer.Wait();
   ASSERT_EQ(2, browser()->tab_strip_model()->count());
 
@@ -746,20 +869,22 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Add a postMessage handler in the root frame.  The handler opens a new popup
   // for a URL constructed using postMessage event data.
   GURL popup_url(embedded_test_server()->GetURL("popup.com", "/"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      web_contents, base::StringPrintf(
-                        "window.addEventListener('message', function(event) {\n"
-                        "  window.w = window.open('%s' + event.data);\n"
-                        "});",
-                        popup_url.spec().c_str())));
+  EXPECT_TRUE(
+      ExecJs(web_contents,
+             base::StringPrintf(
+                 "window.addEventListener('message', function(event) {\n"
+                 "  window.w = window.open('%s' + event.data);\n"
+                 "});",
+                 popup_url.spec().c_str()),
+             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Send two postMessages from child frame to parent frame as part of the same
   // user gesture.  Ensure that only one popup can be opened.
   content::TestNavigationObserver popup_observer(nullptr);
   popup_observer.StartWatchingNewWebContents();
-  EXPECT_TRUE(ExecuteScript(child,
-                            "parent.postMessage('title1.html', '*');\n"
-                            "parent.postMessage('title2.html', '*');"));
+  EXPECT_TRUE(ExecJs(child,
+                     "parent.postMessage('title1.html', '*');\n"
+                     "parent.postMessage('title2.html', '*');"));
   popup_observer.Wait();
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 
@@ -799,8 +924,9 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
       "  window.w = window.open('%s' + event.data);\n"
       "});",
       popup_url.spec().c_str());
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(web_contents, script));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(frame_b, script));
+  EXPECT_TRUE(
+      ExecJs(web_contents, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  EXPECT_TRUE(ExecJs(frame_b, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Add a popup observer.
   content::TestNavigationObserver popup_observer(nullptr);
@@ -808,9 +934,9 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
   // Send two postMessages from the "leaf" frame to both its ancestors as part
   // of the same user gesture.
-  EXPECT_TRUE(ExecuteScript(frame_c,
-                            "parent.postMessage('title1.html', '*');\n"
-                            "parent.parent.postMessage('title1.html', '*');"));
+  EXPECT_TRUE(ExecJs(frame_c,
+                     "parent.postMessage('title1.html', '*');\n"
+                     "parent.parent.postMessage('title1.html', '*');"));
 
   // Ensure that only one popup can be opened.  Note that between the two OOPIF
   // processes, there is no ordering guarantee of which one will open the popup
@@ -865,28 +991,30 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Add a postMessage handler to middle frame to send another postMessage to
   // top frame and then immediately attempt window.open().
   GURL popup1_url(embedded_test_server()->GetURL("popup.com", "/title1.html"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
+  EXPECT_TRUE(ExecJs(
       child,
       base::StringPrintf("window.addEventListener('message', function() {\n"
                          "  parent.postMessage('foo', '*');\n"
                          "  window.w = window.open('%s');\n"
                          "});",
-                         popup1_url.spec().c_str())));
+                         popup1_url.spec().c_str()),
+      content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Add a postMessage handler to top frame to attempt a window.open().
   GURL popup2_url(embedded_test_server()->GetURL("popup.com", "/title2.html"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
+  EXPECT_TRUE(ExecJs(
       web_contents,
       base::StringPrintf("window.addEventListener('message', function() {\n"
                          "  window.w = window.open('%s');\n"
                          "});",
-                         popup2_url.spec().c_str())));
+                         popup2_url.spec().c_str()),
+      content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Send a postMessage from bottom frame to middle frame as part of the same
   // user gesture.  Ensure that only one popup can be opened.
   content::TestNavigationObserver popup_observer(nullptr);
   popup_observer.StartWatchingNewWebContents();
-  EXPECT_TRUE(ExecuteScript(grandchild, "parent.postMessage('foo', '*');"));
+  EXPECT_TRUE(ExecJs(grandchild, "parent.postMessage('foo', '*');"));
   popup_observer.Wait();
 
   content::WebContents* popup =
@@ -921,18 +1049,19 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Add a postMessage handler in the root frame.  The handler opens a new popup
   // for a URL constructed using postMessage event data.
   GURL popup_url(embedded_test_server()->GetURL("popup.com", "/title1.html"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
+  EXPECT_TRUE(ExecJs(
       web_contents,
       base::StringPrintf("window.addEventListener('message', function() {\n"
                          "  window.w = window.open('%s');\n"
                          "});",
-                         popup_url.spec().c_str())));
+                         popup_url.spec().c_str()),
+      content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Send a postMessage from child frame to parent frame and then immediately
   // consume the user gesture with window.open().
   content::TestNavigationObserver popup_observer(nullptr);
   popup_observer.StartWatchingNewWebContents();
-  EXPECT_TRUE(ExecuteScript(
+  EXPECT_TRUE(ExecJs(
       child, base::StringPrintf(
                  "parent.postMessage('foo', '*');\n"
                  "window.setTimeout(\"window.w = window.open('%s')\", 0);",
@@ -977,7 +1106,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
   // Activate frame_b by executing a dummy script.
   const std::string no_op_script = "// No-op script";
-  EXPECT_TRUE(ExecuteScript(frame_b, no_op_script));
+  EXPECT_TRUE(ExecJs(frame_b, no_op_script));
 
   // Add a popup observer.
   content::TestNavigationObserver popup_observer(nullptr);
@@ -985,14 +1114,16 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
   // Try opening popups from frame_c and root frame.
   GURL popup_url(embedded_test_server()->GetURL("popup.com", "/"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      frame_c,
-      base::StringPrintf("window.w = window.open('%s' + 'title1.html');",
-                         popup_url.spec().c_str())));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      web_contents,
-      base::StringPrintf("window.w = window.open('%s' + 'title2.html');",
-                         popup_url.spec().c_str())));
+  EXPECT_TRUE(
+      ExecJs(frame_c,
+             base::StringPrintf("window.w = window.open('%s' + 'title1.html');",
+                                popup_url.spec().c_str()),
+             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  EXPECT_TRUE(
+      ExecJs(web_contents,
+             base::StringPrintf("window.w = window.open('%s' + 'title2.html');",
+                                popup_url.spec().c_str()),
+             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Wait and check that only one popup has opened.
   popup_observer.Wait();
@@ -1029,8 +1160,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
   // Activate frame_b and frame_c by executing dummy scripts.
   const std::string no_op_script = "// No-op script";
-  EXPECT_TRUE(ExecuteScript(frame_b, no_op_script));
-  EXPECT_TRUE(ExecuteScript(frame_c, no_op_script));
+  EXPECT_TRUE(ExecJs(frame_b, no_op_script));
+  EXPECT_TRUE(ExecJs(frame_c, no_op_script));
 
   // Add a popup observer.
   content::TestNavigationObserver popup_observer(nullptr);
@@ -1038,18 +1169,21 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
   // Try opening popups from all three frames.
   GURL popup_url(embedded_test_server()->GetURL("popup.com", "/"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      frame_b,
-      base::StringPrintf("window.w = window.open('%s' + 'title1.html');",
-                         popup_url.spec().c_str())));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      frame_c,
-      base::StringPrintf("window.w = window.open('%s' + 'title2.html');",
-                         popup_url.spec().c_str())));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      web_contents,
-      base::StringPrintf("window.w = window.open('%s' + 'title3.html');",
-                         popup_url.spec().c_str())));
+  EXPECT_TRUE(
+      ExecJs(frame_b,
+             base::StringPrintf("window.w = window.open('%s' + 'title1.html');",
+                                popup_url.spec().c_str()),
+             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  EXPECT_TRUE(
+      ExecJs(frame_c,
+             base::StringPrintf("window.w = window.open('%s' + 'title2.html');",
+                                popup_url.spec().c_str()),
+             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  EXPECT_TRUE(
+      ExecJs(web_contents,
+             base::StringPrintf("window.w = window.open('%s' + 'title3.html');",
+                                popup_url.spec().c_str()),
+             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Wait and check that only one popup has opened.
   popup_observer.Wait();
@@ -1085,7 +1219,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
   // Activate the frame by executing a dummy script.
   const std::string no_op_script = "// No-op script";
-  EXPECT_TRUE(ExecuteScript(web_contents, no_op_script));
+  EXPECT_TRUE(ExecJs(web_contents, no_op_script));
 
   // Add a popup observer.
   content::TestNavigationObserver popup_observer(nullptr);
@@ -1094,18 +1228,20 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Open a popup from the frame, with `noopener`. This should consume
   // transient user activation.
   GURL popup_url(embedded_test_server()->GetURL("popup.com", "/"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
+  EXPECT_TRUE(ExecJs(
       web_contents,
       base::StringPrintf(
           "window.w = window.open('%s'+'title1.html', '_blank', 'noopener');",
-          popup_url.spec().c_str())));
+          popup_url.spec().c_str()),
+      content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Try to open another popup.
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
+  EXPECT_TRUE(ExecJs(
       web_contents,
       base::StringPrintf(
           "window.w = window.open('%s'+'title2.html', '_blank', 'noopener');",
-          popup_url.spec().c_str())));
+          popup_url.spec().c_str()),
+      content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   // Wait and check that only one popup was opened.
   popup_observer.Wait();
@@ -1118,7 +1254,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   EXPECT_NE(popup, web_contents);
 }
 
-// TODO(crbug.com/1021895): Flaky.
+// TODO(crbug.com/40106376): Flaky.
 // Tests that a cross-site iframe runs its beforeunload handler when closing a
 // tab.  See https://crbug.com/853021.
 IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
@@ -1143,14 +1279,14 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Install a dialog-showing beforeunload handler in the iframe.
   content::RenderFrameHost* child =
       ChildFrameAt(second_web_contents->GetPrimaryMainFrame(), 0);
-  EXPECT_TRUE(
-      ExecuteScript(child, "window.onbeforeunload = () => { return 'x' };"));
+  EXPECT_TRUE(ExecJs(child, "window.onbeforeunload = () => { return 'x' };"));
   content::PrepContentsForBeforeUnloadTest(second_web_contents);
 
   // Close the second tab.  This should return false to indicate that we're
   // waiting for the beforeunload dialog.
-  EXPECT_FALSE(
-      tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0));
+  int previous_tab_count = tab_strip_model->count();
+  tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0);
+  EXPECT_EQ(previous_tab_count, tab_strip_model->count());
 
   // Cancel the dialog and make sure the tab stays alive.
   auto* dialog = ui_test_utils::WaitForAppModalDialog();
@@ -1160,8 +1296,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 
   // Try closing the tab again.
-  EXPECT_FALSE(
-      tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0));
+  tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0);
+  EXPECT_EQ(previous_tab_count, tab_strip_model->count());
 
   // Accept the dialog and wait for tab close to complete.
   content::WebContentsDestroyedWatcher destroyed_watcher(second_web_contents);
@@ -1195,14 +1331,13 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
             second_web_contents->GetPrimaryMainFrame()->GetSiteInstance());
 
   // Install a dialog-showing beforeunload handler in the iframe.
-  EXPECT_TRUE(
-      ExecuteScript(child, "window.onbeforeunload = () => { return 'x' };"));
+  EXPECT_TRUE(ExecJs(child, "window.onbeforeunload = () => { return 'x' };"));
   content::PrepContentsForBeforeUnloadTest(second_web_contents);
 
-  // Close the second tab.  This should return false to indicate that we're
+  // Close the second tab. This should return false to indicate that we're
   // waiting for the beforeunload dialog.
-  EXPECT_FALSE(
-      tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0));
+  tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0);
+  EXPECT_EQ(2, tab_strip_model->count());
 
   // Cancel the dialog and make sure the tab stays alive.
   auto* dialog = ui_test_utils::WaitForAppModalDialog();
@@ -1212,8 +1347,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 
   // Try closing the tab again.
-  EXPECT_FALSE(
-      tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0));
+  tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0);
+  EXPECT_EQ(2, tab_strip_model->count());
 
   // Accept the dialog and wait for tab close to complete.
   content::WebContentsDestroyedWatcher destroyed_watcher(second_web_contents);
@@ -1243,9 +1378,9 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   content::TestNavigationObserver popup_observer(nullptr);
   popup_observer.StartWatchingNewWebContents();
   GURL popup_url(embedded_test_server()->GetURL("b.com", "/iframe.html"));
-  EXPECT_TRUE(ExecuteScript(first_web_contents,
-                            base::StringPrintf("window.w = window.open('%s');",
-                                               popup_url.spec().c_str())));
+  EXPECT_TRUE(ExecJs(first_web_contents,
+                     base::StringPrintf("window.w = window.open('%s');",
+                                        popup_url.spec().c_str())));
   popup_observer.Wait();
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 
@@ -1260,19 +1395,18 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Install a dialog-showing beforeunload handler in the iframe.
   content::RenderFrameHost* child =
       ChildFrameAt(second_web_contents->GetPrimaryMainFrame(), 0);
-  EXPECT_TRUE(
-      ExecuteScript(child, "window.onbeforeunload = () => { return 'x' };"));
+  EXPECT_TRUE(ExecJs(child, "window.onbeforeunload = () => { return 'x' };"));
   content::PrepContentsForBeforeUnloadTest(second_web_contents);
 
   // Close the second tab.  This should return false to indicate that we're
   // waiting for the beforeunload dialog.
-  EXPECT_FALSE(
-      tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0));
+  tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0);
+  EXPECT_EQ(2, tab_strip_model->count());
 
   // From the first tab, execute window.close() on the popup and wait for the
   // second WebContents to be destroyed.
   content::WebContentsDestroyedWatcher destroyed_watcher(second_web_contents);
-  EXPECT_TRUE(ExecuteScript(first_web_contents, "w.close()"));
+  EXPECT_TRUE(ExecJs(first_web_contents, "w.close()"));
   destroyed_watcher.Wait();
   EXPECT_EQ(first_web_contents, tab_strip_model->GetActiveWebContents());
 }
@@ -1299,9 +1433,9 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   popup_observer.StartWatchingNewWebContents();
   GURL popup_url(
       embedded_test_server()->GetURL("b.com", "/two_iframes_blank.html"));
-  EXPECT_TRUE(ExecuteScript(first_web_contents,
-                            base::StringPrintf("window.w = window.open('%s');",
-                                               popup_url.spec().c_str())));
+  EXPECT_TRUE(ExecJs(first_web_contents,
+                     base::StringPrintf("window.w = window.open('%s');",
+                                        popup_url.spec().c_str())));
   popup_observer.Wait();
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 
@@ -1317,99 +1451,20 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
   // Install a dialog-showing beforeunload handler in the second iframe.
   content::RenderFrameHost* child =
       ChildFrameAt(second_web_contents->GetPrimaryMainFrame(), 1);
-  EXPECT_TRUE(
-      ExecuteScript(child, "window.onbeforeunload = () => { return 'x' };"));
+  EXPECT_TRUE(ExecJs(child, "window.onbeforeunload = () => { return 'x' };"));
   content::PrepContentsForBeforeUnloadTest(second_web_contents);
 
   // Close the second tab.  This should return false to indicate that we're
   // waiting for the beforeunload dialog.
-  EXPECT_FALSE(
-      tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0));
+  tab_strip_model->CloseWebContentsAt(tab_strip_model->active_index(), 0);
+  EXPECT_EQ(2, tab_strip_model->count());
 
   // From the first tab, execute window.close() on the popup and wait for the
   // second WebContents to be destroyed.
   content::WebContentsDestroyedWatcher destroyed_watcher(second_web_contents);
-  EXPECT_TRUE(ExecuteScript(first_web_contents, "w.close()"));
+  EXPECT_TRUE(ExecJs(first_web_contents, "w.close()"));
   destroyed_watcher.Wait();
   EXPECT_EQ(first_web_contents, tab_strip_model->GetActiveWebContents());
-}
-
-class ChromeSitePerProcessTestWithVerifiedUserActivation
-    : public ChromeSitePerProcessTest {
- public:
-  ChromeSitePerProcessTestWithVerifiedUserActivation() {
-    feature_list()->Reset();
-    feature_list()->InitWithFeatures(
-        /*enabled_features=*/{features::kBrowserVerifiedUserActivationMouse},
-        // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having to
-        // disable this feature.
-        /*disabled_features=*/{features::kHttpsUpgrades});
-  }
-};
-
-// Test mouse down activation notification with browser verification.
-// TODO(crbug.com/1303596): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_UserActivationBrowserVerificationSameOriginSite \
-  DISABLED_UserActivationBrowserVerificationSameOriginSite
-#else
-#define MAYBE_UserActivationBrowserVerificationSameOriginSite \
-  UserActivationBrowserVerificationSameOriginSite
-#endif
-IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTestWithVerifiedUserActivation,
-                       MAYBE_UserActivationBrowserVerificationSameOriginSite) {
-  // Start on a page a.com with same-origin iframe on a.com and cross-origin
-  // iframe b.com.
-  GURL main_url(embedded_test_server()->GetURL(
-      "a.com", "/cross_site_iframe_factory.html?a(a(b))"));
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  content::RenderFrameHost* frame_a =
-      ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0);
-  content::RenderFrameHost* frame_b = ChildFrameAt(frame_a, 0);
-
-  // The test becomes flaky if we don't wait for frame_a's hit-test data before
-  // sending the mouse-event below (crbug.com/1119342).
-  content::WaitForHitTestData(frame_a);
-
-  // Activate frame_a by clicking at the midpoints of top-left corners of
-  // frame_a and frame_b.
-  gfx::Rect bounds_a = frame_a->GetView()->GetViewBounds();
-  gfx::Rect bounds_b = frame_b->GetView()->GetViewBounds();
-  content::SimulateMouseClickAt(web_contents, 0 /* modifiers */,
-                                blink::WebMouseEvent::Button::kLeft,
-                                gfx::Point((bounds_a.x() + bounds_b.x()) / 2,
-                                           (bounds_a.y() + bounds_b.y()) / 2));
-
-  // Add a popup observer.
-  content::TestNavigationObserver popup_observer(nullptr);
-  popup_observer.StartWatchingNewWebContents();
-
-  // Try opening popups from frame_b and root frame.
-  GURL popup_url(embedded_test_server()->GetURL("popup.com", "/"));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      frame_b, content::JsReplace("window.w = window.open($1 + 'title1.html');",
-                                  popup_url)));
-  EXPECT_TRUE(ExecuteScriptWithoutUserGesture(
-      web_contents,
-      content::JsReplace("window.w = window.open($1 + 'title2.html');",
-                         popup_url)));
-
-  // Wait and check that only one popup has opened.
-  popup_observer.Wait();
-  EXPECT_EQ(2, browser()->tab_strip_model()->count());
-
-  content::WebContents* popup =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_EQ(embedded_test_server()->GetURL("popup.com", "/title2.html"),
-            popup->GetLastCommittedURL());
-  EXPECT_NE(popup, web_contents);
-
-  // Confirm that only the root_frame opened the popup.
-  EXPECT_EQ(true, content::EvalJs(web_contents, "!!window.w"));
-
-  EXPECT_EQ(false, content::EvalJs(frame_b, "!!window.w"));
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest, JSPrintDuringSwap) {
@@ -1431,7 +1486,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest, JSPrintDuringSwap) {
   EXPECT_TRUE(watcher.did_exit_normally());
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // This test verifies that an OOPIF created in a tab on a secondary display
 // doesn't initialize its device scale factor based on the primary display.
 // Note: This test could probably be expanded to run on all ASH platforms.

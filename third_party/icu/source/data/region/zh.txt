@@ -298,6 +298,9 @@ zh{
         ZW{"津巴布韦"}
         ZZ{"未知地区"}
     }
+    Countries%chagos{
+        IO{"查戈斯群岛"}
+    }
     Countries%variant{
         CD{"刚果民主共和国"}
         CG{"刚果共和国"}

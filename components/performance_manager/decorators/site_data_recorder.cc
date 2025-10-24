@@ -4,26 +4,26 @@
 
 #include "components/performance_manager/public/decorators/site_data_recorder.h"
 
+#include <memory>
+#include <utility>
+
+#include "base/check.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "components/performance_manager/graph/node_attached_data_impl.h"
+#include "components/performance_manager/graph/node_inline_data.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/persistence/site_data/site_data_cache.h"
 #include "components/performance_manager/persistence/site_data/site_data_cache_factory.h"
 #include "components/performance_manager/persistence/site_data/site_data_writer.h"
+#include "components/performance_manager/public/graph/graph.h"
 #include "components/performance_manager/public/persistence/site_data/site_data_reader.h"
 
 namespace performance_manager {
-
-// Provides SiteData machinery access to some internals of a PageNodeImpl.
-class SiteDataAccess {
- public:
-  static std::unique_ptr<NodeAttachedData>* GetUniquePtrStorage(
-      PageNodeImpl* page_node) {
-    return &page_node->GetSiteData(base::PassKey<SiteDataAccess>());
-  }
-};
 
 namespace {
 
@@ -45,12 +45,6 @@ SiteDataRecorder* g_site_data_recorder = nullptr;
 TabVisibility GetPageNodeVisibility(const PageNode* page_node) {
   return page_node->IsVisible() ? TabVisibility::kForeground
                                 : TabVisibility::kBackground;
-}
-
-// Returns the global heuristics implementation held in the SiteDataRecorder.
-const SiteDataRecorderHeuristics& RecorderHeuristics() {
-  CHECK(g_site_data_recorder);
-  return g_site_data_recorder->heuristics_impl();
 }
 
 // Default implementation of SiteDataRecorderHeuristics that's used in
@@ -88,225 +82,92 @@ class DefaultHeuristics final : public SiteDataRecorderHeuristics {
   }
 };
 
-// NodeAttachedData used to adorn every page node with a SiteDataWriter.
-class SiteDataNodeData : public NodeAttachedDataImpl<SiteDataNodeData>,
-                         public SiteDataRecorder::Data {
+// Helper class that watches a PageNode, and invokes a callback when that node
+// has a SiteDataReader whose data is ready.
+class SiteDataReaderWaiter final : public PageNodeObserver {
  public:
-  struct Traits : public NodeAttachedDataOwnedByNodeType<PageNodeImpl> {};
+  using DataReadyCallback = base::OnceCallback<void(const SiteDataReader&)>;
 
-  explicit SiteDataNodeData(const PageNodeImpl* page_node)
-      : page_node_(page_node) {}
-
-  SiteDataNodeData(const SiteDataNodeData&) = delete;
-  SiteDataNodeData& operator=(const SiteDataNodeData&) = delete;
-
-  ~SiteDataNodeData() override = default;
-
-  // NodeAttachedData:
-  static std::unique_ptr<NodeAttachedData>* GetUniquePtrStorage(
-      PageNodeImpl* page_node) {
-    return SiteDataAccess::GetUniquePtrStorage(page_node);
+  static void WaitForSiteData(const PageNode* page_node,
+                              DataReadyCallback callback) {
+    // SiteDataReaderWaiter will become self-owned.
+    new SiteDataReaderWaiter(page_node, std::move(callback));
   }
 
-  // Set the SiteDataCache that should be used to create the writer.
-  void set_data_cache(SiteDataCache* data_cache) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK(data_cache);
-    data_cache_ = data_cache;
+  ~SiteDataReaderWaiter() final = default;
+
+  SiteDataReaderWaiter(const SiteDataReaderWaiter&) = delete;
+  SiteDataReaderWaiter& operator=(const SiteDataReaderWaiter&) = delete;
+
+  // PageNodeObserver:
+  void OnBeforePageNodeRemoved(const PageNode* page_node) final {
+    if (page_node == watched_page_node_) {
+      // No longer needed.
+      DeleteSelfSoon();
+    }
   }
 
-  // Functions called whenever one of the tracked properties changes.
-  void OnMainFrameUrlChanged(const GURL& url, bool page_is_visible);
-  void OnIsLoadedIdleChanged(bool is_loaded_idle);
-  void OnIsVisibleChanged(bool is_visible);
-  void OnIsAudibleChanged(bool audible);
-  void OnTitleUpdated();
-  void OnFaviconUpdated();
-
-  void Reset();
-
-  SiteDataWriter* writer() const override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    return writer_.get();
-  }
-
-  SiteDataReader* reader() const override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    return reader_.get();
+  void OnMainFrameUrlChanged(const PageNode* page_node) final {
+    if (page_node == watched_page_node_ && !waiting_for_data_ready_) {
+      CheckForSiteDataReader();
+    }
   }
 
  private:
-  // Convenience alias.
-  using FeatureType = SiteDataRecorderHeuristics::FeatureType;
-
-  void SetDataCacheForTesting(SiteDataCache* cache) override {
-    set_data_cache(cache);
+  SiteDataReaderWaiter(const PageNode* page_node, DataReadyCallback callback)
+      : watched_page_node_(page_node),
+        data_ready_callback_(std::move(callback)) {
+    self_ = base::WrapUnique(this);
+    watched_page_node_->GetGraph()->AddPageNodeObserver(this);
+    CheckForSiteDataReader();
   }
 
-  // Indicates if a feature usage event should be recorded or ignored.
-  bool ShouldRecordFeatureUsageEvent(FeatureType feature_type);
+  void DeleteSelfSoon() {
+    // `watched_page_node_` may be deleted before the destructor runs,
+    // so clear it now.
+    CHECK(watched_page_node_);
+    watched_page_node_->GetGraph()->RemovePageNodeObserver(this);
+    watched_page_node_ = nullptr;
+    base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(self_));
+  }
 
-  // Records a feature usage event if necessary.
-  void MaybeNotifyBackgroundFeatureUsage(void (SiteDataWriter::*method)(),
-                                         FeatureType feature_type);
+  void CheckForSiteDataReader() {
+    CHECK(watched_page_node_);
+    CHECK(!waiting_for_data_ready_);
+    auto* site_data_reader =
+        SiteDataRecorder::Data::GetReaderForPageNode(watched_page_node_);
+    if (site_data_reader) {
+      waiting_for_data_ready_ = true;
+      // If data is already loaded, OnDataReady() will be called immediately.
+      site_data_reader->RegisterDataLoadedCallback(
+          base::BindOnce(&SiteDataReaderWaiter::OnDataReady,
+                         weak_factory_.GetWeakPtr(), site_data_reader));
+    }
+  }
 
-  // The SiteDataCache used to serve writers for the PageNode owned by this
-  // object.
-  raw_ptr<SiteDataCache> data_cache_ GUARDED_BY_CONTEXT(sequence_checker_) =
-      nullptr;
+  void OnDataReady(const SiteDataReader* site_data_reader) {
+    CHECK(site_data_reader);
+    std::move(data_ready_callback_).Run(*site_data_reader);
+    DeleteSelfSoon();
+  }
 
-  // The PageNode that owns this object.
-  raw_ptr<const PageNodeImpl> page_node_ GUARDED_BY_CONTEXT(sequence_checker_) =
-      nullptr;
+  raw_ptr<const PageNode> watched_page_node_;
+  DataReadyCallback data_ready_callback_;
 
-  // The time at which this tab switched to LoadingState::kLoadedIdle, null if
-  // this tab is not currently in that state.
-  // SiteDataRecorderHeuristics::IsLoadedIdle() should always be used to check
-  // for LoadingState::kLoadedIdle so that if the heuristic is overridden in
-  // tests, this variable is kept in sync with the test definition of "loaded
-  // and idle".
-  base::TimeTicks loaded_idle_time_ GUARDED_BY_CONTEXT(sequence_checker_);
+  bool waiting_for_data_ready_ = false;
 
-  std::unique_ptr<SiteDataWriter> writer_ GUARDED_BY_CONTEXT(sequence_checker_);
-  std::unique_ptr<SiteDataReader> reader_ GUARDED_BY_CONTEXT(sequence_checker_);
+  // Self-owned. Will delete itself when `watched_page_node_` is deleted or
+  // OnDataReady() fires.
+  std::unique_ptr<SiteDataReaderWaiter> self_;
 
-  SEQUENCE_CHECKER(sequence_checker_);
+  base::WeakPtrFactory<SiteDataReaderWaiter> weak_factory_{this};
 };
 
-void SiteDataNodeData::OnMainFrameUrlChanged(const GURL& url,
-                                             bool page_is_visible) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  url::Origin origin = url::Origin::Create(url);
-
-  if (writer_ && origin == writer_->Origin())
-    return;
-
-  // If the origin has changed then the writer should be invalidated.
-  Reset();
-
-  if (!url.SchemeIsHTTPOrHTTPS())
-    return;
-
-  writer_ = data_cache_->GetWriterForOrigin(origin);
-  reader_ = data_cache_->GetReaderForOrigin(origin);
-
-  // The writer is assumed not to be LoadingState::kLoadedIdle at this point.
-  // Make adjustments if it is LoadingState::kLoadedIdle.
-  if (RecorderHeuristics().IsLoadedIdle(page_node_->loading_state())) {
-    OnIsLoadedIdleChanged(true);
-  }
-
-  DCHECK_EQ(RecorderHeuristics().IsLoadedIdle(page_node_->loading_state()),
-            !loaded_idle_time_.is_null());
-}
-
-void SiteDataNodeData::OnIsLoadedIdleChanged(bool is_loaded_idle) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!writer_)
-    return;
-
-  // This should only be called when the loading state actually changes, or
-  // when the writer is first created. In all cases `loaded_idle_time_` should
-  // only be set if the site is already loaded, meaning `is_loaded_idle` is
-  // now changing to false.
-  CHECK_EQ(is_loaded_idle, loaded_idle_time_.is_null());
-  if (is_loaded_idle) {
-    writer_->NotifySiteLoaded(GetPageNodeVisibility(page_node_));
-    loaded_idle_time_ = base::TimeTicks::Now();
-  } else {
-    writer_->NotifySiteUnloaded(GetPageNodeVisibility(page_node_));
-    loaded_idle_time_ = base::TimeTicks();
-  }
-  CHECK_EQ(is_loaded_idle, !loaded_idle_time_.is_null());
-}
-
-void SiteDataNodeData::OnIsVisibleChanged(bool is_visible) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!writer_)
-    return;
-  if (is_visible) {
-    writer_->NotifySiteForegrounded(
-        RecorderHeuristics().IsLoadedIdle(page_node_->loading_state()));
-  } else {
-    writer_->NotifySiteBackgrounded(
-        RecorderHeuristics().IsLoadedIdle(page_node_->loading_state()));
-  }
-}
-
-void SiteDataNodeData::OnIsAudibleChanged(bool audible) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (!audible)
-    return;
-
-  MaybeNotifyBackgroundFeatureUsage(
-      &SiteDataWriter::NotifyUsesAudioInBackground, FeatureType::kAudioUsage);
-}
-
-void SiteDataNodeData::OnTitleUpdated() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  MaybeNotifyBackgroundFeatureUsage(
-      &SiteDataWriter::NotifyUpdatesTitleInBackground,
-      FeatureType::kTitleChange);
-}
-
-void SiteDataNodeData::OnFaviconUpdated() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  MaybeNotifyBackgroundFeatureUsage(
-      &SiteDataWriter::NotifyUpdatesFaviconInBackground,
-      FeatureType::kFaviconChange);
-}
-
-void SiteDataNodeData::Reset() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (writer_ && !loaded_idle_time_.is_null() &&
-      RecorderHeuristics().IsLoadedIdle(page_node_->loading_state())) {
-    writer_->NotifySiteUnloaded(GetPageNodeVisibility(page_node_));
-    loaded_idle_time_ = base::TimeTicks();
-  }
-  writer_.reset();
-  reader_.reset();
-}
-
-bool SiteDataNodeData::ShouldRecordFeatureUsageEvent(FeatureType feature_type) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // The feature usage should be ignored if there's no writer for this page.
-  if (!writer_) {
-    return false;
-  }
-
-  const SiteDataRecorderHeuristics& heuristics = RecorderHeuristics();
-  if (!heuristics.IsLoadedIdle(page_node_->loading_state())) {
-    return false;
-  }
-  CHECK(!loaded_idle_time_.is_null());
-  return heuristics.IsOutsideLoadingGracePeriod(
-             page_node_, feature_type,
-             base::TimeTicks::Now() - loaded_idle_time_) &&
-         heuristics.IsInBackground(page_node_) &&
-         heuristics.IsOutsideBackgroundingGracePeriod(
-             page_node_, feature_type,
-             page_node_->TimeSinceLastVisibilityChange());
-}
-
-void SiteDataNodeData::MaybeNotifyBackgroundFeatureUsage(
-    void (SiteDataWriter::*method)(),
-    FeatureType feature_type) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (!ShouldRecordFeatureUsageEvent(feature_type)) {
-    return;
-  }
-
-  (writer_.get()->*method)();
-}
-
-SiteDataNodeData* GetSiteDataNodeDataFromPageNode(const PageNode* page_node) {
+SiteDataNodeData& GetSiteDataNodeDataFromPageNode(const PageNode* page_node) {
+  DCHECK(page_node);
   auto* page_node_impl = PageNodeImpl::FromNode(page_node);
-  DCHECK(page_node_impl);
-  auto* data = SiteDataNodeData::Get(page_node_impl);
-  DCHECK(data);
-  return data;
+  return SiteDataNodeData::Get(page_node_impl);
 }
 
 }  // namespace
@@ -339,52 +200,52 @@ void SiteDataRecorder::OnPageNodeAdded(const PageNode* page_node) {
 
 void SiteDataRecorder::OnBeforePageNodeRemoved(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
-  data->Reset();
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
+  data.Reset();
 }
 
 void SiteDataRecorder::OnMainFrameUrlChanged(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
-  data->OnMainFrameUrlChanged(page_node->GetMainFrameUrl(),
-                              page_node->IsVisible());
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
+  data.OnMainFrameUrlChanged(page_node->GetMainFrameUrl(),
+                             page_node->IsVisible());
 }
 
 void SiteDataRecorder::OnLoadingStateChanged(
     const PageNode* page_node,
     PageNode::LoadingState previous_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
   const bool is_loaded_idle =
       heuristics_impl_->IsLoadedIdle(page_node->GetLoadingState());
   const bool was_loaded_idle = heuristics_impl_->IsLoadedIdle(previous_state);
   if (is_loaded_idle != was_loaded_idle) {
-    data->OnIsLoadedIdleChanged(is_loaded_idle);
+    data.OnIsLoadedIdleChanged(is_loaded_idle);
   }
 }
 
 void SiteDataRecorder::OnIsVisibleChanged(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
-  data->OnIsVisibleChanged(page_node->IsVisible());
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
+  data.OnIsVisibleChanged(page_node->IsVisible());
 }
 
 void SiteDataRecorder::OnIsAudibleChanged(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
-  data->OnIsAudibleChanged(page_node->IsAudible());
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
+  data.OnIsAudibleChanged(page_node->IsAudible());
 }
 
 void SiteDataRecorder::OnTitleUpdated(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
-  data->OnTitleUpdated();
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
+  data.OnTitleUpdated();
 }
 
 void SiteDataRecorder::OnFaviconUpdated(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* data = GetSiteDataNodeDataFromPageNode(page_node);
-  data->OnFaviconUpdated();
+  SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
+  data.OnFaviconUpdated();
 }
 
 // static
@@ -410,11 +271,15 @@ void SiteDataRecorder::SetPageNodeDataCache(const PageNode* page_node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto* page_node_impl = PageNodeImpl::FromNode(page_node);
   DCHECK(page_node_impl);
-  DCHECK(!SiteDataNodeData::Get(page_node_impl));
-  auto* data = SiteDataNodeData::GetOrCreate(page_node_impl);
-  data->set_data_cache(
-      SiteDataCacheFactory::GetInstance()->GetDataCacheForBrowserContext(
-          page_node->GetBrowserContextID()));
+  auto& data = SiteDataNodeData::Create(page_node_impl, page_node_impl, this);
+  // If this PageNode is in a browser context that doesn't enable keyed services
+  // (such as the system profile), it will have no SiteDataCache.
+  if (auto* factory = SiteDataCacheFactory::GetInstance()) {
+    if (auto* data_cache = factory->GetDataCacheForBrowserContext(
+            page_node->GetBrowserContextID())) {
+      data.set_data_cache(data_cache);
+    }
+  }
 }
 
 // static
@@ -429,7 +294,7 @@ bool SiteDataRecorderHeuristics::DefaultIsLoadedIdle(
     case PageNode::LoadingState::kLoadedIdle:
       return true;
   }
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 // static
@@ -461,13 +326,13 @@ bool SiteDataRecorderHeuristics::DefaultIsOutsideBackgroundingGracePeriod(
 }
 
 // static
-const SiteDataRecorder::Data* SiteDataRecorder::Data::FromPageNode(
+const SiteDataRecorder::Data& SiteDataRecorder::Data::FromPageNode(
     const PageNode* page_node) {
   return SiteDataNodeData::Get(PageNodeImpl::FromNode(page_node));
 }
 
 // static
-SiteDataRecorder::Data* SiteDataRecorder::Data::GetForTesting(
+SiteDataRecorder::Data& SiteDataRecorder::Data::GetForTesting(
     const PageNode* page_node) {
   return GetSiteDataNodeDataFromPageNode(page_node);
 }
@@ -475,8 +340,19 @@ SiteDataRecorder::Data* SiteDataRecorder::Data::GetForTesting(
 // static
 SiteDataReader* SiteDataRecorder::Data::GetReaderForPageNode(
     const PageNode* page_node) {
-  const auto* site_data = FromPageNode(page_node);
-  return site_data ? site_data->reader() : nullptr;
+  PageNodeImpl* page_node_impl = PageNodeImpl::FromNode(page_node);
+  if (SiteDataNodeData::Exists(page_node_impl)) {
+    return SiteDataNodeData::Get(page_node_impl).reader();
+  }
+  return nullptr;
+}
+
+void WaitForSiteDataReader(
+    base::WeakPtr<PageNode> page_node,
+    base::OnceCallback<void(const SiteDataReader&)> callback) {
+  if (page_node) {
+    SiteDataReaderWaiter::WaitForSiteData(page_node.get(), std::move(callback));
+  }
 }
 
 }  // namespace performance_manager

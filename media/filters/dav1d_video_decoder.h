@@ -5,11 +5,13 @@
 #ifndef MEDIA_FILTERS_DAV1D_VIDEO_DECODER_H_
 #define MEDIA_FILTERS_DAV1D_VIDEO_DECODER_H_
 
+#include <memory>
+
 #include "base/functional/callback_forward.h"
-#include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/sequence_checker.h"
+#include "media/base/frame_buffer_pool.h"
+#include "media/base/media_log.h"
 #include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
@@ -20,14 +22,14 @@ struct Dav1dContext;
 struct Dav1dPicture;
 
 namespace media {
-class MediaLog;
 
 class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
  public:
   static SupportedVideoDecoderConfigs SupportedConfigs();
 
-  Dav1dVideoDecoder(MediaLog* media_log,
-                    OffloadState offload_state = OffloadState::kNormal);
+  explicit Dav1dVideoDecoder(
+      std::unique_ptr<MediaLog> media_log,
+      OffloadState offload_state = OffloadState::kNormal);
 
   Dav1dVideoDecoder(const Dav1dVideoDecoder&) = delete;
   Dav1dVideoDecoder& operator=(const Dav1dVideoDecoder&) = delete;
@@ -66,7 +68,7 @@ class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
   scoped_refptr<VideoFrame> BindImageToVideoFrame(const Dav1dPicture* img);
 
   // Used to report error messages to the client.
-  const raw_ptr<MediaLog> media_log_ = nullptr;
+  std::unique_ptr<MediaLog> media_log_;
 
   // Indicates if the decoder is being wrapped by OffloadVideoDecoder; controls
   // whether callbacks are bound to the current loop on calls.
@@ -76,7 +78,7 @@ class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
 
   // "Zero" filled UV data for monochrome images to use since Chromium doesn't
   // have support for I400P(8|10|12) images.
-  scoped_refptr<base::RefCountedBytes> fake_uv_data_;
+  scoped_refptr<base::RefCountedMemory> fake_uv_data_;
 
   // Current decoder state. Used to ensure methods are called as expected.
   DecoderState state_ = DecoderState::kUninitialized;
@@ -88,23 +90,31 @@ class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
   // needed to annotate video frames after decoding.
   VideoDecoderConfig config_;
 
+  // Picture allocation pool. Used instead of the default allocator so that OOM
+  // failures can return an error instead of crashing the tab.
+  scoped_refptr<FrameBufferPool> frame_pool_;
+
+  // More specific error code to surface after an error occurs during decoding.
+  DecoderStatus::Codes error_status_ = DecoderStatus::Codes::kFailed;
+
   // The allocated decoder; null before Initialize() and anytime after
   // CloseDecoder().
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION Dav1dContext* dav1d_decoder_ = nullptr;
+  struct Dav1dContextDeleter {
+    void operator()(Dav1dContext* ptr);
+  };
+  std::unique_ptr<Dav1dContext, Dav1dContextDeleter> dav1d_decoder_;
 };
 
 // Helper class for creating a Dav1dVideoDecoder which will offload all AV1
 // content from the media thread.
 class OffloadingDav1dVideoDecoder : public OffloadingVideoDecoder {
  public:
-  explicit OffloadingDav1dVideoDecoder(MediaLog* media_log)
+  explicit OffloadingDav1dVideoDecoder(std::unique_ptr<MediaLog> media_log)
       : OffloadingVideoDecoder(
             0,
             std::vector<VideoCodec>(1, VideoCodec::kAV1),
             std::make_unique<Dav1dVideoDecoder>(
-                media_log,
+                std::move(media_log),
                 OffloadableVideoDecoder::OffloadState::kOffloaded)) {}
 };
 

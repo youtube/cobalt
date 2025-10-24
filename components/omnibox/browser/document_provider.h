@@ -17,14 +17,17 @@
 #include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "components/history/core/browser/history_types.h"
+#include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_provider_debouncer.h"
-#include "components/omnibox/browser/search_provider.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
+#include "url/gurl.h"
 
 class AutocompleteProviderListener;
+struct AutocompleteMatch;
 class AutocompleteProviderClient;
 
 namespace base {
@@ -35,10 +38,6 @@ namespace network {
 class SimpleURLLoader;
 }
 
-namespace user_prefs {
-class PrefRegistrySyncable;
-}
-
 // Autocomplete provider for personalized documents owned or readable by the
 // signed-in user. In practice this is a second request in parallel with that
 // to the default search provider.
@@ -46,17 +45,13 @@ class DocumentProvider : public AutocompleteProvider {
  public:
   // Creates and returns an instance of this provider.
   static DocumentProvider* Create(AutocompleteProviderClient* client,
-                                  AutocompleteProviderListener* listener,
-                                  size_t cache_size = 20);
+                                  AutocompleteProviderListener* listener);
 
   // AutocompleteProvider:
   void Start(const AutocompleteInput& input, bool minimal_changes) override;
-  void Stop(bool clear_cached_results, bool due_to_user_inactivity) override;
+  void Stop(AutocompleteStopReason stop_reason) override;
   void DeleteMatch(const AutocompleteMatch& match) override;
   void AddProviderInfo(ProvidersInfo* provider_info) const override;
-
-  // Registers a client-side preference to enable document suggestions.
-  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
   // Returns a set of classifications that highlight all the occurrences of
   // |input_text| at word breaks in |text|. E.g., given |input_text|
@@ -83,8 +78,7 @@ class DocumentProvider : public AutocompleteProvider {
   using MatchesCache = base::LRUCache<GURL, AutocompleteMatch>;
 
   DocumentProvider(AutocompleteProviderClient* client,
-                   AutocompleteProviderListener* listener,
-                   size_t cache_size);
+                   AutocompleteProviderListener* listener);
 
   ~DocumentProvider() override;
 
@@ -93,19 +87,22 @@ class DocumentProvider : public AutocompleteProvider {
 
   // Determines whether the profile/session/window meet the feature
   // prerequisites.
-  bool IsDocumentProviderAllowed(AutocompleteProviderClient* client,
-                                 const AutocompleteInput& input);
+  bool IsDocumentProviderAllowed(const AutocompleteInput& input);
 
   // Determines if the input is a URL, or is the start of the user entering one.
   // We avoid queries for these cases for quality and scaling reasons.
   static bool IsInputLikelyURL(const AutocompleteInput& input);
 
   // Called by |debouncer_|, queued when |start| is called.
-  void Run();
+  void Run(const AutocompleteInput& input);
 
   // Called when the network request for suggestions has completed.
   void OnURLLoadComplete(const network::SimpleURLLoader* source,
+                         const int response_code,
                          std::unique_ptr<std::string> response_body);
+
+  // Resets the backoff state on DocumentSuggestionsService to false.
+  void ResetBackoffState();
 
   // The function updates |matches_| with data parsed from |json_data|.
   // The update is not performed if |json_data| is invalid.
@@ -121,12 +118,8 @@ class DocumentProvider : public AutocompleteProvider {
   ACMatches ParseDocumentSearchResults(const base::Value& root_val);
 
   // Appends |matches_cache_| to |matches_|. Updates their classifications
-  // according to |input_.text()| and sets their relevance to 0.
-  // |skip_n_most_recent_matches| indicates the number of cached matches already
-  //   in |matches_|. E.g. if the drive server responded with 3 docs, these 3
-  //   docs are added both to |matches_| and |matches_cache| prior to invoking
-  //   |CopyCachedMatchesToMatches()| in order to avoid duplicate matches.
-  void CopyCachedMatchesToMatches(size_t skip_n_most_recent_matches = 0);
+  // according to |input_.text()|.
+  void CopyCachedMatchesToMatches();
 
   // Sets the scores of all cached matches to 0. This is invoked before pushing
   // the latest async response returns so that the scores aren't preserved for
@@ -160,9 +153,9 @@ class DocumentProvider : public AutocompleteProvider {
                                             const std::string& mimetype,
                                             const std::string& owner);
 
-  // Whether the server has instructed us to backoff for this session (in
-  // cases where the corpus is uninteresting).
-  bool backoff_for_session_;
+  // Whether the server has instructed us to backoff. Used when the backoff
+  // state is scoped to the current window/AutocompleteController.
+  bool backoff_for_this_instance_only_ = false;
 
   // Client for accessing TemplateUrlService, prefs, etc.
   raw_ptr<AutocompleteProviderClient> client_;
@@ -180,6 +173,9 @@ class DocumentProvider : public AutocompleteProvider {
   // remote request was sent. Used for histogram logging.
   base::TimeTicks time_request_sent_;
 
+  // Used to ensure that we don't send multiple requests in quick succession.
+  std::unique_ptr<AutocompleteProviderDebouncer> debouncer_;
+
   // Because the drive server is async and may intermittently provide a
   // particular suggestion for consecutive inputs, without caching, doc
   // suggestions flicker between drive format (title - date - doc_type) and URL
@@ -187,10 +183,10 @@ class DocumentProvider : public AutocompleteProvider {
   // Appending cached doc suggestions with relevance 0 ensures cached
   // suggestions only display if deduped with a non-cached suggestion and do not
   // affect which autocomplete results are displayed and their ranks.
-  const size_t cache_size_;
   MatchesCache matches_cache_;
 
-  std::unique_ptr<AutocompleteProviderDebouncer> debouncer_;
+  // Used to schedule a reset of the backoff state.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // For callbacks that may be run after destruction. Must be declared last.
   base::WeakPtrFactory<DocumentProvider> weak_ptr_factory_{this};

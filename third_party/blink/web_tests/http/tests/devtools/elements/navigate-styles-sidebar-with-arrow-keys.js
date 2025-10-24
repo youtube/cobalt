@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+
+import * as Platform from 'devtools/core/platform/platform.js';
+import * as ElementsModule from 'devtools/panels/elements/elements.js';
+import * as UIModule from 'devtools/ui/legacy/legacy.js';
+
 (async function() {
   TestRunner.addResult('Tests that styles sidebar can be navigated with arrow keys.\n');
 
   await TestRunner.showPanel('elements');
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
 
   await TestRunner.loadHTML(`
     <style>
@@ -26,11 +32,11 @@
 
   await waitForStylesRebuild();
 
-  let ssp = Elements.ElementsPanel.instance().stylesWidget;
+  let ssp = ElementsModule.ElementsPanel.ElementsPanel.instance().stylesWidget;
 
   // start editing
   ssp.sectionBlocks[0].sections[0].element.focus();
-  ssp.sectionBlocks[0].sections[0].addNewBlankProperty(0).startEditing();
+  ssp.sectionBlocks[0].sections[0].addNewBlankProperty(0).startEditingName();
 
   dumpState();
 
@@ -70,15 +76,15 @@
 
 
   function dumpState() {
-    TestRunner.addResult('Editing: ' + UI.isEditing())
-    TestRunner.addResult(Platform.DOMUtilities.deepActiveElement(document).textContent);
+    TestRunner.addResult('Editing: ' + UIModule.UIUtils.isEditing())
+    TestRunner.addResult(Platform.DOMUtilities.deepActiveElement(document).innerText);
     TestRunner.addResult('');
   }
 
   function waitForStylesRebuild(node) {
     if (node && node.getAttribute("id") === 'foo')
       return;
-    return TestRunner.addSnifferPromise(Elements.StylesSidebarPane.prototype, "nodeStylesUpdatedForTest").then(waitForStylesRebuild);
+    return TestRunner.addSnifferPromise(ElementsModule.StylesSidebarPane.StylesSidebarPane.prototype, "nodeStylesUpdatedForTest").then(waitForStylesRebuild);
   }
 
 

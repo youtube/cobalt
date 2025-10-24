@@ -169,8 +169,9 @@ class NetworkInfoBubbleTest : public AshTestBase {
   void SimulateMouseExit() {
     ASSERT_TRUE(network_info_bubble_);
     static_cast<views::View*>(network_info_bubble_)
-        ->OnMouseExited(ui::MouseEvent(ui::ET_MOUSE_EXITED, gfx::PointF(),
-                                       gfx::PointF(), base::TimeTicks(), 0, 0));
+        ->OnMouseExited(ui::MouseEvent(ui::EventType::kMouseExited,
+                                       gfx::PointF(), gfx::PointF(),
+                                       base::TimeTicks(), 0, 0));
     network_info_bubble_ = nullptr;
     base::RunLoop().RunUntilIdle();
   }
@@ -191,7 +192,7 @@ class NetworkInfoBubbleTest : public AshTestBase {
  private:
   network_config::CrosNetworkConfigTestHelper network_config_helper_;
   FakeNetworkInfoBubbleDelegate fake_delegate_;
-  raw_ptr<NetworkInfoBubble, ExperimentalAsh> network_info_bubble_ = nullptr;
+  raw_ptr<NetworkInfoBubble> network_info_bubble_ = nullptr;
   std::string wifi_path_;
   std::unique_ptr<views::Widget> widget_;
 
@@ -227,61 +228,90 @@ TEST_F(NetworkInfoBubbleTest, HasCorrectText) {
             FindLabelView()->GetText());
   CloseBubble();
 
-  std::u16string expected_text =
-      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_ETHERNET_ADDRESS,
-                                 base::UTF8ToUTF16(kEthernetMacAddress));
+  std::u16string expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_ETHERNET_ADDRESS, u"");
+  std::u16string expected_address = base::UTF8ToUTF16(kEthernetMacAddress);
   SetDeviceMacAddress(kStubEthernetDevicePath, kEthernetMacAddress);
-
   OpenBubble();
-  EXPECT_EQ(expected_text, FindLabelView()->GetText());
+  // TODO(b/307363886): Use the view ids to tget the title and address.
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[0]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[0]->children()[1])
+                                  ->GetText());
   CloseBubble();
 
-  base::StrAppend(
-      &expected_text,
-      {u"\n", l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_WIFI_ADDRESS,
-                                         base::UTF8ToUTF16(kWiFiMacAddress))});
+  expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_WIFI_ADDRESS, u"");
+  expected_address = base::UTF8ToUTF16(kWiFiMacAddress);
   SetDeviceMacAddress(kStubWiFiDevicePath, kWiFiMacAddress);
-
   OpenBubble();
-  EXPECT_EQ(expected_text, FindLabelView()->GetText());
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[1]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[1]->children()[1])
+                                  ->GetText());
   CloseBubble();
 
-  base::StrAppend(&expected_text,
-                  {u"\n", l10n_util::GetStringFUTF16(
-                              IDS_ASH_STATUS_TRAY_CELLULAR_ADDRESS,
-                              base::UTF8ToUTF16(kCellularMacAddress))});
+  expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_CELLULAR_ADDRESS, u"");
+  expected_address = base::UTF8ToUTF16(kCellularMacAddress);
   SetDeviceMacAddress(kStubCellularDevicePath, kCellularMacAddress);
-
   OpenBubble();
-  EXPECT_EQ(expected_text, FindLabelView()->GetText());
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[2]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[2]->children()[1])
+                                  ->GetText());
   CloseBubble();
-
-  fake_delegate()->SetShouldIncludeDeviceAddresses(false);
-
-  OpenBubble();
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_NO_NETWORKS),
-            FindLabelView()->GetText());
-  CloseBubble();
-
-  const std::u16string expected_text_ip_addresses = base::StrCat(
-      {l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_IP_ADDRESS,
-                                  base::UTF8ToUTF16(kIpv4Address)),
-       u"\n",
-       l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_IPV6_ADDRESS,
-                                  base::UTF8ToUTF16(kIpv6Address))});
 
   AddDefaultNetworkWithIPAddresses();
-
+  expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_IP_ADDRESS, u"");
+  expected_address = base::UTF8ToUTF16(kIpv4Address);
   OpenBubble();
-  EXPECT_EQ(expected_text_ip_addresses, FindLabelView()->GetText());
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[0]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[0]->children()[1])
+                                  ->GetText());
+  CloseBubble();
+  expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_IPV6_ADDRESS, u"");
+  expected_address = base::UTF8ToUTF16(kIpv6Address);
+  OpenBubble();
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[1]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[1]->children()[1])
+                                  ->GetText());
   CloseBubble();
 
   fake_delegate()->SetShouldIncludeDeviceAddresses(true);
-
-  expected_text = expected_text_ip_addresses + u"\n" + expected_text;
-
   OpenBubble();
-  EXPECT_EQ(expected_text, FindLabelView()->GetText());
+  expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_IPV6_ADDRESS, u"");
+  expected_address = base::UTF8ToUTF16(kIpv6Address);
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[1]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[1]->children()[1])
+                                  ->GetText());
+  expected_title =
+      l10n_util::GetStringFUTF16(IDS_ASH_STATUS_TRAY_WIFI_ADDRESS, u"");
+  expected_address = base::UTF8ToUTF16(kWiFiMacAddress);
+  EXPECT_EQ(expected_title, static_cast<views::Label*>(
+                                FindLabelView()->children()[3]->children()[0])
+                                ->GetText());
+  EXPECT_EQ(expected_address, static_cast<views::Label*>(
+                                  FindLabelView()->children()[3]->children()[1])
+                                  ->GetText());
   CloseBubble();
 }
 

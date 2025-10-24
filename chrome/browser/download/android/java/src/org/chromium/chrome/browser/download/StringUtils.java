@@ -4,15 +4,19 @@
 
 package org.chromium.chrome.browser.download;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.TimeUtils;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.browser_ui.util.DownloadUtils;
 import org.chromium.components.offline_items_collection.FailState;
 import org.chromium.components.offline_items_collection.OfflineItem.Progress;
@@ -24,14 +28,16 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 /** Helper class to handle converting downloads to UI strings. */
+@NullMarked
 public final class StringUtils {
-    @VisibleForTesting
-    static final String ELLIPSIS = "\u2026";
+    @VisibleForTesting static final String ELLIPSIS = "\u2026";
 
     @VisibleForTesting
     private static final int[] BYTES_AVAILABLE_STRINGS = {
-            R.string.download_manager_ui_space_free_kb, R.string.download_manager_ui_space_free_mb,
-            R.string.download_manager_ui_space_free_gb};
+        R.string.download_manager_ui_space_free_kb,
+        R.string.download_manager_ui_space_free_mb,
+        R.string.download_manager_ui_space_free_gb
+    };
 
     private StringUtils() {}
 
@@ -45,29 +51,29 @@ public final class StringUtils {
         Context context = ContextUtils.getApplicationContext();
 
         if (progress.isIndeterminate() && progress.value == 0) {
-            return context.getResources().getString(R.string.download_started);
+            return context.getString(R.string.download_started);
         }
 
         switch (progress.unit) {
             case OfflineItemProgressUnit.PERCENTAGE:
                 return progress.isIndeterminate()
-                        ? context.getResources().getString(R.string.download_started)
+                        ? context.getString(R.string.download_started)
                         : percentageForUi(progress.getPercentage());
             case OfflineItemProgressUnit.BYTES:
                 String bytes = DownloadUtils.getStringForBytes(context, progress.value);
                 if (progress.isIndeterminate()) {
-                    return context.getResources().getString(
-                            R.string.download_ui_indeterminate_bytes, bytes);
+                    return context.getString(R.string.download_ui_indeterminate_bytes, bytes);
                 } else {
+                    assumeNonNull(progress.max);
                     String total = DownloadUtils.getStringForBytes(context, progress.max);
-                    return context.getResources().getString(
-                            R.string.download_ui_determinate_bytes, bytes, total);
+                    return context.getString(R.string.download_ui_determinate_bytes, bytes, total);
                 }
             case OfflineItemProgressUnit.FILES:
                 if (progress.isIndeterminate()) {
                     int fileCount = (int) Math.min(Integer.MAX_VALUE, progress.value);
-                    return context.getResources().getQuantityString(
-                            R.plurals.download_ui_files_downloaded, fileCount, fileCount);
+                    return context.getResources()
+                            .getQuantityString(
+                                    R.plurals.download_ui_files_downloaded, fileCount, fileCount);
                 } else {
                     return filesLeftForUi(context, progress);
                 }
@@ -154,9 +160,7 @@ public final class StringUtils {
         Context context = ContextUtils.getApplicationContext();
         // When foreground service restarts and there is no connection to native, use the default
         // pending status. The status will be replaced when connected to native.
-        if (BrowserStartupController.getInstance().isFullBrowserStarted()
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.OFFLINE_PAGES_DESCRIPTIVE_PENDING_STATUS)) {
+        if (BrowserStartupController.getInstance().isFullBrowserStarted()) {
             switch (pendingState) {
                 case PendingState.PENDING_NETWORK:
                     return context.getString(R.string.download_notification_pending_network);
@@ -223,13 +227,16 @@ public final class StringUtils {
      * @return String representing the number of files left.
      */
     private static String filesLeftForUi(Context context, Progress progress) {
+        assumeNonNull(progress.max);
         int filesLeft = (int) (progress.max - progress.value);
-        return filesLeft == 1 ? context.getResources().getString(R.string.one_file_left)
-                              : context.getResources().getString(R.string.files_left, filesLeft);
+        return filesLeft == 1
+                ? context.getString(R.string.one_file_left)
+                : context.getString(R.string.files_left, filesLeft);
     }
 
     @NativeMethods
     interface Natives {
+        @JniType("std::u16string")
         String getFailStateMessage(@FailState int failState);
     }
 }

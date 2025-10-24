@@ -7,7 +7,6 @@
 #include "base/command_line.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ash/language_preferences.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/chrome_constants.h"
@@ -16,6 +15,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "chromeos/ash/components/language_preferences/language_preferences.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/user_manager/scoped_user_manager.h"
@@ -69,11 +69,11 @@ class InputMethodPersistenceTest : public testing::Test {
   }
 
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<sync_preferences::TestingPrefServiceSyncable, ExperimentalAsh>
+  raw_ptr<sync_preferences::TestingPrefServiceSyncable, DanglingUntriaged>
       mock_user_prefs_;
   MockInputMethodManagerImpl mock_manager_;
   TestingProfileManager mock_profile_manager_;
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> fake_user_manager_;
+  raw_ptr<FakeChromeUserManager, DanglingUntriaged> fake_user_manager_;
   user_manager::ScopedUserManager user_manager_enabler_;
 };
 

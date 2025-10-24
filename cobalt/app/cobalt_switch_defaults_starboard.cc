@@ -103,9 +103,11 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
         // we set it explicitly just in case.
         {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
-        // Enable precise memory info so we can make accurate client-side
+        // Align with MSE spec for MediaSource.duration;
+        // enable precise memory info so we can make accurate client-side
         // measurements.
-        {switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
+        {switches::kEnableBlinkFeatures,
+         "MediaSourceNewAbortAndDuration, PreciseMemoryInfo"},
         // Enable autoplay video/audio, as Cobalt may launch directly into media
         // playback before user interaction.
         {switches::kAutoplayPolicy, "no-user-gesture-required"},
@@ -113,7 +115,7 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   return cobalt_param_switch_defaults;
 }
 
-constexpr base::CommandLine::StringPieceType kDefaultSwitchPrefix = "--";
+constexpr base::CommandLine::StringViewType kDefaultSwitchPrefix = "--";
 constexpr base::CommandLine::CharType kSwitchValueSeparator[] =
     FILE_PATH_LITERAL("=");
 

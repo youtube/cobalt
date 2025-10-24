@@ -89,7 +89,7 @@ interface PrintBackendService {
        [EnableIf=is_win]
        pending_remote<PrinterXmlParser>? remote);
 
-  // TODO(crbug.com/1225111)  Message with no arguments and no reply that is
+  // TODO(crbug.com/40775634)  Message with no arguments and no reply that is
   // useful to ensure that an idle timeout change takes effect.
   Poke();
 
@@ -102,7 +102,7 @@ interface PrintBackendService {
     => (DefaultPrinterNameResult printer_name);
 
   // Gets the semantic capabilities and defaults for a specific printer.
-  [EnableIf=is_chromeos_ash]
+  [EnableIf=is_chromeos]
   GetPrinterSemanticCapsAndDefaults(string printer_name)
     => (PrinterSemanticCapsAndDefaultsResult printer_caps);
 
@@ -115,7 +115,7 @@ interface PrintBackendService {
   // workaround for the high cost of trying to get printable area for all paper
   // sizes in `FetchCapabilities()`.  Returns an empty area if there is any
   // error in retrieving the printable area.
-  // TODO(crbug.com/1424368):  Remove this if
+  // TODO(crbug.com/40260379):  Remove this if
   // `PrintBackendWin::GetPrinterSemanticCapsAndDefaults()` can be made to
   // fetch the all printable areas in a performant manner.
   [EnableIf=is_win]
@@ -162,7 +162,7 @@ interface PrintBackendService {
   //     may be possible if all of UI is moved out of the browser process.  See
   //     https://docs.google.com/document/d/1uAxz9pk3twwkzamchxHTQiImIbKrc0cuKVDpzbn2wsQ
   //     for discussion on such an effort.
-  //   - TODO(crbug.com/809738):  Determine if Linux Wayland can be made to
+  //   - TODO(crbug.com/40561724):  Determine if Linux Wayland can be made to
   //     have a system dialog be modal against an application window in the
   //     browser process.
   //   - Platforms other than those identified above do not support a system
@@ -200,12 +200,17 @@ interface PrintBackendService {
   // that and then are provided at start of printing via `settings`.  This is
   // optional since such settings are not necessary when printing from Print
   // Preview, where the print settings are provided via `UpdatePrintSettings()`.
+  // A `job_id` is also provided back as a result from starting the print job.
+  // This value will be non-zero if the job was successfully started, and zero
+  // if there is any error.  This matches the behavior for the job ID in
+  // `PrintingContext`.
   StartPrinting(uint32 context_id,
                 int32 document_cookie,
                 mojo_base.mojom.String16 document_name,
                 [EnableIfNot=enable_oop_basic_print_dialog]
                 PrintSettings? settings)
-    => (ResultCode result_code);
+    => (ResultCode result_code,
+        int32 job_id);
 
   // Render the indicated page as part of print job for `document_cookie`.
   [EnableIf=is_win]

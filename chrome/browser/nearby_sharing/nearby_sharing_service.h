@@ -10,16 +10,19 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "chrome/browser/nearby_sharing/nearby_share_settings.h"
 #include "chrome/browser/nearby_sharing/share_target_discovered_callback.h"
+#include "chrome/browser/nearby_sharing/transfer_metadata.h"
 #include "chrome/browser/nearby_sharing/transfer_update_callback.h"
+#include "chromeos/ash/services/nearby/public/mojom/nearby_connections_types.mojom-shared.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 class NearbyNotificationDelegate;
+class NearbyNotificationManager;
 class NearbyShareContactManager;
 class NearbyShareCertificateManager;
 class NearbyShareHttpNotifier;
 class NearbyShareLocalDeviceDataManager;
+class NearbyShareSettings;
 
 // This service implements Nearby Sharing on top of the Nearby Connections mojo.
 // Currently only single profile will be allowed to be bound at a time and only
@@ -28,7 +31,10 @@ class NearbySharingService : public KeyedService {
  public:
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused. If entries are added, kMaxValue
-  // should be updated.
+  // should be updated. Keep in sync with the NearbyShareServiceStatusCode UMA
+  // enum defined in //tools/metrics/histograms/metadata/nearby/enums.xml.
+  //
+  // LINT.IfChange(NearbyShareServiceStatusCode)
   enum class StatusCodes {
     // The operation was successful.
     kOk = 0,
@@ -48,6 +54,7 @@ class NearbySharingService : public KeyedService {
     kNoAvailableConnectionMedium = 5,
     kMaxValue = kNoAvailableConnectionMedium
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareServiceStatusCode)
 
   enum class ReceiveSurfaceState {
     // Default, invalid state.
@@ -70,7 +77,7 @@ class NearbySharingService : public KeyedService {
   class Observer : public base::CheckedObserver {
    public:
     virtual void OnHighVisibilityChangeRequested() {}
-    virtual void OnHighVisibilityChanged(bool in_high_visibility) = 0;
+    virtual void OnHighVisibilityChanged(bool in_high_visibility) {}
 
     virtual void OnNearbyProcessStopped() {}
     virtual void OnStartAdvertisingFailure() {}
@@ -82,7 +89,33 @@ class NearbySharingService : public KeyedService {
 
     // Called during the |KeyedService| shutdown, but before everything has been
     // cleaned up. It is safe to remove any observers on this event.
-    virtual void OnShutdown() = 0;
+    virtual void OnShutdown() {}
+
+    // Share target specific events.
+    virtual void OnShareTargetDiscoveryStarted() {}
+    virtual void OnShareTargetDiscoveryStopped() {}
+    virtual void OnShareTargetAdded(const ShareTarget& share_target) {}
+    virtual void OnShareTargetRemoved(const ShareTarget& share_target) {}
+    virtual void OnShareTargetSelected(const ShareTarget& share_target) {}
+    virtual void OnShareTargetConnected(const ShareTarget& share_target) {}
+
+    // Transfer specific events.
+    virtual void OnTransferAccepted(const ShareTarget& share_target) {}
+    // Note: Senders and receivers will emit this metric at different times.
+    // Senders start transfers as soon as the receiver accepts it, but receivers
+    // will end up starting the transfer a bit later due to the round-trip of
+    // the accept message to the sender.
+    virtual void OnTransferStarted(const ShareTarget& share_target,
+                                   long total_bytes) {}
+    virtual void OnTransferUpdated(const ShareTarget& share_target,
+                                   float percentage_complete) {}
+    virtual void OnTransferCompleted(const ShareTarget& share_target,
+                                     TransferMetadata::Status status) {}
+    virtual void OnInitialMedium(const ShareTarget& share_target,
+                                 nearby::connections::mojom::Medium medium) {}
+    virtual void OnBandwidthUpgrade(const ShareTarget& share_target,
+                                    nearby::connections::mojom::Medium medium) {
+    }
   };
 
   using StatusCodesCallback =
@@ -178,6 +211,7 @@ class NearbySharingService : public KeyedService {
   // notification.
   virtual void RecordFastInitiationNotificationUsage(bool success) = 0;
 
+  virtual NearbyNotificationManager* GetNotificationManager() = 0;
   virtual NearbyShareSettings* GetSettings() = 0;
   virtual NearbyShareHttpNotifier* GetHttpNotifier() = 0;
   virtual NearbyShareLocalDeviceDataManager* GetLocalDeviceDataManager() = 0;

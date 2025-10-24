@@ -3,17 +3,19 @@
 // found in the LICENSE file.
 
 import {assert, assertExists, assertNotReached} from '../assert.js';
-import {AsyncJobQueue} from '../async_job_queue.js';
+import {AsyncJobWithResultQueue} from '../async_job_queue.js';
 import {reportError} from '../error.js';
 import {Point} from '../geometry.js';
+import {isLocalDev} from '../models/load_time_data.js';
 import * as state from '../state.js';
 import {
   CameraSuspendError,
+  CropRegionRect,
   ErrorLevel,
   ErrorType,
   Facing,
   FpsRangeList,
-  PortraitModeProcessError,
+  PortraitErrorNoFaceDetected,
   Resolution,
   ResolutionList,
   VideoConfig,
@@ -38,8 +40,9 @@ import {
   GetCameraAppDeviceStatus,
   MojoBlob,
   PointF,
-  ReprocessResultListenerCallbackRouter,
+  PortraitModeSegResult,
   ResultMetadataObserverCallbackRouter,
+  StillCaptureResultObserverCallbackRouter,
   StreamType,
 } from './type.js';
 import {
@@ -51,10 +54,8 @@ import {
 /**
  * Parse the entry data according to its type.
  *
- * @param entry Camera metadata entry from which to parse the data according to
- *     its type.
  * @return An array containing elements whose types correspond to the format of
- *     input |tag|.
+ *     input |entry|.
  * @throws If entry type is not supported.
  */
 export function parseMetadata(entry: CameraMetadataEntry): number[] {
@@ -92,10 +93,8 @@ export function parseMetadata(entry: CameraMetadataEntry): number[] {
 }
 
 /**
- * Gets the data from Camera metadata by its tag.
+ * Gets the data from Camera metadata by given |tag|.
  *
- * @param metadata Camera metadata from which to query the data.
- * @param tag Camera metadata tag to query for.
  * @return An array containing elements whose types correspond to the format of
  *     input |tag|. If nothing is found, returns an empty array.
  */
@@ -105,7 +104,14 @@ function getMetadataData(
     return [];
   }
   for (let i = 0; i < metadata.entryCount; i++) {
-    const entry = metadata.entries[i];
+    // Disabling check because this code assumes that metadata.entries is
+    // either undefined or defined, but at runtime Mojo will always set this
+    // to null or defined.
+    // TODO(crbug.com/40267104): If this function only handles data
+    // from Mojo, the assertion above should be changed to null and the
+    // null error suppression can be removed.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const entry = metadata.entries![i];
     if (entry.tag === tag) {
       return parseMetadata(entry);
     }
@@ -124,7 +130,7 @@ let instance: DeviceOperator|null|undefined = undefined;
 /**
  * Job queue to sequentialize devices operations.
  */
-const operationQueue = new AsyncJobQueue();
+const operationQueue = new AsyncJobWithResultQueue();
 
 /**
  * Operates video capture device through CrOS Camera App Mojo interface.
@@ -134,7 +140,7 @@ export class DeviceOperator {
    * An interface remote that is used to construct the mojo interface.
    */
   private readonly deviceProvider =
-      wrapEndpoint(CameraAppDeviceProvider.getRemote());
+      isLocalDev() ? null : wrapEndpoint(CameraAppDeviceProvider.getRemote());
 
   /**
    * Map which maps from device id to the remote of devices. We want to have
@@ -176,16 +182,19 @@ export class DeviceOperator {
       new Map<string, CameraInfo|Promise<CameraInfo>>();
 
   /**
-   * Map for camera info error handlers.
+   * Map which maps from device id to camera info error handlers.
    */
   private readonly cameraInfoErrorHandlers =
       new Map<string, (error: Error) => void>();
 
   /**
-   * Return if the direct communication between camera app and video capture
+   * Returns if the direct communication between camera app and video capture
    * devices is supported.
    */
   async isSupported(): Promise<boolean> {
+    if (this.deviceProvider === null) {
+      return false;
+    }
     const {isSupported} = await this.deviceProvider.isSupported();
     return isSupported;
   }
@@ -205,11 +214,20 @@ export class DeviceOperator {
   }
 
   /**
-   * Gets corresponding device remote by given id.
+   * Check if the device is in use.
    *
    * @param deviceId The id of target camera device.
-   * @return Corresponding device remote.
-   * @throws Thrown when given device id is invalid.
+   */
+  async isDeviceInUse(deviceId: string): Promise<boolean> {
+    assert(this.deviceProvider !== null);
+    const {inUse} = await this.deviceProvider.isDeviceInUse(deviceId);
+    return inUse;
+  }
+
+  /**
+   * Gets corresponding device remote by given |deviceId|.
+   *
+   * @throws Thrown when given |deviceId| is invalid.
    */
   private getDevice(deviceId: string): Promise<CameraAppDeviceRemote> {
     const d = this.devices.get(deviceId);
@@ -218,9 +236,10 @@ export class DeviceOperator {
     }
     const newDevice = (async () => {
       try {
+        assert(this.deviceProvider !== null);
         const {device, status} =
             await this.deviceProvider.getCameraAppDevice(deviceId);
-        if (status === GetCameraAppDeviceStatus.ERROR_INVALID_ID) {
+        if (status === GetCameraAppDeviceStatus.kErrorInvalidId) {
           throw new Error(`Invalid device id`);
         }
         if (device === null) {
@@ -255,7 +274,6 @@ export class DeviceOperator {
    * @param deviceId The id of target camera device.
    * @param tag Camera metadata tag to query.
    * @return Promise of the corresponding data array.
-   * @throws Thrown when given device id is invalid.
    */
   async getStaticMetadata(deviceId: string, tag: CameraMetadataTag):
       Promise<number[]> {
@@ -289,7 +307,10 @@ export class DeviceOperator {
     };
     const vid = await getTag(0x80010000);
     const pid = await getTag(0x80010001);
-    return vid && pid && `${vid}:${pid}`;
+    if (vid === null || pid === null) {
+      return null;
+    }
+    return `${vid}:${pid}`;
   }
 
   /**
@@ -297,7 +318,6 @@ export class DeviceOperator {
    *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @return Promise of supported resolutions.
    * @throws Thrown when fail to parse the metadata or the device operation is
    *    not supported.
    */
@@ -332,7 +352,6 @@ export class DeviceOperator {
    *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @return Promise of supported video configurations.
    * @throws Thrown when fail to parse the metadata or the device operation is
    *     not supported.
    */
@@ -371,7 +390,6 @@ export class DeviceOperator {
    *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @return Promise of device facing.
    * @throws Thrown when the device operation is not supported.
    */
   async getCameraFacing(deviceId: string): Promise<Facing> {
@@ -431,7 +449,6 @@ export class DeviceOperator {
    *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @return Promise of the active array size.
    * @throws Thrown when fail to parse the metadata or the device operation is
    *     not supported.
    */
@@ -449,7 +466,6 @@ export class DeviceOperator {
    *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @return Promise of the sensor orientation.
    * @throws Thrown when fail to parse the metadata or the device operation is
    *     not supported.
    */
@@ -465,6 +481,9 @@ export class DeviceOperator {
    *     support pan control.
    */
   async getPanDefault(deviceId: string): Promise<number|undefined> {
+    // This is a custom USB HAL vendor tag, defined in hal/usb/vendor_tag.h on
+    // platform side.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const tag = 0x8001000d as CameraMetadataTag;
     const data = await this.getStaticMetadata(deviceId, tag);
     return data[0];
@@ -475,6 +494,9 @@ export class DeviceOperator {
    *     support tilt control.
    */
   async getTiltDefault(deviceId: string): Promise<number|undefined> {
+    // This is a custom USB HAL vendor tag, defined in hal/usb/vendor_tag.h on
+    // platform side.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const tag = 0x80010016 as CameraMetadataTag;
     const data = await this.getStaticMetadata(deviceId, tag);
     return data[0];
@@ -485,6 +507,9 @@ export class DeviceOperator {
    *     support zoom control.
    */
   async getZoomDefault(deviceId: string): Promise<number|undefined> {
+    // This is a custom USB HAL vendor tag, defined in hal/usb/vendor_tag.h on
+    // platform side.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const tag = 0x80010019 as CameraMetadataTag;
     const data = await this.getStaticMetadata(deviceId, tag);
     return data[0];
@@ -518,7 +543,6 @@ export class DeviceOperator {
    *     could be retrieved from MediaDeviceInfo.deviceId.
    * @param captureIntent The purpose of this capture, to help the camera
    *     device decide optimal configurations.
-   * @return Promise for the operation.
    */
   async setCaptureIntent(deviceId: string, captureIntent: CaptureIntent):
       Promise<void> {
@@ -527,15 +551,15 @@ export class DeviceOperator {
   }
 
   /**
-   * Checks if portrait mode is supported.
-   *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @return Promise of the boolean result.
    * @throws Thrown when the device operation is not supported.
    */
   async isPortraitModeSupported(deviceId: string): Promise<boolean> {
+    // This is a custom vendor tag, defined in common/vendor_tag_manager.h on
+    // platform side.
     // TODO(wtlee): Change to portrait mode tag.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const portraitModeTag = 0x80000000 as CameraMetadataTag;
 
     const portraitMode =
@@ -544,12 +568,12 @@ export class DeviceOperator {
   }
 
   /**
-   * Adds a metadata observer to Camera App Device through Mojo IPC.
+   * Adds a metadata observer to Camera App Device through Mojo IPC and returns
+   * added observer endpoint.
    *
    * @param deviceId The id for target camera device.
    * @param callback Callback that handles the metadata.
    * @param streamType Stream type which the observer gets the metadata from.
-   * @return Added observer endpoint.
    * @throws If fails to construct device connection.
    */
   async addMetadataObserver(
@@ -566,7 +590,7 @@ export class DeviceOperator {
   }
 
   /**
-   * Adds observer to observe shutter event.
+   * Adds observer to observe shutter event and returns added observer endpoint.
    *
    * The shutter event is defined as CAMERA3_MSG_SHUTTER in
    * media/capture/video/chromeos/mojom/camera3.mojom which will be sent from
@@ -574,7 +598,6 @@ export class DeviceOperator {
    *
    * @param deviceId The id for target camera device.
    * @param callback Callback to trigger on shutter done.
-   * @return Added observer endpoint.
    * @throws If fails to construct device connection.
    */
   async addShutterObserver(deviceId: string, callback: () => void):
@@ -590,65 +613,67 @@ export class DeviceOperator {
   }
 
   /**
-   * Sets reprocess options which are normally effects to the video capture
-   * device before taking picture.
+   * Takes portrait mode photos.
    *
    * @param deviceId The renderer-facing device id of the target camera which
    *     could be retrieved from MediaDeviceInfo.deviceId.
-   * @param effects The target reprocess options (effects) that would be
-   *     applied on the result.
-   * @return Array of captured results with given effect.
-   * @throws Thrown when the reprocess is failed or the device operation is not
-   *     supported.
+   * @return Array of captured results for portrait mode. The first result is
+   *     the reference photo, and the second result is the photo with the bokeh
+   *     effect applied.
+   * @throws Thrown when the portrait mode processing is failed or the device
+   *     operation is not supported.
    */
-  async setReprocessOptions(deviceId: string, effects: Effect[]):
-      Promise<Array<Promise<Blob>>> {
-    const reprocessEvents = new Map<Effect, CancelableEvent<Blob>>();
-    const callbacks = [];
-    for (const effect of effects) {
-      const event = new CancelableEvent<Blob>();
-      reprocessEvents.set(effect, event);
-      callbacks.push(event.wait());
-    }
+  async takePortraitModePhoto(deviceId: string): Promise<Array<Promise<Blob>>> {
+    const normalCapture = new CancelableEvent<Blob>();
+    const portraitCapture = new CancelableEvent<Blob>();
+    const portraitEvents = new Map([
+      [Effect.kNoEffect, normalCapture],
+      [Effect.kPortraitMode, portraitCapture],
+    ]);
+    const callbacks = [normalCapture.wait(), portraitCapture.wait()];
 
     const listenerCallbacksRouter =
-        wrapEndpoint(new ReprocessResultListenerCallbackRouter());
-    listenerCallbacksRouter.onReprocessDone.addListener(
+        wrapEndpoint(new StillCaptureResultObserverCallbackRouter());
+    listenerCallbacksRouter.onStillCaptureDone.addListener(
         (effect: Effect, status: number, blob: MojoBlob|null) => {
-          const event = assertExists(reprocessEvents.get(effect));
-          // The definitions of status code is not exposed to Chrome so we are
-          // not able to distinguish between different kinds of errors.
-          // TODO(b/220056961): Handle errors respectively once we have the
-          // definitions.
-          // Ref:
-          // https://source.corp.google.com/chromeos_public/src/platform2/camera/hal_adapter/reprocess_effect/portrait_mode_effect.h;rcl=dd67a0b4be973da51324be2ff2dd243125e27f07;l=77
-          if (effect === Effect.PORTRAIT_MODE && status !== 0) {
-            event.signalError(new PortraitModeProcessError());
-          } else if (blob === null || status !== 0) {
-            event.signalError(new Error(`Set reprocess failed: ${status}`));
-          } else {
-            const {data, mimeType} = blob;
-            event.signal(new Blob([new Uint8Array(data)], {type: mimeType}));
+          const event = assertExists(portraitEvents.get(effect));
+          if (blob === null) {
+            event.signalError(new Error(`Capture failed.`));
+            return;
           }
+          if (effect === Effect.kPortraitMode &&
+              status !== PortraitModeSegResult.kSuccess) {
+            // We only appends the blob result to the output when the status
+            // code is `kSuccess`. For any other status code, the blob
+            // will be the original photo and will not be shown to the user.
+            if (status === PortraitModeSegResult.kNoFaces) {
+              event.signalError(new PortraitErrorNoFaceDetected());
+              return;
+            }
+            event.signalError(
+                new Error(`Portrait processing failed: ${status}`));
+            return;
+          }
+          const {data, mimeType} = blob;
+          event.signal(new Blob([new Uint8Array(data)], {type: mimeType}));
         });
 
     function suspendObserver(val: boolean) {
       if (val) {
         console.warn('camera suspended');
-        for (const [effect, event] of reprocessEvents.entries()) {
-          if (effect === Effect.PORTRAIT_MODE) {
-            event.signalError(new CameraSuspendError());
-          }
+        for (const event of portraitEvents.values()) {
+          event.signalError(new CameraSuspendError());
         }
       }
     }
-    state.addOneTimeObserver(state.State.SUSPEND, suspendObserver);
+    state.addObserver(state.State.SUSPEND, suspendObserver);
 
     const device = await this.getDevice(deviceId);
-    await device.setReprocessOptions(
-        effects, listenerCallbacksRouter.$.bindNewPipeAndPassRemote());
+    await device.takePortraitModePhoto(
+        listenerCallbacksRouter.$.bindNewPipeAndPassRemote());
 
-    Promise.allSettled(callbacks).then(() => {
+    // This is for cleanup after all effects are settled.
+    void Promise.allSettled(callbacks).then(() => {
       state.removeObserver(state.State.SUSPEND, suspendObserver);
       closeEndpoint(listenerCallbacksRouter);
     });
@@ -656,18 +681,18 @@ export class DeviceOperator {
   }
 
   /**
-   * Changes whether the camera frame rotation is enabled inside the ChromeOS
+   * Sets whether the camera frame rotation is enabled inside the ChromeOS
    * video capture device.
    *
    * @param deviceId The id of target camera device.
-   * @param isEnabled Whether to enable the camera frame rotation at source.
+   * @param enabled Whether to enable the camera frame rotation at source.
    * @return Whether the operation was successful.
    */
   async setCameraFrameRotationEnabledAtSource(
-      deviceId: string, isEnabled: boolean): Promise<boolean> {
+      deviceId: string, enabled: boolean): Promise<boolean> {
     const device = await this.getDevice(deviceId);
     const {isSuccess} =
-        await device.setCameraFrameRotationEnabledAtSource(isEnabled);
+        await device.setCameraFrameRotationEnabledAtSource(enabled);
     return isSuccess;
   }
 
@@ -676,7 +701,6 @@ export class DeviceOperator {
    * display the camera preview upright in the UI.
    *
    * @param deviceId The id of target camera device.
-   * @return The camera frame rotation.
    */
   async getCameraFrameRotation(deviceId: string): Promise<number> {
     const device = await this.getDevice(deviceId);
@@ -695,31 +719,6 @@ export class DeviceOperator {
       closeEndpoint(device);
       this.removeDevice(deviceId);
     }
-  }
-
-  /**
-   * Enables/Disables virtual device on target camera device. The extra
-   * stream will be reported as virtual video device from
-   * navigator.mediaDevices.enumerateDevices().
-   *
-   * @param deviceId The id of target camera device.
-   * @param enabled True for enabling virtual device.
-   */
-  async setVirtualDeviceEnabled(deviceId: string, enabled: boolean):
-      Promise<void> {
-    if (deviceId) {
-      await this.deviceProvider.setVirtualDeviceEnabled(deviceId, enabled);
-    }
-  }
-
-  /**
-   * Enable/Disables the multiple streams feature for video recording on the
-   * target camera device.
-   */
-  async setMultipleStreamsEnabled(deviceId: string, enabled: boolean):
-      Promise<void> {
-    const device = await this.getDevice(deviceId);
-    await device.setMultipleStreamsEnabled(enabled);
   }
 
   /**
@@ -796,7 +795,45 @@ export class DeviceOperator {
   }
 
   /**
-   * Initialize the singleton instance.
+   * Sets the crop region for the configured stream on camera with |deviceId|.
+   */
+  async setCropRegion(deviceId: string, cropRegion: CropRegionRect):
+      Promise<void> {
+    const device = await this.getDevice(deviceId);
+    await device.setCropRegion(cropRegion);
+  }
+
+  /**
+   * Resets the crop region for the camera with |deviceId| to let the camera
+   * stream back to full frame.
+   */
+  async resetCropRegion(deviceId: string): Promise<void> {
+    const device = await this.getDevice(deviceId);
+    await device.resetCropRegion();
+  }
+
+  /**
+   * Returns whether digital zoom is supported in the camera.
+   */
+  async isDigitalZoomSupported(deviceId: string): Promise<boolean> {
+    // Checks if the device can do zoom through the stream manipulator.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const digitalZoomTag = 0x80070000 as CameraMetadataTag;
+    const digitalZoomData =
+        await this.getStaticMetadata(deviceId, digitalZoomTag);
+
+    // Some devices can do zoom given the crop region in their HALs. This
+    // ability can be checked with AVAILABLE_MAX_DIGITAL_ZOOM value being
+    // greater than 1.
+    const maxZoomRatio = await this.getStaticMetadata(
+        deviceId, CameraMetadataTag.ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+    const hasInternalZoom = maxZoomRatio.length > 0 && maxZoomRatio[0] > 1;
+
+    return digitalZoomData.length > 0 || hasInternalZoom;
+  }
+
+  /**
+   * Initializes the singleton instance.
    *
    * This should be called before all invocation of static getInstance() and
    * static isSupported().
@@ -813,12 +850,11 @@ export class DeviceOperator {
     const deviceOperatorWrapper: ProxyHandler<DeviceOperator> = {
       get: function(target, property) {
         const val = Reflect.get(target, property);
-        if (val instanceof Function) {
-          return (...args: unknown[]) => operationQueue.push(
-                     () =>
-                         Reflect.apply(val, target, args) as Promise<unknown>);
+        if (!(val instanceof Function)) {
+          return val;
         }
-        return val;
+        return (...args: unknown[]) =>
+                   operationQueue.push(() => Reflect.apply(val, target, args));
       },
     };
     instance = new Proxy(rawInstance, deviceOperatorWrapper);
@@ -835,9 +871,7 @@ export class DeviceOperator {
   }
 
   /**
-   * Gets if DeviceOperator is supported.
-   *
-   * @return True if the DeviceOperator is supported.
+   * Returns if DeviceOperator is supported.
    */
   static isSupported(): boolean {
     return this.getInstance() !== null;

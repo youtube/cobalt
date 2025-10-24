@@ -11,9 +11,11 @@ namespace blink::scheduler {
 
 WidgetSchedulerImpl::WidgetSchedulerImpl(
     MainThreadSchedulerImpl* main_thread_scheduler,
-    RenderWidgetSignals* render_widget_signals)
+    RenderWidgetSignals* render_widget_signals,
+    Delegate* delegate)
     : main_thread_scheduler_(main_thread_scheduler),
-      render_widget_signals_(render_widget_signals) {
+      render_widget_signals_(render_widget_signals),
+      delegate_(delegate) {
   DCHECK(render_widget_signals_);
 
   // main_thread_scheduler_ may be null in some tests.
@@ -35,7 +37,17 @@ WidgetSchedulerImpl::WidgetSchedulerImpl(
 
 WidgetSchedulerImpl::~WidgetSchedulerImpl() = default;
 
+void WidgetSchedulerImpl::WillShutdown() {
+  if (main_thread_scheduler_) {
+    main_thread_scheduler_->OnWidgetSchedulerWillShutdown(this);
+  }
+  delegate_ = nullptr;
+}
+
 void WidgetSchedulerImpl::Shutdown() {
+  // Check that `WillShutdown()` was called first.
+  CHECK(!delegate_);
+
   if (input_task_queue_) {
     input_task_queue_enabled_voter_.reset();
     input_task_runner_.reset();
@@ -45,9 +57,6 @@ void WidgetSchedulerImpl::Shutdown() {
 
   if (!hidden_) {
     render_widget_signals_->DecNumVisibleRenderWidgets();
-    if (has_touch_handler_) {
-      render_widget_signals_->DecNumVisibleRenderWidgetsWithTouchHandlers();
-    }
   }
 }
 
@@ -57,14 +66,20 @@ WidgetSchedulerImpl::InputTaskRunner() {
 }
 
 void WidgetSchedulerImpl::WillBeginFrame(const viz::BeginFrameArgs& args) {
+  // We always assume there will be another frame until notified. Note that we
+  // might not be receiving compositor signals here, so we might not know if
+  // this will remain these case.
+  begin_frame_not_expected_soon_ = false;
   main_thread_scheduler_->WillBeginFrame(args);
 }
 
 void WidgetSchedulerImpl::BeginFrameNotExpectedSoon() {
+  begin_frame_not_expected_soon_ = true;
   main_thread_scheduler_->BeginFrameNotExpectedSoon();
 }
 
 void WidgetSchedulerImpl::BeginMainFrameNotExpectedUntil(base::TimeTicks time) {
+  begin_frame_not_expected_soon_ = false;
   main_thread_scheduler_->BeginMainFrameNotExpectedUntil(time);
 }
 
@@ -95,13 +110,10 @@ void WidgetSchedulerImpl::WillHandleInputEventOnMainThread(
 
 void WidgetSchedulerImpl::DidHandleInputEventOnMainThread(
     const WebInputEvent& web_input_event,
-    WebInputEventResult result) {
-  main_thread_scheduler_->DidHandleInputEventOnMainThread(web_input_event,
-                                                          result);
-}
-
-void WidgetSchedulerImpl::DidAnimateForInputOnCompositorThread() {
-  main_thread_scheduler_->DidAnimateForInputOnCompositorThread();
+    WebInputEventResult result,
+    bool frame_requested) {
+  main_thread_scheduler_->DidHandleInputEventOnMainThread(
+      web_input_event, result, frame_requested);
 }
 
 void WidgetSchedulerImpl::DidRunBeginMainFrame() {}
@@ -114,31 +126,18 @@ void WidgetSchedulerImpl::SetHidden(bool hidden) {
 
   if (hidden_) {
     render_widget_signals_->DecNumVisibleRenderWidgets();
-    if (has_touch_handler_) {
-      render_widget_signals_->DecNumVisibleRenderWidgetsWithTouchHandlers();
-    }
   } else {
     render_widget_signals_->IncNumVisibleRenderWidgets();
-    if (has_touch_handler_) {
-      render_widget_signals_->IncNumVisibleRenderWidgetsWithTouchHandlers();
-    }
   }
 }
 
-void WidgetSchedulerImpl::SetHasTouchHandler(bool has_touch_handler) {
-  if (has_touch_handler_ == has_touch_handler)
-    return;
-
-  has_touch_handler_ = has_touch_handler;
-
-  if (hidden_)
-    return;
-
-  if (has_touch_handler_) {
-    render_widget_signals_->IncNumVisibleRenderWidgetsWithTouchHandlers();
-  } else {
-    render_widget_signals_->DecNumVisibleRenderWidgetsWithTouchHandlers();
-  }
+void WidgetSchedulerImpl::RequestBeginMainFrameNotExpected(bool requested) {
+  // Either `BeginFrameNotExpectedSoon()` will be sent soon if applicable, or
+  // we're no longer tracking if this is the case. In either case, we don't know
+  // if this is true, so assume not.
+  begin_frame_not_expected_soon_ = false;
+  CHECK(delegate_);
+  delegate_->RequestBeginMainFrameNotExpected(requested);
 }
 
 }  // namespace blink::scheduler

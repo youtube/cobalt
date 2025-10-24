@@ -10,17 +10,22 @@ import android.print.PrintAttributes;
 import android.util.Log;
 import android.view.ViewGroup;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.android_webview.common.Lifetime;
+import org.chromium.build.annotations.DoNotInline;
 
 /**
  * Export the android webview as a PDF.
- * @TODO(sgurun) explain the ownership of this class and its native counterpart
+ *
+ * <p>Owned by Java-side AwContents. This object is lazy-instantiated when needed and receives a
+ * pointer to the native counterpart, which is owned by the native side of AwContents.
  */
+@Lifetime.WebView
 @JNINamespace("android_webview")
 public class AwPdfExporter {
-
     private static final String TAG = "AwPdfExporter";
     private long mNativeAwPdfExporter;
     // TODO(sgurun) result callback should return an int/object indicating errors.
@@ -31,14 +36,10 @@ public class AwPdfExporter {
     // Maintain a reference to the top level object (i.e. WebView) since in a common
     // use case (offscreen webview) application may expect the framework's print manager
     // to own the Webview (via PrintDocumentAdapter).
-    // NOTE: it looks unused, but please do not remove this reference. There is also a proguard
-    // configuration to prevent this variable to be optimized away. Any name changes should
-    // be reflected there.
+    @DoNotInline // Causes R8 to not remove this.
     private ViewGroup mContainerView;
 
-    /**
-     * AwPdfExporter callback used to call onWrite* callbacks in Android framework.
-     */
+    /** AwPdfExporter callback used to call onWrite* callbacks in Android framework. */
     public interface AwPdfExporterCallback {
         /**
          * Called by the native side when PDF generation is done.
@@ -56,8 +57,12 @@ public class AwPdfExporter {
         mContainerView = containerView;
     }
 
-    public void exportToPdf(final ParcelFileDescriptor fd, PrintAttributes attributes, int[] pages,
-            AwPdfExporterCallback resultCallback, CancellationSignal cancellationSignal) {
+    public void exportToPdf(
+            final ParcelFileDescriptor fd,
+            PrintAttributes attributes,
+            int[] pages,
+            AwPdfExporterCallback resultCallback,
+            CancellationSignal cancellationSignal) {
         if (fd == null) {
             throw new IllegalArgumentException("fd cannot be null");
         }
@@ -68,7 +73,7 @@ public class AwPdfExporter {
             throw new IllegalStateException("printing is already pending");
         }
         if (attributes.getMediaSize() == null) {
-            throw new  IllegalArgumentException("attributes must specify a media size");
+            throw new IllegalArgumentException("attributes must specify a media size");
         }
         if (attributes.getResolution() == null) {
             throw new IllegalArgumentException("attributes must specify print resolution");
@@ -83,8 +88,13 @@ public class AwPdfExporter {
         mResultCallback = resultCallback;
         mAttributes = attributes;
         mFd = fd;
-        AwPdfExporterJni.get().exportToPdf(
-                mNativeAwPdfExporter, AwPdfExporter.this, mFd.getFd(), pages, cancellationSignal);
+        AwPdfExporterJni.get()
+                .exportToPdf(
+                        mNativeAwPdfExporter,
+                        AwPdfExporter.this,
+                        mFd.getFd(),
+                        pages,
+                        cancellationSignal);
     }
 
     @CalledByNative
@@ -109,8 +119,13 @@ public class AwPdfExporter {
         int horizontalDpi = attributes.getResolution().getHorizontalDpi();
         int verticalDpi = attributes.getResolution().getVerticalDpi();
         if (horizontalDpi != verticalDpi) {
-            Log.w(TAG, "Horizontal and vertical DPIs differ. Using horizontal DPI "
-                    + " hDpi=" + horizontalDpi + " vDPI=" + verticalDpi);
+            Log.w(
+                    TAG,
+                    "Horizontal and vertical DPIs differ. Using horizontal DPI "
+                            + " hDpi="
+                            + horizontalDpi
+                            + " vDPI="
+                            + verticalDpi);
         }
         return horizontalDpi;
     }
@@ -161,7 +176,11 @@ public class AwPdfExporter {
 
     @NativeMethods
     interface Natives {
-        void exportToPdf(long nativeAwPdfExporter, AwPdfExporter caller, int fd, int[] pages,
+        void exportToPdf(
+                long nativeAwPdfExporter,
+                AwPdfExporter caller,
+                int fd,
+                int[] pages,
                 CancellationSignal cancellationSignal);
     }
 }

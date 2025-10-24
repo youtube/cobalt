@@ -7,6 +7,7 @@
 #import <set>
 
 #import "base/containers/contains.h"
+#import "base/memory/raw_ptr.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/metrics/histogram_tester.h"
@@ -21,15 +22,11 @@
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using security_interstitials::IOSSecurityInterstitialPage;
-using security_interstitials::SecurityInterstitialCommand;
-using security_interstitials::MetricsHelper;
-using base::test::ios::WaitUntilConditionOrTimeout;
 using base::test::ios::kSpinDelaySeconds;
+using base::test::ios::WaitUntilConditionOrTimeout;
+using security_interstitials::IOSSecurityInterstitialPage;
+using security_interstitials::MetricsHelper;
+using security_interstitials::SecurityInterstitialCommand;
 
 namespace {
 
@@ -78,9 +75,9 @@ class HttpsOnlyModeBlockingPageTest : public PlatformTest {
 
  protected:
   web::WebTaskEnvironment task_environment_{
-      web::WebTaskEnvironment::IO_MAINLOOP};
+      web::WebTaskEnvironment::MainThreadType::IO};
   FakeWebState web_state_;
-  web::FakeNavigationManager* navigation_manager_ = nullptr;
+  raw_ptr<web::FakeNavigationManager> navigation_manager_ = nullptr;
   GURL url_;
   std::unique_ptr<IOSSecurityInterstitialPage> page_;
   base::HistogramTester histogram_tester_;

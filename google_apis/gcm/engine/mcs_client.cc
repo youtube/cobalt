@@ -155,7 +155,6 @@ std::string MCSClient::GetStateString() const {
       return "CONNECTED";
   }
   NOTREACHED();
-  return std::string();
 }
 
 MCSClient::MCSClient(const std::string& version_string,
@@ -522,7 +521,6 @@ void MCSClient::SendHeartbeat() {
 
 void MCSClient::OnGCMUpdateFinished(bool success) {
   LOG_IF(ERROR, !success) << "GCM Update failed!";
-  UMA_HISTOGRAM_BOOLEAN("GCM.StoreUpdateSucceeded", success);
   // TODO(zea): Rebuild the store from scratch in case of persistence failure?
 }
 
@@ -935,7 +933,7 @@ void MCSClient::NotifyMessageSendStatus(
       reinterpret_cast<const mcs_proto::DataMessageStanza*>(&protobuf);
   recorder_->RecordNotifySendStatus(
       data_message_stanza->category(), data_message_stanza->to(),
-      data_message_stanza->id(), status, protobuf.ByteSize(),
+      data_message_stanza->id(), status, protobuf.ByteSizeLong(),
       data_message_stanza->ttl());
   message_sent_callback_.Run(data_message_stanza->device_user_id(),
                              data_message_stanza->category(),

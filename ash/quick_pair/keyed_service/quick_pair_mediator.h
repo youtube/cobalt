@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "ash/quick_pair/companion_app/companion_app_broker.h"
 #include "ash/quick_pair/feature_status_tracker/quick_pair_feature_status_tracker.h"
 #include "ash/quick_pair/keyed_service/fast_pair_bluetooth_config_delegate.h"
 #include "ash/quick_pair/pairing/pairer_broker.h"
@@ -46,19 +47,22 @@ class Mediator final
       public ScannerBroker::Observer,
       public PairerBroker::Observer,
       public UIBroker::Observer,
+      public CompanionAppBroker::Observer,
       public RetroactivePairingDetector::Observer,
-      public FastPairBluetoothConfigDelegate::Observer,
+      public FastPairBluetoothConfigDelegate::Delegate,
       public bluetooth_config::AdapterStateController::Observer,
       public bluetooth_config::mojom::DiscoverySessionStatusObserver {
  public:
   class Factory {
    public:
-    static std::unique_ptr<Mediator> Create();
-    static void SetFactoryForTesting(Factory* factory);
     virtual ~Factory() = default;
-
-   private:
     virtual std::unique_ptr<Mediator> BuildInstance() = 0;
+  };
+
+  class FactoryImpl : public Factory {
+   private:
+    // Mediator::Factory:
+    std::unique_ptr<Mediator> BuildInstance() override;
   };
 
   Mediator(
@@ -68,6 +72,7 @@ class Mediator final
       std::unique_ptr<MessageStreamLookup> message_stream_lookup,
       std::unique_ptr<PairerBroker> pairer_broker,
       std::unique_ptr<UIBroker> ui_broker,
+      std::unique_ptr<CompanionAppBroker> companion_app_broker,
       std::unique_ptr<FastPairRepository> fast_pair_repository,
       std::unique_ptr<QuickPairProcessManager> process_manager);
   Mediator(const Mediator&) = delete;
@@ -91,7 +96,8 @@ class Mediator final
   void OnPairFailure(scoped_refptr<Device> device,
                      PairFailure failure) override;
   void OnAccountKeyWrite(scoped_refptr<Device> device,
-                         absl::optional<AccountKeyFailure> error) override;
+                         std::optional<AccountKeyFailure> error) override;
+  void OnDisplayPasskey(std::u16string device_name, uint32_t passkey) override;
 
   // UIBroker::Observer
   void OnDiscoveryAction(scoped_refptr<Device> device,
@@ -103,10 +109,15 @@ class Mediator final
   void OnAssociateAccountAction(scoped_refptr<Device> device,
                                 AssociateAccountAction action) override;
 
+  // CompanionAppBroker::Observer
+  void ShowInstallCompanionApp(scoped_refptr<Device> device) override;
+  void ShowLaunchCompanionApp(scoped_refptr<Device> device) override;
+  void OnCompanionAppInstalled(scoped_refptr<Device> device) override;
+
   // RetroactivePairingDetector::Observer
   void OnRetroactivePairFound(scoped_refptr<Device> device) override;
 
-  // FastPairBluetoothConfigDelegate::Observer
+  // FastPairBluetoothConfigDelegate::Delegate
   void OnAdapterStateControllerChanged(bluetooth_config::AdapterStateController*
                                            adapter_state_controller) override;
 
@@ -140,6 +151,7 @@ class Mediator final
   bool IsDeviceCurrentlyShowingNotification(scoped_refptr<Device> device);
   bool IsDeviceBlockedForDiscoveryNotifications(scoped_refptr<Device> device);
   void UpdateDiscoveryBlockList(scoped_refptr<Device> device);
+  void RemoveFromDiscoveryBlockList(scoped_refptr<Device> device);
 
   bool has_at_least_one_discovery_session_ = false;
 
@@ -148,26 +160,31 @@ class Mediator final
   scoped_refptr<Device> device_currently_showing_notification_;
 
   // The discovery notification block-list, where
-  // std::pair<std::string, Protocol> represents the block-list key of the
-  // device’s model ID and the pairing protocol corresponding (either initial
-  // or subsequent), and the value is
-  // std::pair<DiscoveryNotificationDismissalState, absl::optional<base::Time>
+  // std::pair<std::string, Protocol> represents the block-list key in the form
+  // of:
+  // - model ID, Protocol::kFastPairInitial
+  // - model ID, Protocol::kFastPairRetroactive
+  // - base64 account key, Protocol::kFastPairSubsequent
+  // We use account key for subsequent pair to allow for stricter ban times.
+  // The user can enter pairing mode on the device to avoid hitting the
+  // subsequent pair block list. The value is
+  // std::pair<DiscoveryNotificationDismissalState, std::optional<base::Time>
   // representing the current state of the device and the timestamp of when it
   // is set to expire. It is optional because `kLongBan` does not have an expire
-  // timeout. This block-list bans a device model (by model ID), which means
-  // that if a user has two of the same device, or two devices are pairing in
-  // the same range, both will be blocked for discovery notifications. This is a
-  // rare edge case that we consider in order to align with Android by banning
-  // by model id. We don’t expect many users to have two of the same device, or
-  // two of the same device pairing in the same range at the same time, and
-  // users can pair via Bluetooth settings if needed. We cannot use the BLE
-  // address as a unique identifier for a device because it rotates, and when
-  // Fast Pair shows the discovery notifications, it does not yet have the
-  // classic mac address to unique identify a device (this is given as part of
-  // the FastPairHandshake).
-  base::flat_map<std::pair<std::string, Protocol>,
-                 std::pair<DiscoveryNotificationDismissalState,
-                           absl::optional<base::Time>>>
+  // timeout. This block-list bans a device model (by model ID) for Initial
+  // Pair, which means that if a user has two of the same device, or two devices
+  // are pairing in the same range, both will be blocked for discovery
+  // notifications. This is a rare edge case that we consider in order to align
+  // with Android by banning by model id. We don’t expect many users to have two
+  // of the same device, or two of the same device pairing in the same range at
+  // the same time, and users can pair via Bluetooth settings if needed. We
+  // cannot use the BLE address as a unique identifier for a device because it
+  // rotates, and when Fast Pair shows the discovery notifications, it does not
+  // yet have the classic mac address to unique identify a device (this is given
+  // as part of the FastPairHandshake).
+  base::flat_map<
+      std::pair<std::string, Protocol>,
+      std::pair<DiscoveryNotificationDismissalState, std::optional<base::Time>>>
       discovery_notification_block_list_;
 
   std::unique_ptr<FeatureStatusTracker> feature_status_tracker_;
@@ -176,6 +193,7 @@ class Mediator final
   std::unique_ptr<PairerBroker> pairer_broker_;
   std::unique_ptr<RetroactivePairingDetector> retroactive_pairing_detector_;
   std::unique_ptr<UIBroker> ui_broker_;
+  std::unique_ptr<CompanionAppBroker> companion_app_broker_;
   std::unique_ptr<FastPairRepository> fast_pair_repository_;
   std::unique_ptr<QuickPairProcessManager> process_manager_;
   std::unique_ptr<QuickPairMetricsLogger> metrics_logger_;
@@ -194,9 +212,8 @@ class Mediator final
       retroactive_pairing_detector_observation_{this};
   base::ScopedObservation<UIBroker, UIBroker::Observer> ui_broker_observation_{
       this};
-  base::ScopedObservation<FastPairBluetoothConfigDelegate,
-                          FastPairBluetoothConfigDelegate::Observer>
-      config_delegate_observation_{this};
+  base::ScopedObservation<CompanionAppBroker, CompanionAppBroker::Observer>
+      companion_app_broker_observation_{this};
   base::ScopedObservation<bluetooth_config::AdapterStateController,
                           bluetooth_config::AdapterStateController::Observer>
       adapter_state_controller_observation_{this};

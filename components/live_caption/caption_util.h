@@ -5,21 +5,33 @@
 #ifndef COMPONENTS_LIVE_CAPTION_CAPTION_UTIL_H_
 #define COMPONENTS_LIVE_CAPTION_CAPTION_UTIL_H_
 
+#include <optional>
+
 #include "components/prefs/pref_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/native_theme/caption_style.h"
 
 class PrefService;
 
 namespace captions {
 
-absl::optional<ui::CaptionStyle> GetCaptionStyleFromUserSettings(
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_MAC)
+extern const char kCaptionSettingsUrl[];
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_MAC)
+
+std::optional<ui::CaptionStyle> GetCaptionStyleFromUserSettings(
     PrefService* prefs,
     bool record_metrics);
 
 // Returns whether the Live Caption feature is supported in Chrome. This can
 // depend on e.g. Chrome feature flags, platform/OS, supported CPU instructions.
 bool IsLiveCaptionFeatureSupported();
+
+// Returns whether Headless Caption feature is enabled.
+bool IsHeadlessCaptionFeatureSupported();
+
+std::string GetCaptionSettingsUrl();
 
 }  // namespace captions
 

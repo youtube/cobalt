@@ -9,6 +9,7 @@
 #include <ostream>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "components/policy/core/common/policy_details.h"
 #include "components/policy/core/common/policy_map.h"
@@ -17,6 +18,8 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include <CoreFoundation/CoreFoundation.h>
+
+#include "base/apple/scoped_cftyperef.h"
 #endif
 
 namespace policy {
@@ -40,7 +43,8 @@ class PolicyDetailsMap {
   void SetDetails(const std::string& policy, const PolicyDetails* details);
 
  private:
-  typedef std::map<std::string, const PolicyDetails*> PolicyDetailsMapping;
+  typedef std::map<std::string, raw_ptr<const PolicyDetails, CtnExperimental>>
+      PolicyDetailsMapping;
 
   const PolicyDetails* Lookup(const std::string& policy) const;
 
@@ -54,8 +58,8 @@ bool PolicyServiceIsEmpty(const PolicyService* service);
 #if BUILDFLAG(IS_APPLE)
 
 // Converts a base::Value to the equivalent CFPropertyListRef.
-// The returned value is owned by the caller.
-CFPropertyListRef ValueToProperty(const base::Value& value);
+base::apple::ScopedCFTypeRef<CFPropertyListRef> ValueToProperty(
+    const base::Value& value);
 
 #endif
 

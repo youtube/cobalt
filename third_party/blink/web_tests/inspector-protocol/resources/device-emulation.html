@@ -26,32 +26,6 @@ function setMetaViewport(override)
         document.write('<meta name="viewport" content="'+viewport+'">');
 }
 
-// matchMedia() polyfill from https://github.com/paulirish/matchMedia.js
-// Authors & copyright (c) 2012: Scott Jehl, Paul Irish, Nicholas Zakas. Dual MIT/BSD license
-window.matchMedia = window.matchMedia || (function(doc, undefined){
-    var bool,
-        docElem  = doc.documentElement,
-        refNode  = docElem.firstElementChild || docElem.firstChild,
-        // fakeBody required for <FF4 when executed in <head>
-        fakeBody = doc.createElement('body'),
-        div      = doc.createElement('div');
-
-    div.id = 'mq-test-1';
-    div.style.cssText = "position:absolute;top:-100em";
-    fakeBody.style.background = "none";
-    fakeBody.appendChild(div);
-
-    return function(q){
-        div.innerHTML = '&shy;<style media="'+q+'"> #mq-test-1 { width: 42px; }</style>';
-
-        docElem.insertBefore(fakeBody, refNode);
-        bool = div.offsetWidth == 42;
-        docElem.removeChild(fakeBody);
-
-        return { matches: bool, media: q };
-    };
-})(document);
-
 var results;
 
 function dumpMetrics(full)
@@ -111,18 +85,27 @@ function dumpMetrics(full)
     return results.join("\n");
 }
 
-function dumpWindowSegments() {
+function dumpDevicePosture() {
+  let output = [];
+  output.push("Main frame Posture:");
+  output = output.concat(navigator.devicePosture.type);
+  output.push("Iframe Posture:");
+  output = output.concat(window.frames[0].navigator.devicePosture.type);
+  return output.join("\n");
+}
+
+function dumpViewportSegments() {
     let output = [];
     output.push("Main frame segments:");
-    output = output.concat(dumpWindowSegmentsForWindow(this));
+  output = output.concat(dumpViewportSegmentsForWindow(this));
     output.push("Iframe segments:");
-    output = output.concat(dumpWindowSegmentsForWindow(window.frames[0]));
+  output = output.concat(dumpViewportSegmentsForWindow(window.frames[0]));
     return output.join("\n");
 }
 
-function dumpWindowSegmentsForWindow(window_object) {
+function dumpViewportSegmentsForWindow(window_object) {
     let output = [];
-    let segments = window_object.visualViewport.segments;
+    let segments = window_object.viewport.segments;
     output.push(segments ? segments.length : 0);
     if (segments) {
       segments.forEach((segment) => {

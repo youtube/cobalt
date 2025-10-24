@@ -17,6 +17,7 @@
 #include "components/account_id/account_id.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -58,7 +59,7 @@ class AuthDelegateImpl : public DriveFsAuth::Delegate {
 
   bool IsMetricsCollectionEnabled() override { return false; }
 
-  const raw_ptr<signin::IdentityManager, ExperimentalAsh> identity_manager_;
+  const raw_ptr<signin::IdentityManager> identity_manager_;
   const AccountId account_id_;
 };
 
@@ -78,7 +79,7 @@ class DriveFsAuthTest : public ::testing::Test {
     timer_ = timer.get();
     delegate_ = std::make_unique<AuthDelegateImpl>(
         identity_test_env_.identity_manager(),
-        AccountId::FromUserEmailGaiaId(kTestEmail, "ID"));
+        AccountId::FromUserEmailGaiaId(kTestEmail, GaiaId("ID")));
     auth_ = std::make_unique<DriveFsAuth>(&clock_,
                                           base::FilePath("/path/to/profile"),
                                           std::move(timer), delegate_.get());
@@ -107,16 +108,20 @@ class DriveFsAuthTest : public ::testing::Test {
 
   std::unique_ptr<AuthDelegateImpl> delegate_;
   std::unique_ptr<DriveFsAuth> auth_;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> timer_ = nullptr;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged> timer_ = nullptr;
 };
 
 TEST_F(DriveFsAuthTest, GetAccessToken_Success) {
+  const base::Time time_now = base::Time::Now();
+  clock_.SetNow(time_now);
   base::RunLoop run_loop;
   auth_->GetAccessToken(
-      false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                            const std::string& token) {
+      false,
+      base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                     mojom::AccessTokenPtr access_token) {
         EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-        EXPECT_EQ("auth token", token);
+        EXPECT_EQ("auth token", access_token->token);
+        EXPECT_EQ(time_now + kTokenLifetime, access_token->expiry_time);
         run_loop.Quit();
       }));
   RespondWithAccessToken("auth token");
@@ -126,10 +131,11 @@ TEST_F(DriveFsAuthTest, GetAccessToken_Success) {
 TEST_F(DriveFsAuthTest, GetAccessToken_GetAccessTokenFailure_Permanent) {
   base::RunLoop run_loop;
   auth_->GetAccessToken(
-      false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                            const std::string& token) {
+      false,
+      base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                     mojom::AccessTokenPtr access_token) {
         EXPECT_EQ(mojom::AccessTokenStatus::kAuthError, status);
-        EXPECT_TRUE(token.empty());
+        EXPECT_FALSE(access_token.is_null());
         run_loop.Quit();
       }));
   RespondWithAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS);
@@ -139,10 +145,11 @@ TEST_F(DriveFsAuthTest, GetAccessToken_GetAccessTokenFailure_Permanent) {
 TEST_F(DriveFsAuthTest, GetAccessToken_GetAccessTokenFailure_Transient) {
   base::RunLoop run_loop;
   auth_->GetAccessToken(
-      false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                            const std::string& token) {
+      false,
+      base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                     mojom::AccessTokenPtr access_token) {
         EXPECT_EQ(mojom::AccessTokenStatus::kTransientError, status);
-        EXPECT_TRUE(token.empty());
+        EXPECT_FALSE(access_token.is_null());
         run_loop.Quit();
       }));
   RespondWithAuthError(GoogleServiceAuthError::SERVICE_UNAVAILABLE);
@@ -154,7 +161,7 @@ TEST_F(DriveFsAuthTest, GetAccessToken_GetAccessTokenFailure_Timeout) {
   auto quit_closure = run_loop.QuitClosure();
   auth_->GetAccessToken(
       false, base::BindLambdaForTesting(
-                 [&](mojom::AccessTokenStatus status, const std::string&) {
+                 [&](mojom::AccessTokenStatus status, mojom::AccessTokenPtr) {
                    EXPECT_EQ(mojom::AccessTokenStatus::kTransientError, status);
                    std::move(quit_closure).Run();
                  }));
@@ -168,7 +175,7 @@ TEST_F(DriveFsAuthTest, GetAccessToken_GetAccessTokenFailure_TimeoutRace) {
   auto quit_closure = run_loop.QuitClosure();
   auth_->GetAccessToken(
       false, base::BindLambdaForTesting(
-                 [&](mojom::AccessTokenStatus status, const std::string&) {
+                 [&](mojom::AccessTokenStatus status, mojom::AccessTokenPtr) {
                    EXPECT_EQ(mojom::AccessTokenStatus::kTransientError, status);
                    std::move(quit_closure).Run();
                  }));
@@ -180,20 +187,25 @@ TEST_F(DriveFsAuthTest, GetAccessToken_GetAccessTokenFailure_TimeoutRace) {
 }
 
 TEST_F(DriveFsAuthTest, GetAccessToken_ParallelRequests) {
+  const base::Time time_now = base::Time::Now();
+  clock_.SetNow(time_now);
   base::RunLoop run_loop;
   auto quit_closure = run_loop.QuitClosure();
   auth_->GetAccessToken(
-      false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                            const std::string& token) {
+      false,
+      base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                     mojom::AccessTokenPtr access_token) {
         EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-        EXPECT_EQ("auth token", token);
+        EXPECT_EQ("auth token", access_token->token);
+        EXPECT_EQ(time_now + kTokenLifetime, access_token->expiry_time);
         std::move(quit_closure).Run();
       }));
   auth_->GetAccessToken(
-      false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                            const std::string& token) {
+      false,
+      base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                     mojom::AccessTokenPtr access_token) {
         EXPECT_EQ(mojom::AccessTokenStatus::kTransientError, status);
-        EXPECT_TRUE(token.empty());
+        EXPECT_FALSE(access_token.is_null());
       }));
   RespondWithAccessToken("auth token");
   run_loop.Run();
@@ -203,10 +215,11 @@ TEST_F(DriveFsAuthTest, GetAccessToken_SequentialRequests) {
   for (int i = 0; i < 3; ++i) {
     base::RunLoop run_loop;
     auth_->GetAccessToken(
-        false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                              const std::string& token) {
+        false,
+        base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                       mojom::AccessTokenPtr access_token) {
           EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-          EXPECT_EQ("auth token", token);
+          EXPECT_EQ("auth token", access_token->token);
           run_loop.Quit();
         }));
     RespondWithAccessToken("auth token");
@@ -215,10 +228,11 @@ TEST_F(DriveFsAuthTest, GetAccessToken_SequentialRequests) {
   for (int i = 0; i < 3; ++i) {
     base::RunLoop run_loop;
     auth_->GetAccessToken(
-        false, base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
-                                              const std::string& token) {
+        false,
+        base::BindLambdaForTesting([&](mojom::AccessTokenStatus status,
+                                       mojom::AccessTokenPtr access_token) {
           EXPECT_EQ(mojom::AccessTokenStatus::kAuthError, status);
-          EXPECT_TRUE(token.empty());
+          EXPECT_FALSE(access_token.is_null());
           run_loop.Quit();
         }));
     RespondWithAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS);
@@ -227,46 +241,72 @@ TEST_F(DriveFsAuthTest, GetAccessToken_SequentialRequests) {
 }
 
 TEST_F(DriveFsAuthTest, Caching) {
-  auth_->GetAccessToken(true, base::BindOnce([](mojom::AccessTokenStatus status,
-                                                const std::string& token) {
-                          EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                          EXPECT_EQ("auth token", token);
-                        }));
+  const base::Time time_now = base::Time::Now();
+  clock_.SetNow(time_now);
+  const base::Time expiry_time = time_now + kTokenLifetime;
+  auth_->GetAccessToken(
+      true, base::BindLambdaForTesting(
+                [&expiry_time](mojom::AccessTokenStatus status,
+                               mojom::AccessTokenPtr access_token) {
+                  EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
+                  EXPECT_EQ("auth token", access_token->token);
+                  EXPECT_EQ(expiry_time, access_token->expiry_time);
+                }));
   EXPECT_TRUE(identity_test_env_.IsAccessTokenRequestPending());
   RespondWithAccessToken("auth token");
 
   // Second attempt should reuse already available token.
-  auth_->GetAccessToken(true, base::BindOnce([](mojom::AccessTokenStatus status,
-                                                const std::string& token) {
-                          EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                          EXPECT_EQ("auth token", token);
-                        }));
+  auth_->GetAccessToken(
+      true, base::BindLambdaForTesting(
+                [&expiry_time](mojom::AccessTokenStatus status,
+                               mojom::AccessTokenPtr access_token) {
+                  EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
+                  EXPECT_EQ("auth token", access_token->token);
+                  EXPECT_EQ(expiry_time, access_token->expiry_time);
+                }));
   EXPECT_FALSE(identity_test_env_.IsAccessTokenRequestPending());
 }
 
 TEST_F(DriveFsAuthTest, CachedAndNotCached) {
-  auth_->GetAccessToken(true, base::BindOnce([](mojom::AccessTokenStatus status,
-                                                const std::string& token) {
-                          EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                          EXPECT_EQ("auth token", token);
-                        }));
+  base::Time time_now = base::Time::Now();
+  clock_.SetNow(time_now);
+  const base::Time expiry_time = time_now + kTokenLifetime;
+  auth_->GetAccessToken(
+      true, base::BindLambdaForTesting(
+                [&expiry_time](mojom::AccessTokenStatus status,
+                               mojom::AccessTokenPtr access_token) {
+                  EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
+                  EXPECT_EQ("auth token", access_token->token);
+                  EXPECT_EQ(expiry_time, access_token->expiry_time);
+                }));
   EXPECT_TRUE(identity_test_env_.IsAccessTokenRequestPending());
   RespondWithAccessToken("auth token");
 
+  // Advance the clock 30 mins, the token should still retain the old expiry
+  // time.
+  clock_.Advance(base::Minutes(30));
+  time_now = time_now + base::Minutes(30);
+
   // Second attempt should reuse already available token.
-  auth_->GetAccessToken(true, base::BindOnce([](mojom::AccessTokenStatus status,
-                                                const std::string& token) {
-                          EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                          EXPECT_EQ("auth token", token);
-                        }));
+  auth_->GetAccessToken(
+      true, base::BindLambdaForTesting(
+                [&expiry_time](mojom::AccessTokenStatus status,
+                               mojom::AccessTokenPtr access_token) {
+                  EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
+                  EXPECT_EQ("auth token", access_token->token);
+                  EXPECT_EQ(expiry_time, access_token->expiry_time);
+                }));
   EXPECT_FALSE(identity_test_env_.IsAccessTokenRequestPending());
 
   // Now ask for token explicitly bypassing the cache.
   auth_->GetAccessToken(
-      false, base::BindOnce(
-                 [](mojom::AccessTokenStatus status, const std::string& token) {
+      false, base::BindLambdaForTesting(
+                 [&time_now](mojom::AccessTokenStatus status,
+                             mojom::AccessTokenPtr access_token) {
                    EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                   EXPECT_EQ("auth token 2", token);
+                   EXPECT_EQ("auth token 2", access_token->token);
+                   EXPECT_EQ(time_now + kTokenLifetime,
+                             access_token->expiry_time);
                  }));
   EXPECT_TRUE(identity_test_env_.IsAccessTokenRequestPending());
   RespondWithAccessToken("auth token 2");
@@ -274,22 +314,24 @@ TEST_F(DriveFsAuthTest, CachedAndNotCached) {
 }
 
 TEST_F(DriveFsAuthTest, CacheExpired) {
-  auth_->GetAccessToken(true, base::BindOnce([](mojom::AccessTokenStatus status,
-                                                const std::string& token) {
-                          EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                          EXPECT_EQ("auth token", token);
-                        }));
+  auth_->GetAccessToken(
+      true, base::BindLambdaForTesting([](mojom::AccessTokenStatus status,
+                                          mojom::AccessTokenPtr access_token) {
+        EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
+        EXPECT_EQ("auth token", access_token->token);
+      }));
   EXPECT_TRUE(identity_test_env_.IsAccessTokenRequestPending());
   RespondWithAccessToken("auth token");
 
   clock_.Advance(base::Hours(2));
 
   // The token expired so a new one is requested.
-  auth_->GetAccessToken(true, base::BindOnce([](mojom::AccessTokenStatus status,
-                                                const std::string& token) {
-                          EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
-                          EXPECT_EQ("auth token 2", token);
-                        }));
+  auth_->GetAccessToken(
+      true, base::BindLambdaForTesting([](mojom::AccessTokenStatus status,
+                                          mojom::AccessTokenPtr access_token) {
+        EXPECT_EQ(mojom::AccessTokenStatus::kSuccess, status);
+        EXPECT_EQ("auth token 2", access_token->token);
+      }));
   RespondWithAccessToken("auth token 2");
   EXPECT_FALSE(identity_test_env_.IsAccessTokenRequestPending());
 }

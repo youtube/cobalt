@@ -9,6 +9,7 @@
 #include "ash/system/phonehub/phone_hub_view_ids.h"
 #include "ash/system/phonehub/quick_action_item.h"
 #include "ash/system/phonehub/silence_phone_quick_action_controller.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/layout/box_layout.h"
 
 namespace ash {
@@ -38,21 +39,31 @@ void QuickActionsView::InitQuickActionItems() {
   auto enable_hotspot_controller =
       std::make_unique<EnableHotspotQuickActionController>(
           phone_hub_manager_->GetTetherController());
-  enable_hotspot_ = AddChildView(enable_hotspot_controller->CreateItem());
+  enable_hotspot_ = AddChildViewRaw(enable_hotspot_controller->CreateItem());
   quick_action_controllers_.push_back(std::move(enable_hotspot_controller));
 
   auto silence_phone_controller =
       std::make_unique<SilencePhoneQuickActionController>(
           phone_hub_manager_->GetDoNotDisturbController());
-  silence_phone_ = AddChildView(silence_phone_controller->CreateItem());
+  silence_phone_ = AddChildViewRaw(silence_phone_controller->CreateItem());
 
   auto locate_phone_controller =
       std::make_unique<LocatePhoneQuickActionController>(
           phone_hub_manager_->GetFindMyDeviceController());
-  locate_phone_ = AddChildView(locate_phone_controller->CreateItem());
+  locate_phone_ = AddChildViewRaw(locate_phone_controller->CreateItem());
 
   quick_action_controllers_.push_back(std::move(silence_phone_controller));
   quick_action_controllers_.push_back(std::move(locate_phone_controller));
 }
+
+void QuickActionsView::OnThemeChanged() {
+  views::View::OnThemeChanged();
+  for (auto& controller : quick_action_controllers_) {
+    controller->UpdateQuickActionItemUi();
+  }
+}
+
+BEGIN_METADATA(QuickActionsView)
+END_METADATA
 
 }  // namespace ash

@@ -11,11 +11,11 @@
 #include <memory>
 #include <string>
 
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/extensions_activity.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/base/syncer_error.h"
 #include "components/sync/engine/commit_contribution.h"
 #include "components/sync/engine/cycle/nudge_tracker.h"
+#include "components/sync/engine/syncer_error.h"
 #include "components/sync/protocol/sync.pb.h"
 
 namespace syncer {
@@ -36,7 +36,7 @@ class SyncCycle;
 class Commit {
  public:
   using ContributionMap =
-      std::map<ModelType, std::unique_ptr<CommitContribution>>;
+      std::map<DataType, std::unique_ptr<CommitContribution>>;
 
   Commit(ContributionMap contributions,
          const sync_pb::ClientToServerMessage& message,
@@ -47,10 +47,9 @@ class Commit {
 
   ~Commit();
 
-  // |extensions_activity| may be null.
+  // `extensions_activity` may be null.
   static std::unique_ptr<Commit> Init(
-      ModelTypeSet enabled_types,
-      bool proxy_tabs_datatype_enabled,
+      DataTypeSet enabled_types,
       size_t max_entries,
       const std::string& account_name,
       const std::string& cache_guid,
@@ -59,13 +58,13 @@ class Commit {
       CommitProcessor* commit_processor,
       ExtensionsActivity* extensions_activity);
 
-  // |extensions_activity| may be null.
+  // `extensions_activity` may be null.
   SyncerError PostAndProcessResponse(NudgeTracker* nudge_tracker,
                                      SyncCycle* cycle,
                                      StatusController* status,
                                      ExtensionsActivity* extensions_activity);
 
-  ModelTypeSet GetContributingDataTypes() const;
+  DataTypeSet GetContributingDataTypes() const;
 
  private:
   // Report commit failure to each contribution.

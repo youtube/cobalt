@@ -17,9 +17,9 @@ class EGLQueryContextTest : public ANGLETest<>
     {
         int clientVersion = GetParam().majorVersion;
 
-        EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
-        mDisplay           = eglGetPlatformDisplayEXT(
-                      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+        mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                                      reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
         EXPECT_TRUE(eglInitialize(mDisplay, nullptr, nullptr) != EGL_FALSE);
 
@@ -93,6 +93,24 @@ TEST_P(EGLQueryContextTest, GetClientVersion)
     EXPECT_TRUE(eglQueryContext(mDisplay, mContext, EGL_CONTEXT_CLIENT_VERSION, &clientVersion) !=
                 EGL_FALSE);
     EXPECT_GE(clientVersion, GetParam().majorVersion);
+}
+
+// Tests querying the client major version from the context.
+TEST_P(EGLQueryContextTest, GetClientMajorVersion)
+{
+    EGLint majorVersion;
+    EXPECT_TRUE(eglQueryContext(mDisplay, mContext, EGL_CONTEXT_MAJOR_VERSION, &majorVersion) !=
+                EGL_FALSE);
+    EXPECT_GE(majorVersion, GetParam().majorVersion);
+}
+
+// Tests querying the client minor version from the context.
+TEST_P(EGLQueryContextTest, GetClientMinorVersion)
+{
+    EGLint minorVersion;
+    EXPECT_TRUE(eglQueryContext(mDisplay, mContext, EGL_CONTEXT_MINOR_VERSION, &minorVersion) !=
+                EGL_FALSE);
+    EXPECT_GE(minorVersion, GetParam().minorVersion);
 }
 
 TEST_P(EGLQueryContextTest, GetRenderBufferNoSurface)

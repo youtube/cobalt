@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/memory/weak_ptr.h"
 #include "chromeos/ash/components/dbus/smbprovider/smb_provider_client.h"
 
 namespace ash {
@@ -45,6 +46,8 @@ class COMPONENT_EXPORT(ASH_DBUS_SMBPROVIDER) FakeSmbProviderClient
                           uint16_t transaction_id,
                           ParseNetBiosPacketCallback callback) override;
 
+  base::WeakPtr<SmbProviderClient> AsWeakPtr() override;
+
   // Adds |share| to the list of shares for |server_url| in |shares_|.
   void AddToShares(const std::string& server_url, const std::string& share);
 
@@ -58,7 +61,12 @@ class COMPONENT_EXPORT(ASH_DBUS_SMBPROVIDER) FakeSmbProviderClient
   // Runs |stored_callback_|.
   void RunStoredReadDirCallback();
 
+  // Changes the flag when smbproviderd stops.
+  void OnStopJobCalled();
+
  private:
+  void CheckDbusMethodsNotCalledAfterStopJob();
+
   // Result of a GetShares() call.
   struct ShareResult {
     ShareResult();
@@ -67,6 +75,10 @@ class COMPONENT_EXPORT(ASH_DBUS_SMBPROVIDER) FakeSmbProviderClient
     smbprovider::ErrorType error = smbprovider::ErrorType::ERROR_OK;
     std::vector<std::string> shares;
   };
+
+  // Used to ensure that no D-Bus methods are called after `StopJob()` is
+  // called.
+  bool stop_job_called_ = false;
 
   // Controls whether |stored_readdir_callback_| should run synchronously.
   bool should_run_synchronously_ = true;
@@ -77,6 +89,8 @@ class COMPONENT_EXPORT(ASH_DBUS_SMBPROVIDER) FakeSmbProviderClient
 
   // Mapping of a server url to its shares.
   std::map<std::string, ShareResult> shares_;
+
+  base::WeakPtrFactory<FakeSmbProviderClient> weak_ptr_factory_{this};
 };
 
 }  // namespace ash

@@ -48,14 +48,15 @@ class MEDIA_EXPORT AudioOpusEncoder : public AudioEncoder {
  private:
   friend class AudioEncodersTest;
 
-  // Called synchronously by |fifo_| once enough audio frames have been
-  // buffered in |fifo_|. Calls libopus to do actual encoding.
-  void OnFifoOutput(AudioBus* audio_bus);
+  // Calls libopus to do actual encoding.
+  void DoEncode(const AudioBus* audio_bus);
+
+  void DrainFifoOutput();
 
   CodecDescription PrepareExtraData();
 
   EncoderStatus::Or<OwnedOpusEncoder> CreateOpusEncoder(
-      const absl::optional<AudioEncoder::OpusOptions>& opus_options);
+      const std::optional<AudioEncoder::OpusOptions>& opus_options);
 
   AudioParameters input_params_;
 
@@ -85,6 +86,17 @@ class MEDIA_EXPORT AudioOpusEncoder : public AudioEncoder {
   // Callback for reporting completion and status of the current Flush() or
   // Encoder()
   EncoderStatusCB current_done_cb_;
+
+  // Recommended value for opus_encode_float(), according to documentation in
+  // third_party/opus/src/include/opus.h, so that the Opus encoder does not
+  // degrade the audio due to memory constraints, and is independent of the
+  // duration of the encoded buffer.
+  static inline constexpr int kOpusMaxDataBytes = 4000;
+
+  // Fixed size buffer that all frames are encoded too. Most encoded data is
+  // generally only a few hundred bytes, so we copy out from this buffer when
+  // vending encoded packets.
+  std::array<uint8_t, kOpusMaxDataBytes> encoding_buffer_;
 
   // True if the next output needs to have extra_data in it, only happens once.
   bool need_to_emit_extra_data_ = true;

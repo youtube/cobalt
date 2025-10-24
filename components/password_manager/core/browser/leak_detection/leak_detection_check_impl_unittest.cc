@@ -16,6 +16,7 @@
 #include "components/password_manager/core/browser/leak_detection/mock_leak_detection_delegate.h"
 #include "components/password_manager/core/browser/leak_detection/mock_leak_detection_request_factory.h"
 #include "components/password_manager/core/browser/leak_detection/single_lookup_response.h"
+#include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "crypto/sha2.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -51,8 +52,8 @@ struct TestLeakDetectionRequest : public LeakDetectionRequestInterface {
   ~TestLeakDetectionRequest() override = default;
   // LeakDetectionRequestInterface:
   void LookupSingleLeak(network::mojom::URLLoaderFactory* url_loader_factory,
-                        const absl::optional<std::string>& access_token,
-                        const absl::optional<std::string>& api_key,
+                        const std::optional<std::string>& access_token,
+                        const std::optional<std::string>& api_key,
                         LookupSingleLeakPayload payload,
                         LookupSingleLeakCallback callback) override {
     encrypted_payload_ = std::move(payload.encrypted_payload);
@@ -87,12 +88,11 @@ class LeakDetectionCheckImplTest : public testing::TestWithParam<bool> {
   // Initializes |leak_check_| with the appropriate identity environment based
   // on the provided |user_signed_in| parameter.
   void InitializeLeakCheck(bool user_signed_in) {
-    absl::optional<std::string> api_key = kApiKey;
+    std::optional<std::string> api_key = kApiKey;
     if (user_signed_in) {
-      api_key = absl::nullopt;
-      AccountInfo info = identity_env().MakeAccountAvailable(kTestEmail);
-      identity_env().SetCookieAccounts({{info.email, info.gaia}});
-      identity_env().SetRefreshTokenForAccount(info.account_id);
+      api_key = std::nullopt;
+      identity_env().MakePrimaryAccountAvailable(kTestEmail,
+                                                 signin::ConsentLevel::kSignin);
     }
     leak_check_ = std::make_unique<LeakDetectionCheckImpl>(
         &delegate_, identity_test_env_.identity_manager(),
@@ -112,10 +112,10 @@ class LeakDetectionCheckImplTest : public testing::TestWithParam<bool> {
   base::test::TaskEnvironment task_env_;
   signin::IdentityTestEnvironment identity_test_env_;
   StrictMock<MockLeakDetectionDelegateInterface> delegate_;
-  raw_ptr<MockLeakDetectionRequestFactory> request_factory_;
   base::HistogramTester histogram_tester_;
   base::ScopedMockElapsedTimersForTest mock_elapsed_timers_;
   std::unique_ptr<LeakDetectionCheckImpl> leak_check_;
+  raw_ptr<MockLeakDetectionRequestFactory> request_factory_ = nullptr;
 };
 
 PayloadAndCallback LeakDetectionCheckImplTest::ImitateNetworkRequest(
@@ -190,7 +190,7 @@ TEST_P(LeakDetectionCheckImplTest, GetAccessTokenBeforeEncryption) {
   EXPECT_CALL(
       *network_request,
       LookupSingleLeak(
-          _, Optional(access_token), /*api_key=*/Eq(absl::nullopt),
+          _, Optional(access_token), /*api_key=*/Eq(std::nullopt),
           AllOf(Field(&LookupSingleLeakPayload::username_hash_prefix,
                       ElementsAre(0xBD, 0x74, 0xA9, 0x00)),
                 Field(&LookupSingleLeakPayload::encrypted_payload, Ne(""))),
@@ -219,7 +219,7 @@ TEST_P(LeakDetectionCheckImplTest, GetAccessTokenAfterEncryption) {
   EXPECT_CALL(
       *network_request,
       LookupSingleLeak(
-          _, Optional(access_token), /*api_key=*/Eq(absl::nullopt),
+          _, Optional(access_token), /*api_key=*/Eq(std::nullopt),
           AllOf(Field(&LookupSingleLeakPayload::username_hash_prefix,
                       ElementsAre(0xBD, 0x74, 0xA9, 0x00)),
                 Field(&LookupSingleLeakPayload::encrypted_payload, Ne(""))),
@@ -269,7 +269,7 @@ TEST_P(LeakDetectionCheckImplTest, PassesAPIKeys) {
   EXPECT_CALL(
       *network_request,
       LookupSingleLeak(
-          _, /*access_token=*/Eq(absl::nullopt), Optional(Eq(kApiKey)),
+          _, /*access_token=*/Eq(std::nullopt), Optional(Eq(kApiKey)),
           AllOf(Field(&LookupSingleLeakPayload::username_hash_prefix,
                       ElementsAre(0xBD, 0x74, 0xA9, 0x00)),
                 Field(&LookupSingleLeakPayload::encrypted_payload, Ne(""))),
@@ -303,7 +303,7 @@ TEST_P(LeakDetectionCheckImplTest, ParseResponse_DecryptionError) {
               OnLeakDetectionDone(false, GURL(kExampleCom), Eq(kUsername16),
                                   Eq(kPassword16)));
   std::move(payload_and_callback.callback)
-      .Run(std::move(response), absl::nullopt);
+      .Run(std::move(response), std::nullopt);
   task_env().RunUntilIdle();
 
   histogram_tester().ExpectUniqueSample(
@@ -335,7 +335,7 @@ TEST_P(LeakDetectionCheckImplTest, ParseResponse_NoLeak) {
               OnLeakDetectionDone(false, GURL(kExampleCom), Eq(kUsername16),
                                   Eq(kPassword16)));
   std::move(payload_and_callback.callback)
-      .Run(std::move(response), absl::nullopt);
+      .Run(std::move(response), std::nullopt);
   task_env().RunUntilIdle();
 
   histogram_tester().ExpectUniqueSample(
@@ -373,7 +373,7 @@ TEST_P(LeakDetectionCheckImplTest, ParseResponse_Leak) {
               OnLeakDetectionDone(true, GURL(kExampleCom), Eq(kUsername16),
                                   Eq(kPassword16)));
   std::move(payload_and_callback.callback)
-      .Run(std::move(response), absl::nullopt);
+      .Run(std::move(response), std::nullopt);
   task_env().RunUntilIdle();
 
   histogram_tester().ExpectUniqueSample(

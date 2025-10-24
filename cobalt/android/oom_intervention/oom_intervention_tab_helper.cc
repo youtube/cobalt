@@ -57,7 +57,7 @@ OomInterventionTabHelper::~OomInterventionTabHelper() = default;
 
 void OomInterventionTabHelper::OnHighMemoryUsage() {
   near_oom_detected_time_ = base::TimeTicks::Now();
-  renderer_detection_timer_.AbandonAndStop();
+  renderer_detection_timer_.Stop();
 }
 
 void OomInterventionTabHelper::WebContentsDestroyed() {
@@ -211,7 +211,7 @@ void OomInterventionTabHelper::
 
 void OomInterventionTabHelper::ResetInterventionState() {
   near_oom_detected_time_.reset();
-  renderer_detection_timer_.AbandonAndStop();
+  renderer_detection_timer_.Stop();
 }
 
 void OomInterventionTabHelper::ResetInterfaces() {

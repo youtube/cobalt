@@ -21,7 +21,8 @@ found in the LICENSE file.
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
     <application android:name="ComponentsBrowserTestsApplication"
-            android:label="ComponentsBrowserTests">
+            android:label="ComponentsBrowserTests"
+            android:memtagMode="sync">
         <activity android:name="ComponentsBrowserTestsActivity"
                   android:launchMode="singleTask"
                   android:theme="@android:style/Theme.Holo.Light.NoActionBar"
@@ -64,6 +65,5 @@ found in the LICENSE file.
 
     <instrumentation android:name="org.chromium.build.gtest_apk.NativeTestInstrumentationTestRunner"
             android:label="ComponentsBrowserTests"
-            android:targetPackage="org.chromium.components_browsertests_apk"
-            chromium-junit3="true"/>
+            android:targetPackage="org.chromium.components_browsertests_apk" />
 </manifest>

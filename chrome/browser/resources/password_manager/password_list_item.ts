@@ -4,6 +4,8 @@
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_icons.css.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+import 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
+import 'chrome://resources/cr_elements/icons.html.js';
 import './site_favicon.js';
 import './searchable_label.js';
 import './shared_style.css.js';
@@ -14,7 +16,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import {getTemplate} from './password_list_item.html.js';
 import {PasswordManagerImpl, PasswordViewPageInteractions} from './password_manager_proxy.js';
-import {Page, Router} from './router.js';
+import {Page, Router, UrlParam} from './router.js';
 
 export interface PasswordListItemElement {
   $: {
@@ -41,28 +43,31 @@ export class PasswordListItemElement extends PasswordListItemElementBase {
         observer: 'onItemChanged_',
       },
 
+      isAccountStoreUser: Boolean,
+
       first: Boolean,
 
       searchTerm: String,
-
-      elementClass_: {
-        type: String,
-        computed: 'computeElementClass_(first)',
-      },
 
       /**
        * The number of accounts in a group as a formatted string.
        */
       numberOfAccounts_: String,
+
+      tooltipText_: String,
+      deviceOnlyCredentialsAccessibilityLabelText_: String,
     };
   }
 
-  item: chrome.passwordsPrivate.CredentialGroup;
-  first: boolean;
-  searchTerm: string;
-  private numberOfAccounts_: string;
+  declare item: chrome.passwordsPrivate.CredentialGroup;
+  declare isAccountStoreUser: boolean;
+  declare first: boolean;
+  declare searchTerm: string;
+  declare private numberOfAccounts_: string;
+  declare private tooltipText_: string;
+  declare private deviceOnlyCredentialsAccessibilityLabelText_: string;
 
-  private computeElementClass_(): string {
+  private getElementClass_(): string {
     return this.first ? 'flex-centered' : 'flex-centered hr';
   }
 
@@ -75,7 +80,7 @@ export class PasswordListItemElement extends PasswordListItemElementBase {
     this.$.seePasswordDetails.focus();
   }
 
-  private async onRowClick_() {
+  private onRowClick_() {
     const ids = this.item.entries.map(entry => entry.id);
     PasswordManagerImpl.getInstance()
         .requestCredentialsDetails(ids)
@@ -88,11 +93,19 @@ export class PasswordListItemElement extends PasswordListItemElementBase {
           this.dispatchEvent(new CustomEvent(
               'password-details-shown',
               {bubbles: true, composed: true, detail: this}));
-          Router.getInstance().navigateTo(Page.PASSWORD_DETAILS, group);
+          // Keep current search query.
+          Router.getInstance().navigateTo(
+              Page.PASSWORD_DETAILS, group,
+              Router.getInstance().currentRoute.queryParameters);
         })
         .catch(() => {});
     PasswordManagerImpl.getInstance().recordPasswordViewInteraction(
         PasswordViewPageInteractions.CREDENTIAL_ROW_CLICKED);
+
+    const searchTerm = Router.getInstance().currentRoute.queryParameters.get(
+                           UrlParam.SEARCH_TERM) || '';
+    chrome.metricsPrivate.recordBoolean(
+        'PasswordManager.UI.OpenedPasswordDetailsWhileSearching', !!searchTerm);
   }
 
   private async onItemChanged_() {
@@ -100,6 +113,17 @@ export class PasswordListItemElement extends PasswordListItemElementBase {
       this.numberOfAccounts_ =
           await PluralStringProxyImpl.getInstance().getPluralString(
               'numberOfAccounts', this.item.entries.length);
+    }
+    this.tooltipText_ =
+        await PluralStringProxyImpl.getInstance().getPluralString(
+            'deviceOnlyPasswordsIconTooltip',
+            this.getNumberOfCredentialsOnDevice_());
+    if (this.shouldShowDeviceOnlyCredentialsIcon_()) {
+      this.deviceOnlyCredentialsAccessibilityLabelText_ =
+          await PluralStringProxyImpl.getInstance()
+              .getPluralString(
+                  'deviceOnlyListItemAriaLabel', this.item.entries.length)
+              .then(label => label.replace('$1', this.item.name));
     }
   }
 
@@ -136,7 +160,23 @@ export class PasswordListItemElement extends PasswordListItemElementBase {
     return this.item.name;
   }
 
+  private getNumberOfCredentialsOnDevice_(): number {
+    return this.item.entries
+        .filter(
+            entry => entry.storedIn ===
+                chrome.passwordsPrivate.PasswordStoreSet.DEVICE)
+        .length;
+  }
+
+  private shouldShowDeviceOnlyCredentialsIcon_(): boolean {
+    return this.isAccountStoreUser &&
+        (this.getNumberOfCredentialsOnDevice_() > 0);
+  }
+
   private getAriaLabel_(): string {
+    if (this.shouldShowDeviceOnlyCredentialsIcon_()) {
+      return this.deviceOnlyCredentialsAccessibilityLabelText_;
+    }
     return this.i18n('viewPasswordAriaDescription', this.item.name);
   }
 }

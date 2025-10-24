@@ -5,6 +5,7 @@
 #ifndef CC_METRICS_FRAME_SEQUENCE_TRACKER_COLLECTION_H_
 #define CC_METRICS_FRAME_SEQUENCE_TRACKER_COLLECTION_H_
 
+#include <map>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -13,21 +14,18 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "cc/cc_export.h"
+#include "cc/metrics/dropped_frame_counter.h"
+#include "cc/metrics/frame_info.h"
 #include "cc/metrics/frame_sequence_metrics.h"
-
-namespace gfx {
-struct PresentationFeedback;
-}
+#include "cc/metrics/frame_sorter.h"
+#include "cc/metrics/ukm_dropped_frames_data.h"
 
 namespace viz {
-struct BeginFrameAck;
 struct BeginFrameArgs;
 }  // namespace viz
 
 namespace cc {
 class FrameSequenceTracker;
-class CompositorFrameReportingController;
-class UkmManager;
 
 // Map of kCustom tracker results keyed by a sequence id.
 using CustomTrackerResults =
@@ -37,12 +35,11 @@ typedef uint16_t ActiveFrameSequenceTrackers;
 
 // Used for notifying attached FrameSequenceTracker's of begin-frames and
 // submitted frames.
-class CC_EXPORT FrameSequenceTrackerCollection {
+class CC_EXPORT FrameSequenceTrackerCollection : public FrameSorterObserver {
  public:
-  FrameSequenceTrackerCollection(
-      bool is_single_threaded,
-      CompositorFrameReportingController* frame_reporting_controller);
-  ~FrameSequenceTrackerCollection();
+  FrameSequenceTrackerCollection(bool is_single_threaded,
+                                 DroppedFrameCounter* dropped_frame_counter);
+  ~FrameSequenceTrackerCollection() override;
 
   FrameSequenceTrackerCollection(const FrameSequenceTrackerCollection&) =
       delete;
@@ -81,26 +78,9 @@ class CC_EXPORT FrameSequenceTrackerCollection {
 
   // Notifies all trackers of various events.
   void NotifyBeginImplFrame(const viz::BeginFrameArgs& args);
-  void NotifyBeginMainFrame(const viz::BeginFrameArgs& args);
-  void NotifyMainFrameProcessed(const viz::BeginFrameArgs& args);
-  void NotifyImplFrameCausedNoDamage(const viz::BeginFrameAck& ack);
-  void NotifyMainFrameCausedNoDamage(const viz::BeginFrameArgs& args,
-                                     bool aborted);
   void NotifyPauseFrameProduction();
-  void NotifySubmitFrame(uint32_t frame_token,
-                         bool has_missing_content,
-                         const viz::BeginFrameAck& ack,
-                         const viz::BeginFrameArgs& origin_args);
   void NotifyFrameEnd(const viz::BeginFrameArgs& args,
                       const viz::BeginFrameArgs& main_args);
-
-  // Note that this notifies the trackers of the presentation-feedbacks, and
-  // destroys any tracker that had been scheduled for destruction (using
-  // |ScheduleRemoval()|) if it has no more pending frames. Data from non
-  // kCustom typed trackers are reported to UMA. Data from kCustom typed
-  // trackers are added to |custom_tracker_results_| for caller to pick up.
-  void NotifyFramePresented(uint32_t frame_token,
-                            const gfx::PresentationFeedback& feedback);
 
   // Return the type of each active frame tracker, encoded into a 16 bit
   // integer with the bit at each position corresponding to the enum value of
@@ -110,8 +90,6 @@ class CC_EXPORT FrameSequenceTrackerCollection {
   FrameSequenceTracker* GetRemovalTrackerForTesting(
       FrameSequenceTrackerType type);
 
-  void SetUkmManager(UkmManager* manager);
-
   using NotifyCustomerTrackerResutlsCallback =
       base::RepeatingCallback<void(const CustomTrackerResults&)>;
   void set_custom_tracker_results_added_callback(
@@ -120,14 +98,33 @@ class CC_EXPORT FrameSequenceTrackerCollection {
   }
 
   void AddSortedFrame(const viz::BeginFrameArgs& args,
-                      const FrameInfo& frame_info);
+                      const FrameInfo& frame_info) override;
+
+  // Registers the shared memory location for PDF4 UKMs.
+  void SetUkmDroppedFramesDestination(
+      UkmDroppedFramesDataShared* dropped_frames_data);
+
+  ActiveTrackers GetActiveTrackers() const;
+  FrameInfo::SmoothThread GetSmoothThreadAtTime(
+      base::TimeTicks timestamp) const;
+  FrameInfo::SmoothEffectDrivingThread GetScrollThreadAtTime(
+      base::TimeTicks timestamp) const;
+  FrameInfo::SmoothEffectDrivingThread GetScrollingThread() const;
+  FrameInfo::SmoothThread GetSmoothThread() const;
+
+  void UpdateSmoothThreadHistory(
+      FrameInfo::SmoothEffectDrivingThread thread_type,
+      int modifier);
 
  private:
+  friend class CompositorFrameReportingControllerTest;
   friend class FrameSequenceTrackerTest;
 
   FrameSequenceTracker* StartSequenceInternal(
       FrameSequenceTrackerType type,
       FrameInfo::SmoothEffectDrivingThread scrolling_thread);
+
+  void SetScrollingThread(FrameInfo::SmoothEffectDrivingThread thread);
 
   void RecreateTrackers(const viz::BeginFrameArgs& args);
   // Destroy the trackers that are ready to be terminated.
@@ -160,8 +157,10 @@ class CC_EXPORT FrameSequenceTrackerCollection {
   NotifyCustomerTrackerResutlsCallback custom_tracker_results_added_callback_;
 
   std::vector<std::unique_ptr<FrameSequenceTracker>> removal_trackers_;
-  const raw_ptr<CompositorFrameReportingController>
-      compositor_frame_reporting_controller_;
+  const raw_ptr<DroppedFrameCounter> dropped_frame_counter_ = nullptr;
+  ActiveTrackers active_trackers_;
+  FrameInfo::SmoothEffectDrivingThread scrolling_thread_ =
+      FrameInfo::SmoothEffectDrivingThread::kUnknown;
 
   base::flat_map<
       std::pair<FrameSequenceTrackerType, FrameInfo::SmoothEffectDrivingThread>,
@@ -171,6 +170,18 @@ class CC_EXPORT FrameSequenceTrackerCollection {
   // Tracks how many smoothness effects are driven by each thread.
   size_t main_thread_driving_smoothness_ = 0;
   size_t compositor_thread_driving_smoothness_ = 0;
+  size_t raster_thread_driving_smoothness_ = 0;
+
+  // Sorted history of smooththread. Element i indicating the smooththread
+  // from timestamp of element i-1 until timestamp of element i.
+  std::map<base::TimeTicks, FrameInfo::SmoothThread> smooth_thread_history_;
+  // Sorted history of scrollthread. Element i indicating the smooththread
+  // from timestamp of element i-1 until timestamp of element i.
+  std::map<base::TimeTicks, FrameInfo::SmoothEffectDrivingThread>
+      scroll_thread_history_;
+
+  // Pointer to shared memory map for PDF4 UKMs
+  raw_ptr<UkmDroppedFramesDataShared> ukm_dropped_frames_data_ = nullptr;
 };
 
 }  // namespace cc

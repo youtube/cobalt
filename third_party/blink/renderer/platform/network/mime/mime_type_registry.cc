@@ -16,6 +16,7 @@
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
+#include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -40,12 +41,13 @@ std::string ToASCIIOrEmpty(const WebString& string) {
   return string.ContainsOnlyASCII() ? string.Ascii() : std::string();
 }
 
-template <typename CHARTYPE, typename SIZETYPE>
-std::string ToLowerASCIIInternal(CHARTYPE* str, SIZETYPE length) {
+template <typename CharType>
+std::string ToLowerASCIIInternal(base::span<const CharType> chars) {
   std::string lower_ascii;
-  lower_ascii.reserve(length);
-  for (CHARTYPE* p = str; p < str + length; p++)
-    lower_ascii.push_back(base::ToLowerASCII(static_cast<char>(*p)));
+  lower_ascii.reserve(chars.size());
+  for (size_t i = 0; i < chars.size(); i++) {
+    lower_ascii.push_back(base::ToLowerASCII(static_cast<char>(chars[i])));
+  }
   return lower_ascii;
 }
 
@@ -53,9 +55,8 @@ std::string ToLowerASCIIInternal(CHARTYPE* str, SIZETYPE length) {
 std::string ToLowerASCIIOrEmpty(const String& str) {
   if (str.empty() || !str.ContainsOnlyASCIIOrEmpty())
     return std::string();
-  if (str.Is8Bit())
-    return ToLowerASCIIInternal(str.Characters8(), str.length());
-  return ToLowerASCIIInternal(str.Characters16(), str.length());
+  return WTF::VisitCharacters(
+      str, [](auto chars) { return ToLowerASCIIInternal(chars); });
 }
 
 STATIC_ASSERT_ENUM(MIMETypeRegistry::kNotSupported,
@@ -84,7 +85,7 @@ String MIMETypeRegistry::GetWellKnownMIMETypeForExtension(const String& ext) {
   std::string mime_type;
   net::GetWellKnownMimeTypeFromExtension(WebStringToFilePath(ext).value(),
                                          &mime_type);
-  return String::FromUTF8(mime_type.data(), mime_type.length());
+  return String::FromUTF8(mime_type);
 }
 
 bool MIMETypeRegistry::IsSupportedMIMEType(const String& mime_type) {
@@ -104,8 +105,7 @@ bool MIMETypeRegistry::IsSupportedImagePrefixedMIMEType(
     const String& mime_type) {
   std::string ascii_mime_type = ToLowerASCIIOrEmpty(mime_type);
   return (blink::IsSupportedImageMimeType(ascii_mime_type) ||
-          (base::StartsWith(ascii_mime_type, "image/",
-                            base::CompareCase::SENSITIVE) &&
+          (ascii_mime_type.starts_with("image/") &&
            blink::IsSupportedNonImageMimeType(ascii_mime_type)));
 }
 
@@ -118,6 +118,10 @@ bool MIMETypeRegistry::IsSupportedImageMIMETypeForEncoding(
 
 bool MIMETypeRegistry::IsSupportedJavaScriptMIMEType(const String& mime_type) {
   return blink::IsSupportedJavascriptMimeType(ToLowerASCIIOrEmpty(mime_type));
+}
+
+bool MIMETypeRegistry::IsWasmMIMEType(const String& mime_type) {
+  return blink::IsWasmMIMEType(ToLowerASCIIOrEmpty(mime_type));
 }
 
 bool MIMETypeRegistry::IsJSONMimeType(const String& mime_type) {
@@ -186,21 +190,6 @@ bool MIMETypeRegistry::IsSupportedTextTrackMIMEType(const String& mime_type) {
   return EqualIgnoringASCIICase(mime_type, "text/vtt");
 }
 
-bool MIMETypeRegistry::IsLossyImageMIMEType(const String& mime_type) {
-  return EqualIgnoringASCIICase(mime_type, "image/jpeg") ||
-         EqualIgnoringASCIICase(mime_type, "image/jpg") ||
-         EqualIgnoringASCIICase(mime_type, "image/pjpeg");
-}
-
-bool MIMETypeRegistry::IsLosslessImageMIMEType(const String& mime_type) {
-  return EqualIgnoringASCIICase(mime_type, "image/bmp") ||
-         EqualIgnoringASCIICase(mime_type, "image/gif") ||
-         EqualIgnoringASCIICase(mime_type, "image/png") ||
-         EqualIgnoringASCIICase(mime_type, "image/webp") ||
-         EqualIgnoringASCIICase(mime_type, "image/x-xbitmap") ||
-         EqualIgnoringASCIICase(mime_type, "image/x-png");
-}
-
 bool MIMETypeRegistry::IsXMLMIMEType(const String& mime_type) {
   if (EqualIgnoringASCIICase(mime_type, "text/xml") ||
       EqualIgnoringASCIICase(mime_type, "application/xml")) {
@@ -257,6 +246,12 @@ bool MIMETypeRegistry::IsXMLMIMEType(const String& mime_type) {
   }
 
   return true;
+}
+
+bool MIMETypeRegistry::IsXMLExternalEntityMIMEType(const String& mime_type) {
+  return EqualIgnoringASCIICase(mime_type,
+                                "application/xml-external-parsed-entity") ||
+         EqualIgnoringASCIICase(mime_type, "text/xml-external-parsed-entity");
 }
 
 bool MIMETypeRegistry::IsPlainTextMIMEType(const String& mime_type) {

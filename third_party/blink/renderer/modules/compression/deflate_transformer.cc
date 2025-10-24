@@ -8,7 +8,10 @@
 #include <cstring>
 #include <limits>
 
+#include "base/compiler_specific.h"
+#include "base/trace_event/typed_macros.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
@@ -19,7 +22,6 @@
 #include "third_party/blink/renderer/modules/compression/compression_format.h"
 #include "third_party/blink/renderer/modules/compression/zlib_partition_alloc.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -29,7 +31,7 @@ DeflateTransformer::DeflateTransformer(ScriptState* script_state,
                                        int level)
     : script_state_(script_state), out_buffer_(kBufferSize) {
   DCHECK(level >= 1 && level <= 9);
-  memset(&stream_, 0, sizeof(z_stream));
+  UNSAFE_TODO(memset(&stream_, 0, sizeof(z_stream)));
   ZlibPartitionAlloc::Configure(&stream_);
   constexpr int kWindowBits = 15;
   constexpr int kUseGzip = 16;
@@ -57,27 +59,27 @@ DeflateTransformer::~DeflateTransformer() {
   }
 }
 
-ScriptPromise DeflateTransformer::Transform(
+ScriptPromise<IDLUndefined> DeflateTransformer::Transform(
     v8::Local<v8::Value> chunk,
     TransformStreamDefaultController* controller,
     ExceptionState& exception_state) {
   auto* buffer_source = V8BufferSource::Create(script_state_->GetIsolate(),
                                                chunk, exception_state);
   if (exception_state.HadException())
-    return ScriptPromise();
+    return EmptyPromise();
   DOMArrayPiece array_piece(buffer_source);
   if (array_piece.ByteLength() > std::numeric_limits<wtf_size_t>::max()) {
     exception_state.ThrowRangeError(
         "Buffer size exceeds maximum heap object size.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
   Deflate(array_piece.Bytes(),
           static_cast<wtf_size_t>(array_piece.ByteLength()), IsFinished(false),
           controller, exception_state);
-  return ScriptPromise::CastUndefined(script_state_);
+  return ToResolvedUndefinedPromise(script_state_.Get());
 }
 
-ScriptPromise DeflateTransformer::Flush(
+ScriptPromise<IDLUndefined> DeflateTransformer::Flush(
     TransformStreamDefaultController* controller,
     ExceptionState& exception_state) {
   Deflate(nullptr, 0u, IsFinished(true), controller, exception_state);
@@ -85,7 +87,7 @@ ScriptPromise DeflateTransformer::Flush(
   deflateEnd(&stream_);
   out_buffer_.clear();
 
-  return ScriptPromise::CastUndefined(script_state_);
+  return ToResolvedUndefinedPromise(script_state_.Get());
 }
 
 void DeflateTransformer::Deflate(const uint8_t* start,
@@ -93,6 +95,7 @@ void DeflateTransformer::Deflate(const uint8_t* start,
                                  IsFinished finished,
                                  TransformStreamDefaultController* controller,
                                  ExceptionState& exception_state) {
+  TRACE_EVENT("blink,devtools.timeline", "CompressionStream Deflate");
   stream_.avail_in = length;
   // Zlib treats this pointer as const, so this cast is safe.
   stream_.next_in = const_cast<uint8_t*>(start);
@@ -110,7 +113,8 @@ void DeflateTransformer::Deflate(const uint8_t* start,
 
     wtf_size_t bytes = out_buffer_.size() - stream_.avail_out;
     if (bytes) {
-      buffers.push_back(DOMUint8Array::Create(out_buffer_.data(), bytes));
+      buffers.push_back(
+          DOMUint8Array::Create(base::span(out_buffer_).first(bytes)));
     }
   } while (stream_.avail_out == 0);
 

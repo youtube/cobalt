@@ -12,6 +12,7 @@ enum class PermissionType;
 }
 
 namespace content {
+struct PermissionRequestDescription;
 
 class TestFontAccessPermissionManager : public MockPermissionManager {
  public:
@@ -28,16 +29,16 @@ class TestFontAccessPermissionManager : public MockPermissionManager {
       const std::vector<blink::mojom::PermissionStatus>&)>;
 
   void RequestPermissionsFromCurrentDocument(
-      const std::vector<blink::PermissionType>& permissions,
-      content::RenderFrameHost* render_frame_host,
-      bool user_gesture,
+      RenderFrameHost* render_frame_host,
+      const PermissionRequestDescription& request_description,
       base::OnceCallback<
           void(const std::vector<blink::mojom::PermissionStatus>&)> callback)
       override;
 
   blink::mojom::PermissionStatus GetPermissionStatusForCurrentDocument(
-      blink::PermissionType permission,
-      RenderFrameHost* render_frame_host) override;
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      RenderFrameHost* render_frame_host,
+      bool should_include_device_status) override;
 
   void SetRequestCallback(
       base::RepeatingCallback<void(PermissionCallback)> request_callback) {

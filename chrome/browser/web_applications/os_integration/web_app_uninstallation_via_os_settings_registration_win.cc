@@ -5,6 +5,7 @@
 #include "chrome/browser/web_applications/os_integration/web_app_uninstallation_via_os_settings_registration.h"
 
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/hash/md5.h"
 #include "base/path_service.h"
@@ -30,7 +31,7 @@ namespace {
 // all web apps installed in all profiles across all browser installations
 // for the user.
 std::wstring GetUninstallStringKey(const base::FilePath& profile_path,
-                                   const AppId& app_id) {
+                                   const webapps::AppId& app_id) {
   // We don't normalize (lower/upper) cases here mainly because people
   // don't change shortcut file case. If anyone changes the file name
   // or case, then it is the user's responsibility to clean up the apps.
@@ -39,7 +40,7 @@ std::wstring GetUninstallStringKey(const base::FilePath& profile_path,
   std::wstring key =
       base::StrCat({profile_path.value(), base::ASCIIToWide(app_id)});
   base::MD5Digest digest;
-  base::MD5Sum(key.c_str(), key.size() * sizeof(wchar_t), &digest);
+  base::MD5Sum(base::as_byte_span(key), &digest);
   return base::ASCIIToWide(base::MD5DigestToBase16(digest));
 }
 
@@ -48,7 +49,7 @@ std::wstring GetUninstallStringKey(const base::FilePath& profile_path,
 class UninstallationViaOsSettingsHelper {
  public:
   UninstallationViaOsSettingsHelper(const base::FilePath& profile_path,
-                                    const AppId& app_id)
+                                    const webapps::AppId& app_id)
       : profile_path_(profile_path), app_id_(app_id) {}
 
   UninstallationViaOsSettingsHelper(
@@ -64,11 +65,9 @@ class UninstallationViaOsSettingsHelper {
 
     // If the current user data directory isn't default, the uninstall
     // string should have it.
-    base::FilePath default_user_data_dir;
     base::FilePath user_data_dir;
-    if (chrome::GetDefaultUserDataDirectory(&default_user_data_dir) &&
-        base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir) &&
-        default_user_data_dir != user_data_dir) {
+    if (base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir) &&
+        !chrome::IsUsingDefaultDataDirectory().value_or(true)) {
       uninstall_commandline.AppendSwitchNative(switches::kUserDataDir,
                                                user_data_dir.value());
     }
@@ -99,13 +98,13 @@ class UninstallationViaOsSettingsHelper {
 
  private:
   const base::FilePath profile_path_;
-  const AppId app_id_;
+  const webapps::AppId app_id_;
 };
 
 }  // namespace
 
 std::wstring GetUninstallStringKeyForTesting(const base::FilePath& profile_path,
-                                             const AppId& app_id) {
+                                             const webapps::AppId& app_id) {
   return GetUninstallStringKey(profile_path, app_id);
 }
 
@@ -114,7 +113,7 @@ bool ShouldRegisterUninstallationViaOsSettingsWithOs() {
 }
 
 bool RegisterUninstallationViaOsSettingsWithOs(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& app_name,
     const base::FilePath& profile_path) {
   DCHECK(ShouldRegisterUninstallationViaOsSettingsWithOs());
@@ -136,7 +135,7 @@ bool RegisterUninstallationViaOsSettingsWithOs(
 }
 
 bool UnregisterUninstallationViaOsSettingsWithOs(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const base::FilePath& profile_path) {
   DCHECK(ShouldRegisterUninstallationViaOsSettingsWithOs());
 

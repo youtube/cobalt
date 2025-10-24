@@ -19,17 +19,48 @@ class WebState;
 class AnnotationsTextObserver : public base::CheckedObserver {
  public:
   // Called on page load, after `text` has been extracted.
+  // 'metadata' contains the following key/pair values:
+  // Bool 'hasNoIntentDetection': true when web page has requested
+  //   'nointentdetection'.
+  // Bool 'hasNoTranslate': true when web page has
+  //   requested 'notranslate'.
+  // String 'htmlLang': value from document.documentElement.lang or
+  //   "".
+  // String 'httpContentLanguage': value of content from
+  //   <meta http-equiv="content-language" content="en"> or "".
+  // String 'wkNoTelephone': true if the page header contains webkit's:
+  //   <meta name="format-detection" content="telephone=no">
+  // String 'wkNoEmail': true if the page header contains webkit's:
+  //   <meta name="format-detection" content="email=no">
+  // String 'wkNoAddress': true if the page header contains webkit's:
+  //   <meta name="format-detection" content="address=no">
+  // String 'wkNoDate': true if the page header contains webkit's:
+  //   <meta name="format-detection" content="date=no">
+  // String 'wkNoUnits': true if the page header contains webkit's:
+  //   <meta name="format-detection" content="unit=no">
+  // Note all type=equal pairs can be also be comma separated in a single
+  // content attribute in a meta tag. The check is case insensitive but the
+  // metadata is guaranteed lowercase.
   virtual void OnTextExtracted(WebState* web_state,
                                const std::string& text,
-                               int seq_id) {}
+                               int seq_id,
+                               const base::Value::Dict& metadata) {}
 
   // Called when decorations have been applied. `successes` is the number of
-  // annotations that were successfully stylized in the page. `annotations` is
-  // the number of annotations that were sent for decorating. There is no
-  // guarantee this will be called.
+  // annotations that were successfully stylized in the page, reversely
+  // `failures` is the number of annotation that failed to decorate.
+  // `annotations` is the number of annotations that were sent for decorating.
+  // `cancelled` is the list of ids (`data`) of annotations that fully
+  // failed to decorate. There no guarantee that
+  //   failures + successes == annotations
+  //   failures == cancelled.length
+  // because an annotation can be partially decorated due to some changes in the
+  // web page. There is also no guarantee this will be called.
   virtual void OnDecorated(WebState* web_state,
+                           int annotations,
                            int successes,
-                           int annotations) {}
+                           int failures,
+                           const base::Value::List& cancelled) {}
 
   // Called when user taps an annotation. `text` is the original annotation
   // text, `rect` is the position in the web page where the annotation is and

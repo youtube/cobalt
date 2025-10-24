@@ -5,9 +5,11 @@
 #ifndef COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_PRERENDER_PAGE_LOAD_METRICS_OBSERVER_H_
 #define COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_PRERENDER_PAGE_LOAD_METRICS_OBSERVER_H_
 
+#include <optional>
+
+#include "base/time/time.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
-#include "content/public/browser/prerender_trigger_type.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "content/public/browser/preloading_trigger_type.h"
 
 namespace internal {
 
@@ -30,44 +32,10 @@ extern const char kHistogramPrerenderNumInteractions[];
 extern const char
     kHistogramPrerenderUserInteractionLatencyHighPercentile2MaxEventDuration[];
 extern const char
+    kHistogramPrerenderUserInteractionLatencyHighPercentile2MaxEventDurationIncognito
+        [];
+extern const char
     kHistogramPrerenderWorstUserInteractionLatencyMaxEventDuration[];
-
-extern const char kPageLoadPrerenderObserverEvent[];
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class PageLoadPrerenderObserverEvent {
-  kOnPrerenderStart = 0,
-  kDidActivatePrerenderedPage = 1,
-  kOnFirstPaintInPage = 2,
-  kOnFirstContentfulPaintInPage = 3,
-  kOnFirstInputInPage = 4,
-  kOnComplete = 5,
-  kFlushMetricsOnAppEnterBackground = 6,
-  kRecordSessionEndHistograms = 7,
-  kRecordLayoutShiftScoreMetrics = 8,
-  kRecordNormalizedResponsivenessMetrics = 9,
-  kMaxValue = kRecordNormalizedResponsivenessMetrics,
-};
-
-extern const char kPageLoadPrerenderForegroundCheckResult[];
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class PageLoadPrerenderForegroundCheckResult {
-  kActivatedInBackground = 0,
-  kNoEventTime = 1,
-  kBackgroundedBeforeEvent = 2,
-  kPassed = 3,
-  kMaxValue = kPassed
-};
-
-enum class PageLoadPrerenderForegroundCheckEvent {
-  kFirstPaint,
-  kFirstContentfulPaint,
-  kFirstInputDelay,
-  kLargestContentfulPaint
-};
 
 }  // namespace internal
 
@@ -85,7 +53,7 @@ enum Error;
 class PrerenderPageLoadMetricsObserver
     : public page_load_metrics::PageLoadMetricsObserver {
  public:
-  PrerenderPageLoadMetricsObserver();
+  explicit PrerenderPageLoadMetricsObserver(bool is_incognito);
   ~PrerenderPageLoadMetricsObserver() override;
 
   // page_load_metrics::PageLoadMetricsObserver implementation:
@@ -113,6 +81,7 @@ class PrerenderPageLoadMetricsObserver
       const page_load_metrics::mojom::PageLoadTiming& timing) override;
 
  private:
+  enum PaintingTimeType : uint8_t;
   void RecordSessionEndHistograms(
       const page_load_metrics::mojom::PageLoadTiming& main_frame_timing);
   // Records Cumulative Layout Shift Score (CLS) to UMA and UKM.
@@ -124,6 +93,12 @@ class PrerenderPageLoadMetricsObserver
   // Records loading status for an activated and loaded page.
   void MaybeRecordMainResourceLoadStatus();
 
+  void MaybeRecordDocumentLoadMetrics(
+      const page_load_metrics::mojom::PageLoadTiming& timing);
+
+  void EmitPaintingMetricsTraceEvent(PaintingTimeType type,
+                                     base::TimeDelta paint_timing) const;
+
   // Helper function to concatenate the histogram name, the trigger type and the
   // embedder histogram suffix when the trigger type is kEmbedder.
   std::string AppendSuffix(const std::string& histogram_name) const;
@@ -132,16 +107,22 @@ class PrerenderPageLoadMetricsObserver
   // 'Cache-control: no-store' response header and set to false otherwise. Not
   // set if Chrome did not receive response headers or if the prerendered page
   // load was not activated.
-  absl::optional<bool> main_frame_resource_has_no_store_;
+  std::optional<bool> main_frame_resource_has_no_store_;
 
   // Set when the main resource of the main frame finishes loading.
-  absl::optional<net::Error> main_resource_load_status_;
+  std::optional<net::Error> main_resource_load_status_;
+
+  // Updated upon activation.
+  std::optional<base::TimeDelta> navigation_to_activation_time_;
 
   // The type to trigger prerendering.
-  absl::optional<content::PrerenderTriggerType> trigger_type_;
+  std::optional<content::PreloadingTriggerType> trigger_type_;
   // The suffix of a prerender embedder. This value is valid only when
-  // PrerenderTriggerType is kEmbedder. Otherwise, it's an empty string.
+  // PreloadingTriggerType is kEmbedder. Otherwise, it's an empty string.
   std::string embedder_histogram_suffix_;
+
+  // Whether the WebContents being observed is for an Incognito profile.
+  bool is_incognito_;
 };
 
 #endif  // COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_PRERENDER_PAGE_LOAD_METRICS_OBSERVER_H_

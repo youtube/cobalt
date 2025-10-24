@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
 #include "v8/include/v8.h"
@@ -37,7 +38,7 @@ class APIBindingHooks {
       THROWN,               // An exception was thrown during parsing or
                             // handling.
       INVALID_INVOCATION,   // The request was called with invalid arguments.
-                            // |error| will contain the invocation error.
+                            // `error` will contain the invocation error.
       CONTEXT_INVALIDATED,  // The context was invalidated during the handling
                             // of the API. Ideally, this wouldn't happen, but
                             // could in certain circumstances.
@@ -73,7 +74,7 @@ class APIBindingHooks {
   RequestResult RunHooks(const std::string& method_name,
                          v8::Local<v8::Context> context,
                          const APISignature* signature,
-                         std::vector<v8::Local<v8::Value>>* arguments,
+                         v8::LocalVector<v8::Value>* arguments,
                          const APITypeReferenceMap& type_refs);
 
   // Handler function to resolve asynchronous requests associated with handle
@@ -85,7 +86,7 @@ class APIBindingHooks {
   // Returns a JS interface that can be used to register hooks.
   v8::Local<v8::Object> GetJSHookInterface(v8::Local<v8::Context> context);
 
-  // Creates a new JS event for the given |event_name|, if a custom event is
+  // Creates a new JS event for the given `event_name`, if a custom event is
   // provided. Returns true if an event was created.
   bool CreateCustomEvent(v8::Local<v8::Context> context,
                          const std::string& event_name,
@@ -103,18 +104,18 @@ class APIBindingHooks {
   void SetDelegate(std::unique_ptr<APIBindingHooksDelegate> delegate);
 
  private:
-  // Updates the |arguments| by running |function| and settings arguments to the
+  // Updates the `arguments` by running `function` and settings arguments to the
   // returned result.
   bool UpdateArguments(v8::Local<v8::Function> function,
                        v8::Local<v8::Context> context,
-                       std::vector<v8::Local<v8::Value>>* arguments);
+                       v8::LocalVector<v8::Value>* arguments);
 
   // The name of the associated API.
   std::string api_name_;
 
   // The request handler used to resolve asynchronous responses associated with
   // handle request hooks. Guaranteed to outlive this object.
-  APIRequestHandler* const request_handler_;
+  const raw_ptr<APIRequestHandler, DanglingUntriaged> request_handler_;
 
   std::unique_ptr<APIBindingHooksDelegate> delegate_;
 

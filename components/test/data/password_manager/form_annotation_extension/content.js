@@ -18,7 +18,7 @@ function reduceClassName(list, doc) {
   for (i = 0; i < list.length; i++) {
     const className = list.item(i);
     const count = doc.getElementsByClassName(className).length;
-    if (count == 1) {
+    if (count === 1) {
       return '.' + className;
     }
     if (count < minCount) {
@@ -32,7 +32,7 @@ function reduceClassName(list, doc) {
       const className2 = list.item(j);
       const count =
           doc.getElementsByClassName(className1 + ' ' + className2).length;
-      if (count == 1) {
+      if (count === 1) {
         return '.' + className1 + '.' + className2;
       }
       if (count < minCount) {
@@ -55,7 +55,7 @@ function getIndexInChildrenList(elem) {
   let result = 1;
   let sibling = elem.previousSibling;
   while (sibling) {
-    if (sibling.tagName == 'LI') {
+    if (sibling.tagName === 'LI') {
       result++;
     }
     sibling = sibling.previousSibling;
@@ -68,7 +68,7 @@ function getIndexInChildrenList(elem) {
  * MOST IMPORTANT part in the extension. By a number of heuristics, it creates
  * a CSS selector that would be persistent to web page changes (e.g. full path
  * to the element |elem| is a bad idea), but allows to find element |elem|.
- * TODO(crbug.com/614649): sometimes it fails to build unique selector. Fix it.
+ * TODO(crbug.com/41255533): sometimes it fails to build unique selector. Fix it.
  *
  * @param {Element} elem The element which CSS selector should be created.
  * @return {string} CSS selector of the element.
@@ -83,19 +83,19 @@ function getSmartSelector(elem) {
   if (elem.name) {
     result += '[name=\'' + elem.name + '\']';
   }
-  if (elem.tagName == 'INPUT' && elem.type) {
+  if (elem.tagName === 'INPUT' && elem.type) {
     result += '[type=\'' + elem.type + '\']';
   }
   if (elem.classList.length > 0) {
     result += reduceClassName(elem.classList, doc);
   }
-  if (elem.tagName == 'LI') {
+  if (elem.tagName === 'LI') {
     result += ':nth-child(' + getIndexInChildrenList(elem) + ')';
   }
 
   // If failed to build a unique selector for |elem|, try to add the parent CSS
   // selector.
-  if (doc.querySelectorAll(result).length != 1) {
+  if (doc.querySelectorAll(result).length !== 1) {
     if (elem.parentElement) {
       const parentSelector = getSmartSelector(elem.parentElement);
       if (parentSelector) {
@@ -112,7 +112,7 @@ function getSmartSelector(elem) {
 
 /**
  * Returns CSS selectors of parent frames.
- * Doesn't work for cross-domain iframes. TODO(crbug.com/614651): Chrome
+ * Doesn't work for cross-domain iframes. TODO(crbug.com/41255536): Chrome
  * extensions should be able to process cross-domain stuff. Fix it.
  *
  * @param {Element} elem The element which parent frames should be returned.
@@ -120,7 +120,7 @@ function getSmartSelector(elem) {
  */
 function getFrames(elem) {
   frames = [];
-  while (elem.ownerDocument.defaultView != top) {
+  while (elem.ownerDocument.defaultView !== top) {
     const frameElement = elem.ownerDocument.defaultView.frameElement;
     if (!frameElement) {
       console.error('frameElement is null. Unable to fetch data about iframes');
@@ -140,8 +140,9 @@ function getFrames(elem) {
  * @return {boolean} True if the element is probably clickable.
  */
 function isClickableElementOrInput(element) {
-  return (element.tagName == 'INPUT' || element.tagName == 'A' ||
-      element.tagName == 'BUTTON' || element.tagName == 'SUBMIT' ||
+  return (
+      element.tagName === 'INPUT' || element.tagName === 'A' ||
+      element.tagName === 'BUTTON' || element.tagName === 'SUBMIT' ||
       element.getAttribute('href'));
 }
 
@@ -209,7 +210,8 @@ function couldBeFirstStepOfScript(elem, selector) {
 document.addEventListener('click', function(event) {
   const element = fixElementSelection(event.target);
   const url = element.ownerDocument.URL;
-  const isPwdField = (element.tagName == 'INPUT') && (element.type == 'password');
+  const isPwdField =
+      (element.tagName === 'INPUT') && (element.type === 'password');
   const selector = getSmartSelector(element);
   const frames = getFrames(element);
   const classifierOutcome = element.hasAttribute('pm_debug_pwd_creation_field');

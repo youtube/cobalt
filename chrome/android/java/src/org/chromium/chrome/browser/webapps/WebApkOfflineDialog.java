@@ -12,9 +12,7 @@ import androidx.appcompat.app.AlertDialog;
 
 import org.chromium.chrome.R;
 
-/**
- * A dialog to notify user of network errors while loading WebAPK's start URL.
- */
+/** A dialog to notify user of network errors while loading WebAPK's start URL. */
 public class WebApkOfflineDialog {
     private Dialog mDialog;
 
@@ -25,19 +23,21 @@ public class WebApkOfflineDialog {
 
     /**
      * Shows dialog to notify user of network error.
+     *
      * @param activity Activity that will be used for {@link Dialog#show()}.
-     * @param errorMessage
      */
     public void show(final Activity activity, String errorMessage) {
         AlertDialog.Builder builder =
                 new AlertDialog.Builder(activity, R.style.ThemeOverlay_BrowserUI_AlertDialog);
         builder.setMessage(errorMessage)
-                .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        activity.finishAndRemoveTask();
-                    }
-                });
+                .setPositiveButton(
+                        R.string.ok,
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                activity.finishAndRemoveTask();
+                            }
+                        });
 
         mDialog = builder.create();
         mDialog.setCanceledOnTouchOutside(false);

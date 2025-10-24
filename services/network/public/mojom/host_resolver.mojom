@@ -114,7 +114,7 @@ struct DnsConfigOverrides {
 // requests. Handle is optional for all requests, and may be closed at any time
 // without affecting the request.
 //
-// TODO(crbug.com/821021): Add support to change priority.
+// TODO(crbug.com/41375980): Add support to change priority.
 interface ResolveHostHandle {
   // Requests cancellation of the resolution request. Doing so may have no
   // effect if a result was already sent. If successful, cancellation results in
@@ -139,17 +139,27 @@ interface ResolveHostClient {
   // |result| should be used when less specific error information (i.e. OK vs
   // ERR_NAME_NOT_RESOLVED) is sufficient.
   //
+  // If results are not in address form, e.g. for a TXT request,
+  // `resolved_addresses` and `endpoint_results_with_metadata` may be either
+  // empty or null.
+  //
   // Always called last to signal completion of the ResolveHost() request.
   // Unless the ResolveHostClient is closed, this method will always be called
   // exactly once, and afterwards, no more methods in the interface will be
   // called.
+  //
+  // TODO(ericorth@chromium.org): HostResolverEndpointResult is intended to be
+  // a full replacement for AddressList, so it should be modified to include all
+  // results, not just those with metadata, and be renamed accordingly. Maybe
+  // just delete the AddressList result entirely while at it to avoid any
+  // concerns of passing redundant data.
   OnComplete(int32 result,
              ResolveErrorInfo resolve_error_info,
              AddressList? resolved_addresses,
              array<HostResolverEndpointResult>? endpoint_results_with_metadata);
 
   // One or more On...Results() methods may be called when non-address results
-  // are available. Always called before OnComplete().
+  // are available and non-empty. Always called before OnComplete().
   OnTextResults(array<string> text_results);
   OnHostnameResults(array<HostPortPair> hosts);
 };
@@ -251,7 +261,7 @@ struct ResolveHostParameters {
   // Enumeration for specifying the purpose of a host resolve request.
   // These values are used for UMA. Entries should not be reordered. Keep this
   // in sync with tools/metrics/histograms/enums.xml.
-  // TODO(crbug.com/1232623): Consider adding more values if kPreconnect isn't
+  // TODO(crbug.com/40191203): Consider adding more values if kPreconnect isn't
   // a majority of the purpose of host resolve requests.
   enum Purpose {
     kUnspecified,

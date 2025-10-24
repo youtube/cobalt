@@ -5,17 +5,18 @@
 #include "extensions/browser/updater/safe_manifest_parser.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "content/public/browser/browser_thread.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/data_decoder/public/cpp/safe_xml_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 
@@ -167,12 +168,12 @@ void ParseXmlDone(ParseUpdateManifestCallback callback,
   std::string gupdate_ns;
   const auto get_root =
       [&]() -> base::expected<base::Value, ManifestParseFailure> {
-    if (!result.has_value()) {
-      return base::unexpected(
-          ManifestParseFailure("Failed to parse XML: " + result.error(),
-                               ManifestInvalidError::XML_PARSING_FAILED));
-    }
-    base::Value root = std::move(result).value();
+    ASSIGN_OR_RETURN(base::Value root, std::move(result),
+                     [](std::string error) {
+                       return ManifestParseFailure(
+                           "Failed to parse XML: " + std::move(error),
+                           ManifestInvalidError::XML_PARSING_FAILED);
+                     });
 
     // Look for the required namespace declaration.
     if (!GetXmlElementNamespacePrefix(root, kExpectedGupdateXmlns,
@@ -197,17 +198,16 @@ void ParseXmlDone(ParseUpdateManifestCallback callback,
 
     return root;
   };
-  auto root = get_root();
-  if (!root.has_value()) {
-    std::move(callback).Run(/*results=*/nullptr, std::move(root.error()));
-    return;
-  }
+  ASSIGN_OR_RETURN(
+      base::Value root, get_root(), [&](ManifestParseFailure error) {
+        std::move(callback).Run(/*results=*/nullptr, std::move(error));
+      });
 
   auto results = std::make_unique<UpdateManifestResults>();
 
   // Parse the first <daystart> if it's present.
   const base::Value* daystart = GetXmlElementChildWithTag(
-      *root, GetXmlQualifiedName(gupdate_ns, "daystart"));
+      root, GetXmlQualifiedName(gupdate_ns, "daystart"));
   if (daystart) {
     std::string elapsed_seconds =
         GetXmlElementAttribute(*daystart, "elapsed_seconds");
@@ -220,7 +220,7 @@ void ParseXmlDone(ParseUpdateManifestCallback callback,
   // Parse each of the <app> tags.
   std::vector<const base::Value*> apps;
   data_decoder::GetAllXmlElementChildrenWithTag(
-      *root, GetXmlQualifiedName(gupdate_ns, "app"), &apps);
+      root, GetXmlQualifiedName(gupdate_ns, "app"), &apps);
   std::string error_msg;
   int prodversionmin_count = 0;
   for (const auto* app : apps) {
@@ -230,7 +230,7 @@ void ParseXmlDone(ParseUpdateManifestCallback callback,
     results->update_list.push_back(manifest_result);
   }
   // Parsing error corresponding to each extension are stored in the results.
-  std::move(callback).Run(std::move(results), absl::nullopt);
+  std::move(callback).Run(std::move(results), std::nullopt);
 }
 
 }  // namespace
@@ -264,8 +264,9 @@ std::map<std::string, std::vector<const UpdateManifestResult*>>
 UpdateManifestResults::GroupSuccessfulByID() const {
   std::map<std::string, std::vector<const UpdateManifestResult*>> groups;
   for (const UpdateManifestResult& update_result : update_list) {
-    if (!update_result.parse_error)
+    if (!update_result.parse_error) {
       groups[update_result.extension_id].push_back(&update_result);
+    }
   }
   return groups;
 }

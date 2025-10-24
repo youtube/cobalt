@@ -36,6 +36,7 @@ class NativeInitializationController {
     private boolean mHasDoneFirstDraw;
     private boolean mHasSignaledLibraryLoaded;
     private boolean mInitializationComplete;
+    private boolean mOnTopResumedPending;
 
     /**
      * This class encapsulates a call to onActivityResult that has to be deferred because the native
@@ -79,8 +80,9 @@ class NativeInitializationController {
         // This is a fairly low cost way to check if fetching the variations seed is needed. It can
         // produces false positives, but that's okay. There's a later mechanism that checks a
         // dedicated durable field to make sure the actual network request is only made once.
-        boolean fetchVariationsSeed = FirstRunFlowSequencer.checkIfFirstRunIsNecessary(
-                false, mActivityDelegate.getInitialIntent());
+        boolean fetchVariationsSeed =
+                FirstRunFlowSequencer.checkIfFirstRunIsNecessary(
+                        false, mActivityDelegate.getInitialIntent());
 
         mBackgroundTasksComplete = false;
         new AsyncInitTaskRunner() {
@@ -100,7 +102,6 @@ class NativeInitializationController {
                 // mBackgroundTasksComplete or do any other tidying up.
                 mActivityDelegate.onStartupFailure(failureCause);
             }
-
         }.startBackgroundTasks(allocateChildConnection, fetchVariationsSeed);
     }
 
@@ -127,9 +128,7 @@ class NativeInitializationController {
         signalNativeLibraryLoadedIfReady();
     }
 
-    /**
-     * Called when native initialization for an activity has been finished.
-     */
+    /** Called when native initialization for an activity has been finished. */
     public void onNativeInitializationComplete() {
         // Callback when we finished with ChromeActivityNativeDelegate.onCreateWithNative tasks
         mInitializationComplete = true;
@@ -143,11 +142,14 @@ class NativeInitializationController {
             mOnResumePending = false;
             onResume();
         }
+
+        if (mOnTopResumedPending) {
+            mOnTopResumedPending = false;
+            onTopResumedActivityChanged(true);
+        }
     }
 
-    /**
-     * Called when an activity gets an onStart call and is done with java only tasks.
-     */
+    /** Called when an activity gets an onStart call and is done with java only tasks. */
     public void onStart() {
         if (mInitializationComplete) {
             startNowAndProcessPendingItems();
@@ -156,9 +158,7 @@ class NativeInitializationController {
         }
     }
 
-    /**
-     * Called when an activity gets an onResume call and is done with java only tasks.
-     */
+    /** Called when an activity gets an onResume call and is done with java only tasks. */
     public void onResume() {
         if (mInitializationComplete) {
             mActivityDelegate.onResumeWithNative();
@@ -168,18 +168,29 @@ class NativeInitializationController {
     }
 
     /**
-     * Called when an activity gets an onPause call and is done with java only tasks.
+     * Called when activity gets or loses the top resumed position in the system.
+     *
+     * @param isTopResumedActivity {@code true} if it's the topmost resumed activity in the system,
+     *     {@code false} otherwise. A call with this as {@code true} will always be followed by
+     *     another one with {@code false}.
      */
+    public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
+        if (mInitializationComplete) {
+            mActivityDelegate.onTopResumedActivityChangedWithNative(isTopResumedActivity);
+        } else {
+            mOnTopResumedPending = isTopResumedActivity;
+        }
+    }
+
+    /** Called when an activity gets an onPause call and is done with java only tasks. */
     public void onPause() {
-        mOnResumePending = false;  // Clear the delayed resume if a pause happens first.
+        mOnResumePending = false; // Clear the delayed resume if a pause happens first.
         if (mInitializationComplete) mActivityDelegate.onPauseWithNative();
     }
 
-    /**
-     * Called when an activity gets an onStop call and is done with java only tasks.
-     */
+    /** Called when an activity gets an onStop call and is done with java only tasks. */
     public void onStop() {
-        mOnStartPending = false;  // Clear the delayed start if a stop happens first.
+        mOnStartPending = false; // Clear the delayed start if a stop happens first.
         if (!mInitializationComplete) return;
         mActivityDelegate.onStopWithNative();
     }
@@ -237,8 +248,10 @@ class NativeInitializationController {
                 ActivityResult activityResult;
                 for (int i = 0; i < mPendingActivityResults.size(); i++) {
                     activityResult = mPendingActivityResults.get(i);
-                    mActivityDelegate.onActivityResultWithNative(activityResult.requestCode,
-                            activityResult.resultCode, activityResult.data);
+                    mActivityDelegate.onActivityResultWithNative(
+                            activityResult.requestCode,
+                            activityResult.resultCode,
+                            activityResult.data);
                 }
                 mPendingActivityResults = null;
             }

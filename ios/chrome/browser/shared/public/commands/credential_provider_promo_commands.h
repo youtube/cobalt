@@ -6,14 +6,14 @@
 #define IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_CREDENTIAL_PROVIDER_PROMO_COMMANDS_H_
 
 enum class CredentialProviderPromoTrigger {
-  PasswordCopied,                        // User is copying a saved password.
-  PasswordSaved,                         // User is saving a password.
   SuccessfulLoginUsingExistingPassword,  // User successfully logs in using
                                          // existing password.
   RemindMeLater,                         // User has tapped Remind Me Later in
                                          // the promo before.
   SetUpList,                             // User has clicked the Autofill item
                                          // in the Set Up List on the NTP.
+  TipsNotification,                      // User has tapped the CPE Tips
+                                         // notification.
 };
 
 // Commands to show app-wide promos.

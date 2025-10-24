@@ -9,6 +9,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "base/check.h"
+#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
@@ -102,18 +103,48 @@ void CopyRequiredCellularProperties(
 
 }  // namespace
 
+PolicyApplicator::Options::Options() = default;
+
+PolicyApplicator::Options::Options(PolicyApplicator::Options&& other) {
+  reset_recommended_managed_configs = other.reset_recommended_managed_configs;
+  remove_unmanaged_configs = other.remove_unmanaged_configs;
+  // Reset the moved-from object to its default-constructed state.
+  other.reset_recommended_managed_configs = false;
+  other.remove_unmanaged_configs = false;
+}
+
+PolicyApplicator::Options& PolicyApplicator::Options::operator=(
+    PolicyApplicator::Options&& other) {
+  reset_recommended_managed_configs = other.reset_recommended_managed_configs;
+  remove_unmanaged_configs = other.remove_unmanaged_configs;
+  // Reset the moved-from object to its default-constructed state.
+  other.reset_recommended_managed_configs = false;
+  other.remove_unmanaged_configs = false;
+
+  return *this;
+}
+
+PolicyApplicator::Options::~Options() = default;
+
+void PolicyApplicator::Options::Merge(const PolicyApplicator::Options& other) {
+  reset_recommended_managed_configs |= other.reset_recommended_managed_configs;
+  remove_unmanaged_configs |= other.remove_unmanaged_configs;
+}
+
 PolicyApplicator::PolicyApplicator(
     const NetworkProfile& profile,
     base::flat_map<std::string, base::Value::Dict> all_policies,
     base::Value::Dict global_network_config,
     ConfigurationHandler* handler,
     ManagedCellularPrefHandler* managed_cellular_pref_handler,
-    base::flat_set<std::string> modified_policy_guids)
+    base::flat_set<std::string> modified_policy_guids,
+    Options options)
     : handler_(handler),
       managed_cellular_pref_handler_(managed_cellular_pref_handler),
       profile_(profile),
       all_policies_(std::move(all_policies)),
       global_network_config_(std::move(global_network_config)),
+      options_(std::move(options)),
       remaining_policy_guids_(std::move(modified_policy_guids)) {}
 
 PolicyApplicator::~PolicyApplicator() {
@@ -224,16 +255,24 @@ void PolicyApplicator::GetEntryCallback(const std::string& entry_identifier,
         << "Applying policy " << new_guid << " to previously unmanaged "
         << "configuration.";
 
-    ApplyNewPolicy(entry_identifier, entry_properties, std::move(ui_data),
+    ApplyOncPolicy(entry_identifier, entry_properties, std::move(ui_data),
                    old_guid, new_guid, *new_policy,
                    std::move(profile_entry_finished_callback));
 
     const std::string* iccid = policy_util::GetIccidFromONC(*new_policy);
-    const std::string* smdp_address =
-        policy_util::GetSMDPAddressFromONC(*new_policy);
-    if (was_managed && managed_cellular_pref_handler_ && iccid &&
-        smdp_address) {
-      managed_cellular_pref_handler_->AddIccidSmdpPair(*iccid, *smdp_address);
+
+    // If we detect that a managed cellular network already exists that matches
+    // the policy being applied we update the preferences that are used to track
+    // eSIM profiles that have been installed for managed networks to match this
+    // more recent policy application.
+    const std::string* name =
+        new_policy->FindString(::onc::network_config::kName);
+    std::optional<policy_util::SmdxActivationCode> activation_code =
+        policy_util::GetSmdxActivationCodeFromONC(*new_policy);
+    if (managed_cellular_pref_handler_ && iccid && name &&
+        activation_code.has_value()) {
+      managed_cellular_pref_handler_->AddESimMetadata(*iccid, *name,
+                                                      *activation_code);
     }
     return;
   }
@@ -249,7 +288,7 @@ void PolicyApplicator::GetEntryCallback(const std::string& entry_identifier,
 
     const std::string* iccid = policy_util::GetIccidFromONC(onc_part);
     if (managed_cellular_pref_handler_ && iccid) {
-      managed_cellular_pref_handler_->RemovePairWithIccid(*iccid);
+      managed_cellular_pref_handler_->SetPolicyMissing(*iccid);
     }
     return;
   }
@@ -267,7 +306,7 @@ void PolicyApplicator::GetEntryError(const std::string& entry_identifier,
   ProfileEntryFinished(entry_identifier);
 }
 
-void PolicyApplicator::ApplyNewPolicy(const std::string& entry_identifier,
+void PolicyApplicator::ApplyOncPolicy(const std::string& entry_identifier,
                                       const base::Value::Dict& entry_properties,
                                       std::unique_ptr<NetworkUIData> ui_data,
                                       const std::string& old_guid,
@@ -275,17 +314,27 @@ void PolicyApplicator::ApplyNewPolicy(const std::string& entry_identifier,
                                       const base::Value::Dict& new_policy,
                                       base::OnceClosure callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (old_guid == new_guid &&
-      remaining_policy_guids_.find(new_guid) == remaining_policy_guids_.end()) {
+  const bool policy_guid_changed = (old_guid != new_guid);
+  const bool force_reset = policy_util::AreEphemeralNetworkPoliciesEnabled() &&
+                           options_.reset_recommended_managed_configs &&
+                           policy_util::HasAnyRecommendedField(new_policy);
+  const bool policy_contents_changed =
+      base::Contains(remaining_policy_guids_, new_guid);
+  remaining_policy_guids_.erase(new_guid);
+
+  if (!policy_guid_changed && !policy_contents_changed && !force_reset) {
     VLOG(1) << "Not updating existing managed configuration with guid "
             << new_guid << " because the policy didn't change.";
     std::move(callback).Run();
     return;
   }
-  remaining_policy_guids_.erase(new_guid);
 
-  const base::Value::Dict* user_settings =
-      ui_data ? ui_data->GetUserSettingsDictionary() : nullptr;
+  const base::Value::Dict* user_settings = nullptr;
+  if (!force_reset) {
+    // TODO(b/260832333): We may also want to explicitly keep auth credentials
+    // which are currently not part of |ui_data|.
+    user_settings = ui_data ? ui_data->GetUserSettingsDictionary() : nullptr;
+  }
   base::Value::Dict new_shill_properties =
       policy_util::CreateShillConfiguration(profile_, new_guid,
                                             &global_network_config_,
@@ -296,24 +345,29 @@ void PolicyApplicator::ApplyNewPolicy(const std::string& entry_identifier,
   // existing service.
   CopyRequiredCellularProperties(entry_properties, &new_shill_properties);
 
-  // A new policy has to be applied to this profile entry. In order to keep
-  // implicit state of Shill like "connected successfully before", keep the
-  // entry if a policy is reapplied (e.g. after reboot) or is updated.
-  // However, some Shill properties are used to identify the network and
-  // cannot be modified after initial configuration, so we have to delete
+  // In order to keep implicit state of Shill like "connected successfully
+  // before", keep the entry if a policy is reapplied (e.g. after reboot) or is
+  // updated. However, some Shill properties are used to identify the network
+  // and cannot be modified after initial configuration, so we have to delete
   // the profile entry in these cases. Also, keeping Shill's state if the
   // SSID changed might not be a good idea anyways. If the policy GUID
   // changed, or there was no policy before, we delete the entry at first to
   // ensure that no old configuration remains.
-  if (old_guid == new_guid && shill_property_util::DoIdentifyingPropertiesMatch(
-                                  new_shill_properties, entry_properties)) {
+  const bool identifying_properties_match =
+      shill_property_util::DoIdentifyingPropertiesMatch(new_shill_properties,
+                                                        entry_properties);
+  if (!policy_guid_changed && identifying_properties_match && !force_reset) {
     NET_LOG(EVENT) << "Updating previously managed configuration with the "
                    << "updated policy " << new_guid << ".";
     WriteNewShillConfiguration(std::move(new_shill_properties),
                                new_policy.Clone(), std::move(callback));
   } else {
     NET_LOG(EVENT) << "Deleting profile entry before writing new policy "
-                   << new_guid << " because of identifying properties changed.";
+                   << new_guid
+                   << " [policy_guid_changed=" << policy_guid_changed
+                   << ", identifying_propreties_match="
+                   << identifying_properties_match
+                   << ", force_reset=" << force_reset << "]";
     // In general, old entries should at first be deleted before new
     // configurations are written to prevent inconsistencies. Therefore, we
     // delay the writing of the new config here until ~PolicyApplicator.
@@ -339,6 +393,15 @@ void PolicyApplicator::ApplyGlobalPolicyOnUnmanagedEntry(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // The entry wasn't managed and doesn't match any current policy. Global
   // network settings have to be applied.
+
+  if (options_.remove_unmanaged_configs) {
+    DCHECK(policy_util::AreEphemeralNetworkPoliciesEnabled());
+    NET_LOG(EVENT) << "Removing unmanaged entry " << entry_identifier
+                   << " due to ephemeral networks policy.";
+    DeleteEntry(entry_identifier, std::move(callback));
+    return;
+  }
+
   base::Value::Dict shill_properties_to_update;
   policy_util::SetShillPropertiesForGlobalPolicy(
       entry_properties, global_network_config_, shill_properties_to_update);

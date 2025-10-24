@@ -37,16 +37,8 @@ void RecordConnectionError(bool connection_error_happened) {
                         connection_error_happened);
 }
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class CallbackTimeoutStatus {
-  kCreate = 0,
-  kTimeout = 1,
-  kDestructedBeforeTimeout = 2,
-  kMaxValue = kDestructedBeforeTimeout,
-};
-
-void OnCallbackTimeout(const std::string uma_name, bool called_on_destruction) {
+void OnCallbackTimeout(const std::string& uma_name,
+                       bool called_on_destruction) {
   DVLOG(1) << "Callback Timeout: " << uma_name
            << ", called_on_destruction=" << called_on_destruction;
   base::UmaHistogramEnumeration(
@@ -311,7 +303,7 @@ Decryptor* MojoCdm::GetDecryptor() {
   return decryptor_.get();
 }
 
-absl::optional<base::UnguessableToken> MojoCdm::GetCdmId() const {
+std::optional<base::UnguessableToken> MojoCdm::GetCdmId() const {
   // Can be called on a different thread.
   base::AutoLock auto_lock(lock_);
   DVLOG(2) << __func__ << ": cdm_id="
@@ -366,7 +358,7 @@ void MojoCdm::OnSessionExpirationUpdate(const std::string& session_id,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   session_expiration_update_cb_.Run(
-      session_id, base::Time::FromDoubleT(new_expiry_time_sec));
+      session_id, base::Time::FromSecondsSinceUnixEpoch(new_expiry_time_sec));
 }
 
 void MojoCdm::OnSimpleCdmPromiseResult(uint32_t promise_id,
@@ -433,7 +425,7 @@ void MojoCdm::GetMetrics(
 
 void MojoCdm::OnMetricsReceived(
     uint32_t promise_id,
-    const absl::optional<std::string>& metrics_string) {
+    const std::optional<std::string>& metrics_string) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   cdm_promise_adapter_.ResolvePromise(promise_id,
       metrics_string.value_or(std::string()));

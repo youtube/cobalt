@@ -4,12 +4,11 @@
 
 #include <memory>
 
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/profiles/profiles_state.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/native_browser_frame_factory.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "components/safe_browsing/core/browser/password_protection/metrics_util.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/widget/widget.h"
@@ -20,12 +19,10 @@
 #include "ui/aura/window_occlusion_tracker.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/views/frame/browser_view_ash.h"
 #include "chrome/browser/ui/views/frame/custom_tab_browser_frame.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/ui/views/frame/browser_frame_lacros.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -46,19 +43,22 @@ BrowserWindow* BrowserWindow::CreateBrowserWindow(
 #endif
   // Create the view and the frame. The frame will attach itself via the view
   // so we don't need to do anything with the pointer.
-  BrowserView* view = new BrowserView(std::move(browser));
+  BrowserView* view = nullptr;
   BrowserFrame* browser_frame = nullptr;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (view->browser()->is_type_custom_tab())
+#if BUILDFLAG(IS_CHROMEOS)
+  view = new BrowserViewAsh(std::move(browser));
+  if (view->browser()->is_type_custom_tab()) {
     browser_frame = new CustomTabBrowserFrame(view);
+  }
+#else
+  view = new BrowserView(std::move(browser));
 #endif
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  browser_frame = new BrowserFrameLacros(view);
-#endif
-  if (!browser_frame)
+  if (!browser_frame) {
     browser_frame = new BrowserFrame(view);
-  if (in_tab_dragging)
+  }
+  if (in_tab_dragging) {
     browser_frame->SetTabDragKind(TabDragKind::kAllTabs);
+  }
   browser_frame->InitBrowserFrame();
 
 #if BUILDFLAG(IS_MAC)
@@ -69,19 +69,17 @@ BrowserWindow* BrowserWindow::CreateBrowserWindow(
   }
 #endif  // IS_MAC
 
-  if (view->GetIsPictureInPictureType() && view->GetLockAspectRatio()) {
-    gfx::SizeF aspect_ratio(view->GetInitialAspectRatio(), 1.0f);
-    view->GetWidget()->SetAspectRatio(aspect_ratio);
-  }
-
 #if defined(USE_AURA)
   // For now, all browser windows are true. This only works when USE_AURA
   // because it requires gfx::NativeWindow to be an aura::Window*.
   view->GetWidget()->GetNativeWindow()->SetProperty(
       aura::client::kCreatedByUserGesture, user_gesture);
 #endif
-  if (profiles::IsKioskSession())
+#if BUILDFLAG(IS_CHROMEOS)
+  if (chromeos::IsKioskSession()) {
     view->SetForceFullscreen(true);
+  }
+#endif
 
   return view;
 }

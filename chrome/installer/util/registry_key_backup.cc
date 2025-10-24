@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/util/registry_key_backup.h"
 
 #include <stdint.h>
@@ -97,7 +102,7 @@ class RegistryKeyBackup::KeyData {
 
 ValueData::ValueData() : type_(REG_NONE) {}
 
-ValueData::~ValueData() {}
+ValueData::~ValueData() = default;
 
 void ValueData::Initialize(const wchar_t* name_buffer,
                            DWORD name_size,
@@ -109,9 +114,9 @@ void ValueData::Initialize(const wchar_t* name_buffer,
   data_.assign(data, data + data_size);
 }
 
-RegistryKeyBackup::KeyData::KeyData() {}
+RegistryKeyBackup::KeyData::KeyData() = default;
 
-RegistryKeyBackup::KeyData::~KeyData() {}
+RegistryKeyBackup::KeyData::~KeyData() = default;
 
 bool RegistryKeyBackup::KeyData::Initialize(const RegKey& key) {
   std::vector<ValueData> values;
@@ -270,9 +275,9 @@ bool RegistryKeyBackup::KeyData::WriteTo(RegKey* key) const {
   return true;
 }
 
-RegistryKeyBackup::RegistryKeyBackup() {}
+RegistryKeyBackup::RegistryKeyBackup() = default;
 
-RegistryKeyBackup::~RegistryKeyBackup() {}
+RegistryKeyBackup::~RegistryKeyBackup() = default;
 
 bool RegistryKeyBackup::Initialize(HKEY root,
                                    const wchar_t* key_path,

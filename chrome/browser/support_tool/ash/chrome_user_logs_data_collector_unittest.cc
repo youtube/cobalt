@@ -25,9 +25,12 @@
 #include "components/account_id/account_id.h"
 #include "components/feedback/redaction_tool/pii_types.h"
 #include "components/feedback/redaction_tool/redaction_tool.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/user_manager/fake_user_manager.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -47,7 +50,7 @@ struct FakeUserLog {
 };
 
 const char kFakeUserEmail[] = "fakeusername@example.com";
-const char kFakeGaiaId[] = "gaia-id";
+const GaiaId::Literal kFakeGaiaId("gaia-id");
 
 const FakeUserLog kFakeUserLogs[] = {
     {/*path=*/base::FilePath("log/chrome"), /*log_name=*/"chrome",
@@ -68,20 +71,18 @@ const PIIMap kExpectedPIIMap = {
 class ChromeUserLogsDataCollectorTest : public ::testing::Test {
  public:
   ChromeUserLogsDataCollectorTest() {
-    std::unique_ptr<user_manager::FakeUserManager> fake_user_manager =
-        std::make_unique<user_manager::FakeUserManager>();
+    user_manager::UserManagerImpl::RegisterPrefs(local_state_.registry());
+    fake_user_manager_.Reset(
+        std::make_unique<user_manager::FakeUserManager>(&local_state_));
     AccountId fake_user_account =
         AccountId::FromUserEmailGaiaId(kFakeUserEmail, kFakeGaiaId);
     fake_user_hash_ =
-        user_manager::FakeUserManager::GetFakeUsernameHash(fake_user_account);
+        user_manager::TestHelper::GetFakeUsernameHash(fake_user_account);
     // Add the fake user to `fake_user_manager` and make it primary user by
     // making user logged in.
-    fake_user_manager->AddUser(fake_user_account);
-    fake_user_manager->UserLoggedIn(fake_user_account, fake_user_hash_,
-                                    /*browser_restart=*/false, false);
-
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
+    fake_user_manager_->AddGaiaUser(fake_user_account,
+                                    user_manager::UserType::kRegular);
+    fake_user_manager_->UserLoggedIn(fake_user_account, fake_user_hash_);
 
     // Set up task runner and container for RedactionTool. We will use when
     // calling CollectDataAndDetectPII() and ExportCollectedDataWithPII()
@@ -147,7 +148,9 @@ class ChromeUserLogsDataCollectorTest : public ::testing::Test {
 
   content::BrowserTaskEnvironment task_environment_;
   std::string fake_user_hash_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  TestingPrefServiceSimple local_state_;
+  user_manager::TypedScopedUserManager<user_manager::FakeUserManager>
+      fake_user_manager_;
   base::ScopedTempDir temp_dir_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_for_redaction_tool_;
   scoped_refptr<redaction::RedactionToolContainer> redaction_tool_container_;
@@ -164,20 +167,20 @@ TEST_F(ChromeUserLogsDataCollectorTest, CollectAndExportData) {
   WriteFakeLogFiles();
 
   // Test data collection and PII detection.
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_collect_data;
   data_collector.CollectDataAndDetectPII(test_future_collect_data.GetCallback(),
                                          task_runner_for_redaction_tool_,
                                          redaction_tool_container_);
   // Check if CollectDataAndDetectPII call returned an error.
-  absl::optional<SupportToolError> error = test_future_collect_data.Get();
-  EXPECT_EQ(error, absl::nullopt);
+  std::optional<SupportToolError> error = test_future_collect_data.Get();
+  EXPECT_EQ(error, std::nullopt);
 
   // Check the PII map that `data_collector` detected.
   EXPECT_THAT(data_collector.GetDetectedPII(), ContainerEq(kExpectedPIIMap));
 
   // Check PII removal and data export.
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_export_data;
   base::FilePath output_dir = GetTempDirForOutput();
   // Export collected data to a directory and remove all PII from it.
@@ -186,7 +189,7 @@ TEST_F(ChromeUserLogsDataCollectorTest, CollectAndExportData) {
       redaction_tool_container_, test_future_export_data.GetCallback());
   // Check if ExportCollectedDataWithPII call returned an error.
   error = test_future_export_data.Get();
-  EXPECT_EQ(error, absl::nullopt);
+  EXPECT_EQ(error, std::nullopt);
 
   // Prepare expected logs.
   std::map<std::string, std::string> expected_logs;

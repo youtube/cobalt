@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_IMAGE_FETCHER_CORE_IMAGE_FETCHER_H_
 #define COMPONENTS_IMAGE_FETCHER_CORE_IMAGE_FETCHER_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -13,7 +14,6 @@
 #include "base/time/time.h"
 #include "components/image_fetcher/core/image_fetcher_types.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
@@ -47,7 +47,7 @@ class ImageFetcherParams {
 
  public:
   // Sets the UMA client name to report feature-specific metrics. Make sure
-  // |uma_client_name| is also present in histograms.xml.
+  // `uma_client_name` is also present in histograms.xml.
   ImageFetcherParams(
       net::NetworkTrafficAnnotationTag network_traffic_annotation_tag,
       std::string uma_client_name);
@@ -60,11 +60,11 @@ class ImageFetcherParams {
     return network_traffic_annotation_tag_;
   }
 
-  void set_max_download_size(absl::optional<int64_t> max_download_bytes) {
+  void set_max_download_size(std::optional<int64_t> max_download_bytes) {
     max_download_bytes_ = max_download_bytes;
   }
 
-  absl::optional<int64_t> max_download_size() const {
+  std::optional<int64_t> max_download_size() const {
     return max_download_bytes_;
   }
 
@@ -93,7 +93,7 @@ class ImageFetcherParams {
     skip_disk_cache_read_ = skip_disk_cache_read;
   }
 
-  const absl::optional<base::TimeDelta>& expiration_interval() const {
+  const std::optional<base::TimeDelta>& expiration_interval() const {
     return expiration_interval_;
   }
 
@@ -122,11 +122,11 @@ class ImageFetcherParams {
 
   const net::NetworkTrafficAnnotationTag network_traffic_annotation_tag_;
 
-  absl::optional<int64_t> max_download_bytes_;
+  std::optional<int64_t> max_download_bytes_;
   // Only used in rare cases to keep the cache file on disk for certain period
-  // of time. Image files will stay in cache at least for |expiration_interval_|
+  // of time. Image files will stay in cache at least for `expiration_interval_`
   // after last use.
-  absl::optional<base::TimeDelta> expiration_interval_;
+  std::optional<base::TimeDelta> expiration_interval_;
   gfx::Size desired_frame_size_;
   std::string uma_client_name_;
   // When true, the image fetcher will skip transcoding whenever possible. Only
@@ -150,17 +150,17 @@ class ImageFetcherParams {
 // callback will be called on the thread which initiated the fetch.
 class ImageFetcher {
  public:
-  ImageFetcher() {}
+  ImageFetcher() = default;
 
   ImageFetcher(const ImageFetcher&) = delete;
   ImageFetcher& operator=(const ImageFetcher&) = delete;
 
-  virtual ~ImageFetcher() {}
+  virtual ~ImageFetcher() = default;
 
-  // Fetch an image and optionally decode it. |image_data_callback| is called
-  // when the image fetch completes, but |image_data_callback| may be empty.
-  // |image_callback| is called when the image is finished decoding.
-  // |image_callback| may be empty if image decoding is not required. If a
+  // Fetch an image and optionally decode it. `image_data_callback` is called
+  // when the image fetch completes, but `image_data_callback` may be empty.
+  // `image_callback` is called when the image is finished decoding.
+  // `image_callback` may be empty if image decoding is not required. If a
   // callback is provided, it will be called exactly once. On failure, an empty
   // string/gfx::Image is returned.
   virtual void FetchImageAndData(const GURL& image_url,
@@ -170,7 +170,7 @@ class ImageFetcher {
 
   // Fetch an image and decode it. An empty gfx::Image will be returned to the
   // callback in case the image could not be fetched. This is the same as
-  // calling FetchImageAndData without an |image_data_callback|.
+  // calling FetchImageAndData without an `image_data_callback`.
   void FetchImage(const GURL& image_url,
                   ImageFetcherCallback callback,
                   ImageFetcherParams params) {
@@ -179,7 +179,7 @@ class ImageFetcher {
   }
 
   // Just fetch the image data, do not decode. This is the same as
-  // calling FetchImageAndData without an |image_callback|.
+  // calling FetchImageAndData without an `image_callback`.
   void FetchImageData(const GURL& image_url,
                       ImageDataFetcherCallback callback,
                       ImageFetcherParams params) {

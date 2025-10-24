@@ -8,11 +8,11 @@
 #include <cstddef>
 #include <memory>
 
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
 
@@ -22,10 +22,10 @@ namespace test {
 class QuicHeadersStreamPeer;
 }  // namespace test
 
-// Headers in QUIC are sent as HTTP/2 HEADERS or PUSH_PROMISE frames over a
-// reserved stream with the id 3.  Each endpoint (client and server) will
-// allocate an instance of QuicHeadersStream to send and receive headers.
-class QUIC_EXPORT_PRIVATE QuicHeadersStream : public QuicStream {
+// Headers in QUIC are sent as HTTP/2 HEADERS frames over a reserved stream with
+// the id 3.  Each endpoint (client and server) will allocate an instance of
+// QuicHeadersStream to send and receive headers.
+class QUICHE_EXPORT QuicHeadersStream : public QuicStream {
  public:
   explicit QuicHeadersStream(QuicSpdySession* session);
   QuicHeadersStream(const QuicHeadersStream&) = delete;
@@ -41,7 +41,8 @@ class QUIC_EXPORT_PRIVATE QuicHeadersStream : public QuicStream {
   bool OnStreamFrameAcked(QuicStreamOffset offset, QuicByteCount data_length,
                           bool fin_acked, QuicTime::Delta ack_delay_time,
                           QuicTime receive_timestamp,
-                          QuicByteCount* newly_acked_length) override;
+                          QuicByteCount* newly_acked_length,
+                          bool is_retransmission) override;
 
   void OnStreamFrameRetransmitted(QuicStreamOffset offset,
                                   QuicByteCount data_length,
@@ -54,7 +55,7 @@ class QUIC_EXPORT_PRIVATE QuicHeadersStream : public QuicStream {
 
   // CompressedHeaderInfo includes simple information of a header, including
   // offset in headers stream, unacked length and ack listener of this header.
-  struct QUIC_EXPORT_PRIVATE CompressedHeaderInfo {
+  struct QUICHE_EXPORT CompressedHeaderInfo {
     CompressedHeaderInfo(
         QuicStreamOffset headers_stream_offset, QuicStreamOffset full_length,
         quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>

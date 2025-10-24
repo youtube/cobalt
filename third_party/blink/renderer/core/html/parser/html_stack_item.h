@@ -26,11 +26,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_STACK_ITEM_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_STACK_ITEM_H_
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/html/parser/atomic_html_token.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/mathml_names.h"
 #include "third_party/blink/renderer/core/svg_names.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
@@ -72,7 +74,8 @@ class HTMLStackItem final : public GarbageCollected<HTMLStackItem> {
     // We rely on Create() allocating extra memory past our end for the
     // attributes.
     for (wtf_size_t i = 0; i < token->Attributes().size(); ++i) {
-      new (TokenAttributesData() + i) Attribute(token->Attributes()[i]);
+      new (UNSAFE_TODO(TokenAttributesData() + i))
+          Attribute(token->Attributes()[i]);
     }
   }
 
@@ -108,15 +111,21 @@ class HTMLStackItem final : public GarbageCollected<HTMLStackItem> {
 
   const base::span<Attribute> Attributes() {
     DCHECK(LocalName());
-    return {TokenAttributesData(), num_token_attributes_};
+    return UNSAFE_TODO({TokenAttributesData(), num_token_attributes_});
   }
   const base::span<const Attribute> Attributes() const {
     DCHECK(LocalName());
-    return {TokenAttributesData(), num_token_attributes_};
+    return UNSAFE_TODO({TokenAttributesData(), num_token_attributes_});
   }
   Attribute* GetAttributeItem(const QualifiedName& attribute_name) {
     DCHECK(LocalName());
     return FindAttributeInVector(Attributes(), attribute_name);
+  }
+  bool HasParsePartsAttribute() {
+    if (!LocalName() || !RuntimeEnabledFeatures::DOMPartsAPIEnabled()) {
+      return false;
+    }
+    return GetAttributeItem(html_names::kParsepartsAttr);
   }
 
   html_names::HTMLTag GetHTMLTag() const { return token_name_.GetHTMLTag(); }
@@ -296,11 +305,11 @@ class HTMLStackItem final : public GarbageCollected<HTMLStackItem> {
     return false;
   }
 
-  HTMLStackItem* NextItemInStack() { return next_item_in_stack_; }
+  HTMLStackItem* NextItemInStack() { return next_item_in_stack_.Get(); }
 
   bool IsAboveItemInStack(const HTMLStackItem* item) const {
     DCHECK(item);
-    HTMLStackItem* below = next_item_in_stack_;
+    HTMLStackItem* below = next_item_in_stack_.Get();
     while (below) {
       if (below == item) {
         return true;
@@ -333,11 +342,11 @@ class HTMLStackItem final : public GarbageCollected<HTMLStackItem> {
   // by Create().
   Attribute* TokenAttributesData() {
     static_assert(alignof(HTMLStackItem) >= alignof(Attribute));
-    return reinterpret_cast<Attribute*>(this + 1);
+    return reinterpret_cast<Attribute*>(UNSAFE_TODO(this + 1));
   }
   const Attribute* TokenAttributesData() const {
     static_assert(alignof(HTMLStackItem) >= alignof(Attribute));
-    return reinterpret_cast<const Attribute*>(this + 1);
+    return reinterpret_cast<const Attribute*>(UNSAFE_TODO(this + 1));
   }
 
   Member<ContainerNode> node_;

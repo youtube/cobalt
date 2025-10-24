@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/services/secure_channel/ble_weave_packet_generator.h"
 
+#include <netinet/in.h>
 #include <string.h>
 
 #include <algorithm>
 
 #include "base/check_op.h"
 #include "build/build_config.h"
-
-#if BUILDFLAG(IS_WIN)
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
-#endif
 
 namespace ash::secure_channel::weave {
 

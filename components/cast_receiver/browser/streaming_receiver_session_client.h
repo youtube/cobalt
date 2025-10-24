@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
@@ -14,6 +15,7 @@
 #include "components/cast_receiver/browser/public/streaming_config_manager.h"
 #include "components/cast_streaming/browser/public/network_context_getter.h"
 #include "components/cast_streaming/browser/public/receiver_session.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -73,7 +75,7 @@ class StreamingReceiverSessionClient
   // lifetime of this instance.
   StreamingReceiverSessionClient(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
-      cast_streaming::NetworkContextGetter network_context_getter,
+      network::NetworkContextGetter network_context_getter,
       std::unique_ptr<cast_api_bindings::MessagePort> message_port,
       content::WebContents* web_contents,
       Handler* handler,
@@ -140,7 +142,7 @@ class StreamingReceiverSessionClient
   // This second ctor is required for Unit Testing.
   StreamingReceiverSessionClient(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
-      cast_streaming::NetworkContextGetter network_context_getter,
+      network::NetworkContextGetter network_context_getter,
       std::unique_ptr<StreamingController> streaming_controller,
       Handler* handler,
       cast_receiver::StreamingConfigManager* config_manager,
@@ -186,7 +188,7 @@ class StreamingReceiverSessionClient
   void OnPlaybackStarted();
 
   // Handler for callbacks associated with this class. May be empty.
-  Handler* const handler_;
+  const raw_ptr<Handler> handler_;
 
   // Task runner on which waiting for the result of an AV Settings query should
   // occur.

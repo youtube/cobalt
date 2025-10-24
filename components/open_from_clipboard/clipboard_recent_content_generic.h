@@ -7,7 +7,6 @@
 
 #include "base/time/time.h"
 #include "components/open_from_clipboard/clipboard_recent_content.h"
-#include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 
 // An implementation of ClipboardRecentContent that uses
@@ -28,10 +27,10 @@ class ClipboardRecentContentGeneric : public ClipboardRecentContent {
   ~ClipboardRecentContentGeneric() override;
 
   // ClipboardRecentContent implementation.
-  absl::optional<GURL> GetRecentURLFromClipboard() override;
-  absl::optional<std::u16string> GetRecentTextFromClipboard() override;
-  absl::optional<std::set<ClipboardContentType>>
-  GetCachedClipboardContentTypes() override;
+  std::optional<GURL> GetRecentURLFromClipboard() override;
+  std::optional<std::u16string> GetRecentTextFromClipboard() override;
+  std::optional<std::set<ClipboardContentType>> GetCachedClipboardContentTypes()
+      override;
   void GetRecentImageFromClipboard(GetRecentImageCallback callback) override;
   bool HasRecentImageFromClipboard() override;
   void HasRecentContentFromClipboard(std::set<ClipboardContentType> types,

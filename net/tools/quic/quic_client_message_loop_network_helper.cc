@@ -28,7 +28,6 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quiche/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 
 using std::string;
 
@@ -44,7 +43,7 @@ QuicClientMessageLooplNetworkHelper::~QuicClientMessageLooplNetworkHelper() =
 
 bool QuicClientMessageLooplNetworkHelper::CreateUDPSocketAndBind(
     quic::QuicSocketAddress server_address,
-    quic::QuicIpAddress bind_to_address,
+    quiche::QuicheIpAddress bind_to_address,
     int bind_to_port) {
   auto socket = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
                                                   nullptr, NetLogSource());
@@ -55,10 +54,10 @@ bool QuicClientMessageLooplNetworkHelper::CreateUDPSocketAndBind(
   } else if (server_address.host().address_family() ==
              quiche::IpAddressFamily::IP_V4) {
     client_address_ =
-        quic::QuicSocketAddress(quic::QuicIpAddress::Any4(), bind_to_port);
+        quic::QuicSocketAddress(quiche::QuicheIpAddress::Any4(), bind_to_port);
   } else {
     client_address_ =
-        quic::QuicSocketAddress(quic::QuicIpAddress::Any6(), bind_to_port);
+        quic::QuicSocketAddress(quiche::QuicheIpAddress::Any6(), bind_to_port);
   }
 
   int rc = socket->Connect(ToIPEndPoint(server_address));
@@ -89,7 +88,7 @@ bool QuicClientMessageLooplNetworkHelper::CreateUDPSocketAndBind(
 
   socket_.swap(socket);
   packet_reader_ = std::make_unique<QuicChromiumPacketReader>(
-      socket_.get(), clock_, this, kQuicYieldAfterPacketsRead,
+      std::move(socket_), clock_, this, kQuicYieldAfterPacketsRead,
       quic::QuicTime::Delta::FromMilliseconds(
           kQuicYieldAfterDurationMilliseconds),
       NetLogWithSource());
@@ -128,7 +127,8 @@ QuicClientMessageLooplNetworkHelper::CreateQuicPacketWriter() {
   packet_reader_started_ = false;
 
   return new QuicChromiumPacketWriter(
-      socket_.get(), base::SingleThreadTaskRunner::GetCurrentDefault().get());
+      packet_reader_->socket(),
+      base::SingleThreadTaskRunner::GetCurrentDefault().get());
 }
 
 bool QuicClientMessageLooplNetworkHelper::OnReadError(

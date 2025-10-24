@@ -6,30 +6,30 @@
 #define BASE_TASK_THREAD_POOL_THREAD_POOL_IMPL_H_
 
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/base_export.h"
+#include "base/containers/flat_map.h"
 #include "base/dcheck_is_on.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/task/single_thread_task_runner_thread_mode.h"
-#include "base/task/task_traits.h"
 #include "base/task/thread_pool/delayed_task_manager.h"
 #include "base/task/thread_pool/environment_config.h"
+#include "base/task/thread_pool/pooled_sequenced_task_runner.h"
 #include "base/task/thread_pool/pooled_single_thread_task_runner_manager.h"
 #include "base/task/thread_pool/pooled_task_runner_delegate.h"
 #include "base/task/thread_pool/service_thread.h"
 #include "base/task/thread_pool/task_source.h"
 #include "base/task/thread_pool/task_tracker.h"
 #include "base/task/thread_pool/thread_group.h"
-#include "base/task/thread_pool/thread_group_impl.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/task/updateable_sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/com_init_check_hook.h"
@@ -49,12 +49,12 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
 
   // Creates a ThreadPoolImpl with a production TaskTracker. |histogram_label|
   // is used to label histograms. No histograms are recorded if it is empty.
-  explicit ThreadPoolImpl(StringPiece histogram_label);
+  explicit ThreadPoolImpl(std::string_view histogram_label);
 
   // For testing only. Creates a ThreadPoolImpl with a custom TaskTracker.
   // If |!use_background_threads|, background threads will run with default
   // priority.
-  ThreadPoolImpl(StringPiece histogram_label,
+  ThreadPoolImpl(std::string_view histogram_label,
                  std::unique_ptr<TaskTrackerImpl> task_tracker,
                  bool use_background_threads = true);
 
@@ -77,6 +77,8 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   void EndFence() override;
   void BeginBestEffortFence() override;
   void EndBestEffortFence() override;
+  void BeginRestrictedTasks() override;
+  void EndRestrictedTasks() override;
   void BeginFizzlingBlockShutdownTasks() override;
   void EndFizzlingBlockShutdownTasks() override;
 
@@ -92,7 +94,7 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   // immediate, nullopt if none). This is thread-safe, i.e., it's safe if tasks
   // are being posted in parallel with this call but such a situation obviously
   // results in a race as to whether this call will see the new tasks in time.
-  absl::optional<TimeTicks> NextScheduledRunTimeForTesting() const;
+  std::optional<TimeTicks> NextScheduledRunTimeForTesting() const;
 
   // Forces ripe delayed tasks to be posted (e.g. when time is mocked and
   // advances faster than the real-time delay on ServiceThread).
@@ -153,6 +155,16 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   scoped_refptr<UpdateableSequencedTaskRunner>
   CreateUpdateableSequencedTaskRunner(const TaskTraits& traits);
 
+  // Returns a SequencedTaskRunner whose PostTask invocations result in
+  // scheduling tasks using |traits|. Tasks run one at a time in posting order.
+  // Returns the existing `SequenceTaskRunner` for 'path', or creates it.
+  // Ensures tasks accessing the same `path` are sequenced, even if posted from
+  // `SequencedTaskRunner`s obtained in different contexts. The same `traits`
+  // must be provided to all calls with the same `path`.
+  scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunnerForResource(
+      const TaskTraits& traits,
+      const base::FilePath& path);
+
  private:
   // Invoked after |num_fences_| or |num_best_effort_fences_| is updated. Sets
   // the CanRunPolicy in TaskTracker and wakes up workers as appropriate.
@@ -203,6 +215,10 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   // Provides COM initialization verification for supported builds.
   base::win::ComInitCheckHook com_init_check_hook_;
 #endif
+
+  base::Lock sequences_for_resources_lock_;
+  base::flat_map<base::FilePath, scoped_refptr<PooledSequencedTaskRunner>>
+      sequences_for_resources_ GUARDED_BY(sequences_for_resources_lock_);
 
   // Asserts that operations occur in sequence with Start().
   SEQUENCE_CHECKER(sequence_checker_);

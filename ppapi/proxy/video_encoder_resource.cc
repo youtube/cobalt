@@ -367,7 +367,7 @@ void VideoEncoderResource::OnPluginMsgEncodeReply(
   encoder_last_error_ = params.result();
 
   EncodeMap::iterator it = encode_callbacks_.find(video_frame);
-  DCHECK(encode_callbacks_.end() != it);
+  CHECK(encode_callbacks_.end() != it);
 
   scoped_refptr<TrackedCallback> callback = it->second;
   encode_callbacks_.erase(it);

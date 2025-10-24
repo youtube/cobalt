@@ -7,8 +7,8 @@
 #include <memory>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "net/base/net_errors.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
 
 namespace content {
@@ -46,10 +46,6 @@ void PrefetchNetworkContextClient::OnGenerateHttpNegotiateAuthToken(
     OnGenerateHttpNegotiateAuthTokenCallback callback) {
   std::move(callback).Run(net::ERR_FAILED, server_auth_token);
 }
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-void PrefetchNetworkContextClient::OnTrustAnchorUsed() {}
 #endif
 
 #if BUILDFLAG(IS_CT_SUPPORTED)

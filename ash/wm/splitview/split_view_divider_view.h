@@ -5,83 +5,98 @@
 #ifndef ASH_WM_SPLITVIEW_SPLIT_VIEW_DIVIDER_VIEW_H_
 #define ASH_WM_SPLITVIEW_SPLIT_VIEW_DIVIDER_VIEW_H_
 
-#include "ash/style/icon_button.h"
+#include "ash/ash_export.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/views/view.h"
+#include "ui/views/accessible_pane_view.h"
 #include "ui/views/view_targeter_delegate.h"
-#include "ui/views/widget/unique_widget_ptr.h"
+
+namespace gfx {
+class Rect;
+}  // namespace gfx
 
 namespace ash {
 
-class SplitViewController;
+class DividerHandlerView;
 class SplitViewDivider;
-class SplitViewDividerHandlerView;
-class SnapGroupExpandedMenuView;
 
-// A view that acts as the contents view of the split view divider widget.
-class SplitViewDividerView : public views::View,
+// A view that acts as the content view within a split view divider widget.
+// It hosts one child view: a handler view. Its responsibility is to update the
+// bounds and visibility of its child views in response to located events.
+//          | |
+//          | |
+//          |||<-----handler_view_
+//          |||
+//          | |
+class SplitViewDividerView : public views::AccessiblePaneView,
                              public views::ViewTargeterDelegate {
- public:
-  METADATA_HEADER(SplitViewDividerView);
+  METADATA_HEADER(SplitViewDividerView, views::AccessiblePaneView)
 
-  explicit SplitViewDividerView(SplitViewController* controller,
-                                SplitViewDivider* divider);
+ public:
+  explicit SplitViewDividerView(SplitViewDivider* divider);
   SplitViewDividerView(const SplitViewDividerView&) = delete;
   SplitViewDividerView& operator=(const SplitViewDividerView&) = delete;
-  ~SplitViewDividerView() override = default;
+  ~SplitViewDividerView() override;
 
-  void DoSpawningAnimation(int spawn_position);
-  void SetDividerBarVisible(bool visible);
+  void SetHandlerBarVisible(bool visible);
+
+  // Called explicitly by SplitViewDivider when the divider widget is closing.
+  void OnDividerClosing();
 
   // views::View:
-  void Layout() override;
+  void Layout(PassKey) override;
+  void OnMouseEntered(const ui::MouseEvent& event) override;
+  void OnMouseExited(const ui::MouseEvent& event) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
   bool OnMouseDragged(const ui::MouseEvent& event) override;
   void OnMouseReleased(const ui::MouseEvent& event) override;
   void OnGestureEvent(ui::GestureEvent* event) override;
+  ui::Cursor GetCursor(const ui::MouseEvent& event) override;
+  void OnKeyEvent(ui::KeyEvent* event) override;
 
   // views::ViewTargeterDelegate:
   bool DoesIntersectRect(const views::View* target,
                          const gfx::Rect& rect) const override;
 
-  IconButton* kebab_button_for_testing() const { return kebab_button_; }
-  views::Widget* snap_group_expanded_menu_widget_for_testing() const {
-    return snap_group_expanded_menu_widget_.get();
-  }
-  SnapGroupExpandedMenuView* snap_group_expanded_menu_view_for_testing() const {
-    return snap_group_expanded_menu_view_;
-  }
+  // AccessiblePaneView:
+  views::View* GetDefaultFocusableChild() override;
+  void OnFocus() override;
+
+  ASH_EXPORT gfx::Rect GetHandlerViewBoundsInScreenForTesting() const;
+
+  DividerHandlerView* handler_view_for_testing() { return handler_view_; }
 
  private:
-  void OnResizeStatusChanged();
+  friend class SplitViewDivider;
 
-  // Called when the `kebab_button_` is pressed which toggles between showing or
-  // hiding the `snap_group_expanded_menu_widget_`.
-  void OnKebabButtonPressed();
+  void SwapWindows();
 
-  // Called to update the bounds of the `snap_group_expanded_menu_widget_`.
-  void MaybeUpdateExpandedMenuWidgetBounds();
+  void StartResizing(gfx::Point location);
 
-  raw_ptr<SplitViewController, ExperimentalAsh> split_view_controller_;
-  raw_ptr<SplitViewDividerHandlerView, ExperimentalAsh> divider_handler_view_ =
-      nullptr;
-  raw_ptr<SplitViewDivider, ExperimentalAsh> divider_;
+  // Safely ends resizing, preventing use after destruction. If
+  // `swap_windows` is true, swaps the windows after resizing.
+  void EndResizing(gfx::Point location, bool swap_windows);
 
-  // A vertical 3-dot button that shows on the split view divider when
-  // `ShouldAutomaticallyGroupOnWindowsSnappedInClamshell()` is true.
-  raw_ptr<IconButton, ExperimentalAsh> kebab_button_;
+  // Resizes the windows and divider on a key event.
+  void ResizeOnKeyEvent(bool left_or_top, bool horizontal);
 
-  // The snap group expanded menu widget and its contents view.
-  views::UniqueWidgetPtr snap_group_expanded_menu_widget_;
-  raw_ptr<SnapGroupExpandedMenuView, ExperimentalAsh>
-      snap_group_expanded_menu_view_ = nullptr;
+  // Refreshes the divider handler's bounds and rounded corners in response to
+  // changes in the divider's hover state or display properties.
+  void RefreshDividerHandler();
 
-  // True if the `snap_group_expanded_menu_widget_` should show
-  // `OnKebabButtonPressed()` and false otherwise. The value will be updated on
-  // the `kebab_button_` is clicked.
-  bool should_show_expanded_menu_ = false;
+  // The location of the initial mouse event in screen coordinates.
+  gfx::Point initial_mouse_event_location_;
+
+  // True if the mouse has been pressed down and moved (dragged) so we can start
+  // a resize.
+  bool mouse_move_started_ = false;
+
+  raw_ptr<SplitViewDivider> divider_;
+
+  raw_ptr<DividerHandlerView> handler_view_ = nullptr;
+
+  base::WeakPtrFactory<SplitViewDividerView> weak_ptr_factory_{this};
 };
 
 }  // namespace ash
 
-#endif
+#endif  // ASH_WM_SPLITVIEW_SPLIT_VIEW_DIVIDER_VIEW_H_

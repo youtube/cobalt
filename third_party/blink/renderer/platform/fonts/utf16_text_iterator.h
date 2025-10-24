@@ -18,11 +18,17 @@
  *
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_UTF16_TEXT_ITERATOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_UTF16_TEXT_ITERATOR_H_
 
 #include <unicode/utf16.h>
 
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
@@ -31,20 +37,25 @@
 namespace blink {
 
 class PLATFORM_EXPORT UTF16TextIterator {
-  USING_FAST_MALLOC(UTF16TextIterator);
+  STACK_ALLOCATED();
 
  public:
   // The passed in UChar pointer starts at 'offset'. The iterator operates on
   // the range [offset, endOffset].
   // 'length' denotes the maximum length of the UChar array, which might exceed
   // 'endOffset'.
-  UTF16TextIterator(const UChar*, int length);
+  explicit UTF16TextIterator(base::span<const UChar> characters)
+      : characters_(characters.data()),
+        characters_end_(characters.data() + characters.size()),
+        size_(base::checked_cast<wtf_size_t>(characters.size())) {}
+
   UTF16TextIterator(const UTF16TextIterator&) = delete;
   UTF16TextIterator& operator=(const UTF16TextIterator&) = delete;
 
   inline bool Consume(UChar32& character) {
-    if (offset_ >= length_)
+    if (offset_ >= size_) {
       return false;
+    }
 
     character = *characters_;
     current_glyph_length_ = 1;
@@ -59,7 +70,8 @@ class PLATFORM_EXPORT UTF16TextIterator {
     offset_ += current_glyph_length_;
   }
 
-  int Offset() const { return offset_; }
+  unsigned Offset() const { return offset_; }
+  unsigned Size() const { return size_; }
   const UChar* Characters() const { return characters_; }
   const UChar* GlyphEnd() const { return characters_ + current_glyph_length_; }
 
@@ -69,10 +81,10 @@ class PLATFORM_EXPORT UTF16TextIterator {
   void ConsumeMultipleUChar();
 
   const UChar* characters_;
-  const UChar* characters_end_;
-  int offset_;
-  int length_;
-  unsigned current_glyph_length_;
+  const UChar* const characters_end_;
+  unsigned offset_ = 0;
+  const unsigned size_;
+  unsigned current_glyph_length_ = 0;
 };
 
 }  // namespace blink

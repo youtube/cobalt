@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "chrome/browser/extensions/api/image_writer_private/test_utils.h"
 
 #include <string.h>
+
 #include <utility>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/path_service.h"
@@ -17,7 +24,7 @@
 #include "chrome/browser/extensions/api/image_writer_private/error_constants.h"
 #include "chrome/common/chrome_paths.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"  // nogncheck
 #include "chromeos/ash/components/dbus/image_burner/fake_image_burner_client.h"
@@ -28,7 +35,7 @@
 namespace extensions {
 namespace image_writer {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 class ImageWriterFakeImageBurnerClient : public ash::FakeImageBurnerClient {
  public:
   ImageWriterFakeImageBurnerClient() = default;
@@ -68,11 +75,11 @@ MockOperationManager::MockOperationManager(content::BrowserContext* context)
     : OperationManager(context) {}
 MockOperationManager::~MockOperationManager() = default;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-FakeDiskMountManager::FakeDiskMountManager() {}
-FakeDiskMountManager::~FakeDiskMountManager() = default;
+#if BUILDFLAG(IS_CHROMEOS)
+UnmountingMockDiskMountManager::UnmountingMockDiskMountManager() = default;
+UnmountingMockDiskMountManager::~UnmountingMockDiskMountManager() = default;
 
-void FakeDiskMountManager::UnmountDeviceRecursively(
+void UnmountingMockDiskMountManager::UnmountDeviceRecursively(
     const std::string& device_path,
     UnmountDeviceRecursivelyCallbackType callback) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -184,17 +191,17 @@ void FakeImageWriterClient::Cancel() {
     std::move(cancel_callback_).Run();
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 scoped_refptr<ImageWriterUtilityClient> CreateFakeImageWriterUtilityClient(
     ImageWriterTestUtils* utils) {
   auto* client = new FakeImageWriterClient();
   utils->OnUtilityClientCreated(client);
   return base::WrapRefCounted(client);
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 ImageWriterTestUtils::ImageWriterTestUtils()
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     : utility_client_factory_(
           base::BindRepeating(&CreateFakeImageWriterUtilityClient, this))
 #endif
@@ -203,7 +210,7 @@ ImageWriterTestUtils::ImageWriterTestUtils()
 
 ImageWriterTestUtils::~ImageWriterTestUtils() = default;
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 void ImageWriterTestUtils::OnUtilityClientCreated(
     FakeImageWriterClient* client) {
   DCHECK(!client_.get())
@@ -214,7 +221,7 @@ void ImageWriterTestUtils::OnUtilityClientCreated(
 }
 #endif
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 void ImageWriterTestUtils::RunOnUtilityClientCreation(
     base::OnceCallback<void(FakeImageWriterClient*)> closure) {
   client_creation_callback_ = std::move(closure);
@@ -231,7 +238,7 @@ void ImageWriterTestUtils::SetUp() {
   ASSERT_TRUE(FillFile(test_image_path_, kImagePattern, kTestFileSize));
   ASSERT_TRUE(FillFile(test_device_path_, kDevicePattern, kTestFileSize));
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Browser tests might have already initialized ConciergeClient.
   if (!ash::ConciergeClient::Get()) {
     ash::ConciergeClient::InitializeFake(
@@ -241,7 +248,7 @@ void ImageWriterTestUtils::SetUp() {
   image_burner_client_ = std::make_unique<ImageWriterFakeImageBurnerClient>();
   ash::ImageBurnerClient::SetInstanceForTest(image_burner_client_.get());
 
-  FakeDiskMountManager* disk_manager = new FakeDiskMountManager();
+  auto* disk_manager = new UnmountingMockDiskMountManager();
   ash::disks::DiskMountManager::InitializeForTesting(disk_manager);
 
   // Adds a disk entry for test_device_path_ with the same device and file path.
@@ -256,7 +263,7 @@ void ImageWriterTestUtils::SetUp() {
 }
 
 void ImageWriterTestUtils::TearDown() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::ImageBurnerClient::SetInstanceForTest(nullptr);
   image_burner_client_.reset();
 
@@ -283,22 +290,25 @@ const base::FilePath& ImageWriterTestUtils::GetDevicePath() {
 }
 
 bool ImageWriterTestUtils::ImageWrittenToDevice() {
-  std::unique_ptr<char[]> image_buffer(new char[kTestFileSize]);
-  std::unique_ptr<char[]> device_buffer(new char[kTestFileSize]);
+  auto image_buffer = base::HeapArray<char>::Uninit(kTestFileSize);
+  auto device_buffer = base::HeapArray<char>::Uninit(kTestFileSize);
 
-  int image_bytes_read =
-      ReadFile(test_image_path_, image_buffer.get(), kTestFileSize);
+  std::optional<uint64_t> image_bytes_read =
+      ReadFile(test_image_path_, image_buffer);
 
-  if (image_bytes_read < 0)
+  if (!image_bytes_read) {
     return false;
+  }
 
-  int device_bytes_read =
-      ReadFile(test_device_path_, device_buffer.get(), kTestFileSize);
+  std::optional<uint64_t> device_bytes_read =
+      ReadFile(test_device_path_, device_buffer);
 
-  if (image_bytes_read != device_bytes_read)
+  if (image_bytes_read != device_bytes_read) {
     return false;
+  }
 
-  return memcmp(image_buffer.get(), device_buffer.get(), image_bytes_read) == 0;
+  return memcmp(image_buffer.data(), device_buffer.data(), *image_bytes_read) ==
+         0;
 }
 
 bool ImageWriterTestUtils::FillFile(const base::FilePath& file,
@@ -318,8 +328,8 @@ void ImageWriterUnitTestBase::SetUp() {
 }
 
 void ImageWriterUnitTestBase::TearDown() {
-  testing::Test::TearDown();
   test_utils_.TearDown();
+  testing::Test::TearDown();
 }
 
 bool GetTestDataDirectory(base::FilePath* path) {

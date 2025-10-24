@@ -4,71 +4,86 @@
 
 package org.chromium.components.browser_ui.site_settings;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.content.Context;
 import android.text.format.Formatter;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.content_settings.ContentSettingsType;
+import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
+import org.chromium.content_public.browser.HostZoomMap;
 
-/**
- * Util class for site settings UI.
- */
+/** Util class for site settings UI. */
+@NullMarked
 public class SiteSettingsUtil {
     // Defining the order for content settings based on http://crbug.com/610358
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public static final int[] SETTINGS_ORDER = {
-            ContentSettingsType.COOKIES,
-            ContentSettingsType.GEOLOCATION,
-            ContentSettingsType.MEDIASTREAM_CAMERA,
-            ContentSettingsType.MEDIASTREAM_MIC,
-            ContentSettingsType.NOTIFICATIONS,
-            ContentSettingsType.JAVASCRIPT,
-            ContentSettingsType.POPUPS,
-            ContentSettingsType.ADS,
-            ContentSettingsType.BACKGROUND_SYNC,
-            ContentSettingsType.AUTOMATIC_DOWNLOADS,
-            ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER,
-            ContentSettingsType.SOUND,
-            ContentSettingsType.MIDI_SYSEX,
-            ContentSettingsType.CLIPBOARD_READ_WRITE,
-            ContentSettingsType.NFC,
-            ContentSettingsType.BLUETOOTH_SCANNING,
-            ContentSettingsType.VR,
-            ContentSettingsType.AR,
-            ContentSettingsType.IDLE_DETECTION,
-            ContentSettingsType.FEDERATED_IDENTITY_API,
-            ContentSettingsType.SENSORS,
-            ContentSettingsType.AUTO_DARK_WEB_CONTENT,
-            ContentSettingsType.REQUEST_DESKTOP_SITE,
+        ContentSettingsType.COOKIES,
+        ContentSettingsType.GEOLOCATION,
+        ContentSettingsType.MEDIASTREAM_CAMERA,
+        ContentSettingsType.MEDIASTREAM_MIC,
+        ContentSettingsType.NOTIFICATIONS,
+        ContentSettingsType.JAVASCRIPT,
+        ContentSettingsType.POPUPS,
+        ContentSettingsType.ADS,
+        ContentSettingsType.BACKGROUND_SYNC,
+        ContentSettingsType.AUTOMATIC_DOWNLOADS,
+        ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER,
+        ContentSettingsType.SOUND,
+        ContentSettingsType.MIDI_SYSEX,
+        ContentSettingsType.CLIPBOARD_READ_WRITE,
+        ContentSettingsType.NFC,
+        ContentSettingsType.FILE_SYSTEM_WRITE_GUARD,
+        ContentSettingsType.BLUETOOTH_SCANNING,
+        ContentSettingsType.VR,
+        ContentSettingsType.AR,
+        ContentSettingsType.HAND_TRACKING,
+        ContentSettingsType.IDLE_DETECTION,
+        ContentSettingsType.FEDERATED_IDENTITY_API,
+        ContentSettingsType.SENSORS,
+        ContentSettingsType.AUTO_DARK_WEB_CONTENT,
+        ContentSettingsType.REQUEST_DESKTOP_SITE,
+        ContentSettingsType.JAVASCRIPT_OPTIMIZER,
     };
 
     static final int[] CHOOSER_PERMISSIONS = {
-            ContentSettingsType.USB_CHOOSER_DATA,
-            // Bluetooth is only shown when WEB_BLUETOOTH_NEW_PERMISSIONS_BACKEND is enabled.
-            ContentSettingsType.BLUETOOTH_CHOOSER_DATA,
+        ContentSettingsType.USB_CHOOSER_DATA,
+        // Bluetooth is only shown when WEB_BLUETOOTH_NEW_PERMISSIONS_BACKEND is enabled.
+        ContentSettingsType.BLUETOOTH_CHOOSER_DATA,
+        // Serial port is only shown when BLUETOOTH_RFCOMM_ANDROID is enabled.
+        ContentSettingsType.SERIAL_CHOOSER_DATA,
+    };
+
+    static final int[] EMBEDDED_PERMISSIONS = {
+        ContentSettingsType.STORAGE_ACCESS,
     };
 
     /**
      * @param types A list of ContentSettingsTypes
      * @return The highest priority permission that is available in SiteSettings. Returns DEFAULT
-     *         when called with empty list or only with entries not represented in this UI.
+     *     when called with empty list or only with entries not represented in this UI.
      */
-    public static @ContentSettingsType int getHighestPriorityPermission(
-            @ContentSettingsType @NonNull int[] types) {
-        for (@ContentSettingsType int setting : SETTINGS_ORDER) {
-            for (@ContentSettingsType int type : types) {
+    public static @ContentSettingsType.EnumType int getHighestPriorityPermission(
+            @ContentSettingsType.EnumType int[] types) {
+        for (@ContentSettingsType.EnumType int setting : SETTINGS_ORDER) {
+            for (@ContentSettingsType.EnumType int type : types) {
                 if (setting == type) {
                     return type;
                 }
             }
         }
-        for (@ContentSettingsType int setting : CHOOSER_PERMISSIONS) {
-            for (@ContentSettingsType int type : types) {
+
+        for (@ContentSettingsType.EnumType int setting : CHOOSER_PERMISSIONS) {
+            for (@ContentSettingsType.EnumType int type : types) {
                 if (type == ContentSettingsType.BLUETOOTH_CHOOSER_DATA
-                        && !ContentFeatureList.isEnabled(
+                        && !ContentFeatureMap.isEnabled(
                                 ContentFeatureList.WEB_BLUETOOTH_NEW_PERMISSIONS_BACKEND)) {
                     continue;
                 }
@@ -77,14 +92,16 @@ public class SiteSettingsUtil {
                 }
             }
         }
-        return ContentSettingsType.DEFAULT;
-    }
 
-    /**
-     * @return whether the flag for the improved UI for "All sites" and "Site settings" is enabled.
-     */
-    public static boolean isSiteDataImprovementEnabled() {
-        return SiteSettingsFeatureList.isEnabled(SiteSettingsFeatureList.SITE_DATA_IMPROVEMENTS);
+        for (@ContentSettingsType.EnumType int setting : EMBEDDED_PERMISSIONS) {
+            for (@ContentSettingsType.EnumType int type : types) {
+                if (setting == type) {
+                    return type;
+                }
+            }
+        }
+
+        return ContentSettingsType.DEFAULT;
     }
 
     /**
@@ -96,17 +113,37 @@ public class SiteSettingsUtil {
     public static String generateStorageUsageText(Context context, long storage, int cookies) {
         String result = "";
         if (storage > 0) {
-            result = String.format(context.getString(R.string.origin_settings_storage_usage_brief),
-                    Formatter.formatShortFileSize(context, storage));
+            result =
+                    context.getString(
+                            R.string.origin_settings_storage_usage_brief,
+                            Formatter.formatShortFileSize(context, storage));
         }
         if (cookies > 0) {
-            String cookie_str = context.getResources().getQuantityString(
-                    R.plurals.cookies_count, cookies, cookies);
-            result = result.isEmpty()
-                    ? cookie_str
-                    : String.format(context.getString(R.string.summary_with_one_bullet), result,
-                            cookie_str);
+            String cookie_str =
+                    context.getResources()
+                            .getQuantityString(R.plurals.cookies_count, cookies, cookies);
+            result =
+                    result.isEmpty()
+                            ? cookie_str
+                            : context.getString(
+                                    R.string.summary_with_one_bullet, result, cookie_str);
         }
         return result;
+    }
+
+    /**
+     * Callback method for when the ImageView on a zoom setting (displayed as a WebsitePreference
+     * row) is clicked.
+     *
+     * @param site Website for which to reset zoom level.
+     */
+    public static void resetZoomLevel(Website site, BrowserContextHandle browserContextHandle) {
+        double defaultZoomFactor =
+                PageZoomUtils.getDefaultZoomLevelAsZoomFactor(browserContextHandle);
+        // Propagate the change through HostZoomMap.
+        HostZoomMap.setZoomLevelForHost(
+                browserContextHandle,
+                assertNonNull(site.getAddress().getHost()),
+                defaultZoomFactor);
     }
 }

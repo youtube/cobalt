@@ -16,6 +16,8 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
 
 namespace crash_annotator {
 
@@ -34,10 +36,17 @@ void CrashAnnotatorImpl::Create(
 void CrashAnnotatorImpl::SetString(const std::string& key,
                                    const std::string& value,
                                    SetStringCallback callback) {
-  // TODO(cobalt, b/383301493): actually implement this.
-  LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key
-            << " value=" << value;
-  std::move(callback).Run(false);
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    std::move(callback).Run(
+        crash_handler_extension->SetString(key.c_str(), value.c_str()));
+  } else {
+    // This method can only be supported if the platform implements version 2,
+    // or greater, of this Starboard Extension.
+    std::move(callback).Run(false);
+  }
 }
 
 }  // namespace crash_annotator

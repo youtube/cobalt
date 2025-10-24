@@ -25,6 +25,7 @@
 
 #include "third_party/blink/renderer/core/layout/layout_custom_scrollbar_part.h"
 
+#include "base/notreached.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/custom_scrollbar.h"
@@ -40,7 +41,7 @@ LayoutCustomScrollbarPart::LayoutCustomScrollbarPart(
     CustomScrollbar* scrollbar,
     ScrollbarPart part,
     bool suppress_use_counters)
-    : LayoutReplaced(nullptr, LayoutSize()),
+    : LayoutReplaced(nullptr),
       scrollable_area_(scrollable_area),
       scrollbar_(scrollbar),
       part_(part),
@@ -55,7 +56,7 @@ static void RecordScrollbarPartStats(Document& document, ScrollbarPart part) {
       UseCounter::Count(
           document,
           WebFeature::kCSSSelectorPseudoScrollbarButtonReversedDirection);
-      U_FALLTHROUGH;
+      [[fallthrough]];
     case kBackButtonStartPart:
     case kForwardButtonEndPart:
       UseCounter::Count(document,
@@ -105,45 +106,50 @@ void LayoutCustomScrollbarPart::Trace(Visitor* visitor) const {
 
 // TODO(crbug.com/1020913): Support subpixel layout of scrollbars and remove
 // ToInt() in the following functions.
-int LayoutCustomScrollbarPart::ComputeSize(SizeType size_type,
-                                           const Length& length,
+// TODO(crbug.com/40339056): This could handle intrinsic sizing keywords
+// and calc-size() a bit better than it does.
+int LayoutCustomScrollbarPart::ComputeSize(const Length& length,
                                            int container_size) const {
   NOT_DESTROYED();
-  if (length.IsSpecified() || (size_type == kMinSize && length.IsAuto()))
+  if (!length.HasAutoOrContentOrIntrinsic() && !length.HasStretch()) {
+    CHECK(length.HasOnlyFixedAndPercent());
     return MinimumValueForLength(length, LayoutUnit(container_size)).ToInt();
+  }
   return CustomScrollbarTheme::GetCustomScrollbarTheme()->ScrollbarThickness(
-      scrollbar_->ScaleFromDIP(), StyleRef().ScrollbarWidth());
+      scrollbar_->ScaleFromDIP(), StyleRef().UsedScrollbarWidth());
 }
 
 int LayoutCustomScrollbarPart::ComputeWidth(int container_width) const {
   NOT_DESTROYED();
-  if (StyleRef().Display() == EDisplay::kNone)
+  const auto& style = StyleRef();
+  if (style.Display() == EDisplay::kNone) {
     return 0;
+  }
 
-  int width = ComputeSize(kMainOrPreferredSize, StyleRef().UsedWidth(),
-                          container_width);
-  int min_width =
-      ComputeSize(kMinSize, StyleRef().UsedMinWidth(), container_width);
-  int max_width =
-      StyleRef().UsedMaxWidth().IsNone()
-          ? width
-          : ComputeSize(kMaxSize, StyleRef().UsedMaxWidth(), container_width);
+  int width = ComputeSize(style.Width(), container_width);
+  int min_width = style.MinWidth().IsAuto()
+                      ? 0
+                      : ComputeSize(style.MinWidth(), container_width);
+  int max_width = style.MaxWidth().IsNone()
+                      ? width
+                      : ComputeSize(style.MaxWidth(), container_width);
   return std::max(min_width, std::min(max_width, width));
 }
 
 int LayoutCustomScrollbarPart::ComputeHeight(int container_height) const {
   NOT_DESTROYED();
-  if (StyleRef().Display() == EDisplay::kNone)
+  const auto& style = StyleRef();
+  if (style.Display() == EDisplay::kNone) {
     return 0;
+  }
 
-  int height = ComputeSize(kMainOrPreferredSize, StyleRef().UsedHeight(),
-                           container_height);
-  int min_height =
-      ComputeSize(kMinSize, StyleRef().UsedMinHeight(), container_height);
-  int max_height =
-      StyleRef().UsedMaxHeight().IsNone()
-          ? height
-          : ComputeSize(kMaxSize, StyleRef().UsedMaxHeight(), container_height);
+  int height = ComputeSize(style.Height(), container_height);
+  int min_height = style.MinHeight().IsAuto()
+                       ? 0
+                       : ComputeSize(style.MinHeight(), container_height);
+  int max_height = style.MaxHeight().IsNone()
+                       ? height
+                       : ComputeSize(style.MaxHeight(), container_height);
   return std::max(min_height, std::min(max_height, height));
 }
 
@@ -162,26 +168,42 @@ int LayoutCustomScrollbarPart::ComputeLength() const {
   NOT_DESTROYED();
   DCHECK_NE(kScrollbarBGPart, part_);
 
-  gfx::Rect visible_content_rect =
-      scrollbar_->GetScrollableArea()->VisibleContentRect(kIncludeScrollbars);
-  if (scrollbar_->Orientation() == kHorizontalScrollbar)
-    return ComputeWidth(visible_content_rect.width());
-  return ComputeHeight(visible_content_rect.height());
+  if (scrollbar_->Orientation() == kHorizontalScrollbar) {
+    return ComputeWidth(scrollbar_->FrameRect().width());
+  }
+  return ComputeHeight(scrollbar_->FrameRect().height());
 }
 
-void LayoutCustomScrollbarPart::SetOverriddenFrameRect(const LayoutRect& rect) {
+void LayoutCustomScrollbarPart::SetOverriddenSize(const PhysicalSize& size) {
   NOT_DESTROYED();
-  overridden_rect_ = rect;
+  overridden_size_ = size;
 }
 
-LayoutPoint LayoutCustomScrollbarPart::Location() const {
+DeprecatedLayoutPoint LayoutCustomScrollbarPart::DeprecatedLocationInternal()
+    const {
   NOT_DESTROYED();
-  return overridden_rect_.Location();
+  NOTREACHED();
 }
 
-LayoutSize LayoutCustomScrollbarPart::Size() const {
+PhysicalSize LayoutCustomScrollbarPart::Size() const {
   NOT_DESTROYED();
-  return overridden_rect_.Size();
+  return overridden_size_;
+}
+
+PhysicalNaturalSizingInfo LayoutCustomScrollbarPart::GetNaturalDimensions()
+    const {
+  NOT_DESTROYED();
+  if (RuntimeEnabledFeatures::
+          LayoutReplacedReturnExplicitDefaultNaturalSizeEnabled()) {
+    // 300x150, no aspect ratio. (Should probably be none.)
+    PhysicalSize natural_size{LayoutUnit(kDefaultWidth),
+                              LayoutUnit(kDefaultHeight)};
+    natural_size.Scale(StyleRef().EffectiveZoom());
+    PhysicalNaturalSizingInfo sizing_info;
+    sizing_info.size = natural_size;
+    return sizing_info;
+  }
+  return PhysicalNaturalSizingInfo::None();
 }
 
 static LayoutUnit ComputeMargin(const Length& style_margin) {
@@ -192,29 +214,33 @@ static LayoutUnit ComputeMargin(const Length& style_margin) {
 
 LayoutUnit LayoutCustomScrollbarPart::MarginTop() const {
   NOT_DESTROYED();
-  if (scrollbar_->Orientation() == kHorizontalScrollbar)
+  if (scrollbar_ && scrollbar_->Orientation() == kHorizontalScrollbar) {
     return LayoutUnit();
+  }
   return ComputeMargin(StyleRef().MarginTop());
 }
 
 LayoutUnit LayoutCustomScrollbarPart::MarginBottom() const {
   NOT_DESTROYED();
-  if (scrollbar_->Orientation() == kHorizontalScrollbar)
+  if (scrollbar_ && scrollbar_->Orientation() == kHorizontalScrollbar) {
     return LayoutUnit();
+  }
   return ComputeMargin(StyleRef().MarginBottom());
 }
 
 LayoutUnit LayoutCustomScrollbarPart::MarginLeft() const {
   NOT_DESTROYED();
-  if (scrollbar_->Orientation() == kVerticalScrollbar)
+  if (scrollbar_ && scrollbar_->Orientation() == kVerticalScrollbar) {
     return LayoutUnit();
+  }
   return ComputeMargin(StyleRef().MarginLeft());
 }
 
 LayoutUnit LayoutCustomScrollbarPart::MarginRight() const {
   NOT_DESTROYED();
-  if (scrollbar_->Orientation() == kVerticalScrollbar)
+  if (scrollbar_ && scrollbar_->Orientation() == kVerticalScrollbar) {
     return LayoutUnit();
+  }
   return ComputeMargin(StyleRef().MarginRight());
 }
 

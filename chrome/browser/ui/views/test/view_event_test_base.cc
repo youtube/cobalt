@@ -3,13 +3,12 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/views/test/view_event_test_base.h"
-#include "base/memory/raw_ptr.h"
 
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/test/base/chrome_unit_test_suite.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -20,15 +19,13 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 
-#if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
 #include "ui/views/widget/desktop_aura/desktop_screen.h"
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) && \
-    BUILDFLAG(IS_OZONE)
+#if BUILDFLAG(IS_LINUX)
 #include "ui/views/test/test_desktop_screen_ozone.h"
-#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) &&
-        // BUILDFLAG(IS_OZONE)
-#endif
+#endif  // BUILDFLAG(IS_LINUX)
+#endif  // defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
@@ -43,7 +40,8 @@ class TestView : public views::View {
   TestView& operator=(const TestView&) = delete;
   ~TestView() override = default;
 
-  gfx::Size CalculatePreferredSize() const override {
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
     return harness_->GetPreferredSizeForContents();
   }
 
@@ -58,7 +56,7 @@ class TestBaseWidgetDelegate : public views::WidgetDelegate {
   explicit TestBaseWidgetDelegate(ViewEventTestBase* harness)
       : harness_(harness) {
     SetCanResize(true);
-    SetOwnedByWidget(true);
+    SetOwnedByWidget(OwnedByWidgetPassKey());
   }
   TestBaseWidgetDelegate(const TestBaseWidgetDelegate&) = delete;
   TestBaseWidgetDelegate& operator=(const TestBaseWidgetDelegate&) = delete;
@@ -75,8 +73,9 @@ class TestBaseWidgetDelegate : public views::WidgetDelegate {
   views::View* GetContentsView() override {
     // This will first be called by Widget::Init(), which passes the returned
     // View* to SetContentsView(), which takes ownership.
-    if (!contents_)
+    if (!contents_) {
       contents_ = new TestView(harness_);
+    }
     return contents_;
   }
 
@@ -95,26 +94,27 @@ ViewEventTestBase::ViewEventTestBase() {
   // in a new process.
   mojo::core::Init();
 
-#if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
   // TODO(pkasting): Determine why the TestScreen in AuraTestHelper is
   // insufficient for these tests, then either bolster/replace it or fix the
   // tests.
   DCHECK(!display::Screen::HasScreen());
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) && \
-    BUILDFLAG(IS_OZONE)
-  if (!display::Screen::HasScreen())
+#if BUILDFLAG(IS_LINUX)
+  if (!display::Screen::HasScreen()) {
     screen_ = views::test::TestDesktopScreenOzone::Create();
-#endif
-  if (!display::Screen::HasScreen())
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+  if (!display::Screen::HasScreen()) {
     screen_ = views::CreateDesktopScreen();
-#endif
+  }
+#endif  // defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
 }
 
 ViewEventTestBase::~ViewEventTestBase() {
   TestingBrowserProcess::DeleteInstance();
 }
 
-void ViewEventTestBase::SetUpTestCase() {
+void ViewEventTestBase::SetUpTestSuite() {
   ChromeUnitTestSuite::InitializeProviders();
   ChromeUnitTestSuite::InitializeResourceBundle();
 }
@@ -125,7 +125,9 @@ void ViewEventTestBase::SetUp() {
   test_views_delegate()->set_use_desktop_native_widgets(true);
 
   window_ = AllocateTestWidget().release();
-  window_->Init(CreateParams(views::Widget::InitParams::TYPE_WINDOW));
+  window_->Init(
+      CreateParams(views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+                   views::Widget::InitParams::TYPE_WINDOW));
   window_->Show();
 }
 
@@ -139,8 +141,10 @@ void ViewEventTestBase::TearDown() {
 }
 
 views::Widget::InitParams ViewEventTestBase::CreateParams(
+    views::Widget::InitParams::Ownership ownership,
     views::Widget::InitParams::Type type) {
-  views::Widget::InitParams params = ChromeViewsTestBase::CreateParams(type);
+  views::Widget::InitParams params =
+      ChromeViewsTestBase::CreateParams(ownership, type);
   params.delegate = new TestBaseWidgetDelegate(this);  // Owns itself.
   return params;
 }
@@ -170,6 +174,13 @@ void ViewEventTestBase::StartMessageLoopAndRunTest() {
   run_loop_.Run();
 }
 
+void ViewEventTestBase::RunTestMethod(base::OnceClosure task) {
+  std::move(task).Run();
+  if (HasFatalFailure()) {
+    Done();
+  }
+}
+
 scoped_refptr<base::SingleThreadTaskRunner>
 ViewEventTestBase::GetDragTaskRunner() {
 #if BUILDFLAG(IS_WIN)
@@ -188,10 +199,4 @@ ViewEventTestBase::GetDragTaskRunner() {
   // tasks will run.
   return base::SingleThreadTaskRunner::GetCurrentDefault();
 #endif
-}
-
-void ViewEventTestBase::RunTestMethod(base::OnceClosure task) {
-  std::move(task).Run();
-  if (HasFatalFailure())
-    Done();
 }

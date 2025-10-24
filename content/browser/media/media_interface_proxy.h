@@ -13,7 +13,6 @@
 #include "base/threading/thread_checker.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/media/media_interface_factory_holder.h"
 #include "content/public/browser/document_user_data.h"
 #include "content/public/common/cdm_info.h"
@@ -56,8 +55,12 @@ class MediaInterfaceProxy final : public DocumentUserData<MediaInterfaceProxy>,
       mojo::PendingReceiver<media::mojom::AudioDecoder> receiver) final;
   void CreateVideoDecoder(
       mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
-      mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>
-          dst_video_decoder) final;
+      mojo::PendingRemote<media::mojom::VideoDecoder> dst_video_decoder) final;
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+  void CreateVideoDecoderWithTracker(
+      mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
+      mojo::PendingRemote<media::mojom::VideoDecoderTracker> tracker) final;
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   void CreateAudioEncoder(
       mojo::PendingReceiver<media::mojom::AudioEncoder> receiver) final;
   void CreateDefaultRenderer(
@@ -74,12 +77,6 @@ class MediaInterfaceProxy final : public DocumentUserData<MediaInterfaceProxy>,
       mojo::PendingRemote<media::mojom::FlingingRendererClientExtension>
           client_extension,
       mojo::PendingReceiver<media::mojom::Renderer> receiver) final;
-  void CreateMediaPlayerRenderer(
-      mojo::PendingRemote<media::mojom::MediaPlayerRendererClientExtension>
-          client_extension_remote,
-      mojo::PendingReceiver<media::mojom::Renderer> receiver,
-      mojo::PendingReceiver<media::mojom::MediaPlayerRendererExtension>
-          renderer_extension_request) final;
 #endif  // BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_WIN)
   void CreateMediaFoundationRenderer(
@@ -139,7 +136,7 @@ class MediaInterfaceProxy final : public DocumentUserData<MediaInterfaceProxy>,
       CreateCdmCallback callback,
       mojo::PendingRemote<media::mojom::ContentDecryptionModule> receiver,
       media::mojom::CdmContextPtr cdm_context,
-      const std::string& error_message);
+      media::CreateCdmStatus status);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)

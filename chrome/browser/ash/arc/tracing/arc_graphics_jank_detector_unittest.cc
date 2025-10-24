@@ -15,9 +15,7 @@ using ArcGraphicsJankDetectorTest = testing::Test;
 TEST_F(ArcGraphicsJankDetectorTest, Generic) {
   int jank_count = 0;
   ArcGraphicsJankDetector detector(base::BindRepeating(
-      [](int* out_jank_count, const base::Time& timestamp) {
-        *out_jank_count += 1;
-      },
+      [](int* out_jank_count, base::Time timestamp) { *out_jank_count += 1; },
       &jank_count));
 
   base::Time now = base::Time::Now();
@@ -91,9 +89,7 @@ TEST_F(ArcGraphicsJankDetectorTest, Generic) {
 TEST_F(ArcGraphicsJankDetectorTest, FixedRate) {
   int jank_count = 0;
   ArcGraphicsJankDetector detector(base::BindRepeating(
-      [](int* out_jank_count, const base::Time& timestamp) {
-        *out_jank_count += 1;
-      },
+      [](int* out_jank_count, base::Time timestamp) { *out_jank_count += 1; },
       &jank_count));
 
   base::Time now = base::Time::Now();
@@ -127,6 +123,37 @@ TEST_F(ArcGraphicsJankDetectorTest, FixedRate) {
   detector.OnSample(now);
   EXPECT_EQ(ArcGraphicsJankDetector::Stage::kActive, detector.stage());
   EXPECT_EQ(1, jank_count);
+}
+
+TEST_F(ArcGraphicsJankDetectorTest, CheckEnoughSamples) {
+  ArcGraphicsJankDetector detector(
+      base::BindRepeating([](base::Time timestamp) {
+        // Do nothing.
+      }));
+
+  base::Time now = base::Time::Now();
+  const base::TimeDelta interval_normal =
+      ArcGraphicsJankDetector::kPauseDetectionThreshold / 4;
+
+  std::vector<base::Time> samples;
+  for (int i = 0; i < ArcGraphicsJankDetector::kWarmUpSamples; ++i) {
+    samples.emplace_back(now);
+    now += interval_normal;
+  }
+  EXPECT_EQ(ArcGraphicsJankDetector::IsEnoughSamplesToDetect(samples.size()),
+            false);
+  for (size_t i = 0; i < ArcGraphicsJankDetector::kSamplesForRateDetection;
+       ++i) {
+    samples.emplace_back(now);
+    now += interval_normal;
+  }
+  EXPECT_EQ(ArcGraphicsJankDetector::IsEnoughSamplesToDetect(samples.size()),
+            true);
+
+  for (const auto& sample : samples) {
+    detector.OnSample(sample);
+  }
+  EXPECT_EQ(ArcGraphicsJankDetector::Stage::kActive, detector.stage());
 }
 
 }  // namespace arc

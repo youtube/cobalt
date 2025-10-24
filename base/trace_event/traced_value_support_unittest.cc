@@ -4,13 +4,14 @@
 
 #include "base/trace_event/traced_value_support.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/memory/ref_counted.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/perfetto/include/perfetto/test/traced_value_test_support.h"
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
 
 namespace {
 
@@ -59,8 +60,8 @@ TEST(TracedValueSupportTest, ScopedRefPtr) {
 }
 
 TEST(TracedValueSupportTest, Optional) {
-  EXPECT_EQ(perfetto::TracedValueToString(absl::optional<int>()), "0x0");
-  EXPECT_EQ(perfetto::TracedValueToString(absl::optional<const int>(42)), "42");
+  EXPECT_EQ(perfetto::TracedValueToString(std::optional<int>()), "0x0");
+  EXPECT_EQ(perfetto::TracedValueToString(std::optional<const int>(42)), "42");
 }
 
 TEST(TracedValueSupportTest, WeakPtr) {
@@ -101,12 +102,12 @@ TEST(TracedValueSupportTest, WideString) {
   EXPECT_EQ(perfetto::TracedValueToString(std::wstring(L"wide")), "wide");
 }
 
-TEST(TracedValueSupportTest, StringPiece) {
-  EXPECT_EQ(perfetto::TracedValueToString(base::StringPiece("string")),
+TEST(TracedValueSupportTest, StdString) {
+  EXPECT_EQ(perfetto::TracedValueToString(std::string_view("string")),
             "string");
-  EXPECT_EQ(perfetto::TracedValueToString(base::StringPiece16(u"utf-16")),
+  EXPECT_EQ(perfetto::TracedValueToString(std::u16string_view(u"utf-16")),
             "utf-16");
-  EXPECT_EQ(perfetto::TracedValueToString(base::WStringPiece(L"wide")), "wide");
+  EXPECT_EQ(perfetto::TracedValueToString(std::wstring_view(L"wide")), "wide");
 }
 
 TEST(TracedValueSupportTest, RawPtr) {
@@ -116,7 +117,11 @@ TEST(TracedValueSupportTest, RawPtr) {
   {
     // If the pointer is non-null, its dereferenced value will be serialised.
     int value = 42;
-    EXPECT_EQ(perfetto::TracedValueToString(raw_ptr<int>(&value)), "42");
+    raw_ptr<int> value_simple(&value);
+    raw_ptr<int, AllowPtrArithmetic> value_with_traits(&value);
+
+    EXPECT_EQ(perfetto::TracedValueToString(value), "42");
+    EXPECT_EQ(perfetto::TracedValueToString(value_with_traits), "42");
   }
 
   struct WithTraceSupport {
@@ -127,10 +132,38 @@ TEST(TracedValueSupportTest, RawPtr) {
 
   {
     WithTraceSupport value;
-    EXPECT_EQ(perfetto::TracedValueToString(raw_ptr<WithTraceSupport>(&value)),
-              "result");
+    raw_ptr<WithTraceSupport> value_simple(&value);
+    raw_ptr<WithTraceSupport, AllowPtrArithmetic> value_with_traits(&value);
+
+    EXPECT_EQ(perfetto::TracedValueToString(value_simple), "result");
+    EXPECT_EQ(perfetto::TracedValueToString(value_with_traits), "result");
   }
 }
 
-}  // namespace trace_event
-}  // namespace base
+TEST(TracedValueSupportTest, RawRef) {
+  {
+    int value = 42;
+    raw_ref<int> value_simple(value);
+    raw_ref<int, AllowPtrArithmetic> value_with_traits(value);
+
+    EXPECT_EQ(perfetto::TracedValueToString(value), "42");
+    EXPECT_EQ(perfetto::TracedValueToString(value_with_traits), "42");
+  }
+
+  struct WithTraceSupport {
+    void WriteIntoTrace(perfetto::TracedValue ctx) const {
+      std::move(ctx).WriteString("result");
+    }
+  };
+
+  {
+    WithTraceSupport value;
+    raw_ref<WithTraceSupport> value_simple(value);
+    raw_ref<WithTraceSupport, AllowPtrArithmetic> value_with_traits(value);
+
+    EXPECT_EQ(perfetto::TracedValueToString(value_simple), "result");
+    EXPECT_EQ(perfetto::TracedValueToString(value_with_traits), "result");
+  }
+}
+
+}  // namespace base::trace_event

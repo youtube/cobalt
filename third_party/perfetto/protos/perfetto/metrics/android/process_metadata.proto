@@ -21,8 +21,11 @@ message AndroidProcessMetadata {
   // Process name. Usually, cmdline or <package_name>(:<custom_name>)?.
   optional string name = 1;
 
-  // User id under which this process runs.
+  // App uid under which this process runs.
   optional int64 uid = 2;
+
+  // Android user-id running this process (applicable to multi-user android)
+  optional int64 android_user_id = 10;
 
   // Package metadata from Android package list.
   message Package {
@@ -38,11 +41,11 @@ message AndroidProcessMetadata {
   // match this field is empty.
   optional Package package = 7;
 
-  // All packages using this uid.
-  //
-  // Shared uid documentation:
-  // https://developer.android.com/guide/topics/manifest/manifest-element#uid
-  repeated Package packages_for_uid = 8;
+  // Pid of the process name.
+  optional int64 pid = 9;
 
-  reserved 3, 4, 5, 6;
+  // Whether the process is considered kernel or not
+  optional bool is_kernel_task = 11;
+
+  reserved 3, 4, 5, 6, 8;
 }

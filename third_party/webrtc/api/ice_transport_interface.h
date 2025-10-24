@@ -14,33 +14,29 @@
 #include <string>
 
 #include "api/async_dns_resolver.h"
-#include "api/async_resolver_factory.h"
-#include "api/rtc_error.h"
+#include "api/ref_count.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/scoped_refptr.h"
-#include "rtc_base/ref_count.h"
-
-namespace cricket {
-class IceTransportInternal;
-class PortAllocator;
-class IceControllerFactoryInterface;
-class ActiveIceControllerFactoryInterface;
-}  // namespace cricket
 
 namespace webrtc {
+
+class ActiveIceControllerFactoryInterface;
 class FieldTrialsView;
+class IceControllerFactoryInterface;
+class IceTransportInternal;
+class PortAllocator;
 
 // An ICE transport, as represented to the outside world.
 // This object is refcounted, and is therefore alive until the
 // last holder has released it.
-class IceTransportInterface : public rtc::RefCountInterface {
+class IceTransportInterface : public RefCountInterface {
  public:
   // Accessor for the internal representation of an ICE transport.
   // The returned object can only be safely used on the signalling thread.
   // TODO(crbug.com/907849): Add API calls for the functions that have to
   // be exposed to clients, and stop allowing access to the
-  // cricket::IceTransportInternal API.
-  virtual cricket::IceTransportInternal* internal() = 0;
+  // webrtc::IceTransportInternal API.
+  virtual IceTransportInternal* internal() = 0;
 };
 
 struct IceTransportInit final {
@@ -51,8 +47,8 @@ struct IceTransportInit final {
   IceTransportInit& operator=(const IceTransportInit&) = delete;
   IceTransportInit& operator=(IceTransportInit&&) = default;
 
-  cricket::PortAllocator* port_allocator() { return port_allocator_; }
-  void set_port_allocator(cricket::PortAllocator* port_allocator) {
+  PortAllocator* port_allocator() { return port_allocator_; }
+  void set_port_allocator(PortAllocator* port_allocator) {
     port_allocator_ = port_allocator;
   }
 
@@ -61,27 +57,17 @@ struct IceTransportInit final {
   }
   void set_async_dns_resolver_factory(
       AsyncDnsResolverFactoryInterface* async_dns_resolver_factory) {
-    RTC_DCHECK(!async_resolver_factory_);
     async_dns_resolver_factory_ = async_dns_resolver_factory;
-  }
-  AsyncResolverFactory* async_resolver_factory() {
-    return async_resolver_factory_;
-  }
-  ABSL_DEPRECATED("bugs.webrtc.org/12598")
-  void set_async_resolver_factory(
-      AsyncResolverFactory* async_resolver_factory) {
-    RTC_DCHECK(!async_dns_resolver_factory_);
-    async_resolver_factory_ = async_resolver_factory;
   }
 
   RtcEventLog* event_log() { return event_log_; }
   void set_event_log(RtcEventLog* event_log) { event_log_ = event_log; }
 
   void set_ice_controller_factory(
-      cricket::IceControllerFactoryInterface* ice_controller_factory) {
+      IceControllerFactoryInterface* ice_controller_factory) {
     ice_controller_factory_ = ice_controller_factory;
   }
-  cricket::IceControllerFactoryInterface* ice_controller_factory() {
+  IceControllerFactoryInterface* ice_controller_factory() {
     return ice_controller_factory_;
   }
 
@@ -97,12 +83,10 @@ struct IceTransportInit final {
   //   2. If not, a default active ICE controller is used, wrapping over the
   //      supplied or the default legacy ICE controller.
   void set_active_ice_controller_factory(
-      cricket::ActiveIceControllerFactoryInterface*
-          active_ice_controller_factory) {
+      ActiveIceControllerFactoryInterface* active_ice_controller_factory) {
     active_ice_controller_factory_ = active_ice_controller_factory;
   }
-  cricket::ActiveIceControllerFactoryInterface*
-  active_ice_controller_factory() {
+  ActiveIceControllerFactoryInterface* active_ice_controller_factory() {
     return active_ice_controller_factory_;
   }
 
@@ -112,14 +96,11 @@ struct IceTransportInit final {
   }
 
  private:
-  cricket::PortAllocator* port_allocator_ = nullptr;
+  PortAllocator* port_allocator_ = nullptr;
   AsyncDnsResolverFactoryInterface* async_dns_resolver_factory_ = nullptr;
-  // For backwards compatibility. Only one resolver factory can be set.
-  AsyncResolverFactory* async_resolver_factory_ = nullptr;
   RtcEventLog* event_log_ = nullptr;
-  cricket::IceControllerFactoryInterface* ice_controller_factory_ = nullptr;
-  cricket::ActiveIceControllerFactoryInterface* active_ice_controller_factory_ =
-      nullptr;
+  IceControllerFactoryInterface* ice_controller_factory_ = nullptr;
+  ActiveIceControllerFactoryInterface* active_ice_controller_factory_ = nullptr;
   const FieldTrialsView* field_trials_ = nullptr;
   // TODO(https://crbug.com/webrtc/12657): Redesign to have const members.
 };
@@ -140,7 +121,7 @@ class IceTransportFactory {
   // requires the returned transport to be constructed and destroyed on the
   // network thread and an ICE transport factory that intends to work with a
   // peer connection should offer transports compatible with these assumptions.
-  virtual rtc::scoped_refptr<IceTransportInterface> CreateIceTransport(
+  virtual scoped_refptr<IceTransportInterface> CreateIceTransport(
       const std::string& transport_name,
       int component,
       IceTransportInit init) = 0;

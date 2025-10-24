@@ -6,13 +6,13 @@
 
 #include <map>
 #include <set>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "components/feed/core/proto/v2/wire/content_id.pb.h"
@@ -24,14 +24,17 @@
 #include "components/feed/core/v2/test/test_util.h"
 #include "components/feed/feed_feature_list.h"
 #include "components/leveldb_proto/testing/fake_db.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace feed {
 namespace {
+using testing::ElementsAre;
+using testing::Pair;
 
 using LoadStreamResult = FeedStore::LoadStreamResult;
 
-std::string KeyForContentId(base::StringPiece prefix,
+std::string KeyForContentId(std::string_view prefix,
                             const feedwire::ContentId& content_id) {
   return base::StrCat({prefix, content_id.content_domain(), ",",
                        base::NumberToString(content_id.type()), ",",
@@ -60,6 +63,13 @@ feedstore::StoredAction MakeAction(int32_t id) {
   feedstore::StoredAction action;
   action.set_id(id);
   return action;
+}
+
+feedstore::DocView CreateDocView(uint64_t docid, int64_t view_time_millis) {
+  feedstore::DocView view;
+  view.set_docid(docid);
+  view.set_view_time_millis(view_time_millis);
+  return view;
 }
 
 }  // namespace
@@ -519,9 +529,9 @@ TEST_F(FeedStoreTest, ReadNonexistentContentAndSharedStates) {
                       cr.Bind());
   fake_db_->LoadCallback(true);
 
-  ASSERT_NE(cr.GetResult<0>(), absl::nullopt);
+  ASSERT_NE(cr.GetResult<0>(), std::nullopt);
   EXPECT_EQ(cr.GetResult<0>()->size(), 0ul);
-  ASSERT_NE(cr.GetResult<1>(), absl::nullopt);
+  ASSERT_NE(cr.GetResult<1>(), std::nullopt);
   EXPECT_EQ(cr.GetResult<1>()->size(), 0ul);
 }
 
@@ -554,9 +564,9 @@ TEST_F(FeedStoreTest, ReadContentAndSharedStates) {
                       shared_state_ids, cr.Bind());
   fake_db_->LoadCallback(true);
 
-  ASSERT_NE(cr.GetResult<0>(), absl::nullopt);
+  ASSERT_NE(cr.GetResult<0>(), std::nullopt);
   std::vector<feedstore::Content> content = *cr.GetResult<0>();
-  ASSERT_NE(cr.GetResult<1>(), absl::nullopt);
+  ASSERT_NE(cr.GetResult<1>(), std::nullopt);
   std::vector<feedstore::StreamSharedState> shared_states = *cr.GetResult<1>();
 
   ASSERT_EQ(content.size(), 2ul);
@@ -575,9 +585,9 @@ TEST_F(FeedStoreTest, ReadContentAndSharedStates) {
                       shared_state_ids, cr.Bind());
   fake_db_->LoadCallback(false);
 
-  ASSERT_NE(cr.GetResult<0>(), absl::nullopt);
+  ASSERT_NE(cr.GetResult<0>(), std::nullopt);
   EXPECT_EQ(cr.GetResult<0>()->size(), 0ul);
-  ASSERT_NE(cr.GetResult<1>(), absl::nullopt);
+  ASSERT_NE(cr.GetResult<1>(), std::nullopt);
   EXPECT_EQ(cr.GetResult<1>()->size(), 0ul);
 }
 
@@ -590,7 +600,7 @@ TEST_F(FeedStoreTest, ReadActions) {
   CallbackReceiver<std::vector<feedstore::StoredAction>> receiver;
   store_->ReadActions(receiver.Bind());
   fake_db_->LoadCallback(true);
-  ASSERT_NE(absl::nullopt, receiver.GetResult());
+  ASSERT_NE(std::nullopt, receiver.GetResult());
   std::vector<feedstore::StoredAction> result =
       std::move(*receiver.GetResult());
 
@@ -601,7 +611,7 @@ TEST_F(FeedStoreTest, ReadActions) {
   receiver.Clear();
   store_->ReadActions(receiver.Bind());
   fake_db_->LoadCallback(false);
-  ASSERT_NE(absl::nullopt, receiver.GetResult());
+  ASSERT_NE(std::nullopt, receiver.GetResult());
   result = std::move(*receiver.GetResult());
   EXPECT_EQ(0ul, result.size());
 }
@@ -622,7 +632,7 @@ TEST_F(FeedStoreTest, WriteActions) {
   receiver.GetResult().reset();
   store_->WriteActions({action}, receiver.Bind());
   fake_db_->UpdateCallback(false);
-  EXPECT_NE(receiver.GetResult(), absl::nullopt);
+  EXPECT_NE(receiver.GetResult(), std::nullopt);
   EXPECT_EQ(receiver.GetResult().value(), false);
 }
 
@@ -643,7 +653,7 @@ TEST_F(FeedStoreTest, RemoveActions) {
   receiver.GetResult().reset();
   store_->RemoveActions(ids, receiver.Bind());
   fake_db_->UpdateCallback(false);
-  EXPECT_NE(receiver.GetResult(), absl::nullopt);
+  EXPECT_NE(receiver.GetResult(), std::nullopt);
   EXPECT_EQ(receiver.GetResult().value(), false);
 }
 
@@ -948,6 +958,89 @@ TEST_F(FeedStoreTest, ClearAllStreamData) {
   ASSERT_TRUE(receiver.GetResult());
   EXPECT_TRUE(*receiver.GetResult());
   EXPECT_EQ("", StoreToString());
+}
+
+TEST_F(FeedStoreTest, WriteDocView) {
+  MakeFeedStore({});
+  feedstore::DocView dv = CreateDocView(10, 11);
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+
+  EXPECT_EQ(R"([v/10/11] {
+  doc_view {
+    docid: 10
+    view_time_millis: 11
+  }
+}
+)",
+            StoreToString());
+}
+
+TEST_F(FeedStoreTest, RemoveDocViewsNotExist) {
+  MakeFeedStore({});
+  feedstore::DocView dv = CreateDocView(10, 11);
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+
+  // docid doesn't match
+  store_->RemoveDocViews({CreateDocView(11, 11)});
+  fake_db_->UpdateCallback(true);
+
+  EXPECT_EQ(R"([v/10/11] {
+  doc_view {
+    docid: 10
+    view_time_millis: 11
+  }
+}
+)",
+            StoreToString());
+}
+
+TEST_F(FeedStoreTest, RemoveDocViewsDoesExist) {
+  MakeFeedStore({});
+  feedstore::DocView dv = CreateDocView(10, 9000);
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+  dv.set_docid(11);
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+  dv.set_docid(12);
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+
+  store_->RemoveDocViews({CreateDocView(10, 9000), CreateDocView(12, 9000)});
+  fake_db_->UpdateCallback(true);
+  ASSERT_THAT(db_entries_, ElementsAre(Pair("v/11/9000", EqualsTextProto(R"({
+  doc_view {
+    docid: 11
+    view_time_millis: 9000
+  }
+})"))));
+}
+
+TEST_F(FeedStoreTest, ReadDocViews) {
+  MakeFeedStore({});
+  feedstore::DocView dv;
+  dv.set_docid(0);
+  dv.set_view_time_millis(11);
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+  dv.set_docid(std::numeric_limits<uint64_t>::max());
+  store_->WriteDocView(dv);
+  fake_db_->UpdateCallback(true);
+
+  CallbackReceiver<std::vector<feedstore::DocView>> result;
+  store_->ReadDocViews(result.Bind());
+  fake_db_->LoadCallback(true);
+
+  ASSERT_TRUE(result.GetResult());
+  ASSERT_THAT(*result.GetResult(), ElementsAre(EqualsTextProto(R"({
+  view_time_millis: 11
+})"),
+                                               EqualsTextProto(R"({
+  docid: 18446744073709551615
+  view_time_millis: 11
+})")));
 }
 
 }  // namespace feed

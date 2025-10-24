@@ -5,56 +5,59 @@
 #import "ios/chrome/app/spotlight/spotlight_manager.h"
 
 #import "base/check.h"
+#import "base/memory/raw_ptr.h"
+#import "components/search_engines/template_url.h"
+#import "components/search_engines/template_url_service.h"
 #import "ios/chrome/app/spotlight/actions_spotlight_manager.h"
 #import "ios/chrome/app/spotlight/bookmarks_spotlight_manager.h"
+#import "ios/chrome/app/spotlight/open_tabs_spotlight_manager.h"
 #import "ios/chrome/app/spotlight/reading_list_spotlight_manager.h"
+#import "ios/chrome/app/spotlight/spotlight_util.h"
 #import "ios/chrome/app/spotlight/topsites_spotlight_manager.h"
-#import "ios/chrome/browser/flags/system_flags.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 
 // Called from the BrowserBookmarkModelBridge from C++ -> ObjC.
-@interface SpotlightManager ()<BookmarkUpdatedDelegate> {
+@interface SpotlightManager () {
   BookmarksSpotlightManager* _bookmarkManager;
   TopSitesSpotlightManager* _topSitesManager;
   ActionsSpotlightManager* _actionsManager;
+  raw_ptr<TemplateURLService> _templateURLService;
 }
 
 @property(nonatomic, strong) ReadingListSpotlightManager* readingListManager;
+@property(nonatomic, strong) OpenTabsSpotlightManager* openTabsManager;
 
-- (instancetype)initWithBrowserState:(ChromeBrowserState*)browserState
-    NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithProfile:(ProfileIOS*)profile NS_DESIGNATED_INITIALIZER;
 
 @end
 
 @implementation SpotlightManager
 
-+ (SpotlightManager*)spotlightManagerWithBrowserState:
-    (ChromeBrowserState*)browserState {
++ (SpotlightManager*)spotlightManagerWithProfile:(ProfileIOS*)profile {
   if (spotlight::IsSpotlightAvailable()) {
-    return [[SpotlightManager alloc] initWithBrowserState:browserState];
+    return [[SpotlightManager alloc] initWithProfile:profile];
   }
   return nil;
 }
 
-- (instancetype)initWithBrowserState:(ChromeBrowserState*)browserState {
-  DCHECK(browserState);
+- (instancetype)initWithProfile:(ProfileIOS*)profile {
+  DCHECK(profile);
   DCHECK(spotlight::IsSpotlightAvailable());
   self = [super init];
   if (self) {
-    _topSitesManager = [TopSitesSpotlightManager
-        topSitesSpotlightManagerWithBrowserState:browserState];
+    _templateURLService =
+        ios::TemplateURLServiceFactory::GetForProfile(profile);
+    _topSitesManager =
+        [TopSitesSpotlightManager topSitesSpotlightManagerWithProfile:profile];
     _bookmarkManager = [BookmarksSpotlightManager
-        bookmarksSpotlightManagerWithBrowserState:browserState];
-    [_bookmarkManager setDelegate:self];
+        bookmarksSpotlightManagerWithProfile:profile];
     _actionsManager = [ActionsSpotlightManager actionsSpotlightManager];
-    if (base::FeatureList::IsEnabled(kSpotlightReadingListSource)) {
-      _readingListManager = [ReadingListSpotlightManager
-          readingListSpotlightManagerWithBrowserState:browserState];
-    }
+    _readingListManager = [ReadingListSpotlightManager
+        readingListSpotlightManagerWithProfile:profile];
+    _openTabsManager =
+        [OpenTabsSpotlightManager openTabsSpotlightManagerWithProfile:profile];
   }
   return self;
 }
@@ -64,16 +67,16 @@
   DCHECK(!_topSitesManager);
   DCHECK(!_actionsManager);
   DCHECK(!_readingListManager);
+  DCHECK(!_templateURLService);
 }
 
 - (void)resyncIndex {
   [_bookmarkManager reindexBookmarksIfNeeded];
-  [_actionsManager indexActions];
-  [self.readingListManager clearAndReindexReadingListWithCompletionBlock:nil];
-}
-
-- (void)bookmarkUpdated {
+  [_actionsManager indexActionsWithIsGoogleDefaultSearchEngine:
+                       [self isGoogleDefaultSearchEngine]];
   [_topSitesManager reindexTopSites];
+  [self.readingListManager clearAndReindexReadingList];
+  [self.openTabsManager clearAndReindexOpenTabs];
 }
 
 - (void)shutdown {
@@ -81,11 +84,30 @@
   [_topSitesManager shutdown];
   [_actionsManager shutdown];
   [_readingListManager shutdown];
+  [_openTabsManager shutdown];
 
   _bookmarkManager = nil;
   _topSitesManager = nil;
   _actionsManager = nil;
   _readingListManager = nil;
+  _openTabsManager = nil;
+  _templateURLService = nullptr;
+}
+
+#pragma mark - Private
+
+- (BOOL)isGoogleDefaultSearchEngine {
+  if (!_templateURLService) {
+    return NO;
+  }
+
+  const TemplateURL* defaultURL =
+      _templateURLService->GetDefaultSearchProvider();
+  BOOL isGoogleDefaultSearchProvider =
+      defaultURL &&
+      defaultURL->GetEngineType(_templateURLService->search_terms_data()) ==
+          SEARCH_ENGINE_GOOGLE;
+  return isGoogleDefaultSearchProvider;
 }
 
 @end

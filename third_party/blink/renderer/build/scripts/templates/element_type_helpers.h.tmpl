@@ -18,15 +18,22 @@ class Document;
 {% for tag in tags|sort(attribute='name') if not tag.multipleTagNames and not tag.noTypeHelpers %}
 class {{tag.interface}};
 template <>
-inline bool IsElementOfType<const {{tag.interface}}>(const Node& node) {
-  return IsA<{{tag.interface}}>(node);
-}
-template <>
-inline bool IsElementOfType<const {{tag.interface}}>(const {{namespace}}Element& element) {
-  return IsA<{{tag.interface}}>(element);
-}
-template <>
 struct DowncastTraits<{{tag.interface}}> {
+  // AllowFrom(const {{namespace}}Element&) and AllowFrom(const Element&)
+  // have the same code, but the {{namespace}}Element ones are a little
+  // more efficient because of the
+  // {{namespace}}Element::HasTagName(const {{namespace}}QualifiedName&)
+  // override.
+  static bool AllowFrom(const {{namespace}}Element& element) {
+    {% if tag.runtimeEnabled %}
+    // If the following line doesn't compile, your feature may vary by context,
+    // in which case you'll need to write your own type helpers that can
+    // distinguish elements without relying solely on tag name.
+    if (!RuntimeEnabledFeatures::{{tag.runtimeEnabled}}Enabled())
+      return false;
+    {% endif %}
+    return element.HasTagName({{cpp_namespace}}::{{tag|symbol}}Tag);
+  }
   static bool AllowFrom(const Element& element) {
     {% if tag.runtimeEnabled %}
     // If the following line doesn't compile, your feature may vary by context,
@@ -37,8 +44,14 @@ struct DowncastTraits<{{tag.interface}}> {
     {% endif %}
     return element.HasTagName({{cpp_namespace}}::{{tag|symbol}}Tag);
   }
+  // Force this helper to only be instantiated when used. Otherwise, the
+  // `IsA<...>` calls will always trigger a build failure since
+  // {{tag.interface}} is forward declared and not included.
+  template <typename T = {{tag.interface}}>
   static bool AllowFrom(const Node& node) {
-    return node.Is{{namespace}}Element() && IsA<{{tag.interface}}>(To<{{namespace}}Element>(node));
+    // UnsafeTo<> is safe because Is*Element(), by definition, only returns
+    // true if `node` is derived from `Element`.
+    return node.Is{{namespace}}Element() && IsA<{{tag.interface}}>(UnsafeTo<{{namespace}}Element>(node));
   }
 };
 

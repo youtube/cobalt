@@ -333,7 +333,7 @@ class CHROME_DBUS_EXPORT PropertySet {
 
   // Pointer to object proxy for making method calls, no ownership is taken
   // so this must outlive this class.
-  raw_ptr<ObjectProxy, DanglingUntriaged> object_proxy_;
+  raw_ptr<ObjectProxy, AcrossTasksDanglingUntriaged> object_proxy_;
 
   // Interface of property, e.g. "org.chromium.ExampleService", this is
   // distinct from the interface of the method call itself which is the
@@ -347,7 +347,8 @@ class CHROME_DBUS_EXPORT PropertySet {
   // names as used in D-Bus method calls and signals. The base pointer
   // restricts property access via this map to type-unsafe and non-specific
   // actions only.
-  typedef std::map<const std::string, PropertyBase*> PropertiesMap;
+  typedef std::map<const std::string, raw_ptr<PropertyBase, CtnExperimental>>
+      PropertiesMap;
   PropertiesMap properties_map_;
 
   // Weak pointer factory as D-Bus callbacks may last longer than these

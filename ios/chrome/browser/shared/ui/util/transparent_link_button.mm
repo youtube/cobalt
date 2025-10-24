@@ -8,12 +8,7 @@
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/common/button_configuration_util.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Minimum tap area dimension, as specified by Apple guidelines.
 const CGFloat kLinkTapAreaMinimum = 44.0;
@@ -91,24 +86,12 @@ const CGFloat kHighlightViewBackgroundAlpha = 0.25;
   if ((self = [super initWithFrame:frame])) {
     DCHECK(URL.is_valid());
 
-    // TODO(crbug.com/1418068): Simplify after minimum version required is >=
-    // iOS 15.
-    if (base::ios::IsRunningOnIOS15OrLater() &&
-        IsUIButtonConfigurationEnabled()) {
-      if (@available(iOS 15, *)) {
-        UIButtonConfiguration* buttonConfiguration =
-            [UIButtonConfiguration plainButtonConfiguration];
-        buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-            linkHeightExpansion, linkWidthExpansion, linkHeightExpansion,
-            linkWidthExpansion);
-        self.configuration = buttonConfiguration;
-      }
-    } else {
-      UIEdgeInsets contentEdgeInsets =
-          UIEdgeInsetsMake(linkHeightExpansion, linkWidthExpansion,
-                           linkHeightExpansion, linkWidthExpansion);
-      SetContentEdgeInsets(self, contentEdgeInsets);
-    }
+    UIButtonConfiguration* buttonConfiguration =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfiguration.contentInsets =
+        NSDirectionalEdgeInsetsMake(linkHeightExpansion, linkWidthExpansion,
+                                    linkHeightExpansion, linkWidthExpansion);
+    self.configuration = buttonConfiguration;
 
     self.backgroundColor = [UIColor clearColor];
     self.exclusiveTouch = YES;

@@ -9,7 +9,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "extensions/browser/extension_prefs_scope.h"
+#include "extensions/common/api/types.h"
+#include "extensions/common/extension_id.h"
 
 class ExtensionPrefValueMap;
 
@@ -26,6 +27,8 @@ class ExtensionPrefs;
 
 class ExtensionPrefsHelper : public KeyedService {
  public:
+  using ChromeSettingScope = extensions::api::types::ChromeSettingScope;
+
   ExtensionPrefsHelper(ExtensionPrefs* prefs, ExtensionPrefValueMap* value_map);
 
   ExtensionPrefsHelper(const ExtensionPrefsHelper&) = delete;
@@ -41,28 +44,28 @@ class ExtensionPrefsHelper : public KeyedService {
   // but rather about something global the extension wants to override.
 
   // Set a new extension-controlled preference value.
-  void SetExtensionControlledPref(const std::string& extension_id,
+  void SetExtensionControlledPref(const ExtensionId& extension_id,
                                   const std::string& pref_key,
-                                  ExtensionPrefsScope scope,
+                                  ChromeSettingScope scope,
                                   base::Value value);
 
   // Remove an extension-controlled preference value.
-  void RemoveExtensionControlledPref(const std::string& extension_id,
+  void RemoveExtensionControlledPref(const ExtensionId& extension_id,
                                      const std::string& pref_key,
-                                     ExtensionPrefsScope scope);
+                                     ChromeSettingScope scope);
 
   // Returns true if currently no extension with higher precedence controls the
   // preference.
-  bool CanExtensionControlPref(const std::string& extension_id,
+  bool CanExtensionControlPref(const ExtensionId& extension_id,
                                const std::string& pref_key,
                                bool incognito);
 
   // Returns true if extension `extension_id` currently controls the
   // preference. If `from_incognito` is not a nullptr value, looks at incognito
-  // preferences first, and |from_incognito| is set to true if the effective
+  // preferences first, and `from_incognito` is set to true if the effective
   // pref value is coming from the incognito preferences, false if it is coming
   // from the normal ones.
-  bool DoesExtensionControlPref(const std::string& extension_id,
+  bool DoesExtensionControlPref(const ExtensionId& extension_id,
                                 const std::string& pref_key,
                                 bool* from_incognito);
 
@@ -71,8 +74,8 @@ class ExtensionPrefsHelper : public KeyedService {
   const ExtensionPrefs* prefs() const { return prefs_; }
 
  private:
-  const raw_ptr<ExtensionPrefs> prefs_;
-  const raw_ptr<ExtensionPrefValueMap> value_map_;
+  const raw_ptr<ExtensionPrefs, DanglingUntriaged> prefs_;
+  const raw_ptr<ExtensionPrefValueMap, DanglingUntriaged> value_map_;
 };
 
 }  // namespace extensions

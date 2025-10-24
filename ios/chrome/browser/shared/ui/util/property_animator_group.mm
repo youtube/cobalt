@@ -6,10 +6,6 @@
 
 #import "base/check.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation PropertyAnimatorGroup {
   NSMutableArray<UIViewPropertyAnimator*>* _animators;
 }
@@ -17,7 +13,7 @@
 @synthesize animators = _animators;
 
 - (instancetype)init {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _animators = [[NSMutableArray alloc] init];
   }
   return self;

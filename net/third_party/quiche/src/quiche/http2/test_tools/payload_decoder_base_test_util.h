@@ -12,12 +12,12 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/frame_decoder_state.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
-#include "quiche/http2/http2_constants.h"
-#include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/http2_constants_test_util.h"
 #include "quiche/http2/test_tools/http2_frame_builder.h"
@@ -25,6 +25,7 @@
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace test {
@@ -119,7 +120,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // size of payload, else false to skip that size. Typically used for negative
   // tests; for example, decoding a SETTINGS frame at all sizes except for
   // multiples of 6.
-  typedef std::function<bool(size_t size)> ApproveSize;
+  typedef quiche::MultiUseCallback<bool(size_t size)> ApproveSize;
 
   AbstractPayloadDecoderTest() {}
 
@@ -211,14 +212,13 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
       absl::string_view payload, const Http2FrameHeader& header,
       WrappedValidator wrapped_validator) {
     set_frame_header(header);
-    // If wrapped_validator is not a RandomDecoderTest::Validator, make it so.
-    Validator validator = ToValidator(wrapped_validator);
-    // And wrap that validator in another which will check that we've reached
+    // Wrap that validator in another which will check that we've reached
     // the expected state of kDecodeError with OnFrameSizeError having been
     // called by the payload decoder.
-    validator = [header, validator, this](
-                    const DecodeBuffer& input,
-                    DecodeStatus status) -> ::testing::AssertionResult {
+    Validator validator =
+        [header, validator = ToValidator(wrapped_validator), this](
+            const DecodeBuffer& input,
+            DecodeStatus status) -> ::testing::AssertionResult {
       QUICHE_DVLOG(2) << "VerifyDetectsFrameSizeError validator; status="
                       << status << "; input.Remaining=" << input.Remaining();
       HTTP2_VERIFY_EQ(DecodeStatus::kDecodeError, status);
@@ -233,7 +233,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
       return validator(input, status);
     };
     return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
-        payload, validator);
+        payload, std::move(validator));
   }
 
   // Confirm that we get OnFrameSizeError when trying to decode unpadded_payload
@@ -303,13 +303,13 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // As above, but for frames without padding.
   ::testing::AssertionResult VerifyDetectsFrameSizeError(
       uint8_t required_flags, absl::string_view unpadded_payload,
-      const ApproveSize& approve_size) {
+      ApproveSize approve_size) {
     Http2FrameType frame_type = DecoderPeer::FrameType();
     uint8_t known_flags = KnownFlagsMaskForFrameType(frame_type);
     HTTP2_VERIFY_EQ(0, known_flags & Http2FrameFlag::PADDED);
     HTTP2_VERIFY_EQ(0, required_flags & Http2FrameFlag::PADDED);
     return VerifyDetectsMultipleFrameSizeErrors(
-        required_flags, unpadded_payload, approve_size, 0);
+        required_flags, unpadded_payload, std::move(approve_size), 0);
   }
 
   Listener listener_;
@@ -396,7 +396,7 @@ class QUICHE_NO_EXPORT AbstractPaddablePayloadDecoderTest
       return ::testing::AssertionSuccess();
     };
     return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
-        payload, validator);
+        payload, std::move(validator));
   }
 
   // Verifies that we get OnPaddingTooLong for a padded frame payload whose

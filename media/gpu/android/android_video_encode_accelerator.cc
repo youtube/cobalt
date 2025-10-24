@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/android/android_video_encode_accelerator.h"
 
 #include <memory>
@@ -14,17 +19,17 @@
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/not_fatal_until.h"
 #include "base/task/sequenced_task_runner.h"
-#include "gpu/command_buffer/service/gles2_cmd_decoder.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "media/base/android/media_codec_util.h"
 #include "media/base/bitstream_buffer.h"
+#include "media/base/encoder_status.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
-#include "media/video/picture.h"
+#include "media/base/video_frame.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
 #include "ui/gl/android/scoped_java_surface.h"
-#include "ui/gl/gl_bindings.h"
 
 namespace media {
 
@@ -107,8 +112,9 @@ AndroidVideoEncodeAccelerator::GetSupportedProfiles() {
       continue;
     }
 
-    if (MediaCodecUtil::IsKnownUnaccelerated(supported_codec.codec,
-                                             MediaCodecDirection::ENCODER)) {
+    bool is_software_codec = MediaCodecUtil::IsKnownUnaccelerated(
+        supported_codec.codec, MediaCodecDirection::ENCODER);
+    if (supported_codec.codec != VideoCodec::kH264 && is_software_codec) {
       continue;
     }
 
@@ -120,12 +126,13 @@ AndroidVideoEncodeAccelerator::GetSupportedProfiles() {
     profile.max_framerate_numerator = kMaxFramerateNumerator;
     profile.max_framerate_denominator = kMaxFramerateDenominator;
     profile.rate_control_modes = media::VideoEncodeAccelerator::kConstantMode;
+    profile.is_software_codec = is_software_codec;
     profiles.push_back(profile);
   }
   return profiles;
 }
 
-bool AndroidVideoEncodeAccelerator::Initialize(
+EncoderStatus AndroidVideoEncodeAccelerator::Initialize(
     const Config& config,
     Client* client,
     std::unique_ptr<MediaLog> media_log) {
@@ -139,7 +146,7 @@ bool AndroidVideoEncodeAccelerator::Initialize(
   if (config.input_format != PIXEL_FORMAT_I420) {
     MEDIA_LOG(ERROR, log_) << "Unexpected combo: " << config.input_format
                            << ", " << GetProfileName(config.output_profile);
-    return false;
+    return {EncoderStatus::Codes::kEncoderInitializationError};
   }
 
   std::string mime_type;
@@ -161,23 +168,41 @@ bool AndroidVideoEncodeAccelerator::Initialize(
     frame_input_count = 30;
     i_frame_interval = IFRAME_INTERVAL_H264;
   } else {
-    return false;
+    return {EncoderStatus::Codes::kEncoderInitializationError};
   }
 
   frame_size_ = config.input_visible_size;
   last_set_bitrate_ = config.bitrate.target_bps();
 
-  // Only consider using MediaCodec if it's likely backed by hardware.
-  if (MediaCodecUtil::IsKnownUnaccelerated(codec,
-                                           MediaCodecDirection::ENCODER)) {
-    MEDIA_LOG(ERROR, log_) << "No HW support";
-    return false;
+  // Only consider using MediaCodec if it's likely backed by hardware or we
+  // don't have a software encoder bundled.
+  auto required_encoder_type = config.required_encoder_type;
+  if (codec != VideoCodec::kH264) {
+    required_encoder_type = Config::EncoderType::kHardware;
+  }
+
+  const bool is_software_codec =
+      MediaCodecUtil::IsKnownUnaccelerated(codec, MediaCodecDirection::ENCODER);
+  if (required_encoder_type == Config::EncoderType::kHardware &&
+      is_software_codec) {
+    MEDIA_LOG(ERROR, log_) << "No hardware encoding support for "
+                           << GetCodecName(codec);
+    return {EncoderStatus::Codes::kEncoderInitializationError};
+  }
+
+  // We need to add the ability to select by name if we want to support software
+  // encoding like the NDK encoder does.
+  if (required_encoder_type == Config::EncoderType::kSoftware &&
+      !is_software_codec) {
+    MEDIA_LOG(ERROR, log_) << "No software encoding support for "
+                           << GetCodecName(codec);
+    return {EncoderStatus::Codes::kEncoderInitializationError};
   }
 
   PixelFormat pixel_format = COLOR_FORMAT_YUV420_SEMIPLANAR;
   if (!GetSupportedColorFormatForMime(mime_type, &pixel_format)) {
     MEDIA_LOG(ERROR, log_) << "No color format support.";
-    return false;
+    return {EncoderStatus::Codes::kEncoderInitializationError};
   }
   media_codec_ = MediaCodecBridgeImpl::CreateVideoEncoder(
       codec, config.input_visible_size, config.bitrate.target_bps(),
@@ -186,12 +211,12 @@ bool AndroidVideoEncodeAccelerator::Initialize(
   if (!media_codec_) {
     MEDIA_LOG(ERROR, log_) << "Failed to create/start the codec: "
                            << config.input_visible_size.ToString();
-    return false;
+    return {EncoderStatus::Codes::kEncoderInitializationError};
   }
 
   if (!SetInputBufferLayout()) {
     MEDIA_LOG(ERROR, log_) << "Can't get input buffer layout from MediaCodec";
-    return false;
+    return {EncoderStatus::Codes::kEncoderInitializationError};
   }
 
   // Conservative upper bound for output buffer size: decoded size + 2KB.
@@ -204,7 +229,7 @@ bool AndroidVideoEncodeAccelerator::Initialize(
       base::BindOnce(&VideoEncodeAccelerator::Client::RequireBitstreamBuffers,
                      client_ptr_factory_->GetWeakPtr(), frame_input_count,
                      config.input_visible_size, output_buffer_capacity));
-  return true;
+  return {EncoderStatus::Codes::kOk};
 }
 
 void AndroidVideoEncodeAccelerator::MaybeStartIOTimer() {
@@ -254,7 +279,8 @@ void AndroidVideoEncodeAccelerator::UseOutputBitstreamBuffer(
 
 void AndroidVideoEncodeAccelerator::RequestEncodingParametersChange(
     const Bitrate& bitrate,
-    uint32_t framerate) {
+    uint32_t framerate,
+    const std::optional<gfx::Size>& size) {
   // If this is changed to use variable bitrate encoding, change the mode check
   // to check that the mode matches the current mode.
   if (bitrate.mode() != Bitrate::Mode::kConstant) {
@@ -262,6 +288,11 @@ void AndroidVideoEncodeAccelerator::RequestEncodingParametersChange(
         {EncoderStatus::Codes::kEncoderUnsupportedConfig,
          "Unexpected bitrate mode: " +
              base::NumberToString(static_cast<int>(bitrate.mode()))});
+    return;
+  }
+  if (size.has_value()) {
+    NotifyErrorStatus({EncoderStatus::Codes::kEncoderUnsupportedConfig,
+                       "Update output frame size is not supported"});
     return;
   }
   DVLOG(3) << __PRETTY_FUNCTION__ << ": bitrate: " << bitrate.ToString()
@@ -301,14 +332,15 @@ void AndroidVideoEncodeAccelerator::QueueInput() {
     return;
 
   int input_buf_index = 0;
-  MediaCodecStatus status =
+  MediaCodecResult result =
       media_codec_->DequeueInputBuffer(NoWaitTimeOut(), &input_buf_index);
-  if (status != MEDIA_CODEC_OK) {
-    DCHECK(status == MEDIA_CODEC_TRY_AGAIN_LATER ||
-           status == MEDIA_CODEC_ERROR);
-    if (status == MEDIA_CODEC_ERROR) {
+  if (!result.is_ok()) {
+    DCHECK(result.code() == MediaCodecResult::Codes::kTryAgainLater ||
+           result.code() == MediaCodecResult::Codes::kError);
+    if (result.code() == MediaCodecResult::Codes::kError) {
       NotifyErrorStatus({EncoderStatus::Codes::kEncoderHardwareDriverError,
-                         "MediaCodec error in DequeueInputBuffer"});
+                         "MediaCodec error in DequeueInputBuffer",
+                         std::move(result)});
       return;
     }
   }
@@ -324,27 +356,24 @@ void AndroidVideoEncodeAccelerator::QueueInput() {
   }
   scoped_refptr<VideoFrame> frame = std::get<0>(input);
 
-  uint8_t* buffer = nullptr;
-  size_t capacity = 0;
-  status = media_codec_->GetInputBuffer(input_buf_index, &buffer, &capacity);
-  if (status != MEDIA_CODEC_OK) {
+  auto buffer = media_codec_->GetInputBuffer(input_buf_index);
+  if (buffer.empty()) {
     NotifyErrorStatus({EncoderStatus::Codes::kEncoderHardwareDriverError,
-                       "MediaCodec error in GetInputBuffer: " +
-                           base::NumberToString(status)});
+                       "MediaCodec error in GetInputBuffer"});
     return;
   }
   const auto visible_size =
       aligned_size_.value_or(frame->visible_rect().size());
 
-  uint8_t* dst_y = buffer;
+  uint8_t* dst_y = buffer.data();
   const int dst_stride_y = input_buffer_stride_;
   const int uv_plane_offset =
       input_buffer_yplane_height_ * input_buffer_stride_;
-  uint8_t* dst_uv = buffer + uv_plane_offset;
+  uint8_t* dst_uv = buffer.data() + uv_plane_offset;
   const int dst_stride_uv = input_buffer_stride_;
 
   const gfx::Size uv_plane_size = VideoFrame::PlaneSizeInSamples(
-      PIXEL_FORMAT_NV12, VideoFrame::kUVPlane, visible_size);
+      PIXEL_FORMAT_NV12, VideoFrame::Plane::kUV, visible_size);
   const size_t queued_size =
       // size of Y-plane plus padding till UV-plane
       uv_plane_offset +
@@ -353,23 +382,23 @@ void AndroidVideoEncodeAccelerator::QueueInput() {
       // size of the very last line in UV-plane (it's not padded to full stride)
       uv_plane_size.width() * 2;
 
-  if (queued_size > capacity) {
+  if (queued_size > buffer.size()) {
     NotifyErrorStatus({EncoderStatus::Codes::kInvalidInputFrame,
                        "Frame doesn't fit into the input buffer. queue_size: " +
                            base::NumberToString(queued_size) +
-                           "capacity: " + base::NumberToString(capacity)});
+                           "capacity: " + base::NumberToString(buffer.size())});
     return;
   }
 
   // Why NV12?  Because COLOR_FORMAT_YUV420_SEMIPLANAR.  See comment at other
   // mention of that constant.
   bool converted = !libyuv::I420ToNV12(
-      frame->visible_data(VideoFrame::kYPlane),
-      frame->stride(VideoFrame::kYPlane),
-      frame->visible_data(VideoFrame::kUPlane),
-      frame->stride(VideoFrame::kUPlane),
-      frame->visible_data(VideoFrame::kVPlane),
-      frame->stride(VideoFrame::kVPlane), dst_y, dst_stride_y, dst_uv,
+      frame->visible_data(VideoFrame::Plane::kY),
+      frame->stride(VideoFrame::Plane::kY),
+      frame->visible_data(VideoFrame::Plane::kU),
+      frame->stride(VideoFrame::Plane::kU),
+      frame->visible_data(VideoFrame::Plane::kV),
+      frame->stride(VideoFrame::Plane::kV), dst_y, dst_stride_y, dst_uv,
       dst_stride_uv, visible_size.width(), visible_size.height());
   if (!converted) {
     NotifyErrorStatus({EncoderStatus::Codes::kFormatConversionError,
@@ -380,7 +409,7 @@ void AndroidVideoEncodeAccelerator::QueueInput() {
   // MediaCodec encoder assumes the presentation timestamps to be monotonically
   // increasing at initialized framerate. But in Chromium, the video capture
   // may be paused for a while or drop some frames, so the timestamp in input
-  // frames won't be continious. Here we cache the timestamps of input frames,
+  // frames won't be continuous. Here we cache the timestamps of input frames,
   // mapping to the generated |presentation_timestamp_|, and will read them out
   // after encoding. Then encoder can work happily always and we can preserve
   // the timestamps in captured frames for other purpose.
@@ -390,14 +419,13 @@ void AndroidVideoEncodeAccelerator::QueueInput() {
          frame_timestamp_map_.end());
   frame_timestamp_map_[presentation_timestamp_] = frame->timestamp();
 
-  status = media_codec_->QueueInputBuffer(input_buf_index, nullptr, queued_size,
-                                          presentation_timestamp_);
+  result = media_codec_->QueueFilledInputBuffer(input_buf_index, queued_size,
+                                                presentation_timestamp_);
   UMA_HISTOGRAM_TIMES("Media.AVDA.InputQueueTime",
                       base::Time::Now() - std::get<2>(input));
-  if (status != MEDIA_CODEC_OK) {
-    NotifyErrorStatus(
-        {EncoderStatus::Codes::kEncoderHardwareDriverError,
-         "Failed to QueueInputBuffer " + base::NumberToString(status)});
+  if (!result.is_ok()) {
+    NotifyErrorStatus({EncoderStatus::Codes::kEncoderHardwareDriverError,
+                       "Failed to QueueInputBuffer", std::move(result)});
     return;
   }
   ++num_buffers_at_codec_;
@@ -419,36 +447,36 @@ void AndroidVideoEncodeAccelerator::DequeueOutput() {
   bool key_frame = false;
 
   base::TimeDelta presentaion_timestamp;
-  MediaCodecStatus status = media_codec_->DequeueOutputBuffer(
+  MediaCodecResult result = media_codec_->DequeueOutputBuffer(
       NoWaitTimeOut(), &buf_index, &offset, &size, &presentaion_timestamp,
       nullptr, &key_frame);
-  switch (status) {
-    case MEDIA_CODEC_TRY_AGAIN_LATER:
+  switch (result.code()) {
+    case MediaCodecResult::Codes::kTryAgainLater:
       return;
 
-    case MEDIA_CODEC_ERROR:
+    case MediaCodecResult::Codes::kError:
       NotifyErrorStatus({EncoderStatus::Codes::kEncoderFailedEncode,
-                         "MediaCodec error in DequeueOutputBuffer"});
+                         "MediaCodec error in DequeueOutputBuffer",
+                         std::move(result)});
       // Unreachable because of previous statement, but included for clarity.
       return;
 
-    case MEDIA_CODEC_OUTPUT_FORMAT_CHANGED:
+    case MediaCodecResult::Codes::kOutputFormatChanged:
       return;
 
-    case MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED:
+    case MediaCodecResult::Codes::kOutputBuffersChanged:
       return;
 
-    case MEDIA_CODEC_OK:
+    case MediaCodecResult::Codes::kOk:
       DCHECK_GE(buf_index, 0);
       break;
 
     default:
       NOTREACHED();
-      break;
   }
 
   const auto it = frame_timestamp_map_.find(presentaion_timestamp);
-  DCHECK(it != frame_timestamp_map_.end());
+  CHECK(it != frame_timestamp_map_.end());
   const base::TimeDelta frame_timestamp = it->second;
   frame_timestamp_map_.erase(it);
 
@@ -470,12 +498,12 @@ void AndroidVideoEncodeAccelerator::DequeueOutput() {
              base::NumberToString(bitstream_buffer.size())});
     return;
   }
-  status = media_codec_->CopyFromOutputBuffer(buf_index, offset,
-                                              mapping.memory(), size);
-  if (status != MEDIA_CODEC_OK) {
+  result = media_codec_->CopyFromOutputBuffer(
+      buf_index, offset, mapping.GetMemoryAsSpan<uint8_t>(size));
+  if (!result.is_ok()) {
     NotifyErrorStatus({EncoderStatus::Codes::kEncoderFailedEncode,
-                       "MediaCodec error in CopyFromOutputBuffer: " +
-                           base::NumberToString(status)});
+                       "MediaCodec error in CopyFromOutputBuffer",
+                       std::move(result)});
     return;
   }
   media_codec_->ReleaseOutputBuffer(buf_index, false);
@@ -498,9 +526,9 @@ bool AndroidVideoEncodeAccelerator::SetInputBufferLayout() {
   // unfortunately, see https://crbug.com/1084702 for details. It seems they
   // only work when stride/y_plane_height information is provided.
   gfx::Size encoded_size;
-  auto status = media_codec_->GetInputFormat(
+  MediaCodecResult result = media_codec_->GetInputFormat(
       &input_buffer_stride_, &input_buffer_yplane_height_, &encoded_size);
-  if (status != MEDIA_CODEC_OK) {
+  if (!result.is_ok()) {
     return false;
   }
 

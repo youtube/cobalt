@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 static_library("cpp") {
   sources = [
@@ -39,6 +37,8 @@ static_library("test_support") {
     "fake_firewall_hole.h",
     "fake_firewall_hole_factory.cc",
     "fake_firewall_hole_factory.h",
+    "fake_mdns_manager.cc",
+    "fake_mdns_manager.h",
     "fake_nearby_presence.cc",
     "fake_nearby_presence.h",
     "fake_nearby_process_manager.cc",

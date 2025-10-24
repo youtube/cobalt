@@ -47,7 +47,7 @@ class CONTENT_EXPORT MediaSessionServiceImpl
   const std::set<media_session::mojom::MediaSessionAction>& actions() const {
     return actions_;
   }
-  const absl::optional<media_session::MediaPosition>& position() const {
+  const std::optional<media_session::MediaPosition>& position() const {
     return position_;
   }
   media_session::mojom::MicrophoneState microphone_state() const {
@@ -66,7 +66,7 @@ class CONTENT_EXPORT MediaSessionServiceImpl
 
   void SetPlaybackState(blink::mojom::MediaSessionPlaybackState state) override;
   void SetPositionState(
-      const absl::optional<media_session::MediaPosition>& position) override;
+      const std::optional<media_session::MediaPosition>& position) override;
   void SetMetadata(blink::mojom::SpecMediaMetadataPtr metadata) override;
   void SetMicrophoneState(
       media_session::mojom::MicrophoneState microphone_state) override;
@@ -85,11 +85,13 @@ class CONTENT_EXPORT MediaSessionServiceImpl
 
   const GlobalRenderFrameHostId render_frame_host_id_;
 
+  base::WeakPtr<MediaSessionImpl> media_session_;
+
   mojo::Remote<blink::mojom::MediaSessionClient> client_;
   blink::mojom::MediaSessionPlaybackState playback_state_;
   blink::mojom::SpecMediaMetadataPtr metadata_;
   std::set<media_session::mojom::MediaSessionAction> actions_;
-  absl::optional<media_session::MediaPosition> position_;
+  std::optional<media_session::MediaPosition> position_;
 
   // Tracks whether the microphone is muted in a WebRTC session.
   media_session::mojom::MicrophoneState microphone_state_ =

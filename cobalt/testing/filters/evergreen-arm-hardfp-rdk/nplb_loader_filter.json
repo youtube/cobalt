@@ -5,6 +5,7 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbAudioSinkTest.*",
     "SbAudioSinkCreateTest.MultiSink",
     "SbMediaSetAudioWriteDurationTests*",

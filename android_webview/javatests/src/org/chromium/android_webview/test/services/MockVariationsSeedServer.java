@@ -21,7 +21,7 @@ import org.chromium.base.test.util.CallbackHelper;
  * service should write the seed.
  */
 public class MockVariationsSeedServer extends VariationsSeedServer {
-    private static CallbackHelper sOnSeedRequested = new CallbackHelper();
+    private static final CallbackHelper sOnSeedRequested = new CallbackHelper();
     private static Bundle sMetricsBundle;
 
     public static CallbackHelper getRequestHelper() {
@@ -32,20 +32,23 @@ public class MockVariationsSeedServer extends VariationsSeedServer {
         sMetricsBundle = metricsBundle;
     }
 
-    private final IVariationsSeedServer.Stub mMockBinder = new IVariationsSeedServer.Stub() {
-        @Override
-        public void getSeed(ParcelFileDescriptor newSeedFile, long oldSeedDate,
-                IVariationsSeedServerCallback callback) {
-            if (sMetricsBundle != null) {
-                try {
-                    callback.reportVariationsServiceMetrics(sMetricsBundle);
-                } catch (RemoteException e) {
-                    throw new RuntimeException("Error reporting mock metrics", e);
+    private final IVariationsSeedServer.Stub mMockBinder =
+            new IVariationsSeedServer.Stub() {
+                @Override
+                public void getSeed(
+                        ParcelFileDescriptor newSeedFile,
+                        long oldSeedDate,
+                        IVariationsSeedServerCallback callback) {
+                    if (sMetricsBundle != null) {
+                        try {
+                            callback.reportVariationsServiceMetrics(sMetricsBundle);
+                        } catch (RemoteException e) {
+                            throw new RuntimeException("Error reporting mock metrics", e);
+                        }
+                    }
+                    sOnSeedRequested.notifyCalled();
                 }
-            }
-            sOnSeedRequested.notifyCalled();
-        }
-    };
+            };
 
     @Override
     public IBinder onBind(Intent intent) {

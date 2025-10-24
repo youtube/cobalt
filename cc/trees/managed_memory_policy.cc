@@ -58,7 +58,6 @@ ManagedMemoryPolicy::PriorityCutoffToTileMemoryLimitPolicy(
       return ALLOW_ANYTHING;
   }
   NOTREACHED();
-  return ALLOW_NOTHING;
 }
 
 }  // namespace cc

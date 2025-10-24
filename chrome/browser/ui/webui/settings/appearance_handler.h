@@ -8,7 +8,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 
@@ -39,6 +38,14 @@ class AppearanceHandler : public SettingsPageUIHandler {
   // Changes the UI theme to the specified `system_theme`.
   void HandleUseTheme(ui::SystemTheme system_theme,
                       const base::Value::List& args);
+  // Opens the Customize Chrome side panel.
+  void OpenCustomizeChrome(const base::Value::List& args);
+  // Opens the Customize Chrome side panel to the toolbar section.
+  void OpenCustomizeChromeToolbarSection(const base::Value::List& args);
+  // Reset toolbar pinning to the default settings.
+  void ResetPinnedToolbarActions(const base::Value::List& args);
+  // Whether toolbar pinning is in its default state or not.
+  void PinnedToolbarActionsAreDefault(const base::Value::List& args);
 
   raw_ptr<Profile> profile_;  // Weak pointer.
 

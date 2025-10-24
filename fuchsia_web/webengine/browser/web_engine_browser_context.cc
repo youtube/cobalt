@@ -5,14 +5,17 @@
 #include "fuchsia_web/webengine/browser/web_engine_browser_context.h"
 
 #include <lib/fdio/namespace.h>
+
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/path_service.h"
+#include "base/strings/string_split.h"
 #include "base/threading/thread_restrictions.h"
 #include "components/client_hints/browser/in_memory_client_hints_controller_delegate.h"
 #include "components/embedder_support/user_agent_utils.h"
@@ -20,14 +23,16 @@
 #include "components/keyed_service/core/simple_key_map.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/site_isolation/site_isolation_policy.h"
+#include "components/strings/grit/components_locale_settings.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/resource_context.h"
 #include "fuchsia_web/webengine/browser/web_engine_net_log_observer.h"
 #include "fuchsia_web/webengine/switches.h"
 #include "media/capabilities/in_memory_video_decode_stats_db_impl.h"
 #include "media/mojo/services/video_decode_perf_history.h"
+#include "net/http/http_util.h"
 #include "services/network/public/cpp/network_switches.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace {
 
@@ -45,18 +50,14 @@ std::unique_ptr<WebEngineNetLogObserver> CreateNetLogObserver() {
   return result;
 }
 
+std::vector<std::string> GetAcceptLanguages() {
+  std::string accept_languages_str = net::HttpUtil::ExpandLanguageList(
+      l10n_util::GetStringUTF8(IDS_ACCEPT_LANGUAGES));
+  return base::SplitString(accept_languages_str, ",", base::TRIM_WHITESPACE,
+                           base::SPLIT_WANT_ALL);
+}
+
 }  // namespace
-
-class WebEngineBrowserContext::ResourceContext
-    : public content::ResourceContext {
- public:
-  ResourceContext() = default;
-
-  ResourceContext(const ResourceContext&) = delete;
-  ResourceContext& operator=(const ResourceContext&) = delete;
-
-  ~ResourceContext() override = default;
-};
 
 // static
 std::unique_ptr<WebEngineBrowserContext>
@@ -79,11 +80,6 @@ WebEngineBrowserContext::~WebEngineBrowserContext() {
   SimpleKeyMap::GetInstance()->Dissociate(this);
   NotifyWillBeDestroyed();
 
-  if (resource_context_) {
-    content::GetIOThreadTaskRunner({})->DeleteSoon(
-        FROM_HERE, std::move(resource_context_));
-  }
-
   BrowserContextDependencyManager::GetInstance()->DestroyBrowserContextServices(
       this);
 
@@ -102,10 +98,6 @@ base::FilePath WebEngineBrowserContext::GetPath() {
 
 bool WebEngineBrowserContext::IsOffTheRecord() {
   return data_dir_path_.empty();
-}
-
-content::ResourceContext* WebEngineBrowserContext::GetResourceContext() {
-  return resource_context_.get();
 }
 
 content::DownloadManagerDelegate*
@@ -170,8 +162,7 @@ WebEngineBrowserContext::GetBrowsingDataRemoverDelegate() {
 
 content::ReduceAcceptLanguageControllerDelegate*
 WebEngineBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
-  // There is no delegate since WebEngine doesn't support persistence.
-  return nullptr;
+  return &reduce_accept_language_delegate_;
 }
 
 std::unique_ptr<media::VideoDecodePerfHistory>
@@ -194,23 +185,16 @@ base::RepeatingCallback<bool(const GURL&)> IsJavaScriptAllowedCallback() {
   return base::BindRepeating([](const GURL&) { return true; });
 }
 
-base::RepeatingCallback<bool(const GURL&)>
-AreThirdPartyCookiesBlockedCallback() {
-  // WebEngine does not provide a way to block third-party cookies.
-  return base::BindRepeating([](const GURL&) { return false; });
-}
-
 WebEngineBrowserContext::WebEngineBrowserContext(
     base::FilePath data_directory,
     network::NetworkQualityTracker* network_quality_tracker)
     : data_dir_path_(std::move(data_directory)),
       net_log_observer_(CreateNetLogObserver()),
       simple_factory_key_(GetPath(), IsOffTheRecord()),
-      resource_context_(std::make_unique<ResourceContext>()),
       client_hints_delegate_(network_quality_tracker,
                              IsJavaScriptAllowedCallback(),
-                             AreThirdPartyCookiesBlockedCallback(),
-                             embedder_support::GetUserAgentMetadata()) {
+                             embedder_support::GetUserAgentMetadata()),
+      reduce_accept_language_delegate_(GetAcceptLanguages()) {
   SimpleKeyMap::GetInstance()->Associate(this, &simple_factory_key_);
 
   profile_metrics::SetBrowserProfileType(
@@ -219,7 +203,7 @@ WebEngineBrowserContext::WebEngineBrowserContext(
 
   BrowserContextDependencyManager::GetInstance()->MarkBrowserContextLive(this);
 
-  // TODO(crbug.com/1181156): Should apply any persisted isolated origins here.
+  // TODO(crbug.com/40170271): Should apply any persisted isolated origins here.
   // However, since WebEngine does not persist any, that would currently be a
   // no-op.
 }

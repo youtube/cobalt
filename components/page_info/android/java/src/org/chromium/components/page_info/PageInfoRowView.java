@@ -15,26 +15,25 @@ import android.widget.TextView;
 
 import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.widget.ImageViewCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.widget.ChromeImageView;
 
-/**
- * View showing an icon, title and subtitle for a page info row.
- */
+/** View showing an icon, title and subtitle for a page info row. */
+@NullMarked
 public class PageInfoRowView extends FrameLayout {
-    /**  Parameters to configure the row view. */
+    /** Parameters to configure the row view. */
     public static class ViewParams {
         public boolean visible;
         public @DrawableRes int iconResId;
         public @ColorRes int iconTint;
-        public CharSequence title;
-        public CharSequence subtitle;
-        public Runnable clickCallback;
+        public @Nullable CharSequence title;
+        public @Nullable CharSequence subtitle;
+        public @Nullable Runnable clickCallback;
         public boolean decreaseIconSize;
         public boolean singleLineSubTitle;
         public @ColorRes int rowTint;
@@ -44,7 +43,7 @@ public class PageInfoRowView extends FrameLayout {
     private final TextView mTitle;
     private final TextView mSubtitle;
 
-    public PageInfoRowView(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public PageInfoRowView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         LayoutInflater.from(context).inflate(R.layout.page_info_row, this, true);
         mIcon = findViewById(R.id.page_info_row_icon);
@@ -57,22 +56,24 @@ public class PageInfoRowView extends FrameLayout {
         setVisibility(params.visible ? VISIBLE : GONE);
         if (!params.visible) return;
 
-        DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
+        Context context = getContext();
+        DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
         mIcon.setImageResource(params.iconResId);
         if (params.decreaseIconSize) {
             // All icons are 24dp but some are effectively 20dp because fill the side with padding.
             // Add 2dp padding for the images that are otherwise too large to make them
             // equal size.
-            // TODO(crbug.com/1135124): Figure out why we have these differences.
+            // TODO(crbug.com/40723471): Figure out why we have these differences.
             int p = ViewUtils.dpToPx(displayMetrics, 2);
             mIcon.setPadding(p, p, p, p);
         }
 
-        ImageViewCompat.setImageTintList(mIcon,
+        ImageViewCompat.setImageTintList(
+                mIcon,
                 params.iconTint != 0
-                        ? ColorStateList.valueOf(getResources().getColor(params.iconTint))
+                        ? ColorStateList.valueOf(context.getColor(params.iconTint))
                         : AppCompatResources.getColorStateList(
-                                getContext(), R.color.default_icon_color_tint_list));
+                                context, R.color.default_icon_color_tint_list));
 
         mTitle.setText(params.title);
         mTitle.setVisibility(params.title != null ? VISIBLE : GONE);
@@ -82,18 +83,20 @@ public class PageInfoRowView extends FrameLayout {
         if (params.title != null && params.subtitle != null) {
             mTitle.setPadding(0, 0, 0, ViewUtils.dpToPx(displayMetrics, 4));
         }
-        if (params.clickCallback != null) {
+        var clickCallback = params.clickCallback;
+        if (clickCallback != null) {
             setClickable(true);
             setFocusable(true);
-            getChildAt(0).setOnClickListener((v) -> params.clickCallback.run());
+            setOnClickListener(v -> clickCallback.run());
         }
         if (params.rowTint != 0) {
-            setBackgroundColor(AppCompatResources.getColorStateList(getContext(), params.rowTint)
-                                       .getDefaultColor());
+            setBackgroundColor(
+                    AppCompatResources.getColorStateList(context, params.rowTint)
+                            .getDefaultColor());
         }
     }
 
-    public void updateSubtitle(CharSequence subtitle) {
+    public void updateSubtitle(@Nullable CharSequence subtitle) {
         mSubtitle.setText(subtitle);
         mSubtitle.setVisibility(subtitle != null ? VISIBLE : GONE);
     }

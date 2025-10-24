@@ -60,11 +60,14 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "components/download/public/common/download_interrupt_reasons.h"
 #include "components/services/quarantine/quarantine.h"
 #include "content/browser/download/save_types.h"
 #include "content/common/content_export.h"
+#include "net/base/isolation_info.h"
+#include "services/network/public/cpp/request_mode.h"
 
 class GURL;
 
@@ -99,6 +102,9 @@ class CONTENT_EXPORT SaveFileManager
       SaveItemId save_item_id,
       const GURL& url,
       const Referrer& referrer,
+      const net::IsolationInfo& isolation_info,
+      network::mojom::RequestMode request_mode,
+      bool is_outermost_main_frame,
       int render_process_host_id,
       int render_view_routing_id,
       int render_frame_routing_id,
@@ -228,18 +234,16 @@ class CONTENT_EXPORT SaveFileManager
   void ClearURLLoader(SaveItemId save_item_id);
 
   // A map from save_item_id into SaveFiles.
-  std::unordered_map<SaveItemId, std::unique_ptr<SaveFile>, SaveItemId::Hasher>
-      save_file_map_;
+  std::unordered_map<SaveItemId, std::unique_ptr<SaveFile>> save_file_map_;
 
   // Tracks which SavePackage to send data to, called only on UI thread.
   // SavePackageMap maps save item ids to their SavePackage.
-  std::unordered_map<SaveItemId, SavePackage*, SaveItemId::Hasher> packages_;
+  std::unordered_map<SaveItemId, raw_ptr<SavePackage, CtnExperimental>>
+      packages_;
 
   // The helper object doing the actual download. Should be accessed on the UI
   // thread.
-  std::unordered_map<SaveItemId,
-                     std::unique_ptr<SimpleURLLoaderHelper>,
-                     SaveItemId::Hasher>
+  std::unordered_map<SaveItemId, std::unique_ptr<SimpleURLLoaderHelper>>
       url_loader_helpers_;
 };
 

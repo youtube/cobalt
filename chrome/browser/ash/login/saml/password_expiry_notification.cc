@@ -5,36 +5,30 @@
 #include "chrome/browser/ash/login/saml/password_expiry_notification.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
-#include "ash/public/cpp/session/session_activation_observer.h"
-#include "ash/public/cpp/session/session_controller.h"
-#include "base/functional/bind.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
-#include "base/strings/string_util.h"
-#include "base/task/task_traits.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/saml/in_session_password_change_manager.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/notifications/notification_common.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
+#include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/webui/ash/in_session_password_change/password_change_ui.h"
-#include "chrome/common/pref_names.h"
-#include "chromeos/ash/components/login/auth/public/saml_password_attributes.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
-#include "components/prefs/pref_service.h"
 #include "components/vector_icons/vector_icons.h"
-#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
+#include "ui/message_center/public/cpp/notification_types.h"
+#include "ui/message_center/public/cpp/notifier_id.h"
 
 namespace ash {
 namespace {
@@ -90,8 +84,8 @@ class PasswordExpiryNotificationDelegate : public NotificationDelegate {
 
   // NotificationDelegate:
   void Close(bool by_user) override;
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override;
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override;
 };
 
 PasswordExpiryNotificationDelegate::PasswordExpiryNotificationDelegate() =
@@ -107,8 +101,8 @@ void PasswordExpiryNotificationDelegate::Close(bool by_user) {
 }
 
 void PasswordExpiryNotificationDelegate::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index,
+    const std::optional<std::u16string>& reply) {
   bool clicked_on_button = button_index.has_value();
   if (clicked_on_button) {
     InSessionPasswordChangeManager::Get()->StartInSessionPasswordChange();

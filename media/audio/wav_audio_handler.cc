@@ -7,13 +7,14 @@
 #include <algorithm>
 #include <cstring>
 
-#include "base/big_endian.h"
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/containers/span.h"
+#include "base/containers/span_reader.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
-#include "base/sys_byteorder.h"
+#include "base/numerics/byte_conversions.h"
 #include "build/build_config.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_timestamp_helper.h"
@@ -22,10 +23,10 @@
 namespace media {
 namespace {
 
-const char kChunkId[] = "RIFF";
-const char kFormat[] = "WAVE";
-const char kFmtSubchunkId[] = "fmt ";
-const char kDataSubchunkId[] = "data";
+const uint8_t kChunkId[] = {'R', 'I', 'F', 'F'};
+const uint8_t kFormat[] = {'W', 'A', 'V', 'E'};
+const uint8_t kFmtSubchunkId[] = {'f', 'm', 't', ' '};
+const uint8_t kDataSubchunkId[] = {'d', 'a', 't', 'a'};
 
 // The size of a chunk header in wav file format. A chunk header consists of a
 // tag ('fmt ' or 'data') and 4 bytes of chunk length.
@@ -46,12 +47,21 @@ const size_t kSubFormatOffset = 24;
 // A convenience struct for passing WAV parameters around. AudioParameters is
 // too heavyweight for this. Keep this class internal to this implementation.
 struct WavAudioParameters {
-  WavAudioHandler::AudioFormat audio_format;
-  uint16_t num_channels;
-  uint32_t sample_rate;
-  uint16_t bits_per_sample;
-  uint16_t valid_bits_per_sample;
-  bool is_extensible;
+  // TODO(crbug.com/340824112): note that zero-initializing this field does not
+  // correspond to any enumerator value defined in the `AudioFormat` enum.
+  // However, not initializing is also problematic: `ParseFmtChunk()` simply
+  // early-returns on failure, leaving random fields uninitialized and causing
+  // MSan errors elsewhere. A better long-term solution would be for
+  // `ParseFmtChunk` to return a `std::optional<WavAudioParameters>`. For now,
+  // zero-initializing this field has a (small) benefit that it won't
+  // correspond to any valid format and is guaranteed to fail the
+  // `ParamsAreValid()` check.
+  WavAudioHandler::AudioFormat audio_format = {};
+  uint16_t num_channels = 0;
+  uint32_t sample_rate = 0;
+  uint16_t bits_per_sample = 0;
+  uint16_t valid_bits_per_sample = 0;
+  bool is_extensible = false;
 };
 
 bool ParamsAreValid(const WavAudioParameters& params) {
@@ -76,22 +86,9 @@ bool ParamsAreValid(const WavAudioParameters& params) {
        params.valid_bits_per_sample == params.bits_per_sample));
 }
 
-// Reads an integer from |data| with |offset|.
-template <typename T>
-T ReadInt(const base::StringPiece& data, size_t offset) {
-  CHECK_LE(offset + sizeof(T), data.size());
-  T result;
-  memcpy(&result, data.data() + offset, sizeof(T));
-#if !defined(ARCH_CPU_LITTLE_ENDIAN)
-  result = base::ByteSwap(result);
-#endif
-  return result;
-}
-
-// Parse a "fmt " chunk from wav data into its parameters.
-bool ParseFmtChunk(const base::StringPiece data, WavAudioParameters* params) {
-  DCHECK(params);
-
+// Parse a "fmt " chunk from wav data into its parameters. The `data` is in
+// little endian encoding.
+bool ParseFmtChunk(base::span<const uint8_t> data, WavAudioParameters& params) {
   // If the chunk is too small, return false.
   if (data.size() < kFmtChunkMinimumSize) {
     LOG(ERROR) << "Data size " << data.size() << " is too short.";
@@ -99,53 +96,58 @@ bool ParseFmtChunk(const base::StringPiece data, WavAudioParameters* params) {
   }
 
   // Read in serialized parameters.
-  params->audio_format =
-      ReadInt<WavAudioHandler::AudioFormat>(data, kAudioFormatOffset);
-  params->num_channels = ReadInt<uint16_t>(data, kChannelOffset);
-  params->sample_rate = ReadInt<uint32_t>(data, kSampleRateOffset);
-  params->bits_per_sample = ReadInt<uint16_t>(data, kBitsPerSampleOffset);
+  params.audio_format =
+      static_cast<WavAudioHandler::AudioFormat>(base::U16FromLittleEndian(
+          data.subspan<kAudioFormatOffset,
+                       sizeof(WavAudioHandler::AudioFormat)>()));
+  params.num_channels =
+      base::U16FromLittleEndian(data.subspan<kChannelOffset, 2u>());
+  params.sample_rate =
+      base::U32FromLittleEndian(data.subspan<kSampleRateOffset, 4u>());
+  params.bits_per_sample =
+      base::U16FromLittleEndian(data.subspan<kBitsPerSampleOffset, 2u>());
 
-  if (params->audio_format ==
+  if (params.audio_format ==
       WavAudioHandler::AudioFormat::kAudioFormatExtensible) {
     if (data.size() < kFmtChunkExtensibleMinimumSize) {
       LOG(ERROR) << "Data size " << data.size() << " is too short.";
       return false;
     }
 
-    params->is_extensible = true;
-    params->audio_format =
-        ReadInt<WavAudioHandler::AudioFormat>(data, kSubFormatOffset);
-    params->valid_bits_per_sample =
-        ReadInt<uint16_t>(data, kValidBitsPerSampleOffset);
+    params.is_extensible = true;
+    params.audio_format =
+        static_cast<WavAudioHandler::AudioFormat>(base::U16FromLittleEndian(
+            data.subspan<kSubFormatOffset,
+                         sizeof(WavAudioHandler::AudioFormat)>()));
+    params.valid_bits_per_sample = base::U16FromLittleEndian(
+        data.subspan<kValidBitsPerSampleOffset, 2u>());
   } else {
-    params->is_extensible = false;
+    params.is_extensible = false;
   }
   return true;
 }
 
-bool ParseWavData(const base::StringPiece wav_data,
-                  base::StringPiece* audio_data_out,
-                  WavAudioParameters* params_out) {
-  DCHECK(audio_data_out);
-  DCHECK(params_out);
-
+// The `wav_data` is encoded in little endian, as will be `audio_data_out`.
+bool ParseWavData(base::span<const uint8_t> wav_data,
+                  base::span<const uint8_t>& audio_data_out,
+                  WavAudioParameters& params_out) {
   // The header should look like: |R|I|F|F|1|2|3|4|W|A|V|E|
-  auto reader = base::BigEndianReader::FromStringPiece(wav_data);
+  auto buf = base::SpanReader(wav_data);
 
   // Read the chunk ID and compare to "RIFF".
-  base::StringPiece chunk_id;
-  if (!reader.ReadPiece(&chunk_id, 4) || chunk_id != kChunkId) {
+  std::optional<base::span<const uint8_t, 4u>> chunk_id = buf.Read<4u>();
+  if (chunk_id != kChunkId) {
     DLOG(ERROR) << "missing or incorrect chunk ID in wav header";
     return false;
   }
   // The RIFF chunk length comes next, but we don't actually care what it says.
-  if (!reader.Skip(sizeof(uint32_t))) {
+  if (!buf.Skip(sizeof(uint32_t))) {
     DLOG(ERROR) << "missing length in wav header";
     return false;
   }
   // Read format and compare to "WAVE".
-  base::StringPiece format;
-  if (!reader.ReadPiece(&format, 4) || format != kFormat) {
+  std::optional<base::span<const uint8_t, 4u>> format = buf.Read<4u>();
+  if (format != kFormat) {
     DLOG(ERROR) << "missing or incorrect format ID in wav header";
     return false;
   }
@@ -153,21 +155,16 @@ bool ParseWavData(const base::StringPiece wav_data,
   bool got_format = false;
   // If the number of remaining bytes is smaller than |kChunkHeaderSize|, it's
   // just junk at the end.
-  while (reader.remaining() >= kChunkHeaderSize) {
+  while (buf.remaining() >= kChunkHeaderSize) {
     // We should be at the beginning of a subsection. The next 8 bytes are the
     // header and should look like: "|f|m|t| |1|2|3|4|" or "|d|a|t|a|1|2|3|4|".
-    base::StringPiece chunk_fmt;
-    uint32_t chunk_length;
-    if (!reader.ReadPiece(&chunk_fmt, 4) || !reader.ReadU32(&chunk_length))
-      break;
-    chunk_length = base::ByteSwap(chunk_length);
-    // Read |chunk_length| bytes of payload. If that is impossible, try to read
-    // all remaining bytes as the payload.
-    base::StringPiece chunk_payload;
-    if (!reader.ReadPiece(&chunk_payload, chunk_length) &&
-        !reader.ReadPiece(&chunk_payload, reader.remaining())) {
-      break;
-    }
+    base::span<const uint8_t, 4u> chunk_fmt = *buf.Read<4u>();
+    uint32_t chunk_length = base::U32FromLittleEndian(*buf.Read<4u>());
+
+    // Read `chunk_length` bytes of payload. If that is impossible, read all
+    // remaining bytes as the payload.
+    base::span<const uint8_t> chunk_payload =
+        *buf.Read(std::min(size_t{chunk_length}, buf.remaining()));
 
     // Parse the subsection header, handling it if it is a "data" or "fmt "
     // chunk. Skip it otherwise.
@@ -176,9 +173,10 @@ bool ParseWavData(const base::StringPiece wav_data,
       if (!ParseFmtChunk(chunk_payload, params_out))
         return false;
     } else if (chunk_fmt == kDataSubchunkId) {
-      *audio_data_out = chunk_payload;
+      audio_data_out = chunk_payload;
     } else {
-      DVLOG(1) << "Skipping unknown data chunk: " << chunk_fmt << ".";
+      DVLOG(1) << "Skipping unknown data chunk: "
+               << base::as_string_view(chunk_fmt) << ".";
     }
   }
 
@@ -186,14 +184,14 @@ bool ParseWavData(const base::StringPiece wav_data,
   if (!got_format) {
     LOG(ERROR) << "Invalid: No \"" << kFmtSubchunkId << "\" header found!";
     return false;
-  } else if (!ParamsAreValid(*params_out)) {
+  } else if (!ParamsAreValid(params_out)) {
     LOG(ERROR) << "Format is invalid. "
-               << "num_channels: " << params_out->num_channels << " "
-               << "sample_rate: " << params_out->sample_rate << " "
-               << "bits_per_sample: " << params_out->bits_per_sample << " "
-               << "valid_bits_per_sample: " << params_out->valid_bits_per_sample
+               << "num_channels: " << params_out.num_channels << " "
+               << "sample_rate: " << params_out.sample_rate << " "
+               << "bits_per_sample: " << params_out.bits_per_sample << " "
+               << "valid_bits_per_sample: " << params_out.valid_bits_per_sample
                << " "
-               << "is_extensible: " << params_out->is_extensible;
+               << "is_extensible: " << params_out.is_extensible;
     return false;
   }
   return true;
@@ -201,7 +199,7 @@ bool ParseWavData(const base::StringPiece wav_data,
 
 }  // namespace
 
-WavAudioHandler::WavAudioHandler(base::StringPiece audio_data,
+WavAudioHandler::WavAudioHandler(base::span<const uint8_t> audio_data,
                                  uint16_t num_channels,
                                  uint32_t sample_rate,
                                  uint16_t bits_per_sample,
@@ -220,13 +218,14 @@ WavAudioHandler::~WavAudioHandler() = default;
 
 // static
 std::unique_ptr<WavAudioHandler> WavAudioHandler::Create(
-    const base::StringPiece wav_data) {
+    base::span<const uint8_t> wav_data) {
   WavAudioParameters params;
-  base::StringPiece audio_data;
+  base::span<const uint8_t> audio_data;
 
   // Attempt to parse the WAV data.
-  if (!ParseWavData(wav_data, &audio_data, &params))
+  if (!ParseWavData(wav_data, audio_data, params)) {
     return nullptr;
+  }
 
   return base::WrapUnique(
       new WavAudioHandler(audio_data, params.num_channels, params.sample_rate,
@@ -260,7 +259,7 @@ bool WavAudioHandler::CopyTo(AudioBus* bus, size_t* frames_written) {
   const int bytes_per_frame = num_channels_ * bits_per_sample_ / 8;
   const int remaining_frames = (audio_data_.size() - cursor_) / bytes_per_frame;
   const int frames = std::min(bus->frames(), remaining_frames);
-  const auto* source = audio_data_.data() + cursor_;
+  const auto* source = audio_data_.subspan(cursor_).data();
 
   switch (audio_format_) {
     case AudioFormat::kAudioFormatPCM:
@@ -281,7 +280,6 @@ bool WavAudioHandler::CopyTo(AudioBus* bus, size_t* frames_written) {
           NOTREACHED()
               << "Unsupported bytes per sample encountered for integer PCM: "
               << bytes_per_frame;
-          bus->ZeroFrames(frames);
       }
       break;
     case AudioFormat::kAudioFormatFloat:
@@ -298,13 +296,11 @@ bool WavAudioHandler::CopyTo(AudioBus* bus, size_t* frames_written) {
           NOTREACHED()
               << "Unsupported bytes per sample encountered for float PCM: "
               << bytes_per_frame;
-          bus->ZeroFrames(frames);
       }
       break;
     default:
       NOTREACHED() << "Unsupported audio format encountered: "
                    << static_cast<uint16_t>(audio_format_);
-      bus->ZeroFrames(frames);
   }
   *frames_written = frames;
   cursor_ += frames * bytes_per_frame;

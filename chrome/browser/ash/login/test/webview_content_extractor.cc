@@ -4,10 +4,12 @@
 
 #include "chrome/browser/ash/login/test/webview_content_extractor.h"
 
+#include <string_view>
+
 #include "base/strings/stringprintf.h"
 #include "base/uuid.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
@@ -49,7 +51,7 @@ content::RenderFrameHost* FindFrame(const std::string& element_id) {
 }  // namespace
 
 std::string GetWebViewContents(
-    std::initializer_list<base::StringPiece> element_ids) {
+    std::initializer_list<std::string_view> element_ids) {
   return GetWebViewContentsById(GetOobeElementPath(element_ids));
 }
 

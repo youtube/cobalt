@@ -4,14 +4,8 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/chrome_build.gni")
-import("//chrome/installer/setup/buildflags.gni")
 import("//chrome/process_version_rc_template.gni")
 import("//testing/test.gni")
-
-buildflag_header("buildflags") {
-  header = "buildflags.h"
-  flags = [ "ZUCCHINI=$use_zucchini" ]
-}
 
 if (is_win) {
   executable("setup") {
@@ -31,19 +25,19 @@ if (is_win) {
     configs += [ "//build/config/win:windowed" ]
 
     deps = [
-      ":buildflags",
       ":lib",
       ":setup_exe_version",
       "//base",
       "//build:branding_buildflags",
       "//build/win:default_exe_manifest",
-      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/network",
+      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/network:win_key_network_delegate",
       "//chrome/browser/enterprise/connectors/device_trust/key_management/installer:elevated_rotation",
       "//chrome/browser/enterprise/connectors/device_trust/key_management/installer/management_service:rotate_util",
       "//chrome/chrome_elf:constants",
       "//chrome/common:constants",
       "//chrome/install_static:install_static_util",
       "//chrome/installer/util:with_rc_strings",
+      "//chrome/windows_services/elevated_tracing_service:integration",
       "//components/crash/core/app:app",
       "//components/crash/core/app:crash_export_thunks",
       "//components/crash/core/app:run_as_crashpad_handler",
@@ -61,6 +55,8 @@ if (is_win) {
       "archive_patch_helper.cc",
       "archive_patch_helper.h",
       "brand_behaviors.h",
+      "configure_app_container_sandbox.cc",
+      "configure_app_container_sandbox.h",
       "downgrade_cleanup.cc",
       "downgrade_cleanup.h",
       "install.cc",
@@ -81,6 +77,8 @@ if (is_win) {
       "modify_params.h",
       "progress_calculator.cc",
       "progress_calculator.h",
+      "scoped_thread_pool.cc",
+      "scoped_thread_pool.h",
       "setup_constants.cc",
       "setup_constants.h",
       "setup_install_details.cc",
@@ -89,23 +87,22 @@ if (is_win) {
       "setup_singleton.h",
       "setup_util.cc",
       "setup_util.h",
+      "unpack_archive.cc",
+      "unpack_archive.h",
       "update_active_setup_version_work_item.cc",
       "update_active_setup_version_work_item.h",
-      "user_experiment.cc",
-      "user_experiment.h",
       "user_hive_visitor.cc",
       "user_hive_visitor.h",
     ]
 
     public_deps = [
-      ":buildflags",
       "//base",
       "//chrome/installer/util:with_rc_strings",
     ]
 
     deps = [
+      "//base",
       "//build:branding_buildflags",
-      "//chrome/browser/chrome_for_testing:buildflags",
       "//chrome/common:constants",
       "//chrome/common:version_header",
       "//chrome/install_static:buildflags",
@@ -113,11 +110,11 @@ if (is_win) {
       "//components/base32",
       "//components/crash/core/app",
       "//components/crash/core/common",
-      "//components/metrics",
+      "//components/metrics:client_info",
+      "//components/metrics:metrics_pref_names",
       "//components/version_info:channel",
       "//components/zucchini:zucchini_io",
       "//components/zucchini:zucchini_lib",
-      "//courgette:courgette_lib",
       "//third_party/bspatch",
       "//third_party/crashpad/crashpad/client",
       "//third_party/crashpad/crashpad/util",
@@ -141,6 +138,7 @@ if (is_win) {
   test("setup_unittests") {
     sources = [
       "archive_patch_helper_unittest.cc",
+      "configure_app_container_sandbox_unittest.cc",
       "downgrade_cleanup_unittest.cc",
       "install_unittest.cc",
       "install_worker_unittest.cc",
@@ -153,8 +151,8 @@ if (is_win) {
       "setup_util_unittest.cc",
       "setup_util_unittest.h",
       "taskbar_util_unittest.cc",
+      "unpack_archive_unittest.cc",
       "update_active_setup_version_work_item_unittest.cc",
-      "user_experiment_unittest.cc",
       "user_hive_visitor_unittest.cc",
     ]
 
@@ -165,7 +163,6 @@ if (is_win) {
       "//base/allocator:buildflags",
       "//base/test:test_support",
       "//build:branding_buildflags",
-      "//chrome/browser/chrome_for_testing:buildflags",
       "//chrome/common:constants",
       "//chrome/common:version_header",
       "//chrome/install_static:buildflags",

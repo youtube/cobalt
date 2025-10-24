@@ -15,7 +15,6 @@
 #include "chrome/browser/ash/attestation/platform_verification_flow.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
-#include "chrome/browser/profiles/profile_impl.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/attestation/fake_certificate.h"
 #include "chromeos/ash/components/attestation/mock_attestation_flow.h"
@@ -51,7 +50,7 @@ class FakeDelegate : public PlatformVerificationFlow::Delegate {
   FakeDelegate(const FakeDelegate&) = delete;
   FakeDelegate& operator=(const FakeDelegate&) = delete;
 
-  ~FakeDelegate() override {}
+  ~FakeDelegate() override = default;
 
   bool IsInSupportedMode() override { return is_in_supported_mode_; }
 
@@ -141,7 +140,7 @@ class PlatformVerificationFlowTest : public ::testing::Test {
 
   // Used to create a fake user.
   FakeChromeUserManager user_manager_;
-  raw_ptr<user_manager::User, ExperimentalAsh> user_;
+  raw_ptr<user_manager::User> user_;
 
   scoped_refptr<PlatformVerificationFlow> verifier_;
 

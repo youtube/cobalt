@@ -6,12 +6,12 @@ package org.chromium.chrome.browser.password_manager;
 import android.accounts.Account;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.Optional;
 
-/**
- * Interface for the object mediating access to the password settings.
- */
+/** Interface for the object mediating access to the password settings. */
+@NullMarked
 public interface PasswordSettingsAccessor {
     /**
      * Asynchronously retrieves the value of the "Offer to save passwords" setting.
@@ -22,8 +22,10 @@ public interface PasswordSettingsAccessor {
      *        or no value if none was set
      * @param failureCallback called with an error if the retrieval did not succeed
      */
-    void getOfferToSavePasswords(Optional<Account> account,
-            Callback<Optional<Boolean>> successCallback, Callback<Exception> failureCallback);
+    void getOfferToSavePasswords(
+            Optional<Account> account,
+            Callback<Optional<Boolean>> successCallback,
+            Callback<Exception> failureCallback);
 
     /**
      * Asynchronously sets the value of the "Offer to save passwords" setting.
@@ -34,8 +36,11 @@ public interface PasswordSettingsAccessor {
      * @param successCallback called if the modification was successful
      * @param failureCallback called with an error if the modification did not succeed
      */
-    void setOfferToSavePasswords(boolean offerToSavePasswordsEnabled, Optional<Account> account,
-            Callback<Void> successCallback, Callback<Exception> failureCallback);
+    void setOfferToSavePasswords(
+            boolean offerToSavePasswordsEnabled,
+            Optional<Account> account,
+            Callback<Void> successCallback,
+            Callback<Exception> failureCallback);
 
     /**
      * Asynchronously retrieves the value of the "Auto Sign In" setting.
@@ -46,7 +51,9 @@ public interface PasswordSettingsAccessor {
      *        or no value if none was set
      * @param failureCallback called with an error if the retrieval did not succeed
      */
-    void getAutoSignIn(Optional<Account> account, Callback<Optional<Boolean>> successCallback,
+    void getAutoSignIn(
+            Optional<Account> account,
+            Callback<Optional<Boolean>> successCallback,
             Callback<Exception> failureCallback);
 
     /**
@@ -54,10 +61,25 @@ public interface PasswordSettingsAccessor {
      *
      * @param autoSignInEnabled the value to set for the setting
      * @param account the account where to store the value the value or no account if it should be
-     *        stored in the local storage
+     *     stored in the local storage
      * @param successCallback called if the modification was successful
      * @param failureCallback called with an error if the modification did not succeed
      */
-    void setAutoSignIn(boolean autoSignInEnabled, Optional<Account> account,
-            Callback<Void> successCallback, Callback<Exception> failureCallback);
+    void setAutoSignIn(
+            boolean autoSignInEnabled,
+            Optional<Account> account,
+            Callback<Void> successCallback,
+            Callback<Exception> failureCallback);
+
+    /**
+     * Asynchronously retrieves the value of the "Use biometric re-auth before credential filling"
+     * setting. The settings per-device, not per-account (meaning that it will be applied to all
+     * accounts on the device).
+     *
+     * @param successCallback called if the retrieval succeeds with the value of the setting or no
+     *     value if none was set.
+     * @param failureCallback called with an error if the retrieval did not succeed.
+     */
+    void getUseBiometricReauthBeforeFilling(
+            Callback<Optional<Boolean>> successCallback, Callback<Exception> failureCallback);
 }

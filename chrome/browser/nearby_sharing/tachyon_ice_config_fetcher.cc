@@ -4,6 +4,8 @@
 
 #include "chrome/browser/nearby_sharing/tachyon_ice_config_fetcher.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -11,7 +13,6 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/nearby_sharing/instantmessaging/token_fetcher.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
 #include "chrome/browser/nearby_sharing/proto/duration.pb.h"
 #include "chrome/browser/nearby_sharing/proto/ice.pb.h"
 #include "chrome/browser/nearby_sharing/proto/tachyon.pb.h"
@@ -19,12 +20,12 @@
 #include "chrome/browser/nearby_sharing/proto/tachyon_enums.pb.h"
 #include "chrome/services/sharing/public/cpp/sharing_webrtc_metrics.h"
 #include "chromeos/ash/components/nearby/common/client/nearby_http_result.h"
+#include "components/cross_device/logging/logging.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/load_flags.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "url/gurl.h"
 
@@ -155,34 +156,36 @@ bool IsLoaderSuccessful(const network::SimpleURLLoader* loader,
   RecordResultMetric(status);
 
   if (!status.IsSuccess()) {
-    NS_LOG(ERROR) << "TachyonIceConfigFetcher (request_id=" << request_id
-                  << ") " << status << " " << status.GetResultCodeForMetrics();
+    CD_LOG(ERROR, Feature::NEARBY_INFRA)
+        << "TachyonIceConfigFetcher (request_id=" << request_id << ") "
+        << status << " " << status.GetResultCodeForMetrics();
     return false;
   }
 
-  NS_LOG(VERBOSE) << "TachyonIceConfigFetcher (request_id=" << request_id
-                  << ") GetIceServers succeeded";
+  CD_LOG(VERBOSE, Feature::NEARBY_INFRA)
+      << "TachyonIceConfigFetcher (request_id=" << request_id
+      << ") GetIceServers succeeded";
   return true;
 }
 
-std::vector<sharing::mojom::IceServerPtr> GetDefaultIceServers() {
-  sharing::mojom::IceServerPtr ice_server(sharing::mojom::IceServer::New());
+std::vector<::sharing::mojom::IceServerPtr> GetDefaultIceServers() {
+  ::sharing::mojom::IceServerPtr ice_server(::sharing::mojom::IceServer::New());
   ice_server->urls.emplace_back("stun:stun.l.google.com:19302");
   ice_server->urls.emplace_back("stun:stun1.l.google.com:19302");
   ice_server->urls.emplace_back("stun:stun2.l.google.com:19302");
   ice_server->urls.emplace_back("stun:stun3.l.google.com:19302");
   ice_server->urls.emplace_back("stun:stun4.l.google.com:19302");
 
-  std::vector<sharing::mojom::IceServerPtr> default_servers;
+  std::vector<::sharing::mojom::IceServerPtr> default_servers;
   default_servers.push_back(std::move(ice_server));
   return default_servers;
 }
 
-std::vector<sharing::mojom::IceServerPtr> CloneIceServerList(
-    const std::vector<sharing::mojom::IceServerPtr>& server_list) {
+std::vector<::sharing::mojom::IceServerPtr> CloneIceServerList(
+    const std::vector<::sharing::mojom::IceServerPtr>& server_list) {
   // Cannot use vector's default copy operation because IceServerPtr is move
   // only and has to be cloned.
-  std::vector<sharing::mojom::IceServerPtr> new_list;
+  std::vector<::sharing::mojom::IceServerPtr> new_list;
   for (const auto& server : server_list) {
     new_list.push_back(server.Clone());
   }
@@ -228,7 +231,8 @@ void TachyonIceConfigFetcher::GetIceServers(GetIceServersCallback callback) {
   // If a previous request cached the ICE servers and the expiration time hasn't
   // lapsed, return a copy of the cached servers immediately.
   if (ice_server_cache_ && ice_server_cache_expiration_ >= base::Time::Now()) {
-    NS_LOG(VERBOSE) << "TachyonIceConfigFetcher returning cached ice servers";
+    CD_LOG(VERBOSE, Feature::NEARBY_INFRA)
+        << "TachyonIceConfigFetcher returning cached ice servers";
     std::move(callback).Run(CloneIceServerList(*ice_server_cache_));
     RecordCacheHitMetric(/*cache_hit=*/true);
     return;
@@ -245,7 +249,7 @@ void TachyonIceConfigFetcher::GetIceServersWithToken(
     GetIceServersCallback callback,
     const std::string& token) {
   if (token.empty()) {
-    NS_LOG(ERROR)
+    CD_LOG(ERROR, Feature::NEARBY_INFRA)
         << "TachyonIceConfigFetcher failed to fetch OAuth access token, "
            "returning default ICE servers";
     std::move(callback).Run(GetDefaultIceServers());
@@ -271,9 +275,10 @@ void TachyonIceConfigFetcher::GetIceServersWithToken(
   url_loader->AttachStringForUpload(request.SerializeAsString(),
                                     "application/x-protobuf");
 
-  NS_LOG(VERBOSE) << __func__
-                  << ": Requesting ICE Servers from Tachyon (request_id="
-                  << request_id << ")";
+  CD_LOG(VERBOSE, Feature::NEARBY_INFRA)
+      << __func__
+      << ": Requesting ICE Servers from Tachyon (request_id=" << request_id
+      << ")";
   url_loader_ptr->DownloadToString(
       url_loader_factory_.get(),
       base::BindOnce(&TachyonIceConfigFetcher::OnIceServersResponse,
@@ -283,11 +288,11 @@ void TachyonIceConfigFetcher::GetIceServersWithToken(
 }
 
 void TachyonIceConfigFetcher::OnIceServersResponse(
-    sharing::mojom::IceConfigFetcher::GetIceServersCallback callback,
+    ::sharing::mojom::IceConfigFetcher::GetIceServersCallback callback,
     const std::string& request_id,
     std::unique_ptr<network::SimpleURLLoader> url_loader,
     std::unique_ptr<std::string> response_body) {
-  std::vector<sharing::mojom::IceServerPtr> ice_servers;
+  std::vector<::sharing::mojom::IceServerPtr> ice_servers;
 
   if (IsLoaderSuccessful(url_loader.get(), request_id) && response_body)
     ice_servers = ParseIceServersResponse(*response_body, request_id);
@@ -295,23 +300,25 @@ void TachyonIceConfigFetcher::OnIceServersResponse(
   sharing::LogWebRtcIceConfigFetched(ice_servers.size());
 
   if (ice_servers.empty()) {
-    NS_LOG(VERBOSE) << "TachyonIceConfigFetcher (request_id=" << request_id
-                    << ") empty response, returning default ICE servers";
+    CD_LOG(VERBOSE, Feature::NEARBY_INFRA)
+        << "TachyonIceConfigFetcher (request_id=" << request_id
+        << ") empty response, returning default ICE servers";
     ice_servers = GetDefaultIceServers();
   }
 
   std::move(callback).Run(std::move(ice_servers));
 }
 
-std::vector<sharing::mojom::IceServerPtr>
+std::vector<::sharing::mojom::IceServerPtr>
 TachyonIceConfigFetcher::ParseIceServersResponse(
     const std::string& serialized_proto,
     const std::string& request_id) {
-  std::vector<sharing::mojom::IceServerPtr> servers_mojo;
+  std::vector<::sharing::mojom::IceServerPtr> servers_mojo;
   tachyon_proto::GetICEServerResponse response;
   if (!response.ParseFromString(serialized_proto)) {
-    NS_LOG(ERROR) << __func__ << ": (request_id=" << request_id
-                  << ") Failed to parse response";
+    CD_LOG(ERROR, Feature::NEARBY_INFRA)
+        << __func__ << ": (request_id=" << request_id
+        << ") Failed to parse response";
     return servers_mojo;
   }
 
@@ -321,7 +328,8 @@ TachyonIceConfigFetcher::ParseIceServersResponse(
     if (!server.urls_size())
       continue;
 
-    sharing::mojom::IceServerPtr server_mojo(sharing::mojom::IceServer::New());
+    ::sharing::mojom::IceServerPtr server_mojo(
+        ::sharing::mojom::IceServer::New());
     for (const std::string& url : server.urls()) {
       server_mojo->urls.emplace_back(url);
     }

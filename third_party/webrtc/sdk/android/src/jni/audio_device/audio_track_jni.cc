@@ -10,16 +10,24 @@
 
 #include "sdk/android/src/jni/audio_device/audio_track_jni.h"
 
-#include <utility>
+#include <jni.h>
 
-#include "rtc_base/arraysize.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <optional>
+
+#include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
+#include "modules/audio_device/audio_device_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/platform_thread.h"
 #include "sdk/android/generated_java_audio_device_module_native_jni/WebRtcAudioTrack_jni.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jni_helpers.h"
-#include "system_wrappers/include/field_trial.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "system_wrappers/include/metrics.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
 
@@ -27,15 +35,18 @@ namespace jni {
 
 ScopedJavaLocalRef<jobject> AudioTrackJni::CreateJavaWebRtcAudioTrack(
     JNIEnv* env,
-    const JavaRef<jobject>& j_context,
-    const JavaRef<jobject>& j_audio_manager) {
+    const jni_zero::JavaRef<jobject>& j_context,
+    const jni_zero::JavaRef<jobject>& j_audio_manager) {
   return Java_WebRtcAudioTrack_Constructor(env, j_context, j_audio_manager);
 }
 
-AudioTrackJni::AudioTrackJni(JNIEnv* env,
-                             const AudioParameters& audio_parameters,
-                             const JavaRef<jobject>& j_webrtc_audio_track)
-    : j_audio_track_(env, j_webrtc_audio_track),
+AudioTrackJni::AudioTrackJni(
+    JNIEnv* env,
+    const Environment& webrtc_env,
+    const AudioParameters& audio_parameters,
+    const jni_zero::JavaRef<jobject>& j_webrtc_audio_track)
+    : webrtc_env_(webrtc_env),
+      j_audio_track_(env, j_webrtc_audio_track),
       audio_parameters_(audio_parameters),
       direct_buffer_address_(nullptr),
       direct_buffer_capacity_in_bytes_(0),
@@ -83,8 +94,8 @@ int32_t AudioTrackJni::InitPlayout() {
   }
   RTC_DCHECK(!playing_);
   double buffer_size_factor =
-      strtod(webrtc::field_trial::FindFullName(
-                 "WebRTC-AudioDevicePlayoutBufferSizeFactor")
+      strtod(webrtc_env_.field_trials()
+                 .Lookup("WebRTC-AudioDevicePlayoutBufferSizeFactor")
                  .c_str(),
              nullptr);
   if (buffer_size_factor == 0)
@@ -192,17 +203,17 @@ int AudioTrackJni::SetSpeakerVolume(uint32_t volume) {
              : -1;
 }
 
-absl::optional<uint32_t> AudioTrackJni::MaxSpeakerVolume() const {
+std::optional<uint32_t> AudioTrackJni::MaxSpeakerVolume() const {
   RTC_DCHECK(thread_checker_.IsCurrent());
   return Java_WebRtcAudioTrack_getStreamMaxVolume(env_, j_audio_track_);
 }
 
-absl::optional<uint32_t> AudioTrackJni::MinSpeakerVolume() const {
+std::optional<uint32_t> AudioTrackJni::MinSpeakerVolume() const {
   RTC_DCHECK(thread_checker_.IsCurrent());
   return 0;
 }
 
-absl::optional<uint32_t> AudioTrackJni::SpeakerVolume() const {
+std::optional<uint32_t> AudioTrackJni::SpeakerVolume() const {
   RTC_DCHECK(thread_checker_.IsCurrent());
   const uint32_t volume =
       Java_WebRtcAudioTrack_getStreamVolume(env_, j_audio_track_);
@@ -229,7 +240,7 @@ void AudioTrackJni::AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) {
 
 void AudioTrackJni::CacheDirectBufferAddress(
     JNIEnv* env,
-    const JavaParamRef<jobject>& byte_buffer) {
+    const jni_zero::JavaParamRef<jobject>& byte_buffer) {
   RTC_LOG(LS_INFO) << "OnCacheDirectBufferAddress";
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!direct_buffer_address_);

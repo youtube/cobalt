@@ -18,13 +18,14 @@
 #include "components/viz/common/quads/surface_draw_quad.h"
 #include "components/viz/common/quads/tile_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
-#include "components/viz/common/quads/yuv_video_draw_quad.h"
 #include "components/viz/test/paths.h"
 #include "components/viz/test/test_surface_id_allocator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/modules/skcms/skcms.h"
+#include "ui/gfx/geometry/rrect_f.h"
+#include "ui/gfx/geometry/skia_conversions.h"
 
-namespace gl {
+namespace gfx {
 struct HDRMetadata;
 }
 
@@ -66,7 +67,9 @@ TEST(RenderPassIOTest, FilterOperations) {
     // Set backdrop filter bounds.
     gfx::RRectF rrect(gfx::RectF(2.f, 3.f, 4.f, 5.f), 1.5f);
     ASSERT_EQ(gfx::RRectF::Type::kSingle, rrect.GetType());
-    render_pass0->backdrop_filter_bounds = rrect;
+    render_pass0->backdrop_filter_bounds = SkPath::RRect(SkRRect::MakeRectXY(
+        gfx::RectFToSkRect(rrect.rect()), rrect.GetSimpleRadii().x(),
+        rrect.GetSimpleRadii().y()));
   }
   base::Value::Dict dict0 = CompositorRenderPassToDict(*render_pass0);
   auto render_pass1 = CompositorRenderPassFromDict(dict0);
@@ -103,13 +106,17 @@ TEST(RenderPassIOTest, FilterOperations) {
   {
     // Verify backdrop filter bounds are as expected.
     EXPECT_TRUE(render_pass1->backdrop_filter_bounds.has_value());
-    EXPECT_TRUE(render_pass0->backdrop_filter_bounds->Equals(
-        render_pass1->backdrop_filter_bounds.value()));
-    EXPECT_EQ(gfx::RRectF::Type::kSingle,
-              render_pass1->backdrop_filter_bounds->GetType());
-    EXPECT_EQ(1.5f, render_pass1->backdrop_filter_bounds->GetSimpleRadius());
-    EXPECT_EQ(gfx::RectF(2.f, 3.f, 4.f, 5.f),
-              render_pass1->backdrop_filter_bounds->rect());
+    SkRRect backdrop_filter_as_rect_0;
+    SkRRect backdrop_filter_as_rect_1;
+    EXPECT_TRUE(render_pass0->backdrop_filter_bounds->isRRect(
+        &backdrop_filter_as_rect_0));
+    EXPECT_TRUE(render_pass1->backdrop_filter_bounds->isRRect(
+        &backdrop_filter_as_rect_1));
+    EXPECT_EQ(backdrop_filter_as_rect_0, backdrop_filter_as_rect_1);
+    EXPECT_EQ(backdrop_filter_as_rect_1.type(), SkRRect::kSimple_Type);
+    EXPECT_EQ(1.5f, backdrop_filter_as_rect_1.getSimpleRadii().x());
+    EXPECT_EQ(SkRect::MakeXYWH(2.f, 3.f, 4.f, 5.f),
+              backdrop_filter_as_rect_1.rect());
   }
   base::Value::Dict dict1 = CompositorRenderPassToDict(*render_pass1);
   EXPECT_EQ(dict0, dict1);
@@ -132,8 +139,9 @@ TEST(RenderPassIOTest, SharedQuadStateList) {
         transform, gfx::Rect(0, 0, 640, 480), gfx::Rect(10, 10, 600, 400),
         gfx::MaskFilterInfo(gfx::RRectF(gfx::RectF(2.f, 3.f, 4.f, 5.f), 1.5f),
                             gradient_mask),
-        gfx::Rect(5, 20, 1000, 200), false, 0.5f, SkBlendMode::kDstOver, 101);
-    sqs1->is_fast_rounded_corner = true;
+        gfx::Rect(5, 20, 1000, 200), /*contents_opaque=*/false,
+        /*opacity_f=*/0.5f, SkBlendMode::kDstOver, /*sorting_context=*/101,
+        /*layer_id=*/0u, /*fast_rounded_corner=*/true);
   }
   base::Value::Dict dict0 = CompositorRenderPassToDict(*render_pass0);
   auto render_pass1 = CompositorRenderPassFromDict(dict0);
@@ -149,7 +157,7 @@ TEST(RenderPassIOTest, SharedQuadStateList) {
     EXPECT_EQ(gfx::Rect(), sqs0->visible_quad_layer_rect);
     EXPECT_FALSE(sqs0->mask_filter_info.HasRoundedCorners());
     EXPECT_FALSE(sqs0->mask_filter_info.HasGradientMask());
-    EXPECT_EQ(absl::nullopt, sqs0->clip_rect);
+    EXPECT_EQ(std::nullopt, sqs0->clip_rect);
     EXPECT_TRUE(sqs0->are_contents_opaque);
     EXPECT_EQ(1.0f, sqs0->opacity);
     EXPECT_EQ(SkBlendMode::kSrcOver, sqs0->blend_mode);
@@ -186,13 +194,11 @@ TEST(RenderPassIOTest, SharedQuadStateList) {
 }
 
 TEST(RenderPassIOTest, QuadList) {
-  const size_t kSharedQuadStateCount = 5;
+  const size_t kSharedQuadStateCount = 3;
   size_t quad_count = 0;
-  const std::array<DrawQuad::Material, 9> kQuadMaterials = {
+  const std::array<DrawQuad::Material, 8> kQuadMaterials = {
       DrawQuad::Material::kSolidColor,
-      DrawQuad::Material::kTextureContent,  // is_stream_video set to true.
       DrawQuad::Material::kVideoHole,
-      DrawQuad::Material::kYuvVideoContent,
       DrawQuad::Material::kTextureContent,
       DrawQuad::Material::kCompositorRenderPass,
       DrawQuad::Material::kTiledContent,
@@ -222,22 +228,7 @@ TEST(RenderPassIOTest, QuadList) {
       ++quad_count;
     }
     {
-      // 2. TextureDrawQuad with is_stream_video set to true.
-      TextureDrawQuad* quad =
-          render_pass0->CreateAndAppendDrawQuad<TextureDrawQuad>();
-      float opacity[] = {1, 1, 1, 1};
-      quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
-                   gfx::Rect(10, 10, 300, 400), gfx::Rect(10, 10, 200, 400),
-                   false, ResourceId(100), gfx::Size(600, 800), false,
-                   gfx::PointF(0.f, 0.f), gfx::PointF(1.f, 1.f),
-                   SkColors::kTransparent, opacity, false, false, false,
-                   gfx::ProtectedVideoType::kHardwareProtected);
-      quad->is_stream_video = true;
-      ++sqs_index;
-      ++quad_count;
-    }
-    {
-      // 3. VideoHoleDrawQuad
+      // 2. VideoHoleDrawQuad
       VideoHoleDrawQuad* quad =
           render_pass0->CreateAndAppendDrawQuad<VideoHoleDrawQuad>();
       quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
@@ -246,40 +237,20 @@ TEST(RenderPassIOTest, QuadList) {
       ++quad_count;
     }
     {
-      // 4. YUVVideoDrawQuad
-      YUVVideoDrawQuad* quad =
-          render_pass0->CreateAndAppendDrawQuad<YUVVideoDrawQuad>();
-      skcms_Matrix3x3 primary_matrix = {{{0.6587f, 0.3206f, 0.1508f},
-                                         {0.3332f, 0.6135f, 0.0527f},
-                                         {0.0081f, 0.0659f, 0.7965f}}};
-      skcms_TransferFunction transfer_func = {
-          0.9495f, 0.0495f, 0.6587f, 0.3206f, 0.0003f, 0.f, 2.3955f};
-      quad->SetAll(
-          render_pass0->shared_quad_state_list.ElementAt(sqs_index),
-          gfx::Rect(0, 0, 800, 600), gfx::Rect(10, 15, 780, 570), false,
-          gfx::Size(800, 400), gfx::Rect(10, 20, 300, 400), gfx::Size(2, 2),
-          ResourceId(1u), ResourceId(2u), ResourceId(3u), ResourceId(4u),
-          gfx::ColorSpace::CreateCustom(primary_matrix, transfer_func), 3.f,
-          1.1f, 12u, gfx::ProtectedVideoType::kClear, gfx::HDRMetadata());
-      ++sqs_index;
-      ++quad_count;
-    }
-    {
-      // 5. TextureDrawQuad
+      // 3. TextureDrawQuad
       TextureDrawQuad* quad =
           render_pass0->CreateAndAppendDrawQuad<TextureDrawQuad>();
-      float vertex_opacity[4] = {1.f, 0.5f, 0.6f, 1.f};
       quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
                    gfx::Rect(0, 0, 100, 50), gfx::Rect(0, 0, 100, 50), false,
-                   ResourceId(9u), gfx::Size(100, 50), false,
-                   gfx::PointF(0.f, 0.f), gfx::PointF(1.f, 1.f),
-                   SkColors::kBlue, vertex_opacity, false, true, false,
+                   ResourceId(9u), gfx::PointF(0.f, 0.f), gfx::PointF(1.f, 1.f),
+                   SkColors::kBlue, true, false,
                    gfx::ProtectedVideoType::kHardwareProtected);
+
       ++sqs_index;
       ++quad_count;
     }
     {
-      // 6. CompositorRenderPassDrawQuad
+      // 4. CompositorRenderPassDrawQuad
       CompositorRenderPassDrawQuad* quad =
           render_pass0->CreateAndAppendDrawQuad<CompositorRenderPassDrawQuad>();
       quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
@@ -292,17 +263,17 @@ TEST(RenderPassIOTest, QuadList) {
       ++quad_count;
     }
     {
-      // 7. TileDrawQuad
+      // 5. TileDrawQuad
       TileDrawQuad* quad =
           render_pass0->CreateAndAppendDrawQuad<TileDrawQuad>();
       quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
                    gfx::Rect(0, 0, 256, 512), gfx::Rect(2, 2, 250, 500), true,
                    ResourceId(512u), gfx::RectF(0.0f, 0.0f, 0.9f, 0.8f),
-                   gfx::Size(256, 512), true, true, true);
+                   gfx::Size(256, 512), true, true);
       ++quad_count;
     }
     {
-      // 8. SurfaceDrawQuad
+      // 6. SurfaceDrawQuad
       SurfaceDrawQuad* quad =
           render_pass0->CreateAndAppendDrawQuad<SurfaceDrawQuad>();
       quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
@@ -312,12 +283,12 @@ TEST(RenderPassIOTest, QuadList) {
       ++quad_count;
     }
     {
-      // 9. SurfaceDrawQuad with no starting SurfaceId
+      // 7. SurfaceDrawQuad with no starting SurfaceId
       SurfaceDrawQuad* quad =
           render_pass0->CreateAndAppendDrawQuad<SurfaceDrawQuad>();
       quad->SetAll(render_pass0->shared_quad_state_list.ElementAt(sqs_index),
                    gfx::Rect(10, 10, 512, 256), gfx::Rect(12, 12, 500, 250),
-                   true, SurfaceRange(absl::nullopt, kSurfaceId1),
+                   true, SurfaceRange(std::nullopt, kSurfaceId1),
                    SkColors::kBlack, true, true, false);
       ++quad_count;
     }
@@ -349,7 +320,7 @@ TEST(RenderPassIOTest, CompositorRenderPassList) {
   std::string json_text;
   ASSERT_TRUE(base::ReadFileToString(json_path, &json_text));
 
-  absl::optional<base::Value> dict0 = base::JSONReader::Read(json_text);
+  std::optional<base::Value> dict0 = base::JSONReader::Read(json_text);
   EXPECT_TRUE(dict0.has_value());
   CompositorRenderPassList render_pass_list;
   EXPECT_TRUE(
@@ -388,7 +359,7 @@ TEST(RenderPassIOTest, CompositorFrameData) {
   std::string json_text;
   ASSERT_TRUE(base::ReadFileToString(json_path, &json_text));
 
-  absl::optional<base::Value> list0 = base::JSONReader::Read(json_text);
+  std::optional<base::Value> list0 = base::JSONReader::Read(json_text);
   EXPECT_TRUE(list0.has_value());
   std::vector<FrameData> frame_data_list;
   EXPECT_TRUE(FrameDataFromList(list0->GetList(), &frame_data_list));

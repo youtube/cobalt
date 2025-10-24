@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/base/compound_buffer.h"
 
 #include <stddef.h>
@@ -10,12 +15,14 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "net/base/io_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using net::IOBuffer;
+using net::IOBufferWithSize;
 
 namespace remoting {
 
@@ -77,7 +84,7 @@ class CompoundBufferTest : public testing::Test {
 
  protected:
   void SetUp() override {
-    data_ = base::MakeRefCounted<IOBuffer>(kDataSize);
+    data_ = base::MakeRefCounted<IOBufferWithSize>(kDataSize);
     for (int i = 0; i < kDataSize; ++i) {
       data_->data()[i] = i;
     }
@@ -143,10 +150,10 @@ class CompoundBufferTest : public testing::Test {
   static void ReadString(CompoundBufferInputStream* input,
                          const std::string& str) {
     SCOPED_TRACE(str);
-    std::unique_ptr<char[]> buffer(new char[str.size() + 1]);
+    auto buffer = base::HeapArray<char>::Uninit(str.size() + 1);
     buffer[str.size()] = '\0';
-    EXPECT_EQ(ReadFromInput(input, buffer.get(), str.size()), str.size());
-    EXPECT_STREQ(str.data(), buffer.get());
+    EXPECT_EQ(ReadFromInput(input, buffer.data(), str.size()), str.size());
+    EXPECT_STREQ(str.data(), buffer.data());
   }
 
   // Construct and prepare data in the |buffer|.
@@ -172,8 +179,10 @@ class CompoundBufferTest : public testing::Test {
     CompoundBuffer* result = new CompoundBuffer();
     const char* data = kTestData.data();
     for (int i = 0; i < segments; ++i) {
-      int size = i % 2 == 0 ? 1 : 2;
-      result->Append(base::MakeRefCounted<net::WrappedIOBuffer>(data), size);
+      size_t size = i % 2 == 0 ? 1 : 2;
+      result->Append(
+          base::MakeRefCounted<net::WrappedIOBuffer>(base::span(data, size)),
+          size);
       data += size;
     }
     result->Lock();

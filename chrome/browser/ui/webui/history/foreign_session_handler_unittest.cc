@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/history/foreign_session_handler.h"
 
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/sessions/core/session_id.h"
@@ -19,9 +20,9 @@ class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
  public:
   MockOpenTabsUIDelegate() = default;
 
-  MOCK_METHOD1(
-      GetAllForeignSessions,
-      bool(std::vector<const sync_sessions::SyncedSession*>* sessions));
+  MOCK_METHOD1(GetAllForeignSessions,
+               bool(std::vector<raw_ptr<const sync_sessions::SyncedSession,
+                                        VectorExperimental>>* sessions));
 
   MOCK_METHOD3(GetForeignTab,
                bool(const std::string& tag,
@@ -30,9 +31,9 @@ class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
 
   MOCK_METHOD1(DeleteForeignSession, void(const std::string& tag));
 
-  MOCK_METHOD2(GetForeignSession,
-               bool(const std::string& tag,
-                    std::vector<const sessions::SessionWindow*>* windows));
+  MOCK_METHOD1(
+      GetForeignSession,
+      std::vector<const sessions::SessionWindow*>(const std::string& tag));
 
   MOCK_METHOD2(GetForeignSessionTabs,
                bool(const std::string& tag,
@@ -64,12 +65,9 @@ class FakeSessionSyncService : public sync_sessions::SessionSyncService {
     return subscriber_list_.Add(cb);
   }
 
-  base::WeakPtr<syncer::ModelTypeControllerDelegate> GetControllerDelegate()
+  base::WeakPtr<syncer::DataTypeControllerDelegate> GetControllerDelegate()
       override {
     return nullptr;
-  }
-
-  void ProxyTabsStateChanged(syncer::DataTypeController::State state) override {
   }
 
  private:
@@ -97,11 +95,12 @@ class ForeignSessionHandlerTest : public ChromeRenderViewHostTestHarness {
 
   TestingProfile::TestingFactories GetTestingFactories() const override {
     return {
-        {SessionSyncServiceFactory::GetInstance(),
-         base::BindRepeating([](content::BrowserContext* context)
-                                 -> std::unique_ptr<KeyedService> {
-           return std::make_unique<FakeSessionSyncService>();
-         })},
+        TestingProfile::TestingFactory{
+            SessionSyncServiceFactory::GetInstance(),
+            base::BindRepeating([](content::BrowserContext* context)
+                                    -> std::unique_ptr<KeyedService> {
+              return std::make_unique<FakeSessionSyncService>();
+            })},
     };
   }
 
@@ -159,7 +158,7 @@ TEST_F(ForeignSessionHandlerTest,
 
 TEST_F(ForeignSessionHandlerTest, HandleOpenForeignSessionAllTabs) {
   EXPECT_CALL(*session_sync_service()->GetOpenTabsUIDelegate(),
-              GetForeignSession("my_session_tag", testing::_))
+              GetForeignSession("my_session_tag"))
       .Times(testing::AtLeast(1));
 
   base::Value::List list_args;

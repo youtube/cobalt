@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/test/mock_clipboard_host.h"
 
 #include <vector>
@@ -46,14 +51,18 @@ void MockClipboardHost::GetSequenceNumber(ui::ClipboardBuffer clipboard_buffer,
 
 std::vector<std::u16string> MockClipboardHost::ReadStandardFormatNames() {
   std::vector<std::u16string> types;
-  if (!plain_text_.empty())
-    types.push_back(u"text/plain");
-  if (!html_text_.empty())
-    types.push_back(u"text/html");
-  if (!svg_text_.empty())
-    types.push_back(u"image/svg+xml");
-  if (!png_.empty())
-    types.push_back(u"image/png");
+  if (!plain_text_.empty()) {
+    types.push_back(ui::kMimeTypePlainText16);
+  }
+  if (!html_text_.empty()) {
+    types.push_back(ui::kMimeTypeHtml16);
+  }
+  if (!svg_text_.empty()) {
+    types.push_back(ui::kMimeTypeSvg16);
+  }
+  if (!png_.empty()) {
+    types.push_back(ui::kMimeTypePng16);
+  }
   for (auto& it : custom_data_) {
     CHECK(!base::Contains(types, it.first));
     types.push_back(it.first);
@@ -119,9 +128,10 @@ void MockClipboardHost::ReadFiles(ui::ClipboardBuffer clipboard_buffer,
   std::move(callback).Run(blink::mojom::ClipboardFiles::New());
 }
 
-void MockClipboardHost::ReadCustomData(ui::ClipboardBuffer clipboard_buffer,
-                                       const std::u16string& type,
-                                       ReadCustomDataCallback callback) {
+void MockClipboardHost::ReadDataTransferCustomData(
+    ui::ClipboardBuffer clipboard_buffer,
+    const std::u16string& type,
+    ReadDataTransferCustomDataCallback callback) {
   auto it = custom_data_.find(type);
   std::move(callback).Run(it != custom_data_.end() ? it->second
                                                    : std::u16string());
@@ -131,6 +141,7 @@ void MockClipboardHost::WriteText(const std::u16string& text) {
   if (needs_reset_)
     Reset();
   plain_text_ = text;
+  OnClipboardDataChanged();
 }
 
 void MockClipboardHost::WriteHtml(const std::u16string& markup,
@@ -139,6 +150,7 @@ void MockClipboardHost::WriteHtml(const std::u16string& markup,
     Reset();
   html_text_ = markup;
   url_ = url;
+  OnClipboardDataChanged();
 }
 
 void MockClipboardHost::WriteSvg(const std::u16string& markup) {
@@ -153,7 +165,7 @@ void MockClipboardHost::WriteSmartPasteMarker() {
   write_smart_paste_ = true;
 }
 
-void MockClipboardHost::WriteCustomData(
+void MockClipboardHost::WriteDataTransferCustomData(
     const base::flat_map<std::u16string, std::u16string>& data) {
   if (needs_reset_)
     Reset();
@@ -167,7 +179,9 @@ void MockClipboardHost::WriteBookmark(const std::string& url,
 void MockClipboardHost::WriteImage(const SkBitmap& bitmap) {
   if (needs_reset_)
     Reset();
-  gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false, &png_);
+  png_ =
+      gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false)
+          .value_or(std::vector<uint8_t>());
 }
 
 void MockClipboardHost::CommitWrite() {
@@ -190,8 +204,7 @@ void MockClipboardHost::ReadUnsanitizedCustomFormat(
   if (it == unsanitized_custom_data_map_.end())
     return;
 
-  mojo_base::BigBuffer buffer = mojo_base::BigBuffer(
-      base::make_span(it->second.data(), it->second.size()));
+  mojo_base::BigBuffer buffer = mojo_base::BigBuffer(it->second);
   std::move(callback).Run(std::move(buffer));
 }
 
@@ -205,8 +218,20 @@ void MockClipboardHost::WriteUnsanitizedCustomFormat(
   // Append the "web " prefix since it is removed by the clipboard writer during
   // write.
   std::u16string web_format =
-      base::StrCat({base::ASCIIToUTF16(ui::kWebClipboardFormatPrefix), format});
+      base::StrCat({ui::kWebClipboardFormatPrefix16, format});
   unsanitized_custom_data_map_[web_format] = std::move(data_copy);
+}
+
+void MockClipboardHost::RegisterClipboardListener(
+    mojo::PendingRemote<blink::mojom::ClipboardListener> listener) {
+  clipboard_listener_.reset();
+  clipboard_listener_.Bind(std::move(listener));
+}
+
+void MockClipboardHost::OnClipboardDataChanged() {
+  if (clipboard_listener_) {
+    clipboard_listener_->OnClipboardDataChanged();
+  }
 }
 
 #if BUILDFLAG(IS_MAC)

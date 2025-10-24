@@ -6,8 +6,8 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/compiler/type-cache.h"
-#include "src/compiler/types.h"
 #include "src/objects/oddball.h"
 
 namespace v8 {
@@ -27,15 +27,13 @@ OperationTyper::OperationTyper(JSHeapBroker* broker, Zone* zone)
   singleton_zero_string_ = Type::Constant(broker, broker->zero_string(), zone);
   singleton_false_ = Type::Constant(broker, broker->false_value(), zone);
   singleton_true_ = Type::Constant(broker, broker->true_value(), zone);
-  singleton_the_hole_ = Type::Hole();
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_->kZeroish, zone),
-                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
-                  zone),
+                  singleton_empty_string_, zone),
       zone);
   truish_ = Type::Union(
       singleton_true_,
@@ -255,7 +253,7 @@ Type OperationTyper::ConvertReceiver(Type type) {
     // ConvertReceiver maps null and undefined to the JSGlobalProxy of the
     // target function, and all other primitives are wrapped into a
     // JSPrimitiveWrapper.
-    type = Type::Union(type, Type::OtherObject(), zone());
+    type = Type::Union(type, Type::StringWrapperOrOtherObject(), zone());
   }
   return type;
 }
@@ -597,11 +595,22 @@ Type OperationTyper::Integral32OrMinusZeroToBigInt(Type type) {
 }
 
 Type OperationTyper::NumberSilenceNaN(Type type) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  DCHECK(type.Is(Type::NumberOrUndefined()));
+#else
   DCHECK(type.Is(Type::Number()));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   // TODO(jarin): This is a terrible hack; we definitely need a dedicated type
   // for the hole (tagged and/or double). Otherwise if the input is the hole
   // NaN constant, we'd just eliminate this node in JSTypedLowering.
-  if (type.Maybe(Type::NaN())) return Type::Number();
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (type.Maybe(Type::Undefined())) {
+    return Type::NumberOrUndefined();
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (type.Maybe(Type::NaN())) {
+    return Type::Number();
+  }
   return type;
 }
 
@@ -707,7 +716,26 @@ Type OperationTyper::NumberSubtract(Type lhs, Type rhs) {
   return type;
 }
 
-Type OperationTyper::SpeculativeSafeIntegerAdd(Type lhs, Type rhs) {
+Type OperationTyper::SpeculativeAdditiveSafeIntegerAdd(Type lhs, Type rhs) {
+  Type result = SpeculativeNumberAdd(lhs, rhs);
+  if (lhs.Is(cache_->kAdditiveSafeInteger) ||
+      rhs.Is(cache_->kAdditiveSafeInteger)) {
+    return Type::Intersect(result, cache_->kAdditiveSafeInteger, zone());
+  }
+  return result;
+}
+
+Type OperationTyper::SpeculativeAdditiveSafeIntegerSubtract(Type lhs,
+                                                            Type rhs) {
+  Type result = SpeculativeNumberSubtract(lhs, rhs);
+  if (lhs.Is(cache_->kAdditiveSafeInteger) ||
+      rhs.Is(cache_->kAdditiveSafeInteger)) {
+    return Type::Intersect(result, cache_->kAdditiveSafeInteger, zone());
+  }
+  return result;
+}
+
+Type OperationTyper::SpeculativeSmallIntegerAdd(Type lhs, Type rhs) {
   Type result = SpeculativeNumberAdd(lhs, rhs);
   // If we have a Smi or Int32 feedback, the representation selection will
   // either truncate or it will check the inputs (i.e., deopt if not int32).
@@ -717,7 +745,7 @@ Type OperationTyper::SpeculativeSafeIntegerAdd(Type lhs, Type rhs) {
   return Type::Intersect(result, cache_->kSafeIntegerOrMinusZero, zone());
 }
 
-Type OperationTyper::SpeculativeSafeIntegerSubtract(Type lhs, Type rhs) {
+Type OperationTyper::SpeculativeSmallIntegerSubtract(Type lhs, Type rhs) {
   Type result = SpeculativeNumberSubtract(lhs, rhs);
   // If we have a Smi or Int32 feedback, the representation selection will
   // either truncate or it will check the inputs (i.e., deopt if not int32).
@@ -1261,6 +1289,7 @@ Type JSType(Type type) {
 }  // namespace
 
 Type OperationTyper::SameValue(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   if (!JSType(lhs).Maybe(JSType(rhs))) return singleton_false();
   if (lhs.Is(Type::NaN())) {
     if (rhs.Is(Type::NaN())) return singleton_true();
@@ -1323,8 +1352,12 @@ Type OperationTyper::CheckBounds(Type index, Type length) {
 
 Type OperationTyper::CheckFloat64Hole(Type type) {
   if (type.Maybe(Type::Hole())) {
-    // Turn "the hole" into undefined.
+    // Turn a "hole" into undefined.
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    type = Type::Intersect(type, Type::NumberOrUndefined(), zone());
+#else
     type = Type::Intersect(type, Type::Number(), zone());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     type = Type::Union(type, Type::Undefined(), zone());
   }
   return type;
@@ -1334,13 +1367,21 @@ Type OperationTyper::CheckNumber(Type type) {
   return Type::Intersect(type, Type::Number(), zone());
 }
 
+Type OperationTyper::CheckNumberOrUndefined(Type type) {
+  return Type::Intersect(type, Type::NumberOrUndefined(), zone());
+}
+
+Type OperationTyper::CheckNumberFitsInt32(Type type) {
+  return Type::Intersect(type, Type::Signed32(), zone());
+}
+
 Type OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type input) {
   return Type::Intersect(input, TypeGuardTypeOf(sigma_op), zone());
 }
 
 Type OperationTyper::ConvertTaggedHoleToUndefined(Type input) {
   if (input.Maybe(Type::Hole())) {
-    // Turn "the hole" into undefined.
+    // Turn a "hole" into undefined.
     Type type = Type::Intersect(input, Type::NonInternal(), zone());
     return Type::Union(type, Type::Undefined(), zone());
   }

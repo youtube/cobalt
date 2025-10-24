@@ -28,7 +28,6 @@ std::unique_ptr<LogFileWriter::Factory> CreateLogFileWriterFactory(
               std::make_unique<PerfectGzipEstimator::Factory>()));
   }
   NOTREACHED();
-  return nullptr;  // Appease compiler.
 }
 
 #if BUILDFLAG(IS_POSIX)
@@ -64,7 +63,7 @@ PerfectGzipEstimator::PerfectGzipEstimator() {
   // will never be suppressed.
   GzipLogCompressorFactory factory(std::make_unique<NullEstimator::Factory>());
 
-  compressor_ = factory.Create(absl::optional<size_t>());
+  compressor_ = factory.Create(std::optional<size_t>());
   DCHECK(compressor_);
 
   std::string ignored;

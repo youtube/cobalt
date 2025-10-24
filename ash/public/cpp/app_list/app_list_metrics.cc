@@ -7,6 +7,7 @@
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 
 namespace {
 
@@ -71,11 +72,43 @@ constexpr char kAppListSortDiscoveryDurationAfterNudgeClamshell[] =
 constexpr char kAppListSortDiscoveryDurationAfterNudgeTablet[] =
     "Apps.AppList.SortDiscoveryDurationAfterEducationNudgeV2.TabletMode";
 
+// LINT.IfChange(SearchSessionConclusion)
+std::string SearchSessionConclusionToString(
+    SearchSessionConclusion conclusion) {
+  switch (conclusion) {
+    case SearchSessionConclusion::kQuit:
+      return "Quit";
+    case SearchSessionConclusion::kLaunch:
+      return "Launch";
+    case SearchSessionConclusion::kAnswerCardSeen:
+      return "AnswerCardSeen";
+  }
+}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/apps/enums.xml:LauncherSearchSessionConclusion)
+
+bool IsAppListShowSourceUserTriggered(AppListShowSource show_source) {
+  switch (show_source) {
+    case AppListShowSource::kScrollFromShelf:
+    case AppListShowSource::kSearchKey:
+    case AppListShowSource::kSearchKeyFullscreen_DEPRECATED:
+    case AppListShowSource::kShelfButton:
+    case AppListShowSource::kShelfButtonFullscreen_DEPRECATED:
+    case AppListShowSource::kSwipeFromShelf:
+      return true;
+    case AppListShowSource::kTabletMode:
+    case AppListShowSource::kAssistantEntryPoint:
+    case AppListShowSource::kBrowser:
+    case AppListShowSource::kWelcomeTour:
+      return false;
+  }
+  NOTREACHED();
+}
+
 void RecordSearchResultOpenTypeHistogram(AppListLaunchedFrom launch_location,
                                          SearchResultType type,
                                          bool is_tablet_mode) {
   if (type == SEARCH_RESULT_TYPE_BOUNDARY) {
-    NOTREACHED();
+    DUMP_WILL_BE_NOTREACHED();
     return;
   }
 
@@ -107,15 +140,17 @@ void RecordSearchResultOpenTypeHistogram(AppListLaunchedFrom launch_location,
     case AppListLaunchedFrom::kLaunchedFromRecentApps:
     case AppListLaunchedFrom::DEPRECATED_kLaunchedFromSuggestionChip:
     case AppListLaunchedFrom::kLaunchedFromQuickAppAccess:
-      // Search results don't live in the shelf, the app grid or recent apps.
+    case AppListLaunchedFrom::kLaunchedFromAppsCollections:
+    case AppListLaunchedFrom::kLaunchedFromDiscoveryChip:
+      // Search results don't live in the shelf, the app grid, apps collections
+      // or recent apps.
       NOTREACHED();
-      break;
   }
 }
 
 void RecordDefaultSearchResultOpenTypeHistogram(SearchResultType type) {
   if (type == SEARCH_RESULT_TYPE_BOUNDARY) {
-    NOTREACHED();
+    DUMP_WILL_BE_NOTREACHED();
     return;
   }
   UMA_HISTOGRAM_ENUMERATION(kAppListDefaultSearchResultOpenTypeHistogram, type,

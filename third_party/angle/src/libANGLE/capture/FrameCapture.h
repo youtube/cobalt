@@ -10,13 +10,23 @@
 #ifndef LIBANGLE_FRAME_CAPTURE_H_
 #define LIBANGLE_FRAME_CAPTURE_H_
 
+#include <fstream>
+#include "sys/stat.h"
+
 #include "common/PackedEnums.h"
+#include "common/SimpleMutex.h"
 #include "common/frame_capture_utils.h"
+#include "common/string_utils.h"
 #include "common/system_utils.h"
 #include "libANGLE/Context.h"
+#include "libANGLE/ShareGroup.h"
 #include "libANGLE/Thread.h"
 #include "libANGLE/angletypes.h"
 #include "libANGLE/entry_points_utils.h"
+
+#ifdef ANGLE_ENABLE_CL
+#    include "libANGLE/CLPlatform.h"
+#endif
 
 namespace gl
 {
@@ -34,6 +44,7 @@ class DataCounters final : angle::NonCopyable
     ~DataCounters();
 
     int getAndIncrement(EntryPoint entryPoint, const std::string &paramName);
+    void reset() { mData.clear(); }
 
   private:
     // <CallName, ParamName>
@@ -50,6 +61,7 @@ class StringCounters final : angle::NonCopyable
 
     int getStringCounter(const std::vector<std::string> &str);
     void setStringCounter(const std::vector<std::string> &str, int &counter);
+    void reset() { mStringCounterMap.clear(); }
 
   private:
     std::map<std::vector<std::string>, int> mStringCounterMap;
@@ -64,9 +76,24 @@ class DataTracker final : angle::NonCopyable
     DataCounters &getCounters() { return mCounters; }
     StringCounters &getStringCounters() { return mStringCounters; }
 
+    void reset()
+    {
+        mCounters.reset();
+        mStringCounters.reset();
+    }
+
   private:
     DataCounters mCounters;
     StringCounters mStringCounters;
+};
+
+enum class CaptureAPI : uint8_t
+{
+    GL = 0,
+    CL = 1,
+
+    InvalidEnum = 2,
+    EnumCount   = 2,
 };
 
 class ReplayWriter final : angle::NonCopyable
@@ -78,7 +105,6 @@ class ReplayWriter final : angle::NonCopyable
     void setSourceFileExtension(const char *ext);
     void setSourceFileSizeThreshold(size_t sourceFileSizeThreshold);
     void setFilenamePattern(const std::string &pattern);
-    void setCaptureLabel(const std::string &label);
     void setSourcePrologue(const std::string &prologue);
     void setHeaderPrologue(const std::string &prologue);
 
@@ -95,12 +121,22 @@ class ReplayWriter final : angle::NonCopyable
                                                const std::vector<std::string> &strings,
                                                bool *isNewEntryOut);
 
+    void addStaticVariable(const std::string &customVarType, const std::string &customVarName);
+
     void saveFrame();
     void saveFrameIfFull();
     void saveIndexFilesAndHeader();
     void saveSetupFile();
 
     std::vector<std::string> getAndResetWrittenFiles();
+
+    void reset()
+    {
+        mDataTracker.reset();
+        mFrameIndex = 1;  // This is really the FileIndex
+    }
+
+    CaptureAPI captureAPI = CaptureAPI::GL;
 
   private:
     static std::string GetVarName(EntryPoint entryPoint, const std::string &paramName, int counter);
@@ -116,12 +152,12 @@ class ReplayWriter final : angle::NonCopyable
 
     DataTracker mDataTracker;
     std::string mFilenamePattern;
-    std::string mCaptureLabel;
     std::string mSourcePrologue;
     std::string mHeaderPrologue;
 
     std::vector<std::string> mReplayHeaders;
     std::vector<std::string> mGlobalVariableDeclarations;
+    std::vector<std::string> mStaticVariableDeclarations;
 
     std::vector<std::string> mPublicFunctionPrototypes;
     std::vector<std::string> mPublicFunctions;
@@ -184,6 +220,17 @@ class TrackedResource final : angle::NonCopyable
 
     ResourceCalls &getResourceRegenCalls() { return mResourceRegenCalls; }
     ResourceCalls &getResourceRestoreCalls() { return mResourceRestoreCalls; }
+
+    void reset()
+    {
+        mResourceRegenCalls.clear();
+        mResourceRestoreCalls.clear();
+        mStartingResources.clear();
+        mNewResources.clear();
+        mResourcesToDelete.clear();
+        mResourcesToRegen.clear();
+        mResourcesToRestore.clear();
+    }
 
   private:
     // Resource regen calls will gen a resource
@@ -286,23 +333,55 @@ class ResourceTracker final : angle::NonCopyable
         return mShaderProgramType[id];
     }
 
+    void resetTrackedResourceArray(TrackedResourceArray &trackedResourceArray)
+    {
+        for (auto &trackedResource : trackedResourceArray)
+        {
+            trackedResource.reset();
+        }
+    }
+
+    // Some data in FrameCaptureShared tracks resources across all captures while
+    // other data is tracked per-capture. This function is responsible for
+    // resetting the per-capture tracking data in this class.
+    void resetResourceTracking()
+    {
+        resetTrackedResourceArray(mTrackedResourcesShared);
+        for (auto &pair : mTrackedResourcesPerContext)
+        {
+            resetTrackedResourceArray(pair.second);
+        }
+
+        mBufferMapCalls.clear();
+        mBufferUnmapCalls.clear();
+        mBufferBindingCalls.clear();
+        mStartingBuffersMappedInitial.clear();
+        mStartingBuffersMappedCurrent.clear();
+        mMaxShaderPrograms = 0;
+        mStartingFenceSyncs.clear();
+        mFenceSyncRegenCalls.clear();
+        mFenceSyncsToRegen.clear();
+        mDefaultUniformsToReset.clear();
+        mDefaultUniformResetCalls.clear();
+        mDefaultUniformBaseLocations.clear();
+    }
+
   private:
+    // These data structures are per-capture and must be reset before beginning a new
+    // capture in the resetResourceTracking() function above
+
     // Buffer map calls will map a buffer with correct offset, length, and access flags
     BufferCalls mBufferMapCalls;
     // Buffer unmap calls will bind and unmap a given buffer
     BufferCalls mBufferUnmapCalls;
-
     // Buffer binding calls to restore bindings recorded during MEC
     std::vector<CallCapture> mBufferBindingCalls;
-
     // Whether a given buffer was mapped at the start of the trace
     BufferMapStatusMap mStartingBuffersMappedInitial;
     // The status of buffer mapping throughout the trace, modified with each Map/Unmap call
     BufferMapStatusMap mStartingBuffersMappedCurrent;
-
     // Maximum accessed shader program ID.
     uint32_t mMaxShaderPrograms = 0;
-
     // Fence sync objects created during MEC setup
     FenceSyncSet mStartingFenceSyncs;
     // Fence sync regen calls will create a fence sync objects
@@ -310,24 +389,79 @@ class ResourceTracker final : angle::NonCopyable
     // Fence syncs to regen are a list of starting fence sync objects that were deleted and need to
     // be regen'ed.
     FenceSyncSet mFenceSyncsToRegen;
-
     // Default uniforms that were modified during the run
     DefaultUniformLocationsPerProgramMap mDefaultUniformsToReset;
     // Calls per default uniform to return to original state
     DefaultUniformCallsPerProgramMap mDefaultUniformResetCalls;
-
     // Base location of arrayed uniforms
     DefaultUniformBaseLocationMap mDefaultUniformBaseLocations;
+
+    // These data structures must be preserved across all captures
 
     // Tracked resources per context
     TrackedResourceArray mTrackedResourcesShared;
     std::map<gl::ContextID, TrackedResourceArray> mTrackedResourcesPerContext;
-
     std::map<EGLImage, egl::AttributeMap> mMatchImageToAttribs;
     std::map<GLuint, egl::ImageID> mMatchTextureIDToImage;
-
     std::map<gl::ShaderProgramID, ShaderProgramType> mShaderProgramType;
 };
+
+// CL specific resource tracker to track resource changes during the capture
+#ifdef ANGLE_ENABLE_CL
+struct ResourceTrackerCL final : angle::NonCopyable
+{
+    ResourceTrackerCL();
+    ~ResourceTrackerCL();
+
+    // To obtain indices of CL arguments in replay
+    std::unordered_map<cl_platform_id, size_t> mCLPlatformIDIndices;
+    std::unordered_map<cl_device_id, size_t> mCLDeviceIDIndices;
+    std::unordered_map<cl_context, size_t> mCLContextIndices;
+    std::unordered_map<cl_event, size_t> mCLEventsIndices;
+    std::unordered_map<cl_command_queue, size_t> mCLCommandQueueIndices;
+    std::unordered_map<cl_mem, size_t> mCLMemIndices;
+    std::unordered_map<cl_sampler, size_t> mCLSamplerIndices;
+    std::unordered_map<cl_program, size_t> mCLProgramIndices;
+    std::unordered_map<cl_kernel, size_t> mCLKernelIndices;
+
+    std::unordered_map<const void *, size_t> mCLVoidIndices;
+
+    std::unordered_map<uint32_t, std::vector<size_t>> mCLParamIDToIndexVector;
+
+    // To account for cl mem or SVM pointers that are potentially dirty
+    // coming into the starting frame or from mapping and unmapping.
+    std::vector<cl_mem> mCLDirtyMem;
+    std::vector<void *> mCLDirtySVM;
+
+    // Keeps track of the # of times the program is linked, including it's own creation
+    std::unordered_map<cl_program, cl_uint> mCLProgramLinkCounter;
+
+    // To keep track of the sub buffer and parent replationship
+    std::unordered_map<cl_mem, cl_mem> mCLSubBufferToParent;
+
+    // To keep track of the linked programs
+    std::unordered_map<cl_program, std::vector<cl_program>> mCLLinkedPrograms;
+
+    // Program to all the kernels in the program
+    // So that when a program is released, it can also remove all the kernels.
+    std::unordered_map<cl_program, std::vector<cl_kernel>> mCLProgramToKernels;
+
+    // Kernel to program, to keep track of the program that a cloned kernel
+    // belongs to. Can't use ANGLE's getProgram() because the kernel object
+    // may be deleted by the time it's needed for capture.
+    std::unordered_map<cl_kernel, cl_program> mCLKernelToProgram;
+
+    // Mapped pointer to the map call
+    std::unordered_map<const void *, CallCapture> mCLMapCall;
+
+    // Gets the size of the SVM memory
+    std::unordered_map<const void *, size_t> SVMToSize;
+
+    cl_command_queue mCLCurrentCommandQueue;
+
+    std::vector<ParamCapture> mCLResetObjs;
+};
+#endif
 
 // Used by the CPP replay to filter out unnecessary code.
 using HasResourceTypeMap = angle::PackedEnumBitSet<ResourceIDType>;
@@ -364,6 +498,11 @@ using CallVector = std::vector<std::vector<CallCapture> *>;
 // A map from API entry point to calls
 using CallResetMap = std::map<angle::EntryPoint, std::vector<CallCapture>>;
 
+using TextureBinding  = std::pair<size_t, gl::TextureType>;
+using TextureResetMap = std::map<TextureBinding, gl::TextureID>;
+
+using BufferBindingPair = std::pair<gl::BufferBinding, gl::BufferID>;
+
 // StateResetHelper provides a simple way to track whether an entry point has been called during the
 // trace, along with the reset calls to get it back to starting state.  This is useful for things
 // that are one dimensional, like context bindings or context state.
@@ -381,12 +520,63 @@ class StateResetHelper final : angle::NonCopyable
 
     void setDefaultResetCalls(const gl::Context *context, angle::EntryPoint);
 
+    const std::set<TextureBinding> &getDirtyTextureBindings() const
+    {
+        return mDirtyTextureBindings;
+    }
+    void setTextureBindingDirty(size_t unit, gl::TextureType target)
+    {
+        mDirtyTextureBindings.emplace(unit, target);
+    }
+
+    TextureResetMap &getResetTextureBindings() { return mResetTextureBindings; }
+
+    void setResetActiveTexture(size_t textureID) { mResetActiveTexture = textureID; }
+    size_t getResetActiveTexture() { return mResetActiveTexture; }
+
+    const std::set<gl::BufferBinding> &getDirtyBufferBindings() const
+    {
+        return mDirtyBufferBindings;
+    }
+    void setBufferBindingDirty(gl::BufferBinding binding) { mDirtyBufferBindings.insert(binding); }
+
+    const std::set<BufferBindingPair> &getStartingBufferBindings() const
+    {
+        return mStartingBufferBindings;
+    }
+    void setStartingBufferBinding(gl::BufferBinding binding, gl::BufferID bufferID)
+    {
+        mStartingBufferBindings.insert({binding, bufferID});
+    }
+
+    void reset()
+    {
+        mDirtyEntryPoints.clear();
+        mResetCalls.clear();
+        mDirtyTextureBindings.clear();
+        mResetTextureBindings.clear();
+        mResetActiveTexture = 0;
+        mStartingBufferBindings.clear();
+        mDirtyBufferBindings.clear();
+    }
+
   private:
     // Dirty state per entry point
     std::set<angle::EntryPoint> mDirtyEntryPoints;
 
     // Reset calls per API entry point
     CallResetMap mResetCalls;
+
+    // Dirty state per texture binding
+    std::set<TextureBinding> mDirtyTextureBindings;
+
+    // Texture bindings and active texture to restore
+    TextureResetMap mResetTextureBindings;
+    size_t mResetActiveTexture = 0;
+
+    // Starting and dirty buffer bindings
+    std::set<BufferBindingPair> mStartingBufferBindings;
+    std::set<gl::BufferBinding> mDirtyBufferBindings;
 };
 
 class FrameCapture final : angle::NonCopyable
@@ -532,15 +722,36 @@ class CoherentBufferTracker final : angle::NonCopyable
     PageFaultHandlerRangeType handleWrite(uintptr_t address);
 
   public:
-    std::mutex mMutex;
+    angle::SimpleMutex mMutex;
     HashMap<GLuint, std::shared_ptr<CoherentBuffer>> mBuffers;
+    bool hasBeenReset() { return mHasBeenReset; }
 
   private:
     bool mEnabled;
+    bool mHasBeenReset;
     std::unique_ptr<PageFaultHandler> mPageFaultHandler;
     size_t mPageSize;
 
     bool mShadowMemoryEnabled;
+};
+
+class FrameCaptureBinaryData
+{
+  public:
+    const std::vector<std::vector<uint8_t>> &data() const { return mData; }
+    size_t totalSize() const { return mTotalSize; }
+
+    size_t append(const void *data, size_t size);
+    void clear();
+
+  private:
+    // Chrome's allocator disallows creating one allocation that's bigger than 2GB, so the following
+    // is one large buffer that is split in multiple pieces in memory.  This is also more efficient
+    // when capturing large amounts of binary data as it avoids large copies during vector
+    // reallocations.
+    std::vector<std::vector<uint8_t>> mData;
+    // Total size of mData, used to write the offset of data in the captured output.
+    size_t mTotalSize = 0;
 };
 
 // Shared class for any items that need to be tracked by FrameCapture across shared contexts
@@ -552,8 +763,10 @@ class FrameCaptureShared final : angle::NonCopyable
 
     void captureCall(gl::Context *context, CallCapture &&call, bool isCallValid);
     void checkForCaptureTrigger();
+    bool checkForCaptureEnd();
     void onEndFrame(gl::Context *context);
     void onDestroyContext(const gl::Context *context);
+    bool onEndCLCapture();
     void onMakeCurrent(const gl::Context *context, const egl::Surface *drawSurface);
     bool enabled() const { return mEnabled; }
 
@@ -562,6 +775,81 @@ class FrameCaptureShared final : angle::NonCopyable
 
     // Returns a frame index starting from "1" as the first frame.
     uint32_t getReplayFrameIndex() const;
+
+#ifdef ANGLE_ENABLE_CL
+    void captureCLCall(CallCapture &&call, bool isCallValid);
+    static void onCLProgramEnd();
+
+    template <typename T>
+    size_t getIndex(const T *object)
+    {
+        if (getMap<T>().find(*object) == getMap<T>().end())
+        {
+            return SIZE_MAX;
+        }
+        return getMap<T>()[*object];
+    }
+    size_t getCLVoidIndex(const void *v);
+    std::vector<size_t> getCLObjVector(const angle::ParamCapture *paramCaptureKey);
+
+    template <typename T>
+    void setIndex(const T *object)
+    {
+        if (getMap<T>().find(*object) == getMap<T>().end())
+        {
+            size_t tempSize      = getMap<T>().size();
+            getMap<T>()[*object] = tempSize;
+        }
+    }
+    void setCLPlatformIndices(cl_platform_id *platforms, size_t numPlatforms);
+    void setCLDeviceIndices(cl_device_id *devices, size_t numDevices);
+    void setCLVoidIndex(const void *v);
+    void setOffsetsVector(const void *args,
+                          const void **argsLocations,
+                          size_t numLocations,
+                          const angle::ParamCapture *paramCaptureKey);
+    void setCLVoidVectorIndex(const void *pointers[],
+                              size_t numPointers,
+                              const angle::ParamCapture *paramCaptureKey);
+
+    template <typename T>
+    using MemberFuncPtr = size_t (FrameCaptureShared::*)(const T *);
+
+    template <typename T>
+    void setCLObjVectorMap(const T *objs,
+                           size_t numObjs,
+                           const angle::ParamCapture *paramCaptureKey,
+                           MemberFuncPtr<const T> getCLObjIndexFunc)
+    {
+        mResourceTrackerCL.mCLParamIDToIndexVector[paramCaptureKey->uniqueID] =
+            std::vector<size_t>();
+        for (size_t i = 0; i < numObjs; ++i)
+        {
+            mResourceTrackerCL.mCLParamIDToIndexVector[paramCaptureKey->uniqueID].push_back(
+                (this->*getCLObjIndexFunc)(&objs[i]));
+        }
+    }
+
+    template <typename T>
+    std::unordered_map<T, size_t> &getMap();
+
+    void addCLResetObj(const angle::ParamCapture &param);
+    void removeCLResetObj(const ParamCapture &param);
+    void printCLResetObjs(std::stringstream &stream);
+
+    void trackCLMemUpdate(const cl_mem *mem, bool created);
+    void trackCLProgramUpdate(const cl_program *program,
+                              bool referenced,
+                              cl_uint numLinkedPrograms,
+                              const cl_program *linkedPrograms);
+    void trackCLEvents(const cl_event *event, bool created);
+    void injectMemcpy(void *src, void *dest, size_t size, std::vector<CallCapture> *calls);
+    void captureUpdateCLObjs(std::vector<CallCapture> *calls);
+    void removeCLMemOccurrences(const cl_mem *mem, std::vector<CallCapture> *calls);
+    void removeCLKernelOccurrences(const cl_kernel *kernel, std::vector<CallCapture> *calls);
+    void removeCLProgramOccurrences(const cl_program *program, std::vector<CallCapture> *calls);
+    void removeCLCall(std::vector<CallCapture> *callVector, size_t &callIndex);
+#endif
 
     void trackBufferMapping(const gl::Context *context,
                             CallCapture *call,
@@ -573,6 +861,7 @@ class FrameCaptureShared final : angle::NonCopyable
                             bool coherent);
 
     void trackTextureUpdate(const gl::Context *context, const CallCapture &call);
+    void trackImageUpdate(const gl::Context *context, const CallCapture &call);
     void trackDefaultUniformUpdate(const gl::Context *context, const CallCapture &call);
     void trackVertexArrayUpdate(const gl::Context *context, const CallCapture &call);
 
@@ -645,6 +934,7 @@ class FrameCaptureShared final : angle::NonCopyable
                                         GLuint id,
                                         gl::Range<size_t> range);
 
+    void getOutputDirectory();
     void updateReadBufferSize(size_t readBufferSize)
     {
         mReadBufferSize = std::max(mReadBufferSize, readBufferSize);
@@ -683,12 +973,38 @@ class FrameCaptureShared final : angle::NonCopyable
     void *maybeGetShadowMemoryPointer(gl::Buffer *buffer, GLsizeiptr length, GLbitfield access);
     void determineMemoryProtectionSupport(gl::Context *context);
 
+    angle::SimpleMutex &getFrameCaptureMutex() { return mFrameCaptureMutex; }
+
+    void setDeferredLinkProgram(gl::ShaderProgramID programID)
+    {
+        mDeferredLinkPrograms.emplace(programID);
+    }
+    bool isDeferredLinkProgram(gl::ShaderProgramID programID)
+    {
+        return (mDeferredLinkPrograms.find(programID) != mDeferredLinkPrograms.end());
+    }
+
+    static bool isRuntimeEnabled();
+
+    void resetCaptureStartEndFrames()
+    {
+        // If the trigger has been populated the frame range variables will be calculated
+        // based on the trigger value, so for now reset them to unreasonable values.
+        mCaptureStartFrame = mCaptureEndFrame = std::numeric_limits<uint32_t>::max();
+        INFO() << "Capture trigger detected, resetting capture start/end frame.";
+    }
+
   private:
     void writeJSON(const gl::Context *context);
+    void writeJSONCL();
+    void writeJSONCLGetInfo();
+    void saveCLGetInfo(const CallCapture &call);
     void writeCppReplayIndexFiles(const gl::Context *context, bool writeResetContextCall);
+    void writeCppReplayIndexFilesCL();
     void writeMainContextCppReplay(const gl::Context *context,
                                    const std::vector<CallCapture> &setupCalls,
                                    StateResetHelper &StateResetHelper);
+    void writeMainContextCppReplayCL();
 
     void captureClientArraySnapshot(const gl::Context *context,
                                     size_t vertexCount,
@@ -699,6 +1015,7 @@ class FrameCaptureShared final : angle::NonCopyable
     void captureCompressedTextureData(const gl::Context *context, const CallCapture &call);
 
     void reset();
+    void resetMidExecutionCapture(gl::Context *context);
     void maybeOverrideEntryPoint(const gl::Context *context,
                                  CallCapture &call,
                                  std::vector<CallCapture> &newCalls);
@@ -706,9 +1023,11 @@ class FrameCaptureShared final : angle::NonCopyable
                                     CallCapture &call,
                                     std::vector<CallCapture> *shareGroupSetupCalls,
                                     ResourceIDToSetupCallsMap *resourceIDToSetupCalls);
+    void maybeCapturePreCallUpdatesCL(CallCapture &call);
     template <typename ParamValueType>
     void maybeGenResourceOnBind(const gl::Context *context, CallCapture &call);
     void maybeCapturePostCallUpdates(const gl::Context *context);
+    void maybeCapturePostCallUpdatesCL();
     void maybeCaptureDrawArraysClientData(const gl::Context *context,
                                           CallCapture &call,
                                           size_t instanceCount);
@@ -725,20 +1044,23 @@ class FrameCaptureShared final : angle::NonCopyable
                                CallCapture &call,
                                std::vector<CallCapture> &outCalls);
     void updateResourceCountsFromParamCapture(const ParamCapture &param, ResourceIDType idType);
+    void updateResourceCountsFromParamCaptureCL(const ParamCapture &param, const CallCapture &call);
     void updateResourceCountsFromCallCapture(const CallCapture &call);
+    void updateResourceCountsFromCallCaptureCL(const CallCapture &call);
 
     void runMidExecutionCapture(gl::Context *context);
 
     void scanSetupCalls(std::vector<CallCapture> &setupCalls);
 
     std::vector<CallCapture> mFrameCalls;
-    gl::ContextID mLastContextId;
 
     // We save one large buffer of binary data for the whole CPP replay.
     // This simplifies a lot of file management.
-    std::vector<uint8_t> mBinaryData;
+    FrameCaptureBinaryData mBinaryData;
 
     bool mEnabled;
+    static bool mRuntimeEnabled;
+    static bool mRuntimeInitialized;
     bool mSerializeStateEnabled;
     std::string mOutDirectory;
     std::string mCaptureLabel;
@@ -758,9 +1080,46 @@ class FrameCaptureShared final : angle::NonCopyable
     BufferDataMap mBufferDataMap;
     bool mValidateSerializedState = false;
     std::string mValidationExpression;
-    bool mTrimEnabled = true;
     PackedEnumMap<ResourceIDType, uint32_t> mMaxAccessedResourceIDs;
+    std::map<ParamType, uint32_t> mMaxCLParamsSize;
     CoherentBufferTracker mCoherentBufferTracker;
+    angle::SimpleMutex mFrameCaptureMutex;
+    bool mCallCaptured           = false;
+    bool mStartFrameCallCaptured = false;
+
+    // When true, it removes unnecessary calls going into
+    // replay files that occur before mCaptureStartFrame
+    bool removeUnneededOpenCLCalls = false;
+
+#ifdef ANGLE_ENABLE_CL
+    // OpenCL calls considered as "frames"
+    std::unordered_set<EntryPoint> mCLEndFrameCalls = {EntryPoint::CLEnqueueNDRangeKernel,
+                                                       EntryPoint::CLEnqueueNativeKernel,
+                                                       EntryPoint::CLEnqueueTask};
+
+    // "Optional" OpenCL calls not important for Capture/Replay
+    std::unordered_set<EntryPoint> mCLOptionalCalls = {EntryPoint::CLGetPlatformInfo,
+                                                       EntryPoint::CLGetDeviceInfo,
+                                                       EntryPoint::CLGetContextInfo,
+                                                       EntryPoint::CLGetCommandQueueInfo,
+                                                       EntryPoint::CLGetProgramInfo,
+                                                       EntryPoint::CLGetProgramBuildInfo,
+                                                       EntryPoint::CLGetKernelInfo,
+                                                       EntryPoint::CLGetKernelArgInfo,
+                                                       EntryPoint::CLGetKernelWorkGroupInfo,
+                                                       EntryPoint::CLGetEventInfo,
+                                                       EntryPoint::CLGetEventProfilingInfo,
+                                                       EntryPoint::CLGetMemObjectInfo,
+                                                       EntryPoint::CLGetImageInfo,
+                                                       EntryPoint::CLGetSamplerInfo,
+                                                       EntryPoint::CLGetSupportedImageFormats};
+    std::string mCLInfoJson;
+    std::vector<std::string> mExtFuncsAdded;
+
+    std::vector<CallCapture> mCLSetupCalls;
+
+    ResourceTrackerCL mResourceTrackerCL;
+#endif
 
     ResourceTracker mResourceTracker;
     ReplayWriter mReplayWriter;
@@ -770,12 +1129,18 @@ class FrameCaptureShared final : angle::NonCopyable
     // you reach the content you want to capture. Currently only available on Android.
     uint32_t mCaptureTrigger;
 
+    // If you want to finish capture early, use the end_capture utility.
+    uint32_t mEndCapture;
+
     bool mCaptureActive;
     std::vector<uint32_t> mActiveFrameIndices;
 
     // Cache most recently compiled and linked sources.
     ShaderSourceMap mCachedShaderSource;
     ProgramSourceMap mCachedProgramSources;
+
+    // Set of programs which were created but not linked before capture was started
+    std::set<gl::ShaderProgramID> mDeferredLinkPrograms;
 
     gl::ContextID mWindowSurfaceContextID;
 
@@ -795,7 +1160,18 @@ void CaptureGLCallToFrameCapture(CaptureFuncT captureFunc,
                                  gl::Context *context,
                                  ArgsT... captureParams)
 {
+    if (!FrameCaptureShared::isRuntimeEnabled())
+    {
+        // Return immediately to reduce overhead of compile-time flag
+        return;
+    }
     FrameCaptureShared *frameCaptureShared = context->getShareGroup()->getFrameCaptureShared();
+
+    // EGL calls are protected by the global context mutex but only a subset of GL calls
+    // are so protected. Ensure FrameCaptureShared access thread safety by using a
+    // frame-capture only mutex.
+    std::lock_guard<angle::SimpleMutex> lock(frameCaptureShared->getFrameCaptureMutex());
+
     if (!frameCaptureShared->isCapturing())
     {
         return;
@@ -805,17 +1181,47 @@ void CaptureGLCallToFrameCapture(CaptureFuncT captureFunc,
     frameCaptureShared->captureCall(context, std::move(call), isCallValid);
 }
 
+template <typename FirstT, typename... OthersT>
+egl::Display *GetEGLDisplayArg(FirstT display, OthersT... others)
+{
+    if constexpr (std::is_same<egl::Display *, FirstT>::value)
+    {
+        return display;
+    }
+    return nullptr;
+}
+
 template <typename CaptureFuncT, typename... ArgsT>
 void CaptureEGLCallToFrameCapture(CaptureFuncT captureFunc,
                                   bool isCallValid,
                                   egl::Thread *thread,
                                   ArgsT... captureParams)
 {
+    if (!FrameCaptureShared::isRuntimeEnabled())
+    {
+        // Return immediately to reduce overhead of compile-time flag
+        return;
+    }
     gl::Context *context = thread->getContext();
     if (!context)
     {
-        return;
+        // Get a valid context from the display argument if no context is associated with this
+        // thread
+        egl::Display *display = GetEGLDisplayArg(captureParams...);
+        if (display)
+        {
+            for (const auto &contextIter : display->getState().contextMap)
+            {
+                context = contextIter.second;
+                break;
+            }
+        }
+        if (!context)
+        {
+            return;
+        }
     }
+    std::lock_guard<egl::ContextMutex> lock(context->getContextMutex());
 
     angle::FrameCaptureShared *frameCaptureShared =
         context->getShareGroup()->getFrameCaptureShared();
@@ -827,6 +1233,27 @@ void CaptureEGLCallToFrameCapture(CaptureFuncT captureFunc,
     angle::CallCapture call = captureFunc(thread, isCallValid, captureParams...);
     frameCaptureShared->captureCall(context, std::move(call), true);
 }
+
+#ifdef ANGLE_ENABLE_CL
+template <typename CaptureFuncT, typename... ArgsT>
+void CaptureCLCallToFrameCapture(CaptureFuncT captureFunc, bool isCallValid, ArgsT... captureParams)
+{
+    if (!FrameCaptureShared::isRuntimeEnabled())
+    {
+        // Return immediately to reduce overhead of compile-time flag
+        return;
+    }
+    angle::FrameCaptureShared *frameCaptureShared =
+        cl::Platform::GetDefault()->getFrameCaptureShared();
+    std::lock_guard<angle::SimpleMutex> lock(frameCaptureShared->getFrameCaptureMutex());
+    if (!frameCaptureShared || !frameCaptureShared->isCapturing())
+    {
+        return;
+    }
+    angle::CallCapture call = captureFunc(isCallValid, captureParams...);
+    frameCaptureShared->captureCLCall(std::move(call), isCallValid);
+}
+#endif
 
 // Pointer capture helpers.
 void CaptureMemory(const void *source, size_t size, ParamCapture *paramCapture);
@@ -879,6 +1306,331 @@ void CaptureShaderStrings(GLsizei count,
                           const GLchar *const *strings,
                           const GLint *length,
                           ParamCapture *paramCapture);
+
+bool IsTrackedPerContext(ResourceIDType type);
+
+// Function declarations & data types for both
+// capturing OpenGL and OpenCL
+
+std::string EscapeString(const std::string &string);
+
+// Used to indicate that "shared" should be used to identify the files.
+constexpr gl::ContextID kSharedContextId = {0};
+// Used to indicate no context ID should be output.
+constexpr gl::ContextID kNoContextId = {std::numeric_limits<uint32_t>::max()};
+
+constexpr uint32_t kNoPartId = std::numeric_limits<uint32_t>::max();
+
+std::ostream &operator<<(std::ostream &os, gl::ContextID contextId);
+
+struct FmtCapturePrefix
+{
+    FmtCapturePrefix(gl::ContextID contextIdIn, const std::string &captureLabelIn)
+        : contextId(contextIdIn), captureLabel(captureLabelIn)
+    {}
+    gl::ContextID contextId;
+    const std::string &captureLabel;
+};
+
+std::ostream &operator<<(std::ostream &os, const FmtCapturePrefix &fmt);
+
+// In C, when you declare or define a function that takes no parameters, you must explicitly say the
+// function takes "void" parameters. When you're calling the function you omit this void. It's
+// therefore necessary to know how we're using a function to know if we should emi the "void".
+enum FuncUsage
+{
+    Prototype,
+    Definition,
+    Call,
+};
+
+std::ostream &operator<<(std::ostream &os, FuncUsage usage);
+
+struct FmtReplayFunction
+{
+    FmtReplayFunction(gl::ContextID contextIdIn,
+                      FuncUsage usageIn,
+                      uint32_t frameIndexIn,
+                      uint32_t partIdIn = kNoPartId)
+        : contextId(contextIdIn), usage(usageIn), frameIndex(frameIndexIn), partId(partIdIn)
+    {}
+    gl::ContextID contextId;
+    FuncUsage usage;
+    uint32_t frameIndex;
+    uint32_t partId;
+};
+
+std::ostream &operator<<(std::ostream &os, const FmtReplayFunction &fmt);
+
+enum class ReplayFunc
+{
+    Replay,
+    Setup,
+    SetupInactive,
+    Reset,
+    SetupFirstFrame,
+};
+
+struct FmtFunction
+{
+    FmtFunction(ReplayFunc funcTypeIn,
+                gl::ContextID contextIdIn,
+                FuncUsage usageIn,
+                uint32_t frameIndexIn,
+                uint32_t partIdIn)
+        : funcType(funcTypeIn),
+          contextId(contextIdIn),
+          usage(usageIn),
+          frameIndex(frameIndexIn),
+          partId(partIdIn)
+    {}
+
+    ReplayFunc funcType;
+    gl::ContextID contextId;
+    FuncUsage usage;
+    uint32_t frameIndex;
+    uint32_t partId;
+};
+
+std::ostream &operator<<(std::ostream &os, gl::ContextID contextId);
+
+std::ostream &operator<<(std::ostream &os, const FmtFunction &fmt);
+
+struct FmtSetupFunction
+{
+    FmtSetupFunction(uint32_t partIdIn, gl::ContextID contextIdIn, FuncUsage usageIn)
+        : partId(partIdIn), contextId(contextIdIn), usage(usageIn)
+    {}
+
+    uint32_t partId;
+    gl::ContextID contextId;
+    FuncUsage usage;
+};
+
+std::ostream &operator<<(std::ostream &os, const FmtSetupFunction &fmt);
+
+struct FmtSetupFirstFrameFunction
+{
+    FmtSetupFirstFrameFunction(uint32_t partIdIn = kNoPartId) : partId(partIdIn) {}
+
+    uint32_t partId;
+};
+
+std::ostream &operator<<(std::ostream &os, const FmtSetupFirstFrameFunction &fmt);
+
+struct FmtSetupInactiveFunction
+{
+    FmtSetupInactiveFunction(uint32_t partIdIn, gl::ContextID contextIdIn, FuncUsage usageIn)
+        : partId(partIdIn), contextId(contextIdIn), usage(usageIn)
+    {}
+
+    uint32_t partId;
+    gl::ContextID contextId;
+    FuncUsage usage;
+};
+
+std::ostream &operator<<(std::ostream &os, const FmtSetupInactiveFunction &fmt);
+
+struct FmtResetFunction
+{
+    FmtResetFunction(uint32_t partIdIn, gl::ContextID contextIdIn, FuncUsage usageIn)
+        : partId(partIdIn), contextId(contextIdIn), usage(usageIn)
+    {}
+
+    uint32_t partId;
+    gl::ContextID contextId;
+    FuncUsage usage;
+};
+
+std::ostream &operator<<(std::ostream &os, const FmtResetFunction &fmt);
+
+// For compatibility with C, which does not have multi-line string literals, we break strings up
+// into multiple lines like:
+//
+//   const char *str[] = {
+//   "multiple\n"
+//   "line\n"
+//   "strings may have \"quotes\"\n"
+//   "and \\slashes\\\n",
+//   };
+//
+// Note we need to emit extra escapes to ensure quotes and other special characters are preserved.
+struct FmtMultiLineString
+{
+    FmtMultiLineString(const std::string &str) : strings()
+    {
+        std::string str2;
+
+        // Strip any carriage returns before splitting, for consistency
+        if (str.find("\r") != std::string::npos)
+        {
+            // str is const, so have to make a copy of it first
+            str2 = str;
+            ReplaceAllSubstrings(&str2, "\r", "");
+        }
+
+        strings =
+            angle::SplitString(str2.empty() ? str : str2, "\n", WhitespaceHandling::KEEP_WHITESPACE,
+                               SplitResult::SPLIT_WANT_ALL);
+    }
+
+    std::vector<std::string> strings;
+};
+
+std::ostream &operator<<(std::ostream &ostr, const FmtMultiLineString &fmt);
+
+struct SaveFileHelper
+{
+  public:
+    // We always use ios::binary to avoid inconsistent line endings when captured on Linux vs Win.
+    SaveFileHelper(const std::string &filePathIn)
+        : mOfs(filePathIn, std::ios::binary | std::ios::out), mFilePath(filePathIn)
+    {
+        if (!mOfs.is_open())
+        {
+            FATAL() << "Could not open " << filePathIn;
+        }
+    }
+    ~SaveFileHelper() { printf("Saved '%s'.\n", mFilePath.c_str()); }
+
+    template <typename T>
+    SaveFileHelper &operator<<(const T &value)
+    {
+        mOfs << value;
+        if (mOfs.bad())
+        {
+            FATAL() << "Error writing to " << mFilePath;
+        }
+        return *this;
+    }
+
+    void write(const uint8_t *data, size_t size)
+    {
+        mOfs.write(reinterpret_cast<const char *>(data), size);
+    }
+
+  private:
+    void checkError();
+
+    std::ofstream mOfs;
+    std::string mFilePath;
+};
+
+// TODO: Consolidate to C output and remove option. http://anglebug.com/42266223
+
+constexpr char kEnabledVarName[]        = "ANGLE_CAPTURE_ENABLED";
+constexpr char kOutDirectoryVarName[]   = "ANGLE_CAPTURE_OUT_DIR";
+constexpr char kFrameStartVarName[]     = "ANGLE_CAPTURE_FRAME_START";
+constexpr char kFrameEndVarName[]       = "ANGLE_CAPTURE_FRAME_END";
+constexpr char kTriggerVarName[]        = "ANGLE_CAPTURE_TRIGGER";
+constexpr char kEndCaptureVarName[]     = "ANGLE_CAPTURE_END_CAPTURE";
+constexpr char kCaptureLabelVarName[]   = "ANGLE_CAPTURE_LABEL";
+constexpr char kCompressionVarName[]    = "ANGLE_CAPTURE_COMPRESSION";
+constexpr char kSerializeStateVarName[] = "ANGLE_CAPTURE_SERIALIZE_STATE";
+constexpr char kValidationVarName[]     = "ANGLE_CAPTURE_VALIDATION";
+constexpr char kValidationExprVarName[] = "ANGLE_CAPTURE_VALIDATION_EXPR";
+constexpr char kSourceExtVarName[]      = "ANGLE_CAPTURE_SOURCE_EXT";
+constexpr char kSourceSizeVarName[]     = "ANGLE_CAPTURE_SOURCE_SIZE";
+constexpr char kForceShadowVarName[]    = "ANGLE_CAPTURE_FORCE_SHADOW";
+
+constexpr size_t kBinaryAlignment   = 16;
+constexpr size_t kFunctionSizeLimit = 5000;
+
+// Limit based on MSVC Compiler Error C2026
+constexpr size_t kStringLengthLimit = 16380;
+
+// Default limit to number of bytes in a capture source files.
+constexpr char kDefaultSourceFileExt[]           = "cpp";
+constexpr size_t kDefaultSourceFileSizeThreshold = 400000;
+
+// Android debug properties that correspond to the above environment variables
+constexpr char kAndroidEnabled[]        = "debug.angle.capture.enabled";
+constexpr char kAndroidOutDir[]         = "debug.angle.capture.out_dir";
+constexpr char kAndroidFrameStart[]     = "debug.angle.capture.frame_start";
+constexpr char kAndroidFrameEnd[]       = "debug.angle.capture.frame_end";
+constexpr char kAndroidTrigger[]        = "debug.angle.capture.trigger";
+constexpr char kAndroidEndCapture[]     = "debug.angle.capture.end_capture";
+constexpr char kAndroidCaptureLabel[]   = "debug.angle.capture.label";
+constexpr char kAndroidCompression[]    = "debug.angle.capture.compression";
+constexpr char kAndroidValidation[]     = "debug.angle.capture.validation";
+constexpr char kAndroidValidationExpr[] = "debug.angle.capture.validation_expr";
+constexpr char kAndroidSourceExt[]      = "debug.angle.capture.source_ext";
+constexpr char kAndroidSourceSize[]     = "debug.angle.capture.source_size";
+constexpr char kAndroidForceShadow[]    = "debug.angle.capture.force_shadow";
+
+void WriteCppReplayForCall(const CallCapture &call,
+                           ReplayWriter &replayWriter,
+                           std::ostream &out,
+                           std::ostream &header,
+                           FrameCaptureBinaryData *binaryData,
+                           size_t *maxResourceIDBufferSize);
+
+void WriteCppReplayForCallCL(const CallCapture &call,
+                             ReplayWriter &replayWriter,
+                             std::ostream &out,
+                             std::ostream &header,
+                             FrameCaptureBinaryData *binaryData);
+
+void WriteBinaryParamReplay(ReplayWriter &replayWriter,
+                            std::ostream &out,
+                            std::ostream &header,
+                            const CallCapture &call,
+                            const ParamCapture &param,
+                            FrameCaptureBinaryData *binaryData);
+
+std::string GetBinaryDataFilePath(bool compression, const std::string &captureLabel);
+
+void SaveBinaryData(bool compression,
+                    const std::string &outDir,
+                    gl::ContextID contextId,
+                    const std::string &captureLabel,
+                    FrameCaptureBinaryData &binaryData);
+
+void WriteStringPointerParamReplay(ReplayWriter &replayWriter,
+                                   std::ostream &out,
+                                   std::ostream &header,
+                                   const CallCapture &call,
+                                   const ParamCapture &param);
+
+void WriteCppReplayFunctionWithParts(const gl::ContextID contextID,
+                                     ReplayFunc replayFunc,
+                                     ReplayWriter &replayWriter,
+                                     uint32_t frameIndex,
+                                     FrameCaptureBinaryData *binaryData,
+                                     const std::vector<CallCapture> &calls,
+                                     std::stringstream &header,
+                                     std::stringstream &out,
+                                     size_t *maxResourceIDBufferSize);
+
+void WriteComment(std::ostream &out, const CallCapture &call);
+
+template <typename T, typename CastT = T>
+void WriteInlineData(const std::vector<uint8_t> &vec, std::ostream &out)
+{
+    const T *data = reinterpret_cast<const T *>(vec.data());
+    size_t count  = vec.size() / sizeof(T);
+
+    if (data == nullptr)
+    {
+        return;
+    }
+
+    out << static_cast<CastT>(data[0]);
+
+    for (size_t dataIndex = 1; dataIndex < count; ++dataIndex)
+    {
+        out << ", " << static_cast<CastT>(data[dataIndex]);
+    }
+}
+
+template <>
+void WriteInlineData<GLchar>(const std::vector<uint8_t> &vec, std::ostream &out);
+
+void AddComment(std::vector<CallCapture> *outCalls, const std::string &comment);
+
+std::string GetCaptureTrigger();
+
+std::string GetEndCapture();
 
 }  // namespace angle
 

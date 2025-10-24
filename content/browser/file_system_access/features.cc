@@ -6,77 +6,68 @@
 
 #include "base/feature_list.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/features_generated.h"
 
 namespace content::features {
 
-// TODO(crbug.com/1370433): Remove this flag eventually.
-// When enabled, drag-and-dropped files and directories will be checked against
-// the File System Access blocklist. This feature was disabled since it broke
-// some applications.
-BASE_FEATURE(kFileSystemAccessDragAndDropCheckBlocklist,
-             "FileSystemAccessDragAndDropCheckBlocklist",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// TODO(crbug.com/1381621): Remove this flag eventually.
-// When enabled, move() will result in a promise rejection when the specified
-// destination to move to exists. This feature was disabled since it does not
-// match standard POSIX behavior. See discussion at
-// https://github.com/whatwg/fs/pull/10#issuecomment-1322993643.
-BASE_FEATURE(kFileSystemAccessDoNotOverwriteOnMove,
-             "FileSystemAccessDoNotOverwriteOnMove",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// TODO(crbug.com/1140805): Remove this flag eventually.
-// When enabled, move() supports moving local files (i.e. that do not live in
-// the OPFS).
-BASE_FEATURE(kFileSystemAccessMoveLocalFiles,
-             "FileSystemAccessMoveLocalFiles",
+// TODO(crbug.com/40896420): Remove this flag eventually.
+// TODO(b/354661640): Temporarily disable this flag while investigating CrOS
+// file saving issue.
+//
+// When enabled, GetFile() and GetEntries() on a directory handle performs
+// the blocklist check on child file handles.
+BASE_FEATURE(kFileSystemAccessDirectoryIterationBlocklistCheck,
+             "FileSystemAccessDirectoryIterationBlocklistCheck",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// TODO(crbug.com/1114923): Remove this flag eventually.
-// When enabled, the remove() method is enabled. Otherwise, throws a
-// NotSupportedError DomException.
-BASE_FEATURE(kFileSystemAccessRemove,
-             "FileSystemAccessRemove",
+// When enabled, sites are limited in how much underlying operating resources
+// they can access through the `FileSystemObserver` API. This limit is called
+// the quota limit. Without this enabled, sites will be limited by the system
+// limit.
+BASE_FEATURE(kFileSystemAccessObserverQuotaLimit,
+             "FileSystemAccessObserverQuotaLimit",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// TODO(crbug.com/1254078): Remove this flag eventually.
-// When enabled, removeEntry() acquires an exclusive lock (as opposed to a
-// shared lock when disabled).
-BASE_FEATURE(kFileSystemAccessRemoveEntryExclusiveLock,
-             "FileSystemAccessRemoveEntryExclusiveLock",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// On Linux, the quota limit is found by:
+// 1. Rounding down the system limit (read from
+//    /proc/sys/fs/inotify/max_user_watches) to the nearest
+//    `kFileSystemObserverQuotaLimitLinuxBucketSize`.
+// 2. Taking that max of that result and
+//    `kFileSystemObserverQuotaLimitLinuxMin`.
+// 3. And setting quota limit to `kFileSystemObserverQuotaLimitLinuxPercent`% of
+//    that result.
+BASE_FEATURE_PARAM(size_t,
+                   kFileSystemObserverQuotaLimitLinuxBucketSize,
+                   &kFileSystemAccessObserverQuotaLimit,
+                   "file_system_observer_quota_limit_linux_bucket_size",
+                   100000);
+BASE_FEATURE_PARAM(size_t,
+                   kFileSystemObserverQuotaLimitLinuxMin,
+                   &kFileSystemAccessObserverQuotaLimit,
+                   "file_system_observer_quota_limit_linux_min",
+                   8192);
+BASE_FEATURE_PARAM(double,
+                   kFileSystemObserverQuotaLimitLinuxPercent,
+                   &kFileSystemAccessObserverQuotaLimit,
+                   "file_system_observer_quota_limit_linux_percent",
+                   0.8);
 
-// TODO(crbug.com/1394837): Remove this flag eventually.
-// When enabled, a user gesture is required to rename a file if the site does
-// not have write access to the parent. See http://b/254157070 for more context.
-BASE_FEATURE(kFileSystemAccessRenameWithoutParentAccessRequiresUserActivation,
-             "FileSystemAccessRenameWithoutParentAccessRequiresUserActivation",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// On Mac, the quota limit is `kFileSystemObserverQuotaLimitMacPercent`% of the
+// system limit (512) which is constant across all devices.
+BASE_FEATURE_PARAM(double,
+                   kFileSystemObserverQuotaLimitMacPercent,
+                   &kFileSystemAccessObserverQuotaLimit,
+                   "file_system_observer_quota_limit_mac_percent",
+                   0.2  // About 100 FSEventStreamCreate calls.
+);
 
-// TODO(crbug.com/1247850): Remove this flag eventually.
-// When enabled, move operations within the same file system that do not change
-// the file extension will not be subject to safe browsing checks.
-BASE_FEATURE(kFileSystemAccessSkipAfterWriteChecksIfUnchangingExtension,
-             "FileSystemAccessSkipAfterWriteChecksIfUnchangingExtension",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// TODO(crbug.com/1421735): Remove this flag eventually.
-// When enabled, GetFile() and GetEntries() on the directory handle resolve
-// symbolic link (if any) and check the path against the blocklis, on POSIX.
-// This feature was disabled since it broke some applications.
-BASE_FEATURE(kFileSystemAccessDirectoryIterationSymbolicLinkCheck,
-             "FileSystemAccessDirectoryIterationSymbolicLinkCheck",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_MAC)
-// TODO(crbug.com/1413443): Remove this flag eventually.
-// When enabled, createWritable({ keepExistingData:true }) will create a swap
-// file using APFS's built-in support for copy-on-write files instead of copying
-// over the file's contents manually.
-BASE_FEATURE(kFileSystemAccessCowSwapFile,
-             "FileSystemAccessCowSwapFile",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_MAC)
+// On Windows, the quota limit is a constant memory size.
+BASE_FEATURE_PARAM(size_t,
+                   kFileSystemObserverQuotaLimitWindows,
+                   &kFileSystemAccessObserverQuotaLimit,
+                   "file_system_observer_quota_limit_windows",
+                   2 << 28  // 1/2GiB
+);
 
 }  // namespace content::features

@@ -5,6 +5,8 @@
 #ifndef ASH_SYSTEM_AUDIO_AUDIO_EFFECTS_CONTROLLER_H_
 #define ASH_SYSTEM_AUDIO_AUDIO_EFFECTS_CONTROLLER_H_
 
+#include <optional>
+
 #include "ash/ash_export.h"
 #include "ash/public/cpp/session/session_controller.h"
 #include "ash/public/cpp/session/session_observer.h"
@@ -12,7 +14,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -34,9 +35,9 @@ class ASH_EXPORT AudioEffectsController
   bool IsEffectSupported(VcEffectId effect_id);
 
   // VcEffectsDelegate:
-  absl::optional<int> GetEffectState(VcEffectId effect_id) override;
+  std::optional<int> GetEffectState(VcEffectId effect_id) override;
   void OnEffectControlActivated(VcEffectId effect_id,
-                                absl::optional<int> state) override;
+                                std::optional<int> state) override;
 
   // SessionObserver:
   void OnActiveUserPrefServiceChanged(PrefService* pref_service) override;
@@ -44,18 +45,28 @@ class ASH_EXPORT AudioEffectsController
  private:
   // CrasAudioHandler::AudioObserver:
   void OnActiveInputNodeChanged() override;
+  void OnAudioNodesChanged() override;
+  void OnActiveOutputNodeChanged() override;
+  void OnNoiseCancellationStateChanged() override;
+  void OnStyleTransferStateChanged() override;
+
+  // Refresh noise cancellation supported status.
+  void RefreshNoiseCancellationOrStyleTransferSupported();
 
   // Construct effect for noise cancellation.
   void AddNoiseCancellationEffect();
 
+  // Construct effect for style transfer.
+  void AddStyleTransferEffect();
+
   // Construct effect for live caption.
   void AddLiveCaptionEffect();
 
+  // Whether the effects is added already to effects manager.
+  bool IsEffectsAdded(VcEffectId id);
+
   base::ScopedObservation<SessionController, SessionObserver>
       session_observation_{this};
-
-  // Indicates if noise cancellation is supported for the current input device.
-  bool noise_cancellation_supported_ = false;
 
   base::WeakPtrFactory<AudioEffectsController> weak_factory_{this};
 };

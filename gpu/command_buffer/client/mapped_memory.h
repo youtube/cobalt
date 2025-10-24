@@ -2,18 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef GPU_COMMAND_BUFFER_CLIENT_MAPPED_MEMORY_H_
 #define GPU_COMMAND_BUFFER_CLIENT_MAPPED_MEMORY_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <bit>
 #include <memory>
 
-#include "base/bits.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "gpu/command_buffer/client/fenced_allocator.h"
 #include "gpu/command_buffer/common/buffer.h"
@@ -139,7 +143,7 @@ class GPU_EXPORT MappedMemoryManager {
   uint32_t chunk_size_multiple() const { return chunk_size_multiple_; }
 
   void set_chunk_size_multiple(uint32_t multiple) {
-    DCHECK(base::bits::IsPowerOfTwo(multiple));
+    DCHECK(std::has_single_bit(multiple));
     DCHECK_GE(multiple, FencedAllocator::kAllocAlignment);
     chunk_size_multiple_ = multiple;
   }
@@ -278,19 +282,13 @@ class GPU_EXPORT ScopedMappedMemoryPtr {
   void Reset(uint32_t new_size);
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION void* buffer_;
+  raw_ptr<void> buffer_;
   uint32_t size_;
   int32_t shm_id_;
   uint32_t shm_offset_;
   bool flush_after_release_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION CommandBufferHelper* helper_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION MappedMemoryManager* mapped_memory_manager_;
+  raw_ptr<CommandBufferHelper> helper_;
+  raw_ptr<MappedMemoryManager> mapped_memory_manager_;
 };
 
 }  // namespace gpu

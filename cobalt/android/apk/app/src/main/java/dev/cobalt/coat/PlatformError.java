@@ -29,6 +29,7 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import org.jni_zero.NativeMethods;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
@@ -80,6 +81,10 @@ public class PlatformError
         });
   }
 
+  public void setResponse(@Response int response) {
+    this.response = response;
+  }
+
   private void showDialogOnUiThread() {
     Activity activity = activityHolder.get();
     if (activity == null) {
@@ -100,6 +105,19 @@ public class PlatformError
     }
     dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
     dialog.show();
+  }
+
+  public void dismiss() {
+    uiThreadHandler.post(
+        () -> {
+          if (dialog != null) {
+            dialog.dismiss();
+          }
+        });
+  }
+
+  public boolean isShowing() {
+    return dialog != null && dialog.isShowing();
   }
 
   @Override
@@ -124,6 +142,7 @@ public class PlatformError
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
           }
+          cobaltActivity.activeNetworkCheck();
           dialog.dismiss();
           break;
         default: // fall out
@@ -143,8 +162,11 @@ public class PlatformError
 
   /** Informs Starboard when the error is dismissed. */
   protected void sendResponse(@PlatformError.Response int response, long data) {
-    nativeSendResponse(response, data);
+    PlatformErrorJni.get().sendResponse(response, data);
   }
 
-  private native void nativeSendResponse(@PlatformError.Response int response, long data);
+  @NativeMethods
+  interface Natives {
+    void sendResponse(@PlatformError.Response int response, long data);
+  }
 }

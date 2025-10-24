@@ -40,13 +40,13 @@ class UnrecognizedChunkTypeCause
   explicit UnrecognizedChunkTypeCause(std::vector<uint8_t> unrecognized_chunk)
       : unrecognized_chunk_(std::move(unrecognized_chunk)) {}
 
-  static absl::optional<UnrecognizedChunkTypeCause> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<UnrecognizedChunkTypeCause> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;
 
-  rtc::ArrayView<const uint8_t> unrecognized_chunk() const {
+  webrtc::ArrayView<const uint8_t> unrecognized_chunk() const {
     return unrecognized_chunk_;
   }
 

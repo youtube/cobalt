@@ -11,17 +11,17 @@
 
 namespace extensions {
 
-IdentityRemoveCachedAuthTokenFunction::IdentityRemoveCachedAuthTokenFunction() {
-}
+IdentityRemoveCachedAuthTokenFunction::IdentityRemoveCachedAuthTokenFunction() =
+    default;
 
 IdentityRemoveCachedAuthTokenFunction::
-    ~IdentityRemoveCachedAuthTokenFunction() {}
+    ~IdentityRemoveCachedAuthTokenFunction() = default;
 
 ExtensionFunction::ResponseAction IdentityRemoveCachedAuthTokenFunction::Run() {
   if (Profile::FromBrowserContext(browser_context())->IsOffTheRecord())
     return RespondNow(Error(identity_constants::kOffTheRecord));
 
-  absl::optional<api::identity::RemoveCachedAuthToken::Params> params =
+  std::optional<api::identity::RemoveCachedAuthToken::Params> params =
       api::identity::RemoveCachedAuthToken::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   IdentityAPI::GetFactoryInstance()

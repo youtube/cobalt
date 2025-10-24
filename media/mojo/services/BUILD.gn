@@ -2,8 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromecast_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/cast.gni")
 import("//media/gpu/args.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/fuzzers/mojolpm.gni")
@@ -62,6 +61,8 @@ component("services") {
     "mojo_video_encode_accelerator_provider.h",
     "mojo_video_encode_accelerator_service.cc",
     "mojo_video_encode_accelerator_service.h",
+    "mojo_video_encoder_metrics_provider_service.cc",
+    "mojo_video_encoder_metrics_provider_service.h",
     "test_mojo_media_client.cc",
     "test_mojo_media_client.h",
     "video_decode_perf_history.cc",
@@ -99,7 +100,6 @@ component("services") {
   ]
 
   deps = [
-    "//build:chromeos_buildflags",
     "//gpu/ipc/service",
     "//media",
     "//media:shared_memory_support",
@@ -111,6 +111,7 @@ component("services") {
     "//media/mojo/common",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
+    "//services/metrics/public/mojom",
     "//services/service_manager/public/mojom",
   ]
 
@@ -123,11 +124,11 @@ component("services") {
     deps += [ "//starboard:starboard_headers_only" ]
   } else if (is_android) {
     sources += [ "gpu_mojo_media_client_android.cc" ]
-  } else if (is_mac) {
+  } else if (is_apple) {
     sources += [ "gpu_mojo_media_client_mac.cc" ]
   } else if (is_win) {
     sources += [ "gpu_mojo_media_client_win.cc" ]
-  } else if (use_vaapi || use_v4l2_codec) {
+  } else if (use_linux_video_acceleration) {
     if (is_linux) {
       sources += [ "gpu_mojo_media_client_linux.cc" ]
     } else {
@@ -142,7 +143,7 @@ component("services") {
         [ "//chromeos/components/cdm_factory_daemon:cdm_factory_daemon_gpu" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (use_linux_video_acceleration) {
     sources += [
       "mojo_video_encode_accelerator_provider_factory.cc",
       "mojo_video_encode_accelerator_provider_factory.h",
@@ -155,6 +156,8 @@ component("services") {
       "android_mojo_media_client.h",
       "android_mojo_util.cc",
       "android_mojo_util.h",
+      "mediadrm_support_service.cc",
+      "mediadrm_support_service.h",
     ]
   }
 
@@ -198,6 +201,8 @@ component("services") {
       "media_foundation_gpu_info_monitor.h",
       "media_foundation_mojo_media_client.cc",
       "media_foundation_mojo_media_client.h",
+      "media_foundation_preferences.cc",
+      "media_foundation_preferences.h",
       "media_foundation_renderer_wrapper.cc",
       "media_foundation_renderer_wrapper.h",
       "media_foundation_service.cc",
@@ -208,21 +213,22 @@ component("services") {
     deps += [ "//ui/gfx/mojom:dxgi_info" ]
   }
 
-  if ((is_chromeos_ash || is_linux) && (use_vaapi || use_v4l2_codec)) {
+  if (allow_hosting_oop_video_decoder) {
     sources += [
-      "stable_video_decoder_factory_process_service.cc",
-      "stable_video_decoder_factory_process_service.h",
-      "stable_video_decoder_factory_service.cc",
-      "stable_video_decoder_factory_service.h",
-      "stable_video_decoder_service.cc",
-      "stable_video_decoder_service.h",
+      "oop_video_decoder_factory_process_service.cc",
+      "oop_video_decoder_factory_process_service.h",
+      "oop_video_decoder_factory_service.cc",
+      "oop_video_decoder_factory_service.h",
+      "oop_video_decoder_service.cc",
+      "oop_video_decoder_service.h",
     ]
 
-    public_deps += [ "//media/mojo/mojom/stable:stable_video_decoder" ]
+    public_deps += [ "//media/mojo/mojom" ]
 
     deps += [
       "//components/viz/common",
       "//media/gpu/chromeos",
+      "//media/mojo/common",
     ]
   }
 
@@ -239,6 +245,27 @@ component("services") {
   }
 }
 
+source_set("test_support") {
+  visibility = [ "//media:test_support" ]
+  testonly = true
+  sources = [
+    "gpu_mojo_media_client_test_util.cc",
+    "gpu_mojo_media_client_test_util.h",
+  ]
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//media:media_config",
+  ]
+  public_deps = [
+    "//base",
+    "//gpu/config",
+  ]
+  deps = [
+    ":services",
+    "//media",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
 
@@ -249,6 +276,7 @@ source_set("unit_tests") {
     "mojo_audio_input_stream_unittest.cc",
     "mojo_demuxer_stream_adapter_unittest.cc",
     "mojo_video_encode_accelerator_service_unittest.cc",
+    "mojo_video_encoder_metrics_provider_service_unittest.cc",
     "test_helpers.cc",
     "test_helpers.h",
     "video_decode_perf_history_unittest.cc",
@@ -301,14 +329,20 @@ source_set("unit_tests") {
     ]
   }
 
-  if (is_chromeos_ash) {
+  if (is_android) {
+    sources += [ "mediadrm_support_service_unittest.cc" ]
+    deps += [ "//third_party/widevine/cdm:headers" ]
+  }
+
+  if (is_chromeos) {
     deps += [
       "//components/chromeos_camera:mjpeg_decode_accelerator_service_unittest",
     ]
   }
 
-  if ((is_chromeos_ash || is_linux) && (use_vaapi || use_v4l2_codec)) {
-    sources += [ "stable_video_decoder_service_unittest.cc" ]
+  if (allow_hosting_oop_video_decoder) {
+    sources += [ "oop_video_decoder_service_unittest.cc" ]
+    deps += [ "//gpu:test_support" ]
   }
 
   if (is_fuchsia) {
@@ -342,9 +376,11 @@ mojolpm_fuzzer_test("webrtc_video_perf_mojolpm_fuzzer") {
     "//base",
     "//base/test:test_support",
     "//components/leveldb_proto:test_support",
-    "//content/public/browser",
     "//media",
     "//media/capabilities:webrtc_video_stats_proto",
+    "//media/mojo/mojom:mojom_mojolpm",
+    "//third_party/blink/public:blink",
+    "//third_party/blink/public/common",
     "//third_party/libprotobuf-mutator",
   ]
 }

@@ -6,6 +6,7 @@
 #define PRINTING_PRINT_SETTINGS_H_
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,9 +18,12 @@
 #include "printing/page_range.h"
 #include "printing/page_setup.h"
 #include "printing/print_job_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+
+#if BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+#include "base/values.h"
+#endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <map>
@@ -33,32 +37,55 @@
 
 namespace printing {
 
+#if BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+
+#if BUILDFLAG(IS_MAC)
+inline constexpr char kMacSystemPrintDialogDataDestinationType[] =
+    "destination_type";
+inline constexpr char kMacSystemPrintDialogDataDestinationFormat[] =
+    "destination_format";
+inline constexpr char kMacSystemPrintDialogDataDestinationLocation[] =
+    "destination_location";
+inline constexpr char kMacSystemPrintDialogDataPageFormat[] = "page_format";
+inline constexpr char kMacSystemPrintDialogDataPrintSettings[] =
+    "print_settings";
+#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_LINUX)
+inline constexpr char kLinuxSystemPrintDialogDataPrinter[] = "printer_name";
+inline constexpr char kLinuxSystemPrintDialogDataPrintSettings[] =
+    "print_settings";
+inline constexpr char kLinuxSystemPrintDialogDataPageSetup[] = "page_setup";
+#endif  // BUILDFLAG(IS_LINUX)
+
+#endif  // BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+
 // Convert from `color_mode` into a `color_model`.  An invalid `color_mode`
 // will give a result of `mojom::ColorModel::kUnknownColorModel`.
-COMPONENT_EXPORT(PRINTING)
+COMPONENT_EXPORT(PRINTING_SETTINGS)
 mojom::ColorModel ColorModeToColorModel(int color_mode);
 
 // Returns true if `color_model` is color and false if it is B&W.  Callers
 // are not supposed to pass in `mojom::ColorModel::kUnknownColorModel`, but
-// if they do then the result will be absl::nullopt.
-COMPONENT_EXPORT(PRINTING)
-absl::optional<bool> IsColorModelSelected(mojom::ColorModel color_model);
+// if they do then the result will be std::nullopt.
+COMPONENT_EXPORT(PRINTING_SETTINGS)
+std::optional<bool> IsColorModelSelected(mojom::ColorModel color_model);
 
 #if BUILDFLAG(USE_CUPS)
 // Get the color model setting name and value for the `color_model`.
-COMPONENT_EXPORT(PRINTING)
+COMPONENT_EXPORT(PRINTING_SETTINGS)
 void GetColorModelForModel(mojom::ColorModel color_model,
                            std::string* color_setting_name,
                            std::string* color_value);
-
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
-// Convert from `color_model` to a print-color-mode value from PWG 5100.13.
-COMPONENT_EXPORT(PRINTING)
-std::string GetIppColorModelForModel(mojom::ColorModel color_model);
-#endif
 #endif  // BUILDFLAG(USE_CUPS)
 
-class COMPONENT_EXPORT(PRINTING) PrintSettings {
+#if BUILDFLAG(USE_CUPS_IPP)
+// Convert from `color_model` to a print-color-mode value from PWG 5100.13.
+COMPONENT_EXPORT(PRINTING_SETTINGS)
+std::string GetIppColorModelForModel(mojom::ColorModel color_model);
+#endif  // BUILDFLAG(USE_CUPS_IPP)
+
+class COMPONENT_EXPORT(PRINTING_SETTINGS) PrintSettings {
  public:
   // Media properties requested by the user. Default instance represents
   // default media selection.
@@ -88,9 +115,9 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
   // Reinitialize the settings to the default values.
   void Clear();
 
-  void SetCustomMargins(const PageMargins& requested_margins_in_points);
-  const PageMargins& requested_custom_margins_in_points() const {
-    return requested_custom_margins_in_points_;
+  void SetCustomMargins(const PageMargins& requested_margins_in_microns);
+  const PageMargins& requested_custom_margins_in_microns() const {
+    return requested_custom_margins_in_microns_;
   }
   void set_margin_type(mojom::MarginType margin_type) {
     margin_type_ = margin_type;
@@ -135,6 +162,14 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
   }
   const std::u16string& device_name() const { return device_name_; }
 
+  void set_borderless(bool borderless) { borderless_ = borderless; }
+  bool borderless() const { return borderless_; }
+
+  void set_media_type(const std::string& media_type) {
+    media_type_ = media_type;
+  }
+  const std::string& media_type() const { return media_type_; }
+
   void set_dpi(int dpi) { dpi_ = gfx::Size(dpi, dpi); }
   void set_dpi_xy(int dpi_horizontal, int dpi_vertical) {
     dpi_ = gfx::Size(dpi_horizontal, dpi_vertical);
@@ -153,11 +188,6 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
 
   void set_rasterize_pdf_dpi(int32_t dpi) { rasterize_pdf_dpi_ = dpi; }
   int32_t rasterize_pdf_dpi() const { return rasterize_pdf_dpi_; }
-
-  void set_supports_alpha_blend(bool supports_alpha_blend) {
-    supports_alpha_blend_ = supports_alpha_blend;
-  }
-  bool supports_alpha_blend() const { return supports_alpha_blend_; }
 
   int device_units_per_inch() const {
 #if BUILDFLAG(IS_MAC)
@@ -286,16 +316,36 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
       crosapi::mojom::StatusReason::Reason printer_status_reason) {
     printer_status_reason_ = printer_status_reason;
   }
-  absl::optional<crosapi::mojom::StatusReason::Reason> printer_status_reason()
+  std::optional<crosapi::mojom::StatusReason::Reason> printer_status_reason()
       const {
     return printer_status_reason_;
   }
+
+  void set_print_scaling(mojom::PrintScalingType print_scaling) {
+    print_scaling_ = print_scaling;
+  }
+  mojom::PrintScalingType print_scaling() const { return print_scaling_; }
+
+  void set_quality(mojom::Quality quality) { quality_ = quality; }
+  mojom::Quality quality() const { return quality_; }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+  void set_system_print_dialog_data(base::Value::Dict data) {
+    system_print_dialog_data_ = std::move(data);
+  }
+  const base::Value::Dict& system_print_dialog_data() const {
+    return system_print_dialog_data_;
+  }
+#endif
   // Cookie generator. It is used to initialize `PrintedDocument` with its
   // associated `PrintSettings`, to be sure that each generated `PrintedPage`
   // is correctly associated with its corresponding `PrintedDocument`.
   static int NewCookie();
+
+  // Creates an invalid cookie for use in situations where the cookie needs to
+  // be marked as invalid.
+  static int NewInvalidCookie();
 
  private:
 #if BUILDFLAG(IS_MAC)
@@ -337,11 +387,24 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
   // Printer device name as opened by the OS.
   std::u16string device_name_;
 
+#if BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+  // Platform-specific print settings captured from a system print dialog.
+  // The settings are captured in the browser process for transmission to
+  // the Print Backend service for OOP printing.
+  base::Value::Dict system_print_dialog_data_;
+#endif
+
   // Media requested by the user.
   RequestedMedia requested_media_;
 
   // Page setup in device units.
   PageSetup page_setup_device_units_;
+
+  // Whether the user has requested borderless (zero margin) printing.
+  bool borderless_;
+
+  // Media type requested by the user.
+  std::string media_type_;
 
   // Printer's device effective dots per inch in both axes. The two values will
   // generally be identical. However, on Windows, there are a few rare printers
@@ -362,9 +425,6 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
   // Is the orientation landscape or portrait.
   bool landscape_;
 
-  // True if this printer supports AlphaBlend.
-  bool supports_alpha_blend_;
-
 #if BUILDFLAG(IS_WIN)
   mojom::PrinterLanguageType printer_language_type_;
 #endif
@@ -372,7 +432,7 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
   bool is_modifiable_;
 
   // If margin type is custom, this is what was requested.
-  PageMargins requested_custom_margins_in_points_;
+  PageMargins requested_custom_margins_in_microns_;
 
   // Number of pages per sheet.
   int pages_per_sheet_;
@@ -401,11 +461,18 @@ class COMPONENT_EXPORT(PRINTING) PrintSettings {
 
   // True if the user selects to print to a different printer than the original
   // destination shown when Print Preview opens.
-  bool printer_manually_selected_;
+  bool printer_manually_selected_ = false;
 
   // The printer status reason shown for the selected printer at the time print
   // is requested. Only local CrOS printers set printer statuses.
-  absl::optional<crosapi::mojom::StatusReason::Reason> printer_status_reason_;
+  std::optional<crosapi::mojom::StatusReason::Reason> printer_status_reason_;
+
+  // Print scaling type.
+  mojom::PrintScalingType print_scaling_ =
+      mojom::PrintScalingType::kUnknownPrintScalingType;
+
+  // Print qulity for the printer to use.
+  mojom::Quality quality_ = mojom::Quality::kUnknownQuality;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 };
 

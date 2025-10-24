@@ -5,10 +5,10 @@
 #include "third_party/blink/renderer/core/fetch/response.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/scoped_refptr.h"
 #include "services/network/public/cpp/header_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_response.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_form_data.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_readable_stream.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_response_init.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_response_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_url_search_params.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/blob_bytes_consumer.h"
@@ -146,8 +147,7 @@ Response* Response::Create(ScriptState* script_state,
   if (body_value.IsUndefined() || body_value.IsNull()) {
     // Note: The IDL processor cannot handle this situation. See
     // https://crbug.com/335871.
-  } else if (V8Blob::HasInstance(body, isolate)) {
-    Blob* blob = V8Blob::ToImpl(body.As<v8::Object>());
+  } else if (Blob* blob = V8Blob::ToWrappable(isolate, body)) {
     body_buffer = BodyStreamBuffer::Create(
         script_state,
         MakeGarbageCollected<BlobBytesConsumer>(execution_context,
@@ -193,9 +193,8 @@ Response* Response::Create(ScriptState* script_state,
           MakeGarbageCollected<FormDataBytesConsumer>(array_buffer_view),
           nullptr /* AbortSignal */, /*cached_metadata_handler=*/nullptr);
     }
-  } else if (V8FormData::HasInstance(body, isolate)) {
-    scoped_refptr<EncodedFormData> form_data =
-        V8FormData::ToImpl(body.As<v8::Object>())->EncodeMultiPartFormData();
+  } else if (FormData* form = V8FormData::ToWrappable(isolate, body)) {
+    scoped_refptr<EncodedFormData> form_data = form->EncodeMultiPartFormData();
     // Here we handle formData->boundary() as a C-style string. See
     // FormDataEncoder::generateUniqueBoundaryString.
     content_type = AtomicString("multipart/form-data; boundary=") +
@@ -205,21 +204,22 @@ Response* Response::Create(ScriptState* script_state,
         MakeGarbageCollected<FormDataBytesConsumer>(execution_context,
                                                     std::move(form_data)),
         nullptr /* AbortSignal */, /*cached_metadata_handler=*/nullptr);
-  } else if (V8URLSearchParams::HasInstance(body, isolate)) {
+  } else if (URLSearchParams* url_search_params =
+                 V8URLSearchParams::ToWrappable(isolate, body)) {
     scoped_refptr<EncodedFormData> form_data =
-        V8URLSearchParams::ToImpl(body.As<v8::Object>())->ToEncodedFormData();
+        url_search_params->ToEncodedFormData();
     body_buffer = BodyStreamBuffer::Create(
         script_state,
         MakeGarbageCollected<FormDataBytesConsumer>(execution_context,
                                                     std::move(form_data)),
         nullptr /* AbortSignal */, /*cached_metadata_handler=*/nullptr);
     content_type = "application/x-www-form-urlencoded;charset=UTF-8";
-  } else if (V8ReadableStream::HasInstance(body, isolate)) {
+  } else if (ReadableStream* stream =
+                 V8ReadableStream::ToWrappable(isolate, body)) {
     UseCounter::Count(execution_context,
                       WebFeature::kFetchResponseConstructionWithStream);
     body_buffer = MakeGarbageCollected<BodyStreamBuffer>(
-        script_state, V8ReadableStream::ToImpl(body.As<v8::Object>()),
-        /*cached_metadata_handler=*/nullptr);
+        script_state, stream, /*cached_metadata_handler=*/nullptr);
   } else {
     String string = NativeValueTraits<IDLUSVString>::NativeValue(
         isolate, body, exception_state);
@@ -382,14 +382,14 @@ Response* Response::staticJson(ScriptState* script_state,
   // "1. Let bytes the result of running serialize a JavaScript value to JSON
   // bytes on data."
   v8::Local<v8::String> v8_string;
-  v8::TryCatch try_catch(script_state->GetIsolate());
+  TryRethrowScope rethrow_scope(script_state->GetIsolate(), exception_state);
   if (!v8::JSON::Stringify(script_state->GetContext(), data.V8Value())
            .ToLocal(&v8_string)) {
-    exception_state.RethrowV8Exception(try_catch.Exception());
     return nullptr;
   }
 
-  String string = ToBlinkString<String>(v8_string, kDoNotExternalize);
+  String string = ToBlinkString<String>(script_state->GetIsolate(), v8_string,
+                                        kDoNotExternalize);
 
   // JSON.stringify can fail to produce a string value in one of two ways: it
   // can throw an exception (as with unserializable objects), or it can return
@@ -458,24 +458,23 @@ FetchResponseData* Response::FilterResponseData(
   return FilterResponseDataInternal(response_type, response, headers);
 }
 
-String Response::type() const {
+V8ResponseType Response::type() const {
   // "The type attribute's getter must return response's type."
   switch (response_->GetType()) {
     case network::mojom::FetchResponseType::kBasic:
-      return "basic";
+      return V8ResponseType(V8ResponseType::Enum::kBasic);
     case network::mojom::FetchResponseType::kCors:
-      return "cors";
+      return V8ResponseType(V8ResponseType::Enum::kCors);
     case network::mojom::FetchResponseType::kDefault:
-      return "default";
+      return V8ResponseType(V8ResponseType::Enum::kDefault);
     case network::mojom::FetchResponseType::kError:
-      return "error";
+      return V8ResponseType(V8ResponseType::Enum::kError);
     case network::mojom::FetchResponseType::kOpaque:
-      return "opaque";
+      return V8ResponseType(V8ResponseType::Enum::kOpaque);
     case network::mojom::FetchResponseType::kOpaqueRedirect:
-      return "opaqueredirect";
+      return V8ResponseType(V8ResponseType::Enum::kOpaqueredirect);
   }
   NOTREACHED();
-  return "";
 }
 
 String Response::url() const {
@@ -514,7 +513,7 @@ String Response::statusText() const {
 
 Headers* Response::headers() const {
   // "The headers attribute's getter must return the associated Headers object."
-  return headers_;
+  return headers_.Get();
 }
 
 Response* Response::clone(ScriptState* script_state,
@@ -533,16 +532,6 @@ Response* Response::clone(ScriptState* script_state,
                                         headers);
 }
 
-bool Response::HasPendingActivity() const {
-  if (!GetExecutionContext() || GetExecutionContext()->IsContextDestroyed())
-    return false;
-  if (!InternalBodyBuffer())
-    return false;
-  if (InternalBodyBuffer()->HasPendingActivity())
-    return true;
-  return Body::HasPendingActivity();
-}
-
 mojom::blink::FetchAPIResponsePtr Response::PopulateFetchAPIResponse(
     const KURL& request_url) {
   return response_->PopulateFetchAPIResponse(request_url);
@@ -559,10 +548,7 @@ Response::Response(ExecutionContext* context, FetchResponseData* response)
 Response::Response(ExecutionContext* context,
                    FetchResponseData* response,
                    Headers* headers)
-    : ActiveScriptWrappable<Response>({}),
-      Body(context),
-      response_(response),
-      headers_(headers) {}
+    : Body(context), response_(response), headers_(headers) {}
 
 bool Response::HasBody() const {
   return response_->InternalBuffer();
@@ -597,7 +583,6 @@ FetchHeaderList* Response::InternalHeaderList() const {
 
 void Response::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
-  ActiveScriptWrappable<Response>::Trace(visitor);
   Body::Trace(visitor);
   visitor->Trace(response_);
   visitor->Trace(headers_);

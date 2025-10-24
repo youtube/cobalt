@@ -1,24 +1,27 @@
 // Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "components/metrics/structured/external_metrics.h"
-#include "components/metrics/structured/structured_metrics_features.h"
 
 #include <memory>
+#include <numeric>
+#include <string>
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "components/metrics/structured/storage.pb.h"
+#include "build/build_config.h"
+#include "components/metrics/structured/histogram_util.h"
+#include "components/metrics/structured/proto/event_storage.pb.h"
+#include "components/metrics/structured/structured_metrics_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace metrics {
-namespace structured {
+namespace metrics::structured {
 namespace {
 
 using testing::UnorderedElementsAre;
@@ -43,7 +46,7 @@ EventsProto MakeTestingProto(const std::vector<uint64_t>& ids,
 void AssertEqualsTestingProto(const EventsProto& proto,
                               const std::vector<uint64_t>& ids) {
   ASSERT_EQ(proto.uma_events().size(), static_cast<int>(ids.size()));
-  ASSERT_TRUE(proto.non_uma_events().empty());
+  ASSERT_TRUE(proto.events().empty());
 
   for (size_t i = 0; i < ids.size(); ++i) {
     const auto& event = proto.uma_events(i);
@@ -57,15 +60,7 @@ void AssertEqualsTestingProto(const EventsProto& proto,
 
 class ExternalMetricsTest : public testing::Test {
  public:
-  void SetUp() override {
-    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-
-    // TODO(b/181724341): Remove this when the bluetooth metrics feature is
-    // enabled by default.
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{kBluetoothSessionizedMetrics});
-  }
+  void SetUp() override { ASSERT_TRUE(temp_dir_.CreateUniqueTempDir()); }
 
   void Init() {
     // We don't use the scheduling feature when testing ExternalMetrics, instead
@@ -76,7 +71,14 @@ class ExternalMetricsTest : public testing::Test {
         temp_dir_.GetPath(), one_hour,
         base::BindRepeating(&ExternalMetricsTest::OnEventsCollected,
                             base::Unretained(this)));
+
+    // For most tests the recording needs to be enabled.
+    EnableRecording();
   }
+
+  void EnableRecording() { external_metrics_->EnableRecording(); }
+
+  void DisableRecording() { external_metrics_->DisableRecording(); }
 
   void CollectEvents() {
     external_metrics_->CollectEvents();
@@ -99,14 +101,14 @@ class ExternalMetricsTest : public testing::Test {
 
   void Wait() { task_environment_.RunUntilIdle(); }
 
-  base::test::ScopedFeatureList scoped_feature_list_;
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<ExternalMetrics> external_metrics_;
-  absl::optional<EventsProto> proto_;
+  std::optional<EventsProto> proto_;
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::MainThreadType::UI,
       base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED};
+  base::HistogramTester histogram_tester_;
 };
 
 TEST_F(ExternalMetricsTest, ReadOneFile) {
@@ -177,36 +179,13 @@ TEST_F(ExternalMetricsTest, HandleCorruptFile) {
   ASSERT_TRUE(base::IsDirectoryEmpty(temp_dir_.GetPath()));
 }
 
-// TODO(b/181724341): Remove this when the bluetooth metrics feature is enabled
-// by default.
-TEST_F(ExternalMetricsTest, FilterBluetoothEvents) {
-  // Event name hash for cros's BluetoothPairingStateChanged event.
-  const uint64_t event_hash = UINT64_C(11839023048095184048);
-
-  Init();
-
-  // Use the profile_event_id as an marker of which event is which, and assign a
-  // bluetooth event hash to ids > 100.
-  EventsProto proto;
-  for (const auto id : {101, 1, 2, 102, 103, 3, 104}) {
-    auto* event = proto.add_uma_events();
-    event->set_profile_event_id(id);
-    if (id > 100) {
-      event->set_event_name_hash(event_hash);
-    }
-  }
-  WriteToDisk("proto", proto);
-
-  CollectEvents();
-  AssertEqualsTestingProto(proto_.value(), {1, 2, 3});
-}
-
 TEST_F(ExternalMetricsTest, FileNumberReadCappedAndDiscarded) {
   // Setup feature.
   base::test::ScopedFeatureList feature_list;
   const int file_limit = 2;
   feature_list.InitAndEnableFeatureWithParameters(
-      kStructuredMetrics, {{"file_limit", base::NumberToString(file_limit)}});
+      features::kStructuredMetrics,
+      {{"file_limit", base::NumberToString(file_limit)}});
 
   Init();
 
@@ -252,8 +231,63 @@ TEST_F(ExternalMetricsTest, FilterDisallowedProjects) {
   ASSERT_TRUE(base::IsDirectoryEmpty(temp_dir_.GetPath()));
 }
 
-// TODO(crbug.com/1148168): Add a test for concurrent reading and writing here
+TEST_F(ExternalMetricsTest, DroppedEventsWhenDisabled) {
+  Init();
+  DisableRecording();
+
+  // Add 3 events with a project of 1 and 2.
+  WriteToDisk("first", MakeTestingProto({111}, 1));
+  WriteToDisk("second", MakeTestingProto({222}, 2));
+  WriteToDisk("third", MakeTestingProto({333}, 1));
+
+  CollectEvents();
+
+  // No events should have been collected.
+  ASSERT_EQ(proto_.value().uma_events().size(), 0);
+
+  // And the directory should be empty too.
+  ASSERT_TRUE(base::IsDirectoryEmpty(temp_dir_.GetPath()));
+}
+
+TEST_F(ExternalMetricsTest, ProducedAndDroppedEventMetricCollected) {
+  base::test::ScopedFeatureList feature_list;
+  const int file_limit = 5;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kStructuredMetrics,
+      {{"file_limit", base::NumberToString(file_limit)}});
+
+  Init();
+
+  // Generate 9 events.
+  WriteToDisk("event0", MakeTestingProto({0}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event1", MakeTestingProto({1}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event2", MakeTestingProto({2}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event3", MakeTestingProto({3}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event4", MakeTestingProto({4}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event5", MakeTestingProto({5}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event6", MakeTestingProto({6}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event7", MakeTestingProto({7}, UINT64_C(4320592646346933548)));
+  WriteToDisk("event8", MakeTestingProto({8}, UINT64_C(4320592646346933548)));
+
+  CollectEvents();
+
+  // There should be 9 files processed and 4 events dropped. We analyze the
+  // histograms to verify this.
+  EXPECT_EQ(histogram_tester_.GetTotalSum(
+                std::string(kExternalMetricsProducedHistogramPrefix) + "WiFi"),
+            9);
+  EXPECT_EQ(histogram_tester_.GetTotalSum(
+                std::string(kExternalMetricsDroppedHistogramPrefix) + "WiFi"),
+            4);
+
+  // There should |file_limit| events. The rest should have been dropped.
+  ASSERT_EQ(proto_.value().uma_events().size(), file_limit);
+
+  // The directory should be empty.
+  ASSERT_TRUE(base::IsDirectoryEmpty(temp_dir_.GetPath()));
+}
+
+// TODO(crbug.com/40156926): Add a test for concurrent reading and writing here
 // once we know the specifics of how the lock in cros is performed.
 
-}  // namespace structured
-}  // namespace metrics
+}  // namespace metrics::structured

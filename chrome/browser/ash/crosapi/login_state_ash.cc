@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/crosapi/login_state_ash.h"
 
+#include "base/trace_event/trace_event.h"
 #include "chromeos/crosapi/mojom/login_state.mojom.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/session_manager_types.h"
@@ -41,7 +42,6 @@ mojom::SessionState ToMojo(session_manager::SessionState state) {
       return mojom::SessionState::kInRmaScreen;
   }
   NOTREACHED();
-  return mojom::SessionState::kUnknown;
 }
 
 }  // namespace
@@ -77,6 +77,7 @@ void LoginStateAsh::GetSessionState(GetSessionStateCallback callback) {
 }
 
 void LoginStateAsh::OnSessionStateChanged() {
+  TRACE_EVENT0("login", "LoginStateAsh::OnSessionStateChanged");
   mojom::SessionState new_state =
       ToMojo(session_manager::SessionManager::Get()->session_state());
 

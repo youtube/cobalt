@@ -3,15 +3,16 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+
 #include "base/test/null_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/interfaces/bindings/tests/sample_service.mojom-blink.h"
+#include "mojo/public/interfaces/bindings/tests/sample_service.test-mojom-blink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/context_lifecycle_notifier.h"
 #include "third_party/blink/renderer/platform/heap/heap_test_utilities.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
-#include "third_party/blink/renderer/platform/heap_observer_set.h"
+#include "third_party/blink/renderer/platform/heap_observer_list.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/testing/mock_context_lifecycle_notifier.h"

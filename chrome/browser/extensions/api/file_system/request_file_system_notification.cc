@@ -16,6 +16,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/chrome_app_icon_loader.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/app_icon_loader.h"
 #include "chrome/grit/generated_resources.h"
@@ -58,11 +59,14 @@ class AppNotificationLauncher : public AppIconLoaderDelegate,
   // AppIconLoaderDelegate overrides:
   // This is triggered from FetchImage() in InitAndShow(), and can be called
   // multiple times, synchronously or asynchronously.
-  void OnAppImageUpdated(const std::string& id,
-                         const gfx::ImageSkia& image) override {
+  void OnAppImageUpdated(
+      const std::string& id,
+      const gfx::ImageSkia& image,
+      bool is_placeholder_icon,
+      const std::optional<gfx::ImageSkia>& badge_image) override {
     pending_notification_->set_icon(ui::ImageModel::FromImageSkia(image));
     auto* notification_display_service =
-        NotificationDisplayService::GetForProfile(profile_);
+        NotificationDisplayServiceFactory::GetForProfile(profile_);
 
     notification_display_service->Display(NotificationHandler::Type::TRANSIENT,
                                           *pending_notification_,
@@ -79,7 +83,7 @@ class AppNotificationLauncher : public AppIconLoaderDelegate,
  private:
   ~AppNotificationLauncher() override = default;
 
-  base::raw_ptr<Profile> profile_;
+  raw_ptr<Profile> profile_;
   std::unique_ptr<AppIconLoader> icon_loader_;
   std::unique_ptr<message_center::Notification> pending_notification_;
 };
@@ -123,15 +127,9 @@ void ShowNotificationForAutoGrantedRequestFileSystem(
       ui::ImageModel(),  // Updated asynchronously later.
       std::u16string(),  // display_source
       GURL(),
-#if BUILDFLAG(IS_CHROMEOS_ASH)
       message_center::NotifierId(
           message_center::NotifierType::SYSTEM_COMPONENT, notification_id,
           ash::NotificationCatalogName::kRequestFileSystem),
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-      message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
-                                 notification_id),
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
       data, app_notification_launcher));
 
   app_notification_launcher->InitAndShow(profile, extension_id,

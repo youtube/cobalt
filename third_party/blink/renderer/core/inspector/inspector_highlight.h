@@ -9,7 +9,6 @@
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/inspector/node_content_visibility_state.h"
 #include "third_party/blink/renderer/core/inspector/protocol/dom.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "ui/gfx/geometry/quad_f.h"
@@ -27,7 +26,7 @@ struct CORE_EXPORT LineStyle {
  public:
   LineStyle();
 
-  bool IsTransparent() const { return color == Color::kTransparent; }
+  bool IsFullyTransparent() const { return color == Color::kTransparent; }
 
   Color color;
   String pattern;
@@ -39,7 +38,7 @@ struct CORE_EXPORT BoxStyle {
  public:
   BoxStyle();
 
-  bool IsTransparent() const {
+  bool IsFullyTransparent() const {
     return fill_color == Color::kTransparent &&
            hatch_color == Color::kTransparent;
   }
@@ -91,15 +90,15 @@ struct CORE_EXPORT InspectorFlexContainerHighlightConfig {
  public:
   InspectorFlexContainerHighlightConfig();
 
-  absl::optional<LineStyle> container_border;
-  absl::optional<LineStyle> line_separator;
-  absl::optional<LineStyle> item_separator;
+  std::optional<LineStyle> container_border;
+  std::optional<LineStyle> line_separator;
+  std::optional<LineStyle> item_separator;
 
-  absl::optional<BoxStyle> main_distributed_space;
-  absl::optional<BoxStyle> cross_distributed_space;
-  absl::optional<BoxStyle> row_gap_space;
-  absl::optional<BoxStyle> column_gap_space;
-  absl::optional<LineStyle> cross_alignment;
+  std::optional<BoxStyle> main_distributed_space;
+  std::optional<BoxStyle> cross_distributed_space;
+  std::optional<BoxStyle> row_gap_space;
+  std::optional<BoxStyle> column_gap_space;
+  std::optional<LineStyle> cross_alignment;
 };
 
 struct CORE_EXPORT InspectorScrollSnapContainerHighlightConfig {
@@ -108,8 +107,8 @@ struct CORE_EXPORT InspectorScrollSnapContainerHighlightConfig {
  public:
   InspectorScrollSnapContainerHighlightConfig() = default;
 
-  absl::optional<LineStyle> snapport_border;
-  absl::optional<LineStyle> snap_area_border;
+  std::optional<LineStyle> snapport_border;
+  std::optional<LineStyle> snap_area_border;
 
   Color scroll_margin_color;
   Color scroll_padding_color;
@@ -121,8 +120,8 @@ struct CORE_EXPORT InspectorContainerQueryContainerHighlightConfig {
  public:
   InspectorContainerQueryContainerHighlightConfig() = default;
 
-  absl::optional<LineStyle> container_border;
-  absl::optional<LineStyle> descendant_border;
+  std::optional<LineStyle> container_border;
+  std::optional<LineStyle> descendant_border;
 };
 
 struct CORE_EXPORT InspectorFlexItemHighlightConfig {
@@ -131,9 +130,9 @@ struct CORE_EXPORT InspectorFlexItemHighlightConfig {
  public:
   InspectorFlexItemHighlightConfig();
 
-  absl::optional<BoxStyle> base_size_box;
-  absl::optional<LineStyle> base_size_border;
-  absl::optional<LineStyle> flexibility_arrow;
+  std::optional<BoxStyle> base_size_box;
+  std::optional<LineStyle> base_size_border;
+  std::optional<LineStyle> flexibility_arrow;
 };
 
 struct CORE_EXPORT InspectorIsolationModeHighlightConfig {
@@ -283,10 +282,6 @@ class CORE_EXPORT InspectorHighlight : public InspectorHighlightBase {
   ColorFormat color_format_;
 };
 
-std::unique_ptr<protocol::DictionaryValue> InspectorGridHighlight(
-    Node*,
-    const InspectorGridHighlightConfig& config);
-
 std::unique_ptr<protocol::DictionaryValue> InspectorFlexContainerHighlight(
     Node* node,
     const InspectorFlexContainerHighlightConfig& config);
@@ -305,6 +300,9 @@ std::unique_ptr<protocol::DictionaryValue> InspectorIsolatedElementHighlight(
 
 // CORE_EXPORT is required to make these functions available for unit tests.
 std::unique_ptr<protocol::DictionaryValue> CORE_EXPORT
+InspectorGridHighlight(Node*, const InspectorGridHighlightConfig& config);
+
+std::unique_ptr<protocol::DictionaryValue> CORE_EXPORT
 BuildSnapContainerInfo(Node* node);
 
 std::unique_ptr<protocol::DictionaryValue> CORE_EXPORT
@@ -320,7 +318,7 @@ BuildIsolatedElementInfo(Element& element,
                          float scale);
 
 void CORE_EXPORT
-AppendStyleInfo(Node* node,
+AppendStyleInfo(Element* element,
                 protocol::DictionaryValue* element_info,
                 const InspectorHighlightContrastInfo& node_contrast,
                 const ContrastAlgorithm& contrast_algorithm);

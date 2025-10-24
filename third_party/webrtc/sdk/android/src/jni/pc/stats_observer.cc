@@ -24,7 +24,7 @@ namespace {
 
 ScopedJavaLocalRef<jobject> NativeToJavaStatsReportValue(
     JNIEnv* env,
-    const rtc::scoped_refptr<StatsReport::Value>& value_ptr) {
+    const scoped_refptr<StatsReport::Value>& value_ptr) {
   // Should we use the '.name' enum value here instead of converting the
   // name to a string?
   return Java_Value_Constructor(

@@ -63,9 +63,10 @@ PageLifecycleStateManager::~PageLifecycleStateManager() {
 }
 
 void PageLifecycleStateManager::SetIsFrozen(bool frozen) {
-  if (is_set_frozen_called_ == frozen)
+  if (frozen_explicitly_ == frozen) {
     return;
-  is_set_frozen_called_ = frozen;
+  }
+  frozen_explicitly_ = frozen;
 
   SendUpdatesToRendererIfNeeded(
       /*page_restore_params=*/nullptr, base::NullCallback());
@@ -77,11 +78,25 @@ void PageLifecycleStateManager::SetFrameTreeVisibility(
     return;
 
   frame_tree_visibility_ = visibility;
+
+  if (visibility == blink::mojom::PageVisibilityState::kVisible) {
+    // Unset `frozen_explicitly_` when the page is shown, to reflect that the
+    // Blink page scheduler unfreezes the page in that situation. This ensures
+    // that the page is frozen if SetIsFrozen(true) is called while the page is
+    // hidden in the future (SetIsFrozen(true) no-ops if `frozen_explicitly_` is
+    // true).
+    frozen_explicitly_ = false;
+  }
+
   SendUpdatesToRendererIfNeeded(
       /*page_restore_params=*/nullptr, base::NullCallback());
   // TODO(yuzus): When a page is frozen and made visible, the page should
   // automatically resume.
 }
+
+BASE_FEATURE(kBackForwardCacheNonStickyDoubleFix,
+             "BackForwardCacheNonStickyDoubleFix",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 void PageLifecycleStateManager::SetIsInBackForwardCache(
     bool is_in_back_forward_cache,
@@ -105,10 +120,14 @@ void PageLifecycleStateManager::SetIsInBackForwardCache(
     pagehide_dispatch_ = blink::mojom::PagehideDispatch::kDispatchedPersisted;
   } else {
     DCHECK(page_restore_params);
-    // When a page is restored from the back-forward cache, we should reset the
-    // |pagehide_dispatch_| state so that we'd dispatch the
-    // events again the next time we navigate away from the page.
+    // When a page is restored from the back-forward cache, we should reset this
+    // state so that it behaves correctly next time navigation occurs.
     pagehide_dispatch_ = blink::mojom::PagehideDispatch::kNotDispatched;
+    // TODO(https://crbug.com/360183659): Make this unconditional after
+    // measuring the impact.
+    if (base::FeatureList::IsEnabled(kBackForwardCacheNonStickyDoubleFix)) {
+      did_receive_back_forward_cache_ack_ = false;
+    }
   }
 
   SendUpdatesToRendererIfNeeded(std::move(page_restore_params),
@@ -162,7 +181,7 @@ void PageLifecycleStateManager::SendUpdatesToRendererIfNeeded(
     blink::mojom::PageRestoreParamsPtr page_restore_params,
     base::OnceClosure done_cb) {
   if (!render_view_host_impl_->GetAssociatedPageBroadcast()) {
-    // TODO(https://crbug.com/1153155): For some tests, |render_view_host_impl_|
+    // TODO(crbug.com/40158974): For some tests, |render_view_host_impl_|
     // does not have the associated page.
     if (done_cb) {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -197,7 +216,7 @@ blink::mojom::PageLifecycleStatePtr
 PageLifecycleStateManager::CalculatePageLifecycleState() {
   auto state = blink::mojom::PageLifecycleState::New();
   state->is_in_back_forward_cache = is_in_back_forward_cache_;
-  state->is_frozen = is_in_back_forward_cache_ ? true : is_set_frozen_called_;
+  state->is_frozen = is_in_back_forward_cache_ || frozen_explicitly_;
   state->pagehide_dispatch = pagehide_dispatch_;
   // If a page is stored in the back-forward cache, or we have already
   // dispatched/are dispatching pagehide for the page, it should be treated as
@@ -219,8 +238,37 @@ void PageLifecycleStateManager::OnPageLifecycleChangedAck(
 
   last_acknowledged_state_ = std::move(acknowledged_state);
 
-  if (last_acknowledged_state_->is_in_back_forward_cache)
+  if (last_acknowledged_state_->is_in_back_forward_cache) {
     did_receive_back_forward_cache_ack_ = true;
+
+    // TODO(crbug.com/41494183): currently after the navigation, the old
+    // RenderViewHost is marked as inactive.
+    // `RenderViewHostImpl::GetMainRenderFrameHost()` will return nullptr. This
+    // prevents us from getting the RenderFrameHost even if the main frame of
+    // this RenderViewHost is stored in BFCache. Now we are getting the
+    // RenderFrameHost from the BackForwardCacheImpl as a workaround, but
+    // eventually we might allow getting the RenderFrameHost from a
+    // RenderViewHost that's in BFCache.
+    for (auto* entry :
+         render_view_host_impl_->frame_tree()
+             ->controller()
+             .GetBackForwardCache()
+             .GetEntriesForRenderViewHostImpl(render_view_host_impl_)) {
+      if (entry->render_frame_host()->LoadedWithCacheControlNoStoreHeader()) {
+        // If the BFCached document was loaded with "Cache-control: no-store"
+        // header, we clear the fallback surface and force the browser to embed
+        // a completely new surface when this page is activated from BFCache.
+        // This avoids displaying sensitive information between it's restored
+        // and the `pageshow` handler completes.
+        RenderWidgetHostViewBase* rwhv =
+            render_view_host_impl_->GetWidget()->GetRenderWidgetHostViewBase();
+        if (rwhv) {
+          rwhv->InvalidateLocalSurfaceIdAndAllocationGroup();
+          rwhv->ClearFallbackSurfaceForCommitPending();
+        }
+      }
+    }
+  }
 
   // Call |MaybeEvictFromBackForwardCache| after setting
   // |last_acknowledged_state_|.

@@ -32,8 +32,8 @@ bool WebrtcVideoTrackSource::is_screencast() const {
   return true;
 }
 
-absl::optional<bool> WebrtcVideoTrackSource::needs_denoising() const {
-  return absl::nullopt;
+std::optional<bool> WebrtcVideoTrackSource::needs_denoising() const {
+  return std::nullopt;
 }
 
 bool WebrtcVideoTrackSource::GetStats(
@@ -42,8 +42,8 @@ bool WebrtcVideoTrackSource::GetStats(
 }
 
 void WebrtcVideoTrackSource::AddOrUpdateSink(
-    rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-    const rtc::VideoSinkWants& wants) {
+    webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
+    const webrtc::VideoSinkWants& wants) {
   DCHECK(sink);
   if (sink_ && (sink != sink_)) {
     // The same sink can be added more than once, but there should only be 1
@@ -56,7 +56,7 @@ void WebrtcVideoTrackSource::AddOrUpdateSink(
 }
 
 void WebrtcVideoTrackSource::RemoveSink(
-    rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) {
+    webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) {
   DCHECK(sink);
   if (sink != sink_) {
     // This might happen if more than one sink was added.
@@ -73,10 +73,10 @@ bool WebrtcVideoTrackSource::SupportsEncodedOutput() const {
 void WebrtcVideoTrackSource::GenerateKeyFrame() {}
 
 void WebrtcVideoTrackSource::AddEncodedSink(
-    rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) {}
+    webrtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) {}
 
 void WebrtcVideoTrackSource::RemoveEncodedSink(
-    rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) {}
+    webrtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) {}
 
 void WebrtcVideoTrackSource::SendCapturedFrame(
     std::unique_ptr<webrtc::DesktopFrame> desktop_frame,

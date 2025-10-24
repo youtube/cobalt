@@ -5,28 +5,37 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_OS_INTEGRATION_OS_INTEGRATION_SUB_MANAGER_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_OS_INTEGRATION_OS_INTEGRATION_SUB_MANAGER_H_
 
+#include <optional>
+
 #include "base/functional/callback_forward.h"
-#include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
-#include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
-#include "chrome/browser/web_applications/web_app_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chrome/browser/web_applications/os_integration/shortcut_creation_reason.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
+namespace proto::os_state {
+class WebAppOsIntegration;
+}  // namespace proto::os_state
 
 struct SynchronizeOsOptions {
-  // This allows the OS Integration sub managers to remove all OS registrations
-  // if the app is not in the database, bypassing the entire Configuration and
-  // Execution steps. Currently only works for the
-  // UninstallationViaOsSettingsSubManager on Windows, but will be extended to
-  // other sub managers if needed.
-  // TODO(b/279068663): Implement handling for other sub managers if needed,
-  bool force_unregister_on_app_missing = false;
+  // This option will always unregister all os integration, despite what may be
+  // in the database. All other options will be ignored.
+  bool force_unregister_os_integration = false;
   // Adds a shortcut to the desktop IFF this call to synchronize creates
   // shortcuts fresh for the given app (it's not an update).
   bool add_shortcut_to_desktop = false;
   // Adds a shortcut to the quick launch bar IFF this call to synchronize
   // creates shortcuts fresh for the given app (it's not an update).
   bool add_to_quick_launch_bar = false;
+  // This ensures that shortcuts are always recreated if they were removed. This
+  // requires the desired OS integration states to be non-empty during the
+  // Configure() phase, at least for the sub manager responsible for creating
+  // shortcuts, otherwise there will not be any effect of this flag.
+  bool force_create_shortcuts = false;
+  // When set to true, this allows shortcuts to always be updated, even when
+  // there is no change in between the current and desired OS integration states
+  // for a web app. If the user has deleted the created shortcuts manually,
+  // setting this flag will not recreate them.
+  bool force_update_shortcuts = false;
   // The reason synchronize is called, used to possibly show the location of the
   // shortcut to the user (this happen on Mac).
   ShortcutCreationReason reason = SHORTCUT_CREATION_AUTOMATED;
@@ -38,20 +47,20 @@ class OsIntegrationSubManager {
   virtual ~OsIntegrationSubManager() = default;
   // desired_state can still be empty after the configure_done has completed
   // running.
-  virtual void Configure(const AppId& app_id,
-                         proto::WebAppOsIntegrationState& desired_state,
+  virtual void Configure(const webapps::AppId& app_id,
+                         proto::os_state::WebAppOsIntegration& desired_state,
                          base::OnceClosure configure_done) = 0;
   virtual void Execute(
-      const AppId& app_id,
-      const absl::optional<SynchronizeOsOptions>& synchronize_options,
-      const proto::WebAppOsIntegrationState& desired_state,
-      const proto::WebAppOsIntegrationState& current_state,
+      const webapps::AppId& app_id,
+      const std::optional<SynchronizeOsOptions>& synchronize_options,
+      const proto::os_state::WebAppOsIntegration& desired_state,
+      const proto::os_state::WebAppOsIntegration& current_state,
       base::OnceClosure callback) = 0;
 
   // Only invoked if the app is not in the database and the caller set
-  // force_unregister_on_app_missing to true. Intended to clean up stale OS
+  // force_unregister_os_integration to true. Intended to clean up stale OS
   // state that was left over from an unsuccessful uninstall or stale OS data.
-  virtual void ForceUnregister(const AppId& app_id,
+  virtual void ForceUnregister(const webapps::AppId& app_id,
                                base::OnceClosure callback) = 0;
 };
 }  // namespace web_app

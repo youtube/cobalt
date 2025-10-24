@@ -4,58 +4,68 @@
 /**
  * @fileoverview A lightweight toast.
  */
-import '//resources/polymer/v3_0/paper-styles/color.js';
-import '../cr_shared_vars.css.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {getCss} from './cr_toast.css.js';
+import {getHtml} from './cr_toast.html.js';
 
-import {getTemplate} from './cr_toast.html.js';
-
-export interface CrToastElement {
-  _setOpen(open: boolean): void;
-}
-
-export class CrToastElement extends PolymerElement {
+export class CrToastElement extends CrLitElement {
   static get is() {
     return 'cr-toast';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
       duration: {
         type: Number,
-        value: 0,
       },
 
       open: {
-        readOnly: true,
         type: Boolean,
-        value: false,
-        reflectToAttribute: true,
+        reflect: true,
       },
     };
   }
 
-  duration: number;
-  open: boolean;
+  accessor duration: number = 0;
+  accessor open: boolean = false;
   private hideTimeoutId_: number|null = null;
 
-  static get observers() {
-    return ['resetAutoHide_(duration, open)'];
+  constructor() {
+    super();
+    this.addEventListener('focusin', this.clearTimeout_);
+    this.addEventListener('focusout', this.resetAutoHide_);
+  }
+
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
+    if (changedProperties.has('duration') || changedProperties.has('open')) {
+      this.resetAutoHide_();
+    }
+  }
+
+  private clearTimeout_() {
+    if (this.hideTimeoutId_ !== null) {
+      window.clearTimeout(this.hideTimeoutId_);
+      this.hideTimeoutId_ = null;
+    }
   }
 
   /**
    * Cancels existing auto-hide, and sets up new auto-hide.
    */
   private resetAutoHide_() {
-    if (this.hideTimeoutId_ !== null) {
-      window.clearTimeout(this.hideTimeoutId_);
-      this.hideTimeoutId_ = null;
-    }
+    this.clearTimeout_();
 
     if (this.open && this.duration !== 0) {
       this.hideTimeoutId_ = window.setTimeout(() => {
@@ -69,7 +79,7 @@ export class CrToastElement extends PolymerElement {
    * passed. If the toast is currently being shown, any preexisting auto-hide
    * is cancelled and replaced with a new auto-hide.
    */
-  show() {
+  async show() {
     // Force autohide to reset if calling show on an already shown toast.
     const shouldResetAutohide = this.open;
 
@@ -80,11 +90,8 @@ export class CrToastElement extends PolymerElement {
     // the same as a previous toast.
     this.removeAttribute('role');
 
-    // Reset the aria-hidden attribute as screen readers need to access the
-    // contents of an opened toast.
-    this.removeAttribute('aria-hidden');
-
-    this._setOpen(true);
+    this.open = true;
+    await this.updateComplete;
     this.setAttribute('role', 'alert');
 
     if (shouldResetAutohide) {
@@ -93,12 +100,12 @@ export class CrToastElement extends PolymerElement {
   }
 
   /**
-   * Hides the toast and ensures that screen readers cannot its contents while
+   * Hides the toast and ensures that its contents can not be focused while
    * hidden.
    */
-  hide() {
-    this.setAttribute('aria-hidden', 'true');
-    this._setOpen(false);
+  async hide() {
+    this.open = false;
+    await this.updateComplete;
   }
 }
 

@@ -4,10 +4,12 @@
 
 package org.chromium.chrome.browser.autofill;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
+import android.content.res.Resources;
 import android.text.Editable;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -19,17 +21,20 @@ import android.widget.TextView.BufferType;
 import androidx.core.text.TextUtilsCompat;
 import androidx.core.view.ViewCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.text.EmptyTextWatcher;
 
 import java.util.Locale;
 
-/**
- * Prompt that asks users to confirm user's name before saving card to Google.
- */
-public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase implements TextWatcher {
+/** Prompt that asks users to confirm user's name before saving card to Google. */
+@NullMarked
+public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase
+        implements EmptyTextWatcher {
     /**
      * An interface to handle the interaction with
      * an AutofillNameFixFlowPrompt object.
@@ -54,9 +59,13 @@ public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase implem
      * @param confirmButtonLabel Label for the confirm button.
      * @return A {@link AutofillNameFixFlowPrompt} to confirm name.
      */
-    public static AutofillNameFixFlowPrompt createAsInfobarFixFlowPrompt(Context context,
-            AutofillNameFixFlowPromptDelegate delegate, String inferredName, String title,
-            int drawableId, String confirmButtonLabel) {
+    public static AutofillNameFixFlowPrompt createAsInfobarFixFlowPrompt(
+            Context context,
+            AutofillNameFixFlowPromptDelegate delegate,
+            String inferredName,
+            String title,
+            int drawableId,
+            String confirmButtonLabel) {
         return new AutofillNameFixFlowPrompt(
                 context, delegate, inferredName, title, drawableId, confirmButtonLabel, false);
     }
@@ -65,22 +74,32 @@ public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase implem
 
     private final EditText mUserNameInput;
     private final ImageView mNameFixFlowTooltipIcon;
-    private PopupWindow mNameFixFlowTooltipPopup;
+    private @Nullable PopupWindow mNameFixFlowTooltipPopup;
 
-    /**
-     * Fix flow prompt to confirm user name before saving the card to Google.
-     */
-    private AutofillNameFixFlowPrompt(Context context, AutofillNameFixFlowPromptDelegate delegate,
-            String inferredName, String title, int drawableId, String confirmButtonLabel,
+    /** Fix flow prompt to confirm user name before saving the card to Google. */
+    private AutofillNameFixFlowPrompt(
+            Context context,
+            AutofillNameFixFlowPromptDelegate delegate,
+            String inferredName,
+            String title,
+            int drawableId,
+            String confirmButtonLabel,
             boolean filledConfirmButton) {
-        super(context, delegate, R.layout.autofill_name_fixflow, title, drawableId,
-                confirmButtonLabel, filledConfirmButton);
+        super(
+                context,
+                delegate,
+                R.layout.autofill_name_fixflow,
+                /* customTitleLayoutId= */ Resources.ID_NULL,
+                title,
+                drawableId,
+                confirmButtonLabel,
+                filledConfirmButton);
         mDelegate = delegate;
         // Dialog of infobar doesn't show any details of the cc.
         mDialogView.findViewById(R.id.cc_details).setVisibility(View.GONE);
-        mUserNameInput = (EditText) mDialogView.findViewById(R.id.cc_name_edit);
+        mUserNameInput = mDialogView.findViewById(R.id.cc_name_edit);
         mUserNameInput.setText(inferredName, BufferType.EDITABLE);
-        mNameFixFlowTooltipIcon = (ImageView) mDialogView.findViewById(R.id.cc_name_tooltip_icon);
+        mNameFixFlowTooltipIcon = mDialogView.findViewById(R.id.cc_name_tooltip_icon);
         mDialogModel.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, inferredName.isEmpty());
 
         // Do not show tooltip if inferred name is empty.
@@ -92,29 +111,25 @@ public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase implem
 
         // Hitting the "submit" button on the software keyboard should submit, unless the name field
         // is empty.
-        mUserNameInput.setOnEditorActionListener((view, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                if (mUserNameInput.getText().toString().trim().length() != 0) {
-                    onClick(mDialogModel, ModalDialogProperties.ButtonType.POSITIVE);
-                }
-                return true;
-            }
-            return false;
-        });
+        mUserNameInput.setOnEditorActionListener(
+                (view, actionId, event) -> {
+                    if (actionId == EditorInfo.IME_ACTION_DONE) {
+                        if (mUserNameInput.getText().toString().trim().length() != 0) {
+                            onClick(mDialogModel, ModalDialogProperties.ButtonType.POSITIVE);
+                        }
+                        return true;
+                    }
+                    return false;
+                });
         mUserNameInput.addTextChangedListener(this);
     }
 
     @Override
     public void afterTextChanged(Editable s) {
-        mDialogModel.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED,
+        mDialogModel.set(
+                ModalDialogProperties.POSITIVE_BUTTON_DISABLED,
                 mUserNameInput.getText().toString().trim().isEmpty());
     }
-
-    @Override
-    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-    @Override
-    public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
     /**
      * Handle tooltip icon clicked. If tooltip is already opened, don't show another. Otherwise
@@ -124,12 +139,16 @@ public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase implem
         if (mNameFixFlowTooltipPopup != null) return;
 
         mNameFixFlowTooltipPopup = new PopupWindow(mContext);
-        Runnable dismissAction = () -> {
-            mNameFixFlowTooltipPopup = null;
-        };
-        boolean isLeftToRight = TextUtilsCompat.getLayoutDirectionFromLocale(Locale.getDefault())
-                == ViewCompat.LAYOUT_DIRECTION_LTR;
-        AutofillUiUtils.showTooltip(mContext, mNameFixFlowTooltipPopup,
+        Runnable dismissAction =
+                () -> {
+                    mNameFixFlowTooltipPopup = null;
+                };
+        boolean isLeftToRight =
+                TextUtilsCompat.getLayoutDirectionFromLocale(Locale.getDefault())
+                        == ViewCompat.LAYOUT_DIRECTION_LTR;
+        AutofillUiUtils.showTooltip(
+                mContext,
+                mNameFixFlowTooltipPopup,
                 R.string.autofill_save_card_prompt_cardholder_name_tooltip,
                 new AutofillUiUtils.OffsetProvider() {
                     @Override
@@ -146,11 +165,13 @@ public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase implem
                 },
                 // If the layout is right to left then anchor on the edit text field else anchor on
                 // the tooltip icon, which would be on the left.
-                isLeftToRight ? mUserNameInput : mNameFixFlowTooltipIcon, dismissAction);
+                isLeftToRight ? mUserNameInput : mNameFixFlowTooltipIcon,
+                dismissAction);
     }
 
     @Override
     public void onClick(PropertyModel model, int buttonType) {
+        assumeNonNull(mModalDialogManager);
         if (buttonType == ModalDialogProperties.ButtonType.POSITIVE) {
             mDelegate.onUserAcceptCardholderName(mUserNameInput.getText().toString());
             mModalDialogManager.dismissDialog(model, DialogDismissalCause.POSITIVE_BUTTON_CLICKED);

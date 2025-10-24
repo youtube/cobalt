@@ -28,6 +28,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_web_ui.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 
 namespace ash {
@@ -105,9 +106,9 @@ class EduCoexistenceLoginHandlerBrowserTest
   content::TestWebUI* web_ui() { return &web_ui_; }
 
  private:
-  LoggedInUserMixin logged_in_user_mixin_{&mixin_host_,
-                                          LoggedInUserMixin::LogInType::kChild,
-                                          embedded_test_server(), this};
+  LoggedInUserMixin logged_in_user_mixin_{&mixin_host_, /*test_base=*/this,
+                                          embedded_test_server(),
+                                          LoggedInUserMixin::LogInType::kChild};
 
   base::HistogramTester histograms_;
 
@@ -240,9 +241,9 @@ IN_PROC_BROWSER_TEST_F(EduCoexistenceLoginHandlerBrowserTest,
                        TestUpdateAcceptedToSVersionPrefAccount) {
   constexpr char kVersion1[] = "123";
   constexpr char kVersion2[] = "234";
-  constexpr char kUser1GaiaId[] = "user1-gaia-id";
-  constexpr char kUser2GaiaId[] = "user2-gaia-id";
-  constexpr char kUser3GaiaId[] = "user3-gaia-id";
+  const GaiaId kUser1GaiaId("user1-gaia-id");
+  const GaiaId kUser2GaiaId("user2-gaia-id");
+  const GaiaId kUser3GaiaId("user3-gaia-id");
 
   Profile* profile = ProfileManager::GetActiveUserProfile();
 

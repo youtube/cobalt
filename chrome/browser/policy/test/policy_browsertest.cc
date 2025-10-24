@@ -13,16 +13,15 @@
 // policy values are copied into local state or Profile prefs. They can be used
 // to enable policy during test.
 //
-// Simple policy to prefs mapping can be tested with policy_test_cases.json. If
-// the conversion is complicated and requires custom policy handler, we
-// recommend to test the handler separately.
+// Simple policy to prefs mapping can be tested with
+// chrome/test/data/policy/pref_mapping/[PolicyName].json. If the conversion is
+// complicated and requires custom policy handler, we recommend to test the
+// handler separately.
 
 #include "base/run_loop.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/buildflag.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/policy/policy_test_utils.h"
@@ -62,7 +61,7 @@ namespace policy {
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 const int kOneHourInMs = 60 * 60 * 1000;
 const int kThreeHoursInMs = 180 * 60 * 1000;
 #endif
@@ -78,7 +77,7 @@ bool IsWebGLEnabled(content::WebContents* contents) {
 
 }  // namespace
 
-// TODO(crbug.com/1069558): Deflake this test.
+// TODO(crbug.com/40684098): Deflake this test.
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #define MAYBE_Disable3DAPIs DISABLED_Disable3DAPIs
 #else
@@ -117,10 +116,9 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, MAYBE_Disable3DAPIs) {
   EXPECT_TRUE(IsWebGLEnabled(contents));
 }
 
-// TODO(crbug.com/1378338): Re-enable this flaky test on Linux
-// and lacros asan builder.
+// TODO(crbug.com/40243891): Re-enable this flaky test.
 #if BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS) && defined(ADDRESS_SANITIZER)
+    (BUILDFLAG(IS_CHROMEOS) && defined(ADDRESS_SANITIZER))
 #define MAYBE_HomepageLocation DISABLED_HomepageLocation
 #else
 #define MAYBE_HomepageLocation HomepageLocation
@@ -194,7 +192,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, MAYBE_IncognitoEnabled) {
   EXPECT_TRUE(BrowserList::IsOffTheRecordBrowserActive());
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 // We need to block mouse events in |WaitForInitialUserActivityUnsatisfied| test
 // to avoid flakiness due to unexpected mouse input.
@@ -285,6 +283,6 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, WaitForInitialUserActivitySatisfied) {
   EXPECT_TRUE(observer.WasAppTerminated());
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace policy

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "third_party/blink/renderer/modules/wake_lock/wake_lock_test_utils.h"
 
 #include <tuple>
@@ -11,7 +12,7 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_wake_lock_sentinel.h"
@@ -35,17 +36,31 @@ void RunWithStack(base::RunLoop* run_loop) {
   run_loop->Run();
 }
 
-// Helper class for WaitForPromise{Fulfillment,Rejection}(). It provides a
-// function that invokes |callback| when a ScriptPromise is resolved.
-class ClosureRunnerCallable final : public ScriptFunction::Callable {
+// Helper classes for WaitForPromise{Fulfillment,Rejection}(). Provides a
+// function that invokes |callback| when a ScriptPromise is resolved/rejected.
+class ClosureOnResolve final
+    : public ThenCallable<WakeLockSentinel, ClosureOnResolve> {
  public:
-  explicit ClosureRunnerCallable(base::OnceClosure callback)
+  explicit ClosureOnResolve(base::OnceClosure callback)
       : callback_(std::move(callback)) {}
 
-  ScriptValue Call(ScriptState*, ScriptValue) override {
-    if (callback_)
-      std::move(callback_).Run();
-    return ScriptValue();
+  void React(ScriptState*, WakeLockSentinel*) {
+    CHECK(callback_);
+    std::move(callback_).Run();
+  }
+
+ private:
+  base::OnceClosure callback_;
+};
+
+class ClosureOnReject final : public ThenCallable<IDLAny, ClosureOnReject> {
+ public:
+  explicit ClosureOnReject(base::OnceClosure callback)
+      : callback_(std::move(callback)) {}
+
+  void React(ScriptState*, ScriptValue) {
+    CHECK(callback_);
+    std::move(callback_).Run();
   }
 
  private:
@@ -210,6 +225,17 @@ void MockPermissionService::HasPermission(PermissionDescriptorPtr permission,
       mojom::blink::PermissionStatus::DENIED));
 }
 
+void MockPermissionService::RegisterPageEmbeddedPermissionControl(
+    Vector<mojom::blink::PermissionDescriptorPtr> permissions,
+    mojo::PendingRemote<mojom::blink::EmbeddedPermissionControlClient> client) {
+}
+
+void MockPermissionService::RequestPageEmbeddedPermission(
+    mojom::blink::EmbeddedPermissionRequestDescriptorPtr permissions,
+    RequestPageEmbeddedPermissionCallback) {
+  NOTREACHED();
+}
+
 void MockPermissionService::RequestPermission(
     PermissionDescriptorPtr permission,
     bool user_gesture,
@@ -241,6 +267,13 @@ void MockPermissionService::RevokePermission(PermissionDescriptorPtr permission,
 }
 
 void MockPermissionService::AddPermissionObserver(
+    PermissionDescriptorPtr permission,
+    mojom::blink::PermissionStatus last_known_status,
+    mojo::PendingRemote<mojom::blink::PermissionObserver>) {
+  NOTREACHED();
+}
+
+void MockPermissionService::AddPageEmbeddedPermissionObserver(
     PermissionDescriptorPtr permission,
     mojom::blink::PermissionStatus last_known_status,
     mojo::PendingRemote<mojom::blink::PermissionObserver>) {
@@ -293,11 +326,11 @@ MockPermissionService& WakeLockTestingContext::GetPermissionService() {
   return permission_service_;
 }
 
-void WakeLockTestingContext::WaitForPromiseFulfillment(ScriptPromise promise) {
+void WakeLockTestingContext::WaitForPromiseFulfillment(
+    ScriptPromise<WakeLockSentinel> promise) {
   base::RunLoop run_loop;
-  promise.Then(MakeGarbageCollected<ScriptFunction>(
-      GetScriptState(),
-      MakeGarbageCollected<ClosureRunnerCallable>(run_loop.QuitClosure())));
+  promise.Then(GetScriptState(),
+               MakeGarbageCollected<ClosureOnResolve>(run_loop.QuitClosure()));
   // Execute pending microtasks, otherwise it can take a few seconds for the
   // promise to resolve.
   GetScriptState()->GetContext()->GetMicrotaskQueue()->PerformCheckpoint(
@@ -306,13 +339,11 @@ void WakeLockTestingContext::WaitForPromiseFulfillment(ScriptPromise promise) {
 }
 
 // Synchronously waits for |promise| to be rejected.
-void WakeLockTestingContext::WaitForPromiseRejection(ScriptPromise promise) {
+void WakeLockTestingContext::WaitForPromiseRejection(
+    ScriptPromise<WakeLockSentinel> promise) {
   base::RunLoop run_loop;
-  promise.Then(
-      nullptr,
-      MakeGarbageCollected<ScriptFunction>(
-          GetScriptState(),
-          MakeGarbageCollected<ClosureRunnerCallable>(run_loop.QuitClosure())));
+  promise.Catch(GetScriptState(),
+                MakeGarbageCollected<ClosureOnReject>(run_loop.QuitClosure()));
   // Execute pending microtasks, otherwise it can take a few seconds for the
   // promise to resolve.
   GetScriptState()->GetContext()->GetMicrotaskQueue()->PerformCheckpoint(
@@ -324,22 +355,23 @@ void WakeLockTestingContext::WaitForPromiseRejection(ScriptPromise promise) {
 
 // static
 v8::Promise::PromiseState ScriptPromiseUtils::GetPromiseState(
-    const ScriptPromise& promise) {
+    const ScriptPromise<WakeLockSentinel>& promise) {
   return promise.V8Promise()->State();
 }
 
 // static
 DOMException* ScriptPromiseUtils::GetPromiseResolutionAsDOMException(
-    const ScriptPromise& promise) {
-  return V8DOMException::ToImplWithTypeCheck(promise.GetIsolate(),
-                                             promise.V8Promise()->Result());
+    v8::Isolate* isolate,
+    const ScriptPromise<WakeLockSentinel>& promise) {
+  return V8DOMException::ToWrappable(isolate, promise.V8Promise()->Result());
 }
 
 // static
 WakeLockSentinel* ScriptPromiseUtils::GetPromiseResolutionAsWakeLockSentinel(
-    const ScriptPromise& promise) {
-  return V8WakeLockSentinel::ToImplWithTypeCheck(promise.GetIsolate(),
-                                                 promise.V8Promise()->Result());
+    v8::Isolate* isolate,
+    const ScriptPromise<WakeLockSentinel>& promise) {
+  return V8WakeLockSentinel::ToWrappable(isolate,
+                                         promise.V8Promise()->Result());
 }
 
 }  // namespace blink

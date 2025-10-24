@@ -7,7 +7,9 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
+#include "third_party/blink/renderer/core/animation/underlying_value_owner.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value_mappings.h"
+#include "third_party/blink/renderer/core/css/css_to_length_conversion_data.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_state.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 
@@ -16,14 +18,10 @@ namespace blink {
 class CSSContentVisibilityNonInterpolableValue final
     : public NonInterpolableValue {
  public:
+  CSSContentVisibilityNonInterpolableValue(EContentVisibility start,
+                                           EContentVisibility end)
+      : start_(start), end_(end) {}
   ~CSSContentVisibilityNonInterpolableValue() final = default;
-
-  static scoped_refptr<CSSContentVisibilityNonInterpolableValue> Create(
-      EContentVisibility start,
-      EContentVisibility end) {
-    return base::AdoptRef(
-        new CSSContentVisibilityNonInterpolableValue(start, end));
-  }
 
   EContentVisibility ContentVisibility() const {
     DCHECK_EQ(start_, end_);
@@ -48,10 +46,6 @@ class CSSContentVisibilityNonInterpolableValue final
   DECLARE_NON_INTERPOLABLE_VALUE_TYPE();
 
  private:
-  CSSContentVisibilityNonInterpolableValue(EContentVisibility start,
-                                           EContentVisibility end)
-      : start_(start), end_(end) {}
-
   const EContentVisibility start_;
   const EContentVisibility end_;
 };
@@ -78,10 +72,11 @@ class UnderlyingContentVisibilityChecker final
   ~UnderlyingContentVisibilityChecker() final = default;
 
  private:
-  bool IsValid(const StyleResolverState&,
+  bool IsValid(const StyleResolverState& state,
                const InterpolationValue& underlying) const final {
     double underlying_fraction =
-        To<InterpolableNumber>(*underlying.interpolable_value).Value();
+        To<InterpolableNumber>(*underlying.interpolable_value)
+            .Value(state.CssToLengthConversionData());
     EContentVisibility underlying_content_visibility =
         To<CSSContentVisibilityNonInterpolableValue>(
             *underlying.non_interpolable_value)
@@ -111,22 +106,27 @@ class InheritedContentVisibilityChecker
 InterpolationValue
 CSSContentVisibilityInterpolationType::CreateContentVisibilityValue(
     EContentVisibility content_visibility) const {
-  return InterpolationValue(std::make_unique<InterpolableNumber>(0),
-                            CSSContentVisibilityNonInterpolableValue::Create(
-                                content_visibility, content_visibility));
+  return InterpolationValue(
+      MakeGarbageCollected<InterpolableNumber>(0),
+      MakeGarbageCollected<CSSContentVisibilityNonInterpolableValue>(
+          content_visibility, content_visibility));
 }
 
 InterpolationValue CSSContentVisibilityInterpolationType::MaybeConvertNeutral(
     const InterpolationValue& underlying,
     ConversionCheckers& conversion_checkers) const {
+  // Note: using default CSSToLengthConversionData here as it's
+  // guaranteed to be a double.
+  // TODO(crbug.com/325821290): Avoid InterpolableNumber here.
   double underlying_fraction =
-      To<InterpolableNumber>(*underlying.interpolable_value).Value();
+      To<InterpolableNumber>(*underlying.interpolable_value)
+          .Value(CSSToLengthConversionData(/*element=*/nullptr));
   EContentVisibility underlying_content_visibility =
       To<CSSContentVisibilityNonInterpolableValue>(
           *underlying.non_interpolable_value)
           .ContentVisibility(underlying_fraction);
   conversion_checkers.push_back(
-      std::make_unique<UnderlyingContentVisibilityChecker>(
+      MakeGarbageCollected<UnderlyingContentVisibilityChecker>(
           underlying_content_visibility));
   return CreateContentVisibilityValue(underlying_content_visibility);
 }
@@ -146,14 +146,14 @@ InterpolationValue CSSContentVisibilityInterpolationType::MaybeConvertInherit(
   EContentVisibility inherited_content_visibility =
       state.ParentStyle()->ContentVisibility();
   conversion_checkers.push_back(
-      std::make_unique<InheritedContentVisibilityChecker>(
+      MakeGarbageCollected<InheritedContentVisibilityChecker>(
           inherited_content_visibility));
   return CreateContentVisibilityValue(inherited_content_visibility);
 }
 
 InterpolationValue CSSContentVisibilityInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState*,
+    const StyleResolverState&,
     ConversionCheckers& conversion_checkers) const {
   const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
   if (!identifier_value) {
@@ -191,10 +191,10 @@ CSSContentVisibilityInterpolationType::MaybeMergeSingles(
       To<CSSContentVisibilityNonInterpolableValue>(*end.non_interpolable_value)
           .ContentVisibility();
   return PairwiseInterpolationValue(
-      std::make_unique<InterpolableNumber>(0),
-      std::make_unique<InterpolableNumber>(1),
-      CSSContentVisibilityNonInterpolableValue::Create(start_content_visibility,
-                                                       end_content_visibility));
+      MakeGarbageCollected<InterpolableNumber>(0),
+      MakeGarbageCollected<InterpolableNumber>(1),
+      MakeGarbageCollected<CSSContentVisibilityNonInterpolableValue>(
+          start_content_visibility, end_content_visibility));
 }
 
 void CSSContentVisibilityInterpolationType::Composite(
@@ -202,7 +202,7 @@ void CSSContentVisibilityInterpolationType::Composite(
     double underlying_fraction,
     const InterpolationValue& value,
     double interpolation_fraction) const {
-  underlying_value_owner.Set(*this, value);
+  underlying_value_owner.Set(this, value);
 }
 
 void CSSContentVisibilityInterpolationType::ApplyStandardPropertyValue(
@@ -211,7 +211,8 @@ void CSSContentVisibilityInterpolationType::ApplyStandardPropertyValue(
     StyleResolverState& state) const {
   // ContentVisibility interpolation has been deferred to application time here
   // due to its non-linear behaviour.
-  double fraction = To<InterpolableNumber>(interpolable_value).Value();
+  double fraction = To<InterpolableNumber>(interpolable_value)
+                        .Value(state.CssToLengthConversionData());
   EContentVisibility content_visibility =
       To<CSSContentVisibilityNonInterpolableValue>(non_interpolable_value)
           ->ContentVisibility(fraction);

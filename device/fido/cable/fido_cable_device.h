@@ -7,6 +7,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "device/fido/cable/fido_ble_connection.h"
 #include "device/fido/cable/fido_ble_transaction.h"
 #include "device/fido/fido_device.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
@@ -28,13 +28,6 @@ class FidoBleFrame;
 class COMPONENT_EXPORT(DEVICE_FIDO) FidoCableDevice : public FidoDevice {
  public:
   using FrameCallback = FidoBleTransaction::FrameCallback;
-
-  class Observer {
-   public:
-    virtual void FidoCableDeviceConnected(FidoCableDevice* device,
-                                          bool success) {}
-    virtual void FidoCableDeviceTimeout(FidoCableDevice* device) {}
-  };
 
   FidoCableDevice(BluetoothAdapter* adapter, std::string address);
   // Constructor used for testing purposes.
@@ -52,7 +45,6 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoCableDevice : public FidoDevice {
   void Connect();
   void SendPing(std::vector<uint8_t> data, DeviceCallback callback);
   FidoBleConnection::ReadCallback GetReadCallbackForTesting();
-  void set_observer(Observer* observer);
 
   // FidoDevice:
   void Cancel(CancelToken token) override;
@@ -100,7 +92,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoCableDevice : public FidoDevice {
   };
 
   void OnResponseFrame(FrameCallback callback,
-                       absl::optional<FidoBleFrame> frame);
+                       std::optional<FidoBleFrame> frame);
   void Transition();
   CancelToken AddToPendingFrames(FidoBleDeviceCommand cmd,
                                  std::vector<uint8_t> request,
@@ -110,7 +102,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoCableDevice : public FidoDevice {
   void OnConnected(bool success);
   void OnStatusMessage(std::vector<uint8_t> data);
 
-  void OnReadControlPointLength(absl::optional<uint16_t> length);
+  void OnReadControlPointLength(std::optional<uint16_t> length);
 
   void SendRequestFrame(FidoBleFrame frame, FrameCallback callback);
 
@@ -119,7 +111,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoCableDevice : public FidoDevice {
   void OnTimeout();
 
   void OnBleResponseReceived(DeviceCallback callback,
-                             absl::optional<FidoBleFrame> frame);
+                             std::optional<FidoBleFrame> frame);
   void ProcessBleDeviceError(base::span<const uint8_t> data);
 
   bool EncryptOutgoingMessage(std::vector<uint8_t>* message_to_encrypt);
@@ -135,11 +127,10 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoCableDevice : public FidoDevice {
   std::list<PendingFrame> pending_frames_;
   // current_token_ contains the cancelation token of the currently running
   // request, or else is empty if no request is currently pending.
-  absl::optional<CancelToken> current_token_;
-  absl::optional<FidoBleTransaction> transaction_;
-  raw_ptr<Observer> observer_ = nullptr;
+  std::optional<CancelToken> current_token_;
+  std::optional<FidoBleTransaction> transaction_;
 
-  absl::optional<EncryptionData> encryption_data_;
+  std::optional<EncryptionData> encryption_data_;
   base::WeakPtrFactory<FidoCableDevice> weak_factory_{this};
 };
 

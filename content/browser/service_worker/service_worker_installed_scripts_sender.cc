@@ -68,6 +68,14 @@ void ServiceWorkerInstalledScriptsSender::StartSendingScript(
   DCHECK(current_sending_url_.is_empty());
   state_ = State::kSendingScripts;
 
+  // (crbug.com/352578800) Override the state and bypass reading the scripts as
+  // it does not exist since the registration is a fake one and therefore there
+  // is no actual script.
+  if (resource_id == blink::mojom::kSyntheticResponseServiceWorkerResourceId) {
+    state_ = State::kIdle;
+    return;
+  }
+
   if (!owner_->context()) {
     Abort(ServiceWorkerInstalledScriptReader::FinishedReason::kNoContextError);
     return;
@@ -90,7 +98,7 @@ void ServiceWorkerInstalledScriptsSender::StartSendingScript(
 
 void ServiceWorkerInstalledScriptsSender::OnStarted(
     network::mojom::URLResponseHeadPtr response_head,
-    absl::optional<mojo_base::BigBuffer> metadata,
+    std::optional<mojo_base::BigBuffer> metadata,
     mojo::ScopedDataPipeConsumerHandle body_handle,
     mojo::ScopedDataPipeConsumerHandle meta_data_handle) {
   DCHECK(response_head);
@@ -117,15 +125,18 @@ void ServiceWorkerInstalledScriptsSender::OnStarted(
     }
   }
 
-  auto script_info = blink::mojom::ServiceWorkerScriptInfo::New();
-  script_info->script_url = current_sending_url_;
-  script_info->headers = std::move(header_strings);
-  headers->GetCharset(&script_info->encoding);
-  script_info->body = std::move(body_handle);
-  script_info->body_size = response_head->content_length;
-  script_info->meta_data = std::move(meta_data_handle);
-  script_info->meta_data_size = meta_data_size;
-  manager_->TransferInstalledScript(std::move(script_info));
+  // If `CreateInfoAndBind()` is not called, manager_ won't be set up.
+  if (manager_.is_bound()) {
+    auto script_info = blink::mojom::ServiceWorkerScriptInfo::New();
+    script_info->script_url = current_sending_url_;
+    script_info->headers = std::move(header_strings);
+    headers->GetCharset(&script_info->encoding);
+    script_info->body = std::move(body_handle);
+    script_info->body_size = response_head->content_length;
+    script_info->meta_data = std::move(meta_data_handle);
+    script_info->meta_data_size = meta_data_size;
+    manager_->TransferInstalledScript(std::move(script_info));
+  }
   if (IsSendingMainScript()) {
     owner_->SetMainScriptResponse(
         std::make_unique<ServiceWorkerVersion::MainScriptResponse>(
@@ -185,7 +196,6 @@ void ServiceWorkerInstalledScriptsSender::Abort(
     case ServiceWorkerInstalledScriptReader::FinishedReason::kNotFinished:
     case ServiceWorkerInstalledScriptReader::FinishedReason::kSuccess:
       NOTREACHED();
-      return;
     case ServiceWorkerInstalledScriptReader::FinishedReason::
         kNoResponseHeadError:
     case ServiceWorkerInstalledScriptReader::FinishedReason::
@@ -237,6 +247,9 @@ void ServiceWorkerInstalledScriptsSender::UpdateFinishedReasonAndBecomeIdle(
   DCHECK(current_sending_url_.is_empty());
   state_ = State::kIdle;
   last_finished_reason_ = reason;
+  if (finish_callback_) {
+    std::move(finish_callback_).Run();
+  }
 }
 
 void ServiceWorkerInstalledScriptsSender::RequestInstalledScript(
@@ -271,6 +284,11 @@ bool ServiceWorkerInstalledScriptsSender::IsSendingMainScript() const {
   // |sent_main_script_| is false if calling importScripts for the main
   // script.
   return !sent_main_script_ && current_sending_url_ == main_script_url_;
+}
+
+void ServiceWorkerInstalledScriptsSender::SetFinishCallback(
+    base::OnceClosure callback) {
+  finish_callback_ = std::move(callback);
 }
 
 }  // namespace content

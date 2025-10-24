@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/testing/fake_local_frame_host.h"
 
+#include "net/storage_access_api/status.h"
 #include "skia/public/mojom/skcolor.mojom-blink.h"
 #include "third_party/blink/public/mojom/choosers/popup_menu.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink.h"
@@ -57,7 +58,7 @@ void FakeLocalFrameHost::VisibilityChanged(
     mojom::blink::FrameVisibility visibility) {}
 
 void FakeLocalFrameHost::DidChangeThemeColor(
-    absl::optional<::SkColor> theme_color) {}
+    std::optional<::SkColor> theme_color) {}
 
 void FakeLocalFrameHost::DidChangeBackgroundColor(
     const SkColor4f& background_color,
@@ -93,7 +94,6 @@ void FakeLocalFrameHost::BubbleLogicalScrollInParentFrame(
 
 void FakeLocalFrameHost::DidBlockNavigation(
     const KURL& blocked_url,
-    const KURL& initiator_url,
     mojom::NavigationBlockedReason reason) {}
 
 void FakeLocalFrameHost::DidChangeLoadProgress(double load_progress) {}
@@ -105,11 +105,14 @@ void FakeLocalFrameHost::DispatchLoad() {}
 void FakeLocalFrameHost::GoToEntryAtOffset(
     int32_t offset,
     bool has_user_gesture,
-    absl::optional<blink::scheduler::TaskAttributionId>) {}
+    std::optional<blink::scheduler::TaskAttributionId>) {}
 
 void FakeLocalFrameHost::UpdateTitle(
     const WTF::String& title,
     base::i18n::TextDirection title_direction) {}
+
+void FakeLocalFrameHost::UpdateApplicationTitle(
+    const WTF::String& application_title) {}
 
 void FakeLocalFrameHost::UpdateUserActivationState(
     mojom::blink::UserActivationUpdateType update_type,
@@ -173,7 +176,6 @@ void FakeLocalFrameHost::TextSelectionChanged(const WTF::String& text,
 void FakeLocalFrameHost::ShowPopupMenu(
     mojo::PendingRemote<mojom::blink::PopupMenuClient> popup_client,
     const gfx::Rect& bounds,
-    int32_t item_height,
     double font_size,
     int32_t selected_item,
     Vector<mojom::blink::MenuItemPtr> menu_items,
@@ -203,7 +205,7 @@ void FakeLocalFrameHost::DidChangeFrameOwnerProperties(
     mojom::blink::FrameOwnerPropertiesPtr frame_owner_properties) {}
 
 void FakeLocalFrameHost::DidChangeOpener(
-    const absl::optional<LocalFrameToken>& opener_frame) {}
+    const std::optional<LocalFrameToken>& opener_frame) {}
 
 void FakeLocalFrameHost::DidChangeIframeAttributes(
     const blink::FrameToken& child_frame_token,
@@ -253,42 +255,76 @@ void FakeLocalFrameHost::ReceivedDelegatedCapability(
 void FakeLocalFrameHost::SendFencedFrameReportingBeacon(
     const WTF::String& event_data,
     const WTF::String& event_type,
-    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations) {
-}
+    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations,
+    bool cross_origin_exposed) {}
+
+void FakeLocalFrameHost::SendFencedFrameReportingBeaconToCustomURL(
+    const blink::KURL& destination_url,
+    bool cross_origin_exposed) {}
 
 void FakeLocalFrameHost::SetFencedFrameAutomaticBeaconReportEventData(
+    blink::mojom::AutomaticBeaconType event_type,
     const WTF::String& event_data,
-    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations) {
+    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations,
+    bool once,
+    bool cross_origin_exposed) {}
+
+void FakeLocalFrameHost::DisableUntrustedNetworkInFencedFrame(
+    DisableUntrustedNetworkInFencedFrameCallback callback) {
+  std::move(callback).Run();
 }
+
+void FakeLocalFrameHost::ExemptUrlFromNetworkRevocationForTesting(
+    const blink::KURL& exempted_url,
+    ExemptUrlFromNetworkRevocationForTestingCallback callback) {
+  std::move(callback).Run();
+}
+
+void FakeLocalFrameHost::SendLegacyTechEvent(
+    const WTF::String& type,
+    mojom::blink::LegacyTechEventCodeLocationPtr code_location) {}
 
 void FakeLocalFrameHost::SendPrivateAggregationRequestsForFencedFrameEvent(
     const WTF::String& event_type) {}
-
-void FakeLocalFrameHost::CreatePortal(
-    mojo::PendingAssociatedReceiver<mojom::blink::Portal> portal,
-    mojo::PendingAssociatedRemote<mojom::blink::PortalClient> client,
-    mojom::blink::RemoteFrameInterfacesFromRendererPtr remote_frame_interfaces,
-    CreatePortalCallback callback) {
-  std::move(callback).Run(mojom::blink::FrameReplicationState::New(),
-                          PortalToken(), RemoteFrameToken(),
-                          base::UnguessableToken());
-}
-
-void FakeLocalFrameHost::AdoptPortal(
-    const PortalToken& portal_token,
-    mojom::blink::RemoteFrameInterfacesFromRendererPtr remote_frame_interfaces,
-    AdoptPortalCallback callback) {
-  std::move(callback).Run(mojom::blink::FrameReplicationState::New(),
-                          RemoteFrameToken(), base::UnguessableToken());
-}
 
 void FakeLocalFrameHost::CreateFencedFrame(
     mojo::PendingAssociatedReceiver<mojom::blink::FencedFrameOwnerHost>,
     mojom::blink::RemoteFrameInterfacesFromRendererPtr remote_frame_interfaces,
     const RemoteFrameToken& frame_token,
     const base::UnguessableToken& devtools_frame_token) {
-  NOTREACHED() << "At the moment, FencedFrame is not used in any "
-                  "unit tests, so this path should not be hit";
+  NOTREACHED() << "At the moment, FencedFrame is not used in any unit tests, "
+                  "so this path should not be hit";
 }
+
+void FakeLocalFrameHost::ForwardFencedFrameEventAndUserActivationToEmbedder(
+    const WTF::String& event_type) {
+  NOTREACHED() << "ForwardFencedFrameEventToEmbedder is tested above the unit "
+                  "test layer";
+}
+
+void FakeLocalFrameHost::StartDragging(
+    const blink::WebDragData& drag_data,
+    blink::DragOperationsMask operations_allowed,
+    const SkBitmap& bitmap,
+    const gfx::Vector2d& cursor_offset_in_dip,
+    const gfx::Rect& drag_obj_rect_in_dip,
+    mojom::blink::DragEventSourceInfoPtr event_info) {}
+
+void FakeLocalFrameHost::IssueKeepAliveHandle(
+    mojo::PendingReceiver<mojom::blink::NavigationStateKeepAliveHandle>
+        receiver) {}
+
+void FakeLocalFrameHost::NotifyStorageAccessed(
+    blink::mojom::StorageTypeAccessed storageType,
+    bool blocked) {}
+
+void FakeLocalFrameHost::RecordWindowProxyUsageMetrics(
+    const blink::FrameToken& target_frame_token,
+    blink::mojom::WindowProxyAccessType access_type) {}
+
+void FakeLocalFrameHost::NotifyDocumentInteractive() {}
+
+void FakeLocalFrameHost::SetStorageAccessApiStatus(
+    net::StorageAccessApiStatus status) {}
 
 }  // namespace blink

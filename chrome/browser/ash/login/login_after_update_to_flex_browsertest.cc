@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "ash/constants/ash_switches.h"
+#include "base/check_deref.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/login_manager_test.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
@@ -12,16 +15,18 @@
 #include "chrome/browser/ash/login/test/local_state_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
+#include "chrome/browser/ash/login/test/oobe_screens_utils.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
-#include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
-#include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/consolidated_consent_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/hardware_data_collection_screen_handler.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -49,6 +54,14 @@ class LoginAfterUpdateToFlexTest : public LoginManagerTest,
   ~LoginAfterUpdateToFlexTest() override = default;
 
   // LoginManagerTest:
+  void SetUp() override {
+    LoginManagerTest::SetUp();
+
+    auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
+    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
+        std::move(user_manager));
+  }
+
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitch(switches::kRevenBranding);
     LoginManagerTest::SetUpCommandLine(command_line);
@@ -56,15 +69,12 @@ class LoginAfterUpdateToFlexTest : public LoginManagerTest,
 
   void SetUpOnMainThread() override {
     LoginManagerTest::SetUpOnMainThread();
-    settings_helper_.ReplaceDeviceSettingsProviderWithStub();
-    settings_helper_.GetStubbedProvider()->Set(
-        kDeviceOwner, base::Value(GetOwnerAccountId().GetUserEmail()));
+    GetFakeUserManager().SetOwnerId(GetOwnerAccountId());
     LoginDisplayHost::default_host()->GetWizardContext()->is_branded_build =
         true;
   }
 
   void TearDownOnMainThread() override {
-    settings_helper_.RestoreRealDeviceSettingsProvider();
     LoginManagerTest::TearDownOnMainThread();
   }
 
@@ -72,6 +82,11 @@ class LoginAfterUpdateToFlexTest : public LoginManagerTest,
   void SetUpLocalState() override {
     PrefService* prefs = g_browser_process->local_state();
     prefs->SetBoolean(prefs::kOobeRevenUpdatedToFlex, true);
+  }
+
+  ash::FakeChromeUserManager& GetFakeUserManager() {
+    return CHECK_DEREF(static_cast<ash::FakeChromeUserManager*>(
+        user_manager::UserManager::Get()));
   }
 
   const AccountId& GetOwnerAccountId() {
@@ -87,12 +102,11 @@ class LoginAfterUpdateToFlexTest : public LoginManagerTest,
       &mixin_host_, DeviceStateMixin::State::OOBE_COMPLETED_CONSUMER_OWNED};
   LoginManagerMixin login_manager_mixin_{&mixin_host_};
   FakeEulaMixin fake_eula_{&mixin_host_, embedded_test_server()};
-  ScopedCrosSettingsTestHelper settings_helper_{
-      /*create_settings_service=*/false};
   LocalStateMixin local_state_mixin_{&mixin_host_, this};
+  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
 };
 
-IN_PROC_BROWSER_TEST_F(LoginAfterUpdateToFlexTest, DISABLED_DeviceOwner) {
+IN_PROC_BROWSER_TEST_F(LoginAfterUpdateToFlexTest, DeviceOwner) {
   LoginUser(GetOwnerAccountId());
   EXPECT_FALSE(ProfileManager::GetActiveUserProfile()->GetPrefs()->GetBoolean(
       prefs::kRevenOobeConsolidatedConsentAccepted));
@@ -105,11 +119,12 @@ IN_PROC_BROWSER_TEST_F(LoginAfterUpdateToFlexTest, DISABLED_DeviceOwner) {
       prefs::kRevenOobeConsolidatedConsentAccepted));
 
   OobeScreenWaiter(HWDataCollectionView::kScreenId).Wait();
-  test::OobeJS().TapOnPath(kAcceptHWDataCollectionButton);
+  ash::test::TapOnPathAndWaitForOobeToBeDestroyed(
+      kAcceptHWDataCollectionButton);
   test::WaitForPrimaryUserSessionStart();
 }
 
-IN_PROC_BROWSER_TEST_F(LoginAfterUpdateToFlexTest, DISABLED_RegularUser) {
+IN_PROC_BROWSER_TEST_F(LoginAfterUpdateToFlexTest, RegularUser) {
   LoginUser(GetRegularAccountId());
   EXPECT_FALSE(ProfileManager::GetActiveUserProfile()->GetPrefs()->GetBoolean(
       prefs::kRevenOobeConsolidatedConsentAccepted));
@@ -117,7 +132,8 @@ IN_PROC_BROWSER_TEST_F(LoginAfterUpdateToFlexTest, DISABLED_RegularUser) {
   test::OobeJS()
       .CreateVisibilityWaiter(true, kConsolidatedConsentDialog)
       ->Wait();
-  test::OobeJS().TapOnPath(kAcceptConsolidatedConsentButton);
+  ash::test::TapOnPathAndWaitForOobeToBeDestroyed(
+      kAcceptConsolidatedConsentButton);
   EXPECT_TRUE(ProfileManager::GetActiveUserProfile()->GetPrefs()->GetBoolean(
       prefs::kRevenOobeConsolidatedConsentAccepted));
   test::WaitForPrimaryUserSessionStart();

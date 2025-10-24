@@ -151,7 +151,7 @@ U_NAMESPACE_BEGIN
  * calendar; non-Gregorian calendars are supported from ICU 4.4.1.
  * @stable ICU 4.0
 **/
-class U_I18N_API DateIntervalInfo U_FINAL : public UObject {
+class U_I18N_API DateIntervalInfo final : public UObject {
 public:
     /**
      * Default constructor.
@@ -197,7 +197,7 @@ public:
      * @return   a copy of the object
      * @stable ICU 4.0
      */
-    virtual DateIntervalInfo* clone() const;
+    DateIntervalInfo* clone() const;
 
     /**
      * Destructor.
@@ -214,7 +214,7 @@ public:
      * @return         true if other is semantically equal to this.
      * @stable ICU 4.0
      */
-    virtual bool operator==(const DateIntervalInfo& other) const;
+    bool operator==(const DateIntervalInfo& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.

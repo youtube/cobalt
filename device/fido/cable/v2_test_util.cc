@@ -2,19 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/fido/cable/v2_test_util.h"
 
+#include <array>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/base64url.h"
 #include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/cbor/reader.h"
 #include "components/cbor/values.h"
@@ -25,11 +33,13 @@
 #include "device/fido/cable/v2_handshake.h"
 #include "device/fido/cable/websocket_adapter.h"
 #include "device/fido/fido_constants.h"
+#include "device/fido/network_context_factory.h"
 #include "device/fido/virtual_ctap2_device.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
+#include "net/storage_access_api/status.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/test/test_network_context.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
@@ -43,13 +53,16 @@ namespace {
 // caBLEv2 tunnel server.
 class TestNetworkContext : public network::TestNetworkContext {
  public:
-  explicit TestNetworkContext(absl::optional<ContactCallback> contact_callback)
-      : contact_callback_(std::move(contact_callback)) {}
+  TestNetworkContext(std::optional<ContactCallback> contact_callback,
+                     bool supports_connect_signal)
+      : contact_callback_(std::move(contact_callback)),
+        supports_connect_signal_(supports_connect_signal) {}
 
   void CreateWebSocket(
       const GURL& url,
       const std::vector<std::string>& requested_protocols,
       const net::SiteForCookies& site_for_cookies,
+      net::StorageAccessApiStatus storage_access_api_status,
       const net::IsolationInfo& isolation_info,
       std::vector<network::mojom::HttpHeaderPtr> additional_headers,
       int32_t process_id,
@@ -63,11 +76,11 @@ class TestNetworkContext : public network::TestNetworkContext {
       mojo::PendingRemote<network::mojom::WebSocketAuthenticationHandler>
           auth_handler,
       mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client,
-      const absl::optional<base::UnguessableToken>& throttling_profile_id)
+      const std::optional<base::UnguessableToken>& throttling_profile_id)
       override {
     CHECK(url.has_path());
 
-    base::StringPiece path = url.path_piece();
+    std::string_view path = url.path_piece();
     static const char kNewPrefix[] = "/cable/new/";
     static const char kConnectPrefix[] = "/cable/connect/";
     static const char kContactPrefix[] = "/cable/contact/";
@@ -92,8 +105,13 @@ class TestNetworkContext : public network::TestNetworkContext {
     } else if (path.find(kContactPrefix) == 0) {
       path.remove_prefix(sizeof(kContactPrefix) - 1);
 
-      CHECK_EQ(additional_headers.size(), 1u);
+      CHECK_GE(additional_headers.size(), 1u);
       CHECK_EQ(additional_headers[0]->name, device::kCableClientPayloadHeader);
+
+      CHECK(additional_headers.size() == 1 ||
+            (additional_headers.size() == 2 &&
+             additional_headers[1]->name ==
+                 device::kCableSignalConnectionHeader));
 
       if (!contact_callback_) {
         // Without a contact callback all attempts are rejected with a 410
@@ -108,27 +126,30 @@ class TestNetworkContext : public network::TestNetworkContext {
       CHECK(base::HexStringToBytes(additional_headers[0]->value,
                                    &client_payload_bytes));
 
-      absl::optional<cbor::Value> client_payload =
+      std::optional<cbor::Value> client_payload =
           cbor::Reader::Read(client_payload_bytes);
       const cbor::Value::MapValue& map = client_payload->GetMap();
 
       uint8_t tunnel_id[kTunnelIdSize];
       crypto::RandBytes(tunnel_id);
 
+      const auto type = supports_connect_signal_
+                            ? Connection::Type::CONTACT_WITH_CONNECTION_SIGNAL
+                            : Connection::Type::CONTACT;
+
       connections_.emplace(
           base::HexEncode(tunnel_id),
-          std::make_unique<Connection>(Connection::Type::CONTACT,
-                                       std::move(handshake_client)));
+          std::make_unique<Connection>(type, std::move(handshake_client)));
 
       const std::vector<uint8_t>& pairing_id_vec =
           map.find(cbor::Value(1))->second.GetBytestring();
-      base::span<const uint8_t, kPairingIDSize> pairing_id(
-          pairing_id_vec.data(), pairing_id_vec.size());
+      auto pairing_id =
+          *base::span(pairing_id_vec).to_fixed_extent<kPairingIDSize>();
 
       const std::vector<uint8_t>& client_nonce_vec =
           map.find(cbor::Value(2))->second.GetBytestring();
-      base::span<const uint8_t, kClientNonceSize> client_nonce(
-          client_nonce_vec.data(), client_nonce_vec.size());
+      auto client_nonce =
+          *base::span(client_nonce_vec).to_fixed_extent<kClientNonceSize>();
 
       const std::string& request_type_hint =
           map.find(cbor::Value(3))->second.GetString();
@@ -136,7 +157,7 @@ class TestNetworkContext : public network::TestNetworkContext {
       contact_callback_->Run(tunnel_id, pairing_id, client_nonce,
                              request_type_hint);
     } else {
-      CHECK(false) << "unexpected path: " << path;
+      NOTREACHED() << "unexpected path: " << path;
     }
   }
 
@@ -147,6 +168,7 @@ class TestNetworkContext : public network::TestNetworkContext {
       NEW,
       CONNECT,
       CONTACT,
+      CONTACT_WITH_CONNECTION_SIGNAL,
     };
 
     Connection(Type type,
@@ -198,14 +220,26 @@ class TestNetworkContext : public network::TestNetworkContext {
     void StartReceiving() override {}
     void StartClosingHandshake(uint16_t code,
                                const std::string& reason) override {
-      CHECK(false);
+      NOTREACHED();
     }
 
     void set_peer(std::unique_ptr<Connection> peer) {
       CHECK(!peer_);
+
       peer_ownership_ = std::move(peer);
       peer_ = peer_ownership_.get();
       peer_->set_nonowning_peer(this);
+
+      if (type_ == Type::CONTACT_WITH_CONNECTION_SIGNAL) {
+        CHECK(peer_->buffer_.empty());
+        CHECK(peer_->buffer_i_ == 0);
+        constexpr auto kConnectionSignal = std::to_array<uint8_t>({0});
+        peer_->buffer_.push_back(kConnectionSignal[0]);
+        OnOutPipeReady(MOJO_RESULT_OK, mojo::HandleSignalsState());
+        client_receiver_->OnDataFrame(
+            /*fin=*/true, network::mojom::WebSocketMessageType::BINARY,
+            sizeof(kConnectionSignal));
+      }
 
       Flush();
     }
@@ -217,6 +251,7 @@ class TestNetworkContext : public network::TestNetworkContext {
       switch (type_) {
         case Type::NEW:
         case Type::CONTACT:
+        case Type::CONTACT_WITH_CONNECTION_SIGNAL:
           return "A";
         case Type::CONNECT:
           return "B";
@@ -239,6 +274,11 @@ class TestNetworkContext : public network::TestNetworkContext {
         header->name = device::kCableRoutingIdHeader;
         std::array<uint8_t, kRoutingIdSize> routing_id = {42};
         header->value = base::HexEncode(routing_id);
+        response->headers.push_back(std::move(header));
+      } else if (type_ == Type::CONTACT_WITH_CONNECTION_SIGNAL) {
+        auto header = network::mojom::HttpHeader::New();
+        header->name = device::kCableSignalConnectionHeader;
+        header->value = "true";
         response->headers.push_back(std::move(header));
       }
 
@@ -269,18 +309,13 @@ class TestNetworkContext : public network::TestNetworkContext {
     }
 
     void OnInPipeReady(MojoResult, const mojo::HandleSignalsState&) {
-      const size_t todo = buffer_.size() - buffer_i_;
-      CHECK_GT(todo, 0u);
-
-      // We CHECK that the message fits into Mojo's 32-bit lengths because we
-      // don't expect anything that large in unittests.
-      uint32_t todo_32 = todo;
-      CHECK_LE(todo, std::numeric_limits<decltype(todo_32)>::max());
-
-      const MojoResult result = in_->ReadData(
-          &buffer_.data()[buffer_i_], &todo_32, MOJO_READ_DATA_FLAG_NONE);
+      size_t actually_read_bytes = 0;
+      const MojoResult result =
+          in_->ReadData(MOJO_READ_DATA_FLAG_NONE,
+                        base::as_writable_byte_span(buffer_).subspan(buffer_i_),
+                        actually_read_bytes);
       if (result == MOJO_RESULT_OK) {
-        buffer_i_ += todo_32;
+        buffer_i_ += actually_read_bytes;
         CHECK_LE(buffer_i_, buffer_.size());
 
         if (peer_ && buffer_i_ > 0) {
@@ -295,29 +330,29 @@ class TestNetworkContext : public network::TestNetworkContext {
       } else if (result == MOJO_RESULT_SHOULD_WAIT) {
         in_watcher_.Arm();
       } else {
-        CHECK(false) << static_cast<int>(result);
+        NOTREACHED() << static_cast<int>(result);
       }
     }
 
     void OnOutPipeReady(MojoResult, const mojo::HandleSignalsState&) {
-      const size_t todo = peer_->buffer_.size();
-      if (todo == 0) {
+      if (peer_->buffer_.empty()) {
         return;
       }
 
-      uint32_t todo_32 = todo;
-      const MojoResult result = out_->WriteData(peer_->buffer_.data(), &todo_32,
-                                                MOJO_WRITE_DATA_FLAG_NONE);
+      size_t actually_written_bytes = 0;
+      const MojoResult result = out_->WriteData(
+          peer_->buffer_, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
       if (result == MOJO_RESULT_OK) {
-        if (todo_32 == todo) {
+        if (actually_written_bytes == peer_->buffer_.size()) {
           peer_->buffer_.clear();
           peer_->buffer_i_ = 0;
         } else {
-          const size_t new_length = todo - todo_32;
-          memmove(peer_->buffer_.data(), &peer_->buffer_.data()[todo_32],
-                  new_length);
+          const size_t new_length =
+              peer_->buffer_.size() - actually_written_bytes;
+          memmove(peer_->buffer_.data(),
+                  &peer_->buffer_.data()[actually_written_bytes], new_length);
           peer_->buffer_.resize(new_length);
-          peer_->buffer_i_ -= todo_32;
+          peer_->buffer_i_ -= actually_written_bytes;
         }
 
         if (!peer_->buffer_.empty()) {
@@ -328,7 +363,7 @@ class TestNetworkContext : public network::TestNetworkContext {
       } else if (result == MOJO_RESULT_FAILED_PRECONDITION) {
         // The reader has closed. Drop the message.
       } else {
-        CHECK(false) << static_cast<int>(result);
+        NOTREACHED() << static_cast<int>(result);
       }
     }
 
@@ -352,7 +387,8 @@ class TestNetworkContext : public network::TestNetworkContext {
   };
 
   std::map<std::string, std::unique_ptr<Connection>> connections_;
-  const absl::optional<ContactCallback> contact_callback_;
+  const std::optional<ContactCallback> contact_callback_;
+  const bool supports_connect_signal_;
 };
 
 class DummyBLEAdvert
@@ -384,12 +420,9 @@ class TestPlatform : public authenticator::Platform {
             ? false
             : params->authenticator_selection->resident_key ==
                   ResidentKeyRequirement::kRequired;
-    if (params->device_public_key) {
-      request.device_public_key.emplace();
-    }
     request.prf = params->prf_enable;
 
-    std::pair<device::CtapRequestCommand, absl::optional<cbor::Value>>
+    std::pair<device::CtapRequestCommand, std::optional<cbor::Value>>
         request_cbor = AsCTAPRequestValuePair(request);
 
     ctap2_device_->DeviceTransact(
@@ -405,29 +438,30 @@ class TestPlatform : public authenticator::Platform {
     request.allow_list = std::move(params->allow_credentials);
     request.user_verification = params->user_verification;
 
-    CHECK_EQ(request.client_data_hash.size(), params->challenge.size());
-    memcpy(request.client_data_hash.data(), params->challenge.data(),
-           params->challenge.size());
-    if (params->device_public_key) {
-      request.device_public_key.emplace();
-    }
-    for (const auto& prf_input_from_request : params->prf_inputs) {
-      PRFInput prf_input_to_authenticator;
-      prf_input_to_authenticator.credential_id =
-          std::move(prf_input_from_request->id);
-      CHECK(fido_parsing_utils::ExtractArray(
-          prf_input_from_request->first, 0, &prf_input_to_authenticator.salt1));
-      if (prf_input_from_request->second) {
-        prf_input_to_authenticator.salt2.emplace();
+    CHECK_EQ(request.client_data_hash.size(), params->challenge->size());
+    memcpy(request.client_data_hash.data(), params->challenge->data(),
+           params->challenge->size());
+    if (params->extensions) {
+      for (const auto& prf_input_from_request :
+           params->extensions->prf_inputs) {
+        PRFInput prf_input_to_authenticator;
+        prf_input_to_authenticator.credential_id =
+            std::move(prf_input_from_request->id);
         CHECK(fido_parsing_utils::ExtractArray(
-            *prf_input_from_request->second, 0,
-            &prf_input_to_authenticator.salt2.value()));
-      }
+            prf_input_from_request->first, 0,
+            &prf_input_to_authenticator.salt1));
+        if (prf_input_from_request->second) {
+          prf_input_to_authenticator.salt2.emplace();
+          CHECK(fido_parsing_utils::ExtractArray(
+              *prf_input_from_request->second, 0,
+              &prf_input_to_authenticator.salt2.value()));
+        }
 
-      request.prf_inputs.emplace_back(std::move(prf_input_to_authenticator));
+        request.prf_inputs.emplace_back(std::move(prf_input_to_authenticator));
+      }
     }
 
-    std::pair<device::CtapRequestCommand, absl::optional<cbor::Value>>
+    std::pair<device::CtapRequestCommand, std::optional<cbor::Value>>
         request_cbor = AsCTAPRequestValuePair(request);
 
     ctap2_device_->DeviceTransact(
@@ -442,7 +476,7 @@ class TestPlatform : public authenticator::Platform {
     }
   }
 
-  void OnCompleted(absl::optional<Error> maybe_error) override {
+  void OnCompleted(std::optional<Error> maybe_error) override {
     if (observer_) {
       observer_->OnCompleted(maybe_error);
     }
@@ -454,7 +488,7 @@ class TestPlatform : public authenticator::Platform {
         FROM_HERE,
         base::BindOnce(
             &TestPlatform::DoSendBLEAdvert, weak_factory_.GetWeakPtr(),
-            device::fido_parsing_utils::Materialize<EXTENT(payload)>(payload)));
+            device::fido_parsing_utils::Materialize<payload.size()>(payload)));
     return std::make_unique<DummyBLEAdvert>();
   }
 
@@ -464,12 +498,12 @@ class TestPlatform : public authenticator::Platform {
   }
 
   std::vector<uint8_t> ToCTAP2Command(
-      const std::pair<device::CtapRequestCommand, absl::optional<cbor::Value>>&
+      const std::pair<device::CtapRequestCommand, std::optional<cbor::Value>>&
           parts) {
     std::vector<uint8_t> ret;
 
     if (parts.second.has_value()) {
-      absl::optional<std::vector<uint8_t>> cbor_bytes =
+      std::optional<std::vector<uint8_t>> cbor_bytes =
           cbor::Writer::Write(std::move(*parts.second));
       ret.swap(*cbor_bytes);
     }
@@ -479,24 +513,24 @@ class TestPlatform : public authenticator::Platform {
   }
 
   void OnMakeCredentialResult(MakeCredentialCallback callback,
-                              absl::optional<std::vector<uint8_t>> result) {
+                              std::optional<std::vector<uint8_t>> result) {
     if (!result || result->empty()) {
       std::move(callback).Run(
           static_cast<uint32_t>(device::CtapDeviceResponseCode::kCtap2ErrOther),
-          base::span<const uint8_t>(), absl::nullopt, /* prf_enabled= */ false);
+          {}, /* prf_enabled= */ false);
       return;
     }
-    const base::span<const uint8_t> payload = *result;
+    const base::span payload = *result;
 
     if (payload.size() == 1 ||
         payload[0] !=
             static_cast<uint8_t>(device::CtapDeviceResponseCode::kSuccess)) {
-      std::move(callback).Run(payload[0], base::span<const uint8_t>(),
-                              absl::nullopt, /* prf_enabled= */ false);
+      std::move(callback).Run(payload[0], {},
+                              /* prf_enabled= */ false);
       return;
     }
 
-    absl::optional<cbor::Value> v = cbor::Reader::Read(payload.subspan(1));
+    std::optional<cbor::Value> v = cbor::Reader::Read(payload.subspan<1>());
     const cbor::Value::MapValue& in_map = v->GetMap();
 
     cbor::Value::MapValue out_map;
@@ -505,17 +539,11 @@ class TestPlatform : public authenticator::Platform {
                     in_map.find(cbor::Value(2))->second.GetBytestring());
     out_map.emplace("attStmt", in_map.find(cbor::Value(3))->second.GetMap());
 
-    absl::optional<base::span<const uint8_t>> device_public_key_signature;
     bool prf_enabled = false;
     const auto& unsigned_extension_outputs_it = in_map.find(cbor::Value(6));
     if (unsigned_extension_outputs_it != in_map.end()) {
       const cbor::Value::MapValue& unsigned_extension_outputs =
           unsigned_extension_outputs_it->second.GetMap();
-      const auto dpk_it = unsigned_extension_outputs.find(
-          cbor::Value(kExtensionDevicePublicKey));
-      if (dpk_it != unsigned_extension_outputs.end()) {
-        device_public_key_signature = dpk_it->second.GetBytestring();
-      }
       const auto prf_it =
           unsigned_extension_outputs.find(cbor::Value(kExtensionPRF));
       if (prf_it != unsigned_extension_outputs.end()) {
@@ -525,23 +553,23 @@ class TestPlatform : public authenticator::Platform {
       }
     }
 
-    absl::optional<std::vector<uint8_t>> attestation_obj =
+    std::optional<std::vector<uint8_t>> attestation_obj =
         cbor::Writer::Write(cbor::Value(std::move(out_map)));
 
     std::move(callback).Run(
         static_cast<uint32_t>(device::CtapDeviceResponseCode::kSuccess),
-        *attestation_obj, device_public_key_signature, prf_enabled);
+        *attestation_obj, prf_enabled);
   }
 
   void OnGetAssertionResult(GetAssertionCallback callback,
-                            absl::optional<std::vector<uint8_t>> result) {
+                            std::optional<std::vector<uint8_t>> result) {
     if (!result || result->empty()) {
       std::move(callback).Run(
           static_cast<uint32_t>(device::CtapDeviceResponseCode::kCtap2ErrOther),
           nullptr);
       return;
     }
-    const base::span<const uint8_t> payload = *result;
+    const base::span payload = *result;
 
     if (payload.size() == 1 ||
         payload[0] !=
@@ -552,8 +580,10 @@ class TestPlatform : public authenticator::Platform {
 
     auto response = blink::mojom::GetAssertionAuthenticatorResponse::New();
     response->info = blink::mojom::CommonCredentialInfo::New();
+    response->extensions =
+        blink::mojom::AuthenticationExtensionsClientOutputs::New();
 
-    absl::optional<cbor::Value> v = cbor::Reader::Read(payload.subspan(1));
+    std::optional<cbor::Value> v = cbor::Reader::Read(payload.subspan<1>());
     const cbor::Value::MapValue& in_map = v->GetMap();
 
     auto cred_id_it = in_map.find(cbor::Value(1));
@@ -575,13 +605,6 @@ class TestPlatform : public authenticator::Platform {
     if (unsigned_extension_outputs_it != in_map.end()) {
       const cbor::Value::MapValue& unsigned_extension_outputs =
           unsigned_extension_outputs_it->second.GetMap();
-      const auto dpk_it = unsigned_extension_outputs.find(
-          cbor::Value(kExtensionDevicePublicKey));
-      if (dpk_it != unsigned_extension_outputs.end()) {
-        response->device_public_key =
-            blink::mojom::DevicePublicKeyResponse::New();
-        response->device_public_key->signature = dpk_it->second.GetBytestring();
-      }
       const auto prf_it =
           unsigned_extension_outputs.find(cbor::Value(kExtensionPRF));
       if (prf_it != unsigned_extension_outputs.end()) {
@@ -598,7 +621,7 @@ class TestPlatform : public authenticator::Platform {
         if (second_it != results_from_authenticator.end()) {
           results_for_response->second = second_it->second.GetBytestring();
         }
-        response->prf_results = std::move(results_for_response);
+        response->extensions->prf_results = std::move(results_for_response);
       }
     }
 
@@ -622,19 +645,19 @@ class LateLinkingDevice : public authenticator::Transaction {
  public:
   LateLinkingDevice(CtapDeviceResponseCode ctap_error,
                     std::unique_ptr<Platform> platform,
-                    network::mojom::NetworkContext* network_context,
+                    NetworkContextFactory network_context_factory,
                     base::span<const uint8_t> qr_secret,
                     base::span<const uint8_t, kP256X962Length> peer_identity)
       : ctap_error_(ctap_error),
         platform_(std::move(platform)),
-        network_context_(network_context),
-        tunnel_id_(device::cablev2::Derive<EXTENT(tunnel_id_)>(
+        network_context_factory_(std::move(network_context_factory)),
+        tunnel_id_(device::cablev2::Derive<kTunnelIdSize>(
             qr_secret,
-            base::span<uint8_t>(),
+            {},
             DerivedValueType::kTunnelID)),
-        eid_key_(device::cablev2::Derive<EXTENT(eid_key_)>(
+        eid_key_(device::cablev2::Derive<kEIDKeySize>(
             qr_secret,
-            base::span<const uint8_t>(),
+            {},
             device::cablev2::DerivedValueType::kEIDKey)),
         peer_identity_(device::fido_parsing_utils::Materialize(peer_identity)),
         secret_(fido_parsing_utils::Materialize(qr_secret)) {
@@ -647,24 +670,26 @@ class LateLinkingDevice : public authenticator::Transaction {
     const GURL target = device::cablev2::tunnelserver::GetNewTunnelURL(
         kTunnelServer, tunnel_id_);
 
-    network_context_->CreateWebSocket(
+    network_context_factory_.Run()->CreateWebSocket(
         target, {device::kCableWebSocketProtocol}, net::SiteForCookies(),
-        net::IsolationInfo(), /*additional_headers=*/{},
-        network::mojom::kBrowserProcessId, url::Origin::Create(target),
+        net::StorageAccessApiStatus::kNone, net::IsolationInfo(),
+        /*additional_headers=*/{}, network::mojom::kBrowserProcessId,
+        url::Origin::Create(target),
         network::mojom::kWebSocketOptionBlockAllCookies,
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
         websocket_client_->BindNewHandshakeClientPipe(),
         /*url_loader_network_observer=*/mojo::NullRemote(),
         /*auth_handler=*/mojo::NullRemote(),
         /*header_client=*/mojo::NullRemote(),
-        /*throttling_profile_id=*/absl::nullopt);
+        /*throttling_profile_id=*/std::nullopt);
   }
 
  private:
   void OnTunnelReady(
       WebSocketAdapter::Result result,
-      absl::optional<std::array<uint8_t, device::cablev2::kRoutingIdSize>>
-          routing_id) {
+      std::optional<std::array<uint8_t, device::cablev2::kRoutingIdSize>>
+          routing_id,
+      WebSocketAdapter::ConnectSignalSupport connect_signal_support) {
     CHECK_EQ(result, WebSocketAdapter::Result::OK);
     CHECK(routing_id);
 
@@ -678,7 +703,7 @@ class LateLinkingDevice : public authenticator::Transaction {
 
     ble_advert_ =
         platform_->SendBLEAdvert(eid::Encrypt(plaintext_eid, eid_key_));
-    psk_ = device::cablev2::Derive<EXTENT(psk_)>(
+    psk_ = device::cablev2::Derive<kPSKSize>(
         secret_, plaintext_eid, device::cablev2::DerivedValueType::kPSK);
   }
 
@@ -707,9 +732,9 @@ class LateLinkingDevice : public authenticator::Transaction {
     return cbor::Writer::Write(cbor::Value(std::move(response_map))).value();
   }
 
-  void OnTunnelData(absl::optional<base::span<const uint8_t>> msg) {
+  void OnTunnelData(std::optional<base::span<const uint8_t>> msg) {
     if (!msg) {
-      platform_->OnCompleted(absl::nullopt);
+      platform_->OnCompleted(std::nullopt);
       return;
     }
 
@@ -722,12 +747,11 @@ class LateLinkingDevice : public authenticator::Transaction {
         handshake_hash_ = result->second;
         websocket_client_->Write(response);
         crypter_ = std::move(result->first);
-        crypter_->UseNewConstruction();
 
         cbor::Value::MapValue post_handshake_msg;
         post_handshake_msg.emplace(1, BuildGetInfoResponse());
 
-        absl::optional<std::vector<uint8_t>> post_handshake_msg_bytes =
+        std::optional<std::vector<uint8_t>> post_handshake_msg_bytes =
             cbor::Writer::Write(cbor::Value(std::move(post_handshake_msg)));
         CHECK(post_handshake_msg_bytes);
         CHECK(crypter_->Encrypt(&post_handshake_msg_bytes.value()));
@@ -757,6 +781,9 @@ class LateLinkingDevice : public authenticator::Transaction {
             break;
           }
 
+          case MessageType::kJSON:
+            NOTREACHED();
+
           case MessageType::kShutdown:
             state_ = State::kShutdownReceived;
             base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -767,15 +794,13 @@ class LateLinkingDevice : public authenticator::Transaction {
             break;
 
           case MessageType::kUpdate:
-            CHECK(false);
-            break;
+            NOTREACHED();
         }
         break;
       }
 
       case State::kShutdownReceived:
-        CHECK(false);
-        break;
+        NOTREACHED();
     }
   }
 
@@ -809,7 +834,7 @@ class LateLinkingDevice : public authenticator::Transaction {
     cbor::Value::MapValue update_msg;
     update_msg.emplace(1, cbor::Value(std::move(pairing)));
 
-    absl::optional<std::vector<uint8_t>> update_msg_bytes =
+    std::optional<std::vector<uint8_t>> update_msg_bytes =
         cbor::Writer::Write(cbor::Value(std::move(update_msg)));
     CHECK(update_msg_bytes);
     update_msg_bytes->insert(update_msg_bytes->begin(),
@@ -826,7 +851,7 @@ class LateLinkingDevice : public authenticator::Transaction {
 
   const CtapDeviceResponseCode ctap_error_;
   const std::unique_ptr<Platform> platform_;
-  const raw_ptr<network::mojom::NetworkContext> network_context_;
+  const NetworkContextFactory network_context_factory_;
   const std::array<uint8_t, kTunnelIdSize> tunnel_id_;
   const std::array<uint8_t, kEIDKeySize> eid_key_;
   const std::array<uint8_t, kP256X962Length> peer_identity_;
@@ -840,12 +865,98 @@ class LateLinkingDevice : public authenticator::Transaction {
   HandshakeHash handshake_hash_;
 };
 
+class HandshakeErrorDevice : public authenticator::Transaction {
+ public:
+  HandshakeErrorDevice(std::unique_ptr<Platform> platform,
+                       NetworkContextFactory network_context_factory,
+                       base::span<const uint8_t> qr_secret)
+      : platform_(std::move(platform)),
+        network_context_factory_(std::move(network_context_factory)),
+        tunnel_id_(device::cablev2::Derive<kTunnelIdSize>(
+            qr_secret,
+            {},
+            DerivedValueType::kTunnelID)),
+        eid_key_(device::cablev2::Derive<kEIDKeySize>(
+            qr_secret,
+            {},
+            device::cablev2::DerivedValueType::kEIDKey)),
+        secret_(fido_parsing_utils::Materialize(qr_secret)) {
+    websocket_client_ = std::make_unique<device::cablev2::WebSocketAdapter>(
+        base::BindOnce(&HandshakeErrorDevice::OnTunnelReady,
+                       base::Unretained(this)),
+        base::BindRepeating(&HandshakeErrorDevice::OnTunnelData,
+                            base::Unretained(this)));
+
+    const GURL target = device::cablev2::tunnelserver::GetNewTunnelURL(
+        kTunnelServer, tunnel_id_);
+
+    network_context_factory_.Run()->CreateWebSocket(
+        target, {device::kCableWebSocketProtocol}, net::SiteForCookies(),
+        net::StorageAccessApiStatus::kNone, net::IsolationInfo(),
+        /*additional_headers=*/{}, network::mojom::kBrowserProcessId,
+        url::Origin::Create(target),
+        network::mojom::kWebSocketOptionBlockAllCookies,
+        net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
+        websocket_client_->BindNewHandshakeClientPipe(),
+        /*url_loader_network_observer=*/mojo::NullRemote(),
+        /*auth_handler=*/mojo::NullRemote(),
+        /*header_client=*/mojo::NullRemote(),
+        /*throttling_profile_id=*/std::nullopt);
+  }
+
+ private:
+  void OnTunnelReady(
+      WebSocketAdapter::Result result,
+      std::optional<std::array<uint8_t, device::cablev2::kRoutingIdSize>>
+          routing_id,
+      WebSocketAdapter::ConnectSignalSupport connect_signal_support) {
+    CHECK_EQ(result, WebSocketAdapter::Result::OK);
+    CHECK(routing_id);
+
+    CableEidArray plaintext_eid;
+    device::cablev2::eid::Components components;
+    components.tunnel_server_domain = kTunnelServer;
+    components.routing_id = *routing_id;
+    components.nonce = RandomNonce();
+
+    plaintext_eid = device::cablev2::eid::FromComponents(components);
+
+    ble_advert_ =
+        platform_->SendBLEAdvert(eid::Encrypt(plaintext_eid, eid_key_));
+    psk_ = device::cablev2::Derive<kPSKSize>(
+        secret_, plaintext_eid, device::cablev2::DerivedValueType::kPSK);
+  }
+
+  std::array<uint8_t, device::cablev2::kNonceSize> RandomNonce() {
+    std::array<uint8_t, device::cablev2::kNonceSize> ret;
+    crypto::RandBytes(ret);
+    return ret;
+  }
+
+  void OnTunnelData(std::optional<base::span<const uint8_t>> msg) {
+    std::vector<uint8_t> response = {'b', 'o', 'g', 'u', 's'};
+    websocket_client_->Write(response);
+  }
+
+  const std::unique_ptr<Platform> platform_;
+  const NetworkContextFactory network_context_factory_;
+  const std::array<uint8_t, kTunnelIdSize> tunnel_id_;
+  const std::array<uint8_t, kEIDKeySize> eid_key_;
+  const std::vector<uint8_t> secret_;
+  std::unique_ptr<WebSocketAdapter> websocket_client_;
+  std::unique_ptr<Platform::BLEAdvert> ble_advert_;
+  std::array<uint8_t, kPSKSize> psk_;
+  GURL target_;
+};
+
 }  // namespace
 }  // namespace authenticator
 
 std::unique_ptr<network::mojom::NetworkContext> NewMockTunnelServer(
-    absl::optional<ContactCallback> contact_callback) {
-  return std::make_unique<TestNetworkContext>(std::move(contact_callback));
+    std::optional<ContactCallback> contact_callback,
+    bool supports_connect_signal) {
+  return std::make_unique<TestNetworkContext>(std::move(contact_callback),
+                                              supports_connect_signal);
 }
 
 namespace authenticator {
@@ -864,12 +975,20 @@ std::unique_ptr<authenticator::Platform> NewMockPlatform(
 std::unique_ptr<Transaction> NewLateLinkingDevice(
     CtapDeviceResponseCode ctap_error,
     std::unique_ptr<Platform> platform,
-    network::mojom::NetworkContext* network_context,
+    NetworkContextFactory network_context_factory,
     base::span<const uint8_t> qr_secret,
     base::span<const uint8_t, kP256X962Length> peer_identity) {
   return std::make_unique<LateLinkingDevice>(ctap_error, std::move(platform),
-                                             network_context, qr_secret,
-                                             peer_identity);
+                                             std::move(network_context_factory),
+                                             qr_secret, peer_identity);
+}
+
+std::unique_ptr<Transaction> NewHandshakeErrorDevice(
+    std::unique_ptr<Platform> platform,
+    NetworkContextFactory network_context_factory,
+    base::span<const uint8_t> qr_secret) {
+  return std::make_unique<HandshakeErrorDevice>(
+      std::move(platform), std::move(network_context_factory), qr_secret);
 }
 
 }  // namespace authenticator

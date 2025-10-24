@@ -5,7 +5,10 @@
 #ifndef CONTENT_SERVICES_AUCTION_WORKLET_TRUSTED_SIGNALS_REQUEST_MANAGER_H_
 #define CONTENT_SERVICES_AUCTION_WORKLET_TRUSTED_SIGNALS_REQUEST_MANAGER_H_
 
+#include <stdint.h>
+
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -15,13 +18,19 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "content/common/content_export.h"
+#include "content/services/auction_worklet/public/cpp/creative_info.h"
+#include "content/services/auction_worklet/public/cpp/trusted_signals_url_builder.h"
+#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"
+#include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom.h"
+#include "content/services/auction_worklet/trusted_kvv2_signals.h"
 #include "content/services/auction_worklet/trusted_signals.h"
+#include "content/services/auction_worklet/trusted_signals_kvv2_helper.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -33,7 +42,7 @@ class TrustedSignals;
 // Manages trusted signals requests and responses. Currently only batches
 // requests.
 //
-// TODO(https://crbug.com/1276639): Cache responses as well.
+// TODO(crbug.com/40207533): Cache responses as well.
 class CONTENT_EXPORT TrustedSignalsRequestManager {
  public:
   // Delay between construction of a Request and automatically starting a
@@ -81,15 +90,35 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
   // TrustedSignals request for any pending requests and reset the send
   // interval.
   //
-  // TODO(https://crbug.com/1279643): Investigate improving the
+  // If non-empty the bidder-only parameter,
+  // "&`trusted_bidding_signals_slot_size_param`" is appended to the end of the
+  // query string. It's expected to already be escaped if necessary.
+  //
+  // The `public_key` pointer indicates whether this trusted signals
+  // request manager is intended for the KVv2 version. If the pointer is
+  // non-null, it will trigger the KVv2 call flow and be used during the message
+  // encryption and decryption process.
+  //
+  // For sellers using KVv1 protocol, `send_creative_scanning_metadata` controls
+  // whether additional fields like creative_scanning_metadata, size and owner
+  // info are sent with trusted scoring requests. If this is off, this
+  // information should not be included in the passed in
+  // CreativeInfo.
+  //
+  // TODO(crbug.com/40810962): Investigate improving the
   // `automatically_send_requests` logic.
   TrustedSignalsRequestManager(
       Type type,
       network::mojom::URLLoaderFactory* url_loader_factory,
+      mojo::PendingRemote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+          auction_network_events_handler,
       bool automatically_send_requests,
       const url::Origin& top_level_origin,
       const GURL& trusted_signals_url,
-      absl::optional<uint16_t> experiment_group_id,
+      std::optional<uint16_t> experiment_group_id,
+      const std::string& trusted_bidding_signals_slot_size_param,
+      mojom::TrustedSignalsPublicKeyPtr public_key,
+      bool send_creative_scanning_metadata,
       AuctionV8Helper* v8_helper);
 
   explicit TrustedSignalsRequestManager(const TrustedSignalsRequestManager&) =
@@ -104,7 +133,8 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
   // kBiddingSignals.
   std::unique_ptr<Request> RequestBiddingSignals(
       const std::string& interest_group_name,
-      const absl::optional<std::vector<std::string>>& keys,
+      const std::optional<std::vector<std::string>>& keys,
+      int32_t max_trusted_bidding_signals_url_length,
       LoadSignalsCallback load_signals_callback);
 
   // Queues a scoring signals request. Does not start a network request until
@@ -115,49 +145,104 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
   // the format matches the one accepted by ScoringSignals::Result, which
   // minimizes conversions.
   std::unique_ptr<Request> RequestScoringSignals(
-      const GURL& render_url,
-      const std::vector<std::string>& ad_component_render_urls,
+      CreativeInfo ad,
+      std::set<CreativeInfo> ad_components,
+      int32_t max_trusted_scoring_signals_url_length,
       LoadSignalsCallback load_signals_callback);
 
-  // Starts a single TrustedSignals request for all currently queued Requests.
+  // Like `RequestBiddingSignals()`, but for trusted bidding signals KVv2
+  // support. Requires `joining_origin` and `execution_mode` instead of
+  // `max_trusted_bidding_signals_url_length`.
+  std::unique_ptr<Request> RequestKVv2BiddingSignals(
+      const std::string& interest_group_name,
+      const std::optional<std::vector<std::string>>& keys,
+      const url::Origin& joining_origin,
+      blink::mojom::InterestGroup::ExecutionMode execution_mode,
+      LoadSignalsCallback load_signals_callback);
+
+  // Like `RequestScoringSignals()`, but for trusted scoring signals KVv2
+  // support. Requires `bidder_owner_origin` and `bidder_joining_origin` instead
+  // of `max_trusted_scoring_signals_url_length`.
+  std::unique_ptr<Request> RequestKVv2ScoringSignals(
+      CreativeInfo ad,
+      std::set<CreativeInfo> ad_components,
+      const url::Origin& bidder_owner_origin,
+      const url::Origin& bidder_joining_origin,
+      LoadSignalsCallback load_signals_callback);
+
+  // Starts a single TrustedSignals request for all currently queued
+  // Requests.
   void StartBatchedTrustedSignalsRequest();
 
   const GURL& trusted_signals_url() const { return trusted_signals_url_; }
+
+  bool HasPublicKey();
 
  private:
   struct BatchedTrustedSignalsRequest;
 
   class RequestImpl : public Request {
    public:
+    // Constructor for the BYOS version of trusted bidding signals, which builds
+    // a GET request with a limit set by max_trusted_bidding_signals_url_length.
     RequestImpl(TrustedSignalsRequestManager* trusted_signals_request_manager,
                 const std::string& interest_group_name,
                 std::set<std::string> bidder_keys,
+                int32_t max_trusted_bidding_signals_url_length,
                 LoadSignalsCallback load_signals_callback);
 
+    // Constructor for the BYOS version of trusted scoring signals, which builds
+    // a GET request with a limit set by max_trusted_scoring_signals_url_length.
     RequestImpl(TrustedSignalsRequestManager* trusted_signals_request_manager,
-                const GURL& render_urls,
-                std::set<std::string> ad_component_render_urls,
+                CreativeInfo ad,
+                std::set<CreativeInfo> ad_components,
+                int32_t max_trusted_scoring_signals_url_length,
+                LoadSignalsCallback load_signals_callback);
+
+    // Constructor for trusted bidding signals with KVv2 support, which builds a
+    // POST request.
+    RequestImpl(TrustedSignalsRequestManager* trusted_signals_request_manager,
+                const std::string& interest_group_name,
+                std::set<std::string> bidder_keys,
+                const url::Origin& joining_origin,
+                blink::mojom::InterestGroup::ExecutionMode execution_mode,
+                LoadSignalsCallback load_signals_callback);
+
+    // Constructor for trusted scoring signals with KVv2 support, which builds a
+    // POST request.
+    RequestImpl(TrustedSignalsRequestManager* trusted_signals_request_manager,
+                CreativeInfo ad,
+                std::set<CreativeInfo> ad_components,
+                const url::Origin& bidder_owner_origin,
+                const url::Origin& bidder_joining_origin,
                 LoadSignalsCallback load_signals_callback);
 
     RequestImpl(RequestImpl&) = delete;
     RequestImpl& operator=(RequestImpl&) = delete;
     ~RequestImpl() override;
 
+    void SetKVv2IsolationIndex(
+        TrustedSignalsKVv2RequestHelperBuilder::IsolationIndex index);
+
    private:
     friend class TrustedSignalsRequestManager;
 
     // Used for requests for bidder signals. Must be non-null and non-empty for
     // bidder signals requests, null for scoring signals requests.
-    absl::optional<std::string> interest_group_name_;
-    absl::optional<std::set<std::string>> bidder_keys_;
+    std::optional<std::string> interest_group_name_;
+    std::optional<std::set<std::string>> bidder_keys_;
+    std::optional<url::Origin> joining_origin_;
+    std::optional<blink::mojom::InterestGroup::ExecutionMode> execution_mode_;
 
-    // Used for requests for scoring signals. `render_url_` must be non-null
-    // and non-empty for scoring signals requests, and
-    // `ad_component_render_urls_` non-null. Both must be null for bidding
-    // signals requests.
-    absl::optional<GURL> render_url_;
-    // Stored as a std::set for simpler
-    absl::optional<std::set<std::string>> ad_component_render_urls_;
+    // Used for requests for scoring signals. `ad_` must be non-null for
+    // scoring signals requests. `ad_` and `ad_components_` must be nullopt and
+    // empty respectively for bidding signals requests.
+    std::optional<CreativeInfo> ad_;
+    std::set<CreativeInfo> ad_components_;
+    std::optional<url::Origin> bidder_owner_origin_;
+    std::optional<url::Origin> bidder_joining_origin_;
+
+    size_t max_trusted_signals_url_length_;
 
     LoadSignalsCallback load_signals_callback_;
 
@@ -169,7 +254,25 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
     // If this request is currently assigned to a batched request, points to
     // that request. nullptr otherwise.
     raw_ptr<BatchedTrustedSignalsRequest> batched_request_ = nullptr;
+
+    // When a request is added to
+    // TrustedBiddingSignalsKVv2RequestHelperBuilder, it returns the assigned
+    // partition ID and compression group ID for the request. These returned
+    // IDs are stored in the request to locate the correct compression group
+    // and partition in the response, avoiding the need to search the entire
+    // map.
+    std::optional<TrustedSignalsKVv2RequestHelperBuilder::IsolationIndex>
+        kvv2_isolation_index_;
   };
+
+  // Use interest group name or render url as customized comparator for bidding
+  // or scoring requests.
+  struct CompareRequestImpl {
+    bool operator()(const RequestImpl* r1, const RequestImpl* r2) const;
+  };
+
+  using RequestSet =
+      std::set<raw_ptr<RequestImpl, SetExperimental>, CompareRequestImpl>;
 
   // Manages a single TrustedSignals object, which is associated with one or
   // more Requests. Tracks all associated live Requests, and manages invoking
@@ -184,9 +287,10 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
     ~BatchedTrustedSignalsRequest();
 
     std::unique_ptr<TrustedSignals> trusted_signals;
+    std::unique_ptr<TrustedKVv2Signals> trusted_kvv2_signals;
 
     // The batched Requests this is for.
-    std::set<RequestImpl*> requests;
+    RequestSet requests;
   };
 
   // Adds `request` to `queued_requests_`, and starts `timer_` if needed.
@@ -194,24 +298,54 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
 
   void OnSignalsLoaded(BatchedTrustedSignalsRequest* batched_request,
                        scoped_refptr<Result> result,
-                       absl::optional<std::string> error_msg);
+                       std::optional<std::string> error_msg);
+
+  // Callback for the trusted signals KVv2 process, where the return value of
+  // `DeliverKVv2CallbackOnUserThread` in `TrustedKVv2Signals` is an optional
+  // `TrustedKVv2Signals::TrustedSignalsResultMap`.
+  void OnKVv2SignalsLoaded(
+      BatchedTrustedSignalsRequest* batched_request,
+      std::optional<TrustedSignalsKVv2ResponseParser::TrustedSignalsResultMap>
+          result_map,
+      std::optional<std::string> error_msg);
 
   // Called when a request is destroyed. If it's in `queued_requests_`, removes
   // it. If there's a BatchedTrustedSignalsRequest for it, disassociates the
   // request with it, cancelling the request if it's no longer needed.
   void OnRequestDestroyed(RequestImpl* request);
 
+  // Add `request` to `merged_requests` if the relevant
+  // TrustedBiddingSignalsUrlBuilder has room for it. Returns whether the
+  // request was successfully added.
+  bool TryToAddRequest(TrustedBiddingSignalsUrlBuilder& bidding_url_builder,
+                       RequestSet& merged_requests,
+                       RequestImpl* request);
+
+  bool TryToAddRequest(TrustedScoringSignalsUrlBuilder& scoring_url_builder,
+                       RequestSet& merged_requests,
+                       RequestImpl* request);
+
+  // Starts a batched request. Resets `url_builder`.
+  void IssueRequests(TrustedSignalsUrlBuilder& url_builder,
+                     RequestSet merged_requests);
+
   const Type type_;
   const raw_ptr<network::mojom::URLLoaderFactory> url_loader_factory_;
   const bool automatically_send_requests_;
+  const bool send_creative_scanning_metadata_;
   const url::Origin top_level_origin_;
   const GURL trusted_signals_url_;
-  const absl::optional<uint16_t> experiment_group_id_;
+  const std::optional<uint16_t> experiment_group_id_;
+  const std::string trusted_bidding_signals_slot_size_param_;
+  // Fetched in the browser process based on the trusted bidding/scoring signals
+  // coordinator, to be used for encrypting the trusted KVv2 signals request
+  // body.
+  const mojom::TrustedSignalsPublicKeyPtr public_key_;
   const scoped_refptr<AuctionV8Helper> v8_helper_;
 
   // All live requests that haven't yet been assigned to a
   // BatchedTrustedSignalsRequest.
-  std::set<RequestImpl*> queued_requests_;
+  RequestSet queued_requests_;
 
   std::set<std::unique_ptr<BatchedTrustedSignalsRequest>,
            base::UniquePtrComparator>
@@ -219,7 +353,8 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
 
   base::OneShotTimer timer_;
 
-  base::WeakPtrFactory<TrustedSignalsRequestManager> weak_ptr_factory{this};
+  mojo::Remote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+      auction_network_events_handler_;
 };
 
 }  // namespace auction_worklet

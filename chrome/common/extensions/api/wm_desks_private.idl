@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Private API for trusted extensions/apps to do desk related operations.
-[platforms=("chromeos","lacros"),
+[platforms=("chromeos"),
  implemented_in="chrome/browser/chromeos/extensions/wm/wm_desks_private_api.h"]
 namespace wmDesksPrivate {
   enum SavedDeskType {
@@ -21,6 +21,9 @@ namespace wmDesksPrivate {
     // Define whether close all windows on the desk and combine them to the
     // active desk to the left.
     boolean combineDesks;
+
+    // Define whether removed desk is retrievable.
+    boolean? allowUndo;
   };
 
   dictionary Desk {
@@ -64,64 +67,79 @@ namespace wmDesksPrivate {
 
   interface Functions {
     // Returns all available previously-saved desks.
-    [supportsPromises] static void getSavedDesks(
+    static void getSavedDesks(
         GetSavedDesksCallback callback);
 
     // Launches a desk, if `templateUuid` is present in the options, launches a
     // desk template, otherwise launches an empty desk. If `deskName` is present
     // in the options, using provided name as desk name, otherwise launches with
     // auto generated name.
-    [supportsPromises] static void launchDesk(LaunchOptions launchOptions,
-                                              DeskIdCallback callback);
+    static void launchDesk(
+        LaunchOptions launchOptions,
+        DeskIdCallback callback);
 
     // Gets the template associated with the templateUuid and returns its JSON
     // representation.  Returns an error if either the template could not be
     // found or the user profile is not valid.
-    [supportsPromises] static void getDeskTemplateJson(
+    static void getDeskTemplateJson(
         DOMString templateUuid,
         GetDeskTemplateJsonCallback callback);
 
     // Removes a desk as specified in `deskId`. If `combineDesks` of
     // `RemoveDeskOptions` is present or set to true, remove the desk and
-    // combine windows to the active desk to the left. Otherwise close all
-    // windows on the desk.
-    [supportsPromises] static void removeDesk(
+    // combine windows to the active desk to the left. If `allowUndo` is
+    // present or set to true, prompt the user with a notification allowing for
+    // the desk to be retrieved. Otherwise close all windows on the desk.
+    static void removeDesk(
         DOMString deskId,
         optional RemoveDeskOptions removeDeskOptions,
         optional VoidCallback callback);
 
     // Returns all available desks.
-    [supportsPromises] static void getAllDesks(GetAllDesksCallback callback);
+    static void getAllDesks(GetAllDesksCallback callback);
 
     // Sets the window properties for window identified by the `windowId`.
-    [supportsPromises] static void setWindowProperties(
+    static void setWindowProperties(
         long windowId,
         WindowProperties windowProperties,
         optional VoidCallback callback);
 
     // Saves the current active desk to the library and remove it from the desk
     // bar.
-    [supportsPromises] static void saveActiveDesk(
+    static void saveActiveDesk(
         SaveActiveDeskCallback callback);
 
     // Deletes the saved desk from the library.
-    [supportsPromises] static void deleteSavedDesk(
+    static void deleteSavedDesk(
         DOMString savedDeskUuid,
         optional VoidCallback callback);
 
     // Launches a saved desk from the library back to active desk.
-    [supportsPromises] static void recallSavedDesk(DOMString savedDeskUuid,
-                                                   DeskIdCallback callback);
+    static void recallSavedDesk(
+        DOMString savedDeskUuid,
+        DeskIdCallback callback);
 
     // Retrieves the UUID of the current active desk.
-    [supportsPromises] static void getActiveDesk(DeskIdCallback callback);
+    static void getActiveDesk(DeskIdCallback callback);
 
     // Switches to the target desk.
-    [supportsPromises] static void switchDesk(
+    static void switchDesk(
         DOMString deskUuid, VoidCallback callback);
 
     // Retrieves desk by the desk UUID.
-    [supportsPromises] static void getDeskByID(
+    static void getDeskByID(
         DOMString deskUuid, GetDeskByIDCallback callback);
   };
+
+  interface Events {
+    // Fires when new desks is added.
+    static void OnDeskAdded(DOMString deskId, boolean fromUndo);
+
+    // Fires when desk removal is finalized.
+    static void OnDeskRemoved(DOMString deskId);
+
+    // Fires when desk activation changed.
+    static void OnDeskSwitched(DOMString activated, DOMString deactivated);
+    };
+
 };

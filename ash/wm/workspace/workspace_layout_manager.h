@@ -15,26 +15,31 @@
 #include "ash/shell_observer.h"
 #include "ash/wm/window_state_observer.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_multi_source_observation.h"
 #include "ui/aura/layout_manager.h"
 #include "ui/aura/window_observer.h"
 #include "ui/display/display_observer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/wm/public/activation_change_observer.h"
 
+namespace display {
+enum class TabletState;
+}  // namespace display
+
 namespace ash {
 
-class RootWindowController;
 class BackdropController;
+class RootWindowController;
 class WMEvent;
 
 // LayoutManager used on the window created for a workspace.
 class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
                                           public aura::WindowObserver,
-                                          public ::wm::ActivationChangeObserver,
+                                          public wm::ActivationChangeObserver,
                                           public KeyboardControllerObserver,
+                                          public WindowStateObserver,
                                           public display::DisplayObserver,
                                           public ShellObserver,
-                                          public WindowStateObserver,
                                           public ShelfObserver,
                                           public AppListControllerObserver {
  public:
@@ -50,7 +55,7 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
     return backdrop_controller_.get();
   }
 
-  bool is_fullscreen() { return is_fullscreen_; }
+  bool is_fullscreen() const { return is_fullscreen_; }
 
   // aura::LayoutManager:
   void OnWindowResized() override;
@@ -70,19 +75,14 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
                                intptr_t old) override;
   void OnWindowStackingChanged(aura::Window* window) override;
   void OnWindowDestroying(aura::Window* window) override;
-  void OnWindowBoundsChanged(aura::Window* window,
-                             const gfx::Rect& old_bounds,
-                             const gfx::Rect& new_bounds,
-                             ui::PropertyChangeReason reason) override;
 
   // wm::ActivationChangeObserver:
   void OnWindowActivating(ActivationReason reason,
                           aura::Window* gaining_active,
                           aura::Window* losing_active) override;
-  void OnWindowActivated(
-      ::wm::ActivationChangeObserver::ActivationReason reason,
-      aura::Window* gained_active,
-      aura::Window* lost_active) override;
+  void OnWindowActivated(wm::ActivationChangeObserver::ActivationReason reason,
+                         aura::Window* gained_active,
+                         aura::Window* lost_active) override;
 
   // KeyboardControllerObserver:
   void OnKeyboardVisibleBoundsChanged(const gfx::Rect& new_bounds) override;
@@ -95,6 +95,7 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   // display::DisplayObserver:
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override;
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
   // ShellObserver:
   void OnFullscreenStateChanged(bool is_fullscreen,
@@ -112,23 +113,20 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
 
  private:
   friend class WorkspaceControllerTestApi;
-  typedef std::set<aura::Window*> WindowSet;
 
   // Observes changes in windows in the FloatingWindowObserver, and
-  // notifies WorkspaceLayoutManager to send out system ui area change events.
-  // This class currently observes windows in |settings_bubble_container_|,
-  // |accessibility_bubble_container_|, and |shelf_container_|.
+  // notifies WorkspaceLayoutManager to update the accessibility panels and pip
+  // window bounds if needed. Observes windows in the settings bubble,
+  // accessibility bubble and shelf containers.
   class FloatingWindowObserver : public aura::WindowObserver {
    public:
     explicit FloatingWindowObserver(
         WorkspaceLayoutManager* workspace_layout_manager);
-
     FloatingWindowObserver(const FloatingWindowObserver&) = delete;
     FloatingWindowObserver& operator=(const FloatingWindowObserver&) = delete;
-
     ~FloatingWindowObserver() override;
 
-    void ObserveWindow(aura::Window* window);
+    void MaybeObserveWindow(aura::Window* window);
 
     // aura::WindowObserver:
     void OnWindowHierarchyChanged(const HierarchyChangeParams& params) override;
@@ -141,13 +139,10 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
 
    private:
     // WorkspaceLayoutManager has at least as long a lifetime as this class.
-    raw_ptr<const WorkspaceLayoutManager, ExperimentalAsh>
-        workspace_layout_manager_;
-    // The key is the window to be observed, and the value is the parent of the
-    // window.
-    std::map<aura::Window*, aura::Window*> observed_windows_;
+    raw_ptr<const WorkspaceLayoutManager> workspace_layout_manager_;
 
-    void StopOberservingWindow(aura::Window* window);
+    base::ScopedMultiSourceObservation<aura::Window, aura::WindowObserver>
+        window_observations_{this};
   };
 
   // Adjusts the bounds of all managed windows when the display area changes.
@@ -170,37 +165,22 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   // manager.
   void UpdateAlwaysOnTop(aura::Window* active_desk_fullscreen_window);
 
-  // Notifies windows about a change in a system ui area. This could be
-  // the keyboard or any window in the SettingsBubbleContainer or
-  // |accessibility_bubble_container_|. Windows will only be notified about
-  // changes to system ui areas on the display they are on.
-  void NotifySystemUiAreaChanged() const;
-
-  // Notifies the accessibility controller about a workspace event. If autoclick
-  // or stick keys is enabled, the autoclick bubble or sticky keys overlay may
-  // need to move in response to that event.
-  void NotifyAccessibilityWorkspaceChanged() const;
+  // Updates the bounds of the a11y floating panels (including autoclick menu
+  // and stick keys) and pip window when needed. E.g, work area changes,
+  // visibility of the windows observed by `FloatingWindowObserver` changes.
+  void MaybeUpdateA11yFloatingPanelOrPipBounds() const;
 
   // Updates the window workspace.
   void UpdateWindowWorkspace(aura::Window* window);
 
-  bool IsPopupNotificationWindow(aura::Window* window) const;
-
-  raw_ptr<aura::Window, ExperimentalAsh> window_;
-  raw_ptr<aura::Window, ExperimentalAsh> root_window_;
-  raw_ptr<RootWindowController, ExperimentalAsh> root_window_controller_;
-  FloatingWindowObserver floating_window_observer_;
-  raw_ptr<aura::Window, ExperimentalAsh> settings_bubble_container_;
-  raw_ptr<aura::Window, ExperimentalAsh> accessibility_bubble_container_;
-  raw_ptr<aura::Window, ExperimentalAsh> shelf_container_;
+  raw_ptr<aura::Window> window_;
+  raw_ptr<aura::Window> root_window_;
+  raw_ptr<RootWindowController> root_window_controller_;
 
   display::ScopedDisplayObserver display_observer_{this};
 
   // Set of windows we're listening to.
-  WindowSet windows_;
-
-  // The work area in the coordinates of |window_|.
-  gfx::Rect work_area_in_parent_;
+  std::set<raw_ptr<aura::Window, SetExperimental>> windows_;
 
   // True if this workspace is currently in fullscreen mode. Tracks the
   // fullscreen state of the container |window_| associated with this workspace
@@ -214,6 +194,12 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   // A window which covers the full container and which gets inserted behind the
   // topmost visible window.
   std::unique_ptr<BackdropController> backdrop_controller_;
+
+  std::unique_ptr<FloatingWindowObserver> floating_window_observer_;
+
+  // Indicator that the `Shell` is being destroyed and we should not
+  // `NotifyAccessibilityWorkspaceChanged` in this case.
+  bool is_shell_destroying_ = false;
 };
 
 }  // namespace ash

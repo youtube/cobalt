@@ -6,14 +6,18 @@ package org.chromium.chrome.browser.omnibox.suggestions.tail;
 
 import androidx.annotation.ColorInt;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Properties associated with the tail suggestion view. */
+@NullMarked
 public class TailSuggestionViewBinder {
-    /** @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object) */
+    /**
+     * @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object)
+     */
     public static void bind(PropertyModel model, TailSuggestionView view, PropertyKey propertyKey) {
         if (TailSuggestionViewProperties.ALIGNMENT_MANAGER == propertyKey) {
             view.setAlignmentManager(model.get(TailSuggestionViewProperties.ALIGNMENT_MANAGER));
@@ -22,8 +26,9 @@ public class TailSuggestionViewBinder {
         } else if (propertyKey == TailSuggestionViewProperties.FILL_INTO_EDIT) {
             view.setFullText(model.get(TailSuggestionViewProperties.FILL_INTO_EDIT));
         } else if (propertyKey == SuggestionCommonProperties.COLOR_SCHEME) {
-            final @ColorInt int color = OmniboxResourceProvider.getSuggestionPrimaryTextColor(
-                    view.getContext(), model.get(SuggestionCommonProperties.COLOR_SCHEME));
+            final @ColorInt int color =
+                    OmniboxResourceProvider.getSuggestionPrimaryTextColor(
+                            view.getContext(), model.get(SuggestionCommonProperties.COLOR_SCHEME));
             view.setTextColor(color);
         }
     }

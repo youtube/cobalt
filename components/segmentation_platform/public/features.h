@@ -6,8 +6,9 @@
 #define COMPONENTS_SEGMENTATION_PLATFORM_PUBLIC_FEATURES_H_
 
 #include "base/feature_list.h"
-#include "base/strings/string_piece.h"
+#include "base/metrics/field_trial_params.h"
 
+// Feature flags for the segmentation platform. Don't remove these feature flags.
 namespace segmentation_platform::features {
 
 // Core feature flag for segmentation platform.
@@ -15,6 +16,10 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformFeature);
 
 // Feature flag for enabling UKM based engine.
 BASE_DECLARE_FEATURE(kSegmentationPlatformUkmEngine);
+
+// Feature flag to increase segmentation platform background processing task
+// runner priority.
+BASE_DECLARE_FEATURE(kSegmentationPlatformUserVisibleTaskRunner);
 
 // Feature flag for enabling adaptive toolbar v2 multi-output model.
 BASE_DECLARE_FEATURE(kSegmentationPlatformAdaptiveToolbarV2Feature);
@@ -34,8 +39,8 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformPowerUserFeature);
 // Feature flag for enabling frequent feature user segment.
 BASE_DECLARE_FEATURE(kFrequentFeatureUserSegmentFeature);
 
-// Feature flag for enabling contextual page actions. Only effective when at
-// least one action is enabled.
+// Feature flag for enabling contextual page actions. Do not remove this, as all
+// segmentation platform powered functionalities must be behind a base::Feature.
 BASE_DECLARE_FEATURE(kContextualPageActions);
 
 // Feature flag for enabling search user segment.
@@ -43,12 +48,6 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformSearchUser);
 
 // Feature flag for device switcher segment.
 BASE_DECLARE_FEATURE(kSegmentationPlatformDeviceSwitcher);
-
-// Feature flag for enabling price tracking action feature.
-BASE_DECLARE_FEATURE(kContextualPageActionPriceTracking);
-
-// Feature flag for enabling reader mode action feature.
-BASE_DECLARE_FEATURE(kContextualPageActionReaderMode);
 
 // Feature flag for enabling reader mode action feature.
 BASE_DECLARE_FEATURE(kContextualPageActionShareModel);
@@ -67,6 +66,132 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformTabletProductivityUser);
 
 // Feature flag for enabling model execution report sampling.
 BASE_DECLARE_FEATURE(kSegmentationPlatformModelExecutionSampling);
+
+// Feature flag for enabling cross device user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformCrossDeviceUser);
+
+// Feature flag for enabling intentional user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformIntentionalUser);
+
+// Feature flag for enabling password manager user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformPasswordManagerUser);
+
+// Feature flag for enabling tab resumption ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformTabResumptionRanker);
+
+// Feature flag for enabling ios module ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformIosModuleRanker);
+
+// Feature flag for enabling android home module ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformAndroidHomeModuleRanker);
+
+// Feature flag for enabling on-demand service for ranking android
+// home modules.
+BASE_DECLARE_FEATURE(kSegmentationPlatformAndroidHomeModuleRankerV2);
+
+// Feature flag for controlling sampling of training data collection.
+BASE_DECLARE_FEATURE(kSegmentationPlatformTimeDelaySampling);
+
+// Feature flag for enabling data collection for tab ranking.
+BASE_DECLARE_FEATURE(kSegmentationPlatformCollectTabRankData);
+
+// Feature flag for intoroducing delay while initializing models at startup.
+BASE_DECLARE_FEATURE(kSegmentationPlatformModelInitializationDelay);
+
+// Feature flag for turning of signal database cache.
+BASE_DECLARE_FEATURE(kSegmentationPlatformSignalDbCache);
+
+// Feature flag for Compose promotion targeting.
+BASE_DECLARE_FEATURE(kSegmentationPlatformComposePromotion);
+
+// Feature flag for using SQL database for UMA signals.
+BASE_DECLARE_FEATURE(kSegmentationPlatformUmaFromSqlDb);
+
+// Feature flag for having separate models for the Start and NTP surface.
+BASE_DECLARE_FEATURE(kSegmentationPlatformIosModuleRankerSplitBySurface);
+
+// Feature flag for enabling the URL visit resumption ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformURLVisitResumptionRanker);
+
+// Feature flag for enabling the URL visit resumption ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformEphemeralBottomRank);
+
+extern const char kEphemeralCardRankerForceShowCardParam[];
+extern const char kEphemeralCardRankerForceHideCardParam[];
+
+// Feature flag for enabling the Ephemeral Card ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformEphemeralCardRanker);
+
+// Feature flag for enabling the Tips Ephemeral Card.
+BASE_DECLARE_FEATURE(kSegmentationPlatformTipsEphemeralCard);
+
+// Defines the sequence of tips variations for the experimental train. The
+// sequence uses the underlying variation labels defined in
+// `home_modules/constants`.
+extern const char kTipsEphemeralCardExperimentTrainParam[];
+
+// Returns the enabled experimental train for the Tips Ephemeral Card
+// experiment, as a comma-separated string of variation labels. The order of the
+// labels in the string determines the order in which the corresponding Tips
+// Ephemeral Card variations will be considered for display.
+std::string TipsExperimentTrainEnabled();
+
+// Defines the maximum number of times an ephemeral tips card can be visible
+// to the user.
+extern const char kTipsEphemeralCardModuleMaxImpressionCount[];
+
+// Returns the maximum number of times an ephemeral tips card can be visible
+// to the user.
+int GetTipsEphemeralCardModuleMaxImpressionCount();
+
+BASE_DECLARE_FEATURE(kSegmentationSurveyPage);
+extern const base::FeatureParam<bool> kSegmentationSurveyInternalsPage;
+
+// Feature flag for enabling the Educational tip module in the home modules on
+// chrome android.
+BASE_DECLARE_FEATURE(kEducationalTipModule);
+// The maximum number of times the default browser promo card can be visible to
+// the user.
+extern const base::FeatureParam<int> kMaxDefaultBrowserCardImpressions;
+// The maximum number of times the tab group promo card can be visible to the
+// user.
+extern const base::FeatureParam<int> kMaxTabGroupCardImpressions;
+// The maximum number of times the tab group sync promo card can be visible to
+// the user.
+extern const base::FeatureParam<int> kMaxTabGroupSyncCardImpressions;
+// The maximum number of times the quick delete promo card can be visible to the
+// user.
+extern const base::FeatureParam<int> kMaxQuickDeleteCardImpressions;
+// The maximum number of times the history sync promo card can be visible to the
+// user.
+extern const base::FeatureParam<int> kMaxHistorySyncCardImpressions;
+
+// The following 3 parameters only affect cards in Android:
+
+// This parameter controls the display frequency limit for the general
+// educational tip card on Android. It can be shown at most once within the
+// number of days specified by this parameter.
+extern const base::FeatureParam<int> KDaysToShowEphemeralCardOnce;
+// This parameter defines the display frequency limit for each educational tip
+// card on Android. Each card can be shown at most once within the number of
+// days specified by this parameter.
+extern const base::FeatureParam<int> KDaysToShowEachEphemeralCardOnce;
+// This parameter controls which educational tip cards are displayed. If one or
+// more card names are provided in this parameter (i.e., the parameter is not an
+// empty string), only the cards listed will be displayed; all other educational
+// tip cards will be disabled. The parameter is expected to be a comma-separated
+// string (e.g., "TabGroupPromo,TabGroupSyncPromo,QuickDeletePromo").
+extern const base::FeatureParam<std::string> KNamesOfEphemeralCardsToShow;
+
+// The maximum number of times the auxiliary search promo card can be visible to
+// the user.
+BASE_DECLARE_FEATURE(kAndroidAppIntegrationModule);
+extern const base::FeatureParam<bool> kMaxAuxiliarySearchForceShow;
+extern const base::FeatureParam<int> kMaxAuxiliarySearchCardImpressions;
+
+// Feature flag for enabling FedCM user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformFedCmUser);
+
 }  // namespace segmentation_platform::features
 
 #endif  // COMPONENTS_SEGMENTATION_PLATFORM_PUBLIC_FEATURES_H_

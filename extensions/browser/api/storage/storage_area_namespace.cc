@@ -27,7 +27,6 @@ const char* StorageAreaToString(StorageAreaNamespace storage_area) {
       return kSessionString;
     case StorageAreaNamespace::kInvalid:
       NOTREACHED();
-      return "";
   }
 }
 
@@ -44,7 +43,6 @@ settings_namespace::Namespace StorageAreaToSettingsNamespace(
       return settings_namespace::INVALID;
     case StorageAreaNamespace::kInvalid:
       NOTREACHED();
-      return settings_namespace::INVALID;
   }
 }
 

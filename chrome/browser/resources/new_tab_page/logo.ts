@@ -3,159 +3,104 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
 import './iframe.js';
 import './doodle_share_dialog.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {skColorToRgba} from 'chrome://resources/js/color_utils.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
-import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
-import {loadTimeData} from './i18n_setup.js';
-import {IframeElement} from './iframe.js';
-import {getTemplate} from './logo.html.js';
-import {Doodle, DoodleImageType, DoodleShareChannel, ImageDoodle, PageHandlerRemote} from './new_tab_page.mojom-webui.js';
+import type {IframeElement} from './iframe.js';
+import {getCss} from './logo.css.js';
+import {getHtml} from './logo.html.js';
+import type {Doodle, DoodleShareChannel, ImageDoodle, PageHandlerRemote} from './new_tab_page.mojom-webui.js';
+import {DoodleImageType} from './new_tab_page.mojom-webui.js';
 import {NewTabPageProxy} from './new_tab_page_proxy.js';
 import {$$} from './utils.js';
 import {WindowProxy} from './window_proxy.js';
 
-const SHARE_BUTTON_SIZE_PX: number = 26;
-
 // Shows the Google logo or a doodle if available.
-export class LogoElement extends PolymerElement {
+export class LogoElement extends CrLitElement {
   static get is() {
     return 'ntp-logo';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
       /**
        * If true displays the Google logo single-colored.
        */
       singleColored: {
-        reflectToAttribute: true,
+        reflect: true,
         type: Boolean,
-        value: false,
       },
 
       /**
        * If true displays the dark mode doodle if possible.
        */
-      dark: {
-        observer: 'onDarkChange_',
-        type: Boolean,
-      },
+      dark: {type: Boolean},
 
       /**
        * The NTP's background color. If null or undefined the NTP does not have
        * a single background color, e.g. when a background image is set.
        */
-      backgroundColor: Object,
+      backgroundColor: {type: Object},
 
-      loaded_: Boolean,
-
-      doodle_: Object,
-
-      imageDoodle_: {
-        observer: 'onImageDoodleChange_',
-        computed: 'computeImageDoodle_(dark, doodle_)',
-        type: Object,
-      },
-
-      showLogo_: {
-        computed: 'computeShowLogo_(loaded_, showDoodle_)',
-        type: Boolean,
-      },
-
-      showDoodle_: {
-        computed: 'computeShowDoodle_(doodle_, imageDoodle_)',
-        type: Boolean,
-      },
+      loaded_: {type: Boolean},
+      doodle_: {type: Object},
+      imageDoodle_: {type: Object},
+      showLogo_: {type: Boolean},
+      showDoodle_: {type: Boolean},
 
       doodleBoxed_: {
-        reflectToAttribute: true,
+        reflect: true,
         type: Boolean,
-        computed: 'computeDoodleBoxed_(backgroundColor, imageDoodle_)',
       },
 
-      imageUrl_: {
-        computed: 'computeImageUrl_(imageDoodle_)',
-        type: String,
-      },
-
-      showAnimation_: {
-        type: Boolean,
-        value: false,
-      },
-
-      animationUrl_: {
-        computed: 'computeAnimationUrl_(imageDoodle_)',
-        type: String,
-      },
-
-      iframeUrl_: {
-        computed: 'computeIframeUrl_(doodle_)',
-        type: String,
-      },
-
-      duration_: {
-        observer: 'onDurationHeightWidthChange_',
-        type: String,
-      },
-
-      height_: {
-        observer: 'onDurationHeightWidthChange_',
-        type: String,
-      },
-
-      width_: {
-        observer: 'onDurationHeightWidthChange_',
-        type: String,
-      },
-
-      expanded_: Boolean,
-
-      showShareDialog_: Boolean,
-
-      imageDoodleTabIndex_: {
-        type: Number,
-        computed: 'computeImageDoodleTabIndex_(doodle_, showAnimation_)',
-      },
-
-      reducedLogoSpaceEnabled_: {
-        type: Boolean,
-        reflectToAttribute: true,
-        value: () => loadTimeData.getBoolean('reducedLogoSpaceEnabled'),
-      },
+      imageUrl_: {type: String},
+      showAnimation_: {type: Boolean},
+      animationUrl_: {type: String},
+      iframeUrl_: {type: String},
+      duration_: {type: String},
+      height_: {type: String},
+      width_: {type: String},
+      expanded_: {type: Boolean},
+      showShareDialog_: {type: Boolean},
+      imageDoodleTabIndex_: {type: Number},
     };
   }
 
-  singleColored: boolean;
-  dark: boolean;
-  backgroundColor: SkColor;
-  private loaded_: boolean;
-  private doodle_: Doodle|null;
-  private imageDoodle_: ImageDoodle|null;
-  private showLogo_: boolean;
-  private showDoodle_: boolean;
-  private doodleBoxed_: boolean;
-  private imageUrl_: string;
-  private showAnimation_: boolean;
-  private animationUrl_: string;
-  private iframeUrl_: string;
-  private duration_: string;
-  private height_: string;
-  private width_: string;
-  private expanded_: boolean;
-  private showShareDialog_: boolean;
-  private imageDoodleTabIndex_: number;
+  accessor singleColored: boolean = false;
+  accessor dark: boolean;
+  accessor backgroundColor: SkColor|null = null;
+  private accessor loaded_: boolean = false;
+  protected accessor doodle_: Doodle|null = null;
+  protected accessor imageDoodle_: ImageDoodle|null = null;
+  protected accessor showLogo_: boolean = false;
+  protected accessor showDoodle_: boolean = false;
+  private accessor doodleBoxed_: boolean = false;
+  protected accessor imageUrl_: string = '';
+  protected accessor showAnimation_: boolean = false;
+  protected accessor animationUrl_: string = '';
+  protected accessor iframeUrl_: string = '';
+  private accessor duration_: string;
+  private accessor height_: string;
+  private accessor width_: string;
+  protected accessor expanded_: boolean = false;
+  protected accessor showShareDialog_: boolean = false;
+  protected accessor imageDoodleTabIndex_: number = -1;
 
   private eventTracker_: EventTracker = new EventTracker();
   private pageHandler_: PageHandlerRemote;
@@ -202,44 +147,51 @@ export class LogoElement extends PolymerElement {
     this.eventTracker_.removeAll();
   }
 
-  override ready() {
-    super.ready();
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
+    this.imageDoodle_ = this.computeImageDoodle_();
+    this.imageUrl_ = this.computeImageUrl_();
+    this.animationUrl_ = this.computeAnimationUrl_();
+    this.showDoodle_ = this.computeShowDoodle_();
+    this.iframeUrl_ = this.computeIframeUrl_();
+    this.showLogo_ = this.computeShowLogo_();
+    this.doodleBoxed_ = this.computeDoodleBoxed_();
+    this.imageDoodleTabIndex_ = this.computeImageDoodleTabIndex_();
+  }
+
+  override firstUpdated() {
     performance.measure('logo-creation', 'logo-creation-start');
   }
 
-  private onImageDoodleChange_() {
-    const shareButton = this.imageDoodle_ && this.imageDoodle_.shareButton;
-    if (shareButton) {
-      const height = this.imageDoodle_!.height;
-      const width = this.imageDoodle_!.width;
-      this.updateStyles({
-        '--ntp-logo-share-button-background-color':
-            skColorToRgba(shareButton.backgroundColor),
-        '--ntp-logo-share-button-height':
-            `${SHARE_BUTTON_SIZE_PX / height * 100}%`,
-        '--ntp-logo-share-button-width':
-            `${SHARE_BUTTON_SIZE_PX / width * 100}%`,
-        '--ntp-logo-share-button-x': `${shareButton.x / width * 100}%`,
-        '--ntp-logo-share-button-y': `${shareButton.y / height * 100}%`,
-      });
-    } else {
-      this.updateStyles({
-        '--ntp-logo-share-button-background-color': null,
-        '--ntp-logo-share-button-height': null,
-        '--ntp-logo-share-button-width': null,
-        '--ntp-logo-share-button-x': null,
-        '--ntp-logo-share-button-y': null,
-      });
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+
+    if (changedProperties.has('dark')) {
+      this.onDarkChange_();
     }
+
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
+
+    if (changedPrivateProperties.has('duration_') ||
+        changedPrivateProperties.has('height_') ||
+        changedPrivateProperties.has('width_')) {
+      this.onDurationHeightWidthChange_();
+    }
+
+    if (changedPrivateProperties.has('imageDoodle_')) {
+      this.onImageDoodleChange_();
+    }
+  }
+
+  private onImageDoodleChange_() {
     if (this.imageDoodle_) {
-      this.updateStyles({
-        '--ntp-logo-box-color':
-            skColorToRgba(this.imageDoodle_.backgroundColor),
-      });
+      this.style.setProperty(
+          '--ntp-logo-box-color',
+          skColorToRgba(this.imageDoodle_.backgroundColor));
     } else {
-      this.updateStyles({
-        '--ntp-logo-box-color': null,
-      });
+      this.style.removeProperty('--ntp-logo-box-color');
     }
     // Stop the animation (if it is running) and reset logging params since
     // mode change constitutes a new doodle session.
@@ -277,7 +229,7 @@ export class LogoElement extends PolymerElement {
    * clicking preview image of animated doodle. Otherwise, opens
    * doodle-associated URL in new tab/window.
    */
-  private onImageClick_() {
+  protected onImageClick_() {
     if ($$<HTMLElement>(this, '#imageDoodle')!.tabIndex < 0) {
       return;
     }
@@ -306,7 +258,7 @@ export class LogoElement extends PolymerElement {
         this.showAnimation_ ? DoodleImageType.kAnimation :
                               DoodleImageType.kStatic,
         null);
-    const onClickUrl = new URL(this.doodle_!.image!.onClickUrl!.url);
+    const onClickUrl = new URL(this.doodle_!.image!.onClickUrl.url);
     if (this.imageClickParams_) {
       for (const param of new URLSearchParams(this.imageClickParams_)) {
         onClickUrl.searchParams.append(param[0], param[1]);
@@ -315,7 +267,7 @@ export class LogoElement extends PolymerElement {
     WindowProxy.getInstance().open(onClickUrl.toString());
   }
 
-  private onImageLoad_() {
+  protected onImageLoad_() {
     this.logImageRendered_(
         this.isCtaImageShown_() ? DoodleImageType.kCta :
                                   DoodleImageType.kStatic,
@@ -331,13 +283,13 @@ export class LogoElement extends PolymerElement {
     this.shareId_ = shareId;
   }
 
-  private onImageKeydown_(e: KeyboardEvent) {
+  protected onImageKeydown_(e: KeyboardEvent) {
     if ([' ', 'Enter'].includes(e.key)) {
       this.onImageClick_();
     }
   }
 
-  private onShare_(e: CustomEvent<DoodleShareChannel>) {
+  protected onShare_(e: CustomEvent<DoodleShareChannel>) {
     const doodleId =
         new URL(this.doodle_!.image!.onClickUrl!.url).searchParams.get('ct');
     if (!doodleId) {
@@ -389,21 +341,19 @@ export class LogoElement extends PolymerElement {
     }
   }
 
-  private onShareButtonClick_(e: Event) {
+  protected onShareButtonClick_(e: Event) {
     e.stopPropagation();
     this.showShareDialog_ = true;
   }
 
-  private onShareDialogClose_() {
+  protected onShareDialogClose_() {
     this.showShareDialog_ = false;
   }
 
   private onDurationHeightWidthChange_() {
-    this.updateStyles({
-      '--duration': this.duration_,
-      '--height': this.height_,
-      '--width': this.width_,
-    });
+    this.style.setProperty('--duration', this.duration_);
+    this.style.setProperty('--height', this.height_);
+    this.style.setProperty('--width', this.width_);
   }
 
   private computeImageDoodleTabIndex_(): number {

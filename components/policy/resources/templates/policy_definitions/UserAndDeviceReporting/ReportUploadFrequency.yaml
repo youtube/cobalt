@@ -9,15 +9,14 @@ example_value: 10800000
 features:
   dynamic_refresh: true
 owners:
-- cros-reporting-team@google.com
+- cros-reporting-eng@google.com
 - lbaraz@chromium.org
 schema:
   minimum: 60000
   type: integer
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:42-
 tags:
 - admin-sharing
 type: int
+generate_device_proto: False

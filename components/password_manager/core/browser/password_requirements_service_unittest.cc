@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "components/autofill/core/browser/proto/password_requirements.pb.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/password_manager/core/browser/generation/password_requirements_spec_fetcher.h"
@@ -24,6 +25,7 @@ class MockPasswordRequirementsSpecFetcher
   ~MockPasswordRequirementsSpecFetcher() override = default;
 
   void Fetch(GURL origin, FetchCallback callback) override {
+    fetch_count_[origin]++;
     auto iter = data_to_return_.find(origin);
     std::move(callback).Run(iter != data_to_return_.end()
                                 ? iter->second
@@ -35,8 +37,14 @@ class MockPasswordRequirementsSpecFetcher
     data_to_return_[origin] = spec;
   }
 
+  int GetFetchCount(const GURL& origin) const {
+    auto it = fetch_count_.find(origin);
+    return it != fetch_count_.end() ? it->second : 0;
+  }
+
  private:
   std::map<GURL, autofill::PasswordRequirementsSpec> data_to_return_;
+  std::map<GURL, int> fetch_count_;
 };
 
 class PasswordRequirementsServiceTest : public testing::Test {
@@ -47,7 +55,12 @@ class PasswordRequirementsServiceTest : public testing::Test {
         fetcher_ptr_(new MockPasswordRequirementsSpecFetcher()),
         service_(std::unique_ptr<MockPasswordRequirementsSpecFetcher>(
             fetcher_ptr_)) {}
-  ~PasswordRequirementsServiceTest() override = default;
+
+  ~PasswordRequirementsServiceTest() override {
+    // This is set to `nullptr` explicitly to a) avoid that `fetcher_ptr_`
+    // dangles during construction and b) keep the construction order as is.
+    fetcher_ptr_ = nullptr;
+  }
 
  protected:
   // Prepopulated test data.
@@ -55,7 +68,7 @@ class PasswordRequirementsServiceTest : public testing::Test {
   autofill::FormSignature test_form_signature_{123};
   autofill::FieldSignature test_field_signature_{22};
 
-  // Weak pointer.
+  // Raw pointer, object is owned by `service_`.
   raw_ptr<MockPasswordRequirementsSpecFetcher> fetcher_ptr_;
   PasswordRequirementsService service_;
 };
@@ -87,7 +100,8 @@ TEST_F(PasswordRequirementsServiceTest, ExerciseEverything) {
     raw_ptr<autofill::PasswordRequirementsSpec> expected;
   } tests[] = {
       {
-          .test_name = "No data prefechted", .expected = &spec_l0_p0,
+          .test_name = "No data prefechted",
+          .expected = &spec_l0_p0,
       },
       {
           .test_name = "Only domain wide spec",
@@ -155,6 +169,31 @@ TEST_F(PasswordRequirementsServiceTest, ExerciseEverything) {
       EXPECT_EQ(test.expected->max_length(), result.max_length());
     }
   }
+}
+
+// Tests that fetching `PasswordRequirementsSpec` for the same domain multiple
+// times only results in a single network request due to caching.
+TEST_F(PasswordRequirementsServiceTest, FetchPasswordRequirementsSpecCaching) {
+  // Initially, no fetch should have been called.
+  ASSERT_EQ(fetcher_ptr_->GetFetchCount(test_origin_), 0);
+  base::test::TestFuture<autofill::PasswordRequirementsSpec> completion_future1;
+
+  service_.FetchPasswordRequirementsSpec(test_origin_,
+                                         completion_future1.GetCallback());
+  ASSERT_TRUE(completion_future1.Wait());
+  // Checks that password requirement was fetched once.
+  EXPECT_EQ(fetcher_ptr_->GetFetchCount(test_origin_), 1);
+
+  base::test::TestFuture<autofill::PasswordRequirementsSpec> completion_future2;
+
+  service_.FetchPasswordRequirementsSpec(test_origin_,
+                                         completion_future2.GetCallback());
+  ASSERT_TRUE(completion_future2.Wait());
+  EXPECT_EQ(fetcher_ptr_->GetFetchCount(test_origin_), 1);
+
+  // We did not fetch the server a second time since `test_origin_` was already
+  // in `specs_for_domains_`.
+  EXPECT_EQ(fetcher_ptr_->GetFetchCount(test_origin_), 1);
 }
 
 }  // namespace

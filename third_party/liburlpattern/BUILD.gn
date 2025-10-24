@@ -11,7 +11,7 @@ config("warnings") {
 
 component("liburlpattern") {
   defines = [ "IS_LIBURLPATTERN_IMPL" ]
-  deps = [
+  public_deps = [
     "//base:base",
     "//third_party/abseil-cpp:absl",
     "//third_party/icu:icu",
@@ -21,9 +21,13 @@ component("liburlpattern") {
 
   # Note, also update the local modifications in README.chromium.
   sources = [
+    "constructor_string_parser.cc",
+    "constructor_string_parser.h",
     "options.h",
     "parse.cc",
     "parse.h",
+    "part.cc",
+    "part.h",
     "pattern.cc",
     "pattern.h",
     "tokenize.cc",

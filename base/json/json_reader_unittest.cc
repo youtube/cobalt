@@ -2,35 +2,49 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/json/json_reader.h"
 
 #include <stddef.h>
 
+#include <array>
+#include <cmath>
+#include <string_view>
 #include <utility>
 
 #include "base/base_paths.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/gmock_expected_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"  // nogncheck
+
+// U+FFFD, REPLACEMENT CHARACTER, encoded in UTF-8.
+#define U_FFFD "\xEF\xBF\xBD"
 
 namespace {
 
 // MSan will do a better job detecting over-read errors if the input is not
 // nul-terminated on the heap. This will copy |input| to a new buffer owned by
-// |owner|, returning a base::StringPiece to |owner|.
-base::StringPiece MakeNotNullTerminatedInput(const char* input,
-                                             std::unique_ptr<char[]>* owner) {
-  size_t str_len = strlen(input);
-  owner->reset(new char[str_len]);
-  memcpy(owner->get(), input, str_len);
-  return base::StringPiece(owner->get(), str_len);
+// |owner|, returning a std::string_view to |owner|.
+base::HeapArray<char> MakeNotNullTerminatedInput(const char* input) {
+  // std::string_view is not nul terminated, so we won't be copying the nul
+  // char.
+  auto input_span = base::span(std::string_view(input));
+  return base::HeapArray<char>::CopiedFrom(input_span);
 }
 
 }  // namespace
@@ -38,7 +52,7 @@ base::StringPiece MakeNotNullTerminatedInput(const char* input,
 namespace base {
 
 TEST(JSONReaderTest, Whitespace) {
-  absl::optional<Value> root = JSONReader::Read("   null   ");
+  std::optional<Value> root = JSONReader::Read("   null   ");
   ASSERT_TRUE(root);
   EXPECT_TRUE(root->is_none());
 }
@@ -51,13 +65,15 @@ TEST(JSONReaderTest, InvalidString) {
 }
 
 TEST(JSONReaderTest, SimpleBool) {
-  absl::optional<Value> root = JSONReader::Read("true  ");
+  base::HistogramTester histograms;
+  std::optional<Value> root = JSONReader::Read("true  ");
   ASSERT_TRUE(root);
   EXPECT_TRUE(root->is_bool());
+  histograms.ExpectTotalCount("Security.JSONParser.ParsingTime", 1);
 }
 
 TEST(JSONReaderTest, EmbeddedComments) {
-  absl::optional<Value> root = JSONReader::Read("/* comment */null");
+  std::optional<Value> root = JSONReader::Read("/* comment */null");
   ASSERT_TRUE(root);
   EXPECT_TRUE(root->is_none());
   root = JSONReader::Read("40 /* comment */");
@@ -113,7 +129,7 @@ TEST(JSONReaderTest, EmbeddedComments) {
 }
 
 TEST(JSONReaderTest, Ints) {
-  absl::optional<Value> root = JSONReader::Read("43");
+  std::optional<Value> root = JSONReader::Read("43");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_int());
   EXPECT_EQ(43, root->GetInt());
@@ -129,7 +145,7 @@ TEST(JSONReaderTest, NonDecimalNumbers) {
 TEST(JSONReaderTest, NumberZero) {
   // Test 0 (which needs to be special cased because of the leading zero
   // clause).
-  absl::optional<Value> root = JSONReader::Read("0");
+  std::optional<Value> root = JSONReader::Read("0");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_int());
   EXPECT_EQ(0, root->GetInt());
@@ -138,7 +154,7 @@ TEST(JSONReaderTest, NumberZero) {
 TEST(JSONReaderTest, LargeIntPromotion) {
   // Numbers that overflow ints should succeed, being internally promoted to
   // storage as doubles
-  absl::optional<Value> root = JSONReader::Read("2147483648");
+  std::optional<Value> root = JSONReader::Read("2147483648");
   ASSERT_TRUE(root);
   EXPECT_TRUE(root->is_double());
   EXPECT_DOUBLE_EQ(2147483648.0, root->GetDouble());
@@ -155,7 +171,7 @@ TEST(JSONReaderTest, LargerIntIsLossy) {
   // In this case, parsing is lossy.
   const char* etc807 = "9223372036854775807";
   const char* etc808 = "9223372036854775808.000000";
-  absl::optional<Value> root = JSONReader::Read(etc807);
+  std::optional<Value> root = JSONReader::Read(etc807);
   ASSERT_TRUE(root);
   ASSERT_FALSE(root->is_int());
   ASSERT_TRUE(root->is_double());
@@ -166,7 +182,7 @@ TEST(JSONReaderTest, LargerIntIsLossy) {
 }
 
 TEST(JSONReaderTest, Doubles) {
-  absl::optional<Value> root = JSONReader::Read("43.1");
+  std::optional<Value> root = JSONReader::Read("43.1");
   ASSERT_TRUE(root);
   EXPECT_TRUE(root->is_double());
   EXPECT_DOUBLE_EQ(43.1, root->GetDouble());
@@ -242,31 +258,56 @@ TEST(JSONReaderTest, InvalidNumbers) {
   EXPECT_FALSE(JSONReader::Read("42a"));
 }
 
+TEST(JSONReaderTest, Zeroes) {
+  std::optional<Value> root = JSONReader::Read("0");
+  ASSERT_TRUE(root);
+  EXPECT_TRUE(root->is_int());
+  EXPECT_DOUBLE_EQ(0, root->GetInt());
+
+  root = JSONReader::Read("0.0");
+  ASSERT_TRUE(root);
+  EXPECT_TRUE(root->is_double());
+  EXPECT_DOUBLE_EQ(0.0, root->GetDouble());
+  EXPECT_FALSE(std::signbit(root->GetDouble()));
+
+  root = JSONReader::Read("-0");
+  ASSERT_TRUE(root);
+  EXPECT_TRUE(root->is_double());
+  EXPECT_DOUBLE_EQ(0.0, root->GetDouble());
+  EXPECT_TRUE(std::signbit(root->GetDouble()));
+
+  root = JSONReader::Read("-0.0");
+  ASSERT_TRUE(root);
+  EXPECT_TRUE(root->is_double());
+  EXPECT_DOUBLE_EQ(-0.0, root->GetDouble());
+  EXPECT_TRUE(std::signbit(root->GetDouble()));
+}
+
 TEST(JSONReaderTest, SimpleString) {
-  absl::optional<Value> root = JSONReader::Read("\"hello world\"");
+  std::optional<Value> root = JSONReader::Read("\"hello world\"");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_string());
   EXPECT_EQ("hello world", root->GetString());
 }
 
 TEST(JSONReaderTest, EmptyString) {
-  absl::optional<Value> root = JSONReader::Read("\"\"");
+  std::optional<Value> root = JSONReader::Read("\"\"");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_string());
   EXPECT_EQ("", root->GetString());
 }
 
 TEST(JSONReaderTest, BasicStringEscapes) {
-  absl::optional<Value> root =
-      JSONReader::Read("\" \\\"\\\\\\/\\b\\f\\n\\r\\t\\v\"");
+  std::optional<Value> root =
+      JSONReader::Read("\" \\\"\\\\\\/\\b\\f\\n\\r\\t\"");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_string());
-  EXPECT_EQ(" \"\\/\b\f\n\r\t\v", root->GetString());
+  EXPECT_EQ(" \"\\/\b\f\n\r\t", root->GetString());
 }
 
 TEST(JSONReaderTest, UnicodeEscapes) {
   // Test hex and unicode escapes including the null character.
-  absl::optional<Value> root =
+  std::optional<Value> root =
       JSONReader::Read("\"\\x41\\xFF\\x00\\u1234\\u0000\"");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_string());
@@ -291,21 +332,21 @@ TEST(JSONReaderTest, InvalidStrings) {
 }
 
 TEST(JSONReaderTest, BasicArray) {
-  absl::optional<Value> root = JSONReader::Read("[true, false, null]");
+  std::optional<Value> root = JSONReader::Read("[true, false, null]");
   ASSERT_TRUE(root);
   Value::List* list = root->GetIfList();
   ASSERT_TRUE(list);
   EXPECT_EQ(3U, list->size());
 
   // Test with trailing comma.  Should be parsed the same as above.
-  absl::optional<Value> root2 =
+  std::optional<Value> root2 =
       JSONReader::Read("[true, false, null, ]", JSON_ALLOW_TRAILING_COMMAS);
   ASSERT_TRUE(root2);
   EXPECT_EQ(*list, *root2);
 }
 
 TEST(JSONReaderTest, EmptyArray) {
-  absl::optional<Value> value = JSONReader::Read("[]");
+  std::optional<Value> value = JSONReader::Read("[]");
   ASSERT_TRUE(value);
   Value::List* list = value->GetIfList();
   ASSERT_TRUE(list);
@@ -313,7 +354,7 @@ TEST(JSONReaderTest, EmptyArray) {
 }
 
 TEST(JSONReaderTest, CompleteArray) {
-  absl::optional<Value> value = JSONReader::Read("[\"a\", 3, 4.56, null]");
+  std::optional<Value> value = JSONReader::Read("[\"a\", 3, 4.56, null]");
   ASSERT_TRUE(value);
   Value::List* list = value->GetIfList();
   ASSERT_TRUE(list);
@@ -321,7 +362,7 @@ TEST(JSONReaderTest, CompleteArray) {
 }
 
 TEST(JSONReaderTest, NestedArrays) {
-  absl::optional<Value> value = JSONReader::Read(
+  std::optional<Value> value = JSONReader::Read(
       "[[true], [], {\"smell\": \"nice\",\"taste\": \"yummy\" }, [false, [], "
       "[null]], null]");
   ASSERT_TRUE(value);
@@ -330,7 +371,7 @@ TEST(JSONReaderTest, NestedArrays) {
   EXPECT_EQ(5U, list->size());
 
   // Lots of trailing commas.
-  absl::optional<Value> root2 = JSONReader::Read(
+  std::optional<Value> root2 = JSONReader::Read(
       "[[true], [], {\"smell\": \"nice\",\"taste\": \"yummy\" }, [false, [], "
       "[null, ]  , ], null,]",
       JSON_ALLOW_TRAILING_COMMAS);
@@ -355,7 +396,7 @@ TEST(JSONReaderTest, InvalidArrays) {
 
 TEST(JSONReaderTest, ArrayTrailingComma) {
   // Valid if we set |allow_trailing_comma| to true.
-  absl::optional<Value> value =
+  std::optional<Value> value =
       JSONReader::Read("[true,]", JSON_ALLOW_TRAILING_COMMAS);
   ASSERT_TRUE(value);
   Value::List* list = value->GetIfList();
@@ -376,13 +417,13 @@ TEST(JSONReaderTest, ArrayTrailingCommaNoEmptyElements) {
 }
 
 TEST(JSONReaderTest, EmptyDictionary) {
-  absl::optional<Value> dict_val = JSONReader::Read("{}");
+  std::optional<Value> dict_val = JSONReader::Read("{}");
   ASSERT_TRUE(dict_val);
   ASSERT_TRUE(dict_val->is_dict());
 }
 
 TEST(JSONReaderTest, CompleteDictionary) {
-  absl::optional<Value> root1 = JSONReader::Read(
+  std::optional<Value> root1 = JSONReader::Read(
       "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\", \"bool\": "
       "false, \"more\": {} }");
   ASSERT_TRUE(root1);
@@ -401,7 +442,7 @@ TEST(JSONReaderTest, CompleteDictionary) {
   ASSERT_TRUE(bool_val);
   ASSERT_FALSE(*bool_val);
 
-  absl::optional<Value> root2 = JSONReader::Read(
+  std::optional<Value> root2 = JSONReader::Read(
       "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\", \"bool\": "
       "false, \"more\": {},}",
       JSON_PARSE_CHROMIUM_EXTENSIONS | JSON_ALLOW_TRAILING_COMMAS);
@@ -441,7 +482,7 @@ TEST(JSONReaderTest, CompleteDictionary) {
 }
 
 TEST(JSONReaderTest, NestedDictionaries) {
-  absl::optional<Value> root1 = JSONReader::Read(
+  std::optional<Value> root1 = JSONReader::Read(
       "{\"inner\":{\"array\":[true, 3, 4.56, null]},\"false\":false,\"d\":{}}");
   ASSERT_TRUE(root1);
   const base::Value::Dict* root1_dict = root1->GetIfDict();
@@ -457,7 +498,7 @@ TEST(JSONReaderTest, NestedDictionaries) {
   inner_dict = root1_dict->FindDict("d");
   EXPECT_TRUE(inner_dict);
 
-  absl::optional<Value> root2 = JSONReader::Read(
+  std::optional<Value> root2 = JSONReader::Read(
       "{\"inner\": {\"array\":[true, 3, 4.56, null] , "
       "},\"false\":false,\"d\":{},}",
       JSON_ALLOW_TRAILING_COMMAS);
@@ -466,7 +507,7 @@ TEST(JSONReaderTest, NestedDictionaries) {
 }
 
 TEST(JSONReaderTest, DictionaryKeysWithPeriods) {
-  absl::optional<Value> root =
+  std::optional<Value> root =
       JSONReader::Read("{\"a.b\":3,\"c\":2,\"d.e.f\":{\"g.h.i.j\":1}}");
   ASSERT_TRUE(root);
   Value::Dict* root_dict = root->GetIfDict();
@@ -498,7 +539,7 @@ TEST(JSONReaderTest, DictionaryKeysWithPeriods) {
 }
 
 TEST(JSONReaderTest, DuplicateKeys) {
-  absl::optional<Value> root = JSONReader::Read("{\"x\":1,\"x\":2,\"y\":3}");
+  std::optional<Value> root = JSONReader::Read("{\"x\":1,\"x\":2,\"y\":3}");
   ASSERT_TRUE(root);
   const Value::Dict* root_dict = root->GetIfDict();
   ASSERT_TRUE(root_dict);
@@ -546,10 +587,11 @@ TEST(JSONReaderTest, StackOverflow) {
   // A few thousand adjacent lists is fine.
   std::string not_evil("[");
   not_evil.reserve(15010);
-  for (int i = 0; i < 5000; ++i)
+  for (int i = 0; i < 5000; ++i) {
     not_evil.append("[],");
+  }
   not_evil.append("[]]");
-  absl::optional<Value> value = JSONReader::Read(not_evil);
+  std::optional<Value> value = JSONReader::Read(not_evil);
   ASSERT_TRUE(value);
   Value::List* list = value->GetIfList();
   ASSERT_TRUE(list);
@@ -557,7 +599,7 @@ TEST(JSONReaderTest, StackOverflow) {
 }
 
 TEST(JSONReaderTest, UTF8Input) {
-  absl::optional<Value> root = JSONReader::Read("\"\xe7\xbd\x91\xe9\xa1\xb5\"");
+  std::optional<Value> root = JSONReader::Read("\"\xe7\xbd\x91\xe9\xa1\xb5\"");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_string());
   const std::string& str_val = root->GetString();
@@ -627,7 +669,7 @@ TEST(JSONReaderTest, InvalidUTF8Input) {
 }
 
 TEST(JSONReaderTest, UTF16Escapes) {
-  absl::optional<Value> root = JSONReader::Read("\"\\u20ac3,14\"");
+  std::optional<Value> root = JSONReader::Read("\"\\u20ac3,14\"");
   ASSERT_TRUE(root);
   ASSERT_TRUE(root->is_string());
   EXPECT_EQ(
@@ -656,7 +698,7 @@ TEST(JSONReaderTest, InvalidUTF16Escapes) {
       "\"\\ud83d\\u1\"",     // No lower surrogate.
       "\"\\ud83\\u1\"",      // Invalid upper surrogate.
   };
-  absl::optional<Value> root;
+  std::optional<Value> root;
   for (auto* i : cases) {
     root = JSONReader::Read(i);
     EXPECT_FALSE(root) << i;
@@ -664,7 +706,7 @@ TEST(JSONReaderTest, InvalidUTF16Escapes) {
 }
 
 TEST(JSONReaderTest, LiteralRoots) {
-  absl::optional<Value> root = JSONReader::Read("null");
+  std::optional<Value> root = JSONReader::Read("null");
   ASSERT_TRUE(root);
   EXPECT_TRUE(root->is_none());
 
@@ -693,9 +735,9 @@ TEST(JSONReaderTest, ReadFromFile) {
   std::string input;
   ASSERT_TRUE(ReadFileToString(path.AppendASCII("bom_feff.json"), &input));
 
-  auto root = JSONReader::ReadAndReturnValueWithError(input);
-  ASSERT_TRUE(root.has_value()) << root.error().message;
-  EXPECT_TRUE(root->is_dict());
+  EXPECT_THAT(
+      JSONReader::ReadAndReturnValueWithError(input),
+      base::test::ValueIs(::testing::Property(&base::Value::is_dict, true)));
 }
 
 // Tests that the root of a JSON object can be deleted safely while its
@@ -709,7 +751,7 @@ TEST(JSONReaderTest, StringOptimizations) {
   Value list_value_1;
 
   {
-    absl::optional<Value> root = JSONReader::Read(
+    std::optional<Value> root = JSONReader::Read(
         "{"
         "  \"test\": {"
         "    \"foo\": true,"
@@ -777,9 +819,14 @@ TEST(JSONReaderTest, StringOptimizations) {
 // parser implementation against buffer overflow. Best run with DCHECKs so
 // that the one in NextChar fires.
 TEST(JSONReaderTest, InvalidSanity) {
-  const char* const kInvalidJson[] = {
-      "/* test *", "{\"foo\"", "{\"foo\":", "  [", "\"\\u123g\"", "{\n\"eh:\n}",
-  };
+  const auto kInvalidJson = std::to_array<const char*>({
+      "/* test *",
+      "{\"foo\"",
+      "{\"foo\":",
+      "  [",
+      "\"\\u123g\"",
+      "{\n\"eh:\n}",
+  });
 
   for (size_t i = 0; i < std::size(kInvalidJson); ++i) {
     LOG(INFO) << "Sanity test " << i << ": <" << kInvalidJson[i] << ">";
@@ -790,8 +837,8 @@ TEST(JSONReaderTest, InvalidSanity) {
 }
 
 TEST(JSONReaderTest, IllegalTrailingNull) {
-  const char json[] = {'"', 'n', 'u', 'l', 'l', '"', '\0'};
-  std::string json_string(json, sizeof(json));
+  const auto json = std::to_array<char>({'"', 'n', 'u', 'l', 'l', '"', '\0'});
+  std::string json_string(json.data(), sizeof(json));
   auto root = JSONReader::ReadAndReturnValueWithError(json_string);
   EXPECT_FALSE(root.has_value());
   EXPECT_NE("", root.error().message);
@@ -802,13 +849,24 @@ TEST(JSONReaderTest, ASCIIControlCodes) {
   // rejected. RFC 8259 section 7 says "the characters that MUST be escaped
   // [include]... the control characters (U+0000 through U+001F)".
   //
-  // Nonetheless, we accept them, for backwards compatibility.
-  const char json[] = {'"', 'a', '\0', 'b', '\n', 'c', '"'};
-  absl::optional<Value> root =
-      JSONReader::Read(std::string(json, sizeof(json)));
-  ASSERT_TRUE(root);
-  ASSERT_TRUE(root->is_string());
-  EXPECT_EQ(5u, root->GetString().length());
+  // Currently, we accept \r and \n in JSON strings because they are widely used
+  // and somewhat useful (especially when nesting JSON messages), but reject all
+  // other control characters.
+  {
+    const char json[] = "\"a\rn\nc\"";
+    auto root = JSONReader::Read(json);
+    ASSERT_TRUE(root);
+    ASSERT_TRUE(root->is_string());
+    EXPECT_EQ(5u, root->GetString().length());
+  }
+
+  {
+    // Replace the \r with a disallowed \f, and require parsing to fail:
+    const char json[] = "\"a\fn\nc\"";
+    auto root = JSONReader::ReadAndReturnValueWithError(json);
+    EXPECT_FALSE(root.has_value());
+    EXPECT_NE("", root.error().message);
+  }
 }
 
 TEST(JSONReaderTest, MaxNesting) {
@@ -822,7 +880,7 @@ TEST(JSONReaderTest, Decode4ByteUtf8Char) {
   // should be able to handle. The UTF-8 encoding of U+1F607 SMILING FACE WITH
   // HALO is "\xF0\x9F\x98\x87".
   const char kUtf8Data[] = "[\"😇\",[],[],[],{\"google:suggesttype\":[]}]";
-  absl::optional<Value> root = JSONReader::Read(kUtf8Data, JSON_PARSE_RFC);
+  std::optional<Value> root = JSONReader::Read(kUtf8Data, JSON_PARSE_RFC);
   ASSERT_TRUE(root);
   Value::List* list = root->GetIfList();
   ASSERT_TRUE(list);
@@ -882,12 +940,12 @@ TEST(JSONReaderTest, DecodeNegativeEscapeSequence) {
 TEST(JSONReaderTest, ReplaceInvalidCharacters) {
   // U+D800 is a lone high surrogate.
   const std::string invalid_high = "\"\xED\xA0\x80\"";
-  absl::optional<Value> value =
+  std::optional<Value> value =
       JSONReader::Read(invalid_high, JSON_REPLACE_INVALID_CHARACTERS);
   ASSERT_TRUE(value);
   ASSERT_TRUE(value->is_string());
   // Expect three U+FFFD (one for each UTF-8 byte in the invalid code point).
-  EXPECT_EQ("\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD", value->GetString());
+  EXPECT_EQ(U_FFFD U_FFFD U_FFFD, value->GetString());
 
   // U+DFFF is a lone low surrogate.
   const std::string invalid_low = "\"\xED\xBF\xBF\"";
@@ -895,32 +953,67 @@ TEST(JSONReaderTest, ReplaceInvalidCharacters) {
   ASSERT_TRUE(value);
   ASSERT_TRUE(value->is_string());
   // Expect three U+FFFD (one for each UTF-8 byte in the invalid code point).
-  EXPECT_EQ("\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD", value->GetString());
+  EXPECT_EQ(U_FFFD U_FFFD U_FFFD, value->GetString());
 }
 
 TEST(JSONReaderTest, ReplaceInvalidUTF16EscapeSequence) {
   // U+D800 is a lone high surrogate.
   const std::string invalid_high = "\"_\\uD800_\"";
-  absl::optional<Value> value =
+  std::optional<Value> value =
       JSONReader::Read(invalid_high, JSON_REPLACE_INVALID_CHARACTERS);
   ASSERT_TRUE(value);
   ASSERT_TRUE(value->is_string());
-  EXPECT_EQ("_\xEF\xBF\xBD_", value->GetString());
+  EXPECT_EQ("_" U_FFFD "_", value->GetString());
 
   // U+DFFF is a lone low surrogate.
   const std::string invalid_low = "\"_\\uDFFF_\"";
   value = JSONReader::Read(invalid_low, JSON_REPLACE_INVALID_CHARACTERS);
   ASSERT_TRUE(value);
   ASSERT_TRUE(value->is_string());
-  EXPECT_EQ("_\xEF\xBF\xBD_", value->GetString());
+  EXPECT_EQ("_" U_FFFD "_", value->GetString());
+}
+
+TEST(JSONReaderTest, InvalidUTF16HighSurrogates) {
+  // U+dbaa is a high surrogate and expects a low surrogate, which U+001e is
+  // not, so the entire surrogate pair should be replaced by
+  // REPLACEMENT_CHARACTER.
+  const std::string surrogate_and_dquote = R"("\udbaa\u001e")";
+  std::optional<Value> value =
+      JSONReader::Read(surrogate_and_dquote, JSON_REPLACE_INVALID_CHARACTERS);
+  ASSERT_TRUE(value);
+  ASSERT_TRUE(value->is_string());
+  EXPECT_EQ("\xEF\xBF\xBD", value->GetString());
+
+  // However, when not replacing invalid characters, the entire parse is
+  // invalid.
+  value = JSONReader::Read(surrogate_and_dquote);
+  ASSERT_FALSE(value);
+}
+
+TEST(JSONReaderTest, InvalidUTF16HighSurrogatesAndEscapes) {
+  // U+dbaa is a lone high surrogate, and should be replaced with
+  // REPLACEMENT_CHARACTER and not affect interpretation of the following `\`
+  // character as a part of the escape sequence `\"`.
+  const std::string surrogate_and_dquote = R"("\udbaa\"abc")";
+  std::optional<Value> value =
+      JSONReader::Read(surrogate_and_dquote, JSON_REPLACE_INVALID_CHARACTERS);
+  ASSERT_TRUE(value);
+  ASSERT_TRUE(value->is_string());
+  EXPECT_EQ(U_FFFD "\"abc", value->GetString());
+
+  // However, when not replacing invalid characters, the entire parse is
+  // invalid.
+  value = JSONReader::Read(surrogate_and_dquote);
+  ASSERT_FALSE(value);
 }
 
 TEST(JSONReaderTest, ParseNumberErrors) {
-  const struct {
+  struct Cases {
     const char* input;
     bool parse_success;
     double value;
-  } kCases[] = {
+  };
+  const auto kCases = std::to_array<Cases>({
       // clang-format off
       {"1", true, 1},
       {"2.", false, 0},
@@ -932,21 +1025,20 @@ TEST(JSONReaderTest, ParseNumberErrors) {
       {"2e+", false, 0},
       {"2e+2", true, 200},
       // clang-format on
-  };
+  });
 
   for (unsigned int i = 0; i < std::size(kCases); ++i) {
     auto test_case = kCases[i];
     SCOPED_TRACE(StringPrintf("case %u: \"%s\"", i, test_case.input));
 
-    std::unique_ptr<char[]> input_owner;
-    StringPiece input =
-        MakeNotNullTerminatedInput(test_case.input, &input_owner);
+    HeapArray<char> input = MakeNotNullTerminatedInput(test_case.input);
 
-    absl::optional<Value> result = JSONReader::Read(input);
+    std::optional<Value> result = JSONReader::Read(as_string_view(input));
     EXPECT_EQ(test_case.parse_success, result.has_value());
 
-    if (!result)
+    if (!result) {
       continue;
+    }
 
     ASSERT_TRUE(result->is_double() || result->is_int());
     EXPECT_EQ(test_case.value, result->GetDouble());
@@ -954,7 +1046,7 @@ TEST(JSONReaderTest, ParseNumberErrors) {
 }
 
 TEST(JSONReaderTest, UnterminatedInputs) {
-  const char* const kCases[] = {
+  const auto kCases = std::to_array<const char*>({
       // clang-format off
       "/",
       "//",
@@ -973,25 +1065,25 @@ TEST(JSONReaderTest, UnterminatedInputs) {
       "\"\\",
       "\"\\/",
       // clang-format on
-  };
+  });
 
   for (unsigned int i = 0; i < std::size(kCases); ++i) {
     auto* test_case = kCases[i];
     SCOPED_TRACE(StringPrintf("case %u: \"%s\"", i, test_case));
 
-    std::unique_ptr<char[]> input_owner;
-    StringPiece input = MakeNotNullTerminatedInput(test_case, &input_owner);
+    HeapArray<char> input = MakeNotNullTerminatedInput(test_case);
 
-    EXPECT_FALSE(JSONReader::Read(input));
+    EXPECT_FALSE(JSONReader::Read(as_string_view(input)));
   }
 }
 
 TEST(JSONReaderTest, LineColumnCounting) {
-  const struct {
+  struct Cases {
     const char* input;
     int error_line;
     int error_column;
-  } kCases[] = {
+  };
+  const auto kCases = std::to_array<Cases>({
       // For all but the "q_is_not_etc" case, the error (indicated by ^ in the
       // comments) is seeing a digit when expecting ',' or ']'.
       {
@@ -1045,14 +1137,14 @@ TEST(JSONReaderTest, LineColumnCounting) {
           2,
           4,
       },
-  };
+  });
 
   for (unsigned int i = 0; i < std::size(kCases); ++i) {
     auto test_case = kCases[i];
     SCOPED_TRACE(StringPrintf("case %u: \"%s\"", i, test_case.input));
 
     auto root = JSONReader::ReadAndReturnValueWithError(
-        test_case.input, JSON_PARSE_RFC | JSON_ALLOW_CONTROL_CHARS);
+        test_case.input, JSON_PARSE_RFC | JSON_ALLOW_NEWLINES_IN_STRINGS);
     EXPECT_FALSE(root.has_value());
     EXPECT_EQ(test_case.error_line, root.error().line);
     EXPECT_EQ(test_case.error_column, root.error().column);
@@ -1062,23 +1154,19 @@ TEST(JSONReaderTest, LineColumnCounting) {
 TEST(JSONReaderTest, ChromiumExtensions) {
   // All of these cases should parse with JSON_PARSE_CHROMIUM_EXTENSIONS but
   // fail with JSON_PARSE_RFC.
-  const struct {
+  struct Cases {
     // The JSON input.
     const char* input;
     // What JSON_* option permits this extension.
     int option;
-  } kCases[] = {
+  };
+  const auto kCases = std::to_array<Cases>({
       {"{ /* comment */ \"foo\": 3 }", JSON_ALLOW_COMMENTS},
       {"{ // comment\n \"foo\": 3 }", JSON_ALLOW_COMMENTS},
       {"[\"\\xAB\"]", JSON_ALLOW_X_ESCAPES},
-      {"[\"\b\"]", JSON_ALLOW_CONTROL_CHARS},
-      {"[\"\f\"]", JSON_ALLOW_CONTROL_CHARS},
-      {"[\"\n\"]", JSON_ALLOW_CONTROL_CHARS},
-      {"[\"\r\"]", JSON_ALLOW_CONTROL_CHARS},
-      {"[\"\t\"]", JSON_ALLOW_CONTROL_CHARS},
-      {"[\"\v\"]", JSON_ALLOW_CONTROL_CHARS},
-      {"[\"\\v\"]", JSON_ALLOW_VERT_TAB},
-  };
+      {"[\"\n\"]", JSON_ALLOW_NEWLINES_IN_STRINGS},
+      {"[\"\r\"]", JSON_ALLOW_NEWLINES_IN_STRINGS},
+  });
 
   for (size_t i = 0; i < std::size(kCases); ++i) {
     SCOPED_TRACE(testing::Message() << "case " << i);
@@ -1102,4 +1190,52 @@ TEST(JSONReaderTest, ChromiumExtensions) {
   }
 }
 
+// For every control character, place it unescaped in a string and ensure that:
+// a) It doesn't parse with JSON_PARSE_RFC
+// b) It doesn't parse with JSON_PARSE_CHROMIUM_EXTENSIONS
+TEST(JSONReaderTest, UnescapedControls) {
+  std::string input = "\"foo\"";
+  // ECMA-404 (JSON standard) section 9: characters from 0x00 to 0x1f must be
+  // escaped.
+  for (char c = 0x00; c <= 0x1f; c++) {
+    input[1] = c;
+
+    auto result = JSONReader::Read(input, JSON_PARSE_RFC);
+    EXPECT_FALSE(result.has_value());
+
+    bool should_parse_with_extensions = (c == '\r' || c == '\n');
+    result = JSONReader::Read(input, JSON_PARSE_CHROMIUM_EXTENSIONS);
+    EXPECT_EQ(should_parse_with_extensions, result.has_value());
+  }
+}
+
+TEST(JSONReaderTest, ReadingJsonIntoDictAndList) {
+  {
+    std::optional<base::Value::List> list = JSONReader::ReadList("[1, 2, 3]");
+    ASSERT_TRUE(list);
+  }
+
+  {
+    std::optional<base::Value::List> list = JSONReader::ReadList("{}");
+    ASSERT_FALSE(list);
+  }
+
+  {
+    std::optional<base::Value::Dict> dict = JSONReader::ReadDict("{}");
+    ASSERT_TRUE(dict);
+  }
+
+  {
+    std::optional<base::Value::Dict> dict = JSONReader::ReadDict("[1, 2, 3]");
+    ASSERT_FALSE(dict);
+  }
+}
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+static void CanParseAnythingWithoutCrashing(std::string_view input,
+                                            int options) {
+  JSONReader::Read(input, options);
+}
+
+FUZZ_TEST(JSONReaderTest, CanParseAnythingWithoutCrashing);
+#endif
 }  // namespace base

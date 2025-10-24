@@ -19,15 +19,13 @@ class TestFocusChangeListener : public views::FocusChangeListener {
   ~TestFocusChangeListener() override;
 
   // views::FocusChangeListener:
-  void OnWillChangeFocus(views::View* focused_before,
-                         views::View* focused_now) override {}
   void OnDidChangeFocus(views::View* focused_before,
                         views::View* focused_now) override;
 
   int focus_change_count() { return focus_change_count_; }
 
  private:
-  const raw_ptr<views::FocusManager, ExperimentalAsh> focus_manager_;
+  const raw_ptr<views::FocusManager> focus_manager_;
 
   // Records the count of focus changes.
   int focus_change_count_ = 0;

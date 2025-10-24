@@ -1,22 +1,20 @@
 // Copyright (c) 2017, the HRSS authors.
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_SMALL) && defined(__linux__) && defined(__x86_64__)
+#include <openssl/asm_base.h>
 
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_SMALL) && defined(OPENSSL_LINUX) && defined(OPENSSL_X86_64)
 
 // This is the polynomial multiplication function from [HRSS], provided by kind
 // permission of the authors.
@@ -303,6 +301,7 @@ mask_mod8192:
 .att_syntax prefix
 poly_Rq_mul:
 .cfi_startproc
+_CET_ENDBR
 push %rbp
 .cfi_adjust_cfa_offset 8
 .cfi_offset rbp, -16
@@ -8476,6 +8475,7 @@ vmovdqu 1320(%rdi), %ymm11
 vpaddw 2752(%r8), %ymm11, %ymm11
 vpand mask_mod8192(%rip), %ymm11, %ymm11
 vmovdqu %ymm11, 1320(%rdi)
+vzeroupper
 pop %r12
 .cfi_restore r12
 pop %rbp
@@ -8486,8 +8486,4 @@ ret
 .cfi_endproc
 .size poly_Rq_mul,.-poly_Rq_mul
 
-#endif
-
-#if defined(__ELF__)
-.section	.note.GNU-stack,"",%progbits
 #endif

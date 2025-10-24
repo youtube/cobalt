@@ -16,9 +16,18 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/non_client_view.h"
 
+namespace display {
+class DisplayObserver;
+class ScopedDisplayObserver;
+enum class TabletState;
+}  // namespace display
+
 namespace chromeos {
 
-class NonClientFrameViewBase : public views::NonClientFrameView {
+class NonClientFrameViewBase : public views::NonClientFrameView,
+                               public display::DisplayObserver {
+  METADATA_HEADER(NonClientFrameViewBase, views::NonClientFrameView)
+
  public:
   explicit NonClientFrameViewBase(views::Widget* frame);
   NonClientFrameViewBase(const NonClientFrameViewBase&) = delete;
@@ -32,15 +41,18 @@ class NonClientFrameViewBase : public views::NonClientFrameView {
   int NonClientHitTest(const gfx::Point& point) override;
   void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override;
   void ResetWindowControls() override;
-  void UpdateWindowIcon() override;
   void UpdateWindowTitle() override;
   void SizeConstraintsChanged() override;
   views::View::Views GetChildrenInZOrder() override;
-  gfx::Size CalculatePreferredSize() const override;
-  void Layout() override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  void Layout(PassKey) override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
   void OnThemeChanged() override;
+
+  // display::DisplayObserver:
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
   // Get the view of the header.
   HeaderView* GetHeaderView();
@@ -56,12 +68,12 @@ class NonClientFrameViewBase : public views::NonClientFrameView {
   // views::NonClientFrameView:
   bool DoesIntersectRect(const views::View* target,
                          const gfx::Rect& rect) const override;
-  const raw_ptr<views::Widget, ExperimentalAsh> frame_;
+  const raw_ptr<views::Widget> frame_;
 
   // View which contains the title and window controls.
-  raw_ptr<HeaderView, ExperimentalAsh> header_view_ = nullptr;
+  raw_ptr<HeaderView> header_view_ = nullptr;
 
-  raw_ptr<OverlayView, ExperimentalAsh> overlay_view_ = nullptr;
+  raw_ptr<OverlayView> overlay_view_ = nullptr;
 
   bool frame_enabled_ = true;
 
@@ -73,6 +85,8 @@ class NonClientFrameViewBase : public views::NonClientFrameView {
       frame_->RegisterPaintAsActiveChangedCallback(
           base::BindRepeating(&NonClientFrameViewBase::PaintAsActiveChanged,
                               base::Unretained(this)));
+
+  display::ScopedDisplayObserver display_observer_{this};
 };
 
 // View which takes up the entire widget and contains the HeaderView. HeaderView
@@ -80,22 +94,23 @@ class NonClientFrameViewBase : public views::NonClientFrameView {
 // when painting the HeaderView to its own layer.
 class NonClientFrameViewBase::OverlayView : public views::View,
                                             public views::ViewTargeterDelegate {
+  METADATA_HEADER(OverlayView, views::View)
+
  public:
-  METADATA_HEADER(OverlayView);
   explicit OverlayView(HeaderView* header_view);
   OverlayView(const OverlayView&) = delete;
   OverlayView& operator=(const OverlayView&) = delete;
   ~OverlayView() override;
 
   // views::View:
-  void Layout() override;
+  void Layout(PassKey) override;
 
  private:
   // views::ViewTargeterDelegate:
   bool DoesIntersectRect(const views::View* target,
                          const gfx::Rect& rect) const override;
 
-  raw_ptr<HeaderView, ExperimentalAsh> header_view_;
+  raw_ptr<HeaderView> header_view_;
 };
 
 }  // namespace chromeos

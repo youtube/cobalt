@@ -55,7 +55,7 @@ class ApplicationControlsImpl : public ApplicationClient::ApplicationControls,
   }
 
  private:
-  const base::raw_ref<content::WebContents> web_contents_;
+  const raw_ref<content::WebContents> web_contents_;
   media_control::MediaBlocker media_blocker_;
   url_rewrite::UrlRequestRewriteRulesManager url_request_rewrite_rules_manager_;
 };
@@ -65,7 +65,7 @@ class ApplicationControlsImpl : public ApplicationClient::ApplicationControls,
 ApplicationClient::ApplicationControls::~ApplicationControls() = default;
 
 ApplicationClient::ApplicationClient(
-    NetworkContextGetter network_context_getter)
+    network::NetworkContextGetter network_context_getter)
     : network_context_getter_(std::move(network_context_getter)),
       weak_factory_(this) {}
 
@@ -102,10 +102,10 @@ void ApplicationClient::OnWebContentsCreated(
 std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
 ApplicationClient::CreateURLLoaderThrottles(
     const base::RepeatingCallback<content::WebContents*()>& wc_getter,
-    int frame_tree_node_id,
+    content::FrameTreeNodeId frame_tree_node_id,
     CorsExemptHeaderCallback is_cors_exempt_header_cb) {
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
-  if (frame_tree_node_id == content::RenderFrameHost::kNoFrameTreeNodeId) {
+  if (frame_tree_node_id.is_null()) {
     return throttles;
   }
 

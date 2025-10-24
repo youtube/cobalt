@@ -4,11 +4,11 @@
 
 #include "components/services/storage/dom_storage/session_storage_namespace_impl.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 
 namespace storage {
 
@@ -51,7 +51,7 @@ void SessionStorageNamespaceImpl::ClearChildNamespacesWaitingForClone() {
   child_namespaces_waiting_for_clone_call_.clear();
 }
 
-bool SessionStorageNamespaceImpl::HasAreaForStorageKey(
+bool SessionStorageNamespaceImpl::HasAreaForStorageKeyForTesting(
     const blink::StorageKey& storage_key) const {
   return storage_key_areas_.find(storage_key) != storage_key_areas_.end();
 }
@@ -92,7 +92,7 @@ void SessionStorageNamespaceImpl::PopulateAsClone(
   state_ = State::kPopulated;
   pending_population_from_parent_namespace_.clear();
   namespace_entry_ = namespace_metadata;
-  base::ranges::transform(
+  std::ranges::transform(
       areas_to_clone,
       std::inserter(storage_key_areas_, storage_key_areas_.begin()),
       [namespace_metadata](const auto& source) {
@@ -234,7 +234,7 @@ void SessionStorageNamespaceImpl::CloneAllNamespacesWaitingForClone(
     // from the map is to call DeleteNamespace, which would have called this
     // method on the parent if there were children, and resolved our clone
     // dependency.
-    DCHECK(parent_it != namespaces_map.end());
+    CHECK(parent_it != namespaces_map.end());
     parent = parent_it->second.get();
   }
 
@@ -260,7 +260,7 @@ void SessionStorageNamespaceImpl::CloneAllNamespacesWaitingForClone(
       // The child must be in the map, as the only way to add it to
       // |child_namespaces_waiting_for_clone_call_| is to call
       // CloneNamespace, which always adds it to the map.
-      DCHECK(child_it != namespaces_map.end());
+      CHECK(child_it != namespaces_map.end());
       child_it->second->SetPendingPopulationFromParentNamespace(
           parent->namespace_id_);
     }

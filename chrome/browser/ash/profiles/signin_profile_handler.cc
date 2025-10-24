@@ -13,17 +13,16 @@
 #include "base/files/file_path.h"
 #include "chrome/browser/ash/login/signin/oauth2_login_manager_factory.h"
 #include "chrome/browser/ash/login/signin_partition_manager.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
 #include "chrome/browser/extensions/component_loader.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "components/crx_file/id_util.h"
 #include "components/user_manager/user_manager.h"
-#include "extensions/browser/extension_system.h"
 
 namespace ash {
 namespace {
@@ -82,7 +81,7 @@ void SigninProfileHandler::ProfileStartUp(Profile* profile) {
 
   // Add observer so we can see when the first profile's session restore is
   // completed. After that, we won't need the default profile anymore.
-  if (!ProfileHelper::IsSigninProfile(profile) &&
+  if (!ash::IsSigninBrowserContext(profile) &&
       user_manager::UserManager::Get()->IsLoggedInAsUserWithGaiaAccount() &&
       !user_manager::UserManager::Get()->IsLoggedInAsStub()) {
     auto* login_manager =
@@ -99,14 +98,18 @@ void SigninProfileHandler::ClearSigninProfile(base::OnceClosure callback) {
   if (on_clear_callbacks_.size() > 1)
     return;
 
-  ProfileManager* profile_manager = g_browser_process->profile_manager();
-  // Check if signin profile was loaded.
-  if (!profile_manager || !profile_manager->GetProfileByPath(
-                              ProfileHelper::GetSigninProfileDir())) {
+  if (!g_browser_process->profile_manager()) {
     OnSigninProfileCleared();
     return;
   }
-  auto* signin_profile = ProfileHelper::GetSigninProfile();
+
+  auto* signin_profile = Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetSigninBrowserContext());
+  if (!signin_profile) {
+    OnSigninProfileCleared();
+    return;
+  }
+
   on_clear_profile_stage_finished_ = base::BarrierClosure(
       3, base::BindOnce(&SigninProfileHandler::OnSigninProfileCleared,
                         weak_factory_.GetWeakPtr()));
@@ -135,14 +138,12 @@ void SigninProfileHandler::ClearSigninProfile(base::OnceClosure callback) {
 
   // Unload all extensions that could possibly leak the SigninProfile for
   // unauthorized usage.
-  // TODO(https://crbug.com/1045929): This also can be fixed by restricting URLs
+  // TODO(crbug.com/40116250): This also can be fixed by restricting URLs
   //                                  or browser windows from opening.
   const std::set<std::string> allowed_ids_hashes(
       std::begin(kNonRiskyExtensionsIdsHashes),
       std::end(kNonRiskyExtensionsIdsHashes));
-  auto* component_loader = extensions::ExtensionSystem::Get(signin_profile)
-                               ->extension_service()
-                               ->component_loader();
+  auto* component_loader = extensions::ComponentLoader::Get(signin_profile);
   const std::vector<std::string> loaded_extensions =
       component_loader->GetRegisteredComponentExtensionsIds();
   for (const auto& el : loaded_extensions) {

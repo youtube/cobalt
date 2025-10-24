@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/path_service.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
@@ -28,6 +29,7 @@
 #include "include/core/SkGraphics.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
+#include "skia/ext/font_utils.h"
 #include "src/base/SkTSearch.h"
 #include "src/core/SkTraceEvent.h"
 #include "starboard/configuration_constants.h"
@@ -643,7 +645,7 @@ SkFontMgr_Cobalt::StyleSetArray* SkFontMgr_Cobalt::GetMatchingFallbackFamilies(
 
 // static
 sk_sp<SkFontMgr_Cobalt> SkFontMgr_Cobalt::GetDefault() {
-  sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefDefault();
+  sk_sp<SkFontMgr> font_mgr(skia::DefaultFontMgr());
   if (!font_mgr) {
     return nullptr;
   }
@@ -652,4 +654,27 @@ sk_sp<SkFontMgr_Cobalt> SkFontMgr_Cobalt::GetDefault() {
   // Instead, we just use a static_cast. This is safe as long as we are sure
   // that the singleton is a SkFontMgr_Cobalt. In Cobalt, this is the case.
   return sk_ref_sp(static_cast<SkFontMgr_Cobalt*>(font_mgr.get()));
+}
+
+sk_sp<SkFontMgr> SkFontMgr_New_Cobalt() {
+  base::FilePath cobalt_font_directory;
+  CHECK(base::PathService::Get(base::DIR_EXE, &cobalt_font_directory));
+  cobalt_font_directory =
+      cobalt_font_directory.Append(FILE_PATH_LITERAL("fonts"));
+
+  base::FilePath system_font_config_directory;
+  base::PathService::Get(base::DIR_SYSTEM_FONTS_CONFIGURATION,
+                         &system_font_config_directory);
+
+  base::FilePath system_font_files_directory;
+  base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
+
+  skia_private::TArray<SkString, true> default_families;
+  default_families.push_back(SkString("sans-serif"));
+
+  return sk_make_sp<SkFontMgr_Cobalt>(
+      cobalt_font_directory.value().c_str(),
+      cobalt_font_directory.value().c_str(),
+      system_font_config_directory.value().c_str(),
+      system_font_files_directory.value().c_str(), default_families);
 }

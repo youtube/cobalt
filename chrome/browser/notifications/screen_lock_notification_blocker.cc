@@ -13,12 +13,9 @@ const int kUserStatePollingIntervalSeconds = 1;
 
 ScreenLockNotificationBlocker::ScreenLockNotificationBlocker(
     message_center::MessageCenter* message_center)
-    : NotificationBlocker(message_center),
-      is_locked_(false) {
-}
+    : NotificationBlocker(message_center), is_locked_(false) {}
 
-ScreenLockNotificationBlocker::~ScreenLockNotificationBlocker() {
-}
+ScreenLockNotificationBlocker::~ScreenLockNotificationBlocker() = default;
 
 void ScreenLockNotificationBlocker::CheckState() {
   bool was_locked = is_locked_;

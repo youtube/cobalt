@@ -104,7 +104,6 @@
   main {
     font-size: 1rem;
     margin-top: 2rem;
-    margin-bottom: 2rem;
     line-height: 1.5;
     color: rgba(0, 0, 0, 0.8);
 
@@ -115,42 +114,10 @@
 
   footer {
     display: flex;
-    justify-content: space-around;
+    justify-content: end;
+    margin-top: 2rem;
+    gap: 4px;
   } // footer
-
-  .modal-btn {
-    font-size: 0.875rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    background-color: #e6e6e6;
-    color: rgba(0, 0, 0, 0.8);
-    border: 2px solid transparent;
-    border-radius: 4px;
-    cursor: pointer;
-    text-transform: none;
-    overflow: visible;
-    margin: 5px;
-    transform: translateZ(0);
-    transition: border-color 0.25s var(--anim-easing),
-      background-color 0.25s var(--anim-easing);
-
-    &:focus {
-      border-color: #03a9f4;
-    }
-    &:hover {
-      background-color: #ececec;
-    }
-  }
-
-  .modal-btn-primary {
-    background-color: hsl(215deg, 22%, 19%);
-    color: #fff;
-    &:hover {
-      background-color: hsl(215deg, 22%, 35%);
-    }
-  }
 }
 
 .help {

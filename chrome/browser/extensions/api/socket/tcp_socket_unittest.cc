@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
@@ -37,7 +42,7 @@ const char FAKE_ID[] = "abcdefghijklmnopqrst";
 using AcceptFuture = base::test::TestFuture<
     int32_t,
     mojo::PendingRemote<network::mojom::TCPConnectedSocket>,
-    const absl::optional<net::IPEndPoint>&,
+    const std::optional<net::IPEndPoint>&,
     mojo::ScopedDataPipeConsumerHandle,
     mojo::ScopedDataPipeProducerHandle>;
 

@@ -21,20 +21,16 @@
 
 namespace ash {
 
-class JitterCalculator;
-
 // AmbientBackgroundImageView--------------------------------------------------
 // A custom ImageView to display photo image and details information on ambient.
 // It also handles specific mouse/gesture events to dismiss ambient when user
 // interacts with the background photos.
 class ASH_EXPORT AmbientBackgroundImageView : public views::View,
                                               public views::ViewObserver {
- public:
-  METADATA_HEADER(AmbientBackgroundImageView);
+  METADATA_HEADER(AmbientBackgroundImageView, views::View)
 
-  AmbientBackgroundImageView(
-      AmbientViewDelegate* delegate,
-      JitterCalculator* glanceable_info_jitter_calculator);
+ public:
+  explicit AmbientBackgroundImageView(AmbientViewDelegate* delegate);
   AmbientBackgroundImageView(const AmbientBackgroundImageView&) = delete;
   AmbientBackgroundImageView& operator=(const AmbientBackgroundImageView&) =
       delete;
@@ -59,6 +55,8 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
   // Shows/Hides the peripheral ui.
   void SetPeripheralUiVisibility(bool visible);
 
+  void SetForceResizeToFit(bool force_resize_to_fit);
+
   gfx::ImageSkia GetCurrentImage();
 
   gfx::Rect GetImageBoundsInScreenForTesting() const;
@@ -81,15 +79,13 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
   bool HasPairedImages() const;
 
   // Owned by |AmbientController| and should always outlive |this|.
-  raw_ptr<AmbientViewDelegate, ExperimentalAsh> delegate_ = nullptr;
-
-  const base::raw_ptr<JitterCalculator> glanceable_info_jitter_calculator_;
+  raw_ptr<AmbientViewDelegate> delegate_ = nullptr;
 
   // View to display current image(s) on ambient. Owned by the view hierarchy.
-  raw_ptr<views::View, ExperimentalAsh> image_container_ = nullptr;
-  raw_ptr<views::FlexLayout, ExperimentalAsh> image_layout_ = nullptr;
-  raw_ptr<views::ImageView, ExperimentalAsh> image_view_ = nullptr;
-  raw_ptr<views::ImageView, ExperimentalAsh> related_image_view_ = nullptr;
+  raw_ptr<views::View> image_container_ = nullptr;
+  raw_ptr<views::FlexLayout> image_layout_ = nullptr;
+  raw_ptr<views::ImageView> image_view_ = nullptr;
+  raw_ptr<views::ImageView> related_image_view_ = nullptr;
 
   // The unscaled images used for scaling and displaying in different bounds.
   gfx::ImageSkia image_unscaled_;
@@ -100,10 +96,13 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
 
   bool is_portrait_ = false;
 
+  // Flag that changes the resize behavior such that full image is always shown
+  // without any cropping. False by default.
+  bool force_resize_to_fit_ = false;
+
   ::ambient::TopicType topic_type_ = ::ambient::TopicType::kOther;
 
-  raw_ptr<AmbientSlideshowPeripheralUi, ExperimentalAsh>
-      ambient_peripheral_ui_ = nullptr;
+  raw_ptr<AmbientSlideshowPeripheralUi> ambient_peripheral_ui_ = nullptr;
 
   base::ScopedMultiSourceObservation<views::View, views::ViewObserver>
       observed_views_{this};

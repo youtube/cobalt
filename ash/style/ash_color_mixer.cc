@@ -7,6 +7,7 @@
 #include "ash/style/ash_color_id.h"
 #include "ash/style/dark_light_mode_controller_impl.h"
 #include "ash/style/harmonized_colors.h"
+#include "ash/style/sparkle_colors.h"
 #include "ash/style/style_util.h"
 #include "ash/system/tray/tray_constants.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -15,8 +16,11 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_mixer.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/color/color_recipe.h"
 #include "ui/color/color_transform.h"
+#include "ui/color/dynamic_color/palette.h"
+#include "ui/color/dynamic_color/palette_factory.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 
@@ -24,6 +28,8 @@ namespace ash {
 
 namespace {
 
+constexpr int kAlpha8 = SK_AlphaOPAQUE * 0.08f;
+constexpr int kAlpha10 = SK_AlphaOPAQUE * 0.1f;
 constexpr int kAlpha20 = SK_AlphaOPAQUE * 0.2f;
 constexpr int kAlpha25 = SK_AlphaOPAQUE * 0.25f;
 constexpr int kAlpha40 = SK_AlphaOPAQUE * 0.4f;
@@ -39,60 +45,31 @@ constexpr int kSecondToneOpacity = SK_AlphaOPAQUE * 0.3f;
 constexpr int kDisabledColorOpacity = SK_AlphaOPAQUE * 0.38f;
 
 void AddShieldAndBaseColors(ui::ColorMixer& mixer,
-                            const ui::ColorProviderManager::Key& key) {
-  if (chromeos::features::IsJellyEnabled()) {
-    // Generally, shield and base colors are cros.sys.sys-base-elevated.  That
-    // is cros.sys.surface3 @ 90%.  So, map all shield colors to surface3 and
-    // keep all the opacities.
-    //
-    // New users should use cros.sys.sys-base-elevated directly.
-    mixer[kColorAshShieldAndBase20] =
-        ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha20);
-    mixer[kColorAshShieldAndBase40] =
-        ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha40);
-    mixer[kColorAshShieldAndBase60] =
-        ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha60);
-    mixer[kColorAshShieldAndBase80] =
-        ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha80);
-    mixer[kColorAshShieldAndBase90] =
-        ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha90);
-    mixer[kColorAshShieldAndBase95] =
-        ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha95);
-    mixer[kColorAshShieldAndBaseOpaque] = {cros_tokens::kCrosSysSurface3};
-    return;
-  }
-
-  const bool use_dark_color =
-      key.color_mode == ui::ColorProviderManager::ColorMode::kDark;
-
-  // Colors of the Shield and Base layers.
-  const SkColor default_background_color =
-      use_dark_color ? gfx::kGoogleGrey900 : SK_ColorWHITE;
-  // TODO(minch|skau): Investigate/fix whether should DCHECK the existence of
-  // the value of `use_color` here.
-  const SkColor background_color =
-      key.user_color.value_or(default_background_color);
-
-  mixer[kColorAshShieldAndBase20] = {SkColorSetA(background_color, kAlpha20)};
-  mixer[kColorAshShieldAndBase40] = {SkColorSetA(background_color, kAlpha40)};
-  mixer[kColorAshShieldAndBase60] = {SkColorSetA(background_color, kAlpha60)};
-  mixer[kColorAshShieldAndBase80] = {SkColorSetA(background_color, kAlpha80)};
-  mixer[kColorAshInvertedShieldAndBase80] = {
-      SkColorSetA(color_utils::InvertColor(background_color), kAlpha80)};
-  mixer[kColorAshShieldAndBase90] = {SkColorSetA(background_color, kAlpha90)};
-  mixer[kColorAshShieldAndBase95] = {SkColorSetA(background_color, kAlpha95)};
-  mixer[kColorAshShieldAndBaseOpaque] = {
-      SkColorSetA(background_color, SK_AlphaOPAQUE)};
-
-  // TODO(b/270468758): Remove when the last caller has been deleted.
-  mixer[kColorAshShieldAndBase80Light] = {SkColorSetA(SK_ColorWHITE, kAlpha80)};
+                            const ui::ColorProviderKey& key) {
+  // Generally, shield and base colors are cros.sys.sys-base-elevated.  That
+  // is cros.sys.surface3 @ 90%.  So, map all shield colors to surface3 and
+  // keep all the opacities.
+  //
+  // New users should use cros.sys.sys-base-elevated directly.
+  mixer[kColorAshShieldAndBase20] =
+      ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha20);
+  mixer[kColorAshShieldAndBase40] =
+      ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha40);
+  mixer[kColorAshShieldAndBase60] =
+      ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha60);
+  mixer[kColorAshShieldAndBase80] =
+      ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha80);
+  mixer[kColorAshShieldAndBase90] =
+      ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha90);
+  mixer[kColorAshShieldAndBase95] =
+      ui::SetAlpha(cros_tokens::kCrosSysSurface3, kAlpha95);
+  mixer[kColorAshShieldAndBaseOpaque] = {cros_tokens::kCrosSysSurface3};
 }
 
 // Mappings of Controls Colors for Material 2.
-void AddControlsColors(ui::ColorMixer& mixer,
-                       const ui::ColorProviderManager::Key& key) {
+void AddControlsColors(ui::ColorMixer& mixer, const ui::ColorProviderKey& key) {
   const bool use_dark_color =
-      key.color_mode == ui::ColorProviderManager::ColorMode::kDark;
+      key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
 
   // ControlsLayer colors
   mixer[kColorAshHairlineBorderColor] =
@@ -109,13 +86,14 @@ void AddControlsColors(ui::ColorMixer& mixer,
   mixer[kColorAshFocusAuraColor] =
       ui::SetAlpha(cros_tokens::kColorProminent, 0x3D);
   mixer[ui::kColorAshFocusRing] = {cros_tokens::kColorProminent};
+  mixer[kColorAshSecondaryButtonBackgroundColor] =
+      ui::SetAlpha(cros_tokens::kCrosRefPrimary70, kSecondToneOpacity);
 }
 
 // Mappings the Content layer colors for Material 2.
-void AddContentColors(ui::ColorMixer& mixer,
-                      const ui::ColorProviderManager::Key& key) {
+void AddContentColors(ui::ColorMixer& mixer, const ui::ColorProviderKey& key) {
   const bool use_dark_color =
-      key.color_mode == ui::ColorProviderManager::ColorMode::kDark;
+      key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
 
   // ContentLayer colors.
   mixer[kColorAshScrollBarColor] =
@@ -155,15 +133,11 @@ void AddContentColors(ui::ColorMixer& mixer,
   mixer[kColorAshAppStateIndicatorColor] = {kColorAshTextColorPrimary};
   mixer[kColorAshAppStateIndicatorColorInactive] =
       ui::SetAlpha(kColorAshAppStateIndicatorColor, kDisabledColorOpacity);
-  mixer[kColorAshShelfHandleColor] = {cros_tokens::kIconColorSecondary};
+  mixer[kColorAshShelfHandleColor] = {cros_tokens::kCrosSysOnSurface};
   mixer[kColorAshShelfTooltipBackgroundColor] = {
-      chromeos::features::IsJellyEnabled()
-          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface)
-          : kColorAshInvertedShieldAndBase80};
+      cros_tokens::kCrosSysOnSurface};
   mixer[kColorAshShelfTooltipForegroundColor] = {
-      chromeos::features::IsJellyEnabled()
-          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysInverseOnSurface)
-          : cros_tokens::kTextColorPrimaryInverted};
+      cros_tokens::kCrosSysInverseOnSurface};
   mixer[kColorAshSliderColorActive] = {kColorAshTextColorURL};
   mixer[kColorAshSliderColorInactive] = {kColorAshScrollBarColor};
   mixer[kColorAshRadioColorActive] = {kColorAshTextColorURL};
@@ -217,6 +191,8 @@ void AddContentColors(ui::ColorMixer& mixer,
     mixer[kColorAshInkDropOpaqueColor] =
         ui::ColorTransform(use_dark_color ? SK_ColorWHITE : SK_ColorBLACK);
   }
+
+  mixer[kColorAshResizeShadowColor] = {cros_tokens::kCrosSysOutline};
 }
 
 // Remaps colors generated by cros_colors.json5 to point to equivalent tokens.
@@ -342,12 +318,26 @@ void RemapLegacySemanticColors(ui::ColorMixer& mixer) {
   mixer[cros_tokens::kColorPositive] = {cros_tokens::kCrosSysPositive};
   mixer[cros_tokens::kColorWarning] = {cros_tokens::kCrosSysWarning};
   mixer[cros_tokens::kColorAlert] = {cros_tokens::kCrosSysError};
+
+  // Illustration Colors
+  mixer[cros_tokens::kIllustrationColor1] = {cros_tokens::kCrosSysIlloColor1};
+  mixer[cros_tokens::kIllustrationColor2] = {cros_tokens::kCrosSysIlloColor2};
+  mixer[cros_tokens::kIllustrationColor3] = {cros_tokens::kCrosSysIlloColor3};
+  mixer[cros_tokens::kIllustrationColor4] = {cros_tokens::kCrosSysIlloColor4};
+  mixer[cros_tokens::kIllustrationColor5] = {cros_tokens::kCrosSysIlloColor5};
+  mixer[cros_tokens::kIllustrationColor6] = {cros_tokens::kCrosSysIlloColor6};
+  mixer[cros_tokens::kIllustrationBaseColor] = {cros_tokens::kCrosSysIlloBase};
+  mixer[cros_tokens::kIllustrationSecondaryColor] = {
+      cros_tokens::kCrosSysIlloSecondary};
+  mixer[cros_tokens::kIllustrationColor1Shade1] = {
+      cros_tokens::kCrosSysIlloColor11};
+  mixer[cros_tokens::kIllustrationColor1Shade2] = {
+      cros_tokens::kCrosSysIlloColor12};
 }
 
 // Adds the dynamic color palette tokens based on user_color. This is the base
 // palette so it is independent of ColorMode.
-void AddRefPalette(ui::ColorMixer& mixer,
-                   const ui::ColorProviderManager::Key& key) {
+void AddRefPalette(ui::ColorMixer& mixer, const ui::ColorProviderKey& key) {
   // TODO(skau): Currently these colors are mapped 1-1 with the ui ref color ids
   // for compatibility with the older generated CrOS ids. Uses of these CrOS ids
   // can eventually be migrated to use the equivalent ui ids.
@@ -367,6 +357,7 @@ void AddRefPalette(ui::ColorMixer& mixer,
 
   mixer[cros_tokens::kCrosRefSecondary0] = {ui::kColorRefSecondary0};
   mixer[cros_tokens::kCrosRefSecondary10] = {ui::kColorRefSecondary10};
+  mixer[cros_tokens::kCrosRefSecondary12] = {ui::kColorRefSecondary12};
   mixer[cros_tokens::kCrosRefSecondary15] = {ui::kColorRefSecondary15};
   mixer[cros_tokens::kCrosRefSecondary20] = {ui::kColorRefSecondary20};
   mixer[cros_tokens::kCrosRefSecondary30] = {ui::kColorRefSecondary30};
@@ -409,8 +400,11 @@ void AddRefPalette(ui::ColorMixer& mixer,
   mixer[cros_tokens::kCrosRefError100] = {ui::kColorRefError100};
 
   mixer[cros_tokens::kCrosRefNeutral0] = {ui::kColorRefNeutral0};
+  mixer[cros_tokens::kCrosRefNeutral8] = {ui::kColorRefNeutral8};
   mixer[cros_tokens::kCrosRefNeutral10] = {ui::kColorRefNeutral10};
+  mixer[cros_tokens::kCrosRefNeutral15] = {ui::kColorRefNeutral15};
   mixer[cros_tokens::kCrosRefNeutral20] = {ui::kColorRefNeutral20};
+  mixer[cros_tokens::kCrosRefNeutral25] = {ui::kColorRefNeutral25};
   mixer[cros_tokens::kCrosRefNeutral30] = {ui::kColorRefNeutral30};
   mixer[cros_tokens::kCrosRefNeutral40] = {ui::kColorRefNeutral40};
   mixer[cros_tokens::kCrosRefNeutral50] = {ui::kColorRefNeutral50};
@@ -449,82 +443,80 @@ void AddRefPalette(ui::ColorMixer& mixer,
       ui::kColorRefNeutralVariant100};
 }
 
-// Overrides some cros.sys colors in `mixer` with values that are appropriate
-// for pre-Jelly features.
-void ReverseMapSysColors(ui::ColorMixer& mixer, bool dark_mode) {
-  mixer[cros_tokens::kCrosSysPrimary] = {dark_mode ? gfx::kGoogleBlue200
-                                                   : gfx::kGoogleBlue600};
-  mixer[cros_tokens::kCrosSysOnPrimary] = {dark_mode ? gfx::kGoogleGrey900
-                                                     : gfx::kGoogleGrey200};
-  mixer[cros_tokens::kCrosSysSecondary] = {cros_tokens::kColorSecondary};
-  mixer[cros_tokens::kCrosSysOnSecondary] = {dark_mode ? gfx::kGoogleGrey800
-                                                       : gfx::kGoogleGrey600};
+// Maps colors used in Skottie images to their cros.sys values.
+void RemapIllustrationColors(ui::ColorMixer& mixer) {
+  mixer[ui::kColorNativeColor1] = {cros_tokens::kCrosSysIlloColor1};
+  mixer[ui::kColorNativeColor1Shade1] = {cros_tokens::kCrosSysIlloColor11};
+  mixer[ui::kColorNativeColor1Shade2] = {cros_tokens::kCrosSysIlloColor12};
+  mixer[ui::kColorNativeColor2] = {cros_tokens::kCrosSysIlloColor2};
+  mixer[ui::kColorNativeColor3] = {cros_tokens::kCrosSysIlloColor3};
+  mixer[ui::kColorNativeColor4] = {cros_tokens::kCrosSysIlloColor4};
+  mixer[ui::kColorNativeColor5] = {cros_tokens::kCrosSysIlloColor5};
+  mixer[ui::kColorNativeColor6] = {cros_tokens::kCrosSysIlloColor6};
+  mixer[ui::kColorNativeBaseColor] = {cros_tokens::kCrosSysIlloBase};
+  mixer[ui::kColorNativeSecondaryColor] = {cros_tokens::kCrosSysIlloSecondary};
+  mixer[ui::kColorNativeOnPrimaryContainerColor] = {
+      cros_tokens::kCrosSysIlloOnPrimaryContainer};
+  mixer[ui::kColorNativeAnalogColor] = {cros_tokens::kCrosSysIlloAnalog};
+  mixer[ui::kColorNativeMutedColor] = {cros_tokens::kCrosSysIlloMuted};
+  mixer[ui::kColorNativeComplementColor] = {
+      cros_tokens::kCrosSysIlloComplement};
+  mixer[ui::kColorNativeOnGradientColor] = {
+      cros_tokens::kCrosSysIlloOnGradient};
+}
 
-  if (dark_mode) {
-    // LightInkRipple in dark mode
-    mixer[cros_tokens::kCrosSysDisabledContainer] = ui::SetAlpha(
-        SK_ColorBLACK, StyleUtil::kLightInkDropOpacity * SK_AlphaOPAQUE);
-  } else {
-    // DarkInkRipple in dark mode
-    mixer[cros_tokens::kCrosSysDisabledContainer] = ui::SetAlpha(
-        SK_ColorWHITE, StyleUtil::kDarkInkDropOpacity * SK_AlphaOPAQUE);
+// Maps colors specific to gaming features. Colors are specified in
+// cros_sys_colors.json5 but are remapped here because they are generated in a
+// specific color scheme (independent of what's in ColorProviderKey).
+void AddGamingColors(ui::ColorMixer& mixer, const ui::ColorProviderKey& key) {
+  if (!key.user_color.has_value()) {
+    // Colors are not meaningful without a seed color let these fallback to the
+    // defaults in cros_sys_colors.json5.
+    return;
   }
 
-  mixer[cros_tokens::kCrosSysHoverOnSubtle] = {SK_ColorTRANSPARENT};
-  mixer[cros_tokens::kCrosSysSystemBaseElevated] = {kColorAshShieldAndBase80};
-  mixer[cros_tokens::kCrosSysSystemOnBase] = {
-      kColorAshControlBackgroundColorInactive};
-  mixer[cros_tokens::kCrosSysSystemOnNegativeContainer] = {
-      kColorAshTextColorPrimary};
-  mixer[cros_tokens::kCrosSysSystemOnPrimaryContainer] = {
-      dark_mode ? ui::ColorTransform(gfx::kGoogleGrey900)
-                : ui::ColorTransform(kColorAshTextColorPrimary)};
+  // The gaming palette matches the user_color except that its always Vibrant.
+  std::unique_ptr<ui::Palette> vibrant_palette = GeneratePalette(
+      *key.user_color, ui::ColorProviderKey::SchemeVariant::kVibrant);
+  const ui::TonalPalette& primary = vibrant_palette->primary();
 
-  mixer[cros_tokens::kCrosSysSystemNegativeContainer] = {gfx::kGoogleRed300};
-  mixer[cros_tokens::kCrosSysPositive] = {cros_tokens::kColorPositive};
-
-  mixer[cros_tokens::kCrosSysSystemPrimaryContainer] = {
-      dark_mode ? gfx::kGoogleBlue200 : gfx::kGoogleBlue300};
-
-  // Colors for feature tile that differ from sys token mappings.
-  mixer[kColorAshTileSmallCircle] =
-      dark_mode ? ui::ColorTransform(cros_tokens::kCrosSysHighlightShape)
-                : ui::SetAlpha(gfx::kGoogleBlue600, 31);  // 12% opacity
+  mixer[cros_tokens::kCrosSysGamingControlButtonDefault] =
+      ui::ColorTransform(primary.get(40));
+  mixer[cros_tokens::kCrosSysGamingControlButtonHover] =
+      ui::ColorTransform(primary.get(50));
+  mixer[cros_tokens::kCrosSysGamingControlButtonBorderHover] =
+      ui::ColorTransform(primary.get(80));
 }
 
 }  // namespace
 
 void AddCrosStylesColorMixer(ui::ColorProvider* provider,
-                             const ui::ColorProviderManager::Key& key) {
+                             const ui::ColorProviderKey& key) {
   ui::ColorMixer& mixer = provider->AddMixer();
-  bool dark_mode = key.color_mode == ui::ColorProviderManager::ColorMode::kDark;
-  if (chromeos::features::IsJellyEnabled()) {
-    AddRefPalette(mixer, key);
-  } else {
-    cros_tokens::AddCrosRefColorsToMixer(mixer, dark_mode);
-  }
+  bool dark_mode = key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
+
+  AddRefPalette(mixer, key);
+
   // Add after ref colors since it needs to override them.
   AddHarmonizedColors(mixer, key);
+  AddSparkleColors(mixer, key);
+
   cros_tokens::AddCrosSysColorsToMixer(mixer, dark_mode);
-  if (!chromeos::features::IsJellyEnabled()) {
-    // Overrides some cros.sys colors with pre-Jelly values so they can used in
-    // UI with the Jelly flag off.
-    ReverseMapSysColors(mixer, dark_mode);
-  }
+  // Gaming colors override sys colors (so need to be added later).
+  AddGamingColors(mixer, key);
 
   // TODO(b/234400002): Remove legacy colors once all usages are cleaned up.
   cros_tokens::AddLegacySemanticColorsToMixer(mixer, dark_mode);
 
-  if (chromeos::features::IsJellyEnabled()) {
-    RemapLegacySemanticColors(mixer);
-  }
+  RemapLegacySemanticColors(mixer);
+  RemapIllustrationColors(mixer);
 }
 
 void AddAshColorMixer(ui::ColorProvider* provider,
-                      const ui::ColorProviderManager::Key& key) {
+                      const ui::ColorProviderKey& key) {
   ui::ColorMixer& mixer = provider->AddMixer();
   const bool use_dark_color =
-      key.color_mode == ui::ColorProviderManager::ColorMode::kDark;
+      key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
 
   AddShieldAndBaseColors(mixer, key);
   AddControlsColors(mixer, key);
@@ -570,12 +562,14 @@ void AddAshColorMixer(ui::ColorProvider* provider,
   mixer[ui::kColorAshOnboardingFocusRing] = {cros_tokens::kColorProminentDark};
 
   mixer[ui::kColorAshSystemUIMenuBackground] = {
-      chromeos::features::IsJellyEnabled()
-          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysBaseElevated)
-          : kColorAshShieldAndBase80};
+      chromeos::features::IsSystemBlurEnabled()
+          ? cros_tokens::kCrosSysSystemBaseElevated
+          : cros_tokens::kCrosSysSystemBaseElevatedOpaque};
   mixer[ui::kColorAshSystemUIMenuIcon] = {kColorAshIconColorPrimary};
-  mixer[ui::kColorAshSystemUIMenuItemBackgroundSelected] = {kColorAshInkDrop};
-  mixer[ui::kColorAshSystemUIMenuSeparator] = {kColorAshSeparatorColor};
+  mixer[ui::kColorAshSystemUIMenuItemBackgroundSelected] = {
+      cros_tokens::kCrosSysHoverOnSubtle};
+
+  mixer[ui::kColorAshSystemUIMenuSeparator] = {cros_tokens::kCrosSysSeparator};
 
   mixer[kColorAshDialogBackgroundColor] =
       use_dark_color ? ui::ColorTransform(SkColorSetRGB(0x32, 0x33, 0x36))
@@ -594,6 +588,16 @@ void AddAshColorMixer(ui::ColorProvider* provider,
 
   mixer[kColorAshEcheIconColorStreaming] = {ui::ColorTransform(SK_ColorGREEN)};
 
+  mixer[kColorAshSystemInfoBarChartColorBackground] = {
+      cros_tokens::kCrosSysSystemOnBase};
+
+  mixer[kColorAshSystemInfoBarChartColorForeground] = {
+      use_dark_color ? cros_tokens::kCrosSysPrimaryDark
+                     : cros_tokens::kCrosSysPrimary};
+
+  mixer[kColorAshSystemInfoBarChartWarningColorForeground] = {
+      cros_tokens::kCrosSysError};
+
   mixer[kColorAshMultiSelectTextColor] =
       use_dark_color ? ui::ColorTransform(gfx::kGoogleBlue100)
                      : ui::ColorTransform(gfx::kGoogleBlue800);
@@ -611,6 +615,38 @@ void AddAshColorMixer(ui::ColorProvider* provider,
                      : ui::ColorTransform(gfx::kGoogleBlue600);
   mixer[kColorAshPhantomWindowBackgroundColor] =
       ui::SetAlpha(cros_tokens::kCrosSysPrimary, kAlpha25);
+  mixer[kColorAshWindowHeaderStrokeColor] =
+      ui::SetAlpha(cros_tokens::kCrosRefNeutral0, kAlpha8);
+
+  // Color for the scrollable user view on login.
+  mixer[kColorAshLoginScrollableUserListBackground] = {
+      use_dark_color ? cros_tokens::kCrosRefNeutral20
+                     : cros_tokens::kCrosRefNeutral80};
+
+  mixer[ui::kColorRadioButtonForegroundChecked] = {
+      cros_tokens::kCrosSysPrimary};
+  mixer[ui::kColorRadioButtonForegroundUnchecked] = {
+      cros_tokens::kCrosSysSecondary};
+
+  // Ambient shadow colors.
+  mixer[ui::kColorShadowValueAmbientShadowElevationFour] = ui::SetAlpha(
+      use_dark_color ? cros_tokens::kCrosRefNeutral0
+                     : static_cast<ui::ColorId>(cros_tokens::kCrosSysShadow),
+      kAlpha10);
+  mixer[ui::kColorShadowValueAmbientShadowElevationTwelve] = {
+      ui::kColorShadowValueAmbientShadowElevationFour};
+  mixer[ui::kColorShadowValueAmbientShadowElevationTwentyFour] =
+      ui::SetAlpha(cros_tokens::kCrosSysShadow, kAlpha10);
+
+  // Key shadow colors.
+  int key_shadow_opacity = kAlpha20;
+  mixer[ui::kColorShadowValueKeyShadowElevationFour] = ui::SetAlpha(
+      ui::kColorShadowValueAmbientShadowElevationFour, key_shadow_opacity);
+  mixer[ui::kColorShadowValueKeyShadowElevationTwelve] = ui::SetAlpha(
+      ui::kColorShadowValueAmbientShadowElevationTwelve, key_shadow_opacity);
+  mixer[ui::kColorShadowValueKeyShadowElevationTwentyFour] =
+      ui::SetAlpha(ui::kColorShadowValueAmbientShadowElevationTwentyFour,
+                   key_shadow_opacity);
 
   mixer[ui::kColorToggleButtonThumbOn] = {cros_tokens::kCrosSysOnPrimary};
   mixer[ui::kColorToggleButtonThumbOff] = {cros_tokens::kCrosSysOnSecondary};
@@ -628,6 +664,15 @@ void AddAshColorMixer(ui::ColorProvider* provider,
 
   mixer[ui::kColorTooltipBackground] = {cros_tokens::kCrosSysOnSurface};
   mixer[ui::kColorTooltipForeground] = {cros_tokens::kCrosSysInverseOnSurface};
+
+  if (!key.custom_theme &&
+      key.user_color_source == ui::ColorProviderKey::UserColorSource::kAccent) {
+    // Only override frame color if there's no custom theme or we'll override
+    // the value from the theme. Fallback to the default ui/color definition for
+    // baseline and grayscale headers.
+    mixer[ui::kColorFrameActive] = {cros_tokens::kCrosSysHeader};
+    mixer[ui::kColorFrameInactive] = {cros_tokens::kCrosSysHeaderUnfocused};
+  }
 }
 
 }  // namespace ash

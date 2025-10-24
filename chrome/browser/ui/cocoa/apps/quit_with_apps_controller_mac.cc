@@ -10,9 +10,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/apps/platform_apps/app_window_registry_util.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -20,13 +20,12 @@
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/content_switches.h"
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/native_app_window.h"
@@ -46,7 +45,7 @@ const int kQuitAllAppsButtonIndex = 0;
 const int kDontShowAgainButtonIndex = 1;
 
 void CloseNotification(Profile* profile) {
-  NotificationDisplayService::GetForProfile(profile)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile)->Close(
       NotificationHandler::Type::TRANSIENT,
       QuitWithAppsController::kQuitWithAppsNotificationID);
 }
@@ -79,22 +78,33 @@ QuitWithAppsController::QuitWithAppsController() {
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kQuitWithAppsNotificationID),
       rich_notification_data, this);
+  if (ProfileManager* profile_manager = g_browser_process->profile_manager()) {
+    profile_manager_observation_.Observe(profile_manager);
+  }
 }
 
-QuitWithAppsController::~QuitWithAppsController() {}
+QuitWithAppsController::~QuitWithAppsController() = default;
+
+void QuitWithAppsController::OnProfileManagerDestroying() {
+  // Set `notification_profile_` to null to avoid danling pointer detection when
+  // ProfileManager is destroyed.
+  notification_profile_ = nullptr;
+  profile_manager_observation_.Reset();
+}
 
 void QuitWithAppsController::Close(bool by_user) {
-  if (by_user)
+  if (by_user) {
     suppress_for_session_ = true;
+  }
 }
 
-void QuitWithAppsController::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+void QuitWithAppsController::Click(const std::optional<int>& button_index,
+                                   const std::optional<std::u16string>& reply) {
   CloseNotification(notification_profile_);
 
-  if (!button_index)
+  if (!button_index) {
     return;
+  }
 
   if (*button_index == kQuitAllAppsButtonIndex) {
     AppWindowRegistryUtil::CloseAllAppWindows();
@@ -145,10 +155,11 @@ bool QuitWithAppsController::ShouldQuit() {
   // Delete any existing notification to ensure this one is shown. If
   // notification_profile_ is NULL then it must be that no notification has been
   // added by this class yet.
-  if (notification_profile_)
+  if (notification_profile_) {
     CloseNotification(notification_profile_);
+  }
   notification_profile_ = profiles[0];
-  NotificationDisplayService::GetForProfile(notification_profile_)
+  NotificationDisplayServiceFactory::GetForProfile(notification_profile_)
       ->Display(NotificationHandler::Type::TRANSIENT, *notification_,
                 /*metadata=*/nullptr);
 

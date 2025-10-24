@@ -8,16 +8,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.location.LocationUtils;
 import org.chromium.content_public.browser.BrowserContextHandle;
 
-/**
- * A class for dealing with the Geolocation category.
- */
+/** A class for dealing with the Geolocation category. */
+@NullMarked
 public class LocationCategory extends SiteSettingsCategory {
     public LocationCategory(BrowserContextHandle browserContextHandle) {
-        super(browserContextHandle, SiteSettingsCategory.Type.DEVICE_LOCATION,
+        super(
+                browserContextHandle,
+                SiteSettingsCategory.Type.DEVICE_LOCATION,
                 android.Manifest.permission.ACCESS_COARSE_LOCATION);
     }
 
@@ -36,13 +39,13 @@ public class LocationCategory extends SiteSettingsCategory {
         // blocks Location by policy (because then turning it on in the system isn't going to
         // turn on location in Chrome).
         return WebsitePreferenceBridge.isContentSettingEnabled(
-                       getBrowserContextHandle(), ContentSettingsType.GEOLOCATION)
+                        getBrowserContextHandle(), ContentSettingsType.GEOLOCATION)
                 || WebsitePreferenceBridge.isContentSettingUserModifiable(
                         getBrowserContextHandle(), ContentSettingsType.GEOLOCATION);
     }
 
     @Override
-    protected Intent getIntentToEnableOsGlobalPermission(Context context) {
+    protected @Nullable Intent getIntentToEnableOsGlobalPermission(Context context) {
         if (enabledGlobally()) return null;
         return LocationUtils.getInstance().getSystemLocationSettingsIntent();
     }

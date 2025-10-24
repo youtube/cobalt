@@ -5,9 +5,9 @@
 #include "components/heap_profiling/multi_process/test_driver.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "base/allocator/partition_allocator/partition_root.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
@@ -30,7 +30,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/tracing_controller.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "partition_alloc/partition_root.h"
 
 namespace heap_profiling {
 
@@ -55,7 +55,7 @@ constexpr int kVariadicAllocCount = 1000;
 // choose an odd number.
 constexpr int kSampleRate = 777;
 
-// Test fixed-size partition alloc. The size must be aligned to system pointer
+// Test fixed-size PartitionAlloc. The size must be aligned to system pointer
 // size.
 constexpr int kPartitionAllocSize = 8 * 25;
 constexpr int kPartitionAllocCount = 2000;
@@ -121,7 +121,7 @@ int NumProcessesWithName(const base::Value::Dict& dump_json,
     }
 
     if (pids) {
-      absl::optional<int> found_pid = event_dict->FindInt("pid");
+      std::optional<int> found_pid = event_dict->FindInt("pid");
       if (!found_pid) {
         LOG(ERROR) << "Process missing pid.";
         return 0;
@@ -156,7 +156,7 @@ const base::Value::Dict* FindArgDump(base::ProcessId pid,
       continue;
     }
 
-    absl::optional<int> found_pid = event_dict->FindInt("pid");
+    std::optional<int> found_pid = event_dict->FindInt("pid");
     if (!found_pid) {
       continue;
     }
@@ -201,8 +201,8 @@ bool ParseTypes(const base::Value::Dict* heaps_v2, NodeMap* output) {
       continue;
     }
 
-    const absl::optional<int> id = type_dict->FindInt("id");
-    const absl::optional<int> name_sid = type_dict->FindInt("name_sid");
+    const std::optional<int> id = type_dict->FindInt("id");
+    const std::optional<int> name_sid = type_dict->FindInt("name_sid");
     if (!id || !name_sid) {
       LOG(ERROR) << "Node missing id or name_sid field";
       return false;
@@ -226,7 +226,7 @@ bool ParseTypes(const base::Value::Dict* heaps_v2, NodeMap* output) {
       continue;
     }
 
-    const absl::optional<int> id = string_dict->FindInt("id");
+    const std::optional<int> id = string_dict->FindInt("id");
     const std::string* string = string_dict->FindString("string");
     if (!id || !string) {
       LOG(ERROR) << "String struct missing id or string field";
@@ -407,15 +407,7 @@ TestDriver::TestDriver()
     : wait_for_ui_thread_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                           base::WaitableEvent::InitialState::NOT_SIGNALED) {
   partition_alloc::PartitionAllocGlobalInit(HandleOOM);
-  partition_allocator_.init({
-      partition_alloc::PartitionOptions::AlignedAlloc::kDisallowed,
-      partition_alloc::PartitionOptions::ThreadCache::kDisabled,
-      partition_alloc::PartitionOptions::Quarantine::kDisallowed,
-      partition_alloc::PartitionOptions::Cookie::kAllowed,
-      partition_alloc::PartitionOptions::BackupRefPtr::kDisabled,
-      partition_alloc::PartitionOptions::BackupRefPtrZapping::kDisabled,
-      partition_alloc::PartitionOptions::UseConfigurablePool::kNo,
-  });
+  partition_allocator_.init(partition_alloc::PartitionOptions{});
 }
 TestDriver::~TestDriver() {
   partition_alloc::PartitionAllocGlobalUninitForTesting();
@@ -480,19 +472,19 @@ bool TestDriver::RunTest(const Options& options) {
     wait_for_ui_thread_.Wait();
   }
 
-  absl::optional<base::Value> dump_json =
-      base::JSONReader::Read(serialized_trace_);
-  if (!dump_json || !dump_json->is_dict()) {
+  std::optional<base::Value::Dict> dump_json =
+      base::JSONReader::ReadDict(serialized_trace_);
+  if (!dump_json) {
     LOG(ERROR) << "Failed to deserialize trace.";
     return false;
   }
 
-  if (!ValidateBrowserAllocations(dump_json->GetDict())) {
+  if (!ValidateBrowserAllocations(*dump_json)) {
     LOG(ERROR) << "Failed to validate browser allocations";
     return false;
   }
 
-  if (!ValidateRendererAllocations(dump_json->GetDict())) {
+  if (!ValidateRendererAllocations(*dump_json)) {
     LOG(ERROR) << "Failed to validate renderer allocations";
     return false;
   }

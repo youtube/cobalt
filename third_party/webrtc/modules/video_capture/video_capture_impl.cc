@@ -10,22 +10,34 @@
 
 #include "modules/video_capture/video_capture_impl.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/video/i420_buffer.h"
-#include "api/video/video_frame_buffer.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_rotation.h"
+#include "api/video/video_sink_interface.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
+#include "modules/video_capture/raw_video_sink_interface.h"
 #include "modules/video_capture/video_capture_config.h"
+#include "modules/video_capture/video_capture_defines.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/race_checker.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
-#include "third_party/libyuv/include/libyuv.h"
+#include "third_party/libyuv/include/libyuv/convert.h"
+#include "third_party/libyuv/include/libyuv/rotate.h"
 
 namespace webrtc {
 namespace videocapturemodule {
 
 const char* VideoCaptureImpl::CurrentDeviceName() const {
+  RTC_DCHECK_RUN_ON(&api_checker_);
   return _deviceUniqueId;
 }
 
@@ -72,13 +84,13 @@ int32_t VideoCaptureImpl::RotationInDegrees(VideoRotation rotation,
 }
 
 VideoCaptureImpl::VideoCaptureImpl()
-    : _deviceUniqueId(NULL),
+    : _deviceUniqueId(nullptr),
       _requestedCapability(),
-      _lastProcessTimeNanos(rtc::TimeNanos()),
-      _lastFrameRateCallbackTimeNanos(rtc::TimeNanos()),
-      _dataCallBack(NULL),
-      _rawDataCallBack(NULL),
-      _lastProcessFrameTimeNanos(rtc::TimeNanos()),
+      _lastProcessTimeNanos(TimeNanos()),
+      _lastFrameRateCallbackTimeNanos(TimeNanos()),
+      _dataCallBack(nullptr),
+      _rawDataCallBack(nullptr),
+      _lastProcessFrameTimeNanos(TimeNanos()),
       _rotateFrame(kVideoRotation_0),
       apply_rotation_(false) {
   _requestedCapability.width = kDefaultWidth;
@@ -89,13 +101,14 @@ VideoCaptureImpl::VideoCaptureImpl()
 }
 
 VideoCaptureImpl::~VideoCaptureImpl() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
   DeRegisterCaptureDataCallback();
   if (_deviceUniqueId)
     delete[] _deviceUniqueId;
 }
 
 void VideoCaptureImpl::RegisterCaptureDataCallback(
-    rtc::VideoSinkInterface<VideoFrame>* dataCallBack) {
+    VideoSinkInterface<VideoFrame>* dataCallBack) {
   MutexLock lock(&api_lock_);
   RTC_DCHECK(!_rawDataCallBack);
   _dataCallBack = dataCallBack;
@@ -110,10 +123,12 @@ void VideoCaptureImpl::RegisterCaptureDataCallback(
 
 void VideoCaptureImpl::DeRegisterCaptureDataCallback() {
   MutexLock lock(&api_lock_);
-  _dataCallBack = NULL;
-  _rawDataCallBack = NULL;
+  _dataCallBack = nullptr;
+  _rawDataCallBack = nullptr;
 }
 int32_t VideoCaptureImpl::DeliverCapturedFrame(VideoFrame& captureFrame) {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
   UpdateFrameCount();  // frame count used for local frame rate callback.
 
   if (_dataCallBack) {
@@ -127,6 +142,8 @@ void VideoCaptureImpl::DeliverRawFrame(uint8_t* videoFrame,
                                        size_t videoFrameLength,
                                        const VideoCaptureCapability& frameInfo,
                                        int64_t captureTime) {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
   UpdateFrameCount();
   _rawDataCallBack->OnRawFrame(videoFrame, videoFrameLength, frameInfo,
                                _rotateFrame, captureTime);
@@ -136,6 +153,7 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
                                         size_t videoFrameLength,
                                         const VideoCaptureCapability& frameInfo,
                                         int64_t captureTime /*=0*/) {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
   MutexLock lock(&api_lock_);
 
   const int32_t width = frameInfo.width;
@@ -149,11 +167,17 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
   }
 
   // Not encoded, convert to I420.
-  if (frameInfo.videoType != VideoType::kMJPEG &&
-      CalcBufferSize(frameInfo.videoType, width, abs(height)) !=
-          videoFrameLength) {
-    RTC_LOG(LS_ERROR) << "Wrong incoming frame length.";
-    return -1;
+  if (frameInfo.videoType != VideoType::kMJPEG) {
+    // Allow buffers larger than expected. On linux gstreamer allocates buffers
+    // page-aligned and v4l2loopback passes us the buffer size verbatim which
+    // for most cases is larger than expected.
+    // See https://github.com/umlaeute/v4l2loopback/issues/190.
+    if (auto size = CalcBufferSize(frameInfo.videoType, width, abs(height));
+        videoFrameLength < size) {
+      RTC_LOG(LS_ERROR) << "Wrong incoming frame length. Expected " << size
+                        << ", Got " << videoFrameLength << ".";
+      return -1;
+    }
   }
 
   int stride_y = width;
@@ -161,10 +185,7 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
   int target_width = width;
   int target_height = abs(height);
 
-  // SetApplyRotation doesn't take any lock. Make a local copy here.
-  bool apply_rotation = apply_rotation_;
-
-  if (apply_rotation) {
+  if (apply_rotation_) {
     // Rotating resolution when for 90/270 degree rotations.
     if (_rotateFrame == kVideoRotation_90 ||
         _rotateFrame == kVideoRotation_270) {
@@ -176,11 +197,11 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
   // Setting absolute height (in case it was negative).
   // In Windows, the image starts bottom left, instead of top left.
   // Setting a negative source height, inverts the image (within LibYuv).
-  rtc::scoped_refptr<I420Buffer> buffer = I420Buffer::Create(
+  scoped_refptr<I420Buffer> buffer = I420Buffer::Create(
       target_width, target_height, stride_y, stride_uv, stride_uv);
 
   libyuv::RotationMode rotation_mode = libyuv::kRotate0;
-  if (apply_rotation) {
+  if (apply_rotation_) {
     switch (_rotateFrame) {
       case kVideoRotation_0:
         rotation_mode = libyuv::kRotate0;
@@ -204,7 +225,7 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
       buffer.get()->StrideV(), 0, 0,  // No Cropping
       width, height, target_width, target_height, rotation_mode,
       ConvertVideoType(frameInfo.videoType));
-  if (conversionResult < 0) {
+  if (conversionResult != 0) {
     RTC_LOG(LS_ERROR) << "Failed to convert capture frame from type "
                       << static_cast<int>(frameInfo.videoType) << "to I420.";
     return -1;
@@ -213,9 +234,9 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
   VideoFrame captureFrame =
       VideoFrame::Builder()
           .set_video_frame_buffer(buffer)
-          .set_timestamp_rtp(0)
-          .set_timestamp_ms(rtc::TimeMillis())
-          .set_rotation(!apply_rotation ? _rotateFrame : kVideoRotation_0)
+          .set_rtp_timestamp(0)
+          .set_timestamp_ms(TimeMillis())
+          .set_rotation(!apply_rotation_ ? _rotateFrame : kVideoRotation_0)
           .build();
   captureFrame.set_ntp_time_ms(captureTime);
 
@@ -226,6 +247,7 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
 
 int32_t VideoCaptureImpl::StartCapture(
     const VideoCaptureCapability& capability) {
+  RTC_DCHECK_RUN_ON(&api_checker_);
   _requestedCapability = capability;
   return -1;
 }
@@ -250,19 +272,20 @@ int32_t VideoCaptureImpl::SetCaptureRotation(VideoRotation rotation) {
 }
 
 bool VideoCaptureImpl::SetApplyRotation(bool enable) {
-  // We can't take any lock here as it'll cause deadlock with IncomingFrame.
-
-  // The effect of this is the last caller wins.
+  MutexLock lock(&api_lock_);
   apply_rotation_ = enable;
   return true;
 }
 
 bool VideoCaptureImpl::GetApplyRotation() {
+  MutexLock lock(&api_lock_);
   return apply_rotation_;
 }
 
 void VideoCaptureImpl::UpdateFrameCount() {
-  if (_incomingFrameTimesNanos[0] / rtc::kNumNanosecsPerMicrosec == 0) {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
+  if (_incomingFrameTimesNanos[0] / kNumNanosecsPerMicrosec == 0) {
     // first no shift
   } else {
     // shift
@@ -270,16 +293,17 @@ void VideoCaptureImpl::UpdateFrameCount() {
       _incomingFrameTimesNanos[i + 1] = _incomingFrameTimesNanos[i];
     }
   }
-  _incomingFrameTimesNanos[0] = rtc::TimeNanos();
+  _incomingFrameTimesNanos[0] = TimeNanos();
 }
 
 uint32_t VideoCaptureImpl::CalculateFrameRate(int64_t now_ns) {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
   int32_t num = 0;
   int32_t nrOfFrames = 0;
   for (num = 1; num < (kFrameRateCountHistorySize - 1); ++num) {
     if (_incomingFrameTimesNanos[num] <= 0 ||
-        (now_ns - _incomingFrameTimesNanos[num]) /
-                rtc::kNumNanosecsPerMillisec >
+        (now_ns - _incomingFrameTimesNanos[num]) / kNumNanosecsPerMillisec >
             kFrameRateHistoryWindowMs) {  // don't use data older than 2sec
       break;
     } else {
@@ -287,8 +311,8 @@ uint32_t VideoCaptureImpl::CalculateFrameRate(int64_t now_ns) {
     }
   }
   if (num > 1) {
-    int64_t diff = (now_ns - _incomingFrameTimesNanos[num - 1]) /
-                   rtc::kNumNanosecsPerMillisec;
+    int64_t diff =
+        (now_ns - _incomingFrameTimesNanos[num - 1]) / kNumNanosecsPerMillisec;
     if (diff > 0) {
       return uint32_t((nrOfFrames * 1000.0f / diff) + 0.5f);
     }

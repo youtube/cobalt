@@ -16,8 +16,11 @@
 #include "chrome/test/base/testing_profile.h"
 #include "extensions/browser/content_verifier/test_utils.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/file_util.h"
 #include "extensions/common/switches.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -179,23 +182,6 @@ TEST_F(ChromeContentVerifierTest, CaseSensitivityInManifestPaths) {
          "h.png", "G.png", "I.png"})));
   }
 
-  // Ensure transcoded paths are handled correctly with dot-space suffix added
-  // to them in OS that ignores dot-space suffix (win). They should still be
-  // excluded from verification (i.e. ShouldVerifyAnyPaths should return false
-  // for them).
-  if (content_verifier_utils::IsDotSpaceFilenameSuffixIgnored()) {
-    EXPECT_FALSE(ShouldVerifyAnyPaths(ToFilePaths(
-        {"_locales/de_AT/messages.json.", "_locales/en_GB/messages.json ",
-         "H.png .", "g.png ..", "i.png.."})));
-
-    // Ensure the same with different case filenames.
-    if (!content_verifier_utils::IsFileAccessCaseSensitive()) {
-      EXPECT_FALSE(ShouldVerifyAnyPaths(ToFilePaths(
-          {"_locales/de_at/messages.json.", "_locales/en_gb/messages.json ",
-           "h.png .", "G.png ..", "I.png.."})));
-    }
-  }
-
   // Ensure content verification is skipped for case-insensitive path matching,
   // by comparing the lowercase path with the lowercase canonical locale.
   if (content_verifier_utils::IsFileAccessCaseSensitive()) {
@@ -233,7 +219,7 @@ TEST_F(ChromeContentVerifierTest, VerifyFailedOnLoad) {
 // kDisableAppContentVerification flag.
 TEST_F(ChromeContentVerifierTest, CfmChecksHashWithoutForceFlag) {
   ASSERT_FALSE(base::CommandLine::ForCurrentProcess()->HasSwitch(
-      extensions::switches::kDisableAppContentVerification));
+      switches::kDisableAppContentVerification));
   InitContentVerifier();
   ASSERT_TRUE(InstallExtension(kCaseSensitiveManifestPathsCrx));
   // Ensure that content verifier has checked hashes from |extension|.
@@ -245,7 +231,7 @@ TEST_F(ChromeContentVerifierTest, CfmChecksHashWithoutForceFlag) {
 // kDisableAppContentVerification flag is present.
 TEST_F(ChromeContentVerifierTest, CfmDoesNotCheckHashWithForceFlag) {
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      extensions::switches::kDisableAppContentVerification);
+      switches::kDisableAppContentVerification);
   InitContentVerifier();
   ASSERT_TRUE(InstallExtension(kCaseSensitiveManifestPathsCrx));
   // Ensure that content verifier has NOT checked hashes from |extension|.
@@ -257,7 +243,7 @@ TEST_F(ChromeContentVerifierTest, CfmDoesNotCheckHashWithForceFlag) {
 // kDisableAppContentVerification flag is present.
 TEST_F(ChromeContentVerifierTest, NonCfmChecksHashEvenWithForceFlag) {
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      extensions::switches::kDisableAppContentVerification);
+      switches::kDisableAppContentVerification);
   InitContentVerifier();
   ASSERT_TRUE(InstallExtension(kCaseSensitiveManifestPathsCrx));
   // Ensure that content verifier has checked hashes from |extension|.

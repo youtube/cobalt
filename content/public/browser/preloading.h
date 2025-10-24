@@ -6,8 +6,8 @@
 #define CONTENT_PUBLIC_BROWSER_PRELOADING_H_
 
 #include <cstdint>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
 #include "content/common/content_export.h"
 
 namespace content {
@@ -20,16 +20,15 @@ namespace content {
 // Defines the different types of preloading speedup techniques. Preloading is a
 // holistic term to define all the speculative operations the browser does for
 // loading content before a page navigates to make navigation faster.
-
+//
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+//
+// LINT.IfChange
 enum class PreloadingType {
   // No PreloadingType is present. This may include other preloading operations
   // which will be added later to PreloadingType as we expand.
   kUnspecified = 0,
-
-  // TODO(crbug.com/1309934): Add preloading type 1 as we integrate
-  // Preloading logging with preresolve.
 
   // Establishes a connection (including potential TLS handshake) with an
   // origin.
@@ -52,7 +51,14 @@ enum class PreloadingType {
   // NoState prefetch only supports the GET HTTP method and doesn't cache
   // resources with the no-store cache-control header.
   kNoStatePrefetch = 5,
+
+  // Link-Preview loads a page with prerendering infrastructures in a dedicated
+  // mini tab so that users can take a look at the content before visiting it.
+  // TODO(b:291867362): This is not used by the current implementation,
+  // but might be reused in the future.
+  kLinkPreview = 6,
 };
+// LINT.ThenChange()
 
 // Defines various triggering mechanisms which triggers different preloading
 // operations mentioned in preloading.h. The integer portion is used for UKM
@@ -60,14 +66,27 @@ enum class PreloadingType {
 // names. Embedders are allowed to define more predictors.
 class CONTENT_EXPORT PreloadingPredictor {
  public:
-  constexpr PreloadingPredictor(int64_t ukm_value, base::StringPiece name)
+  constexpr PreloadingPredictor(int64_t ukm_value, std::string_view name)
       : ukm_value_(ukm_value), name_(name) {}
   int64_t ukm_value() const { return ukm_value_; }
-  base::StringPiece name() const { return name_; }
+  std::string_view name() const { return name_; }
+
+  constexpr bool operator==(const PreloadingPredictor& other) const {
+    // There's no need to compare name_ since every PreloadingPredictor has a
+    // distinct ukm_value_.
+    return other.ukm_value_ == ukm_value_;
+  }
+
+  constexpr std::strong_ordering operator<=>(
+      const PreloadingPredictor& other) const {
+    // There's no need to compare name_ since every PreloadingPredictor has a
+    // distinct ukm_value_.
+    return other.ukm_value_ <=> ukm_value_;
+  }
 
  private:
   int64_t ukm_value_;
-  base::StringPiece name_;
+  std::string_view name_;
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -89,41 +108,51 @@ class CONTENT_EXPORT PreloadingPredictor {
 //
 // The embedder `PreloadingPredictor` definitions should start at 100 (see
 // `chrome/browser/preloading/chrome_preloading.h` for example).
+//
+// LINT.IfChange
 namespace preloading_predictor {
 // No PreloadingTrigger is present. This may include the small percentage of
 // usages of browser triggers, link-rel, OptimizationGuideService e.t.c which
 // will be added later as a separate elements.
-static constexpr PreloadingPredictor kUnspecified(0, "Unspecified");
+inline constexpr PreloadingPredictor kUnspecified(0, "Unspecified");
 
 // Preloading is triggered by OnPointerDown event heuristics.
-static constexpr PreloadingPredictor kUrlPointerDownOnAnchor(
+inline constexpr PreloadingPredictor kUrlPointerDownOnAnchor(
     1,
     "UrlPointerDownOnAnchor");
 
 // Preloading is triggered by OnPointerHover event heuristics.
-static constexpr PreloadingPredictor kUrlPointerHoverOnAnchor(
+inline constexpr PreloadingPredictor kUrlPointerHoverOnAnchor(
     2,
     "UrlPointerHoverOnAnchor");
 
 // Preloading was triggered by embedding a keyword for the rel attribute of
 // the <link> HTML element to hint to browsers that the user might need it for
 // next navigation.
-static constexpr PreloadingPredictor kLinkRel(3, "LinkRel");
+inline constexpr PreloadingPredictor kLinkRel(3, "LinkRel");
 
 // When overscroll that could trigger a back navigation starts.
-static constexpr PreloadingPredictor kBackGestureNavigation(
+inline constexpr PreloadingPredictor kBackGestureNavigation(
     4,
     "BackGestureNavigation");
 
-// TODO(crbug.com/1309934): Add more predictors as we integrate Preloading
-// logging.
+// Preloading heuristics ML model.
+inline constexpr PreloadingPredictor kPreloadingHeuristicsMLModel(
+    5,
+    "PreloadingHeuristicsMLModel");
+
+// Preloading is triggered by a deterministic viewport-based heuristic.
+inline constexpr PreloadingPredictor kViewportHeuristic(6, "ViewportHeuristic");
 }  // namespace preloading_predictor
+// LINT.ThenChange()
 
 // Defines if a preloading operation is eligible for a given preloading
 // trigger.
-
+//
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+//
+// LINT.IfChange
 enum class PreloadingEligibility {
   // Preloading operation is not defined for a particular preloading trigger
   // prediction.
@@ -193,32 +222,88 @@ enum class PreloadingEligibility {
   // Preloading was ineligible because it was triggered under memory pressure.
   kMemoryPressure = 16,
 
-  // Values between `kPreloadingEligibilityCommonEnd` (inclusive) and
-  // `kPreloadingEligibilityContentEnd` (exclusive) are reserved for enums
-  // defined under `//content`, namely `PrefetchStatus`.
-  kPreloadingEligibilityCommonEnd = 50,
+  // Preloading was ineligible because some DevTools client temporarily
+  // disabled.
+  kPreloadingDisabledByDevTools = 17,
 
-  // TODO(crbug.com/1309934): Add more specific ineligibility reasons subject to
-  // each preloading operation
+  // Preloading was ineligible because some triggers only allows https.
+  kHttpsOnly = 18,
+
+  // Preloading was ineligible for non-http(s).
+  kHttpOrHttpsOnly = 19,
+
+  // Preloading was ineligible because the network is too slow.
+  kSlowNetwork = 20,
+
+  // Previously reserved for cases where prerendering was disabled because the
+  // v8 optimizer was disabled by site settings. This was previously causing
+  // crashes, but the crash has since been fixed. See https://crbug.com/40076091
+  // for details.
+  // kV8OptimizerDisabled = 21,
+
+  // The initial URL is controlled by a ServiceWorker and then redirected
+  // (https://crbug.com/399819894).
+  kRedirectFromServiceWorker = 22,
+
+  // The initial URL is redirected to a URL controlled by a ServiceWorker
+  // (https://crbug.com/399819894).
+  // This case was previously counted as `kUserHasServiceWorker`.
+  kRedirectToServiceWorker = 23,
+
+  // The url was not eligible to be prefetched because there was a registered
+  // service worker with no fetch handler (when
+  // `kPrefetchServiceWorkerNoFetchHandlerFix` is enabled,
+  // https://crbug.com/379076354).
+  // This case was previously counted as `kUserHasServiceWorker`.
+  // Even after the initial ServiceWorker support (https://crbug.com/40947546),
+  // this will be still used for ServiceWorker-ineligible prefetches.
+  kUserHasServiceWorkerNoFetchHandler = 24,
+
+  // ##########################################################################
+  // The range 50-99 is reserved for corresponding values in `PrefetchStatus`.
+  // See corresponding values in PrefetchStatus for documentation.
+  // Note: The values outside this range also can have corresponding values in
+  // `PrefetchStatus`, e.g. `kDataSaverEnabled`.
+  // When adding a new prefetch-related `PreloadingEligibility` value, add it
+  // outside this range, because this range 50-99 is already full.
+  kUserHasCookies = 55,
+  kUserHasServiceWorker = 56,
+  // This is similar to `kHttpsOnly`, but separately defined here to keep
+  // existing metrics values, for cases corresponding to
+  // `PrefetchStatus::kPrefetchIneligibleSchemeIsNotHttps`.
+  kSchemeIsNotHttps = 57,
+  kNonDefaultStoragePartition = 59,
+  kRetryAfter = 77,
+  kPrefetchProxyNotAvailable = 78,
+  kHostIsNonUnique = 86,
+  kExistingProxy = 88,
+  //  OBSOLETE: kBrowserContextOffTheRecord = 89,
+  kSameSiteCrossOriginPrefetchRequiredProxy = 96,
+
+  // ##########################################################################
+  // The range 100-199 is reserved for embedders.
   // This constant is used to define the value beyond which embedders can add
   // more enums.
   kPreloadingEligibilityContentEnd = 100,
 
-  // This is another range reserved for content internal values, namely
-  // `PrerenderBackNavigationEligibility`. Embedders may add more values
-  // beyond this range.
+  // ##########################################################################
+  // The range 200-249 is another range reserved for content internal values,
+  // namely `PrerenderBackNavigationEligibility`.
   kPreloadingEligibilityContentStart2 = 200,
   kPreloadingEligibilityContentEnd2 = 250,
 };
+// LINT.ThenChange()
 
 // The outcome of the holdback check. This is not part of eligibility status to
 // clarify that this check needs to happen after we are done verifying the
 // eligibility of a preloading attempt. In general, eligibility checks can be
 // reordered, but the holdback check always needs to come after verifying that
 // the preloading attempt was eligible.
-
+//
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+//
+// LINT.IfChange
 enum class PreloadingHoldbackStatus {
   // The preloading holdback status has not been set yet. This should only
   // happen when the preloading attempt was not eligible.
@@ -232,14 +317,17 @@ enum class PreloadingHoldbackStatus {
   // trial holdback. This is useful for measuring the impact of preloading.
   kHoldback = 2,
 };
+// LINT.ThenChange()
 
 // Defines the post-triggering outcome once the preloading operation is
 // triggered.
-
+//
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. Please update
 // "PreloadingTriggeringOutcome" in `tools/metrics/histograms/enums.xml` when
 // new enums are added.
+//
+// LINT.IfChange
 enum class PreloadingTriggeringOutcome {
   // The outcome is kUnspecified for attempts that were not triggered due to
   // various ineligibility reasons or due to a field trial holdback.
@@ -278,8 +366,7 @@ enum class PreloadingTriggeringOutcome {
   kTriggeredButUpgradedToPrerender = 8,
 
   // Preloading was triggered but was pending for starting its initial
-  // navigation. This outcome should not be recorded when
-  // `kPrerender2SequentialPrerendering` is disabled.
+  // navigation.
   kTriggeredButPending = 9,
 
   // Used for triggers that do not perform a preloading operation. This may be
@@ -290,9 +377,12 @@ enum class PreloadingTriggeringOutcome {
   // Required by UMA histogram macro.
   kMaxValue = kNoOp,
 };
+// LINT.ThenChange()
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+//
+// LINT.IfChange
 enum class PreloadingFailureReason {
   // The failure reason is unspecified if the triggering outcome is not
   // kFailure.
@@ -316,6 +406,15 @@ enum class PreloadingFailureReason {
   // "limit exceeded" for preconnect but "cancelled" for prerender).
   kPreloadingFailureReasonContentEnd = 1000,
 };
+// LINT.ThenChange()
+
+// Types of URL match:
+// Exact match: the URLs are matching exactly.
+// NoVarySearch match: No-Vary-Search header allows for inexact match by
+// ignoring some query parameters, or the order of query parameters present
+// in URLs.
+// Custom match: custom URL matching provided by a url matching predicate.
+enum class UrlMatchType { kExact, kNoVarySearch, kURLPredicateMatch };
 
 }  // namespace content
 

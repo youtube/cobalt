@@ -33,17 +33,8 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) FileSystemQuotaUtil {
  public:
   virtual ~FileSystemQuotaUtil() = default;
 
-  // Deletes the data on the StorageKey and reports the amount of deleted data
-  // to the quota manager via |proxy|.
-  virtual base::File::Error DeleteStorageKeyDataOnFileTaskRunner(
-      FileSystemContext* context,
-      QuotaManagerProxy* proxy,
-      const blink::StorageKey& storage_key,
-      FileSystemType type) = 0;
-
-  // Deletes the cached default bucket for `storage_key` of type
-  // StorageType::kTemporary. Called when the default bucket is deleted from
-  // Quota service.
+  // Deletes the cached default bucket for `storage_key`. Called when the
+  // default bucket is deleted from Quota service.
   virtual void DeleteCachedDefaultBucket(
       const blink::StorageKey& storage_key) = 0;
 
@@ -59,13 +50,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) FileSystemQuotaUtil {
                                                      QuotaManagerProxy* proxy,
                                                      FileSystemType type) = 0;
 
-  virtual std::vector<blink::StorageKey> GetStorageKeysForTypeOnFileTaskRunner(
-      FileSystemType type) = 0;
-
-  // Returns the amount of data used for the `storage_key` for usage tracking.
-  virtual int64_t GetStorageKeyUsageOnFileTaskRunner(
-      FileSystemContext* file_system_context,
-      const blink::StorageKey& storage_key,
+  virtual std::vector<blink::StorageKey> GetDefaultStorageKeysOnFileTaskRunner(
       FileSystemType type) = 0;
 
   // Returns the amount of data used for the `bucket_locator` for usage

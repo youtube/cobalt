@@ -19,15 +19,23 @@ namespace SerializationUtils {
 
 // If there are more than 100,000 messages in the file, discard the remaining
 // messages to avoid running out of memory.
-extern const int kMaxMessagesPerRead;
+// This value is used as a max value in a histogram,
+// Platform.ExternalMetrics.SamplesRead. If it changes, the histogram will need
+// to be renamed.
+inline constexpr int kMaxMessagesPerRead = 100000;
 
 // Deserializes a sample passed as a string and return a sample.
 // The return value will either be a scoped_ptr to a Metric sample (if the
 // deserialization was successful) or a nullptr scoped_ptr.
 std::unique_ptr<MetricSample> ParseSample(const std::string& sample);
 
-// Reads all samples from a file and truncate the file when done.
+// Reads all samples from a file and truncates the file when done.
 void ReadAndTruncateMetricsFromFile(
+    const std::string& filename,
+    std::vector<std::unique_ptr<MetricSample>>* metrics);
+
+// Reads all samples from a file and deletes the file when done.
+void ReadAndDeleteMetricsFromFile(
     const std::string& filename,
     std::vector<std::unique_ptr<MetricSample>>* metrics);
 
@@ -44,7 +52,7 @@ void ReadAndTruncateMetricsFromFile(
 bool WriteMetricToFile(const MetricSample& sample, const std::string& filename);
 
 // Maximum length of a serialized message
-static const size_t kMessageMaxLength = 1024;
+inline constexpr size_t kMessageMaxLength = 1024;
 
 }  // namespace SerializationUtils
 }  // namespace metrics

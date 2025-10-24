@@ -25,7 +25,6 @@ class TestParser : public ScriptableDocumentParser {
   }
 
   void ExecuteScriptsWaitingForResources() override {}
-  void NotifyNoRemainingAsyncScripts() override {}
   bool IsWaitingForScripts() const override { return false; }
   void DidAddPendingParserBlockingStylesheet() override {}
   void DidLoadAllPendingParserBlockingStylesheets() override {}
@@ -76,10 +75,9 @@ TEST_F(BackgroundHTMLScannerTest, InsideHTMLPreloadScanner) {
   auto* parser = MakeGarbageCollected<TestParser>(GetDocument());
   auto background_scanner = CreateScanner(parser);
   HTMLPreloadScanner preload_scanner(
-      std::make_unique<HTMLTokenizer>(HTMLParserOptions()), false,
-      GetDocument().Url(),
+      std::make_unique<HTMLTokenizer>(HTMLParserOptions()), GetDocument().Url(),
       std::make_unique<CachedDocumentParameters>(&GetDocument()),
-      MediaValuesCached::MediaValuesCachedData(GetDocument()),
+      std::make_unique<MediaValuesCached::MediaValuesCachedData>(GetDocument()),
       TokenPreloadScanner::ScannerType::kMainDocument,
       std::make_unique<BackgroundHTMLScanner::ScriptTokenScanner>(
           parser, task_runner_, 0),

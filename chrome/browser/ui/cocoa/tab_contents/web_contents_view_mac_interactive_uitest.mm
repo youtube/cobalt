@@ -4,7 +4,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-#import "base/mac/scoped_nsobject.h"
 #include "base/run_loop.h"
 #import "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -14,7 +13,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
-#include "content/public/browser/native_web_keyboard_event.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -43,8 +42,9 @@ class TabRemovedWaiter : public TabStripModelObserver {
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override {
-    if (change.type() == TabStripModelChange::kRemoved)
+    if (change.type() == TabStripModelChange::kRemoved) {
       run_loop_.Quit();
+    }
   }
 
  private:
@@ -55,7 +55,7 @@ class TabRemovedWaiter : public TabStripModelObserver {
 
 // Integration test for a <select> popup run by the Mac-specific
 // content::PopupMenuHelper, owned by a WebContentsViewMac.
-// TODO(crbug.com/1193978): this test is flaking on the bots. Re-enable it when
+// TODO(crbug.com/40758190): this test is flaking on the bots. Re-enable it when
 // it's fixed.
 IN_PROC_BROWSER_TEST_F(WebContentsViewMacInteractiveTest,
                        DISABLED_SelectMenuLifetime) {
@@ -68,16 +68,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsViewMacInteractiveTest,
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
-  __block base::scoped_nsobject<NSString> first_item;
+  __block NSString* first_item;
 
   // Set up a callback to trigger when a native menu is displayed.
-  id token = [[NSNotificationCenter defaultCenter]
+  id token = [NSNotificationCenter.defaultCenter
       addObserverForName:NSMenuDidBeginTrackingNotification
                   object:nil
                    queue:nil
               usingBlock:^(NSNotification* notification) {
-                first_item.reset(
-                    [[[[notification object] itemAtIndex:0] title] copy]);
+                first_item = [[[notification.object itemAtIndex:0] title] copy];
                 // We can't close the tab until after
                 // NSMenuDidBeginTrackingNotification is processed (i.e. after
                 // this block returns). So post a task to run on the inner run
@@ -98,7 +97,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsViewMacInteractiveTest,
   content::SimulateMouseClickOrTapElementWithId(web_contents, "select");
   tab_removed_waiter.Wait();
 
-  [[NSNotificationCenter defaultCenter] removeObserver:token];
+  [NSNotificationCenter.defaultCenter removeObserver:token];
 
   // Expect that the menu is no longer being tracked.
   EXPECT_NE(NSEventTrackingRunLoopMode, NSRunLoop.currentRunLoop.currentMode);

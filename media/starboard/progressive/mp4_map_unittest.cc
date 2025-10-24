@@ -152,7 +152,6 @@ class SampleTable {
         return stss_offset_;
       default:
         NOTREACHED();
-        return 0;
     }
   }
 
@@ -174,7 +173,6 @@ class SampleTable {
         return stss_.size();
       default:
         NOTREACHED();
-        return 0;
     }
   }
 

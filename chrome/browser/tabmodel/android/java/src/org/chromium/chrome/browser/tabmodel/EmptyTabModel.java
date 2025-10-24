@@ -4,20 +4,26 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 
-import java.util.List;
+/** Singleton class intended to stub out Tab model before it has been created. */
+@VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+@NullMarked
+public class EmptyTabModel implements IncognitoTabModelInternal {
+    private boolean mIsIncognito;
 
-/**
- * Singleton class intended to stub out Tab model before it has been created.
- */
-public class EmptyTabModel implements TabModel {
     /**
      * Used to mock TabModel. Application code should use getInstance() to construct an
      * EmptyTabModel.
@@ -25,47 +31,59 @@ public class EmptyTabModel implements TabModel {
     @VisibleForTesting
     public EmptyTabModel() {}
 
+    private EmptyTabModel(boolean isIncognito) {
+        mIsIncognito = isIncognito;
+    }
+
     // "Initialization on demand holder idiom"
     private static class LazyHolder {
-        private static final EmptyTabModel INSTANCE = new EmptyTabModel();
+        private static final EmptyTabModel INSTANCE = new EmptyTabModel(false);
+        private static final EmptyTabModel INCOGNITO_INSTANCE = new EmptyTabModel(true);
     }
 
     /**
      * Get the singleton instance of EmptyTabModel.
+     *
      * @return the instance of EmptyTabModel
      */
-    public static EmptyTabModel getInstance() {
-        return LazyHolder.INSTANCE;
+    public static EmptyTabModel getInstance(boolean isIncognito) {
+        return isIncognito ? LazyHolder.INCOGNITO_INSTANCE : LazyHolder.INSTANCE;
     }
 
     @Override
-    public Profile getProfile() {
+    public @Nullable Profile getProfile() {
         return null;
     }
 
     @Override
     public boolean isIncognito() {
+        return mIsIncognito;
+    }
+
+    @Override
+    public boolean isOffTheRecord() {
+        return mIsIncognito;
+    }
+
+    @Override
+    public boolean isIncognitoBranded() {
+        return mIsIncognito;
+    }
+
+    @Override
+    public TabRemover getTabRemover() {
+        return new EmptyTabRemover();
+    }
+
+    @Override
+    public boolean closeTabs(TabClosureParams tabClosureParams) {
         return false;
     }
 
     @Override
-    public boolean closeTab(Tab tab) {
-        return false;
-    }
-
-    @Override
-    public Tab getNextTabIfClosed(int id, boolean uponExit) {
+    public @Nullable Tab getNextTabIfClosed(int id, boolean uponExit) {
         return null;
     }
-
-    @Override
-    public void closeMultipleTabs(List<Tab> tabs, boolean canUndo) {}
-
-    @Override
-    public void closeAllTabs() {}
-
-    @Override
-    public void closeAllTabs(boolean uponExit) {}
 
     @Override
     public int getCount() {
@@ -74,12 +92,17 @@ public class EmptyTabModel implements TabModel {
     }
 
     @Override
-    public Tab getTabAt(int position) {
+    public @Nullable Tab getTabAt(int position) {
         return null;
     }
 
     @Override
-    public int indexOf(Tab tab) {
+    public @Nullable Tab getTabById(int tabId) {
+        return null;
+    }
+
+    @Override
+    public int indexOf(@Nullable Tab tab) {
         return INVALID_TAB_INDEX;
     }
 
@@ -89,7 +112,13 @@ public class EmptyTabModel implements TabModel {
     }
 
     @Override
-    public void setIndex(int i, @TabSelectionType int type, boolean skipLoadingTab) {}
+    public ObservableSupplier<@Nullable Tab> getCurrentTabSupplier() {
+        assert false : "This should be unreachable in production, it may be mocked for testing.";
+        return new ObservableSupplierImpl<>();
+    }
+
+    @Override
+    public void setIndex(int i, @TabSelectionType int type) {}
 
     @Override
     public boolean isActiveModel() {
@@ -108,17 +137,6 @@ public class EmptyTabModel implements TabModel {
     }
 
     @Override
-    public boolean closeTab(Tab tab, boolean animate, boolean uponExit, boolean canUndo) {
-        return false;
-    }
-
-    @Override
-    public boolean closeTab(
-            Tab tab, Tab recommendedNextTab, boolean animate, boolean uponExit, boolean canUndo) {
-        return closeTab(tab, animate, uponExit, canUndo);
-    }
-
-    @Override
     public TabList getComprehensiveModel() {
         return this;
     }
@@ -133,11 +151,20 @@ public class EmptyTabModel implements TabModel {
     public void cancelTabClosure(int tabId) {}
 
     @Override
-    public void notifyAllTabsClosureUndone() {}
-
-    @Override
     public boolean supportsPendingClosures() {
         return false;
+    }
+
+    @Override
+    public ObservableSupplier<Integer> getTabCountSupplier() {
+        assert false : "This should be unreachable in production, it may be mocked for testing.";
+        return new ObservableSupplierImpl<>();
+    }
+
+    @Override
+    public TabCreator getTabCreator() {
+        assert false : "This should be unreachable in production, it may be mocked for testing.";
+        return assumeNonNull(null);
     }
 
     @Override
@@ -153,11 +180,20 @@ public class EmptyTabModel implements TabModel {
     public void removeObserver(TabModelObserver observer) {}
 
     @Override
-    public void setActive(boolean active) {}
-
-    @Override
     public void removeTab(Tab tab) {}
 
     @Override
     public void openMostRecentlyClosedEntry() {}
+
+    @Override
+    public void addIncognitoObserver(IncognitoTabModelObserver observer) {}
+
+    @Override
+    public void removeIncognitoObserver(IncognitoTabModelObserver observer) {}
+
+    @Override
+    public void setActive(boolean active) {}
+
+    @Override
+    public void broadcastSessionRestoreComplete() {}
 }

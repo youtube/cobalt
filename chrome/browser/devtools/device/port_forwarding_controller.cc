@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -68,18 +69,18 @@ const char kConnectionIdParam[] = "connectionId";
 
 static bool ParseNotification(const std::string& json,
                               std::string& method,
-                              absl::optional<base::Value::Dict>& params) {
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
-  if (!value || !value->is_dict())
+                              std::optional<base::Value::Dict>& params) {
+  std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(json);
+  if (!value) {
     return false;
+  }
 
-  base::Value::Dict& dict = value->GetDict();
-  std::string* method_value = dict.FindString(kMethodParam);
+  std::string* method_value = value->FindString(kMethodParam);
   if (!method_value)
     return false;
   method = std::move(*method_value);
 
-  base::Value::Dict* param_dict = dict.FindDict(kParamsParam);
+  base::Value::Dict* param_dict = value->FindDict(kParamsParam);
   if (param_dict) {
     params = std::move(*param_dict);
   }
@@ -89,16 +90,16 @@ static bool ParseNotification(const std::string& json,
 static bool ParseResponse(const std::string& json,
                           int* command_id,
                           int* error_code) {
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
-  if (!value || !value->is_dict())
+  std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(json);
+  if (!value) {
     return false;
-  const base::Value::Dict& dict = value->GetDict();
-  absl::optional<int> command_id_opt = dict.FindInt(kIdParam);
+  }
+  std::optional<int> command_id_opt = value->FindInt(kIdParam);
   if (!command_id_opt)
     return false;
   *command_id = *command_id_opt;
 
-  absl::optional<int> error_value = dict.FindIntByDottedPath(kErrorCodePath);
+  std::optional<int> error_value = value->FindIntByDottedPath(kErrorCodePath);
   if (error_value)
     *error_code = *error_value;
 
@@ -173,8 +174,8 @@ class PortForwardingHostResolver : public network::ResolveHostClientBase {
     receiver_.set_disconnect_handler(base::BindOnce(
         &PortForwardingHostResolver::OnComplete, base::Unretained(this),
         net::ERR_NAME_NOT_RESOLVED, net::ResolveErrorInfo(net::ERR_FAILED),
-        /*resolved_addresses=*/absl::nullopt,
-        /*endpoint_results_with_metadata=*/absl::nullopt));
+        /*resolved_addresses=*/std::nullopt,
+        /*endpoint_results_with_metadata=*/std::nullopt));
   }
 
   PortForwardingHostResolver(const PortForwardingHostResolver&) = delete;
@@ -189,8 +190,8 @@ class PortForwardingHostResolver : public network::ResolveHostClientBase {
   // network::mojom::ResolveHostClient:
   void OnComplete(int result,
                   const net::ResolveErrorInfo& resolve_error_info,
-                  const absl::optional<net::AddressList>& resolved_addresses,
-                  const absl::optional<net::HostResolverEndpointResults>&
+                  const std::optional<net::AddressList>& resolved_addresses,
+                  const std::optional<net::HostResolverEndpointResults>&
                       endpoint_results_with_metadata) override {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
@@ -296,8 +297,7 @@ class SocketTunnel {
   void Pump(net::StreamSocket* from, net::StreamSocket* to) {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-    scoped_refptr<net::IOBuffer> buffer =
-        base::MakeRefCounted<net::IOBuffer>(kBufferSize);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(kBufferSize);
     int result =
         from->Read(buffer.get(), kBufferSize,
                    base::BindOnce(&SocketTunnel::OnRead, base::Unretained(this),
@@ -430,8 +430,8 @@ class PortForwardingController::Connection
   void OnFrameRead(const std::string& message) override;
   void OnSocketClosed() override;
 
-  Profile* profile_;
-  PortForwardingController::Registry* registry_;
+  raw_ptr<Profile> profile_;
+  raw_ptr<PortForwardingController::Registry> registry_;
   scoped_refptr<AndroidDeviceManager::Device> device_;
   scoped_refptr<DevToolsAndroidBridge::RemoteBrowser> browser_;
   std::unique_ptr<AndroidDeviceManager::AndroidWebSocket> web_socket_;
@@ -575,7 +575,7 @@ void PortForwardingController::Connection::OnFrameRead(
     return;
 
   std::string method;
-  absl::optional<base::Value::Dict> params;
+  std::optional<base::Value::Dict> params;
   if (!ParseNotification(message, method, params)) {
     return;
   }
@@ -583,7 +583,7 @@ void PortForwardingController::Connection::OnFrameRead(
   if (method != kAcceptedEvent || !params)
     return;
 
-  absl::optional<int> port = params->FindInt(kPortParam);
+  std::optional<int> port = params->FindInt(kPortParam);
   if (!port)
     return;
   const std::string* connection_id = params->FindString(kConnectionIdParam);
@@ -617,7 +617,7 @@ PortForwardingController::PortForwardingController(Profile* profile)
   OnPrefsChange();
 }
 
-PortForwardingController::~PortForwardingController() {}
+PortForwardingController::~PortForwardingController() = default;
 
 PortForwardingController::ForwardingStatus
 PortForwardingController::DeviceListChanged(

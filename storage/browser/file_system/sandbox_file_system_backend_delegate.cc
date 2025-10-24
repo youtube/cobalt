@@ -19,12 +19,12 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/types/expected_macros.h"
 #include "storage/browser/file_system/async_file_util_adapter.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_context.h"
 #include "storage/browser/file_system/file_system_url.h"
 #include "storage/browser/file_system/file_system_usage_cache.h"
-#include "storage/browser/file_system/file_system_util.h"
 #include "storage/browser/file_system/obfuscated_file_util.h"
 #include "storage/browser/file_system/obfuscated_file_util_memory_delegate.h"
 #include "storage/browser/file_system/quota/quota_backend_impl.h"
@@ -82,7 +82,7 @@ class SandboxObfuscatedStorageKeyEnumerator
   }
   ~SandboxObfuscatedStorageKeyEnumerator() override = default;
 
-  absl::optional<blink::StorageKey> Next() override { return enum_->Next(); }
+  std::optional<blink::StorageKey> Next() override { return enum_->Next(); }
 
   bool HasFileSystemType(FileSystemType type) const override {
     return enum_->HasTypeDirectory(
@@ -140,7 +140,6 @@ std::string SandboxFileSystemBackendDelegate::GetTypeString(
     case kFileSystemTypeUnknown:
     default:
       NOTREACHED() << "Unknown filesystem type requested:" << type;
-      return std::string();
   }
 }
 
@@ -316,32 +315,6 @@ void SandboxFileSystemBackendDelegate::DeleteCachedDefaultBucket(
 }
 
 base::File::Error
-SandboxFileSystemBackendDelegate::DeleteStorageKeyDataOnFileTaskRunner(
-    FileSystemContext* file_system_context,
-    QuotaManagerProxy* proxy,
-    const blink::StorageKey& storage_key,
-    FileSystemType type) {
-  DCHECK(file_task_runner_->RunsTasksInCurrentSequence());
-  int64_t usage = GetStorageKeyUsageOnFileTaskRunner(file_system_context,
-                                                     storage_key, type);
-  usage_cache()->CloseCacheFiles();
-  bool result = obfuscated_file_util()->DeleteDirectoryForStorageKeyAndType(
-      storage_key, type);
-  auto bucket = BucketLocator::ForDefaultBucket(storage_key);
-  bucket.type = FileSystemTypeToQuotaStorageType(type);
-
-  if (result && proxy && usage) {
-    proxy->NotifyBucketModified(
-        QuotaClientType::kFileSystem, bucket, -usage, base::Time::Now(),
-        base::SequencedTaskRunner::GetCurrentDefault(), base::DoNothing());
-  }
-
-  if (result)
-    return base::File::FILE_OK;
-  return base::File::FILE_ERROR_FAILED;
-}
-
-base::File::Error
 SandboxFileSystemBackendDelegate::DeleteBucketDataOnFileTaskRunner(
     FileSystemContext* file_system_context,
     QuotaManagerProxy* proxy,
@@ -374,13 +347,13 @@ void SandboxFileSystemBackendDelegate::PerformStorageCleanupOnFileTaskRunner(
 }
 
 std::vector<blink::StorageKey>
-SandboxFileSystemBackendDelegate::GetStorageKeysForTypeOnFileTaskRunner(
+SandboxFileSystemBackendDelegate::GetDefaultStorageKeysOnFileTaskRunner(
     FileSystemType type) {
   DCHECK(file_task_runner_->RunsTasksInCurrentSequence());
   std::unique_ptr<StorageKeyEnumerator> enumerator(
       CreateStorageKeyEnumerator());
   std::vector<blink::StorageKey> storage_keys;
-  absl::optional<blink::StorageKey> storage_key;
+  std::optional<blink::StorageKey> storage_key;
   while ((storage_key = enumerator->Next()).has_value()) {
     if (enumerator->HasFileSystemType(type))
       storage_keys.push_back(std::move(storage_key).value());
@@ -388,50 +361,20 @@ SandboxFileSystemBackendDelegate::GetStorageKeysForTypeOnFileTaskRunner(
   return storage_keys;
 }
 
-int64_t SandboxFileSystemBackendDelegate::GetStorageKeyUsageOnFileTaskRunner(
-    FileSystemContext* file_system_context,
-    const blink::StorageKey& storage_key,
-    FileSystemType type) {
-  DCHECK(file_task_runner_->RunsTasksInCurrentSequence());
-  return GetUsageOnFileTaskRunner(file_system_context, storage_key,
-                                  /*bucket_locator=*/absl::nullopt, type);
-}
-
 int64_t SandboxFileSystemBackendDelegate::GetBucketUsageOnFileTaskRunner(
     FileSystemContext* file_system_context,
     const BucketLocator& bucket_locator,
     FileSystemType type) {
   DCHECK(file_task_runner_->RunsTasksInCurrentSequence());
-  return GetUsageOnFileTaskRunner(
-      file_system_context, bucket_locator.storage_key, bucket_locator, type);
-}
 
-int64_t SandboxFileSystemBackendDelegate::GetUsageOnFileTaskRunner(
-    FileSystemContext* file_system_context,
-    const blink::StorageKey& storage_key,
-    const absl::optional<BucketLocator>& bucket_locator,
-    FileSystemType type) {
-  DCHECK(file_task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!bucket_locator.has_value() ||
-         (bucket_locator.has_value() &&
-          bucket_locator->storage_key == storage_key));
-  // Don't use usage cache and return recalculated usage for sticky invalidated
-  // origins.
-  if (base::Contains(sticky_dirty_origins_,
-                     std::make_pair(storage_key.origin(), type)))
-    return RecalculateUsage(file_system_context, storage_key, bucket_locator,
-                            type);
-
-  base::FilePath path;
-  if (bucket_locator.has_value()) {
-    path =
-        GetBaseDirectoryForBucketAndType(bucket_locator.value(), type, false);
-  } else {
-    path = GetBaseDirectoryForStorageKeyAndType(storage_key, type, false);
-    if (path.empty()) {
-      return 0;
-    }
+  if (base::Contains(
+          sticky_dirty_origins_,
+          std::make_pair(bucket_locator.storage_key.origin(), type))) {
+    return RecalculateBucketUsage(file_system_context, bucket_locator, type);
   }
+
+  base::FilePath path =
+      GetBaseDirectoryForBucketAndType(bucket_locator, type, false);
   if (!obfuscated_file_util()->delegate()->DirectoryExists(path)) {
     return 0;
   }
@@ -442,7 +385,8 @@ int64_t SandboxFileSystemBackendDelegate::GetUsageOnFileTaskRunner(
   uint32_t dirty_status = 0;
   bool dirty_status_available =
       usage_cache()->GetDirty(usage_file_path, &dirty_status);
-  bool visited = !visited_origins_.insert(storage_key.origin()).second;
+  bool visited =
+      !visited_origins_.insert(bucket_locator.storage_key.origin()).second;
   if (is_valid && (dirty_status == 0 || (dirty_status_available && visited))) {
     // The usage cache is clean (dirty == 0) or the origin is already
     // initialized and running.  Read the cache file to get the usage.
@@ -454,7 +398,7 @@ int64_t SandboxFileSystemBackendDelegate::GetUsageOnFileTaskRunner(
   usage_cache()->Delete(usage_file_path);
 
   int64_t usage =
-      RecalculateUsage(file_system_context, storage_key, bucket_locator, type);
+      RecalculateBucketUsage(file_system_context, bucket_locator, type);
 
   // This clears the dirty flag too.
   usage_cache()->UpdateUsage(usage_file_path, usage);
@@ -536,12 +480,11 @@ void SandboxFileSystemBackendDelegate::RegisterQuotaUpdateObserver(
 void SandboxFileSystemBackendDelegate::InvalidateUsageCache(
     const blink::StorageKey& storage_key,
     FileSystemType type) {
-  base::FileErrorOr<base::FilePath> usage_file_path =
-      GetUsageCachePathForStorageKeyAndType(obfuscated_file_util(), storage_key,
-                                            type);
-  if (!usage_file_path.has_value())
-    return;
-  usage_cache()->IncrementDirty(usage_file_path.value());
+  ASSIGN_OR_RETURN(base::FilePath usage_file_path,
+                   GetUsageCachePathForStorageKeyAndType(obfuscated_file_util(),
+                                                         storage_key, type),
+                   [](auto) {});
+  usage_cache()->IncrementDirty(std::move(usage_file_path));
 }
 
 void SandboxFileSystemBackendDelegate::StickyInvalidateUsageCache(
@@ -619,13 +562,10 @@ SandboxFileSystemBackendDelegate::GetUsageCachePathForStorageKeyAndType(
     ObfuscatedFileUtil* sandbox_file_util,
     const blink::StorageKey& storage_key,
     FileSystemType type) {
-  base::FileErrorOr<base::FilePath> base_path =
-      sandbox_file_util->GetDirectoryForStorageKeyAndType(storage_key, type,
-                                                          false /* create */);
-  if (!base_path.has_value()) {
-    return base_path;
-  }
-  return base_path->Append(FileSystemUsageCache::kUsageFileName);
+  ASSIGN_OR_RETURN(base::FilePath base_path,
+                   sandbox_file_util->GetDirectoryForStorageKeyAndType(
+                       storage_key, type, false /* create */));
+  return base_path.Append(FileSystemUsageCache::kUsageFileName);
 }
 
 base::FileErrorOr<base::FilePath>
@@ -642,25 +582,21 @@ SandboxFileSystemBackendDelegate::GetUsageCachePathForBucketAndType(
     ObfuscatedFileUtil* sandbox_file_util,
     const BucketLocator& bucket_locator,
     FileSystemType type) {
-  base::FileErrorOr<base::FilePath> base_path =
+  ASSIGN_OR_RETURN(
+      base::FilePath base_path,
       sandbox_file_util->GetDirectoryForBucketAndType(bucket_locator, type,
-                                                      /*create=*/false);
-  if (!base_path.has_value()) {
-    return base_path;
-  }
-  return base_path->Append(FileSystemUsageCache::kUsageFileName);
+                                                      /*create=*/false));
+  return base_path.Append(FileSystemUsageCache::kUsageFileName);
 }
 
-int64_t SandboxFileSystemBackendDelegate::RecalculateUsage(
+int64_t SandboxFileSystemBackendDelegate::RecalculateBucketUsage(
     FileSystemContext* context,
-    const blink::StorageKey& storage_key,
-    const absl::optional<BucketLocator>& bucket_locator,
+    const BucketLocator& bucket_locator,
     FileSystemType type) {
   FileSystemOperationContext operation_context(context);
-  FileSystemURL url =
-      context->CreateCrackedFileSystemURL(storage_key, type, base::FilePath());
-  if (bucket_locator.has_value())
-    url.SetBucket(bucket_locator.value());
+  FileSystemURL url = context->CreateCrackedFileSystemURL(
+      bucket_locator.storage_key, type, base::FilePath());
+  url.SetBucket(bucket_locator);
   std::unique_ptr<FileSystemFileUtil::AbstractFileEnumerator> enumerator(
       obfuscated_file_util()->CreateFileEnumerator(&operation_context, url,
                                                    true));

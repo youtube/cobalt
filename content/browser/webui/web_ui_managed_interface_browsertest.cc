@@ -66,7 +66,8 @@ template <typename Type>
 int InstanceCounter<Type>::count_ = 0;
 
 // FooImpl implements Foo.
-class FooImpl : public WebUIManagedInterface<FooImpl, mojom::Foo> {
+class FooImpl : public mojom::Foo,
+                public WebUIManagedInterface<FooImpl, mojom::Foo> {
  public:
   FooImpl() { InstanceCounter<FooImpl>::Increment(); }
 
@@ -80,7 +81,8 @@ class FooImpl : public WebUIManagedInterface<FooImpl, mojom::Foo> {
 
 // FooImpl implements Foo and talks to a Bar remote.
 class FooBarImpl
-    : public WebUIManagedInterface<FooBarImpl, mojom::Foo, mojom::Bar> {
+    : public mojom::Foo,
+      public WebUIManagedInterface<FooBarImpl, mojom::Foo, mojom::Bar> {
  public:
   FooBarImpl() { InstanceCounter<FooBarImpl>::Increment(); }
 
@@ -218,8 +220,6 @@ class WebUIManagedInterfaceBrowserTest : public ContentBrowserTest {
     test_content_browser_client_ = std::make_unique<TestContentBrowserClient>();
   }
 
-  void TearDownOnMainThread() override { test_content_browser_client_.reset(); }
-
   // Evaluate `statement` in frame (defaults to main frame), and returns its
   // result. For convenience, `script` should evaluate to a string, or a promise
   // that resolves to a string.
@@ -241,7 +241,7 @@ class WebUIManagedInterfaceBrowserTest : public ContentBrowserTest {
     RenderFrameHost* eval_frame =
         frame ? frame : ConvertToRenderFrameHost(shell());
     TestNavigationObserver observer(shell()->web_contents(), 1);
-    EXPECT_TRUE(ExecuteScript(eval_frame, "location.reload()"));
+    EXPECT_TRUE(ExecJs(eval_frame, "location.reload()"));
     observer.Wait();
   }
 
@@ -392,6 +392,7 @@ IN_PROC_BROWSER_TEST_F(WebUIManagedInterfaceBrowserTest, WebUIInIframe) {
 
   // Iframe navigation will destroy interface impls.
   Reload(foo_frame);
+  foo_frame = ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0);
   EXPECT_EQ(0, InstanceCounter<FooImpl>::count());
 
   // Interface impls can be created after reload.
@@ -434,8 +435,8 @@ IN_PROC_BROWSER_TEST_F(WebUIManagedInterfaceBrowserTest, RemoveIframe) {
 
   // Iframe removal will destroy interface impls.
   RenderFrameDeletedObserver frame_deleted_observer(foo_frame);
-  EXPECT_TRUE(ExecuteScript(
-      shell(), "document.getElementById('untrusted-webui').remove()"));
+  EXPECT_TRUE(
+      ExecJs(shell(), "document.getElementById('untrusted-webui').remove()"));
   frame_deleted_observer.WaitUntilDeleted();
   EXPECT_EQ(0, InstanceCounter<FooImpl>::count());
 }

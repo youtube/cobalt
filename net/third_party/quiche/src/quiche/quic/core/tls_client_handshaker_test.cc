@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "openssl/hpke.h"
@@ -30,6 +33,7 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
+using testing::HasSubstr;
 
 namespace quic {
 namespace test {
@@ -166,7 +170,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   TlsClientHandshakerTest()
       : supported_versions_({GetParam()}),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
     crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
@@ -218,8 +222,10 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   // Initializes a fake server, and all its associated state, for testing.
-  void InitializeFakeServer() {
+  void InitializeFakeServer(const std::string& trust_anchor_id = "") {
     TestQuicSpdyServerSession* server_session = nullptr;
+    server_crypto_config_ =
+        crypto_test_utils::CryptoServerConfigForTesting(trust_anchor_id);
     CreateServerSessionForTest(
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         &server_helper_, &alarm_factory_, server_crypto_config_.get(),
@@ -275,7 +281,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicServerId server_id_;
   CryptoHandshakeMessage message_;
   std::unique_ptr<QuicCryptoClientConfig> crypto_config_;
-  absl::optional<QuicSSLConfig> ssl_config_;
+  std::optional<QuicSSLConfig> ssl_config_;
 
   // Server state.
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
@@ -297,6 +303,7 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   CompleteCryptoHandshake();
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_FALSE(stream()->MatchedTrustAnchorIdForTesting());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
 }
@@ -359,6 +366,40 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithAsyncProofVerifier) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
 }
 
+#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
+TEST_P(TlsClientHandshakerTest, HandshakeWithTrustAnchorIds) {
+  SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
+  const std::string kTestTrustAnchorId = {0x03, 0x01, 0x02, 0x03};
+  const std::string kTestServerTrustAnchorId = {0x01, 0x02, 0x03};
+  InitializeFakeServer(kTestServerTrustAnchorId);
+  ssl_config_.emplace();
+  ssl_config_->trust_anchor_ids = kTestTrustAnchorId;
+  CreateConnection();
+  CompleteCryptoHandshake();
+  ASSERT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->MatchedTrustAnchorIdForTesting());
+}
+
+// Tests that the client can complete a handshake in which it sends multiple
+// Trust Anchor IDs, one which matches the server's credential and one which
+// doesn't.
+TEST_P(TlsClientHandshakerTest, HandshakeWithMultipleTrustAnchorIds) {
+  SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
+  // The client sends two trust anchor IDs, the first of which doesn't match the
+  // server's credential and the second does.
+  const std::string kTestTrustAnchorIds = {0x04, 0x00, 0x01, 0x02, 0x03,
+                                           0x03, 0x01, 0x02, 0x03};
+  const std::string kTestServerTrustAnchorId = {0x01, 0x02, 0x03};
+  InitializeFakeServer(kTestServerTrustAnchorId);
+  ssl_config_.emplace();
+  ssl_config_->trust_anchor_ids = kTestTrustAnchorIds;
+  CreateConnection();
+  CompleteCryptoHandshake();
+  ASSERT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->MatchedTrustAnchorIdForTesting());
+}
+#endif
+
 TEST_P(TlsClientHandshakerTest, Resumption) {
   // Disable 0-RTT on the server so that we're only testing 1-RTT resumption:
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
@@ -368,6 +409,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->ResumptionAttempted());
   EXPECT_FALSE(stream()->IsResumption());
 
   // Create a second connection
@@ -377,6 +419,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->ResumptionAttempted());
   EXPECT_TRUE(stream()->IsResumption());
 }
 
@@ -390,6 +433,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->ResumptionAttempted());
   EXPECT_FALSE(stream()->IsResumption());
 
   // Create a second connection, but disable resumption on the server.
@@ -400,6 +444,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->ResumptionAttempted());
   EXPECT_FALSE(stream()->IsResumption());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
   EXPECT_EQ(stream()->EarlyDataReason(),
@@ -640,13 +685,14 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
         return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
       });
 
-  EXPECT_CALL(*server_connection_,
-              CloseConnection(QUIC_HANDSHAKE_FAILED,
-                              static_cast<QuicIetfTransportErrorCodes>(
-                                  CRYPTO_ERROR_FIRST + 120),
-                              "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
-                              "no application protocol",
-                              _));
+  EXPECT_CALL(
+      *server_connection_,
+      CloseConnection(
+          QUIC_HANDSHAKE_FAILED,
+          static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + 120),
+          HasSubstr("TLS handshake failure (ENCRYPTION_INITIAL) 120: "
+                    "no application protocol"),
+          _));
 
   stream()->CryptoConnect();
   crypto_test_utils::AdvanceHandshake(connection_, stream(), 0,
@@ -856,6 +902,46 @@ TEST_P(TlsClientHandshakerTest, ECHGrease) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   // Sending an ignored ECH GREASE extension does not count as negotiating ECH.
   EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
+}
+
+TEST_P(TlsClientHandshakerTest, EnableMLKEM) {
+  crypto_config_->set_preferred_groups({SSL_GROUP_X25519_MLKEM768});
+  server_crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+       SSL_GROUP_SECP384R1});
+  CreateConnection();
+
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_EQ(SSL_GROUP_X25519_MLKEM768, SSL_get_group_id(stream()->GetSsl()));
+}
+
+TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
+  // The intent of this test is to demonstrate the handshake should complete
+  // successfully.
+  SCOPED_TRACE("Test allows alps new codepoint.");
+  crypto_config_->set_alps_use_new_codepoint(true);
+  CreateConnection();
+
+  // Add a DoS callback on the server, to test that the client sent the new
+  // ALPS codepoint.
+  static bool callback_ran;
+  callback_ran = false;
+  SSL_CTX_set_dos_protection_cb(
+      server_crypto_config_->ssl_ctx(),
+      [](const SSL_CLIENT_HELLO* client_hello) -> int {
+        const uint8_t* data;
+        size_t len;
+        EXPECT_TRUE(SSL_early_callback_ctx_extension_get(
+            client_hello, TLSEXT_TYPE_application_settings, &data, &len));
+        callback_ran = true;
+        return 1;
+      });
+
+  CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(callback_ran);
 }
 
 }  // namespace

@@ -66,6 +66,7 @@ class FakeLayerTreeHost : private TaskRunnerProviderHolder,
 
   void SetNeedsCommit() override;
   void SetNeedsUpdateLayers() override {}
+  void ClearPendingLayerCommitStates();
 
   std::unique_ptr<LayerTreeHostImpl> CreateLayerTreeHostImplInternal(
       LayerTreeHostImplClient* client,
@@ -95,8 +96,9 @@ class FakeLayerTreeHost : private TaskRunnerProviderHolder,
     return thread_unsafe_commit_state();
   }
 
-  LayerImpl* CommitAndCreateLayerImplTree();
-  LayerImpl* CommitAndCreatePendingTree();
+  LayerImpl* CommitToActiveTree();
+  LayerImpl* CommitToPendingTree();
+  LayerImpl* CommitToTree(LayerTreeImpl* tree);
 
   FakeLayerTreeHostImpl* host_impl() { return host_impl_; }
   LayerTreeImpl* active_tree() {

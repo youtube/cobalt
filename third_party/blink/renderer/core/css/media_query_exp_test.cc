@@ -3,60 +3,71 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
+
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_test_helpers.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
-
-#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
 namespace {
+
+const CSSNumericLiteralValue& WrapDouble(
+    double value,
+    CSSPrimitiveValue::UnitType unit_type =
+        CSSPrimitiveValue::UnitType::kNumber) {
+  return *CSSNumericLiteralValue::Create(value, unit_type);
+}
 
 MediaQueryExpValue IdentValue(CSSValueID id) {
   return MediaQueryExpValue(id);
 }
 
 MediaQueryExpValue RatioValue(unsigned numerator, unsigned denominator) {
-  return MediaQueryExpValue(numerator, denominator);
+  return MediaQueryExpValue(WrapDouble(numerator), WrapDouble(denominator));
 }
 
 MediaQueryExpValue PxValue(double value) {
-  return MediaQueryExpValue(value, CSSPrimitiveValue::UnitType::kPixels);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kPixels));
 }
 
 MediaQueryExpValue EmValue(double value) {
-  return MediaQueryExpValue(value, CSSPrimitiveValue::UnitType::kEms);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kEms));
 }
 
 MediaQueryExpValue RemValue(double value) {
-  return MediaQueryExpValue(value, CSSPrimitiveValue::UnitType::kRems);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kRems));
 }
 
 MediaQueryExpValue DvhValue(double value) {
   return MediaQueryExpValue(
-      value, CSSPrimitiveValue::UnitType::kDynamicViewportHeight);
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kDynamicViewportHeight));
 }
 
 MediaQueryExpValue SvhValue(double value) {
-  return MediaQueryExpValue(value,
-                            CSSPrimitiveValue::UnitType::kSmallViewportHeight);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kSmallViewportHeight));
 }
 
 MediaQueryExpValue LvhValue(double value) {
-  return MediaQueryExpValue(value,
-                            CSSPrimitiveValue::UnitType::kLargeViewportHeight);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kLargeViewportHeight));
 }
 
 MediaQueryExpValue VhValue(double value) {
-  return MediaQueryExpValue(value,
-                            CSSPrimitiveValue::UnitType::kViewportHeight);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kViewportHeight));
 }
 
 MediaQueryExpValue CqhValue(double value) {
-  return MediaQueryExpValue(value,
-                            CSSPrimitiveValue::UnitType::kContainerHeight);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kContainerHeight));
 }
 
 MediaQueryExpValue CssValue(const CSSPrimitiveValue& value) {
@@ -64,7 +75,8 @@ MediaQueryExpValue CssValue(const CSSPrimitiveValue& value) {
 }
 
 MediaQueryExpValue DppxValue(double value) {
-  return MediaQueryExpValue(value, CSSPrimitiveValue::UnitType::kDotsPerPixel);
+  return MediaQueryExpValue(
+      WrapDouble(value, CSSPrimitiveValue::UnitType::kDotsPerPixel));
 }
 
 MediaQueryExpValue CalcValue(const String& syntax, const String& value) {
@@ -80,8 +92,7 @@ MediaQueryExpValue CalcValue(const String& syntax, const String& value) {
 
 MediaQueryExpValue NumericLiteralValue(double value,
                                        CSSPrimitiveValue::UnitType unit) {
-  auto* num_lit_val =
-      DynamicTo<CSSPrimitiveValue>(CSSNumericLiteralValue::Create(value, unit));
+  auto* num_lit_val = CSSNumericLiteralValue::Create(value, unit);
   EXPECT_NE(num_lit_val, nullptr);
 
   return CssValue(*num_lit_val);
@@ -116,19 +127,20 @@ MediaQueryExpComparison EqCmp(MediaQueryExpValue v) {
 }
 
 MediaQueryExp LeftExp(String feature, MediaQueryExpComparison cmp) {
-  return MediaQueryExp::Create(feature,
+  return MediaQueryExp::Create(AtomicString(feature),
                                MediaQueryExpBounds(cmp, NoCmp(InvalidValue())));
 }
 
 MediaQueryExp RightExp(String feature, MediaQueryExpComparison cmp) {
-  return MediaQueryExp::Create(feature,
+  return MediaQueryExp::Create(AtomicString(feature),
                                MediaQueryExpBounds(NoCmp(InvalidValue()), cmp));
 }
 
 MediaQueryExp PairExp(String feature,
                       MediaQueryExpComparison left,
                       MediaQueryExpComparison right) {
-  return MediaQueryExp::Create(feature, MediaQueryExpBounds(left, right));
+  return MediaQueryExp::Create(AtomicString(feature),
+                               MediaQueryExpBounds(left, right));
 }
 
 const MediaQueryExpNode* FeatureNode(MediaQueryExp expr) {
@@ -170,12 +182,14 @@ const MediaQueryExpNode* UnknownNode(String string) {
 }  // namespace
 
 TEST(MediaQueryExpTest, ValuesType) {
+  test::TaskEnvironment task_environment;
   EXPECT_TRUE(IdentValue(CSSValueID::kTop).IsId());
-  EXPECT_TRUE(PxValue(10).IsNumeric());
+  EXPECT_TRUE(PxValue(10).IsNumericLiteralValue());
   EXPECT_TRUE(RatioValue(0, 1).IsRatio());
 }
 
 TEST(MediaQueryExpTest, ValueEquality) {
+  test::TaskEnvironment task_environment;
   EXPECT_EQ(PxValue(10), PxValue(10));
   EXPECT_EQ(EmValue(10), EmValue(10));
   EXPECT_EQ(IdentValue(CSSValueID::kTop), IdentValue(CSSValueID::kTop));
@@ -202,6 +216,7 @@ TEST(MediaQueryExpTest, ValueEquality) {
 }
 
 TEST(MediaQueryExpTest, ComparisonEquality) {
+  test::TaskEnvironment task_environment;
   auto px1 = PxValue(10.0);
   auto px2 = PxValue(20.0);
 
@@ -212,6 +227,7 @@ TEST(MediaQueryExpTest, ComparisonEquality) {
 }
 
 TEST(MediaQueryExpTest, BoundaryEquality) {
+  test::TaskEnvironment task_environment;
   auto px1 = PxValue(10.0);
   auto px2 = PxValue(20.0);
 
@@ -227,6 +243,7 @@ TEST(MediaQueryExpTest, BoundaryEquality) {
 }
 
 TEST(MediaQueryExpTest, ExpEquality) {
+  test::TaskEnvironment task_environment;
   auto px1 = PxValue(10.0);
   auto px2 = PxValue(20.0);
 
@@ -239,6 +256,7 @@ TEST(MediaQueryExpTest, ExpEquality) {
 }
 
 TEST(MediaQueryExpTest, Serialize) {
+  test::TaskEnvironment task_environment;
   // Boolean feature:
   EXPECT_EQ("color", RightExp("color", NoCmp(InvalidValue())).Serialize());
 
@@ -275,6 +293,7 @@ TEST(MediaQueryExpTest, Serialize) {
 }
 
 TEST(MediaQueryExpTest, SerializeNode) {
+  test::TaskEnvironment task_environment;
   EXPECT_EQ("width < 10px",
             FeatureNode(RightExp("width", LtCmp(PxValue(10))))->Serialize());
 
@@ -321,23 +340,24 @@ TEST(MediaQueryExpTest, SerializeNode) {
 
   EXPECT_EQ("special(width < 10px)",
             FunctionNode(FeatureNode(RightExp("width", LtCmp(PxValue(10)))),
-                         "special")
+                         AtomicString("special"))
                 ->Serialize());
   EXPECT_EQ(
       "special((width < 10px))",
       FunctionNode(EnclosedFeatureNode(RightExp("width", LtCmp(PxValue(10)))),
-                   "special")
+                   AtomicString("special"))
           ->Serialize());
   EXPECT_EQ(
       "special((11px >= thing) and (height = 12px))",
       FunctionNode(
           AndNode(EnclosedFeatureNode(LeftExp("thing", GeCmp(PxValue(11)))),
                   EnclosedFeatureNode(RightExp("height", EqCmp(PxValue(12))))),
-          "special")
+          AtomicString("special"))
           ->Serialize());
 }
 
 TEST(MediaQueryExpTest, CollectExpressions) {
+  test::TaskEnvironment task_environment;
   MediaQueryExp width_lt10 = RightExp("width", LtCmp(PxValue(10)));
   MediaQueryExp height_lt10 = RightExp("height", LtCmp(PxValue(10)));
 
@@ -395,6 +415,7 @@ TEST(MediaQueryExpTest, CollectExpressions) {
 }
 
 TEST(MediaQueryExpTest, UnitFlags) {
+  test::TaskEnvironment task_environment;
   // width < 10px
   EXPECT_EQ(MediaQueryExpValue::UnitFlags::kNone,
             RightExp("width", LtCmp(PxValue(10.0))).GetUnitFlags());
@@ -443,10 +464,11 @@ TEST(MediaQueryExpTest, UnitFlags) {
 }
 
 TEST(MediaQueryExpTest, UtilsNullptrHandling) {
+  test::TaskEnvironment task_environment;
   MediaQueryExp exp = RightExp("width", LtCmp(PxValue(10)));
 
   EXPECT_FALSE(MediaQueryExpNode::Nested(nullptr));
-  EXPECT_FALSE(MediaQueryExpNode::Function(nullptr, "test"));
+  EXPECT_FALSE(MediaQueryExpNode::Function(nullptr, AtomicString("test")));
   EXPECT_FALSE(MediaQueryExpNode::Not(nullptr));
   EXPECT_FALSE(MediaQueryExpNode::And(nullptr, FeatureNode(exp)));
   EXPECT_FALSE(MediaQueryExpNode::And(FeatureNode(exp), nullptr));
@@ -457,6 +479,7 @@ TEST(MediaQueryExpTest, UtilsNullptrHandling) {
 }
 
 TEST(MediaQueryExpTest, ResolutionChecks) {
+  test::TaskEnvironment task_environment;
   EXPECT_TRUE(DppxValue(3).IsResolution());
   EXPECT_TRUE(CalcValue("<resolution>", "calc(96dpi)").IsResolution());
 

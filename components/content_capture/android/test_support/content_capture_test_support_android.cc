@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/content_capture/android/test_support/jni_headers/ContentCaptureTestSupport_jni.h"
-
+#include <optional>
 #include <string>
 
 #include "base/android/jni_string.h"
@@ -14,9 +13,11 @@
 #include "components/content_capture/browser/content_capture_receiver.h"
 #include "components/content_capture/browser/onscreen_content_provider.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
 #include "ui/gfx/geometry/size.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/content_capture/android/test_support/jni_headers/ContentCaptureTestSupport_jni.h"
 
 namespace content_capture {
 
@@ -29,7 +30,6 @@ blink::mojom::FaviconIconType ToType(std::string type) {
   else if (type == "touch precomposed icon")
     return blink::mojom::FaviconIconType::kTouchPrecomposedIcon;
   NOTREACHED();
-  return blink::mojom::FaviconIconType::kInvalid;
 }
 
 }  // namespace
@@ -51,7 +51,7 @@ static void JNI_ContentCaptureTestSupport_SimulateDidUpdateFaviconURL(
   CHECK(provider);
 
   std::string json = base::android::ConvertJavaStringToUTF8(env, jfaviconJson);
-  absl::optional<base::Value> root = base::JSONReader::Read(json);
+  std::optional<base::Value> root = base::JSONReader::Read(json);
   CHECK(root);
   CHECK(root->is_list());
   std::vector<blink::mojom::FaviconURLPtr> favicon_urls;
@@ -63,8 +63,8 @@ static void JNI_ContentCaptureTestSupport_SimulateDidUpdateFaviconURL(
       for (const base::Value& size_val : CHECK_DEREF(icon_sizes)) {
         const base::Value::Dict& size = size_val.GetDict();
 
-        const absl::optional<int> width = size.FindInt("width");
-        const absl::optional<int> height = size.FindInt("height");
+        const std::optional<int> width = size.FindInt("width");
+        const std::optional<int> height = size.FindInt("height");
         CHECK(width);
         CHECK(height);
         sizes.emplace_back(width.value(), height.value());
@@ -75,8 +75,8 @@ static void JNI_ContentCaptureTestSupport_SimulateDidUpdateFaviconURL(
     const std::string* type = icon.FindString("type");
     CHECK(url);
     CHECK(type);
-    favicon_urls.push_back(
-        blink::mojom::FaviconURL::New(GURL(*url), ToType(*type), sizes));
+    favicon_urls.push_back(blink::mojom::FaviconURL::New(
+        GURL(*url), ToType(*type), sizes, /*is_default_icon=*/false));
   }
   CHECK(!favicon_urls.empty());
   provider->NotifyFaviconURLUpdatedForTesting(

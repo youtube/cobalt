@@ -5,11 +5,10 @@
 #ifndef UI_VIEWS_COCOA_NATIVE_WINDOW_TRACKER_COCOA_H_
 #define UI_VIEWS_COCOA_NATIVE_WINDOW_TRACKER_COCOA_H_
 
-#include "base/mac/scoped_nsobject.h"
+#include <memory>
+
 #include "ui/views/native_window_tracker.h"
 #include "ui/views/views_export.h"
-
-@class BridgedNativeWindowTracker;
 
 namespace views {
 
@@ -26,7 +25,8 @@ class VIEWS_EXPORT NativeWindowTrackerCocoa : public NativeWindowTracker {
   bool WasNativeWindowDestroyed() const override;
 
  private:
-  base::scoped_nsobject<BridgedNativeWindowTracker> bridge_;
+  struct ObjCStorage;
+  std::unique_ptr<ObjCStorage> objc_storage_;
 };
 
 }  // namespace views

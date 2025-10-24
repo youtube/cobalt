@@ -20,7 +20,7 @@
 // Some OS Bluetooth stacks (macOS and Android) automatically bond to a device
 // when accessing a characteristic/descriptor which requires an authenticated
 // client. For other platforms Chrome does the on-demand pairing.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define PAIR_BLUETOOTH_ON_DEMAND() true
 #else
 #define PAIR_BLUETOOTH_ON_DEMAND() false
@@ -42,7 +42,7 @@ class RenderFrameHost;
 // Provides an interface for managing device permissions for Web Bluetooth and
 // Web Bluetooth Scanning API. An embedder may implement this to manage these
 // permissions.
-// TODO(https://crbug.com/1048325): There are several Bluetooth related methods
+// TODO(crbug.com/40117221): There are several Bluetooth related methods
 // in WebContentsDelegate and ContentBrowserClient that can be moved into this
 // class.
 class CONTENT_EXPORT BluetoothDelegate {
@@ -116,7 +116,7 @@ class CONTENT_EXPORT BluetoothDelegate {
       const std::u16string& device_identifier,
       PairPromptCallback callback,
       PairingKind pairing_kind,
-      const absl::optional<std::u16string>& pin) = 0;
+      const std::optional<std::u16string>& pin) = 0;
 
   // This should return the WebBluetoothDeviceId that corresponds to the device
   // with |device_address| in the current |frame|. If there is not a
@@ -161,6 +161,9 @@ class CONTENT_EXPORT BluetoothDelegate {
   virtual void RevokeDevicePermissionWebInitiated(
       RenderFrameHost* frame,
       const blink::WebBluetoothDeviceId& device_id) = 0;
+
+  // This should return true if |frame| is allowed to use bluetooth.
+  virtual bool MayUseBluetooth(RenderFrameHost* frame) = 0;
 
   // This should return true if |frame| has permission to access |service| from
   // the device with |device_id|.

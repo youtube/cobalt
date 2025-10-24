@@ -50,6 +50,7 @@
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/api/power/power_api.h"
 #include "extensions/common/api/power.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -192,7 +193,7 @@ void PowerPolicyBrowserTestBase::SetUpOnMainThread() {
   user_policy_.policy_data().set_username(
       user_manager::StubAccountId().GetUserEmail());
   user_policy_.policy_data().set_gaia_id(
-      user_manager::StubAccountId().GetGaiaId());
+      user_manager::StubAccountId().GetGaiaId().ToString());
 }
 
 void PowerPolicyBrowserTestBase::InstallUserKey() {
@@ -270,7 +271,8 @@ void PowerPolicyBrowserTestBase::ReloadUserPolicy(Profile* profile) {
   policy_manager->core()->store()->Load();
 }
 
-PowerPolicyLoginScreenBrowserTest::PowerPolicyLoginScreenBrowserTest() {}
+PowerPolicyLoginScreenBrowserTest::PowerPolicyLoginScreenBrowserTest() =
+    default;
 
 void PowerPolicyLoginScreenBrowserTest::SetUpCommandLine(
     base::CommandLine* command_line) {
@@ -293,7 +295,7 @@ void PowerPolicyLoginScreenBrowserTest::TearDownOnMainThread() {
   PowerPolicyBrowserTestBase::TearDownOnMainThread();
 }
 
-PowerPolicyInSessionBrowserTest::PowerPolicyInSessionBrowserTest() {}
+PowerPolicyInSessionBrowserTest::PowerPolicyInSessionBrowserTest() = default;
 
 void PowerPolicyInSessionBrowserTest::SetUpOnMainThread() {
   PowerPolicyBrowserTestBase::SetUpOnMainThread();
@@ -550,7 +552,7 @@ IN_PROC_BROWSER_TEST_F(PowerPolicyInSessionBrowserTest, AllowScreenWakeLocks) {
   // Pretend an extension grabs a screen wake lock.
   const char kExtensionId[] = "abcdefghijklmnopabcdefghijlkmnop";
   extensions::PowerAPI::Get(browser()->profile())
-      ->AddRequest(kExtensionId, extensions::api::power::LEVEL_DISPLAY);
+      ->AddRequest(kExtensionId, extensions::api::power::Level::kDisplay);
 
   // The PowerAPI requests system wake lock asynchronously.
   base::RunLoop run_loop;

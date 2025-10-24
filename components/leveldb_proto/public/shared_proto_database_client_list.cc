@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/leveldb_proto/public/shared_proto_database_client_list.h"
 
 #include <stddef.h>
@@ -112,9 +113,22 @@ std::string SharedProtoDatabaseClientList::ProtoDbTypeToString(
       return "WebrtcVideoStatsDB";
     case ProtoDbType::PERSISTENT_ORIGIN_TRIALS:
       return "PersistentOriginTrials";
+    case ProtoDbType::NEARBY_PRESENCE_LOCAL_PUBLIC_CREDENTIAL_DATABASE:
+      return "NearbyPresenceLocalPublicCredentialDatabase";
+    case ProtoDbType::NEARBY_PRESENCE_PRIVATE_CREDENTIAL_DATABASE:
+      return "NearbyPresencePrivateCredentialDatabase";
+    case ProtoDbType::NEARBY_PRESENCE_REMOTE_PUBLIC_CREDENTIAL_DATABASE:
+      return "NearbyPresenceRemotePublicCredentialDatabase";
+    case ProtoDbType::DISCOUNTS_DATABASE:
+      return "DiscountsDatabase";
+    case ProtoDbType::COMMERCE_PARCEL_TRACKING_DATABASE:
+      return "CommerceParcelTrackingDatabase";
+    case ProtoDbType::CLIENT_CERTIFICATES_DATABASE:
+      return "ClientCertificatesDatabase";
+    case ProtoDbType::AUTOFILL_AI_MODEL_CACHE:
+      return "AutofillAiModelCache";
     case ProtoDbType::LAST:
       NOTREACHED();
-      return std::string();
   }
 }
 

@@ -6,18 +6,23 @@
 #define SERVICES_TRACING_PUBLIC_CPP_TRACE_STARTUP_H_
 
 #include "base/component_export.h"
+#include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/unsafe_shared_memory_region.h"
+#include "base/process/launch.h"
+#include "build/build_config.h"
+#include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
+
+#if BUILDFLAG(IS_POSIX)
+#include "base/posix/global_descriptors.h"
+#endif
 
 namespace base {
 class CommandLine;
-
-namespace trace_event {
-class TraceConfig;
-}  // namespace trace_event
 }  // namespace base
 
 namespace tracing {
 
-// Returns true if InitTracingPostThreadPoolStartAndFeatureList has been called
+// Returns true if `InitTracingPostFeatureList()` has been called
 // for this process.
 bool COMPONENT_EXPORT(TRACING_CPP) IsTracingInitialized();
 
@@ -30,7 +35,8 @@ bool COMPONENT_EXPORT(TRACING_CPP) IsTracingInitialized();
 // TODO(eseckler): Consider allocating the SMB in parent processes outside the
 // sandbox and supply it via the command line. Then, we can revert to call this
 // earlier and from fewer places again.
-void COMPONENT_EXPORT(TRACING_CPP) EnableStartupTracingIfNeeded();
+void COMPONENT_EXPORT(TRACING_CPP)
+    EnableStartupTracingIfNeeded(bool with_thread = false);
 
 // Enable startup tracing for the current process with the provided config. Sets
 // up ProducerClient and trace event and/or sampler profiler data sources, and
@@ -40,20 +46,49 @@ void COMPONENT_EXPORT(TRACING_CPP) EnableStartupTracingIfNeeded();
 // TODO(eseckler): Figure out what startup tracing APIs should look like with
 // the client lib.
 bool COMPONENT_EXPORT(TRACING_CPP)
-    EnableStartupTracingForProcess(const base::trace_event::TraceConfig&,
-                                   bool privacy_filtering_enabled);
+    EnableStartupTracingForProcess(const perfetto::TraceConfig&);
 
 // Initialize tracing components that require task runners. Will switch
 // IsTracingInitialized() to return true.
 // |enable_consumer| should be true if the system consumer can be enabled.
 // Currently this is only the case if this is running in the browser process.
 void COMPONENT_EXPORT(TRACING_CPP)
-    InitTracingPostThreadPoolStartAndFeatureList(bool enable_consumer);
+    InitTracingPostFeatureList(bool enable_consumer);
 
 // If tracing is enabled, grabs the current trace config & mode and tells the
 // child to begin tracing right away via startup tracing command line flags.
-void COMPONENT_EXPORT(TRACING_CPP)
-    PropagateTracingFlagsToChildProcessCmdLine(base::CommandLine* cmd_line);
+
+// If tracing is enabled, returns a read-only SMB containing the current tracing
+// config, to be forwarded at child processes creation.
+base::ReadOnlySharedMemoryRegion COMPONENT_EXPORT(TRACING_CPP)
+    CreateTracingConfigSharedMemory();
+
+// If tracing is enabled, returns a writeable SMB as destination of tracing
+// data, to be forwarded at child process creation.
+base::UnsafeSharedMemoryRegion COMPONENT_EXPORT(TRACING_CPP)
+    CreateTracingOutputSharedMemory();
+
+// Tells the child process to begin tracing right away via command line
+// flags and launch options, given a SMB config obtained with
+// CreateTracingConfigSharedMemory().
+void COMPONENT_EXPORT(TRACING_CPP) AddTraceConfigToLaunchParameters(
+    const base::ReadOnlySharedMemoryRegion& read_only_memory_region,
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+    base::GlobalDescriptors::Key descriptor_key,
+    base::ScopedFD& out_descriptor_to_share,
+#endif
+    base::CommandLine* command_line,
+    base::LaunchOptions* launch_options);
+
+// Tells the child process to write tracing data to this SMB.
+void COMPONENT_EXPORT(TRACING_CPP) AddTraceOutputToLaunchParameters(
+    const base::UnsafeSharedMemoryRegion& unsafe_memory_region,
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+    base::GlobalDescriptors::Key descriptor_key,
+    base::ScopedFD& out_descriptor_to_share,
+#endif
+    base::CommandLine* command_line,
+    base::LaunchOptions* launch_options);
 
 }  // namespace tracing
 

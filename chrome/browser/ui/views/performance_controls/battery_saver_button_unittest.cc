@@ -46,6 +46,9 @@ class BatterySaverButtonTest : public TestWithBrowserView {
   base::HistogramTester histogram_tester_;
 };
 
+// Battery Saver is controlled by the OS on ChromeOS
+#if !BUILDFLAG(IS_CHROMEOS)
+
 // Battery saver button should not be shown when the pref state for battery
 // saver mode is ON and shown when the pref state is ON
 TEST_F(BatterySaverButtonTest, ShouldButtonShowTest) {
@@ -66,10 +69,11 @@ TEST_F(BatterySaverButtonTest, TooltipAccessibilityTextTest) {
       browser_view()->toolbar()->battery_saver_button();
 
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_BATTERY_SAVER_BUTTON_TOOLTIP),
-            battery_saver_button->GetTooltipText(gfx::Point()));
+            battery_saver_button->GetRenderedTooltipText(gfx::Point()));
 
   ui::AXNodeData ax_node_data;
-  battery_saver_button->GetAccessibleNodeData(&ax_node_data);
+  battery_saver_button->GetViewAccessibility().GetAccessibleNodeData(
+      &ax_node_data);
   EXPECT_EQ(
       l10n_util::GetStringUTF16(IDS_BATTERY_SAVER_BUTTON_TOOLTIP),
       ax_node_data.GetString16Attribute(ax::mojom::StringAttribute::kName));
@@ -86,7 +90,7 @@ TEST_F(BatterySaverButtonTest, ShowAndHideBubbleOnButtonPressTest) {
   ASSERT_TRUE(battery_saver_button->GetVisible());
 
   EXPECT_FALSE(battery_saver_button->IsBubbleShowing());
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(battery_saver_button);
   test_api.NotifyClick(e);
@@ -109,7 +113,7 @@ TEST_F(BatterySaverButtonTest, DismissBubbleWhenModeDeactivatedTest) {
   ASSERT_TRUE(battery_saver_button->GetVisible());
 
   EXPECT_FALSE(battery_saver_button->IsBubbleShowing());
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(battery_saver_button);
   test_api.NotifyClick(e);
@@ -132,7 +136,8 @@ TEST_F(BatterySaverButtonTest, ElementIdentifierTest) {
 
   const views::View* matched_view =
       views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
-          kBatterySaverButtonElementId, browser_view()->GetElementContext());
+          kToolbarBatterySaverButtonElementId,
+          browser_view()->GetElementContext());
 
   EXPECT_EQ(battery_saver_button_view, matched_view);
 }
@@ -145,7 +150,7 @@ TEST_F(BatterySaverButtonTest, LogMetricsOnDialogDismissTest) {
   SetBatterySaverModeEnabled(true);
   ASSERT_TRUE(battery_saver_button->GetVisible());
 
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(battery_saver_button);
   test_api.NotifyClick(e);
@@ -167,7 +172,7 @@ TEST_F(BatterySaverButtonTest, LogMetricsOnTurnOffNowTest) {
   SetBatterySaverModeEnabled(true);
   ASSERT_TRUE(battery_saver_button->GetVisible());
 
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(battery_saver_button);
   test_api.NotifyClick(e);
@@ -186,3 +191,5 @@ TEST_F(BatterySaverButtonTest, LogMetricsOnTurnOffNowTest) {
       "PerformanceControls.BatterySaver.BubbleAction",
       BatterySaverBubbleActionType::kTurnOffNow, 1);
 }
+
+#endif  // !BUILDFLAG(IS_CHROMEOS)

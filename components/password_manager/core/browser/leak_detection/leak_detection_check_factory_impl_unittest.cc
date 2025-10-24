@@ -4,11 +4,10 @@
 
 #include "components/password_manager/core/browser/leak_detection/leak_detection_check_factory_impl.h"
 
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/password_manager/core/browser/leak_detection/leak_detection_check.h"
 #include "components/password_manager/core/browser/leak_detection/mock_leak_detection_delegate.h"
-#include "components/password_manager/core/common/password_manager_features.h"
+#include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/version_info/channel.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -49,32 +48,7 @@ class LeakDetectionCheckFactoryImplTest : public testing::Test {
 
 }  // namespace
 
-TEST_F(LeakDetectionCheckFactoryImplTest,
-       NoIdentityManagerWithFeatureDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(features::kLeakDetectionUnauthenticated);
-  EXPECT_CALL(delegate(), OnError(LeakDetectionError::kNotSignIn));
-  EXPECT_FALSE(request_factory().TryCreateLeakCheck(
-      &delegate(), /*identity_manager=*/nullptr, url_loader_factory(),
-      kChannel));
-}
-
-TEST_F(LeakDetectionCheckFactoryImplTest, NoIdentityManager) {
-  EXPECT_CALL(delegate(), OnError(LeakDetectionError::kNotSignIn));
-  EXPECT_FALSE(request_factory().TryCreateLeakCheck(
-      &delegate(), /*identity_manager=*/nullptr, url_loader_factory(),
-      kChannel));
-}
-
 TEST_F(LeakDetectionCheckFactoryImplTest, SignedOut) {
-  EXPECT_TRUE(request_factory().TryCreateLeakCheck(
-      &delegate(), identity_env().identity_manager(), url_loader_factory(),
-      kChannel));
-}
-
-TEST_F(LeakDetectionCheckFactoryImplTest, SignedOutWithFeatureEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kLeakDetectionUnauthenticated);
   EXPECT_TRUE(request_factory().TryCreateLeakCheck(
       &delegate(), identity_env().identity_manager(), url_loader_factory(),
       kChannel));
@@ -88,18 +62,16 @@ TEST_F(LeakDetectionCheckFactoryImplTest, BulkCheck_SignedOut) {
 }
 
 TEST_F(LeakDetectionCheckFactoryImplTest, SignedIn) {
-  AccountInfo info = identity_env().MakeAccountAvailable(kTestAccount);
-  identity_env().SetCookieAccounts({{info.email, info.gaia}});
-  identity_env().SetRefreshTokenForAccount(info.account_id);
+  identity_env().MakePrimaryAccountAvailable(kTestAccount,
+                                             signin::ConsentLevel::kSignin);
   EXPECT_TRUE(request_factory().TryCreateLeakCheck(
       &delegate(), identity_env().identity_manager(), url_loader_factory(),
       kChannel));
 }
 
 TEST_F(LeakDetectionCheckFactoryImplTest, BulkCheck_SignedIn) {
-  AccountInfo info = identity_env().MakeAccountAvailable(kTestAccount);
-  identity_env().SetCookieAccounts({{info.email, info.gaia}});
-  identity_env().SetRefreshTokenForAccount(info.account_id);
+  identity_env().MakePrimaryAccountAvailable(kTestAccount,
+                                             signin::ConsentLevel::kSignin);
   EXPECT_TRUE(request_factory().TryCreateBulkLeakCheck(
       &bulk_delegate(), identity_env().identity_manager(),
       url_loader_factory()));
@@ -113,7 +85,8 @@ TEST_F(LeakDetectionCheckFactoryImplTest, SignedInAndSyncing) {
 }
 
 TEST_F(LeakDetectionCheckFactoryImplTest, BulkCheck_SignedInAndSyncing) {
-  identity_env().SetPrimaryAccount(kTestAccount, signin::ConsentLevel::kSync);
+  identity_env().MakePrimaryAccountAvailable(kTestAccount,
+                                             signin::ConsentLevel::kSync);
   EXPECT_TRUE(request_factory().TryCreateBulkLeakCheck(
       &bulk_delegate(), identity_env().identity_manager(),
       url_loader_factory()));
