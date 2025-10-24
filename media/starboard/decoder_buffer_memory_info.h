@@ -15,8 +15,10 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 
+#include "media/base/video_codecs.h"
 #include "starboard/media.h"
 #include "starboard/types.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace media {
 
@@ -38,6 +40,15 @@ class StubDecoderBufferMemoryInfo : public DecoderBufferMemoryInfo {
   size_t GetMaximumMemoryCapacity() const override { return 0; }
 };
 
+int GetDecoderAudioBufferLimit();
+
+int GetDecoderProgressiveBufferLimit(VideoCodec codec,
+                                     const gfx::Size& resolution,
+                                     int bits_per_pixel);
+
+int GetDecoderVideoBufferLimit(VideoCodec codec,
+                               const gfx::Size& resolution,
+                               int bits_per_pixel);
 }  // namespace media
 
 #endif  // MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_

@@ -83,19 +83,10 @@ class MEDIA_EXPORT DecoderBuffer
     virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
     virtual void Free(void* p, size_t size) = 0;
 
-    virtual int GetAudioBufferBudget() const = 0;
     virtual int GetBufferAlignment() const = 0;
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
-    virtual int GetProgressiveBufferBudget(VideoCodec codec,
-                                           int resolution_width,
-                                           int resolution_height,
-                                           int bits_per_pixel) const = 0;
-    virtual int GetVideoBufferBudget(VideoCodec codec,
-                                     int resolution_width,
-                                     int resolution_height,
-                                     int bits_per_pixel) const = 0;
 
    protected:
     ~Allocator() {}

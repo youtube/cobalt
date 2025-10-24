@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/demuxer_memory_limit.h"
 
 #include "base/logging.h"
 #include "build/build_config.h"
-#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_memory_limit.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/decoder_buffer_memory_info.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media."
@@ -55,24 +55,20 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
+  return GetDecoderAudioBufferLimit();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   if (!video_config) {
-    return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-        VideoCodec::kH264, 1920, 1080, 8);
+    return GetDecoderVideoBufferLimit(
+        VideoCodec::kH264, /*resulution=*/{1920, 1080}, /*bits_per_pixel=*/8);
   }
 
-  auto codec = video_config->codec();
-  auto width = video_config->visible_rect().size().width();
-  auto height = video_config->visible_rect().size().height();
-  auto bits_per_pixel = GetBitsPerPixel(*video_config);
-
-  return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-      codec, width, height, bits_per_pixel);
+  return GetDecoderVideoBufferLimit(video_config->codec(),
+                                    video_config->visible_rect().size(),
+                                    GetBitsPerPixel(*video_config));
 }
 
 size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
