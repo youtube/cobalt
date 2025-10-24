@@ -4,7 +4,8 @@
     "cobalt:cobalt_unittests": "b/453909269 - Devtools missing inputs",
     "gpu:gpu_benchmark": "b/453909269 - Devtools missing inputs",
     "third_party/blink/renderer/controller:blink_unittests": "b/453909269 - Devtools missing inputs",
-    "third_party/blink/renderer/platform:blink_platform_nocompile_tests": "b/453909269 - Packaging issue"
+    "third_party/blink/renderer/platform:blink_platform_nocompile_tests": "b/453909269 - Packaging issue",
+    "third_party/blink/renderer/platform/heap:blink_heap_perftests": "b/453909269 - crashes on startup"
   },
   "test_targets": [
     "base:base_perftests",
@@ -32,7 +33,6 @@
     "starboard/nplb:nplb",
     "third_party/blink/renderer/platform:blink_platform_perftests",
     "third_party/blink/renderer/platform:blink_platform_unittests",
-    "third_party/blink/renderer/platform/heap:blink_heap_perftests",
     "third_party/blink/renderer/platform/heap:blink_heap_unittests",
     "third_party/blink/renderer/platform/wtf:wtf_unittests",
     "third_party/boringssl:boringssl_crypto_tests",
@@ -48,7 +48,6 @@
   "executables": [
     "out/linux-x64x11_devel/base_perftests",
     "out/linux-x64x11_devel/base_unittests",
-    "out/linux-x64x11_devel/blink_heap_perftests",
     "out/linux-x64x11_devel/blink_heap_unittests",
     "out/linux-x64x11_devel/blink_platform_perftests",
     "out/linux-x64x11_devel/blink_platform_unittests",
