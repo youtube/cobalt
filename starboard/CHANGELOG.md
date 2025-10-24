@@ -172,7 +172,8 @@ Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 the global namespace into ::starboard::shared::starboard::media.
 
 ### Removed unused methods
-* `SbMediaGetMaxBufferCapacity`
+* `SbMediaGetMaxBufferCapacity`. This method is no more used. Use
+  `SbMediaGetAudioBufferBudget` and `SbMediaGetVideoBufferBudget` instead.
 
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
