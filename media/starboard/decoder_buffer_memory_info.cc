@@ -11,14 +11,6 @@ int GetDecoderAudioBufferLimitBytes() {
   return SbMediaGetAudioBufferBudget();
 }
 
-int GetDecoderProgressiveBufferLimitBytes(VideoCodec codec,
-                                          const gfx::Size& resolution,
-                                          int bits_per_pixel) {
-  return SbMediaGetProgressiveBufferBudget(
-      MediaVideoCodecToSbMediaVideoCodec(codec), resolution.width(),
-      resolution.height(), bits_per_pixel);
-}
-
 int GetDecoderVideoBufferLimitBytes(VideoCodec codec,
                                     const gfx::Size& resolution,
                                     int bits_per_pixel) {

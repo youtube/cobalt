@@ -43,11 +43,6 @@ class StubDecoderBufferMemoryInfo : public DecoderBufferMemoryInfo {
 // Returns the memory limit for audio decoder buffers in bytes.
 int GetDecoderAudioBufferLimitBytes();
 
-// Returns the memory limit for progressive video decoder buffers in bytes.
-int GetDecoderProgressiveBufferLimitBytes(VideoCodec codec,
-                                          const gfx::Size& resolution,
-                                          int bits_per_pixel);
-
 // Returns the memory limit for video decoder buffers in bytes.
 int GetDecoderVideoBufferLimitBytes(VideoCodec codec,
                                     const gfx::Size& resolution,
