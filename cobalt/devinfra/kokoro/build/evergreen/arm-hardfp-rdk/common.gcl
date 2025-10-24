@@ -12,7 +12,7 @@ build = common.build {
       value = 'evergreen-arm-hardfp-rdk-sbversion-17'
     },
     {
-      key = 'TARGET'
+      key = 'GN_TARGET'
       value = 'cobalt:gn_all'
     },
     {
