@@ -416,8 +416,6 @@ static_library("cobalt_shell_test_lib") {
   sources = [
     "app/shell_main_test_delegate.cc",
     "app/shell_main_test_delegate.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
     "common/shell_test_switches.cc",
@@ -429,18 +427,11 @@ static_library("cobalt_shell_test_lib") {
   ]
 
   public_deps = [
-    ":browsertests_mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/custom_handlers:test_support",
-    "//content/public/child",
-    "//content/public/common",
-    "//content/public/renderer",
     "//content/public/utility",
-    "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
   ]
 
   if (shell_use_toolkit_views) {
@@ -453,15 +444,4 @@ static_library("cobalt_shell_test_lib") {
       public_deps += [ "//ui/views:test_support" ]
     }
   }
-}
-
-mojom("browsertests_mojom") {
-  testonly = true
-  sources = [
-    "common/power_monitor_test.mojom",
-  ]
-  public_deps = [
-    "//sandbox/policy/mojom",
-    "//third_party/blink/public/mojom/tokens",
-  ]
 }
