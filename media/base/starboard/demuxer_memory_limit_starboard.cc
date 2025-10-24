@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_memory_limit.h"
@@ -55,20 +54,20 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return GetDecoderAudioBufferLimit();
+  return GetDecoderAudioBufferLimitBytes();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   if (!video_config) {
-    return GetDecoderVideoBufferLimit(
+    return GetDecoderVideoBufferLimitBytes(
         VideoCodec::kH264, /*resulution=*/{1920, 1080}, /*bits_per_pixel=*/8);
   }
 
-  return GetDecoderVideoBufferLimit(video_config->codec(),
-                                    video_config->visible_rect().size(),
-                                    GetBitsPerPixel(*video_config));
+  return GetDecoderVideoBufferLimitBytes(video_config->codec(),
+                                         video_config->visible_rect().size(),
+                                         GetBitsPerPixel(*video_config));
 }
 
 size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
