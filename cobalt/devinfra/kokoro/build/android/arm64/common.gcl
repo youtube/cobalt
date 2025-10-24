@@ -20,7 +20,7 @@ build = common.build {
       value = 'cobalt-build-android-arm64'
     },
     {
-      key = 'TARGET'
+      key = 'GN_TARGET'
       value = 'cobalt:gn_all'
     },
     {
