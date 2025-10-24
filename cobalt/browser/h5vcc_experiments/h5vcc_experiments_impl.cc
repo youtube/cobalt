@@ -69,8 +69,8 @@ void H5vccExperimentsImpl::SetExperimentState(
   // Note: It's important to clear the crash streak. Crashes that occur after a
   // successful config fetch do not prevent updating to a new update, and
   // therefore do not necessitate falling back to a safe config.
-  experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    0);
+  global_features->metrics_local_state()->SetInteger(
+      variations::prefs::kVariationsCrashStreak, 0);
 
   experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
                                   base::Time::Now().ToInternalValue());
@@ -94,6 +94,7 @@ void H5vccExperimentsImpl::SetExperimentState(
   // CommitPendingWrite not called here to avoid excessive disk writes.
   // Features and featureParams won't be applied until the next Cobalt cold
   // start so the delay is acceptable.
+  global_features->metrics_local_state()->CommitPendingWrite();
   std::move(callback).Run();
 }
 

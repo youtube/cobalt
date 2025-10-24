@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <iostream>
 #include <string>
 
 #include "base/base_switches.h"
@@ -134,8 +135,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
-  content::NavigationHandle& navigation_handle =
-      registry.GetNavigationHandle();
+  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
@@ -171,9 +171,9 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
 }
 
 void CobaltContentBrowserClient::OverrideWebPreferences(
-                            content::WebContents* web_contents,
-                            content::SiteInstance& main_frame_site,
-                            blink::web_pref::WebPreferences* prefs) {
+    content::WebContents* web_contents,
+    content::SiteInstance& main_frame_site,
+    blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
@@ -181,7 +181,7 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
-                            web_contents, main_frame_site, prefs);
+      web_contents, main_frame_site, prefs);
 }
 
 content::StoragePartitionConfig
@@ -253,8 +253,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
-  // All consumers of the main NetworkContext must provide NetworkAnonymizationKey
-  // / IsolationInfos, so storage can be isolated on a per-site basis.
+  // All consumers of the main NetworkContext must provide
+  // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
+  // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 }
 
@@ -353,7 +354,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
-
+  std::cout << "config_type: " << static_cast<int>(config_type) << std::endl;
+  std::cout << (config_type == ExperimentConfigType::kEmptyConfig
+                    ? "empty config"
+                    : (config_type == ExperimentConfigType::kSafeConfig
+                           ? "safe config"
+                           : "regular config"))
+            << std::endl;
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
@@ -363,6 +370,8 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   const base::Value::Dict& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
+
+  std::cout << "feature_map" << feature_map << std::endl;
 
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {
