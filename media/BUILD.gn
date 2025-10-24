@@ -236,7 +236,6 @@ test("media_unittests") {
     deps += [
       # The test needs the java dependencies to add the java classes for their
       # native counterparts to the test apk.
-      "//cobalt/browser",
       "//gpu/command_buffer/service:android_texture_owner_unittests",
       "//media/base/android:media_java",
       "//media/base/android:unit_tests",
