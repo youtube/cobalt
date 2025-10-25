@@ -6,7 +6,6 @@
 
 #include <sstream>
 
-#include "base/logging.h"
 #include "base/debug/alias.h"
 #include "media/base/subsample_entry.h"
 
@@ -15,6 +14,9 @@ namespace media {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
+
+// TODO: b/454441375 - Connect this to an experiment or a flag.
+constexpr bool kUseStarboardDecoderBufferAllocator = true;
 }  // namespace
 
 // static
@@ -85,7 +87,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-  Initialize(type);
+    Initialize(type);
 
   memcpy(writable_data(), data, size_);
 
@@ -122,21 +124,19 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  DCHECK(s_allocator);
   if (allocator_data_) {
+    CHECK(s_allocator);
     s_allocator->Free(allocator_data_->data, allocator_data_->size);
   }
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-  data_.reset();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset();
   side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
-  LOG(INFO) << " > Initialize.1";
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // This is used by Mojo.
-  Initialize(DemuxerStream::UNKNOWN);
+    // This is used by Mojo.
+    Initialize(DemuxerStream::UNKNOWN);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
@@ -146,7 +146,7 @@ void DecoderBuffer::Initialize() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
-  LOG(INFO) << " > Initialize.1";
+  CHECK(kUseStarboardDecoderBufferAllocator);
   DCHECK(s_allocator);
   DCHECK(!allocator_data_);
 
@@ -233,7 +233,6 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {
-  LOG(INFO) << __func__;
   return base::WrapRefCounted(new DecoderBuffer(nullptr, 0, nullptr, 0));
 }
 
