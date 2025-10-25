@@ -136,13 +136,15 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // This is used by Mojo.
-  Initialize(DemuxerStream::UNKNOWN);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (kUseStarboardDecoderBufferAllocator) {
+    // This is used by Mojo.
+    Initialize(DemuxerStream::UNKNOWN);
+    return;
+  }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
