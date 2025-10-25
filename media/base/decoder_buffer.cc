@@ -87,8 +87,12 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-    Initialize(type);
 
+  if (kUseStarboardDecoderBufferAllocator) {
+    Initialize(type);
+  } else {
+    Initialize();
+  }
   memcpy(writable_data(), data, size_);
 
   if (!side_data) {
@@ -135,20 +139,22 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (kUseStarboardDecoderBufferAllocator) {
     // This is used by Mojo.
     Initialize(DemuxerStream::UNKNOWN);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    return;
+  }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   CHECK(kUseStarboardDecoderBufferAllocator);
   DCHECK(s_allocator);
-  DCHECK(!allocator_data_);
+  DCHECK(!data_);
 
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
