@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "base/logging.h"
 #include "base/debug/alias.h"
 #include "media/base/subsample_entry.h"
 
@@ -57,7 +58,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   Initialize();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  memcpy(data_, data, size_);
+  memcpy(writable_data(), data, size_);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -86,7 +87,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
 
   Initialize(type);
 
-  memcpy(data_, data, size_);
+  memcpy(writable_data(), data, size_);
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -122,7 +123,9 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   DCHECK(s_allocator);
-  s_allocator->Free(data_, allocated_size_);
+  if (allocator_data_) {
+    s_allocator->Free(allocator_data_->data, allocator_data_->size);
+  }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -130,6 +133,7 @@ DecoderBuffer::~DecoderBuffer() {
 }
 
 void DecoderBuffer::Initialize() {
+  LOG(INFO) << " > Initialize.1";
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // This is used by Mojo.
   Initialize(DemuxerStream::UNKNOWN);
@@ -142,16 +146,17 @@ void DecoderBuffer::Initialize() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  LOG(INFO) << " > Initialize.1";
   DCHECK(s_allocator);
-  DCHECK(!data_);
+  DCHECK(!allocator_data_);
 
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
-  allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
-                                                      allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
+  size_t allocated_size = size_ + padding;
+  allocator_data_.emplace(static_cast<uint8_t*>(s_allocator->Allocate(
+                            type, allocated_size, alignment)),
+                        allocated_size);
+  memset(allocator_data_->data + size_, 0, padding);
 
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
@@ -228,6 +233,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {
+  LOG(INFO) << __func__;
   return base::WrapRefCounted(new DecoderBuffer(nullptr, 0, nullptr, 0));
 }
 
