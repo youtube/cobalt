@@ -16,7 +16,7 @@ namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
 
 // TODO: b/454441375 - Connect this to an experiment or a flag.
-constexpr bool kUseStarboardDecoderBufferAllocator = true;
+constexpr bool kUseStarboardDecoderBufferAllocator = false;
 }  // namespace
 
 // static
