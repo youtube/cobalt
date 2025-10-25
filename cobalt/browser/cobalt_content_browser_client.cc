@@ -380,6 +380,7 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   if (!web_contents_observer_) {
     return;
   }
+  LOG(INFO) << "Flushing cookies and local storage";
   auto* web_contents = web_contents_observer_->web_contents();
   CHECK(web_contents);
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
