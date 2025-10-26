@@ -40,19 +40,16 @@ const size_t kSmallAllocationThreshold = 512;
 
 }  // namespace
 
-DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
-    : DecoderBufferAllocator(type,
-                             SbMediaIsBufferPoolAllocateOnDemand(),
+DecoderBufferAllocator::DecoderBufferAllocator()
+    : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
                              SbMediaGetInitialBufferCapacity(),
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
-    Type type,
     bool is_memory_pool_allocated_on_demand,
     int initial_capacity,
     int allocation_unit)
-    : type_(type),
-      is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
+    : is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
       initial_capacity_(initial_capacity),
       allocation_unit_(allocation_unit) {
   DCHECK_GE(initial_capacity_, 0);
@@ -60,24 +57,14 @@ DecoderBufferAllocator::DecoderBufferAllocator(
 
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
-    if (type_ == Type::kGlobal) {
-      Allocator::Set(this);
-    }
     return;
   }
 
   base::AutoLock scoped_lock(mutex_);
   EnsureStrategyIsCreated();
-  if (type_ == Type::kGlobal) {
-    Allocator::Set(this);
-  }
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  if (type_ == Type::kGlobal) {
-    Allocator::Set(nullptr);
-  }
-
   base::AutoLock scoped_lock(mutex_);
 
   if (strategy_) {
