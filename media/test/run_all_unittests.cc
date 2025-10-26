@@ -34,7 +34,11 @@ class TestSuiteNoAtExit : public base::TestSuite {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
-  media::DecoderBufferAllocator decoder_buffer_allocator_;
+  std::unique_ptr<media::DecoderBufferAllocator> decoder_buffer_allocator_ = [] {
+    auto allocator = std::make_unique<media::DecoderBufferAllocator>();
+    media::DecoderBuffer::Allocator::Set(allocator.get());
+    return allocator;
+  }();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
