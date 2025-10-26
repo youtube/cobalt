@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-#define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-
 #include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
@@ -51,6 +49,8 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard::android::shared {
+using media::DecoderBuffer;
+using media::DecoderBufferAllocator;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -67,6 +67,33 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // wait during Reset()/Flush().
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
+
+void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
+  static std::unique_ptr<DecoderBufferAllocator> g_external_allocator;
+  DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
+  if (instance) {
+    SB_CHECK_EQ(instance, g_external_allocator.get());
+  }
+  if (use_external_allocator) {
+    if (instance) {
+      SB_LOG(INFO) << "DecoderBufferAllocator is already configured. Keeping "
+                      "current instance.";
+    } else {
+      SB_LOG(INFO) << "Creating and setting new DecoderBufferAllocator.";
+      g_external_allocator = std::make_unique<DecoderBufferAllocator>();
+      DecoderBuffer::Allocator::Set(g_external_allocator.get());
+    }
+  } else {
+    if (instance) {
+      SB_LOG(INFO) << "Destroying DecoderBufferAllocator instance. Using "
+                      "default allocator from now on.";
+      g_external_allocator.reset();
+      DecoderBuffer::Allocator::Set(nullptr);
+    } else {
+      SB_LOG(INFO) << "Keeping current default DecoderBufferAllocator.";
+    }
+  }
+}
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -199,6 +226,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) override {
     SB_CHECK(error_message);
 
+    ConfigureDecoderBufferAllocator(
+        !MimeType(creation_parameters.video_mime())
+             .GetParamBoolValue("disabledecoderbufferallocator", false));
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
@@ -225,8 +256,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
-
     SB_LOG(INFO) << "Creating passthrough components.";
+
     // TODO: Enable tunnel mode for passthrough
     auto audio_renderer = std::make_unique<AudioRendererPassthrough>(
         creation_parameters.audio_stream_info(),
@@ -717,5 +748,3 @@ bool PlayerComponents::Factory::OutputModeSupported(
 }
 
 }  // namespace starboard::shared::starboard::player::filter
-
-#endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
