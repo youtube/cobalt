@@ -28,32 +28,23 @@ MediaClient::~MediaClient() = default;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 uint64_t MediaClient::GetMediaSourceMaximumMemoryCapacity() {
-  auto allocator = static_cast<DecoderBufferAllocator*>(
+  auto* allocator = static_cast<DecoderBufferAllocator*>(
       DecoderBuffer::Allocator::GetInstance());
-  if (allocator == nullptr) {
-    return 0;
-  }
-  return allocator->GetMaximumMemoryCapacity();
+  return allocator ? allocator->GetMaximumMemoryCapacity() : 0;
 }
 
 // static
 uint64_t MediaClient::GetMediaSourceCurrentMemoryCapacity() {
-  auto allocator = static_cast<DecoderBufferAllocator*>(
+  auto* allocator = static_cast<DecoderBufferAllocator*>(
       DecoderBuffer::Allocator::GetInstance());
-  if (allocator == nullptr) {
-    return 0;
-  }
-  return allocator->GetCurrentMemoryCapacity();
+  return allocator ? allocator->GetCurrentMemoryCapacity() : 0;
 }
 
 // static
 uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
-  auto allocator = static_cast<DecoderBufferAllocator*>(
+  auto* allocator = static_cast<DecoderBufferAllocator*>(
       DecoderBuffer::Allocator::GetInstance());
-  if (allocator == nullptr) {
-    return 0;
-  }
-  return allocator->GetAllocatedMemory();
+  return allocator ? allocator->GetAllocatedMemory() : 0;
 }
 
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
