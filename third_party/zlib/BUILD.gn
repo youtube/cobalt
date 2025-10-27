@@ -357,6 +357,11 @@ component("zlib") {
     defines += [ "CPU_NO_SIMD" ]
   }
 
+  if (use_arm_neon_optimizations && is_cobalt &&
+      _is_platform_defined_toolchain) {
+    defines += [ "PARTNER_DEFINED_TOOLCHAIN" ]
+  }
+
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
       ":zlib_adler32_simd",
