@@ -23,6 +23,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+#include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
@@ -33,8 +34,6 @@
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
-
-#include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 
 namespace starboard {
 namespace {
