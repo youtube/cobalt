@@ -57,9 +57,9 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(writable_data(), data, size_);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -82,7 +82,6 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     CHECK(!side_data);
     return;
   }
-
 
   if (s_allocator) {
     Initialize(type);
@@ -140,7 +139,7 @@ void DecoderBuffer::Initialize() {
     Initialize(DemuxerStream::UNKNOWN);
     return;
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
@@ -155,8 +154,8 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   int padding = s_allocator->GetBufferPadding();
   size_t allocated_size = size_ + padding;
   allocator_data_.emplace(static_cast<uint8_t*>(s_allocator->Allocate(
-                            type, allocated_size, alignment)),
-                        allocated_size);
+                              type, allocated_size, alignment)),
+                          allocated_size);
   memset(allocator_data_->data + size_, 0, padding);
 
   if (side_data_size_ > 0)
