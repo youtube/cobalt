@@ -8,10 +8,12 @@
     "media:media_unittests_loader": "b/418842688 - Compilation failure",
     "mojo:mojo_perftests_loader": "b/418842688 - Compilation failure",
     "net:net_unittests_loader": "b/418842688 - Compilation failure",
+    "third_party/blink/renderer/platform/heap:blink_heap_perftests_loader": "b/418842688 - Execution failure, crashes horribly",
     "third_party/blink/renderer/controller:blink_unittests_loader": "b/453909269 - Devtools missing inputs",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
     "third_party/perfetto:perfetto_unittests_loader": "b/418842688 - Compilation failure",
-    "ui/wm:wm_unittests_loader": "b/418842688 - Compilation failure"
+    "ui/wm:wm_unittests_loader": "b/418842688 - Compilation failure",
+    "third_party/blink/renderer/platform:blink_platform_perftests_loader": "b/453909269 - Fails remotely"
   },
   "test_targets": [
     "base:base_perftests_loader",
@@ -32,7 +34,6 @@
     "sql:sql_unittests_loader",
     "starboard/nplb:nplb_loader",
     "third_party/blink/renderer/platform:blink_platform_perftests_loader",
-    "third_party/blink/renderer/platform/heap:blink_heap_perftests_loader",
     "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
     "third_party/blink/renderer/platform/wtf:wtf_unittests_loader",
     "third_party/boringssl:boringssl_crypto_tests_loader",

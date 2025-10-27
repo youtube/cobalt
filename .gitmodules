@@ -896,3 +896,179 @@
 	path = webkit/data/test_shell/plugins
 	url = https://chrome-internal.googlesource.com/chrome/data/webkit_plugin_tests
 	gclient-condition = checkout_src_internal
+[submodule "third_party/angle/third_party/EGL-Registry/src"]
+    path = "third_party/angle/third_party/EGL-Registry/src"
+[submodule "third_party/angle/testing"]
+	path = third_party/angle/testing
+[submodule "third_party/angle/build"]
+	path = third_party/angle/build
+[submodule "third_party/angle/buildtools"]
+	path = third_party/angle/buildtools
+[submodule "third_party/angle/third_party/OpenCL-CTS/src"]
+    path = third_party/angle/third_party/OpenCL-CTS/src
+[submodule "third_party/angle/third_party/OpenCL-Docs/src"]
+    path = third_party/angle/third_party/OpenCL-Docs/src
+[submodule "third_party/angle/third_party/OpenCL-ICD-Loader/src"]
+    path = third_party/angle/third_party/OpenCL-ICD-Loader/src
+[submodule "third_party/angle/third_party/OpenGL-Registry/src"]
+    path = third_party/angle/third_party/OpenGL-Registry/src
+[submodule "third_party/angle/third_party/Python-Markdown"]
+    path = third_party/angle/third_party/Python-Markdown
+[submodule "third_party/angle/third_party/SwiftShader"]
+    path = third_party/angle/third_party/SwiftShader
+[submodule "third_party/angle/third_party/VK-GL-CTS/src"]
+    path = third_party/angle/third_party/VK-GL-CTS/src
+[submodule "third_party/angle/third_party/abseil-cpp"]
+    path = third_party/angle/third_party/abseil-cpp
+[submodule "third_party/angle/third_party/android_build_tools"]
+    path = third_party/angle/third_party/android_build_tools
+[submodule "third_party/angle/third_party/android_deps"]
+    path = third_party/angle/third_party/android_deps
+[submodule "third_party/angle/third_party/android_platform"]
+    path = third_party/angle/third_party/android_platform
+[submodule "third_party/angle/third_party/android_sdk"]
+    path = third_party/angle/third_party/android_sdk
+[submodule "third_party/angle/third_party/astc-encoder/src"]
+    path = third_party/angle/third_party/astc-encoder/src
+[submodule "third_party/angle/third_party/catapult"]
+    path = third_party/angle/third_party/catapult
+[submodule "third_party/angle/third_party/cherry"]
+    path = third_party/angle/third_party/cherry
+[submodule "third_party/angle/third_party/clang-format/script"]
+    path = third_party/angle/third_party/clang-format/script
+[submodule "third_party/angle/third_party/clspv/src"]
+    path = third_party/angle/third_party/clspv/src
+[submodule "third_party/angle/third_party/colorama/src"]
+    path = third_party/angle/third_party/colorama/src
+[submodule "third_party/angle/third_party/cpu_features/src"]
+    path = third_party/angle/third_party/cpu_features/src
+[submodule "third_party/angle/third_party/dawn"]
+    path = third_party/angle/third_party/dawn
+[submodule "third_party/angle/third_party/depot_tools"]
+    path = third_party/angle/third_party/depot_tools
+[submodule "third_party/angle/third_party/flatbuffers/src"]
+    path = third_party/angle/third_party/flatbuffers/src
+[submodule "third_party/angle/third_party/gles1_conform"]
+    path = third_party/angle/third_party/gles1_conform
+[submodule "third_party/angle/third_party/glmark2/src"]
+    path = third_party/angle/third_party/glmark2/src
+[submodule "third_party/angle/third_party/glslang/src"]
+    path = third_party/angle/third_party/glslang/src
+[submodule "third_party/angle/third_party/googletest/src"]
+    path = third_party/angle/third_party/googletest/src
+[submodule "third_party/angle/third_party/khronos-cts/src"]
+    path = third_party/angle/third_party/khronos-cts/src
+[submodule "third_party/angle/third_party/libXNVCtrl/src"]
+    path = third_party/angle/third_party/libXNVCtrl/src
+[submodule "third_party/angle/third_party/libxcb/src"]
+    path = third_party/angle/third_party/libxcb/src
+[submodule "third_party/angle/third_party/nasm/src"]
+    path = third_party/angle/third_party/nasm/src
+[submodule "third_party/angle/third_party/perfetto/src"]
+    path = third_party/angle/third_party/perfetto/src
+[submodule "third_party/angle/third_party/shaderc/src"]
+    path = third_party/angle/third_party/shaderc/src
+[submodule "third_party/angle/third_party/spirv-cross/src"]
+    path = third_party/angle/third_party/spirv-cross/src
+[submodule "third_party/angle/third_party/spirv-headers/src"]
+    path = third_party/angle/third_party/spirv-headers/src
+[submodule "third_party/angle/third_party/spirv-tools/src"]
+    path = third_party/angle/third_party/spirv-tools/src
+[submodule "third_party/angle/third_party/trace-processor-shell/src"]
+    path = third_party/angle/third_party/trace-processor-shell/src
+[submodule "third_party/angle/third_party/vulkan-deps/glslang/src"]
+    path = third_party/angle/third_party/vulkan-deps/glslang/src
+[submodule "third_party/angle/third_party/vulkan-deps/spirv-cross/src"]
+    path = third_party/angle/third_party/vulkan-deps/spirv-cross/src
+[submodule "third_party/angle/third_party/vulkan-deps/spirv-headers/src"]
+    path = third_party/angle/third_party/vulkan-deps/spirv-headers/src
+[submodule "third_party/angle/third_party/vulkan-deps/spirv-tools/src"]
+    path = third_party/angle/third_party/vulkan-deps/spirv-tools/src
+[submodule "third_party/angle/third_party/vulkan-headers/src"]
+    path = third_party/angle/third_party/vulkan-headers/src
+[submodule "third_party/angle/third_party/vulkan-loader/src"]
+    path = third_party/angle/third_party/vulkan-loader/src
+[submodule "third_party/angle/third_party/vulkan-utility-libraries/src"]
+    path = third_party/angle/third_party/vulkan-utility-libraries/src
+[submodule "third_party/angle/third_party/vulkan-validation-layers/src"]
+    path = third_party/angle/third_party/vulkan-validation-layers/src
+[submodule "third_party/angle/tools"]
+    path = third_party/angle/tools
+[submodule "third_party/angle/util"]
+    path = third_party/angle/util
+[submodule "third_party/angle/third_party/googletest"]
+    path = third_party/angle/third_party/googletest
+[submodule "third_party/angle/third_party/ijar"]
+    path = third_party/angle/third_party/ijar
+[submodule "third_party/angle/third_party/jinja2"]
+    path = third_party/angle/third_party/jinja2
+[submodule "third_party/angle/third_party/jsoncpp"]
+    path = third_party/angle/third_party/jsoncpp
+[submodule "third_party/angle/third_party/libc++/src"]
+    path = third_party/angle/third_party/libc++/src
+[submodule "third_party/angle/third_party/libc++abi/src"]
+    path = third_party/angle/third_party/libc++abi/src
+[submodule "third_party/angle/third_party/libdrm/src"]
+    path = third_party/angle/third_party/libdrm/src
+[submodule "third_party/angle/third_party/libjpeg_turbo"]
+    path = third_party/angle/third_party/libjpeg_turbo
+[submodule "third_party/angle/third_party/libpng/src"]
+    path = third_party/angle/third_party/libpng/src
+[submodule "third_party/angle/third_party/libunwind/src"]
+    path = third_party/angle/third_party/libunwind/src
+[submodule "third_party/angle/third_party/llvm-libc/src"]
+    path = third_party/angle/third_party/llvm-libc/src
+[submodule "third_party/angle/third_party/llvm/src"]
+    path = third_party/angle/third_party/llvm/src
+[submodule "third_party/angle/third_party/lunarg-vulkantools/src"]
+    path = third_party/angle/third_party/lunarg-vulkantools/src
+[submodule "third_party/angle/third_party/markupsafe"]
+    path = third_party/angle/third_party/markupsafe
+[submodule "third_party/angle/third_party/mesa/src"]
+    path = third_party/angle/third_party/mesa/src
+[submodule "third_party/angle/third_party/meson"]
+    path = third_party/angle/third_party/meson
+[submodule "third_party/angle/third_party/nasm"]
+    path = third_party/angle/third_party/nasm
+[submodule "third_party/angle/third_party/perfetto"]
+    path = third_party/angle/third_party/perfetto
+[submodule "third_party/angle/third_party/protobuf"]
+    path = third_party/angle/third_party/protobuf
+[submodule "third_party/angle/third_party/rapidjson/src"]
+    path = third_party/angle/third_party/rapidjson/src
+[submodule "third_party/angle/third_party/requests/src"]
+    path = third_party/angle/third_party/requests/src
+[submodule "third_party/angle/third_party/rust"]
+    path = third_party/angle/third_party/rust
+[submodule "third_party/angle/third_party/six"]
+    path = third_party/angle/third_party/six
+[submodule "third_party/angle/third_party/vulkan-deps"]
+    path = third_party/angle/third_party/vulkan-deps
+[submodule "third_party/angle/third_party/vulkan-tools/src"]
+    path = third_party/angle/third_party/vulkan-tools/src
+[submodule "third_party/angle/third_party/zlib"]
+    path = third_party/angle/third_party/zlib
+[submodule "third_party/angle/third_party/vulkan_memory_allocator"]
+    path = third_party/angle/third_party/vulkan_memory_allocator
+[submodule "third_party/angle/third_party/wayland"]
+    path = third_party/angle/third_party/wayland
+[submodule "third_party/angle/tools/android"]
+    path = third_party/angle/tools/android
+[submodule "third_party/angle/tools/clang"]
+    path = third_party/angle/tools/clang
+[submodule "third_party/angle/tools/mb"]
+    path = third_party/angle/tools/mb
+[submodule "third_party/angle/tools/md_browser"]
+    path = third_party/angle/tools/md_browser
+[submodule "third_party/angle/tools/memory"]
+    path = third_party/angle/tools/memory
+[submodule "third_party/angle/tools/perf"]
+    path = third_party/angle/tools/perf
+[submodule "third_party/angle/tools/protoc_wrapper"]
+    path = third_party/angle/tools/protoc_wrapper
+[submodule "third_party/angle/tools/python"]
+    path = third_party/angle/tools/python
+[submodule "third_party/angle/tools/rust"]
+    path = third_party/angle/tools/rust
+[submodule "third_party/angle/tools/valgrind"]
+    path = third_party/angle/tools/valgrind

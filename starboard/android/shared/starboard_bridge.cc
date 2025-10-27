@@ -277,11 +277,6 @@ Size StarboardBridge::GetDeviceResolution(JNIEnv* env) {
   return {Java_Size_getWidth(env, j_size), Java_Size_getHeight(env, j_size)};
 }
 
-bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_isNetworkConnected(env, j_starboard_bridge_);
-}
-
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);

@@ -20,7 +20,7 @@
 namespace blink {
 
 namespace {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)|| BUILDFLAG(IS_CHROMEOS)
 StringView MaybeStripFontationsSuffix(const String& font_name) {
   wtf_size_t found_index = font_name.ReverseFind(" (Fontations)");
   if (found_index != WTF::kNotFound) {
