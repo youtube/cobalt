@@ -7,9 +7,7 @@
     "third_party/blink/renderer/platform:blink_platform_nocompile_tests": "b/453909269 - Packaging issue",
     "third_party/blink/renderer/platform/heap:blink_heap_perftests": "b/453909269 - crashes on startup",
     "net:net_unittests": "b/453909269 - Fails remotely",
-    "media:media_unittests": "b/453909269 - Fails remotely" 
-
-
+    "media:media_unittests": "b/453909269 - Fails remotely"
   },
   "test_targets": [
     "base:base_perftests",
