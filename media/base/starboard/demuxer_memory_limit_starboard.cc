@@ -62,7 +62,7 @@ size_t GetDemuxerStreamVideoMemoryLimit(
     const VideoDecoderConfig* video_config) {
   if (!video_config) {
     return GetDecoderVideoBufferLimitBytes(
-        VideoCodec::kH264, /*resulution=*/{1920, 1080}, /*bits_per_pixel=*/8);
+        VideoCodec::kH264, /*resolution=*/{1920, 1080}, /*bits_per_pixel=*/8);
   }
 
   return GetDecoderVideoBufferLimitBytes(video_config->codec(),
