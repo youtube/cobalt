@@ -17,13 +17,16 @@
 #include <algorithm>
 #include <iomanip>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
@@ -32,6 +35,8 @@
 #if COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
 #include "cobalt/media/base/format_support_query_metrics.h"
 #endif  // COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
+#include "media/base/decoder_buffer.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
@@ -82,6 +87,50 @@ void SetDiscardPadding(
       discard_padding.first.InMicroseconds();
   sample_info->discarded_duration_from_back =
       discard_padding.second.InMicroseconds();
+}
+
+std::string_view ToStringView(const char* val) {
+  return val ? val : "";
+}
+
+bool Contains(std::string_view str, std::string_view target) {
+  return str.find(target) != std::string_view::npos;
+}
+
+void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
+  static base::NoDestructor<base::Lock> g_allocator_lock;
+  base::AutoLock lock(*g_allocator_lock);
+
+  static base::NoDestructor<std::unique_ptr<DecoderBufferAllocator>>
+      g_external_allocator;
+  DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
+
+  // These CHECKS enforce our invariant: if an allocator is set,
+  // it MUST be our allocator.
+  if (instance) {
+    CHECK(*g_external_allocator);
+    CHECK_EQ(instance, g_external_allocator->get());
+  }
+
+  if (use_external_allocator) {
+    if (instance) {
+      LOG(INFO) << "DecoderBufferAllocator is already configured. Keeping "
+                   "current instance.";
+    } else {
+      LOG(INFO) << "Creating and setting new DecoderBufferAllocator.";
+      *g_external_allocator = std::make_unique<DecoderBufferAllocator>();
+      DecoderBuffer::Allocator::Set(g_external_allocator->get());
+    }
+  } else {
+    if (instance) {
+      LOG(INFO) << "Destroying DecoderBufferAllocator instance. Using "
+                   "default allocator from now on.";
+      g_external_allocator->reset();
+      DecoderBuffer::Allocator::Set(nullptr);
+    } else {
+      LOG(INFO) << "Keeping current default DecoderBufferAllocator.";
+    }
+  }
 }
 
 }  // namespace
@@ -755,6 +804,10 @@ void SbPlayerBridge::CreatePlayer() {
 #endif  // COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
 
   player_creation_time_ = Time::Now();
+
+  ConfigureDecoderBufferAllocator(
+      !Contains(ToStringView(video_stream_info_.mime),
+                "disabledecoderbufferallocator=true"));
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
