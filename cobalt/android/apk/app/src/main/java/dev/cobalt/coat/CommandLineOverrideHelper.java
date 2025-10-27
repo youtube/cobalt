@@ -95,6 +95,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("LogJsConsoleMessages");
         // Limit decoded image cache to 32 mbytes.
         paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
+        // Limit the age of decoded images in the cache.
+        paramOverrides.add("LimitImageDecodeCacheAge:seconds/5");
         // It is important to use a feature override instead of the
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
