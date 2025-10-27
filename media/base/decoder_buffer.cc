@@ -14,14 +14,10 @@ namespace media {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
-
-// TODO: b/454441375 - Connect this to an experiment or a flag.
-constexpr bool kUseStarboardDecoderBufferAllocator = true;
 }  // namespace
 
 // static
 DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-  DCHECK(s_allocator);
   return s_allocator;
 }
 
@@ -88,7 +84,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   }
 
 
-  if (kUseStarboardDecoderBufferAllocator) {
+  if (s_allocator) {
     Initialize(type);
   } else {
     Initialize();
@@ -139,7 +135,7 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (kUseStarboardDecoderBufferAllocator) {
+  if (s_allocator) {
     // This is used by Mojo.
     Initialize(DemuxerStream::UNKNOWN);
     return;
@@ -152,7 +148,6 @@ void DecoderBuffer::Initialize() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
-  CHECK(kUseStarboardDecoderBufferAllocator);
   DCHECK(s_allocator);
   DCHECK(!data_);
 
