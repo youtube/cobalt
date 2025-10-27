@@ -275,7 +275,6 @@ static_library("starboard_platform") {
     "system_has_capability.cc",
     "system_info_api.cc",
     "system_info_api.h",
-    "system_network_is_disconnected.cc",
     "system_platform_error.cc",
     "system_request_conceal.cc",
     "system_request_freeze_no_freezedone_callback.cc",
