@@ -122,17 +122,9 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
-// Cobalt VideoRenderAlgorithm used to release video frames immediately after
-// playback starts. Set the following variable to true to make it release video
-// frames until the underlying audio sink actually starts.
-STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
-                  "ReleaseVideoFramesAfterAudioStarts",
-                  false)
-
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
-STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to true with parameters
