@@ -120,6 +120,12 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// By default, |BUFFER_FLAG_DECODE_ONLY| is only used in tunnel playbacks
+// to explicitly skip video frames before the seek time so that they won't
+// be rendered. Set the following variable to true to use
+// |BUFFER_FLAG_DECODE_ONLY| for non-tunneled playbacks as well.
+STARBOARD_FEATURE(kNonTunneledDecodeOnly, "NonTunneledDecodeOnly", false)
+
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
