@@ -54,18 +54,18 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return GetDecoderAudioBufferLimitBytes();
+  return GetAudioDecoderBufferLimitBytes();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
     Demuxer::DemuxerTypes /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   if (!video_config) {
-    return GetDecoderVideoBufferLimitBytes(
+    return GetVideoDecoderBufferLimitBytes(
         VideoCodec::kH264, /*resolution=*/{1920, 1080}, /*bits_per_pixel=*/8);
   }
 
-  return GetDecoderVideoBufferLimitBytes(video_config->codec(),
+  return GetVideoDecoderBufferLimitBytes(video_config->codec(),
                                          video_config->visible_rect().size(),
                                          GetBitsPerPixel(*video_config));
 }

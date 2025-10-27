@@ -7,11 +7,11 @@
 
 namespace media {
 
-int GetDecoderAudioBufferLimitBytes() {
+int GetAudioDecoderBufferLimitBytes() {
   return SbMediaGetAudioBufferBudget();
 }
 
-int GetDecoderVideoBufferLimitBytes(VideoCodec codec,
+int GetVideoDecoderBufferLimitBytes(VideoCodec codec,
                                     const gfx::Size& resolution,
                                     int bits_per_pixel) {
   return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
