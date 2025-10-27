@@ -3,7 +3,7 @@
   "failing_tests": [
     "All/HttpCacheLookupManagerTest_NetworkIsolationKey.ServerPushCacheStatus/1",
     "*/CertVerifyProcInternalTest.*",
-    "CacheUtilTest.CleanupDirectoryFailsWhenParentDirectoryIsInaccessible",
+    "CacheUtilTest.*",
     "*/EmbeddedTestServerTest.*",
     "FilenameUtilTest.FileURLConversion",
     "FilenameUtilTest.GenerateFileName",
@@ -34,11 +34,9 @@
     "URLRequestTest.DnsNameHttpsOnlyErrorCausesSchemeUpgrade",
     "URLRequestTest.DnsNameHttpsOnlyErrorCausesSchemeUpgradeDeferred",
     "URLRequestTestReferrerPolicy.*",
-    "HTTPSOCSPTest.IntermediateResponseTooOldKnownRoot",
+    "HTTPSOCSPTest.*",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
-    "CacheUtilTest.*",
-    "SQLitePersistentSharedDictionaryStoreTest.*",
-    "HTTPSOCSPTest.*"
+    "SQLitePersistentSharedDictionaryStoreTest.*"
   ]
 }
