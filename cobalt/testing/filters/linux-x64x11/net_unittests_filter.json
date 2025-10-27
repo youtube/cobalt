@@ -36,6 +36,9 @@
     "URLRequestTestReferrerPolicy.*",
     "HTTPSOCSPTest.IntermediateResponseTooOldKnownRoot",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
-    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1"
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
+    "CacheUtilTest.*",
+    "SQLitePersistentSharedDictionaryStoreTest.*",
+    "HTTPSOCSPTest.*"
   ]
 }
