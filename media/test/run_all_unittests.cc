@@ -28,23 +28,23 @@ class TestSuiteNoAtExit : public base::TestSuite {
 
  protected:
   void Initialize() override;
+  void Shutdown() override;
 
  private:
   base::TestDiscardableMemoryAllocator discardable_memory_allocator_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
-  std::unique_ptr<media::DecoderBufferAllocator> decoder_buffer_allocator_ = [] {
-    auto allocator = std::make_unique<media::DecoderBufferAllocator>();
-    media::DecoderBuffer::Allocator::Set(allocator.get());
-    return allocator;
-  }();
+  media::DecoderBufferAllocator decoder_buffer_allocator_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 void TestSuiteNoAtExit::Initialize() {
   // Run TestSuite::Initialize first so that logging is initialized.
   base::TestSuite::Initialize();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  media::DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   media::MediaCodecBridgeImpl::SetupCallbackHandlerForTesting();
@@ -56,6 +56,12 @@ void TestSuiteNoAtExit::Initialize() {
   media::SetUpFakeLocalizedStrings();
 
   base::DiscardableMemoryAllocator::SetInstance(&discardable_memory_allocator_);
+}
+
+void TestSuiteNoAtExit::Shutdown() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  media::DecoderBuffer::Allocator::Set(nullptr);
+#endif
 }
 
 int main(int argc, char** argv) {

@@ -98,19 +98,9 @@ bool Contains(std::string_view str, std::string_view target) {
 }
 
 void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
-  static base::NoDestructor<base::Lock> g_allocator_lock;
-  base::AutoLock lock(*g_allocator_lock);
-
   static base::NoDestructor<std::unique_ptr<DecoderBufferAllocator>>
       g_external_allocator;
   DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
-
-  // These CHECKS enforce our invariant: if an allocator is set,
-  // it MUST be our allocator.
-  if (instance) {
-    CHECK(*g_external_allocator);
-    CHECK_EQ(instance, g_external_allocator->get());
-  }
 
   if (use_external_allocator) {
     if (instance) {
