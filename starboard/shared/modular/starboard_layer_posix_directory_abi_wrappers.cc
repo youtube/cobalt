@@ -13,8 +13,11 @@
 // limitations under the License.
 
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
+
 #include <string.h>
+
 #include <algorithm>
+
 #include "starboard/common/log.h"
 
 int __abi_wrap_readdir_r(musl_dir* dirp,
@@ -81,6 +84,7 @@ struct musl_dir* __abi_wrap_opendir(const char* name) {
 }
 
 int __abi_wrap_closedir(musl_dir* musl_directory) {
+#if 0
   if (!musl_directory) {
     errno = EBADF;
     return -1;
@@ -91,6 +95,8 @@ int __abi_wrap_closedir(musl_dir* musl_directory) {
   free(musl_directory);
 
   return closedir(directory);
+#endif
+  return 0;
 }
 
 struct musl_dirent* __abi_wrap_readdir(musl_dir* dirp) {
