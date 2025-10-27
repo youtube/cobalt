@@ -152,10 +152,6 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 }
 
-int DecoderBufferAllocator::GetAudioBufferBudget() const {
-  return SbMediaGetAudioBufferBudget();
-}
-
 int DecoderBufferAllocator::GetBufferAlignment() const {
   return sizeof(void*);
 }
@@ -168,25 +164,6 @@ base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
       SbMediaGetBufferGarbageCollectionDurationThreshold());
-}
-
-int DecoderBufferAllocator::GetProgressiveBufferBudget(
-    VideoCodec codec,
-    int resolution_width,
-    int resolution_height,
-    int bits_per_pixel) const {
-  return SbMediaGetProgressiveBufferBudget(
-      MediaVideoCodecToSbMediaVideoCodec(codec), resolution_width,
-      resolution_height, bits_per_pixel);
-}
-
-int DecoderBufferAllocator::GetVideoBufferBudget(VideoCodec codec,
-                                                 int resolution_width,
-                                                 int resolution_height,
-                                                 int bits_per_pixel) const {
-  return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
-                                     resolution_width, resolution_height,
-                                     bits_per_pixel);
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
