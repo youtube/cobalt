@@ -67,3 +67,8 @@ rtc_use_h264 = false
 enable_widevine = true
 
 generate_about_credits = false
+
+# Disable WebNN and some bits of TensorFlowLite.
+build_tflite_with_xnnpack = false
+webnn_use_tflite = false
+
