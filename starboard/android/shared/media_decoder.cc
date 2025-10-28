@@ -23,6 +23,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -31,6 +32,11 @@ namespace {
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
+
+// Set very high value of kMaxFramesInDecoder, virtually unlimiting the frames
+// in decoder.
+constexpr int kMaxFramesInDecoder = 1'000'000;
+constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -86,7 +92,11 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
-      flush_delay_usec_(0) {
+      flush_delay_usec_(0),
+      decoder_state_tracker_(DecoderStateTracker::CreateThrottling(
+          kMaxFramesInDecoder,
+          kFrameTrackerLogIntervalUs,
+          [this]() { condition_variable_.notify_one(); })) {
   SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -107,6 +117,15 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
     pending_inputs_.emplace_back(audio_stream_info.audio_specific_config);
     ++number_of_pending_inputs_;
   }
+
+  frame_tracker_logging_thread_ =
+      std::make_unique<base::Thread>("pending_frame_tracker");
+  frame_tracker_logging_thread_->Start();
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaCodecDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 MediaCodecDecoder::MediaCodecDecoder(
@@ -134,8 +153,11 @@ MediaCodecDecoder::MediaCodecDecoder(
       frame_rendered_cb_(frame_rendered_cb),
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
-      flush_delay_usec_(flush_delay_usec) {
-  SB_DCHECK(frame_rendered_cb_);
+      flush_delay_usec_(flush_delay_usec),
+      decoder_state_tracker_(DecoderStateTracker::CreateThrottling(
+          kMaxFramesInDecoder,
+          kFrameTrackerLogIntervalUs,
+          [this]() { condition_variable_.notify_one(); })) {
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -151,10 +173,23 @@ MediaCodecDecoder::MediaCodecDecoder(
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
+
+  frame_tracker_logging_thread_ =
+      std::make_unique<base::Thread>("pending_frame_tracker");
+  frame_tracker_logging_thread_->Start();
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaCodecDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  if (frame_tracker_logging_thread_) {
+    frame_tracker_logging_thread_->Stop();
+  }
 
   TerminateDecoderThread();
 
@@ -208,10 +243,14 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   std::lock_guard lock(mutex_);
   bool need_signal = pending_inputs_.empty();
+  int64_t total_size = 0;
   for (const auto& input_buffer : input_buffers) {
     pending_inputs_.emplace_back(input_buffer);
     ++number_of_pending_inputs_;
+    total_size += input_buffer->size();
   }
+  pending_encoded_frames_ += input_buffers.size();
+  pending_encoded_frames_size_ += total_size;
   if (need_signal) {
     condition_variable_.notify_one();
   }
@@ -226,6 +265,18 @@ void MediaCodecDecoder::WriteEndOfStream() {
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
     condition_variable_.notify_one();
+  }
+}
+
+void MediaCodecDecoder::SetRenderScheduledTime(int64_t pts_us,
+                                               int64_t scheduled_us) {
+  std::lock_guard lock(frame_timestamps_mutex_);
+  auto it = frame_timestamps_.find(pts_us);
+  if (it != frame_timestamps_.end()) {
+    it->second.render_scheduled_us = scheduled_us;
+  } else {
+    SB_LOG(WARNING) << "Could not find timestamp for PTS " << pts_us
+                    << " to set scheduled render time.";
   }
 }
 
@@ -359,7 +410,7 @@ void MediaCodecDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (can_process_input) {
+      if (decoder_state_tracker_->CanAcceptMore() && can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -397,10 +448,7 @@ void MediaCodecDecoder::TerminateDecoderThread() {
 
   destroying_.store(true);
 
-  {
-    std::lock_guard lock(mutex_);
-    condition_variable_.notify_one();
-  }
+  condition_variable_.notify_one();
 
   if (decoder_thread_) {
     SB_CHECK_EQ(pthread_join(*decoder_thread_, nullptr), 0);
@@ -516,6 +564,12 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
+  if (size > 0) {
+    decoder_state_tracker_->AddFrame(input_buffer->timestamp());
+  } else {
+    SB_LOG(WARNING) << __func__ << " > size=" << size;
+  }
+
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
     // Drm system initialization is asynchronous. If there's a drm system, we
@@ -544,11 +598,17 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
+    SB_LOG(ERROR) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
+  }
+
+  if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    --pending_encoded_frames_;
+    pending_encoded_frames_size_ -= pending_input.input_buffer->size();
   }
 
   is_output_restricted_ = false;
@@ -622,6 +682,24 @@ void MediaCodecDecoder::ReportError(const SbPlayerError error,
   }
 }
 
+void MediaCodecDecoder::LogPendingFrameCountAndReschedule() {
+  SB_LOG(INFO) << "Number of pending encoded frames: "
+               << pending_encoded_frames_.load() << ", total size: "
+               << FormatWithDigitSeparators(
+                      pending_encoded_frames_size_.load() / 1024)
+               << " KB";
+
+  if (destroying_.load()) {
+    return;
+  }
+
+  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&MediaCodecDecoder::LogPendingFrameCountAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(5));
+}
+
 void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
                                           bool is_transient,
                                           const std::string& diagnostic_info) {
@@ -645,6 +723,7 @@ void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+  // SB_LOG(INFO) << __func__ << " > buffer_index=" << buffer_index;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -671,6 +750,18 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
   // receive output buffer, discard this invalid output buffer.
   if (destroying_.load() || !decoder_thread_) {
     return;
+  }
+
+  if (size > 0) {
+    if (!decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
+      SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+    }
+    std::lock_guard lock(frame_timestamps_mutex_);
+    frame_timestamps_[presentation_time_us] = {
+        .decoded_us = CurrentMonotonicTime(),
+    };
+  } else {
+    SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
 
   DequeueOutputResult dequeue_output_result;
@@ -701,8 +792,42 @@ void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.notify_one();
 }
 
-void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
-  frame_rendered_cb_(frame_timestamp);
+void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                                  int64_t frame_rendered_us) {
+  last_frame_rendered_us_ = frame_rendered_us;
+
+  std::optional<int64_t> latency_ms;
+  std::optional<int64_t> decoded_gap_ms;
+  std::optional<int64_t> render_gap_ms;
+  std::optional<int64_t> render_scheduled_ms;
+  [&] {
+    std::lock_guard lock(frame_timestamps_mutex_);
+    auto it = frame_timestamps_.find(frame_timestamp);
+    if (it == frame_timestamps_.end()) {
+      SB_LOG(WARNING) << "Cannot find timestamps for pts="
+                      << (frame_timestamp / 1'000);
+      return;
+    }
+
+    const auto decoded_us = it->second.decoded_us;
+
+    latency_ms = (frame_rendered_us - decoded_us) / 1'000;
+    if (last_decoded_us_ != 0) {
+      decoded_gap_ms = (decoded_us - last_decoded_us_) / 1'000;
+    }
+    last_decoded_us_ = decoded_us;
+
+    if (auto render_scheduled_us = it->second.render_scheduled_us;
+        render_scheduled_us != 0) {
+      render_scheduled_ms = render_scheduled_us / 1'000;
+      render_gap_ms = (frame_rendered_us - render_scheduled_us) / 1'000;
+    }
+    frame_timestamps_.erase(it);
+  }();
+
+  if (frame_rendered_cb_) {
+    frame_rendered_cb_(frame_timestamp, frame_rendered_us);
+  }
 }
 
 void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {

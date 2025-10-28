@@ -175,6 +175,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
+  LOG(INFO) << __func__ << ": decoder_buffer_allocator: video_buffer_size(MiB)= " << (memory_limit_ / 1024 / 1024);
 }
 
 SourceBufferStream::~SourceBufferStream() = default;

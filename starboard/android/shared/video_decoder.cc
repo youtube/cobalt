@@ -52,6 +52,8 @@ using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+constexpr bool kSetReleaseTimeExplicitly = true;
+
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -175,7 +177,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void()> VideoFrameReleaseCallback;
+  typedef std::function<void(std::optional<int64_t> release_us)>
+      VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodecBridge* media_codec_bridge,
@@ -196,7 +199,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_();
+        release_callback_(std::nullopt);
       }
     }
   }
@@ -205,9 +208,19 @@ class VideoFrameImpl : public VideoFrame {
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
-    media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
-        dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_();
+
+    if (kSetReleaseTimeExplicitly) {
+      media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
+          dequeue_output_result_.index, release_time_in_nanoseconds);
+      release_callback_(release_time_in_nanoseconds / 1'000);
+      return;
+    }
+
+    media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
+                                             true);
+    if (!is_end_of_stream()) {
+      release_callback_(std::nullopt);
+    }
   }
 
  private:
@@ -309,6 +322,11 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
 
 class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
  public:
+  explicit Sink(MediaCodecVideoDecoder* video_decoder)
+      : video_decoder_(*video_decoder) {
+    SB_CHECK(video_decoder != nullptr);
+  }
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -334,8 +352,20 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
+    int64_t pts = frame->timestamp();
+    if (video_decoder_.media_decoder_ != nullptr) {
+      auto& media_decoder = *video_decoder_.media_decoder_;
+
+      media_decoder.SetRenderScheduledTime(pts,
+                                           release_time_in_nanoseconds / 1000);
+    } else {
+      SB_LOG(INFO) << "MediaDecoder is null";
+    }
+
     return kReleased;
   }
+
+  MediaCodecVideoDecoder& video_decoder_;
 
   RenderCB render_cb_;
   bool rendered_;
@@ -419,6 +449,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
                << tunnel_mode_audio_session_id_;
+  SB_LOG(INFO) << "kSetReleaseTimeExplicitly="
+               << (kSetReleaseTimeExplicitly ? "true" : "false");
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -432,7 +464,7 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == nullptr) {
-    sink_ = make_scoped_refptr<Sink>();
+    sink_ = make_scoped_refptr<Sink>(this);
   }
   return sink_;
 }
@@ -923,9 +955,10 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(
-          dequeue_output_result, media_codec_bridge,
-          std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+      new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
+                         [this](std::optional<int64_t> release_us) {
+                           OnVideoFrameRelease(release_us);
+                         }));
 }
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
@@ -1252,10 +1285,15 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void MediaCodecVideoDecoder::OnVideoFrameRelease() {
+void MediaCodecVideoDecoder::OnVideoFrameRelease(
+    std::optional<int64_t> release_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
+  }
+  if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
+    media_decoder_->decoder_state_tracker()->ReleaseFrameAt(
+        release_us.value_or(CurrentMonotonicTime()));
   }
 }
 
