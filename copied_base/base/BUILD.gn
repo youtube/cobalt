@@ -193,14 +193,6 @@ buildflag_header("ios_cronet_buildflags") {
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
-buildflag_header("cobalt_for_google3_buildflags") {
-  header = "cobalt_for_google3_buildflags.h"
-  header_dir = "base/android"
-  flags = [
-    "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
-  ]
-}
-
 use_epoll = is_linux || is_chromeos || is_android
 
 # Base and everything it depends on should be a static library rather than
@@ -1384,10 +1376,7 @@ component("base") {
       "android/trace_event_binding.cc",
       "android/trace_event_binding.h",
     ]
-    deps += [ 
-      ":base_jni_headers",
-      ":cobalt_for_google3_buildflags",
-    ]
+    deps += [":base_jni_headers"]
   }  # is_android || is_robolectric
 
   # Chromeos.
