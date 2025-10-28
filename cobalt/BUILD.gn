@@ -20,9 +20,10 @@ import("//ui/base/ui_features.gni")
 
 if (!toolchain_for_rust_host_build_tools) {
   assert(!cobalt_is_release_build || is_official_build,
-        "Release builds are only available in official builds.")
+         "Release builds are only available in official builds.")
 }
 
+# Fake comment to test a PR
 # This arg temporarily enables or disables the updater_sandbox target.
 # It's disabled on CI by default due to missing libcurl pkg. To enable it
 # locally, set it to true before building the target.
