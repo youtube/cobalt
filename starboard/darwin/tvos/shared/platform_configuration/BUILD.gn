@@ -1,0 +1,172 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/build/config/mac/xcode_tools_path.gni")
+
+config("platform_configuration") {
+  configs = [
+    "//starboard/build/config/sabi",
+    "//starboard/build/config/mac:common",
+  ]
+  cflags = []
+  defines = []
+  arflags = []
+  ldflags = []
+  asmflags = []
+
+  ldflags += [
+    "-Wl,-framework,AdSupport",
+    "-Wl,-framework,AppIntents",
+    "-Wl,-framework,AppTrackingTransparency",
+    "-Wl,-framework,AudioToolbox",
+    "-Wl,-framework,AVFoundation",
+    "-Wl,-framework,AVKit",
+    "-Wl,-framework,CoreGraphics",
+    "-Wl,-framework,CoreMedia",
+    "-Wl,-framework,CoreVideo",
+    "-Wl,-framework,GameController",
+    "-Wl,-framework,GLKit",
+    "-Wl,-framework,MediaAccessibility",
+    "-Wl,-framework,MediaPlayer",
+    "-Wl,-framework,Metal",
+    "-Wl,-framework,OpenGLES",
+    "-Wl,-framework,QuartzCore",
+    "-Wl,-framework,UIKit",
+    "-Wl,-framework,VideoToolbox",
+
+    # "-Fgen/intents_framework",
+    # "-Wl,-framework,YtIntent",
+    # "-Wl,-rpath,@executable_path/Frameworks",
+  ]
+
+  if (is_debug) {
+    cflags += [
+      "-frtti",
+      "-O0",
+    ]
+  } else if (is_devel) {
+    cflags += [
+      "-frtti",
+      "-O2",
+    ]
+  } else {
+    cflags += [
+      "-fno-rtti",
+      "-O3",
+      "-gline-tables-only",
+    ]
+  }
+
+  if (is_clang) {
+    cflags += [
+      "-Werror",
+      "-fcolor-diagnostics",
+
+      # Default visibility to hidden, to enable dead stripping.
+      "-fvisibility=hidden",
+
+      # Warn for implicit type conversions that may change a value.
+      "-Wconversion",
+
+      # Warns on switches on enums that cover all enum values but
+      # also contain a default: branch. Chrome is full of that.
+      "-Wno-covered-switch-default",
+
+      # protobuf uses hash_map.
+      "-Wno-deprecated",
+      "-fno-exceptions",
+
+      # Don"t warn about the "struct foo f = {0};" initialization pattern.
+      "-Wno-missing-field-initializers",
+
+      # Do not warn for implicit sign conversions.
+      "-Wno-sign-conversion",
+      "-fno-strict-aliasing",  # See http://crbug.com/32204
+
+      # TODO(pkasting): In C++11 this is legal, so this should be
+      # removed when we change to that.  (This is also why we don"t
+      # bother fixing all these cases today.)
+      "-Wno-unnamed-type-template-args",
+
+      # Triggered by the COMPILE_ASSERT macro.
+      "-Wno-unused-local-typedef",
+
+      # Do not warn if a function or variable cannot be implicitly
+      # instantiated.
+      "-Wno-undefined-var-template",
+
+      # Do not warn about unused function params.
+      "-Wno-unused-parameter",
+
+      # V8 pointer compression aligns address to 4GB and we need this flag
+      # toolchain to allow that.
+      "-Wno-builtin-assume-aligned-alignment",
+
+      # Do not warn about implicit int conversions.
+      "-Wno-implicit-int-conversion",
+
+      # Do not warn about used variable which are set
+      "-Wno-unused-but-set-variable",
+
+      # Do not warn on unknown option. This allows building with
+      # different compiler versions.
+      "-Wno-unknown-warning-option",
+    ]
+  }
+
+  if (!cobalt_fastbuild) {
+    if (is_debug || is_devel) {
+      cflags += [ "-g" ]
+    } else {
+      cflags += [ "-gline-tables-only" ]
+    }
+  }
+
+  if (use_asan) {
+    defines += [ "ADDRESS_SANITIZER" ]
+    cflags += [ "-fsanitize=address" ]
+    ldflags += [ "-fsanitize=address" ]
+  }
+
+  include_dirs = [ "//starboard/darwin/includes" ]
+  defines += [
+    "GL_GLEXT_PROTOTYPES",
+    "__STDC_FORMAT_MACROS",  # so that we get PRI*
+  ]
+
+  cflags_cc = [ "-Wno-c++11-narrowing" ]
+
+  cflags_objcc = [ "-Wno-c++11-narrowing" ]
+
+  if (is_clang) {
+    clang_flags = [
+      "-fobjc-arc",
+      "-mtvos-version-min=13.0",
+
+      # TODO: Fix nullability errors
+      "-Wno-nullability-completeness",
+      "-Wno-nonnull",
+    ]
+    cflags += clang_flags
+    ldflags += clang_flags
+    asmflags += clang_flags
+  }
+
+  ldflags += [ "-dead_strip" ]
+
+  include_dirs += [
+    # POSIX emulation headers
+    "//starboard/darwin/posix_emu/include",
+  ]
+}
