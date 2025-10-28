@@ -94,14 +94,20 @@ std::string GetTrackingAuthorizationStatusShared() {
   const starboard::extension::IfaApi* ifa_api =
       static_cast<const starboard::extension::IfaApi*>(
           SbSystemGetExtension(starboard::extension::kIfaApiName));
-  if (ifa_api && ifa_api->version >= 2 &&
-      ifa_api->GetTrackingAuthorizationStatus) {
-    char status[128];
-    if (ifa_api->GetTrackingAuthorizationStatus(status, sizeof(status))) {
-      return status;
-    }
+  const bool is_ifa_good = ifa_api && ifa_api->version >= 2 &&
+                           ifa_api->GetTrackingAuthorizationStatus;
+  if (!is_ifa_good) {
+    return "NOT_SUPPORTED";
   }
-  return "NOT_SUPPORTED";
+
+  std::vector<char> status_buffer(128);
+
+  if (ifa_api->GetTrackingAuthorizationStatus(status_buffer.data(),
+                                              status_buffer.size())) {
+    return std::string(status_buffer.data());
+  }
+
+  return "UNKNOWN";  // Default return if GetTrackingAuthorizationStatus fails
 }
 
 void PerformExitStrategy() {
@@ -132,12 +138,51 @@ H5vccSystemImpl::H5vccSystemImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccSystem> receiver)
     : content::DocumentService<mojom::H5vccSystem>(render_frame_host,
-                                                   std::move(receiver)) {
+                                                   std::move(receiver)),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   DETACH_FROM_THREAD(thread_checker_);
+  const starboard::extension::IfaApi* ifa_api =
+      static_cast<const starboard::extension::IfaApi*>(
+          SbSystemGetExtension(starboard::extension::kIfaApiName));
+  if (ifa_api && ifa_api->version >= 2 &&
+      ifa_api->RegisterTrackingAuthorizationCallback) {
+    ifa_api->RegisterTrackingAuthorizationCallback(this, [](void* context) {
+      DCHECK(context) << "Callback called with NULL context";
+      if (context) {
+        static_cast<H5vccSystemImpl*>(context)
+            ->ReceiveTrackingAuthorizationComplete();
+      }
+    });
+  }
 }
 
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  const starboard::extension::IfaApi* ifa_api =
+      static_cast<const starboard::extension::IfaApi*>(
+          SbSystemGetExtension(starboard::extension::kIfaApiName));
+  if (ifa_api && ifa_api->version >= 2 &&
+      ifa_api->UnregisterTrackingAuthorizationCallback) {
+    ifa_api->UnregisterTrackingAuthorizationCallback();
+  }
+}
+
+void H5vccSystemImpl::ReceiveTrackingAuthorizationComplete() {
+  // May be called by another thread.
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&H5vccSystemImpl::ReceiveTrackingAuthorizationComplete,
+                   base::Unretained(this)));
+    return;
+  }
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  // Mark all promises complete and release the references.
+  for (auto& callback : pending_auth_callbacks_) {
+    std::move(callback).Run();
+  }
+  pending_auth_callbacks_.clear();
 }
 
 void H5vccSystemImpl::Create(
@@ -183,9 +228,19 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO - b/395650827: Connect to Starboard extension.
-  NOTIMPLEMENTED();
-  std::move(callback).Run();
+  const starboard::extension::IfaApi* ifa_api =
+      static_cast<const starboard::extension::IfaApi*>(
+          SbSystemGetExtension(starboard::extension::kIfaApiName));
+  const bool is_ifa_good = ifa_api && ifa_api->version >= 2 &&
+                           ifa_api->RequestTrackingAuthorization &&
+                           ifa_api->RegisterTrackingAuthorizationCallback;
+  if (!is_ifa_good) {
+    std::move(callback).Run();
+    return;
+  }
+
+  pending_auth_callbacks_.emplace_back(std::move(callback));
+  ifa_api->RequestTrackingAuthorization();
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
