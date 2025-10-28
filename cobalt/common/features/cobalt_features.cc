@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.coat;
+#include "cobalt/common/features/cobalt_features.h"
 
-/** Contains features specific to the starboard level. */
-public final class StarboardFeatures {
-  public static final String NON_TUNNELED_DECODE_ONLY = "NonTunneledDecodeOnly";
+// Features defined here are features experiments relevant to cobalt java code.
+namespace cobalt::features {
 
-  private StarboardFeatures() {}
-}
+BASE_FEATURE(kNonTunneledDecodeOnly,
+             "NonTunneledDecodeOnly",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+}  // namespace cobalt::features
