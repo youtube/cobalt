@@ -14,15 +14,17 @@
 
 #include "base/android/feature_map.h"
 #include "base/no_destructor.h"
-#include "cobalt/android/jni_headers/StarboardFeatureMap_jni.h"
-#include "cobalt/common/features/features.h"
+#include "cobalt/common/features/cobalt_features.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/cobalt_features_jni/CobaltFeatureMap_jni.h"
 
 namespace cobalt::features {
 namespace {
-// Array of features exposed through the Java StarboardFeatureMap API. Entries
-// in this array refer to features defined in starboard/common/feature_config.h.
+// Array of features exposed through the Java CobaltFeatureMap API. Entries
+// in this array refer to features defined in cobalt/common/features/features.h.
 const base::Feature* const kFeaturesExposedToJava[] = {
-    &features::kNonTunneledDecodeOnly,
+    &kNonTunneledDecodeOnly,
 };
 // static
 base::android::FeatureMap* GetFeatureMap() {
@@ -32,7 +34,7 @@ base::android::FeatureMap* GetFeatureMap() {
 }
 }  // namespace
 
-static jlong JNI_StarboardFeatureMap_GetNativeMap(JNIEnv* env) {
+static jlong JNI_CobaltFeatureMap_GetNativeMap(JNIEnv* env) {
   return reinterpret_cast<jlong>(GetFeatureMap());
 }
 }  // namespace cobalt::features

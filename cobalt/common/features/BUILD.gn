@@ -14,6 +14,8 @@
 
 static_library("features") {
   sources = [
+    "cobalt_features.cc",
+    "cobalt_features.h",
     "features.cc",
     "features.h",
     "starboard_features_initialization.cc",
@@ -21,7 +23,7 @@ static_library("features") {
   ]
 
   if (is_android) {
-    sources += [ "starboard_feature_map.cc" ]
+    sources += [ "cobalt_feature_map.cc" ]
   }
 
   deps = [
@@ -30,6 +32,6 @@ static_library("features") {
   ]
 
   if (is_android) {
-    deps += [ "//cobalt/android:jni_headers" ]
+    deps += [ "//cobalt/android:cobalt_features_jni" ]
   }
 }

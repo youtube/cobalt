@@ -19,19 +19,19 @@ import org.chromium.build.annotations.NullMarked;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
-/** A featureMap for our starboard features to be used in java. */
+/** A {@link FeatureMap} for our Cobalt features to be used in Java. */
 @JNINamespace("cobalt::features")
 @NullMarked
-public class StarboardFeatureMap extends FeatureMap {
-    private static final StarboardFeatureMap sInstance = new StarboardFeatureMap();
+public class CobaltFeatureMap extends FeatureMap {
+    private static final CobaltFeatureMap sInstance = new CobaltFeatureMap();
 
     // Do not instantiate this class.
-    private StarboardFeatureMap() {}
+    private CobaltFeatureMap() {}
 
     /**
-     * @return the singleton {@link StarboardFeatureMap}
+     * @return the singleton {@link CobaltFeatureMap}
      */
-    public static StarboardFeatureMap getInstance() {
+    public static CobaltFeatureMap getInstance() {
         return sInstance;
     }
 
@@ -42,10 +42,10 @@ public class StarboardFeatureMap extends FeatureMap {
 
     @Override
     protected long getNativeMap() {
-        return StarboardFeatureMapJni.get().getNativeMap();
+        return CobaltFeatureMapJni.get().getNativeMap();
     }
 
-    /** Native Methods for StarboardFeatureMap. */
+    /** Native Methods for CobaltFeatureMap. */
     @NativeMethods
     public interface Natives {
         long getNativeMap();
