@@ -51,7 +51,53 @@
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/crx_downloader_factory.h"
+#include "components/update_client/cobalt_slot_management.h"
+#endif
+
+// TODO(b/448186580): consider replacing all LOG with D(V)LOG.
+
 namespace update_client {
+
+// TODO(b/455004672): Investigate the legacy functions from m114. 
+// These functions are ported from m114 because Cobalt customizations
+// depend on them.
+#if defined(USE_M114_FUNCTIONS)
+namespace {
+
+using InstallOnBlockingTaskRunnerCompleteCallback = base::OnceCallback<
+    void(ErrorCategory error_category, int error_code, int extra_code1)>;
+
+void StartInstallOnBlockingTaskRunner(
+    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
+    const std::vector<uint8_t>& pk_hash,
+#if defined(IN_MEMORY_UPDATES)
+    const base::FilePath& installation_dir,
+    const std::string* crx_str,
+#else
+    const base::FilePath& crx_path,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
+#endif
+    const std::string& fingerprint,
+    std::unique_ptr<CrxInstaller::InstallParams> install_params,
+    scoped_refptr<CrxInstaller> installer,
+    std::unique_ptr<Unzipper> unzipper_,
+    scoped_refptr<Patcher> patcher_,
+    crx_file::VerifierFormat crx_format,
+    CrxInstaller::ProgressCallback progress_callback,
+    InstallOnBlockingTaskRunnerCompleteCallback callback) {
+// TODO(b/455004672): Investigate the conflicts with Cobalt customizations
+    return;
+}
+
+}  // namespace
+#endif // defined(USE_M114_FUNCTIONS)
 
 Component::Component(const UpdateContext& update_context, const std::string& id)
     : id_(id),
@@ -84,8 +130,20 @@ void Component::Handle(CallbackHandleComplete callback_handle_complete) {
       base::BindOnce(&Component::ChangeState, base::Unretained(this)));
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void Component::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  is_cancelled_ = true;
+  state_->Cancel();
+}
+#endif
+
 void Component::ChangeState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "Component::ChangeState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
+#endif
 
   if (next_state) {
     state_ = std::move(next_state);
@@ -228,6 +286,12 @@ void Component::AppendEvent(base::Value::Dict event) {
 
 void Component::NotifyObservers() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  if (is_cancelled_) {
+    LOG(WARNING) << "Component::NotifyObservers: skip callback";
+    return;
+  }
+#endif
   update_context_->crx_state_change_callback.Run(GetCrxUpdateItem());
 }
 
@@ -295,9 +359,21 @@ void Component::State::Handle(CallbackNextState callback_next_state) {
   DoHandle();
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void Component::State::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Further work may be needed to ensure cancellation during any state results
+  // in a clear result and no memory leaks.
+}
+#endif
+
 void Component::State::TransitionState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(next_state);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "Component::State::TransitionState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
+#endif
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -359,6 +435,25 @@ void Component::StateChecking::DoHandle() {
   auto& component = State::component();
   CHECK(component.crx_component());
 
+#if BUILDFLAG(IS_STARBOARD)
+  auto& config = component.update_context_->config;
+  auto metadata = component.update_context_->update_checker->GetPersistedData();
+  if (metadata) {
+    auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+    task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetUpdaterChannel,
+                                  base::Unretained(metadata), component.id_,
+                                  config->GetChannel()));
+    task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetLatestChannel,
+                                  base::Unretained(metadata),
+                                  config->GetChannel()));
+  } else {
+    LOG(WARNING) << "Failed to get the persisted data store to write the "
+                       "updater channel.";
+  }
+#endif
+
   if (component.error_code_) {
     metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kError);
     TransitionState(std::make_unique<StateUpdateError>(&component));
@@ -404,8 +499,15 @@ void Component::StateUpdateError::DoHandle() {
   CHECK_NE(ErrorCategory::kNone, component.error_category_);
   CHECK_NE(0, component.error_code_);
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Create an event when the server response included an update, or when it's
+  // an update check error, like quick roll-forward or out of space
+  if (component.IsUpdateAvailable() ||
+      component.error_category_ == ErrorCategory::kUpdateCheck) {
+#else
   // Create an event only when the server response included an update.
   if (component.IsUpdateAvailable()) {
+#endif
     component.AppendEvent(component.MakeEventUpdateComplete());
   }
 
@@ -478,6 +580,98 @@ void Component::StateUpToDate::DoHandle() {
   EndState();
 }
 
+#if defined(USE_M114_FUNCTIONS)
+Component::StateDownloading::StateDownloading(Component* component)
+    : State(component, ComponentState::kDownloading) {}
+
+Component::StateDownloading::~StateDownloading() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+#if BUILDFLAG(IS_STARBOARD)
+void Component::StateDownloading::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  crx_downloader_->CancelDownload();
+}
+#endif
+
+void Component::StateDownloading::DoHandle() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto& component = Component::State::component();
+  CHECK(component.crx_component());
+
+  component.downloaded_bytes_ = -1;
+  component.total_bytes_ = -1;
+
+#if BUILDFLAG(IS_STARBOARD)
+  crx_downloader_ = component.config()->GetCrxDownloaderFactory()->MakeCrxDownloader(
+          component.config());
+#else
+  crx_downloader_ =
+      component.config()->GetCrxDownloaderFactory()->MakeCrxDownloader(
+          component.CanDoBackgroundDownload());
+#endif
+  crx_downloader_->set_progress_callback(base::BindRepeating(
+      &Component::StateDownloading::DownloadProgress, base::Unretained(this)));
+
+  // TODO(b/455004672): Investigate the legacy functions from m114.
+  // Call crx_downloader_->StartDownload() with appropriate parameters.
+}
+
+// Called when progress is being made downloading a CRX. Can be called multiple
+// times due to how the CRX downloader switches between different downloaders
+// and fallback urls.
+void Component::StateDownloading::DownloadProgress(int64_t downloaded_bytes,
+                                                   int64_t total_bytes) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto& component = Component::State::component();
+  component.downloaded_bytes_ = downloaded_bytes;
+  component.total_bytes_ = total_bytes;
+  component.NotifyObservers();
+}
+
+void Component::StateDownloading::DownloadComplete(
+    const CrxDownloader::Result& download_result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto& component = Component::State::component();
+
+  for (const auto& download_metrics : crx_downloader_->download_metrics())
+    component.AppendEvent(component.MakeEventDownloadMetrics(download_metrics));
+
+  crx_downloader_ = nullptr;
+
+  if (component.update_context_->is_cancelled) {
+    TransitionState(std::make_unique<StateUpdateError>(&component));
+    component.error_category_ = ErrorCategory::kService;
+    component.error_code_ = static_cast<int>(ServiceError::CANCELLED);
+    return;
+  }
+
+  if (download_result.error) {
+    CHECK(download_result.response.empty());
+    component.error_category_ = ErrorCategory::kDownload;
+    component.error_code_ = download_result.error;
+
+    TransitionState(std::make_unique<StateUpdateError>(&component));
+    return;
+  }
+
+#if defined(IN_MEMORY_UPDATES)
+  component.installation_dir_ = download_result.installation_dir;
+#else
+  component.payload_path_ = download_result.response;
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  component.installation_index_ = download_result.installation_index;
+#endif
+
+  TransitionState(std::make_unique<StateUpdating>(&component));
+}
+#endif // defined(USE_M114_FUNCTIONS)
+
 Component::StateUpdating::StateUpdating(Component* component)
     : State(component, ComponentState::kUpdating) {}
 
@@ -485,6 +679,79 @@ Component::StateUpdating::~StateUpdating() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
+#if defined(USE_M114_FUNCTIONS)
+void Component::StateUpdating::DoHandle() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto& component = Component::State::component();
+  const auto& update_context = *component.update_context_;
+
+  CHECK(component.crx_component());
+
+  component.install_progress_ = -1;
+  component.NotifyObservers();
+
+  // Adapts the repeating progress callback invoked by the installer so that
+  // the callback can be posted to the main sequence instead of running
+  // the callback on the sequence the installer is running on.
+  auto main_task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
+      ->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              &update_client::StartInstallOnBlockingTaskRunner,
+              main_task_runner, component.crx_component()->pk_hash,
+#if defined(IN_MEMORY_UPDATES)
+              component.installation_dir_,
+              &component.crx_str_,
+#else
+              component.payload_path_,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+              component.installation_index_,
+              update_context.update_checker->GetPersistedData(),
+              component.id_, component.next_version_.GetString(),
+#endif
+              component.next_fp_,
+              component.install_params(), component.crx_component()->installer,
+              update_context.config->GetUnzipperFactory()->Create(),
+              update_context.config->GetPatcherFactory()->Create(),
+              component.crx_component()->crx_format_requirement,
+              base::BindRepeating(&Component::StateUpdating::InstallProgress,
+                                  base::Unretained(this)),
+              base::BindOnce(&Component::StateUpdating::InstallComplete,
+                             base::Unretained(this))));
+}
+
+void Component::StateUpdating::InstallProgress(int install_progress) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto& component = Component::State::component();
+  if (install_progress >= 0 && install_progress <= 100)
+    component.install_progress_ = install_progress;
+  component.NotifyObservers();
+}
+
+void Component::StateUpdating::InstallComplete(ErrorCategory error_category,
+                                               int error_code,
+                                               int extra_code1) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto& component = Component::State::component();
+
+  component.error_category_ = error_category;
+  component.error_code_ = error_code;
+  component.extra_code1_ = extra_code1;
+
+  if (component.error_code_ != 0) {
+    TransitionState(std::make_unique<StateUpdateError>(&component));
+    return;
+  }
+
+  CHECK_EQ(ErrorCategory::kNone, component.error_category_);
+  TransitionState(std::make_unique<StateUpdated>(&component));
+}
+#else // defined(USE_M114_FUNCTIONS)
 void Component::StateUpdating::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto& component = Component::State::component();
@@ -527,6 +794,7 @@ void Component::StateUpdating::PipelineComplete(
   CHECK_EQ(ErrorCategory::kNone, component.error_category_);
   TransitionState(std::make_unique<StateUpdated>(&component));
 }
+#endif // defined(USE_M114_FUNCTIONS)
 
 Component::StateUpdated::StateUpdated(Component* component)
     : State(component, ComponentState::kUpdated) {
