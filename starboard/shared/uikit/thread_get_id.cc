@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
-
 #include <pthread.h>
+
+#include "starboard/thread.h"
 
 SbThreadId SbThreadGetId() {
   mach_port_t machTID = pthread_mach_thread_np(pthread_self());

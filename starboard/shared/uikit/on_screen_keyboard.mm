@@ -13,16 +13,16 @@
 // limitations under the License.
 
 #include "starboard/extension/on_screen_keyboard.h"
-#include "starboard/shared/uikit/on_screen_keyboard.h"
-#include "starboard/string.h"
-
-#include "starboard/common/log.h"
-#include "starboard/window.h"
 
 #import <Foundation/Foundation.h>
+
+#include "starboard/common/log.h"
 #import "starboard/shared/uikit/application_window.h"
+#include "starboard/shared/uikit/on_screen_keyboard.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
+#include "starboard/string.h"
+#include "starboard/window.h"
 
 namespace starboard {
 namespace shared {
@@ -90,10 +90,10 @@ void Blur(SbWindow window, int ticket) {
   }
 }
 
-void UpdateSuggestions(SbWindow window, const char* suggestions[],
-                          int num_suggestions,
-                          int ticket) {
-}
+void UpdateSuggestions(SbWindow window,
+                       const char* suggestions[],
+                       int num_suggestions,
+                       int ticket) {}
 
 bool IsShown(SbWindow window) {
   @autoreleasepool {
@@ -108,8 +108,7 @@ bool SuggestionsSupported(SbWindow window) {
   return false;
 }
 
-bool GetBoundingRect(SbWindow window,
-                     SbWindowRect* bounding_rect) {
+bool GetBoundingRect(SbWindow window, SbWindowRect* bounding_rect) {
   SB_DCHECK(bounding_rect);
   if (window == kSbWindowInvalid) {
     return false;
@@ -142,10 +141,19 @@ void SetKeepFocus(SbWindow window, bool keep_focus) {
 }
 
 const CobaltExtensionOnScreenKeyboardApi kGetOnScreenKeyboardApi = {
-    kCobaltExtensionOnScreenKeyboardName, 1, &SetBackgroundColor,
-    &SetLightTheme, &Show, &Hide, &Focus, &Blur, &UpdateSuggestions,
-    &IsShown, &SuggestionsSupported, &GetBoundingRect, &SetKeepFocus
-  };
+    kCobaltExtensionOnScreenKeyboardName,
+    1,
+    &SetBackgroundColor,
+    &SetLightTheme,
+    &Show,
+    &Hide,
+    &Focus,
+    &Blur,
+    &UpdateSuggestions,
+    &IsShown,
+    &SuggestionsSupported,
+    &GetBoundingRect,
+    &SetKeepFocus};
 }  // namespace
 
 const void* GetOnScreenKeyboardApi() {

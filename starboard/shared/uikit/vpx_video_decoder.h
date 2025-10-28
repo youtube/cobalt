@@ -16,7 +16,6 @@
 #define INTERNAL_STARBOARD_SHARED_UIKIT_VPX_VIDEO_DECODER_H_
 
 #import <OpenGLES/EAGL.h>
-
 #include <vpx/vp8dx.h>
 #include <vpx/vpx_decoder.h>
 

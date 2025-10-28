@@ -16,11 +16,10 @@
 
 #import <UIKit/UIKit.h>
 
-#include "starboard/shared/uikit/ui_nav_item_container.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-
 #import "starboard/shared/uikit/defines.h"
+#include "starboard/shared/uikit/ui_nav_item_container.h"
 
 using starboard::ScopedSpinLock;
 using starboard::shared::uikit::UiNavItemFocus;
@@ -95,7 +94,8 @@ UIView* g_focus_current;
 - (BOOL)shouldUpdateFocusInContext:(UIFocusUpdateContext*)context {
   if (context.previouslyFocusedItem == self) {
     ScopedSpinLock scoped_lock(_navItem->lock);
-    if (starboard::CurrentMonotonicTime() < _focusTimestamp + _navItem->focus_duration) {
+    if (starboard::CurrentMonotonicTime() <
+        _focusTimestamp + _navItem->focus_duration) {
       return NO;
     }
   }

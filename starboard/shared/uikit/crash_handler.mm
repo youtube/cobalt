@@ -15,6 +15,7 @@
 #include "starboard/shared/uikit/crash_handler.h"
 
 #include <cstring>
+
 #include "starboard/extension/crash_handler.h"
 
 // gBreakpadSetAnnotationsCallback is defined in

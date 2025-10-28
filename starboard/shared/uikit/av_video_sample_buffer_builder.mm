@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <functional>
-
 #import "starboard/shared/uikit/av_video_sample_buffer_builder.h"
 
+#include <functional>
+
+#import "internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h"
 #import "starboard/shared/uikit/avc_av_video_sample_buffer_builder.h"
 #import "starboard/shared/uikit/playback_capabilities.h"
-#import "internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h"
 #if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 #import "starboard/shared/uikit/vp9_sw_av_video_sample_buffer_builder.h"  // nogncheck
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64

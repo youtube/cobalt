@@ -16,11 +16,10 @@
 
 #include <cmath>
 
-#include "starboard/shared/uikit/application_darwin.h"
 #include "starboard/common/time.h"
 #include "starboard/input.h"
 #include "starboard/memory.h"
-
+#include "starboard/shared/uikit/application_darwin.h"
 #import "starboard/shared/uikit/defines.h"
 
 using starboard::shared::uikit::ApplicationDarwin;
@@ -40,27 +39,25 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
 + (void)onScreenKeyboardTextUpdated:(NSString*)text window:(SbWindow)window {
   NSUInteger stringLength =
       [text lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
-  char* str =
-      static_cast<char*>(calloc(stringLength + 1, sizeof(char)));
+  char* str = static_cast<char*>(calloc(stringLength + 1, sizeof(char)));
   [text getCString:str
          maxLength:stringLength + 1
           encoding:NSUTF8StringEncoding];
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->window = window;
   data->type = kSbInputEventTypeInput;
   data->device_type = kSbInputDeviceTypeOnScreenKeyboard;
   data->input_text = str;
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &DeleteOnScreenKeyboardInputData);
+  ApplicationDarwin::InjectEvent(kSbEventTypeInput,
+                                 starboard::CurrentMonotonicTime(), data,
+                                 &DeleteOnScreenKeyboardInputData);
 }
 
 + (void)keyPressedEventWithKey:(SbKey)key
                      modifiers:(SbKeyModifiers)modifiers
                         window:(SbWindow)window
                       deviceID:(NSInteger)deviceID {
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->window = window;
   data->type = kSbInputEventTypePress;
   data->device_type = kSbInputDeviceTypeGamepad;
@@ -70,16 +67,15 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
   data->key_location = kSbKeyLocationUnspecified;
   data->key_modifiers = modifiers;
   data->pressure = 1;
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &free);
+  ApplicationDarwin::InjectEvent(
+      kSbEventTypeInput, starboard::CurrentMonotonicTime(), data, &free);
 }
 
 + (void)keyUnpressedEventWithKey:(SbKey)key
                        modifiers:(SbKeyModifiers)modifiers
                           window:(SbWindow)window
                         deviceID:(NSInteger)deviceID {
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->window = window;
   data->type = kSbInputEventTypeUnpress;
   data->device_type = kSbInputDeviceTypeGamepad;
@@ -89,8 +85,8 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
   data->key_location = kSbKeyLocationUnspecified;
   data->key_modifiers = modifiers;
   data->pressure = 1;
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &free);
+  ApplicationDarwin::InjectEvent(
+      kSbEventTypeInput, starboard::CurrentMonotonicTime(), data, &free);
 }
 
 + (void)moveEventWithKey:(SbKey)key
@@ -98,8 +94,7 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
                xPosition:(float)xPosition
                yPosition:(float)yPosition
                 deviceID:(NSInteger)deviceID {
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->type = kSbInputEventTypeMove;
   data->device_type = kSbInputDeviceTypeGamepad;
   data->window = window;
@@ -111,16 +106,15 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
   data->pressure = NAN;
   data->position = (SbInputVector){static_cast<float>(xPosition),
                                    static_cast<float>(yPosition)};
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &free);
+  ApplicationDarwin::InjectEvent(
+      kSbEventTypeInput, starboard::CurrentMonotonicTime(), data, &free);
 }
 
 + (void)touchpadMoveEventWithWindow:(SbWindow)window
                           xPosition:(float)xPosition
                           yPosition:(float)yPosition
                            deviceID:(NSInteger)deviceID {
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->type = kSbInputEventTypeMove;
   data->device_type = kSbInputDeviceTypeTouchPad;
   data->pressure = NAN;
@@ -133,16 +127,15 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
   data->key_modifiers = 0;
   data->position = (SbInputVector){static_cast<float>(xPosition),
                                    static_cast<float>(yPosition)};
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &free);
+  ApplicationDarwin::InjectEvent(
+      kSbEventTypeInput, starboard::CurrentMonotonicTime(), data, &free);
 }
 
 + (void)touchpadDownEventWithWindow:(SbWindow)window
                           xPosition:(float)xPosition
                           yPosition:(float)yPosition
                            deviceID:(NSInteger)deviceID {
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->type = kSbInputEventTypePress;
   data->device_type = kSbInputDeviceTypeTouchPad;
   data->pressure = NAN;
@@ -155,16 +148,15 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
   data->key_modifiers = 0;
   data->position = (SbInputVector){static_cast<float>(xPosition),
                                    static_cast<float>(yPosition)};
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &free);
+  ApplicationDarwin::InjectEvent(
+      kSbEventTypeInput, starboard::CurrentMonotonicTime(), data, &free);
 }
 
 + (void)touchpadUpEventWithWindow:(SbWindow)window
                         xPosition:(float)xPosition
                         yPosition:(float)yPosition
                          deviceID:(NSInteger)deviceID {
-  SbInputData* data =
-      static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
+  SbInputData* data = static_cast<SbInputData*>(calloc(1, sizeof(SbInputData)));
   data->type = kSbInputEventTypeUnpress;
   data->device_type = kSbInputDeviceTypeTouchPad;
   data->pressure = NAN;
@@ -177,8 +169,8 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
   data->key_modifiers = 0;
   data->position = (SbInputVector){static_cast<float>(xPosition),
                                    static_cast<float>(yPosition)};
-  ApplicationDarwin::InjectEvent(kSbEventTypeInput, starboard::CurrentMonotonicTime(),
-                                 data, &free);
+  ApplicationDarwin::InjectEvent(
+      kSbEventTypeInput, starboard::CurrentMonotonicTime(), data, &free);
 }
 
 @end

@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/player.h"
-
 #import "starboard/shared/uikit/application_player.h"
 #import "starboard/shared/uikit/player_manager.h"
 #import "starboard/shared/uikit/starboard_application.h"

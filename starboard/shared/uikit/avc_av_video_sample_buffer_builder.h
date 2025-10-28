@@ -15,10 +15,9 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_AVC_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_AVC_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
 
-#import "starboard/shared/uikit/av_video_sample_buffer_builder.h"
-
 #include "starboard/common/optional.h"
 #include "starboard/shared/starboard/media/codec_util.h"
+#import "starboard/shared/uikit/av_video_sample_buffer_builder.h"
 
 namespace starboard {
 namespace shared {

@@ -14,11 +14,10 @@
 
 #import <Foundation/Foundation.h>
 
-#include "starboard/window.h"
-
 #import "starboard/shared/uikit/application_window.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
+#include "starboard/window.h"
 
 bool SbWindowDestroy(SbWindow window) {
   if (window == kSbWindowInvalid) {

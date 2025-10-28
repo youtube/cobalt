@@ -26,9 +26,10 @@ DrmSystemPlatform* DrmSystemPlatform::Create(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
-  return new DrmSystemPlatform(context, update_request_callback,
-      session_updated_callback, key_statuses_changed_callback,
-      server_certificate_updated_callback, session_closed_callback);
+  return new DrmSystemPlatform(
+      context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback, server_certificate_updated_callback,
+      session_closed_callback);
 }
 
 DrmSystemPlatform::~DrmSystemPlatform() = default;
@@ -84,7 +85,6 @@ void DrmSystemPlatform::UpdateServerCertificate(int ticket,
 const void* DrmSystemPlatform::GetMetrics(int* size) {
   return nullptr;
 }
-
 
 AVContentKey* DrmSystemPlatform::GetContentKey(const uint8_t* key_id,
                                                int key_id_size) {

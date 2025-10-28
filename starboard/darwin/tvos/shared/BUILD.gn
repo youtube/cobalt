@@ -427,9 +427,7 @@ static_library("starboard_platform") {
 target(gtest_target_type, "starboard_platform_tests") {
   testonly = true
 
-  sources = [
-    "//starboard/common/test_main.cc",
-  ]
+  sources = [ "//starboard/common/test_main.cc" ]
   if (is_internal_build) {
     sources += internal_uikit_test_sources
   }

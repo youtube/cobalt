@@ -14,11 +14,10 @@
 
 #include "starboard/shared/uikit/application_darwin.h"
 
-#include "starboard/common/atomic.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-
 #import <UIKit/UIKit.h>
 
+#include "starboard/common/atomic.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #import "starboard/shared/uikit/playback_capabilities.h"
 
 namespace starboard {

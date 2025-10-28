@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include <mach/mach.h>
+
+#include "starboard/system.h"
 
 int64_t SbSystemGetUsedCPUMemory() {
   mach_task_basic_info_data_t info;

@@ -19,11 +19,11 @@
 #include <GLES2/gl2.h>
 #include <dlfcn.h>
 
+#include "starboard/common/log.h"
 #import "starboard/shared/uikit/egl_adapter.h"
 #import "starboard/shared/uikit/egl_surface.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
-#include "starboard/common/log.h"
 
 static const EGLDisplay kValidEglDisplay = reinterpret_cast<EGLDisplay>(1);
 

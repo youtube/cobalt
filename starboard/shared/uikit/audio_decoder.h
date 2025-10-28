@@ -15,14 +15,14 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_AUDIO_DECODER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_AUDIO_DECODER_H_
 
+#import <AVFoundation/AVFoundation.h>
+
 #include <queue>
 
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_discarder.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-
-#import <AVFoundation/AVFoundation.h>
 
 namespace starboard {
 namespace shared {

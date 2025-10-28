@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/audio_sink.h"
+#import <AVFoundation/AVFoundation.h>
 
 #include <algorithm>
 
-#import <AVFoundation/AVFoundation.h>
+#include "starboard/audio_sink.h"
 
 int SbAudioSinkGetMaxChannels() {
   @autoreleasepool {

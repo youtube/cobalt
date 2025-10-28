@@ -15,11 +15,9 @@
 #import <Foundation/Foundation.h>
 
 #include "starboard/common/memory.h"
-
+#include "starboard/shared/uikit/accessibility_extension.h"
 #import "starboard/shared/uikit/speech_synthesizer.h"
 #import "starboard/shared/uikit/starboard_application.h"
-
-#include "starboard/shared/uikit/accessibility_extension.h"
 
 namespace starboard {
 namespace shared {
@@ -27,8 +25,7 @@ namespace uikit {
 
 namespace accessibility {
 
-bool GetTextToSpeechSettings(
-    SbAccessibilityTextToSpeechSettings* out_setting) {
+bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
       !starboard::common::MemoryIsZero(
           out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
@@ -43,7 +40,7 @@ bool GetTextToSpeechSettings(
   return true;
 }
 
-} // namespace accessibility
-} // namespace uikit
-} // namespace shared
-} // namespace starboard
+}  // namespace accessibility
+}  // namespace uikit
+}  // namespace shared
+}  // namespace starboard

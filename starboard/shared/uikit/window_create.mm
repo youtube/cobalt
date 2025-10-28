@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/window.h"
-
 #import <Foundation/Foundation.h>
 
 #import "starboard/shared/uikit/application_window.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
+#include "starboard/window.h"
 
 SbWindow SbWindowCreate(const SbWindowOptions* options) {
   SbWindowOptions default_options;

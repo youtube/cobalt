@@ -15,13 +15,13 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_AV_AUDIO_SAMPLE_BUFFER_BUILDER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_AV_AUDIO_SAMPLE_BUFFER_BUILDER_H_
 
+#import <AVFoundation/AVFoundation.h>
+
 #include <string>
 
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
-
-#import <AVFoundation/AVFoundation.h>
 
 namespace starboard {
 namespace shared {

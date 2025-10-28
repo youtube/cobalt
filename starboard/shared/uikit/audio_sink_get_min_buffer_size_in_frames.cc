@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
-
 #include "starboard/common/log.h"
 
 int SbAudioSinkGetMinBufferSizeInFrames(int channels,

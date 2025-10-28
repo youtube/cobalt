@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#import <Foundation/Foundation.h>
+
 #include "starboard/memory.h"
 #include "starboard/system.h"
-
-#import <Foundation/Foundation.h>
 
 /**
  *  @brief The fallback language locale to use when the system's locale is not

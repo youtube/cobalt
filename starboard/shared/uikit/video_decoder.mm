@@ -20,12 +20,12 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/shared/uikit/decode_target_internal.h"
-#include "starboard/shared/uikit/egl_adapter.h"
-#include "starboard/shared/uikit/starboard_application.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/uikit/decode_target_internal.h"
+#include "starboard/shared/uikit/egl_adapter.h"
+#include "starboard/shared/uikit/starboard_application.h"
 
 namespace starboard {
 namespace shared {

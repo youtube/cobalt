@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
-
 #include <algorithm>
 
-#include "starboard/shared/uikit/player_configuration.h"
 #include "starboard/configuration.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/shared/uikit/player_configuration.h"
 #include "starboard/string.h"
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(

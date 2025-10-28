@@ -14,14 +14,13 @@
 
 #include "starboard/shared/uikit/oemcrypto_engine_device_properties_uikit.h"
 
+#include "starboard/common/once.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
-#include "starboard/common/once.h"
-#include "third_party/internal/ce_cdm/oemcrypto/mock/src/oemcrypto_engine_mock.h"
-
 #import "starboard/shared/uikit/player_manager.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
+#include "third_party/internal/ce_cdm/oemcrypto/mock/src/oemcrypto_engine_mock.h"
 
 namespace {
 

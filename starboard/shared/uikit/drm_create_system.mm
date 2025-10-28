@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/drm.h"
-
-#include "starboard/shared/uikit/drm_system_platform.h"
-#include "starboard/shared/uikit/oemcrypto_engine_device_properties_uikit.h"
 #include "starboard/common/string.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
-#include "starboard/shared/widevine/drm_system_widevine.h"
-
 #import "starboard/shared/uikit/drm_manager.h"
+#include "starboard/shared/uikit/drm_system_platform.h"
+#include "starboard/shared/uikit/oemcrypto_engine_device_properties_uikit.h"
 #import "starboard/shared/uikit/starboard_application.h"
+#include "starboard/shared/widevine/drm_system_widevine.h"
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,

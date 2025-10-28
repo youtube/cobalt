@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/player_components.h"
-
 #import <UIKit/UIKit.h>
 
 #include "starboard/atomic.h"
@@ -27,11 +25,11 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
-
 #import "starboard/shared/uikit/audio_decoder.h"
 #import "starboard/shared/uikit/av_sample_buffer_audio_renderer.h"
 #import "starboard/shared/uikit/av_sample_buffer_synchronizer.h"
@@ -161,8 +159,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool is_5_1_playback =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.audio_stream_info().number_of_channels == 6;
-    return std::unique_ptr<PlayerComponents>(
-        new SurroundAwarePlayerComponents(is_5_1_playback, std::move(components)));
+    return std::unique_ptr<PlayerComponents>(new SurroundAwarePlayerComponents(
+        is_5_1_playback, std::move(components)));
   }
 
   bool CreateSubComponents(
@@ -265,8 +263,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       synchronizer->SetRenderer(video_renderer.get());
     }
 
-    return std::unique_ptr<PlayerComponents>(new AVSampleBufferPlayerComponentsImpl(
-        std::move(synchronizer), std::move(audio_renderer), std::move(video_renderer)));
+    return std::unique_ptr<PlayerComponents>(
+        new AVSampleBufferPlayerComponentsImpl(std::move(synchronizer),
+                                               std::move(audio_renderer),
+                                               std::move(video_renderer)));
   }
 };
 

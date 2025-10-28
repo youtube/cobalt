@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/extension/ui_navigation.h"
-
 #import <UIKit/UIKit.h>
 
-#include "starboard/shared/uikit/ui_nav_item_container.h"
-#include "starboard/shared/uikit/ui_nav_item_focus.h"
 #include "starboard/common/log.h"
-
+#include "starboard/extension/ui_navigation.h"
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/starboard_application.h"
+#include "starboard/shared/uikit/ui_nav_item_container.h"
+#include "starboard/shared/uikit/ui_nav_item_focus.h"
 #import "starboard/shared/uikit/window_manager.h"
 
 namespace starboard {
@@ -180,30 +178,28 @@ void DoBatchUpdate(void (*update_function)(void*), void* context) {
   }
 }
 
-const SbUiNavInterface kUiNavInterface = {
-  kCobaltExtensionUiNavigationName,
-  1,
-  &CreateItem,
-  &DestroyItem,
-  &SetFocus,
-  &SetItemEnabled,
-  &SetItemDir,
-  &SetItemFocusDuration,
-  &SetItemSize,
-  &SetItemTransform,
-  &GetItemFocusTransform,
-  &GetItemFocusVector,
-  &SetItemContainerWindow,
-  &SetItemContainerItem,
-  &SetItemContentOffset,
-  &GetItemContentOffset,
-  &DoBatchUpdate
-};
+const SbUiNavInterface kUiNavInterface = {kCobaltExtensionUiNavigationName,
+                                          1,
+                                          &CreateItem,
+                                          &DestroyItem,
+                                          &SetFocus,
+                                          &SetItemEnabled,
+                                          &SetItemDir,
+                                          &SetItemFocusDuration,
+                                          &SetItemSize,
+                                          &SetItemTransform,
+                                          &GetItemFocusTransform,
+                                          &GetItemFocusVector,
+                                          &SetItemContainerWindow,
+                                          &SetItemContainerItem,
+                                          &SetItemContentOffset,
+                                          &GetItemContentOffset,
+                                          &DoBatchUpdate};
 
 const void* GetUINavigationApi() {
   return &kUiNavInterface;
 }
 
-} // namespace uikit
-} // namespace shared
-} // namespace starboard
+}  // namespace uikit
+}  // namespace shared
+}  // namespace starboard

@@ -13,12 +13,13 @@
 // limitations under the License.
 
 #include "starboard/extension/ifa.h"
-#include "starboard/shared/uikit/ifa.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/string.h"
-#include "starboard/system.h"
 
 #import <AppTrackingTransparency/ATTrackingManager.h>
+
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
+#include "starboard/shared/uikit/ifa.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace shared {
@@ -37,19 +38,23 @@ bool CopyStringAndTestIfSuccess(char* out_value,
 
 bool GetAdvertisingId(char* out_value, int value_length) {
   // Just rely on the public Starboard API here.
-  return SbSystemGetProperty(kSbSystemPropertyAdvertisingId, out_value, value_length);
+  return SbSystemGetProperty(kSbSystemPropertyAdvertisingId, out_value,
+                             value_length);
 }
 
 bool GetLimitAdTracking(char* out_value, int value_length) {
   // Just rely on the public Starboard API here.
-  return SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, out_value, value_length);
+  return SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, out_value,
+                             value_length);
 }
 
 bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
   if (@available(tvOS 14.0, *)) {
-    ATTrackingManagerAuthorizationStatus status = [ATTrackingManager trackingAuthorizationStatus];
+    ATTrackingManagerAuthorizationStatus status =
+        [ATTrackingManager trackingAuthorizationStatus];
     if (status == ATTrackingManagerAuthorizationStatusNotDetermined) {
-      return CopyStringAndTestIfSuccess(out_value, value_length, "NOT_DETERMINED");
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        "NOT_DETERMINED");
     } else if (status == ATTrackingManagerAuthorizationStatusRestricted) {
       return CopyStringAndTestIfSuccess(out_value, value_length, "RESTRICTED");
     } else if (status == ATTrackingManagerAuthorizationStatusAuthorized) {
@@ -63,10 +68,12 @@ bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
 
 starboard::Mutex g_tracking_authorization_callback_mutex;
 void* g_tracking_authorization_callback_context = nullptr;
-RequestTrackingAuthorizationCallback g_tracking_authorization_callback = nullptr;
+RequestTrackingAuthorizationCallback g_tracking_authorization_callback =
+    nullptr;
 
 void RegisterTrackingAuthorizationCallback(
-    void* callback_context,RequestTrackingAuthorizationCallback callback) {
+    void* callback_context,
+    RequestTrackingAuthorizationCallback callback) {
   ScopedLock lock(g_tracking_authorization_callback_mutex);
   g_tracking_authorization_callback_context = callback_context;
   g_tracking_authorization_callback = callback;
@@ -84,8 +91,10 @@ void RequestTrackingAuthorization() {
                            ATTrackingManagerAuthorizationStatus status) {
       // Invoke the callback if set
       ScopedLock lock(g_tracking_authorization_callback_mutex);
-      if (g_tracking_authorization_callback_context && g_tracking_authorization_callback) {
-        g_tracking_authorization_callback(g_tracking_authorization_callback_context);
+      if (g_tracking_authorization_callback_context &&
+          g_tracking_authorization_callback) {
+        g_tracking_authorization_callback(
+            g_tracking_authorization_callback_context);
       }
     }];
   }
@@ -99,8 +108,7 @@ const StarboardExtensionIfaApi kIfaApi = {
     &GetTrackingAuthorizationStatus,
     &RegisterTrackingAuthorizationCallback,
     &UnregisterTrackingAuthorizationCallback,
-    &RequestTrackingAuthorization
-  };
+    &RequestTrackingAuthorization};
 }  // namespace
 
 const void* GetIfaApi() {

@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import <OpenGLES/ES3/gl.h>
-
 #include "starboard/shared/uikit/vpx_video_decoder.h"
+
+#import <OpenGLES/ES3/gl.h>
 
 #include <map>
 
-#include "starboard/shared/uikit/starboard_application.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
+#import "starboard/shared/uikit/egl_adapter.h"
+#include "starboard/shared/uikit/starboard_application.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
-
-#import "starboard/shared/uikit/egl_adapter.h"
 
 namespace starboard {
 namespace shared {
@@ -463,8 +462,7 @@ void VpxVideoDecoder::DecodeOneBuffer() {
   if (decoded_images_size_.load() >= kMaxSizeOfDecodedImages ||
       decode_target_data_queue_size_.load() >= kMaxNumberOfCachedFrames) {
     decoder_thread_->job_queue()->Schedule(
-        std::bind(&VpxVideoDecoder::DecodeOneBuffer, this),
-        5000);
+        std::bind(&VpxVideoDecoder::DecodeOneBuffer, this), 5000);
     return;
   }
 
@@ -475,8 +473,7 @@ void VpxVideoDecoder::DecodeOneBuffer() {
     ScopedLock lock(pending_buffers_mutex_);
     if (pending_buffers_.empty()) {
       decoder_thread_->job_queue()->Schedule(
-          std::bind(&VpxVideoDecoder::DecodeOneBuffer, this),
-          5000);
+          std::bind(&VpxVideoDecoder::DecodeOneBuffer, this), 5000);
       return;
     }
     input_buffer = pending_buffers_.front();
@@ -551,8 +548,7 @@ void VpxVideoDecoder::DecodeEndOfStream() {
     ScopedLock lock(pending_buffers_mutex_);
     if (!pending_buffers_.empty()) {
       decoder_thread_->job_queue()->Schedule(
-          std::bind(&VpxVideoDecoder::DecodeEndOfStream, this),
-          32000);
+          std::bind(&VpxVideoDecoder::DecodeEndOfStream, this), 32000);
       return;
     }
   }

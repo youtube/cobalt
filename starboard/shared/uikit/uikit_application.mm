@@ -18,6 +18,9 @@
 
 #include <atomic>
 
+#include "starboard/common/log.h"
+#include "starboard/common/time.h"
+#include "starboard/event.h"
 #import "starboard/shared/uikit/application_darwin.h"
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/drm_manager.h"
@@ -27,9 +30,6 @@
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/uikit.h"
 #import "starboard/shared/uikit/window_manager.h"
-#include "starboard/common/log.h"
-#include "starboard/common/time.h"
-#include "starboard/event.h"
 #include "starboard/window.h"
 
 using starboard::shared::uikit::ApplicationDarwin;
@@ -70,7 +70,7 @@ void SBProcessAppIntent(const char* query, int isSearch) {
     SB_LOG(ERROR) << "AppIntent query is null, ignoring.";
     return;
   }
-  NSString* urlQuery = [NSString stringWithUTF8String: query];
+  NSString* urlQuery = [NSString stringWithUTF8String:query];
 
   NSString* urlBase =
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"YTApplicationURL"];
@@ -257,10 +257,11 @@ id<SBDStarboardApplication> SBDGetApplication() {
   _lastMenuPressEvent = nil;
   for (UIPress* press in presses) {
     if (press.type == UIPressTypeMenu) {
-      // Intercept UIPressTypeMenu event and do not forward it to the superclass's
-      // pressesBegan method, as it will cause the application to exit immediately.
-      // Instead, we save the UIPressTypeMenu press and event in _lastMenuPress
-      // and _lastMenuPressEvent, and only forward it when suspendApplication is invoked.
+      // Intercept UIPressTypeMenu event and do not forward it to the
+      // superclass's pressesBegan method, as it will cause the application to
+      // exit immediately. Instead, we save the UIPressTypeMenu press and event
+      // in _lastMenuPress and _lastMenuPressEvent, and only forward it when
+      // suspendApplication is invoked.
       _lastMenuPress = press;
       _lastMenuPressEvent = event;
       return;

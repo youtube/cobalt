@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pthread.h>
-
 #include <dlfcn.h>
 #include <errno.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-
 #include "starboard/configuration_constants.h"
 
 typedef int (*func_pthread_setname_np_t)(const char* name);

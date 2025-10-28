@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/common/storage.h"
-
 #import "starboard/shared/uikit/storage_internal.h"
 
 bool SbStorageWriteRecord(SbStorageRecord record,

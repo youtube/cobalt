@@ -15,10 +15,10 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
 
+#import <AVFoundation/AVFoundation.h>
+
 #include <functional>
 #include <memory>
-
-#import <AVFoundation/AVFoundation.h>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"

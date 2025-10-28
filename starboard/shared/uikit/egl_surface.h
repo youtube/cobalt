@@ -16,9 +16,8 @@
 #define INTERNAL_STARBOARD_SHARED_UIKIT_EGL_SURFACE_H_
 
 #import <Foundation/Foundation.h>
-#import <GLKit/GLKit.h>
-
 #include <GLES2/gl2.h>
+#import <GLKit/GLKit.h>
 
 /**
  *  @brief Types of EGL surfaces.

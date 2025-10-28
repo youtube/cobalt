@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/media.h"
+#import <AVFoundation/AVFoundation.h>
 
-#include "starboard/shared/uikit/drm_system_platform.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/media.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/mime_util.h"
-
-#import <AVFoundation/AVFoundation.h>
-
+#include "starboard/shared/uikit/drm_system_platform.h"
 #import "starboard/shared/uikit/playback_capabilities.h"
 
 using ::starboard::shared::starboard::media::MimeType;

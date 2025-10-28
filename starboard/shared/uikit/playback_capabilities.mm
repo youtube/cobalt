@@ -14,17 +14,17 @@
 
 #include "starboard/shared/uikit/playback_capabilities.h"
 
-#include <vector>
-
 #import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
 #import <VideoToolbox/VideoToolbox.h>
 
-#include "starboard/shared/uikit/observer_registry.h"
-#include "starboard/shared/uikit/uikit_media_session_client.h"
+#include <vector>
+
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
+#include "starboard/shared/uikit/observer_registry.h"
+#include "starboard/shared/uikit/uikit_media_session_client.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 
@@ -177,20 +177,20 @@ class PlaybackCapabilitiesImpl {
       // connected, the platform would mix up/down the audio for us and make
       // the sound right to all audio outputs.
       auto output_channels = std::max(
-        2, static_cast<int>(
-               [AVAudioSession sharedInstance].maximumOutputNumberOfChannels));
+          2,
+          static_cast<int>(
+              [AVAudioSession sharedInstance].maximumOutputNumberOfChannels));
 
-      if(audio_outputs.count == 0) {
-        // If the platform doesn't return any route, we should still have a default configuration.
-        // Otherwise, all audio codecs would be rejected.
+      if (audio_outputs.count == 0) {
+        // If the platform doesn't return any route, we should still have a
+        // default configuration. Otherwise, all audio codecs would be rejected.
         SbMediaAudioConfiguration configuration;
         configuration.connector = kSbMediaAudioConnectorHdmi;
         configuration.latency = 0;
         configuration.coding_type = kSbMediaAudioCodingTypePcm;
         configuration.number_of_channels = output_channels;
         audio_configurations_.push_back(configuration);
-      }
-      else {
+      } else {
         for (AVAudioSessionPortDescription* audio_output : audio_outputs) {
           SbMediaAudioConfiguration configuration;
           configuration.connector =

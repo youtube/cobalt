@@ -15,9 +15,9 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_UI_NAV_ITEM_CONTAINER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_UI_NAV_ITEM_CONTAINER_H_
 
-#include "starboard/shared/uikit/ui_nav_internal.h"
-
 #include <vector>
+
+#include "starboard/shared/uikit/ui_nav_internal.h"
 
 namespace starboard {
 namespace shared {

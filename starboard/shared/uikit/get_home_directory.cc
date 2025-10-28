@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/starboard/get_home_directory.h"
+
 #include "starboard/system.h"
 
 namespace starboard {

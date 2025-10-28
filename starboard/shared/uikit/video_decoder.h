@@ -15,6 +15,8 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_VIDEO_DECODER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_VIDEO_DECODER_H_
 
+#import <VideoToolbox/VideoToolbox.h>
+
 #include <list>
 #include <memory>
 #include <vector>
@@ -28,8 +30,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
-
-#import <VideoToolbox/VideoToolbox.h>
 
 namespace starboard {
 namespace shared {

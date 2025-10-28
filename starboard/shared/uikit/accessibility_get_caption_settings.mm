@@ -15,8 +15,8 @@
 #import <MediaAccessibility/MediaAccessibility.h>
 
 #include "starboard/common/memory.h"
-#include "starboard/shared/uikit/accessibility_extension.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
+#include "starboard/shared/uikit/accessibility_extension.h"
 
 using starboard::shared::starboard::GetClosestCaptionColorRGB;
 using starboard::shared::starboard::GetClosestFontSizePercentage;
@@ -25,7 +25,6 @@ using starboard::shared::starboard::GetClosestOpacity;
 namespace starboard {
 namespace shared {
 namespace uikit {
-
 
 namespace accessibility {
 namespace {
@@ -74,11 +73,10 @@ SbAccessibilityCaptionState MABehaviorToSbCaptionState(
 
 }  // namespace
 
-bool GetCaptionSettings(
-    SbAccessibilityCaptionSettings* caption_settings) {
+bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
-      !common::MemoryIsZero(
-          caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
+      !common::MemoryIsZero(caption_settings,
+                            sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }
 
@@ -158,7 +156,7 @@ bool GetCaptionSettings(
   return true;
 }
 
-} // namespace accessibility
-} // namespace uikit
-} // namespace shared
-} // namespace starboard
+}  // namespace accessibility
+}  // namespace uikit
+}  // namespace shared
+}  // namespace starboard

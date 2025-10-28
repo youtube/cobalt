@@ -15,7 +15,6 @@
 #import "starboard/shared/uikit/drm_manager.h"
 
 #include "starboard/drm.h"
-
 #import "starboard/shared/uikit/application_drm_system.h"
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/starboard_application.h"

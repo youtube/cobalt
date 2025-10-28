@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#import <AVFoundation/AVFoundation.h>
 #include <pthread.h>
 
 #include <algorithm>
 #include <list>
 #include <vector>
 
-#include "starboard/shared/uikit/application_darwin.h"
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
@@ -29,8 +29,7 @@
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
-
-#import <AVFoundation/AVFoundation.h>
+#include "starboard/shared/uikit/application_darwin.h"
 
 namespace starboard {
 namespace shared {
@@ -40,7 +39,7 @@ namespace {
 using starboard::media::GetBytesPerSample;
 
 const int64_t kDefaultAudioThreadWaitIntervalUsec = 60000;  // 60ms
-const int64_t kPrerollAudioThreadWaitIntervalUsec = 5000;  // 5ms
+const int64_t kPrerollAudioThreadWaitIntervalUsec = 5000;   // 5ms
 const int kMaxFramesToConsumePerRequest = 1024 * 16;
 const int kAudioQueueBufferNum = 4;
 
@@ -394,7 +393,8 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
 TvosAudioSinkType::TvosAudioSinkType()
     : audio_thread_condition_(audio_thread_mutex_),
       destroy_condition_(audio_thread_mutex_) {
-  pthread_create(&audio_thread_, nullptr, &TvosAudioSinkType::ThreadEntryPoint, this);
+  pthread_create(&audio_thread_, nullptr, &TvosAudioSinkType::ThreadEntryPoint,
+                 this);
   SB_DCHECK(audio_thread_ != 0);
 }
 

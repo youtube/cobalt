@@ -15,8 +15,10 @@
 #import "starboard/shared/uikit/application_window.h"
 
 #import <GLKit/GLKit.h>
+
 #include <unordered_set>
 
+#include "starboard/event.h"
 #import "starboard/shared/uikit/application_darwin.h"
 #import "starboard/shared/uikit/application_player.h"
 #import "starboard/shared/uikit/application_view.h"
@@ -27,7 +29,6 @@
 #import "starboard/shared/uikit/search_results_view_controller.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
-#include "starboard/event.h"
 
 using starboard::shared::uikit::ApplicationDarwin;
 
@@ -181,7 +182,7 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
    *  @brief Track the set of keydown UIPresses that need a keyup sent. This is
    *      used to ensure that a keyup is sent every time a keydown was sent.
    *      The set is only used to track navigation UIPresses at the moment.
-  */
+   */
   std::unordered_set<NSInteger> _processedKeydownPressTypes;
 }
 
@@ -267,17 +268,17 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   @"\b" : @(kSbKeyBackspace),
   @"\t" : @(kSbKeyTab),
 
-  // Do not map UIKeyInput @"\r" to SbKey, as it duplicatets with UIPressType UIPressTypeSelect.
-  // A single return key press on a BT keyboard will trigger both a @"\r" UIKeyInput press and a
-  // UIPressTypeSelect UIPressType press. And we should send only UIPressTypeSelect press to _keyboardInputDevice.
+  // Do not map UIKeyInput @"\r" to SbKey, as it duplicatets with UIPressType
+  // UIPressTypeSelect. A single return key press on a BT keyboard will trigger
+  // both a @"\r" UIKeyInput press and a UIPressTypeSelect UIPressType press.
+  // And we should send only UIPressTypeSelect press to _keyboardInputDevice.
   // @"\r" : @(kSbKeyReturn),
 
-  // Do not map any navigation UIKeyInput to SbKey, as navigation is handled by the system focus engine of the hybrid nav,
-  // there's no need sending them to _keyboardInputDevice.
-  // UIKeyInputUpArrow : @(kSbKeyUp),
-  // UIKeyInputDownArrow : @(kSbKeyDown),
-  // UIKeyInputLeftArrow : @(kSbKeyLeft),
-  // UIKeyInputRightArrow : @(kSbKeyRight),
+  // Do not map any navigation UIKeyInput to SbKey, as navigation is handled by
+  // the system focus engine of the hybrid nav, there's no need sending them to
+  // _keyboardInputDevice. UIKeyInputUpArrow : @(kSbKeyUp), UIKeyInputDownArrow
+  // : @(kSbKeyDown), UIKeyInputLeftArrow : @(kSbKeyLeft), UIKeyInputRightArrow
+  // : @(kSbKeyRight),
 
   @"0" : @(kSbKey0),
   @"1" : @(kSbKey1),
@@ -335,9 +336,10 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
                       withModifiers:(SbKeyModifiers*)modifiers {
   *modifiers = kSbKeyModifiersNone;
   switch (press.type) {
-    // Do not handle any navigation UIPressTypes and UIPressTypeSelect in (void)pressesBegan:(NSSet<UIPress*>*)presses
-    // withEvent:(UIPressesEvent*)event, but process them in (void)sendEvent:(UIEvent*)event.
-    // case UIPressTypeUpArrow:
+    // Do not handle any navigation UIPressTypes and UIPressTypeSelect in
+    // (void)pressesBegan:(NSSet<UIPress*>*)presses
+    // withEvent:(UIPressesEvent*)event, but process them in
+    // (void)sendEvent:(UIEvent*)event. case UIPressTypeUpArrow:
     //   return kSbKeyUp;
     // case UIPressTypeDownArrow:
     //   return kSbKeyDown;
@@ -376,23 +378,30 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
            withEvent:(UIPressesEvent*)event {
   for (UIPress* press in presses) {
     // When on-screen keyboard is focused:
-    if([self keyboardFocused]) {
+    if ([self keyboardFocused]) {
       if (press.type == UIPressTypeSelect) {
         // Do not handle UIPressTypeSelect from remote on on-screen keyboard, as
         // text selection is managed by
-        // (void)updateSearchResultsForSearchController:(UISearchController *)searchController.
-        // Do not forward the presses to superclass or send them to _keyboardInputDevice.
+        // (void)updateSearchResultsForSearchController:(UISearchController
+        // *)searchController. Do not forward the presses to superclass or send
+        // them to _keyboardInputDevice.
         return;
-      } else if (press.type != UIPressTypeMenu){
-        // For UIPressTypeMenu presses, forward the presses to superclass and send them to _keyboardInputDevice.
-        // For any other presses, forward the presses to superclass, but do not send them to _keyboardInputDevice.
+      } else if (press.type != UIPressTypeMenu) {
+        // For UIPressTypeMenu presses, forward the presses to superclass and
+        // send them to _keyboardInputDevice. For any other presses, forward the
+        // presses to superclass, but do not send them to _keyboardInputDevice.
         continue;
       }
     }
 
-    // Do not handle any navigation UIPressTypes in (void)pressesBegan:(NSSet<UIPress*>*)presses
-    // withEvent:(UIPressesEvent*)event, but process them in (void)sendEvent:(UIEvent*)event.
-    if (press.type == UIPressTypeUpArrow || press.type == UIPressTypeDownArrow || press.type == UIPressTypeLeftArrow || press.type == UIPressTypeRightArrow) {
+    // Do not handle any navigation UIPressTypes in
+    // (void)pressesBegan:(NSSet<UIPress*>*)presses
+    // withEvent:(UIPressesEvent*)event, but process them in
+    // (void)sendEvent:(UIEvent*)event.
+    if (press.type == UIPressTypeUpArrow ||
+        press.type == UIPressTypeDownArrow ||
+        press.type == UIPressTypeLeftArrow ||
+        press.type == UIPressTypeRightArrow) {
       return;
     }
 
@@ -401,7 +410,8 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
                                      withModifiers:&modifiers];
 
     if (sbkey == kSbKeyUnknown) {
-      // Skip any unknown presses, this includes redundant UIKeyInput @"\r" presses and UIKeyInput navigation presses.
+      // Skip any unknown presses, this includes redundant UIKeyInput @"\r"
+      // presses and UIKeyInput navigation presses.
       continue;
     }
 
@@ -417,21 +427,24 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 - (void)pressesEnded:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
   for (UIPress* press in presses) {
-    if([self keyboardFocused]) {
+    if ([self keyboardFocused]) {
       if (press.type == UIPressTypeSelect) {
         return;
-      } else if (press.type != UIPressTypeMenu){
+      } else if (press.type != UIPressTypeMenu) {
         continue;
       }
     }
 
-    if (press.type == UIPressTypeUpArrow || press.type == UIPressTypeDownArrow || press.type == UIPressTypeLeftArrow || press.type == UIPressTypeRightArrow) {
+    if (press.type == UIPressTypeUpArrow ||
+        press.type == UIPressTypeDownArrow ||
+        press.type == UIPressTypeLeftArrow ||
+        press.type == UIPressTypeRightArrow) {
       return;
     }
 
     SbKeyModifiers modifiers = kSbKeyModifiersNone;
     SbKey sbkey = [self mapKeyToSbKeyWithModifiers:press
-                                    withModifiers:&modifiers];
+                                     withModifiers:&modifiers];
 
     if (sbkey == kSbKeyUnknown) {
       continue;
@@ -443,10 +456,14 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 }
 
 // TODO: deprecate (void)sendEvent:(UIEvent*)event.
-// We should not override (void)sendEvent:(UIEvent*)event to intercept events, but instead, we should move the logic to the publicly available API for handling press events using pressesBegan/pressesEnded.
-// Currently we still need this function to send the four navigation UIPressTypes to Kabuki, because Kabuki correctly handles the events from this function under different cases.
-// e.g. scrubbing videso when receiving a kSbKeyRight event, but not moving focus on sign in keyboard for the same event.
-// We also need to send UIPressTypeSelect event to Kabuki from this function.
+// We should not override (void)sendEvent:(UIEvent*)event to intercept events,
+// but instead, we should move the logic to the publicly available API for
+// handling press events using pressesBegan/pressesEnded. Currently we still
+// need this function to send the four navigation UIPressTypes to Kabuki,
+// because Kabuki correctly handles the events from this function under
+// different cases. e.g. scrubbing videso when receiving a kSbKeyRight event,
+// but not moving focus on sign in keyboard for the same event. We also need to
+// send UIPressTypeSelect event to Kabuki from this function.
 - (void)sendEvent:(UIEvent*)event {
   if (event.type == UIEventTypePresses) {
     for (UIPress* press in ((UIPressesEvent*)event).allPresses) {

@@ -124,9 +124,10 @@
   // This Cobalt thread doesn't process run loop events, so use the main queue.
   dispatch_async(dispatch_get_main_queue(), ^{
     [self->_speakTimer invalidate];
-    NSTimeInterval delay = kMinimumSpeakInterval -
-                           (starboard::CurrentMonotonicTime() - self->_speakTimestamp) /
-                               static_cast<double>(1000000);
+    NSTimeInterval delay =
+        kMinimumSpeakInterval -
+        (starboard::CurrentMonotonicTime() - self->_speakTimestamp) /
+            static_cast<double>(1000000);
 
     // NSTimer clamps the interval to a minimum value, so no need to sanitize
     // |delay|.

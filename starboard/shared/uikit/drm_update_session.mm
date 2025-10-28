@@ -13,14 +13,12 @@
 // limitations under the License.
 
 #include "starboard/drm.h"
-
-#include "starboard/shared/uikit/drm_system_platform.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
-#include "starboard/shared/widevine/drm_system_widevine.h"
-
 #import "starboard/shared/uikit/application_drm_system.h"
 #import "starboard/shared/uikit/drm_manager.h"
+#include "starboard/shared/uikit/drm_system_platform.h"
 #import "starboard/shared/uikit/starboard_application.h"
+#include "starboard/shared/widevine/drm_system_widevine.h"
 
 void SbDrmUpdateSession(SbDrmSystem drm_system,
                         int ticket,

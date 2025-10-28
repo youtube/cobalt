@@ -15,7 +15,6 @@
 #include "starboard/common/log.h"
 #include "starboard/drm.h"
 #include "starboard/player.h"
-
 #import "starboard/shared/uikit/application_player.h"
 #import "starboard/shared/uikit/drm_manager.h"
 #import "starboard/shared/uikit/player_manager.h"

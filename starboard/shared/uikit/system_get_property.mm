@@ -15,7 +15,6 @@
 #import <AdSupport/ASIdentifierManager.h>
 #import <AppTrackingTransparency/ATTrackingManager.h>
 #import <UIKit/UIKit.h>
-
 #include <sys/utsname.h>
 
 #include "starboard/common/device_type.h"
@@ -147,19 +146,22 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           kPlatformName);
       case kSbSystemPropertyCertificationScope:
-        if (kCertificationScope[0] == '\0')
+        if (kCertificationScope[0] == '\0') {
           return false;
+        }
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           kCertificationScope);
 
       case kSbSystemPropertyAdvertisingId: {
-        NSString* advertisingId =
-            [[ASIdentifierManager sharedManager].advertisingIdentifier UUIDString];
-        return CopyStringAndTestIfSuccess(out_value, value_length, [advertisingId UTF8String]);
+        NSString* advertisingId = [[ASIdentifierManager sharedManager]
+                                       .advertisingIdentifier UUIDString];
+        return CopyStringAndTestIfSuccess(out_value, value_length,
+                                          [advertisingId UTF8String]);
       }
       case kSbSystemPropertyLimitAdTracking: {
-        // The assumption is we will limit ad tracking if the status from OS is not explicitly
-        // authorized (including if the API is not present on older OS versions).
+        // The assumption is we will limit ad tracking if the status from OS is
+        // not explicitly authorized (including if the API is not present on
+        // older OS versions).
         bool limitAdTracking = true;
         if (@available(tvOS 14.0, *)) {
           ATTrackingManagerAuthorizationStatus status =
@@ -168,7 +170,8 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
             limitAdTracking = false;
           }
         }
-        return CopyStringAndTestIfSuccess(out_value, value_length, limitAdTracking ? "1" : "0");
+        return CopyStringAndTestIfSuccess(out_value, value_length,
+                                          limitAdTracking ? "1" : "0");
       }
 
 #if SB_API_VERSION >= 15

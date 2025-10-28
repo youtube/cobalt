@@ -13,9 +13,7 @@
 // limitations under the License.
 
 #include "starboard/player.h"
-
 #include "starboard/shared/starboard/player/player_internal.h"
-
 #import "starboard/shared/uikit/application_player.h"
 #import "starboard/shared/uikit/player_manager.h"
 #import "starboard/shared/uikit/starboard_application.h"

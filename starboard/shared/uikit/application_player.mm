@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
-
 #import "starboard/shared/uikit/application_drm_system.h"
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/player_manager.h"
@@ -697,8 +696,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 
       NSUInteger stringLength =
           [message lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
-      char* str =
-          static_cast<char*>(calloc(stringLength + 1, sizeof(char)));
+      char* str = static_cast<char*>(calloc(stringLength + 1, sizeof(char)));
       [message getCString:str
                 maxLength:stringLength + 1
                  encoding:NSUTF8StringEncoding];

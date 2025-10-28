@@ -23,8 +23,7 @@ namespace uikit {
 
 namespace accessibility {
 
-bool GetDisplaySettings(
-    SbAccessibilityDisplaySettings* out_setting) {
+bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
       !starboard::common::MemoryIsZero(
           out_setting, sizeof(SbAccessibilityDisplaySettings))) {
@@ -38,7 +37,7 @@ bool GetDisplaySettings(
   return true;
 }
 
-} // namespace accessibility
-} // namespace uikit
-} // namespace shared
-} // namespace starboard
+}  // namespace accessibility
+}  // namespace uikit
+}  // namespace shared
+}  // namespace starboard

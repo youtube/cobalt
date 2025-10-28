@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/media.h"
-
-#include "starboard/shared/uikit/playback_capabilities.h"
 #include "starboard/common/log.h"
+#include "starboard/media.h"
+#include "starboard/shared/uikit/playback_capabilities.h"
 
 bool SbMediaGetAudioConfiguration(
     int output_index,

@@ -14,10 +14,9 @@
 
 #import <Foundation/Foundation.h>
 
-#include "starboard/speech_synthesis.h"
-
 #import "starboard/shared/uikit/speech_synthesizer.h"
 #import "starboard/shared/uikit/starboard_application.h"
+#include "starboard/speech_synthesis.h"
 
 void SbSpeechSynthesisCancel() {
   @autoreleasepool {

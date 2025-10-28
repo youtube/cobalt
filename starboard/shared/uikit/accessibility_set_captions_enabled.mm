@@ -39,7 +39,7 @@ bool SetCaptionsEnabled(bool enabled) {
   return true;
 }
 
-} // namespace accessibility
-} // namespace uikit
-} // namespace shared
-} // namespace starboard
+}  // namespace accessibility
+}  // namespace uikit
+}  // namespace shared
+}  // namespace starboard

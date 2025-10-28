@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/common/string.h"
 #include "starboard/extension/accessibility.h"
 #include "starboard/extension/configuration.h"
@@ -35,6 +33,7 @@
 #include "starboard/shared/uikit/player_configuration.h"
 #include "starboard/shared/uikit/ui_nav_get_interface.h"
 #include "starboard/shared/uikit/uikit_media_session_client.h"
+#include "starboard/system.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {

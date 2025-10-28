@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #import <UIKit/UIKit.h>
 
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/localized_strings.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
+#include "starboard/system.h"
 
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                                 SbSystemPlatformErrorCallback callback,

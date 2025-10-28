@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/memory.h"
-
 #include <stdlib.h>
+
 #include <algorithm>
+
+#include "starboard/memory.h"
 
 void* SbMemoryAllocateAlignedUnchecked(size_t alignment, size_t size) {
   void* result;

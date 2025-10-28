@@ -92,8 +92,7 @@ class AacAVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
 
     status = CMAudioSampleBufferCreateWithPacketDescriptions(
         NULL, block, true, NULL, NULL, format_description_, 1,
-        CMTimeMake(input_buffer->timestamp() + media_time_offset,
-                   1000000),
+        CMTimeMake(input_buffer->timestamp() + media_time_offset, 1000000),
         &packet_desc, sample_buffer);
     CFRelease(block);
     if (status != 0) {
@@ -227,8 +226,7 @@ class OpusAVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
 
     status = CMAudioSampleBufferCreateWithPacketDescriptions(
         NULL, block, true, NULL, NULL, format_description_, decoded_frames,
-        CMTimeMake(input_buffer->timestamp() + media_time_offset,
-                   1000000),
+        CMTimeMake(input_buffer->timestamp() + media_time_offset, 1000000),
         NULL, sample_buffer);
     CFRelease(block);
     if (status != 0) {
@@ -317,8 +315,7 @@ class Ac3AVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
 
     status = CMAudioSampleBufferCreateWithPacketDescriptions(
         NULL, block, true, NULL, NULL, format_description_, 1,
-        CMTimeMake(input_buffer->timestamp() + media_time_offset,
-                   1000000),
+        CMTimeMake(input_buffer->timestamp() + media_time_offset, 1000000),
         &packet_desc, sample_buffer);
     CFRelease(block);
     if (status != 0) {

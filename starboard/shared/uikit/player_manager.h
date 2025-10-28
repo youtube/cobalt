@@ -18,9 +18,8 @@
 #import <Foundation/Foundation.h>
 
 #include "starboard/player.h"
-#include "starboard/shared/uikit/url_player.h"
-
 #import "starboard/shared/uikit/application_player.h"
+#include "starboard/shared/uikit/url_player.h"
 
 @class SBDApplicationPlayer;
 @class SBDApplicationWindow;

@@ -14,11 +14,11 @@
 
 #include "starboard/shared/uikit/uikit_media_session_client.h"
 
-#include <memory>
-#include <vector>
-
 #import <Foundation/Foundation.h>
 #import <MediaPlayer/MediaPlayer.h>
+
+#include <memory>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/optional.h"

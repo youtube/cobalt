@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/drm.h"
-
-#include "starboard/shared/uikit/drm_system_platform.h"
 #include "starboard/common/log.h"
+#include "starboard/drm.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/shared/uikit/drm_system_platform.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
 void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,

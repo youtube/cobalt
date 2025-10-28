@@ -16,9 +16,9 @@
 
 #import <objc/runtime.h>
 
+#include "starboard/common/log.h"
 #import "starboard/shared/uikit/application_window.h"
 #import "starboard/shared/uikit/defines.h"
-#include "starboard/common/log.h"
 
 @implementation SBDWindowManager {
   // Only one application window will be used. It will persist across suspend

@@ -14,9 +14,9 @@
 
 #import "starboard/shared/uikit/input_device.h"
 
+#include "starboard/common/log.h"
 #import "starboard/shared/uikit/starboard_application.h"
 #import "starboard/shared/uikit/window_manager.h"
-#include "starboard/common/log.h"
 
 /**
  *  @brief Used to give devices a unique identifier.

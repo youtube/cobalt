@@ -18,11 +18,11 @@
 
 #include <algorithm>
 
+#import "starboard/common/log.h"
 #import "starboard/shared/uikit/application_player.h"
 #import "starboard/shared/uikit/application_window.h"
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/starboard_application.h"
-#import "starboard/common/log.h"
 
 @implementation SBDPlayerManager {
   /**

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
-
 #import <Foundation/Foundation.h>
+
+#include "starboard/common/log.h"
 
 bool SbLogIsTty() {
   return false;

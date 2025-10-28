@@ -15,9 +15,8 @@
 #ifndef INTERNAL_STARBOARD_SHARED_UIKIT_EGL_ADAPTER_H_
 #define INTERNAL_STARBOARD_SHARED_UIKIT_EGL_ADAPTER_H_
 
-#import <Foundation/Foundation.h>
-
 #include <EGL/egl.h>
+#import <Foundation/Foundation.h>
 
 #import "starboard/shared/uikit/egl_surface.h"
 

@@ -62,8 +62,9 @@ bool PthreadToSbThreadPriority(int priority,
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport)
+  if (!kSbHasThreadPrioritySupport) {
     return;
+  }
 
   float relative_priority = 0.5f;
 

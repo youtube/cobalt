@@ -28,10 +28,9 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/shared/uikit/observer_registry.h"
-
 #import "starboard/shared/uikit/av_video_sample_buffer_builder.h"
 #import "starboard/shared/uikit/drm_system_platform.h"
+#include "starboard/shared/uikit/observer_registry.h"
 
 @class SBDAVSampleBufferDisplayView;
 

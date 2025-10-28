@@ -19,7 +19,6 @@
 #include <libkern/OSByteOrder.h>
 
 #include "starboard/shared/uikit/avutil/utils.h"
-
 #import "starboard/shared/uikit/defines.h"
 #import "starboard/shared/uikit/player_manager.h"
 #import "starboard/shared/uikit/starboard_application.h"
@@ -565,8 +564,7 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
     // finished. It should be very rare to happen.
     SB_LOG(WARNING) << "EnqueueSampleBuffers() is called before "
                        "AVSBDL::flush() is completeted.";
-    Schedule(std::bind(&AVSBVideoRenderer::EnqueueSampleBuffers, this),
-             1000);
+    Schedule(std::bind(&AVSBVideoRenderer::EnqueueSampleBuffers, this), 1000);
     return;
   }
   @autoreleasepool {
@@ -660,8 +658,8 @@ void AVSBVideoRenderer::UpdateCachedFramesWatermark() {
 int64_t AVSBVideoRenderer::GetCurrentMediaTime() const {
   SB_DCHECK(BelongsToCurrentThread());
   int64_t media_time =
-      CMTimeConvertScale(CMTimebaseGetTime(display_layer_.timebase),
-                         1000000, kCMTimeRoundingMethod_QuickTime)
+      CMTimeConvertScale(CMTimebaseGetTime(display_layer_.timebase), 1000000,
+                         kCMTimeRoundingMethod_QuickTime)
           .value;
   media_time = std::max(media_time - media_time_offset_, 0ll);
   return std::min(media_time, pts_of_last_output_buffer_);
@@ -726,7 +724,7 @@ void AVSBVideoRenderer::OnStatusChanged(NSString* key_path) {
   // and ObserverRegistry::UnlockObserver. If AVSBVideoRenderer is destroyed
   // in the callback, it may cause dead lock.
   if ([key_path isEqualToString:kAVSBDLStatusKeyPath] &&
-    display_layer_.status == AVQueuedSampleBufferRenderingStatusFailed) {
+      display_layer_.status == AVQueuedSampleBufferRenderingStatusFailed) {
     std::stringstream ss;
     ss << "AVSBDL status failed (seek to " << seek_to_time_ << ", offset "
        << media_time_offset_ << "). ";

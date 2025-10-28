@@ -16,9 +16,8 @@
 
 #include "starboard/time_zone.h"
 
-
 // Return the current timezone in the IANA format.
 const char* SbTimeZoneGetName() {
-    NSTimeZone *timeZone = [NSTimeZone localTimeZone];
-    return [timeZone.name cStringUsingEncoding:NSUTF8StringEncoding];
+  NSTimeZone* timeZone = [NSTimeZone localTimeZone];
+  return [timeZone.name cStringUsingEncoding:NSUTF8StringEncoding];
 }

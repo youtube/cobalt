@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/decode_target.h"
-
 #include "starboard/shared/uikit/decode_target_internal.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {

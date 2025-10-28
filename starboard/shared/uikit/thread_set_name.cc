@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
-
 #include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -21,8 +19,8 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-
 #include "starboard/configuration_constants.h"
+#include "starboard/thread.h"
 
 void SbThreadSetName(const char* name) {
   pthread_setname_np(pthread_self(), name);

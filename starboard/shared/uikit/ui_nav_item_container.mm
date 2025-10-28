@@ -15,11 +15,11 @@
 #include "starboard/shared/uikit/ui_nav_item_container.h"
 
 #import <UIKit/UIKit.h>
+
 #include <algorithm>
 
-#include "starboard/shared/uikit/application_window.h"
 #include "starboard/common/log.h"
-
+#include "starboard/shared/uikit/application_window.h"
 #import "starboard/shared/uikit/defines.h"
 
 using starboard::ScopedSpinLock;

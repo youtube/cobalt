@@ -14,9 +14,9 @@
 
 #include "starboard/shared/uikit/av_sample_buffer_audio_renderer.h"
 
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/uikit/avutil/utils.h"
 #include "starboard/shared/uikit/playback_capabilities.h"
-#include "starboard/shared/starboard/media/media_util.h"
 
 static NSString* kAVSBARStatusKeyPath = @"status";
 
@@ -38,8 +38,7 @@ bool HasRemoteAudioOutput() {
   SbMediaAudioConfiguration configuration;
   int index = 0;
   while (index < kMaxAudioConfigurations &&
-         PlaybackCapabilities::GetAudioConfiguration(
-             index, &configuration)) {
+         PlaybackCapabilities::GetAudioConfiguration(index, &configuration)) {
     switch (configuration.connector) {
       case kSbMediaAudioConnectorUnknown:
       case kSbMediaAudioConnectorAnalog:
@@ -127,7 +126,7 @@ void AVSBAudioRenderer::Initialize(const ErrorCB& error_cb,
   // Check if audio outputs have changed.
   bool has_remote_audio_output = HasRemoteAudioOutput();
   PlaybackCapabilities::ReloadAudioConfigurations();
-  if(has_remote_audio_output != HasRemoteAudioOutput()) {
+  if (has_remote_audio_output != HasRemoteAudioOutput()) {
     error_occurred_ = true;
     error_cb_(kSbPlayerErrorCapabilityChanged,
               "Audio output configurations have changed.");
@@ -263,8 +262,8 @@ void AVSBAudioRenderer::WriteEndOfStream() {
         CMSampleBufferRef sample_buffer;
         size_t frames_in_buffer = 0;
         int64_t timestamp = last_buffer_end_time_ + media_time_offset_ +
-                           written_silence_frames * 1000000 /
-                               audio_stream_info_.samples_per_second;
+                            written_silence_frames * 1000000 /
+                                audio_stream_info_.samples_per_second;
         if (!sample_buffer_builder_->BuildSilenceSampleBuffer(
                 timestamp, &sample_buffer, &frames_in_buffer)) {
           ReportError(sample_buffer_builder_->GetErrorMessage());
@@ -322,7 +321,7 @@ void AVSBAudioRenderer::Seek(int64_t seek_to_time, int64_t media_time_offset) {
 bool AVSBAudioRenderer::IsUnderflow() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  const int64_t kUnderflowLowWatermarkUsec = 40000;  // 40ms
+  const int64_t kUnderflowLowWatermarkUsec = 40000;    // 40ms
   const int64_t kUnderflowHighWatermarkUsec = 200000;  // 200ms
   int64_t enqueued_sample_in_ms = last_buffer_end_time_ - GetCurrentMediaTime();
   if (is_underflow_) {
@@ -352,8 +351,8 @@ void AVSBAudioRenderer::ReportError(const std::string& message) {
 int64_t AVSBAudioRenderer::GetCurrentMediaTime() const {
   SB_DCHECK(BelongsToCurrentThread());
   int64_t media_time =
-      CMTimeConvertScale(CMTimebaseGetTime(audio_renderer_.timebase),
-                         1000000, kCMTimeRoundingMethod_QuickTime)
+      CMTimeConvertScale(CMTimebaseGetTime(audio_renderer_.timebase), 1000000,
+                         kCMTimeRoundingMethod_QuickTime)
           .value;
   media_time = std::max(media_time - media_time_offset_, 0ll);
   return std::min(media_time, last_buffer_end_time_);

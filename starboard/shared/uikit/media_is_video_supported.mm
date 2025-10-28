@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/media/media_support_internal.h"
-
 #import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
-
 #import "starboard/shared/uikit/playback_capabilities.h"
 #if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 #import "starboard/shared/uikit/vpx_video_decoder.h"  // nogncheck

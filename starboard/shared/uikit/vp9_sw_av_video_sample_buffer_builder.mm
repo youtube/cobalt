@@ -14,9 +14,9 @@
 
 #import "starboard/shared/uikit/vp9_sw_av_video_sample_buffer_builder.h"
 
-#include "starboard/shared/uikit/vp9_av_sample_buffer_helper.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/uikit/vp9_av_sample_buffer_helper.h"
 #include "starboard/string.h"
 
 namespace starboard {

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
-
 #include <pthread.h>
+
+#include "starboard/thread.h"
 
 void SbThreadGetName(char* buffer, int buffer_size) {
   pthread_getname_np(pthread_self(), buffer, static_cast<size_t>(buffer_size));

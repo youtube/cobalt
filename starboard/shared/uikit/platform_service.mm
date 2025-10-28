@@ -14,12 +14,11 @@
 
 #include "starboard/android/shared/platform_service.h"
 
+#import <UIKit/UIKit.h>
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_service.h"
-
-#import <UIKit/UIKit.h>
-
 #import "starboard/shared/uikit/starboard_application.h"
 
 typedef struct CobaltExtensionPlatformServicePrivate {
