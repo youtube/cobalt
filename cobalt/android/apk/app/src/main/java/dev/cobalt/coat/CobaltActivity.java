@@ -290,14 +290,21 @@ public abstract class CobaltActivity extends Activity {
 
           @Override
           public void onWebContentsLoaded() {
-            synchronized(lock) {
-              if (isMainFrameLoaded == false) {
-                // Main app loaded in App shell, switch to it.
-                Log.e(TAG, "main shell is loaded");
-                isMainFrameLoaded = true;
-                mShellManager.showAppShell();
-              }
-            }
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                  @Override
+                  public void run() {
+                    synchronized(lock) {
+                      if (isMainFrameLoaded == false) {
+                        // Main app loaded in App shell, switch to it.
+                        Log.i(TAG, "main shell is loaded");
+                        isMainFrameLoaded = true;
+                        mShellManager.showAppShell();
+                        // Enforce CSP for main app.
+                        CommandLine.getInstance().appendSwitchWithValue("csp-enforcement", "true");
+                      }
+                    }
+                  }
+                }, mSplashTimeoutMs);
           }
         });
     if (mDisableNativeSplash) {
@@ -322,6 +329,8 @@ public abstract class CobaltActivity extends Activity {
                         Log.i(TAG, "switch to main shell after timeout " + mSplashTimeoutMs + "ms");
                         isMainFrameLoaded = true;
                         mShellManager.showAppShell();
+                        // Enforce CSP for main app.
+                        CommandLine.getInstance().appendSwitchWithValue("csp-enforcement", "true");
                       }
                     }
                   }

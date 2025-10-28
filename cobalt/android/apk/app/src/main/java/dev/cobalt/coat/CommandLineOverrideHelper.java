@@ -72,6 +72,8 @@ public final class CommandLineOverrideHelper {
         // Disable QUIC to save CPU budgets on m114.
         // Remove below if Cobalt rebase to m138+.
         paramOverrides.add("--disable-quic");
+        // Disable CSP enforcement for splash screen.
+        paramOverrides.add("--csp-enforcement=false");
 
         return paramOverrides;
     }
