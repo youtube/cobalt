@@ -54,12 +54,15 @@ bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
       GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
 }
 
+void RequestTrackingAuthorization() {}
+
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
-    1,  // API version that's implemented.
+    2,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
     &GetTrackingAuthorizationStatus,
+    &RequestTrackingAuthorization,
 };
 
 }  // namespace
