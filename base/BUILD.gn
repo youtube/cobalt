@@ -43,7 +43,6 @@ import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//cobalt/build/configs/hacks.gni")
-import("//cobalt/build/configs/cobalt_for_google.gni")
 
 if (is_mac) {
   # Used to generate fuzzer corpus :base_mach_port_rendezvous_convert_corpus.
@@ -203,14 +202,6 @@ buildflag_header("message_pump_buildflags") {
   header = "message_pump_buildflags.h"
   header_dir = "base/message_loop"
   flags = [ "ENABLE_MESSAGE_PUMP_EPOLL=$enable_message_pump_epoll" ]
-}
-
-buildflag_header("cobalt_for_google3_buildflags") {
-  header = "cobalt_for_google3_buildflags.h"
-  header_dir = "base/android"
-  flags = [
-    "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
-  ]
 }
 
 # Base and everything it depends on should be a static library rather than
@@ -1400,12 +1391,7 @@ component("base") {
       "android/trace_event_binding.cc",
       "android/trace_event_binding.h",
     ]
-    deps += [ 
-      ":base_jni_headers",
-      ":cobalt_for_google3_buildflags",
-    ]
-
-    
+    deps += [ ":base_jni_headers" ]
   }  # is_android || is_robolectric
 
   # Chromeos.
