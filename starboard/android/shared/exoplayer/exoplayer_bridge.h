@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -122,7 +123,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   base::android::ScopedJavaGlobalRef<jlongArray> j_timestamps_;
   base::android::ScopedJavaGlobalRef<jbooleanArray> j_key_frames_;
 
-  bool error_occurred_ = false;
+  std::atomic_bool error_occurred_ = false;
   const AudioStreamInfo audio_stream_info_;
   const VideoStreamInfo video_stream_info_;
 
@@ -136,14 +137,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   mutable std::mutex mutex_;
   // Signaled once player initialization is complete.
-  std::condition_variable initialized_cv_;
-  bool initialized_ = false;
-  bool audio_eos_written_ = false;
-  bool video_eos_written_ = false;
-  bool playback_ended_ = false;
-  double playback_rate_ = 1.0;
-  bool seeking_ = false;
-  bool underflow_ = false;
+  std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
+  bool initialized_ = false;                // Guarded by |mutex_|.
+  bool audio_eos_written_ = false;          // Guarded by |mutex_|.
+  bool video_eos_written_ = false;          // Guarded by |mutex_|.
+  bool playback_ended_ = false;             // Guarded by |mutex_|.
+  double playback_rate_ = 1.0;              // Guarded by |mutex_|.
+  bool seeking_ = false;                    // Guarded by |mutex_|.
+  bool underflow_ = false;                  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

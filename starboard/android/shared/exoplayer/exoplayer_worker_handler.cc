@@ -50,8 +50,6 @@ HandlerResult ExoPlayerWorkerHandler::Init(
   SB_CHECK(get_player_state_cb);
   SB_CHECK(update_player_state_cb);
 
-  AttachToCurrentThread();
-
   player_ = player;
   update_media_info_cb_ = update_media_info_cb;
   get_player_state_cb_ = get_player_state_cb;

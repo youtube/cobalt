@@ -52,22 +52,22 @@ constexpr int kNoOffset = 0;
 constexpr int kWaitForInitializedTimeoutUs = 250'000;  // 250 ms.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
-const jint COLOR_RANGE_FULL = 1;
-const jint COLOR_RANGE_LIMITED = 2;
+constexpr jint COLOR_RANGE_FULL = 1;
+constexpr jint COLOR_RANGE_LIMITED = 2;
 // Not defined in MediaFormat. Represents unspecified color ID range.
-const jint COLOR_RANGE_UNSPECIFIED = 0;
+constexpr jint COLOR_RANGE_UNSPECIFIED = 0;
 
-const jint COLOR_STANDARD_BT2020 = 6;
-const jint COLOR_STANDARD_BT709 = 1;
+constexpr jint COLOR_STANDARD_BT2020 = 6;
+constexpr jint COLOR_STANDARD_BT709 = 1;
 
-const jint COLOR_TRANSFER_HLG = 7;
-const jint COLOR_TRANSFER_SDR_VIDEO = 3;
-const jint COLOR_TRANSFER_ST2084 = 6;
+constexpr jint COLOR_TRANSFER_HLG = 7;
+constexpr jint COLOR_TRANSFER_SDR_VIDEO = 3;
+constexpr jint COLOR_TRANSFER_ST2084 = 6;
 
 // A special value to represent that no mapping between an SbMedia* HDR
 // metadata value and Android HDR metadata value is possible.  This value
 // implies that HDR playback should not be attempted.
-const jint COLOR_VALUE_UNKNOWN = -1;
+constexpr jint COLOR_VALUE_UNKNOWN = -1;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
@@ -193,7 +193,7 @@ void ExoPlayerBridge::SetCallbacks(ErrorCB error_cb,
 }
 
 void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
-  if (error_occurred_) {
+  if (error_occurred_.load()) {
     SB_LOG(ERROR) << "Tried to seek after an error occurred.";
     return;
   }
@@ -374,7 +374,7 @@ void ExoPlayerBridge::OnBuffering(JNIEnv* env) {
 
 void ExoPlayerBridge::SetPlayingStatus(JNIEnv* env, jboolean is_playing) {
   std::lock_guard lock(mutex_);
-  if (error_occurred_) {
+  if (error_occurred_.load()) {
     SB_LOG(WARNING) << "Playing status is updated after an error.";
     return;
   }
@@ -397,7 +397,7 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
     SB_LOG(INFO) << "Error: Video surface was destroyed during playback.";
     error_cb_(kSbPlayerErrorDecode,
               "Video surface was destroyed during playback.");
-    error_occurred_ = true;
+    error_occurred_.store(true);
   }
 }
 
@@ -416,7 +416,7 @@ bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
         kWaitForInitializedTimeoutUs);
     SB_LOG(ERROR) << error_message;
     error_cb_(kSbPlayerErrorDecode, error_message.c_str());
-    error_occurred_ = true;
+    error_occurred_.store(true);
     return false;
   }
 
@@ -430,7 +430,7 @@ void ExoPlayerBridge::InitExoplayer() {
       StarboardBridge::GetInstance()->GetExoPlayerManager(env));
   if (!j_exoplayer_manager) {
     SB_LOG(ERROR) << "Failed to fetch ExoPlayerManager.";
-    error_occurred_ = true;
+    error_occurred_.store(true);
     return;
   }
 
@@ -442,7 +442,7 @@ void ExoPlayerBridge::InitExoplayer() {
           /*prefer tunnel mode*/ false));
   if (!j_exoplayer_bridge) {
     SB_LOG(ERROR) << "Failed to create ExoPlayerBridge.";
-    error_occurred_ = true;
+    error_occurred_.store(true);
     return;
   }
 
@@ -470,7 +470,7 @@ void ExoPlayerBridge::InitExoplayer() {
     std::optional<ExoPlayerAudioCodec> exoplayer_codec =
         SbAudioCodecToExoPlayerAudioCodec(audio_stream_info_.codec);
     if (!exoplayer_codec.has_value()) {
-      error_occurred_ = true;
+      error_occurred_.store(true);
       SB_LOG(ERROR) << "Could not create ExoPlayer audio media source.";
       return;
     }
@@ -481,7 +481,7 @@ void ExoPlayerBridge::InitExoplayer() {
             configuration_data, samplerate, channels, bits_per_sample));
     if (!j_audio_media_source) {
       SB_LOG(ERROR) << "Could not create ExoPlayer audio media source.";
-      error_occurred_ = true;
+      error_occurred_.store(true);
       return;
     }
     j_audio_media_source_.Reset(j_audio_media_source);
@@ -491,7 +491,7 @@ void ExoPlayerBridge::InitExoplayer() {
     ScopedJavaGlobalRef<jobject> j_output_surface(env, AcquireVideoSurface());
     if (!j_output_surface) {
       SB_LOG(ERROR) << "Could not acquire video surface for ExoPlayer.";
-      error_occurred_ = true;
+      error_occurred_.store(true);
       return;
     }
     j_output_surface_.Reset(j_output_surface);
@@ -547,7 +547,7 @@ void ExoPlayerBridge::InitExoplayer() {
             framerate, bitrate, j_color_info));
     if (!j_video_media_source) {
       SB_LOG(ERROR) << "Could not create ExoPlayer video MediaSource.";
-      error_occurred_ = true;
+      error_occurred_.store(true);
       return;
     }
     j_video_media_source_.Reset(j_video_media_source);

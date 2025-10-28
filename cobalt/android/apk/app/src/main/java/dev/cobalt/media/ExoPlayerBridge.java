@@ -17,6 +17,7 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
+import android.os.Handler;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.media3.common.ColorInfo;
