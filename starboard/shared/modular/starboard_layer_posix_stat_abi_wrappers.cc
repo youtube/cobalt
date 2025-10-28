@@ -142,6 +142,19 @@ int __abi_wrap_fstat(int fildes, struct musl_stat* musl_info) {
   return stat_helper(retval, &stat_info, musl_info);
 }
 
+int __abi_wrap_fstatat(int fd,
+                       const char* path,
+                       struct musl_stat* buf,
+                       int musl_flag) {
+  int flag = musl_flag_to_platform_flag(musl_flag);
+  if (flag == -1) {
+    return -1;
+  }
+  struct stat stat_info;
+  int retval = fstatat(fd, path, &stat_info, flag);
+  return stat_helper(retval, &stat_info, buf);
+}
+
 int __abi_wrap_lstat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = lstat(path, &stat_info);
