@@ -49,8 +49,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Checkout commit on the branch to maintain correct history.
-          ref: ${{ github.head_ref }}
+          # Checkout commit directly instead of using merge commit to maintain correct history.
+          ref: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.sha) || github.sha }}
       - name: Cache CI Essentials
         uses: actions/upload-artifact@v4
         with:
