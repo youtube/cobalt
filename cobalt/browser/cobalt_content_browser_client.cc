@@ -354,13 +354,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
-  std::cout << "config_type: " << static_cast<int>(config_type) << std::endl;
-  std::cout << (config_type == ExperimentConfigType::kEmptyConfig
-                    ? "empty config"
-                    : (config_type == ExperimentConfigType::kSafeConfig
-                           ? "safe config"
-                           : "regular config"))
-            << std::endl;
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
@@ -370,8 +363,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   const base::Value::Dict& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
-
-  std::cout << "feature_map" << feature_map << std::endl;
 
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {

@@ -14,8 +14,6 @@
 
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
-#include <iostream>
-
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
@@ -101,7 +99,6 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
       kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
-  std::cout << "num_crashes" << num_crashes << std::endl;
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
     return ExperimentConfigType::kEmptyConfig;
   }
