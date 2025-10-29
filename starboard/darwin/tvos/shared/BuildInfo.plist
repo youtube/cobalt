@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>BuildMachineOSBuild</key>
+    <string>$(MACOS_BUILD)</string>
+    <key>DTSDKName</key>
+    <string>$(SDK_NAME)</string>
+    <key>DTSDKBuild</key>
+    <string>$(SDK_BUILD)</string>
+    <key>DTCompiler</key>
+    <string>$(COMPILER_NAME)</string>
+    <key>DTPlatformBuild</key>
+    <string>$(PLATFORM_BUILD)</string>
+    <key>DTPlatformName</key>
+    <string>$(PLATFORM_NAME)</string>
+    <key>DTPlatformVersion</key>
+    <string>$(PLATFORM_VERSION)</string>
+    <key>DTXcode</key>
+    <string>$(XCODE_VERSION)</string>
+    <key>DTXcodeBuild</key>
+    <string>$(XCODE_BUILD)</string>
+    <key>CFBundleExecutable</key>
+    <string>${EXECUTABLE_NAME}</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+      <string>$(PLATFORM_DISPLAY_NAME)</string>
+    </array>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>YTApplicationURL</key>
+    <string>https://www.youtube.com/tv</string>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Cobalt Internal: Replace with appropriate text in production</string>
+    <key>UIDeviceFamily</key>
+    <array>
+      <string>3</string>
+    </array>
+</dict>
+</plist>

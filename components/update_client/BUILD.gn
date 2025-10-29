@@ -199,6 +199,13 @@ static_library("update_client") {
       "background_downloader_win.h",
     ]
   }
+
+  if (is_starboard) {
+    # TODO(b/455004672): Investigate the legacy functions from m114.
+    # Some functions are ported from m114 because Cobalt customizations
+    # depend on them.
+    defines = [ "USE_M114_FUNCTIONS" ]
+  }
 }
 
 if (is_mac) {

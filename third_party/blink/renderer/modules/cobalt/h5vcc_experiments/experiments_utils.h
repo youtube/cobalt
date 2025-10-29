@@ -19,11 +19,11 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-// Helper function to process determine if the underlying value of |num| is an
-// int or a double.
+// Returns true if the double has a fractional part.
 bool IsTrueDouble(double num);
 
 // Tries to parse an ExperimentConfiguration and convert it to

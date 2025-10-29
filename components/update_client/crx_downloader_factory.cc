@@ -21,11 +21,39 @@
 #include "components/update_client/background_downloader_win.h"
 #elif BUILDFLAG(IS_MAC)
 #include "components/update_client/background_downloader_mac.h"
+#elif BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/configurator.h"
 #endif
 
 namespace update_client {
 namespace {
 
+#if BUILDFLAG(IS_STARBOARD)
+class CrxDownloaderFactoryCobalt : public CrxDownloaderFactory {
+ public:
+  explicit CrxDownloaderFactoryCobalt(
+      scoped_refptr<NetworkFetcherFactory> network_fetcher_factory)
+      : network_fetcher_factory_(std::move(network_fetcher_factory)) {}
+
+  // Overrides for CrxDownloaderFactory.
+  scoped_refptr<CrxDownloader> MakeCrxDownloader(
+      scoped_refptr<Configurator> config) const override;
+
+ private:
+  ~CrxDownloaderFactoryCobalt() override = default;
+
+  scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;
+};
+
+scoped_refptr<CrxDownloader> CrxDownloaderFactoryCobalt::MakeCrxDownloader(
+    scoped_refptr<Configurator> config) const {
+  scoped_refptr<CrxDownloader> url_fetcher_downloader =
+      base::MakeRefCounted<UrlFetcherDownloader>(nullptr, std::move(config));
+
+  return url_fetcher_downloader;
+}
+
+#else // BUILDFLAG(IS_STARBOARD)
 class CrxDownloaderFactoryChromium : public CrxDownloaderFactory {
  public:
   explicit CrxDownloaderFactoryChromium(
@@ -75,14 +103,22 @@ scoped_refptr<CrxDownloader> CrxDownloaderFactoryChromium::MakeCrxDownloader(
 
   return url_fetcher_downloader;
 }
+#endif // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 
+#if BUILDFLAG(IS_STARBOARD)
+scoped_refptr<CrxDownloaderFactory> MakeCrxDownloaderFactory(
+    scoped_refptr<NetworkFetcherFactory> network_fetcher_factory) {
+  return base::MakeRefCounted<CrxDownloaderFactoryCobalt>(
+      std::move(network_fetcher_factory));
+#else
 scoped_refptr<CrxDownloaderFactory> MakeCrxDownloaderFactory(
     scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
     std::optional<base::FilePath> background_downloader_cache_path) {
   return base::MakeRefCounted<CrxDownloaderFactoryChromium>(
       network_fetcher_factory, background_downloader_cache_path);
+#endif
 }
 
 }  // namespace update_client

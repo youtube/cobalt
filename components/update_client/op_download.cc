@@ -40,16 +40,18 @@ namespace {
 #if BUILDFLAG(IS_MAC)
 // The minimum size of a download to attempt it at background priority.
 constexpr int64_t kBackgroundDownloadSizeThreshold = 10'000'000; /*10 MB*/
-#else
+#elif !BUILDFLAG(IS_STARBOARD)
 constexpr int64_t kBackgroundDownloadSizeThreshold = 0;
 #endif
 
+#if !BUILDFLAG(IS_STARBOARD)
 bool CanDoBackgroundDownload(bool is_foreground,
                              bool background_downloads_enabled,
                              int64_t size) {
   return !is_foreground && background_downloads_enabled &&
          size >= kBackgroundDownloadSizeThreshold;
 }
+#endif
 
 // Returns a string literal corresponding to the value of the downloader |d|.
 const char* DownloaderToString(CrxDownloader::DownloadMetrics::Downloader d) {
@@ -157,9 +159,13 @@ void HandleAvailableSpace(
     return;
   }
   scoped_refptr<CrxDownloader> crx_downloader =
+#if BUILDFLAG(IS_STARBOARD)
+      config->GetCrxDownloaderFactory()->MakeCrxDownloader(config);
+#else
       config->GetCrxDownloaderFactory()->MakeCrxDownloader(
           CanDoBackgroundDownload(is_foreground,
                                   config->EnabledBackgroundDownloader(), size));
+#endif
   crx_downloader->set_progress_callback(progress_callback);
   cancellation->OnCancel(crx_downloader->StartDownload(
       urls, hash,
