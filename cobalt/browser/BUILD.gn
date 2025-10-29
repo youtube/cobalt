@@ -61,6 +61,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/h5vcc_settings",
+    "//cobalt/browser/h5vcc_settings/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/migrate_storage_record",
