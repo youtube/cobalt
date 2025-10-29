@@ -7,8 +7,7 @@
                 "loader_app",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
-                "gen/licenses_cobalt.txt",
-                "native_target/crashpad_handler"
+                "gen/licenses_cobalt.txt"
             ],
             "dirs": [
                 "app",

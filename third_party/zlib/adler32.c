@@ -94,7 +94,13 @@ uLong ZEXPORT adler32_z(uLong adler, const Bytef *buf, z_size_t len) {
         return adler | (sum2 << 16);
     }
 
-#if defined(ADLER32_SIMD_SSSE3) || defined(ADLER32_SIMD_NEON) \
+/*
+ * Cobalt comment: some linux-based partner toolchains use ARMv7 and define
+ * ADLER32_SIMD_NEON but not ARMV8_OS_LINUX, which is unexpected in upstream
+ * zlib and results in an undefined symbol.
+ */
+#if defined(ADLER32_SIMD_SSSE3) \
+    || (!defined(PARTNER_DEFINED_TOOLCHAIN) && defined(ADLER32_SIMD_NEON)) \
     || defined(RISCV_RVV)
     /*
      * Use SIMD to compute the adler32. Since this function can be

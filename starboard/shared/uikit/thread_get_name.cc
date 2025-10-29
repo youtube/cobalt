@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.util;
+#include <pthread.h>
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Target;
+#include "starboard/thread.h"
 
-/**
- * Annotation used for marking methods and fields that are called from native code. Useful for
- * keeping components that would otherwise be removed by Proguard.
- */
-@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE, ElementType.CONSTRUCTOR})
-public @interface UsedByNative {}
+void SbThreadGetName(char* buffer, int buffer_size) {
+  pthread_getname_np(pthread_self(), buffer, static_cast<size_t>(buffer_size));
+}
