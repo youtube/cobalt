@@ -37,7 +37,7 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
 
   // Add a DCheck here to ensure that |input_buffer_infos_| won't grow
   // without bound, which can lead to OOM.
-  SB_DCHECK(input_buffer_infos_.size() < kMaxNumberOfPendingInputBufferInfos);
+  SB_DCHECK(input_buffer_infos_.size() <= kMaxNumberOfPendingInputBufferInfos);
 }
 
 void AudioFrameDiscarder::AdjustForDiscardedDurations(
