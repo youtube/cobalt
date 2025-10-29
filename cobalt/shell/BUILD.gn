@@ -207,7 +207,6 @@ source_set("browsertests_sources") {
 }
 
 static_library("cobalt_shell_lib") {
-  testonly = true
   public_deps = [ ":cobalt_shell_lib_deps" ]
   sources = [
     "browser/shell.cc",
@@ -331,7 +330,6 @@ static_library("cobalt_shell_lib") {
 }
 
 source_set("shell_test_switches_lib") {
-  testonly = true
   sources = [
     "common/shell_test_switches.cc",
     "common/shell_test_switches.h",
@@ -352,7 +350,6 @@ source_set("shell_test_switches_lib") {
 # cobalt_shell_lib component will not, to avoid circular deps, as web_test
 # inherits from things in cobalt_shell_lib.
 static_library("cobalt_shell_app") {
-  testonly = true
   sources = [
     "app/shell_crash_reporter_client.cc",
     "app/shell_crash_reporter_client.h",
@@ -377,11 +374,11 @@ group("cobalt_shell_app_deps") {
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
-  testonly = true
   public_deps = [
     ":cobalt_shell_lib",
     "//components/crash/core/app",
-    "//components/crash/core/app:test_support",
+
+    # "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",

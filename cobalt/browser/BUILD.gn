@@ -17,7 +17,6 @@ import("//starboard/build/buildflags.gni")
 source_set("browser") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
   # cobalt_shell_lib.
-  testonly = true
 
   sources = [
     "cobalt_browser_interface_binders.cc",
@@ -72,7 +71,8 @@ source_set("browser") {
     "//cobalt/shell:cobalt_shell_lib",
     "//components/js_injection/browser:browser",
     "//components/metrics",
-    "//components/metrics:test_support",
+
+    # "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
@@ -91,7 +91,6 @@ source_set("browser") {
 }
 
 source_set("features") {
-  testonly = true
   sources = [
     "features.cc",
     "features.h",
@@ -100,8 +99,6 @@ source_set("features") {
 }
 
 source_set("switches") {
-  testonly = true
-
   sources = [
     "switches.cc",
     "switches.h",
@@ -133,7 +130,6 @@ action("embed_polyfilled_javascript") {
 source_set("global_features") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
   # being depended-on by :browser above.
-  testonly = true
 
   sources = [
     "experiments/experiment_config_manager.cc",
@@ -156,7 +152,6 @@ source_set("global_features") {
 source_set("metrics") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
   # being depended-on by :browser above.
-  testonly = true
 
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",

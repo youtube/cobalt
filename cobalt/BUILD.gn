@@ -20,7 +20,7 @@ import("//ui/base/ui_features.gni")
 
 if (!toolchain_for_rust_host_build_tools) {
   assert(!cobalt_is_release_build || is_official_build,
-        "Release builds are only available in official builds.")
+         "Release builds are only available in official builds.")
 }
 
 # This arg temporarily enables or disables the updater_sandbox target.
@@ -31,12 +31,10 @@ declare_args() {
 }
 
 group("gn_all") {
-  testonly = true
-
   # TODO(b/371589344): Fix android build configs.
   deps = [
     "//starboard:starboard_group",
-    "//starboard/nplb",
+    # "//starboard/nplb",
   ]
   if (is_android) {
     # TODO(cobalt): reuse build rules below to define Android target.
@@ -65,7 +63,6 @@ group("gn_all") {
 
 group("cobalt_browsertests") {
   testonly = true
-
   deps = [ "testing:cobalt_browsertests" ]
 }
 
@@ -76,8 +73,6 @@ if (!is_android) {
     cobalt_target_type = "executable"
   }
   target(cobalt_target_type, "cobalt") {
-    testonly = true
-
     sources = [ "app/cobalt.cc" ]
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
@@ -110,14 +105,11 @@ if (!is_android) {
     strip_binary("strip_cobalt_binary") {
       binary_input = "$root_out_dir/cobalt"
       deps = [ ":cobalt" ]
-      testonly = true
     }
   }
 }
 
 source_set("common") {
-  testonly = true
-
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
@@ -184,8 +176,6 @@ action("cobalt_build_info") {
 }
 
 test("cobalt_unittests") {
-  testonly = true
-
   sources = [
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",

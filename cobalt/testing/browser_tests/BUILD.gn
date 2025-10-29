@@ -180,6 +180,7 @@ if (is_android) {
 
 # Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
+  testonly = true
   use_xvfb = use_xvfb_in_this_config
 
   # See comment at the top of //content/BUILD.gn for why this is disabled in
