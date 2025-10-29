@@ -7,6 +7,10 @@ import("//media/media_options.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//tools/generate_stubs/rules.gni")
 
+if (is_android) {
+  import("//build/config/android/config.gni")
+}
+
 # When libpulse is not directly linked, use stubs to allow for dlopening of the
 # binary.
 if (use_pulseaudio && !link_pulseaudio) {
@@ -281,7 +285,9 @@ source_set("audio") {
         "android/opensles_wrapper.cc",
       ]
     }
-    libs += [ "aaudio" ]
+    if (default_min_sdk_version >= 26) {
+      libs += [ "aaudio" ]
+    }
 
     deps += [ "//media/base/android:media_jni_headers" ]
   }

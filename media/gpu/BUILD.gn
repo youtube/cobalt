@@ -13,6 +13,10 @@ import("//testing/test.gni")
 import("//third_party/libgav1/options.gni")
 import("//tools/generate_stubs/rules.gni")
 
+if (is_android) {
+  import("//build/config/android/config.gni")
+}
+
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
@@ -183,10 +187,10 @@ component("gpu") {
         "android/ndk_audio_encoder.h",
       ]
     }
-    libs += [
-      "aaudio",
-      "mediandk",
-    ]
+    if (default_min_sdk_version >= 26) {
+      libs += [ "aaudio" ]
+    }
+    libs += [ "mediandk" ]
     deps += [
       # TODO(crbug.com/40552063): This can be removed once CdmManager is removed.
       "//gpu/ipc/common",
