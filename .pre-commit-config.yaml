@@ -51,6 +51,11 @@ repos:
         language: python
         types: [c++]
         args: [-i, -style=file]
+        exclude: |
+            (?x)(
+                ^starboard/shared/uikit/accessibility_extension.cc$|
+                ^starboard/shared/uikit/player_configuration.cc$
+            )
         additional_dependencies: ['clang-format==17.0.1']
     -   id: cpplint
         name: cpplint
