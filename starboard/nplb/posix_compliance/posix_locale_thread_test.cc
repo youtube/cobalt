@@ -17,6 +17,7 @@
 
 #include <ctype.h>
 #include <locale.h>
+
 #include <cerrno>
 #include <cstring>
 
@@ -26,12 +27,6 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#define MAYBE(testname) DISABLED_##testname
-#else
-#define MAYBE(testname) ##testname
-#endif
 
 constexpr char kDefaultLocale[] = "C";
 
@@ -68,6 +63,7 @@ TEST_F(PosixLocaleThreadTest, LocaleConvUsesThreadLocale) {
   // localeconv() should now return the properties of the thread-specific
   // locale.
   lconv* lc = localeconv();
+  ASSERT_NE(nullptr, lc);
   EXPECT_STREQ(",", lc->decimal_point);
 
   // Clean up.
@@ -100,16 +96,16 @@ TEST_F(PosixLocaleThreadTest, FreeLocaleRestoresGlobalLocale) {
   // active.
   uselocale(LC_GLOBAL_LOCALE);
   lconv* lc = localeconv();
+  ASSERT_NE(nullptr, lc);
   EXPECT_STREQ(".", lc->decimal_point);
 }
 
-TEST_F(PosixLocaleThreadTest, MAYBE(NewAndFreeLocale)) {
+TEST_F(PosixLocaleThreadTest, NewAndFreeLocale) {
   locale_t loc = newlocale(LC_ALL, kDefaultLocale, (locale_t)0);
-  EXPECT_NE(nullptr, loc);
-  lconv* lc = reinterpret_cast<lconv*>(loc);
-  EXPECT_STREQ(".", lc->decimal_point);
+  ASSERT_TRUE(loc) << "newlocale failed: " << strerror(errno);
   freelocale(loc);
 }
+
 TEST_F(PosixLocaleThreadTest, NewLocaleFreesOrModifiesBase) {
   // Create a locale with only LC_CTYPE set to kDefaultLocale.
   locale_t loc1 = newlocale(LC_CTYPE_MASK, kDefaultLocale, (locale_t)0);
@@ -135,6 +131,7 @@ TEST_F(PosixLocaleThreadTest, NewLocaleFreesOrModifiesBase) {
 
   // Check numeric properties from test_locale
   lconv* lc = localeconv();
+  ASSERT_NE(nullptr, lc);
   EXPECT_STREQ(",", lc->decimal_point);
 
   // Check ctype properties from kDefaultLocale
@@ -147,7 +144,7 @@ TEST_F(PosixLocaleThreadTest, NewLocaleFreesOrModifiesBase) {
   freelocale(loc2);
 }
 
-TEST_F(PosixLocaleThreadTest, MAYBE(DupLocale)) {
+TEST_F(PosixLocaleThreadTest, DupLocale) {
   locale_t loc1 = newlocale(LC_ALL, kDefaultLocale, (locale_t)0);
   ASSERT_NE(nullptr, loc1);
   locale_t loc2 = duplocale(loc1);
@@ -156,10 +153,12 @@ TEST_F(PosixLocaleThreadTest, MAYBE(DupLocale)) {
 
   locale_t previous_locale = uselocale(loc1);
   lconv* lc1 = localeconv();
+  ASSERT_NE(nullptr, lc1);
   EXPECT_STREQ(".", lc1->decimal_point);
 
   uselocale(loc2);
   lconv* lc2 = localeconv();
+  ASSERT_NE(nullptr, lc2);
   EXPECT_STREQ(".", lc2->decimal_point);
 
   EXPECT_STREQ(lc1->decimal_point, lc2->decimal_point);
@@ -169,7 +168,7 @@ TEST_F(PosixLocaleThreadTest, MAYBE(DupLocale)) {
   freelocale(loc2);
 }
 
-TEST_F(PosixLocaleThreadTest, MAYBE(DupLocaleNonDefault)) {
+TEST_F(PosixLocaleThreadTest, DupLocaleNonDefault) {
   const char* test_locale = GetCommaDecimalSeparatorLocale();
   if (!test_locale) {
     GTEST_SKIP() << "No supported locale with comma decimal separator found.";
@@ -185,10 +184,12 @@ TEST_F(PosixLocaleThreadTest, MAYBE(DupLocaleNonDefault)) {
 
   locale_t previous_locale = uselocale(loc1);
   lconv* lc1 = localeconv();
+  ASSERT_TRUE(lc1);
   EXPECT_STREQ(",", lc1->decimal_point);
 
   uselocale(loc2);
   lconv* lc2 = localeconv();
+  ASSERT_TRUE(lc2);
   EXPECT_STREQ(",", lc2->decimal_point);
 
   EXPECT_STREQ(lc1->decimal_point, lc2->decimal_point);

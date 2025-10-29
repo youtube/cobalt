@@ -17,6 +17,7 @@
 
 #include <locale.h>
 #include <string.h>
+
 #include <algorithm>
 #include <cerrno>
 #include <clocale>
@@ -124,6 +125,7 @@ TEST(PosixLocaleSetTest, NewUseFreeLocale) {
 
   // Set a known global locale.
   ASSERT_NE(nullptr, setlocale(LC_ALL, kDefaultLocale));
+  ASSERT_NE(nullptr, localeconv());
   const char* initial_decimal_point = localeconv()->decimal_point;
 
   locale_t c_locale = newlocale(LC_ALL_MASK, kDefaultLocale, (locale_t)0);
@@ -142,6 +144,7 @@ TEST(PosixLocaleSetTest, NewUseFreeLocale) {
 
     // Check that the thread's locale has changed.
     // In en_US, decimal point is '.'
+    ASSERT_NE(nullptr, localeconv());
     EXPECT_STREQ(".", localeconv()->decimal_point);
 
     // The global locale should be unchanged.
@@ -158,6 +161,7 @@ TEST(PosixLocaleSetTest, NewUseFreeLocale) {
     // If en_US.UTF-8 is not available, we can't test switching.
     // Just test uselocale with the C locale we created.
     locale_t original_thread_locale = uselocale(c_locale);
+    ASSERT_NE(nullptr, localeconv());
     EXPECT_STREQ(".", localeconv()->decimal_point);
     uselocale(original_thread_locale);
   }
@@ -171,10 +175,14 @@ TEST(PosixLocaleSetTest, NewLocaleInvalid) {
 }
 
 TEST(PosixLocaleSetTest, UseLocaleGlobal) {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  GTEST_SKIP() << "This test is curently skipped on hermetic builds";
+#endif
   ScopedLocale scoped_locale;
   setlocale(LC_ALL, kDefaultLocale);
-
   locale_t original_thread_locale = uselocale(LC_GLOBAL_LOCALE);
+  EXPECT_EQ(LC_GLOBAL_LOCALE, original_thread_locale);
+  ASSERT_NE(nullptr, localeconv());
   EXPECT_STREQ(".", localeconv()->decimal_point);
   uselocale(original_thread_locale);
 }
