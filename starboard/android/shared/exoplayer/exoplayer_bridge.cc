@@ -52,22 +52,22 @@ constexpr int kNoOffset = 0;
 constexpr int kWaitForInitializedTimeoutUs = 250'000;  // 250 ms.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
-const jint COLOR_RANGE_FULL = 1;
-const jint COLOR_RANGE_LIMITED = 2;
+constexpr jint COLOR_RANGE_FULL = 1;
+constexpr jint COLOR_RANGE_LIMITED = 2;
 // Not defined in MediaFormat. Represents unspecified color ID range.
-const jint COLOR_RANGE_UNSPECIFIED = 0;
+constexpr jint COLOR_RANGE_UNSPECIFIED = 0;
 
-const jint COLOR_STANDARD_BT2020 = 6;
-const jint COLOR_STANDARD_BT709 = 1;
+constexpr jint COLOR_STANDARD_BT2020 = 6;
+constexpr jint COLOR_STANDARD_BT709 = 1;
 
-const jint COLOR_TRANSFER_HLG = 7;
-const jint COLOR_TRANSFER_SDR_VIDEO = 3;
-const jint COLOR_TRANSFER_ST2084 = 6;
+constexpr jint COLOR_TRANSFER_HLG = 7;
+constexpr jint COLOR_TRANSFER_SDR_VIDEO = 3;
+constexpr jint COLOR_TRANSFER_ST2084 = 6;
 
 // A special value to represent that no mapping between an SbMedia* HDR
 // metadata value and Android HDR metadata value is possible.  This value
 // implies that HDR playback should not be attempted.
-const jint COLOR_VALUE_UNKNOWN = -1;
+constexpr jint COLOR_VALUE_UNKNOWN = -1;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
@@ -240,6 +240,7 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
 
   for (size_t i = 0; i < number_of_samples; ++i) {
     auto& input_buffer = input_buffers[i];
+    SB_CHECK_GE(input_buffer->size(), offset);
     total_size += input_buffer->size() - offset;
     const int data_size = input_buffer->size() - offset;
     sizes[i] = data_size;
@@ -488,7 +489,7 @@ void ExoPlayerBridge::InitExoplayer() {
   }
 
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
-    ScopedJavaLocalRef<jobject> j_output_surface(env, AcquireVideoSurface());
+    ScopedJavaGlobalRef<jobject> j_output_surface(env, AcquireVideoSurface());
     if (!j_output_surface) {
       SB_LOG(ERROR) << "Could not acquire video surface for ExoPlayer.";
       error_occurred_ = true;

@@ -131,14 +131,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   mutable std::mutex mutex_;
   // Signaled once player initialization is complete.
-  std::condition_variable initialized_cv_;
-  bool initialized_ = false;
-  bool audio_eos_written_ = false;
-  bool video_eos_written_ = false;
-  bool playback_ended_ = false;
-  double playback_rate_ = 1.0;
-  bool seeking_ = false;
-  bool underflow_ = false;
+  std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
+  bool initialized_ = false;                // Guarded by |mutex_|.
+  bool audio_eos_written_ = false;          // Guarded by |mutex_|.
+  bool video_eos_written_ = false;          // Guarded by |mutex_|.
+  bool playback_ended_ = false;             // Guarded by |mutex_|.
+  double playback_rate_ = 1.0;              // Guarded by |mutex_|.
+  bool seeking_ = false;                    // Guarded by |mutex_|.
+  bool underflow_ = false;                  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard
