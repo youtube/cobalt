@@ -21,8 +21,8 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** Overrides the default MediaCodecSelector to filter software video codecs. */
 public class ExoPlayerMediaCodecSelector implements MediaCodecSelector {
@@ -44,9 +44,11 @@ public class ExoPlayerMediaCodecSelector implements MediaCodecSelector {
             return defaultDecoderInfos;
         }
 
+        List<MediaCodecInfo> filteredDecoderInfos = new ArrayList<>();
         if (mimeType.startsWith("video/")) {
             for (MediaCodecInfo decoderInfo : defaultDecoderInfos) {
-                if (!isSoftwareDecoder(decoderInfo)) {
+                if (decoderInfo.hardwareAccelerated) {
+                    Log.i(TAG, String.format("Hardware accelerated decoder: %s", decoderInfo.name));
                     filteredDecoderInfos.add(decoderInfo);
                     continue;
                 }
@@ -62,19 +64,5 @@ public class ExoPlayerMediaCodecSelector implements MediaCodecSelector {
             // Return default decoders for non-video.
             return defaultDecoderInfos;
         }
-    }
-
-    private static boolean isSoftwareDecoder(MediaCodecInfo codecInfo) {
-        String name = codecInfo.name.toLowerCase(Locale.ROOT);
-        // This is taken from libstagefright/OMXCodec.cpp for pre codec2.
-        if (name.startsWith("omx.google.")) {
-            return true;
-        }
-
-        if (name.startsWith("c2.google.") || name.startsWith("c2.android.")) {
-            return true;
-        }
-
-        return false;
     }
 }

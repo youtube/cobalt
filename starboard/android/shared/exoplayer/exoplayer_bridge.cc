@@ -156,6 +156,7 @@ ExoPlayerBridge::ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
                                  const VideoStreamInfo& video_stream_info)
     : audio_stream_info_(audio_stream_info),
       video_stream_info_(video_stream_info) {
+  error_occurred_.store(false);
   int64_t start_us = CurrentMonotonicTime();
   InitExoplayer();
   int64_t end_us = CurrentMonotonicTime();
@@ -240,6 +241,7 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
 
   for (size_t i = 0; i < number_of_samples; ++i) {
     auto& input_buffer = input_buffers[i];
+    SB_CHECK_GE(input_buffer->size(), offset);
     total_size += input_buffer->size() - offset;
     const int data_size = input_buffer->size() - offset;
     sizes[i] = data_size;
@@ -351,11 +353,12 @@ int64_t ExoPlayerBridge::GetCurrentMediaTime(MediaInfo& info) const {
 }
 
 void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
-  {
-    std::lock_guard lock(mutex_);
-    initialized_ = true;
-  }
+  SB_LOG(INFO) << "OnInitialized running";
+  std::lock_guard lock(mutex_);
+  initialized_ = true;
+  SB_LOG(INFO) << "notifying...";
   initialized_cv_.notify_one();
+  SB_LOG(INFO) << "notified";
 }
 
 void ExoPlayerBridge::OnReady(JNIEnv* env) {
@@ -394,7 +397,7 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
   std::lock_guard lock(mutex_);
   if (is_playing_ && j_video_media_source_ &&
       !IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-    SB_LOG(INFO) << "Error: Video surface was destroyed during playback.";
+    SB_LOG(ERROR) << "Error: Video surface was destroyed during playback.";
     error_cb_(kSbPlayerErrorDecode,
               "Video surface was destroyed during playback.");
     error_occurred_.store(true);
@@ -406,8 +409,10 @@ bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
   {
     std::unique_lock<std::mutex> lock(mutex_);
     completed_init = initialized_cv_.wait_for(
-        lock, std::chrono::microseconds(kWaitForInitializedTimeoutUs),
-        [this] { return initialized_; });
+        lock, std::chrono::microseconds(kWaitForInitializedTimeoutUs), [this] {
+          SB_LOG(INFO) << "nOTIFY RECEIVED";
+          return initialized_;
+        });
   }
 
   if (!completed_init) {
@@ -420,6 +425,7 @@ bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
     return false;
   }
 
+  SB_LOG(INFO) << "RETURNING INITIALIZED";
   return true;
 }
 
@@ -552,11 +558,6 @@ void ExoPlayerBridge::InitExoplayer() {
     }
     j_video_media_source_.Reset(j_video_media_source);
   }
-
-  int max_samples_per_write = 256;
-  j_sizes_.Reset(env, env->NewIntArray(max_samples_per_write));
-  j_timestamps_.Reset(env, env->NewLongArray(max_samples_per_write));
-  j_key_frames_.Reset(env, env->NewBooleanArray(max_samples_per_write));
 
   Java_ExoPlayerBridge_preparePlayer(env, j_exoplayer_bridge_);
 }

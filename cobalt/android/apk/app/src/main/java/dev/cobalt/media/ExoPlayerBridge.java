@@ -18,6 +18,7 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.media3.common.ColorInfo;
@@ -63,6 +64,9 @@ public class ExoPlayerBridge {
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
+            if (destroying) {
+                return;
+            }
             switch (playbackState) {
                 case Player.STATE_BUFFERING:
                 case Player.STATE_IDLE:
@@ -84,6 +88,9 @@ public class ExoPlayerBridge {
 
         @Override
         public void onIsPlayingChanged(boolean isPlaying) {
+            if (destroying) {
+                return;
+            }
             Log.i(TAG, isPlaying ? "Exoplayer is playing." : "Exoplayer is not playing.");
             if (!stopped) {
                 ExoPlayerBridgeJni.get().setPlayingStatus(mNativeExoPlayerBridge, isPlaying);
@@ -92,10 +99,14 @@ public class ExoPlayerBridge {
 
         @Override
         public void onPlayerError(@NonNull PlaybackException error) {
+            if (destroying) {
+                return;
+            }
             String errorMessage = String.format("ExoPlayer playback error %s, code: %s, cause: %s",
                     error.getMessage(), error.getErrorCodeName(),
                     error.getCause() != null ? error.getCause().getMessage() : "N/A");
             Log.e(TAG, errorMessage);
+            Log.i(TAG, "Calling onerror in onplayererror");
             ExoPlayerBridgeJni.get().onError(mNativeExoPlayerBridge, errorMessage);
         }
     }
@@ -227,7 +238,7 @@ public class ExoPlayerBridge {
             return;
         }
         destroying = true;
-        // exoplayerHandler.removeCallbacksAndMessages(null);
+        exoplayerHandler.removeCallbacks(this::updatePlaybackPos);
 
         final CountDownLatch releaseLatch = new CountDownLatch(1);
         exoplayerHandler.post(() -> {
@@ -266,6 +277,7 @@ public class ExoPlayerBridge {
         droppedFramesOnPlayerThread = 0;
         prerolled = false;
         notifiedStreamsReady = false;
+        notifiedEOS = false;
     }
 
     @CalledByNative
@@ -376,7 +388,7 @@ public class ExoPlayerBridge {
     }
 
     private DefaultLoadControl createLoadControl() {
-        return new DefaultLoadControl.Builder().setBufferDurationsMs(750, 10000, 750, 750).build();
+        return new DefaultLoadControl.Builder().setBufferDurationsMs(400, 10000, 400, 400).build();
     }
 
     private boolean isAbleToProcessCommands() {
