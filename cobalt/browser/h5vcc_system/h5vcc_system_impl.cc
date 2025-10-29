@@ -30,6 +30,7 @@ using ::starboard::StarboardBridge;
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
+#include "starboard/extension/ifa.h"
 #include "starboard/system.h"
 #endif
 

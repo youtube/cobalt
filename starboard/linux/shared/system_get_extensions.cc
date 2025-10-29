@@ -71,5 +71,8 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif
+  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
+    return starboard::GetIfaApi();
+  }
   return NULL;
 }
