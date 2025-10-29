@@ -15,6 +15,7 @@
 #include "starboard/nplb/posix_compliance/posix_locale_helpers.h"
 
 #include <locale.h>
+
 #include <cstring>
 #include <string>
 #include <vector>

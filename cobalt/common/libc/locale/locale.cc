@@ -19,7 +19,7 @@
 #include <locale.h>
 #include <string.h>
 
-#include "cobalt/common/libc/no_destructor.h"
+#include <cstddef>
 
 namespace {
 // The default locale is the C locale.
@@ -50,13 +50,13 @@ const lconv* GetCLocaleConv() {
       .int_p_sign_posn = CHAR_MAX,
       .int_n_sign_posn = CHAR_MAX,
   };
-  1 return &c_locale_conv;
+  return &c_locale_conv;
 }
 
 // The C locale can be referenced by this statically allocated object.
 const lconv* GetCLocale() {
-  static const NoDestructor<lconv> c_locale(*GetCLocaleConv());
-  return c_locale.get();
+  static const lconv c_locale(*GetCLocaleConv());
+  return &c_locale;
 }
 
 }  // namespace
@@ -95,11 +95,8 @@ thread_local locale_t g_current_locale =
 }  // namespace
 
 locale_t uselocale(locale_t newloc) {
-  locale_t old_locale = g_current_locale;
-  if (newloc != (locale_t)0) {
-    g_current_locale = newloc;
-  }
-  return old_locale;
+  // TODO: This is a stub.
+  return nullptr;
 }
 
 void freelocale(locale_t loc) {
@@ -131,36 +128,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     return const_cast<char*>("");
   }
 
-  lconv* conv;
-  if (locale == LC_GLOBAL_LOCALE) {
-    conv = reinterpret_cast<lconv*>(g_current_locale);
-  } else {
-    conv = reinterpret_cast<lconv*>(locale);
-  }
-
   switch (item) {
-    // Values from lconv
-    case RADIXCHAR:
-      return conv->decimal_point;
-    case THOUSEP:
-      return conv->thousands_sep;
-    case GROUPING:
-      return conv->grouping;
-    case MON_DECIMAL_POINT:
-      return conv->mon_decimal_point;
-    case MON_THOUSANDS_SEP:
-      return conv->mon_thousands_sep;
-    case MON_GROUPING:
-      return conv->mon_grouping;
-    case CURRENCY_SYMBOL:
-      return conv->currency_symbol;
-    case INT_CURR_SYMBOL:
-      return conv->int_curr_symbol;
-    case POSITIVE_SIGN:
-      return conv->positive_sign;
-    case NEGATIVE_SIGN:
-      return conv->negative_sign;
-
     // Date and time formats
     case D_T_FMT:
       return const_cast<char*>("%a %b %e %H:%M:%S %Y");
