@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -117,7 +118,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   base::android::ScopedJavaGlobalRef<jobject> j_video_media_source_;
   base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
 
-  bool error_occurred_ = false;
   const AudioStreamInfo audio_stream_info_;
   const VideoStreamInfo video_stream_info_;
 
@@ -139,6 +139,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   double playback_rate_ = 1.0;              // Guarded by |mutex_|.
   bool seeking_ = false;                    // Guarded by |mutex_|.
   bool underflow_ = false;                  // Guarded by |mutex_|.
+
+  std::atomic_bool error_occurred_(false);
 };
 
 }  // namespace starboard
