@@ -49,14 +49,14 @@ class MockH5vccExperiments {
     this.called_set_latest_experiment_config_hash_data = true;
   }
 
-  // Added for stubbing getFeature() and getFeatureParam() result in tests.
+  // Added for stubbing getFeature() result in tests.
   stubResult(key, value) {
     this.stub_result_.set(key, value);
   }
 
   async getActiveExperimentConfigData() {
     return {
-      active_experiment_config_data: this.stub_result_.get(this.STUB_KEY_ACTIVE_CONFIG_DATA)
+      activeExperimentConfigData: this.stub_result_.get(this.STUB_KEY_ACTIVE_CONFIG_DATA)
     };
   }
 
@@ -66,7 +66,7 @@ class MockH5vccExperiments {
 
   async getFeature(feature_name) {
     return {
-      feature_value: this.stub_result_.get(feature_name)
+      featureValue: this.stub_result_.get(feature_name)
     };
   }
 
@@ -81,7 +81,7 @@ class MockH5vccExperiments {
 
   async getLatestExperimentConfigHashData() {
     return {
-      latest_experiment_config_hash_data: this.stub_result_.get(this.STUB_KEY_CONFIG_CONFIG_HASH)
+      latestExperimentConfigHashData: this.stub_result_.get(this.STUB_KEY_CONFIG_CONFIG_HASH)
     };
   }
 
