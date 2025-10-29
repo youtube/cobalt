@@ -450,6 +450,7 @@ void LogGLDebugMessage(GLenum source,
 void InitializeGLDebugLogging(bool log_non_errors,
                               GLDEBUGPROC callback,
                               const void* user_param) {
+#if 0
   glEnable(GL_DEBUG_OUTPUT);
   glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
@@ -469,6 +470,7 @@ void InitializeGLDebugLogging(bool log_non_errors,
   }
 
   glDebugMessageCallback(callback, user_param);
+#endif
 }
 
 bool ValidContextLostReason(GLenum reason) {

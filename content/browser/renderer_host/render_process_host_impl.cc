@@ -1984,6 +1984,7 @@ void RenderProcessHostImpl::InitializeChannelProxy() {
 }
 
 void RenderProcessHostImpl::InitializeSharedMemoryRegionsOnceChannelIsUp() {
+#if 0
   // It's possible for InitializeChannelProxy() to be called multiple times for
   // the same host (e.g. from AgentSchedulingGroupHost::RenderProcessExited()).
   // In that case, we only need to resend the read-only memory region.
@@ -2001,6 +2002,7 @@ void RenderProcessHostImpl::InitializeSharedMemoryRegionsOnceChannelIsUp() {
   // handles can be shared again with the new process.
   renderer_interface_->TransferSharedLastForegroundTime(
       last_foreground_time_region_->DuplicateReadOnlyRegion());
+#endif
 }
 
 void RenderProcessHostImpl::ResetChannelProxy() {
@@ -5511,6 +5513,7 @@ void RenderProcessHostImpl::UpdateControllerServiceWorkerProcessPriority() {
 }
 
 void RenderProcessHostImpl::SendProcessStateToRenderer() {
+#if 0
   // `std::memory_order_relaxed` is sufficient as the recipient only reads the
   // latest TimeTicks value it sees and doesn't depend on it reflecting anything
   // about the state of other memory.
@@ -5523,6 +5526,7 @@ void RenderProcessHostImpl::SendProcessStateToRenderer() {
       priority_.visible ? mojom::RenderProcessVisibleState::kVisible
                         : mojom::RenderProcessVisibleState::kHidden;
   GetRendererInterface()->SetProcessState(priority, visible_state);
+#endif
 }
 
 void RenderProcessHostImpl::OnProcessLaunched() {

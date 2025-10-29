@@ -14,9 +14,9 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
-#include "build/build_config.h"
-
 #include <dirent.h>
+
+#include "build/build_config.h"
 
 // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
@@ -327,6 +327,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fcntl);
   REGISTER_WRAPPER(fstat);
+  REGISTER_WRAPPER(fstatat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
   REGISTER_WRAPPER(gai_strerror);

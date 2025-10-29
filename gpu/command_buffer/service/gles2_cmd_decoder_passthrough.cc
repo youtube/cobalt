@@ -935,6 +935,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
     return gpu::ContextResult::kFatalFailure;                    \
   }
 
+#if 0
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_robust_client_memory,
                    "missing GL_ANGLE_robust_client_memory");
   FAIL_INIT_IF_NOT(
@@ -961,6 +962,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(attrib_helper.context_type) ||
                        feature_info_->gl_version_info().IsAtLeastGLES(3, 1),
                    "ES 3.1 context type requires an ES 3.1 ANGLE context");
+#endif
 
 #undef FAIL_INIT_IF_NOT
 

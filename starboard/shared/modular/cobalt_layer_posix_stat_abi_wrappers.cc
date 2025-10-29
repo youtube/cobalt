@@ -22,6 +22,12 @@ int fstat(int fildes, struct stat* info) {
   return __abi_wrap_fstat(fildes, info);
 }
 
+int __abi_wrap_fstatat(int fd, const char* path, struct stat* buf, int flag);
+
+int fstatat(int fd, const char* path, struct stat* buf, int flag) {
+  return __abi_wrap_fstatat(fd, path, buf, flag);
+}
+
 int __abi_wrap_lstat(const char* path, struct stat* info);
 
 int lstat(const char* path, struct stat* info) {
