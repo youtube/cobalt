@@ -16,8 +16,14 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
 
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
@@ -32,16 +38,21 @@ class MODULES_EXPORT H5vccSettings final
  public:
   explicit H5vccSettings(LocalDOMWindow&);
 
-  void ContextDestroyed() override;
+  void ContextDestroyed() override {}
 
   // Web-exposed interface:
-  void set(const String& name, const String& value);
+
+  ScriptPromise set(ScriptState* script_state,
+                    const WTF::String& name,
+                    const V8UnionBooleanOrDoubleOrLongOrString* value,
+                    ExceptionState& exception_state);
 
   void Trace(Visitor*) const override;
 
  private:
   void OnConnectionError();
   void EnsureReceiverIsBound();
+
   HeapMojoRemote<h5vcc_settings::mojom::blink::H5vccSettings>
       remote_h5vcc_settings_;
 };

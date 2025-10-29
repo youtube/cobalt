@@ -21,6 +21,7 @@ source_set("h5vcc_settings") {
 
   deps = [
     "//base",
+    "//cobalt/browser:global_features",
     "//cobalt/browser/h5vcc_settings/public/mojom",
     "//cobalt/shell:cobalt_shell_lib",
     "//content/public/browser",

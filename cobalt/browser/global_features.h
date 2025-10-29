@@ -54,6 +54,7 @@ class GlobalFeatures {
   metrics::MetricsService* metrics_service();
   CobaltMetricsServicesManagerClient* metrics_services_manager_client();
   PrefService* experiment_config();
+  PrefService* settings_config();
   PrefService* metrics_local_state();
   PrefService* local_state();
   const std::string& active_config_data() { return active_config_data_; }
@@ -73,6 +74,8 @@ class GlobalFeatures {
 
   // Initialize a PrefService instance for the experiment config.
   void CreateExperimentConfig();
+  // Initialize a PrefService instance for the settings config.
+  void CreateSettingsConfig();
   // Initialize CobaltMetricsServicesManagerClient instance and use it to
   // initialize MetricsServicesManager.
   void CreateMetricsServices();
@@ -90,6 +93,8 @@ class GlobalFeatures {
 
   // Finch config/state.
   std::unique_ptr<PrefService> experiment_config_;
+
+  std::unique_ptr<PrefService> settings_config_;
 
   // UMA config/state.
   std::unique_ptr<PrefService> metrics_local_state_;

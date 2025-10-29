@@ -41,7 +41,9 @@ class H5vccSettingsImpl
   H5vccSettingsImpl(const H5vccSettingsImpl&) = delete;
   H5vccSettingsImpl& operator=(const H5vccSettingsImpl&) = delete;
 
-  void SetString(const std::string& name, const std::string& value) override;
+  void SetValue(const std::string& name,
+                mojom::ValuePtr value,
+                SetValueCallback callback) override;
 
  private:
   H5vccSettingsImpl(content::RenderFrameHost& render_frame_host,

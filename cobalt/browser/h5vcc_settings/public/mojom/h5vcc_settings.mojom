@@ -14,8 +14,16 @@
 
 module h5vcc_settings.mojom;
 
+
+union Value {
+  string string_value;
+  int64 int_value;
+  double double_value;
+  bool bool_value;
+};
+
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSettings Blink API.
 interface H5vccSettings {
-    SetString(string name, string value);
+    SetValue(string name, Value value) => ();
 };

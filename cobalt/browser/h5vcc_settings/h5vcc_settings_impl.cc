@@ -14,7 +14,7 @@
 
 #include "cobalt/browser/h5vcc_settings/h5vcc_settings_impl.h"
 
-#include "cobalt/browser/cobalt_shell.h"
+#include "cobalt/browser/global_features.h"
 
 namespace h5vcc_settings {
 
@@ -31,9 +31,26 @@ H5vccSettingsImpl::H5vccSettingsImpl(
     : content::DocumentService<mojom::H5vccSettings>(render_frame_host,
                                                      std::move(receiver)) {}
 
-void H5vccSettingsImpl::SetString(const std::string& name,
-                                  const std::string& value) {
-  cobalt::CobaltShell::GetInstance()->SetSetting(name, value);
+void H5vccSettingsImpl::SetValue(const std::string& name,
+                                 mojom::ValuePtr value,
+                                 SetValueCallback callback) {
+  auto* global_features = cobalt::GlobalFeatures::GetInstance();
+  auto* settings_config_ptr = global_features->settings_config();
+  switch (value->which()) {
+    case mojom::Value::Tag::kStringValue:
+      settings_config_ptr->SetString(name, value->get_string_value());
+      break;
+    case mojom::Value::Tag::kIntValue:
+      settings_config_ptr->SetInteger(name, value->get_int_value());
+      break;
+    case mojom::Value::Tag::kDoubleValue:
+      settings_config_ptr->SetDouble(name, value->get_double_value());
+      break;
+    case mojom::Value::Tag::kBoolValue:
+      settings_config_ptr->SetBoolean(name, value->get_bool_value());
+      break;
+  }
+  std::move(callback).Run();
 }
 
 }  // namespace h5vcc_settings

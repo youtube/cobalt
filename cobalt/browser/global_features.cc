@@ -34,11 +34,15 @@ namespace cobalt {
 constexpr base::FilePath::CharType kExperimentConfigFilename[] =
     FILE_PATH_LITERAL("Experiment Config");
 
+constexpr base::FilePath::CharType kSettingsConfigFilename[] =
+    FILE_PATH_LITERAL("Settings Config");
+
 constexpr base::FilePath::CharType kMetricsConfigFilename[] =
     FILE_PATH_LITERAL("Metrics Config");
 
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
+  CreateSettingsConfig();
   CreateMetricsServices();
   // InitializeActiveConfigData() needs ExperimentConfigManager to determine the
   // experiment config type.
@@ -77,6 +81,11 @@ PrefService* GlobalFeatures::experiment_config() {
   return experiment_config_.get();
 }
 
+PrefService* GlobalFeatures::settings_config() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return settings_config_.get();
+}
+
 PrefService* GlobalFeatures::metrics_local_state() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return metrics_local_state_.get();
@@ -102,6 +111,23 @@ void GlobalFeatures::CreateExperimentConfig() {
       base::MakeRefCounted<JsonPrefStore>(path));
 
   experiment_config_ = pref_service_factory.Create(pref_registry);
+}
+
+void GlobalFeatures::CreateSettingsConfig() {
+  CHECK(!experiment_config_);
+  auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
+
+  RegisterPrefs(pref_registry.get());
+
+  base::FilePath path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
+  path = path.Append(kSettingsConfigFilename);
+
+  PrefServiceFactory pref_service_factory;
+  pref_service_factory.set_user_prefs(
+      base::MakeRefCounted<JsonPrefStore>(path));
+
+  settings_config_ = pref_service_factory.Create(pref_registry);
 }
 
 void GlobalFeatures::CreateMetricsServices() {

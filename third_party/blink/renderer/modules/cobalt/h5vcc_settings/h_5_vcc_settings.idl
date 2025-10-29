@@ -13,5 +13,6 @@
 // limitations under the License.
 
 interface H5vccSettings {
-  void set(DOMString name, DOMString value);
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> set(DOMString name, (DOMString or long or double or boolean) value);
 };
