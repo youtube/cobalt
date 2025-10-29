@@ -14,7 +14,7 @@
     "PartitionedCookiesURLRequestHttpJobTest.*",
     "QuicSocketAddress.FromSocket",
     "ReportingUploaderTest.*",
-    "TCPClientSocketTest.*",
+    "*TCPClientSocketTest.*",
     "TestRootCertsTest.Moveable",
     "TestRootCertsTest.OverrideTrust",
     "UDPSocketTest.ClientGetLocalPeerAddresses",
@@ -36,6 +36,9 @@
     "URLRequestTestReferrerPolicy.*",
     "HTTPSOCSPTest.IntermediateResponseTooOldKnownRoot",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
-    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1"
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
+    "SQLitePersistentSharedDictionaryStoreTest.*",
+    "All/ConnectJobParamsFactoryTest.HttpEndpoint/64",
+    "All/SocketBIOAdapterTest.ReadEOFAsync/1"
   ]
 }

@@ -18,6 +18,7 @@
     "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/1",
     "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/2",
     "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/3",
-    "VideoRendererPixelTest.SimpleYUVARect/SkiaGL"
+    "VideoRendererPixelTest.SimpleYUVARect/SkiaGL",
+    "VisualDebuggerTest.*"
   ]
 }

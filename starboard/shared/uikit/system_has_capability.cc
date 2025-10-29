@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/log.h"
 #include "starboard/system.h"
 
-namespace starboard {
+bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
+  switch (capability_id) {
+    case kSbSystemCapabilityReversedEnterAndBack:
+      return false;
+    case kSbSystemCapabilityCanQueryGPUMemoryStats:
+      return false;
+  }
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-
-bool IsSystemNetworkConnected() {
-  JNIEnv* env = AttachCurrentThread();
-  jboolean j_is_connected =
-      StarboardBridge::GetInstance()->IsNetworkConnected(env);
-  return j_is_connected == JNI_TRUE;
-}
-
-}  // namespace starboard
-
-bool SbSystemNetworkIsDisconnected() {
-  return !starboard::IsSystemNetworkConnected();
+  SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;
+  return false;
 }
