@@ -151,12 +151,8 @@ void GlobalFeatures::InitializeActiveConfigData() {
 
   active_config_data_ = experiment_config_->GetString(
       (experiment_config_type == ExperimentConfigType::kSafeConfig)
-          ? kSafeConfigExpIds
-          : kExperimentConfigExpIds);
-  active_experiment_ids_.reserve(experiments.size());
-  for (const auto& experiment_id : experiments) {
-    active_experiment_ids_.push_back(experiment_id.GetInt());
-  }
+          ? kSafeConfigActiveConfigData
+          : kExperimentConfigActiveConfigData);
 }
 
 void GlobalFeatures::Shutdown() {
