@@ -59,12 +59,24 @@ void RequestTrackingAuthorization() {
   SB_NOTIMPLEMENTED();
 }
 
+void RegisterTrackingAuthorizationCallback(
+    void* callback_context,
+    RequestTrackingAuthorizationCallback callback) {
+  SB_NOTIMPLEMENTED();
+}
+
+void UnregisterTrackingAuthorizationCallback() {
+  SB_NOTIMPLEMENTED();
+}
+
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
     2,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
     &GetTrackingAuthorizationStatus,
+    &RegisterTrackingAuthorizationCallback,
+    &UnregisterTrackingAuthorizationCallback,
     &RequestTrackingAuthorization,
 };
 

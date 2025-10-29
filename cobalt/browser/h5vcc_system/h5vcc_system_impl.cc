@@ -92,8 +92,8 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  const starboard::extension::IfaApi* ifa_api =
-      static_cast<const starboard::extension::IfaApi*>(
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
   const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2 &&
                                         ifa_api->GetTrackingAuthorizationStatus;
@@ -139,8 +139,8 @@ H5vccSystemImpl::H5vccSystemImpl(
                                                    std::move(receiver)),
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   DETACH_FROM_THREAD(thread_checker_);
-  const starboard::extension::IfaApi* ifa_api =
-      static_cast<const starboard::extension::IfaApi*>(
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
   if (ifa_api && ifa_api->version >= 2 &&
       ifa_api->RegisterTrackingAuthorizationCallback) {
@@ -156,8 +156,8 @@ H5vccSystemImpl::H5vccSystemImpl(
 
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  const starboard::extension::IfaApi* ifa_api =
-      static_cast<const starboard::extension::IfaApi*>(
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
   if (ifa_api && ifa_api->version >= 2 &&
       ifa_api->UnregisterTrackingAuthorizationCallback) {
@@ -170,8 +170,8 @@ void H5vccSystemImpl::ReceiveTrackingAuthorizationComplete() {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(&H5vccSystemImpl::ReceiveTrackingAuthorizationComplete,
-                   base::Unretained(this)));
+        base::BindOnce(&H5vccSystemImpl::ReceiveTrackingAuthorizationComplete,
+                       base::Unretained(this)));
     return;
   }
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -226,8 +226,8 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  const starboard::extension::IfaApi* ifa_api =
-      static_cast<const starboard::extension::IfaApi*>(
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
   const bool is_ifa_version_supported =
       ifa_api && ifa_api->version >= 2 &&
