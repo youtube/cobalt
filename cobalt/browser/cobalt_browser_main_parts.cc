@@ -50,9 +50,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
-void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+void CobaltBrowserMainParts::PostDestroyThreads() {
   GlobalFeatures::GetInstance()->Shutdown();
-  ShellBrowserMainParts::PostMainMessageLoopRun();
+  ShellBrowserMainParts::PostDestroyThreads();
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
