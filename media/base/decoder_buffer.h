@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -200,12 +201,26 @@ class MEDIA_EXPORT DecoderBuffer
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+<<<<<<< HEAD
     return data_;
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (external_memory_)
       return external_memory_->Span().data();
     return data_.data();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+=======
+    if (allocator_data_) {
+      return allocator_data_->data;
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (read_only_mapping_.IsValid())
+      return read_only_mapping_.GetMemoryAs<const uint8_t>();
+    if (writable_mapping_.IsValid())
+      return writable_mapping_.GetMemoryAs<const uint8_t>();
+    if (external_memory_)
+      return external_memory_->span().data();
+    return data_.get();
+>>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
   }
 
   // The number of bytes in the buffer.
@@ -223,12 +238,18 @@ class MEDIA_EXPORT DecoderBuffer
   // TODO(crbug.com/41383992): Remove writable_data().
   uint8_t* writable_data() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return data_;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return allocator_data_->data;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!external_memory_);
+<<<<<<< HEAD
     return const_cast<uint8_t*>(data_.data());
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+=======
+    return data_.get();
+>>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
   }
 
   // TODO(crbug.com/41383992): Remove writable_span().
@@ -307,14 +328,31 @@ class MEDIA_EXPORT DecoderBuffer
   }
   
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool end_of_stream() const { return !data_; }
   void shrink_to(size_t size) {
+    if (!allocator_data_) {
+      // shrink_to is necessary only when DecoderBufferAllocator is used.
+      return;
+    }
     DCHECK_LE(size, size_);
     size_ = size;
   }
+<<<<<<< HEAD
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return is_end_of_stream_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+=======
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  bool end_of_stream() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return !allocator_data_->data;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
+           !external_memory_ && !data_;
+  }
+>>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -385,7 +423,12 @@ class MEDIA_EXPORT DecoderBuffer
                 std::optional<ConfigVariant> next_config);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  struct AllocatorData {
+    uint8_t* data = nullptr;
+    size_t size = 0;
+  };
   // Encoded data, allocated from DecoderBuffer::Allocator.
+<<<<<<< HEAD
   uint8_t* data_ = nullptr;
   size_t allocated_size_ = 0;
   size_t size_ = 0;
@@ -393,6 +436,12 @@ class MEDIA_EXPORT DecoderBuffer
   // Encoded data, if it is stored on the heap.
   const base::HeapArray<uint8_t> data_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+=======
+  std::optional<AllocatorData> allocator_data_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Encoded data, if it is stored on the heap.
+  std::unique_ptr<uint8_t[]> data_;
+>>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
 
  private:
   // ***************************************************************************
