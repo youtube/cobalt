@@ -40,8 +40,8 @@ void CrashAnnotatorImpl::SetString(const std::string& key,
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   if (crash_handler_extension && crash_handler_extension->version >= 2) {
-    std::move(callback).Run(
-        crash_handler_extension->SetString(key.c_str(), value.c_str()));
+    std::move(callback).Run(false);
+//        crash_handler_extension->SetString(key.c_str(), value.c_str()));
   } else {
     // This method can only be supported if the platform implements version 2,
     // or greater, of this Starboard Extension.
