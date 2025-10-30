@@ -48,12 +48,6 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
     case mojom::Value::Tag::kIntValue:
       setting_value = value->get_int_value();
       break;
-    case mojom::Value::Tag::kDoubleValue:
-      setting_value = value->get_double_value();
-      break;
-    case mojom::Value::Tag::kBoolValue:
-      setting_value = value->get_bool_value();
-      break;
   }
   global_features->SetSettings(name, setting_value);
   std::move(callback).Run();

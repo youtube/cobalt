@@ -19,7 +19,7 @@
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -39,11 +39,10 @@ void H5vccSettings::ContextDestroyed() {
   ongoing_requests_.clear();
 }
 
-ScriptPromise H5vccSettings::set(
-    ScriptState* script_state,
-    const WTF::String& name,
-    const V8UnionBooleanOrDoubleOrLongOrString* value,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccSettings::set(ScriptState* script_state,
+                                 const WTF::String& name,
+                                 const V8UnionLongOrString* value,
+                                 ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
@@ -57,12 +56,6 @@ ScriptPromise H5vccSettings::set(
   } else if (value->IsLong()) {
     mojo_value =
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
-  } else if (value->IsDouble()) {
-    mojo_value = h5vcc_settings::mojom::blink::Value::NewDoubleValue(
-        value->GetAsDouble());
-  } else if (value->IsBoolean()) {
-    mojo_value = h5vcc_settings::mojom::blink::Value::NewBoolValue(
-        value->GetAsBoolean());
   } else {
     // Should not happen
     resolver->Reject(MakeGarbageCollected<DOMException>(
