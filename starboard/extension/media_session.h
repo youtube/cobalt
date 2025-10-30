@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include "starboard/configuration.h"
 
 #ifdef __cplusplus

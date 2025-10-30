@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include "starboard/export.h"
 
 // The current platform's maximum length of the name of a single directory

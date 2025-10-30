@@ -20,6 +20,7 @@
 #define STARBOARD_FILE_H_
 
 #include <stdint.h>
+
 #include "starboard/export.h"
 
 #ifdef __cplusplus

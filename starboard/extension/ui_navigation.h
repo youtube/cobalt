@@ -35,6 +35,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/window.h"

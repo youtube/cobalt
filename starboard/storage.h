@@ -31,6 +31,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include "starboard/export.h"
 
 #ifdef __cplusplus
