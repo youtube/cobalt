@@ -89,6 +89,7 @@ std::optional<base::Value::Dict> ParseSettingsToDictionary(
         std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
         settings) {
   base::Value::Dict settings_dict;
+
   for (auto& setting_name_and_value : settings) {
     std::string setting_name = setting_name_and_value.first.Utf8();
     if (setting_name_and_value.second->IsString()) {
