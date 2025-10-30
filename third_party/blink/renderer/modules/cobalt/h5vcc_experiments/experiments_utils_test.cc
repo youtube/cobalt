@@ -52,16 +52,9 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
       std::make_pair(String::FromUTF8("ParamBoolFalse"), union_bool_false));
   config->setFeatureParams(feature_params_vector);
 
-<<<<<<< HEAD
-  Vector<uint32_t> exp_ids_vector;
-  exp_ids_vector.push_back(1001);
-  exp_ids_vector.push_back(1002);
-  config->setExperimentIds(exp_ids_vector);
-=======
   config->setActiveExperimentConfigData(String::FromUTF8("active_config_data"));
   config->setLatestExperimentConfigHashData(
       String::FromUTF8("latest_hash_data"));
->>>>>>> cec25ce38c4 (Switch std usages to base utilities. (#7763))
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
 
@@ -79,10 +72,7 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   ASSERT_NE(nullptr, feature_params_dict);
   EXPECT_EQ("value1", *feature_params_dict->FindString("ParamString"));
   EXPECT_EQ("123", *feature_params_dict->FindString("ParamLong"));
-<<<<<<< HEAD
-=======
   EXPECT_EQ("1.23", *feature_params_dict->FindString("ParamDouble"));
->>>>>>> cec25ce38c4 (Switch std usages to base utilities. (#7763))
   EXPECT_EQ("true", *feature_params_dict->FindString("ParamBoolTrue"));
   EXPECT_EQ("false", *feature_params_dict->FindString("ParamBoolFalse"));
 

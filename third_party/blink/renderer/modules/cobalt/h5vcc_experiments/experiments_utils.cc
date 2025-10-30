@@ -14,12 +14,6 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
-<<<<<<< HEAD
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.h"
-
-namespace blink {
-
-=======
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
@@ -31,7 +25,6 @@ bool IsTrueDouble(double num) {
   return num != static_cast<double>(floored_double);
 }
 
->>>>>>> cec25ce38c4 (Switch std usages to base utilities. (#7763))
 std::optional<base::Value::Dict> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
   base::Value::Dict experiment_config_dict;
@@ -49,23 +42,6 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
   // All FieldTrialParams are stored as strings, including booleans.
   base::Value::Dict feature_params;
   std::string param_value;
-<<<<<<< HEAD
-  if (experiment_configuration->hasFeatureParams()) {
-    for (auto& param_name_and_value :
-         experiment_configuration->featureParams()) {
-      if (param_name_and_value.second->IsString()) {
-        param_value = param_name_and_value.second->GetAsString().Utf8();
-      } else if (param_name_and_value.second->IsLong()) {
-        param_value = std::to_string(param_name_and_value.second->GetAsLong());
-      } else if (param_name_and_value.second->GetAsBoolean()) {
-        param_value = "true";
-      } else if (!param_name_and_value.second->GetAsBoolean()) {
-        param_value = "false";
-      } else {
-        return std::nullopt;
-      }
-      feature_params.Set(param_name_and_value.first.Utf8(), param_value);
-=======
   for (auto& param_name_and_value : experiment_configuration->featureParams()) {
     if (param_name_and_value.second->IsString()) {
       param_value = param_name_and_value.second->GetAsString().Utf8();
@@ -85,7 +61,6 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
       param_value = "false";
     } else {
       return std::nullopt;
->>>>>>> cec25ce38c4 (Switch std usages to base utilities. (#7763))
     }
   }
   experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
@@ -102,8 +77,6 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
   return experiment_config_dict;
 }
 
-<<<<<<< HEAD
-=======
 std::optional<base::Value::Dict> ParseSettingsToDictionary(
     const HeapVector<
         std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
@@ -138,5 +111,4 @@ std::optional<base::Value::Dict> ParseSettingsToDictionary(
   return settings_dict;
 }
 
->>>>>>> cec25ce38c4 (Switch std usages to base utilities. (#7763))
 }  // namespace blink

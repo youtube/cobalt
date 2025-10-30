@@ -22,12 +22,9 @@
 
 namespace blink {
 
-<<<<<<< HEAD
-=======
 // Returns true if the double has a fractional part.
 bool IsTrueDouble(double num);
 
->>>>>>> cec25ce38c4 (Switch std usages to base utilities. (#7763))
 // Tries to parse an ExperimentConfiguration and convert it to
 // base::value::Dict.
 // Returns an empty optional when featureParams field in the |config| contains
