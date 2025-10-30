@@ -17,7 +17,6 @@
     SecureContext
 ]
 interface H5vccSettings {
-  // TODO: b/455661813 - Remove this method once Pinch is available.
-  // This is a makeshift solution until Pinch is available.
-  boolean set(DOMString name, (DOMString or long) value);
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> set(DOMString name, (DOMString or long) value);
 };

@@ -70,7 +70,7 @@ class GlobalFeatures {
 
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
-  using SettingValue = std::variant<std::string, int64_t>;
+  using SettingValue = std::variant<std::string, int64_t, double, bool>;
 
   std::optional<SettingValue> GetSetting(const std::string& key) const;
   void SetSettings(const std::string& key, const SettingValue& value);
