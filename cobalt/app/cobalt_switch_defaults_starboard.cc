@@ -69,6 +69,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
     // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
     switches::kDisableAcceleratedVideoDecode,
     switches::kDisableAcceleratedVideoEncode,
+    // Don't enumerate or use real capture devices (audio, video).
+    switches::kUseFakeDeviceForMediaStream,
 });
 
 // Map of switches with parameters and their defaults.
