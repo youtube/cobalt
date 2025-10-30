@@ -54,7 +54,7 @@ hidden long __syscall_ret(unsigned long),
 // Unimplemented syscall functions can be detected from their undefined
 // symbol references for names starting with the prefix "libc_wrapper_".
 //
-// A similar mapping is implemented for syscall() calls for both musl internal 
+// A similar mapping is implemented for syscall() calls for both musl internal
 // and external use in starboard/internal/bits/syscall_impl.h.
 //
 // The  libc_wrapper_() functions available in Starboard are declared in
@@ -68,9 +68,11 @@ hidden long __syscall_ret(unsigned long),
 // Convert libc return value and errno to kernel return value.
 hidden long __libc_to_syscall_ret(unsigned long r);
 
-#define __syscall(name, ...) __libc_to_syscall_ret(libc_wrapper_##name(__VA_ARGS__))
-#define __syscall_cp(name, ...) __libc_to_syscall_ret(libc_wrapper_##name(__VA_ARGS__))
-#define syscall_cp(name, ...) libc_wrapper_##name(__VA_ARGS__)
+#define __SYSCALL_CONCAT_X(a, b) a##b
+#define __SYSCALL_CONCAT(a, b) __SYSCALL_CONCAT_X(a, b)
+#define syscall_cp(name, ...) __SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__)
+#define __syscall(name, ...) __libc_to_syscall_ret(__SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__))
+#define __syscall_cp(name, ...) __libc_to_syscall_ret(__SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__))
 #else  // defined(STARBOARD)
 
 #define __syscall1(n,a) __syscall1(n,__scc(a))

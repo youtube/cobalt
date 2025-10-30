@@ -24,45 +24,50 @@
 
 #include "starboard/thread.h"
 
-// Map syscall to `libc_wrapper_SYS_foo`.
+// Map |syscall()| to |libc_wrapper_SYS_foo()|.
 //
-// On Starboard, we have separate implementations for each function callable
+// On Starboard, we have individual implementations for each function callable
 // with syscall. As a result, we can expand the syscall argument in a macro and
 // avoid having to do runtime disambiguation.
 //
-// Unimplemented syscall functions can be detected from their undefined
+// Unimplemented syscall functions can be detected from the resulting undefined
 // symbol references for names starting with the prefix "libc_wrapper_".
-//
-// Note: The  libc_wrapper_() functions available in Starboard are declared in
-// starboard/include/syscall_arch.h
 
-#define SYSCALL_PASTE_HELPER(a, b) a##b
-#define SYSCALL_PASTE(a, b) SYSCALL_PASTE_HELPER(a, b)
-#define syscall(name, ...) SYSCALL_PASTE(libc_wrapper_, name)(__VA_ARGS__)
-//#define syscall(name, ...) libc_wrapper_##name(__VA_ARGS__)
+// Use a macro to expand syscall(SYS_foo) calls to libc_wrapper_SYS_foo() calls.
+#define __SYSCALL_CONCAT_X(a, b) a##b
+#define __SYSCALL_CONCAT(a, b) __SYSCALL_CONCAT_X(a, b)
+#define syscall(name, ...) __SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__)
 
 // Map `libc_wrapper_SYS_ioctl(int fd, op,...)` to `ioctl_op(int fd,...)` calls
 // to allow separate implementation per ioctl operation.
 #define __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b) a##b
 #define __LIBC_WRAPPER_SYS_IOCTL_CONCAT(a,b) __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b)
-#define __LIBC_WRAPPER_SYS_IOCTL_DISP(b, op,...) __LIBC_WRAPPER_SYS_IOCTL_CONCAT(b,op)(__VA_ARGS__)
-#define libc_wrapper_SYS_ioctl(fd, op,...) __LIBC_WRAPPER_SYS_IOCTL_DISP(ioctl_, op, fd, __VA_ARGS__)
+#define __LIBC_WRAPPER_SYS_IOCTL_DISP(b, op, fd_param, ...) __LIBC_WRAPPER_SYS_IOCTL_CONCAT(b,op)(fd_param, ##__VA_ARGS__)
+#define libc_wrapper_SYS_ioctl(fd, op, ...) __LIBC_WRAPPER_SYS_IOCTL_DISP(ioctl_, op, fd, ##__VA_ARGS__)
 
-// Signal that we support these sycalls. This is only necessary for syscalls
-// where musl code uses non-existence of these defines to use fallbacks instead.
-#define SYS_lstat
-#define SYS_open
-#define SYS_unlink
-#define SYS_rmdir
-#define SYS_stat
+// Signal that we support these sycalls. This for code that checks for existence
+// of a definition to determine whether to use fallbacks.
+#define SYS_close SYS_close
+#define SYS_fcntl SYS_fcntl
+#define SYS_gettid SYS_gettid
+#define SYS_lseek SYS_lseek
+#define SYS_lstat SYS_lstat
+#define SYS_open SYS_open
+#define SYS_read SYS_read
+#define SYS_readv SYS_readv
+#define SYS_rmdir SYS_rmdir
+#define SYS_stat SYS_stat
+#define SYS_unlink SYS_unlink
+#define SYS_write SYS_write
+#define SYS_writev SYS_writev
 
-// syscall() calls are split by syscall 'number' parameter.
-// For Starboard builds, the syscall names are not mapped to numbers, allowing
-// these wrappers to use the syscall name in the function name.
+// For Starboard builds, the syscall SYS_foo names are not mapped to numbers,
+// allowing these wrappers to use the SYS_foo syscall name.
 // See src/internal/syscall.h for more details.
 
 // Simple wrappers can be directly replaced with the function name.
 #define libc_wrapper_SYS_close(fildes) close(fildes)
+#define libc_wrapper_SYS_fcntl(fd, op, ...) fcntl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_gettid() SbThreadGetId()
 #define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
 #define libc_wrapper_SYS_lstat(pathname, statbuf) lstat(pathname, statbuf)
@@ -78,14 +83,5 @@
 // Define wrappers for unsupported syscalls that it called by code that can
 // handle unsupported syscall functions.
 #define libc_wrapper_SYS_memfd_create(name, flags) (errno = ENOSYS, -1)
-
-
-static inline int libc_wrapper_SYS_fcntl(int fd, int op, ... /* arg */ ) {
-  va_list ap;
-  va_start(ap, op);
-  void* arg = va_arg(ap, void*);
-  va_end(ap);
-  return fcntl(fd, op, arg);
-}
 
 #endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_SYSCALL_ARCH_H_

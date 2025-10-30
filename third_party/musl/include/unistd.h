@@ -35,6 +35,11 @@ extern "C" {
 
 #include <bits/alltypes.h>
 
+#if defined(STARBOARD)
+// Include Starboard's definition for syscall().
+#include "syscall_arch.h"
+#endif  // defined(STARBOARD)
+
 int pipe(int [2]);
 int pipe2(int [2], int);
 int close(int);
@@ -176,7 +181,9 @@ void setusershell(void);
 void endusershell(void);
 char *getusershell(void);
 int acct(const char *);
+#if !defined(STARBOARD)
 long syscall(long, ...);
+#endif  // !defined(STARBOARD)
 int execvpe(const char *, char *const [], char *const []);
 int issetugid(void);
 int getentropy(void *, size_t);

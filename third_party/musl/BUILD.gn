@@ -25,16 +25,21 @@ if (target_cpu == "x64") {
 config("system_includes") {
   libmusl_prefix = "//third_party/musl"
   musl_flags = [
-    "-nobuiltininc",
+    # Disable the use of standard include directories to ensure system include
+    # paths such as /usr/include and /usr/local/include are not used.
+    # Note: inspect the paths used with:
+    # $ path_to/clang -v -x c++ - -fsyntax-only -nostdlibinc < /dev/null
+    "-nostdlibinc",
+    # Give preference to musl include files for Starboard.
     "-isystem" + rebase_path("$libmusl_prefix/src/starboard/include",
                               root_build_dir),
+    # libc includes are provided by musl.
     "-isystem" + rebase_path("$libmusl_prefix/include", root_build_dir),
     "-isystem" +
         rebase_path("$libmusl_prefix/arch/$musl_arch", root_build_dir),
     "-isystem" +
         rebase_path("$libmusl_prefix/arch/generic", root_build_dir),
     "-femulated-tls",
-    "-DTEST_MUSL_ISYSTEM",
   ]
   # These have to be in cflags_c and cflags_cc, to ensure that they are
   # in the search path after libc++.

@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
+
 #include <string>
 
 #include "starboard/file.h"
