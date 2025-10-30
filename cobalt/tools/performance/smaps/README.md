@@ -1,6 +1,6 @@
-# SMAPS Capture Tool
+# SMAPS Capture and Analysis Toolchain
 
-This directory contains a Python script (`smaps_capture.py`) designed to periodically capture memory usage data (specifically, `/proc/<pid>/smaps` content) for a specified Android process. This tool is useful for long-term memory profiling and identifying potential memory leaks in applications running on an Android device.
+This directory contains a suite of Python scripts for capturing, processing, and analyzing memory usage data (specifically, `/proc/<pid>/smaps` content) for a specified Android process. These tools are useful for long-term memory profiling to identify potential memory leaks by tracking memory growth over time and identifying the largest consumers.
 
 ## Features
 
