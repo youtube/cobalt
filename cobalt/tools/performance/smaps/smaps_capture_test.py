@@ -31,6 +31,8 @@ class SmapsCaptureTest(unittest.TestCase):
     self.mock_os = MagicMock()
     self.mock_datetime = MagicMock()
     self.mock_open = MagicMock()
+    self.mock_file_handle = MagicMock()
+    self.mock_open.return_value.__enter__.return_value = self.mock_file_handle
 
     # Configure the mock for datetime.datetime.now()
     self.mock_now = MagicMock()
@@ -142,7 +144,7 @@ class SmapsCaptureTest(unittest.TestCase):
 
     self.mock_open.assert_called_with(
         'test_logs/smaps_20250101_120000_12345.txt', 'w', encoding='utf-8')
-    self.mock_open().write.assert_called_with('smaps content')
+    self.mock_file_handle.write.assert_called_with('smaps content')
     self.mock_os.path.getsize.assert_called()
     self.mock_os.remove.assert_not_called()
 
