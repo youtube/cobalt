@@ -14,12 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
 import unittest
 from unittest.mock import MagicMock, call
 

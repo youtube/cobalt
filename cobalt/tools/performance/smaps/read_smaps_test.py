@@ -21,11 +21,6 @@ import tempfile
 import shutil
 from unittest.mock import patch
 
-# Add the script's directory to the Python path to allow importing
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
 import read_smaps_batch
 
 # Sample smaps data for testing
