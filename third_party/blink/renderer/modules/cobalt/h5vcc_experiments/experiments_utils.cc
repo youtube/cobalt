@@ -116,38 +116,4 @@ std::optional<base::Value::Dict> ParseSettingsToDictionary(
   return settings_dict;
 }
 
-std::optional<base::Value::Dict> ParseSettingsToDictionary(
-    const HeapVector<
-        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
-        settings) {
-  base::Value::Dict settings_dict;
-
-  for (auto& setting_name_and_value : settings) {
-    std::string setting_name = setting_name_and_value.first.Utf8();
-    if (setting_name_and_value.second->IsString()) {
-      std::string param_value =
-          setting_name_and_value.second->GetAsString().Utf8();
-      settings_dict.Set(setting_name, param_value);
-    } else if (setting_name_and_value.second->IsLong()) {
-      int param_value = setting_name_and_value.second->GetAsLong();
-      settings_dict.Set(setting_name, param_value);
-    } else if (setting_name_and_value.second->IsDouble()) {
-      double received_double = setting_name_and_value.second->GetAsDouble();
-      // Record the number as a whole number without decimal place if the
-      // underlying value is an int.
-      if (IsTrueDouble(received_double)) {
-        settings_dict.Set(setting_name, received_double);
-      } else {
-        settings_dict.Set(setting_name, base::ClampFloor<int>(received_double));
-      }
-    } else if (setting_name_and_value.second->IsBoolean()) {
-      bool param_value = setting_name_and_value.second->GetAsBoolean();
-      settings_dict.Set(setting_name, param_value);
-    } else {
-      return std::nullopt;
-    }
-  }
-  return settings_dict;
-}
-
 }  // namespace blink
