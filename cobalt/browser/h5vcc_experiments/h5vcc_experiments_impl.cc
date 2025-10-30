@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.h"
 
+#include <string>
+#include <utility>
+
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"

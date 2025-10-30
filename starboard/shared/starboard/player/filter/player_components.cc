@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "starboard/common/check_op.h"

@@ -14,6 +14,8 @@
 
 #include <pthread.h>
 
+#include <vector>
+
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

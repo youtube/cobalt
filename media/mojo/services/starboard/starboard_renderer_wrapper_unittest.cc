@@ -15,6 +15,8 @@
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"

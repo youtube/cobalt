@@ -13,7 +13,10 @@
 // limitations under the License.
 
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
+
 #include <iostream>
+#include <string>
+
 #include "base/no_destructor.h"
 
 namespace cobalt {

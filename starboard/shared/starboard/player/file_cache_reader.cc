@@ -16,7 +16,10 @@
 
 #include <string.h>
 #include <sys/stat.h>
+
 #include <algorithm>
+#include <string>
+#include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"

@@ -17,6 +17,7 @@
 #include <inttypes.h>
 
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"

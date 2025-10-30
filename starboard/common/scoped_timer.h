@@ -15,6 +15,7 @@
 #ifndef STARBOARD_COMMON_SCOPED_TIMER_H_
 #define STARBOARD_COMMON_SCOPED_TIMER_H_
 
+#include <string>
 #include <string_view>
 
 #include "starboard/common/source_location.h"

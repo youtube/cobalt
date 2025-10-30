@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 
 #include <string>
+#include <vector>
 
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"

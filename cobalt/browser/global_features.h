@@ -15,6 +15,9 @@
 #ifndef COBALT_BROWSER_GLOBAL_FEATURES_H_
 #define COBALT_BROWSER_GLOBAL_FEATURES_H_
 
+#include <memory>
+#include <string>
+
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"

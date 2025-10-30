@@ -14,6 +14,10 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
@@ -157,6 +161,7 @@ void CobaltMainDelegate::InitializeHangWatcher() {
   }
   const bool emit_crashes = false;
 
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type, emit_crashes);
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type,
+                                            emit_crashes);
 }
 }  // namespace cobalt

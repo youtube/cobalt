@@ -7,6 +7,9 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/logging.h"

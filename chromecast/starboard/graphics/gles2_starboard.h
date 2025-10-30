@@ -7,6 +7,8 @@
 
 #include <GLES2/gl2.h>
 
+#include <string>
+
 extern "C" {
 
 // gl2.h

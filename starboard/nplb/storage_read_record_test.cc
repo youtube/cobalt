@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/nplb/storage_helpers.h"
 #include "starboard/storage.h"

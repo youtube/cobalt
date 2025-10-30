@@ -14,7 +14,9 @@
 
 #include "cobalt/testing/browser_tests/resource_load_observer.h"
 
+#include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/path_service.h"

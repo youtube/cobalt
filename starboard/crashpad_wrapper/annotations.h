@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
+#ifndef STARBOARD_CRASHPAD_WRAPPER_ANNOTATIONS_H_
 #define THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
 
 #define CRASHPAD_ANNOTATION_DEFAULT_LENGTH 64
@@ -34,4 +34,4 @@ typedef struct CrashpadAnnotations {
 }  // extern "C"
 #endif
 
-#endif  // THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
+#endif  // STARBOARD_CRASHPAD_WRAPPER_ANNOTATIONS_H_

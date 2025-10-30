@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
+#include "starboard/android/shared/audio_renderer_tunnel.h"
 
 #include <algorithm>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>

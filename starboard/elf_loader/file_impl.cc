@@ -17,6 +17,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <string>
+
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"

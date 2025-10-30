@@ -5,6 +5,9 @@
 // System volume control logic is handled by cast core, not the runtime, so
 // these functions are stubbed out.
 
+#include <string>
+#include <vector>
+
 #include "chromecast/public/volume_control.h"
 
 namespace chromecast {

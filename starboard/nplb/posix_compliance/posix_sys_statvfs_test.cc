@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/statvfs.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
+
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"

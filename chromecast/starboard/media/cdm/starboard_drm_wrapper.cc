@@ -4,6 +4,10 @@
 
 #include "chromecast/starboard/media/cdm/starboard_drm_wrapper.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "base/at_exit.h"
 #include "base/check.h"
 #include "base/functional/bind.h"

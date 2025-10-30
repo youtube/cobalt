@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/media/mime_util.h"
 
+#include <string>
+
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"

@@ -8,6 +8,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "base/check.h"
 #include "base/compiler_specific.h"

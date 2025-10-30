@@ -6,6 +6,8 @@
 
 #include <starboard/gles.h>
 
+#include <string>
+
 extern "C" {
 
 // gl2.h

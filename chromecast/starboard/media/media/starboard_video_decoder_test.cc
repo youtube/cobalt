@@ -4,7 +4,12 @@
 
 #include "chromecast/starboard/media/media/starboard_video_decoder.h"
 
+#include <memory>
 #include <optional>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "base/test/task_environment.h"
 #include "chromecast/media/base/cast_decoder_buffer_impl.h"

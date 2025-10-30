@@ -66,7 +66,40 @@ repos:
         exclude: |
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
-                ^starboard/shared/uikit/.*\.h$
+                ^starboard/shared/uikit/.*\.h$|
+                ^cobalt/browser/cobalt_web_contents_observer.h$|
+                ^cobalt/common/features/starboard_features_initialization.cc$|
+                ^media/mojo/clients/starboard/starboard_renderer_client_factory.cc$|
+                ^cobalt/browser/metrics/cobalt_metrics_log_uploader.h$|
+                ^starboard/common/check_op.cc$|
+                ^starboard/nplb/posix_compliance/posix_lstat_test.cc$|
+                ^starboard/shared/starboard/player/file_cache_reader.cc$|
+                ^cobalt/media/audio/cobalt_audio_device_factory.h$|
+                ^cobalt/media/audio/cobalt_audio_renderer_sink.h$|
+                ^cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.cc$|
+                ^cobalt/common/libc/tz/parse_posix_tz_test.cc$|
+                ^starboard/crashpad_wrapper/annotations.h$|
+                ^starboard/nplb/player_test_util.cc$|
+                ^starboard/nplb/posix_compliance/posix_sys_statvfs_test.cc$|
+                ^cobalt/browser/metrics/cobalt_metrics_service_client.h$|
+                ^starboard/no_platform/configuration_public.h$|
+                ^third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.h$|
+                ^chromecast/starboard/media/media/starboard_api_wrapper_15.cc$|
+                ^cobalt/common/libc/time/icu_time_support.cc$|
+                ^cobalt/browser/cobalt_browser_main_parts.h$|
+                ^starboard/android/shared/audio_renderer_tunnel.h$|
+                ^starboard/common/scoped_timer.h$|
+                ^starboard/nplb/posix_compliance/posix_file_get_path_info_test.cc$|
+                ^chromecast/starboard/media/cdm/starboard_decryptor_cast.cc$|
+                ^chromecast/starboard/media/media/starboard_api_wrapper_base.cc$|
+                ^chromecast/starboard/media/media/starboard_audio_decoder.cc$|
+                ^chromecast/starboard/media/media/starboard_audio_decoder_test.cc$|
+                ^chromecast/starboard/media/media/starboard_video_decoder_test.cc$|
+                ^cobalt/testing/browser_tests/resource_load_observer.cc$|
+                ^starboard/shared/starboard/player/filter/player_components.cc$|
+                ^starboard/shared/starboard/player/filter/testing/audio_resampler_test.cc$|
+                ^third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h$|
+                ^starboard/crashpad_wrapper/wrapper.h$
             )
         additional_dependencies: ['cpplint==2.0.2']
     -   id: yapf

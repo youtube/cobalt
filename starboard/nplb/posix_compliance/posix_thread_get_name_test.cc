@@ -15,6 +15,8 @@
 #include <pthread.h>
 #include <sys/prctl.h>
 
+#include <string>
+
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

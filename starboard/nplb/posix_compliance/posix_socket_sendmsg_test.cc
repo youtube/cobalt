@@ -17,6 +17,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <cstdio>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

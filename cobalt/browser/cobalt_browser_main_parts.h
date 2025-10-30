@@ -73,4 +73,4 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_MAIN_PARTS_H_
+#endif  // COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_

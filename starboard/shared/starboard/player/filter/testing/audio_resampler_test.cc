@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/player/filter/audio_resampler.h"
+
+#include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
 
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

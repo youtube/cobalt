@@ -14,6 +14,7 @@
 
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 
+#include <memory>
 #include <utility>
 
 #include "base/functional/callback_helpers.h"

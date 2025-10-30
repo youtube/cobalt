@@ -14,6 +14,9 @@
 
 #include "starboard/shared/libde265/de265_video_decoder.h"
 
+#include <queue>
+#include <string>
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"

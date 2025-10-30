@@ -16,6 +16,9 @@
 
 #include <algorithm>
 #include <functional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "starboard/common/check_op.h"
 

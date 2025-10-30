@@ -15,6 +15,7 @@
 #ifndef MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 
+#include <memory>
 #include <optional>
 
 #include "base/memory/raw_ptr.h"

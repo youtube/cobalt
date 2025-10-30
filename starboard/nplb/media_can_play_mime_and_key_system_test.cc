@@ -15,6 +15,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"

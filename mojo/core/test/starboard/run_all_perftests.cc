@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <utility>
+
 #include "base/base_switches.h"
 #include "base/check.h"
 #include "base/command_line.h"

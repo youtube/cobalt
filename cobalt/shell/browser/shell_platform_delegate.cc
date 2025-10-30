@@ -14,6 +14,8 @@
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
+#include <memory>
+
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/javascript_dialog_manager.h"

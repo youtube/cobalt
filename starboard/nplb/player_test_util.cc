@@ -17,6 +17,8 @@
 #include <atomic>
 #include <cstring>
 #include <functional>
+#include <string>
+#include <vector>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"

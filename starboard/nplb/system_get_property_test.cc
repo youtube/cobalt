@@ -14,6 +14,8 @@
 
 #include <string.h>
 
+#include <string>
+
 #include "starboard/common/device_type.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"

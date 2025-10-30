@@ -8,6 +8,8 @@
 #include <starboard/media.h>
 #include <starboard/player.h>
 
+#include <memory>
+
 #include "base/check.h"
 #include "base/containers/span.h"
 #include "base/logging.h"

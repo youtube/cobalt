@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "base/command_line.h"
@@ -102,7 +103,7 @@ class TestUtilityServiceImpl : public mojom::TestService {
         base::ReadOnlySharedMemoryRegion::Create(message.size());
     CHECK(map_and_region.IsValid());
     std::ranges::copy(message,
-                       map_and_region.mapping.GetMemoryAsSpan<char>().begin());
+                      map_and_region.mapping.GetMemoryAsSpan<char>().begin());
     std::move(callback).Run(std::move(map_and_region.region));
   }
 

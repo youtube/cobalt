@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_METRICS_LOG_UPLOADER_H_
+#ifndef COBALT_BROWSER_METRICS_COBALT_METRICS_LOG_UPLOADER_H_
 #define COBALT_METRICS_LOG_UPLOADER_H_
 
 #include <string>
@@ -70,4 +70,4 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
 
 }  // namespace cobalt
 
-#endif  // COBALT_METRICS_LOG_UPLOADER_H_
+#endif  // COBALT_BROWSER_METRICS_COBALT_METRICS_LOG_UPLOADER_H_

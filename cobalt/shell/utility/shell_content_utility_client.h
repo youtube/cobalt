@@ -16,6 +16,8 @@
 #ifndef COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
 #define COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
 
+#include <memory>
+
 #include "content/public/test/audio_service_test_helper.h"
 #include "content/public/test/network_service_test_helper.h"
 #include "content/public/utility/content_utility_client.h"

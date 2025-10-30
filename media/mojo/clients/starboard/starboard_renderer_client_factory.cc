@@ -14,6 +14,9 @@
 
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 
+#include <memory>
+#include <utility>
+
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"

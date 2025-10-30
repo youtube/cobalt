@@ -14,6 +14,9 @@
 
 #include "starboard/shared/openh264/openh264_video_decoder.h"
 
+#include <queue>
+#include <string>
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"

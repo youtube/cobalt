@@ -17,6 +17,7 @@
 #include <dirent.h>
 
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "starboard/common/file.h"

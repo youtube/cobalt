@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sstream>
+#include <string>
 
 // Copied from base/check_op.cc.
 

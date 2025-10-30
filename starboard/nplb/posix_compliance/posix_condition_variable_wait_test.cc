@@ -14,6 +14,8 @@
 
 #include <unistd.h>
 
+#include <vector>
+
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"

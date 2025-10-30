@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/application.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
 
 #include "starboard/common/check_op.h"

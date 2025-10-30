@@ -14,9 +14,10 @@
 
 #include "starboard/nplb/posix_compliance/posix_time_helper.h"
 
+#include <gtest/gtest.h>
 #include <time.h>
 
-#include <gtest/gtest.h>
+#include <string>
 
 namespace nplb {
 

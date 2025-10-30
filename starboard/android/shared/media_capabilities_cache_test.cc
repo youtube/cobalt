@@ -14,9 +14,11 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/media.h"

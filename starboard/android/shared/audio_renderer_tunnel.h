@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
+#ifndef STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_TUNNEL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
 #include <atomic>
@@ -208,4 +208,4 @@ class AudioRendererPcm : public AudioRenderer,
 
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
+#endif  // STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_TUNNEL_H_

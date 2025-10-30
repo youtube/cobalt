@@ -15,6 +15,8 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_SURFACE_FACTORY_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_SURFACE_FACTORY_STARBOARD_H_
 
+#include <vector>
+
 #include "ui/ozone/platform/starboard/gl_ozone_egl_starboard.h"
 #include "ui/ozone/public/surface_factory_ozone.h"
 

@@ -15,6 +15,8 @@
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 
 #include <algorithm>
+#include <memory>
+#include <queue>
 #include <utility>
 
 #include "starboard/android/shared/audio_decoder.h"

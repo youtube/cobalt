@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <utility>
 #include <vector>
 
 #include "starboard/thread.h"

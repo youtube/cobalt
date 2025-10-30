@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
+#ifndef STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_
 #define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 
 #include <string>
@@ -50,4 +50,4 @@ bool InsertCrashpadAnnotation(const char* key, const char* value);
 
 }  // namespace crashpad
 
-#endif  // THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
+#endif  // STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_

@@ -15,6 +15,7 @@
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"

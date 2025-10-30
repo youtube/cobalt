@@ -14,6 +14,9 @@
 
 #include <string.h>
 
+#include <cstdio>
+#include <string>
+
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
