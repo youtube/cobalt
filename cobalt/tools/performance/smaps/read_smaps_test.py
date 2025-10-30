@@ -115,11 +115,10 @@ class ReadSmapsTest(unittest.TestCase):
         """Tests processing a single smaps file."""
         output_file = os.path.join(self.output_dir, 'smaps1_processed.txt')
         test_args = [
-            'read_smaps_batch.py', self.smaps_file_1, '-o', self.output_dir
+            self.smaps_file_1, '-o', self.output_dir
         ]
 
-        with patch.object(sys, 'argv', test_args):
-            read_smaps_batch.main()
+        read_smaps_batch.run_smaps_batch_tool(test_args)
 
         self.assertTrue(os.path.exists(output_file))
         with open(output_file, 'r') as f:
@@ -132,12 +131,11 @@ class ReadSmapsTest(unittest.TestCase):
         output_file_1 = os.path.join(self.output_dir, 'smaps1_processed.txt')
         output_file_2 = os.path.join(self.output_dir, 'smaps2_processed.txt')
         test_args = [
-            'read_smaps_batch.py', self.smaps_file_1, self.smaps_file_2, '-o',
+            self.smaps_file_1, self.smaps_file_2, '-o',
             self.output_dir
         ]
 
-        with patch.object(sys, 'argv', test_args):
-            read_smaps_batch.main()
+        read_smaps_batch.run_smaps_batch_tool(test_args)
 
         self.assertTrue(os.path.exists(output_file_1))
         self.assertTrue(os.path.exists(output_file_2))
@@ -151,11 +149,10 @@ class ReadSmapsTest(unittest.TestCase):
         """Tests that aggregation arguments are applied."""
         output_file = os.path.join(self.output_dir, 'smaps1_processed.txt')
         test_args = [
-            'read_smaps_batch.py', self.smaps_file_1, '-o', self.output_dir, '-a'
+            self.smaps_file_1, '-o', self.output_dir, '-a'
         ]
 
-        with patch.object(sys, 'argv', test_args):
-            read_smaps_batch.main()
+        read_smaps_batch.run_smaps_batch_tool(test_args)
 
         self.assertTrue(os.path.exists(output_file))
         with open(output_file, 'r') as f:

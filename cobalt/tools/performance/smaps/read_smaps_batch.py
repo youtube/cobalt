@@ -28,8 +28,8 @@ if current_dir not in sys.path:
 from read_smaps import read_smap, get_analysis_parser
 
 
-def main():
-  """Main entry point for batch processing."""
+def run_smaps_batch_tool(argv=None):
+  """Parses arguments and runs the batch processing of smaps files."""
   parser = argparse.ArgumentParser(
       description='A tool to batch process smaps files.',
       parents=[get_analysis_parser()])
@@ -42,7 +42,7 @@ def main():
       default='processed_smaps',
       help='The directory to save processed smaps files.')
 
-  args = parser.parse_args()
+  args = parser.parse_args(argv)
 
   os.makedirs(args.output_dir, exist_ok=True)
 
@@ -65,6 +65,10 @@ def main():
 
     sys.stdout = original_stdout
     print(f"Successfully processed {smaps_file} -> {output_path}")
+
+def main():
+  """Main entry point for batch processing."""
+  run_smaps_batch_tool()
 
 
 if __name__ == '__main__':

@@ -184,7 +184,8 @@ def analyze_logs(log_dir):
         total_rss_change = total_history['rss'][-1] - total_history['rss'][0]
         print(f"  Total RSS Change: {total_rss_change} kB")
 
-def main():
+def run_smaps_analysis_tool(argv=None):
+    """Parses arguments and runs the smaps log analysis."""
     parser = argparse.ArgumentParser(
         description="Analyze processed smaps logs to identify memory consumers and growth.")
     parser.add_argument(
@@ -192,8 +193,12 @@ def main():
         type=str,
         help="Path to the directory containing processed smaps log files.")
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     analyze_logs(args.log_dir)
+
+def main():
+    """Main entry point."""
+    run_smaps_analysis_tool()
 
 if __name__ == '__main__':
     main()

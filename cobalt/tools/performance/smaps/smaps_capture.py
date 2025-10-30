@@ -165,8 +165,8 @@ class SmapsCapturer:
             print(f"\nAn unexpected error occurred: {e}")
 
 
-def main():
-    """Main entry point."""
+def run_smaps_capture_tool(argv=None):
+    """Parses arguments and runs the SmapsCapturer."""
     parser = argparse.ArgumentParser(
         description="Periodically capture smaps data for a given process.")
     parser.add_argument(
@@ -205,7 +205,7 @@ def main():
         default=ADB_PATH,
         help=f"The path to the adb executable (default: {ADB_PATH})")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     capturer = SmapsCapturer(
         process_name=args.process_name,
@@ -215,6 +215,10 @@ def main():
         capture_duration_seconds=args.capture_duration_seconds,
         output_dir=args.output_dir)
     capturer.run_capture_cycles()
+
+def main():
+    """Main entry point."""
+    run_smaps_capture_tool()
 
 
 if __name__ == "__main__":

@@ -87,7 +87,8 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
     @patch('sys.stdout', new_callable=StringIO)
     def test_analyze_logs_output(self, mock_stdout):
         """Tests the main analysis function and captures its output."""
-        analyze_smaps_logs.analyze_logs(self.test_dir)
+        test_argv = [self.test_dir]
+        analyze_smaps_logs.run_smaps_analysis_tool(test_argv)
         output = mock_stdout.getvalue()
 
         # Check for top consumers in the end log

@@ -17,7 +17,7 @@
 import unittest
 from unittest.mock import MagicMock, call
 
-from smaps_capture import SmapsCapturer, main
+from smaps_capture import SmapsCapturer, run_smaps_capture_tool
 from unittest.mock import patch, MagicMock, call
 
 
@@ -57,19 +57,19 @@ class SmapsCaptureTest(unittest.TestCase):
         return capturer
 
     @patch('smaps_capture.SmapsCapturer')
-    @patch('argparse.ArgumentParser')
-    def test_main_argument_parsing(self, mock_argparse, mock_capturer):
+    def test_main_argument_parsing(self, mock_capturer):
         """Tests that command-line arguments are correctly parsed and passed."""
-        mock_args = MagicMock()
-        mock_args.process_name = "custom.process"
-        mock_args.interval_minutes = 5
-        mock_args.capture_duration_seconds = 300
-        mock_args.output_dir = "custom_logs"
-        mock_args.device_serial = "custom-serial"
-        mock_args.adb_path = "/custom/adb"
-        mock_argparse.return_value.parse_args.return_value = mock_args
+        # Simulate command-line arguments
+        test_argv = [
+            '--process_name', 'custom.process',
+            '--interval_minutes', '5',
+            '--capture_duration_seconds', '300',
+            '--output_dir', 'custom_logs',
+            '--device_serial', 'custom-serial',
+            '--adb_path', '/custom/adb'
+        ]
 
-        main()
+        run_smaps_capture_tool(test_argv)
 
         mock_capturer.assert_called_once_with(
             process_name="custom.process",
