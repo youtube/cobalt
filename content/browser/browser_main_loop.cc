@@ -1365,12 +1365,12 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
       nullptr);
 #endif
 
-#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:AudioMan");
     InitializeAudio();
   }
 
+#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:MidiService");
     midi_service_ = std::make_unique<midi::MidiService>();
