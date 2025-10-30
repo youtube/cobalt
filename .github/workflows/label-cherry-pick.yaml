@@ -31,7 +31,11 @@ jobs:
           labels=$LABEL_NAME
         fi
 
+<<<<<<< HEAD
         branches=("main" "26.android")
+=======
+        branches=("26.eap" "26.android")
+>>>>>>> f1cdcbe410a (Add cherry pick workflow for 26.eap from main (#7796))
         filtered_branches=()
         for branch in "${branches[@]}"; do
           if [[ $branch == $BASE_REF ]]; then
