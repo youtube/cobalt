@@ -14,6 +14,10 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+// clang-format off
+#include "build/build_config.h"
+// clang-format off
+
 #include <dirent.h>
 
 // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
@@ -36,7 +40,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "build/build_config.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
