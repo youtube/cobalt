@@ -24,8 +24,9 @@ import time
 # --- CONFIGURATION ---
 PROCESS_NAME = 'com.google.android.youtube.tv'
 # Use your actual device serial here if you have multiple devices/emulators
-# connected. Example: R58M1293QYV. Set to None if only one device is connected.
-DEVICE_SERIAL = 'localhost:45299'
+# connected. Example: R58M1293QYV. Set to None if only one device is
+# connected.
+DEVICE_SERIAL = None
 ADB_PATH = 'adb'
 
 # Timing Configuration

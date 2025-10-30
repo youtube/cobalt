@@ -23,8 +23,9 @@ import unittest
 import read_smaps_batch
 
 # Sample smaps data for testing
-SAMPLE_SMAPS_1 = """7f6d5c000000-7f6d5c021000 r-xp 00000000 08:01 12345
+SAMPLE_SMAPS_1 = """7f6d5c000000-7f6d5c021000 r-xp 00000000 08:01 12345 \
 /lib/x86_64-linux-gnu/ld-2.27.so
+VmPeak:            132 kB
 Size:                132 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
@@ -44,8 +45,9 @@ Swap:                  0 kB
 SwapPss:               0 kB
 Locked:                0 kB
 VmFlags: rd ex mr mw me dw
-7f6d5c021000-7f6d5c022000 rw-p 00021000 08:01 12345
+7f6d5c021000-7f6d5c022000 rw-p 00021000 08:01 12345 \
 /lib/x86_64-linux-gnu/ld-2.27.so
+VmPeak:              4 kB
 Size:                  4 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
@@ -68,6 +70,7 @@ VmFlags: rd wr mr mw me dw
 """
 
 SAMPLE_SMAPS_2 = """7f6d5c022000-7f6d5c023000 rw-p 00000000 00:00 0    [heap]
+VmPeak:              4 kB
 Size:                  4 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
