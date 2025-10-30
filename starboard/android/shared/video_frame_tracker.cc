@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <list>
 #include <mutex>
 #include <vector>
 
