@@ -2,13 +2,17 @@
     "archive_datas": [
         {
             "files": [
-                "libcobalt.so",
                 "cobalt_shell.pak",
+                "libcobalt.so",
                 "loader_app",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
+<<<<<<< HEAD
                 "native_target/crashpad_handler"
+=======
+                "lib.unstripped/libcobalt.so"
+>>>>>>> 87c7500e390 (Package unstripped Evergreen libcobalt.so (#7778))
             ],
             "dirs": [
                 "app",
@@ -26,6 +30,10 @@
                 {
                     "from_file": "gen/licenses_cobalt.txt",
                     "to_file": "licenses_cobalt.txt"
+                },
+                {
+                    "from_file": "lib.unstripped/libcobalt.so",
+                    "to_file": "symbols/libcobalt.so"
                 }
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"

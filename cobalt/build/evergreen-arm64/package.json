@@ -4,16 +4,10 @@
             "files": [
                 "cobalt_shell.pak",
                 "libcobalt.so",
-                "loader_app",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
-                "lib.unstripped/libcobalt.so",
-                "native_target/crashpad_handler"
-            ],
-            "dirs": [
-                "app",
-                "fonts"
+                "lib.unstripped/libcobalt.so"
             ],
             "rename_files": [
                 {
