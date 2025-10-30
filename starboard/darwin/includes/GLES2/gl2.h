@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_INCLUDES_GLES2_GL2_H_
-#define INTERNAL_STARBOARD_DARWIN_INCLUDES_GLES2_GL2_H_
+#ifndef STARBOARD_DARWIN_INCLUDES_GLES2_GL2_H_
+#define STARBOARD_DARWIN_INCLUDES_GLES2_GL2_H_
 
 #include <GLES2/gl2platform.h>
 #include <OpenGLES/ES2/gl.h>
@@ -21,4 +21,4 @@
 extern "C" GL_APICALL void GL_APIENTRY eaglBindFramebuffer(GLenum target,
                                                            GLuint framebuffer);
 
-#endif  // INTERNAL_STARBOARD_DARWIN_INCLUDES_GLES2_GL2_H_
+#endif  // STARBOARD_DARWIN_INCLUDES_GLES2_GL2_H_

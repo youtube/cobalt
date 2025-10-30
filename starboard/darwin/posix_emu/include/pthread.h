@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_POSIX_EMU_INCLUDE_PTHREAD_H_
-#define INTERNAL_STARBOARD_DARWIN_POSIX_EMU_INCLUDE_PTHREAD_H_
+#ifndef STARBOARD_DARWIN_POSIX_EMU_INCLUDE_PTHREAD_H_
+#define STARBOARD_DARWIN_POSIX_EMU_INCLUDE_PTHREAD_H_
 
 #undef pthread_setname_np
 #define pthread_setname_np native_pthread_setname_np
@@ -30,4 +30,4 @@ int pthread_setname_np(pthread_t thread, const char* name);
 }
 #endif  // __cplusplus
 
-#endif  // INTERNAL_STARBOARD_DARWIN_POSIX_EMU_INCLUDE_PTHREAD_H_
+#endif  // STARBOARD_DARWIN_POSIX_EMU_INCLUDE_PTHREAD_H_

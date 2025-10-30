@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_INCLUDES_GLES2_GL2EXT_H_
-#define INTERNAL_STARBOARD_DARWIN_INCLUDES_GLES2_GL2EXT_H_
+#ifndef STARBOARD_DARWIN_INCLUDES_GLES2_GL2EXT_H_
+#define STARBOARD_DARWIN_INCLUDES_GLES2_GL2EXT_H_
 
 #include <GLES2/gl2platform.h>
 #include <OpenGLES/ES2/glext.h>
@@ -26,4 +26,4 @@
 #define GL_SAMPLER_EXTERNAL_OES 0x8D66
 #endif /* GL_OES_EGL_image_external */
 
-#endif  // INTERNAL_STARBOARD_DARWIN_INCLUDES_GLES2_GL2EXT_H_
+#endif  // STARBOARD_DARWIN_INCLUDES_GLES2_GL2EXT_H_

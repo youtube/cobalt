@@ -15,9 +15,9 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_TVOS_SIMULATOR_CONFIGURATION_PUBLIC_H_
-#define INTERNAL_STARBOARD_DARWIN_TVOS_SIMULATOR_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_DARWIN_TVOS_SIMULATOR_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_DARWIN_TVOS_SIMULATOR_CONFIGURATION_PUBLIC_H_
 
 #include "starboard/darwin/tvos/shared/configuration_public.h"
 
-#endif  // INTERNAL_STARBOARD_DARWIN_TVOS_SIMULATOR_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_DARWIN_TVOS_SIMULATOR_CONFIGURATION_PUBLIC_H_
