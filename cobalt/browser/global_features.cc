@@ -105,12 +105,14 @@ void GlobalFeatures::SetSettings(const std::string& key,
   base::AutoLock auto_lock(lock_);
   settings_[key] = value;
 
-  LOG(INFO) << "SetSettings: key=" << key << ", value="
-            << (std::holds_alternative<std::string>(value)
-                    ? "\"" + std::get<std::string>(value) + "\""
-                : std::holds_alternative<int64_t>(value)
-                    ? std::to_string(std::get<int64_t>(value))
-                    : "unknown");
+  LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
+    if (const auto* s = std::get_if<std::string>(&value)) {
+      return "\"" + *s + "\"";
+    } else if (const auto* i = std::get_if<int64_t>(&value)) {
+      return std::to_string(*i);
+    }
+    return std::string("unknown");
+  }();
 }
 
 void GlobalFeatures::CreateExperimentConfig() {

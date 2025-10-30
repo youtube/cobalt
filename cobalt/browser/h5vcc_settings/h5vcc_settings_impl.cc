@@ -37,6 +37,13 @@ H5vccSettingsImpl::H5vccSettingsImpl(
 void H5vccSettingsImpl::SetValue(const std::string& name,
                                  mojom::ValuePtr value,
                                  SetValueCallback callback) {
+  if (!value) {
+    LOG(WARNING) << "H5vccSettings::SetValue received a null value for '"
+                 << name << "'.";
+    std::move(callback).Run();
+    return;
+  }
+
   auto* global_features = cobalt::GlobalFeatures::GetInstance();
   CHECK(global_features);
 
@@ -48,6 +55,12 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
     case mojom::Value::Tag::kIntValue:
       setting_value = value->get_int_value();
       break;
+    default:
+      LOG(WARNING) << "H5vccSettings::SetValue received an unknown value "
+                      "type for '"
+                   << name << "'.";
+      std::move(callback).Run();
+      return;
   }
   global_features->SetSettings(name, setting_value);
   std::move(callback).Run();
