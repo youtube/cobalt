@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <variant>
+
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
@@ -23,12 +25,12 @@
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace cobalt {
 
@@ -40,7 +42,6 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
 
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
-  CreateSettingsConfig();
   CreateMetricsServices();
   // InitializeActiveConfigData() needs ExperimentConfigManager to determine the
   // experiment config type.
@@ -79,11 +80,6 @@ PrefService* GlobalFeatures::experiment_config() {
   return experiment_config_.get();
 }
 
-PrefService* GlobalFeatures::settings_config() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return settings_config_.get();
-}
-
 PrefService* GlobalFeatures::metrics_local_state() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return metrics_local_state_.get();
@@ -92,6 +88,22 @@ PrefService* GlobalFeatures::metrics_local_state() {
 void GlobalFeatures::set_accessor(
     std::unique_ptr<base::FeatureList::Accessor> accessor) {
   accessor_ = std::move(accessor);
+}
+
+std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
+    const std::string& key) const {
+  base::AutoLock auto_lock(lock_);
+  auto it = settings_.find(key);
+  if (it != settings_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+void GlobalFeatures::SetSettings(const std::string& key,
+                                 const SettingValue& value) {
+  base::AutoLock auto_lock(lock_);
+  settings_[key] = value;
 }
 
 void GlobalFeatures::CreateExperimentConfig() {
@@ -109,19 +121,6 @@ void GlobalFeatures::CreateExperimentConfig() {
       base::MakeRefCounted<JsonPrefStore>(path));
 
   experiment_config_ = pref_service_factory.Create(pref_registry);
-}
-
-void GlobalFeatures::CreateSettingsConfig() {
-  CHECK(!settings_config_);
-  auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
-
-  RegisterPrefs(pref_registry.get());
-
-  PrefServiceFactory pref_service_factory;
-  pref_service_factory.set_user_prefs(
-      base::MakeRefCounted<InMemoryPrefStore>());
-
-  settings_config_ = pref_service_factory.Create(pref_registry);
 }
 
 void GlobalFeatures::CreateMetricsServices() {

@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/h5vcc_settings/h5vcc_settings_impl.h"
 
+#include <string>
+#include <variant>
+
 #include "cobalt/browser/global_features.h"
 
 namespace h5vcc_settings {
@@ -36,22 +39,23 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
                                  SetValueCallback callback) {
   auto* global_features = cobalt::GlobalFeatures::GetInstance();
   CHECK(global_features);
-  auto* settings_config_ptr = global_features->settings_config();
-  CHECK(settings_config_ptr);
+
+  cobalt::GlobalFeatures::SettingValue setting_value;
   switch (value->which()) {
     case mojom::Value::Tag::kStringValue:
-      settings_config_ptr->SetString(name, value->get_string_value());
+      setting_value = value->get_string_value();
       break;
     case mojom::Value::Tag::kIntValue:
-      settings_config_ptr->SetInteger(name, value->get_int_value());
+      setting_value = value->get_int_value();
       break;
     case mojom::Value::Tag::kDoubleValue:
-      settings_config_ptr->SetDouble(name, value->get_double_value());
+      setting_value = value->get_double_value();
       break;
     case mojom::Value::Tag::kBoolValue:
-      settings_config_ptr->SetBoolean(name, value->get_bool_value());
+      setting_value = value->get_bool_value();
       break;
   }
+  global_features->SetSettings(name, setting_value);
   std::move(callback).Run();
 }
 

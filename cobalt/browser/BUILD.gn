@@ -152,6 +152,7 @@ source_set("global_features") {
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 
