@@ -31,7 +31,7 @@ jobs:
           labels=$LABEL_NAME
         fi
 
-        branches=("26.android")
+        branches=("26.eap" "26.android")
         filtered_branches=()
         for branch in "${branches[@]}"; do
           if [[ $branch == $BASE_REF ]]; then
