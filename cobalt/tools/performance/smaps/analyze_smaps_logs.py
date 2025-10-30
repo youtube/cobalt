@@ -78,13 +78,13 @@ def parse_smaps_file(filepath):
     return memory_data, total_data
 
 def extract_timestamp(filename):
-    """Extracts the timestamp (HHMMSS) from the filename for sorting."""
-    match = re.search(r'_(\d{6})_\d{4}_processed\.txt$', filename)
+    """Extracts the timestamp (YYYYMMDD_HHMMSS) from the filename for sorting."""
+    match = re.search(r'_(\d{8})_(\d{6})_\d{4}_processed\.txt$', filename)
     if match:
-        return match.group(1)
+        return f"{match.group(1)}_{match.group(2)}"
     # TODO: Consider logging a warning or raising an exception if the
     #       timestamp cannot be extracted.
-    return "000000" # Default for files without a clear timestamp
+    return "00000000_000000" # Default for files without a clear timestamp
 
 def get_top_consumers(memory_data, metric='pss', top_n=5):
     """Returns the top N memory consumers by a given metric."""
