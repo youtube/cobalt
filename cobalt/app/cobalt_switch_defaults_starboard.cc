@@ -14,6 +14,8 @@
 
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
 
+#include <string>
+
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
