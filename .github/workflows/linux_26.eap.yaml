@@ -1,4 +1,4 @@
-name: linux
+name: linux_26.eap
 
 on:
   pull_request:

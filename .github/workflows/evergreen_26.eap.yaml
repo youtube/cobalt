@@ -1,4 +1,4 @@
-name: evergreen
+name: evergreen_26.eap
 permissions: read-all
 
 on:

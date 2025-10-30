@@ -1,4 +1,4 @@
-name: android
+name: android_26.eap
 
 on:
   pull_request:
