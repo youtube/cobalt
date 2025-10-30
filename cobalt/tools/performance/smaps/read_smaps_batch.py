@@ -20,11 +20,6 @@ import argparse
 import os
 import sys
 
-# Add the script's directory to the Python path to allow importing
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
 from read_smaps import read_smap, get_analysis_parser
 
 
@@ -49,7 +44,7 @@ def run_smaps_batch_tool(argv=None):
   for smaps_file in args.smaps_files:
     base_name = os.path.basename(smaps_file)
     name, ext = os.path.splitext(base_name)
-    output_name = f"{name}_processed{ext}"
+    output_name = f'{name}_processed{ext}'
     output_path = os.path.join(args.output_dir, output_name)
 
     # Create a new namespace object for each file, inheriting the other args
@@ -59,12 +54,12 @@ def run_smaps_batch_tool(argv=None):
     original_stdout = sys.stdout
     with open(output_path, 'w', encoding='utf-8') as f:
       sys.stdout = f
-      print(f"Processing {smaps_file}...")
+      print(f'Processing {smaps_file}...')
       read_smap(process_args)
-      print(f"\nOutput saved to {output_path}")
+      print(f'\nOutput saved to {output_path}')
 
     sys.stdout = original_stdout
-    print(f"Successfully processed {smaps_file} -> {output_path}")
+    print(f'Successfully processed {smaps_file} -> {output_path}')
 
 def main():
   """Main entry point for batch processing."""

@@ -25,12 +25,14 @@ import re
 
 
 def consume_until(l, expect):
+  """Consumes lines from a list until a line starting with a string is found."""
   while not l[0].startswith(expect):
     l.pop(0)
   return l.pop(0)
 
 
 def split_kb_line(in_list, expect):
+  """Consumes a line, splits it, and returns the size in kB."""
   l = consume_until(in_list, expect)
   sz = re.split(' +', l)
   if not sz[0].startswith(expect):
@@ -42,6 +44,7 @@ def split_kb_line(in_list, expect):
 
 
 def line_expect(in_list, expect, howmuch):
+  """Consumes a line and asserts that the size is the expected value."""
   val = split_kb_line(in_list, expect)
   if howmuch != val:
     raise RuntimeError(f'Expected {expect} to be {howmuch}, got {val}')
@@ -54,6 +57,7 @@ MemDetail = namedtuple('name', fields)
 
 
 def takeuntil(items, predicate):
+  """Collects items from an iterator until a predicate is met."""
   groups = itertools.groupby(items, predicate)
   while True:
     try:
@@ -66,6 +70,7 @@ def takeuntil(items, predicate):
 
 
 def read_smap(args):
+  """Reads and summarizes a smaps file."""
   with open(args.smaps_file, encoding='utf-8') as file:
     lines = [line.rstrip() for line in file]
   owners = {}
@@ -94,16 +99,19 @@ def read_smap(args):
     if args.aggregate_android:
       key = re.sub(r'[@\-\.\w]*\.(hyb|vdex|odex|art|jar|oat)[\]]*$', r'<\g<1>>',
                    key)
-      key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
+      key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>',
+                   key)
       key = re.sub(r'[@\-\.\w]+prop:s0', '<prop>', key)
       key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
     d = MemDetail(
         split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
         line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
         split_kb_line(ls, 'Pss:'), split_kb_line(ls, 'Shared_Clean:'),
-        split_kb_line(ls, 'Shared_Dirty:'), split_kb_line(ls, 'Private_Clean:'),
-        split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
-        split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
+        split_kb_line(ls, 'Shared_Dirty:'),
+        split_kb_line(ls, 'Private_Clean:'),
+        split_kb_line(ls, 'Private_Dirty:'),
+        split_kb_line(ls, 'Referenced:'), split_kb_line(ls, 'Anonymous:'),
+        split_kb_line(ls, 'AnonHugePages:'))
     # expected to be constant
     line_expect(ls, 'ShmemPmdMapped:', 0)
     line_expect(ls, 'Shared_Hugetlb:', 0)
@@ -115,7 +123,8 @@ def read_smap(args):
     start = int('0x' + addr_range[0], 16)
     end = int('0x' + addr_range[1], 16)
     if (end - start) / 1024 != d.size:
-      raise RuntimeError(f'Sizes dont match: expected {d.size}, got {(end - start) / 1024}')
+      raise RuntimeError(
+          f'Sizes dont match: expected {d.size}, got {(end - start) / 1024}')
     lls = owners.get(key, [])
     lls.append(d)
     owners[key] = lls
@@ -146,55 +155,55 @@ def read_smap(args):
 
 
 def get_analysis_parser():
-    """Creates and returns the argument parser for smaps analysis."""
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument(
-        '-k',
-        '--sortkey',
-        choices=['size', 'rss', 'pss', 'anonymous', 'name'],
-        default='pss')
-    parser.add_argument(
-        '-s',
-        '--strip_paths',
-        action='store_true',
-        help='Remove leading paths from binaries')
-    parser.add_argument(
-        '-r',
-        '--remove_so_versions',
-        action='store_true',
-        help='Remove dynamic library versions')
-    parser.add_argument(
-        '-a',
-        '--aggregate_solibs',
-        action='store_true',
-        help='Collapse solibs into single row')
-    parser.add_argument(
-        '-d',
-        '--aggregate_android',
-        action='store_true',
-        help='Consolidate various Android allocations')
-    parser.add_argument(
-        '-z',
-        '--aggregate_zeros',
-        action='store_true',
-        help='Consolidate rows that show zero RSS and PSS')
-    parser.add_argument(
-        '--no_anonhuge',
-        action='store_true',
-        help='Omit AnonHugePages column from output')
-    parser.add_argument(
-        '--no_shr_dirty',
-        action='store_true',
-        help='Omit Shared_Dirty column from output')
-    return parser
+  """Creates and returns the argument parser for smaps analysis."""
+  parser = argparse.ArgumentParser(add_help=False)
+  parser.add_argument(
+      '-k',
+      '--sortkey',
+      choices=['size', 'rss', 'pss', 'anonymous', 'name'],
+      default='pss')
+  parser.add_argument(
+      '-s',
+      '--strip_paths',
+      action='store_true',
+      help='Remove leading paths from binaries')
+  parser.add_argument(
+      '-r',
+      '--remove_so_versions',
+      action='store_true',
+      help='Remove dynamic library versions')
+  parser.add_argument(
+      '-a',
+      '--aggregate_solibs',
+      action='store_true',
+      help='Collapse solibs into single row')
+  parser.add_argument(
+      '-d',
+      '--aggregate_android',
+      action='store_true',
+      help='Consolidate various Android allocations')
+  parser.add_argument(
+      '-z',
+      '--aggregate_zeros',
+      action='store_true',
+      help='Consolidate rows that show zero RSS and PSS')
+  parser.add_argument(
+      '--no_anonhuge',
+      action='store_true',
+      help='Omit AnonHugePages column from output')
+  parser.add_argument(
+      '--no_shr_dirty',
+      action='store_true',
+      help='Omit Shared_Dirty column from output')
+  return parser
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser(
+  main_parser = argparse.ArgumentParser(
       description=('A tool to read process memory maps from /proc/<pid>/smaps'
                    ' in a concise way'),
       parents=[get_analysis_parser()])
-  parser.add_argument(
+  main_parser.add_argument(
       'smaps_file',
       help='Contents of /proc/pid/smaps, for example /proc/self/smaps')
-  read_smap(parser.parse_args())
+  read_smap(main_parser.parse_args())
