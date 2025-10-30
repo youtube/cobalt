@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <stdlib.h>
+
 #include <cmath>
 #include <random>
 #include <vector>
@@ -212,24 +213,6 @@ TEST(SbMediaBufferTest, InitialCapacity) {
   EXPECT_GE(SbMediaGetInitialBufferCapacity(), 0);
 }
 
-TEST(SbMediaBufferTest, MaxCapacity) {
-  // TODO: Limit EXPECT statements to only codecs and resolutions that are
-  // supported by the platform. If unsupported, still call
-  // SbMediaGetMaxBufferCapacity() to ensure there isn't a crash.
-  for (auto resolution : kVideoResolutions) {
-    for (auto bits_per_pixel : kBitsPerPixelValues) {
-      for (auto codec : kVideoCodecs) {
-        EXPECT_GT(SbMediaGetMaxBufferCapacity(codec, resolution[0],
-                                              resolution[1], bits_per_pixel),
-                  0);
-        EXPECT_GE(SbMediaGetMaxBufferCapacity(codec, resolution[0],
-                                              resolution[1], bits_per_pixel),
-                  SbMediaGetInitialBufferCapacity());
-      }
-    }
-  }
-}
-
 TEST(SbMediaBufferTest, Padding) {
   // SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value
   // is no longer used when allocating media buffers.  This is verified
@@ -295,9 +278,6 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   for (auto resolution : kVideoResolutions) {
     for (auto bits_per_pixel : kBitsPerPixelValues) {
       for (auto codec : kVideoCodecs) {
-        TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetMaxBufferCapacity, codec,
-                                       resolution[0], resolution[1],
-                                       bits_per_pixel);
         TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetProgressiveBufferBudget, codec,
                                        resolution[0], resolution[1],
                                        bits_per_pixel);

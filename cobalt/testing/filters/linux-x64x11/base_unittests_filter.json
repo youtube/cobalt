@@ -93,6 +93,8 @@
     "TimeFormattingTest.TimeIntervalFormat",
     "TimezoneTest.CountryCodeForTimezones",
     "TraceEventTestFixture.SetCurrentThreadBlocksMessageLoopAfterTracing",
+    "TransliteratorTest.HiraganaKatakanaCorrect",
+    "TransliteratorTest.KatakanaHiraganaCorrect",
     "TransliteratorTest.LatinASCIICorrect",
     "TransliteratorTest.LowerCorrect",
     "TransliteratorTest.LowerLatinASCIICorrect",

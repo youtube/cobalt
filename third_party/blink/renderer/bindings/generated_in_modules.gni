@@ -3399,13 +3399,6 @@ generated_union_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_union_workletanimationeffect_workletgroupeffect.h",
 ]
 
-if (is_cobalt) {
-  generated_union_sources_in_modules += [
-    "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.cc",
-    "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.h",
-  ]
-}
-
 # Direct Sockets
 # This uses target_os rather than current_os (which is what is_android is set
 # from) for the case of generating the v8 context snapshot for android. When

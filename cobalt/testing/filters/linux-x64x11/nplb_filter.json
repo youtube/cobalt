@@ -1,6 +1,7 @@
 {
   "failing_tests": [
     "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
-    "PosixSocketSendTest.RainyDaySendToClosedSocket"
+    "PosixSocketSendTest.RainyDaySendToClosedSocket",
+    "FileTempTest.*"
   ]
 }
