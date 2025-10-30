@@ -22,6 +22,8 @@
 #include <cstddef>
 
 namespace {
+thread_local locale_t g_current_locale = reinterpret_cast<locale_t>(0);
+
 // The default locale is the C locale.
 const lconv* GetCLocaleConv() {
   static const lconv c_locale_conv = {
@@ -88,11 +90,6 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
   }
   return reinterpret_cast<locale_t>(new_lconv);
 }
-
-namespace {
-thread_local locale_t g_current_locale =
-    reinterpret_cast<locale_t>(const_cast<lconv*>(GetCLocale()));
-}  // namespace
 
 locale_t uselocale(locale_t newloc) {
   // TODO: This is a stub.

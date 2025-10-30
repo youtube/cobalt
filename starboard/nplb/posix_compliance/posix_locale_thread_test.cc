@@ -149,23 +149,30 @@ TEST_F(PosixLocaleThreadTest, DupLocale) {
   ASSERT_NE(nullptr, loc1);
   locale_t loc2 = duplocale(loc1);
   EXPECT_NE(nullptr, loc2);
-  EXPECT_NE(loc1, loc2);
+
+  const char* test_locale = GetCommaDecimalSeparatorLocale();
+  if (!test_locale) {
+    GTEST_SKIP() << "No supported locale with comma decimal separator found.";
+  }
+
+  locale_t loc3 = newlocale(LC_ALL, test_locale, loc2);
+  EXPECT_NE(loc3, loc1);
 
   locale_t previous_locale = uselocale(loc1);
   lconv* lc1 = localeconv();
   ASSERT_NE(nullptr, lc1);
   EXPECT_STREQ(".", lc1->decimal_point);
 
-  uselocale(loc2);
-  lconv* lc2 = localeconv();
-  ASSERT_NE(nullptr, lc2);
-  EXPECT_STREQ(".", lc2->decimal_point);
+  uselocale(loc3);
+  lconv* lc3 = localeconv();
+  ASSERT_NE(nullptr, lc3);
+  EXPECT_STREQ(",", lc3->decimal_point);
 
-  EXPECT_STREQ(lc1->decimal_point, lc2->decimal_point);
   uselocale(previous_locale);
 
   freelocale(loc1);
   freelocale(loc2);
+  freelocale(loc3);
 }
 
 TEST_F(PosixLocaleThreadTest, DupLocaleNonDefault) {
