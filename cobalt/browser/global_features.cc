@@ -35,9 +35,6 @@ namespace cobalt {
 constexpr base::FilePath::CharType kExperimentConfigFilename[] =
     FILE_PATH_LITERAL("Experiment Config");
 
-constexpr base::FilePath::CharType kSettingsConfigFilename[] =
-    FILE_PATH_LITERAL("Settings Config");
-
 constexpr base::FilePath::CharType kMetricsConfigFilename[] =
     FILE_PATH_LITERAL("Metrics Config");
 

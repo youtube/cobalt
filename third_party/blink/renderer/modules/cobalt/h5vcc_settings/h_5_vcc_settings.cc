@@ -92,7 +92,6 @@ void H5vccSettings::OnConnectionError() {
   for (auto& resolver : h5vcc_settings_promises) {
     resolver->Reject("Mojo connection error.");
   }
-  ongoing_requests_.clear();
 }
 
 void H5vccSettings::EnsureReceiverIsBound() {
