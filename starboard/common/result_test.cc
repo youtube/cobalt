@@ -123,7 +123,7 @@ TEST(NonNullResultTest, Failure) {
 class NonNullResultDeathTest : public ::testing::Test {};
 
 TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_RawPointer) {
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
       {
         int* null_ptr = nullptr;
         NonNullResult<int*> result(null_ptr);
@@ -132,7 +132,7 @@ TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_RawPointer) {
 }
 
 TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_UniquePtr) {
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
       {
         std::unique_ptr<int> null_ptr;
         NonNullResult<std::unique_ptr<int>> result(std::move(null_ptr));
