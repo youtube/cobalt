@@ -84,11 +84,10 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
         self.assertEqual(total_data['pss'], 1700)
 
     def test_parse_invalid_file(self):
-        """Tests that parsing a file without a header returns None."""
+        """Tests that parsing a file without a header raises a ParsingError."""
         filepath = os.path.join(self.test_dir, 'no_header.txt')
-        memory_data, total_data = analyze_smaps_logs.parse_smaps_file(filepath)
-        self.assertIsNone(memory_data)
-        self.assertIsNone(total_data)
+        with self.assertRaises(analyze_smaps_logs.ParsingError):
+            analyze_smaps_logs.parse_smaps_file(filepath)
 
     @patch('sys.stdout', new_callable=StringIO)
     def test_analyze_logs_output(self, mock_stdout):

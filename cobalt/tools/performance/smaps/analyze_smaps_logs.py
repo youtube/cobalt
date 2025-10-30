@@ -19,6 +19,10 @@ import os
 import re
 from collections import defaultdict, OrderedDict
 
+class ParsingError(Exception):
+    """Custom exception for parsing errors."""
+    pass
+
 def parse_smaps_file(filepath):
     """Parses a single processed smaps file and returns memory data."""
     memory_data = OrderedDict()
@@ -34,14 +38,8 @@ def parse_smaps_file(filepath):
             header_line_index = i
             break
     
-    """ TODO: Returning None, None can be ambiguous. Consider raising an
-              exception or returning a more descriptive object to indicate
-              the error, such as a namedtuple with an error field or a
-              custom exception class.
-    """
     if header_line_index == -1:
-        print(f"Warning: Could not find header in {filepath}")
-        return None, None
+        raise ParsingError(f"Could not find header in {filepath}")
 
     header_parts = [p.strip() for p in lines[header_line_index].split('|')]
     # The first part is 'name', subsequent parts are memory fields
@@ -120,8 +118,10 @@ def analyze_logs(log_dir):
             first_timestamp = timestamp
         last_timestamp = timestamp
 
-        memory_data, total_data = parse_smaps_file(filepath)
-        if memory_data is None:
+        try:
+            memory_data, total_data = parse_smaps_file(filepath)
+        except ParsingError as e:
+            print(f"Warning: {e}")
             continue
         
         last_memory_data = memory_data # Keep track of the last data for end log analysis
