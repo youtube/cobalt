@@ -36,6 +36,7 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
                                  SetValueCallback callback) {
   auto* global_features = cobalt::GlobalFeatures::GetInstance();
   auto* settings_config_ptr = global_features->settings_config();
+  CHECK(settings_config_ptr);
   switch (value->which()) {
     case mojom::Value::Tag::kStringValue:
       settings_config_ptr->SetString(name, value->get_string_value());
