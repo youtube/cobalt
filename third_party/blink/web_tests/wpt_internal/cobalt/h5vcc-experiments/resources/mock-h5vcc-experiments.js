@@ -70,10 +70,6 @@ class MockH5vccExperiments {
     };
   }
 
-  getFeatureParam(feature_param_name) {
-    throw new Error('Sync methods not supported in MojoJS (b/406809316');
-  }
-
   // Helper function to get stubbed feature state.
   getStubResult(key) {
     return this.stub_result_.get(key);
