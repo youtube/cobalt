@@ -52,7 +52,8 @@ if (current_toolchain == starboard_toolchain) {
     ]
 
     if (is_apple) {
-      deps += [ "//starboard/shared/starboard/player:player_test_data_resources" ]
+      deps +=
+          [ "//starboard/shared/starboard/player:player_test_data_resources" ]
     }
 
     data_deps =
@@ -100,7 +101,8 @@ if (current_toolchain == starboard_toolchain) {
     ]
 
     if (is_apple) {
-      deps += [ "//starboard/shared/starboard/player:player_test_data_resources" ]
+      deps +=
+          [ "//starboard/shared/starboard/player:player_test_data_resources" ]
     }
   }
 }

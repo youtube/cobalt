@@ -34,7 +34,7 @@ config("wnos") {
     "-Wno-unreachable-code-break",
 
     # Do not warn about variable length arrays
-    "-Wno-vla-cxx-extension"
+    "-Wno-vla-cxx-extension",
   ]
 }
 
