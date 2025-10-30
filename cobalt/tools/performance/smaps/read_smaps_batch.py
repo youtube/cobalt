@@ -27,6 +27,12 @@ if current_dir not in sys.path:
 
 from read_smaps import read_smap
 
+class ProcessArgs:
+        def __init__(self, smaps_file, args):
+            self.smaps_file = smaps_file
+            for k, v in vars(args).items():
+                setattr(self, k, v)
+
 
 def main():
   """Main entry point for batch processing."""
@@ -93,11 +99,9 @@ def main():
     # The original read_smap function expects args.smaps_file, so we need to
     # create a mock object that has the smaps_file attribute.
     # We can use a simple Namespace object for this.
-    from argparse import Namespace
-    # Create a new namespace object that has all the original args,
+    # Create a new object that has all the original args,
     # but with smaps_file set to the current file in the loop.
-    process_args = Namespace(**vars(args))
-    process_args.smaps_file = smaps_file
+    process_args = ProcessArgs(smaps_file, args)
 
     original_stdout = sys.stdout
     with open(output_path, 'w', encoding='utf-8') as f:
