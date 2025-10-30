@@ -9,7 +9,7 @@ This directory contains a suite of Python scripts for capturing, processing, and
 *   **Configurable:** Allows customization of the target process, capture interval, duration, output directory, and ADB settings via command-line arguments.
 *   **Testable:** The script is refactored into a class for easy testing and mocking of system calls.
 
-## Usage
+## Smaps Cpature Usage
 
 To run the script, navigate to the `cobalt/tools/performance/smaps/` directory and execute `smaps_capture.py`.
 
