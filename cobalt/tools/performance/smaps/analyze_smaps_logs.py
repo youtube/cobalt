@@ -34,6 +34,11 @@ def parse_smaps_file(filepath):
             header_line_index = i
             break
     
+    """ TODO: Returning None, None can be ambiguous. Consider raising an
+              exception or returning a more descriptive object to indicate
+              the error, such as a namedtuple with an error field or a
+              custom exception class.
+    """
     if header_line_index == -1:
         print(f"Warning: Could not find header in {filepath}")
         return None, None
@@ -77,6 +82,8 @@ def extract_timestamp(filename):
     match = re.search(r'_(\d{6})_\d{4}_processed\.txt$', filename)
     if match:
         return match.group(1)
+    # TODO: Consider logging a warning or raising an exception if the
+    #       timestamp cannot be extracted.
     return "000000" # Default for files without a clear timestamp
 
 def get_top_consumers(memory_data, metric='pss', top_n=5):

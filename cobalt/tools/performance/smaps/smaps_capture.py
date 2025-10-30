@@ -114,7 +114,7 @@ class SmapsCapturer:
                     )
                 else:
                     print(
-                        f"[{timestamp}] WARNING: adb shell cat failed (RC {process.returncode})."
+                        f"[{timestamp}] WARNING: adb shell cat failed (RC {process.returncode}). Command: {command}"
                     )
                     print(f"   Error output: {process.stderr.strip()}")
                     if self.os.path.exists(output_filename):

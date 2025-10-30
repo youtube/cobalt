@@ -35,7 +35,7 @@ def split_kb_line(in_list, expect):
   sz = re.split(' +', l)
   if not sz[0].startswith(expect):
     raise RuntimeError(
-        f'Unexpexcted line head, looked for:{expect} got:{sz[0]}')
+        f'Unexpected line head, looked for:{expect} got:{sz[0]}')
   if sz[2] != 'kB':
     raise RuntimeError(f'Expected kB got {sz[2]}')
   return int(sz[1])
@@ -115,7 +115,7 @@ def read_smap(args):
     start = int('0x' + addr_range[0], 16)
     end = int('0x' + addr_range[1], 16)
     if (end - start) / 1024 != d.size:
-      raise RuntimeError('Sizes dont match')
+      raise RuntimeError(f'Sizes dont match: expected {d.size}, got {(end - start) / 1024}')
     lls = owners.get(key, [])
     lls.append(d)
     owners[key] = lls
