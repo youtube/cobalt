@@ -114,15 +114,9 @@ TEST(NonNullResultTest, Failure) {
   EXPECT_NE(result.error().find("Something went wrong"), std::string::npos);
 }
 
-#if SB_IS(EVERGREEN)
-#define MAYBE_DeathTest DISABLED_DeathTest
-#else
-#define MAYBE_DeathTest DeathTest
-#endif
-
 class NonNullResultDeathTest : public ::testing::Test {};
 
-TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_RawPointer) {
+TEST_F(NonNullResultDeathTest, DeathTest_RawPointer) {
   EXPECT_DEATH_IF_SUPPORTED(
       {
         int* null_ptr = nullptr;
@@ -131,7 +125,7 @@ TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_RawPointer) {
       "NonNullResult value cannot be null.");
 }
 
-TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_UniquePtr) {
+TEST_F(NonNullResultDeathTest, DeathTest_UniquePtr) {
   EXPECT_DEATH_IF_SUPPORTED(
       {
         std::unique_ptr<int> null_ptr;
