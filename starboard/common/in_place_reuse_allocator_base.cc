@@ -15,11 +15,12 @@
 #include "starboard/common/in_place_reuse_allocator_base.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/pointer_arithmetic.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
