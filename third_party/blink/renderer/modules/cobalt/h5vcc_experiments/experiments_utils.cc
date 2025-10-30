@@ -29,12 +29,26 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
   base::Value::Dict experiment_config_dict;
 
+  // Reject experiment config if any of the required field is missing.
+  if (!experiment_configuration->hasActiveExperimentConfigData() ||
+      !experiment_configuration->hasLatestExperimentConfigHashData() ||
+      !experiment_configuration->hasFeatures() ||
+      !experiment_configuration->hasFeatureParams()) {
+    return std::nullopt;
+  }
+
+  experiment_config_dict.Set(
+      cobalt::kExperimentConfigActiveConfigData,
+      experiment_configuration->activeExperimentConfigData().Utf8());
+
+  experiment_config_dict.Set(
+      cobalt::kLatestConfigHash,
+      experiment_configuration->latestExperimentConfigHashData().Utf8());
+
   base::Value::Dict features;
-  if (experiment_configuration->hasFeatures()) {
-    for (auto& feature_name_and_value : experiment_configuration->features()) {
-      features.Set(feature_name_and_value.first.Utf8(),
-                   feature_name_and_value.second);
-    }
+  for (auto& feature_name_and_value : experiment_configuration->features()) {
+    features.Set(feature_name_and_value.first.Utf8(),
+                 feature_name_and_value.second);
   }
   experiment_config_dict.Set(cobalt::kExperimentConfigFeatures,
                              std::move(features));
@@ -62,19 +76,44 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
     } else {
       return std::nullopt;
     }
+    feature_params.Set(param_name_and_value.first.Utf8(), param_value);
   }
   experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
                              std::move(feature_params));
 
-  base::Value::List experiment_ids;
-  if (experiment_configuration->hasExperimentIds()) {
-    for (int exp_id : experiment_configuration->experimentIds()) {
-      experiment_ids.Append(exp_id);
+  return experiment_config_dict;
+}
+
+std::optional<base::Value::Dict> ParseSettingsToDictionary(
+    const HeapVector<
+        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        settings) {
+  base::Value::Dict settings_dict;
+
+  for (auto& setting_name_and_value : settings) {
+    std::string setting_name = setting_name_and_value.first.Utf8();
+    if (setting_name_and_value.second->IsString()) {
+      std::string param_value =
+          setting_name_and_value.second->GetAsString().Utf8();
+      settings_dict.Set(setting_name, param_value);
+    } else if (setting_name_and_value.second->IsLong()) {
+      int param_value = setting_name_and_value.second->GetAsLong();
+      settings_dict.Set(setting_name, param_value);
+    } else if (setting_name_and_value.second->IsDouble()) {
+      double received_double = setting_name_and_value.second->GetAsDouble();
+      if (IsTrueDouble(received_double)) {
+        settings_dict.Set(setting_name, received_double);
+      } else {
+        settings_dict.Set(setting_name, static_cast<int>(received_double));
+      }
+    } else if (setting_name_and_value.second->IsBoolean()) {
+      bool param_value = setting_name_and_value.second->GetAsBoolean();
+      settings_dict.Set(setting_name, param_value);
+    } else {
+      return std::nullopt;
     }
   }
-  experiment_config_dict.Set(cobalt::kExperimentConfigExpIds,
-                             std::move(experiment_ids));
-  return experiment_config_dict;
+  return settings_dict;
 }
 
 std::optional<base::Value::Dict> ParseSettingsToDictionary(
