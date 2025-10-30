@@ -145,49 +145,56 @@ def read_smap(args):
   printrow('name', display_fields)
 
 
+def get_analysis_parser():
+    """Creates and returns the argument parser for smaps analysis."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        '-k',
+        '--sortkey',
+        choices=['size', 'rss', 'pss', 'anonymous', 'name'],
+        default='pss')
+    parser.add_argument(
+        '-s',
+        '--strip_paths',
+        action='store_true',
+        help='Remove leading paths from binaries')
+    parser.add_argument(
+        '-r',
+        '--remove_so_versions',
+        action='store_true',
+        help='Remove dynamic library versions')
+    parser.add_argument(
+        '-a',
+        '--aggregate_solibs',
+        action='store_true',
+        help='Collapse solibs into single row')
+    parser.add_argument(
+        '-d',
+        '--aggregate_android',
+        action='store_true',
+        help='Consolidate various Android allocations')
+    parser.add_argument(
+        '-z',
+        '--aggregate_zeros',
+        action='store_true',
+        help='Consolidate rows that show zero RSS and PSS')
+    parser.add_argument(
+        '--no_anonhuge',
+        action='store_true',
+        help='Omit AnonHugePages column from output')
+    parser.add_argument(
+        '--no_shr_dirty',
+        action='store_true',
+        help='Omit Shared_Dirty column from output')
+    return parser
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
       description=('A tool to read process memory maps from /proc/<pid>/smaps'
-                   ' in a concise way'))
+                   ' in a concise way'),
+      parents=[get_analysis_parser()])
   parser.add_argument(
       'smaps_file',
       help='Contents of /proc/pid/smaps, for example /proc/self/smaps')
-  parser.add_argument(
-      '-k',
-      '--sortkey',
-      choices=['size', 'rss', 'pss', 'anonymous', 'name'],
-      default='pss')
-  parser.add_argument(
-      '-s',
-      '--strip_paths',
-      action='store_true',
-      help='Remove leading paths from binaries')
-  parser.add_argument(
-      '-r',
-      '--remove_so_versions',
-      action='store_true',
-      help='Remove dynamic library versions')
-  parser.add_argument(
-      '-a',
-      '--aggregate_solibs',
-      action='store_true',
-      help='Collapse solibs into single row')
-  parser.add_argument(
-      '-d',
-      '--aggregate_android',
-      action='store_true',
-      help='Consolidate various Android allocations')
-  parser.add_argument(
-      '-z',
-      '--aggregate_zeros',
-      action='store_true',
-      help='Consolidate rows that show zero RSS and PSS')
-  parser.add_argument(
-      '--no_anonhuge',
-      action='store_true',
-      help='Omit AnonHugePages column from output')
-  parser.add_argument(
-      '--no_shr_dirty',
-      action='store_true',
-      help='Omit Shared_Dirty column from output')
   read_smap(parser.parse_args())
