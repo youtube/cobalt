@@ -18,6 +18,7 @@
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -45,14 +46,30 @@ class MODULES_EXPORT H5vccExperiments final
                                    const ExperimentConfiguration*,
                                    ExceptionState&);
   ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
-  WTF::Vector<uint32_t> activeExperimentIds();
   String getFeature(const String&);
   const String& getFeatureParam(const String&);
+  ScriptPromise getActiveExperimentConfigData(ScriptState*, ExceptionState&);
+  ScriptPromise getLatestExperimentConfigHashData(ScriptState*,
+                                                  ExceptionState&);
+  ScriptPromise setLatestExperimentConfigHashData(ScriptState*,
+                                                  const String&,
+                                                  ExceptionState&);
+  ScriptPromise setFinchParameters(
+      ScriptState*,
+      const HeapVector<
+          std::pair<WTF::String,
+                    Member<V8UnionBooleanOrDoubleOrLongOrString>>>&,
+      ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
+  void OnGetActiveExperimentConfigData(ScriptPromiseResolver*, const String&);
+  void OnGetLatestExperimentConfigHashData(ScriptPromiseResolver*,
+                                           const String&);
   void OnSetExperimentState(ScriptPromiseResolver*);
+  void OnSetFinchParameters(ScriptPromiseResolver*);
+  void OnSetLatestExperimentConfigHashData(ScriptPromiseResolver*);
   void OnResetExperimentState(ScriptPromiseResolver*);
   void OnConnectionError();
   void EnsureReceiverIsBound();
@@ -64,7 +81,6 @@ class MODULES_EXPORT H5vccExperiments final
   HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
 
   String feature_param_value_;
-  WTF::Vector<uint32_t> active_experiment_ids_;
 };
 
 }  // namespace blink
