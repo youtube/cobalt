@@ -14,13 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
+from io import StringIO
 import os
+import shutil
 import sys
 import tempfile
-import shutil
+import unittest
 from unittest.mock import patch
-from io import StringIO
 
 import analyze_smaps_logs
 

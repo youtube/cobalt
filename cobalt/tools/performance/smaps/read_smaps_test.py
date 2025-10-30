@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
+import shutil
 import sys
 import tempfile
-import shutil
+import unittest
 from unittest.mock import patch
 
 import read_smaps_batch

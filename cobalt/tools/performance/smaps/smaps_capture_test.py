@@ -15,10 +15,9 @@
 # limitations under the License.
 
 import unittest
-from unittest.mock import MagicMock, call
+from unittest.mock import call, MagicMock, patch
 
 from smaps_capture import SmapsCapturer, run_smaps_capture_tool
-from unittest.mock import patch, MagicMock, call
 
 
 class SmapsCaptureTest(unittest.TestCase):

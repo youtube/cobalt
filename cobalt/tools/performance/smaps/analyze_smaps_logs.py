@@ -15,10 +15,10 @@
 # limitations under the License.
 
 import argparse
+from collections import defaultdict, OrderedDict
 import os
 import re
 import sys
-from collections import defaultdict, OrderedDict
 
 class ParsingError(Exception):
     """Custom exception for parsing errors."""

@@ -19,9 +19,9 @@
 Reads and summarizes /proc/<pid>/smaps
 """
 import argparse
-import re
-import itertools
 from collections import namedtuple, OrderedDict
+import itertools
+import re
 
 
 def consume_until(l, expect):

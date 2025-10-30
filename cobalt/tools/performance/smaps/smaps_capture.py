@@ -15,11 +15,11 @@
 # limitations under the License.
 
 import argparse
-import subprocess
-import time
-import os
 import datetime
+import os
+import subprocess
 import sys
+import time
 
 # --- CONFIGURATION ---
 PROCESS_NAME = "com.google.android.youtube.tv"

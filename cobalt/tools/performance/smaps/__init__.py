@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import os
+import sys
 
 # Add the current directory to the Python path to allow for absolute imports
 # within the package, which is useful for testing.
