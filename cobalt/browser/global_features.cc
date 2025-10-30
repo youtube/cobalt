@@ -107,13 +107,9 @@ void GlobalFeatures::SetSettings(const std::string& key,
 
   LOG(INFO) << "SetSettings: key=" << key << ", value="
             << (std::holds_alternative<std::string>(value)
-                    ? std::get<std::string>(value)
+                    ? "\"" + std::get<std::string>(value) + "\""
                 : std::holds_alternative<int64_t>(value)
                     ? std::to_string(std::get<int64_t>(value))
-                : std::holds_alternative<double>(value)
-                    ? std::to_string(std::get<double>(value))
-                : std::holds_alternative<bool>(value)
-                    ? (std::get<bool>(value) ? "true" : "false")
                     : "unknown");
 }
 
