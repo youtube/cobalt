@@ -47,7 +47,9 @@ void SetDecodeToTexturePreferred(bool enforced) {
 const StarboardExtensionPlayerConfigurationApi kPlayerConfigurationApi = {
     kStarboardExtensionPlayerConfigurationName,
     1,  // API version that's implemented.
-    &SetDecodeToTexturePreferred, nullptr};
+    &SetDecodeToTexturePreferred,
+    nullptr
+};
 
 }  // namespace
 

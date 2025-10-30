@@ -51,7 +51,24 @@ repos:
         language: python
         types: [c++]
         args: [-i, -style=file]
+        exclude: |
+            (?x)(
+                ^starboard/shared/uikit/accessibility_extension.cc$|
+                ^starboard/shared/uikit/player_configuration.cc$
+            )
         additional_dependencies: ['clang-format==17.0.1']
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: python
+        types: [c++]
+        args: [--verbose=4, --quiet]
+        exclude: |
+            (?x)(
+                ^cobalt/bindings/(templates|generated)/|
+                ^starboard/shared/uikit/.*\.h$
+            )
+        additional_dependencies: ['cpplint==2.0.2']
     -   id: yapf
         name: yapf
         entry: yapf
