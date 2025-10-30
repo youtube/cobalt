@@ -14,14 +14,15 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
+#include "base/numerics/safe_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 
 namespace blink {
 
 bool IsTrueDouble(double num) {
-  double integral_part;
-  double fractional_part = std::modf(num, &integral_part);
-  return (fractional_part != 0.0);
+  int floored_double = base::ClampFloor<int>(num);
+  return num != static_cast<double>(floored_double);
 }
 
 std::optional<base::Value::Dict> ParseConfigToDictionary(
@@ -64,9 +65,10 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
       double received_double = param_name_and_value.second->GetAsDouble();
       // Record the number as a whole number without decimal place if the
       // underlying value is an int.
-      param_value = IsTrueDouble(received_double)
-                        ? std::to_string(received_double)
-                        : std::to_string(static_cast<int>(received_double));
+      param_value =
+          IsTrueDouble(received_double)
+              ? base::NumberToString(received_double)
+              : base::NumberToString(base::ClampFloor<int>(received_double));
     } else if (param_name_and_value.second->GetAsBoolean()) {
       param_value = "true";
     } else if (!param_name_and_value.second->GetAsBoolean()) {
@@ -99,10 +101,12 @@ std::optional<base::Value::Dict> ParseSettingsToDictionary(
       settings_dict.Set(setting_name, param_value);
     } else if (setting_name_and_value.second->IsDouble()) {
       double received_double = setting_name_and_value.second->GetAsDouble();
+      // Record the number as a whole number without decimal place if the
+      // underlying value is an int.
       if (IsTrueDouble(received_double)) {
         settings_dict.Set(setting_name, received_double);
       } else {
-        settings_dict.Set(setting_name, static_cast<int>(received_double));
+        settings_dict.Set(setting_name, base::ClampFloor<int>(received_double));
       }
     } else if (setting_name_and_value.second->IsBoolean()) {
       bool param_value = setting_name_and_value.second->GetAsBoolean();

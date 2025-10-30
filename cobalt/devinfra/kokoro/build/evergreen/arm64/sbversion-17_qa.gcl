@@ -20,10 +20,5 @@ config build = common.build {
       key = 'SB_API_VERSION'
       value = 'sb_api_version=17'
     },
-    // TODO: b/323963204 - Define targets per platform rather than per variant.
-    {
-      key = 'GN_TARGET'
-      value = 'default crash_sandbox_install noop_sandbox_install one_app_only_sandbox_install'
-    },
   ]
 }

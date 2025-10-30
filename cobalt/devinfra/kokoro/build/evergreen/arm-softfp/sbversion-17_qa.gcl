@@ -20,9 +20,10 @@ config build = common.build {
       key = 'SB_API_VERSION'
       value = 'sb_api_version=17'
     },
-    {
-      key = 'BOOTLOADER_TARGET'
-      value = 'loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
-    },
+    // TODO: b/454936903 - Loader targets don't build yet.
+    // {
+    //   key = 'BOOTLOADER_TARGET'
+    //   value = 'loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
+    // },
   ]
 }
