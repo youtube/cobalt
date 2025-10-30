@@ -349,9 +349,7 @@ test("nplb") {
     deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
   }
 
-  data_deps = [
-    "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
-  ]
+  data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   if (sb_is_evergreen_compatible) {
     sources += [
