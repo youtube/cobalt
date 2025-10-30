@@ -23,6 +23,7 @@
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_service.h"
@@ -119,13 +120,9 @@ void GlobalFeatures::CreateSettingsConfig() {
 
   RegisterPrefs(pref_registry.get());
 
-  base::FilePath path;
-  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
-  path = path.Append(kSettingsConfigFilename);
-
   PrefServiceFactory pref_service_factory;
   pref_service_factory.set_user_prefs(
-      base::MakeRefCounted<JsonPrefStore>(path));
+      base::MakeRefCounted<InMemoryPrefStore>());
 
   settings_config_ = pref_service_factory.Create(pref_registry);
 }

@@ -33,7 +33,7 @@ namespace blink {
 
 namespace {
 
-void OnSetStringFinished(ScriptPromiseResolver* resolver) {
+void OnSetValueFinished(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
 
@@ -76,7 +76,7 @@ ScriptPromise H5vccSettings::set(
 
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
-      base::BindOnce(&OnSetStringFinished, WrapPersistent(resolver)));
+      base::BindOnce(&OnSetValueFinished, WrapPersistent(resolver)));
   return promise;
 }
 
