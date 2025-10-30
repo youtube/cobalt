@@ -18,5 +18,5 @@
 ]
 interface H5vccSettings {
   [CallWith=ScriptState, RaisesException]
-  Promise<undefined> set(DOMString name, (DOMString or long) value);
+  Promise<void> set(DOMString name, (DOMString or long) value);
 };
