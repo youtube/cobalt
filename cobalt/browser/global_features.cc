@@ -114,7 +114,7 @@ void GlobalFeatures::CreateExperimentConfig() {
 }
 
 void GlobalFeatures::CreateSettingsConfig() {
-  CHECK(!experiment_config_);
+  CHECK(!settings_config_);
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
 
   RegisterPrefs(pref_registry.get());
