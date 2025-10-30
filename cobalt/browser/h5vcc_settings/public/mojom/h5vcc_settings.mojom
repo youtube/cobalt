@@ -23,5 +23,6 @@ union Value {
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSettings Blink API.
 interface H5vccSettings {
+    [Sync]
     SetValue(string name, Value value) => ();
 };
