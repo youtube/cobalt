@@ -15,7 +15,6 @@ __gcov_dump
 __gcov_flush
 __nl_langinfo_l
 dl_iterate_phdr
-dlerror
 dlopen
 dlsym
 fclose
@@ -25,7 +24,6 @@ feof
 fflush
 fgets
 fileno
-flock
 fopen
 fprintf
 fputc
@@ -50,7 +48,6 @@ ioctl
 lseek64
 memfd_create
 mmap64
-mremap
 newlocale
 open64
 openat
