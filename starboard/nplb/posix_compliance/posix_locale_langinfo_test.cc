@@ -24,11 +24,6 @@
 #include "starboard/nplb/posix_compliance/posix_locale_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
-namespace posix_compliance {
-namespace {
-
 // A special marker to indicate that we should only check for a non-empty
 // string, without asserting its specific content.
 constexpr char kNonEmptyStringMarker = '\0';
@@ -354,8 +349,3 @@ TEST(PosixLocaleLanginfoDumperTest, DISABLED_DumpAllLocaleDataForConstexpr) {
   fprintf(file, "};");
   fclose(file);
 }
-
-}  // namespace
-}  // namespace posix_compliance
-}  // namespace nplb
-}  // namespace starboard

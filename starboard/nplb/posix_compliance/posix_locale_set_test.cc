@@ -22,14 +22,12 @@
 #include <cerrno>
 #include <clocale>
 #include <cstring>
+#include <string>
+#include <vector>
 
 #include "build/build_config.h"
 #include "starboard/nplb/posix_compliance/posix_locale_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-namespace starboard {
-namespace nplb {
-namespace {
 
 constexpr char kDefaultLocale[] = "C";
 constexpr char kPosixLocale[] = "POSIX";
@@ -453,7 +451,3 @@ INSTANTIATE_TEST_SUITE_P(PosixLocaleSetTests,
                          PosixLocaleSetAlternativeFormatTest,
                          ::testing::ValuesIn(kLocaleFormats),
                          GetLocaleTestName);
-
-}  // namespace
-}  // namespace nplb
-}  // namespace starboard
