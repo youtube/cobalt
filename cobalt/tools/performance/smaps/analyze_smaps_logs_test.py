@@ -110,5 +110,11 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
         self.assertIn("Total PSS Change: 1200 kB", output)
         self.assertIn("Total RSS Change: 1300 kB", output)
 
+    @patch('sys.stderr', new_callable=StringIO)
+    def test_extract_timestamp_warning(self, mock_stderr):
+        """Tests that a warning is printed for a malformed filename."""
+        analyze_smaps_logs.extract_timestamp("malformed_filename.txt")
+        self.assertIn("Warning: Could not extract timestamp", mock_stderr.getvalue())
+
 if __name__ == '__main__':
     unittest.main()

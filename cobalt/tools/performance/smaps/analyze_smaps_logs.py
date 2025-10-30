@@ -17,6 +17,7 @@
 import argparse
 import os
 import re
+import sys
 from collections import defaultdict, OrderedDict
 
 class ParsingError(Exception):
@@ -80,8 +81,9 @@ def extract_timestamp(filename):
     match = re.search(r'_(\d{8})_(\d{6})_\d{4}_processed\.txt$', filename)
     if match:
         return f"{match.group(1)}_{match.group(2)}"
-    # TODO: Consider logging a warning or raising an exception if the
-    #       timestamp cannot be extracted.
+    
+    print(f"Warning: Could not extract timestamp from '{filename}'. "
+          "File will be sorted last.", file=sys.stderr)
     return "00000000_000000" # Default for files without a clear timestamp
 
 def get_top_consumers(memory_data, metric='pss', top_n=5):
