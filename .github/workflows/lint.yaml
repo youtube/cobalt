@@ -4,12 +4,10 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
     branches:
-      - main
-      - feature/*
+      - 26.eap
   push:
     branches:
-      - main
-      - feature/*
+      - 26.eap
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
