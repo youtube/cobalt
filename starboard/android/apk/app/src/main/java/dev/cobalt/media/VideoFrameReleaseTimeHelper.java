@@ -59,6 +59,7 @@ public final class VideoFrameReleaseTimeHelper {
   private long lastFramePresentationTimeUs;
   private long adjustedLastFrameTimeNs;
   private long pendingAdjustedFrameTimeNs;
+  private double lastPlaybackRate;
 
   private boolean haveSync;
   private long syncUnadjustedReleaseTimeNs;
@@ -93,6 +94,7 @@ public final class VideoFrameReleaseTimeHelper {
   @UsedByNative
   public void enable() {
     haveSync = false;
+    lastPlaybackRate = -1;
     if (useDefaultDisplayVsync) {
       vsyncSampler.addObserver();
     }
@@ -118,7 +120,17 @@ public final class VideoFrameReleaseTimeHelper {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  public long adjustReleaseTime(long framePresentationTimeUs, long unadjustedReleaseTimeNs) {
+  public long adjustReleaseTime(
+      long framePresentationTimeUs, long unadjustedReleaseTimeNs, double playbackRate) {
+    if (playbackRate == 0) {
+      return unadjustedReleaseTimeNs;
+    }
+    if (playbackRate != lastPlaybackRate) {
+      // Resync if playback rate has changed.
+      haveSync = false;
+      lastPlaybackRate = playbackRate;
+    }
+
     long framePresentationTimeNs = framePresentationTimeUs * 1000;
 
     // Until we know better, the adjustment will be a no-op.
@@ -140,18 +152,18 @@ public final class VideoFrameReleaseTimeHelper {
             (framePresentationTimeNs - syncFramePresentationTimeNs) / frameCount;
         // Project the adjusted frame time forward using the average.
         long candidateAdjustedFrameTimeNs = adjustedLastFrameTimeNs + averageFrameDurationNs;
-
-        if (isDriftTooLarge(candidateAdjustedFrameTimeNs, unadjustedReleaseTimeNs)) {
+        if (isDriftTooLarge(candidateAdjustedFrameTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
           haveSync = false;
         } else {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
           adjustedReleaseTimeNs =
-              syncUnadjustedReleaseTimeNs + adjustedFrameTimeNs - syncFramePresentationTimeNs;
+              syncUnadjustedReleaseTimeNs
+                  + (long) ((adjustedFrameTimeNs - syncFramePresentationTimeNs) / playbackRate);
         }
       } else {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
         // Check drift anyway.
-        if (isDriftTooLarge(framePresentationTimeNs, unadjustedReleaseTimeNs)) {
+        if (isDriftTooLarge(framePresentationTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
           haveSync = false;
         }
       }
@@ -184,10 +196,11 @@ public final class VideoFrameReleaseTimeHelper {
     // Do nothing.
   }
 
-  private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs) {
+  private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
     long elapsedFrameTimeNs = frameTimeNs - syncFramePresentationTimeNs;
     long elapsedReleaseTimeNs = releaseTimeNs - syncUnadjustedReleaseTimeNs;
-    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs) > MAX_ALLOWED_DRIFT_NS;
+    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs / playbackRate)
+        > MAX_ALLOWED_DRIFT_NS;
   }
 
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
