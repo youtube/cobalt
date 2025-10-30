@@ -70,7 +70,6 @@ public class StarboardBridge {
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private AudioPermissionRequester audioPermissionRequester;
-  private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
@@ -134,8 +133,6 @@ public class StarboardBridge {
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
-    // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
-    this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
@@ -221,7 +218,6 @@ public class StarboardBridge {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
-    networkStatus.beforeStartOrResume();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
@@ -234,7 +230,6 @@ public class StarboardBridge {
       // We want the MediaSession to be deactivated immediately before suspending so that by the
       // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
       // the web app can take their time suspending after that.
-      networkStatus.beforeSuspend();
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
       }
@@ -462,17 +457,6 @@ public class StarboardBridge {
     } catch (NumberFormatException e) {
       return getDisplaySize();
     }
-  }
-
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_network_is_disconnected.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
-  boolean isNetworkConnected() {
-    if (networkStatus == null) {
-      throw new IllegalArgumentException("networkStatus cannot be null for native code");
-    }
-    return networkStatus.isConnected();
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?

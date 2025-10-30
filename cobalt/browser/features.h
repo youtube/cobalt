@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/system.h"
+#ifndef COBALT_BROWSER_FEATURES_H_
+#define COBALT_BROWSER_FEATURES_H_
 
-namespace starboard::android::shared {
+#include "base/feature_list.h"
 
-bool IsSystemNetworkConnected() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jboolean j_is_connected =
-      env->CallStarboardBooleanMethodOrAbort("isNetworkConnected", "()Z");
-  return j_is_connected;
-}
+namespace cobalt {
+namespace features {
 
-}  // namespace starboard::android::shared
+// Enables the variations config expiration check.
+extern const base::Feature kExperimentConfigExpiration;
 
-bool SbSystemNetworkIsDisconnected() {
-  return !starboard::android::shared::IsSystemNetworkConnected();
-}
+}  // namespace features
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_FEATURES_H_
