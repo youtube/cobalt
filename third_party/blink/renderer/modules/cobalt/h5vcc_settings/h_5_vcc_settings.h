@@ -37,7 +37,7 @@ class MODULES_EXPORT H5vccSettings final
  public:
   explicit H5vccSettings(LocalDOMWindow&);
 
-  void ContextDestroyed() override {}
+  void ContextDestroyed() override;
 
   // Web-exposed interface:
 
@@ -49,11 +49,16 @@ class MODULES_EXPORT H5vccSettings final
   void Trace(Visitor*) const override;
 
  private:
+  void OnSetValueFinished(ScriptPromiseResolver*);
   void OnConnectionError();
   void EnsureReceiverIsBound();
 
   HeapMojoRemote<h5vcc_settings::mojom::blink::H5vccSettings>
       remote_h5vcc_settings_;
+  // Holds promises associated with outstanding async remote_h5vcc_settings_
+  // requests so that they can be rejected in the case of a Mojo connection
+  // error.
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
 };
 
 }  // namespace blink

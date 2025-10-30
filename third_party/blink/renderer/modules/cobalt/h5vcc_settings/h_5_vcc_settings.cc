@@ -31,17 +31,13 @@
 
 namespace blink {
 
-namespace {
-
-void OnSetValueFinished(ScriptPromiseResolver* resolver) {
-  resolver->Resolve();
-}
-
-}  // namespace
-
 H5vccSettings::H5vccSettings(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_settings_(window.GetExecutionContext()) {}
+
+void H5vccSettings::ContextDestroyed() {
+  ongoing_requests_.clear();
+}
 
 ScriptPromise H5vccSettings::set(
     ScriptState* script_state,
@@ -74,14 +70,29 @@ ScriptPromise H5vccSettings::set(
     return promise;
   }
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
-      base::BindOnce(&OnSetValueFinished, WrapPersistent(resolver)));
+      WTF::BindOnce(&H5vccSettings::OnSetValueFinished, WrapPersistent(this),
+                    WrapPersistent(resolver)));
   return promise;
+}
+
+void H5vccSettings::OnSetValueFinished(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
 }
 
 void H5vccSettings::OnConnectionError() {
   remote_h5vcc_settings_.reset();
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_settings_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(h5vcc_settings_promises);
+  for (auto& resolver : h5vcc_settings_promises) {
+    resolver->Reject("Mojo connection error.");
+  }
+  ongoing_requests_.clear();
 }
 
 void H5vccSettings::EnsureReceiverIsBound() {
@@ -101,6 +112,7 @@ void H5vccSettings::EnsureReceiverIsBound() {
 
 void H5vccSettings::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_settings_);
+  visitor->Trace(ongoing_requests_);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 
