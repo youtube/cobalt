@@ -32,6 +32,8 @@ static_library("video_dmp") {
 }
 
 action("player_download_test_data") {
+  visibility = [ ":player_test_data_resources" ]
+
   if (enable_install_targets) {
     install_content = true
   }
@@ -86,5 +88,10 @@ if (is_apple) {
     sources = get_target_outputs(":player_download_test_data")
 
     outputs = [ "{{bundle_resources_dir}}/content/test/starboard/shared/starboard/player/testdata/{{source_file_part}}" ]
+  }
+} else {
+  group("player_test_data_resources") {
+    testonly = true
+    data_deps = [ "//starboard/shared/starboard/player:player_download_test_data" ]
   }
 }
