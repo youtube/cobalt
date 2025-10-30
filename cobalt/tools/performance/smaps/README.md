@@ -49,51 +49,80 @@ python3 smaps_capture.py [OPTIONS]
     python3 smaps_capture.py -o /tmp/my_smaps_logs -s R58M1293QYV
     ```
 
-## `read_smaps.py` Usage
+## Smaps Analysis and Batch Processing
 
-This script parses and summarizes the output of a `/proc/<pid>/smaps` file. It can be used to analyze smaps data captured by `smaps_capture.py` or any other method.
+This directory also contains scripts for analyzing the captured smaps data.
+
+### `read_smaps.py`
+
+This is a single-file analysis script that reads a smaps file and prints a summarized, human-readable output to the console.
+
+### `read_smaps_batch.py`
+
+This script provides a convenient way to process multiple smaps files at once. It reads one or more input files, processes them, and saves the summarized output to a specified directory, with each output file corresponding to its input.
+
+#### Usage
 
 ```bash
-python3 read_smaps.py <SMAPS_FILE> [OPTIONS]
+python3 read_smaps_batch.py <SMAPS_FILES...> [OPTIONS]
 ```
 
-### Command-line Arguments
+#### Command-line Arguments
 
-*   `<SMAPS_FILE>` (required positional argument)
-    The path to the smaps file to be analyzed (e.g., `cobalt_smaps_logs/smaps_20250101_120000_12345.txt`).
+*   `<SMAPS_FILES...>` (required positional argument)
+    One or more paths to the smaps files to be analyzed. Wildcards can be used (e.g., `my_logs/*.txt`).
+*   `-o`, `--output_dir` (type: `str`, default: `processed_smaps`)
+    The directory where the processed smaps log files will be saved.
 *   `-k`, `--sortkey` (type: `str`, choices: `size`, `rss`, `pss`, `anonymous`, `name`, default: `pss`)
     The key to sort the output by.
 *   `-s`, `--strip_paths` (action: `store_true`)
     Remove leading paths from binary names.
-*   `-r`, `--remove_so_versions` (action: `store_true`)
-    Remove dynamic library versions (e.g., `.so.1.2.3` becomes `.so`).
-*   `-a`, `--aggregate_solibs` (action: `store_true`)
-    Collapse shared libraries into single rows (e.g., `libc.so`, `libstdc++.so`).
-*   `-d`, `--aggregate_android` (action: `store_true`)
-    Consolidate various Android-specific allocations.
-*   `-z`, `--aggregate_zeros` (action: `store_true`)
-    Consolidate rows that show zero RSS and PSS.
-*   `--no_anonhuge` (action: `store_true`)
-    Omit the `AnonHugePages` column from the output.
-*   `--no_shr_dirty` (action: `store_true`)
-    Omit the `Shared_Dirty` column from the output.
+*   ... (and other analysis options from `read_smaps.py`)
 
-### Examples
+#### Examples
 
-1.  **Analyze a saved smaps file, sorted by PSS, stripping paths and aggregating shared libraries:**
+1.  **Process all smaps files in a directory and save to `processed_logs`:**
     ```bash
-    python3 read_smaps.py cobalt_smaps_logs/smaps_20250101_120000_12345.txt -k pss -s -a
+    python3 read_smaps_batch.py cobalt_smaps_logs/*.txt -o processed_logs
     ```
 
-2.  **Analyze a smaps file with Android-specific aggregation:**
+2.  **Process specific files with aggregation and sorting:**
     ```bash
-    python3 read_smaps.py my_app_smaps.txt -d
+    python3 read_smaps_batch.py file1.txt file2.txt -a -s -k pss
     ```
+
+### `analyze_smaps_logs.py`
+
+After processing a batch of smaps files, you can use this script to analyze the entire run. It reads a directory of processed smaps files, tracks memory usage over time, and generates a summary report.
+
+The report includes:
+*   The top 5 largest memory consumers by PSS and RSS at the end of the run.
+*   The top 5 memory regions that have grown the most in PSS and RSS over the duration of the run.
+*   The overall change in total PSS and RSS.
+
+#### Usage
+
+```bash
+python3 analyze_smaps_logs.py <PROCESSED_LOG_DIR>
+```
+
+#### Example
+
+```bash
+python3 analyze_smaps_logs.py processed_logs
+```
 
 ## Testing
 
-Unit tests are provided to ensure the script's functionality and argument parsing. To run the tests, navigate to the project root directory and execute the following command:
+Unit tests are provided to ensure the functionality of the scripts. To run the tests, navigate to the project root directory and execute the following command:
 
 ```bash
+# For smaps_capture.py
 python3 -m unittest cobalt/tools/performance/smaps/smaps_capture_test.py
+
+# For read_smaps_batch.py
+python3 -m unittest cobalt/tools/performance/smaps/read_smaps_test.py
+
+# For analyze_smaps_logs.py
+python3 -m unittest cobalt/tools/performance/smaps/analyze_smaps_logs_test.py
 ```
