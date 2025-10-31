@@ -1,67 +1,73 @@
-name: linux
+name: android_26.eap
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, ready_for_review]
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - 26.eap
   push:
     branches:
-      - main
-      - experimental/*
-      - feature/*
-  workflow_dispatch:
-    inputs:
-      nightly:
-        description: 'Nightly workflow.'
-        required: true
-        type: boolean
-        default: false
+      - 26.eap
 
 jobs:
-  # This is default Chromium build config
-  chromium_linux-x64:
+  chromium_android-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: chromium_linux
+      platform: chromium_android-arm64
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  # This is default Cobalt build config
-  linux:
+  chromium_android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux
+      platform: chromium_android-arm
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  # This is cobalt on linux using modular build config
-  linux-modular:
+  chromium_android-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-modular
+      platform: chromium_android-x86
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  # This is content_shell without starboard
-  linux-web-tests:
+  # Cobalt specific build configs
+  android-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-web-tests
+      platform: android-arm64
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
+  android-arm:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: android-arm
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
+  android-x86:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: android-x86
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
