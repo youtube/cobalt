@@ -106,6 +106,7 @@ void H5vccSettings::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_settings_);
   visitor->Trace(ongoing_requests_);
   ExecutionContextLifecycleObserver::Trace(visitor);
+  ScriptWrappable::Trace(visitor);
 }
 
 }  // namespace blink
