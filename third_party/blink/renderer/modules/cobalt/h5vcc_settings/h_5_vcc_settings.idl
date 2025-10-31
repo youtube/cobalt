@@ -17,5 +17,6 @@
     SecureContext
 ]
 interface H5vccSettings {
-  boolean set(DOMString name, (DOMString or long) value);
+  [CallWith=ScriptState, RaisesException]
+  Promise<void> set(DOMString name, (DOMString or long) value);
 };

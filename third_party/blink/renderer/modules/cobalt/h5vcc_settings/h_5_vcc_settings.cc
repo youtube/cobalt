@@ -14,12 +14,17 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
-#include "base/notreached.h"
+#include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -30,10 +35,18 @@ H5vccSettings::H5vccSettings(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_settings_(window.GetExecutionContext()) {}
 
-void H5vccSettings::ContextDestroyed() {}
+void H5vccSettings::ContextDestroyed() {
+  ongoing_requests_.clear();
+}
 
-bool H5vccSettings::set(const WTF::String& name,
-                        const V8UnionLongOrString* value) {
+ScriptPromise H5vccSettings::set(ScriptState* script_state,
+                                 const WTF::String& name,
+                                 const V8UnionLongOrString* value,
+                                 ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
+
   EnsureReceiverIsBound();
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;
@@ -44,20 +57,34 @@ bool H5vccSettings::set(const WTF::String& name,
     mojo_value =
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
-    NOTREACHED();
-    return false;
+    // Should not happen
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
+    return promise;
   }
 
-  bool success = false;
-  if (!remote_h5vcc_settings_->SetValue(name, std::move(mojo_value),
-                                        &success)) {
-    return false;
-  }
-  return success;
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_settings_->SetValue(
+      name, std::move(mojo_value),
+      WTF::BindOnce(&H5vccSettings::OnSetValueFinished, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+  return promise;
+}
+
+void H5vccSettings::OnSetValueFinished(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
 }
 
 void H5vccSettings::OnConnectionError() {
   remote_h5vcc_settings_.reset();
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_settings_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(h5vcc_settings_promises);
+  for (auto& resolver : h5vcc_settings_promises) {
+    resolver->Reject("Mojo connection error.");
+  }
 }
 
 void H5vccSettings::EnsureReceiverIsBound() {
@@ -77,8 +104,8 @@ void H5vccSettings::EnsureReceiverIsBound() {
 
 void H5vccSettings::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_settings_);
+  visitor->Trace(ongoing_requests_);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  ScriptWrappable::Trace(visitor);
 }
 
 }  // namespace blink

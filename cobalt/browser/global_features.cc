@@ -17,7 +17,6 @@
 #include <variant>
 
 #include "base/feature_list.h"
-#include "base/json/string_escape.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
@@ -108,7 +107,7 @@ void GlobalFeatures::SetSettings(const std::string& key,
 
   LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
     if (const auto* s = std::get_if<std::string>(&value)) {
-      return base::GetQuotedJSONString(*s);
+      return "\"" + *s + "\"";
     } else if (const auto* i = std::get_if<int64_t>(&value)) {
       return std::to_string(*i);
     }
