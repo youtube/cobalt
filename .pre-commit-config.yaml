@@ -66,6 +66,7 @@ repos:
         exclude: |
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
+                ^cobalt/common/features/starboard_features_initialization.cc$|
                 ^starboard/shared/uikit/.*\.h$|
                 ^starboard/shared/starboard/starboard_feature_test.cc$|
                 ^starboard/shared/starboard/link_receiver.cc$
