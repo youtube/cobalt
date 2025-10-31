@@ -40,7 +40,8 @@ interface H5vccExperiments {
 
   // The following APIs fetch Cobalt's current value for the given feature name
   // or feature param.
-  OverrideState getFeature(DOMString feature_name);
+  [CallWith=ScriptState, RaisesException]
+  Promise<OverrideState> getFeature(DOMString feature_name);
 
   DOMString getFeatureParam(DOMString feature_param_name);
 
