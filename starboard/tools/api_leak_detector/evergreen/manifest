@@ -13,7 +13,6 @@ ZSTD_trace_decompress_end
 __cxa_thread_atexit_impl
 __gcov_dump
 __gcov_flush
-__nl_langinfo_l
 dl_iterate_phdr
 dlopen
 dlsym
@@ -28,7 +27,6 @@ fopen
 fprintf
 fputc
 fread
-freelocale
 fseek
 fseeko
 fstat64
@@ -48,7 +46,6 @@ ioctl
 lseek64
 memfd_create
 mmap64
-newlocale
 open64
 openat
 pkey_alloc(unsigned int, unsigned int)
@@ -62,7 +59,6 @@ puts
 rewind
 sched_setscheduler
 setbuf
-setlocale
 setvbuf
 sigaltstack
 stat64
@@ -74,6 +70,5 @@ tmpfile
 ungetc
 ungetwc
 unlinkat
-uselocale
 vfprintf
 vprintf
