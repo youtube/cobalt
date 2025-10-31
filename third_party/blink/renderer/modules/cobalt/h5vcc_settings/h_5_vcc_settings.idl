@@ -17,6 +17,8 @@
     SecureContext
 ]
 interface H5vccSettings {
+  // TODO: b/455661813 - Remove this API once Finch is available.
+  // This API is a stop-gap solution until Finch is ready.
   [CallWith=ScriptState, RaisesException]
   Promise<void> set(DOMString name, (DOMString or long) value);
 };

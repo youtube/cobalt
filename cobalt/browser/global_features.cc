@@ -112,6 +112,7 @@ void GlobalFeatures::SetSettings(const std::string& key,
     } else if (const auto* i = std::get_if<int64_t>(&value)) {
       return std::to_string(*i);
     }
+    NOTREACHED();
     return std::string("unknown");
   }();
 }
