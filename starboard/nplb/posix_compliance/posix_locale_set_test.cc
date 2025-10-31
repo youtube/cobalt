@@ -32,6 +32,9 @@
 constexpr char kDefaultLocale[] = "C";
 constexpr char kPosixLocale[] = "POSIX";
 
+namespace starboard {
+namespace nplb {
+
 // RAII class to save and restore locale.
 class ScopedLocale {
  public:
@@ -451,3 +454,5 @@ INSTANTIATE_TEST_SUITE_P(PosixLocaleSetTests,
                          PosixLocaleSetAlternativeFormatTest,
                          ::testing::ValuesIn(kLocaleFormats),
                          GetLocaleTestName);
+}  // namespace nplb
+}  // namespace starboard
