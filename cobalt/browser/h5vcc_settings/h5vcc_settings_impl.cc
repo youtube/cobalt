@@ -40,7 +40,7 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
   if (!value) {
     LOG(WARNING) << "H5vccSettings::SetValue received a null value for '"
                  << name << "'.";
-    std::move(callback).Run();
+    std::move(callback).Run(false);
     return;
   }
 
@@ -59,11 +59,11 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
       LOG(WARNING) << "H5vccSettings::SetValue received an unknown value "
                       "type for '"
                    << name << "'.";
-      std::move(callback).Run();
+      std::move(callback).Run(false);
       return;
   }
   global_features->SetSettings(name, setting_value);
-  std::move(callback).Run();
+  std::move(callback).Run(true);
 }
 
 }  // namespace h5vcc_settings
