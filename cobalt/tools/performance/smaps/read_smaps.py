@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tool to parse process smaps
 
 Reads and summarizes /proc/<pid>/smaps
@@ -36,8 +35,7 @@ def split_kb_line(in_list, expect):
   l = consume_until(in_list, expect)
   sz = re.split(' +', l)
   if not sz[0].startswith(expect):
-    raise RuntimeError(
-        f'Unexpected line head, looked for:{expect} got:{sz[0]}')
+    raise RuntimeError(f'Unexpected line head, looked for:{expect} got:{sz[0]}')
   if sz[2] != 'kB':
     raise RuntimeError(f'Expected kB got {sz[2]}')
   return int(sz[1])
@@ -99,19 +97,16 @@ def read_smap(args):
     if args.aggregate_android:
       key = re.sub(r'[@\-\.\w]*\.(hyb|vdex|odex|art|jar|oat)[\]]*$', r'<\g<1>>',
                    key)
-      key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>',
-                   key)
+      key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
       key = re.sub(r'[@\-\.\w]+prop:s0', '<prop>', key)
       key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
     d = MemDetail(
         split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
         line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
         split_kb_line(ls, 'Pss:'), split_kb_line(ls, 'Shared_Clean:'),
-        split_kb_line(ls, 'Shared_Dirty:'),
-        split_kb_line(ls, 'Private_Clean:'),
-        split_kb_line(ls, 'Private_Dirty:'),
-        split_kb_line(ls, 'Referenced:'), split_kb_line(ls, 'Anonymous:'),
-        split_kb_line(ls, 'AnonHugePages:'))
+        split_kb_line(ls, 'Shared_Dirty:'), split_kb_line(ls, 'Private_Clean:'),
+        split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
+        split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
     # expected to be constant
     line_expect(ls, 'ShmemPmdMapped:', 0)
     line_expect(ls, 'Shared_Hugetlb:', 0)

@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tool to batch process smaps files."""
 
 import argparse
@@ -60,6 +59,7 @@ def run_smaps_batch_tool(argv=None):
 
     sys.stdout = original_stdout
     print(f'Successfully processed {smaps_file} -> {output_path}')
+
 
 def main():
   """Main entry point for batch processing."""

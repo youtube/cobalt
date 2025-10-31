@@ -132,9 +132,7 @@ class ReadSmapsTest(unittest.TestCase):
     """Tests processing multiple smaps files."""
     output_file_1 = os.path.join(self.output_dir, 'smaps1_processed.txt')
     output_file_2 = os.path.join(self.output_dir, 'smaps2_processed.txt')
-    test_args = [
-        self.smaps_file_1, self.smaps_file_2, '-o', self.output_dir
-    ]
+    test_args = [self.smaps_file_1, self.smaps_file_2, '-o', self.output_dir]
 
     read_smaps_batch.run_smaps_batch_tool(test_args)
 

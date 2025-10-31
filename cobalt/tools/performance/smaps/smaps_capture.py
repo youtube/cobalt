@@ -38,13 +38,13 @@ OUTPUT_DIR = 'cobalt_smaps_logs'
 class SmapsCapturer:
   """A class to capture smaps data from an Android device."""
 
-  def __init__( # pylint: disable=too-many-positional-arguments
-    self,
-    config,
-    subprocess_module=subprocess,
-    time_module=time,
-    os_module=os,
-    datetime_module=datetime):
+  def __init__(  # pylint: disable=too-many-positional-arguments
+      self,
+      config,
+      subprocess_module=subprocess,
+      time_module=time,
+      os_module=os,
+      datetime_module=datetime):
     self.process_name = config.process_name
     self.device_serial = config.device_serial
     self.adb_path = config.adb_path
@@ -129,8 +129,7 @@ class SmapsCapturer:
 
     try:
       start_time = self.time.time()
-      while (self.time.time() -
-             start_time) < self.capture_duration_seconds:
+      while (self.time.time() - start_time) < self.capture_duration_seconds:
         cycle_start_time = self.datetime.datetime.now()
         current_time_str = cycle_start_time.strftime('%H:%M:%S')
 

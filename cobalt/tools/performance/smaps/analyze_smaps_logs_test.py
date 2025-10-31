@@ -61,14 +61,12 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
 
     # Create mock files
     with open(
-        os.path.join(self.test_dir,
-                     'smaps_20251030_010000_1234_processed.txt'),
+        os.path.join(self.test_dir, 'smaps_20251030_010000_1234_processed.txt'),
         'w',
         encoding='utf-8') as f:
       f.write(MOCK_PROCESSED_SMAPS_1)
     with open(
-        os.path.join(self.test_dir,
-                     'smaps_20251030_020000_1234_processed.txt'),
+        os.path.join(self.test_dir, 'smaps_20251030_020000_1234_processed.txt'),
         'w',
         encoding='utf-8') as f:
       f.write(MOCK_PROCESSED_SMAPS_2)
