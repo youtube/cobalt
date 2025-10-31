@@ -15,6 +15,8 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 
 #include <iostream>
+#include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <variant>
