@@ -65,6 +65,7 @@ runs:
 
     - name: Pull Existing Docker Image
       id: pull-cached-image
+      if: inputs.is_pr == 'true'
       env:
         GITHUB_DOCKER_REGISTRY_URL: ghcr.io
         PR_DOCKER_REGISTRY_URL: us-central1-docker.pkg.dev
@@ -80,18 +81,15 @@ runs:
           # A postsubmit image exists, use it.
           echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
 
-        elif [[ "${IS_PR}" == "true" ]]; then
-          # No post-submit image was found. Check PR registry to see if there's an image there.
+        else
+          # No fitting post-submit image was found. Check PR registry to see if there's an image there.
           PROJECT_NAME=$(gcloud config get-value project)
           DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
           if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-            echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
+            echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
             echo "build_image=true" >> $GITHUB_OUTPUT
           fi
-        else
-          echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
-          echo "build_image=true" >> $GITHUB_OUTPUT
         fi
 
         # Tell builders which image tag to use.
@@ -102,7 +100,7 @@ runs:
       shell: bash
 
     - name: Build and Push Docker Image
-      if: steps.pull-cached-image.outputs.build_image == 'true'
+      if: inputs.is_pr != 'true' || steps.pull-cached-image.outputs.build_image == 'true'
       env:
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         DOCKER_SERVICE: ${{ inputs.docker_service }}
