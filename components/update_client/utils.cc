@@ -42,6 +42,11 @@
 #include "base/win/windows_version.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/logging.h"
+#include "base/version.h"
+#endif
+
 namespace update_client {
 
 const char kArchAmd64[] = "x86_64";
@@ -82,6 +87,83 @@ std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash) {
   return result;
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+bool VerifyHash256(const std::string* content,
+                   const std::string& expected_hash_str) {
+  std::vector<uint8_t> expected_hash;
+  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
+      expected_hash.size() != crypto::kSHA256Length) {
+    return false;
+  }
+
+  uint8_t actual_hash[crypto::kSHA256Length] = {0};
+  std::unique_ptr<crypto::SecureHash> hasher(
+      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+
+  hasher->Update(content->c_str(), content->size());
+  hasher->Finish(actual_hash, sizeof(actual_hash));
+
+  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+}
+#else  // defined(IN_MEMORY_UPDATES)
+bool VerifyFileHash256(const base::FilePath& filepath,
+                       const std::string& expected_hash_str) {
+  std::vector<uint8_t> expected_hash;
+  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
+      expected_hash.size() != crypto::kSHA256Length) {
+    return false;
+  }
+
+  base::File source_file(filepath,
+                         base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!source_file.IsValid()) {
+    DPLOG(ERROR) << "VerifyFileHash256(): Unable to open source file: "
+                 << filepath.value();
+    return false;
+  }
+
+  const size_t kBufferSize = 32768;
+  std::vector<char> buffer(kBufferSize);
+  uint8_t actual_hash[crypto::kSHA256Length] = {0};
+  std::unique_ptr<crypto::SecureHash> hasher(
+      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+
+  while (true) {
+    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
+    if (bytes_read < 0) {
+      DPLOG(ERROR) << "VerifyFileHash256(): error reading from source file: "
+                   << filepath.value();
+
+      return false;
+    }
+
+    if (bytes_read == 0) {
+      break;
+    }
+
+    hasher->Update(&buffer[0], bytes_read);
+  }
+
+  hasher->Finish(actual_hash, sizeof(actual_hash));
+
+  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+}
+#endif  // defined(IN_MEMORY_UPDATES)
+
+base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
+  auto manifest = ReadManifest(installation_dir);
+  if (manifest) {
+    auto version = manifest->Find("version");
+    if (version) {
+      return base::Version(version->GetString());
+    }
+  }
+  LOG(WARNING) << "ReadEvergreenVersion: unable to read version from "
+               << installation_dir.value();
+  return base::Version();
+}
+#else  // BUILDFLAG(IS_STARBOARD)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::vector<uint8_t> expected_hash;
@@ -108,6 +190,7 @@ bool VerifyFileHash256(const base::FilePath& filepath,
 
   return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
 }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 bool IsValidBrand(const std::string& brand) {
   const size_t kMaxBrandSize = 4;

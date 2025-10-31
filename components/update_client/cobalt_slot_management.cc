@@ -22,7 +22,6 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/values.h"
-#include "cobalt/updater/util.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -34,7 +33,7 @@ namespace update_client {
 namespace {
 bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   std::string bad_app_key_file_path =
-      starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
+      loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
   struct stat file_info;
   bool file_exists = stat(bad_app_key_file_path.c_str(), &file_info) == 0;
@@ -126,7 +125,7 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
       continue;
     }
 
-    SB_DLOG(INFO) << "CobaltSlotManagement::SelectSlot: installation_path = "
+    SB_LOG(INFO) << "CobaltSlotManagement::SelectSlot: installation_path = "
                   << installation_path.data();
 
     base::FilePath installation_dir(
@@ -139,7 +138,7 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
     DrainFileClearForApp(installation_dir.value().c_str(), app_key_.c_str());
 
     base::Version version =
-        cobalt::updater::ReadEvergreenVersion(installation_dir);
+        ReadEvergreenVersion(installation_dir);
     if (!version.IsValid()) {
       LOG(INFO) << "CobaltSlotManagement::SelectSlot installed version invalid";
       if (!DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
@@ -189,7 +188,7 @@ bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
   if (!initialized_) {
     return false;
   }
-  LOG(INFO) << "CobaltSlotManagement::ConfirmSlot ";
+  LOG(INFO) << "CobaltSlotManagement::ConfirmSlot, dir = " << dir.value().c_str();
   if (!DrainFileRankAndCheck(dir.value().c_str(), app_key_.c_str())) {
     LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to lock slot ";
     return false;
@@ -263,9 +262,9 @@ bool CobaltFinishInstallation(
     const std::string& dir,
     const std::string& app_key) {
   std::string good_app_key_file_path =
-      starboard::loader_app::GetGoodAppKeyFilePath(dir, app_key);
+      loader_app::GetGoodAppKeyFilePath(dir, app_key);
   SB_CHECK(!good_app_key_file_path.empty());
-  if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
+  if (!loader_app::CreateAppKeyFile(good_app_key_file_path)) {
     LOG(WARNING) << "Failed to create good app key file";
   }
   DrainFileClearForApp(dir.c_str(), app_key.c_str());
@@ -315,17 +314,17 @@ bool CobaltQuickUpdate(
       continue;
     }
 
-    SB_DLOG(INFO) << "CobaltQuickInstallation: installation_path = "
+    SB_LOG(INFO) << "CobaltQuickInstallation: installation_path = "
                   << installation_path.data();
 
     base::FilePath installation_dir = base::FilePath(
         std::string(installation_path.begin(), installation_path.end()));
 
     base::Version installed_version =
-        cobalt::updater::ReadEvergreenVersion(installation_dir);
+        ReadEvergreenVersion(installation_dir);
 
     std::string good_app_key_file_path =
-        starboard::loader_app::GetGoodAppKeyFilePath(
+        loader_app::GetGoodAppKeyFilePath(
             installation_dir.value().c_str(), app_key);
     struct stat file_info;
     if (!installed_version.IsValid()) {
@@ -339,7 +338,7 @@ bool CobaltQuickUpdate(
                     !CheckBadFileExists(installation_dir.value().c_str(),
                                         app_key) &&
                     stat(good_app_key_file_path.c_str(), &file_info) != 0 &&
-                    starboard::loader_app::AnyGoodAppKeyFile(
+                    loader_app::AnyGoodAppKeyFile(
                         installation_dir.value().c_str())))) {
       // Found a slot with newer version than the current version. It's either
       // the system image slot, or a writeable installation slot that's not
