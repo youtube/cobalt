@@ -10,9 +10,6 @@
   "localeFilter": {
     "filterType": "language",
     "includelist": [
-// Need to explicitly add "root"
-      "root",
-
       "af",
       "am",
       "ar",
@@ -161,9 +158,6 @@
     "curr_tree": {
       "filterType": "language",
       "includelist": [
-// Need to explicitly add "root"
-	"root",
-
         "af",
         "am",
         "ar",
@@ -252,9 +246,6 @@
         {
           "filterType": "language",
           "includelist": [
-// Need to explicitly add "root"
-    	    "root",
-
             "af",
             "am",
             "ar",
@@ -343,9 +334,6 @@
     "region_tree": {
       "filterType": "language",
       "includelist": [
-// Need to explicitly add "root"
-	"root",
-
         "af",
         "am",
         "ar",
@@ -434,9 +422,6 @@
     "unit_tree": {
       "filterType": "language",
       "includelist": [
-// Need to explicitly add "root"
-	"root",
-
         "af",
         "am",
         "ar",
@@ -516,8 +501,6 @@
     "zone_tree": {
       "filterType": "language",
       "includelist": [
-// Need to explicitly add "root"
-	"root",
 // Need to explicitly add "tzdbNames"
 	"tzdbNames",
 

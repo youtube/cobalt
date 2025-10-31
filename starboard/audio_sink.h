@@ -19,8 +19,9 @@
 #ifndef STARBOARD_AUDIO_SINK_H_
 #define STARBOARD_AUDIO_SINK_H_
 
-#include "starboard/configuration.h"
+#include <stdbool.h>
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/media.h"
 
