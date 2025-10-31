@@ -116,7 +116,6 @@ class StarboardFeatureTest : public ::testing::Test {
                       "tests in this suite.";
     }
   }
-}
 };
 
 TEST_F(StarboardFeatureTest, CanAccessFeatures) {

@@ -35,25 +35,28 @@ auto ToMicroseconds(const struct timeval& tv) {
 int64_t CurrentMonotonicTime() {
   struct timespec ts;
   if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-    return ToMicroseconds(ts);
+    SB_NOTREACHED() << "clock_gettime(CLOCK_MONOTONIC) failed.";
+    return 0;
   }
+  return ToMicroseconds(ts);
+}
 
-  int64_t CurrentMonotonicThreadTime() {
-    struct timespec ts;
-    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) {
-      // This is expected to happen on some systems, like Windows.
-      return 0;
-    }
-    return ToMicroseconds(ts);
+int64_t CurrentMonotonicThreadTime() {
+  struct timespec ts;
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) {
+    // This is expected to happen on some systems, like Windows.
+    return 0;
   }
+  return ToMicroseconds(ts);
+}
 
-  int64_t CurrentPosixTime() {
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) != 0) {
-      SB_NOTREACHED() << "Could not determine time of day.";
-      return 0;
-    }
-    return ToMicroseconds(tv);
+int64_t CurrentPosixTime() {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) != 0) {
+    SB_NOTREACHED() << "Could not determine time of day.";
+    return 0;
   }
+  return ToMicroseconds(tv);
+}
 
 }  // namespace starboard
