@@ -87,7 +87,7 @@ runs:
           DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
           if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-            echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
+            echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
             echo "build_image=true" >> $GITHUB_OUTPUT
           fi
         fi
