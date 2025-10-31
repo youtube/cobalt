@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+#
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Tool to parse process smaps
+
+Reads and summarizes /proc/<pid>/smaps
+"""
+import argparse
+from collections import namedtuple, OrderedDict
+import itertools
+import re
+
+
+def consume_until(l, expect):
+  """Consumes lines from a list until a line starting with a string is found."""
+  while not l[0].startswith(expect):
+    l.pop(0)
+  return l.pop(0)
+
+
+def split_kb_line(in_list, expect):
+  """Consumes a line, splits it, and returns the size in kB."""
+  l = consume_until(in_list, expect)
+  sz = re.split(' +', l)
+  if not sz[0].startswith(expect):
+    raise RuntimeError(f'Unexpected line head, looked for:{expect} got:{sz[0]}')
+  if sz[2] != 'kB':
+    raise RuntimeError(f'Expected kB got {sz[2]}')
+  return int(sz[1])
+
+
+def line_expect(in_list, expect, howmuch):
+  """Consumes a line and asserts that the size is the expected value."""
+  val = split_kb_line(in_list, expect)
+  if howmuch != val:
+    raise RuntimeError(f'Expected {expect} to be {howmuch}, got {val}')
+  return 0
+
+
+fields = ('size rss pss shr_clean shr_dirty priv_clean priv_dirty '
+          'referenced anonymous anonhuge').split()
+MemDetail = namedtuple('name', fields)
+
+
+def takeuntil(items, predicate):
+  """Collects items from an iterator until a predicate is met."""
+  groups = itertools.groupby(items, predicate)
+  while True:
+    try:
+      _, pieces = next(groups)
+    except StopIteration:
+      return
+    list_pieces = list(pieces)
+    _, last_pice = list(next(groups))  # pylint: disable=stop-iteration-return
+    yield list_pieces + list(last_pice)
+
+
+def read_smap(args):
+  """Reads and summarizes a smaps file."""
+  with open(args.smaps_file, encoding='utf-8') as file:
+    lines = [line.rstrip() for line in file]
+  owners = {}
+  summary = {}
+  namewidth = 40 if args.strip_paths else 50
+
+  display_fields = list(fields)
+  if args.no_anonhuge:
+    display_fields.remove('anonhuge')
+  if args.no_shr_dirty:
+    display_fields.remove('shr_dirty')
+
+  # The expected output from smaps is 23 lines for each allocation
+  for ls in takeuntil(lines, lambda x: x.startswith('VmFlags:')):
+    head = re.split(' +', ls.pop(0))
+    key = (head[5:] or ['<anon>'])[0]
+    if args.strip_paths:
+      key = re.sub('.*/', '', key)
+    if args.remove_so_versions or args.aggregate_solibs:
+      key = re.sub(r'\.so[\.0-9]+', '.so', key)
+    if args.aggregate_solibs:
+      # Split out C / C++ solibs
+      key = re.sub(r'libc-[\.0-9]+\.so', '<glibc>', key)
+      key = re.sub(r'libstdc\++\.so', '<libstdc++>', key)
+      key = re.sub(r'[@\-\.\w]+\.so', '<dynlibs>', key)
+    if args.aggregate_android:
+      key = re.sub(r'[@\-\.\w]*\.(hyb|vdex|odex|art|jar|oat)[\]]*$', r'<\g<1>>',
+                   key)
+      key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
+      key = re.sub(r'[@\-\.\w]+prop:s0', '<prop>', key)
+      key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
+    d = MemDetail(
+        split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
+        line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
+        split_kb_line(ls, 'Pss:'), split_kb_line(ls, 'Shared_Clean:'),
+        split_kb_line(ls, 'Shared_Dirty:'), split_kb_line(ls, 'Private_Clean:'),
+        split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
+        split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
+    # expected to be constant
+    line_expect(ls, 'ShmemPmdMapped:', 0)
+    line_expect(ls, 'Shared_Hugetlb:', 0)
+    line_expect(ls, 'Private_Hugetlb:', 0)
+    if args.aggregate_zeros and (d.rss == 0) and (d.pss == 0):
+      key = '<zero resident>'
+
+    addr_range = head[0].split('-')
+    start = int('0x' + addr_range[0], 16)
+    end = int('0x' + addr_range[1], 16)
+    if (end - start) / 1024 != d.size:
+      raise RuntimeError(
+          f'Sizes dont match: expected {d.size}, got {(end - start) / 1024}')
+    lls = owners.get(key, [])
+    lls.append(d)
+    owners[key] = lls
+
+  for k, list_allocs in owners.items():
+    summary[k] = MemDetail(*map(sum, zip(*list_allocs)))
+  sdict = OrderedDict(
+      sorted(
+          summary.items(),
+          reverse=True,
+          key=lambda x: getattr(x[1], args.sortkey)))
+
+  tabwidth = 12
+
+  def printrow(first_col, col_values):
+    print(
+        first_col.rjust(namewidth) + '|' +
+        '|'.join([str(x).rjust(tabwidth) for x in col_values]))
+
+  printrow('name', display_fields)
+  for k, v in sdict.items():
+    vp = k.rjust(namewidth)
+    printrow(vp[len(vp) - namewidth:], [getattr(v, x) for x in display_fields])
+
+  totals = MemDetail(*map(sum, zip(*sdict.values())))
+  printrow('total', [getattr(totals, x) for x in display_fields])
+  printrow('name', display_fields)
+
+
+def get_analysis_parser():
+  """Creates and returns the argument parser for smaps analysis."""
+  parser = argparse.ArgumentParser(add_help=False)
+  parser.add_argument(
+      '-k',
+      '--sortkey',
+      choices=['size', 'rss', 'pss', 'anonymous', 'name'],
+      default='pss')
+  parser.add_argument(
+      '-s',
+      '--strip_paths',
+      action='store_true',
+      help='Remove leading paths from binaries')
+  parser.add_argument(
+      '-r',
+      '--remove_so_versions',
+      action='store_true',
+      help='Remove dynamic library versions')
+  parser.add_argument(
+      '-a',
+      '--aggregate_solibs',
+      action='store_true',
+      help='Collapse solibs into single row')
+  parser.add_argument(
+      '-d',
+      '--aggregate_android',
+      action='store_true',
+      help='Consolidate various Android allocations')
+  parser.add_argument(
+      '-z',
+      '--aggregate_zeros',
+      action='store_true',
+      help='Consolidate rows that show zero RSS and PSS')
+  parser.add_argument(
+      '--no_anonhuge',
+      action='store_true',
+      help='Omit AnonHugePages column from output')
+  parser.add_argument(
+      '--no_shr_dirty',
+      action='store_true',
+      help='Omit Shared_Dirty column from output')
+  return parser
+
+
+if __name__ == '__main__':
+  main_parser = argparse.ArgumentParser(
+      description=('A tool to read process memory maps from /proc/<pid>/smaps'
+                   ' in a concise way'),
+      parents=[get_analysis_parser()])
+  main_parser.add_argument(
+      'smaps_file',
+      help='Contents of /proc/pid/smaps, for example /proc/self/smaps')
+  read_smap(main_parser.parse_args())
