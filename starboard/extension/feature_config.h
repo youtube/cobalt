@@ -1,3 +1,6 @@
+#ifndef STARBOARD_EXTENSION_FEATURE_CONFIG_H_
+#define STARBOARD_EXTENSION_FEATURE_CONFIG_H_
+
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -205,10 +208,6 @@ STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
                         kVideoDecoderDelayUsecOverride,
                         "FlushDelayUsec",
                         base::Microseconds(0))
-STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
-                        kResetDelayUsec,
-                        kVideoDecoderDelayUsecOverride,
-                        "ResetDelayUsec",
-                        base::Microseconds(0))
-#endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END
+
+#endif  // STARBOARD_EXTENSION_FEATURE_CONFIG_H_

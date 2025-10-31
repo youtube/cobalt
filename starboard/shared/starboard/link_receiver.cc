@@ -58,7 +58,8 @@ bool SetNonBlocking(int fd) {
     return false;
   }
   if (HANDLE_EINTR([&]() { return fcntl(fd, F_SETFL, flags | O_NONBLOCK); }) ==
-      -1) {
+      -1)
+  {
     SB_LOG(ERROR) << "fcntl(F_SETFL, O_NONBLOCK) failed";
     return false;
   }

@@ -1,3 +1,6 @@
+#ifndef COBALT_SHELL_APP_RESOURCE_H_
+#define COBALT_SHELL_APP_RESOURCE_H_
+
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,6 +49,5 @@
 #define _APS_NEXT_RESOURCE_VALUE  129
 #define _APS_NEXT_COMMAND_VALUE   32771
 #define _APS_NEXT_CONTROL_VALUE   1000
-#define _APS_NEXT_SYMED_VALUE     117
-#endif
-#endif
+#define _APS_NEXT_SYMED_VALUE     117#endif
+#endif  // COBALT_SHELL_APP_RESOURCE_H_

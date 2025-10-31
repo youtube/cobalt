@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_BROWSER_WEBRTC_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
-#define CONTENT_BROWSER_WEBRTC_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
+#define COBALT_TESTING_BROWSER_TESTS_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
 
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 
@@ -43,4 +43,4 @@ class WebRtcContentBrowserTestBase : public ContentBrowserTest {
 
 }  // namespace content
 
-#endif  // CONTENT_BROWSER_WEBRTC_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_WEBRTC_CONTENT_BROWSERTEST_BASE_H_

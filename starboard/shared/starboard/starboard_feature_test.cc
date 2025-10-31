@@ -114,7 +114,7 @@ class StarboardFeatureTest : public ::testing::Test {
     if (!kExtension_api) {
       GTEST_SKIP() << "Failed to get Starboard Features API; skipping all "
                       "tests in this suite.";
-      ;
+    }
     }
   }
 };

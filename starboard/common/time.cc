@@ -35,11 +35,7 @@ auto ToMicroseconds(const struct timeval& tv) {
 int64_t CurrentMonotonicTime() {
   struct timespec ts;
   if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-    SB_NOTREACHED() << "clock_gettime(CLOCK_MONOTONIC) failed.";
-    return 0;
-  }
   return ToMicroseconds(ts);
-  ;
 }
 
 int64_t CurrentMonotonicThreadTime() {
@@ -49,7 +45,6 @@ int64_t CurrentMonotonicThreadTime() {
     return 0;
   }
   return ToMicroseconds(ts);
-  ;
 }
 
 int64_t CurrentPosixTime() {
