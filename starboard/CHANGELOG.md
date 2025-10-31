@@ -92,6 +92,7 @@ The functionality is migrated to use `getauxval` instead.
 * `pthread_setschedparam`
 * `pthread_sigmask`
 * `readdir`
+* `readv`
 * `realpath`
 * `sched_getaffinity`
 * `sem_destroy`

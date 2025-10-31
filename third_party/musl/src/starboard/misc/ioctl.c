@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "init_musl.h"
-#include "libc.h"
-#include <sys/auxv.h>
+#include <sys/ioctl.h>
 
-void init_musl() {
+int ioctl_TIOCGWINSZ(int fd, struct winsize *wz) {
+  // Return the current terminal size.
+  // Note: In POSIX 2024, this can be handled by tcgetwinsize.
+  if (wz) {
+    wz->ws_row = 24;
+    wz->ws_col = 80;
+  }
 
-  // Set __hwcap bitmask by getauxval.
-  __hwcap = getauxval(AT_HWCAP);
-
-  // Init the __stack_chk_guard.
-  init_stack_guard();
+  // Return error when the fd is not for a tty.
+  return isatty(fd) ? 0 : -1;
 }
