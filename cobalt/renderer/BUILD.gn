@@ -15,8 +15,6 @@ import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 source_set("renderer") {
-  testonly = true
-
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",

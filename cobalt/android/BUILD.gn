@@ -46,7 +46,6 @@ generate_jni("jni_headers") {
 }
 
 android_library("cobalt_main_java") {
-  testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
     ":jni_headers",
@@ -153,7 +152,6 @@ android_library("cobalt_main_java") {
 }
 
 android_library("cobalt_apk_java") {
-  testonly = true
   resources_package = "dev.cobalt.coat"
 
   deps = [
@@ -178,13 +176,13 @@ android_assets("coat_assets") {
 
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
-  # TODO(b/375655377): remove testonly
-  testonly = true
   deps = [
     "//cobalt/browser",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/utility",
+    "//components/variations:variations_associated_data",
+    "//components/variations/android:variations_data_jni",
     "//gpu/command_buffer/service",
 
     # TODO: what can be removed in the dependencies?
@@ -206,6 +204,7 @@ shared_library_with_jni("libchrobalt") {
       "//media/midi",
     ]
   }
+  remove_uncalled_jni = true
   sources = [
     "//cobalt/app/cobalt_main_delegate.cc",
     "//cobalt/app/cobalt_main_delegate.h",
@@ -220,7 +219,6 @@ shared_library_with_jni("libchrobalt") {
 }
 
 android_apk("cobalt_apk") {
-  testonly = true
   apk_name = "Cobalt"
   android_manifest = cobalt_manifest
   android_manifest_dep = ":cobalt_manifest"
