@@ -27,6 +27,8 @@
 // Doing it this way guarantees that features defined in the Chrobalt side and
 // starboard side share the same names, param types and initial default values.
 
+// NOLINT(build/header_guard)
+
 #include "build/build_config.h"
 #include "starboard/configuration.h"
 
