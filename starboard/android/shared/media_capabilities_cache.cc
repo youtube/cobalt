@@ -556,8 +556,8 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
         video_capability->is_tunnel_mode_required()) {
       continue;
     }
-    // Reject if software codec is required but codec is not.
-    if (require_software_codec && !video_capability->is_software_decoder()) {
+    // Reject if software codec requirement is not matched.
+    if (require_software_codec != video_capability->is_software_decoder()) {
       continue;
     }
     // Reject if hdr is required but codec doesn't support it.
