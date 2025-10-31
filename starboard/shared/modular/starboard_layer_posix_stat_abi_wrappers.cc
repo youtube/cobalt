@@ -182,9 +182,10 @@ int __abi_wrap_utimensat(int fildes,
     path = "";
     flag |= AT_EMPTY_PATH;
   } else if ((strcmp(path, "") == 0) && ((flag & AT_EMPTY_PATH) == 0)) {
-    // If utimensat is called with |path| set as the empty string but without the
-    // |AT_EMPTY_PATH| flag enabled, we set errno to ENOENT and return -1. |path|
-    // should not be set as the empty string without the |AT_EMPTY_PATH| enabled.
+    // If utimensat is called with |path| set as the empty string but without
+    // the |AT_EMPTY_PATH| flag enabled, we set errno to ENOENT and return -1.
+    // |path| should not be set as the empty string without the |AT_EMPTY_PATH|
+    // enabled.
     errno = ENOENT;
     return -1;
   }

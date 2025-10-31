@@ -16,7 +16,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_
 
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom-blink.h"
-
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -56,7 +55,9 @@ class MODULES_EXPORT H5vccMetrics final
   ScriptPromise<IDLUndefined> enable(ScriptState*, ExceptionState&);
   ScriptPromise<IDLUndefined> disable(ScriptState*, ExceptionState&);
   bool isEnabled();
-  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*,
+                                                     uint64_t,
+                                                     ExceptionState&);
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {

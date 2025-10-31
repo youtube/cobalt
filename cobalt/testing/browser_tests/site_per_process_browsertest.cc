@@ -10720,7 +10720,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   root_host->QueueSyntheticGesture(
       std::move(root_tap_gesture),
       base::BindOnce([](SyntheticGesture::Result result) {
-        EXPECT_EQ(SyntheticGesture::GESTURE_FINISHED, result);
+    EXPECT_EQ(SyntheticGesture::GESTURE_FINISHED, result);
       }));
 
   root_ack_waiter.Wait();

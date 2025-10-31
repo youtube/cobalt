@@ -24,8 +24,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "starboard/drm.h"
-
 #include "base/memory/scoped_refptr.h"
 #include "media/base/callback_registry.h"
 #include "media/base/cdm_config.h"
@@ -35,6 +33,7 @@
 #include "media/base/cdm_promise_adapter.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/media_export.h"
+#include "starboard/drm.h"
 
 namespace media {
 

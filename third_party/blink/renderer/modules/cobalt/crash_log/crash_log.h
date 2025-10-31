@@ -43,9 +43,9 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
 
   // Web-exposed interface:
   ScriptPromise<IDLBoolean> setString(ScriptState*,
-                          const String& key,
-                          const String& value,
-                          ExceptionState&);
+                                      const String& key,
+                                      const String& value,
+                                      ExceptionState&);
   void triggerCrash();
 
   void Trace(Visitor*) const override;

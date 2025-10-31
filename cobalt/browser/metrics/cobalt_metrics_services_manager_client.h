@@ -69,7 +69,9 @@ class CobaltMetricsServicesManagerClient
 
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
-  void ClearMetricsServiceClientRawPtrForTest() { metrics_service_client_ = nullptr; }
+  void ClearMetricsServiceClientRawPtrForTest() {
+    metrics_service_client_ = nullptr;
+  }
 
  private:
   // EnabledStateProvider to communicate if the client has consented to metrics

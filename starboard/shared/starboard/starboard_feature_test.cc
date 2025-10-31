@@ -115,8 +115,8 @@ class StarboardFeatureTest : public ::testing::Test {
       GTEST_SKIP() << "Failed to get Starboard Features API; skipping all "
                       "tests in this suite.";
     }
-    }
   }
+}
 };
 
 TEST_F(StarboardFeatureTest, CanAccessFeatures) {
