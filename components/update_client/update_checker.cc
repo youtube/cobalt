@@ -43,6 +43,8 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/cobalt_slot_management.h"
 #include "starboard/extension/free_space.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
 #endif
 
 namespace update_client {

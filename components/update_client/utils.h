@@ -26,6 +26,64 @@ extern const char kArchAmd64[];
 extern const char kArchIntel[];
 extern const char kArchArm64[];
 
+#if BUILDFLAG(IS_STARBOARD)
+enum class UpdaterStatus {
+  kNewUpdate,
+  kChecking,
+  kUpdateAvailable,
+  kDownloadingDiff,
+  kDownloading,
+  kSlotLocked,
+  kDownloaded,
+  kUpdatingDiff,
+  kUpdating,
+  kUpdated,
+  kRolledForward,
+  kUpToDate,
+  kUpdateError,
+  kUninstalled,
+  kRun
+};
+
+// Mapping a component state to an updater status.
+// clang-format off
+const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map = {
+        // clang-format on
+        {ComponentState::kNew, UpdaterStatus::kNewUpdate},
+        {ComponentState::kChecking, UpdaterStatus::kChecking},
+        {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
+        {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
+        {ComponentState::kDownloading, UpdaterStatus::kDownloading},
+        {ComponentState::kDownloaded, UpdaterStatus::kDownloaded},
+        {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
+        {ComponentState::kUpdating, UpdaterStatus::kUpdating},
+        {ComponentState::kUpdated, UpdaterStatus::kUpdated},
+        {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
+        {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
+        {ComponentState::kUninstalled, UpdaterStatus::kUninstalled},
+        {ComponentState::kRun, UpdaterStatus::kRun},
+};
+
+// Translating an updater status to a status string.
+const std::map<UpdaterStatus, const char*> updater_status_string_map = {
+    {UpdaterStatus::kNewUpdate, "Will check for update soon"},
+    {UpdaterStatus::kChecking, "Checking for update"},
+    {UpdaterStatus::kUpdateAvailable, "Update is available"},
+    {UpdaterStatus::kDownloadingDiff, "Downloading delta update"},
+    {UpdaterStatus::kDownloading, "Downloading update"},
+    {UpdaterStatus::kSlotLocked, "Slot is locked"},
+    {UpdaterStatus::kDownloaded, "Update is downloaded"},
+    {UpdaterStatus::kUpdatingDiff, "Installing delta update"},
+    {UpdaterStatus::kUpdating, "Installing update"},
+    {UpdaterStatus::kUpdated, "Update installed, pending restart"},
+    {UpdaterStatus::kRolledForward, "Updated locally, pending restart"},
+    {UpdaterStatus::kUpToDate, "App is up to date"},
+    {UpdaterStatus::kUpdateError, "Failed to update"},
+    {UpdaterStatus::kUninstalled, "Update uninstalled"},
+    {UpdaterStatus::kRun, "Transitioning..."},
+};
+#endif // BUILDFLAG(IS_STARBOARD)
+
 // Defines a name-value pair that represents an installer attribute.
 // Installer attributes are component-specific metadata, which may be serialized
 // in an update check request.
@@ -57,10 +115,23 @@ std::string GetCrxComponentID(const CrxComponent& component);
 // Returns a CRX id from a public key hash.
 std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash);
 
+#if defined(IN_MEMORY_UPDATES)
+// Returns true if the actual SHA-256 hash of |content| matches the
+// |expected_hash|.
+// |content| must refer to a valid string.
+bool VerifyHash256(const std::string* content,
+                   const std::string& expected_hash);
+#else
 // Returns true if the actual SHA-256 hash of the |filepath| matches the
 // |expected_hash|.
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash);
+#endif   
+
+#if BUILDFLAG(IS_STARBOARD)
+// Reads the Evergreen version of the installation dir.
+base::Version ReadEvergreenVersion(base::FilePath installation_dir);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 // Returns true if the |brand| parameter matches ^[a-zA-Z]{4}?$ .
 bool IsValidBrand(const std::string& brand);
