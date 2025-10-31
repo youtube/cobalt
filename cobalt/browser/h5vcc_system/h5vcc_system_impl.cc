@@ -30,6 +30,7 @@ using ::starboard::StarboardBridge;
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
+#include "starboard/extension/ifa.h"
 #include "starboard/system.h"
 #endif
 
@@ -91,9 +92,20 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  // TODO - b/395650827: Connect to Starboard extension.
-  NOTIMPLEMENTED();
-  return "NOT_SUPPORTED";
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName));
+  const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2 &&
+                                        ifa_api->GetTrackingAuthorizationStatus;
+  if (!is_ifa_version_supported) {
+    return "NOT_SUPPORTED";
+  }
+  std::vector<char> status_buffer(128);
+  if (ifa_api->GetTrackingAuthorizationStatus(status_buffer.data(),
+                                              status_buffer.size())) {
+    return std::string(status_buffer.data());
+  }
+  return "UNKNOWN";  // Default return if GetTrackingAuthorizationStatus fails
 }
 
 void PerformExitStrategy() {
