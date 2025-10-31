@@ -17,6 +17,7 @@
 
 import argparse
 from collections import defaultdict, OrderedDict
+import json
 import os
 import re
 import sys
@@ -77,7 +78,20 @@ def parse_smaps_file(filepath):
             # This will skip non-integer lines, like the repeated header
             continue
 
-  return memory_data, total_data
+  # Second pass for aggregation
+  aggregated_data = OrderedDict()
+  shared_mem_total = defaultdict(int)
+  for name, data in memory_data.items():
+    if name.startswith('mem/shared_memory'):
+      for field, value in data.items():
+        shared_mem_total[field] += value
+    else:
+      aggregated_data[name] = data
+
+  if shared_mem_total:
+    aggregated_data['[mem/shared_memory]'] = dict(shared_mem_total)
+
+  return aggregated_data, total_data
 
 
 def extract_timestamp(filename):
@@ -104,7 +118,7 @@ def get_top_consumers(memory_data, metric='pss', top_n=5):
   return sorted_consumers[:top_n]
 
 
-def analyze_logs(log_dir):
+def analyze_logs(log_dir, json_output_filepath=None):
   """Analyzes a directory of processed smaps logs."""
   all_files = [
       os.path.join(log_dir, f)
@@ -119,13 +133,16 @@ def analyze_logs(log_dir):
 
   print(f'Analyzing {len(all_files)} processed smaps files...')
 
+  # List to store structured data for JSON output
+  analysis_data = []
+
   # Store data over time for each memory region
-  region_history = defaultdict(lambda: defaultdict(list))
   total_history = defaultdict(list)
 
   first_timestamp = None
   last_timestamp = None
   last_memory_data = None
+  first_memory_data = None
 
   for filepath in all_files:
     filename = os.path.basename(filepath)
@@ -140,11 +157,22 @@ def analyze_logs(log_dir):
       print(f'Warning: {e}')
       continue
 
+    if first_memory_data is None:
+      first_memory_data = memory_data
     last_memory_data = memory_data  # Keep track of the last data
 
-    for region_name, data in memory_data.items():
-      for metric, value in data.items():
-        region_history[region_name][metric].append(value)
+    current_snapshot = {
+        'timestamp':
+            timestamp,
+        'total_memory':
+            total_data,
+        'regions': [{
+            'name': name,
+            'pss': data.get('pss', 0),
+            'rss': data.get('rss', 0)
+        } for name, data in memory_data.items()]
+    }
+    analysis_data.append(current_snapshot)
 
     for metric, value in total_data.items():
       total_history[metric].append(value)
@@ -153,52 +181,56 @@ def analyze_logs(log_dir):
   print(f'Analysis from {first_timestamp} to {last_timestamp}')
   print('=' * 50)
 
+  # Output JSON data if requested
+  if json_output_filepath:
+    with open(json_output_filepath, 'w', encoding='utf-8') as f:
+      json.dump(analysis_data, f, indent=2)
+    print(f'JSON analysis saved to {json_output_filepath}')
+
   # 1. Largest Consumers by the end log
-  print('\nTop 5 Largest Consumers by the End Log (PSS):')
-  top_pss = get_top_consumers(last_memory_data, metric='pss', top_n=5)
+  print('\nOverall Total Memory Change:')
+  print('\nTop 10 Largest Consumers by the End Log (PSS):')
+  top_pss = get_top_consumers(last_memory_data, metric='pss', top_n=10)
   for name, data in top_pss:
     print(f"  - {name}: {data.get('pss', 0)} kB PSS, "
           f"{data.get('rss', 0)} kB RSS")
 
-  print('\nTop 5 Largest Consumers by the End Log (RSS):')
-  top_rss = get_top_consumers(last_memory_data, metric='rss', top_n=5)
+  print('\nTop 10 Largest Consumers by the End Log (RSS):')
+  top_rss = get_top_consumers(last_memory_data, metric='rss', top_n=10)
   for name, data in top_rss:
     print(f"  - {name}: {data.get('rss', 0)} kB RSS, "
           f"{data.get('pss', 0)} kB PSS")
 
-  # 2. Top 5 Increases in Memory Over Time
-  print('\nTop 5 Memory Increases Over Time (PSS):')
+  # 2. Top 10 Increases in Memory Over Time
+  print('\nTop 10 Memory Increases Over Time (PSS):')
   pss_growth = []
-  for region_name, history in region_history.items():
-    if 'pss' in history and len(history['pss']) > 1:
-      growth = history['pss'][-1] - history['pss'][0]
+  if last_memory_data and first_memory_data:
+    all_keys = set(first_memory_data.keys()) | set(last_memory_data.keys())
+    for r_name in all_keys:
+      initial_pss = first_memory_data.get(r_name, {}).get('pss', 0)
+      final_pss = last_memory_data.get(r_name, {}).get('pss', 0)
+      growth = final_pss - initial_pss
       if growth > 0:
-        pss_growth.append((region_name, growth))
+        pss_growth.append((r_name, growth))
 
   pss_growth.sort(key=lambda item: item[1], reverse=True)
-  for name, growth in pss_growth[:5]:
+  for name, growth in pss_growth[:10]:
     print(f'  - {name}: +{growth} kB PSS')
 
-  print('\nTop 5 Memory Increases Over Time (RSS):')
+  print('\nTop 10 Memory Increases Over Time (RSS):')
   rss_growth = []
-  for region_name, history in region_history.items():
-    if 'rss' in history and len(history['rss']) > 1:
-      growth = history['rss'][-1] - history['rss'][0]
+  if last_memory_data and first_memory_data:
+    all_keys = set(first_memory_data.keys()) | set(last_memory_data.keys())
+    for r_name in all_keys:
+      initial_rss = first_memory_data.get(r_name, {}).get('rss', 0)
+      final_rss = last_memory_data.get(r_name, {}).get('rss', 0)
+      growth = final_rss - initial_rss
       if growth > 0:
-        rss_growth.append((region_name, growth))
+        rss_growth.append((r_name, growth))
 
   rss_growth.sort(key=lambda item: item[1], reverse=True)
-  for name, growth in rss_growth[:5]:
+  for name, growth in rss_growth[:10]:
     print(f'  - {name}: +{growth} kB RSS')
-
-  # Overall Total Memory Change
-  print('\nOverall Total Memory Change:')
-  if 'pss' in total_history and len(total_history['pss']) > 1:
-    total_pss_change = total_history['pss'][-1] - total_history['pss'][0]
-    print(f'  Total PSS Change: {total_pss_change} kB')
-  if 'rss' in total_history and len(total_history['rss']) > 1:
-    total_rss_change = total_history['rss'][-1] - total_history['rss'][0]
-    print(f'  Total RSS Change: {total_rss_change} kB')
 
 
 def run_smaps_analysis_tool(argv=None):
@@ -211,8 +243,12 @@ def run_smaps_analysis_tool(argv=None):
       type=str,
       help='Path to the directory containing processed smaps log files.')
 
+  parser.add_argument(
+      '--json_output',
+      type=str,
+      help='Optional: Path to a file where JSON output will be saved.')
   args = parser.parse_args(argv)
-  analyze_logs(args.log_dir)
+  analyze_logs(args.log_dir, args.json_output)
 
 
 def main():
