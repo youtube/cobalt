@@ -67,30 +67,61 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
+  // Provides a constrained templated constructor for copying the success value.
+  // This is implemented as a template with `std::enable_if` to ensure it is
+  // only instantiated for copy-constructible types. This is the C++17
+  // standard-compliant way to prevent compilation errors when `Expected` is
+  // used with move-only types like `std::unique_ptr`.
+  template <typename U = T,
+            std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
+  Expected(const T& value) noexcept(
+      std::is_nothrow_copy_constructible<T>::value) {
+    new (&storage_.value_) T(value);
+    has_value_ = true;
+  }
+
+  // Explicitly provides a non-templated move constructor for the success value
+  // T. This is the best match for rvalue arguments (e.g., 'return T{};' or
+  // 'return std::move(value);'), guaranteeing an efficient move construction of
+  // the stored value.
+  Expected(T&& value) noexcept(std::is_nothrow_move_constructible<T>::value) {
+    new (&storage_.value_) T(std::move(value));
+    has_value_ = true;
+  }
+
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
+                !std::is_same<std::decay_t<U>, T>::value &&
                 !std::is_same<std::decay_t<U>, Unexpected<E>>::value &&
                 !std::is_same<std::decay_t<U>, Expected<T, E>>::value>>
-  Expected(U&& value) : has_value_(true) {
+  Expected(U&& value) noexcept(std::is_nothrow_constructible<T, U&&>::value) {
     new (&storage_.value_) T(std::forward<U>(value));
+    has_value_ = true;
   }
 
-  Expected(Unexpected<E> unexpected) : has_value_(false) {
+  Expected(Unexpected<E> unexpected) noexcept(
+      std::is_nothrow_move_constructible<E>::value) {
     new (&storage_.error_) E(std::move(unexpected.error()));
   }
 
-  Expected(const Expected& other) : has_value_(other.has_value_) {
-    if (has_value_) {
+  Expected(const Expected& other) noexcept(
+      std::is_nothrow_copy_constructible<T>::value &&
+      std::is_nothrow_copy_constructible<E>::value) {
+    if (other.has_value_) {
       new (&storage_.value_) T(other.storage_.value_);
+      has_value_ = true;
     } else {
       new (&storage_.error_) E(other.storage_.error_);
     }
   }
 
-  Expected(Expected&& other) : has_value_(other.has_value_) {
-    if (has_value_) {
+  Expected(Expected&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value &&
+      std::is_nothrow_move_constructible<E>::value) {
+    if (other.has_value_) {
       new (&storage_.value_) T(std::move(other.storage_.value_));
+      has_value_ = true;
     } else {
       new (&storage_.error_) E(std::move(other.storage_.error_));
     }
@@ -213,7 +244,7 @@ class Expected {
     E error_;
   } storage_;
 
-  bool has_value_;
+  bool has_value_ = false;
 };
 
 template <typename E>
