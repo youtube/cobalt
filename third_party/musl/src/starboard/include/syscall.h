@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_SYSCALL_H_
-#define THIRD_PARTY_MUSL_SRC_STARBOARD_SYSCALL_H_
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_SYSCALL_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_SYSCALL_H_
 
 // This file is a stub added to reduce code changes to musl implementations that
 // include syscall.h
 
-#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_SYSCALL_H_
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_SYSCALL_H_
