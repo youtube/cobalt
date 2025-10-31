@@ -16,7 +16,6 @@
 
 #include "starboard/extension/ifa.h"
 
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
 
@@ -55,29 +54,13 @@ bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
       GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
 }
 
-void RequestTrackingAuthorization() {
-  SB_NOTIMPLEMENTED();
-}
-
-void RegisterTrackingAuthorizationCallback(
-    void* callback_context,
-    RequestTrackingAuthorizationCallback callback) {
-  SB_NOTIMPLEMENTED();
-}
-
-void UnregisterTrackingAuthorizationCallback() {
-  SB_NOTIMPLEMENTED();
-}
-
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
     2,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
     &GetTrackingAuthorizationStatus,
-    &RegisterTrackingAuthorizationCallback,
-    &UnregisterTrackingAuthorizationCallback,
-    &RequestTrackingAuthorization,
+
 };
 
 }  // namespace

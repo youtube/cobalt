@@ -60,12 +60,6 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   ~H5vccSystemImpl();
 
   THREAD_CHECKER(thread_checker_);
-
-  // Stores the pending Mojo callbacks for RequestTrackingAuthorization.
-  std::vector<RequestTrackingAuthorizationCallback> pending_auth_callbacks_;
-  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
-
-  void ReceiveTrackingAuthorizationComplete();
 };
 
 }  // namespace h5vcc_system
