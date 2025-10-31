@@ -410,7 +410,12 @@
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/sprep/spreplocal.mk?rcl=797b7c
     "stringprep": { "filterType": "exclude" },
-    "translit": { "filterType": "exclude" },
+    "translit": {
+      "filterType": "language",
+      "includelist": [
+         "root"
+      ]
+    },
 // Based on the Site Language Summary for Youtube
 // https://ytglobal.googleplex.com/config/languages
 // Includes only below locales.
