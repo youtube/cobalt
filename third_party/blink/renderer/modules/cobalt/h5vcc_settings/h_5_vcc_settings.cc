@@ -57,7 +57,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
     mojo_value =
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
-    // Should not happen
+    NOTREACHED();
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
     return promise;
