@@ -65,7 +65,6 @@ runs:
 
     - name: Pull Existing Docker Image
       id: pull-cached-image
-      if: inputs.is_pr == 'true'
       env:
         GITHUB_DOCKER_REGISTRY_URL: ghcr.io
         PR_DOCKER_REGISTRY_URL: us-central1-docker.pkg.dev
@@ -77,18 +76,20 @@ runs:
         set -x
         DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
 
-        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-          # A postsubmit image exists, use it.
-          echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
+        if [[ "$IS_PR" == "true" ]]; then
+          if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+            # A postsubmit image exists, use it.
+            echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
 
-        else
-          # No fitting post-submit image was found. Check PR registry to see if there's an image there.
-          PROJECT_NAME=$(gcloud config get-value project)
-          DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
+          else
+            # No fitting post-submit image was found. Check PR registry to see if there's an image there.
+            PROJECT_NAME=$(gcloud config get-value project)
+            DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
-          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-            echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
-            echo "build_image=true" >> $GITHUB_OUTPUT
+            if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+              echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
+              echo "build_image=true" >> $GITHUB_OUTPUT
+            fi
           fi
         fi
 
