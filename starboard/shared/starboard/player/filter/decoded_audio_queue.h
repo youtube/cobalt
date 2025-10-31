@@ -24,7 +24,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

@@ -20,9 +20,12 @@
 #ifndef STARBOARD_MEDIA_H_
 #define STARBOARD_MEDIA_H_
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/drm.h"
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
