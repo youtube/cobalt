@@ -195,13 +195,12 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
-      - name: Set git hash for Docker changes
+      - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
         run: |
           set -x
-          docker_content_sha=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
-          git show --no-patch ${docker_content_sha}
+          docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
