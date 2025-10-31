@@ -18,13 +18,14 @@
 #define STARBOARD_COMMON_THREAD_H_
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

@@ -90,9 +90,11 @@
 #ifndef STARBOARD_EVENT_H_
 #define STARBOARD_EVENT_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 #ifdef __cplusplus

@@ -48,11 +48,9 @@ if (current_toolchain == starboard_toolchain) {
     deps += [
       "//$starboard_path:starboard_platform",
       "//starboard/egl_and_gles:buildflags",
+      "//starboard/shared/starboard/player:player_test_data",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     ]
-
-    data_deps =
-        [ "//starboard/shared/starboard/player:player_download_test_data" ]
   }
 
   target(final_executable_type, "player_filter_benchmarks") {
@@ -85,7 +83,7 @@ if (current_toolchain == starboard_toolchain) {
     public_deps = [
       "//starboard:starboard_group",
       "//starboard/shared/starboard/media:media_util",
-      "//starboard/shared/starboard/player:player_download_test_data",
+      "//starboard/shared/starboard/player:player_test_data",
       "//starboard/shared/starboard/player:video_dmp",
       "//testing/gtest",
     ]

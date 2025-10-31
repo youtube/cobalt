@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_STARBOARD_CDM_H
-#define MEDIA_STARBOARD_STARBOARD_CDM_H
+#ifndef MEDIA_STARBOARD_STARBOARD_CDM_H_
+#define MEDIA_STARBOARD_STARBOARD_CDM_H_
 
 #include <stdint.h>
 
@@ -24,8 +24,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "starboard/drm.h"
-
 #include "base/memory/scoped_refptr.h"
 #include "media/base/callback_registry.h"
 #include "media/base/cdm_config.h"
@@ -35,6 +33,7 @@
 #include "media/base/cdm_promise_adapter.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/media_export.h"
+#include "starboard/drm.h"
 
 namespace media {
 
@@ -197,4 +196,4 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_STARBOARD_CDM_H
+#endif  // MEDIA_STARBOARD_STARBOARD_CDM_H_

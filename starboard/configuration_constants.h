@@ -21,8 +21,10 @@
 #ifndef STARBOARD_CONFIGURATION_CONSTANTS_H_
 #define STARBOARD_CONFIGURATION_CONSTANTS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 // The current platform's maximum length of the name of a single directory
 // entry, not including the absolute path.

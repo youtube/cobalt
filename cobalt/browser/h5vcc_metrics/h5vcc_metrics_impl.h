@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_h5vcc_metrics_H5VCC_METRICS_IMPL_H_
-#define COBALT_BROWSER_h5vcc_metrics_H5VCC_METRICS_IMPL_H_
+#ifndef COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
+#define COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
@@ -55,4 +55,4 @@ class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
 
 }  // namespace h5vcc_metrics
 
-#endif  // COBALT_BROWSER_h5vcc_metrics_H5VCC_METRICS_IMPL_H_
+#endif  // COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_

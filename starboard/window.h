@@ -19,8 +19,9 @@
 #ifndef STARBOARD_WINDOW_H_
 #define STARBOARD_WINDOW_H_
 
+#include <stddef.h>
+
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

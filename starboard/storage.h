@@ -29,8 +29,10 @@
 #ifndef STARBOARD_STORAGE_H_
 #define STARBOARD_STORAGE_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

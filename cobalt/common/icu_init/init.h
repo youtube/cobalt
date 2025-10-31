@@ -27,4 +27,4 @@ void EnsureInitialized();
 }  // namespace common
 }  // namespace cobalt
 
-#endif  // COBALT_COMMON_ICU_INIT_INIT
+#endif  // COBALT_COMMON_ICU_INIT_INIT_H_

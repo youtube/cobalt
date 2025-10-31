@@ -17,8 +17,8 @@
 // Other source files should never include this header directly, but should
 // include the generic "KHR/khrplatform.h" instead.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_INCLUDES_EAGL_KHRPLATFORM_PUBLIC_H_
-#define INTERNAL_STARBOARD_DARWIN_INCLUDES_EAGL_KHRPLATFORM_PUBLIC_H_
+#ifndef STARBOARD_DARWIN_INCLUDES_EAGL_KHRPLATFORM_PUBLIC_H_
+#define STARBOARD_DARWIN_INCLUDES_EAGL_KHRPLATFORM_PUBLIC_H_
 
 #include <stdint.h>
 #include <unistd.h>
@@ -45,4 +45,4 @@ typedef uintptr_t khronos_uintptr_t;
 typedef ssize_t khronos_ssize_t;
 typedef size_t khronos_usize_t;
 
-#endif  // INTERNAL_STARBOARD_DARWIN_INCLUDES_EAGL_KHRPLATFORM_PUBLIC_H_
+#endif  // STARBOARD_DARWIN_INCLUDES_EAGL_KHRPLATFORM_PUBLIC_H_

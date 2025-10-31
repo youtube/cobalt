@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
+#ifndef STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_TUNNEL_H_
+#define STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_TUNNEL_H_
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -37,7 +39,6 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/types.h"
 
 // Uncomment the following statement to log the media time stats with deviation
 // when GetCurrentMediaTime() is called.
@@ -208,4 +209,4 @@ class AudioRendererPcm : public AudioRenderer,
 
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
+#endif  // STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_TUNNEL_H_

@@ -25,9 +25,10 @@
 #ifndef STARBOARD_SPEECH_SYNTHESIS_H_
 #define STARBOARD_SPEECH_SYNTHESIS_H_
 
+#include <stdbool.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

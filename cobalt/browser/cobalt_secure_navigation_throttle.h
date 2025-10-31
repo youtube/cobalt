@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_PUBLIC_BROWSER_COBALT_SECURE_NAVIGATION_THROTTLE_H_
-#define CONTENT_PUBLIC_BROWSER_COBALT_SECURE_NAVIGATION_THROTTLE_H_
+#ifndef COBALT_BROWSER_COBALT_SECURE_NAVIGATION_THROTTLE_H_
+#define COBALT_BROWSER_COBALT_SECURE_NAVIGATION_THROTTLE_H_
 
 #include "base/command_line.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -40,4 +40,4 @@ class CobaltSecureNavigationThrottle : public content::NavigationThrottle {
 
 }  // namespace content
 
-#endif  // CONTENT_PUBLIC_BROWSER_COBALT_SECURE_NAVIGATION_THROTTLE_H_
+#endif  // COBALT_BROWSER_COBALT_SECURE_NAVIGATION_THROTTLE_H_

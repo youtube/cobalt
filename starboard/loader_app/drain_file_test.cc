@@ -16,6 +16,8 @@
 
 #include <sys/stat.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -26,7 +28,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/drain_file_helper.h"
 #include "starboard/system.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace loader_app {

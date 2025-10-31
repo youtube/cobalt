@@ -17,11 +17,11 @@
 // Other source files should never include this header directly, but should
 // include the generic "EGL/eglplatform.h" instead.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_INCLUDES_EAGL_EGLPLATFORM_PUBLIC_H_
-#define INTERNAL_STARBOARD_DARWIN_INCLUDES_EAGL_EGLPLATFORM_PUBLIC_H_
+#ifndef STARBOARD_DARWIN_INCLUDES_EAGL_EGLPLATFORM_PUBLIC_H_
+#define STARBOARD_DARWIN_INCLUDES_EAGL_EGLPLATFORM_PUBLIC_H_
 
 typedef void* EGLNativeDisplayType;
 typedef void* EGLNativeWindowType;
 typedef void* EGLNativePixmapType;
 
-#endif  // INTERNAL_STARBOARD_DARWIN_INCLUDES_EAGL_EGLPLATFORM_PUBLIC_H_
+#endif  // STARBOARD_DARWIN_INCLUDES_EAGL_EGLPLATFORM_PUBLIC_H_

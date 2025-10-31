@@ -17,7 +17,8 @@
 #ifndef STARBOARD_NPLB_RANDOM_HELPERS_H_
 #define STARBOARD_NPLB_RANDOM_HELPERS_H_
 
-#include "starboard/types.h"
+#include <cstdint>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

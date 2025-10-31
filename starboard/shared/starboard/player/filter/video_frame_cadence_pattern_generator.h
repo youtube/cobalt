@@ -15,8 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_FRAME_CADENCE_PATTERN_GENERATOR_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_FRAME_CADENCE_PATTERN_GENERATOR_H_
 
+#include <cstdint>
+
 #include "starboard/shared/internal_only.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

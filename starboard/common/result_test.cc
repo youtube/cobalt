@@ -1,3 +1,17 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "starboard/common/result.h"
 
 #include <memory>
@@ -114,16 +128,10 @@ TEST(NonNullResultTest, Failure) {
   EXPECT_NE(result.error().find("Something went wrong"), std::string::npos);
 }
 
-#if SB_IS(EVERGREEN)
-#define MAYBE_DeathTest DISABLED_DeathTest
-#else
-#define MAYBE_DeathTest DeathTest
-#endif
-
 class NonNullResultDeathTest : public ::testing::Test {};
 
-TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_RawPointer) {
-  EXPECT_DEATH(
+TEST_F(NonNullResultDeathTest, DeathTest_RawPointer) {
+  EXPECT_DEATH_IF_SUPPORTED(
       {
         int* null_ptr = nullptr;
         NonNullResult<int*> result(null_ptr);
@@ -131,8 +139,8 @@ TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_RawPointer) {
       "NonNullResult value cannot be null.");
 }
 
-TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_UniquePtr) {
-  EXPECT_DEATH(
+TEST_F(NonNullResultDeathTest, DeathTest_UniquePtr) {
+  EXPECT_DEATH_IF_SUPPORTED(
       {
         std::unique_ptr<int> null_ptr;
         NonNullResult<std::unique_ptr<int>> result(std::move(null_ptr));

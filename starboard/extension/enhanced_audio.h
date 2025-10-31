@@ -15,11 +15,12 @@
 #ifndef STARBOARD_EXTENSION_ENHANCED_AUDIO_H_
 #define STARBOARD_EXTENSION_ENHANCED_AUDIO_H_
 
+#include <stdint.h>
+
 #include "starboard/configuration.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

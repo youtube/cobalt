@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <limits.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>

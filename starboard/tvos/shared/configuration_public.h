@@ -24,9 +24,6 @@
 
 // --- System Header Configuration -------------------------------------------
 
-// Any system headers listed here that are not provided by the platform will be
-// emulated in starboard/types.h.
-
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
