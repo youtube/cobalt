@@ -743,24 +743,9 @@ public abstract class CobaltActivity extends Activity {
       isKeepScreenOnEnabled = keepOn;
     }
   }
-<<<<<<< HEAD
-
-  @Override
-  public void onBackPressed() {
-    diagnosticFinishReason = "ON_BACK_PRESSED";
-    super.onBackPressed();
-  }
-
-  @Override
-  public void onLowMemory() {
-    diagnosticFinishReason = "ON_LOW_MEMORY";
-    super.onLowMemory();
-  }
 
   @NativeMethods
   interface Natives {
     void flushCookiesAndLocalStorage();
   }
-=======
->>>>>>> ac26f28e920 (android: Remove crash diagnostic logging (#7771))
 }
