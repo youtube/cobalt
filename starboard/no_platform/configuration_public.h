@@ -19,8 +19,8 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
-#ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_NO_PLATFORM_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_NO_PLATFORM_CONFIGURATION_PUBLIC_H_
 
 // --- System Header Configuration -------------------------------------------
 // This platform should not have further defines, as it should not be built.
@@ -35,4 +35,4 @@
 #define SB_IS_WCHAR_T_UTF16 1
 #endif
 
-#endif  // STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_NO_PLATFORM_CONFIGURATION_PUBLIC_H_

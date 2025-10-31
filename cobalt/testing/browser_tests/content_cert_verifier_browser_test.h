@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_TESTSING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
-#define COBALT_TESTSING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
+#define COBALT_TESTING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
 
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/content_mock_cert_verifier.h"
@@ -51,4 +51,4 @@ class CertVerifierBrowserTest : public ContentBrowserTest {
 
 }  // namespace content
 
-#endif  // COBALT_TESTSING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
