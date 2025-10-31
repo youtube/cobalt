@@ -136,7 +136,6 @@ base::TimeDelta SbParamWrapper::GetValue() const {
 #define FEATURE_LIST_END \
   }                      \
   ;
-
 #define FEATURE_PARAM_LIST_START const SbParamWrapper kStarboardParams[] = {
 #define FEATURE_PARAM_LIST_END \
   }                            \
