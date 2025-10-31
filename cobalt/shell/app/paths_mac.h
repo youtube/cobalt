@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONTENT_SHELL_APP_PATHS_MAC_H_
-#define CONTENT_SHELL_APP_PATHS_MAC_H_
+#ifndef COBALT_SHELL_APP_PATHS_MAC_H_
+#define COBALT_SHELL_APP_PATHS_MAC_H_
 
 namespace base {
 class FilePath;
@@ -41,4 +41,4 @@ base::FilePath GetInfoPlistPath();
 // Sets up base::apple::BaseBundleID.
 void OverrideBundleID();
 
-#endif  // CONTENT_SHELL_APP_PATHS_MAC_H_
+#endif  // COBALT_SHELL_APP_PATHS_MAC_H_
