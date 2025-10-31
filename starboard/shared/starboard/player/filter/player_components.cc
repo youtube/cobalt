@@ -57,6 +57,7 @@ class PlayerComponentsImpl : public PlayerComponents {
         video_renderer_(std::move(video_renderer)) {
     SB_DCHECK(media_time_provider_ || audio_renderer_);
     SB_DCHECK(audio_renderer_ || video_renderer_);
+    SB_LOG(INFO) << "YO THOR -  Linux PlayerComponentsImpl CTOR";
   }
 
   MediaTimeProvider* GetMediaTimeProvider() override {
@@ -152,6 +153,7 @@ PlayerComponents::Factory::CreateComponents(
   std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
 
+  SB_LOG(INFO) << "YO THOR - CREATE PLAYACOMPONENTz";
   bool use_stub_audio_decoder = false;
   bool use_stub_video_decoder = false;
 #if BUILDFLAG(IS_ANDROID)

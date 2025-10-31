@@ -144,7 +144,7 @@ StarboardRenderer::StarboardRenderer(
 {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  LOG(INFO) << "YO THOR StarboardRenderer constructed.";
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -171,7 +171,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   TRACE_EVENT0("media", "StarboardRenderer::Initialize");
 
-  LOG(INFO) << "Initializing StarboardRenderer.";
+  LOG(INFO) << "YO THOR Initializing StarboardRenderer.";
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the
@@ -202,20 +202,21 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     return;
   }
 
-  // Enable bit stream converter for aac and h264 streams, which will convert
-  // them into ADTS and Annex B.  This is only required for FFmpegDemuxer, and
-  // has no effect for other demuxers (e.g. ChunkDemuxer).
-  if (audio_stream_ &&
-      audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
-    LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
-    audio_stream_->EnableBitstreamConverter();
-  }
+  // // Enable bit stream converter for aac and h264 streams, which will convert
+  // // them into ADTS and Annex B.  This is only required for FFmpegDemuxer,
+  // and
+  // // has no effect for other demuxers (e.g. ChunkDemuxer).
+  // if (audio_stream_ &&
+  //     audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
+  //   LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
+  //   audio_stream_->EnableBitstreamConverter();
+  // }
 
-  if (video_stream_ &&
-      video_stream_->video_decoder_config().codec() == VideoCodec::kH264) {
-    LOG(INFO) << "Encountered H264 stream, enabling bit stream converter ...";
-    video_stream_->EnableBitstreamConverter();
-  }
+  // if (video_stream_ &&
+  //     video_stream_->video_decoder_config().codec() == VideoCodec::kH264) {
+  //   LOG(INFO) << "Encountered H264 stream, enabling bit stream converter
+  //   ..."; video_stream_->EnableBitstreamConverter();
+  // }
 
   bool is_encrypted =
       audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
@@ -543,6 +544,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK_EQ(state_, STATE_INITIALIZING);
   DCHECK(audio_stream_ || video_stream_);
 
+  LOG(INFO) << "YO THOR! StarboardRenderer::CreatePlayerBridge()";
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -581,7 +583,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   // number of active players.
   player_bridge_.reset();
 
-  LOG(INFO) << "Creating SbPlayerBridge.";
+  LOG(INFO) << "YO THOR Creating SbPlayerBridge.";
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
@@ -605,7 +607,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
             ? audio_write_duration_remote_
             : audio_write_duration_local_;
-    LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+    LOG(INFO) << "YO THOR SbPlayerBridge created, with audio write duration at "
               << audio_write_duration_for_preroll_
               << " and with max_video_capabilities_ at "
               << max_video_capabilities_;

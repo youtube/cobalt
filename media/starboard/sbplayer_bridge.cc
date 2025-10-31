@@ -90,7 +90,8 @@ void SetDiscardPadding(
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 
-SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
+SbPlayerBridge::CallbackHelper::CallbackHelper(
+    base::WeakPtr<SbPlayerBridge> player_bridge)
     : player_bridge_(player_bridge) {}
 
 void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
@@ -172,8 +173,7 @@ SbPlayerBridge::SbPlayerBridge(
     : url_(url),
       sbplayer_interface_(interface),
       task_runner_(task_runner),
-      callback_helper_(
-          new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
+      callback_helper_(new CallbackHelper(weak_factory_.GetWeakPtr())),
       window_(window),
       host_(host),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -228,7 +228,7 @@ SbPlayerBridge::SbPlayerBridge(
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
-      callback_helper_(new CallbackHelper(this)),
+      callback_helper_(new CallbackHelper(weak_factory_.GetWeakPtr())),
       window_(window),
       drm_system_(drm_system),
       host_(host),
@@ -260,6 +260,8 @@ SbPlayerBridge::SbPlayerBridge(
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+
+  LOG(INFO) << "YO THOR - SB PLAYA BRIDGE CTOR!";
 
   audio_stream_info_.codec = kSbMediaAudioCodecNone;
   video_stream_info_.codec = kSbMediaVideoCodecNone;
@@ -732,6 +734,8 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 void SbPlayerBridge::CreatePlayer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   TRACE_EVENT0("media", "SbPlayerBridge::CreatePlayer");
+
+  LOG(INFO) << "YO THOR - SBPLAYRABRIDGE - CREATE PLAYA!";
 
 #if COBALT_MEDIA_ENABLE_BACKGROUND_MODE
   bool is_visible = SbWindowIsValid(window_);

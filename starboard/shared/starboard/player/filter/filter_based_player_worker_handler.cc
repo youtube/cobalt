@@ -76,6 +76,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
       video_stream_info_(creation_param->video_stream_info) {
+  SB_LOG(INFO) << "YO THOR - FilterBasedPlayerWorkerHandler CTOR";
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 
@@ -85,6 +86,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
     GetPlayerStateCB get_player_state_cb,
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
+  SB_LOG(INFO) << "YO THOR FilterBasedPlayerWorkerHandler::INITIITITI";
   // This function should only be called once.
   SB_DCHECK(!update_media_info_cb_);
 

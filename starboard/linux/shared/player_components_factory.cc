@@ -175,6 +175,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  SB_LOG(INFO) << "YO THOR -  LINUX PLAYA COMPONENTS FACTORY CREATE!";
   return std::make_unique<PlayerComponentsFactory>();
 }
 

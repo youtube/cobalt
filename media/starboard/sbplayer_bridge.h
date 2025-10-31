@@ -23,6 +23,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -182,7 +183,7 @@ class SbPlayerBridge {
   // automatically once SbPlayerBridge is destroyed.
   class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
    public:
-    explicit CallbackHelper(SbPlayerBridge* player_bridge);
+    explicit CallbackHelper(base::WeakPtr<SbPlayerBridge> player_bridge);
 
     void ClearDecoderBufferCache();
 
@@ -201,7 +202,7 @@ class SbPlayerBridge {
     void ResetPlayer();
 
    private:
-    SbPlayerBridge* player_bridge_;
+    base::WeakPtr<SbPlayerBridge> player_bridge_;
   };
 
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
@@ -377,6 +378,8 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+
+  base::WeakPtrFactory<SbPlayerBridge> weak_factory_{this};
 };
 
 }  // namespace media

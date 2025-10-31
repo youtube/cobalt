@@ -54,6 +54,8 @@ SbPlayer DefaultSbPlayerInterface::Create(
     SbPlayerErrorFunc player_error_func,
     void* context,
     SbDecodeTargetGraphicsContextProvider* context_provider) {
+  LOG(INFO)
+      << "YO THOR =- DefaultSbPlayerInterface::CREAATE - call SbPlayerCreate";
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_CREATE);
   auto player = SbPlayerCreate(window, creation_param, sample_deallocate_func,
                                decoder_status_func, player_status_func,
