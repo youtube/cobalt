@@ -59,11 +59,11 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
   int Read(IOBuffer* buf,
            int buf_len,
            CompletionOnceCallback callback) override;
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   int ReadMultiplePackets(ReadPacketResults* results,
                           int read_buffer_size,
                           CompletionOnceCallback callback) override;
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   int Write(IOBuffer* buf,
             int buf_len,
             CompletionOnceCallback callback,
