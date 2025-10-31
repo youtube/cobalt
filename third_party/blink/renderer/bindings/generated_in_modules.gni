@@ -3225,10 +3225,15 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_experiments.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metrics.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metrics.h",
+<<<<<<< HEAD
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.h",
+=======
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_settings.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_settings.h",
+>>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.cc",

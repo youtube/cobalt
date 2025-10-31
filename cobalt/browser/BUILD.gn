@@ -59,8 +59,13 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
+<<<<<<< HEAD
     "//cobalt/browser/h5vcc_storage",
     "//cobalt/browser/h5vcc_storage/public/mojom",
+=======
+    "//cobalt/browser/h5vcc_settings",
+    "//cobalt/browser/h5vcc_settings/public/mojom",
+>>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/performance",
@@ -131,6 +136,7 @@ source_set("global_features") {
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 

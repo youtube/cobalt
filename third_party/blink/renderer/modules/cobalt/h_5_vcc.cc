@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_storage/h_5_vcc_storage.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 
@@ -44,6 +45,11 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       accessibility_(MakeGarbageCollected<H5vccAccessibility>(window)),
       experiments_(MakeGarbageCollected<H5vccExperiments>(window)),
       metrics_(MakeGarbageCollected<H5vccMetrics>(window)),
+<<<<<<< HEAD
+=======
+      settings_(MakeGarbageCollected<H5vccSettings>(window)),
+      storage_(MakeGarbageCollected<H5vccStorage>(window)),
+>>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
       system_(MakeGarbageCollected<H5vccSystem>(window)),
       runtime_(MakeGarbageCollected<H5vccRuntime>(window)),
       storage_(MakeGarbageCollected<H5vccStorage>(window)) {}
@@ -53,6 +59,11 @@ void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(accessibility_);
   visitor->Trace(experiments_);
   visitor->Trace(metrics_);
+<<<<<<< HEAD
+=======
+  visitor->Trace(settings_);
+  visitor->Trace(storage_);
+>>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
   visitor->Trace(system_);
   visitor->Trace(runtime_);
   visitor->Trace(storage_);

@@ -23,7 +23,14 @@ interface H5vcc {
     readonly attribute H5vccAccessibility accessibility;
     readonly attribute H5vccExperiments experiments;
     readonly attribute H5vccMetrics metrics;
+<<<<<<< HEAD
     readonly attribute H5vccSystem system;
     readonly attribute H5vccRuntime runtime;
     readonly attribute H5vccStorage storage;
+=======
+    readonly attribute H5vccRuntime runtime;
+    readonly attribute H5vccSettings settings;
+    readonly attribute H5vccStorage storage;
+    readonly attribute H5vccSystem system;
+>>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
 };
