@@ -53,6 +53,7 @@ repos:
         args: [-i, -style=file]
         exclude: |
             (?x)(
+                ^cobalt/shell/app/resource.h$|
                 ^starboard/shared/uikit/accessibility_extension.cc$|
                 ^starboard/shared/uikit/player_configuration.cc$
             )
@@ -67,6 +68,7 @@ repos:
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
                 ^cobalt/common/features/starboard_features_initialization.cc$|
+                ^cobalt/shell/app/resource.h$|
                 ^starboard/shared/uikit/.*\.h$|
                 ^starboard/shared/starboard/starboard_feature_test.cc$|
                 ^starboard/shared/starboard/link_receiver.cc$
