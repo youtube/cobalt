@@ -136,51 +136,12 @@ H5vccSystemImpl::H5vccSystemImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccSystem> receiver)
     : content::DocumentService<mojom::H5vccSystem>(render_frame_host,
-                                                   std::move(receiver)),
-      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+                                                   std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
-  const StarboardExtensionIfaApi* ifa_api =
-      static_cast<const StarboardExtensionIfaApi*>(
-          SbSystemGetExtension(kStarboardExtensionIfaName));
-  if (ifa_api && ifa_api->version >= 2 &&
-      ifa_api->RegisterTrackingAuthorizationCallback) {
-    ifa_api->RegisterTrackingAuthorizationCallback(this, [](void* context) {
-      DCHECK(context) << "Callback called with NULL context";
-      if (context) {
-        static_cast<H5vccSystemImpl*>(context)
-            ->ReceiveTrackingAuthorizationComplete();
-      }
-    });
-  }
 }
 
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  const StarboardExtensionIfaApi* ifa_api =
-      static_cast<const StarboardExtensionIfaApi*>(
-          SbSystemGetExtension(kStarboardExtensionIfaName));
-  if (ifa_api && ifa_api->version >= 2 &&
-      ifa_api->UnregisterTrackingAuthorizationCallback) {
-    ifa_api->UnregisterTrackingAuthorizationCallback();
-  }
-}
-
-void H5vccSystemImpl::ReceiveTrackingAuthorizationComplete() {
-  // May be called by another thread.
-  if (!task_runner_->RunsTasksInCurrentSequence()) {
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&H5vccSystemImpl::ReceiveTrackingAuthorizationComplete,
-                       base::Unretained(this)));
-    return;
-  }
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
-  // Mark all promises complete and release the references.
-  for (auto& callback : pending_auth_callbacks_) {
-    std::move(callback).Run();
-  }
-  pending_auth_callbacks_.clear();
 }
 
 void H5vccSystemImpl::Create(
@@ -226,20 +187,9 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  const StarboardExtensionIfaApi* ifa_api =
-      static_cast<const StarboardExtensionIfaApi*>(
-          SbSystemGetExtension(kStarboardExtensionIfaName));
-  const bool is_ifa_version_supported =
-      ifa_api && ifa_api->version >= 2 &&
-      ifa_api->RequestTrackingAuthorization &&
-      ifa_api->RegisterTrackingAuthorizationCallback;
-  if (!is_ifa_version_supported) {
-    std::move(callback).Run();
-    return;
-  }
-
-  pending_auth_callbacks_.emplace_back(std::move(callback));
-  ifa_api->RequestTrackingAuthorization();
+  // TODO - b/395650827: Connect to Starboard extension.
+  NOTIMPLEMENTED();
+  std::move(callback).Run();
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
