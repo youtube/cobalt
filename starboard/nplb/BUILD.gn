@@ -34,7 +34,7 @@ config("wnos") {
     "-Wno-unreachable-code-break",
 
     # Do not warn about variable length arrays
-    "-Wno-vla-cxx-extension"
+    "-Wno-vla-cxx-extension",
   ]
 }
 
@@ -329,6 +329,7 @@ test("nplb") {
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
     "//testing/gmock",
     "//testing/gtest",
@@ -348,10 +349,7 @@ test("nplb") {
     deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
   }
 
-  data_deps = [
-    "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
-    "//starboard/shared/starboard/player:player_download_test_data",
-  ]
+  data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   if (sb_is_evergreen_compatible) {
     sources += [

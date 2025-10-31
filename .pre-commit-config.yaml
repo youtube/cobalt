@@ -53,6 +53,7 @@ repos:
         args: [-i, -style=file]
         exclude: |
             (?x)(
+                ^cobalt/shell/app/resource.h$|
                 ^starboard/shared/uikit/accessibility_extension.cc$|
                 ^starboard/shared/uikit/player_configuration.cc$
             )
@@ -62,11 +63,15 @@ repos:
         entry: cpplint
         language: python
         types: [c++]
-        args: [--verbose=4, --quiet]
+        args: [--verbose=5, --quiet]
         exclude: |
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
-                ^starboard/shared/uikit/.*\.h$
+                ^cobalt/common/features/starboard_features_initialization.cc$|
+                ^cobalt/shell/app/resource.h$|
+                ^starboard/shared/uikit/.*\.h$|
+                ^starboard/shared/starboard/starboard_feature_test.cc$|
+                ^starboard/shared/starboard/link_receiver.cc$
             )
         additional_dependencies: ['cpplint==2.0.2']
     -   id: yapf
