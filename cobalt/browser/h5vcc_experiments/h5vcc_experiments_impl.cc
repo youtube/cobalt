@@ -91,10 +91,11 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kLatestConfigHash,
       std::move(
           experiment_config.Find(cobalt::kLatestConfigHash)->GetString()));
-  // CommitPendingWrite not called here to avoid excessive disk writes.
-  // Features and featureParams won't be applied until the next Cobalt cold
-  // start so the delay is acceptable.
+  // TODO (b/442825834): Remove CommitPendingWrite to decrease storage writes
+  // TODO (b/456583508): Without CommitPendingWrite, we should still write to
+  // storage if we shutdown early
   global_features->metrics_local_state()->CommitPendingWrite();
+  experiment_config_ptr->CommitPendingWrite();
   std::move(callback).Run();
 }
 
@@ -103,7 +104,10 @@ void H5vccExperimentsImpl::ResetExperimentState(
   PrefService* experiment_config =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
   experiment_config->ClearPref(cobalt::kExperimentConfig);
-  // CommitPendingWrite not called here due to the same reason as above.
+  // TODO (b/442825834): Remove CommitPendingWrite to decrease storage writes
+  // TODO (b/456583508): Without CommitPendingWrite, we should still write to
+  // storage if we shutdown early
+  experiment_config->CommitPendingWrite();
   std::move(callback).Run();
 }
 
