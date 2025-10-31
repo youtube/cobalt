@@ -278,13 +278,6 @@ static_library("cobalt_shell_lib") {
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
   ]
 
-  # TODO(b/440376024): run_browser_tests and RUN_BROWSER_TESTS gate all test logic which should not be in
-  # an official build, including not only browser tests but also web tests or render tests.
-  if (run_browser_tests) {
-    defines += [ "RUN_BROWSER_TESTS=1" ]
-    public_deps += [ ":browsertests_sources" ]
-  }
-
   if (shell_use_toolkit_views) {
     # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
     # since any transitive dependency on //ui/views from another component will
