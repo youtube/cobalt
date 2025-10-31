@@ -23,10 +23,13 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/crashpad_wrapper/annotations.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
@@ -34,11 +37,6 @@
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
-
-#include "starboard/crashpad_wrapper/annotations.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
-
-#include "starboard/common/check_op.h"
 #include "third_party/jsoncpp/source/include/json/reader.h"
 #include "third_party/jsoncpp/source/include/json/value.h"
 
@@ -49,7 +47,7 @@ namespace {
 const int kMaxEgVersionLength = 20;
 
 // The max number of installations slots.
-const int kMaxNumInstallations = 3;
+const int kMaxNumInstallations = 2;
 
 // Relative path for the directory of the Cobalt shared library.
 const char kCobaltLibraryPath[] = "lib";
