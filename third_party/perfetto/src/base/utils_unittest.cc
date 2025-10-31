@@ -146,7 +146,14 @@ TEST(UtilsTest, ReadWritePlatformHandle) {
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
     PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
-TEST(UtilsTest, EintrWrapper) {
+
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_EintrWrapper DISABLED_EintrWrapper
+#else
+#define MAYBE_EintrWrapper EintrWrapper
+#endif
+// TODO: b/456818942 - Disabled due to flaky crashes.
+TEST(UtilsTest, MAYBE_EintrWrapper) {
   Pipe pipe = Pipe::Create();
 
   struct sigaction sa = {};
