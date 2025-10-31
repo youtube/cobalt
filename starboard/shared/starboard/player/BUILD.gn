@@ -92,7 +92,6 @@ if (is_apple) {
 } else {
   group("player_test_data") {
     testonly = true
-    data_deps =
-        [ "//starboard/shared/starboard/player:player_download_test_data" ]
+    data_deps = [ ":player_download_test_data" ]
   }
 }
