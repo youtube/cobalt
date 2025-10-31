@@ -58,7 +58,7 @@
 #define IPC_MESSAGE_MACROS_LOG_ENABLED
 #include "content/public/common/content_ipc_logging.h"
 #define IPC_LOG_TABLE_ADD_ENTRY(msg_id, logger) \
-    content::RegisterIPCLogger(msg_id, logger)
+  content::RegisterIPCLogger(msg_id, logger)
 #endif
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
@@ -190,8 +190,7 @@ namespace content {
 ShellMainDelegate::ShellMainDelegate(bool is_content_browsertests)
     : is_content_browsertests_(is_content_browsertests) {}
 
-ShellMainDelegate::~ShellMainDelegate() {
-}
+ShellMainDelegate::~ShellMainDelegate() {}
 
 std::optional<int> ShellMainDelegate::BasicStartupComplete() {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
@@ -280,8 +279,9 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
     const std::string& process_type,
     MainFunctionParams main_function_params) {
   // For non-browser process, return and have the caller run the main loop.
-  if (!process_type.empty())
+  if (!process_type.empty()) {
     return std::move(main_function_params);
+  }
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
@@ -386,8 +386,9 @@ void ShellMainDelegate::InitializeResourceBundle() {
 
 std::optional<int> ShellMainDelegate::PreBrowserMain() {
   std::optional<int> exit_code = content::ContentMainDelegate::PreBrowserMain();
-  if (exit_code.has_value())
+  if (exit_code.has_value()) {
     return exit_code;
+  }
 
   return std::nullopt;
 }
