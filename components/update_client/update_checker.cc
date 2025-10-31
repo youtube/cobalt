@@ -25,6 +25,9 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/cobalt_slot_management.h"
+#endif
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
@@ -37,6 +40,11 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/free_space.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
+#endif
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
