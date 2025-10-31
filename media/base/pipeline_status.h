@@ -73,8 +73,12 @@ enum PipelineStatusCodes : StatusCodeType {
   // Issued when a component in the pipeline runs out of memory.
   PIPELINE_ERROR_OUT_OF_MEMORY = 26,
 
+  // Used when a Progressive Demuxer cannot be created because it is disabled,
+  // rather than it being unsupported.
+  DEMUXER_ERROR_PROGRESSIVE_DISABLED = 27,
+
   // Must be equal to the largest value ever logged.
-  PIPELINE_STATUS_MAX = PIPELINE_ERROR_OUT_OF_MEMORY,
+  PIPELINE_STATUS_MAX = DEMUXER_ERROR_PROGRESSIVE_DISABLED,
 };
 
 struct PipelineStatusTraits {
