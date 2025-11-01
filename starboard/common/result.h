@@ -43,16 +43,39 @@ class NonNullResult {
   static_assert(std::is_pointer<T>::value || is_unique_ptr<T>::value,
                 "T must be a raw pointer or std::unique_ptr.");
 
+  // Provides a constrained templated constructor for copying the success value.
+  // This is implemented as a template with `std::enable_if` to ensure it is
+  // only instantiated for copy-constructible types. This is the C++17
+  // standard-compliant way to prevent compilation errors when `NonNullResult`
+  // is used with move-only types.
+  template <typename U = T,
+            std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
+  NonNullResult(const T& value) noexcept(
+      std::is_nothrow_copy_constructible<T>::value)
+      : result_(value) {
+    SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+  }
+
+  // Explicitly provides a non-templated move constructor for the success value
+  // T. This is the best match for rvalue arguments, guaranteeing an efficient
+  // move construction of the stored value.
+  NonNullResult(T&& value) noexcept(
+      std::is_nothrow_move_constructible<T>::value)
+      : result_(std::move(value)) {
+    SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
+  }
+
   // Constructor for success value.
   // SB_CHECKs that the value is not null.
   template <
       typename U,
       typename = std::enable_if_t<
           std::is_convertible<U, T>::value &&
+          !std::is_same<std::decay_t<U>, T>::value &&
           !std::is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
           !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
   NonNullResult(U&& value) : result_(std::forward<U>(value)) {
-    SB_CHECK(this->value() != nullptr) << "NonNullResult value cannot be null.";
+    SB_CHECK(result_.value()) << "NonNullResult value cannot be null.";
   }
 
   // Constructor for failure value.
