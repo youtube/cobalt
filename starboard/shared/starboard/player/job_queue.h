@@ -25,7 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/thread.h"
+#include "starboard/shared/starboard/thread_checker.h"
 
 #ifndef __cplusplus
 #error "Only C++ files can include this header."
@@ -169,7 +169,7 @@ class JobQueue {
   // be run.
   bool TryToRunOneJob(bool wait_for_next_job);
 
-  const SbThreadId thread_id_;
+  ThreadChecker thread_checker_;
   std::mutex mutex_;
   std::condition_variable condition_;
   int64_t current_job_token_ = JobToken::kInvalidToken + 1;
