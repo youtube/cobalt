@@ -14,6 +14,8 @@
 
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
 
+#include <string>
+
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
@@ -69,6 +71,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
     // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
     switches::kDisableAcceleratedVideoDecode,
     switches::kDisableAcceleratedVideoEncode,
+    // Don't enumerate or use real capture devices (audio, video).
+    switches::kUseFakeDeviceForMediaStream,
 });
 
 // Map of switches with parameters and their defaults.
