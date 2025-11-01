@@ -41,6 +41,26 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   ShellContentBrowserClient();
   ~ShellContentBrowserClient() override;
 
+ // Hackety overrides
+  bool IsFullCookieAccessAllowed(
+      content::BrowserContext* browser_context,
+      content::WebContents* web_contents,
+      const GURL& url,
+      const blink::StorageKey& storage_key) override;
+  bool WillCreateRestrictedCookieManager(
+      network::mojom::RestrictedCookieManagerRole role,
+      BrowserContext* browser_context,
+      const url::Origin& origin,
+      const net::IsolationInfo& isolation_info,
+      bool is_service_worker,
+      int process_id,
+      int routing_id,
+      mojo::PendingReceiver<network::mojom::RestrictedCookieManager>* receiver) override;
+  StoragePartitionConfig GetStoragePartitionConfigForSite(
+      BrowserContext* browser_context,
+      const GURL& site) override;
+  // Hackety overrides
+
   // The value supplied here is set when creating the NetworkContext.
   // Specifically
   // network::mojom::NetworkContext::allow_any_cors_exempt_header_for_browser.

@@ -54,6 +54,11 @@
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
+#include "content/public/browser/cookie_access_details.h"
+#include "third_party/blink/public/mojom/frame/frame.mojom-shared.h"
+#include "content/public/browser/storage_partition.h"
+#include "content/public/browser/dom_storage_context.h"
+
 namespace content {
 
 namespace {
@@ -820,6 +825,93 @@ void Shell::LoadProgressChanged(double progress) {
 void Shell::TitleWasSet(NavigationEntry* entry) {
   if (entry)
     g_platform->SetTitle(this, entry->GetTitle());
+}
+
+void print_cookie_details(const CookieAccessDetails &details) {
+  LOG(WARNING) << "details.url: " << details.url.spec() << 
+    " details.first_party_url: " << details.first_party_url.spec() << 
+    " details.blocked_by_policy: " << details.blocked_by_policy;
+}
+
+void Shell::OnCookiesAccessed(RenderFrameHost* render_frame_host,
+                              const CookieAccessDetails& details) {
+  LOG(WARNING) << "OnCookiesAccessed(RenderFrameHost): ";
+  print_cookie_details(details);
+}
+void Shell::OnCookiesAccessed(NavigationHandle* navigation_handle,
+                              const CookieAccessDetails& details) {
+  LOG(WARNING) << "OnCookiesAccessed(NavigationHandle): ";
+  print_cookie_details(details);
+}
+void Shell::NotifyStorageAccessed(
+    RenderFrameHost* render_frame_host,
+    blink::mojom::StorageTypeAccessed storage_type,
+    bool blocked) {
+
+
+  switch(storage_type) {
+    case blink::mojom::StorageTypeAccessed::kLocalStorage:
+      LOG(WARNING) << "LocalStorage:" << " blocked: " << blocked;
+      break;
+    case blink::mojom::StorageTypeAccessed::kSessionStorage:
+      LOG(WARNING) << "SessionStorage:" << " blocked: " << blocked;
+      break;
+    case blink::mojom::StorageTypeAccessed::kIndexedDB:
+      LOG(WARNING) << "IndexedDB:" << " blocked: " << blocked;
+      break;
+    case blink::mojom::StorageTypeAccessed::kFileSystem:
+      LOG(WARNING) << "FileSystem:" << " blocked: " << blocked;
+      break;
+    case blink::mojom::StorageTypeAccessed::kWebLocks:
+      LOG(WARNING) << "WebLocks:" << " blocked: " << blocked;
+      break;
+    case blink::mojom::StorageTypeAccessed::kDatabase:
+      LOG(WARNING) << "Database:" << " blocked: " << blocked;
+      break;
+    case blink::mojom::StorageTypeAccessed::kCacheStorage:
+      LOG(WARNING) << "CacheStorage:" << " blocked: " << blocked;
+      break;
+  }
+}
+
+void Shell::PrimaryMainDocumentElementAvailable() {
+  LOG(WARNING) << "Primary doc element created";
+
+}
+
+void Shell::DOMContentLoaded(RenderFrameHost* render_frame_host) {
+  LOG(WARNING) << "DOMContentLoaded";
+}
+void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
+                            const GURL& validated_url)  {
+  LOG(WARNING) << "DidFinishLoad url:" << validated_url.spec();
+}
+void Shell::DidFailLoad(RenderFrameHost* render_frame_host,
+                          const GURL& validated_url,
+                          int error_code)  {
+  LOG(WARNING) << "DidFailLoad url:" << validated_url.spec() << " error_code:" << error_code;
+}
+void Shell::DocumentOnLoadCompletedInPrimaryMainFrame() {
+  LOG(WARNING) << "DocumentOnLoadCompletedInPrimaryMainFrame";
+  BrowserContext * browser_context = web_contents()->GetBrowserContext();
+
+  browser_context->ForEachLoadedStoragePartition(
+      [&](content::StoragePartition* partition) {
+        LOG(WARNING) << "partition: " << partition->GetPath().value();
+        [[maybe_unused]] DOMStorageContext * dom = partition->GetDOMStorageContext();
+        dom->GetLocalStorageUsage(base::BindOnce(&Shell::OnGotLocalStorageUsage, base::Unretained(this)));
+      });
+}
+
+void Shell::OnGotLocalStorageUsage(
+    const std::vector<content::StorageUsageInfo>& infos) {
+  LOG(WARNING) << "OnGotLocalStorageUsage";
+  // Note this isn't a list of key/value pairs of localStorage
+  // It's all storage "blobs" keyed by origin
+  for(auto info : infos) {
+    LOG(WARNING) << "key: " << info.storage_key.GetDebugString() 
+      << " total_size_bytes:" << info.total_size_bytes;
+  }
 }
 
 }  // namespace content
