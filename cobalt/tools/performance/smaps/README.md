@@ -98,18 +98,18 @@ python3 read_smaps.py <SMAPS_FILE> [OPTIONS]
 
 ### `read_smaps_batch.py`
 
-This script provides a convenient way to process multiple smaps files at once. It reads one or more input files, processes them, and saves the summarized output to a specified directory, with each output file corresponding to its input.
+This script provides a convenient way to process multiple smaps files at once. It reads all `.txt` files from a specified input directory, processes them, and saves the summarized output to a specified output directory, with each output file corresponding to its input.
 
 #### Usage
 
 ```bash
-python3 read_smaps_batch.py <SMAPS_FILES...> [OPTIONS]
+python3 read_smaps_batch.py <RAW_LOGS_DIR> [OPTIONS]
 ```
 
 #### Command-line Arguments
 
-*   `<SMAPS_FILES...>` (required positional argument)
-    One or more paths to the smaps files to be analyzed. Wildcards can be used (e.g., `my_logs/*.txt`).
+*   `<RAW_LOGS_DIR>` (required positional argument)
+    The path to the directory containing the raw smaps log files.
 *   `-o`, `--output_dir` (type: `str`, default: `processed_smaps`)
     The directory where the processed smaps log files will be saved.
 *   **All arguments from `read_smaps.py`** are also available for fine-tuning the analysis of each individual smaps file.
@@ -118,12 +118,12 @@ python3 read_smaps_batch.py <SMAPS_FILES...> [OPTIONS]
 
 1.  **Process all smaps files in a directory and save to `processed_logs`:**
     ```bash
-    python3 read_smaps_batch.py cobalt_smaps_logs/*.txt -o processed_logs
+    python3 read_smaps_batch.py cobalt_smaps_logs -o processed_logs
     ```
 
-2.  **Process specific files with aggregation and sorting:**
+2.  **Process files with aggregation and sorting:**
     ```bash
-    python3 read_smaps_batch.py file1.txt file2.txt -a -s -k pss
+    python3 read_smaps_batch.py my_logs_dir -a -s -k pss
     ```
 
 ### `analyze_smaps_logs.py`
@@ -196,6 +196,67 @@ python3 visualize_smaps_analysis.py <JSON_FILE> [OPTIONS]
 ```bash
 python3 visualize_smaps_analysis.py analysis_output.json --output_image my_analysis.png
 ```
+
+## Unified Analysis Pipeline
+
+To simplify the analysis process, the `run_analysis_pipeline.py` script combines the batch processing, analysis, and visualization steps into a single command.
+
+### `run_analysis_pipeline.py`
+
+This script takes a directory of raw smaps logs and generates the final visualization PNG, handling all intermediate steps automatically.
+
+#### Usage
+
+```bash
+python3 run_analysis_pipeline.py <RAW_LOG_DIR> [OPTIONS]
+```
+
+#### Command-line Arguments
+
+*   `<RAW_LOG_DIR>` (required positional argument)
+    The path to the directory containing the raw smaps log files.
+*   `--output_image` (type: `str`, default: `smaps_analysis.png`)
+    The path where the final output PNG image will be saved.
+
+#### Example
+
+```bash
+python3 run_analysis_pipeline.py cobalt_smaps_logs --output_image my_analysis.png
+```
+
+## Improving Aggregation Rules
+
+The accuracy of this toolchain depends on its aggregation rules, which are heuristics based on known memory patterns. As Cobalt, Android, and third-party libraries evolve, new memory region names can appear. It is crucial to periodically check for and categorize these new regions to prevent gaps in the analysis.
+
+### How to Check for New Patterns
+
+1.  **Temporarily Disable Aggregation:** Open `run_analysis_pipeline.py` and remove the `-d` (or `--aggregate_android`) flag from the `batch_args` list. This will cause the batch processor to output a "raw" report with no special grouping.
+
+2.  **Run the Pipeline:** Execute the modified script on a recent and representative set of `smaps` logs.
+
+    ```bash
+    python3 run_analysis_pipeline.py /path/to/your/recent/logs
+    ```
+
+3.  **Examine the Raw Output:** The analysis printed to the console will now be much more detailed. Scan the "Top Largest Consumers" and "Top Memory Increases" lists. Look for patterns or repeated names that are not being grouped, such as:
+    *   New `[anon:<name>]` labels (e.g., we discovered `[anon:scudo:*]`).
+    *   Driver or shared memory regions (e.g., `/dev/ashmem/*`).
+    *   JIT or code cache regions (e.g., `/memfd:jit-cache`).
+    *   Any other large, unexplained region that appears frequently.
+
+4.  **Add New Aggregation Rules:** Open `read_smaps.py` and add new `re.sub()` rules within the `if args.aggregate_android:` block. Place more specific rules *before* more general ones.
+
+    ```python
+    # Example for adding a new rule for Skia resources
+    if args.aggregate_android:
+      key = re.sub(r'\[(anon:skia.*)\]', r'<\1>', key)  # New rule
+      key = re.sub(r'\[(anon:scudo:.*)\]', r'<\1>', key)
+      # ... other rules
+    ```
+
+5.  **Re-enable Aggregation:** Add the `-d` flag back to `run_analysis_pipeline.py` and re-run the pipeline to confirm that your new categories appear correctly.
+
+By following this process periodically, you can maintain a comprehensive and accurate view of the application's memory usage.
 
 ## Extending the Toolchain with New Fields
 
@@ -291,4 +352,7 @@ python3 -m unittest cobalt/tools/performance/smaps/analyze_smaps_logs_test.py
 
 # For visualize_smaps_analysis.py
 python3 -m unittest cobalt/tools/performance/smaps/visualize_smaps_analysis_test.py
+
+# For the unified pipeline
+python3 -m unittest cobalt/tools/performance/smaps/run_analysis_pipeline_test.py
 ```
