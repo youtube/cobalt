@@ -18,39 +18,26 @@
 Reads and summarizes /proc/<pid>/smaps
 """
 import argparse
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, defaultdict
 import itertools
 import re
 
 
-def consume_until(l, expect):
-  """Consumes lines from a list until a line starting with a string is found."""
-  while not l[0].startswith(expect):
-    l.pop(0)
-  return l.pop(0)
-
-
-def split_kb_line(in_list, expect):
-  """Consumes a line, splits it, and returns the size in kB."""
-  l = consume_until(in_list, expect)
-  sz = re.split(' +', l)
-  if not sz[0].startswith(expect):
-    raise RuntimeError(f'Unexpected line head, looked for:{expect} got:{sz[0]}')
-  if sz[2] != 'kB':
-    raise RuntimeError(f'Expected kB got {sz[2]}')
-  return int(sz[1])
-
-
-def line_expect(in_list, expect, howmuch):
-  """Consumes a line and asserts that the size is the expected value."""
-  val = split_kb_line(in_list, expect)
-  if howmuch != val:
-    raise RuntimeError(f'Expected {expect} to be {howmuch}, got {val}')
-  return 0
+def parse_smaps_entry(entry_lines):
+  """Parses a single smaps entry into a dictionary."""
+  data = defaultdict(int)
+  for line in entry_lines:
+    if ':' in line:
+      key, value = line.split(':', 1)
+      value = value.strip()
+      if 'kB' in value:
+        data[key.lower().replace('_',
+                                 '')] = int(value.replace('kB', '').strip())
+  return data
 
 
 fields = ('size rss pss shr_clean shr_dirty priv_clean priv_dirty '
-          'referenced anonymous anonhuge').split()
+          'referenced anonymous anonhuge swap swap_pss').split()
 MemDetail = namedtuple('name', fields)
 
 
@@ -100,17 +87,13 @@ def read_smap(args):
       key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
       key = re.sub(r'[@\-\.\w]+prop:s0', '<prop>', key)
       key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
-    d = MemDetail(
-        split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
-        line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
-        split_kb_line(ls, 'Pss:'), split_kb_line(ls, 'Shared_Clean:'),
-        split_kb_line(ls, 'Shared_Dirty:'), split_kb_line(ls, 'Private_Clean:'),
-        split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
-        split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
-    # expected to be constant
-    line_expect(ls, 'ShmemPmdMapped:', 0)
-    line_expect(ls, 'Shared_Hugetlb:', 0)
-    line_expect(ls, 'Private_Hugetlb:', 0)
+
+    data = parse_smaps_entry(ls)
+    d = MemDetail(data['size'], data['rss'], data['pss'], data['sharedclean'],
+                  data['shareddirty'], data['privateclean'],
+                  data['privatedirty'], data['referenced'], data['anonymous'],
+                  data['anonhugepages'], data['swap'], data['swappss'])
+
     if args.aggregate_zeros and (d.rss == 0) and (d.pss == 0):
       key = '<zero resident>'
 
