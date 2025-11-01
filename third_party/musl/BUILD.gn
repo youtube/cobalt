@@ -22,19 +22,42 @@ if (target_cpu == "x64") {
   musl_arch = "aarch64"
 }
 
-config("external_settings") {
-  include_dirs = [
-    "arch/$musl_arch",
-    "arch/generic",
+config("system_includes") {
+  libmusl_prefix = "//third_party/musl"
+  musl_flags = [
+    # Disable the use of standard include directories to ensure system include
+    # paths such as /usr/include and /usr/local/include are not used.
+    # Note: inspect the paths used with:
+    # $ path_to/clang -v -x c++ - -fsyntax-only -nostdlibinc < /dev/null
+    "-nostdlibinc",
+    # Add starboard/include first, to allow it to take precedence over other
+    # files in musl
+    "-isystem" + rebase_path("$libmusl_prefix/src/starboard/include",
+                              root_build_dir),
+    # This is the folder with the directly externally useable include files.
+    "-isystem" + rebase_path("$libmusl_prefix/include", root_build_dir),
+    # Add the arch folder before the generic to allow generic to be the fallback
+    # when there is no arch specific include file.
+    "-isystem" +
+        rebase_path("$libmusl_prefix/arch/$musl_arch", root_build_dir),
+    "-isystem" +
+        rebase_path("$libmusl_prefix/arch/generic", root_build_dir),
+    # Compile with TLS emulation.
+    "-femulated-tls",
   ]
+  # These have to be in cflags_c and cflags_cc, to ensure that they are
+  # in the search path after libc++.
+  cflags_c = musl_flags
+  cflags_cc = musl_flags
 }
 
 group("c") {
-  public_configs = [ ":external_settings" ]
+  public_configs = [ ":system_includes" ]
   deps = [ ":c_internal" ]
 }
 
 static_library("c_internal") {
+  configs += [ ":system_includes" ]
   # External targets must depend on the group so that they get the
   # "external_settings" config applied.
   visibility = [ ":c" ]
@@ -46,14 +69,10 @@ static_library("c_internal") {
     "src/multibyte",
     "src/time",
     "src/internal",
-    "arch/$musl_arch",
   ]
 
   cflags = [
     "-nobuiltininc",
-    "-isystem" + rebase_path("include", root_build_dir),
-    "-isystem" + rebase_path("arch/$musl_arch", root_build_dir),
-    "-isystem" + rebase_path("arch/generic", root_build_dir),
     "-w",
     # shgetc.c call to undeclared function '__uflow'
     "-Wno-implicit-function-declaration",
