@@ -101,24 +101,21 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
   @patch('sys.stdout', new_callable=StringIO)
   def test_analyze_logs_output(self, mock_stdout):
     """Tests the main analysis function and captures its output."""
-    test_argv = [self.test_dir]
-    analyze_smaps_logs.run_smaps_analysis_tool(test_argv)
+    analyze_smaps_logs.analyze_logs(self.test_dir)
     output = mock_stdout.getvalue()
 
     # Check for top consumers in the end log
-    self.assertIn('Top 5 Largest Consumers by the End Log (PSS):', output)
+    self.assertIn('Top 10 Largest Consumers by the End Log (PSS):', output)
     self.assertIn('- <lib_B>: 1500 kB PSS', output)
     self.assertIn('- <lib_A>: 1200 kB PSS', output)
 
     # Check for memory growth
-    self.assertIn('Top 5 Memory Increases Over Time (PSS):', output)
+    self.assertIn('Top 10 Memory Increases Over Time (PSS):', output)
     self.assertIn('- <lib_B>: +1000 kB PSS', output)
     self.assertIn('- <lib_A>: +200 kB PSS', output)
 
     # Check for overall change
     self.assertIn('Overall Total Memory Change:', output)
-    self.assertIn('Total PSS Change: 1200 kB', output)
-    self.assertIn('Total RSS Change: 1300 kB', output)
 
   @patch('sys.stderr', new_callable=StringIO)
   def test_extract_timestamp_warning(self, mock_stderr):

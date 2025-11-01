@@ -41,8 +41,8 @@ AnonHugePages:         0 kB
 ShmemPmdMapped:        0 kB
 Shared_Hugetlb:        0 kB
 Private_Hugetlb:       0 kB
-Swap:                  0 kB
-SwapPss:               0 kB
+Swap:                 10 kB
+SwapPss:               5 kB
 Locked:                0 kB
 VmFlags: rd ex mr mw me dw
 7f6d5c021000-7f6d5c022000 rw-p 00021000 08:01 12345 \
@@ -63,8 +63,8 @@ AnonHugePages:         0 kB
 ShmemPmdMapped:        0 kB
 Shared_Hugetlb:        0 kB
 Private_Hugetlb:       0 kB
-Swap:                  0 kB
-SwapPss:               0 kB
+Swap:                  2 kB
+SwapPss:               1 kB
 Locked:                0 kB
 VmFlags: rd wr mr mw me dw
 """
@@ -157,6 +157,21 @@ class ReadSmapsTest(unittest.TestCase):
       # Check that the library is aggregated into <dynlibs>
       self.assertIn('<dynlibs>', content)
       self.assertNotIn('/lib/x86_64-linux-gnu/ld-2.27.so', content)
+
+  def test_swap_fields_present(self):
+    """Tests that swap and swap_pss fields are in the output."""
+    output_file = os.path.join(self.output_dir, 'smaps1_processed.txt')
+    test_args = [self.smaps_file_1, '-o', self.output_dir]
+
+    read_smaps_batch.run_smaps_batch_tool(test_args)
+
+    self.assertTrue(os.path.exists(output_file))
+    with open(output_file, 'r', encoding='utf-8') as f:
+      content = f.read()
+      self.assertIn('swap', content)
+      self.assertIn('swap_pss', content)
+      # Check that the total swap is the sum of the swap values in the sample
+      self.assertRegex(content, r'total.*12.*6')
 
 
 if __name__ == '__main__':
