@@ -79,7 +79,11 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   void WriteEndOfStream(SbMediaType stream_type) final;
   void SetBounds(int z_index, int x, int y, int width, int height) final;
   void GetInfo(SbPlayerInfo* out_player_info) final;
+
+  // TODO (b/456786219): as SbPlayer doesn't support pause, we should remove
+  // unused pause related functions.
   void SetPause(bool pause) final;
+
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(double volume) final;
 
