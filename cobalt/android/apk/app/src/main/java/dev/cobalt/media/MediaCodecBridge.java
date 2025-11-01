@@ -35,6 +35,8 @@ import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import dev.cobalt.coat.CobaltFeatures;
+import dev.cobalt.coat.CobaltFeatureMap;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
@@ -386,8 +388,12 @@ class MediaCodecBridge {
   }
 
   private boolean isDecodeOnlyFlagEnabled() {
-    // Right now, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
-    if (!mIsTunnelingPlayback) {
+    // By default, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
+    // We enable BUFFER_FLAG_DECODE_ONLY for non-tunneling playback if the
+    // cobalt experiment for it is enabled.
+    boolean enableNonTunnelDecodeOnly =
+        CobaltFeatureMap.isEnabled(CobaltFeatures.NON_TUNNELED_DECODE_ONLY);
+    if (!(mIsTunnelingPlayback || enableNonTunnelDecodeOnly)) {
       return false;
     }
     // BUFFER_FLAG_DECODE_ONLY is added in Android 14.
