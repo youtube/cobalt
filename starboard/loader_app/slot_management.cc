@@ -49,7 +49,7 @@ namespace {
 const int kMaxEgVersionLength = 20;
 
 // The max number of installations slots.
-const int kMaxNumInstallations = 3;
+const int kMaxNumInstallations = 2;
 
 // Relative path for the directory of the Cobalt shared library.
 const char kCobaltLibraryPath[] = "lib";
