@@ -51,7 +51,9 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "services/network/public/cpp/features.h"
@@ -62,6 +64,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if defined(RUN_BROWSER_TESTS)
@@ -87,6 +90,18 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
 }  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
+    JNIEnv* env) {
+  auto* client = CobaltContentBrowserClient::Get();
+  // Possible if application is paused during startup.
+  if (!client) {
+    return;
+  }
+  client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
@@ -123,6 +138,12 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
 
+// static
+CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
+  return static_cast<CobaltContentBrowserClient*>(
+      content::ShellContentBrowserClient::Get());
+}
+
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
@@ -134,8 +155,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
-  content::NavigationHandle& navigation_handle =
-      registry.GetNavigationHandle();
+  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
@@ -171,9 +191,9 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
 }
 
 void CobaltContentBrowserClient::OverrideWebPreferences(
-                            content::WebContents* web_contents,
-                            content::SiteInstance& main_frame_site,
-                            blink::web_pref::WebPreferences* prefs) {
+    content::WebContents* web_contents,
+    content::SiteInstance& main_frame_site,
+    blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
@@ -181,7 +201,7 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
-                            web_contents, main_frame_site, prefs);
+      web_contents, main_frame_site, prefs);
 }
 
 content::StoragePartitionConfig
@@ -253,8 +273,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
-  // All consumers of the main NetworkContext must provide NetworkAnonymizationKey
-  // / IsolationInfos, so storage can be isolated on a per-site basis.
+  // All consumers of the main NetworkContext must provide
+  // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
+  // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 }
 
@@ -336,6 +357,24 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
             std::move(receiver));
     cobalt_header_clients_.push_back(std::move(cobalt_header_client));
   }
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  if (!web_contents_observer_) {
+    return;
+  }
+  auto* web_contents = web_contents_observer_->web_contents();
+  CHECK(web_contents);
+  content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
+  CHECK(rfh);
+  auto* storage_partition = rfh->GetStoragePartition();
+  CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
+  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
+  CHECK(cookie_manager);
+  cookie_manager->FlushCookieStore(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

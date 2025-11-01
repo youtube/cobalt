@@ -34,6 +34,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -202,10 +203,12 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // Load an empty page to let shell create WebContents. Override Shell.java's
+    // onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("",
+    mShellManager.launchShell(
+        "",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -246,7 +249,7 @@ public abstract class CobaltActivity extends Activity {
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyDown(keyCode, event);
+      return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
@@ -254,7 +257,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyUp(keyCode, event);
+      return super.onKeyUp(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -411,6 +414,15 @@ public abstract class CobaltActivity extends Activity {
       webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
+  }
+
+  @Override
+  protected void onPause() {
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) {
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+    }
+    super.onPause();
   }
 
   @Override
@@ -639,52 +651,54 @@ public abstract class CobaltActivity extends Activity {
   // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
     new Thread(
-      () -> {
-        HttpURLConnection urlConnection = null;
-        try {
-          URL url = new URL("https://www.google.com/generate_204");
-          urlConnection = (HttpURLConnection) url.openConnection();
-          urlConnection.setConnectTimeout(5000);
-          urlConnection.setReadTimeout(5000);
-          urlConnection.connect();
-          if (urlConnection.getResponseCode() != 204) {
-            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
-          }
-          Log.i(TAG, "Active Network check successful." + mPlatformError);
-          if (mPlatformError != null) {
-            mPlatformError.setResponse(PlatformError.POSITIVE);
-            mPlatformError.dismiss();
-            mPlatformError = null;
-          }
-          if (mShouldReloadOnResume) {
-            runOnUiThread(
-              () -> {
-                WebContents webContents = getActiveWebContents();
-                if (webContents != null) {
-                  webContents.getNavigationController().reload(true);
-                }
-                mShouldReloadOnResume = false;
-              });
-          }
-        } catch (IOException e) {
-          Log.w(TAG, "Active Network check failed.", e);
-          runOnUiThread(
             () -> {
-              if (mPlatformError == null || !mPlatformError.isShowing()) {
-                mPlatformError =
-                  new PlatformError(
-                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-                mPlatformError.raise();
+              HttpURLConnection urlConnection = null;
+              try {
+                URL url = new URL("https://www.google.com/generate_204");
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setConnectTimeout(5000);
+                urlConnection.setReadTimeout(5000);
+                urlConnection.connect();
+                if (urlConnection.getResponseCode() != 204) {
+                  throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+                }
+                Log.i(TAG, "Active Network check successful." + mPlatformError);
+                if (mPlatformError != null) {
+                  mPlatformError.setResponse(PlatformError.POSITIVE);
+                  mPlatformError.dismiss();
+                  mPlatformError = null;
+                }
+                if (mShouldReloadOnResume) {
+                  runOnUiThread(
+                      () -> {
+                        WebContents webContents = getActiveWebContents();
+                        if (webContents != null) {
+                          webContents.getNavigationController().reload(true);
+                        }
+                        mShouldReloadOnResume = false;
+                      });
+                }
+              } catch (IOException e) {
+                Log.w(TAG, "Active Network check failed.", e);
+                runOnUiThread(
+                    () -> {
+                      if (mPlatformError == null || !mPlatformError.isShowing()) {
+                        mPlatformError =
+                            new PlatformError(
+                                getStarboardBridge().getActivityHolder(),
+                                PlatformError.CONNECTION_ERROR,
+                                0);
+                        mPlatformError.raise();
+                      }
+                    });
+                mShouldReloadOnResume = true;
+              } finally {
+                if (urlConnection != null) {
+                  urlConnection.disconnect();
+                }
               }
-            });
-          mShouldReloadOnResume = true;
-        } finally {
-          if (urlConnection != null) {
-            urlConnection.disconnect();
-          }
-        }
-      })
-    .start();
+            })
+        .start();
   }
 
   public long getAppStartTimestamp() {
