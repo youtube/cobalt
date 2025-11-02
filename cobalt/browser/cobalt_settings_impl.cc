@@ -14,8 +14,11 @@
 
 #include "cobalt/browser/cobalt_settings_impl.h"
 
+#include <memory>
+
 #include "base/notreached.h"
 #include "cobalt/browser/global_features.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
 namespace cobalt {
 
@@ -23,8 +26,18 @@ CobaltSettingsImpl::CobaltSettingsImpl() = default;
 
 CobaltSettingsImpl::~CobaltSettingsImpl() = default;
 
+// static
+void CobaltSettingsImpl::Create(
+    content::RenderFrameHost* render_frame_host,
+    mojo::PendingReceiver<mojom::CobaltSettings> receiver) {
+  LOG(INFO) << "CobaltSettingsImpl::Create";
+  mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltSettingsImpl>(),
+                              std::move(receiver));
+}
+
 void CobaltSettingsImpl::GetSetting(const std::string& key,
                                     GetSettingCallback callback) {
+  LOG(INFO) << "CobaltSettingsImpl::GetSetting: key=" << key;
   auto setting = GlobalFeatures::GetInstance()->GetSetting(key);
   if (!setting) {
     std::move(callback).Run(nullptr);
@@ -40,6 +53,7 @@ void CobaltSettingsImpl::GetSetting(const std::string& key,
           std::move(callback).Run(mojom::SettingValue::NewIntValue(arg));
         } else {
           NOTREACHED();
+          std::move(callback).Run(nullptr);
         }
       },
       *setting);

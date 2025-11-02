@@ -16,6 +16,11 @@
 #define COBALT_BROWSER_COBALT_SETTINGS_IMPL_H_
 
 #include "cobalt/browser/mojom/cobalt_settings.mojom.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+
+namespace content {
+class RenderFrameHost;
+}  // namespace content
 
 namespace cobalt {
 
@@ -26,6 +31,9 @@ class CobaltSettingsImpl : public mojom::CobaltSettings {
 
   CobaltSettingsImpl(const CobaltSettingsImpl&) = delete;
   CobaltSettingsImpl& operator=(const CobaltSettingsImpl&) = delete;
+
+  static void Create(content::RenderFrameHost* render_frame_host,
+                     mojo::PendingReceiver<mojom::CobaltSettings> receiver);
 
   // mojom::CobaltSettings implementation.
   void GetSetting(const std::string& key, GetSettingCallback callback) override;

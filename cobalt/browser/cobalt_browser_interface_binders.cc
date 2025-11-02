@@ -15,6 +15,7 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
+#include "cobalt/browser/cobalt_settings_impl.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
@@ -28,6 +29,7 @@
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
+#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 
@@ -56,6 +58,7 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
 void PopulateCobaltFrameBinders(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
+  LOG(INFO) << "PopulateCobaltFrameBinders";
 // We want to use the Java Mojo implementation for 1P ATV only.
 #if BUILDFLAG(IS_ANDROIDTV)
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(base::BindRepeating(
@@ -84,6 +87,8 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_settings::H5vccSettingsImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(
       base::BindRepeating(&performance::PerformanceImpl::Create));
+  binder_map->Add<mojom::CobaltSettings>(
+      base::BindRepeating(&CobaltSettingsImpl::Create));
 }
 
 }  // namespace cobalt

@@ -314,6 +314,7 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "RegisterBrowserInterfaceBindersForFrame";
   PopulateCobaltFrameBinders(render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
@@ -334,6 +335,7 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
     blink::AssociatedInterfaceRegistry* associated_registry,
     content::RenderProcessHost* render_process_host) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  LOG(INFO) << "CobaltContentBrowserClient::ExposeInterfacesToRenderer";
   if (!video_geometry_setter_service_) {
     CreateVideoGeometrySetterService();
   }
@@ -362,6 +364,7 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
+
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,
     int render_process_id,

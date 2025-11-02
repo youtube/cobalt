@@ -117,6 +117,7 @@ StarboardRendererTraits::StarboardRendererTraits(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+    bool use_external_allocator,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -130,6 +131,7 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
+      use_external_allocator(use_external_allocator),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
@@ -196,13 +198,16 @@ GpuMojoMediaClient::GetSupportedVideoDecoderConfigs() {
         if (config.profile_min >= H264PROFILE_MIN &&
             config.profile_max <= H264PROFILE_MAX) {
           has_accelerated_h264 = true;
-        } else if (config.profile_min >= VP9PROFILE_MIN &&
+        }
+        else if (config.profile_min >= VP9PROFILE_MIN &&
                    config.profile_max <= VP9PROFILE_MAX) {
           has_accelerated_vp9 = true;
-        } else if (config.profile_min >= AV1PROFILE_MIN &&
+        }
+        else if (config.profile_min >= AV1PROFILE_MIN &&
                    config.profile_max <= AV1PROFILE_MAX) {
           has_accelerated_av1 = true;
-        } else if ((config.profile_min >= HEVCPROFILE_MIN &&
+        }
+        else if ((config.profile_min >= HEVCPROFILE_MIN &&
                     config.profile_max <= HEVCPROFILE_MAX) ||
                    (config.profile_min >= HEVCPROFILE_EXT_MIN &&
                     config.profile_max <= HEVCPROFILE_EXT_MAX)) {
@@ -306,6 +311,7 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
       config.overlay_plane_id, config.audio_write_duration_local,
       config.audio_write_duration_remote, config.max_video_capabilities,
+      config.use_external_allocator,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote),
       base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,

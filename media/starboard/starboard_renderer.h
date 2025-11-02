@@ -24,7 +24,6 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -34,10 +33,8 @@
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
-#include "media/starboard/bind_host_receiver_callback.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
@@ -57,7 +54,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
-                    BindHostReceiverCallback bind_host_receiver_callback);
+                    bool use_external_allocator);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -128,8 +125,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     STATE_ERROR
   };
 
-  void InitiatePlayerCreation();
-  void CreatePlayerBridge(cobalt::mojom::SettingValuePtr setting_value);
+  void CreatePlayerBridge();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
@@ -170,6 +166,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const bool use_external_allocator_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
@@ -207,8 +204,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // Timestamp microseconds when we last checked the media time.
   Time last_time_media_time_retrieved_;
 
-  const BindHostReceiverCallback bind_host_receiver_callback_;
-
   bool audio_read_delayed_ = false;
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
@@ -240,8 +235,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
-
-  mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings_remote_;
 
   // WeakPtrFactory should be defined last (after all member variables).
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};

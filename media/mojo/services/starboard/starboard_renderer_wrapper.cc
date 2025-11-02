@@ -40,12 +40,15 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
-          std::move(traits.bind_host_receiver_callback)) {
+          traits.use_external_allocator) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
       std::move(traits.get_starboard_command_buffer_stub_cb));
   gpu_factory_ = std::move(gpu_factory_impl);
+  LOG(INFO)
+      << "Creating StarboardRendererWrapper: traits.use_external_allocator="
+      << (traits.use_external_allocator ? "true" : "false");
 }
 
 StarboardRendererWrapper::~StarboardRendererWrapper() = default;

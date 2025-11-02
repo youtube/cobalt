@@ -96,8 +96,10 @@ std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
   base::AutoLock auto_lock(lock_);
   auto it = settings_.find(key);
   if (it != settings_.end()) {
+    LOG(INFO) << "GlobalFeatures::GetSetting: key=" << key << ", found=true";
     return it->second;
   }
+  LOG(INFO) << "GlobalFeatures::GetSetting: key=" << key << ", found=false";
   return std::nullopt;
 }
 
