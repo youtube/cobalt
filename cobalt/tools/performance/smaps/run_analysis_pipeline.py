@@ -38,6 +38,11 @@ def main():
       type=str,
       default='smaps_analysis.png',
       help='Path to save the output PNG image file.')
+  parser.add_argument(
+      '--platform',
+      choices=['android', 'linux'],
+      default='android',
+      help='Specify the platform for platform-specific aggregations.')
   args = parser.parse_args()
 
   # Create a temporary directory for processed logs
@@ -47,7 +52,11 @@ def main():
   try:
     # Step 1: Run read_smaps_batch.py
     print('--- Running read_smaps_batch.py ---')
-    batch_args = [args.raw_logs_dir, '-o', processed_logs_dir, '-d']
+    batch_args = [
+        args.raw_logs_dir, '-o', processed_logs_dir, '--platform', args.platform
+    ]
+    if args.platform == 'android':
+      batch_args.append('-d')  # Only append -d for android platform
     run_smaps_batch_tool(batch_args)
 
     # Step 2: Run analyze_smaps_logs.py

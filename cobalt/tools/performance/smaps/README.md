@@ -217,11 +217,13 @@ python3 run_analysis_pipeline.py <RAW_LOG_DIR> [OPTIONS]
     The path to the directory containing the raw smaps log files.
 *   `--output_image` (type: `str`, default: `smaps_analysis.png`)
     The path where the final output PNG image will be saved.
+*   `--platform` (type: `str`, choices: `android`, `linux`, default: `android`)
+    Specify the platform for platform-specific aggregations.
 
 #### Example
 
 ```bash
-python3 run_analysis_pipeline.py cobalt_smaps_logs --output_image my_analysis.png
+python3 run_analysis_pipeline.py cobalt_smaps_logs --output_image my_analysis.png --platform android
 ```
 
 ## Improving Aggregation Rules

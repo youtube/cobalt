@@ -72,16 +72,47 @@ class RunAnalysisPipelineTest(unittest.TestCase):
   @patch('run_analysis_pipeline.run_smaps_batch_tool')
   def test_pipeline_execution(self, mock_batch_tool, mock_analysis_tool,
                               mock_viz_tool):
-    """Tests that the pipeline runs the tools in the correct order."""
+    """Tests that the pipeline runs the tools in the correct order (Android)."""
     output_image = os.path.join(self.test_dir, 'output.png')
-    test_args = [self.raw_logs_dir, '--output_image', output_image]
+    test_args = [
+        self.raw_logs_dir, '--output_image', output_image, '--platform',
+        'android'
+    ]
 
     with patch('sys.argv', ['run_analysis_pipeline.py'] + test_args):
       run_analysis_pipeline.main()
 
     # Verify that each tool was called once
+    mock_batch_tool.assert_called_once_with([
+        self.raw_logs_dir, '-o', unittest.mock.ANY, '--platform', 'android',
+        '-d'
+    ])
+    mock_analysis_tool.assert_called_once()
+    mock_viz_tool.assert_called_once()
+
+    # Verify the arguments passed to the visualization tool
+    args, _ = mock_viz_tool.call_args
+    self.assertTrue(args[0].endswith('analysis.json'))
+    self.assertEqual(args[1], output_image)
+
+  @patch('run_analysis_pipeline.create_visualization')
+  @patch('run_analysis_pipeline.run_smaps_analysis_tool')
+  @patch('run_analysis_pipeline.run_smaps_batch_tool')
+  def test_pipeline_execution_linux(self, mock_batch_tool, mock_analysis_tool,
+                                    mock_viz_tool):
+    """Tests that the pipeline runs correctly for Linux platform."""
+    output_image = os.path.join(self.test_dir, 'output_linux.png')
+    test_args = [
+        self.raw_logs_dir, '--output_image', output_image, '--platform', 'linux'
+    ]
+
+    with patch('sys.argv', ['run_analysis_pipeline.py'] + test_args):
+      run_analysis_pipeline.main()
+
+    # Verify that each tool was called once
+    # Note: -d (aggregate_android) should NOT be present for linux platform
     mock_batch_tool.assert_called_once_with(
-        [self.raw_logs_dir, '-o', unittest.mock.ANY, '-d'])
+        [self.raw_logs_dir, '-o', unittest.mock.ANY, '--platform', 'linux'])
     mock_analysis_tool.assert_called_once()
     mock_viz_tool.assert_called_once()
 

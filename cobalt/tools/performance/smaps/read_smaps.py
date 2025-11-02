@@ -82,13 +82,7 @@ def read_smap(args):
     # Find the name of the memory region
     key = '<anon>'
     if len(head) > 5:
-      for i in reversed(range(5, len(head))):
-        if head[i].startswith('[') or head[i].startswith('/'):
-          key = head[i]
-          break
-        elif not head[i].isdigit():
-          key = head[i]
-          break
+      key = ' '.join(head[5:])
 
     if args.strip_paths:
       key = re.sub('.*/', '', key)
@@ -99,7 +93,7 @@ def read_smap(args):
       key = re.sub(r'libc-[\.0-9]+\.so', '<glibc>', key)
       key = re.sub(r'libstdc\++\.so', '<libstdc++>', key)
       key = re.sub(r'[@\-\.\w]+\.so', '<dynlibs>', key)
-    if args.aggregate_android:
+    if args.platform == 'android':
       key = re.sub(r'\[(anon:scudo:.*)\]', r'<\1>', key)
       key = re.sub(r'(/dev/ashmem/.*)', r'<\1>', key)
       key = re.sub(r'(/memfd:jit-cache)', r'<\1>', key)
@@ -209,6 +203,11 @@ def get_analysis_parser():
       '--no_shr_dirty',
       action='store_true',
       help='Omit Shared_Dirty column from output')
+  parser.add_argument(
+      '--platform',
+      choices=['android', 'linux'],
+      default='android',
+      help='Specify the platform for platform-specific aggregations.')
   return parser
 
 
