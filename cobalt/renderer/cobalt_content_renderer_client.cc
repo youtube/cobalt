@@ -189,17 +189,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
 
-  // Hijacking for testing
   auto setting =
-      GlobalFeatures::GetInstance()->GetSetting("httpProtocolFilter");
+      GlobalFeatures::GetInstance()->GetSetting("use_external_allocator");
   if (setting && std::holds_alternative<std::string>(*setting)) {
     std::string value = std::get<std::string>(*setting);
-    LOG(INFO) << "GetStarboardRendererFactoryTraits: httpProtocolFilter="
-              << value;
-    renderer_factory_traits->use_external_allocator = false;
-  } else {
-    LOG(INFO) << "GetStarboardRendererFactoryTraits: httpProtocolFilter not "
-                 "set, using default true for external allocator";
+    renderer_factory_traits->use_external_allocator = (value == "true");
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.

@@ -758,8 +758,6 @@ void SbPlayerBridge::CreatePlayer() {
 
   player_creation_time_ = Time::Now();
 
-  LOG(INFO) << "Use external_allocator="
-            << (use_external_allocator_ ? "true" : "false");
   // TODO(kjyoun): Connect use_external_allocator_ to player.
 
   SbPlayerCreationParam creation_param = {};

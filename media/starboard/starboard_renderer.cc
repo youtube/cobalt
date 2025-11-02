@@ -129,8 +129,7 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
-  LOG(INFO) << "StarboardRenderer constructed: use_external_allocator_="
-            << (use_external_allocator_ ? "true" : "false");
+  LOG(INFO) << "StarboardRenderer constructed.";
 }
 
 StarboardRenderer::~StarboardRenderer() {

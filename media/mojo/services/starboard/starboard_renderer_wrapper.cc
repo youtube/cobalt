@@ -46,9 +46,6 @@ StarboardRendererWrapper::StarboardRendererWrapper(
       traits.gpu_task_runner,
       std::move(traits.get_starboard_command_buffer_stub_cb));
   gpu_factory_ = std::move(gpu_factory_impl);
-  LOG(INFO)
-      << "Creating StarboardRendererWrapper: traits.use_external_allocator="
-      << (traits.use_external_allocator ? "true" : "false");
 }
 
 StarboardRendererWrapper::~StarboardRendererWrapper() = default;

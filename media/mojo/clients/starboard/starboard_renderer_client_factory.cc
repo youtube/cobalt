@@ -52,11 +52,7 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
               : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
       use_external_allocator_(traits->use_external_allocator),
-      bind_host_receiver_callback_(traits->bind_host_receiver_callback) {
-  LOG(INFO) << "StarboardRendererClientFactory constructed: "
-               "use_external_allocator_="
-            << (use_external_allocator_ ? "true" : "false");
-}
+      bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
 
