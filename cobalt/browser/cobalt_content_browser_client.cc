@@ -27,9 +27,11 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
+#include "cobalt/browser/cobalt_settings_impl.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
@@ -51,6 +53,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -336,6 +339,14 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
   }
   registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
       video_geometry_setter_service_->GetBindSubscriberCallback(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+
+  registry->AddInterface<cobalt::mojom::CobaltSettings>(
+      base::BindRepeating(
+          [](mojo::PendingReceiver<cobalt::mojom::CobaltSettings> receiver) {
+            mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltSettingsImpl>(),
+                                        std::move(receiver));
+          }),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 

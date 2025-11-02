@@ -114,7 +114,8 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    BindHostReceiverCallback bind_host_receiver_callback)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -123,7 +124,8 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      bind_host_receiver_callback_(bind_host_receiver_callback) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -222,9 +224,14 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     return;
   }
 
-  // |init_cb| will be called inside |CreatePlayerBridge()|.
+  bind_host_receiver_callback_.Run(
+      cobalt_settings_remote_.BindNewPipeAndPassReceiver());
+  cobalt_settings_remote_->GetSetting(
+      "use_external_allocator",
+      base::BindOnce(&StarboardRenderer::CreatePlayerBridge,
+                     weak_factory_.GetWeakPtr()));
+
   state_ = STATE_INITIALIZING;
-  CreatePlayerBridge();
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -250,7 +257,10 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
 
   DCHECK(init_cb_);
   state_ = STATE_INITIALIZING;
-  CreatePlayerBridge();
+  cobalt_settings_remote_->GetSetting(
+      "use_external_allocator",
+      base::BindOnce(&StarboardRenderer::CreatePlayerBridge,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
@@ -454,7 +464,8 @@ SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
   return &sbplayer_interface_;
 }
 
-void StarboardRenderer::CreatePlayerBridge() {
+void StarboardRenderer::CreatePlayerBridge(
+    cobalt::mojom::SettingValuePtr setting_value) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
@@ -502,11 +513,17 @@ void StarboardRenderer::CreatePlayerBridge() {
 
     LOG(INFO) << "Creating SbPlayerBridge.";
 
+    bool use_external_allocator = true;
+    if (setting_value && setting_value->is_string_value()) {
+      use_external_allocator = setting_value->get_string_value() == "true";
+    }
+
     player_bridge_.reset(new SbPlayerBridge(
         GetSbPlayerInterface(), task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,
+        use_external_allocator,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
