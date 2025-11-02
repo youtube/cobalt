@@ -40,7 +40,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
-          base::DoNothing()) {  // TODO(b/375070492): Pass a real callback.
+          std::move(traits.bind_host_receiver_callback)) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
