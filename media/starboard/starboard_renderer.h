@@ -128,6 +128,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     STATE_ERROR
   };
 
+  void InitiatePlayerCreation();
   void CreatePlayerBridge(cobalt::mojom::SettingValuePtr setting_value);
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,

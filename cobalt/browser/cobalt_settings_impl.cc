@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_settings_impl.h"
 
+#include "base/notreached.h"
 #include "cobalt/browser/global_features.h"
 
 namespace cobalt {
@@ -30,13 +31,18 @@ void CobaltSettingsImpl::GetSetting(const std::string& key,
     return;
   }
 
-  if (std::holds_alternative<std::string>(*setting)) {
-    std::move(callback).Run(
-        mojom::SettingValue::NewStringValue(std::get<std::string>(*setting)));
-  } else {
-    std::move(callback).Run(
-        mojom::SettingValue::NewIntValue(std::get<int64_t>(*setting)));
-  }
+  std::visit(
+      [&callback](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, std::string>) {
+          std::move(callback).Run(mojom::SettingValue::NewStringValue(arg));
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+          std::move(callback).Run(mojom::SettingValue::NewIntValue(arg));
+        } else {
+          NOTREACHED();
+        }
+      },
+      *setting);
 }
 
 }  // namespace cobalt

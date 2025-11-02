@@ -224,12 +224,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     return;
   }
 
-  bind_host_receiver_callback_.Run(
-      cobalt_settings_remote_.BindNewPipeAndPassReceiver());
-  cobalt_settings_remote_->GetSetting(
-      "use_external_allocator",
-      base::BindOnce(&StarboardRenderer::CreatePlayerBridge,
-                     weak_factory_.GetWeakPtr()));
+  InitiatePlayerCreation();
 
   state_ = STATE_INITIALIZING;
 }
@@ -257,6 +252,17 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
 
   DCHECK(init_cb_);
   state_ = STATE_INITIALIZING;
+  InitiatePlayerCreation();
+}
+
+void StarboardRenderer::InitiatePlayerCreation() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (!cobalt_settings_remote_.is_bound()) {
+    bind_host_receiver_callback_.Run(
+        cobalt_settings_remote_.BindNewPipeAndPassReceiver());
+  }
+
   cobalt_settings_remote_->GetSetting(
       "use_external_allocator",
       base::BindOnce(&StarboardRenderer::CreatePlayerBridge,
