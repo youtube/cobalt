@@ -92,6 +92,61 @@ Locked:                0 kB
 VmFlags: rd wr mr mw me ac
 """
 
+# Sample smaps data with Android-specific regions for testing aggregation
+SAMPLE_SMAPS_ANDROID = """12c00000-12e00000 rw-p 00000000 00:00 0    \
+    [anon:scudo:primary]
+Size:               2048 kB
+Rss:                1024 kB
+Pss:                1024 kB
+Private_Dirty:      1024 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+VmFlags: rd wr mr mw me ac
+7f6d5c022000-7f6d5c023000 rw-p 00000000 00:00 0    /dev/ashmem/bitmap
+Size:                  4 kB
+Rss:                   4 kB
+Pss:                   4 kB
+Private_Dirty:         4 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+VmFlags: rd wr mr mw me ac
+7f6d5c023000-7f6d5c024000 rw-p 00000000 00:00 0    /memfd:jit-cache
+Size:                  4 kB
+Rss:                   4 kB
+Pss:                   4 kB
+Private_Dirty:         4 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+VmFlags: rd wr mr mw me ac
+"""
+
+# Sample smaps data with Linux-specific regions for testing aggregation
+SAMPLE_SMAPS_LINUX = """12c00000-12e00000 rw-p 00000000 00:00 0    [heap]
+Size:               2048 kB
+Rss:                1024 kB
+Pss:                1024 kB
+Private_Dirty:      1024 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+VmFlags: rd wr mr mw me ac
+7f6d5c022000-7f6d5c023000 rw-p 00000000 00:00 0    /dev/zero (deleted)
+Size:                  4 kB
+Rss:                   4 kB
+Pss:                   4 kB
+Private_Dirty:         4 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+VmFlags: rd wr mr mw me ac
+7f6d5c023000-7f6d5c024000 rw-p 00000000 00:00 0    [stack]
+Size:                  4 kB
+Rss:                   4 kB
+Pss:                   4 kB
+Private_Dirty:         4 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+VmFlags: rd wr mr mw me ac
+"""
+
 
 class ReadSmapsTest(unittest.TestCase):
   """Tests for read_smaps_batch.py."""
@@ -105,11 +160,17 @@ class ReadSmapsTest(unittest.TestCase):
 
     self.smaps_file_1 = os.path.join(self.input_dir, 'smaps1.txt')
     self.smaps_file_2 = os.path.join(self.input_dir, 'smaps2.txt')
+    self.smaps_file_android = os.path.join(self.input_dir, 'smaps_android.txt')
+    self.smaps_file_linux = os.path.join(self.input_dir, 'smaps_linux.txt')
 
     with open(self.smaps_file_1, 'w', encoding='utf-8') as f:
       f.write(SAMPLE_SMAPS_1)
     with open(self.smaps_file_2, 'w', encoding='utf-8') as f:
       f.write(SAMPLE_SMAPS_2)
+    with open(self.smaps_file_android, 'w', encoding='utf-8') as f:
+      f.write(SAMPLE_SMAPS_ANDROID)
+    with open(self.smaps_file_linux, 'w', encoding='utf-8') as f:
+      f.write(SAMPLE_SMAPS_LINUX)
 
   def tearDown(self):
     """Remove the temporary directory after tests."""
@@ -118,7 +179,7 @@ class ReadSmapsTest(unittest.TestCase):
   def test_single_file_processing(self):
     """Tests processing a single smaps file."""
     output_file = os.path.join(self.output_dir, 'smaps1_processed.txt')
-    test_args = [self.smaps_file_1, '-o', self.output_dir]
+    test_args = [self.input_dir, '-o', self.output_dir]
 
     read_smaps_batch.run_smaps_batch_tool(test_args)
 
@@ -132,7 +193,7 @@ class ReadSmapsTest(unittest.TestCase):
     """Tests processing multiple smaps files."""
     output_file_1 = os.path.join(self.output_dir, 'smaps1_processed.txt')
     output_file_2 = os.path.join(self.output_dir, 'smaps2_processed.txt')
-    test_args = [self.smaps_file_1, self.smaps_file_2, '-o', self.output_dir]
+    test_args = [self.input_dir, '-o', self.output_dir]
 
     read_smaps_batch.run_smaps_batch_tool(test_args)
 
@@ -147,7 +208,7 @@ class ReadSmapsTest(unittest.TestCase):
   def test_aggregation_argument(self):
     """Tests that aggregation arguments are applied."""
     output_file = os.path.join(self.output_dir, 'smaps1_processed.txt')
-    test_args = [self.smaps_file_1, '-o', self.output_dir, '-a']
+    test_args = [self.input_dir, '-o', self.output_dir, '-a']
 
     read_smaps_batch.run_smaps_batch_tool(test_args)
 
@@ -158,10 +219,45 @@ class ReadSmapsTest(unittest.TestCase):
       self.assertIn('<dynlibs>', content)
       self.assertNotIn('/lib/x86_64-linux-gnu/ld-2.27.so', content)
 
+  def test_android_aggregation(self):
+    """Tests that Android-specific aggregation rules are applied."""
+    output_file = os.path.join(self.output_dir, 'smaps_android_processed.txt')
+    test_args = [
+        self.input_dir, '-o', self.output_dir, '--platform', 'android', '-d'
+    ]
+
+    read_smaps_batch.run_smaps_batch_tool(test_args)
+
+    self.assertTrue(os.path.exists(output_file))
+    with open(output_file, 'r', encoding='utf-8') as f:
+      content = f.read()
+      self.assertIn('<anon:scudo:primary>', content)
+      self.assertIn('</dev/ashmem/bitmap>', content)
+      self.assertIn('</memfd:jit-cache>', content)
+
+  def test_linux_aggregation(self):
+    """Tests that Android-specific aggregation rules are
+       NOT applied for Linux."""
+    output_file = os.path.join(self.output_dir, 'smaps_linux_processed.txt')
+    test_args = [self.input_dir, '-o', self.output_dir, '--platform', 'linux']
+
+    read_smaps_batch.run_smaps_batch_tool(test_args)
+
+    self.assertTrue(os.path.exists(output_file))
+    with open(output_file, 'r', encoding='utf-8') as f:
+      content = f.read()
+      # For Linux, these should NOT be aggregated
+      self.assertIn('[heap]', content)
+      self.assertIn('/dev/zero (deleted)', content)
+      self.assertIn('[stack]', content)
+      self.assertNotIn('<heap>', content)
+      self.assertNotIn('</dev/zero (deleted)>', content)
+      self.assertNotIn('<stack>', content)
+
   def test_swap_fields_present(self):
     """Tests that swap and swap_pss fields are in the output."""
     output_file = os.path.join(self.output_dir, 'smaps1_processed.txt')
-    test_args = [self.smaps_file_1, '-o', self.output_dir]
+    test_args = [self.input_dir, '-o', self.output_dir]
 
     read_smaps_batch.run_smaps_batch_tool(test_args)
 
