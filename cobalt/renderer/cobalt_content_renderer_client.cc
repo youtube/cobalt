@@ -99,20 +99,14 @@ CobaltContentRendererClient::~CobaltContentRendererClient() = default;
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
   mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings;
-
   content::RenderThread::Get()->BindHostReceiver(
-
       cobalt_settings.BindNewPipeAndPassReceiver());
 
   cobalt::mojom::SettingValuePtr value;
-
   if (cobalt_settings->GetSetting("use_external_allocator", &value) && value &&
-
       value->is_string_value()) {
     use_external_allocator_ =
-
         base::EqualsCaseInsensitiveASCII(value->get_string_value(), "true");
   }
 }
