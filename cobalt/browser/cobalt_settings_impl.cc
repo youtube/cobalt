@@ -42,7 +42,7 @@ void CobaltSettingsImpl::GetSetting(const std::string& key,
   }
 
   std::visit(
-      [&callback](auto&& arg) {
+      [callback = std::move(callback)](auto&& arg) mutable {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, std::string>) {
           std::move(callback).Run(mojom::SettingValue::NewStringValue(arg));

@@ -18,10 +18,6 @@
 #include "cobalt/browser/mojom/cobalt_settings.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
-namespace content {
-class RenderFrameHost;
-}  // namespace content
-
 namespace cobalt {
 
 class CobaltSettingsImpl : public mojom::CobaltSettings {
