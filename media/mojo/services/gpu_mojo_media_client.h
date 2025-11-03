@@ -142,6 +142,7 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
+  bool use_external_allocator;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -158,6 +159,7 @@ struct StarboardRendererTraits {
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      bool use_external_allocator,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -167,6 +169,8 @@ struct StarboardRendererTraits {
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };
+
+
 
 // Creates a platform-specific media::StarboardRenderer.
 // This is used on Cobalt (android/linux).

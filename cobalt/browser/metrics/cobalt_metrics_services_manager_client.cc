@@ -20,7 +20,6 @@
 #include "base/path_service.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
-#include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_service_client.h"
