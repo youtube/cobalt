@@ -127,10 +127,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
-  void FlushCookiesAndLocalStorage(base::OnceClosure);
+  void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  void DispatchBlur();
+  void DispatchFocus();
 
  private:
   void CreateVideoGeometrySetterService();
+  void DispatchEvent(const std::string&, base::OnceClosure);
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
