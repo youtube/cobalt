@@ -111,6 +111,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'fchmod',
     'fchown',
     'fcntl',
+    'fdopendir',
     'free',
     'freeaddrinfo',
     'freeifaddrs',

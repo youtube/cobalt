@@ -58,6 +58,7 @@ The functionality is migrated to use `getauxval` instead.
 * `eventfd`
 * `fchmod`
 * `fchown`
+* `fdopendir`
 * `gai_strerror`
 * `getauxval`
 * `geteuid`
