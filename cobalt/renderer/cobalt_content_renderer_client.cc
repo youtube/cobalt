@@ -104,10 +104,10 @@ void CobaltContentRendererClient::RenderThreadStarted() {
       cobalt_settings.BindNewPipeAndPassReceiver());
 
   cobalt::mojom::SettingValuePtr value;
-  if (cobalt_settings->GetSetting("use_external_allocator", &value) && value &&
-      value->is_string_value()) {
+  if (cobalt_settings->GetSetting("Media.DisableExternalAllocator", &value) &&
+      value && value->is_string_value()) {
     use_external_allocator_ =
-        base::EqualsCaseInsensitiveASCII(value->get_string_value(), "true");
+        !base::EqualsCaseInsensitiveASCII(value->get_string_value(), "true");
   }
 }
 
