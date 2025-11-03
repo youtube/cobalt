@@ -16,10 +16,13 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 
@@ -103,6 +106,32 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
     default:
       NOTREACHED();
       return 1;
+  }
+}
+
+void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
+  static base::NoDestructor<std::unique_ptr<DecoderBufferAllocator>>
+      g_external_allocator;
+  DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
+
+  if (use_external_allocator) {
+    if (instance) {
+      LOG(INFO) << "DecoderBufferAllocator is already configured. Keeping "
+                   "current instance.";
+    } else {
+      LOG(INFO) << "Creating and setting new DecoderBufferAllocator.";
+      *g_external_allocator = std::make_unique<DecoderBufferAllocator>();
+      DecoderBuffer::Allocator::Set(g_external_allocator->get());
+    }
+  } else {
+    if (instance) {
+      LOG(INFO) << "Destroying DecoderBufferAllocator instance. Using "
+                   "default allocator from now on.";
+      g_external_allocator->reset();
+      DecoderBuffer::Allocator::Set(nullptr);
+    } else {
+      LOG(INFO) << "Keeping current default DecoderBufferAllocator.";
+    }
   }
 }
 
@@ -461,6 +490,8 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(audio_stream_ || video_stream_);
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
+
+  ConfigureDecoderBufferAllocator(use_external_allocator_);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the
