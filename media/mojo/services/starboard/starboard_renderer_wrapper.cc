@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
+#include "media/renderers/video_overlay_factory.h"
 
 namespace media {
 
@@ -38,7 +39,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
-          traits.max_video_capabilities) {
+          traits.max_video_capabilities,
+          traits.use_external_allocator) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,

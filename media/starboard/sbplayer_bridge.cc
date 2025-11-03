@@ -210,6 +210,7 @@ SbPlayerBridge::SbPlayerBridge(
     const std::string& audio_mime_type,
     const VideoDecoderConfig& video_config,
     const std::string& video_mime_type,
+    bool use_external_allocator,
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
@@ -238,6 +239,7 @@ SbPlayerBridge::SbPlayerBridge(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       audio_config_(audio_config),
       video_config_(video_config),
+      use_external_allocator_(use_external_allocator),
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       decode_target_provider_(decode_target_provider),
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -755,6 +757,8 @@ void SbPlayerBridge::CreatePlayer() {
 #endif  // COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
 
   player_creation_time_ = Time::Now();
+
+  // TODO(kjyoun): Connect use_external_allocator_ to player.
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;

@@ -53,7 +53,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities);
+                    const std::string& max_video_capabilities,
+                    bool use_external_allocator);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -165,9 +166,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
-  // TODO: b/455661813 - Set use_external_allocator_ based on GlobalFeatures,
-  // once http://go/cobalt-pr/7836 lands.
-  const bool use_external_allocator_ = true;
+  const bool use_external_allocator_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

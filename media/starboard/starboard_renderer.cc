@@ -147,7 +147,8 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    bool use_external_allocator)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -156,7 +157,8 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      use_external_allocator_(use_external_allocator) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -542,6 +544,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,
+        use_external_allocator_,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),

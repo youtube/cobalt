@@ -15,6 +15,7 @@
 import("//testing/test.gni")
 
 source_set("renderer") {
+  testonly = true
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",
@@ -23,6 +24,7 @@ source_set("renderer") {
   ]
 
   deps = [
+    "//cobalt/browser:global_features",
     "//cobalt/browser:switches",
     "//cobalt/media/audio:webaudio",
     "//components/cdm/renderer",
