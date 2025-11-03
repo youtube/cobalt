@@ -127,6 +127,10 @@ void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
     if (instance) {
       LOG(INFO) << "Destroying DecoderBufferAllocator instance. Using "
                    "default allocator from now on.";
+      // NOTE: The use_external_allocator flag, controlled by the YouTube
+      // experimentation tooling, changes when a new Kabuki app is loaded.
+      // A change in this flag signifies a new app load, making it safe
+      // to destroy the DecoderBufferAllocator from the previous session.
       g_external_allocator->reset();
       DecoderBuffer::Allocator::Set(nullptr);
     } else {
