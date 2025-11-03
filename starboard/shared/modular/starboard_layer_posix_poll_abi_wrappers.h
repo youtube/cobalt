@@ -1,3 +1,6 @@
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_POLL_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_POLL_ABI_WRAPPERS_H_
+
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,3 +44,5 @@ SB_EXPORT int __abi_wrap_poll(struct musl_pollfd*, musl_nfds_t, int32_t);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_POLL_ABI_WRAPPERS_H_

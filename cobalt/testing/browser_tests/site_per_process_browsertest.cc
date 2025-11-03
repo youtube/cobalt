@@ -10637,19 +10637,18 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   // be non-passive to ensure TouchStart doesn't get acked until after the
   // touch handler completes.
   EXPECT_TRUE(ExecJs(child_node,
-                     "touch_event_count = 0;\
-       function touch_handler(ev) {\
-         var start = Date.now();\
-         while (Date.now() < start + 1000) {}\
-         touch_event_count++;\
-       }\
-       document.body.addEventListener('touchstart', touch_handler,\
-                                      { passive : false });\
-       document.body.addEventListener('touchend', touch_handler,\
-                                      { passive : false });"));
+                     R"(touch_event_count = 0;
+         function touch_handler(ev) {
+           var start = Date.now();
+           while (Date.now() < start + 1000) {}
+           touch_event_count++;
+         }
+         document.body.addEventListener('touchstart', touch_handler,
+                                        { passive : false });
+         document.body.addEventListener('touchend', touch_handler,
+                                        { passive : false });)"));
 
   WaitForHitTestData(child_node->current_frame_host());
-
   auto* root_host = static_cast<RenderWidgetHostImpl*>(
       root->current_frame_host()->GetRenderWidgetHost());
   auto* child_host = static_cast<RenderWidgetHostImpl*>(
@@ -10680,14 +10679,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   {
     // We need to know the center of the child's body, but in root view
     // coordinates.
-    std::string str = EvalJs(child_node,
-                             "var rect = document.body.getBoundingClientRect();\
-         var point = {\
-           x: rect.left + rect.width / 2,\
-           y: rect.top + rect.height / 2\
-         };\
-         JSON.stringify(point);")
-                          .ExtractString();
+    std::string str =
+        EvalJs(child_node,
+               R"(var rect = document.body.getBoundingClientRect();
+         var point = {
+           x: rect.left + rect.width / 2,
+           y: rect.top + rect.height / 2
+         };
+         JSON.stringify(point);)")
+            .ExtractString();
     ConvertJSONToPoint(str, &child_tap_point);
     child_tap_point = child_node->current_frame_host()
                           ->GetView()

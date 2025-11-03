@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H
-#define COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H
+#ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
+#define COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
 
 #include "media/base/audio_renderer_sink.h"
 
@@ -94,4 +94,4 @@ class MEDIA_EXPORT CobaltAudioRendererSink final : public AudioRendererSink {
 
 }  // namespace media
 
-#endif  // COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H
+#endif  // COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
