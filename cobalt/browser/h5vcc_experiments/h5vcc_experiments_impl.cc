@@ -22,6 +22,10 @@
 #include "build/build_config.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "components/metrics/clean_exit_beacon.h"
+#include "components/metrics/metrics_state_manager.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
@@ -71,6 +75,24 @@ void H5vccExperimentsImpl::SetExperimentState(
   // therefore do not necessitate falling back to a safe config.
   global_features->metrics_local_state()->SetInteger(
       variations::prefs::kVariationsCrashStreak, 0);
+  // At this point, have set the crash streak to 0 in the metrics_local_state
+  // file. Do the same for the Variations beacon file to keep them in sync by
+  // calling WriteBeaconValue(true), which leads to the call of
+  // WriteBeaconFile(). This function reads the 0 value we just set in
+  // metrics_local_state and updates the beacon file accordingly.
+  //
+  // WriteBeaconValue(true) also means we're saying the current session
+  // exited cleanly, or that we're in a "clean state". This solves an edge
+  // case where we recieve a new config, reset kVariationsCrashStreak to 0
+  // here, and then crash in the same session. Without WriteBeaconValue(true),
+  // we increment the crash streak from 0 to 1 on next startup, indicating
+  // that the crash is associated with the newly recieved and applied config.
+  // We should maintain a crash streak of 0 after recieving and applying a
+  // new config on next startup.
+  global_features->metrics_services_manager_client()
+      ->GetMetricsStateManager()
+      ->clean_exit_beacon()
+      ->WriteBeaconValue(true);
 
   experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
                                   base::Time::Now().ToInternalValue());
