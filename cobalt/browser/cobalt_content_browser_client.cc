@@ -22,10 +22,12 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/concurrent_callbacks.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -94,13 +96,28 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 
 #if BUILDFLAG(IS_ANDROID)
 static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
-    JNIEnv* env) {
+    JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
-  // Possible if application is paused during startup.
   if (!client) {
     return;
   }
   client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchBlur();
+}
+
+static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchFocus();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -366,9 +383,48 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 }
 
+void CobaltContentBrowserClient::DispatchEvent(const std::string& event_name,
+                                               base::OnceClosure callback) {
+  if (!web_contents_observer_) {
+    std::move(callback).Run();
+    return;
+  }
+  auto* web_contents = web_contents_observer_->web_contents();
+  CHECK(web_contents);
+  content::RenderFrameHost* primary_main_frame =
+      web_contents->GetPrimaryMainFrame();
+  CHECK(primary_main_frame);
+
+  std::u16string javascript = u"window.dispatchEvent(new Event('" +
+                              base::UTF8ToUTF16(event_name) + u"'));";
+  base::ConcurrentCallbacks<base::Value> concurrent;
+  primary_main_frame->ForEachRenderFrameHost(
+      [&concurrent, &javascript](content::RenderFrameHost* rfh) {
+        rfh->ExecuteJavaScript(javascript, concurrent.CreateCallback());
+      });
+  std::move(concurrent)
+      .Done(base::BindOnce(
+          [](base::OnceClosure done, std::vector<base::Value>) {
+            std::move(done).Run();
+          },
+          std::move(callback)));
+}
+
+void CobaltContentBrowserClient::DispatchBlur() {
+  DispatchEvent(
+      "blur",
+      base::BindOnce(&CobaltContentBrowserClient::FlushCookiesAndLocalStorage,
+                     base::Unretained(this), base::DoNothing()));
+}
+
+void CobaltContentBrowserClient::DispatchFocus() {
+  DispatchEvent("focus", base::DoNothing());
+}
+
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     base::OnceClosure callback) {
   if (!web_contents_observer_) {
+    std::move(callback).Run();
     return;
   }
   auto* web_contents = web_contents_observer_->web_contents();

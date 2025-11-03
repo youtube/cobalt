@@ -446,6 +446,7 @@ public abstract class CobaltActivity extends Activity {
       webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -466,6 +467,10 @@ public abstract class CobaltActivity extends Activity {
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
+    }
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) {
+      CobaltContentBrowserClient.dispatchFocus();
     }
   }
 

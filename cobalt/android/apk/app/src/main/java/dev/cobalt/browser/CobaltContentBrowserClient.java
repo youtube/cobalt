@@ -23,9 +23,19 @@ public class CobaltContentBrowserClient {
   @NativeMethods
   interface Natives {
     void flushCookiesAndLocalStorage();
+    void dispatchBlur();
+    void dispatchFocus();
   }
 
   public static void flushCookiesAndLocalStorage() {
     CobaltContentBrowserClientJni.get().flushCookiesAndLocalStorage();
+  }
+
+  public static void dispatchBlur() {
+    CobaltContentBrowserClientJni.get().dispatchBlur();
+  }
+
+  public static void dispatchFocus() {
+    CobaltContentBrowserClientJni.get().dispatchFocus();
   }
 }
