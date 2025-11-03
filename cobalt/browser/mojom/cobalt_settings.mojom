@@ -20,5 +20,6 @@ union SettingValue {
 };
 
 interface CobaltSettings {
+  [Sync]
   GetSetting(string key) => (SettingValue? value);
 };

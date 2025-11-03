@@ -7,7 +7,7 @@
 #include <string>
 #include <variant>
 
-#include "base/functional/bind.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/browser/mojom/cobalt_settings.mojom.h"
@@ -99,19 +99,22 @@ CobaltContentRendererClient::~CobaltContentRendererClient() = default;
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings;
+
   content::RenderThread::Get()->BindHostReceiver(
+
       cobalt_settings.BindNewPipeAndPassReceiver());
-  cobalt_settings->GetSetting("use_external_allocator",
-                              base::BindOnce(
-                                  [](CobaltContentRendererClient* client,
-                                     cobalt::mojom::SettingValuePtr value) {
-                                    if (value && value->is_string_value()) {
-                                      client->use_external_allocator_ =
-                                          (value->get_string_value() == "true");
-                                    }
-                                  },
-                                  base::Unretained(this)));
+
+  cobalt::mojom::SettingValuePtr value;
+
+  if (cobalt_settings->GetSetting("use_external_allocator", &value) && value &&
+
+      value->is_string_value()) {
+    use_external_allocator_ =
+
+        base::EqualsCaseInsensitiveASCII(value->get_string_value(), "true");
+  }
 }
 
 void CobaltContentRendererClient::RenderFrameCreated(
