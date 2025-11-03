@@ -215,10 +215,7 @@ static_library("cobalt_shell_switches") {
 
 static_library("cobalt_shell_lib") {
   testonly = true
-  public_deps = [
-    ":cobalt_shell_lib_deps",
-    ":cobalt_shell_switches",
-  ]
+  public_deps = []
   sources = [
     "browser/shell.cc",
     "browser/shell.h",
@@ -277,6 +274,11 @@ static_library("cobalt_shell_lib") {
     ]
   }
 
+  deps = [
+    ":cobalt_shell_lib_deps",
+    ":cobalt_shell_switches",
+  ]
+
   configs += [
     ":cobalt_shell_lib_warnings",
     "//build/config:precompiled_headers",
@@ -291,7 +293,7 @@ static_library("cobalt_shell_lib") {
   # an official build, including not only browser tests but also web tests or render tests.
   if (run_browser_tests) {
     defines += [ "RUN_BROWSER_TESTS=1" ]
-    public_deps += [ ":browsertests_sources" ]
+    deps += [ ":browsertests_sources" ]
   }
 
   if (shell_use_toolkit_views) {
@@ -367,7 +369,14 @@ static_library("cobalt_shell_app") {
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]
-  public_deps = [ ":cobalt_shell_app_deps" ]
+  deps = [
+    ":android_shell_descriptors",
+    ":cobalt_shell_app_deps",
+    ":cobalt_shell_switches",
+    "//content/public/browser",
+    "//content/public/common",
+    "//net",
+  ]
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
