@@ -20,9 +20,8 @@ union SettingValue {
 };
 
 interface CobaltSettings {
-  // Synchronous call is used here because this is called during renderer
-  // initialization (RenderThreadStarted) where we need the settings before
-  // proceeding. Though it blocks the render thread, it is acceptable, since it
+  // Synchronous call is used here because this is called before player
+  // creation. Though it blocks the render thread, it is acceptable, since it
   // happens only at the construction stage.
   [Sync]
   GetSetting(string key) => (SettingValue? value);

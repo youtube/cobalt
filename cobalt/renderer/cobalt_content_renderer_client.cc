@@ -96,19 +96,6 @@ CobaltContentRendererClient::CobaltContentRendererClient() {
 
 CobaltContentRendererClient::~CobaltContentRendererClient() = default;
 
-void CobaltContentRendererClient::RenderThreadStarted() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings;
-  content::RenderThread::Get()->BindHostReceiver(
-      cobalt_settings.BindNewPipeAndPassReceiver());
-
-  cobalt::mojom::SettingValuePtr value;
-  if (cobalt_settings->GetSetting("Media.DisableExternalAllocator", &value) &&
-      value && value->is_int_value()) {
-    use_external_allocator_ = value->get_int_value() != 1;
-  }
-}
-
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -203,7 +190,17 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
 
-  renderer_factory_traits->use_external_allocator = use_external_allocator_;
+  mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings;
+  content::RenderThread::Get()->BindHostReceiver(
+      cobalt_settings.BindNewPipeAndPassReceiver());
+
+  bool use_external_allocator = true;
+  cobalt::mojom::SettingValuePtr value;
+  if (cobalt_settings->GetSetting("Media.DisableExternalAllocator", &value) &&
+      value && value->is_int_value()) {
+    use_external_allocator = value->get_int_value() != 1;
+  }
+  renderer_factory_traits->use_external_allocator = use_external_allocator;
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =

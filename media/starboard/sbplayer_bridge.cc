@@ -758,8 +758,6 @@ void SbPlayerBridge::CreatePlayer() {
 
   player_creation_time_ = Time::Now();
 
-  // TODO(kjyoun): Connect use_external_allocator_ to player.
-
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
   creation_param.audio_stream_info = audio_stream_info_;

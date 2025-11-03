@@ -170,8 +170,6 @@ struct StarboardRendererTraits {
   ~StarboardRendererTraits();
 };
 
-
-
 // Creates a platform-specific media::StarboardRenderer.
 // This is used on Cobalt (android/linux).
 std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
