@@ -156,9 +156,9 @@ class StarboardRendererWrapperTest : public testing::Test {
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(),
         /*use_external_allocator=*/true, std::move(renderer_extension_receiver),
-        std::move(client_extension_remote), base::NullCallback(),
-        /*bind_host_receiver_callback=*/base::DoNothing());
+        std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
+
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);

@@ -26,7 +26,6 @@
 #include "media/gpu/gpu_video_decode_accelerator_helpers.h"
 #include "media/gpu/ipc/service/media_gpu_channel_manager.h"
 #include "media/gpu/ipc/service/vda_video_decoder.h"
-#include "media/mojo/mojom/frame_interface_factory.mojom.h"
 #include "media/mojo/mojom/video_decoder.mojom.h"
 #include "media/video/video_decode_accelerator.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -122,8 +121,7 @@ StarboardRendererTraits::StarboardRendererTraits(
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote,
-    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb,
-    BindHostReceiverCallback bind_host_receiver_callback)
+    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb)
     : task_runner(std::move(task_runner)),
       gpu_task_runner(std::move(gpu_task_runner)),
       media_log_remote(std::move(media_log_remote)),
@@ -135,8 +133,7 @@ StarboardRendererTraits::StarboardRendererTraits(
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
-          std::move(get_starboard_command_buffer_stub_cb)),
-      bind_host_receiver_callback(std::move(bind_host_receiver_callback)) {}
+          std::move(get_starboard_command_buffer_stub_cb)) {}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 GpuMojoMediaClient::GpuMojoMediaClient(
@@ -198,12 +195,10 @@ GpuMojoMediaClient::GetSupportedVideoDecoderConfigs() {
         if (config.profile_min >= H264PROFILE_MIN &&
             config.profile_max <= H264PROFILE_MAX) {
           has_accelerated_h264 = true;
-        }
-        else if (config.profile_min >= VP9PROFILE_MIN &&
+        } else if (config.profile_min >= VP9PROFILE_MIN &&
                    config.profile_max <= VP9PROFILE_MAX) {
           has_accelerated_vp9 = true;
-        }
-        else if (config.profile_min >= AV1PROFILE_MIN &&
+        } else if (config.profile_min >= AV1PROFILE_MIN &&
                    config.profile_max <= AV1PROFILE_MAX) {
           has_accelerated_av1 = true;
         }
@@ -290,7 +285,7 @@ std::unique_ptr<VideoDecoder> GpuMojoMediaClient::CreateVideoDecoder(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
-    mojom::FrameInterfaceFactory* frame_interfaces,
+    mojom::FrameInterfaceFactory* /* frame_interfaces */,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
     const StarboardRendererConfig& config,
@@ -298,15 +293,6 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote) {
-  BindHostReceiverCallback bind_host_receiver_callback;
-  if (frame_interfaces) {
-    bind_host_receiver_callback = base::BindRepeating(
-        &mojom::FrameInterfaceFactory::BindEmbedderReceiver,
-        base::Unretained(frame_interfaces));
-  } else {
-    bind_host_receiver_callback = base::DoNothing();
-  }
-
   StarboardRendererTraits traits(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
       config.overlay_plane_id, config.audio_write_duration_local,
@@ -315,8 +301,7 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote),
       base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
-                          media_gpu_channel_manager_),
-      std::move(bind_host_receiver_callback));
+                          media_gpu_channel_manager_));
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
