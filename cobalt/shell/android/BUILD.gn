@@ -65,7 +65,6 @@ android_resources("cobalt_shell_java_resources") {
 
 android_library("cobalt_shell_java") {
   testonly = true
-
   resources_package = "dev.cobalt.shell"
   deps = [
     ":cobalt_shell_java_resources",
@@ -73,13 +72,26 @@ android_library("cobalt_shell_java") {
     "//base:base_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
+    "//components/download/network:network_java",
     "//components/embedder_support/android:view_java",
+    "//components/gcm_driver/android:gcm_driver_java",
+    "//components/gcm_driver/instance_id/android:instance_id_driver_java",
+    "//components/gwp_asan/client/android:gwp_asan_java",
+    "//components/policy/android:policy_java",
+    "//components/prefs/android:java",
+    "//components/signin/public/android:java",
+    "//components/sync/android:sync_java",
     "//components/viz/service:service_java",
     "//content/public/android:content_java",
+    "//google_apis/gaia/android:java",
     "//media/base/android:media_java",
     "//media/capture/video/android:capture_java",
     "//mojo/public/java:system_java",
     "//net/android:net_java",
+    "//services/data_decoder/public/cpp/android:safe_json_java",
+    "//third_party/android_deps/utils:java",
+    "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
+    "//third_party/androidx:androidx_core_core_java",
     "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
