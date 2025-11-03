@@ -28,7 +28,9 @@ def run_smaps_batch_tool(argv=None):
       description='A tool to batch process smaps files.',
       parents=[get_analysis_parser()])
   parser.add_argument(
-      'smaps_files', nargs='+', help='One or more smaps files to process.')
+      'raw_logs_dir',
+      type=str,
+      help='Path to the directory containing raw smaps log files.')
   parser.add_argument(
       '-o',
       '--output_dir',
@@ -40,7 +42,12 @@ def run_smaps_batch_tool(argv=None):
 
   os.makedirs(args.output_dir, exist_ok=True)
 
-  for smaps_file in args.smaps_files:
+  # Iterate through all files in the raw_logs_dir
+  for filename in os.listdir(args.raw_logs_dir):
+    smaps_file = os.path.join(args.raw_logs_dir, filename)
+    if not os.path.isfile(smaps_file):
+      continue  # Skip directories or other non-file entries
+
     base_name = os.path.basename(smaps_file)
     name, ext = os.path.splitext(base_name)
     output_name = f'{name}_processed{ext}'
@@ -53,12 +60,14 @@ def run_smaps_batch_tool(argv=None):
     original_stdout = sys.stdout
     with open(output_path, 'w', encoding='utf-8') as f:
       sys.stdout = f
-      print(f'Processing {smaps_file}...')
+      print(f'Processing {smaps_file}...', file=sys.stderr)
       read_smap(process_args)
-      print(f'\nOutput saved to {output_path}')
+      print(f'\nOutput saved to {output_path}', file=sys.stderr)
 
     sys.stdout = original_stdout
-    print(f'Successfully processed {smaps_file} -> {output_path}')
+    print(
+        f'Successfully processed {smaps_file} -> {output_path}',
+        file=sys.stderr)
 
 
 def main():
