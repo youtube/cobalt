@@ -15,6 +15,9 @@
 import("//testing/test.gni")
 
 source_set("renderer") {
+  # testonly is added to use global_features for h5vcc settings.
+  # TODO: b/455661813 - Remove this dep once we no longer needs h5vcc settings,
+  # after Finch lands on.
   testonly = true
   sources = [
     "cobalt_content_renderer_client.cc",

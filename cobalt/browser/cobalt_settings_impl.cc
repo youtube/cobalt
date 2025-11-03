@@ -28,16 +28,13 @@ CobaltSettingsImpl::~CobaltSettingsImpl() = default;
 
 // static
 void CobaltSettingsImpl::Create(
-    content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CobaltSettings> receiver) {
-  LOG(INFO) << "CobaltSettingsImpl::Create";
   mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltSettingsImpl>(),
                               std::move(receiver));
 }
 
 void CobaltSettingsImpl::GetSetting(const std::string& key,
                                     GetSettingCallback callback) {
-  LOG(INFO) << "CobaltSettingsImpl::GetSetting: key=" << key;
   auto setting = GlobalFeatures::GetInstance()->GetSetting(key);
   if (!setting) {
     std::move(callback).Run(nullptr);

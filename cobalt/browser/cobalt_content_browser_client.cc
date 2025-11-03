@@ -53,7 +53,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -314,7 +313,6 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "RegisterBrowserInterfaceBindersForFrame";
   PopulateCobaltFrameBinders(render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
@@ -335,7 +333,6 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
     blink::AssociatedInterfaceRegistry* associated_registry,
     content::RenderProcessHost* render_process_host) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  LOG(INFO) << "CobaltContentBrowserClient::ExposeInterfacesToRenderer";
   if (!video_geometry_setter_service_) {
     CreateVideoGeometrySetterService();
   }
@@ -344,11 +341,7 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
       base::SingleThreadTaskRunner::GetCurrentDefault());
 
   registry->AddInterface<cobalt::mojom::CobaltSettings>(
-      base::BindRepeating(
-          [](mojo::PendingReceiver<cobalt::mojom::CobaltSettings> receiver) {
-            mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltSettingsImpl>(),
-                                        std::move(receiver));
-          }),
+      base::BindRepeating(&CobaltSettingsImpl::Create),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 

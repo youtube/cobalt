@@ -51,13 +51,15 @@ class MockStarboardRenderer : public StarboardRenderer {
       const base::UnguessableToken& overlay_plane_id,
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
-      const std::string& max_video_capabilities)
+      const std::string& max_video_capabilities,
+      bool use_external_allocator)
       : StarboardRenderer(task_runner,
                           std::move(media_log),
                           overlay_plane_id,
                           audio_write_duration_local,
                           audio_write_duration_remote,
-                          max_video_capabilities) {}
+                          max_video_capabilities,
+                          use_external_allocator) {}
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -135,7 +137,8 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::UnguessableToken::Create(),
             base::Seconds(1),
             base::Seconds(1),
-            std::string())),
+            std::string(),
+            /*use_external_allocator=*/true)),
         mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
@@ -152,8 +155,9 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(),
-        std::move(renderer_extension_receiver),
-        std::move(client_extension_remote), base::NullCallback());
+        /*use_external_allocator=*/true, std::move(renderer_extension_receiver),
+        std::move(client_extension_remote), base::NullCallback(),
+        /*bind_host_receiver_callback=*/base::DoNothing());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());

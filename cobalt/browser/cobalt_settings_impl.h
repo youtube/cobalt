@@ -32,8 +32,7 @@ class CobaltSettingsImpl : public mojom::CobaltSettings {
   CobaltSettingsImpl(const CobaltSettingsImpl&) = delete;
   CobaltSettingsImpl& operator=(const CobaltSettingsImpl&) = delete;
 
-  static void Create(content::RenderFrameHost* render_frame_host,
-                     mojo::PendingReceiver<mojom::CobaltSettings> receiver);
+  static void Create(mojo::PendingReceiver<mojom::CobaltSettings> receiver);
 
   // mojom::CobaltSettings implementation.
   void GetSetting(const std::string& key, GetSettingCallback callback) override;
