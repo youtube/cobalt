@@ -1,4 +1,5 @@
 {
+  "_comment": "TODO(b/403007005): Disabled new locale tests.",
   "failing_tests": [
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",

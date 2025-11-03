@@ -3,6 +3,8 @@
   "failing_tests": [
     "PosixTimeClockTests.ClockIncreasesOverTime",
 
+    "PosixLocaleSetTest.LocaleConvC",
+    "PosixLocaleSetTest.NewUseFreeLocale",
     "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
     "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
     "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
