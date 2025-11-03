@@ -7,7 +7,6 @@
 #include <string>
 #include <variant>
 
-#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/browser/mojom/cobalt_settings.mojom.h"
@@ -105,9 +104,8 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 
   cobalt::mojom::SettingValuePtr value;
   if (cobalt_settings->GetSetting("Media.DisableExternalAllocator", &value) &&
-      value && value->is_string_value()) {
-    use_external_allocator_ =
-        !base::EqualsCaseInsensitiveASCII(value->get_string_value(), "true");
+      value && value->is_int_value()) {
+    use_external_allocator_ = value->get_int_value() != 1;
   }
 }
 
