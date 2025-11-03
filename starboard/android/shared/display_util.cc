@@ -15,10 +15,9 @@
 #include "starboard/android/shared/display_util.h"
 
 #include "base/android/jni_android.h"
+#include "cobalt/android/jni_headers/DisplayUtil_jni.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
-
-#include "cobalt/android/jni_headers/DisplayUtil_jni.h"
 
 namespace starboard {
 using base::android::ScopedJavaLocalRef;

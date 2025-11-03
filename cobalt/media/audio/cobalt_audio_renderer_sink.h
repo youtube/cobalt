@@ -15,10 +15,9 @@
 #ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
 #define COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
 
-#include "media/base/audio_renderer_sink.h"
-
 #include <atomic>
 
+#include "media/base/audio_renderer_sink.h"
 #include "media/base/media_export.h"
 #include "media/base/multi_channel_resampler.h"
 #include "starboard/audio_sink.h"
