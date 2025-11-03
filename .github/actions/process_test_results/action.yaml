@@ -25,6 +25,7 @@ runs:
         show: "fail, skip"
 
     - name: Populate GitHub Summary
+      if: steps.test_summary.outputs.failed > 0
       run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
