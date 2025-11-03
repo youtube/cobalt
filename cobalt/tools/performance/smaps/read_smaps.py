@@ -21,6 +21,7 @@ import argparse
 from collections import namedtuple, OrderedDict, defaultdict
 import itertools
 import re
+import sys
 
 
 def parse_smaps_entry(entry_lines):
@@ -47,17 +48,24 @@ def takeuntil(items, predicate):
   while True:
     try:
       _, pieces = next(groups)
+      list_pieces = list(pieces)
+      _, last_pice = next(groups)  # pylint: disable=stop-iteration-return
+      yield list_pieces + list(last_pice)
     except StopIteration:
-      return
-    list_pieces = list(pieces)
-    _, last_pice = list(next(groups))  # pylint: disable=stop-iteration-return
-    yield list_pieces + list(last_pice)
+      break
 
 
 def read_smap(args):
   """Reads and summarizes a smaps file."""
-  with open(args.smaps_file, encoding='utf-8') as file:
-    lines = [line.rstrip() for line in file]
+  try:
+    with open(args.smaps_file, encoding='utf-8') as file:
+      lines = [line.rstrip() for line in file]
+  except UnicodeDecodeError:
+    print(
+        f'Warning: Could not decode {args.smaps_file} with UTF-8. Skipping.',
+        file=sys.stderr)
+    return {}, {}
+
   owners = {}
   summary = {}
   namewidth = 40 if args.strip_paths else 50
@@ -71,7 +79,11 @@ def read_smap(args):
   # The expected output from smaps is 23 lines for each allocation
   for ls in takeuntil(lines, lambda x: x.startswith('VmFlags:')):
     head = re.split(' +', ls.pop(0))
-    key = (head[5:] or ['<anon>'])[0]
+    # Find the name of the memory region
+    key = '<anon>'
+    if len(head) > 5:
+      key = ' '.join(head[5:])
+
     if args.strip_paths:
       key = re.sub('.*/', '', key)
     if args.remove_so_versions or args.aggregate_solibs:
@@ -81,7 +93,11 @@ def read_smap(args):
       key = re.sub(r'libc-[\.0-9]+\.so', '<glibc>', key)
       key = re.sub(r'libstdc\++\.so', '<libstdc++>', key)
       key = re.sub(r'[@\-\.\w]+\.so', '<dynlibs>', key)
-    if args.aggregate_android:
+    if args.platform == 'android':
+      key = re.sub(r'\[(anon:scudo:.*)\]', r'<\1>', key)
+      key = re.sub(r'(/dev/ashmem/.*)', r'<\1>', key)
+      key = re.sub(r'(/memfd:jit-cache)', r'<\1>', key)
+      key = re.sub(r'\[(anon:.*)\]', r'<\1>', key)
       key = re.sub(r'[@\-\.\w]*\.(hyb|vdex|odex|art|jar|oat)[\]]*$', r'<\g<1>>',
                    key)
       key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
@@ -89,10 +105,14 @@ def read_smap(args):
       key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
 
     data = parse_smaps_entry(ls)
-    d = MemDetail(data['size'], data['rss'], data['pss'], data['sharedclean'],
-                  data['shareddirty'], data['privateclean'],
-                  data['privatedirty'], data['referenced'], data['anonymous'],
-                  data['anonhugepages'], data['swap'], data['swappss'])
+    # Ensure all fields are present, defaulting to 0 if not found.
+    d = MemDetail(
+        data.get('size', 0), data.get('rss', 0), data.get('pss', 0),
+        data.get('sharedclean', 0), data.get('shareddirty', 0),
+        data.get('privateclean', 0), data.get('privatedirty', 0),
+        data.get('referenced', 0), data.get('anonymous', 0),
+        data.get('anonhugepages', 0), data.get('swap', 0),
+        data.get('swappss', 0))
 
     if args.aggregate_zeros and (d.rss == 0) and (d.pss == 0):
       key = '<zero resident>'
@@ -107,6 +127,12 @@ def read_smap(args):
     lls.append(d)
     owners[key] = lls
 
+  if not owners:
+    print(
+        'Warning: No memory regions were parsed from the smaps file.',
+        file=sys.stderr)
+    return
+
   for k, list_allocs in owners.items():
     summary[k] = MemDetail(*map(sum, zip(*list_allocs)))
   sdict = OrderedDict(
@@ -114,6 +140,10 @@ def read_smap(args):
           summary.items(),
           reverse=True,
           key=lambda x: getattr(x[1], args.sortkey)))
+
+  if not sdict:
+    print('Warning: No summary data could be generated.', file=sys.stderr)
+    return
 
   tabwidth = 12
 
@@ -173,6 +203,11 @@ def get_analysis_parser():
       '--no_shr_dirty',
       action='store_true',
       help='Omit Shared_Dirty column from output')
+  parser.add_argument(
+      '--platform',
+      choices=['android', 'linux'],
+      default='android',
+      help='Specify the platform for platform-specific aggregations.')
   return parser
 
 
