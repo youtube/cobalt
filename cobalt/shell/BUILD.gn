@@ -255,14 +255,7 @@ static_library("cobalt_shell_lib") {
     "browser/shell_web_contents_view_delegate_creator.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
-<<<<<<< HEAD
-    "common/shell_switches.cc",
-    "common/shell_switches.h",
     "common/url_constants.h",
-=======
-    "common/shell_paths.cc",
-    "common/shell_paths.h",
->>>>>>> 4711be3a15f (cleanup: Remove testonly tag from build targets included in prod build. (#7833))
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",

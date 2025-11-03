@@ -17,6 +17,8 @@
 #ifndef COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
 #define COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
 
+#include "build/build_config.h"
+
 namespace switches {
 
 extern const char kContentShellDataPath[];

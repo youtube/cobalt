@@ -111,14 +111,7 @@ source_set("switches") {
     "switches.h",
   ]
 
-<<<<<<< HEAD
   deps = [ "//base" ]
-=======
-  deps = [
-    "//base",
-    "//cobalt/shell:cobalt_shell_switches",
-  ]
->>>>>>> 4711be3a15f (cleanup: Remove testonly tag from build targets included in prod build. (#7833))
 }
 
 config("embed_polyfilled_javascript_config") {
