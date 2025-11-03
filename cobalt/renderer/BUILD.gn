@@ -15,6 +15,10 @@
 import("//testing/test.gni")
 
 source_set("renderer") {
+  # testonly is added to use global_features for h5vcc settings.
+  # TODO: b/455661813 - Remove this dep once we no longer needs h5vcc settings,
+  # after Finch lands on.
+  testonly = true
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",
@@ -23,8 +27,8 @@ source_set("renderer") {
   ]
 
   deps = [
+    "//cobalt/browser:global_features",
     "//cobalt/browser:switches",
-    "//cobalt/browser/mojom",
     "//cobalt/media/audio:webaudio",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",

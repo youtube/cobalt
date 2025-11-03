@@ -5,12 +5,11 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
-#include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
-#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
-#include "cobalt/browser/switches.h"
+#include "cobalt/browser/global_features.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
@@ -21,7 +20,6 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 
@@ -191,25 +189,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
 
-  mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings_remote;
-  content::RenderThread::Get()->BindHostReceiver(
-      cobalt_settings_remote.BindNewPipeAndPassReceiver());
-
-  if (cobalt_settings_remote.is_bound()) {
-    base::WaitableEvent event;
-    cobalt_settings_remote->GetSetting(
-        "use_external_allocator",
-        base::BindOnce(
-            [](media::RendererFactoryTraits* traits, base::WaitableEvent* event,
-               cobalt::mojom::SettingValuePtr value) {
-              if (value && value->is_string_value()) {
-                traits->use_external_allocator =
-                    (value->get_string_value() == "true");
-              }
-              event->Signal();
-            },
-            base::Unretained(renderer_factory_traits), &event));
-    event.Wait();
+  auto setting =
+      GlobalFeatures::GetInstance()->GetSetting("use_external_allocator");
+  if (setting && std::holds_alternative<std::string>(*setting)) {
+    std::string value = std::get<std::string>(*setting);
+    renderer_factory_traits->use_external_allocator = (value == "true");
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
