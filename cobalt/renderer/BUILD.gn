@@ -24,8 +24,8 @@ source_set("renderer") {
   ]
 
   deps = [
-    "//cobalt/browser:global_features",
     "//cobalt/browser:switches",
+    "//cobalt/browser/mojom",
     "//cobalt/media/audio:webaudio",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
