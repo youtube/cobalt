@@ -497,7 +497,6 @@
         "-/ExemplarCharactersPunctuation",
         "-/measurementSystemNames",
         "-/NumberElements/minimalPairs",
-        "-/delimiters",
         "-/personNames"
       ]
     },
