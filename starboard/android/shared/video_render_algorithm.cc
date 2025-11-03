@@ -15,12 +15,13 @@
 #include "starboard/android/shared/video_render_algorithm.h"
 
 #include <algorithm>
+#include <list>
 
+#include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-
-#include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
+#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 
@@ -43,7 +44,10 @@ jlong GetSystemNanoTime() {
 VideoRenderAlgorithmAndroid::VideoRenderAlgorithmAndroid(
     MediaCodecVideoDecoder* video_decoder,
     VideoFrameTracker* frame_tracker)
-    : video_decoder_(video_decoder), frame_tracker_(frame_tracker) {
+    : video_decoder_(video_decoder),
+      frame_tracker_(frame_tracker),
+      release_frames_after_audio_starts_(features::FeatureList::IsEnabled(
+          features::kReleaseVideoFramesAfterAudioStarts)) {
   SB_CHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
 }
@@ -70,9 +74,22 @@ void VideoRenderAlgorithmAndroid::Render(
     double playback_rate;
     int64_t playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
-    if (!is_audio_playing) {
-      break;
+
+    if (release_frames_after_audio_starts_) {
+      // After the first frame, stop rendering if audio isn't playing, or if
+      // audio playback hasn't advanced past the current seek_to_time (or
+      // initial time 0). This ensures video doesn't run ahead if audio is
+      // stalled or hasn't consumed frames yet.
+      if (first_frame_released_ &&
+          (!is_audio_playing || playback_time == seek_to_time_)) {
+        break;
+      }
+    } else {
+      if (!is_audio_playing) {
+        break;
+      }
     }
+
     if (playback_rate != playback_rate_) {
       playback_rate_ = playback_rate;
       video_decoder_->SetPlaybackRate(playback_rate);
@@ -116,6 +133,7 @@ void VideoRenderAlgorithmAndroid::Render(
           draw_frame_cb(frames->front(), adjusted_release_time_ns);
       SB_DCHECK_EQ(status, VideoRendererSink::kReleased);
       frames->pop_front();
+      first_frame_released_ = true;
     } else {
       break;
     }
@@ -126,6 +144,8 @@ void VideoRenderAlgorithmAndroid::Seek(int64_t seek_to_time) {
   if (frame_tracker_) {
     frame_tracker_->Seek(seek_to_time);
   }
+  first_frame_released_ = false;
+  seek_to_time_ = seek_to_time;
 }
 
 int VideoRenderAlgorithmAndroid::GetDroppedFrames() {
