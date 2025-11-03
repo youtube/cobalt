@@ -14,7 +14,6 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
-#include <iostream>
 #include <string>
 
 #include "base/base_switches.h"

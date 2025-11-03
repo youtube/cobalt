@@ -156,6 +156,11 @@ void GlobalFeatures::InitializeActiveConfigData() {
 }
 
 void GlobalFeatures::Shutdown() {
+  // Explicitly shuts down the metrics services. This is to ensure the
+  // CobaltMetricsServiceClient destructor is called, which logs a clean
+  // shutdown. The specific shutdown order here is required to nullify
+  // a raw pointer and prevent a use-after-free crash
+  // that would otherwise occur on exit.
   metrics_services_manager_client_->ClearMetricsServiceClient();
   metrics_services_manager_.reset();
   metrics_services_manager_client_ = nullptr;
