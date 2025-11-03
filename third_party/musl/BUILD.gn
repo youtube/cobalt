@@ -59,6 +59,10 @@ static_library("c_internal") {
     "-Wno-implicit-function-declaration",
   ]
 
+  asmflags = [    # fenv.s and others: many "warning: argument unused during compilation"
+    "-Wno-unused-command-line-argument",
+  ]
+
   sources = [
     "src/ctype/__ctype_b_loc.c",
 
