@@ -14,8 +14,6 @@
 
 #include "cobalt/shell/common/shell_switches.h"
 
-#include "base/command_line.h"
-
 namespace switches {
 
 // Makes Content Shell use the given path for its data directory.
