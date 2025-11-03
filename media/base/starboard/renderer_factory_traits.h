@@ -32,6 +32,7 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
+  bool use_external_allocator = true;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 
