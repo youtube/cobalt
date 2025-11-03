@@ -201,8 +201,7 @@ GpuMojoMediaClient::GetSupportedVideoDecoderConfigs() {
         } else if (config.profile_min >= AV1PROFILE_MIN &&
                    config.profile_max <= AV1PROFILE_MAX) {
           has_accelerated_av1 = true;
-        }
-        else if ((config.profile_min >= HEVCPROFILE_MIN &&
+        } else if ((config.profile_min >= HEVCPROFILE_MIN &&
                     config.profile_max <= HEVCPROFILE_MAX) ||
                    (config.profile_min >= HEVCPROFILE_EXT_MIN &&
                     config.profile_max <= HEVCPROFILE_EXT_MAX)) {
@@ -299,9 +298,8 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.audio_write_duration_remote, config.max_video_capabilities,
       config.use_external_allocator,
       std::move(renderer_extension_receiver),
-      std::move(client_extension_remote),
-      base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
-                          media_gpu_channel_manager_));
+      std::move(client_extension_remote), base::BindRepeating(
+        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

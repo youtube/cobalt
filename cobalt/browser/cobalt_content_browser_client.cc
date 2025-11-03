@@ -357,7 +357,6 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
-
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,
     int render_process_id,
