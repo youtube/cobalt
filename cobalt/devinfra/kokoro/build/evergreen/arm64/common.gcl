@@ -12,13 +12,8 @@ build = common.build {
       value = 'use_asan=false is_internal_build=true'
     },
     {
-<<<<<<< HEAD
-      key = 'TARGET'
-      value = 'default'
-=======
       key = 'GN_TARGET'
       value = 'cobalt'
->>>>>>> e689ef8794b (Fix EG kokoro targets (#7772))
     },
     {
       key = 'TARGET_CPU'
