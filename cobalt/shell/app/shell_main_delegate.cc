@@ -61,7 +61,8 @@
     content::RegisterIPCLogger(msg_id, logger)
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
 #include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
 #include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
 #include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
@@ -212,7 +213,8 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
 
   InitLogging(command_line);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     const bool browser_process =
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
@@ -275,7 +277,8 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Web tests implement their own BrowserMain() replacement.
     web_test_runner_->RunBrowserMain(std::move(main_function_params));
@@ -422,7 +425,8 @@ ContentClient* ShellMainDelegate::CreateContentClient() {
 }
 
 ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     browser_client_ = std::make_unique<WebTestContentBrowserClient>();
     return browser_client_.get();
@@ -438,7 +442,8 @@ ContentGpuClient* ShellMainDelegate::CreateContentGpuClient() {
 }
 
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     renderer_client_ = std::make_unique<WebTestContentRendererClient>();
     return renderer_client_.get();
