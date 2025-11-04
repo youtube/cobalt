@@ -32,7 +32,6 @@ static_library("updater") {
 
   deps = [
     "//base",
-    "//cobalt/browser:switches",
     "//components/crx_file",
     "//components/prefs",
     "//components/update_client",
