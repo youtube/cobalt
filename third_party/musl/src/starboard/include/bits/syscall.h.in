@@ -420,4 +420,10 @@
 #define __NR_landlock_add_rule SYS_landlock_add_rule
 #define __NR_landlock_restrict_self SYS_landlock_restrict_self
 
+
+#if defined(__arm__) || defined(__ARM_EABI__)
+// Define the syscall for ARM cacheflush
+#define __ARM_NR_cacheflush	0x0f0002
+#endif
+
 #endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_
