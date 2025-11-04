@@ -18,11 +18,25 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <unistd.h>
 
+
+// TODO: b/457772688 remove when using starboard includes from Angle is fixed.
+#define COBALT_HACK_FOR_ANGLE_STARBOARD_INCLUDE
+
+#if defined(COBALT_HACK_FOR_ANGLE_STARBOARD_INCLUDE)
+// Since Angle includes unistd.h for syscall which is implemented here,
+// and Angle does not have the top level include path, we can not include
+// starboard/thread.h here. Until that is resolved, declare SbThreadGetId() to
+// match its declaraiton in starboard/thread.h.
+typedef int32_t SbThreadId;
+SbThreadId SbThreadGetId();
+#else
 #include "starboard/thread.h"
+#endif
 
 // Map |syscall()| to |libc_wrapper_SYS_foo()|.
 //
