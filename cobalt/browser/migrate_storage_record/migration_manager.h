@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
-#define COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#ifndef COBALT_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#define COBALT_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
 
 #include <atomic>
 #include <memory>
@@ -59,4 +59,4 @@ class MigrationManager {
 }  // namespace migrate_storage_record
 }  // namespace cobalt
 
-#endif  // COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#endif  // COBALT_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_STARBOARD_CDM_H
-#define MEDIA_STARBOARD_STARBOARD_CDM_H
+#ifndef MEDIA_STARBOARD_STARBOARD_CDM_H_
+#define MEDIA_STARBOARD_STARBOARD_CDM_H_
 
 #include <stdint.h>
 
@@ -197,4 +197,4 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_STARBOARD_CDM_H
+#endif  // MEDIA_STARBOARD_STARBOARD_CDM_H_
