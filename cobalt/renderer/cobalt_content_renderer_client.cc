@@ -194,13 +194,18 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   content::RenderThread::Get()->BindHostReceiver(
       cobalt_settings.BindNewPipeAndPassReceiver());
 
-  bool use_external_allocator = true;
-  cobalt::mojom::SettingValuePtr value;
-  if (cobalt_settings->GetSetting("Media.DisableExternalAllocator", &value) &&
-      value && value->is_int_value()) {
-    use_external_allocator = value->get_int_value() != 1;
+  cobalt::mojom::SettingsPtr settings;
+  if (cobalt_settings->GetSettings(&settings) && settings) {
+    for (auto& [key, value] : settings->settings) {
+      if (value->is_string_value()) {
+        renderer_factory_traits->h5vcc_settings.emplace(
+            key, std::move(value->get_string_value()));
+      } else if (value->is_int_value()) {
+        renderer_factory_traits->h5vcc_settings.emplace(key,
+                                                        value->get_int_value());
+      }
+    }
   }
-  renderer_factory_traits->use_external_allocator = use_external_allocator;
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =

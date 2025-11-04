@@ -32,11 +32,11 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
       audio_write_duration_remote, max_video_capabilities,
-      /*use_external_allocator=*/true);
+      /*h5vcc_settings=*/{});
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
-  EXPECT_TRUE(config.use_external_allocator);
+  EXPECT_TRUE(config.h5vcc_settings.empty());
 }
 
 }  // namespace media

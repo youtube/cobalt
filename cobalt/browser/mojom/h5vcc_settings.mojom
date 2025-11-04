@@ -19,10 +19,14 @@ union SettingValue {
   int64 int_value;
 };
 
+struct Settings {
+  map<string, SettingValue> settings;
+};
+
 interface H5vccSettings {
   // Synchronous call is used here because this is called before player
   // creation. Though it blocks the render thread, it is acceptable, since it
   // happens only at the construction stage.
   [Sync]
-  GetSetting(string key) => (SettingValue? value);
+  GetSettings() => (Settings settings);
 };

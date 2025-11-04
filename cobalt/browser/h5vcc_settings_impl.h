@@ -31,7 +31,7 @@ class H5vccSettingsImpl : public mojom::H5vccSettings {
   static void Create(mojo::PendingReceiver<mojom::H5vccSettings> receiver);
 
   // mojom::H5vccSettings implementation.
-  void GetSetting(const std::string& key, GetSettingCallback callback) override;
+  void GetSettings(GetSettingsCallback callback) override;
 };
 
 }  // namespace cobalt

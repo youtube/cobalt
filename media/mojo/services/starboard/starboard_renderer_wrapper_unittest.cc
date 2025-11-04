@@ -52,14 +52,14 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
-      bool use_external_allocator)
+      const std::map<std::string, H5vccSettingValue> h5vcc_settings)
       : StarboardRenderer(task_runner,
                           std::move(media_log),
                           overlay_plane_id,
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
-                          use_external_allocator) {}
+                          h5vcc_settings) {}
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -138,7 +138,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
-            /*use_external_allocator=*/true)),
+            /*h5vcc_settings=*/std::map<std::string, H5vccSettingValue>())),
         mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
@@ -155,7 +155,8 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(),
-        /*use_external_allocator=*/true, std::move(renderer_extension_receiver),
+        /*h5vcc_settings=*/std::map<std::string, H5vccSettingValue>(),
+        std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
 

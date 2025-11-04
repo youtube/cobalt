@@ -33,27 +33,26 @@ void H5vccSettingsImpl::Create(
                               std::move(receiver));
 }
 
-void H5vccSettingsImpl::GetSetting(const std::string& key,
-                                   GetSettingCallback callback) {
-  auto setting = GlobalFeatures::GetInstance()->GetSetting(key);
-  if (!setting) {
-    std::move(callback).Run(nullptr);
-    return;
+void H5vccSettingsImpl::GetSettings(GetSettingsCallback callback) {
+  auto settings = GlobalFeatures::GetInstance()->GetSettings();
+  auto mojom_settings = mojom::Settings::New();
+  for (const auto& [key, value] : settings) {
+    std::visit(
+        [&mojom_settings, &key](auto&& arg) {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::string>) {
+            mojom_settings->settings[key] =
+                mojom::SettingValue::NewStringValue(arg);
+          } else if constexpr (std::is_same_v<T, int64_t>) {
+            mojom_settings->settings[key] =
+                mojom::SettingValue::NewIntValue(arg);
+          } else {
+            NOTREACHED();
+          }
+        },
+        value);
   }
-
-  std::visit(
-      [callback = std::move(callback)](auto&& arg) mutable {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::string>) {
-          std::move(callback).Run(mojom::SettingValue::NewStringValue(arg));
-        } else if constexpr (std::is_same_v<T, int64_t>) {
-          std::move(callback).Run(mojom::SettingValue::NewIntValue(arg));
-        } else {
-          NOTREACHED();
-          std::move(callback).Run(nullptr);
-        }
-      },
-      *setting);
+  std::move(callback).Run(std::move(mojom_settings));
 }
 
 }  // namespace cobalt

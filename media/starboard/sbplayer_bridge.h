@@ -95,7 +95,6 @@ class SbPlayerBridge {
                  const std::string& audio_mime_type,
                  const VideoDecoderConfig& video_config,
                  const std::string& video_mime_type,
-                 bool use_external_allocator,
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
@@ -298,7 +297,6 @@ class SbPlayerBridge {
   // |task_runner_|.
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
-  const bool use_external_allocator_;
   // TODO(b/268098991): Replace them with AudioStreamInfo and VideoStreamInfo
   //                    wrapper classes.
   SbMediaAudioStreamInfo audio_stream_info_ = {};
