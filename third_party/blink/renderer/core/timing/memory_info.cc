@@ -47,10 +47,12 @@ static constexpr base::TimeDelta kFiftyMs = base::Milliseconds(50);
 static void GetHeapSize(HeapInfo& info) {
   v8::HeapStatistics heap_statistics;
   v8::Isolate::GetCurrent()->GetHeapStatistics(&heap_statistics);
-  info.used_js_heap_size =
-      heap_statistics.used_heap_size() + heap_statistics.external_memory();
-  info.total_js_heap_size =
-      heap_statistics.total_physical_size() + heap_statistics.external_memory();
+  // TODO - b/457773763: Chromium upstream calculates `used_js_heap_size` and
+  // `total_js_heap_size` to include `external_memory`. This is not backwards
+  // compatible with previous versions of Cobalt. For now, remove
+  // `external_memory`. Introduce a separate API to include it.
+  info.used_js_heap_size = heap_statistics.used_heap_size();
+  info.total_js_heap_size = heap_statistics.total_physical_size();
   info.js_heap_size_limit = heap_statistics.heap_size_limit();
 }
 
