@@ -223,10 +223,17 @@ run_package_release_pipeline () {
     if [[ "$(get_kokoro_env)" == "qa" ]]; then
       bucket="cobalt-internal-build-artifacts-qa"
     fi
-    local gcs_archive_path="gs://${bucket}/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+    # Sanitized the branch name to remove dot and plus characters.
+    local branch_name_dir="${KOKORO_GOB_SRC_BRANCH_src}"
+    branch_name_dir="${branch_name_dir//./_}"
+    branch_name_dir="${branch_name_dir//+/}"
+    local gcs_upload_dir="${bucket}/${PLATFORM}_${branch_name_dir}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+
     init_gcloud
+    echo "Uploading to GCS uri: gs://${gcs_archive_path}"
     # Ensure that only package directory contents are uploaded and not the
     # directory itself.
-    "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
+    "${GSUTIL}" cp -r "${package_dir}/." "gs://${gcs_upload_dir}"
+    echo "Uploaded to GCS url: https://pantheon.corp.google.com/storage/browser/${gcs_upload_dir}"
   fi
 }
