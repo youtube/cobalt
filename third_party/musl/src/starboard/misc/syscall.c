@@ -56,7 +56,7 @@ long syscall(long number, ...) {
 
 #if defined(ENABLE_DEBUGGER)
   printf("Unexpected syscall %d (0x%x)\n", number, number);
-  SbLogRawDumpStackUnique(0);
+  SbLogRawDumpStack(0);
 #endif  // defined(ENABLE_DEBUGGE
 
   switch (number) {
