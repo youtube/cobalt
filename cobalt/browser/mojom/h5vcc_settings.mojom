@@ -19,7 +19,7 @@ union SettingValue {
   int64 int_value;
 };
 
-interface CobaltSettings {
+interface H5vccSettings {
   // Synchronous call is used here because this is called before player
   // creation. Though it blocks the render thread, it is acceptable, since it
   // happens only at the construction stage.

@@ -9,7 +9,7 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
-#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
@@ -190,7 +190,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
 
-  mojo::Remote<cobalt::mojom::CobaltSettings> cobalt_settings;
+  mojo::Remote<cobalt::mojom::H5vccSettings> cobalt_settings;
   content::RenderThread::Get()->BindHostReceiver(
       cobalt_settings.BindNewPipeAndPassReceiver());
 

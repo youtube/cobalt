@@ -27,11 +27,11 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
-#include "cobalt/browser/cobalt_settings_impl.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
-#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
+#include "cobalt/browser/h5vcc_settings_impl.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
@@ -350,8 +350,8 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
       video_geometry_setter_service_->GetBindSubscriberCallback(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 
-  registry->AddInterface<cobalt::mojom::CobaltSettings>(
-      base::BindRepeating(&CobaltSettingsImpl::Create),
+  registry->AddInterface<cobalt::mojom::H5vccSettings>(
+      base::BindRepeating(&H5vccSettingsImpl::Create),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 

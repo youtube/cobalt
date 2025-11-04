@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/cobalt_settings_impl.h"
+#include "cobalt/browser/h5vcc_settings_impl.h"
 
 #include <memory>
 
@@ -22,19 +22,19 @@
 
 namespace cobalt {
 
-CobaltSettingsImpl::CobaltSettingsImpl() = default;
+H5vccSettingsImpl::H5vccSettingsImpl() = default;
 
-CobaltSettingsImpl::~CobaltSettingsImpl() = default;
+H5vccSettingsImpl::~H5vccSettingsImpl() = default;
 
 // static
-void CobaltSettingsImpl::Create(
-    mojo::PendingReceiver<mojom::CobaltSettings> receiver) {
-  mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltSettingsImpl>(),
+void H5vccSettingsImpl::Create(
+    mojo::PendingReceiver<mojom::H5vccSettings> receiver) {
+  mojo::MakeSelfOwnedReceiver(std::make_unique<H5vccSettingsImpl>(),
                               std::move(receiver));
 }
 
-void CobaltSettingsImpl::GetSetting(const std::string& key,
-                                    GetSettingCallback callback) {
+void H5vccSettingsImpl::GetSetting(const std::string& key,
+                                   GetSettingCallback callback) {
   auto setting = GlobalFeatures::GetInstance()->GetSetting(key);
   if (!setting) {
     std::move(callback).Run(nullptr);

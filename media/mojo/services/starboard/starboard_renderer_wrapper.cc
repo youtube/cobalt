@@ -21,7 +21,6 @@
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
-#include "media/renderers/video_overlay_factory.h"
 
 namespace media {
 

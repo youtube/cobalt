@@ -12,28 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_COBALT_SETTINGS_IMPL_H_
-#define COBALT_BROWSER_COBALT_SETTINGS_IMPL_H_
+#ifndef COBALT_BROWSER_H5VCC_SETTINGS_IMPL_H_
+#define COBALT_BROWSER_H5VCC_SETTINGS_IMPL_H_
 
-#include "cobalt/browser/mojom/cobalt_settings.mojom.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace cobalt {
 
-class CobaltSettingsImpl : public mojom::CobaltSettings {
+class H5vccSettingsImpl : public mojom::H5vccSettings {
  public:
-  CobaltSettingsImpl();
-  ~CobaltSettingsImpl() override;
+  H5vccSettingsImpl();
+  ~H5vccSettingsImpl() override;
 
-  CobaltSettingsImpl(const CobaltSettingsImpl&) = delete;
-  CobaltSettingsImpl& operator=(const CobaltSettingsImpl&) = delete;
+  H5vccSettingsImpl(const H5vccSettingsImpl&) = delete;
+  H5vccSettingsImpl& operator=(const H5vccSettingsImpl&) = delete;
 
-  static void Create(mojo::PendingReceiver<mojom::CobaltSettings> receiver);
+  static void Create(mojo::PendingReceiver<mojom::H5vccSettings> receiver);
 
-  // mojom::CobaltSettings implementation.
+  // mojom::H5vccSettings implementation.
   void GetSetting(const std::string& key, GetSettingCallback callback) override;
 };
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_COBALT_SETTINGS_IMPL_H_
+#endif  // COBALT_BROWSER_H5VCC_SETTINGS_IMPL_H_

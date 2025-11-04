@@ -15,5 +15,5 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojom") {
-  sources = [ "cobalt_settings.mojom" ]
+  sources = [ "h5vcc_settings.mojom" ]
 }
