@@ -110,6 +110,7 @@ The functionality is migrated to use `getauxval` instead.
 * `symlink`
 * `sysconf`
 * `uname`
+* `unlinkat`
 * `utimensat`
 * `writev`
 
