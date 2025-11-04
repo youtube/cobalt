@@ -20,7 +20,7 @@ runs:
         set -x
         # The web tests fail when not run from the source folder. Use the existing checkout.
         cd src/
-        tar xf ../test_artifacts.tar.xz
+        tar -I 'zstd -T0' -xvf ../test_artifacts.tar.zstd
     - name: Run Web Tests
       id: run-tests
       shell: bash
