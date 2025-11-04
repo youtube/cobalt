@@ -74,10 +74,8 @@ const base::FilePath::CharType kDefaultPartitionDirname[] =
     FILE_PATH_LITERAL("def");
 const base::FilePath::CharType kTrashDirname[] =
     FILE_PATH_LITERAL("trash");
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 const base::FilePath::CharType kWebSQLDirname[] =
     FILE_PATH_LITERAL("databases");
-#endif
 
 // Because partition names are user specified, they can be arbitrarily long
 // which makes them unsuitable for paths names. We use a truncation of a
@@ -458,7 +456,6 @@ void StoragePartitionImplMap::PostCreateInitialization(
     InitializeResourceContext(browser_context_);
   }
 
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   if (!in_memory) {
     // Clean up any lingering WebSQL user data on disk, now that WebSQL
     // has been deprecated and removed for all platforms.
@@ -468,7 +465,6 @@ void StoragePartitionImplMap::PostCreateInitialization(
             [](const base::FilePath& dir) { base::DeletePathRecursively(dir); },
             partition->GetPath().Append(kWebSQLDirname)));
   }
-#endif
 
   partition->GetBackgroundFetchContext()->Initialize();
 }
