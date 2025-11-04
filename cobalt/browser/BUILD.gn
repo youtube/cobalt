@@ -137,8 +137,8 @@ source_set("global_features") {
     "global_features.cc",
     "global_features.h",
   ]
-  public_deps = [ ":features" ]
   deps = [
+    ":features",
     ":metrics",
     "//base",
     "//cobalt/browser/constants:cobalt_experiment_names",
