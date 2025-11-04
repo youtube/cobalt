@@ -54,8 +54,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
@@ -66,9 +64,11 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 @JNINamespace("cobalt")
@@ -76,7 +76,7 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
 
-  private static final String ENABLE_SPLASH_SCREEN_ARG = "--enable-splash-screen";
+  private static final String SPLASH_URL_ARG = "--splash-url=";
   private static final String META_DATA_APP_SPLASH_URL = "cobalt.APP_SPLASH_URL";
   private static final String SPLASH_TIMEOUT_MS_ARG = "--splash-timeout-ms=";
   private static final String META_DATA_APP_SPLASH_TIMEOUT_MS = "cobalt.APP_SPLASH_TIMEOUT_MS";
@@ -104,7 +104,6 @@ public abstract class CobaltActivity extends Activity {
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
   private String mStartupUrl;
-  private boolean mEnableSplashScreen;
   private int mSplashTimeoutMs;
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
@@ -171,7 +170,6 @@ public abstract class CobaltActivity extends Activity {
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
       mStartupUrl = parseArg(args, URL_ARG);
-      mEnableSplashScreen = hasArg(Arrays.asList(args), ENABLE_SPLASH_SCREEN_ARG);
       String splashTimeoutMsStr = parseArg(args, SPLASH_TIMEOUT_MS_ARG);
       try {
         mSplashTimeoutMs = Integer.parseInt(splashTimeoutMsStr);
@@ -215,20 +213,17 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's
-    // onWebContentsReady()
+    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created and not null.
     // Two shells workflow:
     //   - App shell: Created by launchShell(), loads an empty URL (" ") initially. This shell is
     //     intended to load the main application URL in the background.
-    //   - Splash shell: Created by default. If native splash is disabled, it does nothing.
-    // Otherwise,
+    //   - Splash shell: Created by default. If native splash is disabled, it does nothing. Otherwise,
     //     it loads the native splash screen URL.
     //   - mShellManager.showAppShell() switches the visible shell from
     //     the active shell to the App shell.
-    mShellManager.launchShell(
-        "",
+    mShellManager.launchShell("",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -243,22 +238,19 @@ public abstract class CobaltActivity extends Activity {
 
           @Override
           public void onWebContentsLoaded() {
-            new android.os.Handler(android.os.Looper.getMainLooper())
-                .postDelayed(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        synchronized (lock) {
-                          if (isMainFrameLoaded == false) {
-                            // Main app loaded in App shell, switch to it.
-                            Log.i(TAG, "main shell is loaded");
-                            isMainFrameLoaded = true;
-                            mShellManager.showAppShell();
-                          }
-                        }
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                  @Override
+                  public void run() {
+                    synchronized(lock) {
+                      if (isMainFrameLoaded == false) {
+                        // Main app loaded in App shell, switch to it.
+                        Log.i(TAG, "main shell is loaded");
+                        isMainFrameLoaded = true;
+                        mShellManager.showAppShell();
                       }
-                    },
-                    mSplashTimeoutMs);
+                    }
+                  }
+                }, mSplashTimeoutMs);
           }
         });
     if (mDisableNativeSplash || !hasSplashVideoCached()) {
@@ -266,41 +258,30 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Show main app without splash screen.");
       mShellManager.showAppShell();
     } else {
-      // Native splash enabled: Load splash in active shell and set a timeout to switch to App
-      // shell.
-      mShellManager
-          .getSplashAppShell()
-          .setWebContentsReadyListener(
-              new Shell.OnWebContentsReadyListener() {
-                @Override
-                public void onWebContentsReady() {}
+      // Native splash enabled: Load splash in active shell and set a timeout to switch to App shell.
+      mShellManager.getSplashAppShell().setWebContentsReadyListener(
+        new Shell.OnWebContentsReadyListener() {
+          @Override
+              public void onWebContentsReady() {}
 
-                @Override
-                public void onWebContentsLoaded() {
-                  // Switch to pending shell after a timeout, or when the main app finishes loading,
-                  // whichever comes first.
-                  Log.i(TAG, "shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
-                  new android.os.Handler(android.os.Looper.getMainLooper())
-                      .postDelayed(
-                          new Runnable() {
-                            @Override
-                            public void run() {
-                              synchronized (lock) {
-                                if (isMainFrameLoaded == false) {
-                                  Log.i(
-                                      TAG,
-                                      "switch to main shell after timeout "
-                                          + mSplashTimeoutMs
-                                          + "ms");
-                                  isMainFrameLoaded = true;
-                                  mShellManager.showAppShell();
-                                }
-                              }
-                            }
-                          },
-                          mSplashTimeoutMs);
-                }
-              });
+          @Override
+          public void onWebContentsLoaded() {
+            // Switch to pending shell after a timeout, or when the main app finishes loading, whichever comes first.
+            Log.i(TAG, "shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                  @Override
+                  public void run() {
+                    synchronized(lock) {
+                      if (isMainFrameLoaded == false) {
+                        Log.i(TAG, "switch to main shell after timeout " + mSplashTimeoutMs + "ms");
+                        isMainFrameLoaded = true;
+                        mShellManager.showAppShell();
+                      }
+                    }
+                  }
+                }, mSplashTimeoutMs);
+          }
+      });
       Log.i(TAG, "shellManager load splash url: file:///android_asset/splash.html");
       mShellManager.getActiveShell().loadUrl(genSplashHtmlDataUrl());
     }
@@ -332,7 +313,7 @@ public abstract class CobaltActivity extends Activity {
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
-      return super.onKeyDown(keyCode, event);
+        return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
@@ -340,7 +321,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
-      return super.onKeyUp(keyCode, event);
+        return super.onKeyUp(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -786,54 +767,52 @@ public abstract class CobaltActivity extends Activity {
   // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
     new Thread(
+      () -> {
+        HttpURLConnection urlConnection = null;
+        try {
+          URL url = new URL("https://www.google.com/generate_204");
+          urlConnection = (HttpURLConnection) url.openConnection();
+          urlConnection.setConnectTimeout(5000);
+          urlConnection.setReadTimeout(5000);
+          urlConnection.connect();
+          if (urlConnection.getResponseCode() != 204) {
+            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+          }
+          Log.i(TAG, "Active Network check successful." + mPlatformError);
+          if (mPlatformError != null) {
+            mPlatformError.setResponse(PlatformError.POSITIVE);
+            mPlatformError.dismiss();
+            mPlatformError = null;
+          }
+          if (mShouldReloadOnResume) {
+            runOnUiThread(
+              () -> {
+                WebContents webContents = getActiveWebContents();
+                if (webContents != null) {
+                  webContents.getNavigationController().reload(true);
+                }
+                mShouldReloadOnResume = false;
+              });
+          }
+        } catch (IOException e) {
+          Log.w(TAG, "Active Network check failed.", e);
+          runOnUiThread(
             () -> {
-              HttpURLConnection urlConnection = null;
-              try {
-                URL url = new URL("https://www.google.com/generate_204");
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setConnectTimeout(5000);
-                urlConnection.setReadTimeout(5000);
-                urlConnection.connect();
-                if (urlConnection.getResponseCode() != 204) {
-                  throw new IOException("Bad response code: " + urlConnection.getResponseCode());
-                }
-                Log.i(TAG, "Active Network check successful." + mPlatformError);
-                if (mPlatformError != null) {
-                  mPlatformError.setResponse(PlatformError.POSITIVE);
-                  mPlatformError.dismiss();
-                  mPlatformError = null;
-                }
-                if (mShouldReloadOnResume) {
-                  runOnUiThread(
-                      () -> {
-                        WebContents webContents = getActiveWebContents();
-                        if (webContents != null) {
-                          webContents.getNavigationController().reload(true);
-                        }
-                        mShouldReloadOnResume = false;
-                      });
-                }
-              } catch (IOException e) {
-                Log.w(TAG, "Active Network check failed.", e);
-                runOnUiThread(
-                    () -> {
-                      if (mPlatformError == null || !mPlatformError.isShowing()) {
-                        mPlatformError =
-                            new PlatformError(
-                                getStarboardBridge().getActivityHolder(),
-                                PlatformError.CONNECTION_ERROR,
-                                0);
-                        mPlatformError.raise();
-                      }
-                    });
-                mShouldReloadOnResume = true;
-              } finally {
-                if (urlConnection != null) {
-                  urlConnection.disconnect();
-                }
+              if (mPlatformError == null || !mPlatformError.isShowing()) {
+                mPlatformError =
+                  new PlatformError(
+                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
+                mPlatformError.raise();
               }
-            })
-        .start();
+            });
+          mShouldReloadOnResume = true;
+        } finally {
+          if (urlConnection != null) {
+            urlConnection.disconnect();
+          }
+        }
+      })
+    .start();
   }
 
   public long getAppStartTimestamp() {

@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
   <body>
-    <h1>Splash</h1>
     <video id="primary-video" class="video" muted autoplay playsinline></video>
     <script>
       // Dictionary mapping string descriptions to media file descriptions in the
@@ -11,8 +10,8 @@ const MEDIA_FILES = {
   'splash_clear': {
     contentType: 'video/webm; codecs="vp9"',
     url: '%%VIDEO_DATA_URL%%',
-    maxVideoCapabilities: 'width=1280; height=720',  // Adjust if your video has
-                                                     // different resolution
+    // TODO(linxinan): Update the dimention.
+    maxVideoCapabilities: 'width=1280; height=720',
   },
 };
 
@@ -99,10 +98,6 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
   const isDrmVideo = !!MEDIA_FILES[videoFileId].licenseUrl;
 
   videoContentType = MEDIA_FILES[videoFileId].contentType;
-  // if (isTunnelModeSupported(videoContentType)) {
-  //   videoContentType = createTunnelModeContentType(videoContentType,
-  //   'true');
-  // }
 
   var videoElement = document.getElementById(videoElementId);
 
