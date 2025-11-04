@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_BROWSER_MEDIA_MEDIA_BROWSERTEST_H_
-#define CONTENT_BROWSER_MEDIA_MEDIA_BROWSERTEST_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_MEDIA_BROWSERTEST_H_
+#define COBALT_TESTING_BROWSER_TESTS_MEDIA_BROWSERTEST_H_
 
 #include <string>
 
@@ -52,4 +52,4 @@ class MediaBrowserTest : public ContentBrowserTest {
 
 }  // namespace content
 
-#endif  // CONTENT_BROWSER_MEDIA_MEDIA_BROWSERTEST_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_MEDIA_BROWSERTEST_H_
