@@ -174,7 +174,7 @@ def main():
   parser.add_argument(
       '--compression',
       choices=['xz', 'gz', 'zstd'],
-      default='xz',
+      default='zstd',
       help='The compression to use.')
   parser.add_argument(
       '--flatten-deps',
