@@ -86,15 +86,11 @@ static_library("browsertest_support") {
     "webrtc_content_browsertest_base.h",
   ]
 
-  public_deps = [
-    "//base",
-    "//skia",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+  public_deps = [ "//cobalt/shell:cobalt_shell_lib" ]
 
   deps = [
     ":cobalt_shell_test_lib",
+    "//base",
     "//base:i18n",
     "//base/test:test_config",
     "//base/test:test_support",
@@ -110,6 +106,9 @@ static_library("browsertest_support") {
     "//media",
     "//net",
     "//net:test_support",
+    "//skia",
+    "//testing/gmock",
+    "//testing/gtest",
     "//ui/accessibility:ax_enums_mojo",
     "//ui/base",
     "//ui/base/ime/init",
@@ -422,12 +421,15 @@ static_library("cobalt_shell_test_lib") {
     "shell/test_shell.h",
   ]
 
-  public_deps = [
+  deps = [
     "//cc/base",
     "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/shell:cobalt_shell_switches",
     "//cobalt/shell:shell_controller_mojom",
     "//cobalt/shell:shell_test_switches_lib",
+    "//components/crash/core/app",
+    "//components/custom_handlers",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/prefs",
@@ -438,12 +440,6 @@ static_library("cobalt_shell_test_lib") {
     "//services/network/public/cpp",
   ]
 
-  deps = [
-    "//cobalt/shell:cobalt_shell_switches",
-    "//components/crash/core/app",
-    "//components/custom_handlers",
-  ]
-
   if (shell_use_toolkit_views) {
     if (use_aura) {
       sources += [
@@ -451,7 +447,7 @@ static_library("cobalt_shell_test_lib") {
         "browser/shell_test_platform_delegate.h",
       ]
 
-      public_deps += [ "//ui/views:test_support" ]
+      deps += [ "//ui/views:test_support" ]
     }
   }
 }
