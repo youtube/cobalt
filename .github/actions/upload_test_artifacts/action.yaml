@@ -60,7 +60,7 @@ runs:
     - name: Set up Cloud SDK
       if: inputs.upload_on_device_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Upload Android Test Artifacts to GCS
+    - name: Upload On-Device Test Artifacts to GCS
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
@@ -68,13 +68,15 @@ runs:
         set -eux
         project_name=$(gcloud config get-value project)
 
-        # Upload cobalt.apk for smoke tests.
+        # Add Cobalt artifacts for smoke tests.
         if [[ "${{ matrix.platform }}" == *android* ]]; then
           cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
              "${GITHUB_WORKSPACE}/artifacts/"
+        elif [[ "${{ matrix.platform }}" == *"evergreen"* ]]; then
+          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/test-package/*" \
+             "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
-        # Upload gtest target artifacts.
         gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
 
