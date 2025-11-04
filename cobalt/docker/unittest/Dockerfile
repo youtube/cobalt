@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     libxcomposite-dev \
     xvfb \
     xz-utils \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # This locale satisfies SbSystemGetLocaleIdTest.

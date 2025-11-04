@@ -23,7 +23,7 @@ runs:
         set -x
         mkdir -p unit_test/
         cd unit_test/
-        tar xf ../test_artifacts.tar.xz
+        tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
     - name: Run Tests
       id: run-tests
       shell: bash

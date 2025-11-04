@@ -38,6 +38,8 @@ def _make_tar(archive_path: str, compression: str,
     compression_flag = 'gzip -1'
   elif compression == 'xz':
     compression_flag = 'xz -T0 -1'
+  elif compression == 'zstd':
+    compression_flag = 'zstd -T0 -1'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
   tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
@@ -171,7 +173,7 @@ def main():
       help='Look for .runtime_deps files in the Android-specific path.')
   parser.add_argument(
       '--compression',
-      choices=['xz', 'gz'],
+      choices=['xz', 'gz', 'zstd'],
       default='xz',
       help='The compression to use.')
   parser.add_argument(
