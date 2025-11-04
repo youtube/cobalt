@@ -155,11 +155,6 @@ void GlobalFeatures::InitializeActiveConfigData() {
           : kExperimentConfigActiveConfigData);
 }
 
-// Explicitly shuts down the metrics service. This is to ensure the
-// CobaltMetricsServiceClient destructor is called, which logs a clean
-// shutdown. The specific shutdown order here is required to nullify
-// a raw pointer and prevent a use-after-free crash
-// that would otherwise occur on exit.
 void GlobalFeatures::Shutdown() {
   metrics_services_manager_client_->ClearMetricsServiceClient();
   metrics_services_manager_.reset();
