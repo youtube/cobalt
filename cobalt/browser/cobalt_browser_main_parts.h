@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_MAIN_PARTS_H_
-#define COBALT_BROWSER_MAIN_PARTS_H_
+#ifndef COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_
+#define COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_
 
 #include <memory>
 
@@ -73,4 +73,4 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_MAIN_PARTS_H_
+#endif  // COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_

@@ -206,9 +206,19 @@ source_set("browsertests_sources") {
   }
 }
 
+static_library("cobalt_shell_switches") {
+  sources = [
+    "common/shell_switches.cc",
+    "common/shell_switches.h",
+  ]
+}
+
 static_library("cobalt_shell_lib") {
   testonly = true
-  public_deps = [ ":cobalt_shell_lib_deps" ]
+  public_deps = [
+    ":cobalt_shell_lib_deps",
+    ":cobalt_shell_switches",
+  ]
   sources = [
     "browser/shell.cc",
     "browser/shell.h",
@@ -241,8 +251,6 @@ static_library("cobalt_shell_lib") {
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
-    "common/shell_switches.cc",
-    "common/shell_switches.h",
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",

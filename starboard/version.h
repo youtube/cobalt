@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef COBALT_VERSION_H_
-#define COBALT_VERSION_H_
+#ifndef STARBOARD_VERSION_H_
+#define STARBOARD_VERSION_H_
 
 // The Cobalt version string.  Its components are:
 //
@@ -38,4 +38,4 @@
 
 #define COBALT_VERSION "26.master.0"
 
-#endif  // COBALT_VERSION_H_
+#endif  // STARBOARD_VERSION_H_
