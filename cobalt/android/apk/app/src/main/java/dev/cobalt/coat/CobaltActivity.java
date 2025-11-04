@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.Base64; 
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -47,6 +48,8 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -104,7 +107,6 @@ public abstract class CobaltActivity extends Activity {
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
   private String mStartupUrl;
-  private String mSplashUrl;
   private int mSplashTimeoutMs;
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
@@ -168,10 +170,9 @@ public abstract class CobaltActivity extends Activity {
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
 
-    if (mStartupUrl == null || mStartupUrl.isEmpty() || mSplashUrl == null || mSplashUrl.isEmpty()) {
+    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
       mStartupUrl = parseArg(args, URL_ARG);
-      mSplashUrl = parseArg(args, SPLASH_URL_ARG);
       String splashTimeoutMsStr = parseArg(args, SPLASH_TIMEOUT_MS_ARG);
       try {
         mSplashTimeoutMs = Integer.parseInt(splashTimeoutMsStr);
@@ -255,7 +256,7 @@ public abstract class CobaltActivity extends Activity {
                 }, mSplashTimeoutMs);
           }
         });
-    if (mDisableNativeSplash) {
+    if (mDisableNativeSplash || !hasSplashVideoCached()) {
       // No native splash, show the App shell (main app) immediately.
       Log.i(TAG, "Show main app without splash screen.");
       mShellManager.showAppShell();
@@ -284,8 +285,8 @@ public abstract class CobaltActivity extends Activity {
                 }, mSplashTimeoutMs);
           }
       });
-      Log.i(TAG, "shellManager load splash url:" + mSplashUrl);
-      mShellManager.getSplashAppShell().loadUrl(mSplashUrl);
+      Log.i(TAG, "shellManager load splash url: file:///android_asset/splash.html");
+      mShellManager.getActiveShell().loadUrl(genSplashHtmlDataUrl());
     }
   }
 
@@ -857,9 +858,72 @@ public abstract class CobaltActivity extends Activity {
       isKeepScreenOnEnabled = keepOn;
     }
   }
-  
+
   public boolean isDisableNativeSplash() {
     return mDisableNativeSplash;
+  }
+
+  public boolean hasSplashVideoCached() {
+    java.io.File cachedVideo = new java.io.File(
+      getApplicationContext().getExternalCacheDir(), "splash.webm");
+    return cachedVideo.exists();
+  }
+
+  private byte[] readInputStreamToByteArray(java.io.InputStream inputStream)
+      throws java.io.IOException {
+    java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+    int nRead;
+    byte[] data = new byte[16384];
+    while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
+      buffer.write(data, 0, nRead);
+    }
+    return buffer.toByteArray();
+  }
+
+  private String readInputStreamToString(java.io.InputStream inputStream)
+      throws java.io.IOException {
+    java.io.BufferedReader reader =
+        new java.io.BufferedReader(new java.io.InputStreamReader(inputStream));
+    StringBuilder stringBuilder = new StringBuilder();
+    String line;
+    while ((line = reader.readLine()) != null) {
+      stringBuilder.append(line).append("\n");
+    }
+    return stringBuilder.toString();
+  }
+
+  private String genSplashHtmlDataUrl() {
+    try {
+      // 1. Read the splash.html template from assets.
+      InputStream htmlInputStream = getAssets().open("splash.html");
+      String htmlTemplate = readInputStreamToString(htmlInputStream);
+      htmlInputStream.close();
+
+      // 2. Determine which splash video to use and read it.
+      if (!hasSplashVideoCached()) {
+        // TODO(b/441738743): Decide if we should have a fallback packaged
+        // splash.
+        return null;
+      }
+      java.io.File cacheDir = getApplicationContext().getExternalCacheDir();
+      java.io.File cachedVideo = new java.io.File(cacheDir, "splash.webm");
+      InputStream videoInputStream;
+      Log.i(TAG, "Using cached splash video: " + cachedVideo.getAbsolutePath());
+      videoInputStream = new FileInputStream(cachedVideo);
+
+      // 3. Create the video data URL.
+      byte[] videoBytes = readInputStreamToByteArray(videoInputStream);
+      videoInputStream.close();
+      String videoBase64 = Base64.encodeToString(videoBytes, Base64.NO_WRAP);
+      String videoDataUrl = "data:video/webm;base64," + videoBase64;
+
+      // 4. Embed the video data URL into the HTML template.
+      String finalHtml = htmlTemplate.replace("%%VIDEO_DATA_URL%%", videoDataUrl);
+      return "data:text/html;charset=utf-8," + Uri.encode(finalHtml);
+    } catch (IOException e) {
+      Log.e(TAG, "Error generating splash screen HTML", e);
+      return null;
+    }
   }
 
   @NativeMethods

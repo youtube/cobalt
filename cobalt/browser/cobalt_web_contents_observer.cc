@@ -18,6 +18,7 @@
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -72,6 +73,16 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
 void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
   migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
+}
+
+void CobaltWebContentsObserver::DidUpdateWebManifestURL(
+    content::RenderFrameHost* target_frame,
+    const GURL& manifest_url) {
+  if (!target_frame || !target_frame->IsInPrimaryMainFrame() ||
+      !manifest_url.is_valid()) {
+    return;
+  }
+  LOG(INFO) << "Manifest URL updated to: " << manifest_url;
 }
 
 namespace {
