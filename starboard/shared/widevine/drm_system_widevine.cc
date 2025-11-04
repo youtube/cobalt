@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -301,7 +302,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequest(
     const char* type,
     const void* initialization_data,
     int initialization_data_size) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   const std::string init_str(static_cast<const char*>(initialization_data),
                              initialization_data_size);
@@ -336,7 +337,7 @@ void DrmSystemWidevine::UpdateSession(int ticket,
                                       int key_size,
                                       const void* sb_drm_session_id,
                                       int sb_drm_session_id_size) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   const std::string str_key(static_cast<const char*>(key), key_size);
 
   wv3cdm::Status status;
@@ -362,7 +363,7 @@ void DrmSystemWidevine::UpdateSession(int ticket,
 
 void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
                                      int sb_drm_session_id_size) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   std::string wvcdm_session_id;
   bool succeeded = SbDrmSessionIdToWvdmSessionId(
       sb_drm_session_id, sb_drm_session_id_size, &wvcdm_session_id);
@@ -376,7 +377,7 @@ void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
 void DrmSystemWidevine::UpdateServerCertificate(int ticket,
                                                 const void* certificate,
                                                 int certificate_size) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   const std::string str_certificate(static_cast<const char*>(certificate),
                                     certificate_size);
   wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
@@ -550,7 +551,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
     wv3cdm::InitDataType init_data_type,
     const std::string& initialization_data,
     bool is_first_session) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   wv3cdm::SessionType session_type = wv3cdm::kTemporary;
 
@@ -743,7 +744,7 @@ void DrmSystemWidevine::SendServerCertificateRequest(int ticket) {
 
 wv3cdm::Status DrmSystemWidevine::ProcessServerCertificateResponse(
     const std::string& response) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   is_server_certificate_set_ = false;
   std::string certificate;
   auto status = cdm_->parseServiceCertificateResponse(response, &certificate);
@@ -756,7 +757,7 @@ wv3cdm::Status DrmSystemWidevine::ProcessServerCertificateResponse(
 }
 
 void DrmSystemWidevine::TrySendPendingGenerateSessionUpdateRequests() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   if (!is_server_certificate_set_) {
     return;
   }

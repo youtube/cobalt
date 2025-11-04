@@ -64,8 +64,7 @@ void ResetCurrentThreadJobQueue() {
 
 }  // namespace
 
-JobQueue::JobQueue() : thread_id_(SbThreadGetId()) {
-  SB_DCHECK(SbThreadIsValidId(thread_id_));
+JobQueue::JobQueue() {
   SetCurrentThreadJobQueue(this);
 }
 
@@ -159,7 +158,7 @@ bool JobQueue::BelongsToCurrentThread() const {
   // The ctor already ensures that the current JobQueue is the only JobQueue of
   // the thread, checking for thread id is more light-weighted then calling
   // JobQueue::current() and compare the result with |this|.
-  return thread_id_ == SbThreadGetId();
+  return thread_checker_.CalledOnValidThread();
 }
 
 // static
