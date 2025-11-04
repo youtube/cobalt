@@ -251,7 +251,7 @@ run_package_release_pipeline () {
     # previous build step. Then copy the file into this out directory to
     # simulate having built it in-situ (even though that's not possible). This
     # simplifies the execution of the packaging scripts.
-    if [[ "${TARGET_PLATFORM}" =~ "linux" ]]; then
+    if [[ "${TARGET_PLATFORM}" =~ "linux-x64x11" ]]; then
       local src_platform="linux-x64x11-no-starboard"
       local src_out="${WORKSPACE_COBALT}/out/${src_platform}_${CONFIG}"
       local dst_out="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
