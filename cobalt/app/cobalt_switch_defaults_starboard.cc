@@ -88,7 +88,9 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // creation, but egl extension required to support the attribute is
         // missing and causes errors. So Enable it by default.
         {switches::kEnableFeatures,
-         "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
+         "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation, "
+         // Limit the age of decoded images in the cache.
+         "LimitImageDecodeCacheAge:seconds/5"},
     // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
