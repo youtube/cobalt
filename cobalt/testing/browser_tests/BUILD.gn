@@ -86,8 +86,6 @@ static_library("browsertest_support") {
     "webrtc_content_browsertest_base.h",
   ]
 
-  public_deps = [ "//cobalt/shell:cobalt_shell_lib" ]
-
   deps = [
     ":cobalt_shell_test_lib",
     "//base",
@@ -96,6 +94,7 @@ static_library("browsertest_support") {
     "//base/test:test_support",
     "//build:chromeos_buildflags",
     "//cobalt/shell:cobalt_shell_app",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:cobalt_shell_switches",
     "//components/network_session_configurator/common:common",
     "//components/services/storage:storage",
@@ -226,6 +225,7 @@ test("cobalt_browsertests") {
     "//build:chromeos_buildflags",
     "//cc/slim",
     "//cobalt/shell:browsertests_mojom",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:cobalt_shell_switches",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
