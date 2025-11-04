@@ -83,6 +83,10 @@ void CobaltWebContentsObserver::DidUpdateWebManifestURL(
     return;
   }
   LOG(INFO) << "Manifest URL updated to: " << manifest_url;
+#if BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->UpdateSplashVideo(env, manifest_url.spec());
+#endif
 }
 
 namespace {

@@ -256,7 +256,7 @@ public abstract class CobaltActivity extends Activity {
                 }, mSplashTimeoutMs);
           }
         });
-    if (mDisableNativeSplash || !hasSplashVideoCached()) {
+    if (mDisableNativeSplash || !getSplashVideoFile().exists()) {
       // No native splash, show the App shell (main app) immediately.
       Log.i(TAG, "Show main app without splash screen.");
       mShellManager.showAppShell();
@@ -863,10 +863,10 @@ public abstract class CobaltActivity extends Activity {
     return mDisableNativeSplash;
   }
 
-  public boolean hasSplashVideoCached() {
+  public java.io.File getSplashVideoFile() {
     java.io.File cachedVideo = new java.io.File(
       getApplicationContext().getExternalCacheDir(), "splash.webm");
-    return cachedVideo.exists();
+    return cachedVideo;
   }
 
   private byte[] readInputStreamToByteArray(java.io.InputStream inputStream)
@@ -898,15 +898,10 @@ public abstract class CobaltActivity extends Activity {
       InputStream htmlInputStream = getAssets().open("splash.html");
       String htmlTemplate = readInputStreamToString(htmlInputStream);
       htmlInputStream.close();
-
-      // 2. Determine which splash video to use and read it.
-      if (!hasSplashVideoCached()) {
-        // TODO(b/441738743): Decide if we should have a fallback packaged
-        // splash.
+      java.io.File cachedVideo = getSplashVideoFile();
+      if (!cachedVideo.exists()) {
         return null;
       }
-      java.io.File cacheDir = getApplicationContext().getExternalCacheDir();
-      java.io.File cachedVideo = new java.io.File(cacheDir, "splash.webm");
       InputStream videoInputStream;
       Log.i(TAG, "Using cached splash video: " + cachedVideo.getAbsolutePath());
       videoInputStream = new FileInputStream(cachedVideo);

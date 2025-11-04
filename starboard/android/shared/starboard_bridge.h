@@ -66,6 +66,8 @@ class StarboardBridge {
 
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
+  void UpdateSplashVideo(JNIEnv* env, const std::string& manifest_url);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
