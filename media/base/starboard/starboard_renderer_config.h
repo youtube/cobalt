@@ -29,7 +29,8 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,
                           base::TimeDelta audio_write_duration_local,
                           base::TimeDelta audio_write_duration_remote,
-                          const std::string& max_video_capabilities);
+                          const std::string& max_video_capabilities,
+                          bool use_external_allocator);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -37,6 +38,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
+  bool use_external_allocator = true;
 };
 
 }  // namespace media

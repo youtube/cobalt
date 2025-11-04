@@ -5,9 +5,11 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "cobalt/browser/global_features.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
@@ -186,6 +188,14 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       base::Microseconds(kSbPlayerWriteDurationLocal);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
+
+  auto setting =
+      GlobalFeatures::GetInstance()->GetSetting("use_external_allocator");
+  if (setting && std::holds_alternative<std::string>(*setting)) {
+    std::string value = std::get<std::string>(*setting);
+    renderer_factory_traits->use_external_allocator = (value == "true");
+  }
+
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(
