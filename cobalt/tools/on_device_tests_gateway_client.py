@@ -182,12 +182,12 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   elif is_modular_raspi and args.device_family == 'raspi':
     return [
         f'bin={args.gcs_archive_path}/{target_name}',
-        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.xz',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   elif args.device_family in ['rdk', 'raspi']:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
-        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.xz',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   else:
     raise ValueError(f'Unsupported device family: {args.device_family}')
