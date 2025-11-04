@@ -20,6 +20,8 @@
 
 #include <dirent.h>
 
+#include "build/build_config.h"
+
 // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <dlfcn.h>
@@ -327,6 +329,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fchmod);
   REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fcntl);
+  REGISTER_WRAPPER(fdopendir);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);

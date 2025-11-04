@@ -19,7 +19,6 @@ dlopen
 dlsym
 fclose
 fdopen
-fdopendir
 feof
 fflush
 fgets
