@@ -232,13 +232,13 @@ SbPlayerTestFixture::SbPlayerTestFixture(
 }
 
 SbPlayerTestFixture::~SbPlayerTestFixture() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TearDown();
 }
 
 void SbPlayerTestFixture::Seek(const int64_t time) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
 
   ASSERT_FALSE(error_occurred_);
@@ -256,7 +256,7 @@ void SbPlayerTestFixture::Seek(const int64_t time) {
 }
 
 void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(!audio_end_of_stream_written_);
   SB_DCHECK(!video_end_of_stream_written_);
@@ -331,7 +331,7 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
 }
 
 void SbPlayerTestFixture::WaitForPlayerPresenting() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
 
   ASSERT_FALSE(error_occurred_);
@@ -339,7 +339,7 @@ void SbPlayerTestFixture::WaitForPlayerPresenting() {
 }
 
 void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(!audio_dmp_reader_ || audio_end_of_stream_written_);
   SB_DCHECK(!video_dmp_reader_ || video_end_of_stream_written_);
@@ -355,7 +355,7 @@ int64_t SbPlayerTestFixture::GetCurrentMediaTime() const {
 }
 
 void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_GT(duration, 0);
   audio_write_duration_ = duration;
 }
@@ -435,7 +435,7 @@ void SbPlayerTestFixture::OnError(SbPlayer player,
 }
 
 void SbPlayerTestFixture::Initialize() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Initialize drm system.
   if (!key_system_.empty()) {
@@ -474,7 +474,7 @@ void SbPlayerTestFixture::Initialize() {
 }
 
 void SbPlayerTestFixture::TearDown() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // We should always destroy |player_| and |drm_system_|, no matter if there's
   // any unexpected player error.
@@ -521,7 +521,7 @@ void SbPlayerTestFixture::WriteAudioSamples(
     int64_t timestamp_offset,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(audio_dmp_reader_);
   SB_DCHECK_GE(start_index, 0);
@@ -550,7 +550,7 @@ void SbPlayerTestFixture::WriteAudioSamples(
 
 void SbPlayerTestFixture::WriteVideoSamples(int start_index,
                                             int samples_to_write) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -566,7 +566,7 @@ void SbPlayerTestFixture::WriteVideoSamples(int start_index,
 }
 
 void SbPlayerTestFixture::WriteEndOfStream(SbMediaType media_type) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
 
   if (media_type == kSbMediaTypeAudio) {
@@ -586,7 +586,7 @@ void SbPlayerTestFixture::WriteEndOfStream(SbMediaType media_type) {
 }
 
 void SbPlayerTestFixture::WaitAndProcessNextEvent(int64_t timeout) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   auto event = callback_event_queue_.GetTimed(timeout);
 
@@ -629,7 +629,7 @@ void SbPlayerTestFixture::WaitAndProcessNextEvent(int64_t timeout) {
 }
 
 void SbPlayerTestFixture::WaitForDecoderStateNeedsData(const int64_t timeout) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   bool old_can_accept_more_audio_data = can_accept_more_audio_data_;
   bool old_can_accept_more_video_data = can_accept_more_video_data_;
@@ -648,7 +648,7 @@ void SbPlayerTestFixture::WaitForDecoderStateNeedsData(const int64_t timeout) {
 
 void SbPlayerTestFixture::WaitForPlayerState(const SbPlayerState desired_state,
                                              const int64_t timeout) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   if (HasReceivedPlayerState(desired_state)) {
     return;

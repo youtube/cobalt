@@ -18,39 +18,27 @@
 Reads and summarizes /proc/<pid>/smaps
 """
 import argparse
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, defaultdict
 import itertools
 import re
+import sys
 
 
-def consume_until(l, expect):
-  """Consumes lines from a list until a line starting with a string is found."""
-  while not l[0].startswith(expect):
-    l.pop(0)
-  return l.pop(0)
-
-
-def split_kb_line(in_list, expect):
-  """Consumes a line, splits it, and returns the size in kB."""
-  l = consume_until(in_list, expect)
-  sz = re.split(' +', l)
-  if not sz[0].startswith(expect):
-    raise RuntimeError(f'Unexpected line head, looked for:{expect} got:{sz[0]}')
-  if sz[2] != 'kB':
-    raise RuntimeError(f'Expected kB got {sz[2]}')
-  return int(sz[1])
-
-
-def line_expect(in_list, expect, howmuch):
-  """Consumes a line and asserts that the size is the expected value."""
-  val = split_kb_line(in_list, expect)
-  if howmuch != val:
-    raise RuntimeError(f'Expected {expect} to be {howmuch}, got {val}')
-  return 0
+def parse_smaps_entry(entry_lines):
+  """Parses a single smaps entry into a dictionary."""
+  data = defaultdict(int)
+  for line in entry_lines:
+    if ':' in line:
+      key, value = line.split(':', 1)
+      value = value.strip()
+      if 'kB' in value:
+        data[key.lower().replace('_',
+                                 '')] = int(value.replace('kB', '').strip())
+  return data
 
 
 fields = ('size rss pss shr_clean shr_dirty priv_clean priv_dirty '
-          'referenced anonymous anonhuge').split()
+          'referenced anonymous anonhuge swap swap_pss').split()
 MemDetail = namedtuple('name', fields)
 
 
@@ -60,17 +48,24 @@ def takeuntil(items, predicate):
   while True:
     try:
       _, pieces = next(groups)
+      list_pieces = list(pieces)
+      _, last_pice = next(groups)  # pylint: disable=stop-iteration-return
+      yield list_pieces + list(last_pice)
     except StopIteration:
-      return
-    list_pieces = list(pieces)
-    _, last_pice = list(next(groups))  # pylint: disable=stop-iteration-return
-    yield list_pieces + list(last_pice)
+      break
 
 
 def read_smap(args):
   """Reads and summarizes a smaps file."""
-  with open(args.smaps_file, encoding='utf-8') as file:
-    lines = [line.rstrip() for line in file]
+  try:
+    with open(args.smaps_file, encoding='utf-8') as file:
+      lines = [line.rstrip() for line in file]
+  except UnicodeDecodeError:
+    print(
+        f'Warning: Could not decode {args.smaps_file} with UTF-8. Skipping.',
+        file=sys.stderr)
+    return {}, {}
+
   owners = {}
   summary = {}
   namewidth = 40 if args.strip_paths else 50
@@ -84,7 +79,11 @@ def read_smap(args):
   # The expected output from smaps is 23 lines for each allocation
   for ls in takeuntil(lines, lambda x: x.startswith('VmFlags:')):
     head = re.split(' +', ls.pop(0))
-    key = (head[5:] or ['<anon>'])[0]
+    # Find the name of the memory region
+    key = '<anon>'
+    if len(head) > 5:
+      key = ' '.join(head[5:])
+
     if args.strip_paths:
       key = re.sub('.*/', '', key)
     if args.remove_so_versions or args.aggregate_solibs:
@@ -94,23 +93,27 @@ def read_smap(args):
       key = re.sub(r'libc-[\.0-9]+\.so', '<glibc>', key)
       key = re.sub(r'libstdc\++\.so', '<libstdc++>', key)
       key = re.sub(r'[@\-\.\w]+\.so', '<dynlibs>', key)
-    if args.aggregate_android:
+    if args.platform == 'android':
+      key = re.sub(r'\[(anon:scudo:.*)\]', r'<\1>', key)
+      key = re.sub(r'(/dev/ashmem/.*)', r'<\1>', key)
+      key = re.sub(r'(/memfd:jit-cache)', r'<\1>', key)
+      key = re.sub(r'\[(anon:.*)\]', r'<\1>', key)
       key = re.sub(r'[@\-\.\w]*\.(hyb|vdex|odex|art|jar|oat)[\]]*$', r'<\g<1>>',
                    key)
       key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
       key = re.sub(r'[@\-\.\w]+prop:s0', '<prop>', key)
       key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
+
+    data = parse_smaps_entry(ls)
+    # Ensure all fields are present, defaulting to 0 if not found.
     d = MemDetail(
-        split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
-        line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
-        split_kb_line(ls, 'Pss:'), split_kb_line(ls, 'Shared_Clean:'),
-        split_kb_line(ls, 'Shared_Dirty:'), split_kb_line(ls, 'Private_Clean:'),
-        split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
-        split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
-    # expected to be constant
-    line_expect(ls, 'ShmemPmdMapped:', 0)
-    line_expect(ls, 'Shared_Hugetlb:', 0)
-    line_expect(ls, 'Private_Hugetlb:', 0)
+        data.get('size', 0), data.get('rss', 0), data.get('pss', 0),
+        data.get('sharedclean', 0), data.get('shareddirty', 0),
+        data.get('privateclean', 0), data.get('privatedirty', 0),
+        data.get('referenced', 0), data.get('anonymous', 0),
+        data.get('anonhugepages', 0), data.get('swap', 0),
+        data.get('swappss', 0))
+
     if args.aggregate_zeros and (d.rss == 0) and (d.pss == 0):
       key = '<zero resident>'
 
@@ -124,6 +127,12 @@ def read_smap(args):
     lls.append(d)
     owners[key] = lls
 
+  if not owners:
+    print(
+        'Warning: No memory regions were parsed from the smaps file.',
+        file=sys.stderr)
+    return
+
   for k, list_allocs in owners.items():
     summary[k] = MemDetail(*map(sum, zip(*list_allocs)))
   sdict = OrderedDict(
@@ -131,6 +140,10 @@ def read_smap(args):
           summary.items(),
           reverse=True,
           key=lambda x: getattr(x[1], args.sortkey)))
+
+  if not sdict:
+    print('Warning: No summary data could be generated.', file=sys.stderr)
+    return
 
   tabwidth = 12
 
@@ -190,6 +203,11 @@ def get_analysis_parser():
       '--no_shr_dirty',
       action='store_true',
       help='Omit Shared_Dirty column from output')
+  parser.add_argument(
+      '--platform',
+      choices=['android', 'linux'],
+      default='android',
+      help='Specify the platform for platform-specific aggregations.')
   return parser
 
 
