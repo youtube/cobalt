@@ -857,7 +857,7 @@ public abstract class CobaltActivity extends Activity {
       isKeepScreenOnEnabled = keepOn;
     }
   }
-  
+
   public boolean isDisableNativeSplash() {
     return mDisableNativeSplash;
   }
