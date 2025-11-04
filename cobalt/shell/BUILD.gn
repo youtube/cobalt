@@ -368,16 +368,17 @@ static_library("cobalt_shell_app") {
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]
-  deps = [
+  deps = []
+  if (is_android) {
+    deps += [ ":android_shell_descriptors" ]
+  }
+  deps += [
     ":cobalt_shell_app_deps",
     ":cobalt_shell_switches",
     "//content/public/browser",
     "//content/public/common",
     "//net",
   ]
-  if (is_android) {
-    deps += [ ":android_shell_descriptors" ]
-  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
