@@ -76,8 +76,6 @@ static_library("c_internal") {
     "-w",
     # shgetc.c call to undeclared function '__uflow'
     "-Wno-implicit-function-declaration",
-    "-DMAYBE_WAITERS=0x40000000",
-    "-DUNGET=8",
   ]
 
   asmflags = [    # fenv.s and others: many "warning: argument unused during compilation"
