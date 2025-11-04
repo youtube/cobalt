@@ -145,9 +145,10 @@ void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
 bool ShouldUseExternalAllocator(
     const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
   auto it = h5vcc_settings.find("Media.DisableExternalAllocator");
-  if (it != h5vcc_settings.end() &&
-      std::holds_alternative<int64_t>(it->second)) {
-    return std::get<int64_t>(it->second) != 1;
+  if (it != h5vcc_settings.end()) {
+    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
+      return *value_ptr != 1;
+    }
   }
   return true;
 }
