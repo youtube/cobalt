@@ -42,12 +42,16 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
+<<<<<<< HEAD
           traits.viewport_size
 #if BUILDFLAG(IS_ANDROID)
           ,
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
       ) {
+=======
+          traits.h5vcc_settings) {
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,

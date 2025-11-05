@@ -200,7 +200,11 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
   IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_local)
   IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_remote)
   IPC_STRUCT_TRAITS_MEMBER(max_video_capabilities)
+<<<<<<< HEAD
   IPC_STRUCT_TRAITS_MEMBER(viewport_size)
+=======
+  IPC_STRUCT_TRAITS_MEMBER(h5vcc_settings)
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 IPC_STRUCT_TRAITS_END()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

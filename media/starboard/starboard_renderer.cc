@@ -14,7 +14,10 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include <variant>
+
 #include "base/feature_list.h"
+#include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/stringprintf.h"
@@ -148,6 +151,17 @@ void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
   }
 }
 
+bool ShouldUseExternalAllocator(
+    const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
+  auto it = h5vcc_settings.find("Media.DisableExternalAllocator");
+  if (it != h5vcc_settings.end()) {
+    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
+      return *value_ptr != 1;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -157,12 +171,16 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+<<<<<<< HEAD
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
     )
+=======
+    const std::map<std::string, H5vccSettingValue> h5vcc_settings)
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -171,6 +189,7 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+<<<<<<< HEAD
       // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
       viewport_size_(viewport_size)
@@ -188,6 +207,19 @@ StarboardRenderer::StarboardRenderer(
             << ", max_video_capabilities=\"" << max_video_capabilities_ << "\""
             << ", max_samples_per_write=" << max_samples_per_write_
             << ", view_port_size=" << viewport_size_.ToString();
+=======
+      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
+  DCHECK(task_runner_);
+  DCHECK(media_log_);
+  DCHECK(set_bounds_helper_);
+  LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
+            << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", max_video_capabilities="
+            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", use_external_allocator="
+            << (use_external_allocator_ ? "true" : "false");
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 }
 
 StarboardRenderer::~StarboardRenderer() {

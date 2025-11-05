@@ -11,14 +11,22 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
+<<<<<<< HEAD
 #include "cobalt/common/cobalt_thread_checker.h"
+=======
+#include "base/threading/thread_checker.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "mojo/public/cpp/bindings/remote.h"
+<<<<<<< HEAD
 #include "ui/gfx/geometry/size.h"
+=======
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 
 namespace content {
 class RenderFrame;
@@ -64,6 +72,13 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 
+<<<<<<< HEAD
+=======
+  mojo::Remote<cobalt::mojom::H5vccSettings> h5vcc_settings_remote_;
+
+  base::WeakPtrFactory<CobaltContentRendererClient> weak_factory_{this};
+
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
   base::ScopedClosureRunner unregister_thread_closure;
 
   gfx::Size viewport_size_;

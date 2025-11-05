@@ -40,7 +40,12 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+<<<<<<< HEAD
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+=======
+#include "cobalt/browser/h5vcc_settings_impl.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
@@ -372,7 +377,48 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
+<<<<<<< HEAD
 void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
+=======
+void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
+  DCHECK(!video_geometry_setter_service_);
+  video_geometry_setter_service_ =
+      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                      base::OnTaskRunnerDeleter>(
+          new media::VideoGeometrySetterService,
+          base::OnTaskRunnerDeleter(
+              base::SingleThreadTaskRunner::GetCurrentDefault()));
+}
+
+void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
+    service_manager::BinderRegistry* registry,
+    blink::AssociatedInterfaceRegistry* associated_registry,
+    content::RenderProcessHost* render_process_host) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
+  registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
+      video_geometry_setter_service_->GetBindSubscriberCallback(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+  registry->AddInterface<cobalt::mojom::H5vccSettings>(
+      base::BindRepeating(&H5vccSettingsImpl::Create),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+}
+
+void CobaltContentBrowserClient::BindGpuHostReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
+  if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
+    video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
+  }
+}
+
+bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,
     int render_process_id,

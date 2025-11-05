@@ -145,7 +145,11 @@ class MediaServiceTest : public testing::Test {
                                  base::Microseconds(0),
                                  base::Microseconds(0),
                                  "width=1920; height=1080; framerate=15;",
+<<<<<<< HEAD
                                  gfx::Size(1920, 1080));
+=======
+                                 /*h5vcc_settings=*/{});
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
       config, renderer_.BindNewPipeAndPassReceiver(),

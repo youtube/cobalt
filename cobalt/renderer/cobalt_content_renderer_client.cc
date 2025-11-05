@@ -5,6 +5,7 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
@@ -104,6 +105,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
   CHECK(content::RenderThread::IsMainThread());
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
+<<<<<<< HEAD
   if (render_frame->GetWebView()) {
     viewport_size_ =
         gfx::ToCeiledSize(render_frame->GetWebView()->VisualViewportSize());
@@ -148,6 +150,13 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+=======
+
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -230,6 +239,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       base::Microseconds(kSbPlayerWriteDurationLocal);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
+<<<<<<< HEAD
   renderer_factory_traits->viewport_size = viewport_size_;
 #if BUILDFLAG(IS_STARBOARD)
   // Using base::Unretained(this) is safe here because
@@ -239,6 +249,34 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
+=======
+
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
+
+  cobalt::mojom::SettingsPtr settings;
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+    for (auto& [key, value] : settings->settings) {
+      if (value->is_string_value()) {
+        renderer_factory_traits->h5vcc_settings.emplace(
+            key, std::move(value->get_string_value()));
+      } else if (value->is_int_value()) {
+        renderer_factory_traits->h5vcc_settings.emplace(key,
+                                                        value->get_int_value());
+      } else {
+        NOTREACHED();
+      }
+    }
+  }
+
+  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->bind_host_receiver_callback =
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
+                              weak_factory_.GetWeakPtr()));
+>>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
