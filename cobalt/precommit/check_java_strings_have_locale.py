@@ -10,8 +10,8 @@ def main():
 
   errors = []
   # This regex looks for String.format( where the rest of the line does not
-  # contain "Locale". This is a heuristic for single-line calls.
-  pattern = re.compile(r'\bString\.format\s*\((?!.*Locale)')
+  # contain "Locale.US". This is a heuristic for single-line calls.
+  pattern = re.compile(r'\bString\.format\s*\((?!.*Locale\.US)')
 
   for file_path in args.files:
     try:
