@@ -96,8 +96,7 @@ std::string GetTrackingAuthorizationStatusShared() {
   const StarboardExtensionIfaApi* ifa_api =
       static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
-  const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2 &&
-                                        ifa_api->GetTrackingAuthorizationStatus;
+  const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2;
   if (!is_ifa_version_supported) {
     return "NOT_SUPPORTED";
   }
@@ -193,8 +192,7 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
   const StarboardExtensionIfaApi* ifa_api =
       static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
-  const bool is_ifa_version_supported =
-      ifa_api && ifa_api->version >= 2 && ifa_api->RequestTrackingAuthorization;
+  const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2;
   if (!is_ifa_version_supported) {
     std::move(callback).Run();
     return;
