@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
 
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-blink.h"
 
@@ -72,4 +72,4 @@ class MODULES_EXPORT H5vccSystem final
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_

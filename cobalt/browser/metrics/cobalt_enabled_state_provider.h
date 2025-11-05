@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_ENABLED_STATE_PROVIDER_H_
-#define COBALT_ENABLED_STATE_PROVIDER_H_
+#ifndef COBALT_BROWSER_METRICS_COBALT_ENABLED_STATE_PROVIDER_H_
+#define COBALT_BROWSER_METRICS_COBALT_ENABLED_STATE_PROVIDER_H_
 
 #include "components/metrics/enabled_state_provider.h"
 #include "components/prefs/pref_service.h"
@@ -51,4 +51,4 @@ class CobaltEnabledStateProvider : public ::metrics::EnabledStateProvider {
 
 }  // namespace cobalt
 
-#endif  // COBALT_ENABLED_STATE_PROVIDER_H_
+#endif  // COBALT_BROWSER_METRICS_COBALT_ENABLED_STATE_PROVIDER_H_

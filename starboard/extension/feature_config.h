@@ -11,7 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+
+#ifndef STARBOARD_EXTENSION_FEATURE_CONFIG_H_
+#define STARBOARD_EXTENSION_FEATURE_CONFIG_H_
+
 // ========================================================================
 //
 // Feature configuration file for Starboard features and feature parameters.
@@ -187,3 +190,5 @@ FEATURE_PARAM_LIST_START
 //                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END
+
+#endif  // STARBOARD_EXTENSION_FEATURE_CONFIG_H_

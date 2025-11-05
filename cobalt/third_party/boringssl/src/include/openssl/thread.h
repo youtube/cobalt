@@ -54,8 +54,8 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#ifndef OPENSSL_HEADER_THREAD_H
-#define OPENSSL_HEADER_THREAD_H
+#ifndef COBALT_THIRD_PARTY_BORINGSSL_SRC_INCLUDE_OPENSSL_THREAD_H_
+#define COBALT_THIRD_PARTY_BORINGSSL_SRC_INCLUDE_OPENSSL_THREAD_H_
 
 #include <sys/types.h>
 
@@ -212,4 +212,4 @@ OPENSSL_EXPORT void (*CRYPTO_get_dynlock_destroy_callback(
 }  // extern C
 #endif
 
-#endif  // OPENSSL_HEADER_THREAD_H
+#endif  // COBALT_THIRD_PARTY_BORINGSSL_SRC_INCLUDE_OPENSSL_THREAD_H_

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_H_5_VCC_METRICS_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_H_5_VCC_METRICS_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_
 
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom-blink.h"
 
@@ -109,4 +109,4 @@ class MODULES_EXPORT H5vccMetrics final
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_H_5_VCC_METRICS_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_

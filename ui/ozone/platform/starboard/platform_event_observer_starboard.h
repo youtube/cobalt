@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
-#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
+#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_STARBOARD_H_
+#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_STARBOARD_H_
 
 namespace starboard {
 
@@ -27,4 +27,4 @@ class EVENTS_EXPORT PlatformEventObserverStarboard {
 
 }  // namespace starboard
 
-#endif  // UI_OZONE_PLATFORM_STARBOARD
+#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_STARBOARD_H_
