@@ -681,18 +681,6 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private void stop() {
-    synchronized (mNativeBridgeLock) {
-      mNativeMediaCodecBridge = 0;
-    }
-    try {
-      mMediaCodec.get().stop();
-    } catch (Exception e) {
-      Log.e(TAG, "Failed to stop MediaCodec", e);
-    }
-  }
-
-  @CalledByNative
   private MediaFormatWrapper getOutputFormat() {
     MediaFormat format = null;
     try {
