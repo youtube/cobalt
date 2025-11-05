@@ -49,7 +49,6 @@ CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
 
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  metrics_state_manager_->LogHasSessionShutdownCleanly(false, false);
 
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());

@@ -34,6 +34,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
@@ -397,9 +398,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  GlobalFeatures::GetInstance()
-      ->metrics_services_manager()
-      ->InstantiateFieldTrialList();
+  auto* global_features = GlobalFeatures::GetInstance();
+  global_features->metrics_services_manager()->InstantiateFieldTrialList();
+  // Mark the session as unclean at startup. If the session exits cleanly, it
+  // will be marked as clean in CobaltMetricsServiceClient's destructor.
+  global_features->metrics_services_manager_client()
+      ->GetMetricsStateManager()
+      ->LogHasSessionShutdownCleanly(false, false);
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
