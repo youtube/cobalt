@@ -34,6 +34,7 @@ ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_system_->GetAdvertisingId(
       WTF::BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
                     WrapPersistent(resolver)));
@@ -43,6 +44,7 @@ ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
 
 void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
                                      const String& result) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve(result);
 }
 
@@ -59,15 +61,16 @@ ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_system_->GetLimitAdTracking(
       WTF::BindOnce(&H5vccSystem::OnGetLimitAdTracking, WrapPersistent(this),
                     WrapPersistent(resolver)));
-
   return resolver->Promise();
 }
 
 void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver* resolver,
                                        bool result) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve(result);
 }
 
@@ -86,6 +89,7 @@ ScriptPromise H5vccSystem::getTrackingAuthorizationStatus(
 
   EnsureReceiverIsBound();
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_system_->GetTrackingAuthorizationStatus(
       WTF::BindOnce(&H5vccSystem::OnGetTrackingAuthorizationStatus,
                     WrapPersistent(this), WrapPersistent(resolver)));
