@@ -5,6 +5,7 @@ This directory contains a suite of Python scripts for capturing, processing, and
 ## Features
 
 *   **Cross-platform:** Supports capturing smaps from both Android (via ADB) and local Linux processes.
+*   **Smart Process Selection:** On Linux, if multiple processes with the same name are found, the script identifies the main process (the one with the longest uptime) and captures its smaps data.
 *   **Periodic Capture:** Captures smaps data at a configurable interval.
 *   **Duration Control:** Runs for a specified total duration and then exits.
 *   **Configurable:** Allows customization of the target process, capture interval, duration, and output directory.

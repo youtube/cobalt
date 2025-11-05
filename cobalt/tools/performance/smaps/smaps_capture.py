@@ -66,24 +66,53 @@ class SmapsCapturer:
     command.extend(args)
     return command
 
-  def get_pid_linux(self):
-    """Executes 'pidof' on Linux and returns the PID."""
+  def _get_main_pid(self, pids):
+    """Returns the main pid from a list of pids."""
+    if not pids:
+      return None
+    if len(pids) == 1:
+      return pids[0]
+    try:
+      # Get pid and elapsed time for each pid
+      command = ['ps', '-o', 'pid,etimes', '-p', ','.join(pids)]
+      result = self.subprocess.run(
+          command, capture_output=True, text=True, check=False, timeout=10)
+      if result.returncode == 0:
+        lines = result.stdout.strip().split('\n')[1:]
+        if not lines:
+          return None
+        pid_to_etime = {}
+        for line in lines:
+          parts = line.strip().split()
+          if len(parts) == 2:
+            pid, etime = parts
+            if pid.isdigit() and etime.isdigit():
+              pid_to_etime[pid] = int(etime)
+        if not pid_to_etime:
+          return None
+        return max(pid_to_etime, key=pid_to_etime.get)
+      return None
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(f'Error during main PID retrieval: {e}')
+      return None
+
+  def get_pids_linux(self):
+    """Executes 'pidof' on Linux and returns a list of PIDs."""
     try:
       command = ['pidof', self.process_name]
       result = self.subprocess.run(
           command, capture_output=True, text=True, check=False, timeout=10)
       if result.returncode == 0:
-        # pidof can return multiple PIDs, we take the first one.
         pids = result.stdout.strip().split()
-        if pids and pids[0].isdigit():
-          return pids[0]
-      return None
+        main_pid = self._get_main_pid(pids)
+        return [main_pid] if main_pid else []
+      return []
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(f'Error during Linux PID retrieval: {e}')
-      return None
+      return []
 
-  def get_pid_android(self):
-    """Executes 'adb shell pidof' and returns the PID."""
+  def get_pids_android(self):
+    """Executes 'adb shell pidof' and returns a list containing the PID."""
     try:
       command = self.build_adb_command('shell', 'pidof', self.process_name)
       result = self.subprocess.run(
@@ -95,19 +124,19 @@ class SmapsCapturer:
 
       if result.returncode == 0:
         pid = result.stdout.strip().replace('\r', '')
-        return pid if pid.isdigit() else None
-      return None
+        return [pid] if pid.isdigit() else []
+      return []
 
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(f'Error during Android PID retrieval: {e}')
-      return None
+      return []
 
-  def get_pid(self):
-    """Returns the PID for the configured platform."""
+  def get_pids(self):
+    """Returns a list of PIDs for the configured platform."""
     if self.platform == 'linux':
-      return self.get_pid_linux()
+      return self.get_pids_linux()
     if self.platform == 'android':
-      return self.get_pid_android()
+      return self.get_pids_android()
     raise ValueError(f'Unsupported platform: {self.platform}')
 
   def capture_smaps_linux(self, pid):
@@ -196,10 +225,11 @@ class SmapsCapturer:
         print(f'[{current_time_str}] STARTING NEW '
               f'{self.interval_seconds}s CYCLE.')
 
-        pid = self.get_pid()
+        pids = self.get_pids()
 
-        if pid:
-          self.capture_smaps(pid)
+        if pids:
+          for pid in pids:
+            self.capture_smaps(pid)
         else:
           print(f"[{current_time_str}] ERROR: Process '{self.process_name}' "
                 'not found. Cannot capture.')
