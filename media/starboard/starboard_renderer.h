@@ -186,6 +186,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+<<<<<<< HEAD
   const int max_samples_per_write_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
@@ -196,6 +197,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   jobject surface_view_ = nullptr;
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
+=======
+  // TODO: b/455661813 - Set use_external_allocator_ based on GlobalFeatures,
+  // once http://go/cobalt-pr/7836 lands.
+  const bool use_external_allocator_ = true;
+>>>>>>> 1b1c7e1b5e (media: Conditionally enable DecoderBufferAllocator (#7747))
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
