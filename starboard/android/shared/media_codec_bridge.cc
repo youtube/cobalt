@@ -324,7 +324,7 @@ MediaCodecBridge::~MediaCodecBridge() {
   }
 
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
+  Java_MediaCodecBridge_destroy(env, j_media_codec_bridge_);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetInputBuffer(jint index) {

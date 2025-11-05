@@ -597,6 +597,27 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
+  public void destroy() {
+    // We are calling stop() only on Android 12 and afterwards, since Android 11
+    // has a race condition regarding error happening during stop().
+    // See b/369372033 for details.
+    if (android.os.Build.VERSION.SDK_INT > android.os.Build.VERSION_CODES.R) {
+      stop();
+    }
+    release();
+  }
+
+  private void stop() {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = 0;
+    }
+    try {
+      mMediaCodec.get().stop();
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to stop MediaCodec", e);
+    }
+  }
+
   public void release() {
     try {
       String codecName = mMediaCodec.get().getName();
