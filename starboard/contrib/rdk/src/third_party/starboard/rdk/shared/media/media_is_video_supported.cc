@@ -37,9 +37,12 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
 #include "third_party/starboard/rdk/shared/rdkservices.h"
-#include "third_party/starboard/rdk/shared/log_override.h"
+#include <cstring>
 
 namespace starboard {
+
+using starboard::shared::starboard::media::IsSDRVideo;
+using ::starboard::shared::starboard::media::MimeType;
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* content_type,
@@ -81,6 +84,18 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     if (transfer_id == kSbMediaTransferIdAribStdB67 &&
         (hdr_caps & DisplayInfo::kHdrHlg) == 0) {
       return false;
+    }
+    if (content_type) {
+      for (auto &codec : content_type->GetCodecs()) {
+        bool isDolbyVisionCodec =
+          strncmp(codec.c_str(), "dvhe.", 5) == 0 ||
+          strncmp(codec.c_str(), "dav1.", 5) == 0 ||
+          strncmp(codec.c_str(), "dvh1.", 5) == 0;
+        if (isDolbyVisionCodec &&
+            (hdr_caps & DisplayInfo::kHdrDolbyVision) == 0) {
+          return false;
+        }
+      }
     }
   }
 
