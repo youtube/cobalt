@@ -528,9 +528,8 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
-      - name: Process Test Results
+      - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
-        id: process-results
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
@@ -552,7 +551,6 @@ jobs:
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          test_status: ${{ steps.process-results.outcome }}
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
