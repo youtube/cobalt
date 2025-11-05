@@ -54,12 +54,18 @@ bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
       GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
 }
 
+void RequestTrackingAuthorization() {
+  // This is a stub implementation. Partners can customize it in their starboard
+  // extension.
+}
+
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
     2,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
     &GetTrackingAuthorizationStatus,
+    &RequestTrackingAuthorization,
 
 };
 

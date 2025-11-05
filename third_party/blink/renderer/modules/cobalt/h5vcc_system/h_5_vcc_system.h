@@ -66,6 +66,11 @@ class MODULES_EXPORT H5vccSystem final
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 
+  // Holds promises associated with outstanding async remote_h5vcc_system_
+  // requests so that they can be rejected in the case of a Mojo connection
+  // error.
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
+
   String advertising_id_;
   String tracking_authorization_status_;
 };

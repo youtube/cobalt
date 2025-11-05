@@ -96,6 +96,7 @@ ScriptPromise H5vccSystem::getTrackingAuthorizationStatus(
 void H5vccSystem::OnGetTrackingAuthorizationStatus(
     ScriptPromiseResolver* resolver,
     const String& result) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve(result);
 }
 
@@ -114,6 +115,7 @@ ScriptPromise H5vccSystem::requestTrackingAuthorization(
 
   EnsureReceiverIsBound();
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_system_->RequestTrackingAuthorization(
       WTF::BindOnce(&H5vccSystem::OnRequestTrackingAuthorization,
                     WrapPersistent(this), WrapPersistent(resolver)));
@@ -123,7 +125,7 @@ ScriptPromise H5vccSystem::requestTrackingAuthorization(
 
 void H5vccSystem::OnRequestTrackingAuthorization(
     ScriptPromiseResolver* resolver) {
-  // TODO - b/395650827: Reject when this fails.
+  ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
 

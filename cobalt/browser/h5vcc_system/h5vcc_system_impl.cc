@@ -186,10 +186,20 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO - b/395650827: Connect to Starboard extension.
-  NOTIMPLEMENTED();
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName));
+  const bool is_ifa_version_supported =
+      ifa_api && ifa_api->version >= 2 && ifa_api->RequestTrackingAuthorization;
+  if (!is_ifa_version_supported) {
+    std::move(callback).Run();
+    return;
+  }
+  ifa_api->RequestTrackingAuthorization();
   std::move(callback).Run();
+#endif
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
