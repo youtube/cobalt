@@ -11,10 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#ifndef STARBOARD_EXTENSION_FEATURE_CONFIG_H_
-#define STARBOARD_EXTENSION_FEATURE_CONFIG_H_
-
+//
 // ========================================================================
 //
 // Feature configuration file for Starboard features and feature parameters.
@@ -29,6 +26,8 @@
 //
 // Doing it this way guarantees that features defined in the Chrobalt side and
 // starboard side share the same names, param types and initial default values.
+
+// NOLINT(build/header_guard)
 
 #include "build/build_config.h"
 #include "starboard/configuration.h"
@@ -190,5 +189,3 @@ FEATURE_PARAM_LIST_START
 //                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END
-
-#endif  // STARBOARD_EXTENSION_FEATURE_CONFIG_H_

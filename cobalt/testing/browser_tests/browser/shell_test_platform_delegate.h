@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_TEST_PLATFORM_DELEGATE_H_
 #define COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_TEST_PLATFORM_DELEGATE_H_
 

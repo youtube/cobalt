@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "cobalt/testing/browser_tests/browser/shell_test_platform_delegate.h"
 
 #include "ui/views/test/desktop_test_views_delegate.h"

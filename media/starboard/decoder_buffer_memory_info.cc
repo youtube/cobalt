@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "media/starboard/decoder_buffer_memory_info.h"
 
 #include "media/base/video_codecs.h"
