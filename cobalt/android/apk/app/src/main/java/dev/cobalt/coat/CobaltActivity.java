@@ -63,9 +63,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -101,6 +101,7 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private PlatformError mPlatformError;
+  private InterceptNavigationDelegateClientImpl mInterceptNavigationDelegateClient;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -212,6 +213,10 @@ public abstract class CobaltActivity extends Activity {
             // Inject JavaBridge objects to the WebContents.
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
+
+            mInterceptNavigationDelegateClient =
+                new InterceptNavigationDelegateClientImpl(
+                    getActiveWebContents(), CobaltActivity.this);
 
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
@@ -449,6 +454,10 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+    if (mInterceptNavigationDelegateClient != null) {
+      mInterceptNavigationDelegateClient.destroy();
+      mInterceptNavigationDelegateClient = null;
+    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -556,7 +565,13 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onNewIntent(Intent intent) {
-    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
+    String deepLink = getIntentUrlAsString(intent);
+    if (mShellManager != null && mShellManager.getActiveShell() != null && deepLink != null) {
+      mShellManager.getActiveShell().loadUrl(deepLink);
+    } else {
+      // Fallback to old path if shell isn't ready, though this is unlikely.
+      getStarboardBridge().handleDeepLink(deepLink);
+    }
   }
 
   /**

@@ -62,6 +62,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "components/navigation_interception/intercept_navigation_delegate.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if defined(RUN_BROWSER_TESTS)
@@ -134,11 +135,14 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
-  content::NavigationHandle& navigation_handle =
-      registry.GetNavigationHandle();
+  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
+#if BUILDFLAG(IS_ANDROID)
+  navigation_interception::InterceptNavigationDelegate::MaybeCreateAndAdd(
+      registry, navigation_interception::SynchronyMode::kSync);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 content::GeneratedCodeCacheSettings
@@ -171,9 +175,9 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
 }
 
 void CobaltContentBrowserClient::OverrideWebPreferences(
-                            content::WebContents* web_contents,
-                            content::SiteInstance& main_frame_site,
-                            blink::web_pref::WebPreferences* prefs) {
+    content::WebContents* web_contents,
+    content::SiteInstance& main_frame_site,
+    blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
@@ -181,7 +185,7 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
-                            web_contents, main_frame_site, prefs);
+      web_contents, main_frame_site, prefs);
 }
 
 content::StoragePartitionConfig
@@ -253,8 +257,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
-  // All consumers of the main NetworkContext must provide NetworkAnonymizationKey
-  // / IsolationInfos, so storage can be isolated on a per-site basis.
+  // All consumers of the main NetworkContext must provide
+  // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
+  // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 }
 
