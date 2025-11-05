@@ -92,6 +92,7 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
+#if BUILDFLAG(IS_STARBOARD)
   const StarboardExtensionIfaApi* ifa_api =
       static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName));
@@ -106,6 +107,7 @@ std::string GetTrackingAuthorizationStatusShared() {
     return std::string(status_buffer.data());
   }
   return "UNKNOWN";  // Default return if GetTrackingAuthorizationStatus fails
+#endif
 }
 
 void PerformExitStrategy() {

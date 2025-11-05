@@ -49,9 +49,7 @@ bool GetLimitAdTracking(char* out_value, int value_length) {
 }
 
 bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
-  return CopyStringAndTestIfSuccess(
-      out_value, value_length,
-      GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
+  return CopyStringAndTestIfSuccess(out_value, value_length, "NOT_SUPPORTED");
 }
 
 void RequestTrackingAuthorization() {
