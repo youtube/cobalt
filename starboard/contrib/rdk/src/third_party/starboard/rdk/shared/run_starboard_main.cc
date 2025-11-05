@@ -41,6 +41,7 @@
 #include "starboard/shared/signal/suspend_signals.h"
 
 #include "third_party/starboard/rdk/shared/application_rdk.h"
+#include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
 #include <cstdio>
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -103,9 +104,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::InstallSuspendSignalHandlers();
   starboard::InstallStopSignalHandlers();
 
-  GError* error = NULL;
-  gst_init_check(NULL, NULL, &error);
-  g_free(error);
+  starboard::EnsureGstInit();
 
   if (const char *env = std::getenv("COBALT_OVERRIDE_GST_DEBUG_LOG");
       env && g_str_equal(env, "1")) {
