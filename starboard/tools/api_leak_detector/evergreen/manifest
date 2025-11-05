@@ -46,5 +46,4 @@ sigaltstack
 stat64
 statx
 ungetwc
-unlinkat
 uselocale
