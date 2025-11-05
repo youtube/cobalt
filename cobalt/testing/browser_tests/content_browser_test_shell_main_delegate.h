@@ -23,7 +23,7 @@
 namespace content {
 
 // Acts like normal ShellMainDelegate but inserts behaviour for browser tests.
-class ContentBrowserTestShellMainDelegate : public ShellMainDelegate {
+class ContentBrowserTestShellMainDelegate : public ShellMainTestDelegate {
  public:
   ContentBrowserTestShellMainDelegate();
   ~ContentBrowserTestShellMainDelegate() override;
