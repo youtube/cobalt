@@ -36,10 +36,10 @@
 
 namespace cobalt {
 
-constexpr auto kMemoryPressureInjectionDelay = base::Seconds(60);
-
 namespace {
 #if BUILDFLAG(IS_ANDROIDTV)
+constexpr auto kMemoryPressureInjectionDelay = base::Seconds(60);
+
 // This function injects a MODERATE memory pressure and rearms itself.
 void InjectMemoryPressureNotification() {
   base::MemoryPressureListener::NotifyMemoryPressure(
