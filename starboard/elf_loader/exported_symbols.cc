@@ -20,6 +20,8 @@
 
 #include <dirent.h>
 
+#include "build/build_config.h"
+
 // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <dlfcn.h>
@@ -60,6 +62,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_sched_abi_wrappers.h"
@@ -327,6 +330,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fchmod);
   REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fcntl);
+  REGISTER_WRAPPER(fdopendir);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
@@ -351,6 +355,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(poll);
+  REGISTER_WRAPPER(prctl);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
