@@ -5072,7 +5072,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   GURL url = embedded_test_server()->GetURL("a.com", "/title1.html");
   auto* rfh = static_cast<RenderFrameHostImpl*>(CreateSubframe(
       web_contents, "" /* frame_id */, url, true /* wait_for_navigation */));
-  ;
   ASSERT_NE(rfh, nullptr);
   EXPECT_EQ(web_contents->max_loaded_frame_count_, 3u);
 
@@ -6203,7 +6202,6 @@ class MediaWaiter : public WebContentsObserver {
   void MediaStartedPlaying(const MediaPlayerInfo& video_type,
                            const MediaPlayerId& id) override {
     started_media_id_ = id;
-    ;
     media_started_playing_loop_.Quit();
   }
   void MediaDestroyed(const MediaPlayerId& id) override {

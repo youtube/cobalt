@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
-#define COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
+#ifndef COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
+#define COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
 
 #include <memory>
 
@@ -89,4 +89,4 @@ class CobaltMetricsServicesManagerClient
 
 }  // namespace cobalt
 
-#endif  // COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
+#endif  // COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_

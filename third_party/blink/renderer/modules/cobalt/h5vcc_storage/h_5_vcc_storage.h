@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
 
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -40,4 +40,4 @@ class MODULES_EXPORT H5vccStorage final
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_STORAGE_H_5_VCC_STORAGE_H_

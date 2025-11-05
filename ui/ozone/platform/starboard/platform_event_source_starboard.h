@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
-#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
+#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
 
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
@@ -49,4 +49,4 @@ class PlatformEventSourceStarboard : public ui::PlatformEventSource {
 
 }  // namespace starboard
 
-#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
