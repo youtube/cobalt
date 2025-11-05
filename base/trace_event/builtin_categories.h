@@ -98,6 +98,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("cdp.perf"),
     perfetto::Category("chromeos"),
     perfetto::Category("cma"),
+    //perfetto::Category("cobalt"),
     perfetto::Category("compositor"),
     // Config categories do not emit trace events, but are used to configure
     // enabling additional information at runtime, which then is emitted in
