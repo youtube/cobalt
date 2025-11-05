@@ -296,8 +296,7 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
       config.overlay_plane_id, config.audio_write_duration_local,
       config.audio_write_duration_remote, config.max_video_capabilities,
-      config.h5vcc_settings,
-      std::move(renderer_extension_receiver),
+      config.h5vcc_settings, std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
         &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
   return CreatePlatformStarboardRenderer(std::move(traits));
