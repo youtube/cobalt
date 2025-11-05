@@ -607,17 +607,6 @@ class MediaCodecBridge {
     release();
   }
 
-  private void stop() {
-    synchronized (mNativeBridgeLock) {
-      mNativeMediaCodecBridge = 0;
-    }
-    try {
-      mMediaCodec.get().stop();
-    } catch (Exception e) {
-      Log.e(TAG, "Failed to stop MediaCodec", e);
-    }
-  }
-
   public void release() {
     try {
       String codecName = mMediaCodec.get().getName();
@@ -630,11 +619,9 @@ class MediaCodecBridge {
     }
     mMediaCodec.set(null);
   }
-
   public boolean start() {
     return start(null);
   }
-
   @CalledByNative
   private boolean restart() {
     // Restart MediaCodec after flush().
@@ -699,6 +686,17 @@ class MediaCodecBridge {
       return MediaCodecStatus.ERROR;
     }
     return MediaCodecStatus.OK;
+  }
+
+  private void stop() {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = 0;
+    }
+    try {
+      mMediaCodec.get().stop();
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to stop MediaCodec", e);
+    }
   }
 
   @CalledByNative
