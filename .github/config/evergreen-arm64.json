@@ -3,6 +3,7 @@
   "platforms": [
     "evergreen-arm64"
   ],
+  "test_package": true,
   "targets": [
     "cobalt"
   ],

@@ -1,6 +1,9 @@
 name: Test Artifact Upload
 description: Uploads test archives for on-device and on-host tests.
 inputs:
+  upload_e2e_test_artifacts:
+    description: "Indicates if on-host test artifacts should be uploaded."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -29,6 +32,7 @@ runs:
         done
       shell: bash
     - name: Archive Test Dependencies
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
@@ -61,18 +65,15 @@ runs:
       if: inputs.upload_on_device_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Upload On-Device Test Artifacts to GCS
-      if: inputs.upload_on_device_test_artifacts == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
 
-        # Add Cobalt artifacts for smoke tests.
-        if [[ "${{ matrix.platform }}" == *android* ]]; then
-          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
-             "${GITHUB_WORKSPACE}/artifacts/"
-        elif [[ "${{ matrix.platform }}" == *"evergreen"* ]]; then
+        # Add Cobalt release artifacts for smoke tests.
+        if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
           cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/test-package/*" \
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
