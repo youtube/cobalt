@@ -207,6 +207,8 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       } else if (value->is_int_value()) {
         renderer_factory_traits->h5vcc_settings.emplace(key,
                                                         value->get_int_value());
+      } else {
+        NOTREACHED();
       }
     }
   }
