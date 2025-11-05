@@ -77,9 +77,9 @@ void H5vccExperimentsImpl::SetExperimentState(
       variations::prefs::kVariationsCrashStreak, 0);
   // At this point, have set the crash streak to 0 in the metrics_local_state
   // file. Do the same for the Variations beacon file to keep them in sync by
-  // calling WriteBeaconValue(true), which leads to the call of
-  // WriteBeaconFile(). This function reads the 0 value we just set in
-  // metrics_local_state and updates the beacon file accordingly.
+  // calling WriteBeaconValue(true). This eventually leads to the read
+  // of the 0 value we just set in metrics_local_state and updates the
+  // beacon file accordingly.
   //
   // WriteBeaconValue(true) also means we're saying the current session
   // exited cleanly, or that we're in a "clean state". This solves an edge
