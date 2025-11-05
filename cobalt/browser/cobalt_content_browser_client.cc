@@ -349,7 +349,6 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
   registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
       video_geometry_setter_service_->GetBindSubscriberCallback(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-
   registry->AddInterface<cobalt::mojom::H5vccSettings>(
       base::BindRepeating(&H5vccSettingsImpl::Create),
       base::SingleThreadTaskRunner::GetCurrentDefault());
