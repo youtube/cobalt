@@ -24,6 +24,7 @@
 #include "content/public/browser/browser_thread.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "base/memory/memory_pressure_listener.h"
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #endif
@@ -38,6 +39,7 @@ namespace cobalt {
 constexpr auto kMemoryPressureInjectionDelay = base::Seconds(60);
 
 namespace {
+#if BUILDFLAG(IS_ANDROIDTV)
 // This function injects a MODERATE memory pressure and rearms itself.
 void InjectMemoryPressureNotification() {
   base::MemoryPressureListener::NotifyMemoryPressure(
@@ -47,6 +49,7 @@ void InjectMemoryPressureNotification() {
       FROM_HERE, base::BindOnce(&InjectMemoryPressureNotification),
       kMemoryPressureInjectionDelay);
 }
+#endif
 }  // namespace
 
 int CobaltBrowserMainParts::PreCreateThreads() {
