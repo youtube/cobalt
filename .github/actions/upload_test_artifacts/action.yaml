@@ -74,7 +74,7 @@ runs:
 
         # Add Cobalt release artifacts for smoke tests.
         if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
-          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/test-package/*" \
+          cp "${GITHUB_WORKSPACE}/src/out/test-package/*" \
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
