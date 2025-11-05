@@ -15,6 +15,7 @@
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
+    "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
