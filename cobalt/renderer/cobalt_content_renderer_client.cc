@@ -5,6 +5,7 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
@@ -98,6 +99,11 @@ void CobaltContentRendererClient::RenderFrameCreated(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
+
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -186,6 +192,27 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       base::Microseconds(kSbPlayerWriteDurationLocal);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
+
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
+
+  cobalt::mojom::SettingsPtr settings;
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+    for (auto& [key, value] : settings->settings) {
+      if (value->is_string_value()) {
+        renderer_factory_traits->h5vcc_settings.emplace(
+            key, std::move(value->get_string_value()));
+      } else if (value->is_int_value()) {
+        renderer_factory_traits->h5vcc_settings.emplace(key,
+                                                        value->get_int_value());
+      } else {
+        NOTREACHED();
+      }
+    }
+  }
+
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(

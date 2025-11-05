@@ -25,6 +25,10 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <map>
+#include <string>
+
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/gpu/starboard/starboard_gpu_factory.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -142,6 +146,7 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -158,6 +163,7 @@ struct StarboardRendererTraits {
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      std::map<std::string, H5vccSettingValue> h5vcc_settings,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>

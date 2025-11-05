@@ -51,6 +51,7 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
               ? kAudioWriteDurationRemote.Get()
               : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
+      h5vcc_settings_(traits->h5vcc_settings),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
@@ -102,7 +103,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   // Initialize StarboardRendererWrapper via StarboardRendererConfig.
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
-      audio_write_duration_remote_, max_video_capabilities_);
+      audio_write_duration_remote_, max_video_capabilities_, h5vcc_settings_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote), config,

@@ -14,7 +14,10 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include <variant>
+
 #include "base/feature_list.h"
+#include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
@@ -139,6 +142,17 @@ void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
   }
 }
 
+bool ShouldUseExternalAllocator(
+    const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
+  auto it = h5vcc_settings.find("Media.DisableExternalAllocator");
+  if (it != h5vcc_settings.end()) {
+    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
+      return *value_ptr != 1;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -147,7 +161,8 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    const std::map<std::string, H5vccSettingValue> h5vcc_settings)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -156,11 +171,18 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
+            << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", max_video_capabilities="
+            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", use_external_allocator="
+            << (use_external_allocator_ ? "true" : "false");
 }
 
 StarboardRenderer::~StarboardRenderer() {

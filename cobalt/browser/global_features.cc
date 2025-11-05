@@ -91,14 +91,10 @@ void GlobalFeatures::set_accessor(
   accessor_ = std::move(accessor);
 }
 
-std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
-    const std::string& key) const {
+const absl::flat_hash_map<std::string, GlobalFeatures::SettingValue>&
+GlobalFeatures::GetSettings() const {
   base::AutoLock auto_lock(lock_);
-  auto it = settings_.find(key);
-  if (it != settings_.end()) {
-    return it->second;
-  }
-  return std::nullopt;
+  return settings_;
 }
 
 void GlobalFeatures::SetSettings(const std::string& key,

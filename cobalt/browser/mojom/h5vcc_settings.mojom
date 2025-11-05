@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module h5vcc_settings.mojom;
+module cobalt.mojom;
 
-union Value {
+union SettingValue {
   string string_value;
   int64 int_value;
 };
 
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the H5vccSettings Blink API.
+struct Settings {
+  map<string, SettingValue> settings;
+};
+
 interface H5vccSettings {
-    SetValue(string name, Value value) => ();
+  // Synchronous call is used here because this is called before player
+  // creation. Though it blocks the render thread, it is acceptable, since it
+  // happens only at the construction stage.
+  [Sync]
+  GetSettings() => (Settings settings);
 };
