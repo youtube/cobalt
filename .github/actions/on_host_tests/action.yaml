@@ -56,7 +56,7 @@ runs:
           filename=$(basename "${test_binary_path}")
           test_binary="${filename%%.*}"
 
-          if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" ~= "^nplb" ]]; then
+          if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" =~ ^nplb ]]; then
             # Workaround for nplb not supporting sharding.
             continue
           fi
