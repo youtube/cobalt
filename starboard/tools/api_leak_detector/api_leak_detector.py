@@ -262,7 +262,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'sysconf',
     'uname',
     'unlink',
-    'unlinkat',
     'usleep',
     'utimensat',
     'vfwprintf',
@@ -271,10 +270,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
-
-    # TODO: b/406081586 - Symbols that haven't been implemented yet but will be.
-    'putchar',
-    'fputs',
 ]
 
 

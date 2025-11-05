@@ -4,10 +4,6 @@
 #if defined(STARBOARD)
 #include "pthread_impl.h"
 
-#define ASSERT_IS_TYPE(var, type) \
-    static_assert(_Generic((var), type: 1, default: 0), \
-                  #var " is not of type " #type)
-
 hidden void __lock(StarboardPthreadCondMutex *);
 hidden void __unlock(StarboardPthreadCondMutex *);
 

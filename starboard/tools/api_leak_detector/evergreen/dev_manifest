@@ -47,5 +47,6 @@ setlocale
 sigaltstack
 stat64
 statx
+unlinkat
 ungetwc
 uselocale

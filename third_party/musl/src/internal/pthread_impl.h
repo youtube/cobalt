@@ -34,13 +34,13 @@ typedef struct {
 #define __pthread_self() \
   (&(StarboardPthreadStub){ .tid = SbThreadGetId() })
 
-	typedef struct {
-		volatile int lock;
-		pthread_mutex_t mutex;
-		pthread_cond_t cond;
-	} StarboardPthreadCondMutex;
+typedef struct {
+	volatile int lock;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+} StarboardPthreadCondMutex;
 
-	static inline void __cond_mutex_pair_init(StarboardPthreadCondMutex* pair) {
+static inline void __cond_mutex_pair_init(StarboardPthreadCondMutex* pair) {
 	pthread_mutexattr_t attr;
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
