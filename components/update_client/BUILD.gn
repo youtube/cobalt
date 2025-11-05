@@ -176,6 +176,12 @@ static_library("update_client") {
     "//url",
   ]
 
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_headers_only",
+    ]
+  }
+
   if (is_cobalt_hermetic_build) {
     sources += [
       "cobalt_slot_management.cc",
@@ -183,7 +189,6 @@ static_library("update_client") {
     ]
 
     deps += [
-      "//starboard:starboard_headers_only",
       "//starboard/loader_app:app_key_files",
       "//starboard/loader_app:drain_file",
     ]

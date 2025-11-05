@@ -316,8 +316,8 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
   if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
       sb_version >= 14 && sb_version <= 16) {
-    it = kChannelAndSbVersionToOmahaIdMap.find(
-        "prod" + std::to_string(sb_version));
+    it = kChannelAndSbVersionToOmahaIdMap.find("prod" +
+                                               std::to_string(sb_version));
     if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
       return it->second;
     }
