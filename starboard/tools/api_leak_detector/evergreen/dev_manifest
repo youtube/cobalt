@@ -27,17 +27,6 @@ fwrite
 getc
 localeconv
 newlocale
-<<<<<<< HEAD
-prctl
-=======
-open64
-openat
-pkey_alloc(unsigned int, unsigned int)
-pkey_free(int)
-pkey_get(int)
-pkey_mprotect(void*, unsigned long, int, int)
-pkey_set(int, unsigned int)
->>>>>>> df0ce3c15a4 (POSIX: Add prctl to Starboard (#7697))
 printf
 puts
 rewind
