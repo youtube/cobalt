@@ -64,7 +64,6 @@ long syscall(long number, ...) {
     case __NR_close: {
       int fildes = va_arg(ap, int);
       va_end(ap);
-      printf("Syscall function is called with number __NR_close\n");
       return libc_wrapper_SYS_close(fildes);
     }
 #endif
@@ -74,14 +73,12 @@ long syscall(long number, ...) {
       int op = va_arg(ap, int);
       void* arg = va_arg(ap, void*);
       va_end(ap);
-      printf("Syscall function is called with number __NR_gettid\n");
       return libc_wrapper_SYS_fcntl(fd, op, arg);
     }
 #endif
 #ifdef __NR_gettid
     case __NR_gettid:
       va_end(ap);
-      printf("Syscall function is called with number __NR_gettid\n");
       return libc_wrapper_SYS_gettid();
 #endif
 #ifdef __NR_lseek
@@ -90,7 +87,6 @@ long syscall(long number, ...) {
       off_t offset = va_arg(ap, off_t);
       int whence = va_arg(ap, int);
       va_end(ap);
-      printf("Syscall function is called with number __NR_lseek\n");
       return libc_wrapper_SYS_lseek(fildes, offset, whence);
     }
 #endif
@@ -99,7 +95,6 @@ long syscall(long number, ...) {
       const char *pathname = va_arg(ap, const char *);
       struct stat * statbuf = va_arg(ap, struct stat *);
       va_end(ap);
-      printf("Syscall function is called with number __NR_lstat\n");
       return libc_wrapper_SYS_lstat(pathname, statbuf);
     }
 #endif
@@ -109,7 +104,6 @@ long syscall(long number, ...) {
       int flags = va_arg(ap, int);
       mode_t mode = va_arg(ap, mode_t);
       va_end(ap);
-      printf("Syscall function is called with number __NR_open\n");
       return libc_wrapper_SYS_open(pathname, flags, mode);
     }
 #endif
@@ -119,7 +113,6 @@ long syscall(long number, ...) {
       void* buf = va_arg(ap, void*);
       size_t nbyte = va_arg(ap, size_t);
       va_end(ap);
-      printf("Syscall function is called with number __NR_read\n");
       return libc_wrapper_SYS_read(fildes, buf, nbyte);
     }
 #endif
@@ -129,7 +122,6 @@ long syscall(long number, ...) {
       const struct iovec* iov = va_arg(ap, const struct iovec*);
       int iovcnt = va_arg(ap, int);
       va_end(ap);
-      printf("Syscall function is called with number __NR_readv\n");
       return libc_wrapper_SYS_readv(fildes, iov, iovcnt);
     }
 #endif
@@ -137,7 +129,6 @@ long syscall(long number, ...) {
     case __NR_rmdir: {
       const char* pathname = va_arg(ap, const char*);
       va_end(ap);
-      printf("Syscall function is called with number __NR_rmdir\n");
       return libc_wrapper_SYS_rmdir(pathname);
     }
 #endif
@@ -146,7 +137,6 @@ long syscall(long number, ...) {
       const char *pathname = va_arg(ap, const char *);
       struct stat * statbuf = va_arg(ap, struct stat *);
       va_end(ap);
-      printf("Syscall function is called with number __NR_stat\n");
       return libc_wrapper_SYS_stat(pathname, statbuf);
     }
 #endif
@@ -154,7 +144,6 @@ long syscall(long number, ...) {
     case __NR_unlink: {
       const char* pathname = va_arg(ap, const char*);
       va_end(ap);
-      printf("Syscall function is called with number __NR_unlink\n");
       return libc_wrapper_SYS_unlink(pathname);
     }
 #endif
@@ -164,7 +153,6 @@ long syscall(long number, ...) {
       const void* buf = va_arg(ap, const void*);
       size_t nbyte = va_arg(ap, size_t);
       va_end(ap);
-      printf("Syscall function is called with number __NR_write\n");
       return libc_wrapper_SYS_write(fildes, buf, nbyte);
     }
 #endif
@@ -174,14 +162,12 @@ long syscall(long number, ...) {
       const struct iovec* iov = va_arg(ap, const struct iovec*);
       int iovcnt = va_arg(ap, int);
       va_end(ap);
-      printf("Syscall function is called with number __NR_writev\n");
       return libc_wrapper_SYS_writev(fildes, iov, iovcnt);
     }
 #endif
     default:
       va_end(ap);
       errno = ENOSYS;
-      printf("Syscall function is called ENOSYS\n");
       return -1;
   }
 }
