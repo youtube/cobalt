@@ -1,4 +1,3 @@
-
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,19 +85,7 @@ public class CobaltServiceTest {
     // Capture the JavaScript code passed to evaluateJavaScript.
     String actualJsCode = jsCodeCaptor.getValue();
 
-    // Construct the *expected* JavaScript code string.
-    // We use Locale.US here in the test to ensure the formatting matches
-    // what is expected when Locale.US is used in the production code.
-    String jsCodeTemplate =
-        "((w) => {\n"
-            + "  let targetWindow = w;\n"
-            + "  const appIframe = document.getElementById('anchor');\n"
-            + "  if (appIframe?.contentWindow) {\n"
-            + "    targetWindow = appIframe.contentWindow;\n"
-            + "  }\n"
-            + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
-            + "})(window)";
-    String expectedJsCode = String.format(Locale.US, jsCodeTemplate, testNativeService, expectedBase64Data);
+    String expectedJsCode = String.format(Locale.US, CobaltService.jsCodeTemplate, testNativeService, expectedBase64Data);
 
     // Assert that the captured JS code matches the expected code formatted with Locale.US.
     assertEquals(expectedJsCode, actualJsCode);
@@ -123,30 +110,13 @@ public class CobaltServiceTest {
       verify(mockCobaltActivity).evaluateJavaScript(jsCodeCaptor.capture());
       String actualJsCode = jsCodeCaptor.getValue();
 
-      // Construct the *expected* JavaScript code string using Locale.US.
-      // The key is that even with the default locale set to Arabic,
-      // the result should match what String.format(Locale.US, ...) produces.
-      String jsCodeTemplate =
-          "((w) => {\n"
-              + "  let targetWindow = w;\n"
-              + "  const appIframe = document.getElementById('anchor');\n"
-              + "  if (appIframe?.contentWindow) {\n"
-              + "    targetWindow = appIframe.contentWindow;\n"
-              + "  }\n"
-              + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
-              + "})(window)";
-      String expectedJsCode = String.format(Locale.US, jsCodeTemplate, testNativeService, expectedBase64Data);
+      String expectedJsCode = String.format(Locale.US, CobaltService.jsCodeTemplate, testNativeService, expectedBase64Data);
 
       // Assert that the captured JS code matches the expected code formatted with Locale.US.
       // If Locale.US was NOT used in sendToClient, and the default was Arabic,
       // the number 12345 would likely be formatted differently (e.g., with Arabic numerals),
       // causing this assertion to fail.
       assertEquals(expectedJsCode, actualJsCode);
-
-      // Example of what would happen without Locale.US when default is Arabic:
-      // String badFormat = String.format(jsCodeTemplate, testNativeService, expectedBase64Data);
-      // This would likely contain Arabic numerals, failing the comparison with expectedJsCode.
-
     } finally {
       // Restore the original default locale to avoid affecting other tests.
       Locale.setDefault(originalLocale);
