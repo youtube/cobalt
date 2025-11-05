@@ -208,23 +208,38 @@ class SmapsCaptureTest(unittest.TestCase):
         'test_logs/smaps_20250101_120000_54321.txt')
     self.mock_os.path.getsize.return_value = 1024
 
-    # Mock the reading of the /proc file
-    mock_proc_file = MagicMock()
-    mock_proc_file.read.return_value = 'linux smaps content'
-    # First open is for reading /proc, second is for writing the log
+    smaps_content_lines = ['line1\n', 'line2\n', 'line3\n']
+
+    # Create a mock for the input file (smaps_file)
+    mock_smaps_file_read = MagicMock()
+    mock_smaps_file_read.__enter__.return_value = mock_smaps_file_read
+    mock_smaps_file_read.__iter__.return_value = iter(smaps_content_lines)
+
+    # Create a mock for the output file (output_file)
+    mock_output_file_write = MagicMock()
+    mock_output_file_write.__enter__.return_value = mock_output_file_write
+
+    # Configure self.mock_open to return these two mocks sequentially
     self.mock_open.side_effect = [
-        unittest.mock.mock_open(read_data='linux smaps content').return_value,
-        self.mock_open.return_value
+        mock_smaps_file_read,  # First call to open (for smaps_path)
+        mock_output_file_write  # Second call to open (for output_filename)
     ]
 
     capturer = self.create_capturer(platform='linux')
     capturer.capture_smaps('54321')
 
-    self.mock_open.assert_any_call('/proc/54321/smaps', 'r', encoding='utf-8')
-    self.mock_open.assert_any_call(
-        'test_logs/smaps_20250101_120000_54321.txt', 'w', encoding='utf-8')
-    self.mock_file_handle.write.assert_called_with('linux smaps content')
-    self.mock_os.path.getsize.assert_called()
+    # Assert that open was called for both files
+    self.mock_open.assert_has_calls([
+        call('/proc/54321/smaps', 'r', encoding='utf-8'),
+        call(
+            'test_logs/smaps_20250101_120000_54321.txt', 'w', encoding='utf-8')
+    ])
+
+    # Assert that each line was written to the output file
+    mock_output_file_write.write.assert_has_calls(
+        [call(line) for line in smaps_content_lines])
+    self.mock_os.path.getsize.assert_called_with(
+        'test_logs/smaps_20250101_120000_54321.txt')
 
   def test_capture_smaps_dispatches_correctly(self):
     """Tests that capture_smaps calls the correct platform-specific method."""

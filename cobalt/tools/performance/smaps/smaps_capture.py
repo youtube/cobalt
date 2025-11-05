@@ -120,10 +120,10 @@ class SmapsCapturer:
     print(f'[{timestamp}] Capturing {smaps_path}...')
 
     try:
-      with self.open(smaps_path, 'r', encoding='utf-8') as smaps_file:
-        smaps_content = smaps_file.read()
-      with self.open(output_filename, 'w', encoding='utf-8') as f:
-        f.write(smaps_content)
+      with self.open(smaps_path, 'r', encoding='utf-8') as smaps_file, \
+           self.open(output_filename, 'w', encoding='utf-8') as output_file:
+        for line in smaps_file:
+          output_file.write(line)
       file_size = self.os.path.getsize(output_filename) / 1024
       print(f'[{timestamp}] Capture successful. '
             f'File size: {file_size:.2f} KB')
