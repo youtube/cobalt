@@ -74,8 +74,9 @@ class SmapsCapturer:
           command, capture_output=True, text=True, check=False, timeout=10)
       if result.returncode == 0:
         # pidof can return multiple PIDs, we take the first one.
-        pid = result.stdout.strip().split()[0]
-        return pid if pid.isdigit() else None
+        pids = result.stdout.strip().split()
+        if pids and pids[0].isdigit():
+          return pids[0]
       return None
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(f'Error during Linux PID retrieval: {e}')

@@ -135,6 +135,23 @@ class SmapsCaptureTest(unittest.TestCase):
                                                      check=False,
                                                      timeout=10)
 
+  def test_get_pid_linux_empty_pidof_output(self):
+    """Tests that an empty stdout from pidof is handled correctly."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0
+    mock_process.stdout = '   '  # Whitespace only
+    self.mock_subprocess.run.return_value = mock_process
+
+    capturer = self.create_capturer(platform='linux')
+    pid = capturer.get_pid()
+
+    self.assertIsNone(pid)
+    self.mock_subprocess.run.assert_called_once_with(['pidof', 'test.process'],
+                                                     capture_output=True,
+                                                     text=True,
+                                                     check=False,
+                                                     timeout=10)
+
   def test_get_pid_dispatches_correctly(self):
     """Tests that get_pid calls the correct platform-specific method."""
     capturer_android = self.create_capturer(platform='android')
