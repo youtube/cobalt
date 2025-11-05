@@ -43,6 +43,7 @@ class SmapsCaptureTest(unittest.TestCase):
     """Creates an instance of SmapsCapturer with mocked dependencies."""
     config = MagicMock()
     config.process_name = 'test.process'
+    config.platform = 'android'  # Default to android for existing tests
     config.device_serial = 'test-serial'
     config.adb_path = 'adb'
     config.interval_minutes = 1
@@ -66,9 +67,10 @@ class SmapsCaptureTest(unittest.TestCase):
     """Tests that command-line arguments are correctly parsed and passed."""
     # Simulate command-line arguments
     test_argv = [
-        '--process_name', 'custom.process', '--interval_minutes', '5',
-        '--capture_duration_seconds', '300', '--output_dir', 'custom_logs',
-        '--device_serial', 'custom-serial', '--adb_path', '/custom/adb'
+        '--platform', 'linux', '--process_name', 'custom.process',
+        '--interval_minutes', '5', '--capture_duration_seconds', '300',
+        '--output_dir', 'custom_logs', '--device_serial', 'custom-serial',
+        '--adb_path', '/custom/adb'
     ]
 
     run_smaps_capture_tool(test_argv)
@@ -77,6 +79,7 @@ class SmapsCaptureTest(unittest.TestCase):
     # attributes
     mock_capturer.assert_called_once()
     args, _ = mock_capturer.call_args
+    self.assertEqual(args[0].platform, 'linux')
     self.assertEqual(args[0].process_name, 'custom.process')
     self.assertEqual(args[0].interval_minutes, 5)
     self.assertEqual(args[0].capture_duration_seconds, 300)
@@ -97,18 +100,52 @@ class SmapsCaptureTest(unittest.TestCase):
     command = capturer.build_adb_command('shell', 'ls')
     self.assertEqual(command, ['adb', 'shell', 'ls'])
 
-  def test_get_pid_success(self):
-    """Tests successful PID retrieval."""
+  def test_get_pid_android_success(self):
+    """Tests successful PID retrieval on Android."""
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = '12345\r\n'
     self.mock_subprocess.run.return_value = mock_process
 
-    capturer = self.create_capturer()
+    capturer = self.create_capturer(platform='android')
     pid = capturer.get_pid()
 
     self.assertEqual(pid, '12345')
-    self.mock_subprocess.run.assert_called_once()
+    self.mock_subprocess.run.assert_called_once_with(
+        ['adb', '-s', 'test-serial', 'shell', 'pidof', 'test.process'],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10)
+
+  def test_get_pid_linux_success(self):
+    """Tests successful PID retrieval on Linux."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0
+    mock_process.stdout = '54321'
+    self.mock_subprocess.run.return_value = mock_process
+
+    capturer = self.create_capturer(platform='linux')
+    pid = capturer.get_pid()
+
+    self.assertEqual(pid, '54321')
+    self.mock_subprocess.run.assert_called_once_with(['pidof', 'test.process'],
+                                                     capture_output=True,
+                                                     text=True,
+                                                     check=False,
+                                                     timeout=10)
+
+  def test_get_pid_dispatches_correctly(self):
+    """Tests that get_pid calls the correct platform-specific method."""
+    capturer_android = self.create_capturer(platform='android')
+    capturer_android.get_pid_android = MagicMock(return_value='android-pid')
+    self.assertEqual(capturer_android.get_pid(), 'android-pid')
+    capturer_android.get_pid_android.assert_called_once()
+
+    capturer_linux = self.create_capturer(platform='linux')
+    capturer_linux.get_pid_linux = MagicMock(return_value='linux-pid')
+    self.assertEqual(capturer_linux.get_pid(), 'linux-pid')
+    capturer_linux.get_pid_linux.assert_called_once()
 
   def test_get_pid_not_found(self):
     """Tests when the process is not found."""
@@ -124,29 +161,66 @@ class SmapsCaptureTest(unittest.TestCase):
 
   def test_get_pid_exception(self):
     """Tests exception handling during PID retrieval."""
-    self.mock_subprocess.run.side_effect = Exception('ADB error')
+    self.mock_subprocess.run.side_effect = Exception('Error')
     capturer = self.create_capturer()
     pid = capturer.get_pid()
     self.assertIsNone(pid)
 
-  def test_capture_smaps_success(self):
-    """Tests a successful smaps capture."""
+  def test_capture_smaps_android_success(self):
+    """Tests a successful smaps capture on Android."""
     mock_process = MagicMock()
     mock_process.returncode = 0
-    mock_process.stdout = 'smaps content'
+    mock_process.stdout = 'android smaps content'
     self.mock_subprocess.run.return_value = mock_process
     self.mock_os.path.join.return_value = (
         'test_logs/smaps_20250101_120000_12345.txt')
     self.mock_os.path.getsize.return_value = 1024
 
-    capturer = self.create_capturer()
+    capturer = self.create_capturer(platform='android')
     capturer.capture_smaps('12345')
 
     self.mock_open.assert_called_with(
         'test_logs/smaps_20250101_120000_12345.txt', 'w', encoding='utf-8')
-    self.mock_file_handle.write.assert_called_with('smaps content')
+    self.mock_file_handle.write.assert_called_with('android smaps content')
     self.mock_os.path.getsize.assert_called()
     self.mock_os.remove.assert_not_called()
+
+  def test_capture_smaps_linux_success(self):
+    """Tests a successful smaps capture on Linux."""
+    self.mock_os.path.join.return_value = (
+        'test_logs/smaps_20250101_120000_54321.txt')
+    self.mock_os.path.getsize.return_value = 1024
+
+    # Mock the reading of the /proc file
+    mock_proc_file = MagicMock()
+    mock_proc_file.read.return_value = 'linux smaps content'
+    # First open is for reading /proc, second is for writing the log
+    self.mock_open.side_effect = [
+        unittest.mock.mock_open(read_data='linux smaps content').return_value,
+        self.mock_open.return_value
+    ]
+
+    capturer = self.create_capturer(platform='linux')
+    capturer.capture_smaps('54321')
+
+    self.mock_open.assert_any_call('/proc/54321/smaps', 'r', encoding='utf-8')
+    self.mock_open.assert_any_call(
+        'test_logs/smaps_20250101_120000_54321.txt', 'w', encoding='utf-8')
+    self.mock_file_handle.write.assert_called_with('linux smaps content')
+    self.mock_os.path.getsize.assert_called()
+
+  def test_capture_smaps_dispatches_correctly(self):
+    """Tests that capture_smaps calls the correct platform-specific method."""
+    capturer_android = self.create_capturer(platform='android')
+    capturer_android.capture_smaps_android = MagicMock()
+    capturer_android.capture_smaps('android-pid')
+    capturer_android.capture_smaps_android.assert_called_once_with(
+        'android-pid')
+
+    capturer_linux = self.create_capturer(platform='linux')
+    capturer_linux.capture_smaps_linux = MagicMock()
+    capturer_linux.capture_smaps('linux-pid')
+    capturer_linux.capture_smaps_linux.assert_called_once_with('linux-pid')
 
   def test_capture_smaps_failure(self):
     """Tests a failed smaps capture."""
@@ -158,7 +232,7 @@ class SmapsCaptureTest(unittest.TestCase):
         'test_logs/smaps_20250101_120000_12345.txt')
     self.mock_os.path.exists.return_value = True
 
-    capturer = self.create_capturer()
+    capturer = self.create_capturer(platform='android')
     capturer.capture_smaps('1234f')
 
     self.mock_os.remove.assert_called_with(
