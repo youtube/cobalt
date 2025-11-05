@@ -619,9 +619,11 @@ class MediaCodecBridge {
     }
     mMediaCodec.set(null);
   }
+
   public boolean start() {
     return start(null);
   }
+
   @CalledByNative
   private boolean restart() {
     // Restart MediaCodec after flush().
