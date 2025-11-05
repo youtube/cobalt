@@ -2032,9 +2032,11 @@ void PlayerImpl::OnVideoBufferUnderflow(PlayerImpl* self)
 {
   GST_WARNING_OBJECT(self->pipeline_,
     "Decoder need data state = 0x%x,"
+    " min sample time = %" GST_TIME_FORMAT ","
     " video appsrc level = %" G_GUINT64_FORMAT " kb,"
     " audio appsrc level = %" G_GUINT64_FORMAT " kb",
     self->decoder_state_data_,
+    GST_TIME_ARGS(self->MinTimestamp(nullptr)),
     gst_app_src_get_current_level_bytes(GST_APP_SRC(self->video_appsrc_)) / 1024,
     gst_app_src_get_current_level_bytes(GST_APP_SRC(self->audio_appsrc_)) / 1024);
 }
