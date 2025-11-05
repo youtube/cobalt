@@ -8,11 +8,7 @@
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
-<<<<<<< HEAD
-                "native_target/crashpad_handler"
-=======
                 "lib.unstripped/libcobalt.so"
->>>>>>> 87c7500e390 (Package unstripped Evergreen libcobalt.so (#7778))
             ],
             "dirs": [
                 "app",
