@@ -55,7 +55,6 @@ pkey_free(int)
 pkey_get(int)
 pkey_mprotect(void*, unsigned long, int, int)
 pkey_set(int, unsigned int)
-prctl
 printf
 puts
 rewind
