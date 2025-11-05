@@ -63,7 +63,7 @@ runs:
         path: artifacts/*
         retention-days: 3
     - name: Set up Cloud SDK
-      if: inputs.upload_on_device_test_artifacts == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Upload On-Device Test Artifacts to GCS
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
