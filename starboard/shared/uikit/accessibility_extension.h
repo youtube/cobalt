@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_SHARED_UIKIT_ACCESSIBILITY_EXTENSION_H_
+#define STARBOARD_SHARED_UIKIT_ACCESSIBILITY_EXTENSION_H_
+
 #include "starboard/extension/accessibility.h"
 
 namespace starboard {
@@ -35,3 +38,5 @@ const void* GetAccessibilityApi();
 }  // namespace uikit
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_UIKIT_ACCESSIBILITY_EXTENSION_H_
