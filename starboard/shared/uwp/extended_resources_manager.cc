@@ -181,6 +181,7 @@ void ExtendedResourcesManager::Quit() {
 }
 
 void ExtendedResourcesManager::ReleaseBuffersHeap() {
+  ScopedLock scoped_lock(mutex_);
   d3d12FrameBuffersHeap_.Reset();
 }
 
