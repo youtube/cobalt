@@ -82,10 +82,9 @@ def parse_smaps_file(filepath):
 
 def extract_timestamp(filename):
   """Extracts the timestamp (YYYYMMDD_HHMMSS) from the filename for sorting."""
-  match = re.search(r'smaps_(\d{8})_(\d{6})_\d+_processed\.txt$', filename)
+  match = re.search(r'smaps_(\d{8}_\d{6}).*?_processed\.txt$', filename)
   if match:
-    return f'{match.group(1)}_{match.group(2)}'
-
+    return match.group(1)
   return None  # Return None if no timestamp is found
 
 
