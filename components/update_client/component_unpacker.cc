@@ -86,18 +86,13 @@ bool ComponentUnpacker::Verify() {
     return false;
   }
   is_delta_ = result == crx_file::VerifierResult::OK_DELTA;
-#if defined(IN_MEMORY_UPDATES)
-  VLOG(1) << "Verification successful";
-#else
   VLOG(1) << "Verification successful: " << path_.value();
-#endif
   return true;
 }
 
 bool ComponentUnpacker::BeginUnzipping() {
   // Mind the reference to non-const type, passed as an argument below.
   base::FilePath& destination = is_delta_ ? unpack_diff_path_ : unpack_path_;
-#if !BUILDFLAG(IS_STARBOARD)
   if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_ComponentUnpacker_BeginUnzipping"),
           &destination)) {
@@ -105,15 +100,6 @@ bool ComponentUnpacker::BeginUnzipping() {
     error_ = UnpackerError::kUnzipPathError;
     return false;
   }
-#else  // !BUILDFLAG(IS_STARBOARD)
-#if defined(IN_MEMORY_UPDATES)
-  destination = installation_dir_;
-#else  // defined(IN_MEMORY_UPDATES)
-  // The directory of path_ is the installation slot.
-  destination = path_.DirName();
-#endif  // defined(IN_MEMORY_UPDATES)
-#endif  // !BUILDFLAG(IS_STARBOARD)
-
   VLOG(1) << "Unpacking in: " << destination.value();
   unzipper_->Unzip(path_, destination,
                    base::BindOnce(&ComponentUnpacker::EndUnzipping, this));
@@ -210,12 +196,10 @@ void ComponentUnpacker::EndPatching(UnpackerError error, int extended_error) {
 }
 
 void ComponentUnpacker::EndUnpacking() {
-#if !BUILDFLAG(IS_STARBOARD)
   if (!unpack_diff_path_.empty())
     base::DeletePathRecursively(unpack_diff_path_);
   if (error_ != UnpackerError::kNone && !unpack_path_.empty())
     base::DeletePathRecursively(unpack_path_);
-#endif
 
   Result result;
   result.error = error_;

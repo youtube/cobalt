@@ -211,15 +211,6 @@ namespace chrome_cleaner {
 class ResetShortcutsComponent;
 class SystemReportComponent;
 }  // namespace chrome_cleaner
-#if BUILDFLAG(IS_STARBOARD)
-// This is necessary to allow blocking for proper cleanup and to prevent
-// a crash due to blocking restrictions at app exit.
-namespace cobalt {
-namespace updater {
-class UpdaterModule;
-}  // namespace updater
-}  // namespace cobalt
-#endif  // BUILDFLAG(IS_STARBOARD)
 namespace content {
 class BrowserGpuChannelHostFactory;
 class BrowserMainLoop;
@@ -849,9 +840,6 @@ class BASE_EXPORT
   friend class cc::CategorizedWorkerPoolJob;
   friend class cc::CategorizedWorkerPool;
   friend class cc::TileTaskManagerImpl;
-#if BUILDFLAG(IS_STARBOARD)
-  friend class cobalt::updater::UpdaterModule;
-#endif  // BUILDFLAG(IS_STARBOARD)
   friend class content::DesktopCaptureDevice;
   friend class content::EmergencyTraceFinalisationCoordinator;
   friend class content::InProcessUtilityThread;

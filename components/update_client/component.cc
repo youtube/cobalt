@@ -1011,12 +1011,6 @@ void Component::StateNew::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-
-#if BUILDFLAG(IS_STARBOARD)
-  auto& config = component.update_context_->config;
-  config->SetPreviousUpdaterStatus(config->GetUpdaterStatus());
-#endif
-
   if (component.crx_component()) {
     TransitionState(std::make_unique<StateChecking>(&component));
 

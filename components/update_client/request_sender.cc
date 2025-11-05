@@ -130,9 +130,12 @@ void RequestSender::SendInternal() {
 void RequestSender::Cancel() {
   // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "RequestSender::Cancel";
-  if (network_fetcher_.get()) {
-    network_fetcher_->Cancel();
-  }
+  // TODO(b/431862767): enable this in a follow-up PR with the Cobalt network
+  // fetcher implementation
+  NOTIMPLEMENTED();
+  // if (network_fetcher_.get()) {
+  //   network_fetcher_->Cancel();
+  // }
 }
 #endif
 

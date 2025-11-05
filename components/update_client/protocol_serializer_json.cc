@@ -10,7 +10,6 @@
 
 #include "base/check.h"
 #include "base/json/json_writer.h"
-#include "base/notimplemented.h"
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -71,16 +70,11 @@ std::string ProtocolSerializerJSON::Serialize(
   // OS version and platform information.
   base::Value::Dict os_node;
   os_node.Set("platform", request.os.platform);
-  // TODO: b/456632915, Cobalt - Device info OS returns garbled characters.
-  // Temporarily commenting them out.
-  NOTIMPLEMENTED();
-  // os_node.Set("arch", request.os.arch);
-  // if (!request.os.version.empty()) {
-  //   os_node.Set("version", request.os.version);
-  // }
-  // if (!request.os.service_pack.empty()) {
-  //   os_node.Set("sp", request.os.service_pack);
-  // }
+  os_node.Set("arch", request.os.arch);
+  if (!request.os.version.empty())
+    os_node.Set("version", request.os.version);
+  if (!request.os.service_pack.empty())
+    os_node.Set("sp", request.os.service_pack);
   request_node.Set("os", std::move(os_node));
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)

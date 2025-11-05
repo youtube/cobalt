@@ -44,7 +44,7 @@ std::unique_ptr<PrefService> CreatePrefService() {
     return nullptr;
   }
   std::string app_key;
-  app_key.reserve(IM_EXT_MAX_APP_KEY_LENGTH);
+  app.key.reserve(IM_EXT_MAX_APP_KEY_LENGTH);
   if (installation_api->GetAppKey(app_key.data(), app_key.capacity()) ==
       IM_EXT_ERROR) {
     LOG(ERROR) << "Failed to get app key.";

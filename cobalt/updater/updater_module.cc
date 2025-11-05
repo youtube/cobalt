@@ -14,13 +14,10 @@
 
 #include "cobalt/updater/updater_module.h"
 
-#include <string>
 #include <utility>
 #include <vector>
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-#include "base/check.h"
-#include "base/debug/stack_trace.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
@@ -31,16 +28,13 @@
 #include "base/stl_util.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/stringprintf.h"
-#include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "base/trace_event/trace_event.h"
 #include "base/version.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/updater/util.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/cobalt_slot_management.h"
@@ -50,22 +44,12 @@
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
-#include "starboard/system.h"
 
 namespace {
 
 using update_client::CobaltSlotManagement;
-using update_client::component_to_updater_status_map;
 using update_client::ComponentState;
 using update_client::UpdateCheckError;
-using update_client::updater_status_string_map;
-using update_client::UpdaterStatus;
-
-#if BUILDFLAG(IS_DEBUG)
-const int kTimeWaitInterval = 10000;
-#else
-const int kTimeWaitInterval = 2000;
-#endif
 
 // The SHA256 hash of the "cobalt_evergreen_public" key.
 constexpr uint8_t kCobaltPublicKeyHash[] = {
@@ -104,54 +88,14 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
   }
 }
 
-void PostBlockingTask(scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-                      const base::Location& from_here,
-                      base::OnceClosure task) {
-  DCHECK(!task_runner->RunsTasksInCurrentSequence())
-      << __func__ << " can't be called from the current sequence, posted from "
-      << from_here.ToString();
-
-  base::WaitableEvent task_finished(
-      base::WaitableEvent::ResetPolicy::MANUAL,
-      base::WaitableEvent::InitialState::NOT_SIGNALED);
-
-  base::OnceClosure closure = base::BindOnce(
-      [](base::OnceClosure task, base::WaitableEvent* task_finished) -> void {
-        if ((!task.is_null())) {
-          std::move(task).Run();
-        }
-        task_finished->Signal();
-      },
-      std::move(task), &task_finished);
-  bool task_may_run = task_runner->PostTask(FROM_HERE, std::move(closure));
-  DCHECK(task_may_run) << "Task that will never run posted with " << __func__
-                       << " from " << from_here.ToString();
-
-  if (task_may_run) {
-    // Wait for the task to complete before proceeding.
-    do {
-      if (task_finished.TimedWait(base::Milliseconds(kTimeWaitInterval))) {
-        break;
-      }
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-      if (!SbSystemIsDebuggerAttached()) {
-        base::debug::StackTrace trace;
-        std::string prefix(base::StringPrintf("[%s deadlock from %s]", __func__,
-                                              from_here.ToString().c_str()));
-        trace.PrintWithPrefix(prefix.c_str());
-      }
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-    } while (true);
-  }
-}
-
 }  // namespace
 
 namespace cobalt {
 namespace updater {
 
 // The delay before the first update check.
-const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
+const base::TimeDelta kDefaultUpdateCheckDelay =
+    base::TimeDelta::FromSeconds(30);
 
 void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
@@ -190,8 +134,7 @@ void Observer::OnEvent(Events event, const std::string& id) {
     status = "No status available";
   }
   updater_configurator_->SetUpdaterStatus(status);
-  LOG_IF(INFO, status != "Downloading update")
-      << "Updater status is " << status;
+  LOG_IF(INFO, status != "Downloading update") << "Updater status is" << status;
 }
 
 UpdaterModule::UpdaterModule(
@@ -216,18 +159,16 @@ UpdaterModule::UpdaterModule(
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
-  // TODO(b/452142372): Investigate UpdaterModule destruction sequence
-
-  // This is necessary to allow blocking for proper cleanup and to prevent
-  // a crash due to blocking restrictions at app exit.
-  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope
-      allow_blocking_outside;
-
   if (is_updater_running_) {
     is_updater_running_ = false;
-    PostBlockingTask(
-        updater_thread_->task_runner(), FROM_HERE,
-        base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+    // TODO(b/452142372): Investigate UpdaterModule destruction sequence
+    {
+      base::ScopedBlockingCall scoped_blocking_call(
+          FROM_HERE, base::BlockingType::MAY_BLOCK);
+      updater_thread_->task_runner()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+    }
   }
 
   // Upon destruction the thread will allow all queued tasks to complete before
@@ -238,16 +179,15 @@ UpdaterModule::~UpdaterModule() {
 }
 
 void UpdaterModule::Suspend() {
-  // This is necessary to allow blocking for proper cleanup and to prevent
-  // a crash due to blocking restrictions at app exit.
-  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope
-      allow_blocking_outside;
-
   if (is_updater_running_) {
     is_updater_running_ = false;
-    PostBlockingTask(
-        updater_thread_->task_runner(), FROM_HERE,
-        base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+    {
+      base::ScopedBlockingCall scoped_blocking_call(
+          FROM_HERE, base::BlockingType::MAY_BLOCK);
+      updater_thread_->task_runner()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+    }
   }
 }
 
@@ -263,7 +203,7 @@ void UpdaterModule::Resume() {
 
 void UpdaterModule::Initialize(
     std::unique_ptr<network::PendingSharedURLLoaderFactory> pending_factory) {
-  DCHECK(updater_thread_->task_runner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
   LOG(INFO) << "UpdaterModule::Initialize";
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(
@@ -283,7 +223,7 @@ void UpdaterModule::Initialize(
 }
 
 void UpdaterModule::Finalize() {
-  DCHECK(updater_thread_->task_runner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
   LOG(INFO) << "UpdaterModule::Finalize begin";
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
@@ -319,7 +259,7 @@ void UpdaterModule::MarkSuccessful() {
 }
 
 void UpdaterModule::MarkSuccessfulImpl() {
-  DCHECK(updater_thread_->task_runner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
   LOG(INFO) << "UpdaterModule::MarkSuccessfulImpl";
 
   auto installation_manager =
@@ -341,7 +281,7 @@ void UpdaterModule::MarkSuccessfulImpl() {
 }
 
 void UpdaterModule::Update() {
-  DCHECK(updater_thread_->task_runner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
   LOG(INFO) << "UpdaterModule::Update";
 
   // If updater_configurator_ is nullptr, the updater is suspended.
@@ -357,13 +297,13 @@ void UpdaterModule::Update() {
     return;
   }
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
   bool skip_verify_public_key_hash = false;
   bool require_network_encryption = true;
-#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
   update_client_->Update(
       app_ids,
@@ -379,12 +319,12 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
