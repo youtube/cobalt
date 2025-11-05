@@ -9,7 +9,6 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
-#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
@@ -20,7 +19,6 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 
@@ -101,6 +99,11 @@ void CobaltContentRendererClient::RenderFrameCreated(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
+
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -190,12 +193,13 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
 
-  mojo::Remote<cobalt::mojom::H5vccSettings> cobalt_settings;
-  content::RenderThread::Get()->BindHostReceiver(
-      cobalt_settings.BindNewPipeAndPassReceiver());
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
 
   cobalt::mojom::SettingsPtr settings;
-  if (cobalt_settings->GetSettings(&settings) && settings) {
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     for (auto& [key, value] : settings->settings) {
       if (value->is_string_value()) {
         renderer_factory_traits->h5vcc_settings.emplace(

@@ -138,7 +138,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
-            /*h5vcc_settings=*/std::map<std::string, H5vccSettingValue>())),
+            std::map<std::string, H5vccSettingValue>())),
         mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
@@ -155,7 +155,7 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(),
-        /*h5vcc_settings=*/std::map<std::string, H5vccSettingValue>(),
+        std::map<std::string, H5vccSettingValue>(),
         std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =

@@ -18,10 +18,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/starboard/starboard_renderer_config.h"
-#endif
-
 namespace media {
 
 class MojoRenderer;

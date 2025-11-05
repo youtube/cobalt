@@ -10,9 +10,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/base/starboard/renderer_factory_traits.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace content {
 class RenderFrame;
@@ -59,6 +61,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
  private:
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
+
+  mojo::Remote<cobalt::mojom::H5vccSettings> h5vcc_settings_remote_;
 
   base::WeakPtrFactory<CobaltContentRendererClient> weak_factory_{this};
 

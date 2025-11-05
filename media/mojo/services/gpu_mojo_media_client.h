@@ -5,9 +5,7 @@
 #ifndef MEDIA_MOJO_SERVICES_GPU_MOJO_MEDIA_CLIENT_H_
 #define MEDIA_MOJO_SERVICES_GPU_MOJO_MEDIA_CLIENT_H_
 
-#include <map>
 #include <memory>
-#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -27,6 +25,9 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <map>
+#include <string>
+
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/gpu/starboard/starboard_gpu_factory.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -147,9 +148,9 @@ struct StarboardRendererTraits {
   const std::string& max_video_capabilities;
   std::map<std::string, H5vccSettingValue> h5vcc_settings;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
-      renderer_extension_receiver;
+        renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
-      client_extension_remote;
+        client_extension_remote;
 
   // StarboardRenderer uses this to post tasks on gpu thread.
   GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb;
@@ -167,7 +168,8 @@ struct StarboardRendererTraits {
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote,
-      GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb);
+      GetStarboardCommandBufferStubCB
+          get_starboard_command_buffer_stub_cb);
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };
@@ -221,8 +223,8 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient final : public MojoMediaClient {
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   void NotifyDecoderSupportKnown(
       mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder,
-      base::OnceCallback<
-          void(mojo::PendingRemote<stable::mojom::StableVideoDecoder>)> cb) final;
+      base::OnceCallback<void(
+          mojo::PendingRemote<stable::mojom::StableVideoDecoder>)> cb) final;
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   std::unique_ptr<VideoDecoder> CreateVideoDecoder(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
