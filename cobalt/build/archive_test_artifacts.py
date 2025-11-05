@@ -30,16 +30,16 @@ _EXCLUDE_DIRS = [
 ]
 
 
-def _make_tar(archive_path: str, compression: str,
+def _make_tar(archive_path: str, compression: str, compression_level: int,
               file_lists: List[Tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
   if compression == 'gz':
-    compression_flag = 'gzip -1'
+    compression_flag = f'gzip -{compression_level}'
   elif compression == 'xz':
-    compression_flag = 'xz -T0 -1'
+    compression_flag = f'xz -T0 -{compression_level}'
   elif compression == 'zstd':
-    compression_flag = 'zstd -T0 -1'
+    compression_flag = f'zstd -T0 -{compression_level}'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
   tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
@@ -73,6 +73,7 @@ def create_archive(
     archive_per_target: bool,
     use_android_deps_path: bool,
     compression: str,
+    compression_level: int,
     flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
@@ -128,16 +129,24 @@ def create_archive(
         output_path = os.path.join(destination_dir,
                                    f'{target_name}_deps.tar.{compression}')
         if flatten_deps:
-          _make_tar(output_path,
-                    compression, [(target_deps, out_dir),
-                                  (target_src_root_deps, source_dir)])
+          _make_tar(
+              output_path,
+              compression,
+              compression_level,
+              [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+          )
         else:
           raise ValueError('Unsupported configuration.')
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
     output_path = os.path.join(destination_dir,
                                f'test_artifacts.tar.{compression}')
-    _make_tar(output_path, compression, [(combined_deps, source_dir)])
+    _make_tar(
+        output_path,
+        compression,
+        compression_level,
+        [(combined_deps, source_dir)],
+    )
 
 
 def main():
@@ -175,7 +184,12 @@ def main():
       '--compression',
       choices=['xz', 'gz', 'zstd'],
       default='zstd',
-      help='The compression to use.')
+      help='The compression algorithm to use.')
+  parser.add_argument(
+      '--compression-level',
+      type=int,
+      default=1,
+      help='The compression level to use.')
   parser.add_argument(
       '--flatten-deps',
       action='store_true',
@@ -194,6 +208,7 @@ def main():
       archive_per_target=args.archive_per_target,
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
+      compression_level=args.compression_level,
       flatten_deps=args.flatten_deps)
 
 
