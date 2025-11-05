@@ -139,6 +139,7 @@ runs:
           MATRIX_PLATFORM: ${{ matrix.platform }}
           MATRIX_CONFIG: ${{ matrix.config }}
         run: |
+          set -x
           cd src/
 
           # Determine the correct build platform directory name.
