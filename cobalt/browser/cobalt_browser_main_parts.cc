@@ -35,6 +35,20 @@
 
 namespace cobalt {
 
+constexpr auto kMemoryPressureInjectionDelay = base::Seconds(60);
+
+namespace {
+// This function injects a MODERATE memory pressure and rearms itself.
+void InjectMemoryPressureNotification() {
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, base::BindOnce(&InjectMemoryPressureNotification),
+      kMemoryPressureInjectionDelay);
+}
+}  // namespace
+
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -73,6 +87,10 @@ void CobaltBrowserMainParts::PostCreateThreads() {
   // register these interfaces and it seems to work. But we may want to
   // consider if there's a more suitable stage.
   RegisterCobaltJavaMojoInterfaces();
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&InjectMemoryPressureNotification));
+
   ShellBrowserMainParts::PostCreateThreads();
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
