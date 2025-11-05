@@ -52,6 +52,18 @@ bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
   return CopyStringAndTestIfSuccess(out_value, value_length, "NOT_SUPPORTED");
 }
 
+void RegisterTrackingAuthorizationCallback(
+    void* context,
+    RequestTrackingAuthorizationCallback callback) {
+  // This is a stub implementation. Partners can customize it in their starboard
+  // extension.
+}
+
+void UnregisterTrackingAuthorizationCallback() {
+  // This is a stub implementation. Partners can customize it in their starboard
+  // extension.
+}
+
 void RequestTrackingAuthorization() {
   // This is a stub implementation. Partners can customize it in their starboard
   // extension.
@@ -63,8 +75,9 @@ const StarboardExtensionIfaApi kIfaApi = {
     &GetAdvertisingId,
     &GetLimitAdTracking,
     &GetTrackingAuthorizationStatus,
+    &RegisterTrackingAuthorizationCallback,
+    &UnregisterTrackingAuthorizationCallback,
     &RequestTrackingAuthorization,
-
 };
 
 }  // namespace
