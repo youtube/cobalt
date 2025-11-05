@@ -4,10 +4,17 @@ inputs:
   logfile_glob:
     description: "Path (or glob) to test log files."
     required: true
+<<<<<<< HEAD
   test_status:
     description: "Test status. If the value is not success this step will fail."
     required: false
     default: 'success'
+=======
+  results_glob:
+    description: "Path (or glob) to test result xml files."
+    required: false
+    default: ''
+>>>>>>> 2906b9b78ce (ci: Improve readability for CI test results (#7850))
   symbolize:
     description: "If logs should be ran through crash symbolization tools."
     required: false
@@ -53,6 +60,7 @@ runs:
             fi
           done
         fi
+<<<<<<< HEAD
 
         # By failing this step if tests failed the logs will be expanded by default.
         # Note that if any steps after this one fails the logs will no longer be expanded.
@@ -61,4 +69,6 @@ runs:
           grep -h "\[  FAILED  \]" ${{ inputs.logfile_glob }}
           exit 1
         fi
+=======
+>>>>>>> 2906b9b78ce (ci: Improve readability for CI test results (#7850))
       shell: bash
