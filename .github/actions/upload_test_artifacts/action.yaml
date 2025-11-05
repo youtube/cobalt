@@ -19,6 +19,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Create Artifacts Directory
+      run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+      shell: bash
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
@@ -26,7 +29,6 @@ runs:
       run: |
         set -eux
         cd src/
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
@@ -37,7 +39,6 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -x
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd src/
 
         FLAGS=""
@@ -74,7 +75,7 @@ runs:
 
         # Add Cobalt release artifacts for smoke tests.
         if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
-          cp -r ${GITHUB_WORKSPACE}/src/out/test-package/* \
+          mv ${GITHUB_WORKSPACE}/src/out/test-package/* \
              ${GITHUB_WORKSPACE}/artifacts/
         fi
 
