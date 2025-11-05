@@ -1,12 +1,13 @@
 # SMAPS Capture and Analysis Toolchain
 
-This directory contains a suite of Python scripts for capturing, processing, and analyzing memory usage data (specifically, `/proc/<pid>/smaps` content) for a specified Android process. These tools are useful for long-term memory profiling to identify potential memory leaks by tracking memory growth over time and identifying the largest consumers.
+This directory contains a suite of Python scripts for capturing, processing, and analyzing memory usage data (specifically, `/proc/<pid>/smaps` content) for a specified Android or Linux process. These tools are useful for long-term memory profiling to identify potential memory leaks by tracking memory growth over time and identifying the largest consumers.
 
 ## Features
 
+*   **Cross-platform:** Supports capturing smaps from both Android (via ADB) and local Linux processes.
 *   **Periodic Capture:** Captures smaps data at a configurable interval.
 *   **Duration Control:** Runs for a specified total duration and then exits.
-*   **Configurable:** Allows customization of the target process, capture interval, duration, output directory, and ADB settings via command-line arguments.
+*   **Configurable:** Allows customization of the target process, capture interval, duration, and output directory.
 *   **Testable:** The script is refactored into a class for easy testing and mocking of system calls.
 
 ## Smaps Capture Usage
@@ -19,8 +20,10 @@ python3 smaps_capture.py [OPTIONS]
 
 ### Command-line Arguments
 
+*   `--platform` (type: `str`, choices: `android`, `linux`, default: `android`)
+    The platform to capture from.
 *   `-p`, `--process_name` (type: `str`, default: `com.google.android.youtube.tv`)
-    The name of the Android process to capture smaps data from.
+    The name of the process to capture smaps data from.
 *   `-i`, `--interval_minutes` (type: `int`, default: `2`)
     The interval in minutes between each smaps capture.
 *   `-d`, `--capture_duration_seconds` (type: `int`, default: `10800` (3 hours))
@@ -28,23 +31,28 @@ python3 smaps_capture.py [OPTIONS]
 *   `-o`, `--output_dir` (type: `str`, default: `cobalt_smaps_logs`)
     The directory where the captured smaps log files will be saved.
 *   `-s`, `--device_serial` (type: `str`, default: `localhost:45299`)
-    The serial number of the Android device or emulator to connect to. Set to `None` if only one device is connected.
+    (Android only) The serial number of the Android device or emulator to connect to. Set to `None` if only one device is connected.
 *   `--adb_path` (type: `str`, default: `adb`)
-    The absolute path to the `adb` executable.
+    (Android only) The absolute path to the `adb` executable.
 
 ### Examples
 
-1.  **Run with default settings:**
+1.  **Run with default settings (capturing from an Android device):**
     ```bash
     python3 smaps_capture.py
     ```
 
-2.  **Capture a different process every 5 minutes for 1 hour:**
+2.  **Capture a different Android process every 5 minutes for 1 hour:**
     ```bash
     python3 smaps_capture.py -p com.example.my_app -i 5 -d 3600
     ```
 
-3.  **Specify a different output directory and device serial:**
+3.  **Capture a local Linux process for 10 minutes:**
+    ```bash
+    python3 smaps_capture.py --platform linux -p chrome -i 1 -d 600 -o chrome_smaps_logs
+    ```
+
+4.  **Specify a different output directory and Android device serial:**
     ```bash
     python3 smaps_capture.py -o /tmp/my_smaps_logs -s R58M1293QYV
     ```
