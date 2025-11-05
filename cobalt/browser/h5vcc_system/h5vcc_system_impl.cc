@@ -139,10 +139,34 @@ H5vccSystemImpl::H5vccSystemImpl(
     : content::DocumentService<mojom::H5vccSystem>(render_frame_host,
                                                    std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName));
+  const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2;
+  if (is_ifa_version_supported) {
+    ifa_api->RegisterTrackingAuthorizationCallback(this, [](void* context) {
+      DCHECK(context) << "Callback called with NULL context";
+      if (context) {
+        static_cast<H5vccSystemImpl*>(context)
+            ->ReceiveTrackingAuthorizationComplete();
+      }
+    });
+  }
+#endif
 }
 
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  const StarboardExtensionIfaApi* ifa_api =
+      static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName));
+  const bool is_ifa_version_supported = ifa_api && ifa_api->version >= 2;
+  if (is_ifa_version_supported) {
+    ifa_api->UnregisterTrackingAuthorizationCallback();
+  }
+#endif
 }
 
 void H5vccSystemImpl::Create(
@@ -200,6 +224,11 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
   ifa_api->RequestTrackingAuthorization();
   std::move(callback).Run();
 #endif
+}
+
+void H5vccSystemImpl::ReceiveTrackingAuthorizationComplete() {
+  // TODO - b/457866495: Implement after studying Cobalt 25 implementation
+  NOTIMPLEMENTED();
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(

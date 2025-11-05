@@ -58,6 +58,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,
                   mojo::PendingReceiver<mojom::H5vccSystem> receiver);
   ~H5vccSystemImpl();
+  void ReceiveTrackingAuthorizationComplete();
 
   THREAD_CHECKER(thread_checker_);
 };
