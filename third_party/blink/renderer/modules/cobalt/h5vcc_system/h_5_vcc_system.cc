@@ -123,7 +123,10 @@ ScriptPromise H5vccSystem::requestTrackingAuthorization(
 
 void H5vccSystem::OnRequestTrackingAuthorization(
     ScriptPromiseResolver* resolver) {
-  // TODO - b/395650827: Reject when this fails.
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/458160672: Reject when this fails.
+  NOTIMPLEMENTED();
+#endif
   resolver->Resolve();
 }
 
