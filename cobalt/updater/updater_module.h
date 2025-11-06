@@ -37,8 +37,6 @@
 namespace cobalt {
 namespace updater {
 
-
-
 // Default delay the first update check.
 extern const base::TimeDelta kDefaultUpdateCheckDelay;
 

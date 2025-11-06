@@ -10,7 +10,7 @@
 
 #include "base/check.h"
 #include "base/json/json_writer.h"
-#include "base/notimplemented.h"
+#include "base/notreached.h"
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"

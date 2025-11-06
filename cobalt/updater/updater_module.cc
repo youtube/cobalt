@@ -61,7 +61,7 @@ using update_client::UpdateCheckError;
 using update_client::updater_status_string_map;
 using update_client::UpdaterStatus;
 
-#if BUILDFLAG(IS_DEBUG)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 const int kTimeWaitInterval = 10000;
 #else
 const int kTimeWaitInterval = 2000;
