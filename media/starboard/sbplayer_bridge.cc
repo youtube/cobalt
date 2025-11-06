@@ -763,8 +763,7 @@ void SbPlayerBridge::CreatePlayer() {
   creation_param.drm_system = drm_system_;
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
-  creation_param.max_frames_in_decoder =
-      max_frames_in_decoder_ ? *max_frames_in_decoder_ : 0;
+  creation_param.max_frames_in_decoder = max_frames_in_decoder_.value_or(0);
 
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.

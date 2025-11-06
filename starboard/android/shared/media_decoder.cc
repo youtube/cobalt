@@ -35,7 +35,6 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-constexpr int kMaxFramesInDecoder = 100;
 constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
 constexpr bool kVerbose = false;
 
@@ -113,15 +112,6 @@ MediaDecoder::MediaDecoder(Host* host,
     pending_inputs_.emplace_back(audio_stream_info.audio_specific_config);
     ++number_of_pending_inputs_;
   }
-
-  frame_tracker_logging_thread_ =
-      std::make_unique<base::Thread>("pending_frame_tracker");
-  frame_tracker_logging_thread_->Start();
-  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&MediaDecoder::LogPendingFrameCountAndReschedule,
-                     base::Unretained(this)),
-      base::Seconds(5));
 }
 
 MediaDecoder::MediaDecoder(
@@ -561,8 +551,10 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  if (size > 0 && decoder_state_tracker_) {
-    decoder_state_tracker_->AddFrame(input_buffer->timestamp());
+  if (size > 0) {
+    if (decoder_state_tracker_) {
+      decoder_state_tracker_->AddFrame(input_buffer->timestamp());
+    }
   } else {
     SB_LOG(WARNING) << __func__ << " > size=" << size;
   }
@@ -685,7 +677,7 @@ void MediaDecoder::LogPendingFrameCountAndReschedule() {
                       pending_encoded_frames_size_.load() / 1024)
                << " KB";
 
-  if (destroying_.load()) {
+  if (destroying_.load() && !frame_tracker_logging_thread_) {
     return;
   }
 
@@ -834,7 +826,7 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
     SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
                  << ", rendered gap(msec)=" << gap_ms
                  << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
-                 << ", render(sceduled - actual in msec)="
+                 << ", render(scheduled - actual in msec)="
                  << ValOrNA(render_gap_ms)
                  << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
                  << ", render/actual(msec)=" << (frame_rendered_us / 1'000)

@@ -46,6 +46,8 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
+constexpr int kDefaultMaxFramesInDecoder = 6;
+
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -158,11 +160,10 @@ std::optional<int> MaxFramesInDecoder(
   auto it = h5vcc_settings.find("Media.MaxFramesInDecoder");
   if (it != h5vcc_settings.end()) {
     if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
-      return *value_ptr;
+      return static_cast<int>(*value_ptr);
     }
   }
-  // For testing, it will be changed to nullopt.
-  return 6;
+  return kDefaultMaxFramesInDecoder;
 }
 }  // namespace
 
