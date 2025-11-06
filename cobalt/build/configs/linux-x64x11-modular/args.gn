@@ -17,3 +17,12 @@ enable_library_cdms = false
 # is respected with LTO.
 is_cfi = false
 use_thin_lto = false
+
+# Disable PDF support.
+enable_pdf = false
+
+# Disable plugin support.
+enable_plugins = false
+
+# Disable printing support.
+enable_printing = false
