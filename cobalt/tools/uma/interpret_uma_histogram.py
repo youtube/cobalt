@@ -148,33 +148,34 @@ def main():
           if len(parts) != 3:
             continue
 
-          timestamp_str, metric_name, json_str = parts
+          timestamp_str, _, json_str = parts
           data = json.loads(json_str)
           histograms = data.get('result', {}).get('histograms', [])
           if not histograms:
             continue
 
-          histogram = histograms[0]
+          for histogram in histograms:
+            histogram_name = histogram.get('name', 'UnknownHistogram')
 
-          # Criteria 1: Check if the histogram has data.
-          if not histogram.get('count', 0) > 0:
-            print(f'Skipping {metric_name} (no data).')
-            continue
+            # Criteria 1: Check if the histogram has data.
+            if not histogram.get('count', 0) > 0:
+              print(f'Skipping {histogram_name} (no data).')
+              continue
 
-          percentiles = calculate_percentiles(histogram)
+            percentiles = calculate_percentiles(histogram)
 
-          print(f'--- Entry {i+1}: {timestamp_str} | {metric_name} ---')
-          print(f'Total Count: {histogram.get("count")}')  # pylint: disable=inconsistent-quotes
-          print(f'Sum: {histogram.get("sum")}')  # pylint: disable=inconsistent-quotes
-          for p, value in percentiles.items():
-            print(f'  P{p}: {value if value is not None else "N/A"}')  # pylint: disable=inconsistent-quotes
-          print('')
+            print(f'--- Entry {i+1}: {timestamp_str} | {histogram_name} ---')
+            print(f'Total Count: {histogram.get("count")}')  # pylint: disable=inconsistent-quotes
+            print(f'Sum: {histogram.get("sum")}')  # pylint: disable=inconsistent-quotes
+            for p, value in percentiles.items():
+              print(f'  P{p}: {value if value is not None else "N/A"}')  # pylint: disable=inconsistent-quotes
+            print('')
 
-          # Store data for plotting if the flag is set
-          if args.visualize:
-            dt_object = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-            histogram_data_for_plotting[metric_name].append(
-                (dt_object, percentiles))
+            # Store data for plotting if the flag is set
+            if args.visualize:
+              dt_object = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+              histogram_data_for_plotting[histogram_name].append(
+                  (dt_object, percentiles))
 
         except (json.JSONDecodeError, IndexError, ValueError) as e:
           print(f'Skipping malformed line {i+1}: {e}', file=sys.stderr)

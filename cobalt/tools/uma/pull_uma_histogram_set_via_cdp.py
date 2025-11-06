@@ -91,6 +91,9 @@ def get_websocket_url(quiet: bool):
     """
   try:
     devs = list(device_utils.DeviceUtils.HealthyDevices())
+    if not devs:
+      _print_q('Error: No healthy Android devices found.', quiet)
+      return None
     dev = devs[0]
     dev.adb.Forward(
         'tcp:9222',
@@ -256,16 +259,18 @@ def _run_main(args, output_file):
   _print_q('-' * 50, args.quiet)
   stop_event = threading.Event()
 
-  if not is_package_running(args.package_name):
-    launch_cobalt(
-        package_name=args.package_name,
-        activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
-        quiet=args.quiet)
+  if not args.no_manage_cobalt:
     if not is_package_running(args.package_name):
-      _print_q(
-          f'Error: Failed to start {args.package_name}/'
-          f'{DEFAULT_COBALT_ACTIVITY_NAME}. \nExiting...\n', args.quiet)
-      sys.exit(1)
+      launch_cobalt(
+          package_name=args.package_name,
+          activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
+          quiet=args.quiet)
+      time.sleep(5)  # Wait for the app to launch.
+      if not is_package_running(args.package_name):
+        _print_q(
+            f'Error: Failed to start {args.package_name}/'
+            f'{DEFAULT_COBALT_ACTIVITY_NAME}. \nExiting...\n', args.quiet)
+        sys.exit(1)
   time.sleep(1)
 
   websocket_url = get_websocket_url(args.quiet)

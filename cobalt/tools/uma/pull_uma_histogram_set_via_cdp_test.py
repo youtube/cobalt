@@ -102,7 +102,8 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
 
   @patch('sys.argv',
          ['', '--no-manage-cobalt', '--package-name', 'test.package'])
-  @patch('pull_uma_histogram_set_via_cdp.is_package_running', return_value=True)
+  @patch(
+      'pull_uma_histogram_set_via_cdp.is_package_running', return_value=False)
   @patch('pull_uma_histogram_set_via_cdp.loop')
   @patch(
       'pull_uma_histogram_set_via_cdp.get_websocket_url',
