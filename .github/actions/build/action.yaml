@@ -40,7 +40,8 @@ runs:
           cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
-        if: matrix.config == 'devel' && inputs.test_root_target != 'null'
+        # TODO(b/382508397): Always copy test_targets.json for devel builds.
+        if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
@@ -51,6 +52,10 @@ runs:
         run: |
           set -x
           cd src
+
+          if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
+            exit 0
+          fi
 
           # TODO: b/382508397 - Currently, override with static test targets
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
