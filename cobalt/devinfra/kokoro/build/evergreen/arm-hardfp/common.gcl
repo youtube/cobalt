@@ -25,7 +25,7 @@ build = common.build {
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt:gn_all'
+      value = 'default'
     },
     {
       key = 'TARGET_CPU'
