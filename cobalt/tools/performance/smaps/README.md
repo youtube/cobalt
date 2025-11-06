@@ -1,12 +1,14 @@
 # SMAPS Capture and Analysis Toolchain
 
-This directory contains a suite of Python scripts for capturing, processing, and analyzing memory usage data (specifically, `/proc/<pid>/smaps` content) for a specified Android process. These tools are useful for long-term memory profiling to identify potential memory leaks by tracking memory growth over time and identifying the largest consumers.
+This directory contains a suite of Python scripts for capturing, processing, and analyzing memory usage data (specifically, `/proc/<pid>/smaps` content) for a specified Android or Linux process. These tools are useful for long-term memory profiling to identify potential memory leaks by tracking memory growth over time and identifying the largest consumers.
 
 ## Features
 
+*   **Cross-platform:** Supports capturing smaps from both Android (via ADB) and local Linux processes.
+*   **Smart Process Selection:** On Linux, if multiple processes with the same name are found, the script identifies the main process (the one with the longest uptime) and captures its smaps data.
 *   **Periodic Capture:** Captures smaps data at a configurable interval.
 *   **Duration Control:** Runs for a specified total duration and then exits.
-*   **Configurable:** Allows customization of the target process, capture interval, duration, output directory, and ADB settings via command-line arguments.
+*   **Configurable:** Allows customization of the target process, capture interval, duration, and output directory.
 *   **Testable:** The script is refactored into a class for easy testing and mocking of system calls.
 
 ## Smaps Capture Usage
@@ -19,8 +21,10 @@ python3 smaps_capture.py [OPTIONS]
 
 ### Command-line Arguments
 
+*   `--platform` (type: `str`, choices: `android`, `linux`, default: `android`)
+    The platform to capture from.
 *   `-p`, `--process_name` (type: `str`, default: `com.google.android.youtube.tv`)
-    The name of the Android process to capture smaps data from.
+    The name of the process to capture smaps data from.
 *   `-i`, `--interval_minutes` (type: `int`, default: `2`)
     The interval in minutes between each smaps capture.
 *   `-d`, `--capture_duration_seconds` (type: `int`, default: `10800` (3 hours))
@@ -28,26 +32,60 @@ python3 smaps_capture.py [OPTIONS]
 *   `-o`, `--output_dir` (type: `str`, default: `cobalt_smaps_logs`)
     The directory where the captured smaps log files will be saved.
 *   `-s`, `--device_serial` (type: `str`, default: `localhost:45299`)
-    The serial number of the Android device or emulator to connect to. Set to `None` if only one device is connected.
+    (Android only) The serial number of the Android device or emulator to connect to. Set to `None` if only one device is connected.
 *   `--adb_path` (type: `str`, default: `adb`)
-    The absolute path to the `adb` executable.
+    (Android only) The absolute path to the `adb` executable.
 
 ### Examples
 
-1.  **Run with default settings:**
+1.  **Run with default settings (capturing from an Android device):**
     ```bash
     python3 smaps_capture.py
     ```
 
-2.  **Capture a different process every 5 minutes for 1 hour:**
+2.  **Capture a different Android process every 5 minutes for 1 hour:**
     ```bash
     python3 smaps_capture.py -p com.example.my_app -i 5 -d 3600
     ```
 
-3.  **Specify a different output directory and device serial:**
+3.  **Capture a local Linux process for 10 minutes:**
+    ```bash
+    python3 smaps_capture.py --platform linux -p chrome -i 1 -d 600 -o chrome_smaps_logs
+    ```
+
+4.  **Specify a different output directory and Android device serial:**
     ```bash
     python3 smaps_capture.py -o /tmp/my_smaps_logs -s R58M1293QYV
     ```
+
+## Unified Analysis Pipeline
+
+To simplify the analysis process, the `run_analysis_pipeline.py` script combines the batch processing, analysis, and visualization steps into a single command.
+
+### `run_analysis_pipeline.py`
+
+This script takes a directory of raw smaps logs and generates the final visualization PNG, handling all intermediate steps automatically.
+
+#### Usage
+
+```bash
+python3 run_analysis_pipeline.py <RAW_LOG_DIR> [OPTIONS]
+```
+
+#### Command-line Arguments
+
+*   `<RAW_LOG_DIR>` (required positional argument)
+    The path to the directory containing the raw smaps log files.
+*   `--output_image` (type: `str`, default: `smaps_analysis.png`)
+    The path where the final output PNG image will be saved.
+*   `--platform` (type: `str`, choices: `android`, `linux`, default: `android`)
+    Specify the platform for platform-specific aggregations.
+
+#### Example
+
+```bash
+python3 run_analysis_pipeline.py cobalt_smaps_logs --output_image my_analysis.png --platform android
+```
 
 ## Smaps Analysis and Batch Processing
 
@@ -128,12 +166,9 @@ python3 read_smaps_batch.py <RAW_LOGS_DIR> [OPTIONS]
 
 ### `analyze_smaps_logs.py`
 
-After processing a batch of smaps files, you can use this script to analyze the entire run. It reads a directory of processed smaps files, tracks memory usage over time, and generates a summary report.
+After processing a batch of smaps files, you can use this script to inspect the final memory state of the run. It reads a directory of processed smaps files and prints a detailed, non-aggregated memory breakdown from the last log file in the time series.
 
-The report includes:
-*   The top 10 largest memory consumers by PSS and RSS at the end of the run.
-*   The top 10 memory regions that have grown the most in PSS and RSS over the duration of the run.
-*   The overall change in total PSS and RSS.
+The primary purpose of this script is to either provide a snapshot of the final memory layout or to generate a JSON file containing the full time-series data. This JSON output is essential for the `visualize_smaps_analysis.py` script, which handles aggregation and visualization.
 
 The script can also output a structured JSON file containing the time-series data for further analysis or visualization.
 
@@ -148,11 +183,11 @@ python3 analyze_smaps_logs.py <PROCESSED_LOG_DIR> [OPTIONS]
 *   `<PROCESSED_LOG_DIR>` (required positional argument)
     The path to the directory containing the processed smaps log files.
 *   `--json_output` (type: `str`)
-    Optional: The path to a file where the JSON analysis output will be saved.
+    Optional: The path to a file where the JSON analysis output will be saved. This is required for visualization.
 
 #### Examples
 
-1.  **Print a text-based analysis to the console:**
+1.  **Print a detailed memory breakdown to the console:**
     ```bash
     python3 analyze_smaps_logs.py processed_logs
     ```
@@ -196,69 +231,6 @@ python3 visualize_smaps_analysis.py <JSON_FILE> [OPTIONS]
 ```bash
 python3 visualize_smaps_analysis.py analysis_output.json --output_image my_analysis.png
 ```
-
-## Unified Analysis Pipeline
-
-To simplify the analysis process, the `run_analysis_pipeline.py` script combines the batch processing, analysis, and visualization steps into a single command.
-
-### `run_analysis_pipeline.py`
-
-This script takes a directory of raw smaps logs and generates the final visualization PNG, handling all intermediate steps automatically.
-
-#### Usage
-
-```bash
-python3 run_analysis_pipeline.py <RAW_LOG_DIR> [OPTIONS]
-```
-
-#### Command-line Arguments
-
-*   `<RAW_LOG_DIR>` (required positional argument)
-    The path to the directory containing the raw smaps log files.
-*   `--output_image` (type: `str`, default: `smaps_analysis.png`)
-    The path where the final output PNG image will be saved.
-*   `--platform` (type: `str`, choices: `android`, `linux`, default: `android`)
-    Specify the platform for platform-specific aggregations.
-
-#### Example
-
-```bash
-python3 run_analysis_pipeline.py cobalt_smaps_logs --output_image my_analysis.png --platform android
-```
-
-## Improving Aggregation Rules
-
-The accuracy of this toolchain depends on its aggregation rules, which are heuristics based on known memory patterns. As Cobalt, Android, and third-party libraries evolve, new memory region names can appear. It is crucial to periodically check for and categorize these new regions to prevent gaps in the analysis.
-
-### How to Check for New Patterns
-
-1.  **Temporarily Disable Aggregation:** Open `run_analysis_pipeline.py` and remove the `-d` (or `--aggregate_android`) flag from the `batch_args` list. This will cause the batch processor to output a "raw" report with no special grouping.
-
-2.  **Run the Pipeline:** Execute the modified script on a recent and representative set of `smaps` logs.
-
-    ```bash
-    python3 run_analysis_pipeline.py /path/to/your/recent/logs
-    ```
-
-3.  **Examine the Raw Output:** The analysis printed to the console will now be much more detailed. Scan the "Top Largest Consumers" and "Top Memory Increases" lists. Look for patterns or repeated names that are not being grouped, such as:
-    *   New `[anon:<name>]` labels (e.g., we discovered `[anon:scudo:*]`).
-    *   Driver or shared memory regions (e.g., `/dev/ashmem/*`).
-    *   JIT or code cache regions (e.g., `/memfd:jit-cache`).
-    *   Any other large, unexplained region that appears frequently.
-
-4.  **Add New Aggregation Rules:** Open `read_smaps.py` and add new `re.sub()` rules within the `if args.aggregate_android:` block. Place more specific rules *before* more general ones.
-
-    ```python
-    # Example for adding a new rule for Skia resources
-    if args.aggregate_android:
-      key = re.sub(r'\[(anon:skia.*)\]', r'<\1>', key)  # New rule
-      key = re.sub(r'\[(anon:scudo:.*)\]', r'<\1>', key)
-      # ... other rules
-    ```
-
-5.  **Re-enable Aggregation:** Add the `-d` flag back to `run_analysis_pipeline.py` and re-run the pipeline to confirm that your new categories appear correctly.
-
-By following this process periodically, you can maintain a comprehensive and accurate view of the application's memory usage.
 
 ## Extending the Toolchain with New Fields
 

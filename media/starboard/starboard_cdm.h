@@ -107,29 +107,6 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
     std::string ToString() const;
   };
 
-  // Default task runner.
-  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
-
-  const SbDrmSystem sb_drm_;
-
-  int next_ticket_ = 0;
-  TicketToSessionUpdateRequestMap ticket_to_session_update_request_map_;
-  TicketToSessionUpdateMap ticket_to_session_update_map_;
-  TicketToServerCertificateUpdatedMap ticket_to_server_certificate_updated_map_;
-
-  SessionMessageCB message_cb_;
-  SessionClosedCB closed_cb_;
-  SessionKeysChangeCB keys_change_cb_;
-  SessionExpirationUpdateCB expiration_update_cb_;
-
-  CdmPromiseAdapter promises_;
-
-  std::list<std::string> session_list_;
-
-  CallbackRegistry<EventCB::RunType> event_callbacks_;
-
-  base::WeakPtrFactory<StarboardCdm> weak_factory_{this};
-
   // Called on the constructor thread, parameters are copied and owned by these
   // methods.
   void OnSessionUpdateRequestGenerated(
@@ -192,6 +169,30 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
                                              int ticket,
                                              SbDrmStatus status,
                                              const char* error_message);
+
+  // Default task runner.
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
+  const SbDrmSystem sb_drm_;
+  SessionMessageCB message_cb_;
+  SessionClosedCB closed_cb_;
+  SessionKeysChangeCB keys_change_cb_;
+  SessionExpirationUpdateCB expiration_update_cb_;
+
+  int next_ticket_ = 0;
+  TicketToSessionUpdateRequestMap ticket_to_session_update_request_map_;
+  TicketToSessionUpdateMap ticket_to_session_update_map_;
+  TicketToServerCertificateUpdatedMap ticket_to_server_certificate_updated_map_;
+
+  CdmPromiseAdapter promises_;
+
+  std::list<std::string> session_list_;
+
+  CallbackRegistry<EventCB::RunType> event_callbacks_;
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<StarboardCdm> weak_factory_{this};
 };
 
 }  // namespace media

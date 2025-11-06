@@ -16,11 +16,10 @@
 """Parses and analyzes processed smaps logs."""
 
 import argparse
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 import json
 import os
 import re
-import sys
 
 
 class ParsingError(Exception):
@@ -78,36 +77,18 @@ def parse_smaps_file(filepath):
             # This will skip non-integer lines, like the repeated header
             continue
 
-  # Second pass for aggregation
-  aggregated_data = OrderedDict()
-  shared_mem_total = defaultdict(int)
-  for name, data in memory_data.items():
-    if name.startswith('mem/shared_memory'):
-      for field, value in data.items():
-        shared_mem_total[field] += value
-    else:
-      aggregated_data[name] = data
-
-  if shared_mem_total:
-    aggregated_data['[mem/shared_memory]'] = dict(shared_mem_total)
-
-  return aggregated_data, total_data
+  return memory_data, total_data
 
 
 def extract_timestamp(filename):
   """Extracts the timestamp (YYYYMMDD_HHMMSS) from the filename for sorting."""
-  match = re.search(r'_(\d{8})_(\d{6})_\d{4}_processed\.txt$', filename)
+  match = re.search(r'smaps_(\d{8}_\d{6}).*?_processed\.txt$', filename)
   if match:
-    return f'{match.group(1)}_{match.group(2)}'
-
-  print(
-      f"Warning: Could not extract timestamp from '{filename}'. "
-      'File will be sorted last.',
-      file=sys.stderr)
-  return '00000000_000000'  # Default for files without a clear timestamp
+    return match.group(1)
+  return None  # Return None if no timestamp is found
 
 
-def get_top_consumers(memory_data, metric='pss', top_n=5):
+def get_top_consumers(memory_data, metric='pss', top_n=10):
   """Returns the top N memory consumers by a given metric."""
   if not memory_data:
     return []
@@ -120,35 +101,34 @@ def get_top_consumers(memory_data, metric='pss', top_n=5):
 
 def analyze_logs(log_dir, json_output_filepath=None):
   """Analyzes a directory of processed smaps logs."""
-  all_files = [
-      os.path.join(log_dir, f)
-      for f in os.listdir(log_dir)
-      if f.endswith('_processed.txt')
-  ]
-  all_files.sort(key=extract_timestamp)
+  all_files_with_ts = []
+  for f in os.listdir(log_dir):
+    if f.endswith('_processed.txt'):
+      filepath = os.path.join(log_dir, f)
+      timestamp = extract_timestamp(os.path.basename(filepath))
+      if timestamp:
+        all_files_with_ts.append((timestamp, filepath))
 
-  if not all_files:
-    print(f'No processed smaps files found in {log_dir}')
+  if not all_files_with_ts:
+    print(f'No processed smaps files with valid timestamps found in {log_dir}')
     return
+
+  # Sort files based on the extracted timestamp
+  all_files_with_ts.sort(key=lambda x: x[0])
+  all_files = [filepath for _, filepath in all_files_with_ts]
 
   print(f'Analyzing {len(all_files)} processed smaps files...')
 
   # List to store structured data for JSON output
   analysis_data = []
 
-  # Store data over time for each memory region
-  total_history = defaultdict(list)
-
-  first_timestamp = None
   last_timestamp = None
   last_memory_data = None
-  first_memory_data = None
+  last_total_data = None
 
   for filepath in all_files:
     filename = os.path.basename(filepath)
     timestamp = extract_timestamp(filename)
-    if not first_timestamp:
-      first_timestamp = timestamp
     last_timestamp = timestamp
 
     try:
@@ -157,10 +137,10 @@ def analyze_logs(log_dir, json_output_filepath=None):
       print(f'Warning: {e}')
       continue
 
-    if first_memory_data is None:
-      first_memory_data = memory_data
-    last_memory_data = memory_data  # Keep track of the last data
+    last_memory_data = memory_data
+    last_total_data = total_data
 
+    # Still collect all data for the JSON output
     current_snapshot = {
         'timestamp':
             timestamp,
@@ -174,11 +154,8 @@ def analyze_logs(log_dir, json_output_filepath=None):
     }
     analysis_data.append(current_snapshot)
 
-    for metric, value in total_data.items():
-      total_history[metric].append(value)
-
   print('\n' + '=' * 50)
-  print(f'Analysis from {first_timestamp} to {last_timestamp}')
+  print(f'Analysis of the last log: {last_timestamp}')
   print('=' * 50)
 
   # Output JSON data if requested
@@ -187,57 +164,38 @@ def analyze_logs(log_dir, json_output_filepath=None):
       json.dump(analysis_data, f, indent=2)
     print(f'JSON analysis saved to {json_output_filepath}')
 
-  # 1. Largest Consumers by the end log
-  print('\nOverall Total Memory Change:')
-  print('\nTop 10 Largest Consumers by the End Log (PSS):')
-  top_pss = get_top_consumers(last_memory_data, metric='pss', top_n=10)
-  for name, data in top_pss:
-    print(f"  - {name}: {data.get('pss', 0)} kB PSS, "
-          f"{data.get('rss', 0)} kB RSS")
+  # 1. Top 10 Consumers from the final log
+  if last_memory_data:
+    print('\nTop 10 Largest Consumers by PSS:')
+    top_pss = get_top_consumers(last_memory_data, metric='pss', top_n=10)
+    for name, data in top_pss:
+      print(f"  - {name}: {data.get('pss', 0)} kB PSS")
 
-  print('\nTop 10 Largest Consumers by the End Log (RSS):')
-  top_rss = get_top_consumers(last_memory_data, metric='rss', top_n=10)
-  for name, data in top_rss:
-    print(f"  - {name}: {data.get('rss', 0)} kB RSS, "
-          f"{data.get('pss', 0)} kB PSS")
+    print('\nTop 10 Largest Consumers by RSS:')
+    top_rss = get_top_consumers(last_memory_data, metric='rss', top_n=10)
+    for name, data in top_rss:
+      print(f"  - {name}: {data.get('rss', 0)} kB RSS")
 
-  # 2. Top 10 Increases in Memory Over Time
-  print('\nTop 10 Memory Increases Over Time (PSS):')
-  pss_growth = []
-  if last_memory_data and first_memory_data:
-    all_keys = set(first_memory_data.keys()) | set(last_memory_data.keys())
-    for r_name in all_keys:
-      initial_pss = first_memory_data.get(r_name, {}).get('pss', 0)
-      final_pss = last_memory_data.get(r_name, {}).get('pss', 0)
-      growth = final_pss - initial_pss
-      if growth > 0:
-        pss_growth.append((r_name, growth))
+  # 2. Detailed breakdown from the final log
+  if last_memory_data:
+    print('\n' + '-' * 50)
+    print('Full Memory Breakdown:')
+    for name, data in last_memory_data.items():
+      print(f"  - {name}: {data.get('pss', 0)} kB PSS, "
+            f"{data.get('rss', 0)} kB RSS")
 
-  pss_growth.sort(key=lambda item: item[1], reverse=True)
-  for name, growth in pss_growth[:10]:
-    print(f'  - {name}: +{growth} kB PSS')
-
-  print('\nTop 10 Memory Increases Over Time (RSS):')
-  rss_growth = []
-  if last_memory_data and first_memory_data:
-    all_keys = set(first_memory_data.keys()) | set(last_memory_data.keys())
-    for r_name in all_keys:
-      initial_rss = first_memory_data.get(r_name, {}).get('rss', 0)
-      final_rss = last_memory_data.get(r_name, {}).get('rss', 0)
-      growth = final_rss - initial_rss
-      if growth > 0:
-        rss_growth.append((r_name, growth))
-
-  rss_growth.sort(key=lambda item: item[1], reverse=True)
-  for name, growth in rss_growth[:10]:
-    print(f'  - {name}: +{growth} kB RSS')
+  if last_total_data:
+    print('\n' + '-' * 50)
+    print('Total Memory:')
+    for metric, value in last_total_data.items():
+      print(f'  - {metric.upper()}: {value} kB')
 
 
 def run_smaps_analysis_tool(argv=None):
   """Parses arguments and runs the smaps log analysis."""
   parser = argparse.ArgumentParser(
-      description='Analyze processed smaps logs to identify '
-      'memory consumers and growth.')
+      description='Analyzes processed smaps logs to display the memory '
+      'breakdown of the final log file.')
   parser.add_argument(
       'log_dir',
       type=str,
@@ -246,7 +204,8 @@ def run_smaps_analysis_tool(argv=None):
   parser.add_argument(
       '--json_output',
       type=str,
-      help='Optional: Path to a file where JSON output will be saved.')
+      help='Optional: Path to a file where JSON output will be saved for '
+      'use with other tools like visualize_smaps_analysis.py.')
   args = parser.parse_args(argv)
   analyze_logs(args.log_dir, args.json_output)
 
