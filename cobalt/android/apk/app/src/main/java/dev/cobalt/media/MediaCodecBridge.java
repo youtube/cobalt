@@ -841,12 +841,23 @@ class MediaCodecBridge {
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
+<<<<<<< HEAD
   }
 
   @SuppressWarnings("unused")
   @CalledByNative
   private void stop() {
     resetNativeMediaCodecBridge();
+=======
+
+    // We skip calling stop() on Android 11, as this version has a race condition
+    // if an error occurs during stop(). See b/369372033 for details.
+    if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
+      Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+      return;
+    }
+
+>>>>>>> dc3fcf2d9f3 (android: Conditionally skip MediaCodec.stop() before release() on Android 11 (#7885))
     try {
       mMediaCodec.get().stop();
     } catch (Exception e) {
