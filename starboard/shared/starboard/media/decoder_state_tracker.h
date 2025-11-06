@@ -32,7 +32,6 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  static std::unique_ptr<DecoderStateTracker> CreateNoOp();
   static std::unique_ptr<DecoderStateTracker> CreateThrottling(
       int max_frames,
       int64_t log_interval_us,

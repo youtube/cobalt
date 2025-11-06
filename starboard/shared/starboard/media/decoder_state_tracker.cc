@@ -180,34 +180,14 @@ void DecoderStateTrackerImpl::UpdateState_Locked() {
 void DecoderStateTrackerImpl::LogStateAndReschedule(int64_t log_interval_us) {
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
-  SB_LOG(INFO) << "DecoderFlowControl state: " << GetCurrentState();
+  SB_LOG(INFO) << "DecoderStateTracker state: " << GetCurrentState();
 
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
       log_interval_us);
 }
 
-class NoOpDecoderFlowControl : public DecoderStateTracker {
- public:
-  NoOpDecoderFlowControl() {
-    SB_LOG(INFO) << "NoOpDecoderFlowControl is created.";
-  }
-  ~NoOpDecoderFlowControl() override = default;
-
-  bool AddFrame(int64_t presentation_time_us) override { return true; }
-  bool SetFrameDecoded(int64_t presentation_time_us) override { return true; }
-  bool ReleaseFrameAt(int64_t release_us) override { return true; }
-
-  State GetCurrentState() const override { return State(); }
-  bool CanAcceptMore() override { return true; }
-};
-
 }  // namespace
-
-// static
-std::unique_ptr<DecoderStateTracker> DecoderStateTracker::CreateNoOp() {
-  return std::make_unique<NoOpDecoderFlowControl>();
-}
 
 // static
 std::unique_ptr<DecoderStateTracker> DecoderStateTracker::CreateThrottling(

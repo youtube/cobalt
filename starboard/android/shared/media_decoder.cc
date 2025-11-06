@@ -178,6 +178,8 @@ MediaDecoder::MediaDecoder(
 MediaDecoder::~MediaDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
+  destroying_.store(true);
+
   if (frame_tracker_logging_thread_) {
     frame_tracker_logging_thread_->Stop();
   }
@@ -677,7 +679,7 @@ void MediaDecoder::LogPendingFrameCountAndReschedule() {
                       pending_encoded_frames_size_.load() / 1024)
                << " KB";
 
-  if (destroying_.load() && !frame_tracker_logging_thread_) {
+  if (destroying_.load()) {
     return;
   }
 
