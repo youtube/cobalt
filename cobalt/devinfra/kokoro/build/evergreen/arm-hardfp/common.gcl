@@ -24,13 +24,8 @@ build = common.build {
       value = 'use_asan=false is_internal_build=true'
     },
     {
-<<<<<<< HEAD:cobalt/devinfra/kokoro/build/evergreen/arm-hardfp/common.gcl
-      key = 'TARGET'
-      value = 'default'
-=======
       key = 'GN_TARGET'
       value = 'cobalt:gn_all'
->>>>>>> e85a0f8d4fd (Rename `TARGET` to `GN_TARGET` variable in Kokoro (#7734)):cobalt/devinfra/kokoro/build/evergreen/arm-hardfp-raspi/common.gcl
     },
     {
       key = 'TARGET_CPU'
