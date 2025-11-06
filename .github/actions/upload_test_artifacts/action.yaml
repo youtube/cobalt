@@ -36,6 +36,7 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd src/
 
+        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
         FLAGS=""
         if [[ "${{ matrix.platform }}" == *android* ]]; then
           FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
