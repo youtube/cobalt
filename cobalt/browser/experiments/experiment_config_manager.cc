@@ -19,6 +19,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
@@ -126,6 +127,17 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
     return ExperimentConfigType::kEmptyConfig;
   }
+
+  // Check if a rollback happened. If so, apply the empty config.
+  std::string recorded_cobalt_version =
+      use_safe_config
+          ? experiment_config_->GetString(kSafeConfigMinVersion)
+          : experiment_config_->GetString(kExperimentConfigMinVersion);
+
+  if (recorded_cobalt_version < COBALT_VERSION) {
+    return ExperimentConfigType::kEmptyConfig;
+  }
+
   return config_type;
 }
 
@@ -154,6 +166,9 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetString(
       kSafeConfigActiveConfigData,
       experiment_config_->GetString(kExperimentConfigActiveConfigData));
+  experiment_config->SetString(
+      kSafeConfigMinVersion,
+      experiment_config_->GetString(kExperimentConfigMinVersion));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }
