@@ -324,7 +324,8 @@ MediaCodecBridge::~MediaCodecBridge() {
   }
 
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_destroy(env, j_media_codec_bridge_);
+  Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
+  Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetInputBuffer(jint index) {
@@ -427,6 +428,11 @@ bool MediaCodecBridge::Restart() {
 jint MediaCodecBridge::Flush() {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
+}
+
+void MediaCodecBridge::Stop() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
 }
 
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {

@@ -597,17 +597,6 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  public void destroy() {
-    // We skip calling stop() on Android 11, as this version has a race condition
-    // if an error occurs during stop(). See b/369372033 for details.
-    if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
-      Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
-    } else {
-      stop();
-    }
-    release();
-  }
-
   public void release() {
     try {
       String codecName = mMediaCodec.get().getName();
@@ -691,10 +680,19 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
+  @CalledByNative
   private void stop() {
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
+
+    // We skip calling stop() on Android 11, as this version has a race condition
+    // if an error occurs during stop(). See b/369372033 for details.
+    if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
+      Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+      return;
+    }
+
     try {
       mMediaCodec.get().stop();
     } catch (Exception e) {

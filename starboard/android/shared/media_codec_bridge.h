@@ -165,6 +165,7 @@ class MediaCodecBridge {
   void SetPlaybackRate(double playback_rate);
   bool Restart();
   jint Flush();
+  void Stop();
   std::optional<FrameSize> GetOutputSize();
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat();
 
