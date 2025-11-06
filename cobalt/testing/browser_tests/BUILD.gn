@@ -345,8 +345,8 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "//content/test/data/",
     "//media/test/data/",
+    "//cobalt/testing/browser_tests/data",
   ]
 
   data_deps = [
