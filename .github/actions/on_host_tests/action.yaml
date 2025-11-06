@@ -21,6 +21,7 @@ runs:
       shell: bash
       run: |
         set -x
+<<<<<<< HEAD
 
         test_dir="${GITHUB_WORKSPACE}/unit_test"
         echo "test_dir=${test_dir}" >> $GITHUB_ENV
@@ -28,6 +29,11 @@ runs:
         mkdir -p ${test_dir}
         cd ${test_dir}
         tar xvf ../test_artifacts.tar.gz
+=======
+        mkdir -p unit_test/
+        cd unit_test/
+        tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
     - name: Run Tests
       id: run-tests
       shell: bash

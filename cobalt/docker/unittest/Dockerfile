@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxcomposite-dev \
     xvfb \
+    xz-utils \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # This locale satisfies SbSystemGetLocaleIdTest.
-ENV LANG en_US.UTF-8
+ENV LANG=en_US.UTF-8
