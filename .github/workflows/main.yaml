@@ -339,31 +339,11 @@ jobs:
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
 
-      - name: Package
+      - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true')
-        env:
-          MATRIX_PLATFORM: ${{ matrix.platform }}
-          MATRIX_CONFIG: ${{ matrix.config }}
-          PACKAGE_DIR: out/test-package
-        run: |
-          set -x
-          cd src/
-
-          # Determine the correct build platform directory name.
-          if [[ "${MATRIX_PLATFORM}" == "android"* ]]; then
-            BUILD_PLATFORM="android"
-          elif [[ "${MATRIX_PLATFORM}" == "linux"* ]]; then
-            BUILD_PLATFORM="linux"
-          else
-            BUILD_PLATFORM="${MATRIX_PLATFORM}"
-          fi
-
-          cobalt/build/packager.py \
-            --name=${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
-            --json_path=cobalt/build/${BUILD_PLATFORM}/package.json \
-            --out_dir=out/${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
-            --package_dir=${PACKAGE_DIR}
-        shell: bash
+        uses: ./src/.github/actions/package
+        with:
+          package_dir: out/test-package
 
       - name: Upload Test Artifacts
         uses: ./src/.github/actions/upload_test_artifacts
