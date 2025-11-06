@@ -68,7 +68,7 @@ pipeline () {
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Build chromedriver for runing Forge tests.
-  if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
+  if [[ "${TARGET_PLATFORM}" =~ "linux" ]]; then
     autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" chromedriver
   fi
 
