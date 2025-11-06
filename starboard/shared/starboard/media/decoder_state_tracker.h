@@ -18,6 +18,9 @@
 #include <functional>
 #include <iosfwd>
 #include <memory>
+#include <mutex>
+
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 
@@ -32,19 +35,32 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  static std::unique_ptr<DecoderStateTracker> CreateThrottling(
-      int max_frames,
-      int64_t log_interval_us,
-      StateChangedCB state_changed_cb);
+  DecoderStateTracker(int max_frames,
+                      int64_t log_interval_us,
+                      StateChangedCB state_changed_cb);
+  ~DecoderStateTracker() = default;
 
-  virtual ~DecoderStateTracker() = default;
+  bool AddFrame(int64_t presentation_time_us);
+  bool SetFrameDecoded(int64_t presentation_time_us);
+  bool ReleaseFrameAt(int64_t release_us);
 
-  virtual bool AddFrame(int64_t presentation_time_us) = 0;
-  virtual bool SetFrameDecoded(int64_t presentation_time_us) = 0;
-  virtual bool ReleaseFrameAt(int64_t release_us) = 0;
+  State GetCurrentState() const;
+  bool CanAcceptMore();
 
-  virtual State GetCurrentState() const = 0;
-  virtual bool CanAcceptMore() = 0;
+ private:
+  void UpdateState_Locked();
+  void LogStateAndReschedule(int64_t log_interval_us);
+
+  const int max_frames_;
+  const StateChangedCB state_changed_cb_;
+
+  mutable std::mutex mutex_;
+  State state_;  // GUARDED_BY mutex_;
+
+  shared::starboard::player::JobThread task_runner_;
+
+  int entering_frame_id_ = 0;
+  int decoded_frame_id_ = 0;
 };
 
 std::ostream& operator<<(std::ostream& os,

@@ -143,7 +143,7 @@ MediaDecoder::MediaDecoder(
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
       decoder_state_tracker_(max_frames_in_decoder
-                                 ? DecoderStateTracker::CreateThrottling(
+                                 ? std::make_unique<DecoderStateTracker>(
                                        *max_frames_in_decoder,
                                        kFrameTrackerLogIntervalUs,
                                        [this] { condition_variable_.Signal(); })

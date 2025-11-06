@@ -36,40 +36,11 @@ namespace {
 
 constexpr bool kVerbose = false;
 
-class DecoderStateTrackerImpl : public DecoderStateTracker {
- public:
-  DecoderStateTrackerImpl(int max_frames,
-                          int64_t log_interval_us,
-                          StateChangedCB state_changed_cb);
-  ~DecoderStateTrackerImpl() override = default;
+}  // namespace
 
-  bool AddFrame(int64_t presentation_time_us) override;
-  bool SetFrameDecoded(int64_t presentation_time_us) override;
-  bool ReleaseFrameAt(int64_t release_us) override;
-
-  State GetCurrentState() const override;
-  bool CanAcceptMore() override;
-
- private:
-  void UpdateState_Locked();
-  void LogStateAndReschedule(int64_t log_interval_us);
-
-  const int max_frames_;
-  const StateChangedCB state_changed_cb_;
-
-  mutable std::mutex mutex_;
-  State state_;  // GUARDED_BY mutex_;
-
-  shared::starboard::player::JobThread task_runner_;
-
-  int entering_frame_id_ = 0;
-  int decoded_frame_id_ = 0;
-};
-
-DecoderStateTrackerImpl::DecoderStateTrackerImpl(
-    int max_frames,
-    int64_t log_interval_us,
-    StateChangedCB state_changed_cb)
+DecoderStateTracker::DecoderStateTracker(int max_frames,
+                                         int64_t log_interval_us,
+                                         StateChangedCB state_changed_cb)
     : max_frames_(max_frames),
       state_changed_cb_(std::move(state_changed_cb)),
       state_({}),
@@ -80,12 +51,11 @@ DecoderStateTrackerImpl::DecoderStateTrackerImpl(
         [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
         log_interval_us);
   }
-  SB_LOG(INFO) << "DecoderStateTrackerImpl is created: max_frames="
-               << max_frames_
+  SB_LOG(INFO) << "DecoderStateTracker is created: max_frames=" << max_frames_
                << ", log_interval(msec)=" << (log_interval_us / 1'000);
 }
 
-bool DecoderStateTrackerImpl::AddFrame(int64_t presentation_time_us) {
+bool DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.total_frames() >= max_frames_) {
@@ -107,7 +77,7 @@ bool DecoderStateTrackerImpl::AddFrame(int64_t presentation_time_us) {
   return true;
 }
 
-bool DecoderStateTrackerImpl::SetFrameDecoded(int64_t presentation_time_us) {
+bool DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.decoding_frames == 0) {
@@ -130,7 +100,7 @@ bool DecoderStateTrackerImpl::SetFrameDecoded(int64_t presentation_time_us) {
   return true;
 }
 
-bool DecoderStateTrackerImpl::ReleaseFrameAt(int64_t release_us) {
+bool DecoderStateTracker::ReleaseFrameAt(int64_t release_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.decoded_frames == 0) {
@@ -157,12 +127,12 @@ bool DecoderStateTrackerImpl::ReleaseFrameAt(int64_t release_us) {
   return true;
 }
 
-DecoderStateTracker::State DecoderStateTrackerImpl::GetCurrentState() const {
+DecoderStateTracker::State DecoderStateTracker::GetCurrentState() const {
   std::lock_guard lock(mutex_);
   return state_;
 }
 
-bool DecoderStateTrackerImpl::CanAcceptMore() {
+bool DecoderStateTracker::CanAcceptMore() {
   std::lock_guard lock(mutex_);
   if (state_.total_frames() < max_frames_) {
     return true;
@@ -171,13 +141,13 @@ bool DecoderStateTrackerImpl::CanAcceptMore() {
   return false;
 }
 
-void DecoderStateTrackerImpl::UpdateState_Locked() {
+void DecoderStateTracker::UpdateState_Locked() {
   SB_CHECK_LE(state_.total_frames(), max_frames_);
   SB_CHECK_GE(state_.decoding_frames, 0);
   SB_CHECK_GE(state_.decoded_frames, 0);
 }
 
-void DecoderStateTrackerImpl::LogStateAndReschedule(int64_t log_interval_us) {
+void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
   SB_LOG(INFO) << "DecoderStateTracker state: " << GetCurrentState();
@@ -185,17 +155,6 @@ void DecoderStateTrackerImpl::LogStateAndReschedule(int64_t log_interval_us) {
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
       log_interval_us);
-}
-
-}  // namespace
-
-// static
-std::unique_ptr<DecoderStateTracker> DecoderStateTracker::CreateThrottling(
-    int max_frames,
-    int64_t log_interval_us,
-    StateChangedCB state_changed_cb) {
-  return std::make_unique<DecoderStateTrackerImpl>(max_frames, log_interval_us,
-                                                   std::move(state_changed_cb));
 }
 
 std::ostream& operator<<(std::ostream& os,
