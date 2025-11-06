@@ -15,6 +15,7 @@
 # limitations under the License.
 """Tests for pull_uma_histogram_set_via_cdp.py."""
 
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 import requests as real_requests
@@ -31,6 +32,7 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
       f.write('hist2\n')
       f.write('# commented hist\n')
       f.write('hist3\n')
+    self.addCleanup(os.remove, 'test_histograms.txt')
 
     histograms = pull_uma_histogram_set_via_cdp._get_histograms_from_file(  # pylint: disable=protected-access
         'test_histograms.txt')

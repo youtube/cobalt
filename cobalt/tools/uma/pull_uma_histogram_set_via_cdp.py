@@ -267,11 +267,20 @@ def _run_main(args, output_file):
           activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
           url=args.url,
           quiet=args.quiet)
-      time.sleep(5)  # Wait for the app to launch.
-      if not is_package_running(args.package_name):
+      _print_q(f'Waiting for {args.package_name} to start...', args.quiet)
+      started = False
+      for _ in range(5):  # Poll for 5 seconds
+        if is_package_running(args.package_name):
+          started = True
+          _print_q(f'{args.package_name} has started.', args.quiet)
+          break
+        time.sleep(1)
+
+      if not started:
         _print_q(
             f'Error: Failed to start {args.package_name}/'
-            f'{DEFAULT_COBALT_ACTIVITY_NAME}. \nExiting...\n', args.quiet)
+            f'{DEFAULT_COBALT_ACTIVITY_NAME} within 5 seconds. \nExiting...\n',
+            args.quiet)
         sys.exit(1)
   time.sleep(1)
 
