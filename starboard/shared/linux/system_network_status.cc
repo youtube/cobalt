@@ -142,7 +142,7 @@ void* NetworkNotifier::NotifierThreadEntry(void* context) {
   return nullptr;
 }
 
-bool NetworkNotifier::is_online() {
+bool NetworkNotifier::is_online() const {
   return is_online_;
 }
 

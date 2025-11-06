@@ -26,7 +26,7 @@ class NetworkNotifier : public starboard::Singleton<NetworkNotifier> {
 
   static void* NotifierThreadEntry(void* context);
 
-  bool is_online();
+  bool is_online() const;
   void set_online(bool is_online);
 
  private:
