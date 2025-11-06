@@ -64,11 +64,14 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   mojo::Remote<cobalt::mojom::H5vccSettings> h5vcc_settings_remote_;
 
-  base::WeakPtrFactory<CobaltContentRendererClient> weak_factory_{this};
-
   base::ScopedClosureRunner unregister_thread_closure;
 
   THREAD_CHECKER(thread_checker_);
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<CobaltContentRendererClient> weak_factory_{this};
 };
 
 }  // namespace cobalt
