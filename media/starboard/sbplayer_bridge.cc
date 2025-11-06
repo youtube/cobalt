@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -210,6 +211,7 @@ SbPlayerBridge::SbPlayerBridge(
     const std::string& audio_mime_type,
     const VideoDecoderConfig& video_config,
     const std::string& video_mime_type,
+    std::optional<int> max_frames_in_decoder,
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
@@ -238,6 +240,7 @@ SbPlayerBridge::SbPlayerBridge(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       audio_config_(audio_config),
       video_config_(video_config),
+      max_frames_in_decoder_(max_frames_in_decoder),
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       decode_target_provider_(decode_target_provider),
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -760,6 +763,8 @@ void SbPlayerBridge::CreatePlayer() {
   creation_param.drm_system = drm_system_;
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
+  creation_param.max_frames_in_decoder =
+      max_frames_in_decoder_ ? *max_frames_in_decoder_ : 0;
 
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.

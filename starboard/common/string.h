@@ -60,10 +60,6 @@ std::string HexEncode(const void* data,
 // be used in any UI, as it does not handle internationalization (i18n).
 std::string FormatWithDigitSeparators(int64_t number);
 
-inline std::string to_string(bool val) {
-  return val ? "true" : "false";
-}
-
 template <typename CHAR>
 static SB_C_FORCE_INLINE int strlcpy(CHAR* dst, const CHAR* src, int dst_size) {
   for (int i = 0; i < dst_size; ++i) {

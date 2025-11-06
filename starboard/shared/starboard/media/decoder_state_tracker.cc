@@ -51,7 +51,6 @@ class DecoderStateTrackerImpl : public DecoderStateTracker {
   bool CanAcceptMore() override;
 
  private:
-  void UpdateDecodingStat_Locked();
   void UpdateState_Locked();
   void LogStateAndReschedule(int64_t log_interval_us);
 

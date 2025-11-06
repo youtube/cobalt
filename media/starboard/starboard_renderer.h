@@ -170,6 +170,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
   const bool use_external_allocator_;
+  const std::optional<int> max_frames_in_decoder_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

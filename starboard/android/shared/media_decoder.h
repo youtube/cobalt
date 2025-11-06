@@ -108,6 +108,7 @@ class MediaDecoder final
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
                int64_t flush_delay_usec,
+               std::optional<int> max_frames_in_decoder,
                std::string* error_message);
   ~MediaDecoder();
 
@@ -234,7 +235,7 @@ class MediaDecoder final
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
-  std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
+  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

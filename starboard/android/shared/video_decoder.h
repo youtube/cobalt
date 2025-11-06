@@ -64,6 +64,7 @@ class VideoDecoder
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider,
                const std::string& max_video_capabilities,
+               std::optional<int> max_frames_in_decoder,
                int tunnel_mode_audio_session_id,
                bool force_secure_pipeline_under_tunnel_mode,
                bool force_reset_surface,
@@ -141,6 +142,7 @@ class VideoDecoder
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
+  const std::optional<int> max_frames_in_decoder_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.

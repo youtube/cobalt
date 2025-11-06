@@ -121,6 +121,10 @@ typedef struct SbPlayerCreationParam {
   // should be made available for the application to pull via calls to
   // SbPlayerGetCurrentFrame().
   SbPlayerOutputMode output_mode;
+
+  // Maximum number of decoded frames in decoder.
+  // 0 means that this value is not used.
+  int max_frames_in_decoder;
 } SbPlayerCreationParam;
 
 // Identify the type of side data accompanied with |SbPlayerSampleInfo|, as side

@@ -95,6 +95,7 @@ class SbPlayerBridge {
                  const std::string& audio_mime_type,
                  const VideoDecoderConfig& video_config,
                  const std::string& video_mime_type,
+                 std::optional<int> max_frames_in_decoder,
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
@@ -301,6 +302,7 @@ class SbPlayerBridge {
   //                    wrapper classes.
   SbMediaAudioStreamInfo audio_stream_info_ = {};
   SbMediaVideoStreamInfo video_stream_info_ = {};
+  const std::optional<int> max_frames_in_decoder_;
   DecodingBuffers decoding_buffers_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   float volume_ = 1.0f;

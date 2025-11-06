@@ -92,10 +92,7 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_),
-      decoder_state_tracker_(DecoderStateTracker::CreateThrottling(
-          kMaxFramesInDecoder,
-          kFrameTrackerLogIntervalUs,
-          [this]() { condition_variable_.Signal(); })) {
+      decoder_state_tracker_(nullptr) {
   SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -145,6 +142,7 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
+    std::optional<int> max_frames_in_decoder,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -154,10 +152,12 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
-      decoder_state_tracker_(DecoderStateTracker::CreateThrottling(
-          kMaxFramesInDecoder,
-          kFrameTrackerLogIntervalUs,
-          [this]() { condition_variable_.Signal(); })) {
+      decoder_state_tracker_(max_frames_in_decoder
+                                 ? DecoderStateTracker::CreateThrottling(
+                                       *max_frames_in_decoder,
+                                       kFrameTrackerLogIntervalUs,
+                                       [this] { condition_variable_.Signal(); })
+                                 : nullptr) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -404,7 +404,11 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (decoder_state_tracker_->CanAcceptMore() && can_process_input) {
+      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
+        can_process_input = false;
+      }
+
+      if (can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -557,7 +561,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  if (size > 0) {
+  if (size > 0 && decoder_state_tracker_) {
     decoder_state_tracker_->AddFrame(input_buffer->timestamp());
   } else {
     SB_LOG(WARNING) << __func__ << " > size=" << size;
@@ -565,7 +569,6 @@ bool MediaDecoder::ProcessOneInputBuffer(
 
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
-    SB_NOTREACHED();
     // Drm system initialization is asynchronous. If there's a drm system, we
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
@@ -746,7 +749,8 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   }
 
   if (size > 0) {
-    if (!decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
+    if (decoder_state_tracker_ &&
+        !decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
     std::lock_guard lock(frame_timestamps_mutex_);
@@ -832,7 +836,6 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                  << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
                  << ", render(sceduled - actual in msec)="
                  << ValOrNA(render_gap_ms)
-                 << ", pts(msec)=" << (frame_timestamp / 1'000)
                  << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
                  << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
                  << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);

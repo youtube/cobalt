@@ -77,6 +77,10 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     SbDecodeTargetGraphicsContextProvider* provider)
     : JobOwner(kDetached),
       drm_system_(creation_param->drm_system),
+      max_frames_in_decoder_([creation_param] {
+        const auto& frames = creation_param->max_frames_in_decoder;
+        return frames == 0 ? std::nullopt : std::optional<int>(frames);
+      }()),
       audio_stream_info_(creation_param->audio_stream_info),
       output_mode_(creation_param->output_mode),
       max_video_input_size_(0),
@@ -132,7 +136,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, decode_target_graphics_context_provider_,
-      drm_system_);
+      max_frames_in_decoder_, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
