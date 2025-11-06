@@ -163,18 +163,6 @@ void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
     }
   }
 }
-
-bool ShouldUseExternalAllocator(
-    const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
-  auto it = h5vcc_settings.find("Media.DisableExternalAllocator");
-  if (it != h5vcc_settings.end()) {
-    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
-      return *value_ptr != 1;
-    }
-  }
-  return true;
-}
-
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -194,7 +182,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
+      // For YTS test, we explicitly disable external allocator.
+      use_external_allocator_(false) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
