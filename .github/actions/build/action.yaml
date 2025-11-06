@@ -10,24 +10,6 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
-  test_package:
-    description: "Indicates if the package script should be run on the build artifacts."
-    required: true
-  upload_e2e_test_artifacts:
-    description: "Indicates if e2e test artifacts should be uploaded."
-    required: true
-  upload_on_host_test_artifacts:
-    description: "Indicates if on-host test artifacts should be uploaded."
-    required: true
-  upload_on_device_test_artifacts:
-    description: "Indicates if on-device test artifacts should be uploaded."
-    required: true
-  upload_web_test_artifacts:
-    description: "Indicates if web test artifacts should be uploaded."
-    required: true
-  test_artifacts_key:
-    description: "Artifact key used to store on-host test artifacts."
-    required: true
 runs:
   using: "composite"
   steps:
@@ -58,12 +40,11 @@ runs:
           cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
-        if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
+        if: matrix.config == 'devel' && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
-          IS_WEB_TESTS: ${{ inputs.upload_web_test_artifacts }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
@@ -131,34 +112,3 @@ runs:
             src/out/${{ matrix.platform }}_qa/apks/*.apk
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Package Script
-        if: inputs.test_package == 'true' || inputs.upload_e2e_test_artifacts == 'true'
-        env:
-          MATRIX_PLATFORM: ${{ matrix.platform }}
-          MATRIX_CONFIG: ${{ matrix.config }}
-        run: |
-          set -x
-          cd src/
-
-          # Determine the correct build platform directory name.
-          if [[ "${MATRIX_PLATFORM}" == "android"* ]]; then
-            BUILD_PLATFORM="android"
-          elif [[ "${MATRIX_PLATFORM}" == "linux"* ]]; then
-            BUILD_PLATFORM="linux"
-          else
-            BUILD_PLATFORM="${MATRIX_PLATFORM}"
-          fi
-          cobalt/build/packager.py \
-            --name=${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
-            --json_path=cobalt/build/${BUILD_PLATFORM}/package.json \
-            --out_dir=out/${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
-            --package_dir=out/test-package
-        shell: bash
-      - name: Upload Test Artifacts
-        uses: ./src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
-          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          upload_e2e_test_artifacts: ${{ inputs.upload_e2e_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}
