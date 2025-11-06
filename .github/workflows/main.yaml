@@ -337,6 +337,7 @@ jobs:
         with:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
+          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
 
       - name: Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true')

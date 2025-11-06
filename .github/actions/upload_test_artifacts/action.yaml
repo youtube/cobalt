@@ -41,11 +41,14 @@ runs:
         set -x
         cd src/
 
+        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
         FLAGS=""
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          FLAGS="--archive-per-target --use-android-deps-path --flatten-deps"
+          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
-          FLAGS="--archive-per-target --flatten-deps"
+          FLAGS="--compression gz --archive-per-target --flatten-deps"
+        else
+          FLAGS="--compression zstd --compression-level=9"
         fi
 
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
@@ -81,5 +84,4 @@ runs:
 
         gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
-
       shell: bash
