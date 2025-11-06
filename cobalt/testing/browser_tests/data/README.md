@@ -13,3 +13,15 @@
 # limitations under the License.
 
 This provides a blank data directory that the `cobalt_browsertests` target depends on to run successfully.
+
+## Updating Test Data
+
+To ensure all necessary test data from `//content/test/data` is included in the `cobalt_browsertests`, run the `update_build_gn.py` script located here.
+
+```bash
+python3 cobalt/cobalt/testing/browser_tests/data/update_build_gn.py
+```
+
+This script will automatically populate the `data` array in `BUILD.gn` with all files found in `//content/test/data`. It should be run whenever the `content/test/data` directory changes or after rebasing the repository.
+
+Note: Cobalt browser tests should exclude tests with symlinks.
