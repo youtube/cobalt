@@ -28,11 +28,13 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/string.h"
 
 namespace media {
 
 namespace {
 
+using ::starboard::FormatWithDigitSeparators;
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
 
@@ -119,25 +121,45 @@ void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
 
   if (use_external_allocator) {
     if (instance) {
-      LOG(INFO) << "DecoderBufferAllocator is already configured. Keeping "
-                   "current instance.";
+      auto allocator = static_cast<DecoderBufferAllocator*>(instance);
+      LOG(INFO) << __func__
+                << " > DecoderBufferAllocator is already configured. Keeping "
+                   "current instance. allocated_memory="
+                << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
+                << ", current_memory_capacity="
+                << FormatWithDigitSeparators(
+                       allocator->GetCurrentMemoryCapacity());
     } else {
-      LOG(INFO) << "Creating and setting new DecoderBufferAllocator.";
+      LOG(INFO) << __func__
+                << " > Switching from default allocator(partition_alloc) to "
+                   "new DecoderBufferAllocator.";
       *g_external_allocator = std::make_unique<DecoderBufferAllocator>();
       DecoderBuffer::Allocator::Set(g_external_allocator->get());
     }
   } else {
     if (instance) {
-      LOG(INFO) << "Destroying DecoderBufferAllocator instance. Using "
-                   "default allocator from now on.";
-      // NOTE: The use_external_allocator flag, controlled by the YouTube
-      // experimentation tooling, changes when a new Kabuki app is loaded.
-      // A change in this flag signifies a new app load, making it safe
-      // to destroy the DecoderBufferAllocator from the previous session.
-      g_external_allocator->reset();
-      DecoderBuffer::Allocator::Set(nullptr);
+      auto allocator = static_cast<DecoderBufferAllocator*>(instance);
+      if (allocator->GetAllocatedMemory() != 0) {
+        LOG(WARNING)
+            << __func__
+            << " > Cannot switch to default allocator(partition_alloc), since "
+               "current DecoderBufferAllocator instance holds allocated "
+               "memory: allocated_memory="
+            << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
+            << ", current_memory_capacity="
+            << FormatWithDigitSeparators(allocator->GetCurrentMemoryCapacity());
+      } else {
+        LOG(INFO)
+            << __func__
+            << " > Destroying DecoderBufferAllocator instance. Switching to "
+               "default allocator(partition_alloc) from now on.";
+        DecoderBuffer::Allocator::Set(nullptr);
+        g_external_allocator->reset();
+      }
     } else {
-      LOG(INFO) << "Keeping current default DecoderBufferAllocator.";
+      LOG(INFO)
+          << __func__
+          << " > Already using default allocator(partition_alloc). Keeping it.";
     }
   }
 }
