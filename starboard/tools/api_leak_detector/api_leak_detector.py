@@ -224,6 +224,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir',
     'readdir_r',
     'readlink',
+    'readv',
     'realpath',
     'realloc',
     'recv',
@@ -269,10 +270,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
-
-    # TODO: b/406081586 - Symbols that haven't been implemented yet but will be.
-    'putchar',
-    'fputs',
 ]
 
 
