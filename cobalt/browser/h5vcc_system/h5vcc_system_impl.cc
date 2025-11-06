@@ -180,8 +180,10 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
 #if BUILDFLAG(IS_IOS_TVOS)
   // TODO - b/458160672: Add implementation for AppleTV
   NOTIMPLEMENTED();
+  std::move(callback).Run(true);
+#else
+  std::move(callback).Run(false);
 #endif
-  std::move(callback).Run();
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(

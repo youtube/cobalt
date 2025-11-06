@@ -122,12 +122,17 @@ ScriptPromise H5vccSystem::requestTrackingAuthorization(
 }
 
 void H5vccSystem::OnRequestTrackingAuthorization(
-    ScriptPromiseResolver* resolver) {
+    ScriptPromiseResolver* resolver,
+    bool is_tracking_authorization_supported) {
+  if (is_tracking_authorization_supported) {
 #if BUILDFLAG(IS_IOS_TVOS)
-  // TODO - b/458160672: Reject when this fails.
-  NOTIMPLEMENTED();
+    // TODO - b/458160672: Reject when this fails.
+    NOTIMPLEMENTED();
 #endif
-  resolver->Resolve();
+    resolver->Resolve();
+  } else {
+    resolver->Reject();
+  }
 }
 
 void H5vccSystem::exit() {
