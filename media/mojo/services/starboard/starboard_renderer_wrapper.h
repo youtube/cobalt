@@ -121,6 +121,10 @@ class StarboardRendererWrapper : public Renderer,
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
 
   THREAD_CHECKER(thread_checker_);
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 };
 
