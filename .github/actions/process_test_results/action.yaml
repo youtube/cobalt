@@ -39,8 +39,14 @@ runs:
         # nullglob to return empty string if the glob matches no files.
         shopt -s globstar nullglob
 
+        # Workaround for nplb not supporting sharding.
+        num_shards=${{ inputs.num_gtest_shards }}
+        if [[ "${{ inputs.results_glob }}" =~ nplb ]]; then
+          num_shards=1
+        fi
+
         result_xmls=(${{ inputs.results_glob }})
-        if [ ${#result_xmls[@]} -ne ${{ inputs.num_gtest_shards }} ]; then
+        if [ ${#result_xmls[@]} -ne ${num_shards} ]; then
           echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${{ inputs.num_gtest_shards }}). Did a test shard crash?"
           exit_code=1
         fi
