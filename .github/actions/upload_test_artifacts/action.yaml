@@ -79,7 +79,7 @@ runs:
              ${GITHUB_WORKSPACE}/artifacts/
         fi
 
-        gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
+        gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
 
       shell: bash
