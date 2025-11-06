@@ -54,30 +54,31 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
   def test_stop_package(self, mock_run_adb_command):
     """Tests that stop_package returns True on success."""
     mock_run_adb_command.return_value = ('', '')
-    self.assertTrue(pull_uma_histogram_set_via_cdp.stop_package('test.package'))
+    self.assertTrue(
+        pull_uma_histogram_set_via_cdp.stop_package('test.package', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   def test_stop_package_failure(self, mock_run_adb_command):
     """Tests that stop_package returns False on failure."""
     mock_run_adb_command.return_value = ('', 'Error')
     self.assertFalse(
-        pull_uma_histogram_set_via_cdp.stop_package('test.package'))
+        pull_uma_histogram_set_via_cdp.stop_package('test.package', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   def test_launch_cobalt(self, mock_run_adb_command):
     """Tests that launch_cobalt returns True on success."""
     mock_run_adb_command.return_value = ('', '')
     self.assertTrue(
-        pull_uma_histogram_set_via_cdp.launch_cobalt('test.package',
-                                                     'test.activity'))
+        pull_uma_histogram_set_via_cdp.launch_cobalt(
+            'test.package', 'test.activity', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   def test_launch_cobalt_failure(self, mock_run_adb_command):
     """Tests that launch_cobalt returns False on failure."""
     mock_run_adb_command.return_value = ('', 'Error')
     self.assertFalse(
-        pull_uma_histogram_set_via_cdp.launch_cobalt('test.package',
-                                                     'test.activity'))
+        pull_uma_histogram_set_via_cdp.launch_cobalt(
+            'test.package', 'test.activity', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.device_utils')
   @patch('pull_uma_histogram_set_via_cdp.requests')
@@ -95,8 +96,9 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
         'webSocketDebuggerUrl': 'ws://test_url'
     }]
     mock_requests.get.return_value = mock_response
-    self.assertEqual(pull_uma_histogram_set_via_cdp.get_websocket_url(),
-                     'ws://test_url')
+    self.assertEqual(
+        pull_uma_histogram_set_via_cdp.get_websocket_url(quiet=True),
+        'ws://test_url')
 
   @patch('sys.argv',
          ['', '--no-manage-cobalt', '--package-name', 'test.package'])
@@ -123,7 +125,9 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
     mock_create_connection.return_value = mock_ws
     mock_ws.recv.return_value = '{"id": 1}'
     pull_uma_histogram_set_via_cdp._interact_via_cdp(  # pylint: disable=protected-access
-        'ws://test_url', ['hist1'], None)
+        'ws://test_url', ['hist1'],
+        None,
+        quiet=True)
     mock_ws.send.assert_any_call('{"id": 1, "method": "Performance.enable", '
                                  '"params": {"timeDomain": "threadTicks"}}')
     mock_ws.send.assert_any_call(
@@ -143,7 +147,9 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
     mock_ws.recv.return_value = '{"id": 1, "result": {"histograms": []}}'
     mock_output_file = MagicMock()
     pull_uma_histogram_set_via_cdp._interact_via_cdp(  # pylint: disable=protected-access
-        'ws://test_url', ['hist1'], mock_output_file)
+        'ws://test_url', ['hist1'],
+        mock_output_file,
+        quiet=True)
     mock_output_file.write.assert_called_once_with(
         '2025-11-05 12:00:00,hist1,{"id": 1, "result": {"histograms": []}}\n')
     mock_output_file.flush.assert_called_once()
