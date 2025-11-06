@@ -1001,15 +1001,10 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-// TODO: b/399507045 - Cobalt: Investigate and remove if unnecessary
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#define GTEST_LOG_ SB_LOG
-#else
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
       .GetStream()
-#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 inline void LogToStderr() {}
 inline void FlushInfoLog() { fflush(nullptr); }
@@ -2066,6 +2061,7 @@ inline std::string StripTrailingSpaces(std::string str) {
 // as the wrapped function.
 
 namespace posix {
+<<<<<<< HEAD
 
 // TODO: b/399507045 - Cobalt: Fix build error, remove hack
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
@@ -2154,6 +2150,8 @@ inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
 
 #else // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
+=======
+>>>>>>> 37870fc4cfb (feat: Integrate musl stdio (#7444))
 // Functions with a different name on Windows.
 
 #if GTEST_OS_WINDOWS
@@ -2298,8 +2296,6 @@ GTEST_DISABLE_MSC_DEPRECATED_POP_()
 #else
 [[noreturn]] inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
-
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 }  // namespace posix
 

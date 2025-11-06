@@ -20,6 +20,12 @@
 #define STARBOARD_THREAD_H_
 
 #include <pthread.h>
+<<<<<<< HEAD
+=======
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+>>>>>>> 37870fc4cfb (feat: Integrate musl stdio (#7444))
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"

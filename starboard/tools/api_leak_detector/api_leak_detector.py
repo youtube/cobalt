@@ -223,6 +223,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir',
     'readdir_r',
     'readlink',
+    'readv',
     'realpath',
     'realloc',
     'recv',
@@ -268,9 +269,12 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
+<<<<<<< HEAD
 
     # Symbols below haven't been implemented yet but need to be investigated.
     'putchar',  # TODO: b/406081586
+=======
+>>>>>>> 37870fc4cfb (feat: Integrate musl stdio (#7444))
 ]
 
 
