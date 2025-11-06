@@ -89,16 +89,16 @@ public abstract class CobaltActivity extends Activity {
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
-  private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
+  private List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList = new ArrayList<>();
 
   @SuppressWarnings("unused")
-  private CobaltA11yHelper a11yHelper;
+  private CobaltA11yHelper mA11yHelper;
 
-  private VideoSurfaceView videoSurfaceView;
+  private VideoSurfaceView mVideoSurfaceView;
 
-  private boolean forceCreateNewVideoSurfaceView;
+  private boolean mForceCreateNewVideoSurfaceView;
 
-  private long timeInNanoseconds;
+  private long mTimeInNanoseconds;
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
@@ -111,7 +111,7 @@ public abstract class CobaltActivity extends Activity {
   // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
   protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
-  private Boolean isKeepScreenOnEnabled = false;
+  private Boolean mIsKeepScreenOnEnabled = false;
   private PlatformError mPlatformError;
 
   private Boolean isMainFrameLoaded = false;
@@ -405,7 +405,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
-    timeInNanoseconds = System.nanoTime();
+    mTimeInNanoseconds = System.nanoTime();
 
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to
@@ -418,10 +418,10 @@ public abstract class CobaltActivity extends Activity {
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
-    videoSurfaceView = new VideoSurfaceView(this);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+    mVideoSurfaceView = new VideoSurfaceView(this);
+    mA11yHelper = new CobaltA11yHelper(this, mVideoSurfaceView);
     addContentView(
-        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
 
   /**
@@ -441,15 +441,15 @@ public abstract class CobaltActivity extends Activity {
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
-    javaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
-    javaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
+    mJavaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
+    mJavaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
     JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
 
     javascriptInjector.setAllowInspection(true);
-    for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
+    for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
       Log.d(
           TAG,
           "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
@@ -477,7 +477,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (forceCreateNewVideoSurfaceView) {
+    if (mForceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -531,7 +531,7 @@ public abstract class CobaltActivity extends Activity {
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
-      forceCreateNewVideoSurfaceView = true;
+      mForceCreateNewVideoSurfaceView = true;
     }
     MemoryPressureMonitor.INSTANCE.disablePolling();
 
@@ -722,8 +722,8 @@ public abstract class CobaltActivity extends Activity {
         new Runnable() {
           @Override
           public void run() {
-            LayoutParams layoutParams = videoSurfaceView.getLayoutParams();
-            // Since videoSurfaceView is added directly to the Activity's content view, which is a
+            LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
+            // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
             if (layoutParams instanceof FrameLayout.LayoutParams) {
               ((FrameLayout.LayoutParams) layoutParams).setMargins(x, y, x + width, y + height);
@@ -740,26 +740,26 @@ public abstract class CobaltActivity extends Activity {
             // SurfaceView to position its underlying Surface to match the screen coordinates of
             // where the view would be in a UI layout and to set the surface transform matrix to
             // match the view's size.
-            videoSurfaceView.setLayoutParams(layoutParams);
+            mVideoSurfaceView.setLayoutParams(layoutParams);
           }
         });
   }
 
   private void createNewSurfaceView() {
-    ViewParent parent = videoSurfaceView.getParent();
+    ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
-      int index = frameLayout.indexOfChild(videoSurfaceView);
-      frameLayout.removeView(videoSurfaceView);
-      Log.i(TAG, "removed videoSurfaceView at index:" + index);
+      int index = frameLayout.indexOfChild(mVideoSurfaceView);
+      frameLayout.removeView(mVideoSurfaceView);
+      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
 
-      videoSurfaceView = new VideoSurfaceView(this);
-      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+      mVideoSurfaceView = new VideoSurfaceView(this);
+      mA11yHelper = new CobaltA11yHelper(this, mVideoSurfaceView);
       frameLayout.addView(
-          videoSurfaceView,
+          mVideoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
+      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
@@ -818,7 +818,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public long getAppStartTimestamp() {
-    return timeInNanoseconds;
+    return mTimeInNanoseconds;
   }
 
   public void evaluateJavaScript(String jsCode, @Nullable JavaScriptCallback callback) {
@@ -840,7 +840,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void toggleKeepScreenOn(boolean keepOn) {
-    if (isKeepScreenOnEnabled != keepOn) {
+    if (mIsKeepScreenOnEnabled != keepOn) {
       runOnUiThread(
           new Runnable() {
             @Override
@@ -854,7 +854,7 @@ public abstract class CobaltActivity extends Activity {
               }
             }
           });
-      isKeepScreenOnEnabled = keepOn;
+      mIsKeepScreenOnEnabled = keepOn;
     }
   }
 
