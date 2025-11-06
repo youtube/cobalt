@@ -37,6 +37,7 @@ namespace {
 
 constexpr int kMaxFramesInDecoder = 100;
 constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
+constexpr bool kVerbose = false;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -825,15 +826,17 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
     return val.has_value() ? std::to_string(*val) : "(n/a)";
   };
 
-  SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
-               << ", rendered gap(msec)=" << gap_ms
-               << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
-               << ", render(sceduled - actual in msec)="
-               << ValOrNA(render_gap_ms)
-               << ", pts(msec)=" << (frame_timestamp / 1'000)
-               << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
-               << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
-               << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);
+  if (kVerbose) {
+    SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
+                 << ", rendered gap(msec)=" << gap_ms
+                 << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
+                 << ", render(sceduled - actual in msec)="
+                 << ValOrNA(render_gap_ms)
+                 << ", pts(msec)=" << (frame_timestamp / 1'000)
+                 << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
+                 << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
+                 << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);
+  }
 
   if (frame_rendered_cb_) {
     frame_rendered_cb_(frame_timestamp, frame_rendered_us);

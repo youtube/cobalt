@@ -34,6 +34,8 @@
 namespace starboard {
 namespace {
 
+constexpr bool kVerbose = false;
+
 class DecoderStateTrackerImpl : public DecoderStateTracker {
  public:
   DecoderStateTrackerImpl(int max_frames,
@@ -97,10 +99,12 @@ bool DecoderStateTrackerImpl::AddFrame(int64_t presentation_time_us) {
   UpdateState_Locked();
   entering_frame_id_++;
 
-  SB_LOG(INFO) << "AddFrame: id=" << entering_frame_id_
-               << ", pts(msec)=" << presentation_time_us / 1'000
-               << ", decoding=" << state_.decoding_frames
-               << ", decoded=" << state_.decoded_frames;
+  if (kVerbose) {
+    SB_LOG(INFO) << "AddFrame: id=" << entering_frame_id_
+                 << ", pts(msec)=" << presentation_time_us / 1'000
+                 << ", decoding=" << state_.decoding_frames
+                 << ", decoded=" << state_.decoded_frames;
+  }
   return true;
 }
 
@@ -117,11 +121,12 @@ bool DecoderStateTrackerImpl::SetFrameDecoded(int64_t presentation_time_us) {
   SB_CHECK_GE(state_.decoded_frames, 0);
 
   decoded_frame_id_++;
-  SB_LOG(INFO) << "SetFrameDecoded: id=" << decoded_frame_id_
-               << ", pts(msec)=" << presentation_time_us / 1000
-               << ", decoding=" << state_.decoding_frames
-               << ", decoded=" << state_.decoded_frames;
-
+  if (kVerbose) {
+    SB_LOG(INFO) << "SetFrameDecoded: id=" << decoded_frame_id_
+                 << ", pts(msec)=" << presentation_time_us / 1000
+                 << ", decoding=" << state_.decoding_frames
+                 << ", decoded=" << state_.decoded_frames;
+  }
   UpdateState_Locked();
   return true;
 }
