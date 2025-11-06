@@ -67,12 +67,12 @@ def stop_package(package_name: str, quiet: bool) -> bool:
   return True
 
 
-def launch_cobalt(package_name: str, activity_name: str, quiet: bool):
+def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
   """Launches the Cobalt application with a specified URL.
        Returns True on success and False upon failure."""
   command_str = (f'adb shell am start -n {package_name}/{activity_name} '
                  f'--esa commandLineArgs \'--remote-allow-origins=*,'
-                 f'--url=\"{TARGET_URL}\"\'')
+                 f'--url=\"{url}\"\'')
   stdout, stderr = run_adb_command(command_str, shell=True)
   if stderr:
     _print_q(f'Error launching Cobalt: {stderr}', quiet)
@@ -181,7 +181,7 @@ def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
 
 
 def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
-                      quiet: bool):
+                      url: str, quiet: bool):
   ws = None
   try:
     ws = websocket.create_connection(websocket_url)
@@ -211,7 +211,7 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
     message_id += 1
 
     if 'result' in response and 'metrics' in response['result']:
-      _print_q(f'\nPerformance Metrics for {TARGET_URL}:', quiet)
+      _print_q(f'\nPerformance Metrics for {url}:', quiet)
       for metric in response['result']['metrics']:
         _print_q('  ' + metric['name'] + ': ' + str(metric['value']), quiet)
     else:
@@ -238,7 +238,8 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
     app_is_running = is_package_running(args.package_name)
 
     if app_is_running:
-      _interact_via_cdp(websocket_url, histograms, output_file, args.quiet)
+      _interact_via_cdp(websocket_url, histograms, output_file, args.url,
+                        args.quiet)
     elif not app_is_running and (iteration % 5 == 0):
       _print_q(f'{header_prefix} App {args.package_name} not running.',
                args.quiet)
@@ -264,6 +265,7 @@ def _run_main(args, output_file):
       launch_cobalt(
           package_name=args.package_name,
           activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
+          url=args.url,
           quiet=args.quiet)
       time.sleep(5)  # Wait for the app to launch.
       if not is_package_running(args.package_name):
@@ -326,6 +328,10 @@ def main():
       help='The polling frequency in seconds.')
   parser.add_argument(
       '--output-file', help='Path to a file to direct all output to.')
+  parser.add_argument(
+      '--url',
+      default=TARGET_URL,
+      help='The target URL for Cobalt to navigate to on launch.')
   parser.add_argument(
       '-q',
       '--quiet',

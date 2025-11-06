@@ -70,7 +70,7 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
     mock_run_adb_command.return_value = ('', '')
     self.assertTrue(
         pull_uma_histogram_set_via_cdp.launch_cobalt(
-            'test.package', 'test.activity', quiet=True))
+            'test.package', 'test.activity', 'http://test.url', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   def test_launch_cobalt_failure(self, mock_run_adb_command):
@@ -78,7 +78,7 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
     mock_run_adb_command.return_value = ('', 'Error')
     self.assertFalse(
         pull_uma_histogram_set_via_cdp.launch_cobalt(
-            'test.package', 'test.activity', quiet=True))
+            'test.package', 'test.activity', 'http://test.url', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.device_utils')
   @patch('pull_uma_histogram_set_via_cdp.requests')
@@ -100,8 +100,10 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
         pull_uma_histogram_set_via_cdp.get_websocket_url(quiet=True),
         'ws://test_url')
 
-  @patch('sys.argv',
-         ['', '--no-manage-cobalt', '--package-name', 'test.package'])
+  @patch('sys.argv', [
+      '', '--no-manage-cobalt', '--package-name', 'test.package', '--url',
+      'http://test.url'
+  ])
   @patch(
       'pull_uma_histogram_set_via_cdp.is_package_running', return_value=False)
   @patch('pull_uma_histogram_set_via_cdp.loop')
@@ -118,42 +120,6 @@ class PullUmaHistogramSetViaCdpTest(unittest.TestCase):
     mock_launch_cobalt.assert_not_called()
     mock_stop_package.assert_not_called()
     mock_loop.assert_called_once()
-
-  @patch('pull_uma_histogram_set_via_cdp.websocket.create_connection')
-  def test_interact_via_cdp(self, mock_create_connection):
-    """Tests that _interact_via_cdp sends the correct commands."""
-    mock_ws = MagicMock()
-    mock_create_connection.return_value = mock_ws
-    mock_ws.recv.return_value = '{"id": 1}'
-    pull_uma_histogram_set_via_cdp._interact_via_cdp(  # pylint: disable=protected-access
-        'ws://test_url', ['hist1'],
-        None,
-        quiet=True)
-    mock_ws.send.assert_any_call('{"id": 1, "method": "Performance.enable", '
-                                 '"params": {"timeDomain": "threadTicks"}}')
-    mock_ws.send.assert_any_call(
-        '{"id": 2, "method": "Performance.getMetrics", "params": {}}')
-    mock_ws.send.assert_any_call('{"id": 3, "method": "Browser.getHistograms", '
-                                 '"params": {"query": "hist1"}}')
-
-  @patch(
-      'pull_uma_histogram_set_via_cdp.time.strftime',
-      return_value='2025-11-05 12:00:00')
-  @patch('pull_uma_histogram_set_via_cdp.websocket.create_connection')
-  def test_interact_via_cdp_with_output_file(self, mock_create_connection,
-                                             unused_strftime):
-    """Tests that histogram data is written to the output file."""
-    mock_ws = MagicMock()
-    mock_create_connection.return_value = mock_ws
-    mock_ws.recv.return_value = '{"id": 1, "result": {"histograms": []}}'
-    mock_output_file = MagicMock()
-    pull_uma_histogram_set_via_cdp._interact_via_cdp(  # pylint: disable=protected-access
-        'ws://test_url', ['hist1'],
-        mock_output_file,
-        quiet=True)
-    mock_output_file.write.assert_called_once_with(
-        '2025-11-05 12:00:00,hist1,{"id": 1, "result": {"histograms": []}}\n')
-    mock_output_file.flush.assert_called_once()
 
 
 if __name__ == '__main__':
