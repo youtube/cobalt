@@ -14,10 +14,14 @@
 
 #include "media/starboard/decoder_buffer_allocator.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/system/sys_info.h"
+#include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
@@ -27,16 +31,28 @@
 #include "starboard/common/in_place_reuse_allocator_base.h"
 #include "starboard/common/log.h"
 #include "starboard/common/reuse_allocator_base.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
 namespace media {
-
 namespace {
+using ::starboard::FormatWithDigitSeparators;
 
 // Used to determine if the memory allocated is large. The underlying logic can
 // be different.
 const size_t kSmallAllocationThreshold = 512;
+
+int64_t GetTotalCPUMemory() {
+  long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]
+  long page_size = sysconf(_SC_PAGE_SIZE);  // NOLINT[runtime/int]
+  if (pages == -1 || page_size == -1) {
+    SB_NOTREACHED();
+    return 0;
+  }
+
+  return static_cast<int64_t>(pages) * page_size;
+}
 
 }  // namespace
 
@@ -55,6 +71,18 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
+  LOG(INFO) << "DecoderBufferAllocator: initial_capacity(KiB)="
+            << FormatWithDigitSeparators(initial_capacity_ / 1024)
+            << ", allocation_unit(KiB)="
+            << FormatWithDigitSeparators(allocation_unit_ / 1024)
+            << ", physical memory (MiB)="
+            << FormatWithDigitSeparators(GetTotalCPUMemory() / 1024 / 1024)
+            << ", is_low_end_device="
+            << starboard::to_string(
+                   base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled())
+            << ", is_memory_pool_allocated_on_demand="
+            << starboard::to_string(is_memory_pool_allocated_on_demand_);
+
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
     return;
@@ -71,6 +99,25 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
     DCHECK_EQ(strategy_->GetAllocated(), 0);
     strategy_.reset();
   }
+}
+
+void DecoderBufferAllocator::LogMemoryUsageAndReschedule() {
+  int allocated_mb = GetAllocatedMemory() / 1024 / 1024;
+  if (allocated_mb != last_allocated_mb_) {
+    SB_LOG(INFO) << "Media memory usage: "
+                 << "allocated(MiB)=" << FormatWithDigitSeparators(allocated_mb)
+                 << ", capacity(MiB)="
+                 << FormatWithDigitSeparators(GetCurrentMemoryCapacity() /
+                                              1024 / 1024);
+    last_allocated_mb_ = allocated_mb;
+  }
+
+  base::AutoLock scoped_lock(mutex_);
+  logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DecoderBufferAllocator::LogMemoryUsageAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(1));
 }
 
 void DecoderBufferAllocator::Suspend() {
@@ -197,7 +244,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     LOG(INFO) << "DecoderBufferAllocator is using ReuseAllocatorBase.";
   }
 
-  LOG(INFO) << "Allocated " << initial_capacity_
+  LOG(INFO) << "Allocated " << FormatWithDigitSeparators(initial_capacity_)
             << " bytes for media buffer pool.";
 }
 
