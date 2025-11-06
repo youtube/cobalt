@@ -65,7 +65,7 @@ pipeline () {
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "is_cobalt_on_google3 = true" >> out/${TARGET_PLATFORM}_${CONFIG}/args.gn
   fi
-  autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
+  autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Build Chromedriver for Linux platforms
   ##############################################################################
