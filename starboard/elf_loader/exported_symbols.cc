@@ -40,6 +40,7 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include "starboard/audio_sink.h"
@@ -62,6 +63,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_sched_abi_wrappers.h"
@@ -291,16 +293,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
   REGISTER_SYMBOL(socket);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(symlink);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
-  REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(vswprintf);
   REGISTER_SYMBOL(write);
 
   // Linux APIs
@@ -354,6 +350,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(poll);
+  REGISTER_WRAPPER(prctl);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
@@ -415,6 +412,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(sched_getaffinity);
+  REGISTER_WRAPPER(readv);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(sem_destroy);
   REGISTER_WRAPPER(sem_init);
