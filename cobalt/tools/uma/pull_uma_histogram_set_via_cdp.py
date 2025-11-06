@@ -42,26 +42,32 @@ DEFAULT_COBALT_ACTIVITY_NAME = 'dev.cobalt.app.MainActivity'
 DEFAULT_POLL_INTERVAL_S = 30.0
 
 
+def _print_q(message: str, quiet: bool):
+  """Prints a message if the quiet flag is not set."""
+  if not quiet:
+    print(message)
+
+
 def is_package_running(package_name: str) -> bool:
   """Checks if a given Android package is currently running."""
   stdout, _ = run_adb_command(['adb', 'shell', 'pidof', package_name])
   return bool(stdout and stdout.strip().isdigit())
 
 
-def stop_package(package_name: str) -> bool:
+def stop_package(package_name: str, quiet: bool) -> bool:
   """Attempts to force-stop an Android package."""
-  print(f'Attempting to stop package \'{package_name}\'...')
+  _print_q(f'Attempting to stop package \'{package_name}\'...', quiet)
   _, stderr = run_adb_command(
       ['adb', 'shell', 'am', 'force-stop', package_name])
   if stderr:
-    print(f'Error stopping package \'{package_name}\': {stderr}')
+    _print_q(f'Error stopping package \'{package_name}\': {stderr}', quiet)
     return False
-  print(f'Package \'{package_name}\' stop command issued.')
+  _print_q(f'Package \'{package_name}\' stop command issued.', quiet)
   time.sleep(2)  # Give time for the stop to propagate.
   return True
 
 
-def launch_cobalt(package_name: str, activity_name: str):
+def launch_cobalt(package_name: str, activity_name: str, quiet: bool):
   """Launches the Cobalt application with a specified URL.
        Returns True on success and False upon failure."""
   command_str = (f'adb shell am start -n {package_name}/{activity_name} '
@@ -69,15 +75,16 @@ def launch_cobalt(package_name: str, activity_name: str):
                  f'--url=\"{TARGET_URL}\"\'')
   stdout, stderr = run_adb_command(command_str, shell=True)
   if stderr:
-    print(f'Error launching Cobalt: {stderr}')
+    _print_q(f'Error launching Cobalt: {stderr}', quiet)
     return False
   else:
-    print('Cobalt launch command sent.' +
-          (f' Launch stdout: {stdout}' if stdout else ''))
+    _print_q(
+        'Cobalt launch command sent.' +
+        (f' Launch stdout: {stdout}' if stdout else ''), quiet)
     return True
 
 
-def get_websocket_url():
+def get_websocket_url(quiet: bool):
   """
     Connects to the Cobalt DevTools Protocol endpoint to get the WebSocket URL
     for the first available tab (or a new tab if one isn\'t open).
@@ -97,32 +104,37 @@ def get_websocket_url():
     # Find a suitable target (e.g., page type)
     for target in targets:
       if target.get('type') == 'page' and target.get('webSocketDebuggerUrl'):
-        print('Found existing tab: ' + target['title'] + ' - ' +
-              target['webSocketDebuggerUrl'])
+        _print_q(
+            'Found existing tab: ' + target['title'] + ' - ' +
+            target['webSocketDebuggerUrl'], quiet)
         return target['webSocketDebuggerUrl']
 
     # If no suitable page target is found, create a new one
-    print('No suitable existing page found, trying to create a new tab...')
+    _print_q('No suitable existing page found, trying to create a new tab...',
+             quiet)
     new_tab_url = f'http://{CDP_HOST}:{COBALT_DEBUG_PORT}/json/new'
     new_tab_response = requests.get(new_tab_url, timeout=5)
     new_tab_response.raise_for_status()
     new_tab_data = new_tab_response.json()
     if new_tab_data.get('webSocketDebuggerUrl'):
-      print('Created new tab: ' + new_tab_data['title'] + ' - ' +
-            new_tab_data['webSocketDebuggerUrl'])
+      _print_q(
+          'Created new tab: ' + new_tab_data['title'] + ' - ' +
+          new_tab_data['webSocketDebuggerUrl'], quiet)
       return new_tab_data['webSocketDebuggerUrl']
 
     raise RuntimeError(
         'Could not find or create a suitable WebSocket debugger URL.')
 
   except requests.exceptions.ConnectionError:
-    print(
-        f'Error: Could not connect to Cobalt on {CDP_HOST}:{COBALT_DEBUG_PORT}.'
-    )
-    print('Please ensure Cobalt is running with --remote-debugging-port=9222.')
+    _print_q(
+        'Error: Could not connect to Cobalt on ' +
+        f'{CDP_HOST}:{COBALT_DEBUG_PORT}.', quiet)
+    _print_q(
+        'Please ensure Cobalt is running with --remote-debugging-port=9222.',
+        quiet)
     return None
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    print(f'An error occurred while getting WebSocket URL: {e}')
+  except RuntimeError as e:
+    _print_q(f'An error occurred while getting WebSocket URL: {e}', quiet)
     return None
 
 
@@ -143,9 +155,9 @@ def _get_chrome_guiding_metrics() -> list:
 
 
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
-                                  output_file):
+                                  output_file, quiet: bool):
   """Prints histogram data to the console and writes it to a file."""
-  print('\n' + '-' * 50 + '\n')
+  _print_q('\n' + '-' * 50 + '\n', quiet)
   for metric in histograms:
     command = {
         'id': message_id,
@@ -157,19 +169,20 @@ def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
     ws.send(json.dumps(command))
     response = json.loads(ws.recv())
     message_id += 1
-    print(f'\nMetric - {metric}:\n{response}\n')
+    _print_q(f'\nMetric - {metric}:\n{response}\n', quiet)
     if output_file:
       timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
       output_file.write(f'{timestamp},{metric},{json.dumps(response)}\n')
       output_file.flush()
-  print('\n' + '-' * 50 + '\n')
+  _print_q('\n' + '-' * 50 + '\n', quiet)
 
 
-def _interact_via_cdp(websocket_url: str, histograms: list, output_file):
+def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
+                      quiet: bool):
   ws = None
   try:
     ws = websocket.create_connection(websocket_url)
-    print(f'Connected to WebSocket: {websocket_url}')
+    _print_q(f'Connected to WebSocket: {websocket_url}', quiet)
 
     message_id = 1
     command = {
@@ -181,7 +194,8 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file):
     }
     ws.send(json.dumps(command))
     response = json.loads(ws.recv())
-    print('Enabled Performance domain (ID: ' + str(response['id']) + ')')
+    _print_q('Enabled Performance domain (ID: ' + str(response['id']) + ')',
+             quiet)
     message_id += 1
 
     command = {
@@ -194,24 +208,25 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file):
     message_id += 1
 
     if 'result' in response and 'metrics' in response['result']:
-      print(f'\nPerformance Metrics for {TARGET_URL}:')
+      _print_q(f'\nPerformance Metrics for {TARGET_URL}:', quiet)
       for metric in response['result']['metrics']:
-        print('  ' + metric['name'] + ': ' + metric['value'])
+        _print_q('  ' + metric['name'] + ': ' + str(metric['value']), quiet)
     else:
-      print(f'Could not retrieve metrics: {response}')
+      _print_q(f'Could not retrieve metrics: {response}', quiet)
 
-    _print_cobalt_histogram_names(ws, message_id, histograms, output_file)
+    _print_cobalt_histogram_names(ws, message_id, histograms, output_file,
+                                  quiet)
   except Exception as e:  # pylint: disable=broad-exception-caught
-    print(f'An error occurred: {e}')
+    _print_q(f'An error occurred: {e}', quiet)
   finally:
     if ws:
       ws.close()
-      print('WebSocket connection closed.')
+      _print_q('WebSocket connection closed.', quiet)
 
 
 def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
   """Runs the data polling loop in a dedicated thread."""
-  print('Starting data polling thread')
+  _print_q('Starting data polling thread', args.quiet)
   iteration = 0
   while not stop_event.is_set():
     iteration += 1
@@ -220,12 +235,13 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
     app_is_running = is_package_running(args.package_name)
 
     if app_is_running:
-      _interact_via_cdp(websocket_url, histograms, output_file)
+      _interact_via_cdp(websocket_url, histograms, output_file, args.quiet)
     elif not app_is_running and (iteration % 5 == 0):
-      print(f'{header_prefix} App {args.package_name} not running.')
+      _print_q(f'{header_prefix} App {args.package_name} not running.',
+               args.quiet)
 
     time.sleep(args.poll_interval_s)
-  print('Data polling thread stopped.')
+  _print_q('Data polling thread stopped.', args.quiet)
 
 
 def _run_main(args, output_file):
@@ -235,25 +251,28 @@ def _run_main(args, output_file):
   else:
     histograms = _get_chrome_guiding_metrics()
 
-  print('Ensure Cobalt is running with --remote-debugging-port=9222')
-  print('-' * 50)
+  _print_q('Ensure Cobalt is running with --remote-debugging-port=9222',
+           args.quiet)
+  _print_q('-' * 50, args.quiet)
   stop_event = threading.Event()
 
   if not is_package_running(args.package_name):
     launch_cobalt(
         package_name=args.package_name,
-        activity_name=DEFAULT_COBALT_ACTIVITY_NAME)
+        activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
+        quiet=args.quiet)
     if not is_package_running(args.package_name):
-      print(f'Error: Failed to start {args.package_name}/'
-            f'{DEFAULT_COBALT_ACTIVITY_NAME}. \nExiting...\n')
+      _print_q(
+          f'Error: Failed to start {args.package_name}/'
+          f'{DEFAULT_COBALT_ACTIVITY_NAME}. \nExiting...\n', args.quiet)
       sys.exit(1)
   time.sleep(1)
 
-  websocket_url = get_websocket_url()
+  websocket_url = get_websocket_url(args.quiet)
   if not websocket_url:
-    print('Websocket not found. Exiting...')
+    _print_q('Websocket not found. Exiting...', args.quiet)
     if not args.no_manage_cobalt:
-      stop_package(args.package_name)
+      stop_package(args.package_name, args.quiet)
     return
 
   polling_thread = threading.Thread(
@@ -263,21 +282,23 @@ def _run_main(args, output_file):
   )
   polling_thread.start()
 
-  print(f'\nPolling every {args.poll_interval_s}s. '
-        'Ctrl+C to stop & save.')
+  _print_q(
+      f'\nPolling every {args.poll_interval_s}s. '
+      'Ctrl+C to stop & save.', args.quiet)
 
   try:
     while polling_thread.is_alive():
       time.sleep(1)
   except KeyboardInterrupt:
-    print('\nCtrl+C received. Signaling polling thread to stop...')
+    _print_q('\nCtrl+C received. Signaling polling thread to stop...',
+             args.quiet)
   except Exception as e:  # pylint: disable=broad-exception-caught
-    print(f'Main loop encountered an error: {e}')
+    _print_q(f'Main loop encountered an error: {e}', args.quiet)
   finally:
     stop_event.set()
     if not args.no_manage_cobalt:
-      stop_package(args.package_name)
-  print('\nDONE!!!\n')
+      stop_package(args.package_name, args.quiet)
+  _print_q('\nDONE!!!\n', args.quiet)
 
 
 def main():
@@ -300,6 +321,11 @@ def main():
       help='The polling frequency in seconds.')
   parser.add_argument(
       '--output-file', help='Path to a file to direct all output to.')
+  parser.add_argument(
+      '-q',
+      '--quiet',
+      action='store_true',
+      help='If set, suppresses all non-essential print output.')
   args = parser.parse_args()
 
   if args.output_file:
