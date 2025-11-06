@@ -84,6 +84,7 @@ source_set("browser") {
     deps += [
       "//cobalt/android:jni_headers",
       "//cobalt/android/oom_intervention",
+      "//components/navigation_interception",
     ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
