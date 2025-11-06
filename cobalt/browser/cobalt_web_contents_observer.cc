@@ -81,4 +81,9 @@ enum {
 };
 }  // namespace
 
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+}
+
 }  // namespace cobalt

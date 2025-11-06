@@ -246,7 +246,7 @@ public abstract class CobaltActivity extends Activity {
                     synchronized(lock) {
                       if (isMainFrameLoaded == false) {
                         // Main app loaded in App shell, switch to it.
-                        Log.i(TAG, "main shell is loaded");
+                        Log.i(TAG, "NativeSplash: main shell is loaded with splash screen is finished: " + mShellManager.getSplashAppShell().isDestroyed() + ".");
                         isMainFrameLoaded = true;
                         mShellManager.showAppShell();
                       }
@@ -274,10 +274,21 @@ public abstract class CobaltActivity extends Activity {
                   @Override
                   public void run() {
                     synchronized(lock) {
+                      // If main is loaded, this is no-op due to it is switched
+                      // to main shell.
                       if (isMainFrameLoaded == false) {
-                        Log.i(TAG, "switch to main shell after timeout " + mSplashTimeoutMs + "ms");
-                        isMainFrameLoaded = true;
-                        mShellManager.showAppShell();
+                        if (mShellManager.getSplashAppShell().isDestroyed()) {
+                          // Switch to main shell if splash screen is finished
+                          // (splash screen use window.close() to close
+                          // WebContents and Shell).
+                          Log.i(TAG, "NativeSplash: switch to main shell after " + mSplashTimeoutMs + "ms and video is finished.");
+                          isMainFrameLoaded = true;
+                          mShellManager.showAppShell();
+                        } else {
+                          // Both splash screen and loading main app haven't finished.
+                          // Leave main shell to switch it.
+                          Log.i(TAG, "NativeSplash: splash shell hasn't finished yet after timeout " + mSplashTimeoutMs + "ms.");
+                        }
                       }
                     }
                   }
