@@ -95,7 +95,6 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  protected Boolean mShouldSetJNIPrefix = true;
   // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
   protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
@@ -114,7 +113,7 @@ public abstract class CobaltActivity extends Activity {
       }
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              mShouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
+              VersionInfo.isOfficialBuild(), commandLineArgs));
     }
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
