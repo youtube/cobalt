@@ -194,7 +194,8 @@ class InitAtFork {
 };
 #endif  // !BUILDFLAG(IS_STARBOARD)
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 
@@ -216,15 +217,8 @@ PlatformThreadId PlatformThread::CurrentId() {
   // Pthreads doesn't have the concept of a thread ID, so we have to reach down
   // into the kernel.
 #if BUILDFLAG(IS_APPLE)
-<<<<<<< HEAD
   return pthread_mach_thread_np(pthread_self());
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-=======
-  uint64_t tid;
-  CHECK_EQ(pthread_threadid_np(nullptr, &tid), 0);
-  return PlatformThreadId(tid);
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
->>>>>>> 37870fc4cfb (feat: Integrate musl stdio (#7444))
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265

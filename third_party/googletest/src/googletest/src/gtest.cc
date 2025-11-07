@@ -187,8 +187,6 @@ const char kStackTraceMarker[] = "\nStack trace:\n";
 // is specified on the command line.
 bool g_help_flag = false;
 
-// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Utility function to Open File for Writing
 static FILE* OpenFileForWriting(const std::string& output_file) {
   FILE* fileout = nullptr;
@@ -203,7 +201,6 @@ static FILE* OpenFileForWriting(const std::string& output_file) {
   }
   return fileout;
 }
-#endif
 
 }  // namespace internal
 
@@ -3252,12 +3249,7 @@ bool ShouldUseColor(bool stdout_is_tty) {
   const char* const gtest_color = c.c_str();
 
   if (String::CaseInsensitiveCStringEquals(gtest_color, "auto")) {
-<<<<<<< HEAD
-// TODO: b/399507045 - Cobalt: Fix weird printing out artifacts
-#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-=======
-#if defined(GTEST_OS_WINDOWS) && !defined(GTEST_OS_WINDOWS_MINGW)
->>>>>>> 37870fc4cfb (feat: Integrate musl stdio (#7444))
+#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW)
     // On Windows the TERM variable is usually not set, but the
     // console there does support colors.
     return stdout_is_tty;
