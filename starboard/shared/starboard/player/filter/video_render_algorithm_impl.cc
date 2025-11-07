@@ -179,6 +179,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
     frame_rate_estimate_.Update(*frames);
     auto frame_rate = frame_rate_estimate_.frame_rate();
+    SB_LOG(INFO) << __func__ << " > frame_rate=" << frame_rate;
     SB_DCHECK_NE(frame_rate, VideoFrameRateEstimator::kInvalidFrameRate);
     cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
     if (playback_rate == 0) {

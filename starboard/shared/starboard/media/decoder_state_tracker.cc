@@ -65,6 +65,17 @@ bool DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
                     << ", decoded=" << state_.decoded_frames;
     return false;
   }
+
+  if (last_pt_us_ && presentation_time_us > *last_pt_us_) {
+    int64_t duration_us = presentation_time_us - *last_pt_us_;
+    // Ignore crazy small durations that would lead to huge FPS.
+    if (duration_us > 1'000) {
+      double instant_fps = 1'000'000.0 / duration_us;
+      state_.estimated_fps = 0.9 * state_.estimated_fps + 0.1 * instant_fps;
+    }
+  }
+  last_pt_us_ = presentation_time_us;
+
   state_.decoding_frames++;
 
   UpdateState_Locked();
@@ -168,7 +179,8 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
 std::ostream& operator<<(std::ostream& os,
                          const DecoderStateTracker::State& status) {
   os << "{decoding: " << status.decoding_frames
-     << ", decoded: " << status.decoded_frames << "}";
+     << ", decoded: " << status.decoded_frames
+     << ", estimated_fps: " << status.estimated_fps << "}";
   return os;
 }
 

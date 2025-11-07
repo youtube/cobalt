@@ -19,6 +19,7 @@
 #include <iosfwd>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
@@ -31,6 +32,7 @@ class DecoderStateTracker {
   struct State {
     int decoding_frames = 0;
     int decoded_frames = 0;
+    double estimated_fps = 60.0;
 
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
@@ -62,6 +64,7 @@ class DecoderStateTracker {
 
   int entering_frame_id_ = 0;
   int decoded_frame_id_ = 0;
+  std::optional<int64_t> last_pt_us_;
 };
 
 std::ostream& operator<<(std::ostream& os,

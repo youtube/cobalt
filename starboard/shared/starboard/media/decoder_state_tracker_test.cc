@@ -87,11 +87,12 @@ TEST(DecoderStateTrackerTest, StreamInsertionOperator) {
   DecoderStateTracker::State status;
   status.decoding_frames = 1;
   status.decoded_frames = 2;
+  status.estimated_fps = 30.0;
 
   std::stringstream ss;
   ss << status;
 
-  EXPECT_EQ(ss.str(), "{decoding: 1, decoded: 2}");
+  EXPECT_EQ(ss.str(), "{decoding: 1, decoded: 2, estimated_fps: 30}");
 }
 
 TEST(DecoderStateTrackerTest, ReleaseFrameAt) {
