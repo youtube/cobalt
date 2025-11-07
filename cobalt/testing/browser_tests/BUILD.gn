@@ -186,6 +186,7 @@ test("cobalt_browsertests") {
   }
 
   sources = [
+    # TODO(b/458665232): restore browser tests in M138.
     #"content_main_runner_impl_browsertest.cc",
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",

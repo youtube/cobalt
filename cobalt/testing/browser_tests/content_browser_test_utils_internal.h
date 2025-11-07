@@ -810,7 +810,6 @@ class CommitNavigationPauser
   // Once a `CommitNavigation()` call has been paused, these two methods may be
   // used to resume or discard the commit as appropriate.
   void ResumePausedCommit();
-  void DiscardPausedCommit();
 
  private:
   // CommitCallbackInterceptor overrides:
