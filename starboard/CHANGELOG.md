@@ -53,6 +53,7 @@ The functionality is migrated to use `getauxval` instead.
 * `pipe`
 * `pipe2`
 * `poll`
+* `prctl`
 * `pread`
 * `pthread_attr_getschedpolicy`
 * `pthread_attr_getscope`
@@ -84,6 +85,7 @@ The functionality is migrated to use `getauxval` instead.
 * `rand_r`
 * `readdir`
 * `readlink`
+* `readv`
 * `realpath`
 * `recvmmsg`
 * `recvmsg`
@@ -108,6 +110,7 @@ The functionality is migrated to use `getauxval` instead.
 * `symlink`
 * `sysconf`
 * `uname`
+* `unlinkat`
 * `utimensat`
 * `writev`
 
