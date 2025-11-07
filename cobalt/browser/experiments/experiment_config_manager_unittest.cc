@@ -57,7 +57,9 @@ class ExperimentConfigManagerTest : public testing::Test {
 
  protected:
   base::test::TaskEnvironment task_environment_;
+  // This pref_service provides the finch experiment config.
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
+  // This metrics_pref_service manages the current state of metrics.
   std::unique_ptr<TestingPrefServiceSimple> metrics_pref_service_;
   std::unique_ptr<ExperimentConfigManager> experiment_config_manager_;
   base::HistogramTester histogram_tester_;
