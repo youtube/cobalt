@@ -90,8 +90,12 @@ class OomInterventionTabHelper
   base::TimeTicks last_navigation_timestamp_;
   base::TimeTicks start_monitor_timestamp_;
 
-  base::WeakPtrFactory<OomInterventionTabHelper> weak_ptr_factory_{this};
   WEB_CONTENTS_USER_DATA_KEY_DECL();
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<OomInterventionTabHelper> weak_factory_{this};
 };
 
 #endif  // COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_TAB_HELPER_H_

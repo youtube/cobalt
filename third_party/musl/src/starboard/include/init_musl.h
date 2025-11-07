@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INIT_MUSL_H_
-#define INIT_MUSL_H_
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_INIT_MUSL_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_INIT_MUSL_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,4 +25,4 @@ void init_musl();
 }  // extern "C"
 #endif  // __cplusplus
 
-#endif // INIT_MUSL_H_
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_INIT_MUSL_H_

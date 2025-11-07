@@ -16,8 +16,6 @@
 #include "libc.h"
 #include <sys/auxv.h>
 
-size_t __hwcap;
-
 void init_musl() {
 
   // Set __hwcap bitmask by getauxval.

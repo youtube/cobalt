@@ -46,7 +46,6 @@ namespace {
 const FilePath::CharType kBlobStorageParentDirectory[] =
     FILE_PATH_LITERAL("blob_storage");
 
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Removes all folders in the parent directory except for the
 // |current_run_dir| folder. If this path is empty, then we delete all folders.
 void RemoveOldBlobStorageDirectories(FilePath blob_storage_parent,
@@ -63,7 +62,6 @@ void RemoveOldBlobStorageDirectories(FilePath blob_storage_parent,
       base::DeletePathRecursively(name);
   }
 }
-#endif
 
 class BlobHandleImpl : public BlobHandle {
  public:
@@ -125,8 +123,6 @@ ChromeBlobStorageContext* ChromeBlobStorageContext::GetFor(
     // paging/saving blob data to disk.
     scoped_refptr<base::TaskRunner> file_task_runner;
 
-    // TODO, Cobalt: This causes a runtime crash for Evergreen builds.
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     // If we're not incognito mode, schedule all of our file tasks to enable
     // disk on the storage context.
     if (!context->IsOffTheRecord() && io_thread_valid) {
@@ -139,7 +135,6 @@ ChromeBlobStorageContext* ChromeBlobStorageContext::GetFor(
           base::BindOnce(&RemoveOldBlobStorageDirectories,
                          std::move(blob_storage_parent), blob_storage_dir));
     }
-#endif
 
     if (io_thread_valid) {
       GetIOThreadTaskRunner({})->PostTask(

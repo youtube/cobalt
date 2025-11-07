@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
-#define MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
-
-#include <memory>
+#ifndef MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
+#define MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -121,9 +119,13 @@ class StarboardRendererWrapper : public Renderer,
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
 
   THREAD_CHECKER(thread_checker_);
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 };
 
 }  // namespace media
 
-#endif  // MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
+#endif  // MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_

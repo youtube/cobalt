@@ -111,6 +111,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'fchmod',
     'fchown',
     'fcntl',
+    'fdopendir',
     'free',
     'freeaddrinfo',
     'freeifaddrs',
@@ -156,6 +157,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pipe2',
     'poll',
     'posix_memalign',
+    'prctl',
     'pread',
     'pthread_attr_destroy',
     'pthread_attr_getdetachstate',
@@ -222,6 +224,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir',
     'readdir_r',
     'readlink',
+    'readv',
     'realpath',
     'realloc',
     'recv',
@@ -267,10 +270,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
-
-    # TODO: b/406081586 - Symbols that haven't been implemented yet but will be.
-    'putchar',
-    'fputs',
 ]
 
 

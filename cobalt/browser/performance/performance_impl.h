@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_PERFORMANCE_PERFORMANCE_H_
-#define COBALT_BROWSER_PERFORMANCE_PERFORMANCE_H_
+#ifndef COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
+#define COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "content/public/browser/document_service.h"
@@ -50,4 +50,4 @@ class PerformanceImpl
 
 }  // namespace performance
 
-#endif  // COBALT_BROWSER_PERFORMANCE_PERFORMANCE_H_
+#endif  // COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
