@@ -19,11 +19,15 @@
 
 #include <atomic>
 #include <deque>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <queue>
 #include <string>
 #include <vector>
 
+#include "base/threading/thread.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/common/condition_variable.h"
@@ -31,6 +35,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/decoder_state_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -50,7 +55,7 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t)> FrameRenderedCB;
+  typedef std::function<void(int64_t, int64_t)> FrameRenderedCB;
   typedef std::function<void(void)> FirstTunnelFrameReadyCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
@@ -103,6 +108,7 @@ class MediaDecoder final
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
                int64_t flush_delay_usec,
+               std::optional<int> max_frames_in_decoder,
                std::string* error_message);
   ~MediaDecoder();
 
@@ -119,6 +125,10 @@ class MediaDecoder final
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   bool Flush();
+
+  DecoderStateTracker* decoder_state_tracker() {
+    return decoder_state_tracker_.get();
+  }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -181,7 +191,8 @@ class MediaDecoder final
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                 int64_t frame_rendered_us) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
@@ -213,6 +224,8 @@ class MediaDecoder final
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
+
+  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

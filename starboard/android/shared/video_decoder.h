@@ -126,7 +126,7 @@ class VideoDecoder
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease();
+  void OnVideoFrameRelease(std::optional<int64_t> release_us);
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
@@ -141,6 +141,7 @@ class VideoDecoder
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
+  const std::optional<int> max_frames_in_decoder_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.

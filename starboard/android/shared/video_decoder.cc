@@ -52,6 +52,10 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+// TODO: b/455938352 - Connect this value to h5vcc settings.
+// By default, we turn on decoder throttling.
+constexpr std::optional<int> kMaxFramesInDecoder = std::nullopt;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const std::optional<T>& maybe_value) {
@@ -189,7 +193,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void()> VideoFrameReleaseCallback;
+  typedef std::function<void(std::optional<int64_t> release_us)>
+      VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodecBridge* media_codec_bridge,
@@ -210,7 +215,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_();
+        release_callback_(std::nullopt);
       }
     }
   }
@@ -221,7 +226,7 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_();
+    release_callback_(release_time_in_nanoseconds / 1'000);
   }
 
  private:
@@ -328,6 +333,10 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
+  explicit Sink(VideoDecoder* video_decoder) : video_decoder_(*video_decoder) {
+    SB_CHECK(video_decoder != nullptr);
+  }
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -356,6 +365,7 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     return kReleased;
   }
 
+  VideoDecoder& video_decoder_;
   RenderCB render_cb_;
   bool rendered_;
 };
@@ -382,6 +392,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
+      max_frames_in_decoder_(kMaxFramesInDecoder),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -447,7 +458,7 @@ VideoDecoder::~VideoDecoder() {
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
   if (sink_ == NULL) {
-    sink_ = new Sink;
+    sink_ = new Sink(this);
   }
   return sink_;
 }
@@ -757,7 +768,8 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, error_message));
+      max_video_input_size_, flush_delay_usec_, max_frames_in_decoder_,
+      error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(
@@ -933,7 +945,9 @@ void VideoDecoder::ProcessOutputBuffer(
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         std::bind(&VideoDecoder::OnVideoFrameRelease, this)));
+                         [this](std::optional<int64_t> release_us) {
+                           OnVideoFrameRelease(release_us);
+                         }));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
@@ -1257,10 +1271,15 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void VideoDecoder::OnVideoFrameRelease() {
+void VideoDecoder::OnVideoFrameRelease(std::optional<int64_t> release_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
+  }
+
+  if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
+    media_decoder_->decoder_state_tracker()->ReleaseFrameAt(
+        release_us.value_or(CurrentMonotonicTime()));
   }
 }
 

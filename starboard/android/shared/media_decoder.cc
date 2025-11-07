@@ -25,7 +25,9 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::android::shared {
 
@@ -34,7 +36,7 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-const jlong kDequeueTimeout = 0;
+constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -88,7 +90,8 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      decoder_state_tracker_(nullptr) {
   SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -129,6 +132,7 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
+    std::optional<int> max_frames_in_decoder,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -137,7 +141,13 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      decoder_state_tracker_(max_frames_in_decoder
+                                 ? std::make_unique<DecoderStateTracker>(
+                                       *max_frames_in_decoder,
+                                       kFrameTrackerLogIntervalUs,
+                                       [this] { condition_variable_.Signal(); })
+                                 : nullptr) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -356,6 +366,10 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
+      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
+        can_process_input = false;
+      }
+
       if (can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
@@ -507,6 +521,10 @@ bool MediaDecoder::ProcessOneInputBuffer(
     SB_DCHECK_LE(size, capacity);
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     memcpy(address, data, size);
+  }
+
+  if (size > 0 && decoder_state_tracker_) {
+    decoder_state_tracker_->AddFrame(input_buffer->timestamp());
   }
 
   jint status;
@@ -665,6 +683,11 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
+  if (size > 0 && decoder_state_tracker_ &&
+      !decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
+    SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+  }
+
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -693,8 +716,9 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
-  frame_rendered_cb_(frame_timestamp);
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                             int64_t frame_rendered_us) {
+  frame_rendered_cb_(frame_timestamp, frame_rendered_us);
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
