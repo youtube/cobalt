@@ -36,7 +36,7 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
+const jlong kDequeueTimeout = 0;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -90,8 +90,8 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-      condition_variable_(mutex_),
-      decoder_state_tracker_(nullptr) {
+      decoder_state_tracker_(nullptr),
+      condition_variable_(mutex_) {
   SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -141,13 +141,12 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      condition_variable_(mutex_),
       decoder_state_tracker_(max_frames_in_decoder
                                  ? std::make_unique<DecoderStateTracker>(
                                        *max_frames_in_decoder,
-                                       kFrameTrackerLogIntervalUs,
                                        [this] { condition_variable_.Signal(); })
-                                 : nullptr) {
+                                 : nullptr),
+      condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -683,9 +682,8 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  if (size > 0 && decoder_state_tracker_ &&
-      !decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
-    SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+  if (size > 0 && decoder_state_tracker_) {
+    decoder_state_tracker_->SetFrameDecoded(presentation_time_us);
   }
 
   DequeueOutputResult dequeue_output_result;
@@ -716,9 +714,8 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
-                                             int64_t frame_rendered_us) {
-  frame_rendered_cb_(frame_timestamp, frame_rendered_us);
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
+  frame_rendered_cb_(frame_timestamp);
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {

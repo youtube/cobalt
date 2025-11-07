@@ -53,7 +53,7 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 // TODO: b/455938352 - Connect this value to h5vcc settings.
-// By default, we turn on decoder throttling.
+// By default, we turn off decoder throttling.
 constexpr std::optional<int> kMaxFramesInDecoder = std::nullopt;
 
 template <typename T>
@@ -334,7 +334,7 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
   explicit Sink(VideoDecoder* video_decoder) : video_decoder_(*video_decoder) {
-    SB_CHECK(video_decoder != nullptr);
+    SB_CHECK(video_decoder);
   }
 
   bool Render() {

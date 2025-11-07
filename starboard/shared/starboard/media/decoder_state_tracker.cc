@@ -15,16 +15,9 @@
 #include "starboard/shared/starboard/media/decoder_state_tracker.h"
 
 #include <algorithm>
-#include <deque>
-#include <fstream>
-#include <iomanip>
-#include <map>
-#include <memory>
-#include <numeric>
+#include <optional>
 #include <ostream>
-#include <sstream>
-#include <string>
-#include <vector>
+#include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -36,24 +29,33 @@ namespace {
 
 constexpr bool kVerbose = false;
 constexpr int kMaxInFlightFrames = 100;
+constexpr std::optional<int64_t> kFrameTrackerLogIntervalUs =
+    5'000'000;  // 5 sec.
+
+std::string to_ms_string(std::optional<int64_t> us_opt) {
+  if (!us_opt) {
+    return "(nullopt)";
+  }
+  return std::to_string(*us_opt / 1'000);
+}
 
 }  // namespace
 
 DecoderStateTracker::DecoderStateTracker(int max_frames,
-                                         int64_t log_interval_us,
                                          StateChangedCB state_changed_cb)
     : max_frames_(max_frames),
       state_changed_cb_(std::move(state_changed_cb)),
       state_({}),
       task_runner_("frame_tracker") {
   SB_CHECK(state_changed_cb_);
-  if (log_interval_us > 0) {
+  if (kFrameTrackerLogIntervalUs) {
     task_runner_.Schedule(
-        [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
-        log_interval_us);
+        [this]() { LogStateAndReschedule(*kFrameTrackerLogIntervalUs); },
+        *kFrameTrackerLogIntervalUs);
   }
   SB_LOG(INFO) << "DecoderStateTracker is created: max_frames=" << max_frames_
-               << ", log_interval(msec)=" << (log_interval_us / 1'000);
+               << ", log_interval(msec)="
+               << to_ms_string(kFrameTrackerLogIntervalUs);
 }
 
 bool DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
@@ -108,7 +110,7 @@ bool DecoderStateTracker::ReleaseFrameAt(int64_t release_us) {
     return false;
   }
 
-  int64_t delay_us = std::max<int64_t>(release_us - CurrentMonotonicTime(), 0);
+  int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
   task_runner_.Schedule(
       [this] {
         bool was_full;

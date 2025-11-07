@@ -17,9 +17,7 @@
 
 #include <functional>
 #include <iosfwd>
-#include <memory>
 #include <mutex>
-#include <optional>
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
@@ -36,9 +34,7 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(int max_frames,
-                      int64_t log_interval_us,
-                      StateChangedCB state_changed_cb);
+  DecoderStateTracker(int max_frames, StateChangedCB state_changed_cb);
   ~DecoderStateTracker() = default;
 
   bool AddFrame(int64_t presentation_time_us);

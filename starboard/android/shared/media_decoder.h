@@ -55,7 +55,7 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t, int64_t)> FrameRenderedCB;
+  typedef std::function<void(int64_t)> FrameRenderedCB;
   typedef std::function<void(void)> FirstTunnelFrameReadyCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
@@ -191,8 +191,7 @@ class MediaDecoder final
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp,
-                                 int64_t frame_rendered_us) override;
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
@@ -204,6 +203,8 @@ class MediaDecoder final
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
+
+  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   ErrorCB error_cb_;
 
@@ -224,8 +225,6 @@ class MediaDecoder final
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
-
-  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
