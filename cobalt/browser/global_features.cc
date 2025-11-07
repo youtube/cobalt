@@ -156,9 +156,10 @@ void GlobalFeatures::InitializeActiveConfigData() {
 }
 
 void GlobalFeatures::Shutdown() {
-  metrics_services_manager_client_->ClearMetricsServiceClient();
-  metrics_services_manager_.reset();
-  metrics_services_manager_client_ = nullptr;
+  metrics::MetricsService* metrics = metrics_service();
+  if (metrics) {
+    metrics->LogCleanShutdown();
+  }
 }
 
 // static
