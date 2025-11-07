@@ -183,6 +183,13 @@ class MEDIA_EXPORT SourceBufferStream {
     memory_limit_ = memory_limit;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void set_memory_limit_clamp(size_t memory_limit_clamp) {
+    LOG(INFO) << "John the current lim is: " << memory_limit_ << " and the clamp is: " << memory_limit_clamp;
+    memory_limit_ = std::min(memory_limit_, memory_limit_clamp);
+  }
+#endif
+
   // A helper function for detecting video/audio config change, so that we
   // can "peek" the next buffer instead of dequeuing it directly from the source
   // stream buffer queue.
@@ -503,6 +510,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // eviction heuristic can cause the result to vary from the value set in
   // constructor.
   size_t memory_limit_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  size_t memory_limit_clamp_ = 160 * 1024 * 1024;
+#endif // BUILDFLAG USE_STARBOARD_MEDIA
 
   // Indicates that a kConfigChanged status has been reported by GetNextBuffer()
   // and GetCurrentXXXDecoderConfig() must be called to update the current

@@ -7,6 +7,7 @@
 #include <string>
 #include <variant>
 
+#include "base/command_line.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
@@ -15,6 +16,7 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
@@ -104,6 +106,20 @@ void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderThread::Get()->BindHostReceiver(
         h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
   }
+
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+
+  command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitMb, "120");
+
+  // cobalt::mojom::SettingsPtr settings;
+  // if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+  //   auto it = (settings->settings).find("Media.UseExperimentalBudget");
+  //   if (it != settings->settings.end()) {
+  //     //command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitMb,
+  //     "120");
+  //   }
+
+  // }
 }
 
 #if BUILDFLAG(IS_ANDROID)

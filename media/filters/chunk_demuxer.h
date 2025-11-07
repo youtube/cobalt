@@ -160,6 +160,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Sets the memory limit, in bytes, on the SourceBufferStream.
   void SetStreamMemoryLimit(size_t memory_limit);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void SetStreamMemoryLimitClamp(size_t memory_limit_clamp);
+#endif // USE_STARBOARD_MEDIA
+
   void SetLiveness(StreamLiveness liveness);
 
   MediaTrack::Id media_track_id() const { return media_track_id_; }

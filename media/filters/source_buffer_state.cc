@@ -924,6 +924,7 @@ bool SourceBufferState::OnNewConfigs(
 
   if (!first_init_segment_received_) {
     first_init_segment_received_ = true;
+    LOG(INFO) << "John setting limits!";
     SetStreamMemoryLimits();
   }
 
@@ -954,11 +955,12 @@ void SourceBufferState::SetStreamMemoryLimits() {
   size_t video_buf_size_limit =
       GetMSEBufferSizeLimitIfExists(switches::kMSEVideoBufferSizeLimitMb);
   if (video_buf_size_limit) {
+    LOG(INFO) << "John switch has been activated";
     MEDIA_LOG(INFO, media_log_)
         << "Custom video per-track SourceBuffer size limit="
         << video_buf_size_limit;
     for (const auto& it : video_streams_)
-      it.second->SetStreamMemoryLimit(video_buf_size_limit);
+      it.second->SetStreamMemoryLimitClamp(video_buf_size_limit);
   }
 }
 

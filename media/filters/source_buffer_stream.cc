@@ -799,6 +799,8 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
     return false;
   }
 
+  LOG(INFO) << "John the current memory limit is: " << memory_limit_ / 1024 / 1024;
+
   size_t effective_memory_limit = memory_limit_;
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {
     switch (memory_pressure_level_) {
@@ -1859,6 +1861,8 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     return false;
   }
 
+  LOG(INFO) << "John we are updating the config";
+
   // Check to see if the new config matches an existing one.
   for (size_t i = 0; i < video_configs_.size(); ++i) {
     if (config.Matches(video_configs_[i])) {
@@ -1879,6 +1883,9 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       memory_limit_,
       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                        &config));
+  memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
+  LOG(INFO) << "John we have updated the stream, the limit is: " << memory_limit_;
+
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return true;
