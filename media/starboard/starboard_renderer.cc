@@ -160,7 +160,10 @@ std::optional<int> MaxFramesInDecoder(
   auto it = h5vcc_settings.find("Media.MaxFramesInDecoder");
   if (it != h5vcc_settings.end()) {
     if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
-      return static_cast<int>(*value_ptr);
+      if (*value_ptr >= 0) {
+        return static_cast<int>(*value_ptr);
+      }
+      // Negative value is invalid, fall back to the default value.
     }
   }
   return kDefaultMaxFramesInDecoder;

@@ -78,9 +78,9 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     : JobOwner(kDetached),
       drm_system_(creation_param->drm_system),
       max_frames_in_decoder_(
-          (creation_param->max_frames_in_decoder == 0)
-              ? std::nullopt
-              : std::optional<int>(creation_param->max_frames_in_decoder)),
+          (creation_param->max_frames_in_decoder > 0)
+              ? std::optional<int>(creation_param->max_frames_in_decoder)
+              : std::nullopt),
       audio_stream_info_(creation_param->audio_stream_info),
       output_mode_(creation_param->output_mode),
       max_video_input_size_(0),
