@@ -92,7 +92,7 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
 }
 
 locale_t uselocale(locale_t newloc) {
-  // TODO: This is a stub.
+  // TODO: b/403007005 Fill in this stub.
   return nullptr;
 }
 
