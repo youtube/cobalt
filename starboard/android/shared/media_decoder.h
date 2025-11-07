@@ -55,8 +55,8 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  using FrameRenderedCB = std::function<void(int64_t, int64_t)>;
-  using FirstTunnelFrameReadyCB = std::function<void(void)>;
+  typedef std::function<void(int64_t, int64_t)> FrameRenderedCB;
+  typedef std::function<void(void)> FirstTunnelFrameReadyCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -177,7 +177,6 @@ class MediaDecoder final
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
-  void LogPendingFrameCountAndReschedule();
 
   // MediaCodecBridge::Handler methods
   // Note that these methods are called from the default looper and is not on

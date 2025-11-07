@@ -63,8 +63,6 @@ inline std::ostream& operator<<(std::ostream& stream,
   return stream;
 }
 
-constexpr bool kSetReleaseTimeExplicitly = true;
-
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -222,19 +220,9 @@ class VideoFrameImpl : public VideoFrame {
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
-
-    if (kSetReleaseTimeExplicitly) {
-      media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
-          dequeue_output_result_.index, release_time_in_nanoseconds);
-      release_callback_(release_time_in_nanoseconds / 1'000);
-      return;
-    }
-
-    media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
-                                             true);
-    if (!is_end_of_stream()) {
-      release_callback_(std::nullopt);
-    }
+    media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
+        dequeue_output_result_.index, release_time_in_nanoseconds);
+    release_callback_(release_time_in_nanoseconds / 1'000);
   }
 
  private:
@@ -369,11 +357,11 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
+
     return kReleased;
   }
 
   VideoDecoder& video_decoder_;
-
   RenderCB render_cb_;
   bool rendered_;
 };
@@ -454,8 +442,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
                << tunnel_mode_audio_session_id_;
-  SB_LOG(INFO) << "kSetReleaseTimeExplicitly="
-               << (kSetReleaseTimeExplicitly ? "true" : "false");
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -828,8 +814,8 @@ void VideoDecoder::TeardownCodec() {
       first_texture_received_ = false;
       has_new_texture_available_.store(false);
     } else {
-      // If |decode_target_| is not created, |first_texture_received_|
-      // and |has_new_texture_available_| should always be false.
+      // If |decode_target_| is not created, |first_texture_received_| and
+      // |has_new_texture_available_| should always be false.
       SB_DCHECK(!first_texture_received_);
       SB_DCHECK(!has_new_texture_available_.load());
     }

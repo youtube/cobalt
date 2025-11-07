@@ -218,13 +218,10 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   ScopedLock scoped_lock(mutex_);
   bool need_signal = pending_inputs_.empty();
-  int64_t total_size = 0;
   for (const auto& input_buffer : input_buffers) {
     pending_inputs_.emplace_back(input_buffer);
     ++number_of_pending_inputs_;
-    total_size += input_buffer->size();
   }
-
   if (need_signal) {
     condition_variable_.Signal();
   }
@@ -524,12 +521,8 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  if (size > 0) {
-    if (decoder_state_tracker_) {
-      decoder_state_tracker_->AddFrame(input_buffer->timestamp());
-    }
-  } else {
-    SB_LOG(WARNING) << __func__ << " > size=" << size;
+  if (size > 0 && decoder_state_tracker_) {
+    decoder_state_tracker_->AddFrame(input_buffer->timestamp());
   }
 
   jint status;
@@ -560,7 +553,6 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
@@ -661,7 +653,6 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
-  // SB_LOG(INFO) << __func__ << " > buffer_index=" << buffer_index;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -690,13 +681,9 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  if (size > 0) {
-    if (decoder_state_tracker_ &&
-        !decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
-      SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
-    }
-  } else {
-    SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
+  if (size > 0 && decoder_state_tracker_ &&
+      !decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
+    SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
   }
 
   DequeueOutputResult dequeue_output_result;
@@ -729,9 +716,7 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                                              int64_t frame_rendered_us) {
-  if (frame_rendered_cb_) {
-    frame_rendered_cb_(frame_timestamp, frame_rendered_us);
-  }
+  frame_rendered_cb_(frame_timestamp, frame_rendered_us);
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
@@ -796,4 +781,5 @@ bool MediaDecoder::Flush() {
   destroying_.store(false);
   return true;
 }
+
 }  // namespace starboard::android::shared
