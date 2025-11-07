@@ -156,7 +156,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
                 fake_graphics_context_provider_.decoder_target_provider(),
-                nullptr);
+                /*max_frames_in_decoder=*/std::nullopt, /*drm_system=*/nullptr);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 

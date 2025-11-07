@@ -52,6 +52,15 @@ TEST(DecoderStateTrackerTest, AddFrameReturnsFalseWhenFull) {
     ASSERT_TRUE(decoder_state_tracker->AddFrame(0));
   }
 
+  // Should still accept more because nothing is decoded yet.
+  EXPECT_TRUE(decoder_state_tracker->CanAcceptMore());
+  EXPECT_TRUE(decoder_state_tracker->AddFrame(0));
+
+  // Now decode one frame.
+  ASSERT_TRUE(decoder_state_tracker->SetFrameDecoded(0));
+
+  // Should be full now because decoded_frames > 0 and total_frames >=
+  // kMaxFrames.
   EXPECT_FALSE(decoder_state_tracker->CanAcceptMore());
 }
 
@@ -134,30 +143,6 @@ TEST(DecoderStateTrackerTest, FrameReleasedCallback) {
 
   usleep(100'000);  // at 250 msec
   EXPECT_EQ(counter, 1);
-}
-
-TEST(DecoderStateTrackerTest, ThrottlesOnMaxDecodedFrames) {
-  constexpr int kLargeMaxFrames = 10;
-  auto decoder_state_tracker =
-      std::make_unique<DecoderStateTracker>(kLargeMaxFrames, 0, [] {});
-
-  // Add and decode 2 frames.
-  ASSERT_TRUE(decoder_state_tracker->AddFrame(0));
-  ASSERT_TRUE(decoder_state_tracker->SetFrameDecoded(0));
-  ASSERT_TRUE(decoder_state_tracker->AddFrame(0));
-  ASSERT_TRUE(decoder_state_tracker->SetFrameDecoded(0));
-
-  // Should be full now because decoded_frames == 2.
-  EXPECT_FALSE(decoder_state_tracker->CanAcceptMore());
-  EXPECT_FALSE(decoder_state_tracker->AddFrame(0));
-
-  // Release one frame.
-  decoder_state_tracker->ReleaseFrameAt(CurrentMonotonicTime());
-  usleep(50'000);  // Wait for async release
-
-  // Should accept more now.
-  EXPECT_TRUE(decoder_state_tracker->CanAcceptMore());
-  EXPECT_TRUE(decoder_state_tracker->AddFrame(0));
 }
 
 }  // namespace

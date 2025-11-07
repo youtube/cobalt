@@ -35,7 +35,7 @@ namespace starboard {
 namespace {
 
 constexpr bool kVerbose = false;
-constexpr int kMaxDecodedFrames = 4;
+constexpr int kMaxInFlightFrames = 100;
 
 }  // namespace
 
@@ -62,8 +62,7 @@ bool DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
   if (IsFull_Locked()) {
     SB_LOG(WARNING) << __func__ << " accepts no more frames: frames="
                     << state_.total_frames() << "/" << max_frames_
-                    << ", decoded=" << state_.decoded_frames << "/"
-                    << kMaxDecodedFrames;
+                    << ", decoded=" << state_.decoded_frames;
     return false;
   }
   state_.decoding_frames++;
@@ -141,12 +140,17 @@ bool DecoderStateTracker::CanAcceptMore() {
 }
 
 bool DecoderStateTracker::IsFull_Locked() const {
-  return state_.total_frames() >= max_frames_ ||
-         state_.decoded_frames >= kMaxDecodedFrames;
+  // We accept more frames if no decoded frames have been generated yet.
+  // Some devices need a large number of frames when generating the 1st
+  // decoded frame. See b/405467220#comment36 for details.
+  if (state_.decoded_frames == 0 &&
+      state_.total_frames() < kMaxInFlightFrames) {
+    return false;
+  }
+  return state_.total_frames() >= max_frames_;
 }
 
 void DecoderStateTracker::UpdateState_Locked() {
-  SB_CHECK_LE(state_.total_frames(), max_frames_);
   SB_CHECK_GE(state_.decoding_frames, 0);
   SB_CHECK_GE(state_.decoded_frames, 0);
 }
