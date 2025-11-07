@@ -212,6 +212,7 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         &prefs_, enabled_state_provider_.get(), std::wstring(),
         temp_dir_.GetPath(), metrics::StartupVisibility::kForeground);
     ASSERT_THAT(metrics_state_manager_, NotNull());
+    metrics_state_manager_->clean_exit_beacon()->Initialize();
 
     auto synthetic_trial_registry =
         std::make_unique<variations::SyntheticTrialRegistry>();

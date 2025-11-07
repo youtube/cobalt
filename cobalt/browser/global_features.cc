@@ -40,10 +40,10 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
   CreateMetricsServices();
-  // InitializeActiveConfigData() needs ExperimentConfigManager to determine the
-  // experiment config type.
-  experiment_config_manager_ =
-      std::make_unique<ExperimentConfigManager>(experiment_config_.get());
+  // InitializeActiveConfigData needs ExperimentConfigManager to determine
+  // the experiment config type.
+  experiment_config_manager_ = std::make_unique<ExperimentConfigManager>(
+      experiment_config_.get(), metrics_local_state_.get());
   InitializeActiveConfigData();
 }
 
@@ -155,6 +155,12 @@ void GlobalFeatures::InitializeActiveConfigData() {
           : kExperimentConfigActiveConfigData);
 }
 
+void GlobalFeatures::Shutdown() {
+  metrics_services_manager_client_->ClearMetricsServiceClient();
+  metrics_services_manager_.reset();
+  metrics_services_manager_client_ = nullptr;
+}
+
 // static
 void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kExperimentConfig);
@@ -170,7 +176,6 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
   registry->RegisterTimePref(variations::prefs::kVariationsLastFetchTime,
                              base::Time(), PrefRegistry::LOSSY_PREF);
-  metrics::MetricsService::RegisterPrefs(registry);
 }
 
 }  // namespace cobalt
