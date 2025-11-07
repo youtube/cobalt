@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <iosfwd>
+#include <map>
 #include <mutex>
 
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -37,14 +38,20 @@ class DecoderStateTracker {
   DecoderStateTracker(int max_frames, StateChangedCB state_changed_cb);
   ~DecoderStateTracker() = default;
 
-  bool AddFrame(int64_t presentation_time_us);
-  bool SetFrameDecoded(int64_t presentation_time_us);
-  bool ReleaseFrameAt(int64_t release_us);
+  void AddFrame(int64_t presentation_time_us);
+  void SetFrameDecoded(int64_t presentation_time_us);
+  void OnFrameReleased(int64_t presentation_time_us, int64_t release_us);
 
   State GetCurrentState() const;
   bool CanAcceptMore();
 
  private:
+  enum class FrameStatus {
+    kDecoding,
+    kDecoded,
+  };
+
+  State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
   void LogStateAndReschedule(int64_t log_interval_us);
 
@@ -52,12 +59,9 @@ class DecoderStateTracker {
   const StateChangedCB state_changed_cb_;
 
   mutable std::mutex mutex_;
-  State state_;  // GUARDED_BY mutex_;
+  std::map<int64_t, FrameStatus> frames_in_flight_;  // GUARDED_BY(mutex_)
 
   shared::starboard::player::JobThread task_runner_;
-
-  int entering_frame_id_ = 0;
-  int decoded_frame_id_ = 0;
 };
 
 std::ostream& operator<<(std::ostream& os,

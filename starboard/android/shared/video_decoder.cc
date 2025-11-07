@@ -193,7 +193,7 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void(std::optional<int64_t> release_us)>
+  typedef std::function<void(int64_t pts, std::optional<int64_t> release_us)>
       VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
@@ -215,7 +215,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_(std::nullopt);
+        release_callback_(timestamp(), std::nullopt);
       }
     }
   }
@@ -226,7 +226,7 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_(release_time_in_nanoseconds / 1'000);
+    release_callback_(timestamp(), release_time_in_nanoseconds / 1'000);
   }
 
  private:
@@ -944,10 +944,11 @@ void VideoDecoder::ProcessOutputBuffer(
   }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         [this](std::optional<int64_t> release_us) {
-                           OnVideoFrameRelease(release_us);
-                         }));
+      new VideoFrameImpl(
+          dequeue_output_result, media_codec_bridge,
+          [this](int64_t pts, std::optional<int64_t> release_us) {
+            OnVideoFrameRelease(pts, release_us);
+          }));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
@@ -1271,15 +1272,16 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void VideoDecoder::OnVideoFrameRelease(std::optional<int64_t> release_us) {
+void VideoDecoder::OnVideoFrameRelease(int64_t pts,
+                                       std::optional<int64_t> release_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 
   if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
-    media_decoder_->decoder_state_tracker()->ReleaseFrameAt(
-        release_us.value_or(CurrentMonotonicTime()));
+    media_decoder_->decoder_state_tracker()->OnFrameReleased(
+        pts, release_us.value_or(CurrentMonotonicTime()));
   }
 }
 

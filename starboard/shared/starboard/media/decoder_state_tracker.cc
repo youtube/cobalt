@@ -27,7 +27,6 @@
 namespace starboard {
 namespace {
 
-constexpr bool kVerbose = false;
 constexpr int kMaxInFlightFrames = 100;
 constexpr std::optional<int64_t> kFrameTrackerLogIntervalUs =
     5'000'000;  // 5 sec.
@@ -45,7 +44,6 @@ DecoderStateTracker::DecoderStateTracker(int max_frames,
                                          StateChangedCB state_changed_cb)
     : max_frames_(max_frames),
       state_changed_cb_(std::move(state_changed_cb)),
-      state_({}),
       task_runner_("frame_tracker") {
   SB_CHECK(state_changed_cb_);
   if (kFrameTrackerLogIntervalUs) {
@@ -58,79 +56,64 @@ DecoderStateTracker::DecoderStateTracker(int max_frames,
                << to_ms_string(kFrameTrackerLogIntervalUs);
 }
 
-bool DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
+void DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
-  if (IsFull_Locked()) {
-    SB_LOG(WARNING) << __func__ << " accepts no more frames: frames="
-                    << state_.total_frames() << "/" << max_frames_
-                    << ", decoded=" << state_.decoded_frames;
-    return false;
+  if (frames_in_flight_.find(presentation_time_us) != frames_in_flight_.end()) {
+    SB_LOG(WARNING) << "Duplicate frame PTS: " << presentation_time_us;
   }
-
-  state_.decoding_frames++;
-
-  entering_frame_id_++;
-
-  if (kVerbose) {
-    SB_LOG(INFO) << "AddFrame: id=" << entering_frame_id_
-                 << ", pts(msec)=" << presentation_time_us / 1'000
-                 << ", decoding=" << state_.decoding_frames
-                 << ", decoded=" << state_.decoded_frames;
-  }
-  return true;
+  frames_in_flight_[presentation_time_us] = FrameStatus::kDecoding;
 }
 
-bool DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
+void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
-  if (state_.decoding_frames == 0) {
-    SB_LOG(ERROR) << __func__ << " < no decoding frames"
-                  << ", pts(msec)=" << presentation_time_us / 1000;
-    return false;
+  auto it = frames_in_flight_.find(presentation_time_us);
+  if (it == frames_in_flight_.end()) {
+    SB_LOG(ERROR) << __func__
+                  << ": Unknown frame decoded, pts=" << presentation_time_us;
+    frames_in_flight_[presentation_time_us] = FrameStatus::kDecoded;
+  } else {
+    it->second = FrameStatus::kDecoded;
   }
-  state_.decoding_frames--;
-  state_.decoded_frames++;
-
-  decoded_frame_id_++;
-  if (kVerbose) {
-    SB_LOG(INFO) << "SetFrameDecoded: id=" << decoded_frame_id_
-                 << ", pts(msec)=" << presentation_time_us / 1000
-                 << ", decoding=" << state_.decoding_frames
-                 << ", decoded=" << state_.decoded_frames;
-  }
-  return true;
 }
 
-bool DecoderStateTracker::ReleaseFrameAt(int64_t release_us) {
-  std::lock_guard lock(mutex_);
-
-  if (state_.decoded_frames == 0) {
-    SB_LOG(ERROR) << __func__ << " < no decoded frames";
-    return false;
-  }
-
+void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
+                                          int64_t release_us) {
   int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
   task_runner_.Schedule(
-      [this] {
-        bool was_full;
+      [this, presentation_time_us] {
+        bool should_signal = false;
         {
           std::lock_guard lock(mutex_);
-          was_full = IsFull_Locked();
-          state_.decoded_frames--;
+          bool was_full = IsFull_Locked();
+          frames_in_flight_.erase(presentation_time_us);
+          if (was_full && !IsFull_Locked()) {
+            should_signal = true;
+          }
         }
-        if (was_full) {
+        if (should_signal) {
           state_changed_cb_();
         }
       },
       delay_us);
-
-  return true;
 }
 
 DecoderStateTracker::State DecoderStateTracker::GetCurrentState() const {
   std::lock_guard lock(mutex_);
-  return state_;
+  return GetCurrentState_Locked();
+}
+
+DecoderStateTracker::State DecoderStateTracker::GetCurrentState_Locked() const {
+  State state;
+  for (auto const& [pts, status] : frames_in_flight_) {
+    if (status == FrameStatus::kDecoding) {
+      state.decoding_frames++;
+    } else {
+      state.decoded_frames++;
+    }
+  }
+  return state;
 }
 
 bool DecoderStateTracker::CanAcceptMore() {
@@ -139,14 +122,15 @@ bool DecoderStateTracker::CanAcceptMore() {
 }
 
 bool DecoderStateTracker::IsFull_Locked() const {
+  State state = GetCurrentState_Locked();
+
   // We accept more frames if no decoded frames have been generated yet.
   // Some devices need a large number of frames when generating the 1st
   // decoded frame. See b/405467220#comment36 for details.
-  if (state_.decoded_frames == 0 &&
-      state_.total_frames() < kMaxInFlightFrames) {
+  if (state.decoded_frames == 0 && state.total_frames() < kMaxInFlightFrames) {
     return false;
   }
-  return state_.total_frames() >= max_frames_;
+  return state.total_frames() >= max_frames_;
 }
 
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
@@ -162,7 +146,8 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
 std::ostream& operator<<(std::ostream& os,
                          const DecoderStateTracker::State& status) {
   return os << "{decoding: " << status.decoding_frames
-            << ", decoded: " << status.decoded_frames << "}";
+            << ", decoded: " << status.decoded_frames
+            << ", total: " << status.total_frames() << "}";
 }
 
 }  // namespace starboard

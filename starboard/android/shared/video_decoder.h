@@ -126,7 +126,7 @@ class VideoDecoder
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease(std::optional<int64_t> release_us);
+  void OnVideoFrameRelease(int64_t pts, std::optional<int64_t> release_us);
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
