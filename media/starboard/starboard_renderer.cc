@@ -28,6 +28,7 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "media/starboard/starboard_settings.h"
 
 namespace media {
 
@@ -176,6 +177,7 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
+  StarboardSettings::GetInstance()->SetSettings(h5vcc_settings);
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
