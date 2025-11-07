@@ -31,6 +31,9 @@ class TestShell : public Shell {
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size);
 
+  static void SetShellCreatedCallback(
+      base::OnceCallback<void(TestShell*)> shell_created_callback);
+
   // WebContentsDelegate overrides
   void RegisterProtocolHandler(RenderFrameHost* requesting_frame,
                                const std::string& protocol,
@@ -44,10 +47,6 @@ class TestShell : public Shell {
   PictureInPictureResult EnterPictureInPicture(
       WebContents* web_contents) override;
   void SetContentsBounds(WebContents* source, const gfx::Rect& bounds) override;
-
-  // Used for content_browsertests. Called once.
-  static void SetShellCreatedCallback(
-      base::OnceCallback<void(TestShell*)> shell_created_callback);
 
  private:
   TestShell(std::unique_ptr<WebContents> web_contents,

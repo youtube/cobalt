@@ -55,6 +55,24 @@ TestShell* TestShell::CreateShell(std::unique_ptr<WebContents> web_contents,
   return shell;
 }
 
+base::OnceCallback<void(TestShell*)> TestShell::shell_created_callback_;
+
+// static
+void TestShell::SetShellCreatedCallback(
+    base::OnceCallback<void(TestShell*)> shell_created_callback) {
+  if (!shell_created_callback) {
+    shell_created_callback_.Reset();
+    Shell::SetShellCreatedCallback({});
+    return;
+  }
+  shell_created_callback_ = std::move(shell_created_callback);
+  Shell::SetShellCreatedCallback(base::BindOnce([](Shell* shell) {
+    if (shell_created_callback_) {
+      std::move(shell_created_callback_).Run(static_cast<TestShell*>(shell));
+    }
+  }));
+}
+
 TestShell* TestShell::CreateNewWindow(
     BrowserContext* browser_context,
     const GURL& url,
@@ -157,13 +175,6 @@ void TestShell::SetContentsBounds(WebContents* source,
     // letting them pretend?
     TestShell::GetPlatform()->ResizeWebContent(this, bounds.size());
   }
-}
-
-// static
-void TestShell::SetShellCreatedCallback(
-    base::OnceCallback<void(TestShell*)> shell_created_callback) {
-  DCHECK(!shell_created_callback_);
-  shell_created_callback_ = std::move(shell_created_callback);
 }
 
 }  // namespace content
