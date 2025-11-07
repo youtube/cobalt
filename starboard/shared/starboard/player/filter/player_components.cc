@@ -128,9 +128,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
             video_stream_info_.codec != kSbMediaVideoCodecNone);
 }
 
-PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const CreationParameters& that) = default;
-
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
