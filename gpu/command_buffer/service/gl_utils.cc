@@ -453,6 +453,8 @@ void InitializeGLDebugLogging(bool log_non_errors,
   glEnable(GL_DEBUG_OUTPUT);
   glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
+// TODO: b/457746593 - Cobalt: Fix the crash on raspi2
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || !defined(__arm__)
   glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR, GL_DONT_CARE,
                         0, nullptr, GL_TRUE);
 
@@ -469,6 +471,8 @@ void InitializeGLDebugLogging(bool log_non_errors,
   }
 
   glDebugMessageCallback(callback, user_param);
+#endif
+
 }
 
 bool ValidContextLostReason(GLenum reason) {

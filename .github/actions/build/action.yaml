@@ -97,9 +97,7 @@ runs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}_test_targets_json
-          path: |
-            src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-            src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
+          path: src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
         if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets

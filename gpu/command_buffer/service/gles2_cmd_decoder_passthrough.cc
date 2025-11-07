@@ -935,6 +935,8 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
     return gpu::ContextResult::kFatalFailure;                    \
   }
 
+// TODO: b/457746593 - Cobalt: Fix the crash on raspi2
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || !defined(__arm__)
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_robust_client_memory,
                    "missing GL_ANGLE_robust_client_memory");
   FAIL_INIT_IF_NOT(
@@ -944,15 +946,22 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                    "missing GL_CHROMIUM_copy_texture");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_client_arrays,
                    "missing GL_ANGLE_client_arrays");
+#endif
+
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==
                        IsWebGLContextType(attrib_helper.context_type),
                    "missing GL_ANGLE_webgl_compatibility");
+
+// TODO: b/457746593 - Cobalt: Fix the crash on raspi2
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || !defined(__arm__)
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_request_extension,
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
                    "missing GL_KHR_debug");
+#endif
+
   FAIL_INIT_IF_NOT(!attrib_helper.fail_if_major_perf_caveat ||
                        !feature_info_->feature_flags().is_software_webgl,
                    "fail_if_major_perf_caveat + software gl");
