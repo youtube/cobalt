@@ -106,10 +106,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // windows, for specific tests. Has no effect if the loop is already quitting.
   static void QuitMainMessageLoopForTesting();
 
-  // Used for content_browsertests. Called once.
-  static void SetShellCreatedCallback(
-      base::OnceCallback<void(Shell*)> shell_created_callback);
-
   static bool ShouldHideToolbar();
 
   WebContents* web_contents() const { return web_contents_.get(); }

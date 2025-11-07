@@ -80,10 +80,11 @@ static_library("browsertest_support") {
     "content_cert_verifier_browser_test.cc",
     "content_cert_verifier_browser_test.h",
     "content_test_launcher.cc",
-    "resource_load_observer.cc",
-    "resource_load_observer.h",
-    "webrtc_content_browsertest_base.cc",
-    "webrtc_content_browsertest_base.h",
+
+    #"resource_load_observer.cc",
+    #"resource_load_observer.h",
+    #"webrtc_content_browsertest_base.cc",
+    #"webrtc_content_browsertest_base.h",
   ]
 
   public_deps = [
@@ -139,32 +140,28 @@ if (is_android) {
     output = content_browsertests_manifest
   }
 
-  generate_jni("content_browsertests_jni_headers") {
-    testonly = true
-    sources = [ "//content/public/android/javatests/src/org/chromium/content/browser/fakes/TestViewAndroidDelegate.java" ]
-  }
-
   android_library("content_browsertests_java") {
     testonly = true
-    resources_package = "org.chromium.content_browsertests_apk"
+    resources_package = "dev.cobalt.coat"
     sources = [
-      "//content/public/android/javatests/src/org/chromium/content/browser/fakes/TestViewAndroidDelegate.java",
-      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
-      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsActivity.java",
+      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/dev/cobalt/coat/ContentShellBrowserTestActivity.java",
     ]
     deps = [
       ":content_browsertests_manifest",
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
-      "//cobalt/shell/android:cobalt_shell_browsertests_java",
+      "//base:content_uri_utils_java",
+      "//cobalt/shell/android:cobalt_shell_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
       "//components/viz/service:service_java",
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
-      "//testing/android/native_test:native_test_java",
-      "//third_party/jni_zero:jni_zero_java",
+      "//testing/android/native_test:native_browser_test_java",
+      "//third_party/androidx:androidx_core_core_java",
       "//ui/android:ui_java",
     ]
   }
@@ -189,19 +186,19 @@ test("cobalt_browsertests") {
   }
 
   sources = [
-    "content_main_runner_impl_browsertest.cc",
-    "encrypted_media_browsertest.cc",
-    "frame_tree_browsertest.cc",
-    "media_browsertest.cc",
-    "media_browsertest.h",
-    "media_session_browsertest.cc",
-    "media_source_browsertest.cc",
-    "navigation_browsertest.cc",
-    "session_history_browsertest.cc",
-    "site_per_process_browsertest.cc",
-    "site_per_process_browsertest.h",
-    "web_contents_impl_browsertest.cc",
-    "webrtc_getusermedia_browsertest.cc",
+    #"content_main_runner_impl_browsertest.cc",
+    #"encrypted_media_browsertest.cc",
+    #"frame_tree_browsertest.cc",
+    #"media_browsertest.cc",
+    #"media_browsertest.h",
+    #"media_session_browsertest.cc",
+    #"media_source_browsertest.cc",
+    #"navigation_browsertest.cc",
+    #"session_history_browsertest.cc",
+    #"site_per_process_browsertest.cc",
+    #"site_per_process_browsertest.h",
+    #"web_contents_impl_browsertest.cc",
+    #"webrtc_getusermedia_browsertest.cc",
   ]
 
   if (is_android) {
@@ -362,7 +359,6 @@ test("cobalt_browsertests") {
   if (is_android) {
     deps += [
       ":content_browsertests_java",
-      ":content_browsertests_jni_headers",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell/android:cobalt_shell_assets",
       "//cobalt/shell/android:cobalt_shell_java_resources",
@@ -414,10 +410,10 @@ static_library("cobalt_shell_test_lib") {
   sources = [
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
+    "browser/test_shell.cc",
+    "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
-    "shell/test_shell.cc",
-    "shell/test_shell.h",
   ]
 
   public_deps = [

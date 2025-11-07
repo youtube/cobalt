@@ -15,6 +15,8 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
 
+#include <string_view>
+
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
 namespace content {
@@ -29,7 +31,8 @@ class ContentBrowserTestContentBrowserClient
   ContentBrowserTestContentBrowserClient();
   ~ContentBrowserTestContentBrowserClient() override;
 
-  bool CreateThreadPool(base::StringPiece name) override;
+  void OnNetworkServiceCreated(
+      network::mojom::NetworkService* network_service) override;
 };
 
 }  // namespace content

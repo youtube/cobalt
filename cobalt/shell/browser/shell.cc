@@ -169,13 +169,6 @@ void Shell::QuitMainMessageLoopForTesting() {
 }
 
 // static
-void Shell::SetShellCreatedCallback(
-    base::OnceCallback<void(Shell*)> shell_created_callback) {
-  DCHECK(!shell_created_callback_);
-  shell_created_callback_ = std::move(shell_created_callback);
-}
-
-// static
 bool Shell::ShouldHideToolbar() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kContentShellHideToolbar);
