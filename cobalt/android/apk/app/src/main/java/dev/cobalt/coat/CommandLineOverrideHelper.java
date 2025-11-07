@@ -70,8 +70,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
-        // Disable mipmap generation to reduce memory usage.
-        paramOverrides.add("--disable-mipmap-generation");
 
         return paramOverrides;
     }
