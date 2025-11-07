@@ -266,6 +266,7 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
   ::testing::StrictMock<MockContentMainDelegate> mock_delegate_;
 };
 
+
 IN_PROC_BROWSER_TEST_F(ContentMainRunnerImplBrowserTest, StartupSequence) {
   // All of the work is done in SetUp().
 }
