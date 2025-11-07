@@ -161,6 +161,18 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
     """Remove the temporary directory."""
     shutil.rmtree(self.test_dir)
 
+  def test_extract_timestamp_android_format(self):
+    """Tests timestamp extraction from Android-style filenames."""
+    filename = 'smaps_20251105_102030_12345_processed.txt'
+    timestamp = analyze_smaps_logs.extract_timestamp(filename)
+    self.assertEqual(timestamp, '20251105_102030')
+
+  def test_extract_timestamp_linux_format(self):
+    """Tests timestamp extraction from Linux-style filenames."""
+    filename = 'smaps_20251105_192832_cobalt_processed.txt'
+    timestamp = analyze_smaps_logs.extract_timestamp(filename)
+    self.assertEqual(timestamp, '20251105_192832')
+
   def test_parse_smaps_file(self):
     """Tests parsing of a single valid processed smaps file."""
     filepath = os.path.join(self.test_dir,
@@ -202,6 +214,33 @@ class AnalyzeSmapsLogsTest(unittest.TestCase):
     # Check for the total memory summary
     self.assertIn('Total Memory:', output)
     self.assertIn('- PSS: 2900 kB', output)
+
+  @patch('sys.stdout', new_callable=StringIO)
+  def test_analyze_logs_empty_directory(self, mock_stdout):
+    """Tests analyze_logs with an empty directory."""
+    empty_dir = tempfile.mkdtemp()
+    analyze_smaps_logs.analyze_logs(empty_dir)
+    output = mock_stdout.getvalue()
+    self.assertIn(
+        f'No processed smaps files with valid timestamps found in '
+        f'{empty_dir}', output)
+    shutil.rmtree(empty_dir)
+
+  @patch('sys.stdout', new_callable=StringIO)
+  def test_analyze_logs_no_valid_timestamps(self, mock_stdout):
+    """Tests analyze_logs with files that have no valid timestamps."""
+    invalid_ts_dir = tempfile.mkdtemp()
+    with open(
+        os.path.join(invalid_ts_dir, 'smaps_invalid_processed.txt'),
+        'w',
+        encoding='utf-8') as f:
+      f.write(MOCK_PROCESSED_SMAPS_1)
+    analyze_smaps_logs.analyze_logs(invalid_ts_dir)
+    output = mock_stdout.getvalue()
+    self.assertIn(
+        f'No processed smaps files with valid timestamps found in '
+        f'{invalid_ts_dir}', output)
+    shutil.rmtree(invalid_ts_dir)
 
   def test_json_output_for_leak_scenario(self):
     """Tests that the JSON output correctly captures a memory leak scenario."""
