@@ -46,7 +46,7 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
-constexpr int kDefaultMaxFramesInDecoder = 6;
+constexpr int kDefaultMaxFramesInDecoder = 100;
 
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
@@ -195,7 +195,8 @@ StarboardRenderer::StarboardRenderer(
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", use_external_allocator="
-            << (use_external_allocator_ ? "true" : "false");
+            << (use_external_allocator_ ? "true" : "false")
+            << ", max_frames_in_decoder=" << max_frames_in_decoder_.value_or(0);
 }
 
 StarboardRenderer::~StarboardRenderer() {

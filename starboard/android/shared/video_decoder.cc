@@ -369,17 +369,6 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
-
-    int64_t pts = frame->timestamp();
-    if (video_decoder_.media_decoder_ != nullptr) {
-      auto& media_decoder = *video_decoder_.media_decoder_;
-
-      media_decoder.SetRenderScheduledTime(pts,
-                                           release_time_in_nanoseconds / 1000);
-    } else {
-      SB_LOG(INFO) << "MediaDecoder is null";
-    }
-
     return kReleased;
   }
 

@@ -36,7 +36,6 @@ using base::android::AttachCurrentThread;
 namespace {
 
 constexpr int kFrameTrackerLogIntervalUs = 5'000'000;  // 5 sec.
-constexpr bool kVerbose = false;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -164,25 +163,10 @@ MediaDecoder::MediaDecoder(
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
-
-  frame_tracker_logging_thread_ =
-      std::make_unique<base::Thread>("pending_frame_tracker");
-  frame_tracker_logging_thread_->Start();
-  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&MediaDecoder::LogPendingFrameCountAndReschedule,
-                     base::Unretained(this)),
-      base::Seconds(5));
 }
 
 MediaDecoder::~MediaDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-
-  destroying_.store(true);
-
-  if (frame_tracker_logging_thread_) {
-    frame_tracker_logging_thread_->Stop();
-  }
 
   TerminateDecoderThread();
 
@@ -240,8 +224,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     ++number_of_pending_inputs_;
     total_size += input_buffer->size();
   }
-  pending_encoded_frames_ += input_buffers.size();
-  pending_encoded_frames_size_ += total_size;
+
   if (need_signal) {
     condition_variable_.Signal();
   }
@@ -256,18 +239,6 @@ void MediaDecoder::WriteEndOfStream() {
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
     condition_variable_.Signal();
-  }
-}
-
-void MediaDecoder::SetRenderScheduledTime(int64_t pts_us,
-                                          int64_t scheduled_us) {
-  std::lock_guard lock(frame_timestamps_mutex_);
-  auto it = frame_timestamps_.find(pts_us);
-  if (it != frame_timestamps_.end()) {
-    it->second.render_scheduled_us = scheduled_us;
-  } else {
-    SB_LOG(WARNING) << "Could not find timestamp for PTS " << pts_us
-                    << " to set scheduled render time.";
   }
 }
 
@@ -597,11 +568,6 @@ bool MediaDecoder::ProcessOneInputBuffer(
     return false;
   }
 
-  if (pending_input.type == PendingInput::kWriteInputBuffer) {
-    --pending_encoded_frames_;
-    pending_encoded_frames_size_ -= pending_input.input_buffer->size();
-  }
-
   is_output_restricted_ = false;
   return true;
 }
@@ -672,24 +638,6 @@ void MediaDecoder::ReportError(const SbPlayerError error,
   }
 }
 
-void MediaDecoder::LogPendingFrameCountAndReschedule() {
-  SB_LOG(INFO) << "Number of pending encoded frames: "
-               << pending_encoded_frames_.load() << ", total size: "
-               << FormatWithDigitSeparators(
-                      pending_encoded_frames_size_.load() / 1024)
-               << " KB";
-
-  if (destroying_.load()) {
-    return;
-  }
-
-  frame_tracker_logging_thread_->task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&MediaDecoder::LogPendingFrameCountAndReschedule,
-                     base::Unretained(this)),
-      base::Seconds(5));
-}
-
 void MediaDecoder::OnMediaCodecError(bool is_recoverable,
                                      bool is_transient,
                                      const std::string& diagnostic_info) {
@@ -747,10 +695,6 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
         !decoder_state_tracker_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
-    std::lock_guard lock(frame_timestamps_mutex_);
-    frame_timestamps_[presentation_time_us] = {
-        .decoded_us = CurrentMonotonicTime(),
-    };
   } else {
     SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
@@ -785,56 +729,6 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                                              int64_t frame_rendered_us) {
-  int64_t gap_ms = -1;
-  if (last_frame_rendered_us_) {
-    gap_ms = (frame_rendered_us - *last_frame_rendered_us_) / 1'000;
-  }
-  last_frame_rendered_us_ = frame_rendered_us;
-
-  std::optional<int64_t> latency_ms;
-  std::optional<int64_t> decoded_gap_ms;
-  std::optional<int64_t> render_gap_ms;
-  std::optional<int64_t> render_scheduled_ms;
-  [&] {
-    std::lock_guard lock(frame_timestamps_mutex_);
-    auto it = frame_timestamps_.find(frame_timestamp);
-    if (it == frame_timestamps_.end()) {
-      SB_LOG(WARNING) << "Cannot find timestamps for pts="
-                      << (frame_timestamp / 1'000);
-      return;
-    }
-
-    const auto decoded_us = it->second.decoded_us;
-
-    latency_ms = (frame_rendered_us - decoded_us) / 1'000;
-    if (last_decoded_us_ != 0) {
-      decoded_gap_ms = (decoded_us - last_decoded_us_) / 1'000;
-    }
-    last_decoded_us_ = decoded_us;
-
-    if (auto render_scheduled_us = it->second.render_scheduled_us;
-        render_scheduled_us != 0) {
-      render_scheduled_ms = render_scheduled_us / 1'000;
-      render_gap_ms = (frame_rendered_us - render_scheduled_us) / 1'000;
-    }
-    frame_timestamps_.erase(it);
-  }();
-
-  auto ValOrNA = [](std::optional<int64_t> val) {
-    return val.has_value() ? std::to_string(*val) : "(n/a)";
-  };
-
-  if (kVerbose) {
-    SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
-                 << ", rendered gap(msec)=" << gap_ms
-                 << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
-                 << ", render(scheduled - actual in msec)="
-                 << ValOrNA(render_gap_ms)
-                 << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
-                 << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
-                 << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);
-  }
-
   if (frame_rendered_cb_) {
     frame_rendered_cb_(frame_timestamp, frame_rendered_us);
   }
