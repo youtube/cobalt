@@ -393,4 +393,8 @@ struct CompileAssert {};
 // longer rely on them, and operate with the assumption that their values are
 // always 1.
 
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#define ALLOW_EVERGREEN_SIDELOADING 0
+
 #endif  // STARBOARD_CONFIGURATION_H_

@@ -357,13 +357,15 @@ void UpdaterModule::Update() {
     return;
   }
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
   bool skip_verify_public_key_hash = false;
   bool require_network_encryption = true;
-#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
 
   update_client_->Update(
       app_ids,
@@ -379,12 +381,12 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
