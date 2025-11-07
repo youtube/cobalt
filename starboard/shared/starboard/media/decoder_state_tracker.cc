@@ -35,6 +35,7 @@ namespace starboard {
 namespace {
 
 constexpr bool kVerbose = false;
+constexpr int kMaxDecodedFrames = 4;
 
 }  // namespace
 
@@ -58,9 +59,11 @@ DecoderStateTracker::DecoderStateTracker(int max_frames,
 bool DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
-  if (state_.total_frames() >= max_frames_) {
+  if (IsFull_Locked()) {
     SB_LOG(WARNING) << __func__ << " accepts no more frames: frames="
-                    << state_.total_frames() << "/" << max_frames_;
+                    << state_.total_frames() << "/" << max_frames_
+                    << ", decoded=" << state_.decoded_frames << "/"
+                    << kMaxDecodedFrames;
     return false;
   }
   state_.decoding_frames++;
@@ -114,7 +117,7 @@ bool DecoderStateTracker::ReleaseFrameAt(int64_t release_us) {
         bool was_full;
         {
           std::lock_guard lock(mutex_);
-          was_full = state_.total_frames() >= max_frames_;
+          was_full = IsFull_Locked();
           state_.decoded_frames--;
           UpdateState_Locked();
         }
@@ -134,11 +137,12 @@ DecoderStateTracker::State DecoderStateTracker::GetCurrentState() const {
 
 bool DecoderStateTracker::CanAcceptMore() {
   std::lock_guard lock(mutex_);
-  if (state_.total_frames() < max_frames_) {
-    return true;
-  }
+  return !IsFull_Locked();
+}
 
-  return false;
+bool DecoderStateTracker::IsFull_Locked() const {
+  return state_.total_frames() >= max_frames_ ||
+         state_.decoded_frames >= kMaxDecodedFrames;
 }
 
 void DecoderStateTracker::UpdateState_Locked() {

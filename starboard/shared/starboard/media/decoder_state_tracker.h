@@ -48,6 +48,7 @@ class DecoderStateTracker {
   bool CanAcceptMore();
 
  private:
+  bool IsFull_Locked() const;
   void UpdateState_Locked();
   void LogStateAndReschedule(int64_t log_interval_us);
 
