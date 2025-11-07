@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 
-#include <iostream>
+#include <ostream>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
