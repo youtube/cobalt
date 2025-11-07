@@ -54,7 +54,7 @@ using std::placeholders::_2;
 
 // TODO: b/455938352 - Connect this value to h5vcc settings.
 // By default, we turn off decoder throttling.
-constexpr std::optional<int> kMaxFramesInDecoder = std::nullopt;
+constexpr std::optional<int> kMaxFramesInDecoder = 6;
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,

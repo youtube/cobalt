@@ -27,7 +27,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
-#include "starboard/thread.h"
 
 namespace starboard::android::shared {
 
@@ -753,6 +752,10 @@ bool MediaDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
+
+    if (decoder_state_tracker_) {
+      decoder_state_tracker_->Reset();
+    }
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

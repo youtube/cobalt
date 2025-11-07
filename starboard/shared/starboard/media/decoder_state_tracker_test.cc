@@ -149,5 +149,61 @@ TEST(DecoderStateTrackerTest, FrameReleasedCallback) {
   EXPECT_EQ(counter, 1);
 }
 
+TEST(DecoderStateTrackerTest, Reset) {
+  auto decoder_state_tracker =
+      std::make_unique<DecoderStateTracker>(kMaxFrames, [] {});
+  decoder_state_tracker->AddFrame(0);
+  decoder_state_tracker->Reset();
+  DecoderStateTracker::State status = decoder_state_tracker->GetCurrentState();
+  EXPECT_EQ(status.total_frames(), 0);
+}
+
+TEST(DecoderStateTrackerTest, KillSwitchDuplicateAddFrame) {
+  int counter = 0;
+  auto decoder_state_tracker = std::make_unique<DecoderStateTracker>(
+      kMaxFrames, [&counter]() { counter++; });
+  decoder_state_tracker->AddFrame(0);
+  decoder_state_tracker->AddFrame(0);  // Should trigger kill switch
+
+  EXPECT_TRUE(decoder_state_tracker->CanAcceptMore());
+  EXPECT_EQ(counter, 1);  // Should have signaled
+  EXPECT_EQ(decoder_state_tracker->GetCurrentState().total_frames(), 0);
+}
+
+TEST(DecoderStateTrackerTest, KillSwitchUnknownSetFrameDecoded) {
+  int counter = 0;
+  auto decoder_state_tracker = std::make_unique<DecoderStateTracker>(
+      kMaxFrames, [&counter]() { counter++; });
+  decoder_state_tracker->SetFrameDecoded(0);  // Should trigger kill switch
+
+  EXPECT_TRUE(decoder_state_tracker->CanAcceptMore());
+  EXPECT_EQ(counter, 1);
+  EXPECT_EQ(decoder_state_tracker->GetCurrentState().total_frames(), 0);
+}
+
+TEST(DecoderStateTrackerTest, KillSwitchUnknownOnFrameReleased) {
+  int counter = 0;
+  auto decoder_state_tracker = std::make_unique<DecoderStateTracker>(
+      kMaxFrames, [&counter]() { counter++; });
+  decoder_state_tracker->OnFrameReleased(
+      0, CurrentMonotonicTime());  // Should trigger kill switch
+
+  usleep(100'000);  // Wait for async task
+  EXPECT_TRUE(decoder_state_tracker->CanAcceptMore());
+  EXPECT_EQ(counter, 1);
+  EXPECT_EQ(decoder_state_tracker->GetCurrentState().total_frames(), 0);
+}
+
+TEST(DecoderStateTrackerTest, ResetReenablesAfterKillSwitch) {
+  auto decoder_state_tracker =
+      std::make_unique<DecoderStateTracker>(kMaxFrames, [] {});
+  decoder_state_tracker->SetFrameDecoded(0);  // Trigger kill switch
+  EXPECT_EQ(decoder_state_tracker->GetCurrentState().total_frames(), 0);
+
+  decoder_state_tracker->Reset();
+  decoder_state_tracker->AddFrame(0);
+  EXPECT_EQ(decoder_state_tracker->GetCurrentState().total_frames(), 1);
+}
+
 }  // namespace
 }  // namespace starboard

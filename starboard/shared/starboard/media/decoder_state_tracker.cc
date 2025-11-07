@@ -59,8 +59,13 @@ DecoderStateTracker::DecoderStateTracker(int max_frames,
 void DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
+  if (disabled_) {
+    return;
+  }
+
   if (frames_in_flight_.find(presentation_time_us) != frames_in_flight_.end()) {
-    SB_LOG(WARNING) << "Duplicate frame PTS: " << presentation_time_us;
+    EngageKillSwitch_Locked("Duplicate frame input", presentation_time_us);
+    return;
   }
   frames_in_flight_[presentation_time_us] = FrameStatus::kDecoding;
 }
@@ -68,26 +73,43 @@ void DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
 void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
+  if (disabled_) {
+    return;
+  }
+
   auto it = frames_in_flight_.find(presentation_time_us);
   if (it == frames_in_flight_.end()) {
-    SB_LOG(ERROR) << __func__
-                  << ": Unknown frame decoded, pts=" << presentation_time_us;
-    frames_in_flight_[presentation_time_us] = FrameStatus::kDecoded;
-  } else {
-    it->second = FrameStatus::kDecoded;
+    EngageKillSwitch_Locked("Unknown frame decoded", presentation_time_us);
+    return;
   }
+  it->second = FrameStatus::kDecoded;
 }
 
 void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
                                           int64_t release_us) {
+  {
+    std::lock_guard lock(mutex_);
+    if (disabled_) {
+      return;
+    }
+  }
+
   int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
   task_runner_.Schedule(
       [this, presentation_time_us] {
         bool should_signal = false;
         {
           std::lock_guard lock(mutex_);
+          if (disabled_) {
+            return;
+          }
           bool was_full = IsFull_Locked();
-          frames_in_flight_.erase(presentation_time_us);
+          size_t erased = frames_in_flight_.erase(presentation_time_us);
+          if (erased == 0) {
+            EngageKillSwitch_Locked("Unknown frame released",
+                                    presentation_time_us);
+            return;
+          }
           if (was_full && !IsFull_Locked()) {
             should_signal = true;
           }
@@ -99,9 +121,27 @@ void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
       delay_us);
 }
 
+void DecoderStateTracker::Reset() {
+  std::lock_guard lock(mutex_);
+  frames_in_flight_.clear();
+  disabled_ = false;
+  SB_LOG(INFO) << "DecoderStateTracker reset.";
+}
+
 DecoderStateTracker::State DecoderStateTracker::GetCurrentState() const {
   std::lock_guard lock(mutex_);
+  if (disabled_) {
+    return {};
+  }
   return GetCurrentState_Locked();
+}
+
+bool DecoderStateTracker::CanAcceptMore() {
+  std::lock_guard lock(mutex_);
+  if (disabled_) {
+    return true;
+  }
+  return !IsFull_Locked();
 }
 
 DecoderStateTracker::State DecoderStateTracker::GetCurrentState_Locked() const {
@@ -116,11 +156,6 @@ DecoderStateTracker::State DecoderStateTracker::GetCurrentState_Locked() const {
   return state;
 }
 
-bool DecoderStateTracker::CanAcceptMore() {
-  std::lock_guard lock(mutex_);
-  return !IsFull_Locked();
-}
-
 bool DecoderStateTracker::IsFull_Locked() const {
   State state = GetCurrentState_Locked();
 
@@ -133,10 +168,25 @@ bool DecoderStateTracker::IsFull_Locked() const {
   return state.total_frames() >= max_frames_;
 }
 
+void DecoderStateTracker::EngageKillSwitch_Locked(const char* reason,
+                                                  int64_t pts) {
+  SB_LOG(ERROR) << "KILL SWITCH ENGAGED: " << reason << ", pts=" << pts;
+  disabled_ = true;
+  frames_in_flight_.clear();
+  state_changed_cb_();
+}
+
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
-  SB_LOG(INFO) << "DecoderStateTracker state: " << GetCurrentState();
+  {
+    std::lock_guard lock(mutex_);
+    if (disabled_) {
+      SB_LOG(INFO) << "DecoderStateTracker state: DISABLED";
+    } else {
+      SB_LOG(INFO) << "DecoderStateTracker state: " << GetCurrentState_Locked();
+    }
+  }
 
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },

@@ -41,6 +41,7 @@ class DecoderStateTracker {
   void AddFrame(int64_t presentation_time_us);
   void SetFrameDecoded(int64_t presentation_time_us);
   void OnFrameReleased(int64_t presentation_time_us, int64_t release_us);
+  void Reset();
 
   State GetCurrentState() const;
   bool CanAcceptMore();
@@ -53,6 +54,7 @@ class DecoderStateTracker {
 
   State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
+  void EngageKillSwitch_Locked(const char* reason, int64_t pts);
   void LogStateAndReschedule(int64_t log_interval_us);
 
   const int max_frames_;
@@ -60,6 +62,7 @@ class DecoderStateTracker {
 
   mutable std::mutex mutex_;
   std::map<int64_t, FrameStatus> frames_in_flight_;  // GUARDED_BY(mutex_)
+  bool disabled_ = false;                            // GUARDED_BY(mutex_)
 
   shared::starboard::player::JobThread task_runner_;
 };
