@@ -57,7 +57,7 @@ constexpr base::TimeDelta kMinIdleRefreshInterval = base::Seconds(30);
 // much.
 class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
  public:
-  ~CobaltMetricsServiceClient() override;
+  ~CobaltMetricsServiceClient() override = default;
 
   CobaltMetricsServiceClient(const CobaltMetricsServiceClient&) = delete;
   CobaltMetricsServiceClient& operator=(const CobaltMetricsServiceClient&) =

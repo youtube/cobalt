@@ -42,11 +42,6 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
   DETACH_FROM_THREAD(thread_checker_);
 }
 
-CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  metrics_state_manager_->LogHasSessionShutdownCleanly(true, false);
-}
-
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 

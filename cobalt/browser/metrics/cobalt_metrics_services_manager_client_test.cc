@@ -66,7 +66,6 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
 
     manager_client_ =
         std::make_unique<CobaltMetricsServicesManagerClient>(&prefs_);
-    manager_client_->GetMetricsStateManager()->InstantiateFieldTrialList();
   }
 
   void TearDown() override {
