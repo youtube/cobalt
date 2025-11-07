@@ -140,11 +140,13 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      decoder_state_tracker_(max_frames_in_decoder
-                                 ? std::make_unique<DecoderStateTracker>(
-                                       *max_frames_in_decoder,
-                                       [this] { condition_variable_.Signal(); })
-                                 : nullptr),
+      decoder_state_tracker_(
+          max_frames_in_decoder
+              ? std::make_unique<DecoderStateTracker>(
+                    *max_frames_in_decoder,
+                    [this] { condition_variable_.Signal(); },
+                    ::starboard::shared::starboard::player::JobQueue::current())
+              : nullptr),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);

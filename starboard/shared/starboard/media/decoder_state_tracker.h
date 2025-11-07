@@ -20,11 +20,12 @@
 #include <map>
 #include <mutex>
 
-#include "starboard/shared/starboard/player/job_thread.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 
-class DecoderStateTracker {
+class DecoderStateTracker
+    : private shared::starboard::player::JobQueue::JobOwner {
  public:
   using StateChangedCB = std::function<void()>;
 
@@ -35,7 +36,9 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(int max_frames, StateChangedCB state_changed_cb);
+  DecoderStateTracker(int max_frames,
+                      StateChangedCB state_changed_cb,
+                      shared::starboard::player::JobQueue* job_queue);
   ~DecoderStateTracker() = default;
 
   void AddFrame(int64_t presentation_time_us);
@@ -63,8 +66,6 @@ class DecoderStateTracker {
   mutable std::mutex mutex_;
   std::map<int64_t, FrameStatus> frames_in_flight_;  // GUARDED_BY(mutex_)
   bool disabled_ = false;                            // GUARDED_BY(mutex_)
-
-  shared::starboard::player::JobThread task_runner_;
 };
 
 std::ostream& operator<<(std::ostream& os,

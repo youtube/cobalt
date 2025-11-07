@@ -22,7 +22,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 namespace {
@@ -40,16 +39,17 @@ std::string to_ms_string(std::optional<int64_t> us_opt) {
 
 }  // namespace
 
-DecoderStateTracker::DecoderStateTracker(int max_frames,
-                                         StateChangedCB state_changed_cb)
-    : max_frames_(max_frames),
-      state_changed_cb_(std::move(state_changed_cb)),
-      task_runner_("frame_tracker") {
+DecoderStateTracker::DecoderStateTracker(
+    int max_frames,
+    StateChangedCB state_changed_cb,
+    shared::starboard::player::JobQueue* job_queue)
+    : JobOwner(job_queue),
+      max_frames_(max_frames),
+      state_changed_cb_(std::move(state_changed_cb)) {
   SB_CHECK(state_changed_cb_);
   if (kFrameTrackerLogIntervalUs) {
-    task_runner_.Schedule(
-        [this]() { LogStateAndReschedule(*kFrameTrackerLogIntervalUs); },
-        *kFrameTrackerLogIntervalUs);
+    Schedule([this]() { LogStateAndReschedule(*kFrameTrackerLogIntervalUs); },
+             *kFrameTrackerLogIntervalUs);
   }
   SB_LOG(INFO) << "DecoderStateTracker is created: max_frames=" << max_frames_
                << ", log_interval(msec)="
@@ -95,7 +95,7 @@ void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
   }
 
   int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
-  task_runner_.Schedule(
+  Schedule(
       [this, presentation_time_us] {
         bool should_signal = false;
         {
@@ -177,7 +177,7 @@ void DecoderStateTracker::EngageKillSwitch_Locked(const char* reason,
 }
 
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
-  SB_DCHECK(task_runner_.BelongsToCurrentThread());
+  SB_DCHECK(BelongsToCurrentThread());
 
   {
     std::lock_guard lock(mutex_);
@@ -188,7 +188,7 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
     }
   }
 
-  task_runner_.Schedule(
+  Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
       log_interval_us);
 }
