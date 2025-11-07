@@ -35,6 +35,7 @@ shared_library("libcobalt_native_test") {
     "//base:base_javatests_lib",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
+    "//content/public/app",
     "//content/public/test/android:content_native_test_support",
   ]
 

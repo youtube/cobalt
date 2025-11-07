@@ -193,6 +193,7 @@ shared_library_with_jni("libchrobalt") {
     "//cobalt/shell:pak",
     "//components/crash/content/browser",
     "//components/memory_system",
+    "//content/public/app",
     "//media",
     "//skia",
     "//third_party/blink/public/common",
