@@ -223,6 +223,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir',
     'readdir_r',
     'readlink',
+    'readv',
     'realpath',
     'realloc',
     'recv',
@@ -249,10 +250,8 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'shutdown',
     'sigaction',
     'signal',
-    'snprintf',
     'socket',
     'socketpair',
-    'sprintf',
     'srand',
     'stat',
     'statvfs',
@@ -262,15 +261,8 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'unlink',
     'usleep',
     'utimensat',
-    'vfwprintf',
-    'vsnprintf',
-    'vsscanf',
-    'vswprintf',
     'write',
     'writev',
-
-    # Symbols below haven't been implemented yet but need to be investigated.
-    'putchar',  # TODO: b/406081586
 ]
 
 

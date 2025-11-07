@@ -32,7 +32,7 @@
 #include "base/posix/can_lower_nice_to.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
 #include <sys/syscall.h>
 #include <atomic>
 #endif
@@ -161,7 +161,7 @@ bool CreateThread(size_t stack_size,
   return success;
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
 
 // Store the thread ids in local storage since calling the SWI can be
 // expensive and PlatformThread::CurrentId is used liberally.
@@ -192,13 +192,14 @@ class InitAtFork {
     pthread_atfork(nullptr, nullptr, internal::InvalidateTidCache);
   }
 };
-#endif // !BUILDFLAG(IS_STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
 
 namespace internal {
 
@@ -208,7 +209,8 @@ void InvalidateTidCache() {
 
 }  // namespace internal
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_STARBOARD)
 
 // static
 PlatformThreadId PlatformThread::CurrentId() {
@@ -216,7 +218,7 @@ PlatformThreadId PlatformThread::CurrentId() {
   // into the kernel.
 #if BUILDFLAG(IS_APPLE)
   return pthread_mach_thread_np(pthread_self());
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265

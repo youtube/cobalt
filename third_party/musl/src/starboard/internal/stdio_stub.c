@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "init_musl.h"
-#include "libc.h"
-#include <sys/auxv.h>
+#include "stdio_impl.h"
 
-void init_musl() {
+size_t __stdio_read_stub(FILE *f, unsigned char *buf, size_t len) {
+  return 0;
+}
 
-  // Set __hwcap bitmask by getauxval.
-  __hwcap = getauxval(AT_HWCAP);
-
-  // Init the __stack_chk_guard.
-  init_stack_guard();
+size_t __stdio_write_stub(FILE *f, const unsigned char *buf, size_t len) {
+  return 0;
 }
