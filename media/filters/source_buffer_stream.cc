@@ -10,7 +10,6 @@
 #include <sstream>
 #include <string>
 
-#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
@@ -166,6 +165,9 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      memory_limit_clamp_(std::numeric_limits<size_t>::max()),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       memory_limit_(GetDemuxerStreamAudioMemoryLimit(&audio_config)) {
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
@@ -181,6 +183,9 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      memory_limit_clamp_(std::numeric_limits<size_t>::max()),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       memory_limit_(
           GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                            &video_config)) {
@@ -199,6 +204,9 @@ SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      memory_limit_clamp_(std::numeric_limits<size_t>::max()),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       memory_limit_(
           GetDemuxerStreamAudioMemoryLimit(nullptr /*audio_config*/)) {}
 
@@ -1881,12 +1889,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                        &config));
 
-  // If the |memory_clamp| experiment is enabled, we ensure that the |memory_limit_|
-  // is not above the clamp.
-  const base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kMSEVideoBufferSizeLimitClampMb)) {
-    memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
-  }
+  memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
 
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

@@ -967,7 +967,7 @@ void SourceBufferState::SetStreamMemoryLimits() {
   if (video_buf_size_limit_clamp) {
     MEDIA_LOG(INFO, media_log_)
         << "Custom video per-track SourceBuffer size clamp limit="
-        << video_buf_size_limit;
+        << video_buf_size_limit_clamp;
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimitClamp(video_buf_size_limit_clamp);
   }

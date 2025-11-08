@@ -83,6 +83,8 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
+constexpr auto kVideoBufferClampSettingName = "Media.UseVideoBufferSizeClamp";
+
 }  // namespace
 
 static_assert(std::is_same<::media::BindHostReceiverCallback,
@@ -114,7 +116,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
     return;
   }
 
-  auto it = settings->settings.find("Media.UseVideoBufferSizeClamp");
+  auto it = settings->settings.find(kVideoBufferClampSettingName);
   if (it == settings->settings.end()) {
     return;
   }
@@ -124,10 +126,10 @@ void CobaltContentRendererClient::RenderFrameCreated(
     command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitClampMb,
                                     setting_value->get_string_value());
   } else {
-    LOG(WARNING)
-        << "H5vcc setting Media.UseVideoBufferSizeClamp was found, but its "
-        << "associated value was not a string. Make sure the value set is"
-        << " a string.";
+    LOG(WARNING) << "H5vcc setting " << kVideoBufferClampSettingName
+                 << " was found, but its "
+                 << "associated value was not a string. Make sure the value "
+                    "set is a string.";
   }
 }
 

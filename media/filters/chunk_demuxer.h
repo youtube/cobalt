@@ -162,7 +162,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetStreamMemoryLimitClamp(size_t memory_limit_clamp);
-#endif // USE_STARBOARD_MEDIA
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void SetLiveness(StreamLiveness liveness);
 
