@@ -184,8 +184,11 @@ class MEDIA_EXPORT SourceBufferStream {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Sets the |memory_limit_clamp_|, and sets |memory_limit_| to |memory_limit_clamp_| 
+  // if |memory_limit_| > |memory_limit_clamp_|. This ensures that the stream is never
+  // greater than the clamp value.
   void set_memory_limit_clamp(size_t memory_limit_clamp) {
-    LOG(INFO) << "John the current lim is: " << memory_limit_ << " and the clamp is: " << memory_limit_clamp;
+    memory_limit_clamp_ = memory_limit_clamp;
     memory_limit_ = std::min(memory_limit_, memory_limit_clamp);
   }
 #endif
@@ -512,7 +515,7 @@ class MEDIA_EXPORT SourceBufferStream {
   size_t memory_limit_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  size_t memory_limit_clamp_ = 160 * 1024 * 1024;
+  size_t memory_limit_clamp_;
 #endif // BUILDFLAG USE_STARBOARD_MEDIA
 
   // Indicates that a kConfigChanged status has been reported by GetNextBuffer()

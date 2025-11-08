@@ -109,17 +109,14 @@ void CobaltContentRendererClient::RenderFrameCreated(
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
-  command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitMb, "120");
-
-  // cobalt::mojom::SettingsPtr settings;
-  // if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
-  //   auto it = (settings->settings).find("Media.UseExperimentalBudget");
-  //   if (it != settings->settings.end()) {
-  //     //command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitMb,
-  //     "120");
-  //   }
-
-  // }
+  cobalt::mojom::SettingsPtr settings;
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+    auto it = (settings->settings).find("Media.UseExperimentalBudget");
+    if (it != settings->settings.end()) {
+      command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitClampMb,
+                                      it->second->get_string_value());
+    }
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)

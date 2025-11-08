@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
@@ -798,8 +799,6 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
         << ", currently buffered ranges_size=" << ranges_size;
     return false;
   }
-
-  LOG(INFO) << "John the current memory limit is: " << memory_limit_ / 1024 / 1024;
 
   size_t effective_memory_limit = memory_limit_;
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {
@@ -1861,8 +1860,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     return false;
   }
 
-  LOG(INFO) << "John we are updating the config";
-
   // Check to see if the new config matches an existing one.
   for (size_t i = 0; i < video_configs_.size(); ++i) {
     if (config.Matches(video_configs_[i])) {
@@ -1883,8 +1880,13 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       memory_limit_,
       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                        &config));
-  memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
-  LOG(INFO) << "John we have updated the stream, the limit is: " << memory_limit_;
+
+  // If the |memory_clamp| experiment is enabled, we ensure that the |memory_limit_|
+  // is not above the clamp.
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  command_line->HasSwitch(switches::kMSEVideoBufferSizeLimitClampMb) {
+    memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
+  }
 
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
