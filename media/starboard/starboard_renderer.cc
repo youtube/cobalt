@@ -17,9 +17,12 @@
 #include <variant>
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/json/string_escape.h"
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -114,52 +117,54 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
   }
 }
 
-void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
+void ConfigureDecoderBufferAllocator(bool enable) {
+  static base::NoDestructor<base::Lock> lock;
+  base::AutoLock auto_lock(*lock);
+
+  static int ref_count = 0;
   static base::NoDestructor<std::unique_ptr<DecoderBufferAllocator>>
       g_external_allocator;
-  DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
 
-  if (use_external_allocator) {
-    if (instance) {
-      auto allocator = static_cast<DecoderBufferAllocator*>(instance);
-      LOG(INFO) << __func__
-                << " > DecoderBufferAllocator is already configured. Keeping "
-                   "current instance. allocated_memory="
-                << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
-                << ", current_memory_capacity="
-                << FormatWithDigitSeparators(
-                       allocator->GetCurrentMemoryCapacity());
-    } else {
+  if (enable) {
+    if (ref_count == 0) {
       LOG(INFO) << __func__
                 << " > Switching from default allocator(partition_alloc) to "
                    "new DecoderBufferAllocator.";
       *g_external_allocator = std::make_unique<DecoderBufferAllocator>();
       DecoderBuffer::Allocator::Set(g_external_allocator->get());
+    } else {
+      auto allocator = g_external_allocator->get();
+      LOG(INFO) << __func__
+                << " > DecoderBufferAllocator is already configured. Refcount: "
+                << ref_count << ". allocated_memory="
+                << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
+                << ", current_memory_capacity="
+                << FormatWithDigitSeparators(
+                       allocator->GetCurrentMemoryCapacity());
     }
+    ref_count++;
   } else {
-    if (instance) {
-      auto allocator = static_cast<DecoderBufferAllocator*>(instance);
+    DCHECK_GT(ref_count, 0);
+    ref_count--;
+    if (ref_count == 0) {
+      auto allocator = g_external_allocator->get();
       if (allocator->GetAllocatedMemory() != 0) {
         LOG(WARNING)
             << __func__
-            << " > Cannot switch to default allocator(partition_alloc), since "
-               "current DecoderBufferAllocator instance holds allocated "
-               "memory: allocated_memory="
-            << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
-            << ", current_memory_capacity="
-            << FormatWithDigitSeparators(allocator->GetCurrentMemoryCapacity());
-      } else {
-        LOG(INFO)
-            << __func__
-            << " > Destroying DecoderBufferAllocator instance. Switching to "
-               "default allocator(partition_alloc) from now on.";
-        DecoderBuffer::Allocator::Set(nullptr);
-        g_external_allocator->reset();
+            << " > DecoderBufferAllocator has allocated memory but refcount is "
+               "0. allocated_memory="
+            << FormatWithDigitSeparators(allocator->GetAllocatedMemory());
       }
-    } else {
       LOG(INFO)
           << __func__
-          << " > Already using default allocator(partition_alloc). Keeping it.";
+          << " > Destroying DecoderBufferAllocator instance. Switching to "
+             "default allocator(partition_alloc) from now on.";
+      DecoderBuffer::Allocator::Set(nullptr);
+      g_external_allocator->reset();
+    } else {
+      LOG(INFO) << __func__
+                << " > DecoderBufferAllocator refcount decremented to "
+                << ref_count;
     }
   }
 }
@@ -205,6 +210,10 @@ StarboardRenderer::StarboardRenderer(
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", use_external_allocator="
             << (use_external_allocator_ ? "true" : "false");
+
+  if (use_external_allocator_) {
+    ConfigureDecoderBufferAllocator(true);
+  }
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -222,6 +231,15 @@ StarboardRenderer::~StarboardRenderer() {
     player_bridge = std::move(player_bridge_);
   }
   player_bridge.reset();
+
+  if (use_external_allocator_) {
+    // Post the deconfiguration to ensure it happens AFTER any pending
+    // read callbacks that might be holding DecoderBuffers have been
+    // destroyed on this thread.
+    task_runner_->PostTask(FROM_HERE, base::BindOnce([]() {
+                             ConfigureDecoderBufferAllocator(false);
+                           }));
+  }
 
   LOG(INFO) << "StarboardRenderer destructed.";
 }
@@ -538,8 +556,6 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(audio_stream_ || video_stream_);
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
-
-  ConfigureDecoderBufferAllocator(use_external_allocator_);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the
