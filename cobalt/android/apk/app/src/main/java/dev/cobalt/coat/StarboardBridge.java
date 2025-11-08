@@ -109,6 +109,7 @@ public class StarboardBridge {
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+  private final SplashScreenManager splashScreenManager;
 
   public StarboardBridge(
       Context appContext,
@@ -137,14 +138,17 @@ public class StarboardBridge {
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+    this.splashScreenManager = new SplashScreenManager(appContext);
 
-    nativeApp = StarboardBridgeJni.get().startNativeStarboard(
-      getAssetsFromContext(),
-      getFilesAbsolutePath(),
-      getCacheAbsolutePath(),
-      getNativeLibraryDir());
+    nativeApp =
+        StarboardBridgeJni.get()
+            .startNativeStarboard(
+                getAssetsFromContext(),
+                getFilesAbsolutePath(),
+                getCacheAbsolutePath(),
+                getNativeLibraryDir());
 
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /* applicationStarted= */ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
@@ -155,10 +159,7 @@ public class StarboardBridge {
     long currentMonotonicTime();
 
     long startNativeStarboard(
-      AssetManager assetManager,
-      String filesDir,
-      String cacheDir,
-      String nativeLibraryDir);
+        AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
 
     boolean initJNI(StarboardBridge starboardBridge);
 
@@ -169,7 +170,9 @@ public class StarboardBridge {
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
+
     void setAndroidOSExperience(boolean isAmatiDevice);
+
     void setAndroidPlayServicesVersion(long version);
 
     boolean isReleaseBuild();
@@ -623,7 +626,8 @@ public class StarboardBridge {
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
-  public CobaltService openCobaltService(Activity activity, long nativeService, String serviceName) {
+  public CobaltService openCobaltService(
+      Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -766,5 +770,16 @@ public class StarboardBridge {
   public void setWebContents(WebContents webContents) {
     cobaltMediaSession.setWebContents(webContents);
     volumeStateReceiver.setWebContents(webContents);
+  }
+
+  /**
+   * Delegates the splash video update process to the SplashScreenManager. This is called from the
+   * native side via JNI.
+   *
+   * @param manifestUrl The URL of the web app manifest file.
+   */
+  @CalledByNative
+  public void updateSplashVideo(String manifestUrl) {
+    splashScreenManager.updateFromManifest(manifestUrl);
   }
 }

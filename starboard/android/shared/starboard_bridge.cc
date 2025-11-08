@@ -266,4 +266,12 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
+void StarboardBridge::UpdateSplashVideo(JNIEnv* env,
+                                        const std::string& manifest_url) {
+  SB_DCHECK(env);
+  Java_StarboardBridge_updateSplashVideo(
+      env, j_starboard_bridge_,
+      base::android::ConvertUTF8ToJavaString(env, manifest_url));
+}
+
 }  // namespace starboard::android::shared
