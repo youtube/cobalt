@@ -110,12 +110,24 @@ void CobaltContentRendererClient::RenderFrameCreated(
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
   cobalt::mojom::SettingsPtr settings;
-  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
-    auto it = (settings->settings).find("Media.UseExperimentalBudget");
-    if (it != settings->settings.end()) {
-      command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitClampMb,
-                                      it->second->get_string_value());
-    }
+  if (!h5vcc_settings_remote_->GetSettings(&settings) || !settings) {
+    return;
+  }
+
+  auto it = settings->settings.find("Media.UseVideoBufferSizeClamp");
+  if (it == settings->settings.end()) {
+    return;
+  }
+
+  const cobalt::mojom::SettingValuePtr& setting_value = it->second;
+  if (setting_value->is_string_value()) {
+    command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitClampMb,
+                                    setting_value->get_string_value());
+  } else {
+    LOG(WARNING)
+        << "H5vcc setting Media.UseVideoBufferSizeClamp was found, but its "
+        << "associated value was not a string. Make sure the value set is"
+        << " a string.";
   }
 }
 
