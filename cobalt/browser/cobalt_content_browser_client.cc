@@ -30,8 +30,12 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+<<<<<<< HEAD
 #include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+=======
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
@@ -162,6 +166,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   return browser_main_parts;
 }
 
+<<<<<<< HEAD
 std::vector<std::unique_ptr<content::NavigationThrottle>>
 CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationHandle* handle) {
@@ -170,6 +175,14 @@ CobaltContentBrowserClient::CreateThrottlesForNavigation(
   throttles.push_back(
       std::make_unique<content::CobaltSecureNavigationThrottle>(handle));
   return throttles;
+=======
+void CobaltContentBrowserClient::CreateThrottlesForNavigation(
+    content::NavigationThrottleRegistry& registry) {
+  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
+  registry.AddThrottle(
+      std::make_unique<content::CobaltSecureNavigationThrottle>(
+          &navigation_handle));
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 content::GeneratedCodeCacheSettings
@@ -211,8 +224,14 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   return GetCobaltUserAgentMetadata();
 }
 
+<<<<<<< HEAD
 void CobaltContentBrowserClient::OverrideWebkitPrefs(
     content::WebContents* web_contents,
+=======
+void CobaltContentBrowserClient::OverrideWebPreferences(
+    content::WebContents* web_contents,
+    content::SiteInstance& main_frame_site,
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
     blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
@@ -220,7 +239,12 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
+<<<<<<< HEAD
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
+=======
+  content::ShellContentBrowserClient::OverrideWebPreferences(
+      web_contents, main_frame_site, prefs);
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 content::StoragePartitionConfig
@@ -293,9 +317,16 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
+<<<<<<< HEAD
   // All consumers of the main NetworkContext must provide NetworkIsolationKeys
   // / IsolationInfos, so storage can be isolated on a per-site basis.
   network_context_params->require_network_isolation_key = true;
+=======
+  // All consumers of the main NetworkContext must provide
+  // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
+  // per-site basis.
+  network_context_params->require_network_anonymization_key = true;
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
@@ -425,7 +456,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
-
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
@@ -470,9 +500,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  GlobalFeatures::GetInstance()
-      ->metrics_services_manager()
-      ->InstantiateFieldTrialList();
+  auto* global_features = GlobalFeatures::GetInstance();
+  global_features->metrics_services_manager()->InstantiateFieldTrialList();
+  // Mark the session as unclean at startup. If the session exits cleanly, it
+  // will be marked as clean in CobaltMetricsServiceClient's destructor.
+  global_features->metrics_services_manager_client()
+      ->GetMetricsStateManager()
+      ->LogHasSessionShutdownCleanly(false, false);
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
