@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_TESTING_BROWSER_TESTS_SHELL_TEST_SHELL_H_
-#define COBALT_TESTING_BROWSER_TESTS_SHELL_TEST_SHELL_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_TEST_SHELL_H_
+#define COBALT_TESTING_BROWSER_TESTS_BROWSER_TEST_SHELL_H_
 
 #include "cobalt/shell/browser/shell.h"
 
@@ -25,11 +25,14 @@ class TestShell : public Shell {
 
   // Static method to create a new window. In tests, this should be used
   // instead of Shell::CreateNewWindow.
-  static Shell* CreateNewWindow(
+  static TestShell* CreateNewWindow(
       BrowserContext* browser_context,
       const GURL& url,
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size);
+
+  static void SetShellCreatedCallback(
+      base::OnceCallback<void(TestShell*)> shell_created_callback);
 
   // WebContentsDelegate overrides
   void RegisterProtocolHandler(RenderFrameHost* requesting_frame,
@@ -50,11 +53,13 @@ class TestShell : public Shell {
             bool should_set_delegate);
 
   // Create a new TestShell.
-  static Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
-                            const gfx::Size& initial_size,
-                            bool should_set_delegate);
+  static TestShell* CreateShell(std::unique_ptr<WebContents> web_contents,
+                                const gfx::Size& initial_size,
+                                bool should_set_delegate);
+
+  static base::OnceCallback<void(TestShell*)> shell_created_callback_;
 };
 
 }  // namespace content
 
-#endif  // COBALT_TESTING_BROWSER_TESTS_SHELL_TEST_SHELL_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_BROWSER_TEST_SHELL_H_
