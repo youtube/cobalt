@@ -70,12 +70,24 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<base::ScopedPathOverride> path_override_;
   std::unique_ptr<CobaltMetricsServicesManagerClient> manager_client_;
+<<<<<<< HEAD
 };
 
 TEST_F(CobaltMetricsServicesManagerClientTest, ConstructorInitializesState) {
   EXPECT_THAT(manager_client_->GetEnabledStateProvider(), NotNull());
   EXPECT_FALSE(manager_client_->IsMetricsReportingEnabled());
   EXPECT_FALSE(manager_client_->IsMetricsConsentGiven());
+=======
+  std::unique_ptr<::metrics::MetricsServiceClient>
+      metrics_service_client_owner_;
+};
+
+TEST_F(CobaltMetricsServicesManagerClientTest, ConstructorInitializesState) {
+  const metrics::EnabledStateProvider& provider =
+      manager_client_->GetEnabledStateProvider();
+  EXPECT_FALSE(provider.IsReportingEnabled());
+  EXPECT_FALSE(provider.IsConsentGiven());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
   EXPECT_THAT(manager_client_->metrics_service_client(), IsNull());
 }
 
@@ -83,10 +95,16 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
        IsMetricsReportingEnabledReflectsPref) {
   // Case 1: Pref is false (default from SetUp).
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, false);
+<<<<<<< HEAD
   EXPECT_FALSE(manager_client_->IsMetricsReportingEnabled());
+=======
+  EXPECT_FALSE(
+      manager_client_->GetMetricsStateManager()->IsMetricsReportingEnabled());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 
   CobaltEnabledStateProvider* provider_false_case =
       manager_client_->GetEnabledStateProvider();
+<<<<<<< HEAD
   ASSERT_THAT(provider_false_case, NotNull());
   EXPECT_FALSE(provider_false_case->IsReportingEnabled());
   EXPECT_EQ(provider_false_case->IsReportingEnabled(),
@@ -95,13 +113,31 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   // Case 2: Pref is true.
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, true);
   EXPECT_TRUE(manager_client_->IsMetricsReportingEnabled());
+=======
+  EXPECT_FALSE(provider_false_case.IsReportingEnabled());
+  EXPECT_EQ(
+      provider_false_case.IsReportingEnabled(),
+      manager_client_->GetMetricsStateManager()->IsMetricsReportingEnabled());
+
+  // Case 2: Pref is true.
+  prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, true);
+  EXPECT_TRUE(
+      manager_client_->GetMetricsStateManager()->IsMetricsReportingEnabled());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 
   CobaltEnabledStateProvider* provider_true_case =
       manager_client_->GetEnabledStateProvider();
+<<<<<<< HEAD
   ASSERT_THAT(provider_true_case, NotNull());
   EXPECT_TRUE(provider_true_case->IsReportingEnabled());
   EXPECT_EQ(provider_true_case->IsReportingEnabled(),
             manager_client_->IsMetricsReportingEnabled());
+=======
+  EXPECT_TRUE(provider_true_case.IsReportingEnabled());
+  EXPECT_EQ(
+      provider_true_case.IsReportingEnabled(),
+      manager_client_->GetMetricsStateManager()->IsMetricsReportingEnabled());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
@@ -139,7 +175,12 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
       metrics::switches::kForceEnableMetricsReporting);
 
+<<<<<<< HEAD
   EXPECT_TRUE(manager_client_->IsMetricsReportingEnabled())
+=======
+  EXPECT_TRUE(
+      manager_client_->GetMetricsStateManager()->IsMetricsReportingEnabled())
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
       << "Should be true due to command-line override.";
   EXPECT_TRUE(manager_client_->IsMetricsConsentGiven())
       << "Should be true due to command-line override.";
@@ -153,7 +194,12 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   // Clean up the switch for other tests.
   base::CommandLine::ForCurrentProcess()->RemoveSwitch(
       metrics::switches::kForceEnableMetricsReporting);
+<<<<<<< HEAD
   EXPECT_FALSE(manager_client_->IsMetricsReportingEnabled())
+=======
+  EXPECT_FALSE(
+      manager_client_->GetMetricsStateManager()->IsMetricsReportingEnabled())
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
       << "Should be false again after removing override.";
 }
 
@@ -197,6 +243,7 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
        CreateMetricsServiceClientCreatesClient) {
   ASSERT_THAT(manager_client_->GetMetricsStateManager(), NotNull());
 
+<<<<<<< HEAD
   std::unique_ptr<::metrics::MetricsServiceClient> metrics_service_client =
       manager_client_->CreateMetricsServiceClient();
 
@@ -204,6 +251,15 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   EXPECT_THAT(
       static_cast<CobaltMetricsServiceClient*>(metrics_service_client.get()),
       NotNull());
+=======
+  metrics_service_client_owner_ = manager_client_->CreateMetricsServiceClient(
+      synthetic_trial_registry_.get());
+
+  EXPECT_THAT(metrics_service_client_owner_, NotNull());
+  EXPECT_THAT(static_cast<CobaltMetricsServiceClient*>(
+                  metrics_service_client_owner_.get()),
+              NotNull());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 
   EXPECT_EQ(metrics_service_client.get(),
             manager_client_->metrics_service_client());
@@ -211,6 +267,7 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
        CreateMetricsServiceClientCanBeCalledMultipleTimes) {
+<<<<<<< HEAD
   std::unique_ptr<::metrics::MetricsServiceClient> client1 =
       manager_client_->CreateMetricsServiceClient();
   ASSERT_THAT(client1, NotNull());
@@ -221,11 +278,32 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   ASSERT_THAT(client2, NotNull());
   EXPECT_NE(client1.get(), client2.get());
   EXPECT_EQ(client2.get(), manager_client_->metrics_service_client());
+=======
+  metrics_service_client_owner_ = manager_client_->CreateMetricsServiceClient(
+      synthetic_trial_registry_.get());
+  ASSERT_THAT(metrics_service_client_owner_, NotNull());
+  EXPECT_EQ(metrics_service_client_owner_.get(),
+            manager_client_->metrics_service_client());
+  auto* client1_ptr = metrics_service_client_owner_.get();
+
+  metrics_service_client_owner_ = manager_client_->CreateMetricsServiceClient(
+      synthetic_trial_registry_.get());
+  ASSERT_THAT(metrics_service_client_owner_, NotNull());
+  EXPECT_NE(client1_ptr, metrics_service_client_owner_.get());
+  EXPECT_EQ(metrics_service_client_owner_.get(),
+            manager_client_->metrics_service_client());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
        CreateVariationsServiceReturnsNullAndDoesNotCrash) {
+<<<<<<< HEAD
   EXPECT_THAT(manager_client_->CreateVariationsService(), IsNull());
+=======
+  EXPECT_THAT(
+      manager_client_->CreateVariationsService(synthetic_trial_registry_.get()),
+      IsNull());
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
@@ -248,7 +326,11 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
 
   // Check that multiple calls return the same provider instance for a given
   // manager_client.
+<<<<<<< HEAD
   EXPECT_EQ(provider_true_case, manager_client_->GetEnabledStateProvider());
+=======
+  EXPECT_EQ(&provider_true_case, &(manager_client_->GetEnabledStateProvider()));
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
 }
 
 }  // namespace cobalt

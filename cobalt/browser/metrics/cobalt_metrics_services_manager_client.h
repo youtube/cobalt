@@ -75,6 +75,15 @@ class CobaltMetricsServicesManagerClient
 
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
+<<<<<<< HEAD
+=======
+  void ClearMetricsServiceClient() { metrics_service_client_ = nullptr; }
+
+  void ClearMetricsServiceClientRawPtrForTest() {
+    metrics_service_client_ = nullptr;
+  }
+
+>>>>>>> 2fc9f4c95bf (Fix Finch Safe Mode (#7725))
  private:
   // MetricsStateManager which is passed as a parameter to service constructors.
   std::unique_ptr<::metrics::MetricsStateManager> metrics_state_manager_;
