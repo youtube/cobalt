@@ -12,7 +12,8 @@
             ],
             "dirs": [
                 "app",
-                "fonts"
+                "fonts",
+                "ssl"
             ],
             "rename_files": [
                 {
