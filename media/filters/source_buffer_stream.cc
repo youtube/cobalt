@@ -1884,7 +1884,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   // If the |memory_clamp| experiment is enabled, we ensure that the |memory_limit_|
   // is not above the clamp.
   auto* command_line = base::CommandLine::ForCurrentProcess();
-  command_line->HasSwitch(switches::kMSEVideoBufferSizeLimitClampMb) {
+  if (command_line->HasSwitch(switches::kMSEVideoBufferSizeLimitClampMb)) {
     memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
   }
 

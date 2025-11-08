@@ -515,6 +515,9 @@ class MEDIA_EXPORT SourceBufferStream {
   size_t memory_limit_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // The hard limit of possible data in bytes the stream will keep in memory.
+  // This value is only used if the switch |kMSEVideoBufferSizeLimitClampMb| is 
+  // used. If this switch is not enabled, this value is not used.
   size_t memory_limit_clamp_;
 #endif // BUILDFLAG USE_STARBOARD_MEDIA
 

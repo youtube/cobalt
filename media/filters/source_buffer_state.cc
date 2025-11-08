@@ -962,14 +962,14 @@ void SourceBufferState::SetStreamMemoryLimits() {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
- size_t video_buf_size_limit =
+ size_t video_buf_size_limit_clamp =
       GetMSEBufferSizeLimitIfExists(switches::kMSEVideoBufferSizeLimitClampMb);
-  if (video_buf_size_limit) {
+  if (video_buf_size_limit_clamp) {
     MEDIA_LOG(INFO, media_log_)
-        << "Custom video per-track SourceBuffer size limit="
+        << "Custom video per-track SourceBuffer size clamp limit="
         << video_buf_size_limit;
     for (const auto& it : video_streams_)
-      it.second->SetStreamMemoryLimitClamp(video_buf_size_limit);
+      it.second->SetStreamMemoryLimitClamp(video_buf_size_limit_clamp);
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
