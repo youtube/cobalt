@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
 #include "starboard/android/shared/decode_target.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
@@ -231,6 +232,8 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+
+  base::WeakPtrFactory<VideoDecoder> weak_factory_{this};
 };
 
 }  // namespace starboard::android::shared

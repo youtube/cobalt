@@ -956,11 +956,13 @@ void VideoDecoder::ProcessOutputBuffer(
   }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(
-          dequeue_output_result, media_codec_bridge,
-          [this](int64_t pts, std::optional<int64_t> release_us) {
-            OnVideoFrameRelease(pts, release_us);
-          }));
+      new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
+                         [weak_this = weak_factory_.GetWeakPtr()](
+                             int64_t pts, std::optional<int64_t> release_us) {
+                           if (weak_this) {
+                             weak_this->OnVideoFrameRelease(pts, release_us);
+                           }
+                         }));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
