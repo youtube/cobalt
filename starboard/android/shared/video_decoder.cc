@@ -15,8 +15,9 @@
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/check_op.h"
 
-#include <android/api-level.h>
+#include <android/native_window.h>
 #include <jni.h>
+#include <sys/system_properties.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -55,6 +56,22 @@ using std::placeholders::_2;
 // TODO: b/455938352 - Connect this value to h5vcc settings.
 // By default, we turn off decoder throttling.
 constexpr std::optional<int> kMaxFramesInDecoder = 6;
+
+std::optional<int> GetMaxFramesInDecoder() {
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get("debug.cobalt.max_frames_in_decoder", value)) {
+    int max_frames = atoi(value);
+    if (max_frames > 0) {
+      SB_LOG(INFO) << "Setting max frames in decoder to " << max_frames
+                   << " from system property.";
+      return max_frames;
+    }
+  }
+  SB_LOG(INFO) << "System property debug.cobalt.max_frames_in_decoder is not "
+                  "set or invalid. Using default value: "
+               << *kMaxFramesInDecoder;
+  return kMaxFramesInDecoder;
+}
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
@@ -333,10 +350,6 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
-  explicit Sink(VideoDecoder* video_decoder) : video_decoder_(*video_decoder) {
-    SB_CHECK(video_decoder);
-  }
-
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -365,7 +378,6 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     return kReleased;
   }
 
-  VideoDecoder& video_decoder_;
   RenderCB render_cb_;
   bool rendered_;
 };
@@ -392,7 +404,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      max_frames_in_decoder_(kMaxFramesInDecoder),
+      max_frames_in_decoder_(GetMaxFramesInDecoder()),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -458,7 +470,7 @@ VideoDecoder::~VideoDecoder() {
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
   if (sink_ == NULL) {
-    sink_ = new Sink(this);
+    sink_ = new Sink;
   }
   return sink_;
 }
