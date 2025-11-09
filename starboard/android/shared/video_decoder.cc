@@ -210,7 +210,7 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void(int64_t pts, std::optional<int64_t> release_us)>
+  typedef std::function<void(int64_t pts, int64_t release_us)>
       VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
@@ -232,7 +232,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_(timestamp(), std::nullopt);
+        release_callback_(timestamp(), CurrentMonotonicTime());
       }
     }
   }
@@ -958,7 +958,7 @@ void VideoDecoder::ProcessOutputBuffer(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
                          [weak_this = weak_factory_.GetWeakPtr()](
-                             int64_t pts, std::optional<int64_t> release_us) {
+                             int64_t pts, int64_t release_us) {
                            if (weak_this) {
                              weak_this->OnVideoFrameRelease(pts, release_us);
                            }
@@ -1286,16 +1286,14 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void VideoDecoder::OnVideoFrameRelease(int64_t pts,
-                                       std::optional<int64_t> release_us) {
+void VideoDecoder::OnVideoFrameRelease(int64_t pts, int64_t release_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 
   if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
-    media_decoder_->decoder_state_tracker()->OnFrameReleased(
-        pts, release_us.value_or(CurrentMonotonicTime()));
+    media_decoder_->decoder_state_tracker()->OnFrameReleased(pts, release_us);
   }
 }
 
