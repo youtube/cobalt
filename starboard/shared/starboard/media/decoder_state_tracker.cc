@@ -62,7 +62,10 @@ void DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
   if (disabled_) {
     return;
   }
-
+  if (frames_in_flight_.size() >= kMaxInFlightFrames) {
+    EngageKillSwitch_Locked("Too many frames in flight", presentation_time_us);
+    return;
+  }
   if (frames_in_flight_.find(presentation_time_us) != frames_in_flight_.end()) {
     EngageKillSwitch_Locked("Duplicate frame input", presentation_time_us);
     return;
@@ -77,12 +80,10 @@ void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
     return;
   }
 
-  auto it = frames_in_flight_.find(presentation_time_us);
-  if (it == frames_in_flight_.end()) {
-    EngageKillSwitch_Locked("Unknown frame decoded", presentation_time_us);
-    return;
+  auto it = frames_in_flight_.upper_bound(presentation_time_us);
+  for (auto i = frames_in_flight_.begin(); i != it; ++i) {
+    i->second = FrameStatus::kDecoded;
   }
-  it->second = FrameStatus::kDecoded;
 }
 
 void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
@@ -104,12 +105,8 @@ void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
             return;
           }
           bool was_full = IsFull_Locked();
-          size_t erased = frames_in_flight_.erase(presentation_time_us);
-          if (erased == 0) {
-            EngageKillSwitch_Locked("Unknown frame released",
-                                    presentation_time_us);
-            return;
-          }
+          auto it = frames_in_flight_.upper_bound(presentation_time_us);
+          frames_in_flight_.erase(frames_in_flight_.begin(), it);
           if (was_full && !IsFull_Locked()) {
             should_signal = true;
           }
@@ -128,7 +125,7 @@ void DecoderStateTracker::Reset() {
   SB_LOG(INFO) << "DecoderStateTracker reset.";
 }
 
-DecoderStateTracker::State DecoderStateTracker::GetCurrentState() const {
+DecoderStateTracker::State DecoderStateTracker::GetCurrentStateForTest() const {
   std::lock_guard lock(mutex_);
   if (disabled_) {
     return {};

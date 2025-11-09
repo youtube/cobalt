@@ -46,7 +46,7 @@ class DecoderStateTracker
   void OnFrameReleased(int64_t presentation_time_us, int64_t release_us);
   void Reset();
 
-  State GetCurrentState() const;
+  State GetCurrentStateForTest() const;
   bool CanAcceptMore();
 
  private:
