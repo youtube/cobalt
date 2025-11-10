@@ -16,6 +16,7 @@
 #define COBALT_TESTING_BROWSER_TESTS_APP_SHELL_MAIN_TEST_DELEGATE_H_
 
 #include <memory>
+#include <optional>
 
 #include "cobalt/shell/app/shell_main_delegate.h"
 
@@ -34,7 +35,7 @@ class ShellMainTestDelegate : public ShellMainDelegate {
 
   // ContentMainDelegate implementation:
   ContentClient* CreateContentClient() override;
-  absl::optional<int> BasicStartupComplete() override;
+  std::optional<int> BasicStartupComplete() override;
   ContentUtilityClient* CreateContentUtilityClient() override;
 
  private:

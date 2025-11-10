@@ -18,7 +18,7 @@
 #include <memory>
 #include <optional>
 
-#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
 
 namespace content {
 

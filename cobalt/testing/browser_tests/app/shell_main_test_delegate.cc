@@ -27,7 +27,7 @@ ShellMainTestDelegate::ShellMainTestDelegate() : ShellMainDelegate() {}
 
 ShellMainTestDelegate::~ShellMainTestDelegate() {}
 
-absl::optional<int> ShellMainTestDelegate::BasicStartupComplete() {
+std::optional<int> ShellMainTestDelegate::BasicStartupComplete() {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
   if (command_line.HasSwitch("run-layout-test")) {
     std::cerr << std::string(79, '*') << "\n"
