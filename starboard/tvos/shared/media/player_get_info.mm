@@ -14,6 +14,8 @@
 
 #import <Foundation/Foundation.h>
 
+#import <limits>
+
 #include "starboard/common/time.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
@@ -43,7 +45,7 @@ void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
           applicationPlayer.currentMediaTime;
 
       if (applicationPlayer.duration == NSIntegerMax) {
-        out_player_info->duration = kSbInt64Max;
+        out_player_info->duration = std::numeric_limits<int64_t>::max();
       } else {
         out_player_info->duration = applicationPlayer.duration;
       }
