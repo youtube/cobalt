@@ -55,9 +55,12 @@ using std::placeholders::_2;
 
 // TODO: b/455938352 - Connect this value to h5vcc settings.
 // By default, we turn off decoder throttling.
-constexpr std::optional<int> kMaxFramesInDecoder = 6;
+constexpr std::optional<int> kMaxFramesInDecoder = std::nullopt;
 
 std::optional<int> GetMaxFramesInDecoder() {
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  // Do nothing
+#else
   char value[PROP_VALUE_MAX];
   if (__system_property_get("debug.cobalt.max_frames_in_decoder", value)) {
     int max_frames = atoi(value);
@@ -67,9 +70,15 @@ std::optional<int> GetMaxFramesInDecoder() {
       return max_frames;
     }
   }
+#endif
   SB_LOG(INFO) << "System property debug.cobalt.max_frames_in_decoder is not "
                   "set or invalid. Using default value: "
-               << *kMaxFramesInDecoder;
+               << [] {
+                    if constexpr (kMaxFramesInDecoder != std::nullopt) {
+                      return std::to_string(*kMaxFramesInDecoder);
+                    }
+                    return "(nullopt)";
+                  }();
   return kMaxFramesInDecoder;
 }
 
