@@ -44,6 +44,7 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
 
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());
   log_uploader_ = CreateLogUploaderInternal();

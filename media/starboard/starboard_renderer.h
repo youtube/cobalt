@@ -265,7 +265,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
 
-  // WeakPtrFactory should be defined last (after all member variables).
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
 };
 
