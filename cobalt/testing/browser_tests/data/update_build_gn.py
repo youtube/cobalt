@@ -12,24 +12,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Copies all test data to the specified output directory."""
+"""Copies all test data to the specified output directory, skipping symlinks."""
 
 import os
 import shutil
 import sys
 
 
-def copy_test_data(repo_root, output_dir):
-  """Copies all test data to the specified output directory."""
+def copy_test_data(repo_root):
+  """Copies all test data to a specified sub-directory."""
   source_dir = os.path.join(repo_root, 'content', 'test', 'data')
-  dest_dir = os.path.join(output_dir, 'test_data', 'content', 'test', 'data')
+  dest_dir = os.path.join(repo_root, 'cobalt', 'testing', 'browser_tests',
+                          'data')
 
   if not os.path.exists(dest_dir):
     os.makedirs(dest_dir)
+  else:
+    return
 
   for dirpath, _, filenames in os.walk(source_dir):
     for filename in filenames:
       full_path = os.path.join(dirpath, filename)
+      # Explicitly skip symbolic links.
+      if os.path.islink(full_path):
+        continue
       rel_path = os.path.relpath(full_path, source_dir)
       dest_path = os.path.join(dest_dir, rel_path)
 
@@ -40,16 +46,11 @@ def copy_test_data(repo_root, output_dir):
 
 
 def main():
-  if len(sys.argv) != 2:
-    print(f'Usage: {sys.argv[0]} <output_dir>')
-    return 1
-
-  output_dir = sys.argv[1]
   # Assume the script is in cobalt/testing/browser_tests/data, so the repo root
   # is four levels up.
   repo_root = os.path.abspath(
       os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-  copy_test_data(repo_root, output_dir)
+  copy_test_data(repo_root)
   return 0
 
 

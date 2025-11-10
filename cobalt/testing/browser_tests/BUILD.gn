@@ -344,7 +344,10 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
-  data = [ "//media/test/data/" ]
+  data = [
+    "$root_build_dir/cobalt/testing/browser_tests/data",
+    "//media/test/data/",
+  ]
 
   data_deps = [
     ":copy_test_data",

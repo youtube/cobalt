@@ -21,8 +21,6 @@ import unittest
 
 import update_build_gn
 
-import json
-
 
 class UpdateBuildGnTest(unittest.TestCase):
 
@@ -46,19 +44,16 @@ class UpdateBuildGnTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.temp_dir)
 
-  def test_create_json_data_file(self):
-    output_path = os.path.join(self.temp_dir, 'output.json')
-    update_build_gn.create_json_data_file(self.temp_dir, output_path)
-    self.assertTrue(os.path.exists(output_path))
-
-    with open(output_path, 'r', encoding='utf-8') as f:
-      content = json.load(f)
-
-    expected_content = [
-        '//content/test/data/file1.txt',
-        '//content/test/data/file2.html',
-    ]
-    self.assertEqual(content, expected_content)
+  def test_copy_test_data(self):
+    update_build_gn.copy_test_data(self.temp_dir)
+    self.assertTrue(
+        os.path.exists(
+            os.path.join(self.temp_dir, 'cobalt', 'testing', 'browser_tests',
+                         'data', 'file1.txt')))
+    self.assertTrue(
+        os.path.exists(
+            os.path.join(self.temp_dir, 'cobalt', 'testing', 'browser_tests',
+                         'data', 'file2.html')))
 
 
 if __name__ == '__main__':
