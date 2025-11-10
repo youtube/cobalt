@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "base/command_line.h"
+#include "base/containers/flat_map.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
@@ -28,6 +29,15 @@
 namespace cobalt {
 
 namespace {
+
+constexpr auto kVideoBufferSizeClampSetting = "Media.UseVideoBufferSizeClamp";
+
+// Map that stores all current bindings of H5vcc settings to media switches.
+// If a setting has a corresponding switch, we will enable the switch with the
+// corresponding value.
+const base::flat_map<std::string, const char*> kSettingToSwitchMap = {
+    {kVideoBufferSizeClampSetting, switches::kMSEVideoBufferSizeLimitClampMb},
+};
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -84,7 +94,21 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
-constexpr auto kVideoBufferSizeClampSetting = "Media.UseVideoBufferSizeClamp";
+// Append the h5vcc setting to the corresponding media switch, if such mapping
+// exists.
+void AppendSettingToSwitch(
+    const std::string& switch_name,
+    const cobalt::mojom::SettingValuePtr& setting_value) {
+  if (setting_value->is_int_value()) {
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        switch_name, base::NumberToString(setting_value->get_int_value()));
+    LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+              << setting_value->get_int_value();
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer.";
+  }
+}
 
 }  // namespace
 
@@ -108,29 +132,6 @@ void CobaltContentRendererClient::RenderFrameCreated(
   if (!h5vcc_settings_remote_.is_bound()) {
     content::RenderThread::Get()->BindHostReceiver(
         h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
-  }
-
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-
-  cobalt::mojom::SettingsPtr settings;
-  if (!h5vcc_settings_remote_->GetSettings(&settings) || !settings) {
-    return;
-  }
-  auto it = settings->settings.find(kVideoBufferSizeClampSetting);
-  if (it == settings->settings.end()) {
-    return;
-  }
-
-  const cobalt::mojom::SettingValuePtr& setting_value = it->second;
-  if (setting_value->is_int_value()) {
-    command_line->AppendSwitchASCII(
-        switches::kMSEVideoBufferSizeLimitClampMb,
-        base::NumberToString(setting_value->get_int_value()));
-  } else {
-    LOG(WARNING) << "H5vcc setting " << kVideoBufferSizeClampSetting
-                 << " was found, but its "
-                 << "associated value was not an integer. Make sure the value "
-                    "set is an integer.";
   }
 }
 
@@ -228,8 +229,13 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 
   cobalt::mojom::SettingsPtr settings;
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+    // H5vcc settings are either given to Starboard Renderer for direct usage,
+    // or pass their value to a media switch for code in //media to use.
     for (auto& [key, value] : settings->settings) {
-      if (value->is_string_value()) {
+      auto it = kSettingToSwitchMap.find(key);
+      if (it != kSettingToSwitchMap.end()) {
+        AppendSettingToSwitch(it->second, value);
+      } else if (value->is_string_value()) {
         renderer_factory_traits->h5vcc_settings.emplace(
             key, std::move(value->get_string_value()));
       } else if (value->is_int_value()) {
