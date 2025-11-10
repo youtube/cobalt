@@ -32,7 +32,8 @@ class ShellContentRendererClient;
 class ShellContentUtilityClient;
 #endif  // defined(RUN_BROWSER_TESTS)
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
 class WebTestBrowserMainRunner;
 #endif
 
@@ -75,7 +76,8 @@ class ShellMainDelegate : public ContentMainDelegate {
   // content_browsertests should not set the kRunWebTests command line flag, so
   // |is_content_browsertests_| and |web_test_runner_| are mututally exclusive.
   bool is_content_browsertests_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   // Only present when running web tests, which run inside Content Shell.
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and
