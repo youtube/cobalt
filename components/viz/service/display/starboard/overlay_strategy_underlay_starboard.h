@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "components/viz/service/display/overlay_strategy_underlay.h"
-
 #include "components/viz/service/viz_service_export.h"
 
 namespace viz {
