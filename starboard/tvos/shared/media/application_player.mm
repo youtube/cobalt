@@ -290,10 +290,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   dispatch_async(dispatch_get_main_queue(), ^{
     // It's possible that the player has not been instantiated yet, so set a
     // flag to tell the player to pause as soon as possible.
-    _playerShouldPause = true;
+    self->_playerShouldPause = true;
     // Only pause while presenting to keep things simple.
-    if (_playerState == kSbPlayerStatePresenting) {
-      [_player pause];
+    if (self->_playerState == kSbPlayerStatePresenting) {
+      [self->_player pause];
     }
   });
 }
@@ -386,9 +386,9 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   switch (_player.currentItem.status) {
     case AVPlayerItemStatusReadyToPlay: {
       dispatch_async(dispatch_get_main_queue(), ^{
-        if (_playbackStartTime) {
-          self.currentMediaTime = _playbackStartTime;
-          _playbackStartTime = 0;
+        if (self->_playbackStartTime) {
+          self.currentMediaTime = self->_playbackStartTime;
+          self->_playbackStartTime = 0;
         } else {
           [self updatePlayerState:kSbPlayerStatePresenting];
         }
@@ -498,7 +498,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
     CGFloat scale = [UIScreen mainScreen].scale;
     CGRect frame =
         CGRectMake(x / scale, y / scale, width / scale, height / scale);
-    [_playerView setFrame:frame];
+    [self->_playerView setFrame:frame];
   });
 }
 
@@ -602,7 +602,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 
 - (void)seekTo:(NSInteger)time ticket:(int)ticket {
   dispatch_async(dispatch_get_main_queue(), ^{
-    _ticket = ticket;
+    self->_ticket = ticket;
     self.currentMediaTime = time;
   });
 }
