@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/testing/browser_tests/shell/test_shell.h"
+#include "cobalt/testing/browser_tests/browser/test_shell.h"
 
 #include "base/command_line.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -35,12 +35,13 @@ TestShell::TestShell(std::unique_ptr<WebContents> web_contents,
 
 TestShell::~TestShell() {}
 
-Shell* TestShell::CreateShell(std::unique_ptr<WebContents> web_contents,
-                              const gfx::Size& initial_size,
-                              bool should_set_delegate) {
+TestShell* TestShell::CreateShell(std::unique_ptr<WebContents> web_contents,
+                                  const gfx::Size& initial_size,
+                                  bool should_set_delegate) {
   WebContents* raw_web_contents = web_contents.get();
-  Shell* shell = new TestShell(std::move(web_contents), should_set_delegate);
-  Shell::GetPlatform()->CreatePlatformWindow(shell, initial_size);
+  TestShell* shell =
+      new TestShell(std::move(web_contents), should_set_delegate);
+  TestShell::GetPlatform()->CreatePlatformWindow(shell, initial_size);
 
   // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
   // here, because they will be forgotten after a cross-process navigation. Use
@@ -54,7 +55,25 @@ Shell* TestShell::CreateShell(std::unique_ptr<WebContents> web_contents,
   return shell;
 }
 
-Shell* TestShell::CreateNewWindow(
+base::OnceCallback<void(TestShell*)> TestShell::shell_created_callback_;
+
+// static
+void TestShell::SetShellCreatedCallback(
+    base::OnceCallback<void(TestShell*)> shell_created_callback) {
+  if (!shell_created_callback) {
+    shell_created_callback_.Reset();
+    Shell::SetShellCreatedCallback({});
+    return;
+  }
+  shell_created_callback_ = std::move(shell_created_callback);
+  Shell::SetShellCreatedCallback(base::BindOnce([](Shell* shell) {
+    if (shell_created_callback_) {
+      std::move(shell_created_callback_).Run(static_cast<TestShell*>(shell));
+    }
+  }));
+}
+
+TestShell* TestShell::CreateNewWindow(
     BrowserContext* browser_context,
     const GURL& url,
     const scoped_refptr<SiteInstance>& site_instance,
@@ -66,7 +85,7 @@ Shell* TestShell::CreateNewWindow(
   }
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
-  Shell* shell =
+  TestShell* shell =
       CreateShell(std::move(web_contents), AdjustWindowSize(initial_size),
                   true /* should_set_delegate */);
 
@@ -154,7 +173,7 @@ void TestShell::SetContentsBounds(WebContents* source,
     // TODO(danakj): The position is dropped here but we use the size. Web tests
     // can't move the window in headless mode anyways, but maybe we should be
     // letting them pretend?
-    Shell::GetPlatform()->ResizeWebContent(this, bounds.size());
+    TestShell::GetPlatform()->ResizeWebContent(this, bounds.size());
   }
 }
 

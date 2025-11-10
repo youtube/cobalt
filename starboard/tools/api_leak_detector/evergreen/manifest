@@ -13,11 +13,9 @@ ZSTD_trace_decompress_end
 __cxa_thread_atexit_impl
 __gcov_dump
 __gcov_flush
-__nl_langinfo_l
 dl_iterate_phdr
 dlopen
 dlsym
-freelocale
 fstat64
 fstatat
 getrandom
@@ -31,7 +29,6 @@ ioctl
 lseek64
 memfd_create
 mmap64
-newlocale
 open64
 openat
 pkey_alloc(unsigned int, unsigned int)
@@ -41,10 +38,8 @@ pkey_mprotect(void*, unsigned long, int, int)
 pkey_set(int, unsigned int)
 sched_setscheduler
 setbuf
-setlocale
 sigaltstack
 stat64
 statx
 ungetwc
 unlinkat
-uselocale

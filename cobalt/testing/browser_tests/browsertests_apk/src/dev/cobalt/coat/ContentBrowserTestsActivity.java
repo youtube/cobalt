@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package org.chromium.content_browsertests_apk;
+package dev.cobalt.coat;
 
 import android.os.Bundle;
 
 import org.chromium.base.test.util.UrlUtils;
-import org.chromium.content_shell.browsertests.ContentShellBrowserTestActivity;
 
 import java.io.File;
 
